@@ -81,7 +81,7 @@ export function PlatformTalentMaxSiteView({
           padding: "24px 16px",
           textAlign: "center",
           fontSize: 12,
-          color: "rgba(11,11,13,0.45)",
+          color: "rgba(11,11,13,0.6)",
           fontFamily: '"Inter", system-ui, sans-serif',
         }}
       >

@@ -156,7 +156,7 @@ export function PayNowSheet({ inquiryId, amountLabel, onClose, onPaid }: Props) 
           margin: "12px 0 18px",
           display: "flex", alignItems: "baseline", justifyContent: "space-between",
         }}>
-          <span style={{ fontSize: 12, color: "rgba(11,11,13,0.55)" }}>{t("dashboard.clientPay.total")}</span>
+          <span style={{ fontSize: 12, color: "rgba(11,11,13,0.6)" }}>{t("dashboard.clientPay.total")}</span>
           <span style={{
             fontSize: 17, fontWeight: 700, color: INK,
             fontVariantNumeric: "tabular-nums",
@@ -246,7 +246,7 @@ function MockPanel({ onClose, onPaid }: { onClose: () => void; onPaid: () => voi
   const t = useT();
   return (
     <div>
-      <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "rgba(11,11,13,0.55)", margin: "0 0 16px" }}>
+      <p style={{ fontSize: 12.5, lineHeight: 1.5, color: "rgba(11,11,13,0.6)", margin: "0 0 16px" }}>
         {t("dashboard.clientPay.mockNote")}
       </p>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -270,7 +270,7 @@ function SuccessPanel({ amountLabel, onClose }: { amountLabel: string; onClose: 
           {interpolate(t("dashboard.clientPay.successLine"), { amount: amountLabel })}
         </span>
       </div>
-      <p style={{ fontSize: 12, lineHeight: 1.5, color: "rgba(11,11,13,0.55)", margin: "0 0 16px" }}>
+      <p style={{ fontSize: 12, lineHeight: 1.5, color: "rgba(11,11,13,0.6)", margin: "0 0 16px" }}>
         {t("dashboard.clientPay.successBody")}
       </p>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>

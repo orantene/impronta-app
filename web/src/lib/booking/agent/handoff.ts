@@ -41,6 +41,42 @@ export function agentCatalogScope(
   return { tenantId: handoffTenantId, channel: hostKind === "agency" ? "agency" : "direct" };
 }
 
+/** A handoff id is a random v4 uuid minted per request_booking call. */
+export const AGENT_HANDOFF_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export type AgentRequestStatus = "link_not_used" | "sent" | "accepted" | "declined" | "expired";
+
+/**
+ * Coarse status an assistant may see for a hand-off. Derived from the inquiry's
+ * status only. null inquiry: the person has not opened the link and sent a message.
+ */
+export function agentRequestStatus(inquiryStatus: string | null): AgentRequestStatus {
+  switch (inquiryStatus) {
+    case null:
+      return "link_not_used";
+    case "approved":
+    case "booked":
+    case "converted":
+      return "accepted";
+    case "rejected":
+      return "declined";
+    case "expired":
+    case "closed":
+    case "archived":
+      return "expired";
+    default:
+      return "sent";
+  }
+}
+
+/** The only fields get_request_status may return. Never client identity or message text. */
+export function agentRequestStatusView(status: AgentRequestStatus, linkExpiresAtMs: number | null, nowMs: number) {
+  // An unused link is "expired" once the signed intent's own lifetime has passed.
+  const effective: AgentRequestStatus =
+    status === "link_not_used" && linkExpiresAtMs !== null && nowMs > linkExpiresAtMs ? "expired" : status;
+  return { status: effective };
+}
+
 export function agentHandoffUrl(origin: string, basePath: string, token: string): string {
   const path = basePath.startsWith("/") ? basePath : `/${basePath}`;
   return `${origin.replace(/\/+$/, "")}${path}?service=${encodeURIComponent(token)}`;

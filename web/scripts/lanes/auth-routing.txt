@@ -34,3 +34,5 @@ src/lib/auth/email-not-confirmed.test.ts
 src/lib/auth/signup-name-wiring.static.test.ts
 src/lib/auth/signup-name.test.ts
 src/lib/impersonation/client-portal-effective-user.static.test.ts
+src/lib/client-account/dock-visibility.test.ts
+src/lib/site-admin/server/proxy-locale-seed.test.ts

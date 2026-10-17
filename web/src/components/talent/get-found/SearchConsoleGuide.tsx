@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy, ExternalLink, Info, Link2, Map } from "lucide-react";
 
+import { GscTokenField } from "@/components/talent/get-found/GscTokenField";
 import type { GscGuide, GscLang } from "@/lib/talent/search-console-guide";
 
 const UI = {
@@ -30,7 +31,7 @@ const UI = {
   },
 } as const;
 
-export function SearchConsoleGuide({ guide, lang }: { guide: GscGuide; lang: GscLang }) {
+export function SearchConsoleGuide({ guide, lang, initialToken = null }: { guide: GscGuide; lang: GscLang; initialToken?: string | null }) {
   const t = UI[lang];
   const [done, setDone] = useState<string | null>(null);
   const copy = async (key: string, value: string) => {
@@ -90,13 +91,14 @@ export function SearchConsoleGuide({ guide, lang }: { guide: GscGuide; lang: Gsc
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-medium">{i + 1}</span>
             <div className="flex items-center gap-1 text-sm">
               {s.title}
-              <span title={s.hint} aria-label={s.hint} role="img" tabIndex={0} className="text-neutral-400">
+              <span title={s.hint} aria-label={s.hint} role="img" tabIndex={0} className="text-neutral-600">
                 <Info size={12} aria-hidden />
               </span>
             </div>
           </li>
         ))}
       </ol>
+      <GscTokenField initialToken={initialToken} lang={lang} />
     </section>
   );
 }

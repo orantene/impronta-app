@@ -8073,6 +8073,10 @@
             "handling": "{name} s'occupe de votre demande",
             "handlingTeam": "L'équipe s'occupe de votre demande"
           },
+          "offerBanner": {
+            "hint": "Vous avez une offre à examiner",
+            "cta": "Voir l'offre"
+          },
           "stream": {
             "you": "Vous",
             "today": "Aujourd'hui",

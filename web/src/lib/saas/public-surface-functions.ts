@@ -51,4 +51,15 @@ export const PUBLIC_SURFACE_FUNCTIONS: readonly string[] = [
   // is a 404. Listed so a future anon REVOKE fails a test instead of silently
   // blanking every receipt on a night — the direction that guard exists for.
   "receipt_for_code",
+  // Edge host resolution (proxy.ts -> host-context.ts) runs with the ANON key, so
+  // a logged-out visitor on a talent custom domain or <slug>.tulala.digital can
+  // be routed at all. Both are read-only SECURITY DEFINER lookups that defend
+  // themselves in their own body: they return a row ONLY for an active domain /
+  // published site of a publicly visible talent with a current Web Office, and
+  // only public facts (profile id, site slug, demo flag, the talent's own ACTIVE
+  // primary custom domain). Neither writes. Listed so an anon REVOKE fails a
+  // test instead of blanking every talent site, and so the live grant check
+  // (check-anon-function-grants.mjs) stops treating the grants as exposure.
+  "talent_site_domain_lookup",
+  "talent_site_subdomain_lookup",
 ];

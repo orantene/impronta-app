@@ -4,9 +4,11 @@ import { useEffect } from "react";
 
 import { clearBookingDraft, saveBookingDraft } from "./booking-draft-store";
 import { preloadGuestCaptchaScript } from "./GuestCaptchaField";
+import { CatalogCalendarIcon, CatalogClockIcon } from "./catalog-field-icons";
 import { catalogDayKey, catalogSelectedDateLabel, catalogTimezoneLabel } from "./catalog-booking-logic";
 
 const ROW = { display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0" } as const;
+const LABEL = { display: "inline-flex", alignItems: "center", gap: 6 } as const;
 
 /** TUL-59: confirm-step recap above "Confirmar cita": service, date, time, total, address note. */
 export function CatalogWhoSummary({
@@ -38,11 +40,11 @@ export function CatalogWhoSummary({
         <b style={val}>{service}</b>
       </div>
       <div style={ROW}>
-        <span>{es ? "Fecha" : "Date"}</span>
+        <span style={LABEL}><CatalogCalendarIcon />{es ? "Fecha" : "Date"}</span>
         <b style={val}>{catalogSelectedDateLabel(day, es)}</b>
       </div>
       <div style={ROW}>
-        <span>{es ? "Hora" : "Time"}</span>
+        <span style={LABEL}><CatalogClockIcon />{es ? "Hora" : "Time"}</span>
         <b style={val}>{zone ? `${time ?? ""} · ${zone}` : time}</b>
       </div>
       <div style={ROW}>

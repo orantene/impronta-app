@@ -23,9 +23,7 @@
  */
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -33,6 +31,8 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+
+import { EditContext } from "./edit-context-core";
 
 import {
   createAndInsertSectionAction,
@@ -283,8 +283,6 @@ export { DEFAULT_PREVIEW_FRAME } from "./edit-context-types";
 export type { BuilderBlockPreset } from "./builder-block-presets";
 /** Dispatched from storefront surfaces outside `EditProvider` (empty canvas) to open the template gallery overlay. */
 export { IMPRONTA_OPEN_TEMPLATE_GALLERY_EVENT } from "./use-starter-sync";
-
-const EditContext = createContext<EditContextValue | null>(null);
 
 export function EditProvider({
   tenantId,
@@ -6297,15 +6295,5 @@ export function EditProvider({
   return <EditContext.Provider value={value}>{children}</EditContext.Provider>;
 }
 
-export function useEditContext(): EditContextValue {
-  const ctx = useContext(EditContext);
-  if (!ctx) {
-    throw new Error("useEditContext must be used within EditProvider");
-  }
-  return ctx;
-}
-
-/** Optional variant for components that may mount outside edit chrome. */
-export function useMaybeEditContext(): EditContextValue | null {
-  return useContext(EditContext);
-}
+// The context object and both hooks live in ./edit-context-core (TUL-1221); re-exported so every importer keeps working.
+export { useEditContext, useMaybeEditContext } from "./edit-context-core";
