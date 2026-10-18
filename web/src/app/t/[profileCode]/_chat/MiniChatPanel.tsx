@@ -76,6 +76,7 @@ import { createApplyFailure } from "./mini-chat-panel-apply-failure";
 import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
 import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
 import type { GuestDockView } from "./guest-dock-view";
+import { focusIntoDock } from "./use-dock-focus-return";
 import {
   normalizeDockView,
   persistDockView,
@@ -472,13 +473,8 @@ export function MiniChatPanel({
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
-    // TUL-1082: focus always moves INTO the dock on open, so the first Tab lands inside it. The
-    // composer on desktop; the dialog itself on a phone (no keyboard pop-up) or if the composer is absent.
-    const focusTimer = setTimeout(() => {
-      if (!phone) textareaRef.current?.focus();
-      const panel = document.querySelector<HTMLElement>("[data-guest-chat-panel]");
-      if (panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
-    }, 60);
+    // TUL-1082: focus always moves INTO the dock on open, so the first Tab lands inside it.
+    const focusTimer = setTimeout(() => focusIntoDock(phone, textareaRef.current), 60);
     return () => {
       window.removeEventListener("keydown", onKey);
       clearTimeout(focusTimer);

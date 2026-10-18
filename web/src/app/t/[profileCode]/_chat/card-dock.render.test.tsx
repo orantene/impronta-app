@@ -609,7 +609,9 @@ test("one chip row in the card skin: the service quick-picker strip is not given
 test("phones do not autofocus the composer", () => {
   const panel = src("MiniChatPanel.tsx");
   assert.match(panel, /pointer: coarse/);
-  assert.match(panel, /phone \? undefined : setTimeout/);
+  // TUL-1082: the composer is focused only off-phone; on a phone the dialog itself takes focus (no keyboard pop-up).
+  assert.match(panel, /focusIntoDock\(phone, textareaRef\.current\)/);
+  assert.match(src("use-dock-focus-return.ts"), /if \(!phone\) composer\?\.focus\(\)/);
 });
 
 test("desktop card grows with its content between about 420 and 640, anchored bottom-right", () => {
