@@ -121,6 +121,19 @@ function CatalogBody({ tenantId, nav }: { tenantId: string; nav: CatalogNav }) {
   }
   if (nav.itemId) {
     const item = editor.items.find((it) => it.id === nav.itemId) ?? null;
+    // TUL-915: the owner's own provider services are listed here so the
+    // Catalog matches the public site, but they are edited under Services:
+    // the workspace writers never touch a talent-owned row.
+    if (item?.ownerKind === "talent") {
+      return (
+        <div className="flex flex-col gap-[12px]">
+          <Outcome kind="refused" testId="catalog-item-provider-owned">
+            {t("dashboard.catalog.itemProviderOwned")}
+          </Outcome>
+          <CatalogList editor={editor} nav={nav} />
+        </div>
+      );
+    }
     if (item) return <CatalogItemEditor editor={editor} item={item} nav={nav} tenantId={tenantId} />;
     return (
       <div className="flex flex-col gap-[12px]">
