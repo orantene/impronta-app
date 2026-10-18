@@ -32,10 +32,10 @@ import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { localizeOfferingSaveError } from "./offering-editor-save";
 import { canLeaveEditor } from "./offering-editor-leave";
+import { defaultWhere, whereChoicesForPlace } from "@/lib/onboarding/service-where";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
-const WHERE: Where[] = ["studio", "client", "remote", "agreed"];
 
 const LABEL = "font-admin-body text-[12px] font-medium tracking-[0.1px] text-admin-ink"; // DS-36: one label style, sentence case
 const NO_SPINNER = "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"; // DS-36: no spinner arrows
@@ -151,7 +151,9 @@ export function EditorScreen({
   const cancelOwn = item.cancellationHours != null;
   const depositCents =
     depositPct && item.amountCents ? Math.round((item.amountCents * depositPct) / 100) : null;
-  const where = attr<Where[]>(item, "where", (defaults?.where as Where[] | undefined)?.length ? (defaults!.where as Where[]) : ["studio"]);
+  const where = attr<Where[]>(item, "where", defaultWhere(defaults?.where, defaults?.placeMode));
+  // TUL-808: a person who goes to the client is not offered "At my studio" (unless this item already has it).
+  const whereChoices = whereChoicesForPlace(defaults?.placeMode, where);
   const bufferAfter = attr<number | null>(item, "bufferAfterMin", defaults?.bufferAfterMin ?? null);
   const bufferBefore = attr<number | null>(item, "bufferBeforeMin", defaults?.bufferBeforeMin ?? null);
 
@@ -182,7 +184,9 @@ export function EditorScreen({
     setError(null);
     try {
       const pending = isNew ? photos.filter((p) => !p.id.startsWith("url-")).map((p) => p.id) : undefined;
-      await onSave(item, publish, pending);
+      // TUL-841: the shown "where" is the saved one, so a cleaner's service saves "client" and the booking sheet asks for the address.
+      const toSave = kind !== "product" && item.attributes?.where === undefined ? { ...item, attributes: { ...(item.attributes ?? {}), where } } : item;
+      await onSave(toSave, publish, pending);
       setBaseline(JSON.stringify(item));
     } catch (err) {
       // Prefer server/validation text; localize ES (Codex P2) — no raw English.
@@ -421,7 +425,7 @@ export function EditorScreen({
               <div>
                 <p className={LABEL}>{copy.t("Where it happens")}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {WHERE.map((w) => {
+                  {whereChoices.map((w) => {
                     const on = where.includes(w);
                     return (
                       <button key={w} type="button" aria-pressed={on} onClick={() => {

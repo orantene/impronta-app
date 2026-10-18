@@ -91,14 +91,9 @@ export function SignupCodeConfirm({
     // `resendState` identity changes per action result, which is the signal we
     // want: two successful resends are two distinct objects.
   }, [resendSucceeded, resendState]);
-  // A failed verify clears the boxes (retry from a clean slate) and the input
-  // refocuses itself when it re-enables. Counted per distinct error result.
-  const [clearCount, setClearCount] = useState(0);
-  useEffect(() => {
-    if (verifyState && verifyState.step !== "sent" && verifyState.error) {
-      setClearCount((k) => k + 1);
-    }
-  }, [verifyState]);
+  // TUL-1234: a FAILED verify keeps the typed code on screen (a typo is one
+  // digit to fix, not eight to retype) and the input refocuses itself when it
+  // re-enables. Only a successful resend clears the boxes (a new code).
   const secondsLeft = useCooldown(SIGNUP_RESEND_COOLDOWN_SECONDS, resendCount);
 
   const verifyError =
@@ -139,7 +134,7 @@ export function SignupCodeConfirm({
         <OtpCodeInput
           disabled={verifying}
           invalid={Boolean(verifyError) && lane === "verify"}
-          resetKey={resendCount + clearCount}
+          resetKey={resendCount}
           // Last box filled: submit without a second tap.
           onComplete={() => formRef.current?.requestSubmit()}
         />

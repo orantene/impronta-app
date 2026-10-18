@@ -35,15 +35,20 @@ test("TUL-956: /talent/inbox?thread=<id> opens that thread (known ids only, a pi
   assert.doesNotMatch(page, /redirect\(/);
 });
 
-test("TUL-955: the Original request block comes before the conversation, only when the thread has a brief, and its label exists in EN and ES", () => {
+test("TUL-955 / TUL-1097: the Original request block is guarded by the brief, labelled in EN and ES, and leads BOTH the Client and Group tabs", () => {
   const src = readFileSync(join(dir, "talent-2.tsx"), "utf8");
-  const group = src.slice(src.indexOf("TUL-955: the guest's original request leads"));
-  const block = group.indexOf("data-original-inquiry");
-  const convo = group.indexOf("<ConversationTab");
-  assert.ok(block > -1 && convo > -1, "both present in the Group tab");
-  assert.ok(block < convo, "original request renders before the message list");
-  assert.match(group.slice(0, block), /conv\.brief \? \(\s*<div\s*$/, "guarded by the brief");
-  assert.match(group.slice(block, convo), /conv\.brief\}/, "shows the brief text");
+  const def = src.slice(src.indexOf("const originalRequestBlock"));
+  assert.match(def.slice(0, 80), /conv\.brief \? \(/, "guarded by the brief");
+  assert.match(def.slice(0, 600), /data-original-inquiry/);
+  assert.match(def.slice(0, 900), /conv\.brief\}/, "shows the brief text");
+  for (const [tab, marker] of [["client", 'activeTab === "client" && isCoordinator'], ["group", 'activeTab === "group" && (']] as const) {
+    const at = src.indexOf(marker, src.indexOf("TAB BAR"));
+    assert.ok(at > -1, tab + " tab present");
+    const body = src.slice(at, at + 400);
+    const block = body.indexOf("{originalRequestBlock}");
+    const convo = body.indexOf("<ConversationTab");
+    assert.ok(block > -1 && convo > -1 && block < convo, tab + ": original request renders before the message list");
+  }
   const label = { en: "Original request", es: "Solicitud original" } as const;
   for (const f of ["en", "es"] as const) {
     const m = JSON.parse(readFileSync(join(process.cwd(), `messages/${f}.json`), "utf8"));

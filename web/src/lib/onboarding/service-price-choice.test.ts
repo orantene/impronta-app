@@ -101,3 +101,21 @@ test("TUL-633: a Mexico pack price is flagged for confirmation too", async () =>
   const out = await applySuggestedPrices(s, "MX", { serviceKeyFor: () => "k", getSuggestedPrice: async () => null });
   assert.equal(out[0].priceSuggested, true);
 });
+
+test("TUL-633: a non-MX workspace with NO approved suggestion rows still ends with a non-empty, bookable catalog", async () => {
+  // The table has no approved rows (migration unapplied or prices still draft): every lookup is null.
+  const { getSuggestedPrice, serviceKeyFor } = await import("../pricing/suggested-price");
+  for (const country of ["US", "ES", "GB", "CO"]) {
+    const ess = suggestedEssentials({ discipline: "nails", country, locale: "en" });
+    assert.ok(ess.services.length >= 3, `${country}: pack services exist`);
+    const priced = await applySuggestedPrices(ess.services, country, {
+      getSuggestedPrice: (i) => getSuggestedPrice(i, { readApproved: async () => null }),
+      serviceKeyFor,
+    });
+    const rows = priced.map((s, i) => offeringRowFor(s, i));
+    assert.ok(rows.every((r) => r.status === "published"), `${country}: all published as quote, not draft`);
+    assert.ok(rows.every((r) => r.price_display === "quote" && r.booking_mode === "request"), `${country}: request-a-quote`);
+    assert.ok(rows.every((r) => (r.duration_minutes ?? 0) > 0), `${country}: every row has a duration so slots exist`);
+    assert.ok(priced.every((s) => !s.priceSuggested), `${country}: nothing awaits an unconfirmed price`);
+  }
+});

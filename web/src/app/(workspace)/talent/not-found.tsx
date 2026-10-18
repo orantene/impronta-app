@@ -35,7 +35,7 @@ export default function TalentNotFound() {
           padding: "32px",
         }}
       >
-        <p style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: "rgba(11,11,13,0.38)", letterSpacing: 0.8, textTransform: "uppercase", margin: 0 }}>
+        <p style={{ fontFamily: font, fontSize: 11, fontWeight: 600, color: "rgba(11,11,13,0.6)", letterSpacing: 0.8, textTransform: "uppercase", margin: 0 }}>
           {copy.eyebrow}
         </p>
         <h1 style={{ fontFamily: font, fontSize: 26, fontWeight: 600, color: "var(--tc-ink)", letterSpacing: -0.4, marginTop: 12, marginBottom: 0 }}>

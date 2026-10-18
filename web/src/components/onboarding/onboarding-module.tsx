@@ -46,7 +46,7 @@ import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
 import { ChooseStep } from "./steps/choose-step";
 import { SetupStep } from "./steps/setup-step";
-import { loadOnboardingSetup, saveOnboardingSetup, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
+import { loadOnboardingSetup, saveOnboardingSetup, saveOnboardingTimezone, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
 import type { Essentials } from "@/lib/onboarding/essentials";
 import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
 import { EssentialsStep } from "./steps/essentials-step";
@@ -579,6 +579,13 @@ export function OnboardingModule({
         onConfirmAge18={async () => { const r = await saveOnboardingAge18(); if (r.ok) setAgeConfirmed(true); return r; }}
         ageRequiredNotice={ageRequired}
         setupLines={reviewSetupLines(savedSetup ?? setupData?.essentials ?? null, locale)}
+        locale={locale}
+        onChangeTimezone={(zone) => {
+          const cur = savedSetup ?? setupData?.essentials ?? null;
+          if (!cur) return;
+          setSavedSetup({ ...cur, timezone: zone });
+          void saveOnboardingTimezone({ timezone: zone });
+        }}
         onBuild={() => {
           // Already signed in: nothing to save, straight to the build.
           const next: ModuleStep = state.isAuthenticated ? "building" : "save";

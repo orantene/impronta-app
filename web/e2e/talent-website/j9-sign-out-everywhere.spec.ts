@@ -14,7 +14,7 @@
  *
  * Not run by agent sessions (no servers); CI runs it in the talent-website lane.
  */
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page, type Response } from "@playwright/test";
 
 import { ACME_AGENCY_LOCAL_DOMAIN, talentFixture } from "./fixtures";
 import { TALENT_SITE_FIXTURE_READY } from "./helpers";
@@ -149,12 +149,13 @@ async function gotoSettled(page: Page, url: string) {
 // `sb-*` assertion applies only where the product's real control runs.
 // The helper's storage sweep is pinned by
 // src/lib/auth/sign-out-root-cause.security.test.ts.
-const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page) => Promise<void> }[] = [
+const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page, arm: () => void) => Promise<void> }[] = [
   {
     // SignOutForm (headers, account menus, admin bars, marketing header).
     name: "declarative SignOutForm POST /auth/sign-out",
     clientJs: false,
-    run: async (page) => {
+    run: async (page, arm) => {
+      arm();
       await page.evaluate(() => {
         const f = document.createElement("form");
         f.method = "post";
@@ -168,7 +169,8 @@ const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page) => Prom
     // signOutEverywhere(CLIENT_SIGN_OUT_PATH): talent-host popover.
     name: "client popover POST /auth/client-sign-out",
     clientJs: false,
-    run: async (page) => {
+    run: async (page, arm) => {
+      arm();
       await page.evaluate(() => {
         const f = document.createElement("form");
         f.method = "post";
@@ -182,19 +184,44 @@ const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page) => Prom
     // Whatever visible Log out control the page renders (first click only).
     name: "visible Log out control, first click",
     clientJs: true,
-    run: async (page) => {
+    run: async (page, arm) => {
       await gotoSettled(page, `${HOSTS[0]}/account`);
-      const control = page
-        .getByRole("button", { name: /^(log out|sign out|cerrar sesi[oó]n)$/i })
+      // The product's account menu renders "Sign out" as role="menuitem" (IdentityBar-2
+      // AccountMenuItem), which a role=button locator never matches; a plain button elsewhere
+      // is also accepted. Matching only buttons made this spec "pass by skipping".
+      const LOG_OUT = /^(log out|sign out|cerrar sesi[oó]n)$/i;
+      const target = page
+        .getByRole("button", { name: LOG_OUT })
+        .or(page.getByRole("menuitem", { name: LOG_OUT }))
         .first();
-      await control.waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
-      if ((await control.count()) === 0) {
+      await target.waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
+      if ((await target.count()) === 0) {
         await gotoSettled(page, `${HOSTS[0]}/`);
-        const menu = page.getByRole("button", { name: /account|cuenta/i }).first();
-        if (await menu.count()) await menu.click();
+        const menu = page.getByRole("button", { name: /open account menu|abrir men[uú] de cuenta/i }).first();
+        await menu.waitFor({ state: "visible", timeout: 30_000 });
+        // Open the menu and wait for the control. The first click can land before React attaches
+        // its handler, so retry, but never click a menu that is already open (it would close it).
+        try {
+          await expect(async () => {
+            if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+            await expect(target).toBeVisible({ timeout: 4_000 });
+          }).toPass({ timeout: 20_000 });
+        } catch {
+          // The skip above the describe already covers a fixture that is not ready, so reaching
+          // here means a race or a real regression: fail loudly, never skip.
+          throw new Error(
+            "TALENT_SITE_E2E_FIXTURE_READY is set but no Log out / Sign out control (button or menuitem) " +
+              "appeared within 20 s of opening the account menu on the signed-in landing page",
+          );
+        }
       }
-      const target = page.getByRole("button", { name: /^(log out|sign out|cerrar sesi[oó]n)$/i }).first();
-      test.skip((await target.count()) === 0, "no visible Log out control on this fixture's pages");
+      // Hydration: the control is in the SSR HTML before React attaches its handler, and a click
+      // in that window submits nothing. Wait until it is visible and enabled, and the page has
+      // finished loading, then arm the response wait and click.
+      await target.waitFor({ state: "visible", timeout: 30_000 });
+      await expect(target).toBeEnabled({ timeout: 30_000 });
+      await page.waitForLoadState("load");
+      arm();
       await target.click();
     },
   },
@@ -202,6 +229,26 @@ const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page) => Prom
 
 test.describe("S1 sign-out ends the session on every subdomain", () => {
   test.skip(!TALENT_SITE_FIXTURE_READY, "set TALENT_SITE_E2E_FIXTURE_READY=1 after seed.ts");
+
+  // Warm the routes the entries touch. `next dev` (Turbopack) compiles a route on its first
+  // request: /talent/today 10-24 s, /account ~16 s, / ~12 s in CI. Doing that inside a test
+  // starves every timeout it owns and made the first attempt of the last entry fail while its
+  // (warm) retry passed. One signed-in pass over the same URLs, outside any test budget.
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(240_000);
+    const context = await browser.newContext();
+    try {
+      const page = await context.newPage();
+      await signIn(page, HOSTS[0]);
+      for (const path of ["/talent/today", "/account", "/", "/auth/sign-out"]) {
+        await page.request
+          .get(`${HOSTS[0]}${path}`, { maxRedirects: 0, timeout: 90_000 })
+          .catch(() => undefined); // a 307/405 or an aborted stream still means the route compiled
+      }
+    } finally {
+      await context.close();
+    }
+  });
 
   for (const entry of ENTRY_POINTS) {
     test(`${entry.name}`, async ({ page, context }) => {
@@ -226,12 +273,21 @@ test.describe("S1 sign-out ends the session on every subdomain", () => {
       });
       if (entry.clientJs) await plantBrowserSession(page);
 
-      const signOut = page.waitForResponse(
-        (r) => /\/auth\/(client-)?sign-out$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
-        { timeout: 60_000 },
-      );
-      await entry.run(page);
-      const res = await signOut;
+      // The 60 s response budget is armed by the entry itself, immediately before the click /
+      // submit that sends the POST. It used to be armed before `entry.run`, so the "visible Log
+      // out control" entry (goto /account, goto /, open menu) spent it on cold dev-server
+      // compiles (/account ~16 s, / ~12 s, /talent/today ~10-24 s) and timed out before the click
+      // ever happened (CI run 39148329994, first attempt; the retry, warm, passed).
+      let signOut: Promise<Response> | undefined;
+      const arm = () => {
+        signOut = page.waitForResponse(
+          (r) => /\/auth\/(client-)?sign-out$/.test(new URL(r.url()).pathname) && r.request().method() === "POST",
+          { timeout: 60_000 },
+        );
+      };
+      await entry.run(page, arm);
+      expect(signOut, "the entry armed the sign-out response wait before its click").toBeDefined();
+      const res = await signOut!;
       expect(res.status()).toBe(303);
       expect(res.headers()["cache-control"] ?? "").toMatch(/no-store/);
       // The sign-out response must never carry a fresh (non-expiring) auth cookie.
