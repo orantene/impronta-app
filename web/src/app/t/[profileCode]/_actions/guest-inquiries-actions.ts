@@ -34,6 +34,7 @@ import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub"
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { formatPrice } from "@/lib/money/format-price";
 import { deriveProjectLabel, shortDateFragment } from "@/lib/inquiry/project-label";
 import { readSelectedIds } from "@/lib/inquiry/guest-draft-resume";
 import { pickRecordChip, type GuestInquiryRecordChip } from "@/lib/messages-v5/guest-inquiries-view";
@@ -515,11 +516,7 @@ export async function listGuestInquiries(input: {
     if (budgetAmount !== null) {
       try {
         budgetLabel = budgetCurrency
-          ? new Intl.NumberFormat(locale, {
-              style: "currency",
-              currency: budgetCurrency,
-              maximumFractionDigits: 0,
-            }).format(budgetAmount)
+          ? formatPrice({ amountCents: Math.round(budgetAmount) * 100, currency: budgetCurrency, locale }).primary
           : budgetAmount.toLocaleString(locale);
       } catch {
         budgetLabel = `${budgetCurrency ?? ""} ${budgetAmount}`.trim();

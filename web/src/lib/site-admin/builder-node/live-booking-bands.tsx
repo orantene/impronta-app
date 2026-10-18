@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { createTranslator } from "@/i18n/messages";
+import { formatPrice } from "@/lib/money/format-price";
 
 import type { LiveBookingSurface, LiveServiceCard } from "./live-booking-markers";
 
@@ -17,15 +18,7 @@ export function formatServicePrice(
   locale: string | undefined,
 ): string | null {
   if (amountCents == null) return null;
-  try {
-    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-      style: "currency",
-      currency: currency || "USD",
-      maximumFractionDigits: amountCents % 100 === 0 ? 0 : 2,
-    }).format(amountCents / 100);
-  } catch {
-    return `${(amountCents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatPrice({ amountCents, currency: currency || "USD", locale: locale === "es" ? "es" : "en" }).primary;
 }
 
 export function serviceMetaLine(card: LiveServiceCard, locale: string | undefined): string {

@@ -23,6 +23,7 @@ import { getTalentProfileInquireData } from "./talent-profile-inquire-data";
 import { createInstantBookingAction } from "@/lib/server-actions/instant-book-action";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { formatPrice } from "@/lib/money/format-price";
 
 type Props = {
   talentId: string;
@@ -36,12 +37,8 @@ type Props = {
   className?: string;
 };
 
-function formatMoney(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
-  } catch {
-    return `${currency} ${Math.round(amount)}`;
-  }
+function formatMoney(amount: number, currency: string, locale: string): string {
+  return formatPrice({ amountCents: Math.round(amount * 100), currency, locale }).primary;
 }
 
 export function TalentProfileInstantBookButton({
@@ -77,7 +74,7 @@ export function TalentProfileInstantBookButton({
     }
   }, [loadData]);
 
-  const priceLabel = formatMoney(fixedRateDollars, currencyCode);
+  const priceLabel = formatMoney(fixedRateDollars, currencyCode, locale);
   const firstName = displayName.split(" ")[0] ?? displayName;
 
   const handleOpen = () => {

@@ -25,7 +25,7 @@ export function attentionSummary(c: AttentionCounts, locale: string): string {
   }
   const overlap = c.noPhoto + c.noPrice + c.soldOut > c.total;
   const head = es
-    ? `${c.total} ${c.total === 1 ? "elemento necesita" : "elementos necesitan"} atención`
+    ? `${c.total} ${c.total === 1 ? "artículo necesita" : "artículos necesitan"} atención`
     : `${c.total} ${c.total === 1 ? "item needs" : "items need"} attention`;
   const detail = parts.length > 0 ? `: ${parts.join(", ")}.` : ".";
   const note = overlap && parts.length > 1
