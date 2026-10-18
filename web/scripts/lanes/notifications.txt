@@ -3,6 +3,7 @@ emails/components/layout-footer.test.tsx
 src/app/(public)/r/?code?/receipt-save-bookings.test.tsx
 src/components/admin/shell/internal/notification-hub-popover.test.ts
 src/components/admin/shell/internal/notification-hub-scope.test.ts
+src/components/admin/shell/internal/notification-localize.test.ts
 src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.render.test.tsx
 src/components/admin/shell/internal/talent-notifications-drawer-i18n.static.test.ts
 src/components/payments/FeeLines.test.tsx
