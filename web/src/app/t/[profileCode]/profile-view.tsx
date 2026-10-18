@@ -32,7 +32,7 @@ import { resolveTalentBooking } from "@/lib/scheduling/booking-surface";
 import { resolveProfileCtasFromOfferings } from "@/lib/scheduling/profile-cta-precedence";
 import { PublicHeader } from "@/components/public-header";
 import { MarketingHeader } from "@/components/marketing/header";
-import { buildHubClientEntry } from "@/lib/marketing/hub-client-entry";
+import { buildHubClientEntry, localizeNext } from "@/lib/marketing/hub-client-entry";
 import { MarketingFooter } from "@/components/marketing/footer";
 import type { MarketingAccount } from "@/components/marketing/marketing-account-menu";
 import { resolveAccountHref, getAppUrl } from "@/lib/auth-flow";
@@ -2165,6 +2165,8 @@ export async function TalentProfileView({
   const canonicalShareUrl =
     (await canonicalTalentUrl(profile.profile_code)) ??
     `${siteBase}/t/${encodeURIComponent(profile.profile_code)}`;
+  // TUL-856: what a visitor shares (and signs back in to) is the page in THEIR language: /es/t/<code> for Spanish.
+  const localizedShareUrl = localizeNext(canonicalShareUrl, locale);
   const shareLabels = buildShareLabels(t);
 
   const detailsLabels = {
@@ -2443,7 +2445,7 @@ export async function TalentProfileView({
         ui={ui}
         t={t}
         detailsLabels={detailsLabels}
-        canonicalShareUrl={canonicalShareUrl}
+        canonicalShareUrl={localizedShareUrl}
         profileSourcePage={profileSourcePage}
         portalInquiryHref={portalInquiryHref}
         resolvedPreview={resolvedPreview}
@@ -2485,7 +2487,7 @@ export async function TalentProfileView({
             talentId={profile.id}
             profileCode={profile.profile_code}
             displayName={name}
-            canonicalUrl={canonicalShareUrl}
+            canonicalUrl={localizedShareUrl}
             sourcePage={profileSourcePage}
             labels={shareLabels}
             variant="row"
@@ -2496,7 +2498,7 @@ export async function TalentProfileView({
             talentId={profile.id}
             profileCode={profile.profile_code}
             displayName={name}
-            canonicalUrl={canonicalShareUrl}
+            canonicalUrl={localizedShareUrl}
             sourcePage={profileSourcePage}
             labels={shareLabels}
             variant="compact"

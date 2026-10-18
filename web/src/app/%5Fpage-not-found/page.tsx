@@ -17,7 +17,9 @@
  * short-circuit so the rewrite doesn't recurse.
  */
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { notFoundLocale } from "@/lib/i18n/not-found-locale";
 
 import { getAppUrl, getSiteUrl } from "@/lib/auth-flow";
 import { LOCALE_HEADER } from "@/i18n/request-locale";
@@ -26,7 +28,16 @@ import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-foun
 
 async function requestLang(): Promise<"en" | "es"> {
   const h = await headers();
-  return (h.get(LOCALE_HEADER) ?? "en").toLowerCase().startsWith("es") ? "es" : "en";
+  const jar = await cookies();
+  // TUL-877/1079: an unprefixed miss (/w/<unknown>) has no chosen language, so the browser's decides.
+  const locale = notFoundLocale({
+    locale: h.get(LOCALE_HEADER) ?? "en",
+    acceptLanguage: h.get("accept-language"),
+    cookieLocale: jar.get(LOCALE_COOKIE)?.value,
+    pathname: h.get("x-impronta-original-pathname"),
+    search: h.get("x-impronta-original-search"),
+  });
+  return locale.toLowerCase().startsWith("es") ? "es" : "en";
 }
 
 export async function generateMetadata(): Promise<Metadata> {

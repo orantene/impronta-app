@@ -34,6 +34,7 @@ src/lib/inquiry/guest-continue-thread.test.ts
 src/lib/inquiry/guest-dock-items-label.test.ts
 src/lib/inquiry/hub-chat-es.i18n.test.ts
 src/lib/inquiry/skin-parity.render.test.tsx
+src/lib/messages-v5/context-view.test.ts
 src/lib/messages-v5/guest-next-step.test.ts
 src/lib/messaging/*.test.ts
 src/lib/messaging/client-draft-guards.test.ts

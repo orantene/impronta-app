@@ -15,6 +15,7 @@ import {
 } from "@/lib/auth/registered-return-host.server";
 import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 import { NextResponse } from "next/server";
 
 /**
@@ -84,7 +85,11 @@ export async function GET(request: Request) {
     const ensuredProfile = user
       ? await loadAccessProfile(supabase, user.id)
       : null;
-    const destination = resolvePostAuthDestination(ensuredProfile, next);
+    const destination = resolvePostAuthDestination(
+      ensuredProfile,
+      next,
+      user ? await postAuthContextForNext(supabase, user.id, next) : {},
+    );
     // TUL-691 E1: return to the site the claim started on (allow-listed).
     const target = await resolvePostAuthRedirect({
       rawNext: searchParams.get("next"),

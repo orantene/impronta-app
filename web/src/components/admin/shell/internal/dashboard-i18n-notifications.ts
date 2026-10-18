@@ -29,6 +29,15 @@ export const NOTIFICATIONS_ES_TEXT: Record<string, string> = {
   "A guest time is confirmed.": "El horario de un invitado quedó confirmado.",
   "A held time is about to lapse.": "Un horario apartado está por vencer.",
   "A workspace asked for help.": "Un espacio de trabajo pidió ayuda.",
+  // TUL-391: support-ticket bells are stored in English too.
+  "Rate how it went if you have a moment.": "Cuéntanos cómo te fue si tienes un momento.",
+  "Reply in the next two days or this ticket will close on its own.": "Responde en los próximos dos días o este ticket se cerrará solo.",
+  "The change was not approved in time and was cancelled.": "El cambio no se aprobó a tiempo y se canceló.",
+  "The issue you reported is fixed": "El problema que reportaste ya está resuelto",
+  "A fix shipped for your ticket.": "Se publicó una corrección para tu ticket.",
+  "Weekly support digest": "Resumen semanal de soporte",
+  "This week's support summary is ready.": "El resumen de soporte de esta semana está listo.",
+  "Someone asked to talk to a human.": "Alguien pidió hablar con una persona.",
   // TUL-390 — popover chrome (category tabs + See all)
   "Attention": "Atención",
   "See all notifications": "Ver todas las notificaciones",
