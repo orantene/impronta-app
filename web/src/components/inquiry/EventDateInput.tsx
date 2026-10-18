@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import { usePublicT } from "@/i18n/use-public-t";
 
 /**
@@ -17,6 +17,8 @@ export function EventDateInput({
     setIncomplete(bad);
     onIncompleteChange?.(bad);
   };
+  // If the field unmounts (review step, mode change) while half-typed, release the Send hold.
+  useEffect(() => () => onIncompleteChange?.(false), [onIncompleteChange]);
   return (
     <>
       <input
