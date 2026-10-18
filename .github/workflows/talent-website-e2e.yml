@@ -400,7 +400,11 @@ jobs:
           # 27-minute journeys, whose dev server can crash (ECONNRESET) and
           # leave a cache that 404s /api/dev/signin for the next server.
           rm -rf .next
-          npx playwright test --project=talent-website e2e/talent-website/j9-sign-out-everywhere.spec.ts
+          # --global-timeout: Playwright stops ITSELF after 9 min, kills its dev server and writes the
+          # report + traces (retain-on-failure). The step timeout above is only the backstop: it
+          # cancels, a hung dev server outlived that for 11 more minutes, and a cancelled step
+          # uploads nothing (observed 2026-10-18, TUL-1036/1160).
+          npx playwright test --project=talent-website --global-timeout=540000 e2e/talent-website/j9-sign-out-everywhere.spec.ts
 
       # Playwright auto-starts `npm run dev` because the base URL is loopback,
       # waits for it, runs `talent-website-setup` (one dev-signin per fixture),
