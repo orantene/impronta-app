@@ -58,6 +58,7 @@ src/lib/notifications/talent-site-source-line.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
+src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
