@@ -55,3 +55,48 @@ export function localInputToIso(local: string): string | null {
   const d = new Date(local);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
+
+/** Title the server stores for a draft nobody has named yet. */
+export const UNTITLED_DRAFT_TITLE = "Sin título";
+
+/**
+ * True for a draft the owner never wrote in: stored placeholder title, no
+ * excerpt or body, no schedule and nothing set in settings. Opening the writer
+ * has to create a row (the writer addresses a post by id), so these rows exist
+ * after a click with no typing. They are hidden from the list and reused by the
+ * next "new post" click instead of piling up (TUL-1249).
+ */
+export function isPristineDraft(input: {
+  status: string;
+  title: string | null;
+  excerpt: string | null;
+  blockCount: number;
+  scheduledPublishAt: string | null;
+  isUnlisted?: boolean | null;
+  isFeatured?: boolean | null;
+  expiresAt?: string | null;
+  categoryId?: string | null;
+  relatedOfferingId?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  coverImageUrl?: string | null;
+  ogImageUrl?: string | null;
+}): boolean {
+  const blank = (v: string | null | undefined) => !v || v.trim() === "";
+  return (
+    input.status === "draft" &&
+    (blank(input.title) || input.title?.trim() === UNTITLED_DRAFT_TITLE) &&
+    blank(input.excerpt) &&
+    input.blockCount === 0 &&
+    !input.scheduledPublishAt &&
+    !input.isUnlisted &&
+    !input.isFeatured &&
+    !input.expiresAt &&
+    !input.categoryId &&
+    !input.relatedOfferingId &&
+    blank(input.metaTitle) &&
+    blank(input.metaDescription) &&
+    blank(input.coverImageUrl) &&
+    blank(input.ogImageUrl)
+  );
+}
