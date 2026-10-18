@@ -227,9 +227,7 @@ function pageHrefsFor(family: BusinessFamilyId): Record<SitePageRole, string> {
 export function businessTypeFromIndustry(industry: string): { id: string; family: BusinessFamilyId } | null {
   const whole = searchBusinessTypes(industry)[0];
   if (whole) return { id: whole.id, family: whole.family };
-  // Word fallback: the same rule the /start chip uses (a word that IS a type beats one inside an alias;
-  // then the word naming the FEWEST types wins). The old longest-word-first loop let a generic word like
-  // "studio"/"estudio" win and then took the alphabetical first hit: a hair studio became "boxing-studio" (TUL-591).
+  // Word fallback = the /start chip rule. The old longest-word loop let "studio" win and picked boxing-studio (TUL-591).
   const proposed = proposeBusinessType(industry).proposed;
   if (proposed) {
     const row = businessTypeById(proposed.id);
