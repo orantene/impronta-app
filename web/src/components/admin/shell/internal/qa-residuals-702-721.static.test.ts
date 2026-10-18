@@ -38,8 +38,9 @@ test("no feminine-only 'clienta' in the Spanish admin copy", () => {
 });
 
 test("the plan name follows the dashboard language (Oficina Web) in the profile drawer and calendar upsell", () => {
-  assert.match(read("src/components/admin/shell/internal/talent-drawers/profile-extras.tsx"), /translateDashboardText\(label, dashboardLocale\)/);
-  assert.doesNotMatch(read("src/components/admin/shell/internal/talent-drawers/profile-extras.tsx"), /\{ tier: TALENT_TIER_META\[\w+\]\.label \}/);
+  const drawer = read("src/components/admin/shell/internal/talent-drawers/profile-extras.tsx");
+  assert.match(drawer, /dashText\.t\(TALENT_TIER_META\[previewTier\]\.label\)/);
+  assert.doesNotMatch(drawer, /\{ tier: TALENT_TIER_META\[\w+\]\.label \}/);
   assert.match(read("src/components/admin/shell/internal/talent/shared/calendar-3.tsx"), /copy\.t\(TALENT_TIER_META\[currentTier\]\.label\)/);
 });
 
