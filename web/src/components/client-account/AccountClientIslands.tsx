@@ -6,6 +6,7 @@
  * Colours come from the `<html>` token vars so it wears the site's look.
  */
 
+import { shouldReloadOnSignOut } from "@/lib/auth/cross-tab-sign-out";
 import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, useId } from "react";
@@ -282,7 +283,8 @@ export function SessionSyncListener() {
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel(SESSION_CHANNEL);
     ch.onmessage = (e) => {
-      if (e.data === "signed-out") window.location.reload();
+      // Not the tab that is itself signing out (its reload would cancel the sign-out POST).
+      if (shouldReloadOnSignOut(e.data)) window.location.reload();
     };
     return () => ch.close();
   }, []);
