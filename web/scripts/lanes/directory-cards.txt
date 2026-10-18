@@ -2,6 +2,7 @@ src/app/t/?profileCode?/_chat/use-launcher-scroll-collapse.test.ts
 src/components/directory/discovery-state-sync.test.ts
 src/components/directory/profile-discovery-cta.static.test.ts
 src/components/home/default-storefront-links.static.test.ts
+src/components/marketing/mkt-b-mobile-polish.static.test.ts
 src/lib/directory/caption-norms.test.ts
 src/lib/directory/demand-score.test.ts
 src/lib/directory/directory-attribution.test.ts

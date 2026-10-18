@@ -27,7 +27,8 @@ test("TUL-888: card badge, availability and name no longer hard-truncate", () =>
   const parts = read("components/talent-cards/talent-card-parts.tsx");
   assert.doesNotMatch(parts, /max-w-full items-center truncate/);
   const card = read("components/talent-cards/TalentCard.tsx");
-  assert.match(card, /line-clamp-2 break-words/);
+  // The name wraps to two lines; a `select-none` class now sits between the two utilities.
+  assert.match(card, /line-clamp-2[^"`]*break-words/);
   assert.doesNotMatch(card, /<span className="truncate">\{data\.availabilityLabel\}/);
   assert.match(read("components/marketing/directory/directory-copy.ts"), /Disp\. \$\{days\} de 30 días/);
 });
