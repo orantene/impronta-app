@@ -54,6 +54,7 @@ src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
@@ -72,7 +73,9 @@ src/lib/talent/clients-initial.test.ts
 src/lib/talent/format-count.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/offerings-load-parallel.static.test.ts
+src/lib/talent/profile-left-count.test.ts
 src/lib/talent/profile-quality-mode.test.ts
+src/lib/talent/signed-in-inquiry-accepting-gate.static.test.ts
 src/lib/talent/website-published-truth.test.ts
 src/lib/words/business-types-everyday-words.test.ts
 src/lib/words/no-voseo.static.test.ts

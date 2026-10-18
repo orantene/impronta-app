@@ -535,7 +535,7 @@
       },
       "inquiry": {
         "saveThisTalent": "Guardar este talento",
-        "savedToInquiryCart": "Guardado en tu lista",
+        "savedToInquiryCart": "Añadido a tu solicitud",
         "contactAboutTalent": "Contactar sobre este talento",
         "openInquiry": "Abrir consulta",
         "flashCouldNotUpdateSaved": "No se pudo actualizar la lista guardada",
@@ -691,7 +691,7 @@
           "viewFullProfile": "Ver perfil completo",
           "close": "Cerrar",
           "saveThisTalent": "Guardar este talento",
-          "savedToCart": "Guardado en tu lista",
+          "savedToCart": "Añadido a tu solicitud",
           "imageAlt": "{name}, vista previa",
           "dialogAria": "{name}, vista rápida"
         },
