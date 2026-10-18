@@ -24,6 +24,33 @@ export function hasAuthCookie(cookieString: string): boolean {
     });
 }
 
+const SIGNING_OUT_FLAG = "__tulalaSigningOutHere";
+
+/**
+ * A BroadcastChannel delivers a message to every OTHER channel object with the same name,
+ * including the listener mounted in the SENDER's own document. Without this flag the signing-out
+ * tab received its own "signed-out", called `location.reload()`, and that navigation superseded the
+ * sign-out form POST (it never reached the server; the page ended on /login with the server session
+ * still alive). The sign-out entry point marks its own document before announcing.
+ */
+export function markSigningOutHere(win: object | undefined = typeof window === "undefined" ? undefined : window): void {
+  if (!win) return;
+  try {
+    (win as Record<string, unknown>)[SIGNING_OUT_FLAG] = true;
+  } catch {
+    /* frozen window: best effort */
+  }
+}
+
+export function isSigningOutHere(win: object | undefined = typeof window === "undefined" ? undefined : window): boolean {
+  return Boolean(win && (win as Record<string, unknown>)[SIGNING_OUT_FLAG]);
+}
+
+/** Whether a received message must reload THIS tab: another tab signed out, not this one. */
+export function shouldReloadOnSignOut(data: unknown, win?: object): boolean {
+  return data === SIGNED_OUT_MESSAGE && !isSigningOutHere(win);
+}
+
 export function announceSignOut(): void {
   try {
     if (typeof BroadcastChannel === "undefined") return;

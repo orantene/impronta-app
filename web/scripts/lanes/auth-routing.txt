@@ -23,6 +23,7 @@ src/lib/auth/register-intent.test.ts
 src/lib/auth/return-host-kind.test.ts
 src/lib/auth/sign-out-audit.test.ts
 src/lib/auth/sign-out-clears-all-scopes.test.ts
+src/lib/auth/sign-out-order.test.ts
 src/lib/auth/sign-out-redirect.test.ts
 src/lib/auth/signup-name-wiring.static.test.ts
 src/lib/auth/signup-name.test.ts
