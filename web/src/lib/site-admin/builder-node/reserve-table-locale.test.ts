@@ -49,8 +49,8 @@ test("a chip refuses rather than inventing a day", () => {
 test("a deposit is stated in the reader's language and currency format", () => {
   const en = depositLine("en", 2500);
   const es = depositLine("es", 2500);
-  assert.match(en, /25\.00/);
-  assert.match(es, /25\.00/);
+  assert.match(en, /\$25 USD/);
+  assert.match(es, /\$25 USD/);
   assert.notEqual(en, es, "the two locales must not render the same sentence");
   // Integer cents in, no floating point out.
   assert.match(depositLine("en", 1), /0\.01/);

@@ -12,19 +12,12 @@
  * Held legs auto-release the moment the account is enabled (account.updated
  * webhook + daily reconcile cron), so the banner disappears on its own.
  */
+import { formatPrice } from "@/lib/money/format-price";
 
-type HeldTotal = { currency: string; amountCents: number; count: number };
+type HeldTotal ={ currency: string; amountCents: number; count: number };
 
 function formatMoney(amountCents: number, currency: string): string {
-  const code = (currency || "mxn").toUpperCase();
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: code }).format(
-      amountCents / 100,
-    );
-  } catch {
-    // Unknown currency code — fall back to a plain amount + code.
-    return `${(amountCents / 100).toFixed(2)} ${code}`;
-  }
+  return formatPrice({ amountCents, currency: currency || "MXN", audience: "talent" }).primary;
 }
 
 export function HeldPayoutsBanner({
