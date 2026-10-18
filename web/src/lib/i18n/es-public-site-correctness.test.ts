@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import { AUTH_EN, AUTH_ES } from "@/lib/notifications/email-copy/auth";
+import { translateDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
 // Lane: ES / public-site correctness (TUL-814, TUL-864/892, TUL-1259).
 const root = process.cwd();
@@ -53,6 +54,23 @@ describe("auth email copy has no untranslated Spanish strings (TUL-814)", () => 
       }
     });
   }
+});
+
+describe("talent plan names follow the dashboard language (TUL-1059)", () => {
+  it("Web Office reads Oficina Web in Spanish and stays in English", () => {
+    assert.equal(translateDashboardText("Web Office", "es"), "Oficina Web");
+    assert.equal(translateDashboardText("Web Office", "en"), "Web Office");
+  });
+  it("no drawer prints a raw TALENT_TIER_META label", () => {
+    for (const f of [
+      "src/components/admin/shell/internal/talent-drawers/premium-pages.tsx",
+      "src/components/admin/shell/internal/talent-drawers/profile-extras.tsx",
+    ]) {
+      const src = readFileSync(join(root, f), "utf8");
+      const raw = src.split("\n").filter((l) => /TALENT_TIER_META\[[^\]]+\]\.label/.test(l) && !/(?:\.t\(|translateDashboardText\(|copy\.t\()/.test(l));
+      assert.deepEqual(raw, [], `${f} prints an untranslated tier label`);
+    }
+  });
 });
 
 describe("+ alias copy never blames the user's inbox (TUL-851)", () => {
