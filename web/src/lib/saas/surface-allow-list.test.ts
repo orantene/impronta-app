@@ -659,14 +659,18 @@ test("/events and /r do NOT resolve on app or marketing", () => {
   assert.equal(isPathAllowedForHostKind("marketing", "/r/opaque-receipt"), false);
 });
 
-test("/pay does NOT resolve on app or marketing", () => {
-  assert.equal(isPathAllowedForHostKind("app", "/pay/opaque-link"), false);
+// TUL-1252: the client account lives on the app host and links to a relative
+// /pay/<code> ("Pagar ahora"). Before this, that was the branded 404.
+test("/pay and /link resolve on the app host (TUL-1252) but NOT on marketing", () => {
+  assert.equal(isPathAllowedForHostKind("app", "/pay/opaque-link"), true);
+  assert.equal(isPathAllowedForHostKind("app", "/link/opaque-link"), true);
   assert.equal(isPathAllowedForHostKind("marketing", "/pay/opaque-link"), false);
+  assert.equal(isPathAllowedForHostKind("marketing", "/link/opaque-link"), false);
 });
 
-test("/link does NOT resolve on app or marketing", () => {
-  assert.equal(isPathAllowedForHostKind("app", "/link/opaque-link"), false);
-  assert.equal(isPathAllowedForHostKind("marketing", "/link/opaque-link"), false);
+test("tenant-owned /r and /events stay off the app host even though /pay is open there", () => {
+  assert.equal(isPathAllowedForHostKind("app", "/r/opaque-receipt"), false);
+  assert.equal(isPathAllowedForHostKind("app", "/events/qa-night"), false);
 });
 
 test('a tenant cannot claim the slug "events" or "r"', () => {
