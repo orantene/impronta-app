@@ -31,7 +31,6 @@
  *   npx tsx scripts/seed-group6-staging-fixtures.mts --env-file <tmp> [--selftest|--apply|--cleanup --apply]
  */
 import { readFileSync } from "node:fs";
-import pg from "pg";
 
 import {
   buildDefaultShellTree,
@@ -52,6 +51,14 @@ import {
 } from "./lib/group6-fixtures.mjs";
 
 type Row = Record<string, unknown>;
+// `pg` has no type declarations in this repo (no @types/pg), so load it through a non-literal specifier and type the slice we use.
+type PgClient = {
+  connect(): Promise<void>;
+  query(text: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>;
+  end(): Promise<void>;
+};
+const PG_MODULE = "pg";
+const pgMod = (await import(PG_MODULE)) as { default: { Client: new (cfg: { connectionString?: string; ssl?: unknown }) => PgClient } };
 const created: Record<string, string[]> = {};
 const existed: Record<string, string[]> = {};
 const note = (m: Record<string, string[]>, t: string, id: string) => {
@@ -83,7 +90,7 @@ if (args.stripe) {
 const password = env.QA_FIXTURE_PASSWORD?.trim() || null;
 if (password && password.length < 12) die("QA_FIXTURE_PASSWORD must be at least 12 characters", 2);
 
-const client = new pg.Client({ connectionString: env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const client = new pgMod.default.Client({ connectionString: env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 await client.connect();
 const q = (text: string, params: unknown[] = []) => client.query(text, params);
 
