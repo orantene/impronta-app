@@ -97,7 +97,7 @@ type ArrivalInput = {
   /** Talent page URL and the Today deep link, when a profile exists. */
   talent: { publicUrl: string | null; todayUrl: string; /** The talent page builder: the "open the editor" door when no workspace exists (TUL-990). */ editorUrl?: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
   /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
-  liveCheck?: { ok: boolean; reason?: string } | null;
+  liveCheck?: { ok: boolean; reason?: string; status?: number } | null;
   /** TUL-818: the publish write succeeded (talent_sites / agency site is published). */
   published?: boolean;
   urlDiffers?: boolean;
