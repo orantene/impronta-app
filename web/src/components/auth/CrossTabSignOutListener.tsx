@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-import { hasAuthCookie, SESSION_CHANNEL, SIGNED_OUT_MESSAGE } from "@/lib/auth/cross-tab-sign-out";
+import { hasAuthCookie, SESSION_CHANNEL, shouldReloadOnSignOut } from "@/lib/auth/cross-tab-sign-out";
 
 /** Renders nothing. Reloads this tab when another tab signs out, if this tab was signed in. */
 export function CrossTabSignOutListener() {
@@ -17,7 +17,8 @@ export function CrossTabSignOutListener() {
     if (!hadSession) return;
     const channel = new BroadcastChannel(SESSION_CHANNEL);
     channel.onmessage = (event) => {
-      if (event.data === SIGNED_OUT_MESSAGE) window.location.reload();
+      // Never reload the tab that is itself signing out: that navigation cancels its sign-out POST.
+      if (shouldReloadOnSignOut(event.data)) window.location.reload();
     };
     return () => channel.close();
   }, []);

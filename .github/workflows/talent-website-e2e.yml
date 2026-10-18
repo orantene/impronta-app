@@ -430,7 +430,7 @@ jobs:
         run: |
           set -o pipefail
           rm -rf .next
-          npx playwright test --project=talent-website --workers=1 --trace=on --global-timeout=540000 \
+          npx playwright test --project=talent-website --workers=1 --trace=on --global-timeout=540000 --output=test-results-spec11 \
             --grep "visible Log out control" e2e/talent-website/j9-sign-out-everywhere.spec.ts
 
       - name: Note the isolated spec result
@@ -529,6 +529,7 @@ jobs:
           path: |
             web/playwright-report
             web/test-results
+            web/test-results-spec11
           if-no-files-found: ignore
 
       # On failure, show the ERRORS rather than the tail. The tail is dominated

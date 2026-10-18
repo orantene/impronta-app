@@ -6,6 +6,7 @@ src/app/api/dev/signin/fixture-session.test.ts
 src/app/client/client-root-loading.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
+src/components/client-account/client-account-help.static.test.ts
 src/i18n/auth-page-locale.test.ts
 src/lib/auth-flow-client-landing.test.ts
 src/lib/auth-flow-talent-next.test.ts
@@ -24,6 +25,7 @@ src/lib/auth/register-intent.test.ts
 src/lib/auth/return-host-kind.test.ts
 src/lib/auth/sign-out-audit.test.ts
 src/lib/auth/sign-out-clears-all-scopes.test.ts
+src/lib/auth/sign-out-order.test.ts
 src/lib/auth/sign-out-redirect.test.ts
 src/lib/auth/signup-name-wiring.static.test.ts
 src/lib/auth/signup-name.test.ts

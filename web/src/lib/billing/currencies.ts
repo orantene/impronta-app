@@ -40,6 +40,13 @@ export const DEFAULT_CURRENCY_OPTIONS = [
 export type DefaultCurrencyCode = (typeof DEFAULT_CURRENCY_OPTIONS)[number];
 
 /**
+ * What a price prints in when the caller has no currency of its own (lane 4, brief A6):
+ * Mexico is the home market. Display only; `DEFAULT_CURRENCY_FALLBACK` below still governs
+ * what a stored preference resolves to.
+ */
+export const DEFAULT_DISPLAY_CURRENCY: DefaultCurrencyCode = "MXN";
+
+/**
  * What a TALENT may price an offering in (owner ruling 2026-09-23, widened by
  * Oran's TUL-654 list): pesos and dollars first, then GBP, CAD, EUR, CHF
  * (AUD/ARS/COP wait for a confirmed payout route). A non-dollar price is shown

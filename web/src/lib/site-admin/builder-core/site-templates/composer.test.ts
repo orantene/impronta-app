@@ -77,3 +77,11 @@ test("industry text resolves to a business type, whole phrase then words", async
   assert.equal(businessTypeFromIndustry("salón de uñas")?.id, "nail-salon");
   assert.equal(businessTypeFromIndustry("zzzz"), null);
 });
+
+test("TUL-591: a generic 'studio' word never picks the alphabetical-first studio (boxing) for a hair/beauty studio", async () => {
+  const { businessTypeFromIndustry } = await import("./compose-site-from-brief.server");
+  for (const text of ["beauty hair studio", "hair studio", "estudio de cabello", "estudio de belleza", "beauty studio"]) {
+    const hit = businessTypeFromIndustry(text);
+    assert.equal(hit?.family, "beauty", `${text} -> ${hit?.id}`);
+  }
+});

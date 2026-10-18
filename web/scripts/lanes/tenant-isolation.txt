@@ -135,6 +135,7 @@ src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-public-url.test.ts
 src/lib/saas/workspace-type.test.ts
 src/lib/seo/business-workspace-seo.test.ts
+src/lib/seo/llms-route-handoff.static.test.ts
 src/lib/seo/llms-txt.test.ts
 src/lib/seo/spanish-named-routes.test.ts
 src/lib/seo/talent-llms-txt.test.ts
@@ -181,9 +182,11 @@ src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
 src/lib/talent-agenda/record-item.test.ts
 src/lib/talent-agenda/record-labels.test.ts
+src/lib/talent-agenda/resolve-record-target.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts
 src/lib/talent/load-representation.test.ts
+src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
