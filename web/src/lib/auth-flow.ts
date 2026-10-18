@@ -171,6 +171,14 @@ export function isPostAuthNextAllowedForActiveUser(
   if (appRole === "client" && tenantScopedSurface === "client") {
     return true;
   }
+  // TUL-1255 (decided, A5): the tenant-scoped client surface (`/<slug>/client...`, which includes
+  // the hub's `/hub/client`) is open to every active role. A talent or workspace owner can also be
+  // a client; that layout gates on the client profile and shows a soft landing for anyone else,
+  // so honoring the path never exposes anything and never loops (it is not a middleware-gated
+  // dashboard root).
+  if (tenantScopedSurface === "client") {
+    return true;
+  }
   // TUL-1255: a real member of THIS workspace may land on its admin, whatever app_role they hold.
   if (tenantScopedSurface === "admin") {
     const slug = segments[0] ?? "";

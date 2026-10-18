@@ -42,3 +42,4 @@ src/app/client/client-root-loading.static.test.ts
 src/lib/client-account/client-thread-pure.test.ts
 src/app/(workspace)/talent/talent-support-alias.test.ts
 src/app/(workspace)/talent/talent-not-found.test.ts
+src/lib/auth-landing-contract.test.ts
