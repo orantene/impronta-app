@@ -46,3 +46,4 @@ src/lib/client-account/client-layout-locale.test.ts
 src/lib/saas/talent-site-private-cache-key.test.ts
 src/components/public-booking/catalog-booking-form-ux.test.tsx
 src/components/messages-v5/client/client-offer-banner.static.test.ts
+src/lib/messages-v5/context-view.test.ts
