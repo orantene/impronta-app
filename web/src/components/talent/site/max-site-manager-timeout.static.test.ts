@@ -20,12 +20,15 @@ test("TUL-728: a timed-out or thrown load always ends in the retry state, never 
   assert.match(src, /const retry = \(\) => \{\s*setLoading\(true\);\s*setError\(null\);\s*void reload\(\);/);
 });
 
-test("TUL-728 / TUL-1114: 'Hide a public page' opens the hide/show list inside Settings, never navigates away, never touches the manager loader", () => {
+test("TUL-728 / TUL-1114: 'Hide a public page' in Settings unfolds the listings with Hide controls in place, never navigates away, never touches the manager loader", () => {
   const settings = readFileSync("src/components/admin/shell/internal/talent/pages/SettingsPage.tsx", "utf8");
-  const at = settings.indexOf('key: "hide",');
-  const row = settings.slice(at, at + 600);
-  assert.match(row, /panel: <TalentSiteAppearancesPanel \/>/);
+  // The row unfolds the listings (each with its own Hide) in Settings; it must not
+  // jump to Presence, which left Settings and had no hide control for the row.
+  assert.match(settings, /key: "hide",[\s\S]*?panel: <TalentSiteAppearancesPanel/);
+  assert.doesNotMatch(settings, /key: "hide",[\s\S]{0,700}?setTalentPage\("public-page"\)/);
+  const row = settings.slice(settings.indexOf('key: "hide",'), settings.indexOf('key: "hide",') + 600);
   assert.doesNotMatch(row, /onOpen/, "the row must not navigate out of Settings");
-  assert.doesNotMatch(row, /setTalentPage\("public-page"\)/);
   assert.doesNotMatch(settings, /loadMaxSiteManagerAction/);
+  const panel = readFileSync("src/components/talent/site/TalentSiteAppearancesPanel.tsx", "utf8");
+  assert.match(panel, /const setHidden = async/);
 });

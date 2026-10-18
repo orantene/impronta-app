@@ -19,11 +19,11 @@ import { JoinStudioCard } from "@/components/settings/join-studio-card";
 import { JS_DESC, JS_TITLE } from "@/components/settings/join-studio-copy";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
 import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
-import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { TalentInstagramCard } from "@/components/talent/connections/TalentInstagramCard";
 import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
+import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { PasskeysCard } from "../../modern-features";
 import { Icon } from "../../primitives";
 import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
@@ -331,8 +331,9 @@ export function SettingsPage() {
       key: "hide",
       label: tx("Hide a public page"),
       sub: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
-      // TUL-1114: opens the real hide/show list in place. It used to navigate out to /talent/site.
-      panel: <TalentSiteAppearancesPanel />,
+      // TUL-728 / TUL-1114: unfold the listings (each with its own Hide) in place. It used to
+      // jump to Presence, which left Settings and had no hide control for the row.
+      panel: <TalentSiteAppearancesPanel locale={copy.isSpanish ? "es" : "en"} />,
     },
   ];
   if (bridgeTalentSelfProfile && tenantSlug) {

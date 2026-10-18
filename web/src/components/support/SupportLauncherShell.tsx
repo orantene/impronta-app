@@ -14,7 +14,7 @@ export function SupportLauncherShell({ contract }: { contract: SupportContract }
     <SupportRecorderProvider enabled={contract.replayBufferEnabled}>
       <LiveShareHost />
       <SupportLauncher contract={contract} drawerOpen={!!state.drawer.drawerId}
-        hideFloatingOnCompact={state.surface === "talent"}
+        hideFloatingOnCompact={contract.surface === "talent" || state.surface === "talent"}
       />
     </SupportRecorderProvider>
   );
