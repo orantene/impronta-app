@@ -6,6 +6,7 @@ import { loadExceptions } from "@/lib/exceptions/read";
 import type { ExceptionRow } from "@/lib/exceptions/model";
 import { venueDayWindow } from "@/lib/pos/classes/day";
 import { tenantTimezone } from "@/lib/spaces/venues";
+import { pickWorkspaceCurrency } from "@/lib/payments/workspace-currency";
 import { groupTakingsByMethod, sumOwedByCurrency, withVariance, type DrawerSessionView, type TakingsByMethod, type CurrencyTotal } from "@/lib/payments/activity-shape";
 import {
   loadTenantDrawerSessions,
@@ -75,14 +76,29 @@ export async function loadPaymentsBoard(input: { tenantId: string; tenantSlug: s
         })
       : Promise.resolve(null),
     admin
-      ? admin.from("agencies").select("stripe_account_id, stripe_payouts_enabled").eq("id", input.tenantId).maybeSingle()
+      ? admin.from("agencies").select("stripe_account_id, stripe_payouts_enabled, preferred_currency").eq("id", input.tenantId).maybeSingle()
       : Promise.resolve({ data: null, error: { message: "no admin client" } }),
   ]);
+
+  // Empty-state currency: same rule as the Overview board (TUL-734), never a hard-coded USD.
+  const preferredCurrency = (agency.data as { preferred_currency?: string | null } | null)?.preferred_currency ?? null;
+  let offeringCurrency: string | null = null;
+  if (admin && !/^[A-Za-z]{3}$/.test((preferredCurrency ?? "").trim())) {
+    const { data: offering } = await admin
+      .from("talent_offerings")
+      .select("currency")
+      .eq("tenant_id", input.tenantId)
+      .not("currency", "is", null)
+      .limit(1)
+      .maybeSingle();
+    offeringCurrency = (offering as { currency?: string | null } | null)?.currency ?? null;
+  }
+  const workspaceCurrency = pickWorkspaceCurrency(preferredCurrency, offeringCurrency);
 
   const collectedToday: PaymentsBoard["collectedToday"] = (() => {
     if (!todayLoad.ok) return { ok: false };
     const byMethod = groupTakingsByMethod(todayLoad.rows);
-    const currency = byMethod[0]?.currency ?? "USD";
+    const currency = byMethod[0]?.currency ?? workspaceCurrency;
     let cash = 0;
     let card = 0;
     let other = 0;
