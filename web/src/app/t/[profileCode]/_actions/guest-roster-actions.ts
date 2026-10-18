@@ -140,7 +140,7 @@ export async function listGuestTenantRoster(input: {
     }
 
     // Agency page: the agency's own roster (this tenant only), not narrowed to one talent.
-    const rows = await loadDefaultStorefrontRoster(tenant.tenantId);
+    const rows = await loadDefaultStorefrontRoster(tenant.tenantId, { guestVisibleOnly: true });
     return {
       ok: true,
       roster: scopeRosterToTalent(

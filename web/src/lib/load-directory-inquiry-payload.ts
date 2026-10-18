@@ -1,4 +1,5 @@
 import { getGuestSessionKey } from "@/lib/guest-session";
+import { defaultClientName } from "@/lib/inquiry/default-client-name";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
 import { getPublicSettings } from "@/lib/public-settings";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
@@ -330,11 +331,15 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   );
 
   const defaultEmail = user?.email ?? undefined;
-  const defaultName =
-    actor.profile?.display_name ??
-    (user?.user_metadata?.full_name as string | undefined) ??
-    (user?.user_metadata?.name as string | undefined) ??
-    undefined;
+  // TUL-965: a signed-in client with no stored name gets a neutral label, not an empty field.
+  const defaultName = user
+    ? defaultClientName(
+        actor.profile?.display_name ??
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined),
+        user.email,
+      )
+    : undefined;
 
   // Guests only: a signed-in client's drawer already autosaves its own draft,
   // so carrying the chat's would fight a surface that is already correct.

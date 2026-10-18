@@ -27,6 +27,8 @@ import "server-only";
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { scopeToGuestVisibleRoster } from "@/lib/saas/talent-roster";
+import { scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import type { CatalogOption, CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
@@ -147,23 +149,30 @@ export async function loadCatalogRowsForScope(
   return [...talent, ...offerings, ...sessions, ...tables];
 }
 
+/** Talent that may surface to a guest (mirrors `default-storefront-roster` PUBLISHED_STATUSES). */
+const GUEST_VISIBLE_WORKFLOW = new Set(["approved", "published"]);
+
 export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
-  const { data, error } = await admin
-    .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name )")
-    .eq("tenant_id", tenantId)
-    .neq("status", "removed")
+  // A guest sees only people who are active AND shown on this tenant's site: the one
+  // shared roster scope (`neq removed` also listed pending / inactive / archived / hidden members).
+  const { data, error } = await scopeToGuestVisibleRoster(
+    admin.from("agency_talent_roster").select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name, workflow_status )"),
+    tenantId,
+  )
     .order("created_at", { ascending: true })
     .limit(TALENT_CAP);
   if (error) {
     logServerError("messagesV5.itemsCatalog/roster", error);
     return [];
   }
-  type Raw = { talent_profile_id: string; talent_profiles: { id: string; profile_code: string | null; display_name: string | null } | { id: string; profile_code: string | null; display_name: string | null }[] | null };
+  type Prof = { id: string; profile_code: string | null; display_name: string | null; workflow_status?: string | null };
+  type Raw = { talent_profile_id: string; talent_profiles: Prof | Prof[] | null };
   const people: { id: string; name: string }[] = [];
   for (const raw of (data ?? []) as unknown as Raw[]) {
     const profile = Array.isArray(raw.talent_profiles) ? raw.talent_profiles[0] : raw.talent_profiles;
     if (!profile) continue;
+    // Same publish filter as the storefront roster and the talent picker.
+    if (!GUEST_VISIBLE_WORKFLOW.has(profile.workflow_status ?? "")) continue;
     people.push({ id: profile.id, name: profile.display_name?.trim() || profile.profile_code || "Talent" });
   }
   const busyById = new Map<string, boolean>();
@@ -193,11 +202,13 @@ export async function loadTalentRows(admin: Admin, tenantId: string, window: { f
 }
 
 export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
-  const { data, error } = await admin
-    .from("talent_offerings")
-    .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
-    .eq("tenant_id", tenantId)
-    .eq("status", "published")
+  // D-10: published AND approved AND public (was status only), tenant-scoped.
+  const { data, error } = await scopeToGuestSellableOfferings(
+    admin
+      .from("talent_offerings")
+      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
+      .eq("tenant_id", tenantId),
+  )
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {
@@ -241,11 +252,9 @@ export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: stri
     .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes");
   // null tenant = the talent's own site/hub page: only THIS talent's rows, whichever tenant row they sit on.
   if (tenantId) query = query.eq("tenant_id", tenantId);
-  const { data, error } = await query
-    .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
+  query = query.eq("talent_profile_id", talentProfileId);
+  // D-10: the dock lists only published + approved + public (it also listed on_request).
+  const { data, error } = await scopeToGuestSellableOfferings(query)
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {

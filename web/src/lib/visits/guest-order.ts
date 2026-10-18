@@ -5,6 +5,7 @@ import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { submitOrderToPreparation } from "@/lib/preparation/tickets";
 import { createPaymentLink } from "@/lib/payments/links";
 import { loadOpenVisitByToken } from "./qr";
+import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 import type { VenueAdmin } from "@/lib/venues/locations";
 
 export type GuestReason =
@@ -34,12 +35,10 @@ export async function guestVisitMenu(
 ): Promise<{ ok: true; items: Array<{ id: string; title: string; amountCents: number; prepStationId: string | null }> } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
-  const { data, error } = await admin
-    .from("talent_offerings")
-    .select("id, title, amount_cents, prep_station_id, status")
-    .eq("tenant_id", input.tenantId)
-    .eq("status", "published")
-    .limit(200);
+  // D-10: published AND approved AND public; tenant scoping is the .eq below.
+  const { data, error } = await scopeToGuestSellableOfferings(
+    admin.from("talent_offerings").select("id, title, amount_cents, prep_station_id, status").eq("tenant_id", input.tenantId),
+  ).limit(200);
   if (error) {
     logServerError("visits.guestVisitMenu", error);
     return { ok: false, reason: "unavailable" };
@@ -113,13 +112,14 @@ export async function guestVisitAddLine(
   if (!actorUserId) return { ok: false, reason: "unavailable" };
   const { data: offering, error } = await admin
     .from("talent_offerings")
-    .select("id, status, title, amount_cents, currency")
+    .select("id, status, moderation_state, visibility, title, amount_cents, currency")
     .eq("id", input.offeringId)
     .eq("tenant_id", input.tenantId)
     .maybeSingle();
   if (error) return { ok: false, reason: "unavailable" };
-  const off = offering as { id: string; status: string } | null;
-  if (!off || off.status !== "published") return { ok: false, reason: "item_unavailable" };
+  const off = offering as { id: string; status: string; moderation_state?: string; visibility?: string } | null;
+  // D-10: an id guessed from another surface must not add an unapproved or hidden service.
+  if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
 
   const draft = await guestDraft(admin, {
     tenantId: input.tenantId,

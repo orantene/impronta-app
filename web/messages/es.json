@@ -1348,6 +1348,7 @@
       "dockTrayRemove": "Quitar",
       "dockTrayOpenLineup": "Abrir Artículos",
       "dockTrayOpen": "Revisar",
+      "dockTraySend": "Enviar solicitud",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
       "catalogSearchPlaceholder": "Buscar en esta lista",
       "catalogSortLabel": "Ordenar",

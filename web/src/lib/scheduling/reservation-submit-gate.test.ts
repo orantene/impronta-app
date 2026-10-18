@@ -63,6 +63,7 @@ test("direct action call: policy-off talent cannot be booked", async () => {
       duration_minutes: 30,
       kind: "service",
       status: "published",
+      moderation_state: "approved",
       visibility: "public",
     },
     agency_talent_roster: [
@@ -188,6 +189,7 @@ test("direct action call: opted-in talent on an enabled workspace site is allowe
       duration_minutes: 30,
       kind: "service",
       status: "published",
+      moderation_state: "approved",
       visibility: "public",
     },
     agency_talent_roster: [

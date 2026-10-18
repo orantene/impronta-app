@@ -19,6 +19,8 @@ import {
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { storefrontShowsTalentDiscovery } from "@/lib/saas/storefront-discovery";
+import { filterTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /**
  * Per-tenant title template. The ROOT layout sets `%s · Tulala`; on a tenant
@@ -89,8 +91,16 @@ export default async function PublicLayout({
   // `client_user_id` with no tenant column, so seeding them here is what put a
   // visitor's saved talent from an agency onto a restaurant's page with a live
   // count. Empty is not cosmetic: the counts are what made it look real.
-  const savedIds = talentDiscoveryEnabled ? rawSavedIds : [];
+  // TUL-1068/1070: the same list is also tenant-agnostic across AGENCIES. A talent
+  // saved on tenant A's page (or the hub's) must not seed tenant B's cart rail or
+  // be carried into B's inquiry, so on an agency host keep only ids on B's roster.
+  // A hub owns no roster of its own (cross-tenant index): unchanged.
+  let savedIds = talentDiscoveryEnabled ? rawSavedIds : [];
   const favoriteIds = talentDiscoveryEnabled ? rawFavoriteIds : [];
+  if (ctx.kind === "agency" && tenantId && savedIds.length > 0) {
+    const admin = createServiceRoleClient();
+    if (admin) savedIds = await filterTalentIdsOnTenantRoster(admin, tenantId, savedIds);
+  }
 
   const favoriteIcon = publicBranding?.favorite_icon ?? "bookmark";
 
