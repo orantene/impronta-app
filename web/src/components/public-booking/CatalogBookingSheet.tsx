@@ -712,6 +712,7 @@ export function CatalogBookingSheet({
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
                 touched={touched} nameValid={nameValid} phoneValid={phoneValid}
                 emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
+                note={detail.task ? null : (detail.note ?? "")} setNote={(note) => setDetail({ ...detail, note })}
               />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">

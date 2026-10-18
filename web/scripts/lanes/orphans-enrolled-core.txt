@@ -38,11 +38,13 @@ src/components/onboarding/choose-step-keyboard.static.test.ts
 src/components/onboarding/steps/onb1-13-entry.static.test.ts
 src/components/onboarding/steps/save-step-consent.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
+src/components/public-booking/catalog-who-contact-1236.test.tsx
 src/components/support/support-qa1054.static.test.ts
 src/components/talent/get-found/get-found-text-contrast.static.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/hooks/use-menu-keyboard.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
 src/lib/field-engine/public-surface-visibility.test.ts
