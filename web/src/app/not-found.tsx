@@ -171,7 +171,7 @@ export default async function NotFound() {
               fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 11,
               fontWeight: 600,
-              color: "rgba(11,11,13,0.38)",
+              color: "rgba(11,11,13,0.6)",
               letterSpacing: 0.8,
               textTransform: "uppercase" as const,
               margin: 0,
@@ -260,7 +260,7 @@ export default async function NotFound() {
             style={{
               fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 11.5,
-              color: "rgba(11,11,13,0.42)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 24,
               marginBottom: 0,
             }}

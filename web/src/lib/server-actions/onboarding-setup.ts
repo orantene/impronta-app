@@ -31,6 +31,7 @@ import { getSuggestedPrice, serviceKeyFor } from "@/lib/pricing/suggested-price"
 import { applySuggestedPrices } from "@/lib/onboarding/service-price-choice";
 import type { OnboardingChoice } from "@/lib/onboarding/choice";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
 
 export type SetupPayload = {
   choice: OnboardingChoice;
@@ -91,6 +92,25 @@ export async function loadOnboardingSetup(): Promise<SetupLoadResult> {
     if (saved) essentials = { ...essentials, hours: saved.hours ?? essentials.hours, place: saved.place, timezone: saved.timezone ?? essentials.timezone };
   }
   return { ok: true, setup: { choice, country, tradeKey: packKeyForTrade(ctx.trade, ctx.discipline), essentials, saved: !!saved?.confirmed } };
+}
+
+/**
+ * TUL-815: change only the time zone from the review step. Same owner gate as the
+ * setup save, but it never moves the step and never creates essentials.
+ */
+export async function saveOnboardingTimezone(input: { timezone: string }): Promise<{ ok: boolean }> {
+  await requireNotImpersonating();
+  const tz = typeof input.timezone === "string" ? input.timezone.trim() : "";
+  if (!tz || !isValidIanaTimeZone(tz)) return { ok: false };
+  const got = await owned();
+  if ("error" in got && got.error) return { ok: false };
+  const { brief, state } = got as Exclude<typeof got, { error: string }>;
+  if (!state.essentials) return { ok: false };
+  const saved = await updateBriefModuleState(brief.id, {
+    essentials: { ...state.essentials, timezone: tz },
+    updatedAt: new Date().toISOString(),
+  });
+  return { ok: saved.ok };
 }
 
 export async function saveOnboardingSetup(input: { essentials: unknown; locale?: "en" | "es" }): Promise<SetupSaveResult> {

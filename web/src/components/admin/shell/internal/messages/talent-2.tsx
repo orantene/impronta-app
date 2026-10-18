@@ -256,6 +256,19 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
     return isCoordinator ? "client" : "group";
   })();
   const [activeTab, setActiveTab] = useState<ThreadTabId>(defaultTab);
+  // TUL-955 / TUL-1097: the guest's original request leads every conversation tab a talent can land
+  // on (a coordinator opens on Client, not Group), only when the thread has a brief.
+  const originalRequestBlock = conv.brief ? (
+    <div
+      data-original-inquiry=""
+      className="mx-3 mt-3 rounded-lg border border-admin-border-soft bg-admin-surface-muted px-3 py-2 text-[13px] text-admin-ink"
+    >
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-ink-muted">
+        {t("dashboard.talentThread.originalRequest")}
+      </div>
+      <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{conv.brief}</div>
+    </div>
+  ) : null;
   // F2 — real role='talent' headcount, gating the Group tab. Loaded for
   // real-UUID inquiries via loadTalentInquiryLineupCount, which authorizes on
   // the caller's OWN participant row (talent lineup row OR self-coordinator
@@ -429,6 +442,8 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
             row entirely for non-coordinators, so this branch is reachable
             only when isCoordinator. */}
         {activeTab === "client" && isCoordinator && (
+          <>
+          {originalRequestBlock}
           <ConversationTab
             conv={conv}
             threadKey={`${conv.id}:client`}
@@ -441,22 +456,13 @@ export function TalentJobDetail({ conv, onBack }: { conv: Conversation; onBack: 
               sendTalentInquiryMessage(effectiveTenant.slug, conv.id, text, "private")
             }
           />
+          </>
         )}
         {/* F2: Group tab — the booking-team coordination channel. */}
         {activeTab === "group" && (
           <>
           {/* TUL-955: the guest's original request leads the thread (it was only in the list preview). */}
-          {conv.brief ? (
-            <div
-              data-original-inquiry=""
-              className="mx-3 mt-3 rounded-lg border border-admin-border-soft bg-admin-surface-muted px-3 py-2 text-[13px] text-admin-ink"
-            >
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-ink-muted">
-                {t("dashboard.talentThread.originalRequest")}
-              </div>
-              <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{conv.brief}</div>
-            </div>
-          ) : null}
+          {originalRequestBlock}
           <ConversationTab
             conv={conv}
             threadKey={`${conv.id}:talent`}

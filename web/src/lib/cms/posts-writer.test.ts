@@ -171,6 +171,41 @@ test("createPostDraft under a workspace scope forces tenant_id", async () => {
   assert.equal(db.tables.cms_posts[0]!.tenant_id, "ag-1");
 });
 
+test("TUL-1249: a blank createPostDraft reuses the owner's untouched draft instead of stacking another", async () => {
+  const empty = post({ id: "e1", title: "Sin título", excerpt: "", body_blocks: [] });
+  const db = fakeDb({ cms_posts: [empty] });
+  const a = await createPostDraft(ctx(db), { locale: "es" });
+  const b = await createPostDraft(ctx(db), { locale: "es" });
+  assert.ok(a.ok && b.ok);
+  assert.equal(a.ok && a.data.id, "e1");
+  assert.equal(b.ok && b.data.id, "e1");
+  assert.equal(db.tables.cms_posts.length, 1);
+  assert.equal(db.writes.length, 0);
+});
+
+test("TUL-1249: reuse never picks a written, other-language or other-owner draft", async () => {
+  const db = fakeDb({
+    cms_posts: [
+      post({ id: "w1", title: "Mi viaje", body_blocks: [] }),
+      post({ id: "w2", title: "Sin título", body_blocks: okBlocks }),
+      post({ id: "w3", title: "Sin título", body_blocks: [], locale: "en" }),
+      post({ id: "w4", title: "Sin título", body_blocks: [], talent_profile_id: "tp-OTHER" }),
+    ],
+  });
+  const r = await createPostDraft(ctx(db), { locale: "es" });
+  assert.ok(r.ok);
+  assert.ok(!["w1", "w2", "w3", "w4"].includes(r.ok ? r.data.id : ""));
+  assert.equal(db.tables.cms_posts.length, 5);
+});
+
+test("TUL-1249: createPostDraft with content always inserts", async () => {
+  const db = fakeDb({ cms_posts: [post({ id: "e1", title: "Sin título", body_blocks: [] })] });
+  const r = await createPostDraft(ctx(db), { locale: "es", title: "Nuevo", bodyBlocks: okBlocks });
+  assert.ok(r.ok);
+  assert.notEqual(r.ok && r.data.id, "e1");
+  assert.equal(db.tables.cms_posts.length, 2);
+});
+
 test("savePostDraft rejects invalid blocks and any taken_down_* field", async () => {
   const db = fakeDb({ cms_posts: [post()] });
   const bad = await savePostDraft(ctx(db), { id: "p1", bodyBlocks: [{ id: "x", type: "nope" }] });

@@ -5,6 +5,7 @@
 
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
+import { zoneTimeLabel } from "@/lib/events/zone-time-label";
 import { shapeMeData, type MeRow } from "@/lib/me/shape-me";
 
 import { isClientAccountEligible } from "./pure";
@@ -117,7 +118,7 @@ export function canManageBooking(input: {
 
 export type ZonedWhen = { date: string; time: string; tzLabel: string };
 
-/** Date and time in the TALENT's zone, with the zone named (short offset plus the IANA id). */
+/** Date and time in the TALENT's zone, with the zone named by city (the same line the booking confirmation uses). */
 export function formatZonedWhen(iso: string | null | undefined, timeZone: string, locale: string): ZonedWhen | null {
   const ms = iso ? Date.parse(iso) : NaN;
   if (!Number.isFinite(ms)) return null;
@@ -130,10 +131,9 @@ export function formatZonedWhen(iso: string | null | undefined, timeZone: string
   const run = (zone: string) => {
     const date = new Intl.DateTimeFormat(loc, { timeZone: zone, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(ms);
     const time = new Intl.DateTimeFormat(loc, { timeZone: zone, hour: "numeric", minute: "2-digit" }).format(ms);
-    const short = new Intl.DateTimeFormat(loc, { timeZone: zone, timeZoneName: "short" })
-      .formatToParts(ms)
-      .find((p) => p.type === "timeZoneName")?.value;
-    return { date, time, tzLabel: short ? `${short} (${zone})` : zone };
+    // TUL-1147: the zone is named exactly as the booking sheet and its confirmation name it
+    // ("Hora de Cancún" / "Cancún time"), not as "GMT-5 (America/Cancun)".
+    return { date, time, tzLabel: zoneTimeLabel(zone, locale === "es") || zone };
   };
   try {
     return run(timeZone);

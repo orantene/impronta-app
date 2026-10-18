@@ -33,3 +33,14 @@ export function readAuthNameDraft(): string {
 export function writeAuthNameDraft(value: string): void {
   nameDraft = value;
 }
+
+let consentDraft = false;
+
+/** TUL-1235: the 18+ and Terms box survives a failed submit (React resets uncontrolled form fields after an action). */
+export function readAuthConsentDraft(): boolean {
+  return consentDraft;
+}
+
+export function writeAuthConsentDraft(value: boolean): void {
+  consentDraft = value;
+}

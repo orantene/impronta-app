@@ -32,6 +32,7 @@ export async function withLiveAvailability(
       .select("id")
       .eq("talent_profile_id", talentProfileId)
       .eq("status", "published")
+      .eq("moderation_state", "approved") // D-10
       .eq("visibility", "public")
       .neq("kind", "product")
       .limit(MAX_SERVICES_CHECKED);

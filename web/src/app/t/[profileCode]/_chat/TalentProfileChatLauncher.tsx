@@ -49,6 +49,7 @@ import { useLauncherSessionRestore } from "./use-launcher-session-restore";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import { useYieldBookingBar } from "./use-yield-booking-bar";
+import { useDockFocusReturn } from "./use-dock-focus-return";
 import {
   DEFAULT_ACCENT,
   FONT,
@@ -213,18 +214,8 @@ export function TalentProfileChatLauncher({
   // so every rail avatar is a face-focus portrait, not initials (§4.A.1 / §5.5).
   useResolveCartPortraits(tenantSlug, onResolveCartPortraits);
   const pillRef = useRef<HTMLButtonElement>(null);
-  // TUL-1082: the launcher unmounts while the dock is open, so Esc / X used to
-  // drop focus on <body>. Hand it back to the launcher once it remounts.
-  const wasOpenRef = useRef(false);
-  useEffect(() => {
-    if (wasOpenRef.current && !open) {
-      const raf = requestAnimationFrame(() => pillRef.current?.focus());
-      wasOpenRef.current = false;
-      return () => cancelAnimationFrame(raf);
-    }
-    wasOpenRef.current = open;
-    return undefined;
-  }, [open]);
+  // TUL-1082: Esc / X returns focus to the control that opened the dock (use-dock-focus-return.ts).
+  useDockFocusReturn(open, pillRef);
   // Card → pill fly clone (reduced-motion-safe; no portal under reduce). The
   // flight is driven by the directory card's animateAdd payload via context.
   const { flight, onFlightDone } = useFlyToRail(pillRef);

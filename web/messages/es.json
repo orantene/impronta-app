@@ -1348,6 +1348,7 @@
       "dockTrayRemove": "Quitar",
       "dockTrayOpenLineup": "Abrir Artículos",
       "dockTrayOpen": "Revisar",
+      "dockTraySend": "Enviar solicitud",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
       "catalogSearchPlaceholder": "Buscar en esta lista",
       "catalogSortLabel": "Ordenar",
@@ -2194,6 +2195,15 @@
           "notReachable": "Motivo: tu página no respondió cuando la abrimos. Toca Intentar de nuevo.",
           "oldContent": "Motivo: tu dirección todavía muestra contenido anterior. Toca Intentar de nuevo en unos segundos.",
           "notCreated": "Motivo: no pudimos crear tu dirección. Abre el editor para terminarla."
+        },
+        "draftSaw": {
+          "status": "Lo que vimos: tu dirección respondió con el error {status} en lugar de tu página.",
+          "statusUnknown": "Lo que vimos: tu dirección respondió con un error en lugar de tu página.",
+          "network": "Lo que vimos: tu dirección no respondió.",
+          "nameMissing": "Lo que vimos: tu dirección abrió, pero tu nombre todavía no aparece en la página.",
+          "noName": "Lo que vimos: tu página no tiene un nombre para comprobar. Abre el editor y agrega uno.",
+          "noUrl": "Lo que vimos: tu página todavía no tiene dirección.",
+          "protected": "Lo que vimos: tu dirección está detrás de un inicio de sesión, así que no pudimos verla."
         },
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",

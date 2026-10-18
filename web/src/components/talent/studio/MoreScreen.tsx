@@ -59,6 +59,9 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
         { label: "Profile", detail: profileLeft, page: "profile" },
         { label: "Photos of my work", detail: photosDetail, page: "profile" },
         { label: "Reviews", detail: copy.t("Open"), page: "reviews" },
+        // TUL-1003: the phone rail has no Posts tab. Visible to every talent: drafting is free,
+        // only Publicar needs Web Office (enforced server-side; the list shows the lock hint).
+        { label: "Posts", detail: copy.t("Open"), page: "posts" },
       ],
     },
     {
