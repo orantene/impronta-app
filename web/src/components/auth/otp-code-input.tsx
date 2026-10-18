@@ -52,9 +52,12 @@ export function OtpCodeInput({
   const [seenReset, setSeenReset] = useState(resetKey);
   if (seenReset !== resetKey) {
     setSeenReset(resetKey);
-    digitsRef.current = Array(length).fill("");
-    setDigits(digitsRef.current);
+    setDigits(Array(length).fill(""));
   }
+  // Keep the ref in step after a reset (handlers update it synchronously via commit).
+  useEffect(() => {
+    digitsRef.current = digits;
+  }, [digits]);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const value = digits.join("");
 
