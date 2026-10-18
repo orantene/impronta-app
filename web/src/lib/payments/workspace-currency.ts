@@ -5,7 +5,7 @@
  * Mexico studio, because Payments fell back to a hard-coded USD).
  *
  * Rule, same as the Overview: the agency's `preferred_currency`, else the first catalogue offering's currency,
- * else USD (the platform's primary currency). A value that is not a 3-letter code is ignored.
+ * else MXN (the platform default market). A value that is not a 3-letter code is ignored.
  */
 const CODE = /^[A-Za-z]{3}$/;
 
@@ -17,5 +17,5 @@ export function pickWorkspaceCurrency(
     const v = typeof raw === "string" ? raw.trim() : "";
     if (CODE.test(v)) return v.toUpperCase();
   }
-  return "USD";
+  return "MXN";
 }

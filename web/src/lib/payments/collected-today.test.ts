@@ -6,7 +6,7 @@ import { pickWorkspaceCurrency } from "./workspace-currency";
 
 /**
  * TUL-734 amounts-unchanged proof. "Before" is the old rule (hard-coded USD fallback); "after" is the
- * workspace-currency fallback. On every fixed fixture every AMOUNT must be identical; only the label of an
+ * workspace-currency fallback (preferred_currency, then one offering currency, then MXN). On every fixed fixture every AMOUNT must be identical; only the label of an
  * EMPTY board may differ.
  */
 const before = (rows: TakingsByMethod[]) => summarizeCollectedToday(rows, "USD");
@@ -30,10 +30,10 @@ const FIXTURES: Record<string, TakingsByMethod[]> = {
   ],
 };
 
-for (const [branch, args] of [
-  ["agencies.preferred_currency present", ["mxn", "USD"]],
-  ["fallback to one talent_offerings.currency row", [null, "mxn"]],
-  ["neither: previous USD default", [null, null]],
+for (const [branch, args, expected] of [
+  ["agencies.preferred_currency present", ["usd", "EUR"], "USD"],
+  ["fallback to one talent_offerings.currency row", [null, "eur"], "EUR"],
+  ["neither: MXN default (was USD)", [null, null], "MXN"],
 ] as const) {
   test(`TUL-734 amounts unchanged (${branch})`, () => {
     const currency = pickWorkspaceCurrency(args[0], args[1]);
@@ -46,7 +46,7 @@ for (const [branch, args] of [
     // Zero stays zero; only the empty-state label follows the workspace.
     const empty = summarizeCollectedToday([], currency);
     assert.deepEqual(amounts(empty), [0, 0, 0, 0]);
-    assert.equal(empty.currency, args[0] || args[1] ? "MXN" : "USD");
+    assert.equal(empty.currency, expected);
   });
 }
 
