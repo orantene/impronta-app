@@ -8,8 +8,6 @@ import { LiveWebsiteTitle } from "@/components/talent/website-reward/LiveWebsite
 import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
-import { loadTalentClients } from "@/lib/talent/clients-actions";
-import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { agendaMoneyRows, awaitingOfferSummary, talentOwedSummary } from "@/lib/talent/money-home";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
@@ -48,7 +46,8 @@ import { useAgendaCopy } from "./use-agenda-copy";
 import { useAdminShell } from "../../state";
 import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
-import { settleServerAction } from "@/lib/client/settle-server-action";
+import { ledgerClientsForSummary, owedAmountText } from "@/components/talent/money/ledger-clients-state";
+import { useTalentLedgerClients } from "@/components/talent/money/use-talent-ledger-clients";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
   who: "Your name and what you do",
@@ -235,22 +234,12 @@ export function AgendaTodayPage({
   );
   // F69: same source as /talent/money. The client ledger (agency_bookings
   // balances) plus the agenda's balances, via the one shared summary.
-  const [ledgerClients, setLedgerClients] = useState<TalentClientRow[] | null>(null);
   const profileId = profile?.id ?? null;
-  useEffect(() => {
-    if (!profileId) return;
-    let cancelled = false;
-    void settleServerAction(() => loadTalentClients(profileId), { label: "loadTalentClients", area: "talent-today" })
-      .then((res) => {
-        if (!cancelled) setLedgerClients(res.ok ? res.items : []);
-      })
-      .catch(() => {
-        if (!cancelled) setLedgerClients([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [profileId]);
+  const { state: ledgerState } = useTalentLedgerClients(profileId, "talent-today");
+  const ledgerClients = ledgerClientsForSummary(ledgerState);
+  // TUL-1242: until the ledger is really known (loading or failed) the card shows a dash,
+  // never an agenda-only figure that is later replaced by the real one.
+  const owedKnown = ledgerState.status === "ready";
   const agendaMoney = agendaMoneyRows(items, clock);
   const owed = talentOwedSummary({ clients: ledgerClients, agendaOwed: agendaMoney.owed, currency: monthCollected?.currency ?? null });
   const awaiting = awaitingOfferSummary(agendaMoney.waiting, owed.currency ?? monthCollected?.currency ?? null);
@@ -468,12 +457,15 @@ export function AgendaTodayPage({
             <div
               className={`text-[22px] font-semibold tabular-nums ${owed.cents > 0 ? "text-amber-700" : "text-[var(--tc-primary)]"}`}
             >
-              {owed.currency
-                ? formatMoney(owed.cents, owed.currency, locale)
-                : formatMoney(0, currency ?? "MXN", locale)}
+              {owedAmountText(
+                ledgerState,
+                owed.currency ? owed : { cents: 0, currency: null },
+                (cents, cur) => formatMoney(cents, cur, locale),
+                currency ?? "MXN",
+              )}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
-              {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : awaiting.count === 0 ? copy.t("Nothing owed") : ""}
+              {!owedKnown ? "" : owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : awaiting.count === 0 ? copy.t("Nothing owed") : ""}
               {awaiting.count > 0 && awaiting.currency ? `${owed.count > 0 ? " · " : ""}${formatMoney(awaiting.cents, awaiting.currency, locale)} ${copy.t("pending payment")}` : ""}
             </div>
           </button>

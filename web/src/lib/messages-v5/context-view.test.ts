@@ -170,3 +170,23 @@ test("TUL-281: an unknown or blank record currency falls back to the platform cu
   assert.equal(moneySummary({ totalCents: 85000, paidCents: 0, currencyCode: "" }).totalLabel, "$850 USD");
   assert.equal(moneySummary({ totalCents: 85000, paidCents: 0, currencyCode: "??" }).totalLabel, "$850 USD");
 });
+
+test("TUL-1245: Detalles summary in Spanish says Pedido and pagado, not raw 'order' / 'paid'", () => {
+  const es = buildKitCopy(createTranslator("es"));
+  const essentials = {
+    name: "Valentina Ruiz",
+    version: 4,
+    customer: { name: "Valentina Ruiz", email: null, phone: null, identityLevel: "confirmed" as const, identityMethod: "sms_code", request: null, source: "Website" },
+    linked: [],
+    notes: [],
+  };
+  const chip = { kind: "order" as const, recordId: "o1", label: "order", paymentState: null, fulfilmentState: null };
+  const money = moneySummary({ totalCents: 50000, paidCents: 0, currencyCode: "MXN" });
+  const vm = summaryFor({ essentials, tasks: [], chips: [chip], copy: es, money });
+  assert.equal(vm.main, "Pedido");
+  assert.match(vm.amount, /pagado$/);
+  assert.doesNotMatch(vm.amount, /\bpaid\b/);
+  // a real label (an order number) is kept as is
+  const named = summaryFor({ essentials, tasks: [], chips: [{ ...chip, label: "#1203" }], copy: es, money: null });
+  assert.equal(named.main, "#1203");
+});

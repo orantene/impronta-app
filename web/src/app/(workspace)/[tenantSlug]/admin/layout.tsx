@@ -40,6 +40,7 @@ import {
 } from "@/lib/site-admin/server/workspace-locale-seed";
 import { loadWorkspaceSeedPrimary } from "@/lib/site-admin/server/workspace-locale-seed.server";
 import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
+import AdminLoading from "./loading";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
@@ -189,8 +190,11 @@ export default async function WorkspaceAdminLayout({
       // inside the post-sign-in soft navigation loops in the client router.
       return (
         <LocaleSeedHardRedirect
+          attemptCookie={WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE}
           href={workspaceLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`, tenantSlug)}
-        />
+        >
+          <AdminLoading />
+        </LocaleSeedHardRedirect>
       );
     }
   }

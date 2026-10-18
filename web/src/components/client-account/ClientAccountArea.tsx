@@ -374,7 +374,11 @@ export function ClientAccountArea(props: Props) {
       <>
         {props.email ? <p style={{ color: MUTED, marginTop: 0 }}>{a("fieldEmail")}: {props.email}</p> : null}
         <SettingsForm
-          initial={props.data.profile}
+          // TUL-1259: the select shows the language the page is actually in. A
+          // stored profile locale that disagrees with the UI (e.g. "en" saved
+          // before the visitor switched) made Spanish Ajustes say "Inglés";
+          // saving now stores what the visitor sees.
+          initial={{ ...props.data.profile, locale: loc }}
           copy={{
             name: a("fieldName"), phone: a("fieldPhone"), language: a("fieldLanguage"), marketing: a("fieldMarketing"),
             save: a("save"), saved: a("saved"), invalid: a("phoneInvalid"), generic: a("errGeneric"), langEn: a("langEn"), langEs: a("langEs"),

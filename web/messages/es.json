@@ -1599,7 +1599,7 @@
       "dateStartTimeLabel": "Hora de inicio (opcional)",
       "dateDurationLabel": "Duración (opcional)",
       "dateDurationPlaceholder": "p. ej. 2-4 horas · día completo",
-      "talentTitle": "Talent",
+      "talentTitle": "Talento",
       "talentSubtitle": "Elige talento específico, o deja que la agencia lo recomiende.",
       "talentModeRecommend": "Que la agencia recomiende",
       "talentModeIKnow": "Ya sé a quién quiero",
@@ -1607,6 +1607,14 @@
       "talentFallbackName": "Talento",
       "talentRemoveAria": "Quitar a {name}",
       "talentAddLabel": "Añadir talento",
+      "talentSearchPlaceholder": "Buscar talento por nombre",
+      "talentSearchAddAria": "Añadir a {name} a tu solicitud",
+      "talentSearchAdd": "Añadir",
+      "talentSearchEmpty": "Ningún talento coincide con ese nombre. Prueba otro, o deja que la agencia recomiende.",
+      "mapTitle": "Mapa: {place}",
+      "mapAria": "Vista previa de Google Maps para {place}",
+      "mapView": "Ver en el mapa",
+      "mapDirections": "Cómo llegar",
       "talentCountLabel": "Cuántos talentos (opcional)",
       "talentCountPlaceholder": "p. ej. 3",
       "talentTypeLabel": "Tipo de talento",
@@ -1676,7 +1684,7 @@
       "reviewClientCompany": "Cliente / empresa",
       "reviewLocation": "Ubicación",
       "reviewDate": "Fecha",
-      "reviewTalent": "Talent",
+      "reviewTalent": "Talento",
       "reviewTalentRecommend": "La agencia recomendará",
       "reviewTalentSelected": "{count} seleccionados",
       "reviewTalentNeeded": "{count} necesarios",
@@ -2102,11 +2110,11 @@
       "code": {
         "title": "Escribe el código",
         "sub": "Enviamos un código de 8 dígitos a {email}. Es la misma pantalla para todos, así que revisa tu bandeja y el spam.",
-        "plusSub": "Enviamos un código a {email}. Muchas bandejas no entregan correo a direcciones con +. Si no llega en un minuto, cambia a un correo sin +.",
+        "plusSub": "Enviamos un código a {email}. Puede tardar un minuto. Si no llega, pide un código nuevo o prueba con tu dirección principal.",
         "resend": "Enviar un código nuevo",
         "resendIn": "Enviar un código nuevo en {s}s",
         "resent": "Un código nuevo va en camino.",
-        "plusResent": "Código nuevo enviado. Si sigue sin llegar, cambia a una dirección sin +.",
+        "plusResent": "Código nuevo enviado. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "changeEmail": "Cambiar correo",
         "verifying": "Comprobando…"
       },
@@ -2373,7 +2381,7 @@
       "saved": "Guardado.",
       "phoneInvalid": "Revisa el número de teléfono.",
       "logOut": "Cerrar sesión",
-      "langEn": "Inglés",
+      "langEn": "English",
       "langEs": "Español",
       "fieldEmail": "Correo",
       "namePromptTitle": "Agrega tu nombre",
@@ -2383,6 +2391,7 @@
     },
     "clientAccount": {
       "signIn": "Iniciar sesión",
+      "createAccount": "Crear cuenta",
       "account": "Cuenta",
       "openLabel": "Abrir menú de cuenta",
       "closeLabel": "Cerrar",
@@ -2441,7 +2450,8 @@
       "perMonth": "al mes",
       "billedYearly": "{amount} al año",
       "billedMonthly": "Facturado cada mes",
-      "popular": "Más elegido"
+      "popular": "Más elegido",
+      "approxNote": "al mes, se cobra en USD"
     }
   },
   "dashboard": {
