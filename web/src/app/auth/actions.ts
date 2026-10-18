@@ -473,7 +473,8 @@ export async function signUpTalentInPlace(
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
         "/talent/profile/fields",
       )}&lang=${String(formData.get("locale") ?? "en") === "es" ? "es" : "en"}`,
-      data: { signup_intent: "talent" },
+      // lang: fallback for the auth-email hook when the redirect loses ?lang= (TUL-146/814).
+      data: { signup_intent: "talent", lang: String(formData.get("locale") ?? "en") === "es" ? "es" : "en" },
     },
   });
   if (error) {

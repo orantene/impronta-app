@@ -21,6 +21,8 @@ src/lib/brand/marketing-origin.test.ts
 src/lib/pricing/pick-marketing-currency.test.ts
 src/lib/pricing/approx-local-price.test.ts
 src/lib/i18n/es-public-site-correctness.test.ts
+src/lib/notifications/auth-email-signup-es.static.test.ts
+src/lib/site-admin/sections/site_header/brand-label-phone.static.test.ts
 src/lib/billing/commerce-audit.static.test.ts
 src/lib/billing/commission.test.ts
 src/lib/billing/commission.characterization.test.ts
