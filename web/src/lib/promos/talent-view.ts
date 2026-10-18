@@ -3,6 +3,7 @@
  * Tabs, progress, attention dot, money formatting.
  */
 
+import { formatPrice } from "@/lib/money/format-price";
 import { boundKey, dayDiff, localParts } from "./local-time";
 import type { Promo, PromoStatus } from "./types";
 
@@ -21,6 +22,15 @@ export function tabOf(status: PromoStatus): PromoTab {
     default:
       return "past";
   }
+}
+
+/**
+ * TUL-938: the share kit (images, link) only works for a promo the public can
+ * see. The asset route and the landing 404 a draft, so a draft shows "Share"
+ * as dead previews ("Vista previa no disponible"). Only these can be shared.
+ */
+export function canSharePromo(status: PromoStatus): boolean {
+  return status === "live" || status === "scheduled" || status === "paused" || status === "sold_out";
 }
 
 export type TabbedItem = { id: string; status: PromoStatus; created_at: string; ends_at: string | null; tz: string };
@@ -79,13 +89,9 @@ export function daysLeft(endDate: string, today: string): number {
 /** Major-unit display, whole pesos for MXN. Minor units in. */
 export function formatMoney(cents: number, currency: string, locale: string): string {
   const cur = currency.toUpperCase();
-  const whole = cur === "MXN" || cents % 100 === 0;
-  return new Intl.NumberFormat(locale.startsWith("es") ? "es-MX" : "en-US", {
-    style: "currency",
-    currency: cur,
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  }).format(cents / 100);
+  // MXN prints whole pesos here; the one formatter owns symbol, code and grouping.
+  const amountCents = cur === "MXN" ? Math.round(cents / 100) * 100 : cents;
+  return formatPrice({ amountCents, currency: cur, locale, audience: "talent" }).primary;
 }
 
 /** "mar 13 oct" style short date from "YYYY-MM-DD". */

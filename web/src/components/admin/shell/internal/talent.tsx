@@ -575,13 +575,15 @@ function TalentRouterFallback({ talentPage }: { talentPage: string }) {
   const copy = useDashboardText();
   return (
     <>
+      {/* TUL-702: the internal page id ("calendar") is not copy; it stays a data attribute for debugging. */}
+      <span hidden data-talent-page={talentPage} />
       <PageHeader
         title={copy.t("Loading")}
         subtitle={copy.t("One moment — preparing your talent surface.")}
       />
       <EmptyState
         title={copy.t("Almost there")}
-        body={`${copy.t("We're loading this view:")} "${talentPage}". ${copy.t("If this card stays up, refresh the page or pick another section from the top nav.")}`}
+        body={copy.t("If this card stays up, refresh the page or pick another section from the top nav.")}
       />
     </>
   );

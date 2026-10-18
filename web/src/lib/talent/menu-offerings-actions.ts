@@ -14,6 +14,7 @@ import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
+import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import {
   loadOfferingChildren,
   replaceOfferingChildren,
@@ -86,11 +87,17 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     // Event offerings live on the same table (`owner_kind=workspace`) but
     // belong to Events, not Menu. Exclude any id that an `events.offering_id`
     // points at so a ticketed night never shows up as a sellable menu package.
+    const ownerTalentIds = await fetchOwnerTalentIds(admin, tenantId);
     const [{ data, error }, { data: eventRows, error: evErr }] = await Promise.all([
       offeringsTable(admin)
         .select("*")
         .eq("tenant_id", tenantId)
-        .eq("owner_kind", "workspace")
+        // TUL-915: the house rows PLUS the workspace OWNER's own provider rows
+        // (onboarding writes those as owner_kind='talent' and the public site
+        // shows them). Reading only 'workspace' left the Catalog empty while a
+        // service was bookable. Tenant stays pinned above; writes below are
+        // unchanged and still workspace-only.
+        .or(workspaceOfferingOrFilter(ownerTalentIds))
         .neq("status", "archived")
         // Ties on sort_order (every seeded row is 0) would otherwise come back
         // in whatever order the last update left them.

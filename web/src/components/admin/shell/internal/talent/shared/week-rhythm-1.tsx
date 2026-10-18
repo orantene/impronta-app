@@ -206,7 +206,7 @@ export function WeekRhythmStrip() {
                   fontSize: 9, color: theme.label, fontFamily: FONTS.body,
                   opacity: 0.85,
                 }}>
-                  {isToday ? copy.t("Today") : copy.t("Free")}
+                  {isToday ? copy.t("Today") : copy.isSpanish ? "Libre" : "Free"}
                 </div>
               )}
             </Tag>
