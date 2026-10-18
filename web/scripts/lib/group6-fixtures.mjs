@@ -136,3 +136,37 @@ export function ownedRootIds() {
     talent_reviews: [k("review:1"), k("review:2"), k("review:3")],
   };
 }
+
+/**
+ * Every table and column the seed writes (insert/clone overrides). Plan mode checks these against
+ * information_schema read-only, so schema drift shows up before any write. Keep in step with the seed.
+ */
+export const SEED_COLUMNS = {
+  "auth.users": ["id", "instance_id", "aud", "role", "email", "encrypted_password", "email_confirmed_at", "raw_app_meta_data", "raw_user_meta_data", "created_at", "updated_at", "confirmation_token", "recovery_token", "email_change_token_new", "email_change", "is_sso_user", "is_anonymous"],
+  "auth.identities": ["id", "user_id", "provider_id", "provider", "identity_data", "last_sign_in_at", "created_at", "updated_at"],
+  "public.profiles": ["id", "display_name", "app_role", "account_status", "is_test_account", "onboarding_completed_at"],
+  "public.talent_profiles": ["default_currency", "display_name", "first_name", "id", "is_discoverable", "is_publicly_hidden", "is_publicly_listed", "is_test_account", "preferred_locale", "profile_code", "profile_kind", "public_slug_part", "short_bio", "talent_plan_key", "updated_at", "user_id", "visibility", "workflow_status"],
+  "public.taxonomy_terms": ["id", "slug"],
+  "public.talent_profile_taxonomy": ["display_order", "is_primary", "relationship_type", "talent_profile_id", "taxonomy_term_id", "tenant_id"],
+  "public.talent_booking_hours": ["buffer_after_min", "buffer_before_min", "exceptions", "horizon_days", "min_notice_min", "slot_minutes", "talent_profile_id", "tenant_id", "timezone", "weekly"],
+  "public.agency_talent_roster": ["agency_visibility", "id", "source_type", "status", "talent_profile_id", "talent_site_hidden", "tenant_id"],
+  "public.talent_sites": ["accepting_bookings", "accepting_inquiries", "draft_updated_at", "id", "published_at", "shell_published", "shell_tree", "site_kind", "site_published_at", "site_slug", "status", "talent_profile_id", "version"],
+  "public.talent_pages": ["blocks", "blocks_published", "id", "is_home", "nav_label", "published_at", "slug", "sort_order", "status", "talent_profile_id", "theme", "title"],
+  "public.media_assets": ["alt", "approval_state", "asset_kind", "bucket_id", "id", "mime_type", "owner_talent_profile_id", "purpose", "storage_path", "tenant_id", "variant_kind"],
+  "public.talent_offerings": ["allow_pay_in_person", "amount_cents", "attributes", "booking_mode", "cancellation_hours", "category", "currency", "description", "duration_minutes", "id", "is_featured", "kind", "moderation_state", "owner_kind", "price_display", "price_type", "reserve_mode", "sort_order", "status", "talent_profile_id", "tenant_id", "title", "visibility"],
+  "public.talent_offering_media": ["offering_id", "media_asset_id", "sort_order"],
+  "public.client_profiles": ["id", "user_id", "preferred_locale"],
+  "public.customers": ["display_name", "email", "id", "tenant_id", "user_id"],
+  "public.agency_bookings": ["client_user_id", "contact_email", "contact_name", "currency_code", "customer_id", "ends_at", "event_date", "id", "internal_notes", "payment_status", "source_type_snapshot", "starts_at", "status", "tenant_id", "timezone", "title", "total_client_revenue", "venue_location_text", "venue_name", "client_revenue_lifecycle"],
+  "public.talent_bookings": ["all_day", "client_label", "created_by_user_id", "ends_at", "id", "location_text", "starts_at", "status", "talent_profile_id", "tenant_id", "title"],
+  "public.booking_talent": ["booking_id", "client_charge_rate", "client_charge_total", "id", "profile_code_snapshot", "role_label", "talent_cost_rate", "talent_cost_total", "talent_name_snapshot", "talent_profile_id", "units"],
+  "public.booking_transactions": ["booking_id", "checkout_type", "currency", "gross_amount_cents", "id", "net_amount_cents", "payer_email", "payer_user_id", "platform_fee_basis_points", "platform_fee_cents", "provider", "source_tenant_id", "status", "stripe_platform", "requested_at", "payout_receiver_kind", "payout_receiver_id", "payout_receiver_display_name", "paid_at", "provider_metadata"],
+  "public.inquiries": ["client_account_id", "client_user_id", "contact_email", "contact_name", "contact_phone", "created_at", "current_offer_id", "customer_id", "event_date", "id", "message", "owner_user_id", "source_context", "status", "updated_at"],
+  "public.inquiry_requirement_groups": ["id", "inquiry_id"],
+  "public.inquiry_participants": ["id", "inquiry_id", "requirement_group_id", "talent_profile_id", "user_id", "role"],
+  "public.inquiry_offers": ["accepted_at", "created_at", "created_by_user_id", "currency_code", "id", "inquiry_id", "notes", "sent_at", "status", "total_client_price", "updated_at", "valid_until", "version"],
+  "public.inquiry_offer_line_items": ["id", "label", "offer_id", "price_snapshot_cents", "source_service_id", "talent_cost", "talent_profile_id", "total_price", "unit_price"],
+  "public.talent_reviews": ["anon", "body", "booking_id", "client_user_id", "id", "rating", "status", "talent_profile_id", "tenant_id", "would_book_again"],
+  "public.cms_posts": ["body", "cover_image_url", "excerpt", "expires_at", "id", "locale", "published_at", "slug", "status", "taken_down_at", "taken_down_reason", "title", "translation_of", "tenant_id", "talent_profile_id", "created_by", "updated_by", "include_in_sitemap", "noindex", "is_unlisted", "is_featured", "author_profile_id"],
+  "public.talent_subscriptions": ["current_period_end", "id", "plan_key", "status", "stripe_customer_id", "stripe_price_id", "stripe_subscription_id", "talent_profile_id", "user_id"],
+};

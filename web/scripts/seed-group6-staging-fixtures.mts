@@ -47,6 +47,7 @@ import {
   ownedRootIds,
   parseArgs,
   parseEnvText,
+  SEED_COLUMNS,
   stableId,
 } from "./lib/group6-fixtures.mjs";
 
@@ -753,7 +754,7 @@ const COUNT_TABLES = [
   "public.talent_profiles", "public.talent_sites", "public.talent_pages", "public.talent_offerings", "public.talent_offering_media",
   "public.agency_bookings", "public.talent_bookings", "public.booking_talent", "public.booking_transactions", "public.inquiries",
   "public.inquiry_offers", "public.inquiry_participants", "public.cms_posts", "public.talent_reviews", "public.media_assets",
-  "public.customers", "public.agency_talent_roster", "public.profiles", "auth.users", "auth.identities", "public.agencies",
+  "public.customers", "public.client_profiles", "public.agency_talent_roster", "public.profiles", "auth.users", "auth.identities", "public.agencies",
   "public.talent_subscriptions", "public.notification_dispatch_log", "public.user_notifications",
 ];
 
@@ -780,6 +781,8 @@ async function seedAll() {
   const uLimpieza = await seedUser("limpieza", EMAILS.limpieza, "qa-fixture Limpieza Hogar", "talent");
   const uQuote = await seedUser("quote", EMAILS.quote, "qa-fixture Electricista", "talent");
   const uClient = await seedUser("client", clientEmail, "qa-fixture Cliente", "client");
+  // Without a client_profiles row /client and /account bounce the user to /onboarding/role.
+  await ins("public.client_profiles", { id: id("client_profile"), user_id: uClient, preferred_locale: "es" }, ["user_id"]);
 
   const t1 = await seedTalent(
     {
@@ -955,6 +958,21 @@ async function main() {
       const r = await q(`select count(*)::int as n from public.${table} where id = any($1::uuid[])`, [ids]);
       console.log(`  ${table.padEnd(18)} ${r.rows[0].n}/${ids.length} fixture root rows present`);
     }
+    // Schema check: every table/column the seed writes must exist in the staging schema.
+    let missing = 0;
+    for (const [qualified, cols] of Object.entries(SEED_COLUMNS)) {
+      const [schema, table] = qualified.split(".");
+      const have = new Set(
+        (await q("select column_name from information_schema.columns where table_schema = $1 and table_name = $2", [schema, table])).rows.map((r) => r.column_name as string),
+      );
+      const gone = have.size === 0 ? ["(table missing)"] : cols.filter((c) => !have.has(c));
+      if (gone.length) {
+        missing += gone.length;
+        console.log(`  SCHEMA MISSING ${qualified}: ${gone.join(", ")}`);
+      }
+    }
+    console.log(`  schema check: ${Object.keys(SEED_COLUMNS).length} tables, ${missing === 0 ? "every column the seed writes exists" : `${missing} MISSING`}`);
+    if (missing) process.exitCode = 1;
     console.log(mode === "plan" ? "Dry run only: nothing written. Use --selftest to validate against the schema (rolled back), --apply to write." : "Cleanup plan only: nothing deleted. Add --apply to delete.");
     await q("rollback");
     return;
@@ -972,14 +990,17 @@ async function main() {
       return;
     }
     const before = mode === "selftest" ? await tableCounts() : null;
+    // If the fixtures are already committed, cleanup removes them (then rolls back), so the row-count drift check only applies to a clean start.
+    const startedClean = mode === "selftest" ? (await leftovers()) === 0 : true;
     const r = await seedAll();
     printReport(r);
     await verifySummary(r);
     if (mode === "selftest" && before) {
       await cleanup();
       const after = await tableCounts();
-      const drift = COUNT_TABLES.filter((t) => before[t] !== after[t]).map((t) => `${t} ${before[t]} -> ${after[t]}`);
+      const drift = !startedClean ? [] : COUNT_TABLES.filter((t) => before[t] !== after[t]).map((t) => `${t} ${before[t]} -> ${after[t]}`);
       if (drift.length) console.log(`[group6-fixtures] selftest: row-count drift after cleanup (cleanup missed or over-deleted): ${drift.join("; ")}`);
+      else if (!startedClean) console.log("[group6-fixtures] selftest: fixtures were already committed, so the row-count drift check was skipped (cleanup of the existing rows ran and was rolled back)");
       else console.log("[group6-fixtures] selftest: every watched table is back to its starting row count");
       const left = (await leftovers()) + drift.length;
       console.log(`[group6-fixtures] selftest: cleanup left ${left} fixture root rows (expected 0)`);

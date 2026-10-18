@@ -32,6 +32,9 @@ taxonomy/hours rows 4. The `profiles` rows are created by the existing `on_auth_
 The 3 logins' shared password is in `~/.tulala-qa-fixtures-g6.env` (`QA_FIXTURE_PASSWORD`, mode 600). It is not in
 this repo or any chat. Emails are `qa-fixture-g6-{limpieza,quote,client}@impronta.test` (not real inboxes: sign in with the password).
 
+Sign-in check (read-only, prints status codes only): `node scripts/check-group6-fixture-login.mjs --env-file <staging env pull>`.
+It signs the 3 fixture users in with the Supabase password grant, then opens `app.staging.tulala.digital` (`/talent/today`, `/client`, `/account`) with that session and the gate token header. Last run: all 3 grants 200; both talents land signed in on `/talent/today` (200); the client lands on `/account` (200). The plan mode (no flags) also checks, read-only, that all 26 tables/columns the seed writes exist in the staging schema. A `client_profiles` row is seeded for the client, otherwise `/client` bounces to `/onboarding/role`.
+
 ## Fixtures and how Verify uses them
 
 Ids: T1 talent_profile `ea77cae1-4065-4e0c-82c8-b632bc8c0ef3` (TAL-96001), T2 `a5c8919d-e9c7-4076-8547-a2d1b0478482` (TAL-96002),
