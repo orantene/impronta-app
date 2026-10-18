@@ -32,6 +32,24 @@ export async function resolveLedgerClients(
   }
 }
 
+/** What the "Owed to you" figure shows: a dash until the ledger is really known, never a 0 stand-in. */
+export const OWED_UNKNOWN_TEXT = "—";
+
+/**
+ * Display text for the owed figure. `loading` and `error` NEVER render a number (the $500/$0
+ * flip was a not-yet-loaded ledger drawn as an agenda-only figure or $0). Once `ready`, the
+ * summary's own cents/currency are formatted unchanged, a real zero included.
+ */
+export function owedAmountText(
+  state: LedgerClientsState,
+  summary: { cents: number; currency: string | null },
+  format: (cents: number, currency: string) => string,
+  fallbackCurrency: string,
+): string {
+  if (state.status !== "ready") return OWED_UNKNOWN_TEXT;
+  return format(summary.cents, summary.currency ?? fallbackCurrency);
+}
+
 /** Rows to feed the owed summary: `null` until the ledger is really known. */
 export function ledgerClientsForSummary(state: LedgerClientsState): TalentClientRow[] | null {
   return state.status === "ready" ? state.items : null;

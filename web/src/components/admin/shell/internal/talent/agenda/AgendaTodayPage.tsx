@@ -44,7 +44,7 @@ import { useAgendaCopy } from "./use-agenda-copy";
 import { useAdminShell } from "../../state";
 import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
-import { ledgerClientsForSummary } from "@/components/talent/money/ledger-clients-state";
+import { ledgerClientsForSummary, owedAmountText } from "@/components/talent/money/ledger-clients-state";
 import { useTalentLedgerClients } from "@/components/talent/money/use-talent-ledger-clients";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
@@ -453,11 +453,12 @@ export function AgendaTodayPage({
             <div
               className={`text-[22px] font-semibold tabular-nums ${owed.cents > 0 ? "text-amber-700" : "text-[var(--tc-primary)]"}`}
             >
-              {!owedKnown
-                ? "\u2014"
-                : owed.currency
-                  ? formatMoney(owed.cents, owed.currency, locale)
-                  : formatMoney(0, currency ?? "MXN", locale)}
+              {owedAmountText(
+                ledgerState,
+                owed.currency ? owed : { cents: 0, currency: null },
+                (cents, cur) => formatMoney(cents, cur, locale),
+                currency ?? "MXN",
+              )}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
               {!owedKnown ? "" : owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : awaiting.count === 0 ? copy.t("Nothing owed") : ""}
