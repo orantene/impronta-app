@@ -20,7 +20,8 @@ import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator } from "@/i18n/messages";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { headers } from "next/headers";
 import type { Locale } from "@/i18n/config";
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
@@ -108,8 +109,12 @@ export default async function DirectoryPage() {
         localeSettings.defaultLocale,
         localeSettings.supportedLocales,
       );
+      // TUL-711: pass the BROWSER pathname (`/w/<slug>/directory`), not a literal
+      // "/directory", so the workspace path prefix survives; otherwise a /w/ site
+      // bounced to the platform's own /book.
+      const browserPath = (await headers()).get(ORIGINAL_PATHNAME_HEADER) ?? "/directory";
       redirect(
-        publicLocaleHref("/directory", directoryOrBookHref(false), locale, pathSettings),
+        publicLocaleHref(browserPath, directoryOrBookHref(false), locale, pathSettings),
       );
     }
   }

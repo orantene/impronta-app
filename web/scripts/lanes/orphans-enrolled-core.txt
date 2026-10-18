@@ -1,6 +1,7 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
 scripts/e2e-web-server-command.test.ts
+src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
 src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
@@ -59,6 +60,7 @@ src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
+src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts
 src/lib/talent-agenda/booking-reminder-due.test.ts
