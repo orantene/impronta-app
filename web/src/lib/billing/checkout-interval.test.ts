@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   checkoutIdempotencyKey,
+  checkoutPriceError,
   resolveCheckoutPrice,
   toCatalogInterval,
   yearlyCheckoutPlans,
@@ -69,4 +70,10 @@ test("yearlyCheckoutPlans lists only plans with a yearly price", async () => {
   const yearly: Record<string, string | null> = { studio: "price_sy", agency: null, website: " " };
   const plans = await yearlyCheckoutPlans(["website", "studio", "agency"] as const, async (k) => yearly[k] ?? null);
   assert.deepEqual(plans, ["studio"]);
+});
+
+test("TUL-817: a missing price reads as plain copy, never the raw plan key or Stripe jargon", () => {
+  const msg = checkoutPriceError("no_price", "talent_portfolio");
+  assert.ok(!/stripe|talent_portfolio|configured/i.test(msg), msg);
+  assert.match(checkoutPriceError("yearly_unavailable", "talent_pro"), /Yearly billing/);
 });
