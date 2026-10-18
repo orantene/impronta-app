@@ -29,7 +29,10 @@ test("TUL-670: segment uses the dashboard locale hook, next/link, and fills the 
 test("TUL-670: unmatched /talent/* URLs reach the segment 404 inside the shell", () => {
   const page = join(dir, "[...missing]", "page.tsx");
   assert.ok(existsSync(page), "catch-all route needed so unmatched URLs do not fall to the root not-found");
-  assert.match(readFileSync(page, "utf8"), /notFound\(\)/);
+  // TUL-1241: rendered inline (a notFound() swap inside the shell crashes, React #310).
+  const src = readFileSync(page, "utf8");
+  assert.doesNotMatch(src, /notFound\(\)/);
+  assert.match(src, /<TalentNotFound \/>/);
 });
 
 test("TUL-670: dashboard-language tab title on the talent 404", () => {

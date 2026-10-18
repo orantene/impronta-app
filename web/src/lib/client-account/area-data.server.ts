@@ -5,6 +5,7 @@ import { bookingClientFeeLines } from "@/lib/billing/processing-fee-payer";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
+import { buildClientThread, type ClientThreadRow } from "./client-thread-pure";
 import { requestNowMs } from "@/lib/projects/request-clock";
 import { bookingOfferingId, loadBookingCancelPolicy, type BookingCancelPolicy } from "@/lib/scheduling/booking-cancel-policy";
 import { refundableCentsFromPolicy } from "@/lib/scheduling/cancel-booking";
@@ -240,7 +241,7 @@ export async function loadThread(userId: string, tenantId: string, inquiryId: st
   if (!admin) return null;
   const { data: inq, error } = await admin
     .from("inquiries")
-    .select("id, company")
+    .select("id, company, message, created_at")
     .eq("id", inquiryId)
     .eq("client_user_id", userId)
     .eq("tenant_id", tenantId)
@@ -252,7 +253,7 @@ export async function loadThread(userId: string, tenantId: string, inquiryId: st
   if (!inq) return null;
   const { data: msgs, error: msgErr } = await admin
     .from("inquiry_messages")
-    .select("id, body, created_at, sender_user_id")
+    .select("id, body, created_at, sender_user_id, message_kind, card_payload")
     .eq("tenant_id", tenantId)
     .eq("inquiry_id", inquiryId)
     .eq("thread_type", CLIENT_THREAD)
@@ -264,14 +265,11 @@ export async function loadThread(userId: string, tenantId: string, inquiryId: st
     logServerError("clientAccount.thread.messages", msgErr);
     return null;
   }
+  const inquiry = inq as { id: string; company: string | null; message: string | null; created_at: string | null };
   return {
-    title: (inq as { company: string | null }).company?.trim() || "",
-    messages: ((msgs ?? []) as Array<{ id: string; body: string; created_at: string; sender_user_id: string | null }>).map((m) => ({
-      id: m.id,
-      body: m.body,
-      createdAt: m.created_at,
-      mine: m.sender_user_id === userId,
-    })),
+    title: inquiry.company?.trim() || "",
+    // TUL-1258: lead with the client's own request and give card rows readable text.
+    messages: buildClientThread((msgs ?? []) as ClientThreadRow[], inquiry, userId),
   };
 }
 

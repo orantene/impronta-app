@@ -45,9 +45,12 @@ export function checkoutPriceError(
   code: "yearly_unavailable" | "no_price",
   planKey: string,
 ): string {
+  // TUL-817 children: the raw "No Stripe price configured for plan talent_portfolio"
+  // (internal plan key, Stripe jargon) is what a client saw. The key is for logs, not users.
+  void planKey;
   return code === "yearly_unavailable"
     ? "Yearly billing is not available for this plan yet."
-    : `No Stripe price configured for plan "${planKey}".`;
+    : "This plan can't be purchased online right now. Please try again soon or contact support.";
 }
 
 export function checkoutIdempotencyKey(input: {
