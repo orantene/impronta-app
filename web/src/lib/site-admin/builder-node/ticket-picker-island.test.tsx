@@ -157,7 +157,7 @@ test("an event with a night and a tier renders a purchasable control", () => {
 
       const text = visibleText(host);
       assert.match(text, /Day pass/, `the tier is missing: ${text}`);
-      assert.match(text, /89\.00/, `the price is missing: ${text}`);
+      assert.match(text, /\$89/, `the price is missing: ${text}`);
 
       const buy = buyButton(host);
       assert.ok(buy, `no buy control after picking a night and a tier: ${text}`);
@@ -302,7 +302,7 @@ test("cards layout: every tier is inline with its price and includes; the steppe
       const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
       assert.ok(card, "sheet presentation hid the tier cards: the guest sees no prices");
       assert.match(card.textContent ?? "", /Day pass/);
-      assert.match(card.textContent ?? "", /89\.00/, "the price is not on the card");
+      assert.match(card.textContent ?? "", /\$89/, "the price is not on the card");
       assert.match(card.textContent ?? "", /USD/, "the currency code is not on the card");
       assert.match(card.textContent ?? "", /Copa de vino/);
       assert.match(card.textContent ?? "", /Acceso 18:00/);
@@ -320,10 +320,10 @@ test("cards layout: every tier is inline with its price and includes; the steppe
       assert.equal(card.getAttribute("data-on"), "1", "one tap did not put the tier in the order");
       assert.equal(bar.getAttribute("data-empty"), null);
       assert.match(bar.textContent ?? "", /1 × Day pass/);
-      assert.match(bar.querySelector(".tp-bar-total")?.textContent ?? "", /89\.00/);
+      assert.match(bar.querySelector(".tp-bar-total")?.textContent ?? "", /\$89/);
       act(() => { plus.click(); });
       assert.match(bar.textContent ?? "", /2 × Day pass/);
-      assert.match(bar.querySelector(".tp-bar-total")?.textContent ?? "", /178\.00/, "the total did not follow the quantity");
+      assert.match(bar.querySelector(".tp-bar-total")?.textContent ?? "", /\$178/, "the total did not follow the quantity");
       act(() => { plus.click(); });
       act(() => { plus.click(); });
       assert.match(bar.textContent ?? "", /4 × Day pass/);
@@ -355,14 +355,14 @@ test("Continue opens the checkout with the chosen tier: summary, progress, locke
       const summary = dialog.querySelector('[data-testid="ticket-order-summary"]');
       assert.ok(summary, "no order summary in the checkout");
       assert.match(summary.textContent ?? "", /1 × Day pass/);
-      assert.match(dialog.querySelector('[data-testid="ticket-order-total"]')?.textContent ?? "", /89\.00/);
+      assert.match(dialog.querySelector('[data-testid="ticket-order-total"]')?.textContent ?? "", /\$89/);
       const stages = Array.from(dialog.querySelectorAll(".tp-progress li")).map((li) => `${li.textContent}:${li.getAttribute("data-state")}`);
       assert.deepEqual(stages, ["Tickets:done", "Details:current", "Payment:todo"]);
       assert.ok(dialog.querySelector('input[type="email"]'), "no e-mail field");
       assert.ok(dialog.querySelector('input[type="tel"]'), "no phone field");
       const pay = dialog.querySelector<HTMLButtonElement>('[data-testid="ticket-pay"]');
       assert.ok(pay, "no pay control");
-      assert.match(pay.textContent ?? "", /Pay .*89\.00/);
+      assert.match(pay.textContent ?? "", /Pay .*\$89/);
       assert.equal(host.querySelector('[data-testid="ticket-floating-cta"]'), null, "the floating pill showed over an open checkout");
 
       pressEscape();
@@ -588,16 +588,16 @@ test("the checkout summary and the pay button show the SAME money string as the 
     (host) => {
       const card = host.querySelector<HTMLElement>(`[data-tier-card="${DAY_PASS}"]`);
       assert.ok(card);
-      assert.equal(card.querySelector(".tp-card-price")?.textContent, "$1,000.00MXN");
+      assert.equal(card.querySelector(".tp-card-price")?.textContent, "$1,000MXN");
       const plus = card.querySelector<HTMLButtonElement>('button[aria-label="Más"]');
       assert.ok(plus, "the ES stepper carries no 'Más' control");
       act(() => { plus.click(); });
       act(() => { host.querySelector<HTMLButtonElement>('[data-testid="ticket-open-sheet"]')?.click(); });
       const dialog = host.querySelector<HTMLElement>('[role="dialog"]');
       assert.ok(dialog, "the checkout did not open");
-      assert.match(dialog.querySelector('[data-testid="ticket-order-total"]')?.textContent ?? "", /\$1,000\.00 MXN/, "the summary total is not the card's format");
+      assert.match(dialog.querySelector('[data-testid="ticket-order-total"]')?.textContent ?? "", /\$1,000 MXN/, "the summary total is not the card's format");
       assert.doesNotMatch(dialog.textContent ?? "", /1000,00/, "the bare-locale format leaked into the sheet");
-      assert.match(dialog.querySelector('[data-testid="ticket-pay"]')?.textContent ?? "", /\$1,000\.00 MXN/, "the pay button is not the card's format");
+      assert.match(dialog.querySelector('[data-testid="ticket-pay"]')?.textContent ?? "", /\$1,000 MXN/, "the pay button is not the card's format");
       pressEscape();
     },
   );

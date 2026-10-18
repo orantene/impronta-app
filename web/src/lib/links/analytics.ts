@@ -13,6 +13,7 @@
  * did not measure, which is the truth. An operator who sees $0 next to a busy
  * table concludes the code is broken and stops printing them.
  */
+import { formatPrice } from "@/lib/money/format-price";
 
 export type ScanRow = {
   scanned_at: string;
@@ -109,7 +110,7 @@ export function formatBroughtIn(
     };
   }
   return {
-    text: new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100),
+    text: formatPrice({ amountCents: cents, currency, locale, audience: "talent" }).primary,
     measured: true,
   };
 }

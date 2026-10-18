@@ -8,13 +8,12 @@
  */
 
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
-import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { isPartPaidRow } from "@/lib/talent/booking-owed";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings } from "@/lib/talent/earnings-types";
@@ -38,6 +37,8 @@ import { FeePayerCard } from "./FeePayerCard";
 import { PayoutBreakdownCard } from "./PayoutBreakdownCard";
 import { MoneySentOffers } from "./MoneySentOffers";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
+import { ledgerClientsForSummary } from "./ledger-clients-state";
+import { useTalentLedgerClients } from "./use-talent-ledger-clients";
 
 type Tab = "payments" | "outstanding" | "payouts";
 type OutFilter = "all" | "today" | "later";
@@ -105,6 +106,9 @@ function SummaryCard(props: {
 function MoneyHomePane(props: {
   earnings: TalentEarnings;
   clients: TalentClientRow[] | null;
+  /** TUL-1242: the ledger read failed or stalled; say so instead of loading for ever. */
+  clientsFailed: boolean;
+  onRetryClients: () => void;
   agenda: { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[]; refundPending: MoneyAgendaRow[] };
   payout: PayoutLine;
   onManagePayouts: () => void;
@@ -235,12 +239,14 @@ function MoneyHomePane(props: {
           title={t("Owed to you")}
           scope={t("any month")}
           value={
-            props.clients == null
+            props.clientsFailed
+              ? t("Could not load what you are owed.")
+              : props.clients == null
               ? t("Loading")
               : [money(owedCents, cur), ...owedSummary.others.map((o) => money(o.cents, o.currency))].join(" + ")
           }
           tone={owedCents > 0 ? "warn" : undefined}
-          lines={props.clients == null ? "" : [
+          lines={props.clients == null ? (props.clientsFailed ? t("Retry") : "") : [
             outstandingCount > 0
               ? `${outstandingCount} ${t(outstandingCount === 1 ? "balance" : "balances")}${
                   view.overdueCents > 0 ? ` · ${money(view.overdueCents, cur)} ${t("overdue")}` : ""
@@ -410,7 +416,14 @@ function MoneyHomePane(props: {
               </button>
             ))}
           </div>
-        {props.clients == null ? (
+        {props.clients == null && props.clientsFailed ? (
+          <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">
+            {t("Could not load what you are owed.")}{" "}
+            <button type="button" className="underline" onClick={props.onRetryClients}>
+              {t("Retry")}
+            </button>
+          </p>
+        ) : props.clients == null ? (
           <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{t("Loading")}</p>
         ) : owedList.length === 0 && agendaOwedList.length === 0 ? (
           <p className="px-1 py-4 font-admin-body text-[13.5px] text-admin-ink-muted">
@@ -602,19 +615,9 @@ export function MoneyHomePage() {
   const pickRows = [...agenda.owed, ...agenda.waiting.filter((r) => r.kind !== "offer")];
   const { byCurrency, defaultCurrency, loadError } = useResolvedTalentEarningsByCurrency();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
-  const [clients, setClients] = useState<TalentClientRow[] | null>(null);
   const [currency, setCurrency] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!talentId) return;
-    let cancelled = false;
-    void loadTalentClients(talentId).then((res) => {
-      if (!cancelled) setClients(res.ok ? res.items : []);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [talentId]);
+  const { state: clientsState, retry: retryClients } = useTalentLedgerClients(talentId, "talent-money");
+  const clients = ledgerClientsForSummary(clientsState);
 
   const fallbackCurrency = (defaultCurrency || "MXN").toUpperCase();
   const bundles: TalentEarnings[] = byCurrency.length
@@ -671,6 +674,8 @@ export function MoneyHomePage() {
             key={active.totals.currency}
             earnings={active}
             clients={clients}
+            clientsFailed={clientsState.status === "error"}
+            onRetryClients={retryClients}
             agenda={agenda}
             payout={payout}
             onManagePayouts={() => openDrawer("talent-payouts")}
