@@ -201,3 +201,11 @@ test("the promo host route is anonymous and header-gated, like the catch-all", (
 test("`p` stays a reserved page slug so no site page can shadow the promo route", () => {
   assert.match(src("src/lib/saas/talent-site-host-routing.ts"), /"p",/);
 });
+
+test("TUL-554: async docks stream in their own Suspense so the site node paints first", () => {
+  const page = src("src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx");
+  assert.match(page, /<Suspense fallback=\{null\}>\s*<TalentSiteMessagesDock/);
+  assert.match(page, /<Suspense fallback=\{null\}>\s*<ClientAccountDock/);
+  // The site node itself must not be wrapped in a null-fallback boundary.
+  assert.match(page, /<Suspense fallback=\{<TalentSitePaintSkeleton/);
+});
