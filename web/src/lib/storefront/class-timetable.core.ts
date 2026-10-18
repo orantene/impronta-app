@@ -114,13 +114,14 @@ export async function readClassTimetableCore(
     if (offeringIds.length > 0) {
       const { data: offRows, error: offErr } = await deps.admin
         .from("talent_offerings")
-        .select("id, status, amount_cents, currency")
+        .select("id, status, amount_cents, currency, visibility")
         .eq("tenant_id", tenantId)
         .in("id", offeringIds);
       if (offErr) return { ok: false, reason: "unavailable" };
       for (const o of (offRows ?? []) as Array<Record<string, unknown>>) {
         offerings.set(String(o.id), {
-          amountCents: o.amount_cents == null ? null : Number(o.amount_cents),
+          // D-10a: on_request withholds the price (display only).
+          amountCents: o.amount_cents == null || o.visibility === "on_request" ? null : Number(o.amount_cents),
           currency: String(o.currency ?? "USD"),
           published: o.status === "published",
         });

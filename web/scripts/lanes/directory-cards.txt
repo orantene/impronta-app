@@ -21,3 +21,4 @@ src/lib/directory/directory-page-waterfall.static.test.ts
 src/lib/directory/discoverable-default-migration.static.test.ts
 src/components/directory/profile-discovery-cta.static.test.ts
 src/lib/directory/price-from-hub-scope.static.test.ts
+src/lib/directory/starting-price-rows.test.ts

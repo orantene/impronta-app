@@ -52,12 +52,16 @@ export function BookPageClient({
     ? pickBookableOffering([selected], { locationLabel: null })
     : null;
 
+  // D-10a: an on_request service shows no amount and is never instant-booked.
+  const requestOnly = selected?.visibility === "on_request";
+
   const priceLine = selected
     ? publicPriceLine(
         {
           amountCents: selected.amountCents,
           currency: selected.currency,
           priceDisplay: selected.priceDisplay,
+          visibility: selected.visibility,
         },
         pageLocale,
       )
@@ -97,7 +101,7 @@ export function BookPageClient({
       </div>
       {/* TUL-976: when it is paid, before any time is picked. */}
       <p className="-mt-4 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]" data-book-page-pay="">
-        {bookPagePaymentLine(selected, selected.bookingMode === "instant" ? "instant" : "request", pageLocale)}
+        {bookPagePaymentLine(selected, requestOnly ? "request" : selected.bookingMode === "instant" ? "instant" : "request", pageLocale)}
       </p>
       {offerings.length > 1 ? (
         <label className="flex flex-col gap-1.5 text-sm">
@@ -127,7 +131,7 @@ export function BookPageClient({
         tenantId={tenantId}
         agencyName={agencyName}
         offering={bookable}
-        bookingMode={selected.bookingMode === "instant" ? "instant" : "request"}
+        bookingMode={requestOnly ? "request" : selected.bookingMode === "instant" ? "instant" : "request"}
         signedIn={signedIn}
         client={client}
         captcha={captcha}
