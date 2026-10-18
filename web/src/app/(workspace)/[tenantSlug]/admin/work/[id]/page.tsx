@@ -12,9 +12,9 @@ import {
 } from "@/lib/bookings/transactions";
 import {
   calculateTransactionAmountsForBasisPoints,
-  feePercent,
   formatCents,
 } from "@/lib/bookings/commission";
+import { effectiveFeeLabel } from "@/lib/bookings/fee-display";
 import { loadCommissionContext, loadInquiryActivity, type InquiryActivityItem } from "../../../_data-bridge";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import {
@@ -304,7 +304,12 @@ export default async function WorkspaceWorkDetailPage({
         grossCents: transaction.grossAmountCents,
         feeCents: transaction.platformFeeCents,
         netCents: transaction.netAmountCents,
-        feeLabel: feePercent(transaction.platformFeeBasisPoints),
+        // TUL-1176: the rate of what was CHARGED (fee / gross); the stored bps is 0 on pass-through rows.
+        feeLabel: effectiveFeeLabel({
+          platformFeeCents: transaction.platformFeeCents,
+          grossAmountCents: transaction.grossAmountCents,
+          storedBasisPoints: transaction.platformFeeBasisPoints,
+        }),
         currency: transaction.currency,
       }
     : preview

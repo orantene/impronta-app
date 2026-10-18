@@ -224,3 +224,4 @@ src/lib/talent-agenda/abandoned-order-wire.static.test.ts
 src/lib/talent-agenda/abandoned-order.test.ts
 src/lib/talent-agenda/unified-status.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
+src/lib/bookings/fee-display.test.ts
