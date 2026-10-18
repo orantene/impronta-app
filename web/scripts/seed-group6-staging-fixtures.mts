@@ -137,7 +137,7 @@ async function assertStagingMarker() {
 }
 
 // ------------------------------------------------------------------ users
-async function seedUser(key: "limpieza" | "quote" | "client" | "owner", email: string, name: string, role: "talent" | "client") {
+async function seedUser(key: "limpieza" | "quote" | "client" | "client2" | "owner", email: string, name: string, role: "talent" | "client") {
   const uid = id(`user:${key}`);
   const crypt = password ? "extensions.crypt($3::text, extensions.gen_salt('bf'))" : "''";
   const exists = await q("select 1 from auth.users where id = $1", [uid]);
@@ -376,7 +376,7 @@ async function seedOffering(spec: OfferingSpec, talentId: string) {
 
 // ------------------------------------------------------------------ bookings / money / offer / reviews / posts
 async function seedBooking(opts: {
-  key: "away" | "refundable" | "done" | "done2" | "done3" | "paylater" | "agencyonly";
+  key: "away" | "refundable" | "done" | "done2" | "done3" | "paylater" | "agencyonly" | "paid2";
   title: string;
   startsAt: string;
   endsAt: string;
@@ -391,6 +391,8 @@ async function seedBooking(opts: {
   t1User: string;
   paymentIntentId?: string | null;
   orderId?: string | null;
+  clientName?: string;
+  clientEmail?: string;
   /** agency booking id with NO talent_bookings row (TUL-1244 record fallback). */
   skipTalentBooking?: boolean;
 }) {
@@ -405,8 +407,8 @@ async function seedBooking(opts: {
     currency_code: "MXN",
     payment_status: "unpaid",
     total_client_revenue: opts.amountCents / 100,
-    contact_name: "qa-fixture Cliente",
-    contact_email: EMAILS.client,
+    contact_name: opts.clientName ?? "qa-fixture Cliente",
+    contact_email: opts.clientEmail ?? EMAILS.client,
     client_user_id: opts.clientUser,
     customer_id: opts.customerId,
     venue_name: opts.address.split(",")[0],
@@ -422,7 +424,7 @@ async function seedBooking(opts: {
     talent_profile_id: opts.t1,
     tenant_id: HUB_TENANT_ID,
     title: opts.title,
-    client_label: "qa-fixture Cliente",
+    client_label: opts.clientName ?? "qa-fixture Cliente",
     location_text: opts.address,
     starts_at: opts.startsAt,
     ends_at: opts.endsAt,
@@ -452,7 +454,7 @@ async function seedBooking(opts: {
       booking_id: bid,
       source_tenant_id: HUB_TENANT_ID,
       payer_user_id: opts.clientUser,
-      payer_email: EMAILS.client,
+      payer_email: opts.clientEmail ?? EMAILS.client,
       gross_amount_cents: opts.amountCents,
       platform_fee_basis_points: 600,
       platform_fee_cents: fee,
@@ -905,6 +907,9 @@ async function seedAll() {
   const uQuote = await seedUser("quote", EMAILS.quote, "qa-fixture Electricista", "talent");
   const uClient = await seedUser("client", clientEmail, "qa-fixture Cliente", "client");
   // Without a client_profiles row /client and /account bounce the user to /onboarding/role.
+  // Second client for TUL-1242: everything paid, nothing owed (client one has owed work).
+  const uClient2 = await seedUser("client2", EMAILS.client2, "qa-fixture Cliente Pagado", "client");
+  await ins("public.client_profiles", { id: id("client_profile2"), user_id: uClient2, preferred_locale: "es" }, ["user_id"]);
   const uOwner = await seedUser("owner", EMAILS.owner, "qa-fixture Dueno", "talent");
   const ws = await seedWorkspace(uOwner);
   // The owner is also a talent (own profile, own site), like the QA-B7 account behind TUL-1255.
@@ -1018,6 +1023,19 @@ async function seedAll() {
     bookingStatus: "completed", address: "Av. Tulum 100, Cancun", paid: true, amountCents: 80000, provider: "manual",
     clientUser: uClient, customerId, t1, t1User: uLimpieza,
   });
+  const customerId2 = id("customer:client2");
+  await clone("public.customers", "s.id = 'ab93f2d1-141e-4fe7-a227-fb2aa48e0e33'", [], {
+    id: customerId2,
+    tenant_id: HUB_TENANT_ID,
+    email: EMAILS.client2,
+    display_name: "qa-fixture Cliente Pagado",
+    user_id: uClient2,
+  });
+  const paid2 = await seedBooking({
+    key: "paid2", title: "QA Reserva pagada (cliente 2)", startsAt: cancunInstant(now, -8, 10), endsAt: cancunInstant(now, -8, 13),
+    bookingStatus: "completed", address: "Av. Tulum 100, Cancun", paid: true, amountCents: 80000, provider: "manual",
+    clientUser: uClient2, customerId: customerId2, t1, t1User: uLimpieza, clientName: "qa-fixture Cliente Pagado", clientEmail: EMAILS.client2,
+  });
   const payOrder = await seedPayLaterOrder(customerId);
   const payLater = await seedBooking({
     key: "paylater", title: "QA Limpieza pendiente de pago", startsAt: cancunInstant(now, 3, 11), endsAt: cancunInstant(now, 3, 14),
@@ -1036,7 +1054,7 @@ async function seedAll() {
   await seedReviews(t1, uClient, [done, done2, done3]);
   await seedPosts(t1, uLimpieza);
   if (args.stripe) await seedStripe(t1, uLimpieza);
-  return { t1, t2, tOwner, uLimpieza, uQuote, uClient, uOwner, ws, payLater, agencyOnly, away, refundable, done, done2, done3, ...chain, pi };
+  return { uClient2, paid2, t1, t2, tOwner, uLimpieza, uQuote, uClient, uOwner, ws, payLater, agencyOnly, away, refundable, done, done2, done3, ...chain, pi };
 }
 
 async function makeRefundablePaymentIntent(): Promise<string> {
@@ -1074,6 +1092,7 @@ function printReport(r?: Awaited<ReturnType<typeof seedAll>>) {
     console.log(`  T1 user / T2 user   ${r.uLimpieza} / ${r.uQuote}`);
     console.log(`  sent offer          ${r.offer} (inquiry ${r.inq})`);
     console.log(`  bookings            away ${r.away} | refundable ${r.refundable} | completed ${r.done}`);
+    console.log(`  client 2 (all paid) user ${r.uClient2} | booking ${r.paid2}`);
     console.log(`  owner talent_profile ${r.tOwner} (TAL-96003)`);
     console.log(`  owner user / workspace ${r.uOwner} / ${r.ws} (slug ${PREFIX}-ws)`);
     console.log(`  pay-later booking   ${r.payLater} | agency-only booking ${r.agencyOnly}`);

@@ -28,6 +28,7 @@ export const EMAILS = {
   quote: `${PREFIX}-quote@impronta.test`,
   client: `${PREFIX}-client@impronta.test`,
   owner: `${PREFIX}-owner@impronta.test`,
+  client2: `${PREFIX}-client2@impronta.test`,
 };
 
 export function parseArgs(argv) {
@@ -127,14 +128,14 @@ export function cancunInstant(baseDate, dayOffset, hour, minute = 0) {
 export function ownedRootIds() {
   const k = (s) => stableId(s);
   return {
-    profiles: [k("user:limpieza"), k("user:quote"), k("user:client"), k("user:owner")],
+    profiles: [k("user:limpieza"), k("user:quote"), k("user:client"), k("user:client2"), k("user:owner")],
     agencies: [k("workspace")],
     orders: [k("order:paylater")],
     user_notifications: [k("bell:resolved"), k("bell:needs_you")],
     talent_profiles: [k("talent:limpieza"), k("talent:quote"), k("talent:owner")],
     inquiries: [k("inquiry:offer")],
-    agency_bookings: [k("booking:away"), k("booking:refundable"), k("booking:done"), k("booking:done2"), k("booking:done3"), k("booking:paylater"), k("booking:agencyonly")],
-    customers: [k("customer:client")],
+    agency_bookings: [k("booking:away"), k("booking:refundable"), k("booking:done"), k("booking:done2"), k("booking:done3"), k("booking:paylater"), k("booking:agencyonly"), k("booking:paid2")],
+    customers: [k("customer:client"), k("customer:client2")],
     media_assets: [k("media:1"), k("media:2"), k("media:3")],
     cms_posts: [k("post:es"), k("post:en"), k("post:expired"), k("post:takedown")],
     talent_reviews: [k("review:1"), k("review:2"), k("review:3")],

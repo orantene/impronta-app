@@ -15,6 +15,7 @@ All checks: ES + EN, 390px + desktop; nothing here was browser-verified by the d
 | T1 | `qa-fixture-g6-limpieza@impronta.test` | talent (plan Max, ES, MXN) | owns TAL-96001: one service, offer, bookings, reviews, posts, bells |
 | T2 | `qa-fixture-g6-quote@impronta.test` | talent, no agency (ES) | owns TAL-96002: quote / on_request / photo services |
 | C | `qa-fixture-g6-client@impronta.test` | client (ES stored locale) | has a client profile, the offer, all T1 bookings, thread history |
+| C2 | `qa-fixture-g6-client2@impronta.test` | client, everything paid (user `34f10761-6792-45ec-bcab-c42649713782`, booking `c0ccc3a2-11fa-4a9d-a8e1-dcc3f975cb18`) | second client for TUL-1242: C owes, C2 does not |
 | O | `qa-fixture-g6-owner@impronta.test` | talent role (own profile TAL-96003) AND owner of workspace `qa-fixture-g6-ws` | for next=/admin and Overview/Payments |
 
 Rows (deterministic ids; list with the seed's dry run): T1 `ea77cae1-4065-4e0c-82c8-b632bc8c0ef3`, T2 `a5c8919d-e9c7-4076-8547-a2d1b0478482`,
@@ -36,7 +37,7 @@ Applied on staging 2026-10-18 after a passing clean-start --selftest; a second -
 | 864 /es/pricing MX$ | #3979 | none | hub `/es/pricing` | every priced plan has "approx MX$ N al mes, se cobra en USD" (display only) | no fixture needed (public) |
 | 892 pricing currency picker | #3979 | none | hub `/es/pricing` at 390px | picking MXN shows MXN, monthly/annual toggle present | no fixture needed |
 | 1259 client language select | #3979 | C | app `/account` Ajustes, UI in ES and again in EN | select shows the language the page is in (Espanol/English native names) | C (stored locale es, view in both) |
-| 1247 own-site /w/ links | #3979 | O or none | workspace site nav link whose URL is `app.staging.../w/<slug>/...` | resolves to the site's own address | PARTLY: needs a nav item with that stored URL on a site; NOT seeded (card says root cause of the stored URL is unverified) |
+| 1247 own-site /w/ links | #3979 | none | `node scripts/check-staging-nav-and-talent-host.mjs`; manually `https://staging.tulala.digital/w/qa-b7-studio/` header | no header/nav link is an absolute `app[.staging].tulala.digital/w/...` URL | the script reproduces the bug on the PRE-fix staging build: `/w/qa-b7-studio/` has 5 absolute app-host links (the fixture workspace `/w/qa-fixture-g6-ws/` is clean, 8 links). Re-run after the staging cut; app-host `/w/<slug>/` itself answers 404 (the card's symptom) |
 | 851 login `+` warning | #3979 | none | app `/login` | no warning blaming `+` addresses | no fixture needed |
 | 1059 billing price/currency display | #3979 | T1 (paid plan card) | app `/talent/settings` billing, `/es/pricing` | prices show MX$ approx on ES | needs the Stripe-backed paid plan: BLOCKED (below) |
 | 738 / 699 ES discover | #3985 | none | hub `/es/discover-agencies` | filters, badges, city line (Ciudad de Mexico), tags, stats in Spanish | no fixture needed |
@@ -61,4 +62,4 @@ Applied on staging 2026-10-18 after a passing clean-start --selftest; a second -
 2. **Real refund click and a Stripe-backed pay-later payment:** the refundable booking has no real PaymentIntent without `--stripe`. Paying the pay-later booking through checkout works with staging's own Stripe TEST config, not this seed.
 3. **TUL-1247 stored absolute `/w/` URL:** no nav item with that URL is seeded because the real stored value is unknown. Needs the staging nav data from the reporter.
 4. **Talent subdomain site host:** staging does not route `*.` talent hosts (env empty); `/blog/<slug>` posts on T1 (published, expired, taken down) can only be checked once a site host works. PM decision: enable the staging talent root domain, or accept hub-only checks.
-5. **A second paying client for TUL-1242:** one client (C) covers both owed and paid. If Verify wants two distinct clients, ask and the seed adds a second client user.
+5. ~~Second client for TUL-1242~~ done: C2 (all paid) added 2026-10-18; C keeps the owed work.
