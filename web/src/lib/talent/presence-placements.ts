@@ -67,7 +67,11 @@ export function placementTone(status: PlacementStatus): StatusTone {
   return "idle";
 }
 
-export function placementLabel(status: PlacementStatus): string {
+export function placementLabel(status: PlacementStatus, kind?: PlacementKind): string {
+  // TUL-579: the Tulala directory profile can be unpublished while the
+  // talent's own website is live. "No public page" then contradicts the live
+  // site, so this row names what is actually unpublished.
+  if (status === "not_published" && kind === "tulala") return "Not on Tulala yet";
   switch (status) {
     case "live":
       return "Live";

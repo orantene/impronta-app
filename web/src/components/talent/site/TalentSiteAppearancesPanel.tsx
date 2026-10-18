@@ -58,13 +58,13 @@ const TONE_CLASS: Record<StatusTone, string> = {
   idle: "bg-admin-surface-alt text-admin-ink-muted",
 };
 
-function StatusChip({ status }: { status: PlacementStatus }) {
+function StatusChip({ status, kind }: { status: PlacementStatus; kind?: PlacementKind }) {
   const { t } = usePresenceText();
   return (
     <span
       className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONE_CLASS[placementTone(status)]}`}
     >
-      {t(placementLabel(status))}
+      {t(placementLabel(status, kind))}
     </span>
   );
 }
@@ -156,7 +156,7 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
           <div className="min-w-0 flex-1 basis-[220px]">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[14px] font-semibold text-admin-ink">{p.name}</span>
-              <StatusChip status={p.status} />
+              <StatusChip status={p.status} kind={p.kind} />
               {p.isPrimary && (
                 <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[11px] font-semibold text-admin-ink-muted">
                   {t("Primary")}
@@ -168,7 +168,9 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
               {p.url && p.status !== "not_published" ? displayUrl(p.url) : t("No public address")}
             </p>
             <p className="mt-1 text-[12px] text-admin-ink-dim">
-              {p.status === "not_published"
+              {p.status === "not_published" && p.kind === "tulala"
+                ? t("Your Tulala directory profile is not published yet. Your own website is separate and is not affected.")
+                : p.status === "not_published"
                 ? t("No public page, so there is nothing to link to and no views to show. That is not a zero.")
                 : t("Views and enquiries for this place are not available yet.")}
             </p>

@@ -481,6 +481,12 @@ export type OfferingRowDraft = {
   visibility: "public";
   sort_order: number;
   title_i18n?: { en: string; es: string };
+  /**
+   * TUL-531: "I go to the client" (place.mode "client") is the service's delivery setting too, so the booking
+   * sheet asks for the client's address (`serviceAddressRule` reads `attributes.where`). Only set for that mode;
+   * the store merges it into any attributes the row already has.
+   */
+  attributes?: { where: ["client"] };
 };
 
 /** Same default the manual "add a service" row starts with (setup.ts blankService). A row with no length offers no slots. */
@@ -532,7 +538,7 @@ const norm = (t: string) => t.trim().toLowerCase();
  * Dedupe by title: a retry plans nothing new; an existing draft is upgraded in place. A line renamed to its
  * pack name also finds the row under the words first said or the pack's other language.
  */
-export function planOfferingWrites(existing: ExistingOffering[], services: EssentialService[]): OfferingPlan {
+export function planOfferingWrites(existing: ExistingOffering[], services: EssentialService[], place?: PlaceMode | null): OfferingPlan {
   const byTitle = new Map(existing.filter((o) => o.status !== "archived").map((o) => [norm(o.title), o]));
   const plan: OfferingPlan = { insert: [], update: [] };
   const seen = new Set<string>();
@@ -541,7 +547,8 @@ export function planOfferingWrites(existing: ExistingOffering[], services: Essen
     const key = norm(s.name);
     if (!key || seen.has(key)) return;
     seen.add(key);
-    const row = applyPriceChoice(offeringRowFor(s, i), s);
+    const priced = applyPriceChoice(offeringRowFor(s, i), s);
+    const row: OfferingRowDraft = place === "client" ? { ...priced, attributes: { where: ["client"] } } : priced;
     const hit = [s.name, s.saidAs, s.nameI18n?.en, s.nameI18n?.es]
       .map((t) => (t ? byTitle.get(norm(t)) : undefined))
       .find((o) => o && !claimed.has(o.id));
@@ -623,7 +630,7 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
 
   const writeOfferings = (owner: OfferingOwnerRef, skipTitles?: ReadonlySet<string>) => step("offerings", async () => {
     const services = skipTitles ? e.services.filter((s) => !skipTitles.has(norm(s.name))) : e.services;
-    const plan = planOfferingWrites(await store.listOfferings(owner), services);
+    const plan = planOfferingWrites(await store.listOfferings(owner), services, e.place?.mode);
     if (plan.insert.length) await store.insertOfferings(owner, plan.insert);
     for (const u of plan.update) await store.updateOffering(u.id, u.patch);
     out.offeringsCreated += plan.insert.length;
@@ -652,7 +659,7 @@ export async function runEssentialsWrites(store: EssentialsStore, input: Essenti
     await step("offeringsRetry", async () => {
       const owner: OfferingOwnerRef = { kind: "talent", talentProfileId: talent.talentProfileId, tenantId };
       if (!e.services.length || (await store.listOfferings(owner)).length > 0) return;
-      const plan = planOfferingWrites([], e.services);
+      const plan = planOfferingWrites([], e.services, e.place?.mode);
       if (!plan.insert.length) return;
       await store.insertOfferings(owner, plan.insert);
       out.offeringsCreated += plan.insert.length;

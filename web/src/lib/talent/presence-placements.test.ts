@@ -7,6 +7,7 @@ import {
   instagramBioLine,
   networkPrimaryAction,
   placementControl,
+  placementLabel,
   placementStatus,
   placementSummary,
   qrFileName,
@@ -81,4 +82,14 @@ test("every presence string has Spanish and no em dash", () => {
     assert.ok(es.trim(), `missing ES for ${en}`);
     assert.ok(!en.includes("—") && !es.includes("—"), `em dash in ${en}`);
   }
+});
+
+// TUL-579: QA saw "Sin página pública" on Presencia while the talent's own
+// site was live. The Tulala directory row must say what is unpublished.
+test("an unpublished Tulala profile row never claims the talent has no public page", () => {
+  assert.equal(placementLabel("not_published", "tulala"), "Not on Tulala yet");
+  assert.ok(PRESENCE_ES_TEXT["Not on Tulala yet"], "missing ES for the Tulala row label");
+  // Agency and hub rows keep the original wording.
+  assert.equal(placementLabel("not_published", "agency"), "No public page");
+  assert.equal(placementLabel("not_published"), "No public page");
 });

@@ -605,7 +605,7 @@ export function CatalogBookingSheet({
                         <span>
                           {a.label}
                           {typeof a.durationMinutes === "number" && a.durationMinutes > 0
-                            ? ` · +${a.durationMinutes} min`
+                            ? ` · +${durationLabel(a.durationMinutes)}`
                             : ""}
                         </span>
                         <b>+ {money(a.amountCents, detail.currency)}</b>
