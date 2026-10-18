@@ -275,8 +275,17 @@ async function TalentSiteBody({
       {servedHost ? <TalentSiteHostFullNav servedHost={servedHost} /> : null}
       {result.node}
       <TalentOfferingIntentQuery />
-      <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />
-      <ClientAccountDock locale={result.locale} />
+      {/* TUL-554: the two docks are async server components with their own
+          queries (service-role reads, session). Inside the outer Suspense they
+          held the whole page's first flush until the slowest one resolved.
+          Own boundaries with a null fallback let the site node paint first;
+          both are fixed-position chrome, so nothing shifts when they arrive. */}
+      <Suspense fallback={null}>
+        <TalentSiteMessagesDock talentProfileId={talentProfileId} locale={result.locale} orderId={order ?? null} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ClientAccountDock locale={result.locale} />
+      </Suspense>
     </>
   );
 }
