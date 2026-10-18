@@ -28,6 +28,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scopeToGuestVisibleRoster } from "@/lib/saas/talent-roster";
+import { scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import type { CatalogOption, CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
@@ -201,11 +202,13 @@ export async function loadTalentRows(admin: Admin, tenantId: string, window: { f
 }
 
 export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
-  const { data, error } = await admin
-    .from("talent_offerings")
-    .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
-    .eq("tenant_id", tenantId)
-    .eq("status", "published")
+  // D-10: published AND approved AND public (was status only), tenant-scoped.
+  const { data, error } = await scopeToGuestSellableOfferings(
+    admin
+      .from("talent_offerings")
+      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
+      .eq("tenant_id", tenantId),
+  )
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {
@@ -249,11 +252,9 @@ export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: stri
     .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes");
   // null tenant = the talent's own site/hub page: only THIS talent's rows, whichever tenant row they sit on.
   if (tenantId) query = query.eq("tenant_id", tenantId);
-  const { data, error } = await query
-    .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
+  query = query.eq("talent_profile_id", talentProfileId);
+  // D-10: the dock lists only published + approved + public (it also listed on_request).
+  const { data, error } = await scopeToGuestSellableOfferings(query)
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {

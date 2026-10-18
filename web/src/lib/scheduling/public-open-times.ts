@@ -89,7 +89,7 @@ export async function loadPublicOpenTimes(
   const { data: offering, error: offeringErr } = await admin
     .from("talent_offerings")
     .select(
-      "id, talent_profile_id, tenant_id, status, visibility, kind, booking_mode, reserve_mode, duration_minutes, attributes",
+      "id, talent_profile_id, tenant_id, status, moderation_state, visibility, kind, booking_mode, reserve_mode, duration_minutes, attributes",
     )
     .eq("id", input.offeringId)
     .maybeSingle();
@@ -100,6 +100,7 @@ export async function loadPublicOpenTimes(
   if (
     !offering ||
     offering.status !== "published" ||
+    offering.moderation_state !== "approved" || // D-10
     offering.visibility !== "public" ||
     offering.kind === "product"
   ) {
