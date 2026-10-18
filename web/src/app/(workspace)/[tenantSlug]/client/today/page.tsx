@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { formatPrice } from "@/lib/money/format-price";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -155,8 +156,7 @@ export default async function ClientTodayPage({ params }: { params: PageParams }
   }
   const dueEntries = [...dueByCurrency.entries()].sort((a, b2) => b2[1] - a[1]);
   const dueMain = dueEntries[0] ?? null;
-  const fmtMoney = (cents: number, cur: string) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(cents / 100);
+  const fmtMoney = (cents: number, cur: string) => formatPrice({ amountCents: cents, currency: cur, locale }).primary;
 
   // Context-aware headline
   const tPlural = withPluralization(t);

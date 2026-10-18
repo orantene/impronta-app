@@ -41,6 +41,27 @@ test("pricing ladders and the client account menu print through formatPrice", ()
   assert.doesNotMatch(acct, /new Intl\.NumberFormat/);
 });
 
+test("display-only call sites print through formatPrice, not an ad-hoc Intl currency call", () => {
+  const files = [
+    "src/app/(workspace)/[tenantSlug]/client/today/page.tsx",
+    "src/app/(workspace)/[tenantSlug]/client/bookings/page.tsx",
+    "src/app/(workspace)/[tenantSlug]/talent/settings/TalentServicesMenuCard.tsx",
+    "src/app/(workspace)/[tenantSlug]/admin/financials/page.tsx",
+    "src/app/(workspace)/[tenantSlug]/admin/channel-performance/page.tsx",
+    "src/app/t/[profileCode]/talent-profile-instant-book-button.tsx",
+    "src/components/admin/shell/internal/drawers/light-07.tsx",
+    "src/components/reservation-thread/adapters/AdminThreadAdapter.tsx",
+    "src/lib/search/global-search.ts",
+    "src/lib/directory/format-price-from.ts",
+    "src/lib/site-admin/builder-node/menu-board-island.tsx",
+  ];
+  for (const f of files) {
+    const src = readFileSync(f, "utf8");
+    assert.match(src, /formatPrice\(/, f);
+    assert.doesNotMatch(src, /Intl\.NumberFormat\([^)]*\{[^}]*currency/s, f);
+  }
+});
+
 test("primary keeps symbol, amount and code", () => {
   assert.equal(formatPrice({ amountCents: 900, currency: "USD", locale: "en" }).primary, "$9 USD");
 });
