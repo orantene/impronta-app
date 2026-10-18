@@ -23,6 +23,15 @@ export function tabOf(status: PromoStatus): PromoTab {
   }
 }
 
+/**
+ * TUL-938: the share kit (images, link) only works for a promo the public can
+ * see. The asset route and the landing 404 a draft, so a draft shows "Share"
+ * as dead previews ("Vista previa no disponible"). Only these can be shared.
+ */
+export function canSharePromo(status: PromoStatus): boolean {
+  return status === "live" || status === "scheduled" || status === "paused" || status === "sold_out";
+}
+
 export type TabbedItem = { id: string; status: PromoStatus; created_at: string; ends_at: string | null; tz: string };
 
 export function groupByTab<T extends TabbedItem>(items: readonly T[]): Record<PromoTab, T[]> {
