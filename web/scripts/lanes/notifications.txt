@@ -8,6 +8,7 @@ src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.
 src/components/admin/shell/internal/talent-notifications-drawer-i18n.static.test.ts
 src/components/inquiry/inquiry-drawer-i18n.static.test.ts
 src/components/payments/FeeLines.test.tsx
+src/components/public-booking/catalog-request-info-href.test.ts
 src/components/talent/services/item-state-chips-missing-translation.render.test.tsx
 src/components/talent/services/services-home-missing-translation.static.test.ts
 src/i18n/es-w-prefix-redirects.test.ts
@@ -46,9 +47,11 @@ src/lib/client-account/visit-id.test.ts
 src/lib/discover/channel-performance.test.ts
 src/lib/email/no-email-literals.static.test.ts
 src/lib/email/resend-inbound-forward.test.ts
+src/lib/i18n/es-public-qa-round3.static.test.ts
 src/lib/i18n/es-public-site-correctness.test.ts
 src/lib/i18n/i18n-columns.test.ts
 src/lib/i18n/locale-field-model.test.ts
+src/lib/i18n/not-found-locale.test.ts
 src/lib/inquiry/guest-claim-email.test.ts
 src/lib/inquiry/owning-party-prod-data-shape.test.ts
 src/lib/inquiry/owning-party-resolver-single.test.ts

@@ -2382,6 +2382,7 @@
     },
     "clientAccount": {
       "signIn": "Iniciar sesión",
+      "createAccount": "Crear cuenta",
       "account": "Cuenta",
       "openLabel": "Abrir menú de cuenta",
       "closeLabel": "Cerrar",

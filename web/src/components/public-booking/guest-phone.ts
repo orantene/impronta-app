@@ -15,23 +15,43 @@ export function sanitizeGuestPhone(raw: string): string {
 const DIALS_LONGEST_FIRST = [...COUNTRY_DIAL_CODES].sort((a, b) => b.dial.length - a.dial.length);
 const KNOWN = new Set(COUNTRY_DIAL_CODES.map((c) => c.iso));
 
+/** Time zones that place the guest in Mexico (TUL-923: a Cancun guest with an en-US browser). */
+const MX_TIME_ZONES = /^America\/(Mexico_City|Cancun|Merida|Monterrey|Tijuana|Hermosillo|Chihuahua|Mazatlan|Bahia_Banderas|Matamoros|Ojinaga|Ciudad_Juarez)$/;
+
+export function countryFromTimeZone(timeZone: string | null | undefined): string | null {
+  return timeZone && MX_TIME_ZONES.test(timeZone) ? "MX" : null;
+}
+
 /**
- * TUL-923: the default country is the GUEST's, read in the browser: the first
- * browser language with a region ("es-MX" → MX), else the talent's country,
- * else the site language's main market. Never an IP country from a server
- * render, which a shared cache hands to every visitor.
+ * TUL-923: the default country is the GUEST's, read in the browser, never an IP
+ * country from a server render (a shared cache hands that to every visitor).
+ * Order: a browser region other than US ("es-MX" -> MX, "en-GB" -> GB); then the
+ * talent's country; then the guest's time zone; then US if the browser said so;
+ * then the site language's market. "en-US" is the default region of most English
+ * browsers wherever they are, so it must not beat the talent's own country (a
+ * Cancun cleaning site defaulted to +1 for everyone).
  */
 export function guestDefaultPhoneIso(input: {
   languages: readonly string[] | null | undefined;
   fallbackCountry?: string | null;
+  timeZone?: string | null;
   locale: string;
 }): string {
+  let browserUs = false;
   for (const tag of input.languages ?? []) {
     const region = /^[a-z]{2,3}[-_]([A-Za-z]{2})\b/i.exec(tag)?.[1]?.toUpperCase();
-    if (region && KNOWN.has(region)) return region;
+    if (!region || !KNOWN.has(region)) continue;
+    if (region === "US") {
+      browserUs = true;
+      continue;
+    }
+    return region;
   }
   const fallback = input.fallbackCountry?.toUpperCase();
   if (fallback && KNOWN.has(fallback)) return fallback;
+  const tz = countryFromTimeZone(input.timeZone);
+  if (tz) return tz;
+  if (browserUs) return "US";
   return input.locale.toLowerCase().startsWith("es") ? "MX" : "US";
 }
 
