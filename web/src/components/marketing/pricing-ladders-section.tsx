@@ -60,6 +60,12 @@ import {
   yearlySavingsPercent,
 } from "@/lib/pricing/interval-pricing";
 import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
+import {
+  approxCurrencyForLocale,
+  formatApproxLocal,
+  fxRateFor,
+} from "@/lib/pricing/approx-local-price";
+import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { BillingIntervalToggle } from "./billing-interval-toggle";
 import {
   buildPricingCtaHref,
@@ -96,6 +102,8 @@ type Card = {
     source: "catalog" | "placeholder";
   } | null;
   monthlyLine: string;
+  /** TUL-864: display-only "about MX$ N" lines on the Spanish site; the charge stays USD. */
+  approx: { month: string | null; year: string | null } | null;
   cta: {
     label: string;
     /** One href per interval; the toggle shows the matching one. */
@@ -110,6 +118,7 @@ type IntervalCopy = {
   billedMonthly: string;
   savePct: string;
   popular: string;
+  approxNote: string;
 };
 
 function buildCards(
@@ -120,6 +129,7 @@ function buildCards(
   c: LadderCopy,
   locale: string,
   ic: IntervalCopy,
+  mxnRate: number | null,
 ): Card[] {
   return rows.map((t) => {
     const tierCopy = copyByKey[t.key];
@@ -153,6 +163,13 @@ function buildCards(
       canonicalPrice: t.canonicalPrice,
       yearly,
       monthlyLine: yearly ? ic.billedMonthly : "",
+      approx:
+        !salesLed && mxnRate != null
+          ? {
+              month: formatApproxLocal(m?.unitAmount, mxnRate, "MXN"),
+              year: formatApproxLocal(y?.perMonthAmount, mxnRate, "MXN"),
+            }
+          : null,
       cta: {
         label: tierCopy?.cta ?? c.talent.free.cta,
         hrefs: {
@@ -183,24 +200,30 @@ export async function PricingLaddersSection({
     billedMonthly: t("public.pricingInterval.billedMonthly"),
     savePct: t("public.pricingInterval.savePct"),
     popular: t("public.pricingInterval.popular"),
+    approxNote: t("public.pricingInterval.approxNote"),
   };
   const [talentRows, workspaceRows] = await Promise.all([
     loadMarketingTiers("talent", currency),
     loadMarketingTiers("workspace", currency),
   ]);
+  // Spanish site on USD prices: add an approximate MX$ line (display only).
+  const mxnRate =
+    currency === "USD" && approxCurrencyForLocale(locale) === "MXN"
+      ? fxRateFor(await loadFxPreview(), "MXN")
+      : null;
 
   const allLadders: Ladder[] = [
     {
       id: "person",
       label: c.person.label,
       blurb: c.person.blurb,
-      cards: buildCards(viewer, talentRows, c.talent, "talent", c, locale, ic),
+      cards: buildCards(viewer, talentRows, c.talent, "talent", c, locale, ic, mxnRate),
     },
     {
       id: "business",
       label: c.business.label,
       blurb: c.business.blurb,
-      cards: buildCards(viewer, workspaceRows, c.workspace, "workspace", c, locale, ic),
+      cards: buildCards(viewer, workspaceRows, c.workspace, "workspace", c, locale, ic, mxnRate),
     },
   ];
   // A package with no active tiers (or a catalog read that failed) drops its
@@ -364,6 +387,12 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
         />
         <p className="mt-2 min-h-5 text-[0.8125rem]" style={{ color: muted }}>
           {card.monthlyLine}
+          {card.approx?.month ? (
+            <span data-testid="price-approx-local">
+              {card.monthlyLine ? " · " : ""}
+              {card.approx.month} {ic.approxNote}
+            </span>
+          ) : null}
         </p>
       </div>
       {y ? (
@@ -383,6 +412,11 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
             style={{ color: muted }}
           >
             <span>{y.billedLine}</span>
+            {card.approx?.year ? (
+              <span data-testid="price-approx-local">
+                {card.approx.year} {ic.approxNote}
+              </span>
+            ) : null}
             {y.savePct > 0 ? (
               <span
                 className="rounded-full px-2 py-0.5 text-[0.75rem] font-semibold"

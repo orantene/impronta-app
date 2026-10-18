@@ -2365,7 +2365,7 @@
       "phoneInvalid": "Check the phone number.",
       "logOut": "Log out",
       "langEn": "English",
-      "langEs": "Spanish",
+      "langEs": "Español",
       "fieldEmail": "Email",
       "namePromptTitle": "Add your name",
       "namePromptBody": "Your name is showing as part of your email. Add your real name so bookings and messages feel personal.",
@@ -2432,7 +2432,8 @@
       "perMonth": "per month",
       "billedYearly": "{amount} billed yearly",
       "billedMonthly": "Billed monthly",
-      "popular": "Most popular"
+      "popular": "Most popular",
+      "approxNote": "per month, charged in USD"
     }
   },
   "dashboard": {

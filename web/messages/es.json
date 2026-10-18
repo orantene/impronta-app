@@ -2364,7 +2364,7 @@
       "saved": "Guardado.",
       "phoneInvalid": "Revisa el número de teléfono.",
       "logOut": "Cerrar sesión",
-      "langEn": "Inglés",
+      "langEn": "English",
       "langEs": "Español",
       "fieldEmail": "Correo",
       "namePromptTitle": "Agrega tu nombre",
@@ -2432,7 +2432,8 @@
       "perMonth": "al mes",
       "billedYearly": "{amount} al año",
       "billedMonthly": "Facturado cada mes",
-      "popular": "Más elegido"
+      "popular": "Más elegido",
+      "approxNote": "al mes, se cobra en USD"
     }
   },
   "dashboard": {
