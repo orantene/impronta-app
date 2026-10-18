@@ -41,7 +41,7 @@ export function MaxSiteDemoFooter({ locale, acceptingBookings = false }: { local
         padding: "12px 16px 0",
         textAlign: "center",
         fontSize: 12,
-        color: "var(--token-color-ink-muted, rgba(11,11,13,0.55))",
+        color: "var(--token-color-ink-muted, rgba(11,11,13,0.6))",
       }}
     >
       {demoSiteFooterText(locale, acceptingBookings)}

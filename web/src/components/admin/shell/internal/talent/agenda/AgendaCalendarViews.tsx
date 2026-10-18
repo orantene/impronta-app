@@ -193,7 +193,7 @@ function TimeColumn({
           key={gap.startsAt.toISOString()}
           type="button"
           onClick={() => onGap(day, gap.startsAt)}
-          aria-label={`${copy.t("Free")} ${timeRange(gap.startsAt, gap.endsAt)}`}
+          aria-label={`${copy.isSpanish ? "Libre" : "Free"} ${timeRange(gap.startsAt, gap.endsAt)}`}
           className="absolute inset-x-1 top-[var(--agenda-top)] z-[5] h-[var(--agenda-span)] rounded text-[10px] text-[var(--tc-accent)] opacity-0 transition-opacity hover:bg-[rgba(59,76,202,0.05)] hover:opacity-100 focus-visible:opacity-100"
           style={{
             "--agenda-top": `${(minutesOf(gap.startsAt) - bounds.startMin) * PX_PER_MIN}px`,
@@ -516,7 +516,7 @@ export function PhoneDayAgenda({
               className="flex min-h-[44px] items-center gap-2 rounded-xl border border-dashed border-[rgba(59,76,202,0.3)] px-3 text-[13px]"
             >
               <span className="flex-1 text-[var(--tc-accent)]">
-                {`${copy.t("Free")} ${timeRange(row.startsAt, row.endsAt)} · ${durationText(
+                {`${copy.isSpanish ? "Libre" : "Free"} ${timeRange(row.startsAt, row.endsAt)} · ${durationText(
                   minutesOf(row.endsAt) - minutesOf(row.startsAt),
                 )}`}
               </span>
@@ -607,7 +607,7 @@ export function MonthGrid({
             onClick={() => onPick(day)}
             aria-current={today ? "date" : undefined}
             className={`min-h-[96px] rounded-lg border border-[rgba(11,11,13,0.08)] p-1.5 text-left text-[12px] ${
-              inMonth ? "bg-white" : "bg-[rgba(11,11,13,0.03)] text-[rgba(11,11,13,0.45)]"
+              inMonth ? "bg-white" : "bg-[rgba(11,11,13,0.03)] text-[rgba(11,11,13,0.6)]"
             }`}
           >
             <span

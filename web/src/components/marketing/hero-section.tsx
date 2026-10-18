@@ -140,7 +140,7 @@ export function HeroSection({ locale }: { locale: string }) {
           </h1>
 
           <p
-            className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[33rem] text-[1.0625rem] leading-[1.6] sm:text-[1.1875rem]"
+            className="mkt-rise mkt-rise-delay-2 mt-5 max-w-[33rem] text-[1.0625rem] leading-[1.6] max-[480px]:mt-4 max-[480px]:max-w-none max-[480px]:text-[0.9rem] max-[480px]:leading-[1.5] sm:mt-6 sm:text-[1.1875rem]"
             style={{ color: "rgba(241,237,227,0.82)" }}
           >
             {copy.subhead}
@@ -158,11 +158,11 @@ export function HeroSection({ locale }: { locale: string }) {
               </svg>
             </OpenTalentModalButton>
             <MarketingCta
-              href={withLocaleHref("/get-started", locale)}
+              href={withLocaleHref("/how-it-works", locale)}
               variant="secondary"
               size="lg"
               eventSource="home-hero"
-              eventIntent="start-business"
+              eventIntent="how-it-works"
               className="!border-[rgba(241,237,227,0.6)] !bg-transparent !text-[var(--plt-on-inverse)] hover:!border-[var(--plt-on-inverse)] hover:!bg-[rgba(241,237,227,0.08)]"
             >
               {copy.ctaBusiness}

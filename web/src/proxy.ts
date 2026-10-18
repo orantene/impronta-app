@@ -9,6 +9,7 @@ import {
   stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
 } from "@/i18n/locale-middleware";
+import { loadDashboardLocaleSeed, finishProxyPassThrough } from "@/lib/site-admin/server/proxy-locale-seed-apply";
 import { langFromLocalePrefixedPath } from "@/lib/onboarding/legacy-signup-redirect";
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
@@ -743,6 +744,8 @@ async function proxyInner(request: NextRequest) {
     return sessionRes;
   }
 
+  const dashboardSeed = await timed("proxy.dashboardLocaleSeed", () => loadDashboardLocaleSeed(request, originalPathname, forwardedRequestHeaders, effectiveHostContext));
+
   if (
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
@@ -756,7 +759,7 @@ async function proxyInner(request: NextRequest) {
     // Forward updateSession's headers (with `x-impronta-guest`), NOT the
     // pre-session `requestHeaders` which lacks it — see the destructure above.
     const res = NextResponse.rewrite(rewriteUrl, {
-      request: { headers: forwardedRequestHeaders },
+      request: { headers: dashboardSeed ? dashboardSeed.headers(forwardedRequestHeaders) : forwardedRequestHeaders },
     });
 
     for (const cookie of sessionRes.cookies.getAll()) {
@@ -770,13 +773,12 @@ async function proxyInner(request: NextRequest) {
     });
 
     syncLocaleCookieForPath(res, originalPathname, effectiveLangSettings, request);
+    dashboardSeed?.apply(res);
     ensureExperimentVisitorCookie(request, res);
     return res;
   }
 
-  syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
-  ensureExperimentVisitorCookie(request, sessionRes);
-  return sessionRes;
+  return finishProxyPassThrough(sessionRes, dashboardSeed, forwardedRequestHeaders, request, originalPathname, effectiveLangSettings);
 }
 export const proxy = withStagingGate(withAuthScopeSweep(proxyInner)); // TUL-621 sweep; TUL-827 staging gate (outermost)
 export const config = {

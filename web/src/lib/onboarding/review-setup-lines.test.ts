@@ -22,7 +22,9 @@ test("TUL-806: hours group consecutive days, 24h in Spanish", () => {
 test("TUL-806: review lines cover services, hours and place", () => {
   const lines = reviewSetupLines(e, "es");
   assert.deepEqual(lines.map((l) => l.id), ["services", "hours", "place", "timezone"]);
-  assert.equal(lines[3].value, "Cancún (EST)");
+  assert.equal(lines[3].value, "Hora de Cancún");
+  assert.equal(lines[3].raw, "America/Cancun");
+  assert.equal(reviewSetupLines(e, "en")[3].value, "Cancún time");
   assert.equal(lines[0].value, "Limpieza profunda · Limpieza básica");
   assert.equal(lines[2].value, "Voy con el cliente, Playa del Carmen");
   assert.deepEqual(reviewSetupLines(null, "en"), []);

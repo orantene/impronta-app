@@ -43,7 +43,7 @@ export function ServicesPage() {
               : "Manage your services, packages and products"
           }
         />
-        <div style={{ fontSize: 13, color: "rgba(11,11,13,0.55)", padding: "18px 4px" }}>
+        <div style={{ fontSize: 13, color: "rgba(11,11,13,0.6)", padding: "18px 4px" }}>
           {copy.t("Your services will appear here once your talent profile is set up.")}
         </div>
         </>

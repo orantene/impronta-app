@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
-import { clientManageUrl, guestSaveBookingsUrl } from "./client-visit-url";
+import { clientManageUrl, clientOfferUrl, guestSaveBookingsUrl } from "./client-visit-url";
 
 const SITE = "https://tulala.digital";
 const APP = "https://app.tulala.digital";
@@ -76,5 +76,18 @@ test("guestSaveBookingsUrl is the existing client sign-in, on a host that serves
   withEnv(BASE, () => {
     assert.equal(guestSaveBookingsUrl(marketing), `${APP}/login?as=client&next=%2Fclient`);
     assert.equal(guestSaveBookingsUrl(agency), "https://improntamodels.com/login?as=client&next=%2Fclient");
+  });
+});
+
+test("TUL-954: the offer email button is a signed thread link with ?focus=offer; unknown conversation keeps the legacy path", () => {
+  withEnv({ ...BASE, CLIENT_ACCOUNT_HOSTS: undefined }, () => {
+    const url = clientOfferUrl(agency, `/client/inquiries/${INQ}?tab=offer`, { inquiryId: INQ, tenantId: TENANT });
+    assert.match(url, /^https:\/\/improntamodels\.com\/c\/t\/.+\?focus=offer$/);
+    const token = decodeURIComponent((url.split("/c/t/")[1] ?? "").replace("?focus=offer", ""));
+    const v = verifyThreadToken(token);
+    assert.equal(v.ok, true);
+    assert.equal(v.ok && v.inquiryId, INQ);
+    assert.equal(clientOfferUrl(agency, `/client/inquiries/${INQ}?tab=offer`, {}), `https://improntamodels.com/client/inquiries/${INQ}?tab=offer`);
+    assert.equal(clientOfferUrl(agency, "/x", { inquiryId: INQ, tenantId: null }), "https://improntamodels.com/x");
   });
 });

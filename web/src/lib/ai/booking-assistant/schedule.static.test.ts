@@ -52,3 +52,10 @@ test("sendGuestMessageAction resolves talent via lineup spine when participants 
   assert.match(src, /readSelectedIds/);
   assert.match(src, /interpreted_query/);
 });
+
+// TUL-36 x TUL-1154: the structured (pick-card) path must keep main's wrong-language guard.
+test("turn.server structured path hands off a reply in the wrong language", () => {
+  const src = readFileSync(resolve(__dirname, "turn.server.ts"), "utf8");
+  assert.match(src, /replyLanguageMismatch\(args\.guestMessage, sanitized\.text\)/);
+  assert.match(src, /wrongLanguage \? "wrong_language"/);
+});

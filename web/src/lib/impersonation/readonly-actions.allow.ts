@@ -298,6 +298,7 @@ export const ROUTE_ALLOW: Array<[suffix: string, reason: string]> = [
   ["api/stripe/webhook/route.ts", "webhook: Stripe-signature authenticated, no user session"],
   ["api/webhooks/messaging/[channel]/route.ts", "webhook: provider-signature authenticated, no user session"],
   ["api/webhooks/resend/route.ts", "webhook: Svix-signature authenticated, no user session"],
+  ["api/webhooks/whatsapp/inbound/route.ts", "webhook: Twilio-signature authenticated, no user session"],
   ["api/hooks/auth-email/route.ts", "Supabase auth hook: secret authenticated, no user session"],
   ["api/public/places/street-suggest/route.ts", "public anonymous READ (POST only to keep typed text out of URLs); no session, writes nothing; flag-gated + rate-limited (TUL-439)"],
   ["api/public/places/street-details/route.ts", "public anonymous READ (POST only to keep typed text out of URLs); no session, writes nothing; flag-gated + rate-limited (TUL-439)"],

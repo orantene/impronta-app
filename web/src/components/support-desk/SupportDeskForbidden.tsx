@@ -50,7 +50,7 @@ export async function SupportDeskForbidden({
             fontFamily: '"Inter", system-ui, sans-serif',
             fontSize: 11,
             fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
+            color: "rgba(11,11,13,0.6)",
             letterSpacing: 0.8,
             textTransform: "uppercase",
             margin: 0,
@@ -88,7 +88,7 @@ export async function SupportDeskForbidden({
             style={{
               fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 13,
-              color: "rgba(11,11,13,0.48)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 12,
               marginBottom: 0,
             }}

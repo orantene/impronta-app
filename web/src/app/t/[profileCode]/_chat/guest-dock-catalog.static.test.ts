@@ -116,10 +116,9 @@ test("TUL-1068: a catalog add is listed under 'In your inquiry' and clears the e
   assert.match(lineup, /data-inquiry-catalog-item/);
 });
 
-test("TUL-1068: Select on a service/class row opens the in-page sheet first and only links when nothing on the page owns it", () => {
+test("TUL-1068: Select on a service/class row opens the in-page sheet first and otherwise adds to the inquiry, never linking to /book", () => {
   const dock = read("app/t/[profileCode]/_chat/GuestDockCatalog.tsx");
-  assert.match(dock, /onSelect=\{row\.offeringId && \(row\.category === "service" \|\| row\.category === "class"\) \? \(\) => requestChatAddService\(row\.offeringId as string\)/);
-  assert.match(dock, /if \(onSelect\(\)\) e\.preventDefault\(\)/);
+  assert.match(dock, /selectCatalogRow\(\{ offeringId: row\.offeringId \?\? null, requestIsland: requestChatAddService, addToInquiry: \(\) => void onAdd\(row\) \}\)/);
   const island = read("lib/site-admin/builder-node/services-catalog-filter.tsx");
   assert.match(island, /return Boolean\(found\)/);
   assert.match(read("components/public-booking/use-chat-add-service.ts"), /=== true\) e\.preventDefault\(\)/);

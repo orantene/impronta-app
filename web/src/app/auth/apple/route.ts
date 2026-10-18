@@ -7,6 +7,7 @@ import {
   cookieDomainForHost,
   expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
+  scopeAuthCookieOptions,
 } from "@/lib/supabase/cookie-domain";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -59,10 +60,7 @@ export async function GET(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          const scoped =
-            authCookieDomain && isSupabaseAuthCookie(name)
-              ? { ...options, domain: authCookieDomain }
-              : options;
+          const scoped = scopeAuthCookieOptions(name, options, authCookieDomain);
           cookieStore.set(name, value, scoped);
           cookieResponse.cookies.set(name, value, scoped);
         });

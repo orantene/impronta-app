@@ -17,6 +17,7 @@
  */
 
 import { offerDepositCents } from "@/lib/messages-v5/client-thread-view";
+import { formatPrice } from "@/lib/money/format-price";
 import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 
 export type AcceptPolicyLine = {
@@ -71,9 +72,5 @@ export function planAcceptCollection(input: AcceptCollectionInput): AcceptCollec
 
 /** The money line on the pay card, in the offer's currency. */
 export function acceptAmountLabel(amountCents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: currency.toUpperCase() }).format(amountCents / 100);
-  } catch {
-    return `${currency.toUpperCase()} ${(amountCents / 100).toFixed(2)}`;
-  }
+  return formatPrice({ amountCents, currency, locale: "en" }).primary;
 }

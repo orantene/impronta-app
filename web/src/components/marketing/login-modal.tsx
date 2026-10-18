@@ -29,6 +29,7 @@ import {
   type SignInModalState,
 } from "@/app/auth/actions";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
+import { getAppUrl } from "@/lib/auth-flow";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
@@ -57,6 +58,8 @@ type LoginCopy = {
   forgot: string;
   noAccount: string;
   createOne: string;
+  clientPrompt: string;
+  clientSignUp: string;
   googleFailed: string;
   popupBlocked: string;
 };
@@ -78,6 +81,8 @@ function getLoginCopy(locale: string): LoginCopy {
       forgot: "Forgot your password?",
       noAccount: "New to Tulala?",
       createOne: "Create a free workspace",
+      clientPrompt: "Booking a service?",
+      clientSignUp: "Create a client account",
       googleFailed: "Google sign-in failed. Try again.",
       popupBlocked: "Popup blocked. Allow popups for this site and try again.",
     },
@@ -96,6 +101,8 @@ function getLoginCopy(locale: string): LoginCopy {
       forgot: "¿Olvidaste tu contraseña?",
       noAccount: "¿Nuevo en Tulala?",
       createOne: "Crea un workspace gratis",
+      clientPrompt: "¿Vas a reservar?",
+      clientSignUp: "Crea una cuenta de cliente",
       googleFailed: "Error al iniciar sesión con Google. Inténtalo de nuevo.",
       popupBlocked: "Popup bloqueado. Permite popups para este sitio e inténtalo de nuevo.",
     },
@@ -277,6 +284,21 @@ export function LoginModal({
                 >
                   {t.createOne}
                 </Link>
+              </p>
+              {/* TUL-759: the client sign-up is secondary but visible next to the seller CTA. */}
+              <p
+                className="mt-2 text-center text-[0.8125rem]"
+                style={{ color: "var(--plt-muted)" }}
+              >
+                {t.clientPrompt}{" "}
+                <a
+                  href={`${getAppUrl()}${withLocaleHref("/register?as=client", locale)}`}
+                  data-testid="login-modal-client-signup"
+                  className="font-medium underline underline-offset-4 transition-colors hover:text-[var(--plt-forest)]"
+                  style={{ color: "var(--plt-ink-soft)" }}
+                >
+                  {t.clientSignUp}
+                </a>
               </p>
             </>
           )}

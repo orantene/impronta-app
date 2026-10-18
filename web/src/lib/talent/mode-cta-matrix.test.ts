@@ -57,7 +57,7 @@ test("MODE-1 instant: on-demand + confirm_now → Confirm now / Confirmar cita",
       whoPrimaryCta: "confirm_now",
       locale: "en",
     }),
-    "Confirm now",
+    "Confirm appointment",
   );
 });
 

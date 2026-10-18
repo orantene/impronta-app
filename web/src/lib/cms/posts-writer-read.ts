@@ -13,6 +13,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { parsePostBlocks } from "@/lib/cms/post-blocks";
+import { isPristineDraft } from "@/lib/cms/post-writer-status";
 import { evaluatePostSeo } from "@/lib/cms/post-seo-dot";
 import type {
   PostListRow,
@@ -120,7 +121,28 @@ export async function listPostsForOwner(
     logServerError("cms/posts-writer-read/list", error);
     return [];
   }
-  return ((data ?? []) as FullRow[]).map((row) => {
+  return ((data ?? []) as FullRow[])
+    // TUL-1249: a click on "new post" stores an empty draft; it is not the owner's work yet.
+    .filter(
+      (row) =>
+        !isPristineDraft({
+          status: row.status,
+          title: row.title,
+          excerpt: row.excerpt,
+          blockCount: parsePostBlocks(row.body_blocks).length,
+          scheduledPublishAt: row.scheduled_publish_at,
+          isUnlisted: row.is_unlisted,
+          isFeatured: row.is_featured,
+          expiresAt: row.expires_at,
+          categoryId: row.category_id,
+          relatedOfferingId: row.related_offering_id,
+          metaTitle: row.meta_title,
+          metaDescription: row.meta_description,
+          coverImageUrl: row.cover_image_url,
+          ogImageUrl: row.og_image_url,
+        }),
+    )
+    .map((row) => {
     const post = toWriterPost(row);
     return {
       id: post.id,

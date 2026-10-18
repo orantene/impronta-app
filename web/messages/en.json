@@ -1607,6 +1607,14 @@
       "talentFallbackName": "Talent",
       "talentRemoveAria": "Remove {name}",
       "talentAddLabel": "Add talent",
+      "talentSearchPlaceholder": "Search talent by name",
+      "talentSearchAddAria": "Add {name} to your inquiry",
+      "talentSearchAdd": "Add",
+      "talentSearchEmpty": "No talent match that name. Try another, or let the agency recommend.",
+      "mapTitle": "Map: {place}",
+      "mapAria": "Google Maps preview for {place}",
+      "mapView": "View on map",
+      "mapDirections": "Get directions",
       "talentCountLabel": "How many talent (optional)",
       "talentCountPlaceholder": "e.g. 3",
       "talentTypeLabel": "Type of talent",
@@ -2102,11 +2110,11 @@
       "code": {
         "title": "Enter the code",
         "sub": "We sent an 8-digit code to {email}. It's the same screen for everyone, so check your inbox and spam.",
-        "plusSub": "We sent a code to {email}. Inboxes often never deliver mail to + tags. If nothing arrives in a minute, change email to one without +.",
+        "plusSub": "We sent a code to {email}. It can take a minute. If it doesn't arrive, send a new code or try your main address.",
         "resend": "Send a new code",
         "resendIn": "Send a new code in {s}s",
         "resent": "A new code is on its way.",
-        "plusResent": "New code sent. If it still does not arrive, change to an address without a + tag.",
+        "plusResent": "New code sent. If it still doesn't arrive, try your main address (without the + tag).",
         "changeEmail": "Change email",
         "verifying": "Checking…"
       },
@@ -2186,6 +2194,15 @@
           "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
           "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
           "notCreated": "Why: we could not create your address. Open the editor to finish it."
+        },
+        "draftSaw": {
+          "status": "What we saw: your address answered with error {status} instead of your page.",
+          "statusUnknown": "What we saw: your address answered with an error instead of your page.",
+          "network": "What we saw: your address did not answer at all.",
+          "nameMissing": "What we saw: your address opened, but your name is not on the page yet.",
+          "noName": "What we saw: your page has no name to check against. Open the editor and add one.",
+          "noUrl": "What we saw: your page has no address yet.",
+          "protected": "What we saw: your address is behind a sign-in wall, so we could not look at it."
         },
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
@@ -2286,6 +2303,17 @@
       "tabMessages": "Messages",
       "tabPayments": "Payments",
       "tabSettings": "Settings",
+      "tabHelp": "Help",
+      "helpTitle": "How can we help?",
+      "helpPayQ": "How do I pay a balance?",
+      "helpPayA": "Open Payments and choose Pay now next to the booking.",
+      "helpChangeQ": "How do I change or cancel a visit?",
+      "helpChangeA": "Open the visit under Visits to see what you can change, or send a message and the business will sort it out with you.",
+      "helpReceiptQ": "Where is my receipt?",
+      "helpReceiptA": "Receipts are listed under Payments once you have paid.",
+      "helpAskQ": "Who do I ask a question?",
+      "helpAskA": "Send a message under Messages. The business replies there.",
+      "helpOpenMessages": "Go to Messages",
       "tabQuotes": "Quotes",
       "tabShortlists": "Shortlists",
       "tabApprovals": "Approvals",
@@ -2365,7 +2393,7 @@
       "phoneInvalid": "Check the phone number.",
       "logOut": "Log out",
       "langEn": "English",
-      "langEs": "Spanish",
+      "langEs": "Español",
       "fieldEmail": "Email",
       "namePromptTitle": "Add your name",
       "namePromptBody": "Your name is showing as part of your email. Add your real name so bookings and messages feel personal.",
@@ -2374,6 +2402,7 @@
     },
     "clientAccount": {
       "signIn": "Sign in",
+      "createAccount": "Create account",
       "account": "Account",
       "openLabel": "Open account menu",
       "closeLabel": "Close",
@@ -2432,7 +2461,8 @@
       "perMonth": "per month",
       "billedYearly": "{amount} billed yearly",
       "billedMonthly": "Billed monthly",
-      "popular": "Most popular"
+      "popular": "Most popular",
+      "approxNote": "per month, charged in USD"
     }
   },
   "dashboard": {
@@ -14019,7 +14049,69 @@
       "lineCountOne": "item",
       "lineCountOther": "items",
       "refundAmount": "Amount to refund",
-      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund."
+      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund.",
+      "door": {
+        "newBadge": "New",
+        "mockBanner": "Order door mockup on the live Pedidos desk. Dashed and New mark only what this slice adds; the columns and refund path stay as they are today.",
+        "mockPreview": "Mock content: later slices fill each section with real data and open names in stacked drawers.",
+        "copyCode": "Copy order code",
+        "codeCopied": "Copied",
+        "back": "Back to list",
+        "moreMenu": "More actions",
+        "primary": {
+          "sendPayLink": "Send payment link",
+          "collectPos": "Collect at counter",
+          "sendReceipt": "Send receipt",
+          "viewRefund": "View refund"
+        },
+        "sections": {
+          "summary": {
+            "title": "Summary",
+            "preview": "Timeline and money",
+            "body": "Timeline mock: created, offer, paid, fulfilled. Money lines (total, paid, pending, fee, net) land in the next slice."
+          },
+          "client": {
+            "title": "Client",
+            "preview": "Name and contact",
+            "body": "Client drawer mock: past orders, Message, WhatsApp, Copy email. Name will open a side drawer without leaving Pedidos."
+          },
+          "items": {
+            "title": "Items",
+            "preview": "Lines on this order",
+            "body": "Each line will show service, qty, price, person and space. Per-line refund moves here from the table cell."
+          },
+          "appointment": {
+            "title": "Appointment and dates",
+            "preview": "When and where",
+            "body": "Date, start to end, timezone and location. Needs the location field from TUL-426 before this section is real."
+          },
+          "payments": {
+            "title": "Payments",
+            "preview": "Transactions and links",
+            "body": "Each transaction opens the payment drawer. Refund lines stay available below while this mock is up."
+          },
+          "conversation": {
+            "title": "Conversation",
+            "preview": "No thread yet",
+            "body": "Origin and last message preview. Opens the conversation drawer; it never navigates away."
+          },
+          "origin": {
+            "title": "Origin and device",
+            "preview": "Channel and device",
+            "body": "Sales channel, source page or terminal, and coarse device family. No IP or precise location."
+          },
+          "activity": {
+            "title": "Activity",
+            "preview": "Who and when",
+            "body": "Status changes, messages sent, refunds and notes. Actor names open the person drawer."
+          },
+          "notes": {
+            "title": "Internal notes",
+            "preview": "No notes yet",
+            "body": "Team notes on the order. Add a note inline in a later slice."
+          }
+        }
+      }
     },
     "sales": {
       "pageTitle": "Sales",
@@ -17326,6 +17418,7 @@
     "projects": {
       "pageTitle": "Projects",
       "pageIntro": "Commissioned work from inquiry to closure",
+      "listLoading": "Loading projects",
       "unavailable": "We could not load your projects. Nothing was changed. Try again in a moment.",
       "empty": "No commissioned projects yet.",
       "emptyHint": "A project appears here when a client accepts an offer on an inquiry. Sales taken at the counter stay on Orders.",
@@ -17999,6 +18092,7 @@
       "dash": "—",
       "untitled": "(untitled)",
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
+      "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
       "type": {
         "product": "Product",
         "service": "Service",
@@ -19799,6 +19893,10 @@
           "header": {
             "handling": "{name} is handling your request",
             "handlingTeam": "The team is handling your request"
+          },
+          "offerBanner": {
+            "hint": "You have an offer to review",
+            "cta": "View offer"
           },
           "stream": {
             "you": "You",

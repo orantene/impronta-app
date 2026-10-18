@@ -41,6 +41,8 @@ import {
   bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
   bookingAssistantNoTimesCopy,
+  replyLanguageDirective,
+  replyLanguageMismatch,
   resolveBookingAssistantReplyLocale,
   type BookingHandoffReason,
 } from "./handoff";
@@ -596,6 +598,7 @@ export async function maybeRunBookingAssistantTurn(
           grounding,
           "SERVICE_CATALOG_END",
           `locale=${locale}`,
+          replyLanguageDirective(locale),
           "UNTRUSTED_GUEST_MESSAGE_BEGIN",
           args.guestMessage.slice(0, 800),
           "UNTRUSTED_GUEST_MESSAGE_END",
@@ -686,7 +689,11 @@ export async function maybeRunBookingAssistantTurn(
     if (resolved.kind === "handoff") return handoffNow("unsure", "model_or_catalog_handoff");
 
     const sanitized = sanitizeBookingAssistantOutput(resolved.reply, grounding);
-    if (sanitized.escalate || !sanitized.text.trim()) return handoffNow("unsure", sanitized.escalate ? "guardrail_escalate" : "empty_reply");
+    // TUL-1154: never post a reply in the other language than the guest wrote.
+    const wrongLanguage = replyLanguageMismatch(args.guestMessage, sanitized.text);
+    if (sanitized.escalate || !sanitized.text.trim() || wrongLanguage) {
+      return handoffNow("unsure", wrongLanguage ? "wrong_language" : sanitized.escalate ? "guardrail_escalate" : "empty_reply");
+    }
 
     if (resolved.kind === "offer_times") {
       const offering = offerings.find((o) => o.id === resolved.offeringId);

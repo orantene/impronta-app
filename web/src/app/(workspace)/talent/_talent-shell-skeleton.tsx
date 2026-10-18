@@ -9,6 +9,7 @@
 // skeleton painted as blank on phone Hoy after sign-in. rgb() (not a hash
 // hex) keeps the always-available paint without tripping the hex ratchets.
 
+import { TULALA_BRAND } from "@/lib/brand/tulala";
 import { SkeletonCaption } from "@/components/talent/skeleton-caption";
 
 function Block({ className }: { className: string }) {
@@ -26,7 +27,10 @@ export function TalentShellSkeleton() {
         data-talent-shell-skeleton="header"
         className="sticky top-0 z-10 flex h-[56px] items-center gap-[12px] border-b border-black/[0.08] bg-[rgb(247,246,244)] px-[16px]"
       >
-        <Block className="h-[24px] w-[96px]" />
+        {/* TUL-1177: brand text, not a grey block, so the first paint is never "an empty page". */}
+        <span data-testid="skeleton-brand" className="text-[18px] font-semibold tracking-tight text-black/80">
+          {TULALA_BRAND.name}
+        </span>
         <div className="flex-1" />
         <Block className="h-[28px] w-[28px] rounded-full" />
       </div>

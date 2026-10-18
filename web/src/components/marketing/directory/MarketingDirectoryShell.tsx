@@ -209,8 +209,9 @@ function DirectoryShellBody({
 
   return (
     <MarketingContainer size="wide" className="pb-[calc(8rem+env(safe-area-inset-bottom))]">
+      {/* TUL-1174: the same rule shifts the Filtros trigger right of the parked launcher (54px wide at left:16px) so it is never covered at load. */}
       {/* TUL-879: on a phone the 2-up grid puts a save heart under the chat launcher in the right column; park the launcher on the left here. */}
-      <style>{`@media (max-width: 639px){[data-guest-chat-launcher]{left:16px!important;right:auto!important}}`}</style>
+      <style>{`@media (max-width: 639px){[data-guest-chat-launcher]{left:16px!important;right:auto!important}body:has([data-guest-chat-launcher]) [data-directory-toolbar-lead]{padding-left:calc(54px + max(0px,env(safe-area-inset-left)))}}`}</style>
       <div className="flex flex-col gap-5">
         <DirectorySearch value={activeFilters.q} onCommit={(v) => updateParams({ q: v })} />
         <DirectoryTypeBar

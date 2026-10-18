@@ -41,6 +41,7 @@ import {
 
 import { DEFAULT_CURRENCY_OPTIONS, localizedCurrencyLabel } from "@/lib/billing/currencies";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatPrice } from "@/lib/money/format-price";
 
 const VISIBILITY_LABEL_KEYS: Record<ServiceVisibility, string> = {
   public: "dashboard.talentServices.visibilityPublic",
@@ -72,13 +73,9 @@ function inputToCents(raw: string): number | null {
   if (!Number.isFinite(n) || n < 0) return null;
   return Math.round(n * 100);
 }
-function fmtMoney(cents: number | null, currency: string): string {
+function fmtMoney(cents: number | null, currency: string, locale: string): string {
   if (cents === null) return "—";
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency, maximumFractionDigits: 0 }).format(cents / 100);
-  } catch {
-    return `${currency} ${Math.round(cents / 100)}`;
-  }
+  return formatPrice({ amountCents: cents, currency, locale, audience: "talent" }).primary;
 }
 
 let _seq = 0;
@@ -347,7 +344,7 @@ export function TalentServicesMenuCard({ talentId }: { talentId: string }) {
                   <span style={{ fontSize: 12, fontWeight: 600, color: it.pricingType === "custom" ? C.inkMuted : C.accentDeep }}>
                     {it.pricingType === "custom"
                       ? t("dashboard.talentServices.quoteOnRequest")
-                      : `${fmtMoney(it.amountCents, it.currency)} ${t(SERVICE_PRICING_SUFFIX_KEYS[it.pricingType])}`.trim()}
+                      : `${fmtMoney(it.amountCents, it.currency, dashboardLocale)} ${t(SERVICE_PRICING_SUFFIX_KEYS[it.pricingType])}`.trim()}
                   </span>
                 </div>
 

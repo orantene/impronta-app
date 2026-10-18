@@ -1,3 +1,4 @@
+import { cityWithAccents } from "./timezone-city-es";
 import { blocksTime, formatCountdown, freeGaps, needsAttention } from "@/lib/talent-agenda/derive";
 import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
@@ -171,7 +172,7 @@ export function formatDualTimezoneWhen(
     minute: "2-digit",
     timeZone: tz || undefined,
   });
-  const localCity = tz.split("/").pop()?.replace(/_/g, " ") ?? tz;
+  const localCity = cityWithAccents(tz.split("/").pop()?.replace(/_/g, " ") ?? tz);
   const localRange = `${localFmt.format(start)} – ${localFmt.format(end)} ${localCity}`;
   if (!clientTz || clientTz === tz) return localRange;
   const clientFmt = new Intl.DateTimeFormat(undefined, {
@@ -179,7 +180,7 @@ export function formatDualTimezoneWhen(
     minute: "2-digit",
     timeZone: clientTz,
   });
-  const clientCity = clientTz.split("/").pop()?.replace(/_/g, " ") ?? clientTz;
+  const clientCity = cityWithAccents(clientTz.split("/").pop()?.replace(/_/g, " ") ?? clientTz);
   return `${localFmt.format(start)} ${localCity} · ${clientFmt.format(start)} ${clientCity}`;
 }
 

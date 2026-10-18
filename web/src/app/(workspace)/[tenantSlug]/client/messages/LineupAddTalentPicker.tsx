@@ -93,7 +93,7 @@ export function LineupAddTalentPicker({
           }}
         >
           {options.length === 0 ? (
-            <div style={{ padding: "12px 14px", fontSize: 12.5, color: "rgba(11,11,13,0.55)" }}>
+            <div style={{ padding: "12px 14px", fontSize: 12.5, color: "rgba(11,11,13,0.6)" }}>
               {t("client.messages.lineupAllOnLineup")}
             </div>
           ) : (
