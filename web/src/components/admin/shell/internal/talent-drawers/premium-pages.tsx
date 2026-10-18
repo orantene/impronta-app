@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { formatTalentPlanPrice } from "@/lib/billing/talent-plan-price";
-import { useDashboardText } from "../dashboard-i18n";
+import { translateDashboardText, useDashboardText } from "../dashboard-i18n";
 import { personalPageLabel } from "./personal-page-label";
 import { interpolate } from "@/i18n/interpolate";
 import {
@@ -85,7 +85,9 @@ const TIER_GROUP_KEYS: Record<TalentTierGroup, string> = {
 /** Lock badge shown next to a feature card when the talent's tier doesn't unlock it. */
 function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier }) {
   const t = useT();
-  const meta = TALENT_TIER_META[requiredTier];
+  const copy = useDashboardText();
+  // TUL-1059: the plan name follows the dashboard language ("Oficina Web"), never raw English.
+  const meta = { ...TALENT_TIER_META[requiredTier], label: copy.t(TALENT_TIER_META[requiredTier].label) };
   return (
     <span
       style={{
@@ -229,7 +231,7 @@ export function TalentTierCompareDrawer() {
                     cursor: "pointer",
                   }}
                 >
-                  {interpolate(t("dashboard.talentDrawers.premiumPages.switchTo"), { tier: meta.label })}
+                  {interpolate(t("dashboard.talentDrawers.premiumPages.switchTo"), { tier: copy.t(meta.label) })}
                 </button>
               )}
             </div>
@@ -350,7 +352,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       <div className="flex flex-wrap gap-[10px]">
         {upgradeable.map((tier) => {
           const price = tierMonthlyPrice(tier, locale);
-          const label = TALENT_TIER_META[tier].label;
+          const label = translateDashboardText(TALENT_TIER_META[tier].label, locale);
           return (
             <PrimaryButton
               key={tier}

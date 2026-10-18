@@ -31,6 +31,7 @@ import { notificationDrawerFields } from "../notification-drawer-targets";
 import { useDashboardText } from "../dashboard-i18n";
 import { formatNotificationAge, localizeNotificationText } from "../notification-localize";
 import { matchesHubPayloadCategory } from "../notification-hub-popover";
+import { formatPrice } from "@/lib/money/format-price";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -223,9 +224,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
         brief: b.company ?? b.contact_name,
         date: b.event_date ?? "",
         stage: "confirmed",
-        amount: b.grossRevenueCents
-          ? new Intl.NumberFormat("en-US", { style: "currency", currency: b.currencyCode ?? "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(b.grossRevenueCents / 100)
-          : undefined,
+        amount: b.grossRevenueCents ? formatPrice({ amountCents: b.grossRevenueCents, currency: b.currencyCode ?? "USD", locale: "en", audience: "talent" }).primary : undefined,
       }))
     : mappedInquiries.filter((i) => meta.stages.includes(i.stage));
 

@@ -6985,3 +6985,13 @@ html:has(.site-header[data-tone="transparent"]) {
 [data-directory-hover="none"] .talent-card [data-card-media] img {
   transform: none !important;
 }
+
+/* TUL-1257: on phones a short wordmark ("IMPRONTA HUB") wraps to two lines instead of cutting to "IMPRON..."; the bar stays one row. */
+@media (max-width: 480px) {
+  .site-header .site-header__brand-label,
+  .site-header[data-variant="standard"] .site-header__brand-label,
+  .site-header[data-variant="split"] .site-header__brand-label {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; overflow-wrap: anywhere; line-height: 1.1; font-size: 13px; letter-spacing: 0;
+  }
+}

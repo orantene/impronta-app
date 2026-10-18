@@ -1,4 +1,5 @@
 import type { Promo } from "@/lib/promos/types";
+import { formatPrice } from "@/lib/money/format-price";
 
 export type ShareLang = "es" | "en";
 
@@ -8,13 +9,7 @@ const DAYS: Record<ShareLang, readonly string[]> = {
 };
 
 function money(cents: number, currency: string, lang: ShareLang): string {
-  const whole = cents % 100 === 0;
-  return new Intl.NumberFormat(lang === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  }).format(cents / 100);
+  return formatPrice({ amountCents: cents, currency, locale: lang }).primary;
 }
 
 /** Big offer text: "20% de descuento", "$100 de descuento", "Gel gratis". */
