@@ -110,10 +110,17 @@ async function ins(table: string, row: Row, conflict: string[] | null = ["id"]):
 
 /** clone a template row with overrides (json_populate_record keeps every NOT NULL default right). */
 async function clone(table: string, templateWhere: string, templateParams: unknown[], overrides: Row): Promise<boolean> {
+  // Generated columns (e.g. inquiry_messages.body_tsv) cannot be inserted: copy only the writable ones.
+  const [schema, name] = table.includes(".") ? table.split(".") : ["public", table];
+  const colRes = await q(
+    "select column_name from information_schema.columns where table_schema = $1 and table_name = $2 and is_generated = 'NEVER' order by ordinal_position",
+    [schema, name],
+  );
+  const cols = colRes.rows.map((c) => '"' + (c.column_name as string) + '"').join(",");
   const r = await q(
-    `insert into ${table} select r.* from ${table} s, ` +
+    `insert into ${table} (${cols}) select ${cols} from (select r.* from ${table} s, ` +
       `json_populate_record(null::${table}, (to_jsonb(s) || $${templateParams.length + 1}::jsonb)::json) r ` +
-      `where ${templateWhere} on conflict (id) do nothing`,
+      `where ${templateWhere}) t on conflict (id) do nothing`,
     [...templateParams, J(overrides)],
   );
   const key = String(overrides.id);
@@ -130,7 +137,7 @@ async function assertStagingMarker() {
 }
 
 // ------------------------------------------------------------------ users
-async function seedUser(key: "limpieza" | "quote" | "client", email: string, name: string, role: "talent" | "client") {
+async function seedUser(key: "limpieza" | "quote" | "client" | "owner", email: string, name: string, role: "talent" | "client") {
   const uid = id(`user:${key}`);
   const crypt = password ? "extensions.crypt($3::text, extensions.gen_salt('bf'))" : "''";
   const exists = await q("select 1 from auth.users where id = $1", [uid]);
@@ -165,7 +172,7 @@ async function seedUser(key: "limpieza" | "quote" | "client", email: string, nam
 
 // ------------------------------------------------------------------ talents
 type TalentSpec = {
-  key: "limpieza" | "quote";
+  key: "limpieza" | "quote" | "owner";
   profileCode: string;
   display: string;
   first: string;
@@ -369,7 +376,7 @@ async function seedOffering(spec: OfferingSpec, talentId: string) {
 
 // ------------------------------------------------------------------ bookings / money / offer / reviews / posts
 async function seedBooking(opts: {
-  key: "away" | "refundable" | "done" | "done2" | "done3";
+  key: "away" | "refundable" | "done" | "done2" | "done3" | "paylater" | "agencyonly";
   title: string;
   startsAt: string;
   endsAt: string;
@@ -383,6 +390,9 @@ async function seedBooking(opts: {
   t1: string;
   t1User: string;
   paymentIntentId?: string | null;
+  orderId?: string | null;
+  /** agency booking id with NO talent_bookings row (TUL-1244 record fallback). */
+  skipTalentBooking?: boolean;
 }) {
   const bid = id(`booking:${opts.key}`);
   await ins("public.agency_bookings", {
@@ -405,8 +415,9 @@ async function seedBooking(opts: {
     source_type_snapshot: "manual",
     internal_notes: `${PREFIX}: staging fixture, safe to delete via --cleanup`,
     event_date: opts.startsAt.slice(0, 10),
+    ...(opts.orderId ? { order_id: opts.orderId } : {}),
   });
-  await ins("public.talent_bookings", {
+  if (!opts.skipTalentBooking) await ins("public.talent_bookings", {
     id: bid,
     talent_profile_id: opts.t1,
     tenant_id: HUB_TENANT_ID,
@@ -627,6 +638,115 @@ async function seedPosts(t1: string, t1User: string) {
   });
 }
 
+// ------------------------------------------------------------------ retest fixtures (2026-10-18 map)
+const TEMPLATE_WORKSPACE = "290eabc3-616b-4723-8cbf-7687b6c9c6b6"; // qa-b7-studio (free workspace), read as a shape template only
+const TEMPLATE_PAYLATER_ORDER = "4f965f34-68a9-4deb-b114-cbeac9e2eb7e"; // pending_payment order of a QA booking, read as a template only
+const TEMPLATE_OFFER_MSG = "026464fa-e5a7-480a-981a-3721cc9b78d7";
+const TEMPLATE_TEXT_MSG = "b72f00df-e21b-4b11-9d6e-7a455ba87974";
+const TEMPLATE_OFFER_ID = "01eb51b4-aac4-4116-8e51-f4606e93e496";
+
+/** TUL-1255 / TUL-1182 / TUL-734: a workspace (MXN, no payments yet) whose owner also has the talent role. */
+async function seedWorkspace(ownerUser: string) {
+  const ws = id("workspace");
+  const now = new Date().toISOString();
+  await clone("public.agencies", "s.id = $1", [TEMPLATE_WORKSPACE], {
+    id: ws,
+    slug: `${PREFIX}-ws`,
+    display_name: "qa-fixture Estudio",
+    settings: {},
+    default_currency: "MXN",
+    preferred_currency: "MXN",
+    timezone: "America/Cancun",
+    onboarding_completed_at: now,
+    created_at: now,
+    updated_at: now,
+  });
+  await clone("public.agency_memberships", "s.tenant_id = $1 and s.role = 'owner'", [TEMPLATE_WORKSPACE], {
+    id: id("membership:owner"),
+    tenant_id: ws,
+    profile_id: ownerUser,
+    status: "active",
+    invited_by: null,
+    accepted_at: now,
+    created_at: now,
+    updated_at: now,
+  });
+  return ws;
+}
+
+/** TUL-1252: an unpaid, order-backed visit so the client's "Pagar ahora" mints a /pay/<code> link itself (links expire, so none is pre-made). */
+async function seedPayLaterOrder(customerId: string) {
+  const oid = id("order:paylater");
+  const now = new Date().toISOString();
+  await clone("public.orders", "s.id = $1", [TEMPLATE_PAYLATER_ORDER], {
+    id: oid,
+    customer_id: customerId,
+    inquiry_id: null,
+    created_by: null,
+    receipt_code: null,
+    hold_expires_at: null,
+    currency: "MXN",
+    subtotal_cents: 80000,
+    total_cents: 80000,
+    created_at: now,
+    updated_at: now,
+  });
+  return oid;
+}
+
+async function seedPayLaterLine(orderId: string, bookingId: string, t1: string) {
+  await clone("public.order_lines", "s.order_id = $1", [TEMPLATE_PAYLATER_ORDER], {
+    id: id("order_line:paylater"),
+    order_id: orderId,
+    booking_id: bookingId,
+    talent_profile_id: t1,
+    label: "QA Limpieza de casa (pagar despues)",
+    units: 1,
+    unit_cents: 80000,
+    total_cents: 80000,
+    offering_id: null,
+    created_at: new Date().toISOString(),
+  });
+}
+
+/** TUL-1258: message history on the client's inquiry thread (client request, talent reply, offer card). */
+async function seedMessages(inq: string, offer: string, clientUser: string, t1User: string) {
+  const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60000).toISOString();
+  const tpl = await q("select card_payload from public.inquiry_messages where id = $1", [TEMPLATE_OFFER_MSG]);
+  const payload = tpl.rowCount ? JSON.parse(JSON.stringify(tpl.rows[0].card_payload).split(TEMPLATE_OFFER_ID).join(offer)) : null;
+  const text = (key: string, sender: string, body: string, minutesAgo: number) =>
+    clone("public.inquiry_messages", "s.id = $1", [TEMPLATE_TEXT_MSG], {
+      id: id(key), inquiry_id: inq, thread_type: "group", sender_user_id: sender, message_kind: "text", body,
+      metadata: {}, card_payload: null, created_at: at(minutesAgo), edited_at: null, deleted_at: null,
+    });
+  await text("msg:client", clientUser, "Hola, necesito una limpieza profunda de mi casa antes del fin de mes.", 30);
+  await text("msg:talent", t1User, "Claro, con gusto. Te envio una oferta con el precio y la fecha.", 20);
+  if (payload) {
+    await clone("public.inquiry_messages", "s.id = $1", [TEMPLATE_OFFER_MSG], {
+      id: id("msg:offer"), inquiry_id: inq, sender_user_id: t1User, card_payload: payload, created_at: at(10),
+    });
+  }
+}
+
+/** TUL-391: English-stored support-ticket bells for the ES talent (the bell must localize them at render). */
+async function seedTicketBells(t1User: string) {
+  const tpl = await q("select id from public.user_notifications where surface = 'talent' and kind = 'ticket' and title like 'Resolved:%' limit 1");
+  if (!tpl.rowCount) {
+    console.log("[group6-fixtures] note: no ticket-bell template row on staging, skipping TUL-391 bells");
+    return;
+  }
+  const rows = [
+    { k: "bell:resolved", title: "Resolved: qa-fixture-g6 ticket (prueba)", body: "Rate how it went if you have a moment.", origin: "support.ticket.resolved" },
+    { k: "bell:needs_you", title: "Your ticket needs you", body: "Support replied to your ticket.", origin: "support.ticket.needs_you" },
+  ];
+  for (const r of rows) {
+    await clone("public.user_notifications", "s.id = $1", [tpl.rows[0].id], {
+      id: id(r.k), user_id: t1User, tenant_id: HUB_TENANT_ID, title: r.title, body: r.body, origin_kind: r.origin,
+      origin_inquiry_id: null, origin_event_id: null, read_at: null, created_at: new Date().toISOString(),
+    });
+  }
+}
+
 // ------------------------------------------------------------------ Stripe TEST (optional)
 async function seedStripe(t1: string, t1User: string) {
   const { default: Stripe } = await import("stripe");
@@ -741,9 +861,12 @@ async function cleanup() {
   await purge("public.inquiries", "id", roots.inquiries);
   await purge("public.agency_bookings", "id", roots.agency_bookings);
   await purge("public.talent_bookings", "id", roots.agency_bookings);
+  await purge("public.orders", "id", roots.orders);
+  await purge("public.user_notifications", "id", roots.user_notifications);
   await purge("public.customers", "id", roots.customers);
   await purge("public.media_assets", "id", roots.media_assets);
   await purge("public.talent_profiles", "id", roots.talent_profiles);
+  await purge("public.agencies", "id", roots.agencies);
   await purge("public.profiles", "id", roots.profiles);
   const users = await q("delete from auth.users where id = any($1::uuid[])", [roots.profiles]);
   purged += users.rowCount ?? 0;
@@ -754,7 +877,7 @@ const COUNT_TABLES = [
   "public.talent_profiles", "public.talent_sites", "public.talent_pages", "public.talent_offerings", "public.talent_offering_media",
   "public.agency_bookings", "public.talent_bookings", "public.booking_talent", "public.booking_transactions", "public.inquiries",
   "public.inquiry_offers", "public.inquiry_participants", "public.cms_posts", "public.talent_reviews", "public.media_assets",
-  "public.customers", "public.client_profiles", "public.agency_talent_roster", "public.profiles", "auth.users", "auth.identities", "public.agencies",
+  "public.customers", "public.client_profiles", "public.orders", "public.order_lines", "public.inquiry_messages", "public.agency_memberships", "public.agency_talent_roster", "public.profiles", "auth.users", "auth.identities", "public.agencies",
   "public.talent_subscriptions", "public.notification_dispatch_log", "public.user_notifications",
 ];
 
@@ -782,6 +905,21 @@ async function seedAll() {
   const uQuote = await seedUser("quote", EMAILS.quote, "qa-fixture Electricista", "talent");
   const uClient = await seedUser("client", clientEmail, "qa-fixture Cliente", "client");
   // Without a client_profiles row /client and /account bounce the user to /onboarding/role.
+  const uOwner = await seedUser("owner", EMAILS.owner, "qa-fixture Dueno", "talent");
+  const ws = await seedWorkspace(uOwner);
+  // The owner is also a talent (own profile, own site), like the QA-B7 account behind TUL-1255.
+  const tOwner = await seedTalent(
+    {
+      key: "owner",
+      profileCode: "TAL-96003",
+      display: "qa-fixture Dueno Estudio",
+      first: "Dueno",
+      tagline: "Estudio y talento en una sola cuenta",
+      slug: `${PREFIX}-owner`,
+      taxonomySlug: "cleaner",
+    },
+    uOwner,
+  );
   await ins("public.client_profiles", { id: id("client_profile"), user_id: uClient, preferred_locale: "es" }, ["user_id"]);
 
   const t1 = await seedTalent(
@@ -880,11 +1018,25 @@ async function seedAll() {
     bookingStatus: "completed", address: "Av. Tulum 100, Cancun", paid: true, amountCents: 80000, provider: "manual",
     clientUser: uClient, customerId, t1, t1User: uLimpieza,
   });
+  const payOrder = await seedPayLaterOrder(customerId);
+  const payLater = await seedBooking({
+    key: "paylater", title: "QA Limpieza pendiente de pago", startsAt: cancunInstant(now, 3, 11), endsAt: cancunInstant(now, 3, 14),
+    bookingStatus: "confirmed", address: "Calle 8 #21, Col. Centro, Cancun", paid: false, amountCents: 80000, provider: "manual",
+    clientUser: uClient, customerId, t1, t1User: uLimpieza, orderId: payOrder,
+  });
+  await seedPayLaterLine(payOrder, payLater, t1);
+  const agencyOnly = await seedBooking({
+    key: "agencyonly", title: "QA Reserva de agencia (sin fila de talento)", startsAt: cancunInstant(now, 0, 9), endsAt: cancunInstant(now, 0, 10),
+    bookingStatus: "confirmed", address: "Av. Tulum 100, Cancun", paid: false, amountCents: 50000, provider: "manual",
+    clientUser: uClient, customerId, t1, t1User: uLimpieza, skipTalentBooking: true,
+  });
   const chain = await seedOfferChain(t1, uLimpieza, uClient, customerId, o1);
+  await seedMessages(chain.inq, chain.offer, uClient, uLimpieza);
+  await seedTicketBells(uLimpieza);
   await seedReviews(t1, uClient, [done, done2, done3]);
   await seedPosts(t1, uLimpieza);
   if (args.stripe) await seedStripe(t1, uLimpieza);
-  return { t1, t2, uLimpieza, uQuote, uClient, away, refundable, done, done2, done3, ...chain, pi };
+  return { t1, t2, tOwner, uLimpieza, uQuote, uClient, uOwner, ws, payLater, agencyOnly, away, refundable, done, done2, done3, ...chain, pi };
 }
 
 async function makeRefundablePaymentIntent(): Promise<string> {
@@ -922,6 +1074,9 @@ function printReport(r?: Awaited<ReturnType<typeof seedAll>>) {
     console.log(`  T1 user / T2 user   ${r.uLimpieza} / ${r.uQuote}`);
     console.log(`  sent offer          ${r.offer} (inquiry ${r.inq})`);
     console.log(`  bookings            away ${r.away} | refundable ${r.refundable} | completed ${r.done}`);
+    console.log(`  owner talent_profile ${r.tOwner} (TAL-96003)`);
+    console.log(`  owner user / workspace ${r.uOwner} / ${r.ws} (slug ${PREFIX}-ws)`);
+    console.log(`  pay-later booking   ${r.payLater} | agency-only booking ${r.agencyOnly}`);
     console.log(`  stripe test PI      ${r.pi ?? "(none: pass --stripe with an sk_test_ key; refund click will fail at Stripe without it)"}`);
   }
 }
@@ -937,12 +1092,19 @@ async function verifySummary(r: Awaited<ReturnType<typeof seedAll>>) {
   const rev = await one("select rating_count, rating_avg from public.talent_profiles where id = $1", [t1]);
   const verified = await one("select count(*)::int n from public.talent_reviews where talent_profile_id = $1 and verified_paid", [t1]);
   const tx = await one("select count(*)::int n, count(*) filter (where status = 'paid')::int paid from public.booking_transactions where booking_id = any($1::uuid[])", [[r.refundable, r.done, r.done2, r.done3]]);
+  const owed = await one("select count(*)::int n from public.agency_bookings b join public.orders o on o.id = b.order_id where b.id = $1 and b.payment_status = 'unpaid' and o.status = 'pending_payment'", [r.payLater]);
+  const agencyOnly = await one("select (select count(*)::int from public.agency_bookings where id = $1) ab, (select count(*)::int from public.talent_bookings where id = $1) tb, (select count(*)::int from public.booking_talent where booking_id = $1) bt", [r.agencyOnly]);
+  const msgs = await one("select count(*)::int n from public.inquiry_messages where inquiry_id = $1 and deleted_at is null", [r.inq]);
+  const ws = await one("select (select count(*)::int from public.agency_memberships where tenant_id = $1 and profile_id = $2 and status = 'active') m, (select preferred_currency from public.agencies where id = $1) cur, (select app_role::text from public.profiles where id = $2) role", [r.ws, r.uOwner]);
+  const bells = await one("select count(*)::int n from public.user_notifications where user_id = $1 and kind = 'ticket'", [r.uLimpieza]);
   const lookup = await q("select public.talent_site_subdomain_lookup($1) as l", [`${PREFIX}-limpieza`]).catch(() => null);
   console.log("\n[group6-fixtures] read-back (what Verify will see):");
   console.log(`  T1 active hub roster rows ${roster.n} | published public services T1=${t1Services.n} (single-service site: must be 1)`);
   console.log(`  T2 services ${t2Services.n} (quote-only ${t2Services.quote}, on_request ${t2Services.on_request}) | offering photo links ${imgs.n}`);
   console.log(`  T1 rating_count ${rev.rating_count} avg ${rev.rating_avg} | verified-paid reviews ${verified.n}/3`);
   console.log(`  paid transactions on the four paid bookings ${tx.paid}/${tx.n}`);
+  console.log(`  pay-later booking unpaid with pending_payment order ${owed.n}/1 | agency-only booking: agency_bookings ${agencyOnly.ab}, talent_bookings ${agencyOnly.tb} (must be 0), booking_talent ${agencyOnly.bt}`);
+  console.log(`  offer thread messages ${msgs.n} | owner membership ${ws.m} role ${ws.role} workspace currency ${ws.cur} | ticket bells ${bells.n}`);
   console.log(`  site lookup rpc ${lookup ? JSON.stringify(lookup.rows[0]?.l ?? null).slice(0, 160) : "(rpc unavailable)"}`);
 }
 

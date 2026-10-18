@@ -27,6 +27,7 @@ export const EMAILS = {
   limpieza: `${PREFIX}-limpieza@impronta.test`,
   quote: `${PREFIX}-quote@impronta.test`,
   client: `${PREFIX}-client@impronta.test`,
+  owner: `${PREFIX}-owner@impronta.test`,
 };
 
 export function parseArgs(argv) {
@@ -126,10 +127,13 @@ export function cancunInstant(baseDate, dayOffset, hour, minute = 0) {
 export function ownedRootIds() {
   const k = (s) => stableId(s);
   return {
-    profiles: [k("user:limpieza"), k("user:quote"), k("user:client")],
-    talent_profiles: [k("talent:limpieza"), k("talent:quote")],
+    profiles: [k("user:limpieza"), k("user:quote"), k("user:client"), k("user:owner")],
+    agencies: [k("workspace")],
+    orders: [k("order:paylater")],
+    user_notifications: [k("bell:resolved"), k("bell:needs_you")],
+    talent_profiles: [k("talent:limpieza"), k("talent:quote"), k("talent:owner")],
     inquiries: [k("inquiry:offer")],
-    agency_bookings: [k("booking:away"), k("booking:refundable"), k("booking:done"), k("booking:done2"), k("booking:done3")],
+    agency_bookings: [k("booking:away"), k("booking:refundable"), k("booking:done"), k("booking:done2"), k("booking:done3"), k("booking:paylater"), k("booking:agencyonly")],
     customers: [k("customer:client")],
     media_assets: [k("media:1"), k("media:2"), k("media:3")],
     cms_posts: [k("post:es"), k("post:en"), k("post:expired"), k("post:takedown")],
@@ -155,9 +159,15 @@ export const SEED_COLUMNS = {
   "public.media_assets": ["alt", "approval_state", "asset_kind", "bucket_id", "id", "mime_type", "owner_talent_profile_id", "purpose", "storage_path", "tenant_id", "variant_kind"],
   "public.talent_offerings": ["allow_pay_in_person", "amount_cents", "attributes", "booking_mode", "cancellation_hours", "category", "currency", "description", "duration_minutes", "id", "is_featured", "kind", "moderation_state", "owner_kind", "price_display", "price_type", "reserve_mode", "sort_order", "status", "talent_profile_id", "tenant_id", "title", "visibility"],
   "public.talent_offering_media": ["offering_id", "media_asset_id", "sort_order"],
+  "public.agencies": ["id", "slug", "display_name", "settings", "default_currency", "preferred_currency", "timezone", "onboarding_completed_at", "created_at", "updated_at", "stripe_account_id", "stripe_account_status", "stripe_charges_enabled", "stripe_payouts_enabled", "stripe_details_submitted", "stripe_account_synced_at", "default_coordinator_user_id", "hub_exposure_tenant_ids"],
+  "public.agency_memberships": ["id", "tenant_id", "profile_id", "status", "invited_by", "accepted_at", "created_at", "updated_at", "role"],
+  "public.orders": ["id", "customer_id", "inquiry_id", "created_by", "receipt_code", "hold_expires_at", "currency", "subtotal_cents", "total_cents", "created_at", "updated_at", "tenant_id", "status"],
+  "public.order_lines": ["id", "order_id", "booking_id", "talent_profile_id", "label", "units", "unit_cents", "total_cents", "offering_id", "created_at"],
+  "public.inquiry_messages": ["id", "inquiry_id", "thread_type", "sender_user_id", "message_kind", "body", "metadata", "card_payload", "created_at", "edited_at", "deleted_at"],
+  "public.user_notifications": ["id", "user_id", "tenant_id", "title", "body", "origin_kind", "origin_inquiry_id", "origin_event_id", "read_at", "created_at", "kind", "surface"],
   "public.client_profiles": ["id", "user_id", "preferred_locale"],
   "public.customers": ["display_name", "email", "id", "tenant_id", "user_id"],
-  "public.agency_bookings": ["client_user_id", "contact_email", "contact_name", "currency_code", "customer_id", "ends_at", "event_date", "id", "internal_notes", "payment_status", "source_type_snapshot", "starts_at", "status", "tenant_id", "timezone", "title", "total_client_revenue", "venue_location_text", "venue_name", "client_revenue_lifecycle"],
+  "public.agency_bookings": ["client_user_id", "contact_email", "contact_name", "currency_code", "customer_id", "ends_at", "event_date", "id", "internal_notes", "payment_status", "source_type_snapshot", "starts_at", "status", "tenant_id", "timezone", "title", "total_client_revenue", "venue_location_text", "venue_name", "client_revenue_lifecycle", "order_id"],
   "public.talent_bookings": ["all_day", "client_label", "created_by_user_id", "ends_at", "id", "location_text", "starts_at", "status", "talent_profile_id", "tenant_id", "title"],
   "public.booking_talent": ["booking_id", "client_charge_rate", "client_charge_total", "id", "profile_code_snapshot", "role_label", "talent_cost_rate", "talent_cost_total", "talent_name_snapshot", "talent_profile_id", "units"],
   "public.booking_transactions": ["booking_id", "checkout_type", "currency", "gross_amount_cents", "id", "net_amount_cents", "payer_email", "payer_user_id", "platform_fee_basis_points", "platform_fee_cents", "provider", "source_tenant_id", "status", "stripe_platform", "requested_at", "payout_receiver_kind", "payout_receiver_id", "payout_receiver_display_name", "paid_at", "provider_metadata"],

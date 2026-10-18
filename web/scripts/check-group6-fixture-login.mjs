@@ -55,6 +55,7 @@ const USERS = [
   { key: "limpieza", email: EMAILS.limpieza, paths: ["/talent/today"] },
   { key: "quote", email: EMAILS.quote, paths: ["/talent/today"] },
   { key: "client", email: EMAILS.client, paths: ["/client", "/account"] },
+  { key: "owner", email: EMAILS.owner, paths: ["/qa-fixture-g6-ws/admin"] },
 ];
 
 let bad = 0;
