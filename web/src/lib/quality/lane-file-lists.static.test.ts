@@ -82,6 +82,17 @@ test("every scripts/lanes/*.txt is duplicate-free and every entry resolves to a 
   }
 });
 
+test("TUL-1185/1186: every lane list is sorted (insert in order, never append to the end)", () => {
+  const sorter = createRequire(join(WEB_ROOT, "package.json"))("./scripts/lanes-sort.cjs") as {
+    sortedContent: (raw: string) => string;
+    unsorted: () => string[];
+  };
+  assert.deepEqual(sorter.unsorted(), [], "run: node scripts/lanes-sort.cjs (in web/)");
+  // GUARD BITES
+  assert.equal(sorter.sortedContent("b.test.ts\na.test.ts\nb.test.ts\n"), "a.test.ts\nb.test.ts\n");
+  assert.equal(sorter.sortedContent("# c\nb\na\n"), "# c\na\nb\n");
+});
+
 test("the long lanes use one-path-per-line list files and run through lane-test.cjs", () => {
   for (const lane of ["tenant-isolation", "auth-routing", "ai-guardrails"]) {
     const cmd = scripts[`test:${lane}`];
