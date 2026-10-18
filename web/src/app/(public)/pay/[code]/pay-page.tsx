@@ -24,6 +24,8 @@ import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { decidePayAccess, hostServesTenantPayLinks } from "@/lib/payments/pay-host-links";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -95,6 +97,9 @@ export async function PayByCodePage({
 
   const uiLocale = (await getRequestLocale()) === "en" ? "en" : "es";
   const loaded = await loadPaymentLinkByCode(admin, code);
+  // A branded agency host renders only ITS OWN tenant's links: another tenant's code is the 404.
+  const hostCtx = await getPublicHostContext();
+  if (decidePayAccess(loaded, { kind: hostCtx.kind, tenantId: "tenantId" in hostCtx ? hostCtx.tenantId : null }) === "not_found") notFound();
   if (!loaded.ok && loaded.reason === "expired") {
     // An expired request is exactly when the customer needs the conversation
     // back: that is where they ask for a fresh one. The link's own inquiry,
@@ -199,8 +204,11 @@ export async function PayByCodePage({
   // null, so "Back to the conversation" never appeared).
   const inquiryId = orderRow?.inquiry_id ?? loaded.inquiryId ?? null;
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
-  const threadHref = threadToken ? publicThreadPath(threadToken) : null;
-  const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
+  // TUL-1252: on the app host /pay is served, but /c and /r are tenant-only
+  // there, so a relative link to either would be the 404 this page fixed.
+  const tenantLinksServe = hostServesTenantPayLinks(hostCtx.kind);
+  const threadHref = threadToken && tenantLinksServe ? publicThreadPath(threadToken) : null;
+  const receiptHref = orderRow?.receipt_code && tenantLinksServe ? `/r/${orderRow.receipt_code}` : null;
   const cameFromConversation = Boolean(inquiryId);
   const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
     label: line.label ?? "",
