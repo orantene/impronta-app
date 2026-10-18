@@ -1,4 +1,4 @@
--- Security hardening (TUL-1013 re-audit), 2026-10-18. NOT APPLIED: needs Oran's migration OK, then `npm run db:push`.
+-- Security hardening (TUL-1013 re-audit), 2026-10-18. APPLIED to production (earlier, by the DB owner) and to staging fxlank 2026-10-18 (Oran: full migration permission). Idempotent.
 -- Additive hardening; safe before or after the code merges (no code path depends on the grants removed).
 --
 -- Staging (fxlank, read-only check) showed anon can EXECUTE 26 SECURITY DEFINER functions in
@@ -17,7 +17,8 @@
 --   is_super_admin                 same: 16 policies, none applies to anon
 --   merge_guest_session_to_client  both overloads; volatile writer; body requires auth.uid() and
 --                                  raises; callers (onboarding, client-guest-merge) hold a session
---   resolve_public_tenant_by_slug  no web/src caller, no policy
+--   resolve_public_tenant_by_slug  callers (review-actions, review-request-actions, testimonial-actions) all
+--                                  run on a signed-in client/talent/staff session, which keeps EXECUTE; no policy
 -- Pinned by web/src/lib/saas/sec-definer-anon-revoke-no-public-surface.static.test.ts.
 
 DO $$
