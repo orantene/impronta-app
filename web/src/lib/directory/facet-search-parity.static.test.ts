@@ -7,7 +7,7 @@ import { test } from "node:test";
 // The migration is parked in _pending_pm until Oran's migration OK; this pins its shape so the
 // held SQL cannot drift back to a plain ILIKE.
 const sql = readFileSync(
-  join(process.cwd(), "..", "supabase/migrations/_pending_pm/20261231412000_directory_facet_counts_use_list_search.sql"),
+  join(process.cwd(), "..", "supabase/migrations/_pending_pm/20261231413000_directory_facet_counts_use_list_search.sql"),
   "utf8",
 );
 const listSrc = readFileSync(join(process.cwd(), "src/lib/directory/fetch-directory-page.ts"), "utf8");
