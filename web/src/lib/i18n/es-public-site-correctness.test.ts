@@ -55,6 +55,18 @@ describe("auth email copy has no untranslated Spanish strings (TUL-814)", () => 
   }
 });
 
+describe("+ alias copy never blames the user's inbox (TUL-851)", () => {
+  for (const key of ["public.onboarding.code.plusSub", "public.onboarding.code.plusResent"]) {
+    it(`${key} keeps the neutral tone in en + es`, () => {
+      for (const cat of [en, es]) {
+        const v = String(dig(cat, key));
+        assert.doesNotMatch(v, /Inboxes often|never deliver|Muchas bandejas|no entregan/i);
+        assert.match(v, /main address|dirección principal/);
+      }
+    });
+  }
+});
+
 describe("pricing interval copy carries the approximate-currency note (TUL-864)", () => {
   it("en + es both define approxNote and es is Spanish", () => {
     const e = dig(en, "public.pricingInterval.approxNote");
