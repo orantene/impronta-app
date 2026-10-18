@@ -1,5 +1,5 @@
 /**
- * Pins 20261231412000_sec_definer_anon_revoke_no_public_surface.sql (TUL-1013 re-audit).
+ * Pins 20261231414000_sec_definer_anon_revoke_no_public_surface.sql (TUL-1013 re-audit).
  *
  * Staging showed anon could EXECUTE 26 SECURITY DEFINER functions: 9 on the
  * public surface and 17 not. This migration closes 9 signatures (8 names) that
@@ -17,8 +17,8 @@ import { fileURLToPath } from "node:url";
 import { POLICY_HELPER_FUNCTIONS, PUBLIC_SURFACE_FUNCTIONS } from "./public-surface-functions";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = join(HERE, "..", "..", "..", "..", "supabase", "migrations");
-const MIGRATION = "20261231412000_sec_definer_anon_revoke_no_public_surface.sql";
+const MIGRATIONS_DIR = join(HERE, "..", "..", "..", "..", "supabase", "migrations", "_pending_pm");
+const MIGRATION = "20261231414000_sec_definer_anon_revoke_no_public_surface.sql";
 const sql = readFileSync(join(MIGRATIONS_DIR, MIGRATION), "utf8");
 
 /** The four VOLATILE writers (three names, merge has two overloads). */
