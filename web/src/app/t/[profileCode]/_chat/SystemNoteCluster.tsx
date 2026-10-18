@@ -16,6 +16,7 @@ import { interpolate } from "@/i18n/interpolate";
 
 import type { StreamRow } from "./MiniChatMessageBubble";
 import { clusterDefaultCollapsed, clusterCaption } from "./cluster-system-rows";
+import { localizeLineupNoteBody } from "@/lib/inquiry/lineup-note-coalesce";
 import { FONT, type Palette } from "./mini-chat-styles";
 
 export function SystemNoteCluster({
@@ -30,7 +31,7 @@ export function SystemNoteCluster({
   const [collapsed, setCollapsed] = useState(() => clusterDefaultCollapsed(rows.length));
   if (rows.length === 0) return null;
 
-  const bodyOf = (r: StreamRow) => (r.isDeleted ? t("public.guestChat.messageRemoved") : r.body);
+  const bodyOf = (r: StreamRow) => (r.isDeleted ? t("public.guestChat.messageRemoved") : localizeLineupNoteBody(r.body, t));
   const captionStyle = {
     alignSelf: "center",
     textAlign: "center" as const,
@@ -82,7 +83,7 @@ export function SystemNoteCluster({
       }}
     >
       <span>
-        {latest}
+        {localizeLineupNoteBody(latest, t)}
         {hiddenCount > 0 ? (
           <span style={{ opacity: 0.85 }}>
             {" · "}
