@@ -1743,7 +1743,7 @@
     },
     "bookPage": {
       "title": "Reserva un horario",
-      "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
+      "lead": "Elige un servicio y un horario. La línea bajo el precio dice si pagas ahora o en la cita.",
       "bookCta": "Agendar",
       "chooseService": "Servicio",
       "studioFallback": "el estudio",

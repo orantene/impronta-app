@@ -1743,7 +1743,7 @@
     },
     "bookPage": {
       "title": "Reserve a time",
-      "lead": "Pick a service and a time. We will confirm shortly.",
+      "lead": "Pick a service and a time. The line under the price says whether you pay now or at the appointment.",
       "bookCta": "Book",
       "chooseService": "Service",
       "studioFallback": "the studio",
