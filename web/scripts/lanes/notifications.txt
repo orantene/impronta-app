@@ -143,3 +143,4 @@ src/lib/notifications/whatsapp-schema.migration.test.ts
 src/lib/server/no-detached-dispatch.static.test.ts
 src/lib/notifications/whatsapp/inbound.test.ts
 src/i18n/es-w-prefix-redirects.test.ts
+src/lib/money/format-price.test.ts

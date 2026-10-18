@@ -60,11 +60,8 @@ import {
   yearlySavingsPercent,
 } from "@/lib/pricing/interval-pricing";
 import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
-import {
-  approxCurrencyForLocale,
-  formatApproxLocal,
-  fxRateFor,
-} from "@/lib/pricing/approx-local-price";
+import { formatPrice } from "@/lib/money/format-price";
+import { approxCurrencyForLocale, fxRateFor } from "@/lib/pricing/approx-local-price";
 import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { BillingIntervalToggle } from "./billing-interval-toggle";
 import {
@@ -166,8 +163,9 @@ function buildCards(
       approx:
         !salesLed && mxnRate != null
           ? {
-              month: formatApproxLocal(m?.unitAmount, mxnRate, "MXN"),
-              year: formatApproxLocal(y?.perMonthAmount, mxnRate, "MXN"),
+              // TUL-864: the ONE price formatter owns the "≈ MX$" rule (lib/money/format-price.ts).
+              month: m ? formatPrice({ amountCents: m.unitAmount, currency: "USD", locale, usdRates: { rateDate: "", perUsd: { MXN: mxnRate } } }).secondary : null,
+              year: y ? formatPrice({ amountCents: y.perMonthAmount, currency: "USD", locale, usdRates: { rateDate: "", perUsd: { MXN: mxnRate } } }).secondary : null,
             }
           : null,
       cta: {
