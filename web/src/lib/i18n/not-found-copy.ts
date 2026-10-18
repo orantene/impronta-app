@@ -1,5 +1,10 @@
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
+/** What the agency 404 calls a workspace that has no name to show (never the word "Studio"). */
+export function notFoundUnnamedSite(locale: string): string {
+  return pickLocale(locale, { en: "this site", es: "este sitio" });
+}
+
 /** Words on the root 404 page, platform or agency flavour. Pure. */
 export function notFoundCopy(locale: string, agencyName: string | null) {
   const agency = agencyName !== null;

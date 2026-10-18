@@ -135,6 +135,7 @@ src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-public-url.test.ts
 src/lib/saas/workspace-type.test.ts
 src/lib/seo/business-workspace-seo.test.ts
+src/lib/seo/llms-route-handoff.static.test.ts
 src/lib/seo/llms-txt.test.ts
 src/lib/seo/spanish-named-routes.test.ts
 src/lib/seo/talent-llms-txt.test.ts

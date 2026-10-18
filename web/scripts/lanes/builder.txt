@@ -6,6 +6,7 @@ src/app/t/?profileCode?/_maison/maison-menu.test.ts
 src/app/t/?profileCode?/free-plan-storefront-parity.static.test.ts
 src/app/t/?profileCode?/noir-inquire-gate.static.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-state-real-talent.test.ts
+src/components/admin/shell/internal/qa-residuals-702-721.static.test.ts
 src/components/edit-chrome/bridge-reference-identity.test.ts
 src/components/edit-chrome/client-builder-canvas-bridge.test.ts
 src/components/edit-chrome/edit-chrome-overlay-invariant.static.test.ts

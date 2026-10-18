@@ -62,7 +62,7 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
     "Lo que te pagaron, lo que aún te deben y lo que llegó a tu banco.",
   "Payout settings": "Ajustes de depósito",
   "Could not load Money.": "No se pudo cargar Dinero.",
-  "Client since": "Clienta desde",
+  "Client since": "Cliente desde",
   "Not paid yet": "Aún sin pagar",
   // Dashboard diff 2026-09-28: Money requests, payout line, filters
   Month: "Mes",
@@ -75,7 +75,7 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   balances: "saldos",
   "payment request waiting": "solicitud de pago en espera",
   "payment requests waiting": "solicitudes de pago en espera",
-  "Search client or service": "Buscar clienta o servicio",
+  "Search client or service": "Buscar cliente o servicio",
   Source: "Origen",
   all: "todos",
   "your own clients": "tus clientes",
