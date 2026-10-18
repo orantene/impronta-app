@@ -315,7 +315,7 @@ export function TalentEmergencyContactDrawer() {
 // drawer — that's brittle (image rendering issues) and never matches
 // the real surface. Better: link them out to the live URLs.
 
-  const tierLabel = (label: string) => translateDashboardText(label, dashboardLocale);
+export function TalentPublicPreviewDrawer() {
   const { state, closeDrawer, toast, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const t = useT();
   const dashText = useDashboardText();
