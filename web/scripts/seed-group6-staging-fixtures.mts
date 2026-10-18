@@ -728,8 +728,8 @@ async function cleanup() {
     if (subs.rowCount) {
       const { default: Stripe } = await import("stripe");
       const stripe = new Stripe(env.STRIPE_SECRET_KEY as string);
-      await stripe.subscriptions.cancel(subs.rows[0].stripe_subscription_id).catch(() => undefined);
-      await stripe.customers.del(subs.rows[0].stripe_customer_id).catch(() => undefined);
+      await stripe.subscriptions.cancel(subs.rows[0].stripe_subscription_id as string).catch(() => undefined);
+      await stripe.customers.del(subs.rows[0].stripe_customer_id as string).catch(() => undefined);
     }
   }
   // Order matters only for readability; purge() handles descendants. Money rows hang off bookings.
