@@ -100,7 +100,8 @@ test("TUL-949: the thread composer sends on Enter, Shift+Enter is a newline, IME
 
 test("TUL-982: on the talent surface the phone has no floating support circle (More > Get help instead)", () => {
   const shell = readFileSync("src/components/support/SupportLauncherShell.tsx", "utf8");
-  assert.match(shell, /hideFloatingOnCompact=\{state\.surface === "talent"\}/);
+  // The server contract decides too: a hybrid owner on /talent can have state.surface "workspace".
+  assert.match(shell, /hideFloatingOnCompact=\{contract\.surface === "talent" \|\| state\.surface === "talent"\}/);
   assert.match(launcher, /!\(compact && hideFloatingOnCompact\)/);
 });
 

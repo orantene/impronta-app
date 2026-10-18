@@ -62,7 +62,7 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "remaining": "restantes",
   "Something not tied to a booking": "Algo sin reserva",
   "You write what it is for. No appointment is created.": "Escribes el motivo. No se crea una cita.",
-  "What it is for · shown to the client": "Concepto · lo ve la clienta",
+  "What it is for · shown to the client": "Concepto · lo ve la cliente",
   "Purpose": "Concepto",
   "Only work with an amount still unpaid is listed.": "Solo aparece trabajo con saldo pendiente.",
   "Standalone requests need a live booking or order.": "Las solicitudes sin reserva necesitan una reserva u orden real.",
@@ -148,7 +148,7 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "Due at the appointment, Thu 24": "Vence en la cita, jue 24",
   "deposit $300": "anticipo $300",
   "Keeps her Fri 25 16:00 hold. Link ends with the hold at 11:40. If unpaid, nothing is owed and the time is released.": "Mantiene su apartado del vie 25 16:00. El enlace termina con el apartado a las 11:40. Si no paga, no se debe nada y se libera la hora.",
-  "Hand model job Sat 26. Impronta pays 30 days after the job (by Mon 26 Oct). Not counted in Outstanding from clients.": "Trabajo de modelo de manos sáb 26. Impronta paga 30 días después (antes del lun 26 oct). No cuenta en Pendiente de clientas.",
+  "Hand model job Sat 26. Impronta pays 30 days after the job (by Mon 26 Oct). Not counted in Outstanding from clients.": "Trabajo de modelo de manos sáb 26. Impronta paga 30 días después (antes del lun 26 oct). No cuenta en Pendiente de clientes.",
   // Talent PayoutsShell (Connect) — A3 ES localization.
   "Get paid for your bookings, straight to your bank. Stripe handles the bank details and ID check, and we never see them.":
     "Cobra tus reservas directo en tu banco. Stripe maneja los datos bancarios y la verificación de identidad; nosotros nunca los vemos.",
