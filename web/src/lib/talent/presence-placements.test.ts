@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   applicationTimeline,
   displayUrl,
@@ -92,4 +94,13 @@ test("an unpublished Tulala profile row never claims the talent has no public pa
   // Agency and hub rows keep the original wording.
   assert.equal(placementLabel("not_published", "agency"), "No public page");
   assert.equal(placementLabel("not_published"), "No public page");
+});
+
+test("the own website is a separate row: live, no hide control, Spanish present", () => {
+  assert.equal(placementControl("website", "live"), "none");
+  assert.equal(placementLabel("live", "website"), "Live");
+  assert.ok(PRESENCE_ES_TEXT["My website"] && PRESENCE_ES_TEXT["Your own website · managed by you"]);
+  const src = readFileSync(join(process.cwd(), "src", "components", "talent", "site", "TalentSiteAppearancesPanel.tsx"), "utf8");
+  assert.match(src, /kind: "website"/);
+  assert.match(src, /siteLoad\.state\.publicSiteUrl/);
 });

@@ -24,6 +24,7 @@ import {
 } from "@/lib/talent/presence-placements";
 import type { TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 import { PlacementShareTools } from "@/components/talent/studio/PlacementShareTools";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 
@@ -106,6 +107,24 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
       // TUL-90: live only when published; a draft profile 404s at /t/<code>.
       url: ownPage?.href ?? null,
       status: globalHidden ? "hidden_everywhere" : ownPage?.live ? "live" : "not_published",
+      isPrimary: false,
+    });
+  }
+  // TUL-579: the talent's own website is its own row, so a live site is never
+  // contradicted by the (separate) Tulala directory row above it.
+  const siteLoad = useTalentSiteDashboardInitialLoad();
+  const websiteUrl =
+    siteLoad?.ok && typeof siteLoad.state.publicSiteUrl === "string" && siteLoad.state.publicSiteUrl.trim()
+      ? siteLoad.state.publicSiteUrl.trim()
+      : null;
+  if (websiteUrl) {
+    placements.push({
+      id: "website",
+      kind: "website",
+      name: t("My website"),
+      detail: t("Your own website · managed by you"),
+      url: websiteUrl,
+      status: "live",
       isPrimary: false,
     });
   }

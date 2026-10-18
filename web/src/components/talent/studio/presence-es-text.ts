@@ -34,6 +34,8 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   Pending: "Pendiente",
   "No public page": "Sin página pública",
   "Not on Tulala yet": "Aún no está en Tulala",
+  "My website": "Mi sitio web",
+  "Your own website · managed by you": "Tu propio sitio web · lo manejas tú",
   "Your Tulala directory profile is not published yet. Your own website is separate and is not affected.":
     "Tu perfil del directorio de Tulala aún no está publicado. Tu propio sitio es aparte y no se ve afectado.",
   "Connection unavailable": "Conexión no disponible",

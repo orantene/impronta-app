@@ -6,7 +6,7 @@
  */
 import type { EffectiveVisibility } from "./representation";
 
-export type PlacementKind = "tulala" | "hub" | "agency";
+export type PlacementKind = "tulala" | "website" | "hub" | "agency";
 
 export type PlacementStatus =
   | "live"
@@ -51,7 +51,7 @@ export type PlacementControl = "hide" | "show_again" | "request_change" | "none"
  *    row itself offers nothing.
  */
 export function placementControl(kind: PlacementKind, status: PlacementStatus): PlacementControl {
-  if (kind === "tulala") return "none";
+  if (kind === "tulala" || kind === "website") return "none";
   if (kind === "agency") return status === "unavailable" ? "none" : "request_change";
   if (status === "live") return "hide";
   if (status === "hidden_by_you") return "show_again";
