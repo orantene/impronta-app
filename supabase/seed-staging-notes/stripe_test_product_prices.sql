@@ -29,6 +29,21 @@
 -- talent_portfolio_year, studio_month, studio_year, agency_month, agency_year
 -- (and website_*), recurring, currency usd. Copy each price id.
 --
+-- Step 1b (Stripe CLI, TEST key of the staging account ONLY; nothing here has
+-- been run). Replace <PRODUCT_ID> with the TEST product of each tier
+-- (product_tiers.stripe_product_id on staging, or create one):
+--   stripe prices create --api-key "$STRIPE_TEST_SECRET_KEY" \
+--     --product <PRODUCT_ID> --currency usd --unit-amount <cents> \
+--     -d "recurring[interval]=month" --lookup-key talent_pro_month
+--   (same with recurring[interval]=year, unit-amount = 10 x monthly, lookup key *_year)
+--   For TUL-833 promo codes (Stripe TEST has 0 coupons today):
+--   stripe coupons create --api-key "$STRIPE_TEST_SECRET_KEY" \
+--     --percent-off 20 --duration repeating --duration-in-months 3 --name "QA 20% x3"
+--   stripe promotion_codes create --api-key "$STRIPE_TEST_SECRET_KEY" --coupon <COUPON_ID> --code QA20
+-- Refuse to proceed if the key does not start with sk_test_.
+-- Used by: TUL-829, 830, 831, 832, 833, 835, 837 (and TUL-1051 / TUL-937 retests,
+-- which only need /pay reachable (PR #3982) plus a TEST price for the plan used).
+--
 -- Step 2: fill the :price_id variables and run with psql against STAGING:
 --   psql "$STAGING_DATABASE_URL" -v apply=no \
 --     -v talent_pro_month=price_... -v talent_pro_year=price_... \
