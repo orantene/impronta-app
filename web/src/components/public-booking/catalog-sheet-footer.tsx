@@ -29,7 +29,10 @@ export function CatalogSheetFooter({
           <span>Total</span>
           {totalLabel}
           {paymentLine && (step === "choose" || step === "when") ? (
-            <small data-catalog-pay-line>{paymentLine}</small>
+            <small
+              data-catalog-pay-line
+              style={{ fontSize: ".75rem", lineHeight: 1.3, color: "var(--cb-muted)", maxWidth: "26ch" }}
+            >{paymentLine}</small>
           ) : null}
         </div>
       ) : (
