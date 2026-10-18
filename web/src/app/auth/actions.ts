@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth-flow";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { loadAccessProfile } from "@/lib/access-profile";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 import { logServerError, logServerExpected } from "@/lib/server/safe-error";
 import {
   getCachedActorSession,
@@ -239,10 +240,11 @@ export async function signInWithEmail(
   // does not exist on the marketing apex or the hub, where this form is also
   // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
+  const postAuthCtx = user ? await postAuthContextForNext(supabase, user.id, nextPath) : {};
   redirect(
     await hostSafeRedirectDestination(
       supportDeskPostAuthDestination(
-        resolvePostAuthDestination(profileData, nextPath),
+        resolvePostAuthDestination(profileData, nextPath, postAuthCtx),
         deskHost,
       ),
     ),
@@ -414,10 +416,11 @@ export async function signUpWithEmail(
   // does not exist on the marketing apex or the hub, where this form is also
   // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
+  const postAuthCtx = user ? await postAuthContextForNext(supabase, user.id, nextPath) : {};
   redirect(
     await hostSafeRedirectDestination(
       supportDeskPostAuthDestination(
-        resolvePostAuthDestination(profileData, nextPath),
+        resolvePostAuthDestination(profileData, nextPath, postAuthCtx),
         deskHost,
       ),
     ),
