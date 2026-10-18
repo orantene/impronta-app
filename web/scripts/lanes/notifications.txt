@@ -138,3 +138,5 @@ src/lib/notifications/auth-email-locale.test.ts
 src/lib/notifications/whatsapp-schema.migration.test.ts
 src/lib/server/no-detached-dispatch.static.test.ts
 src/lib/notifications/whatsapp/inbound.test.ts
+src/lib/i18n/es-public-qa-round3.static.test.ts
+src/lib/i18n/not-found-locale.test.ts

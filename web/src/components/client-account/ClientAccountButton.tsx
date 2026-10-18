@@ -23,6 +23,7 @@ import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import {
   finalizeClientAccountAppleSession,
@@ -446,11 +447,11 @@ export function ClientAccountButton({
       />
       <span>
         {t("public.auth.register.ageTermsPrefix")}{" "}
-        <a href={`${site}/legal/terms`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+        <a href={ageTermsLinks(site, loc).terms} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
           {t("public.auth.register.ageTermsTerms")}
         </a>{" "}
         {t("public.auth.register.ageTermsAnd")}{" "}
-        <a href={`${site}/legal/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+        <a href={ageTermsLinks(site, loc).privacy} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
           {t("public.auth.register.ageTermsPrivacy")}
         </a>
       </span>
