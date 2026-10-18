@@ -296,7 +296,7 @@ export async function TalentLayoutInner({
       // Route Handler inside the post-sign-in soft navigation makes the client router
       // re-apply it (the admin twin looped hundreds of times). The skeleton paints meanwhile.
       return (
-        <LocaleSeedHardRedirect href={talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`)}>
+        <LocaleSeedHardRedirect attemptCookie={TALENT_LOCALE_SEED_ATTEMPT_COOKIE} href={talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`)}>
           <TalentShellSkeleton />
         </LocaleSeedHardRedirect>
       );
