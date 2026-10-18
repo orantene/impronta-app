@@ -512,8 +512,8 @@ export function catalogMonthShort(date: Date, es: boolean): string {
  * "Wednesday Oct 14, 15:00 · Cancún time". `tz` is the live venue zone (null
  * in the demo preview, which has no zone to name).
  */
-export function catalogBookingWhenLabel(date: Date, time: string, tz: string | null, es: boolean): string {
-  const zone = tz ? catalogTimezoneLabel(tz, es) : "";
+export function catalogBookingWhenLabel(date: Date, time: string, tz: string | null, es: boolean, placeCity?: string | null): string {
+  const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const when = `${catalogSelectedDateLabel(date, es)}, ${time}`;
   return zone ? `${when} · ${zone}` : when;
 }

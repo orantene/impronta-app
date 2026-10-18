@@ -45,7 +45,7 @@ export function CatalogWhoSummary({
       </div>
       <div style={ROW}>
         <span style={LABEL}><CatalogClockIcon />{es ? "Hora" : "Time"}</span>
-        <b style={val}>{zone ? `${time ?? ""} · ${zone}` : time}</b>
+        <b style={val}>{time && zone ? `${time} · ${zone}` : (time ?? "")}</b>
       </div>
       <div style={ROW}>
         <span>Total</span>
