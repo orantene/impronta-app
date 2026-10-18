@@ -21,7 +21,7 @@
     "check:migrations-applied": "node scripts/check-migrations-applied.mjs",
     "check:types-fresh": "node scripts/check-types-fresh.mjs",
     "check:ci-lane-parity": "node scripts/check-ci-lane-parity.cjs",
-    "check:copy-warn": "node scripts/check-copy-currency-warn.mjs",
+    "manual:check-copy-warn": "node scripts/check-copy-currency-warn.mjs",
     "check:builder-test-lane-coverage": "node scripts/check-builder-test-lane-coverage.cjs",
     "check:field-catalog-frozen": "node scripts/check-field-catalog-frozen.mjs",
     "check:field-engine-integrity": "node scripts/check-field-engine-integrity.mjs",

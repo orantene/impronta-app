@@ -31,7 +31,7 @@ test("the copy/currency check is advisory: it always exits 0 and is a package sc
   const script = readFileSync("scripts/check-copy-currency-warn.mjs", "utf8");
   assert.match(script, /process\.exit\(0\)/);
   assert.doesNotMatch(script, /process\.exit\([1-9]/);
-  assert.match(readFileSync("package.json", "utf8"), /"check:copy-warn": "node scripts\/check-copy-currency-warn\.mjs"/);
+  assert.match(readFileSync("package.json", "utf8"), /"manual:check-copy-warn": "node scripts\/check-copy-currency-warn\.mjs"/);
 });
 
 test("pricing ladders and the client account menu print through formatPrice", () => {
@@ -58,7 +58,7 @@ test("display-only call sites print through formatPrice, not an ad-hoc Intl curr
   for (const f of files) {
     const src = readFileSync(f, "utf8");
     assert.match(src, /formatPrice\(/, f);
-    assert.doesNotMatch(src, /Intl\.NumberFormat\([^)]*\{[^}]*currency/s, f);
+    assert.doesNotMatch(src, /Intl\.NumberFormat\([^)]*\{[^}]*currency/, f);
   }
 });
 
