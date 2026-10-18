@@ -130,6 +130,7 @@ src/lib/saas/tenant-isolation.security.test.ts
 src/lib/saas/tenant-isolation.test.ts
 src/lib/saas/tracking-tenant-isolation.test.ts
 src/lib/saas/unsupported-locale-redirect.test.ts
+src/lib/saas/user-delete-fk-sweep.static.test.ts
 src/lib/saas/workspace-live-url.test.ts
 src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-public-url.test.ts
