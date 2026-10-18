@@ -20,6 +20,7 @@
  */
 
 import { PLAN_CATALOG, type PlanKey } from "@/lib/access/plan-catalog";
+import { formatPrice } from "@/lib/money/format-price";
 import {
   TALENT_PAID_TIER_LABEL,
   TALENT_PAID_TIER_LABEL_ES,
@@ -157,14 +158,7 @@ export function formatCatalogPrice(
   locale: UpgradeLocale,
 ): string | null {
   if (typeof cents !== "number" || !Number.isFinite(cents) || cents <= 0) return null;
-  const whole = cents % 100 === 0;
-  return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency,
-    currencyDisplay: "symbol",
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  }).format(cents / 100);
+  return formatPrice({ amountCents: cents, currency, locale }).primary;
 }
 
 export function buildUpgradeOffer(input: {

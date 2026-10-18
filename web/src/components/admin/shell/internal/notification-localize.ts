@@ -92,6 +92,17 @@ export function localizeNotificationText(
     const label = d.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
     return `Tu reserva del ${label} es mañana.`;
   }
+  // TUL-391: support-ticket bell titles carry the ticket subject / number.
+  const resolved = text.match(/^Resolved: (.+)$/u);
+  if (resolved) return `Resuelto: ${resolved[1] === "your ticket" ? "tu ticket" : resolved[1]}`;
+  const needsYou = text.match(/^Ticket #(\d+) needs you$/u);
+  if (needsYou) return `El ticket #${needsYou[1]} te necesita`;
+  const replyOn = text.match(/^Reply on #(\d+)$/u);
+  if (replyOn) return `Respuesta en #${replyOn[1]}`;
+  const stillHelp = text.match(/^Still need help on #(\d+)\?$/u);
+  if (stillHelp) return `¿Sigues necesitando ayuda con #${stillHelp[1]}?`;
+  const fixExpired = text.match(/^A proposed fix on #(\d+) expired$/u);
+  if (fixExpired) return `Venció una corrección propuesta en #${fixExpired[1]}`;
   const ticket = text.match(/^New support ticket #(\d+)$/u);
   if (ticket) return `Nuevo ticket de soporte #${ticket[1]}`;
   return text;

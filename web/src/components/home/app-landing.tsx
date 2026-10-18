@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { AuthCardLocaleToggle } from "@/components/auth/auth-card-locale-toggle";
@@ -132,10 +133,10 @@ export function AppLanding({ locale = "en" }: { locale?: string }) {
             © {year} {PLATFORM_BRAND.name}. {PLATFORM_BRAND.tagline}.
           </span>
           <nav className="flex items-center gap-5">
-            <a href={`${site}/legal/terms`} className="hover:underline" style={{ color: "var(--plt-muted)" }}>
+            <a href={ageTermsLinks(site, locale).terms} className="hover:underline" style={{ color: "var(--plt-muted)" }}>
               {copy.terms}
             </a>
-            <a href={`${site}/legal/privacy`} className="hover:underline" style={{ color: "var(--plt-muted)" }}>
+            <a href={ageTermsLinks(site, locale).privacy} className="hover:underline" style={{ color: "var(--plt-muted)" }}>
               {copy.privacy}
             </a>
             <a href={site} className="hover:underline" style={{ color: "var(--plt-ink)" }}>

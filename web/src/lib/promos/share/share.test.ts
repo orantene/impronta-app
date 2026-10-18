@@ -60,7 +60,7 @@ test("captions: offer text in ES and EN, weekdays, spots", () => {
   assert.equal(offerHeadline(base, "es"), "20% de descuento");
   assert.equal(offerHeadline(base, "en"), "20% off");
   assert.equal(offerBadge(base, "es"), "-20%");
-  assert.equal(offerHeadline({ ...base, offer_kind: "fixed", value: 10000 }, "es"), "$100 de descuento");
+  assert.equal(offerHeadline({ ...base, offer_kind: "fixed", value: 10000 }, "es"), "$100 MXN de descuento");
   assert.equal(offerHeadline({ ...base, offer_kind: "free_addon" }, "es", "Nail art"), "Nail art gratis");
   assert.equal(weekdaysText([1, 2, 3], "es"), "lunes a miércoles");
   assert.equal(weekdaysText([1, 4], "es"), "lunes y jueves");

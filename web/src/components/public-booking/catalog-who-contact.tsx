@@ -32,6 +32,7 @@ function CatalogWhoPhone({
     guestDefaultPhoneIso({
       languages: typeof navigator !== "undefined" ? navigator.languages : null,
       fallbackCountry,
+      timeZone: typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : null,
       locale,
     }),
   );

@@ -39,6 +39,7 @@ import {
 } from "@/lib/auth/registered-return-host.server";
 import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -161,7 +162,11 @@ export async function GET(request: Request) {
 
       let termsGate = false;
       let destination = supportDeskPostAuthDestination(
-        resolvePostAuthDestination(ensuredProfile, next),
+        resolvePostAuthDestination(
+          ensuredProfile,
+          next,
+          user ? await postAuthContextForNext(supabase, user.id, next) : {},
+        ),
         requestHost,
       );
       // Legal 2.2: a brand-new Google account has not ticked the 18+ and
