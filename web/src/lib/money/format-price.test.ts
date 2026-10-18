@@ -54,6 +54,19 @@ test("display-only call sites print through formatPrice, not an ad-hoc Intl curr
     "src/lib/search/global-search.ts",
     "src/lib/directory/format-price-from.ts",
     "src/lib/site-admin/builder-node/menu-board-island.tsx",
+    "src/lib/site-admin/builder-node/live-booking-bands.tsx",
+    "src/lib/site-admin/builder-node/reserve-table-island.tsx",
+    "src/lib/site-admin/builder-node/ticket-picker-copy.ts",
+    "src/lib/promos/talent-view.ts",
+    "src/lib/promos/share/captions.ts",
+    "src/lib/promos/results/copy.ts",
+    "src/lib/links/analytics.ts",
+    "src/lib/talent/media-kit-model.ts",
+    "src/components/talent/upgrade/upgrade-modal-model.ts",
+    "src/lib/messaging/accept-offer-collection.ts",
+    "src/components/payments/HeldPayoutsBanner.tsx",
+    "src/app/(workspace)/platform/admin/commerce/revenue/HeldPayoutsSection.tsx",
+    "src/app/t/[profileCode]/_actions/guest-inquiries-actions.ts",
   ];
   for (const f of files) {
     const src = readFileSync(f, "utf8");

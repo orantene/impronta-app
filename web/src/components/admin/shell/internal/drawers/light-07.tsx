@@ -224,9 +224,7 @@ export function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting"
         brief: b.company ?? b.contact_name,
         date: b.event_date ?? "",
         stage: "confirmed",
-        amount: b.grossRevenueCents
-          ? formatPrice({ amountCents: b.grossRevenueCents, currency: b.currencyCode ?? "USD", locale: "en", audience: "talent" }).primary
-          : undefined,
+        amount: b.grossRevenueCents ? formatPrice({ amountCents: b.grossRevenueCents, currency: b.currencyCode ?? "USD", locale: "en", audience: "talent" }).primary : undefined,
       }))
     : mappedInquiries.filter((i) => meta.stages.includes(i.stage));
 

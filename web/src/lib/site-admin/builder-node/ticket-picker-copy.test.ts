@@ -1,5 +1,5 @@
 /**
- * One money formatter for the whole picker. The cards showed "$1,000.00 MXN"
+ * One money formatter for the whole picker. The cards showed "$1,000 MXN"
  * while the checkout sheet and pay button showed "1000,00 MXN" through a
  * second formatter on the bare "es" locale. Both now read `money`, which is
  * `priceParts` joined.
@@ -20,10 +20,10 @@ test("money and priceParts agree, in both locales, for MXN and USD", () => {
 });
 
 test("es formats with the regional grouping (\"$1,000.00 MXN\"), never \"1000,00 MXN\"", () => {
-  assert.equal(money(100000, "MXN", "es", "Gratis"), "$1,000.00 MXN");
-  assert.equal(money(100000, "MXN", "en", "Free"), "$1,000.00 MXN");
-  assert.equal(money(8900, "USD", "es", "Gratis"), "$89.00 USD");
-  assert.equal(money(8900, "USD", "en", "Free"), "$89.00 USD");
+  assert.equal(money(100000, "MXN", "es", "Gratis"), "$1,000 MXN");
+  assert.equal(money(100000, "MXN", "en", "Free"), "$1,000 MXN");
+  assert.equal(money(8900, "USD", "es", "Gratis"), "$89 USD");
+  assert.equal(money(8900, "USD", "en", "Free"), "$89 USD");
 });
 
 test("zero is the free label with no code", () => {
