@@ -8,6 +8,7 @@ src/components/admin/shell/internal/talent-notifications-drawer-i18n.static.test
 src/components/payments/FeeLines.test.tsx
 src/components/talent/services/item-state-chips-missing-translation.render.test.tsx
 src/components/talent/services/services-home-missing-translation.static.test.ts
+src/i18n/es-w-prefix-redirects.test.ts
 src/lib/billing/agency-financials-by-currency.test.ts
 src/lib/billing/agency-financials.test.ts
 src/lib/billing/campaign-grant.test.ts
@@ -43,6 +44,7 @@ src/lib/client-account/visit-id.test.ts
 src/lib/discover/channel-performance.test.ts
 src/lib/email/no-email-literals.static.test.ts
 src/lib/email/resend-inbound-forward.test.ts
+src/lib/i18n/es-public-site-correctness.test.ts
 src/lib/i18n/i18n-columns.test.ts
 src/lib/i18n/locale-field-model.test.ts
 src/lib/inquiry/guest-claim-email.test.ts
@@ -50,10 +52,12 @@ src/lib/inquiry/owning-party-prod-data-shape.test.ts
 src/lib/inquiry/owning-party-resolver-single.test.ts
 src/lib/inquiry/owning-party-resolver.test.ts
 src/lib/inquiry/talent-page-intent.test.ts
+src/lib/money/format-price.test.ts
 src/lib/money/money-rules.test.ts
 src/lib/notifications/attention-signals-wiring.static.test.ts
 src/lib/notifications/attention-signals.test.ts
 src/lib/notifications/auth-email-locale.test.ts
+src/lib/notifications/auth-email-signup-es.static.test.ts
 src/lib/notifications/booking-noun.test.ts
 src/lib/notifications/catalog-entries-reservation.test.ts
 src/lib/notifications/catalog-guest-support.test.ts
@@ -93,6 +97,7 @@ src/lib/payments/transfers.test.ts
 src/lib/payments/usdc-payout-offer.test.ts
 src/lib/payments/webhook-v2.test.ts
 src/lib/pdf/receipt-rows.test.ts
+src/lib/pricing/approx-local-price.test.ts
 src/lib/pricing/compare-table-locale.test.ts
 src/lib/pricing/discount-coupon-mapping.characterization.test.ts
 src/lib/pricing/enforced-plan-facts.test.ts
@@ -101,6 +106,7 @@ src/lib/pricing/plan-claim-audit.test.ts
 src/lib/quality/commerce-drawer-deeplink.static.test.ts
 src/lib/quality/upgrade-flow-wiring.static.test.ts
 src/lib/server/no-detached-dispatch.static.test.ts
+src/lib/site-admin/sections/site_header/brand-label-phone.static.test.ts
 src/lib/stripe/checkout-idempotency.static.test.ts
 src/lib/stripe/event-idempotency.test.ts
 src/lib/stripe/price-ids.test.ts

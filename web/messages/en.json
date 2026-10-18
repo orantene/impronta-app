@@ -2102,11 +2102,11 @@
       "code": {
         "title": "Enter the code",
         "sub": "We sent an 8-digit code to {email}. It's the same screen for everyone, so check your inbox and spam.",
-        "plusSub": "We sent a code to {email}. Inboxes often never deliver mail to + tags. If nothing arrives in a minute, change email to one without +.",
+        "plusSub": "We sent a code to {email}. It can take a minute. If it doesn't arrive, send a new code or try your main address.",
         "resend": "Send a new code",
         "resendIn": "Send a new code in {s}s",
         "resent": "A new code is on its way.",
-        "plusResent": "New code sent. If it still does not arrive, change to an address without a + tag.",
+        "plusResent": "New code sent. If it still doesn't arrive, try your main address (without the + tag).",
         "changeEmail": "Change email",
         "verifying": "Checking…"
       },
@@ -2365,7 +2365,7 @@
       "phoneInvalid": "Check the phone number.",
       "logOut": "Log out",
       "langEn": "English",
-      "langEs": "Spanish",
+      "langEs": "Español",
       "fieldEmail": "Email",
       "namePromptTitle": "Add your name",
       "namePromptBody": "Your name is showing as part of your email. Add your real name so bookings and messages feel personal.",
@@ -2432,7 +2432,8 @@
       "perMonth": "per month",
       "billedYearly": "{amount} billed yearly",
       "billedMonthly": "Billed monthly",
-      "popular": "Most popular"
+      "popular": "Most popular",
+      "approxNote": "per month, charged in USD"
     }
   },
   "dashboard": {
