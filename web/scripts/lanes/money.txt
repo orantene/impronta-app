@@ -122,6 +122,7 @@ src/lib/payments/charge-minimums.test.ts
 src/lib/payments/checkout-currency-guard.static.test.ts
 src/lib/payments/checkout-line-items.test.ts
 src/lib/payments/checkout-return-urls.test.ts
+src/lib/payments/collected-today.test.ts
 src/lib/payments/connect-lane-attention.test.ts
 src/lib/payments/deposit-single-producer.static.test.ts
 src/lib/payments/disburse.test.ts
@@ -169,6 +170,7 @@ src/lib/payments/transfers-processing-pass-through.test.ts
 src/lib/payments/transfers-product-gate.test.ts
 src/lib/payments/transfers.test.ts
 src/lib/payments/usdc-payout-offer.test.ts
+src/lib/payments/workspace-currency.test.ts
 src/lib/platform/staff-access-log.test.ts
 src/lib/pos/addons.test.ts
 src/lib/pos/attach-customer.test.ts

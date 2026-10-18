@@ -59,7 +59,7 @@ const ENTRY_PREFIXES = [
 ];
 const inEntry = (key: string) => ENTRY_PREFIXES.some((p) => key.startsWith(p));
 /** Brand and technical words that are the same in both languages. */
-const SAME_IN_BOTH = new Set(["google", "apple", "email", "whatsapp"]);
+const SAME_IN_BOTH = new Set(["google", "apple", "email", "whatsapp", "english", "español"]); // + language endonyms (TUL-1259)
 
 test("client-entry dictionary namespaces have the same keys in English and Spanish", () => {
   const missingInEs = Object.keys(en).filter((k) => inEntry(k) && !(k in es));
