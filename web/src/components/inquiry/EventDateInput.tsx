@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
 import { usePublicT } from "@/i18n/use-public-t";
 
 /**
@@ -8,21 +8,27 @@ import { usePublicT } from "@/i18n/use-public-t";
  * (e.g. 02/08/yyyy), which the browser otherwise only flags with its own popup.
  */
 export function EventDateInput({
-  value, onChange, style,
-}: { value: string; onChange: (v: string) => void; style: CSSProperties }) {
+  value, onChange, style, onIncompleteChange,
+}: { value: string; onChange: (v: string) => void; style: CSSProperties; onIncompleteChange?: (incomplete: boolean) => void }) {
   const t = usePublicT();
   const [incomplete, setIncomplete] = useState(false);
   const errorId = useId();
+  const report = (bad: boolean) => {
+    setIncomplete(bad);
+    onIncompleteChange?.(bad);
+  };
+  // If the field unmounts (review step, mode change) while half-typed, release the Send hold.
+  useEffect(() => () => onIncompleteChange?.(false), [onIncompleteChange]);
   return (
     <>
       <input
         type="date"
         value={value}
         onChange={(e) => {
-          setIncomplete(e.target.validity.badInput);
+          report(e.target.validity.badInput);
           onChange(e.target.value);
         }}
-        onBlur={(e) => setIncomplete(e.target.validity.badInput)}
+        onBlur={(e) => report(e.target.validity.badInput)}
         aria-invalid={incomplete || undefined}
         aria-describedby={incomplete ? errorId : undefined}
         style={style}

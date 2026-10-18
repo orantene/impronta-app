@@ -925,6 +925,8 @@
       "threadLogAria": "Conversation",
       "systemClusterMore": "{count} more updates",
       "systemClusterCollapse": "Hide",
+      "systemLineupCount": "Selection · {count} talent",
+      "systemLineupRecommend": "Let the agency recommend",
       "messageRemoved": "Message removed",
       "openFullToView": "Open the full conversation to view this update.",
       "notSent": "Not sent. Restored to the box.",

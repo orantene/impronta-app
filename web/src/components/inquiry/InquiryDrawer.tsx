@@ -337,7 +337,10 @@ export function InquiryDrawer({
   }, [autosaveEnabled, submitted, triggerAutosave]);
 
   const validation = validateIntentForSubmit(intent);
-  const canSubmit = validation.ok;
+  // TUL-953: a half-typed native date reports value "" so the intent looks
+  // valid; hold Send until the visitor completes or clears it.
+  const [dateIncomplete, setDateIncomplete] = useState(false);
+  const canSubmit = validation.ok && !dateIncomplete;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -476,6 +479,7 @@ export function InquiryDrawer({
               setClient={(v) => update("client", v)}
               setLocation={(v) => update("location", v)}
               setDate={(v) => update("date", v)}
+              onDateIncompleteChange={setDateIncomplete}
               setTalent={(v) => update("talent", v)}
               setBudget={(v) => update("budget", v)}
               setBrief={(v) => update("brief", v)}
@@ -525,7 +529,7 @@ export function InquiryDrawer({
             {submitted
               ? interpolate(t(sentKeys.footer), sentVars)
               : !canSubmit && step === "compose"
-                ? (validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), { fields: missingFieldLabels(validation.missingFields, t) }))
+                ? (dateIncomplete ? t("public.inquiryDrawer.dateIncompleteError") : validation.ok ? t("public.inquiryDrawer.footerNeedMore") : interpolate(t("public.inquiryDrawer.footerMissing"), { fields: missingFieldLabels(validation.missingFields, t) }))
                 : submitState.kind === "slot_taken"
                   ? <span style={{ color: C.amber }}>{t(submitState.nextFreeTimes.length > 0 ? "public.inquiryDrawer.slotTakenIntro" : "public.inquiryDrawer.slotTakenNone")}</span>
                 : submitState.kind === "error"
@@ -579,6 +583,7 @@ function Compose(props: {
   setClient: (v: InquiryClient) => void;
   setLocation: (v: InquiryLocation) => void;
   setDate: (v: InquiryDate) => void;
+  onDateIncompleteChange?: (incomplete: boolean) => void;
   setTalent: (v: InquiryTalent) => void;
   setBudget: (v: InquiryBudget) => void;
   setBrief: (v: InquiryBrief) => void;
@@ -637,7 +642,7 @@ function Compose(props: {
       ) : (
         <>
           <LocationSection value={intent.location ?? {}} onChange={props.setLocation} />
-          <DateSection value={intent.date ?? {}} onChange={props.setDate} />
+          <DateSection value={intent.date ?? {}} onChange={props.setDate} onIncompleteChange={props.onDateIncompleteChange} />
         </>
       )}
       {/* No roster to pick from and no per-talent rate to quote: absent, not
@@ -1025,8 +1030,8 @@ export function LocationSection({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function DateSection({
-  value, onChange,
-}: { value: InquiryDate; onChange: (v: InquiryDate) => void }) {
+  value, onChange, onIncompleteChange,
+}: { value: InquiryDate; onChange: (v: InquiryDate) => void; onIncompleteChange?: (incomplete: boolean) => void }) {
   const t = usePublicT();
   return (
     <Section title={t("public.inquiryDrawer.dateTitle")} subtitle={t("public.inquiryDrawer.dateSubtitle")}>
@@ -1045,7 +1050,7 @@ export function DateSection({
           />
         </Field>
         <Field label={t("public.inquiryDrawer.dateEventDateLabel")}>
-          <EventDateInput value={value.event_date ?? ""} onChange={(v) => onChange({ ...value, event_date: v })} style={inputStyle} />
+          <EventDateInput value={value.event_date ?? ""} onIncompleteChange={onIncompleteChange} onChange={(v) => onChange({ ...value, event_date: v })} style={inputStyle} />
         </Field>
       </FieldRow>
       <FieldRow>
