@@ -209,6 +209,11 @@ for (const locale of ["es", "en"] as const) {
     const word = locale === "es" ? "(opcional)" : "(optional)";
     assert.match(html, new RegExp(`data-testid="cb-phone-label"[^>]*>WhatsApp <i>${word.replace(/[()]/g, "\\$&")}</i>`));
     assert.ok(html.includes(`aria-label="WhatsApp ${word}"`));
+    // The required ones are marked the same way, so optional/required reads consistently.
+    const req = locale === "es" ? "(obligatorio)" : "(required)";
+    assert.ok(html.includes(`data-testid="cb-name-required">${req}</i>`));
+    assert.ok(html.includes(`data-testid="cb-email-required">${req}</i>`));
+    assert.match(html, /<input aria-required="true"[^>]*data-testid="cb-name"/);
   });
 }
 

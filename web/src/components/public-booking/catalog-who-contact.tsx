@@ -98,8 +98,9 @@ export function CatalogWhoContact({
   return (
     <>
       <label className="jb-field">
-        <span>{es ? "Nombre" : "Name"}</span>
+        <span>{es ? "Nombre" : "Name"} <i data-testid="cb-name-required">{es ? "(obligatorio)" : "(required)"}</i></span>
         <input
+          aria-required
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={onBlur}
@@ -122,8 +123,9 @@ export function CatalogWhoContact({
         {askAttempted && !chatPhoneValid ? <em role="alert">{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
       </div>
       <label className="jb-field">
-        <span>{es ? "Correo" : "Email"}</span>
+        <span>{es ? "Correo" : "Email"} <i data-testid="cb-email-required">{es ? "(obligatorio)" : "(required)"}</i></span>
         <input
+          aria-required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onBlur={onBlur}
