@@ -9,13 +9,16 @@
  *   --apply            one transaction: UPDATE the canonical row or INSERT, then read back.
  *   --cleanup          undo this runner's writes (needs --backup-file from the apply).
  *
+ * --ids-file <json>  the stripe-test-seed workflow artifact (every entry livemode:false). With it NO
+ *                     Stripe key is required or read and Stripe is not called; amounts are the catalog's.
+ *
  * Needs: DATABASE_URL (login postgres.fxlankepwnvelxjrahwk), STRIPE_SECRET_KEY or
  * --stripe-key-file (sk_test_...), and the TEST price ids (flags or STRIPE_TEST_PRICE_* env).
  * Refuses on any guard failure with exit 2 and writes nothing. Never prints a key or a URL.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
-  PLAN_ROWS, SEED_NOTE, checkAccountResponse, checkDbLogin, checkStripeKey,
+  PLAN_ROWS, SEED_NOTE, parseIdsFile, checkAccountResponse, checkDbLogin, checkStripeKey,
   checkStripePrice, envMentioningProd, parseArgs, planAction, validatePriceIds,
 } from "./lib/stripe-test-seed.mjs";
 
@@ -43,14 +46,24 @@ if (!login.ok) refuse(login.reason);
 const prodMentions = envMentioningProd(process.env);
 if (prodMentions.length) refuse(`these env vars mention the production project: ${prodMentions.join(", ")}`);
 
-// 3) Stripe key: test mode only
-let key = process.env.STRIPE_SECRET_KEY ?? "";
-if (args.stripeKeyFile) {
-  if (!existsSync(args.stripeKeyFile)) refuse("--stripe-key-file does not exist");
-  key = readFileSync(args.stripeKeyFile, "utf8").trim();
+// 3) Stripe key: test mode only (not read at all with --ids-file)
+let key = "";
+let idsAmounts = null;
+if (args.idsFile) {
+  if (!existsSync(args.idsFile)) refuse("--ids-file does not exist");
+  const parsed = parseIdsFile(readFileSync(args.idsFile, "utf8"));
+  if (parsed.errors.length) refuse(parsed.errors.join("; "));
+  args.prices = parsed.prices;
+  idsAmounts = parsed.amounts;
+} else {
+  key = process.env.STRIPE_SECRET_KEY ?? "";
+  if (args.stripeKeyFile) {
+    if (!existsSync(args.stripeKeyFile)) refuse("--stripe-key-file does not exist");
+    key = readFileSync(args.stripeKeyFile, "utf8").trim();
+  }
+  const keyCheck = checkStripeKey(key);
+  if (!keyCheck.ok) refuse(keyCheck.reason);
 }
-const keyCheck = checkStripeKey(key);
-if (!keyCheck.ok) refuse(keyCheck.reason);
 
 // 4) price ids
 if (!args.cleanup) {
@@ -62,9 +75,11 @@ if (args.apply && !args.backupFile) refuse("--apply needs --backup-file <path> (
 if (args.cleanup && (!args.backupFile || !existsSync(args.backupFile))) refuse("--cleanup needs the --backup-file written by the --apply");
 
 // 5) Stripe says test mode, and each price is what we think it is
-const account = await stripeGet("/v1/account", key);
-const acct = checkAccountResponse(account);
-if (!acct.ok) refuse(acct.reason);
+if (!args.idsFile) {
+  const account = await stripeGet("/v1/account", key);
+  const acct = checkAccountResponse(account);
+  if (!acct.ok) refuse(acct.reason);
+}
 
 const wanted = [];
 if (!args.cleanup) {
@@ -72,6 +87,10 @@ if (!args.cleanup) {
   for (const row of PLAN_ROWS) {
     const id = args.prices[row.key];
     if (!id) continue;
+    if (idsAmounts) {
+      wanted.push({ ...row, stripe_price_id: id, unit_amount: idsAmounts[row.key] });
+      continue;
+    }
     const price = await stripeGet(`/v1/prices/${encodeURIComponent(id)}`, key);
     bad.push(...checkStripePrice(row, price));
     if (price) wanted.push({ ...row, stripe_price_id: id, unit_amount: price.unit_amount });
@@ -124,7 +143,7 @@ try {
     plan.push({ ...w, tier_id: tier.id, tier_active: tier.is_active, existing, ...planAction(existing, w) });
   }
   const tiersMissing = [...new Set(missingTiers)];
-  console.log(`[stripe-test-seed] ${args.apply ? "APPLY" : "DRY RUN"}  db login ${login.user}  stripe account livemode=false`);
+  console.log(`[stripe-test-seed] ${args.apply ? "APPLY" : "DRY RUN"}  db login ${login.user}  ${args.idsFile ? "ids file, every entry livemode=false" : "stripe account livemode=false"}`);
   for (const p of plan) {
     const cur = p.existing ? `row ${p.existing.id} has ${p.existing.stripe_price_id ?? "no price id"}` : "no canonical row";
     console.log(`  ${p.plan.padEnd(17)} ${p.pkg}.${p.tier} ${p.interval.padEnd(5)} -> ${p.stripe_price_id}  ${p.unit_amount}c  [${p.action}]  (${cur})${p.tier_active ? "" : "  !! tier is INACTIVE, checkout ignores it"}`);

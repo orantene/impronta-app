@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdtempSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   PLAN_ROWS, STAGING_DB_USER, checkAccountResponse, checkDbLogin, checkStripeKey, checkStripePrice,
-  envMentioningProd, envName, flagName, parseArgs, planAction, validatePriceIds,
+  envMentioningProd, envName, flagName, parseArgs, parseIdsFile, planAction, rowKeyForLookup, STATIC_AMOUNTS, validatePriceIds,
 } from "./stripe-test-seed.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -109,4 +111,91 @@ test("the runner wires every guard before it touches Stripe or the database, and
   assert.match(src, /--apply needs --backup-file/);
   assert.ok(!/console\.(log|error)\([^)]*(databaseUrl|key\b)/.test(src), "never prints the URL or key");
   assert.match(src, /delete from public\.product_prices where id = \$1 and notes = \$2/, "cleanup deletes only rows it created");
+});
+
+const idsEntries = (over = {}) => PLAN_ROWS.filter((r) => !r.optional).map((r, i) => ({
+  id: `price_Test${String(i).padStart(10, "0")}`,
+  lookup_key: `tulala_${r.plan}_${r.interval}_usd`,
+  livemode: false,
+  interval: r.interval,
+  currency: "usd",
+  ...over,
+}));
+
+test("ids file: a valid file maps every lookup key to its row and its catalog amount", () => {
+  const out = parseIdsFile(JSON.stringify(idsEntries()));
+  assert.deepEqual(out.errors, []);
+  assert.deepEqual(validatePriceIds(out.prices), []);
+  assert.equal(out.prices.talent_max_month, "price_Test0000000002");
+  assert.equal(out.amounts.talent_pro_year, 9000);
+  assert.equal(rowKeyForLookup("tulala_talent_portfolio_year_usd"), "talent_max_year");
+  assert.deepEqual(parseIdsFile(JSON.stringify({ prices: idsEntries() })).errors, []);
+});
+
+test("ids file: one livemode:true entry rejects the file", () => {
+  const list = idsEntries();
+  list[3].livemode = true;
+  const out = parseIdsFile(JSON.stringify(list));
+  assert.match(out.errors.join(";"), /livemode is not false/);
+});
+
+test("ids file: missing or non-boolean livemode is rejected", () => {
+  const list = idsEntries();
+  delete list[0].livemode;
+  assert.match(parseIdsFile(JSON.stringify(list)).errors.join(";"), /livemode is not false/);
+  assert.match(parseIdsFile(JSON.stringify(idsEntries({ livemode: "false" }))).errors.join(";"), /livemode is not false/);
+});
+
+test("ids file: bad JSON, empty, unknown lookup key, wrong interval, duplicates and bad ids are rejected", () => {
+  assert.match(parseIdsFile("{nope").errors[0], /not valid JSON/);
+  assert.match(parseIdsFile("[]").errors[0], /no price entries/);
+  const unknown = idsEntries(); unknown[0].lookup_key = "tulala_other_month_usd";
+  assert.match(parseIdsFile(JSON.stringify(unknown)).errors.join(";"), /unknown lookup key/);
+  const wrongInterval = idsEntries(); wrongInterval[0].interval = "year";
+  assert.match(parseIdsFile(JSON.stringify(wrongInterval)).errors.join(";"), /interval/);
+  const dup = [...idsEntries(), idsEntries()[0]];
+  assert.match(parseIdsFile(JSON.stringify(dup)).errors.join(";"), /duplicate/);
+  const badId = idsEntries(); badId[0].id = "prod_123456789";
+  assert.match(parseIdsFile(JSON.stringify(badId)).errors.join(";"), /not a price id/);
+});
+
+test("ids file: --ids-file parses, and cannot be mixed with row flags", () => {
+  assert.equal(parseArgs(["--ids-file", "x.json"], {}).idsFile, "x.json");
+  assert.equal(parseArgs(["--ids-file=x.json"], {}).idsFile, "x.json");
+  assert.match(parseArgs(["--ids-file", "x.json", "--talent-pro-month", "price_AAAAAAAA1"], {}).errors.join(";"), /cannot be combined/);
+  // env price ids are ignored when an ids file is given
+  assert.deepEqual(parseArgs(["--ids-file", "x.json"], { [envName("talent_pro_year")]: "price_BBBBBBBB2" }).prices, {});
+});
+
+test("static amounts equal the plan catalog", () => {
+  const src = readFileSync(join(HERE, "..", "..", "src", "lib", "access", "plan-catalog.ts"), "utf8");
+  const cents = (plan, field) => Number(new RegExp(`${plan}: \\{[\\s\\S]*?${field}: (\\d+)`).exec(src)?.[1]);
+  const map = { talent_pro: "talent_pro", talent_max: "talent_portfolio", workspace_studio: "studio", workspace_agency: "agency" };
+  for (const [rowPrefix, plan] of Object.entries(map)) {
+    assert.equal(STATIC_AMOUNTS[`${rowPrefix}_month`], cents(plan, "monthlyPriceCents"), plan);
+    assert.equal(STATIC_AMOUNTS[`${rowPrefix}_year`], cents(plan, "annualPriceCents"), plan);
+  }
+});
+
+test("runner with --ids-file needs no Stripe key; a livemode:true file is refused before the database", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ids-"));
+  const run = (entries) => {
+    const f = join(dir, "ids.json");
+    writeFileSync(f, JSON.stringify(entries));
+    const env = { PATH: process.env.PATH, DATABASE_URL: `postgres://${STAGING_DB_USER}:pw@127.0.0.1:1/postgres` };
+    return spawnSync(process.execPath, [join(HERE, "..", "seed-product-prices-from-stripe-test.mjs"), "--ids-file", f], { env, encoding: "utf8" });
+  };
+  const live = idsEntries(); live[0].livemode = true;
+  const bad = run(live);
+  assert.equal(bad.status, 2);
+  assert.match(bad.stderr, /livemode is not false/);
+  const ok = run(idsEntries());
+  assert.doesNotMatch(ok.stderr, /no Stripe key/);
+  assert.doesNotMatch(ok.stderr, /\[stripe-test-seed\] REFUSED/, "passes every guard and only fails to reach the unreachable test database");
+});
+
+test("the creator has a database-free workflow mode that writes only the five artifact fields", () => {
+  const src = readFileSync(join(HERE, "..", "seed-stripe-test-prices.mjs"), "utf8");
+  assert.match(src, /--static-catalog/);
+  assert.match(src, /\{ id: price\.id, lookup_key: lookupKey, livemode: price\.livemode, interval: price\.recurring\?\.interval, currency: price\.currency \}/);
 });

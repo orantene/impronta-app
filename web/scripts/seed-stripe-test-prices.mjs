@@ -17,9 +17,15 @@
  *
  * Env: NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (catalog read),
  *      STRIPE_SECRET_KEY_TEST_US (US "Lavender Tunnel" sandbox), STRIPE_SECRET_KEY_TEST_MX (MX test sandbox); either may be unset.
- * Usage: node scripts/seed-stripe-test-prices.mjs [--dry-run]
+ *
+ * Workflow mode (.github/workflows/stripe-test-seed.yml): `--static-catalog` reads NO database. It uses
+ * the fixed plan amounts in scripts/lib/stripe-test-seed.mjs (STATIC_AMOUNTS), one key from
+ * STRIPE_SECRET_KEY, and `--out <file>` writes ONLY id, lookup_key, livemode, interval, currency.
+ * Usage: node scripts/seed-stripe-test-prices.mjs [--dry-run] [--static-catalog --out <file>]
  */
+import { writeFileSync } from "node:fs";
 import Stripe from "stripe";
+import { PLAN_ROWS, STATIC_AMOUNTS } from "./lib/stripe-test-seed.mjs";
 
 /** Plan key -> product_tiers.slug (mirrors src/lib/stripe/price-catalog.ts). */
 export const PLAN_TIER_SLUGS = {
@@ -59,6 +65,22 @@ export function plannedPrices(tiers, prices) {
   return out.sort((a, b) => a.lookupKey.localeCompare(b.lookupKey));
 }
 
+/** The workflow's catalog: the fixed amounts, no database. Pure. */
+export function staticPlanned() {
+  const out = [];
+  for (const r of PLAN_ROWS) {
+    const amount = STATIC_AMOUNTS[r.key];
+    if (!amount) continue;
+    out.push({ planKey: r.plan, tierSlug: PLAN_TIER_SLUGS[r.plan], tierName: undefined, interval: r.interval, unitAmount: amount, lookupKey: lookupKeyFor(r.plan, r.interval) });
+  }
+  return out.sort((a, b) => a.lookupKey.localeCompare(b.lookupKey));
+}
+
+/** Reduce a Stripe price to the only fields the artifact may carry. */
+export function artifactEntry(price, lookupKey) {
+  return { id: price.id, lookup_key: lookupKey, livemode: price.livemode, interval: price.recurring?.interval, currency: price.currency };
+}
+
 async function readCatalog() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -73,13 +95,14 @@ async function readCatalog() {
   return { tiers, prices };
 }
 
-async function ensureOnSandbox(label, secret, planned, dryRun) {
+async function ensureOnSandbox(label, secret, planned, dryRun, collected) {
   const stripe = new Stripe(secret);
   console.log(`\n[${label}] sandbox`);
   for (const p of planned) {
     const found = await stripe.prices.list({ lookup_keys: [p.lookupKey], limit: 1 });
     const existing = found.data[0];
     if (existing) {
+      collected?.push(artifactEntry(existing, p.lookupKey));
       const same = existing.unit_amount === p.unitAmount && existing.recurring?.interval === p.interval;
       console.log(`  ${p.lookupKey} -> ${existing.id}${same ? "" : "  (WARNING: amount/interval differs from catalog; not changed)"}`);
       continue;
@@ -102,12 +125,24 @@ async function ensureOnSandbox(label, secret, planned, dryRun) {
       lookup_key: p.lookupKey,
       metadata: { plan_key: p.planKey, tier_slug: p.tierSlug, source: "seed-stripe-test-prices" },
     });
+    collected?.push(artifactEntry(price, p.lookupKey));
     console.log(`  ${p.lookupKey} -> ${price.id} (created)`);
   }
 }
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
+  if (process.argv.includes("--static-catalog")) {
+    const key = assertTestKey("STRIPE_SECRET_KEY", process.env.STRIPE_SECRET_KEY);
+    if (!key) throw new Error("STRIPE_SECRET_KEY is not set.");
+    const oi = process.argv.indexOf("--out");
+    const outFile = oi >= 0 ? process.argv[oi + 1] : null;
+    const collected = [];
+    await ensureOnSandbox("TEST", key, staticPlanned(), dryRun, collected);
+    if (collected.some((e) => e.livemode !== false)) throw new Error("a price is not livemode=false; refusing to write the artifact.");
+    if (outFile && !dryRun) writeFileSync(outFile, JSON.stringify(collected, null, 2));
+    return;
+  }
   const us = assertTestKey("STRIPE_SECRET_KEY_TEST_US", process.env.STRIPE_SECRET_KEY_TEST_US);
   const mx = assertTestKey("STRIPE_SECRET_KEY_TEST_MX", process.env.STRIPE_SECRET_KEY_TEST_MX);
   if (!us && !mx) throw new Error("No Stripe TEST key set (STRIPE_SECRET_KEY_TEST_US / STRIPE_SECRET_KEY_TEST_MX).");

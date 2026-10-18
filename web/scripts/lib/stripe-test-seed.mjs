@@ -79,7 +79,7 @@ export function checkAccountResponse(account) {
 
 /** Parse flags and env into the supplied price ids. Unknown flags are errors (a typo must not silently skip a row). */
 export function parseArgs(argv, env) {
-  const out = { apply: false, cleanup: false, stripeKeyFile: null, backupFile: null, prices: {}, errors: [] };
+  const out = { apply: false, cleanup: false, stripeKeyFile: null, backupFile: null, idsFile: null, prices: {}, errors: [] };
   const known = new Map(PLAN_ROWS.map((r) => [flagName(r.key), r.key]));
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
@@ -87,12 +87,17 @@ export function parseArgs(argv, env) {
     if (name === "--apply") out.apply = true;
     else if (name === "--cleanup") out.cleanup = true;
     else if (name === "--stripe-key-file") out.stripeKeyFile = inline ?? argv[++i] ?? null;
+    else if (name === "--ids-file") out.idsFile = inline ?? argv[++i] ?? null;
     else if (name === "--backup-file") out.backupFile = inline ?? argv[++i] ?? null;
     else if (known.has(name)) out.prices[known.get(name)] = (inline ?? argv[++i] ?? "").trim();
     else out.errors.push(`unknown argument ${name}`);
   }
+  if (out.idsFile && Object.keys(out.prices).length) {
+    out.errors.push("--ids-file cannot be combined with --<row> price flags");
+    return out;
+  }
   for (const r of PLAN_ROWS) {
-    if (!out.prices[r.key] && env[envName(r.key)]) out.prices[r.key] = String(env[envName(r.key)]).trim();
+    if (!out.idsFile && !out.prices[r.key] && env[envName(r.key)]) out.prices[r.key] = String(env[envName(r.key)]).trim();
   }
   return out;
 }
@@ -134,4 +139,62 @@ export function planAction(existing, wanted) {
   if (!existing) return { action: "insert" };
   if (existing.stripe_price_id === wanted.stripe_price_id && Number(existing.unit_amount) === Number(wanted.unit_amount)) return { action: "unchanged" };
   return { action: "update" };
+}
+
+/**
+ * Unit amounts (cents) the stripe-test-seed workflow creates, keyed by PLAN_ROWS key. They mirror
+ * src/lib/access/plan-catalog.ts (a test asserts that) and the SQL in supabase/seed-staging-notes.
+ * The ids file carries no amount, so --ids-file runs write these.
+ */
+export const STATIC_AMOUNTS = {
+  talent_pro_month: 900, talent_pro_year: 9000,
+  talent_max_month: 1500, talent_max_year: 15000,
+  workspace_studio_month: 2900, workspace_studio_year: 29000,
+  workspace_agency_month: 7900, workspace_agency_year: 79000,
+};
+
+const LOOKUP_RE = /^tulala_(talent_pro|talent_portfolio|studio|agency)_(month|year)_usd$/;
+
+/** `tulala_talent_portfolio_month_usd` -> PLAN_ROWS key `talent_max_month`, or null. */
+export function rowKeyForLookup(lookupKey) {
+  const m = LOOKUP_RE.exec(String(lookupKey ?? ""));
+  if (!m) return null;
+  return PLAN_ROWS.find((r) => r.plan === m[1] && r.interval === m[2])?.key ?? null;
+}
+
+/**
+ * Parse the artifact of the stripe-test-seed workflow: an array of
+ * { id, lookup_key, livemode, interval, currency } (or { prices: [...] }).
+ * Every entry must have livemode === false (strictly: missing or "false" string is rejected).
+ * @returns {{ prices: Record<string,string>, amounts: Record<string,number>, errors: string[] }}
+ */
+export function parseIdsFile(text) {
+  const out = { prices: {}, amounts: {}, errors: [] };
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    out.errors.push("ids file is not valid JSON");
+    return out;
+  }
+  const list = Array.isArray(data) ? data : data && Array.isArray(data.prices) ? data.prices : null;
+  if (!list || list.length === 0) {
+    out.errors.push("ids file has no price entries");
+    return out;
+  }
+  for (const e of list) {
+    const label = e && typeof e === "object" && typeof e.lookup_key === "string" ? e.lookup_key : "(entry)";
+    if (!e || typeof e !== "object") { out.errors.push(`${label}: not an object`); continue; }
+    if (e.livemode !== false) { out.errors.push(`${label}: livemode is not false: ids file rejected`); continue; }
+    const key = rowKeyForLookup(e.lookup_key);
+    if (!key) { out.errors.push(`${label}: unknown lookup key`); continue; }
+    const row = PLAN_ROWS.find((r) => r.key === key);
+    if (typeof e.id !== "string" || !PRICE_ID_RE.test(e.id)) { out.errors.push(`${label}: id is not a price id`); continue; }
+    if (e.interval !== row.interval) { out.errors.push(`${label}: interval ${String(e.interval)}, expected ${row.interval}`); continue; }
+    if (String(e.currency).toLowerCase() !== "usd") { out.errors.push(`${label}: currency is not usd`); continue; }
+    if (out.prices[key]) { out.errors.push(`${label}: duplicate entry`); continue; }
+    out.prices[key] = e.id;
+    out.amounts[key] = STATIC_AMOUNTS[key];
+  }
+  return out;
 }
