@@ -15,11 +15,11 @@ test("singular and plural agree, zeros omitted", () => {
 test("spanish", () => {
   assert.equal(
     attentionSummary({ total: 2, noPhoto: 0, noPrice: 2, soldOut: 0 }, "es"),
-    "2 elementos necesitan atención: 2 sin precio todavía.",
+    "2 artículos necesitan atención: 2 sin precio todavía.",
   );
   assert.equal(
     attentionSummary({ total: 1, noPhoto: 0, noPrice: 0, soldOut: 1 }, "es"),
-    "1 elemento necesita atención: 1 agotado.",
+    "1 artículo necesita atención: 1 agotado.",
   );
 });
 test("overlap note only when parts exceed the total", () => {

@@ -2,6 +2,8 @@
  * ticket_picker copy + tiny formatters. Split from the island so the island
  * stays under the file cap; nothing here touches the DOM.
  */
+import { formatPrice } from "@/lib/money/format-price";
+
 export type Locale = "en" | "es";
 export function pickLocale(raw?: string): Locale { return raw?.toLowerCase().startsWith("es") ? "es" : "en"; }
 export function newOrderKey(): string {
@@ -227,10 +229,9 @@ export function formatWhen(iso: string, timeZone: string | null, locale: Locale)
 export function priceParts(cents: number, currency: string, locale: Locale, freeLabel: string): { amount: string; code: string | null } {
   if (cents === 0) return { amount: freeLabel, code: null };
   const code = currency.toUpperCase();
-  try {
-    const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency: code, currencyDisplay: "narrowSymbol" }).format(cents / 100);
-    return { amount, code };
-  } catch { return { amount: (cents / 100).toFixed(2), code }; }
+  // The one formatter prints "<symbol><amount> <CODE>"; split the code off for the two-part shape.
+  const full = formatPrice({ amountCents: cents, currency: code, locale }).primary;
+  return full.endsWith(` ${code}`) ? { amount: full.slice(0, -(code.length + 1)), code } : { amount: full, code };
 }
 /** `priceParts` as one string: "$1,000.00 MXN", or the free label. */
 export function money(cents: number, currency: string, locale: Locale, freeLabel: string): string {
