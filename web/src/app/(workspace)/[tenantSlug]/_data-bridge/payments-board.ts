@@ -7,6 +7,7 @@ import type { ExceptionRow } from "@/lib/exceptions/model";
 import { venueDayWindow } from "@/lib/pos/classes/day";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { pickWorkspaceCurrency } from "@/lib/payments/workspace-currency";
+import { summarizeCollectedToday } from "@/lib/payments/collected-today";
 import { groupTakingsByMethod, sumOwedByCurrency, withVariance, type DrawerSessionView, type TakingsByMethod, type CurrencyTotal } from "@/lib/payments/activity-shape";
 import {
   loadTenantDrawerSessions,
@@ -53,10 +54,6 @@ export type PaymentsBoard = {
   payout: { ok: true; destination: boolean; enabled: boolean } | { ok: false };
 };
 
-function isCard(method: string): boolean {
-  return method === "card_manual" || method.startsWith("stripe") || method.startsWith("mercado");
-}
-
 export async function loadPaymentsBoard(input: { tenantId: string; tenantSlug: string; now?: Date }): Promise<PaymentsBoard> {
   const now = input.now ?? new Date();
   const admin = createServiceRoleClient();
@@ -98,18 +95,7 @@ export async function loadPaymentsBoard(input: { tenantId: string; tenantSlug: s
 
   const collectedToday: PaymentsBoard["collectedToday"] = (() => {
     if (!todayLoad.ok) return { ok: false };
-    const byMethod = groupTakingsByMethod(todayLoad.rows);
-    const currency = byMethod[0]?.currency ?? workspaceCurrency;
-    let cash = 0;
-    let card = 0;
-    let other = 0;
-    for (const m of byMethod) {
-      if (m.currency !== currency) continue;
-      if (m.method === "cash") cash += m.totalCents;
-      else if (isCard(m.method)) card += m.totalCents;
-      else other += m.totalCents;
-    }
-    return { ok: true, currency, totalCents: cash + card + other, cashCents: cash, cardCents: card, otherCents: other };
+    return summarizeCollectedToday(groupTakingsByMethod(todayLoad.rows), workspaceCurrency);
   })();
 
   if (agency.error) logServerError("dataBridge.paymentsBoard/agency", agency.error);
