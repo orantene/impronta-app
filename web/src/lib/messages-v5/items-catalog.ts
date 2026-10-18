@@ -27,6 +27,7 @@ import "server-only";
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { scopeToGuestVisibleRoster } from "@/lib/saas/talent-roster";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import type { CatalogOption, CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
@@ -151,13 +152,12 @@ export async function loadCatalogRowsForScope(
 const GUEST_VISIBLE_WORKFLOW = new Set(["approved", "published"]);
 
 export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
-  const { data, error } = await admin
-    .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name, workflow_status )")
-    .eq("tenant_id", tenantId)
-    // A guest sees only people who are ACTIVE on this roster. `neq removed` also
-    // listed pending / inactive / archived_for_downgrade members (TUL-1068).
-    .eq("status", "active")
+  // A guest sees only people who are active AND shown on this tenant's site: the one
+  // shared roster scope (`neq removed` also listed pending / inactive / archived / hidden members).
+  const { data, error } = await scopeToGuestVisibleRoster(
+    admin.from("agency_talent_roster").select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name, workflow_status )"),
+    tenantId,
+  )
     .order("created_at", { ascending: true })
     .limit(TALENT_CAP);
   if (error) {

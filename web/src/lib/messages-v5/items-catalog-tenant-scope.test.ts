@@ -88,9 +88,9 @@ test("the talent picker on a talent's page lists only that talent", () => {
 
 const ROSTER = {
   agency_talent_roster: [
-    { tenant_id: "agency-a", status: "active", talent_profile_id: "ta1", talent_profiles: { id: "ta1", profile_code: "TAL-A1", display_name: "A One", workflow_status: "published" } },
-    { tenant_id: "agency-a", status: "active", talent_profile_id: "ta2", talent_profiles: { id: "ta2", profile_code: "TAL-A2", display_name: "A Two", workflow_status: "approved" } },
-    { tenant_id: "agency-b", status: "active", talent_profile_id: "tb1", talent_profiles: { id: "tb1", profile_code: "TAL-B1", display_name: "B One", workflow_status: "published" } },
+    { tenant_id: "agency-a", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "ta1", talent_profiles: { id: "ta1", profile_code: "TAL-A1", display_name: "A One", workflow_status: "published" } },
+    { tenant_id: "agency-a", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "ta2", talent_profiles: { id: "ta2", profile_code: "TAL-A2", display_name: "A Two", workflow_status: "approved" } },
+    { tenant_id: "agency-b", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "tb1", talent_profiles: { id: "tb1", profile_code: "TAL-B1", display_name: "B One", workflow_status: "published" } },
   ],
   ...TABLES,
 };
@@ -106,8 +106,8 @@ test("an agency page lists its own roster and zero talent from any other tenant"
 test("TUL-1068: a hub talent with a roster row only in another tenant never shows on this agency", async () => {
   const tables = {
     agency_talent_roster: [
-      { tenant_id: "agency-a", status: "active", talent_profile_id: "ta1", talent_profiles: { id: "ta1", profile_code: "TAL-A1", display_name: "A One", workflow_status: "published" } },
-      { tenant_id: "hub", status: "active", talent_profile_id: "max", talent_profiles: { id: "max", profile_code: "TAL-93940", display_name: "QA Fixture - Max Talent", workflow_status: "published" } },
+      { tenant_id: "agency-a", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "ta1", talent_profiles: { id: "ta1", profile_code: "TAL-A1", display_name: "A One", workflow_status: "published" } },
+      { tenant_id: "hub", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "max", talent_profiles: { id: "max", profile_code: "TAL-93940", display_name: "QA Fixture - Max Talent", workflow_status: "published" } },
     ],
   };
   const rows = await loadTalentRows(fakeAdmin(tables), "agency-a", null, new Date());
@@ -116,7 +116,7 @@ test("TUL-1068: a hub talent with a roster row only in another tenant never show
 
 test("TUL-1068: pending / inactive / archived roster members and unpublished profiles are not offered to a guest", async () => {
   const mk = (id: string, status: string, wf: string) => ({
-    tenant_id: "agency-a", status, talent_profile_id: id,
+    tenant_id: "agency-a", status, agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: id,
     talent_profiles: { id, profile_code: `TAL-${id}`, display_name: `P ${id}`, workflow_status: wf },
   });
   const tables = {
@@ -191,9 +191,9 @@ import { loadCatalogRowsForScope } from "./items-catalog";
 // site's path is "/", so the hub-wide catalog (other tenants' services + the global roster) leaked.
 const THREE = {
   agency_talent_roster: [
-    { tenant_id: "hub", status: "active", talent_profile_id: "t-andres", talent_profiles: { id: "t-andres", profile_code: "TAL-AND", display_name: "Andres", workflow_status: "published" } },
-    { tenant_id: "hub", status: "active", talent_profile_id: "t-max", talent_profiles: { id: "t-max", profile_code: "TAL-MAX", display_name: "Max", workflow_status: "published" } },
-    { tenant_id: "hub", status: "active", talent_profile_id: "t-qa", talent_profiles: { id: "t-qa", profile_code: "TAL-QA", display_name: "QA Fixture", workflow_status: "published" } },
+    { tenant_id: "hub", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "t-andres", talent_profiles: { id: "t-andres", profile_code: "TAL-AND", display_name: "Andres", workflow_status: "published" } },
+    { tenant_id: "hub", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "t-max", talent_profiles: { id: "t-max", profile_code: "TAL-MAX", display_name: "Max", workflow_status: "published" } },
+    { tenant_id: "hub", status: "active", agency_visibility: "site_visible", talent_site_hidden: false, talent_profile_id: "t-qa", talent_profiles: { id: "t-qa", profile_code: "TAL-QA", display_name: "QA Fixture", workflow_status: "published" } },
   ],
   talent_offerings: [
     offering("o-and", "hub", "t-andres", "Menú Andrés"),
