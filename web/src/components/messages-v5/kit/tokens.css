@@ -253,8 +253,8 @@
 .msgv5 .th-head .r1 { display: flex; align-items: center; gap: 10px; }
 .msgv5 .th-head .who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .msgv5 .th-head .who b { font-family: var(--msgv5-display); font-size: 16px; font-weight: 700; letter-spacing: -0.25px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.msgv5 .th-head .who span { font-size: 12px; color: var(--msgv5-ink-2); display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
-.msgv5 .th-head .who .subj { overflow: hidden; text-overflow: ellipsis; display: inline; }
+.msgv5 .th-head .who span { font-size: 12px; color: var(--msgv5-ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; white-space: normal; overflow: hidden; }
+.msgv5 .th-head .who .subj { display: inline; min-width: 0; overflow-wrap: anywhere; }
 .msgv5 .th-head .who .pill { flex: 0 0 auto; }
 .msgv5 .th-head .acts { margin-left: auto; display: flex; gap: 6px; align-items: center; flex-shrink: 0; white-space: nowrap; }
 .msgv5 .th-head .r2 { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -323,10 +323,10 @@
 /* ===== 7. Next step, composer, lines ===== */
 .msgv5 .nextbar {
   display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px; border-radius: 12px; background: var(--msgv5-paper);
-  border: 1px solid var(--msgv5-line-2); font-size: 12.5px; color: var(--msgv5-ink-2); white-space: nowrap; min-width: 0;
+  border: 1px solid var(--msgv5-line-2); font-size: 12.5px; color: var(--msgv5-ink-2); white-space: nowrap; min-width: 0; flex-wrap: wrap;
 }
 .msgv5 .nextbar b { color: var(--msgv5-ink); font-weight: 600; font-family: var(--msgv5-display); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.msgv5 .nextbar .why { flex: 1; color: var(--msgv5-ink-3); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.msgv5 .nextbar .why { flex: 1 1 11rem; color: var(--msgv5-ink-3); white-space: normal; min-width: 0; overflow-wrap: anywhere; }
 .msgv5 .nextbar .lbl { margin: 0; }
 .msgv5 .nextbar .btn { flex: 0 0 auto; margin-left: auto; }
 .msgv5 .nextbar .btn + .btn { margin-left: 0; }

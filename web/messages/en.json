@@ -1348,6 +1348,7 @@
       "dockTrayRemove": "Remove",
       "dockTrayOpenLineup": "Open the Items tab",
       "dockTrayOpen": "Review",
+      "dockTraySend": "Send inquiry",
       "catalogAddInvalid": "This one cannot be added to an inquiry (it may be in a different currency). Ask about it in the chat.",
       "catalogSearchPlaceholder": "Search this list",
       "catalogSortLabel": "Sort",
