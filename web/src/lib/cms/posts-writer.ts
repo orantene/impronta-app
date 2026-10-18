@@ -45,6 +45,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { parsePostBlocks } from "@/lib/cms/post-blocks";
+import { isPristineDraft } from "@/lib/cms/post-writer-status";
 import { isPostLocale, isValidPostSlug, type PostLocale } from "@/lib/cms/posts-shared";
 import { logServerError } from "@/lib/server/safe-error";
 import { talentScopedQuery } from "@/lib/supabase/talent-scoped-query";
@@ -308,6 +309,41 @@ async function writeSlugRedirect(ctx: PostWriterContext, oldSlug: string, newSlu
 
 // ---- operations ------------------------------------------------------------
 
+const PRISTINE_COLUMNS = `${ROW_COLUMNS}, title, excerpt, body_blocks, is_unlisted, is_featured, expires_at, category_id, related_offering_id, meta_title, meta_description, cover_image_url, og_image_url`;
+
+/** The owner's newest untouched draft in this language, or null. Read errors fall back to creating. */
+async function findPristineDraft(ctx: PostWriterContext, locale: PostLocale): Promise<PostRow | null> {
+  const { data, error } = await scoped(ctx.supabase, "cms_posts", ctx.scope)
+    .select(PRISTINE_COLUMNS)
+    .eq("status", "draft")
+    .eq("locale", locale);
+  if (error || !Array.isArray(data)) return null;
+  const rows = data as unknown as Array<PostRow & Record<string, unknown>>;
+  const hit = rows
+    .filter(
+      (r) =>
+        !r.taken_down_at &&
+        isPristineDraft({
+          status: r.status,
+          title: (r.title as string | null) ?? null,
+          excerpt: (r.excerpt as string | null) ?? null,
+          blockCount: Array.isArray(r.body_blocks) ? r.body_blocks.length : 0,
+          scheduledPublishAt: r.scheduled_publish_at,
+          isUnlisted: r.is_unlisted as boolean | null,
+          isFeatured: r.is_featured as boolean | null,
+          expiresAt: r.expires_at as string | null,
+          categoryId: r.category_id as string | null,
+          relatedOfferingId: r.related_offering_id as string | null,
+          metaTitle: r.meta_title as string | null,
+          metaDescription: r.meta_description as string | null,
+          coverImageUrl: r.cover_image_url as string | null,
+          ogImageUrl: r.og_image_url as string | null,
+        }),
+    )
+    .sort((a, b) => String(b.updated_at ?? "").localeCompare(String(a.updated_at ?? "")))[0];
+  return hit ?? null;
+}
+
 /** New draft. Allowed on every plan (free drafts + previews). */
 export async function createPostDraft(
   ctx: PostWriterContext,
@@ -317,6 +353,13 @@ export async function createPostDraft(
   if (!isPostLocale(input.locale)) return fail(ctx, "validation_failed");
   const checked = draftPatch({ title: input.title ?? "Sin título", excerpt: input.excerpt, bodyBlocks: input.bodyBlocks ?? [] });
   if (!checked.ok) return fail(ctx, "validation_failed");
+
+  // TUL-1249: a blank "new post" click must not stack empty drafts. Reuse the
+  // owner's untouched draft for this language when one exists.
+  if (input.title === undefined && input.excerpt === undefined && input.bodyBlocks === undefined) {
+    const reused = await findPristineDraft(ctx, input.locale);
+    if (reused) return { ok: true, data: toRecord(reused) };
+  }
 
   const slug = `borrador-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
   const { data, error } = await scoped(ctx.supabase, "cms_posts", ctx.scope)
