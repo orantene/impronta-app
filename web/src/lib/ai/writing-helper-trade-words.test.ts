@@ -18,6 +18,7 @@ test("TUL-993: the rewrite prompt keeps the person's own trade words, gender and
 test("TUL-993: feminine trade word in the person's text beats the masculine catalogue title", () => {
   assert.equal(resolveOwnTradeWords("Fotógrafo de retratos", "Soy fotógrafa de retratos en Tulum."), "fotógrafa de retratos");
   const { userMessage } = buildWritingPrompt({
+    surface: "bio",
     op: "rewrite",
     text: "Soy fotógrafa de retratos en Tulum.",
     locale: "es",
