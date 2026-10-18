@@ -28,7 +28,7 @@ function setup(over: Partial<ClassTimetableDeps> = {}) {
         { id: S_FULL, tenant_id: TENANT, title: null, starts_at: "2026-09-17T09:00:00Z", ends_at: "2026-09-17T10:00:00Z", venue_id: null, series_id: SERIES, offering_id: OFFERING, status: "scheduled" },
         { id: S_NOZONE, tenant_id: TENANT, title: "Ghost", starts_at: "2026-09-18T09:00:00Z", ends_at: "2026-09-18T10:00:00Z", venue_id: null, series_id: null, offering_id: OFFERING, status: "scheduled" },
       ],
-      talent_offerings: [{ id: OFFERING, tenant_id: TENANT, status: "published", amount_cents: 1500, currency: "USD" }],
+      talent_offerings: [{ id: OFFERING, tenant_id: TENANT, status: "published", moderation_state: "approved", visibility: "public", amount_cents: 1500, currency: "USD" }],
       capacity_pools: [
         { id: POOL_OPEN, tenant_id: TENANT, subject_kind: "session_tier", subject_id: S_OPEN, pool_key: "default", units_total: 12 },
         { id: POOL_FULL, tenant_id: TENANT, subject_kind: "session_tier", subject_id: S_FULL, pool_key: "default", units_total: 12 },

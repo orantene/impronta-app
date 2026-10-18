@@ -44,6 +44,11 @@ function readMigration(name: string): string {
  * policy references it. The count is the number of live policies referencing
  * that predicate at the time 20261124000000 was authored.
  */
+// 2026-10-18 (TUL-1013 re-audit): staging pg_policy shows is_inquiry_coordinator and
+// is_booking_coordinator are used only by policies TO authenticated (0 apply to anon), so
+// the held 20261231414000 (live as 412000) revokes anon/PUBLIC from them while authenticated keeps EXECUTE. The
+// migration builds its REVOKE dynamically, so this per-statement scan does not see it;
+// sec-definer-anon-revoke-no-public-surface.static.test.ts pins that migration instead.
 const POLICY_PREDICATES: ReadonlyArray<readonly [string, number]> = [
   ["is_staff_of_tenant", 181],
   ["is_active_staff_of_tenant", 19],

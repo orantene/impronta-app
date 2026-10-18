@@ -49,6 +49,8 @@ import { ensureGuestSessionId } from "@/lib/guest/guest-session";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "@/lib/inquiry/inquiry-events";
 import { isGuestChipWritableStatus } from "@/lib/inquiry/guest-chip-write-policy";
+import { scopeChipTalentToRoster } from "@/lib/inquiry/guest-chip-talent-scope";
+import { filterTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { buildLineupNoteBody, deepEqualJson, sameStringSet } from "@/lib/inquiry/lineup-note-coalesce";
 import {
   repairLineupNoteBody,
@@ -457,10 +459,29 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
       );
     }
 
+    // TUL-1068/1070: the client cart has no tenant column, so a talent saved on
+    // another tenant's page rides in with this chip. On an AGENCY tenant keep only
+    // ids on its own visible roster (start/ensure already do; this path did not).
+    // A hub owns no roster of its own (it lists the cross-tenant index): unchanged.
+    let chipInput = input;
+    if (input.kind === "talent") {
+      const { data: tenantRow, error: kindErr } = await admin.from("agencies").select("kind").eq("id", inquiry.tenantId).maybeSingle();
+      // A failed read leaves the kind unknown, which scopes to the roster (fails closed).
+      if (kindErr) logServerError("guestChip.talentScope.kind", kindErr);
+      if ((tenantRow as { kind?: string | null } | null)?.kind !== "hub") {
+        chipInput = {
+          ...input,
+          value: await scopeChipTalentToRoster(input.value, (ids) =>
+            filterTalentIdsOnTenantRoster(admin, inquiry.tenantId, ids),
+          ),
+        };
+      }
+    }
+
     // Merge chip payload into interpreted_query
     const { mergedQuery, flatColumns, appliedSummary } = mergeChipIntoQuery(
       inquiry.interpretedQuery,
-      input,
+      chipInput,
     );
 
     // ── SAME-VALUE GUARD (P1-7) ──────────────────────────────────────────────

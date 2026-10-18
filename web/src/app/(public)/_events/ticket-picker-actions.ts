@@ -38,6 +38,7 @@ import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
 import { releaseCapacity } from "@/lib/capacity";
+import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const HORIZON_DAYS = 180;
@@ -160,10 +161,10 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
 
     const { data: offering, error: offErr } = await admin
       .from("talent_offerings")
-      .select("id, status, currency, allow_pay_in_person")
+      .select("id, status, moderation_state, visibility, currency, allow_pay_in_person")
       .eq("id", ev.offering_id as string).eq("tenant_id", tenantId).maybeSingle();
     if (offErr) { logServerError("events.picker.offering", offErr); return { ok: false, reason: "unavailable" }; }
-    if (!offering || offering.status !== "published") return { ok: false, reason: "not_sellable" };
+    if (!offering || !isGuestSellableOffering(offering)) return { ok: false, reason: "not_sellable" };
 
     const now = new Date();
     const horizon = new Date(now.getTime() + HORIZON_DAYS * 86_400_000).toISOString();
@@ -358,9 +359,9 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
     if (!ev || ev.status !== "published" || !ev.offering_id) return { ok: false, reason: "not_sellable" };
 
     const { data: offering, error: offErr } = await admin.from("talent_offerings")
-      .select("id, status, allow_pay_in_person").eq("id", ev.offering_id as string).eq("tenant_id", d.tenantId).maybeSingle();
+      .select("id, status, moderation_state, visibility, allow_pay_in_person").eq("id", ev.offering_id as string).eq("tenant_id", d.tenantId).maybeSingle();
     if (offErr) { logServerError("events.buy.offering", offErr); return { ok: false, reason: "engine_error" }; }
-    if (!offering || offering.status !== "published") return { ok: false, reason: "not_sellable" };
+    if (!offering || !isGuestSellableOffering(offering)) return { ok: false, reason: "not_sellable" };
 
     const { data: session, error: sErr } = await admin.from("sessions").select("id, starts_at, ends_at, status")
       .eq("id", d.sessionId).eq("tenant_id", d.tenantId).eq("event_id", d.eventId).maybeSingle();
