@@ -28,6 +28,26 @@ test("no gross to derive from falls back to the stored value, never NaN", () => 
   assert.equal(effectiveFeeLabel({ platformFeeCents: Number.NaN, grossAmountCents: Number.NaN, storedBasisPoints: Number.NaN }), "0%");
 });
 
+test("a commission snapshot wins: its rate is shown, whole percent, whatever the transaction says", () => {
+  const snapshot = { platformFeeCents: 1500, grossChargedCents: 10000 };
+  assert.equal(effectiveFeeLabel({ platformFeeCents: 1480, grossAmountCents: 100000, storedBasisPoints: 0, snapshot }), "15%");
+  // same output the page printed before this change for a snapshot
+  assert.equal(effectiveFeeLabel({ platformFeeCents: 0, grossAmountCents: 0, storedBasisPoints: 0, snapshot: { platformFeeCents: 750, grossChargedCents: 10000 } }), "8%");
+  assert.equal(effectiveFeeLabel({ platformFeeCents: 0, grossAmountCents: 0, storedBasisPoints: 0, snapshot: { platformFeeCents: 0, grossChargedCents: 0 } }), "0%");
+});
+
+test("no snapshot (null or absent): derive from the transaction's charged fee", () => {
+  const base = { platformFeeCents: 1480, grossAmountCents: 100000, storedBasisPoints: 0 };
+  assert.equal(effectiveFeeLabel({ ...base, snapshot: null }), "1.5%");
+  assert.equal(effectiveFeeLabel(base), "1.5%");
+});
+
+test("the work page prefers the snapshot breakdown and only falls back to the derived label", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/work/[id]/page.tsx"), "utf8");
+  assert.match(src, /const effectiveBreakdown = snapBreakdown \?\? breakdown;/);
+  assert.match(src, /snapshot: \{ platformFeeCents: snapPlatformCents, grossChargedCents: snapGrossChargedCents \}/);
+});
+
 test("the work page derives its label from the charged fee, not the stored bps", () => {
   const src = readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/work/[id]/page.tsx"), "utf8");
   assert.match(src, /effectiveFeeLabel\(/);
