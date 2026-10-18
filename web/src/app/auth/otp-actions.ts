@@ -41,6 +41,7 @@ import {
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 import { createTranslator } from "@/i18n/messages";
 import { logServerError } from "@/lib/server/safe-error";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
@@ -341,10 +342,11 @@ export async function submitEmailCode(
   // the hub, where this form is also served. A relative redirect there is a 404.
   // On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
+  const postAuthCtx = user ? await postAuthContextForNext(supabase, user.id, nextPath) : {};
   redirect(
     await hostSafeRedirectDestination(
       supportDeskPostAuthDestination(
-        resolvePostAuthDestination(profileData, nextPath),
+        resolvePostAuthDestination(profileData, nextPath, postAuthCtx),
         deskHost,
       ),
     ),

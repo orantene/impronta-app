@@ -63,8 +63,9 @@ dev-only warning naming the row and the reason.
 A long lane keeps its test paths in `scripts/lanes/<lane>.txt`, **ONE path per
 line** (`#` comments allowed), and the script is just
 `... node scripts/lane-test.cjs @scripts/lanes/<lane>.txt`. Add your test file by
-appending ONE line to that file: two PRs then touch different lines and merge
-cleanly. Never paste a path onto the package.json line (a 10 KB line conflicts
+inserting ONE line IN SORTED POSITION (never at the end; run
+`node scripts/lanes-sort.cjs` from `web/`, CI fails on an unsorted list): two PRs
+then touch different lines and merge cleanly. Never paste a path onto the package.json line (a 10 KB line conflicts
 every wave, and `JSON.parse` keeps the LAST duplicate key silently, so a
 duplicated lane runs the wrong list). A lane must not name one file twice
 (`lane-file-lists.static.test.ts` pins it). On a rebase conflict in a list file,
