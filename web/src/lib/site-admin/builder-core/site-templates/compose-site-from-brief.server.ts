@@ -43,6 +43,7 @@ import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 import { confirmedFacts, listFact, numberFact, redactFactsForPrompt, stringFact, type Brief } from "@/lib/tulala/brief-store";
+import { proposeBusinessType } from "@/lib/onboarding/type-chip";
 import { BUSINESS_TYPES, businessTypeById, searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
 
 import { buildComponentsForType } from "./business-components";
@@ -226,10 +227,13 @@ function pageHrefsFor(family: BusinessFamilyId): Record<SitePageRole, string> {
 export function businessTypeFromIndustry(industry: string): { id: string; family: BusinessFamilyId } | null {
   const whole = searchBusinessTypes(industry)[0];
   if (whole) return { id: whole.id, family: whole.family };
-  const words = industry.split(/[^\p{L}]+/u).filter((w) => w.length >= 4).sort((a, b) => b.length - a.length);
-  for (const w of words) {
-    const hit = searchBusinessTypes(w)[0];
-    if (hit) return { id: hit.id, family: hit.family };
+  // Word fallback: the same rule the /start chip uses (a word that IS a type beats one inside an alias;
+  // then the word naming the FEWEST types wins). The old longest-word-first loop let a generic word like
+  // "studio"/"estudio" win and then took the alphabetical first hit: a hair studio became "boxing-studio" (TUL-591).
+  const proposed = proposeBusinessType(industry).proposed;
+  if (proposed) {
+    const row = businessTypeById(proposed.id);
+    if (row) return { id: row.id, family: row.family };
   }
   return null;
 }

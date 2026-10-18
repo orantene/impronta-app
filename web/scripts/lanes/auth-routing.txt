@@ -36,3 +36,4 @@ src/lib/auth/signup-name.test.ts
 src/lib/impersonation/client-portal-effective-user.static.test.ts
 src/lib/client-account/dock-visibility.test.ts
 src/lib/site-admin/server/proxy-locale-seed.test.ts
+src/components/client-account/client-account-help.static.test.ts
