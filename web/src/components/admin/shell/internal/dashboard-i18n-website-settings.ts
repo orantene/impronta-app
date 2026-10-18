@@ -12,7 +12,7 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Bank transfer": "Transferencia",
   "Card on your terminal": "Tarjeta con tu terminal",
   "Cancelling, deposit and what your clients read before they book":
-    "Cancelación, anticipo y lo que leen tus clientas antes de reservar",
+    "Cancelación, anticipo y lo que leen tus clientes antes de reservar",
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
   // TUL-180 Option A

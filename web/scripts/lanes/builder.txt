@@ -68,3 +68,4 @@ src/lib/talent-site/theme-releases/builder-lab-errors.test.ts
 src/components/talent/site/theme-gallery/theme-gallery-builtin-copy.test.ts
 src/lib/analytics/talent-presence-stats.test.ts
 src/lib/talent-site/theme-releases/superseded-rows.test.ts
+src/components/admin/shell/internal/qa-residuals-702-721.static.test.ts

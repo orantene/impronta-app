@@ -119,7 +119,7 @@ export const MONEY_DEFINITIONS: readonly MoneyDefinition[] = [
   {
     id: "client_numbers",
     labelEn: "Client numbers",
-    labelEs: "Números de clienta",
+    labelEs: "Números de cliente",
     meaningEn:
       'Completed appointments count only finished work. "Collected from her" includes deposits for upcoming work and says so. Averages use completed work only.',
     meaningEs:

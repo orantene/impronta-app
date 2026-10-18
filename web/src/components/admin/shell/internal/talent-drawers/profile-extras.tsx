@@ -11,6 +11,8 @@
 
 import { useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { translateDashboardText } from "../dashboard-i18n";
 import { interpolate } from "@/i18n/interpolate";
 import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
@@ -315,6 +317,9 @@ export function TalentEmergencyContactDrawer() {
 // the real surface. Better: link them out to the live URLs.
 
 export function TalentPublicPreviewDrawer() {
+  const dashboardLocale = useDashboardLocale();
+  // TUL-702: the plan name follows the dashboard language ("Oficina Web", not "Web Office").
+  const tierLabel = (label: string) => translateDashboardText(label, dashboardLocale);
   const { state, closeDrawer, toast, openDrawer, bridgeTalentSelfProfile } = useAdminShell();
   const t = useT();
   const origin = useCurrentOrigin();
@@ -345,7 +350,7 @@ export function TalentPublicPreviewDrawer() {
         label: previewTier === "max" ? t("dashboard.talentDrawers.profileExtras.personalFallbackLabel") : t("dashboard.talentDrawers.profileExtras.personalTulalaLabel"),
         sub: previewTier === "max"
           ? t("dashboard.talentDrawers.profileExtras.personalFallbackSub")
-          : interpolate(t("dashboard.talentDrawers.profileExtras.personalCanonicalSub"), { tier: TALENT_TIER_META[previewTier].label }),
+          : interpolate(t("dashboard.talentDrawers.profileExtras.personalCanonicalSub"), { tier: tierLabel(TALENT_TIER_META[previewTier].label) }),
         url: talentPublicProfileHref(slug, origin),
         icon: "globe",
         primary: previewTier !== "max",
@@ -408,7 +413,7 @@ export function TalentPublicPreviewDrawer() {
           <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
           {tierAheadOfCurrent && (
             <PrimaryButton onClick={() => { closeDrawer(); openDrawer("talent-tier-compare"); }}>
-              {interpolate(t("dashboard.talentDrawers.profileExtras.upgradeTo"), { tier: TALENT_TIER_META[previewTier].label })}
+              {interpolate(t("dashboard.talentDrawers.profileExtras.upgradeTo"), { tier: tierLabel(TALENT_TIER_META[previewTier].label) })}
             </PrimaryButton>
           )}
         </>
@@ -449,7 +454,7 @@ export function TalentPublicPreviewDrawer() {
                 gap: 5,
               }}
             >
-              {TALENT_TIER_META[tierId].label}
+              {tierLabel(TALENT_TIER_META[tierId].label)}
               {isCurrent && (
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }} className="text-admin-accent-deep">
                   {t("dashboard.talentDrawers.profileExtras.current")}
@@ -466,7 +471,7 @@ export function TalentPublicPreviewDrawer() {
           verified — otherwise the canonical Tulala URL is the active
           one. */}
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 8 }} className="text-admin-ink-muted">
-        {interpolate(t("dashboard.talentDrawers.profileExtras.whereYouAppear"), { tier: TALENT_TIER_META[previewTier].label })}
+        {interpolate(t("dashboard.talentDrawers.profileExtras.whereYouAppear"), { tier: tierLabel(TALENT_TIER_META[previewTier].label) })}
       </div>
       <div style={{
         display: "flex", flexDirection: "column", gap: 8,
