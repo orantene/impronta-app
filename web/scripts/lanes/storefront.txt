@@ -8,6 +8,7 @@ src/lib/talent/inquiry-form-payload.test.ts
 src/lib/talent/presence-placements.test.ts
 src/lib/talent/duration-format-consistency.static.test.ts
 src/lib/scheduling/bookings-off-wording.static.test.ts
+src/lib/support/support-minors-b11.static.test.ts
 src/components/admin/shell/internal/talent/agenda/booking-record-reference.static.test.ts
 src/lib/talent/public-profile-href.test.ts
 src/lib/talent-site/server/site-activation-state.test.ts

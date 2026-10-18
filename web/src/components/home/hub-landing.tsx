@@ -38,7 +38,7 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
     loadHubApprovedTalent(tenantId),
   ]);
 
-  const kicker = identity?.public_name ?? "Impronta Hub";
+  const kicker = identity?.public_name ?? "Tulala";
   const tagline =
     identity?.tagline ??
     "Each agency runs its own storefront at its own domain. Visit one to browse its talent roster and open an inquiry.";

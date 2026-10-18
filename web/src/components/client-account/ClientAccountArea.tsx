@@ -9,6 +9,7 @@ import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail }
 import type { MeItem } from "@/lib/me/shape-me";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
+import { getSiteUrl } from "@/lib/auth-flow";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
 
 import { ClientAccountButton } from "./ClientAccountButton";
@@ -281,6 +282,17 @@ export function ClientAccountArea(props: Props) {
           {extraLabel[x.key]}
         </Link>
       ))}
+      {/* TUL-602 / TUL-729: a client always has a way to reach support (the platform support page). */}
+      <a
+        href={`${getSiteUrl()}/support`}
+        data-client-help=""
+        style={{
+          flex: "0 0 auto", minHeight: 44, display: "inline-flex", alignItems: "center", padding: "0 16px", whiteSpace: "nowrap",
+          borderRadius: RADIUS, textDecoration: "none", fontWeight: 600, border: `1px solid ${LINE}`, color: INK,
+        }}
+      >
+        {a("tabHelp")}
+      </a>
     </nav>
   );
 
