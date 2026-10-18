@@ -53,7 +53,7 @@ export const APP_REGISTRY: ReadonlyArray<AppRegistryEntry> = [
     name: { en: "Nail Designer", es: "Diseñador de uñas" },
     pitch: {
       en: "Clients design their manicure nail by nail and send it with their booking.",
-      es: "Tus clientas diseñan su manicura uña por uña y la envían con su reserva.",
+      es: "Tus clientes diseñan su manicura uña por uña y la envían con su reserva.",
     },
     trades: ["nails"],
     recommendedDesigns: ["maison-v2"],

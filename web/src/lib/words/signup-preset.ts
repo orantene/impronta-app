@@ -61,6 +61,8 @@ const KEYWORD_PRESETS: ReadonlyArray<{
       // Not a bare "salón": this row wins first, and "salón de eventos" is a venue.
       "belleza", "salón de belleza", "uñas", "manicure", "pedicure", "lashes",
       "pestañas", "cejas",
+      // TUL-1248: a "hair studio" must not fall through to the gym row on "studio".
+      "hair", "hairdresser", "hairstylist", "estilista", "cabello", "pelo", "peinados", "colorista",
     ],
     presetId: "salon_barber",
   },

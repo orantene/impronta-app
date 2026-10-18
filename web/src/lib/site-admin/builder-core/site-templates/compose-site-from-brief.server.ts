@@ -43,7 +43,8 @@ import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 import { confirmedFacts, listFact, numberFact, redactFactsForPrompt, stringFact, type Brief } from "@/lib/tulala/brief-store";
-import { BUSINESS_TYPES, businessTypeById, searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
+import { businessTypeFromIndustry } from "./industry-type";
+import { BUSINESS_TYPES, businessTypeById, type BusinessFamilyId } from "@/lib/words/business-types";
 
 import { buildComponentsForType } from "./business-components";
 import { siteBasePath, withSiteBasePath, type SiteDomainRow } from "./site-base-path";
@@ -223,16 +224,7 @@ function pageHrefsFor(family: BusinessFamilyId): Record<SitePageRole, string> {
  * the whole phrase, then its words longest-first, so the live El Paisa brief
  * resolves to `restaurant` instead of falling through to the tenant default.
  */
-export function businessTypeFromIndustry(industry: string): { id: string; family: BusinessFamilyId } | null {
-  const whole = searchBusinessTypes(industry)[0];
-  if (whole) return { id: whole.id, family: whole.family };
-  const words = industry.split(/[^\p{L}]+/u).filter((w) => w.length >= 4).sort((a, b) => b.length - a.length);
-  for (const w of words) {
-    const hit = searchBusinessTypes(w)[0];
-    if (hit) return { id: hit.id, family: hit.family };
-  }
-  return null;
-}
+export { businessTypeFromIndustry };
 
 /** First non-empty string; an empty identity column is "missing", not a value. */
 function pick(...values: Array<string | null | undefined>): string | null {

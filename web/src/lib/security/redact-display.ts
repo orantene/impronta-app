@@ -32,10 +32,18 @@ const URL_RE = /\bhttps?:\/\/[^\s"'<>)]+/gi;
 // Stripe secret/restricted/publishable keys, webhook signing secrets, masked forms (sk_test_****abcd).
 const SECRET_RE = /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9*]+|\bwhsec_[A-Za-z0-9*+/=]+/g;
 
+// A Vercel bypass secret quoted as `x-vercel-protection-bypass=<v>` / `: <v>` outside a URL (error text, logs).
+const BYPASS_PAIR_RE = /x-vercel-(?:protection-bypass|set-bypass-cookie)\s*[=:]\s*[^\s"'<>&,;)]+/gi;
+
+// `Authorization: Bearer <token>` / `Bearer <token>` quoted in error text.
+const BEARER_RE = /\b(?:Authorization\s*:\s*)?Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi;
+
 /** Scrub free text (error messages, details): URLs reduced, secret tokens masked. */
 export function scrubSecretsInText(text: string | null | undefined): string {
   if (!text) return "";
   return text
     .replace(URL_RE, (m) => redactUrlForDisplay(m))
+    .replace(BYPASS_PAIR_RE, "[redacted bypass]")
+    .replace(BEARER_RE, "[redacted bearer]")
     .replace(SECRET_RE, (m) => maskSecret(m.replace(/\*/g, "")));
 }

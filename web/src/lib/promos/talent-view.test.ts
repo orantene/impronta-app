@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { formatMoney, groupByTab, progressOf, promoAttention, tabOf } from "./talent-view";
+import { canSharePromo, formatMoney, groupByTab, progressOf, promoAttention, tabOf } from "./talent-view";
 import { PROMO_COPY_EN, PROMO_COPY_ES, promoCopy } from "./copy/talent";
 
 const MX = "America/Mexico_City";
@@ -63,4 +63,13 @@ test("copy: interpolation and locale fallback", () => {
   assert.equal(promoCopy("es-MX").t("card.used", { used: 2, max: 3 }), "2 de 3 usadas");
   assert.equal(promoCopy("en").t("card.used", { used: 2, max: 3 }), "2 of 3 used");
   assert.equal(promoCopy("fr").locale, "en");
+});
+
+test("TUL-938: a draft cannot be shared (its share images 404); live and scheduled can", () => {
+  assert.equal(canSharePromo("draft"), false);
+  assert.equal(canSharePromo("archived"), false);
+  assert.equal(canSharePromo("expired"), false);
+  for (const s of ["live", "scheduled", "paused", "sold_out"] as const) assert.equal(canSharePromo(s), true);
+  assert.ok(PROMO_COPY_ES["detail.share_after_publish"]);
+  assert.ok(PROMO_COPY_EN["detail.share_after_publish"]);
 });

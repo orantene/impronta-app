@@ -29,7 +29,8 @@ export function DirectoryToolbar({
   const t = useDirectoryCopy();
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
+      {/* TUL-1174: data hook so the phone launcher clearance rule (MarketingDirectoryShell) can keep the Filtros trigger clear of the fixed launcher. */}
+      <div className="flex items-center gap-3" data-directory-toolbar-lead="">
         <button
           type="button"
           onClick={onOpenFilters}

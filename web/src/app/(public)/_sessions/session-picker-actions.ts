@@ -32,6 +32,7 @@ import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 
 const HORIZON_DAYS = 90;
 
@@ -118,6 +119,8 @@ export async function resolveSessionPickerOffering(
     )
       .select("id")
       .eq("status", "published")
+      .eq("moderation_state", "approved") // D-10
+      .eq("visibility", "public")
       .in("id", offeringIds);
     if (offErr) {
       logServerError("sessions.picker.resolve.offering", offErr);
@@ -153,7 +156,7 @@ export async function loadSessionPicker(input: unknown): Promise<PickerAvailabil
     // published offering of another tenant is still not this page's to sell.
     const { data: offering, error: offeringError } = await admin
       .from("talent_offerings")
-      .select("id, tenant_id, status, amount_cents, currency")
+      .select("id, tenant_id, status, moderation_state, visibility, amount_cents, currency")
       .eq("id", offeringId)
       .eq("tenant_id", tenantId)
       .maybeSingle();
@@ -161,7 +164,7 @@ export async function loadSessionPicker(input: unknown): Promise<PickerAvailabil
       logServerError("sessions.picker.offering", offeringError);
       return { ok: false, reason: "unavailable" };
     }
-    if (!offering || offering.status !== "published") {
+    if (!offering || !isGuestSellableOffering(offering)) {
       return { ok: false, reason: "not_sellable" };
     }
 

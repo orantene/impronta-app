@@ -7,7 +7,7 @@
  * `cleaner` term, so no DB change is needed.
  */
 
-import { fold, type ChipOption, type TalentTypeTerm } from "./type-chip";
+import { fold, queryWords, type ChipOption, type TalentTypeTerm } from "./type-chip";
 
 /** Extra search intent per taxonomy slug (and, optionally, the label to show). */
 const OVERLAY: Record<string, { label?: { en: string; es: string }; synonyms: readonly string[] }> = {
@@ -19,6 +19,17 @@ const OVERLAY: Record<string, { label?: { en: string; es: string }; synonyms: re
     label: { en: "House cleaning", es: "Limpieza de casas" },
     synonyms: ["limpieza", "limpieza del hogar", "aseo", "limpiadora", "casa", "casas", "hogar", "housekeeping", "maid"],
   },
+  // TUL-1161: the everyday words people type for the beauty / health trades. The business-type
+  // catalogue already carries these; the talent taxonomy did not, so "corte de pelo" found nothing.
+  "hair-stylist": {
+    synonyms: ["corte de pelo", "corte de cabello", "cortes de pelo", "corte", "pelo", "cabello", "peluquero", "peluquera", "peluqueria", "peinado", "haircut", "hair", "hairdresser", "hair salon", "stylist", "barbero", "barber"],
+  },
+  barber: { synonyms: ["barbero", "barberia", "barber shop", "corte de pelo", "corte de barba", "afeitado", "haircut", "shave"] },
+  "lash-artist": { synonyms: ["lashes", "lash", "pestanas", "pestañas", "extensiones de pestanas", "extensiones de pestañas", "eyelash", "eyelashes", "lash extensions", "lashista"] },
+  "nail-artist": { synonyms: ["unas", "uñas", "manicure", "pedicure", "manicurista", "nails", "nail salon", "salon de unas"] },
+  "makeup-artist": { synonyms: ["maquillaje", "maquilladora", "maquillador", "maquillista", "makeup", "make up"] },
+  dentist: { synonyms: ["dentista", "dental", "clinica dental", "odontologo", "odontologa", "dientes"] },
+  "massage-therapist": { synonyms: ["masaje", "masajes", "masajista", "massage"] },
   housekeeper: { synonyms: ["limpieza", "aseo", "hogar", "housekeeping"] },
   "villa-cleaner": { synonyms: ["limpieza", "aseo", "casa", "housekeeping"] },
   "deep-cleaning-specialist": { synonyms: ["limpieza", "aseo", "casa"] },
@@ -62,7 +73,18 @@ function scoreOne(term: TalentTypeTerm, q: string): number {
 
 /** Ranked options for the query (empty query: the default list, alphabetical by label). */
 export function rankTalentTypeOptions(terms: readonly TalentTypeTerm[], query: string, locale: "en" | "es"): ChipOption[] {
-  const q = fold(query);
+  const ranked = rankOnce(terms, fold(query), locale);
+  if (ranked.length > 0) return ranked;
+  // TUL-1127 / TUL-1161: a phrase nothing matches whole ("pelo de perro") falls back to its significant
+  // words, longest first, so an everyday phrase still lands on a trade instead of "no matches".
+  for (const w of queryWords(query)) {
+    const byWord = rankOnce(terms, w, locale);
+    if (byWord.length > 0) return byWord;
+  }
+  return [];
+}
+
+function rankOnce(terms: readonly TalentTypeTerm[], q: string, locale: "en" | "es"): ChipOption[] {
   const all = terms.map(withOverlay);
   const scored = all
     // The overlay's headline term wins ties against its sibling cleaning trades.

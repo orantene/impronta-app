@@ -17,6 +17,7 @@
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { scopeToGuestVisibleRoster } from "@/lib/saas/talent-roster";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 
 export type DefaultStorefrontTalent = {
@@ -68,15 +69,16 @@ const ROSTER_SELECT = `
 
 export async function loadDefaultStorefrontRoster(
   tenantId: string,
+  /** Guest surfaces (Concierge picker) pass `guestVisibleOnly`: also drop members not shown on the site. */
+  opts: { guestVisibleOnly?: boolean } = {},
 ): Promise<DefaultStorefrontTalent[]> {
   const sb = createServiceRoleClient();
   if (!sb) return [];
   try {
-    const { data, error } = await sb
-      .from("agency_talent_roster")
-      .select(ROSTER_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("status", "active")
+    const base = sb.from("agency_talent_roster").select(ROSTER_SELECT);
+    const { data, error } = await (opts.guestVisibleOnly
+      ? scopeToGuestVisibleRoster(base, tenantId)
+      : base.eq("tenant_id", tenantId).eq("status", "active"))
       .order("created_at", { ascending: true })
       .limit(24);
 
@@ -193,12 +195,10 @@ export async function loadRosterPortraitsByIds(
   const sb = createServiceRoleClient();
   if (!sb) return [];
   try {
-    const { data, error } = await sb
-      .from("agency_talent_roster")
-      .select(ROSTER_SELECT)
-      .eq("tenant_id", tenantId)
-      .eq("status", "active")
-      .in("talent_profile_id", ids);
+    const { data, error } = await scopeToGuestVisibleRoster(
+      sb.from("agency_talent_roster").select(ROSTER_SELECT),
+      tenantId,
+    ).in("talent_profile_id", ids);
 
     if (error) {
       logServerError("home.defaultStorefront.loadPortraitsByIds", error);

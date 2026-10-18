@@ -1,6 +1,7 @@
 src/app/t/*/_chat/GuestDockDetailsCard.render.test.tsx
 src/app/t/*/_chat/card-chat-chips.test.tsx
 src/app/t/*/_chat/card-dock.render.test.tsx
+src/app/t/*/_chat/catalog-select.test.ts
 src/app/t/*/_chat/chat-chrome-2-6.test.tsx
 src/app/t/*/_chat/conversation-status-strip.test.ts
 src/app/t/*/_chat/dock-cta-label.test.ts
