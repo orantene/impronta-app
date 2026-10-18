@@ -2102,11 +2102,11 @@
       "code": {
         "title": "Escribe el código",
         "sub": "Enviamos un código de 8 dígitos a {email}. Es la misma pantalla para todos, así que revisa tu bandeja y el spam.",
-        "plusSub": "Enviamos un código a {email}. Muchas bandejas no entregan correo a direcciones con +. Si no llega en un minuto, cambia a un correo sin +.",
+        "plusSub": "Enviamos un código a {email}. Puede tardar un minuto. Si no llega, pide un código nuevo o prueba con tu dirección principal.",
         "resend": "Enviar un código nuevo",
         "resendIn": "Enviar un código nuevo en {s}s",
         "resent": "Un código nuevo va en camino.",
-        "plusResent": "Código nuevo enviado. Si sigue sin llegar, cambia a una dirección sin +.",
+        "plusResent": "Código nuevo enviado. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "changeEmail": "Cambiar correo",
         "verifying": "Comprobando…"
       },
@@ -2364,7 +2364,7 @@
       "saved": "Guardado.",
       "phoneInvalid": "Revisa el número de teléfono.",
       "logOut": "Cerrar sesión",
-      "langEn": "Inglés",
+      "langEn": "English",
       "langEs": "Español",
       "fieldEmail": "Correo",
       "namePromptTitle": "Agrega tu nombre",
@@ -2433,7 +2433,8 @@
       "perMonth": "al mes",
       "billedYearly": "{amount} al año",
       "billedMonthly": "Facturado cada mes",
-      "popular": "Más elegido"
+      "popular": "Más elegido",
+      "approxNote": "al mes, se cobra en USD"
     }
   },
   "dashboard": {

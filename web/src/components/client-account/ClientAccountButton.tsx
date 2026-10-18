@@ -35,6 +35,7 @@ import {
 import { ACCOUNT_DOCK_Z_INDEX, DOCK_NARROW_SIDE_CSS, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
 import { accountQuickLinks } from "@/lib/client-account/quick-links";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
+import { formatPrice } from "@/lib/money/format-price";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
 type Step = "email" | "code" | "password" | "consent";
@@ -56,12 +57,9 @@ function PersonIcon() {
   );
 }
 
+/** Lane 4 (A6): prices print through the one formatter ("$900 MXN"), never an ad-hoc Intl call. */
 function money(cents: number, currency: string, locale: string): string {
-  try {
-    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatPrice({ amountCents: cents, currency, locale }).primary;
 }
 
 export function ClientAccountButton({

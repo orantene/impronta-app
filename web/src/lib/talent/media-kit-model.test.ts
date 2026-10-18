@@ -97,7 +97,7 @@ test("price uses the cheapest active public priced service", () => {
       service({ id: "b", amountCents: 45000 }),
     ],
   });
-  assert.equal(label, "From $450");
+  assert.equal(label, "From $450 USD");
 });
 
 test("price ignores inactive, non-public and quote-on-request services", () => {
@@ -152,7 +152,7 @@ test("assembles every field from data that already exists on the profile", () =>
   assert.equal(model.primaryTypeLabel, "Singer");
   assert.deepEqual(model.talentTypeLabels, ["Singer"]);
   assert.equal(model.locationLabel, "Mexico City, MX");
-  assert.equal(model.priceLabel, "From $750");
+  assert.equal(model.priceLabel, "From $750 USD");
   assert.equal(model.profileUrl, "https://app.tulala.digital/t/TL-ANA");
   assert.equal(model.profileCode, "TL-ANA");
   assert.equal(model.photos.length, 2);

@@ -49,17 +49,8 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 
 function money(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-EU", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.round(cents / 100));
-  } catch {
-    // Unknown ISO code → fall back to bare amount + code suffix.
-    return `${Math.round(cents / 100).toLocaleString()} ${currency}`;
-  }
+  // Whole units, through the one price formatter (lane 4, A6). Display only.
+  return formatPrice({ amountCents: Math.round(cents / 100) * 100, currency, locale: "en", audience: "talent" }).primary;
 }
 
 function formatDate(iso: string | null): string {
@@ -127,6 +118,7 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 }
 
 import type { AgencyFinancials } from "@/lib/billing/agency-financials-types";
+import { formatPrice } from "@/lib/money/format-price";
 
 // Payment-status tile labels. `paid` / `pending` / `confirmed` already exist
 // in the shared enum catalog — reuse those rather than duplicating strings.

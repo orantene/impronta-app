@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
+import { formatPrice } from "@/lib/money/format-price";
 import {
   MAX_QTY,
   REFRESH_MIN_INTERVAL_MS,
@@ -135,16 +136,7 @@ function loadStoredQuantities(tenantId: string): Record<string, number> {
 }
 
 function formatMenuMoney(amountCents: number, currency: string): string {
-  const amount = amountCents / 100;
-  try {
-    return new Intl.NumberFormat("en", {
-      style: "currency",
-      currency: currency.toUpperCase(),
-      maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
-    }).format(amount);
-  } catch {
-    return `${currency.toUpperCase()} ${amount.toLocaleString()}`;
-  }
+  return formatPrice({ amountCents, currency, locale: "en" }).primary;
 }
 
 /**
