@@ -1,4 +1,4 @@
--- Security hardening (TUL-1013 re-audit), 2026-10-18. HELD for Oran's typed yes (renumbered from 20261231412000; the same SQL is already live on production and staging under 412000, so this is an idempotent no-change re-run). Do not apply by hand.
+-- Security hardening (TUL-1013 re-audit), 2026-10-18. APPLIED to production and staging (Oran typed yes, 2026-10-18); idempotent re-run of the SQL first applied as 20261231412000. Do not re-apply.
 -- Additive hardening; safe before or after the code merges (no code path depends on the grants removed).
 --
 -- Staging (fxlank, read-only check) showed anon can EXECUTE 26 SECURITY DEFINER functions in

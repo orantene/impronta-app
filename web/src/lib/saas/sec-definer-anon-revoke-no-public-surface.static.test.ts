@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { POLICY_HELPER_FUNCTIONS, PUBLIC_SURFACE_FUNCTIONS } from "./public-surface-functions";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = join(HERE, "..", "..", "..", "..", "supabase", "migrations", "_pending_pm");
+const MIGRATIONS_DIR = join(HERE, "..", "..", "..", "..", "supabase", "migrations");
 const MIGRATION = "20261231414000_sec_definer_anon_revoke_no_public_surface.sql";
 const sql = readFileSync(join(MIGRATIONS_DIR, MIGRATION), "utf8");
 
