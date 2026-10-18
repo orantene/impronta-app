@@ -376,6 +376,11 @@ jobs:
       # step has NO continue-on-error: a session that survives Log out on any
       # subdomain fails the job. Local Supabase only, never production.
       - name: S1 sign-out regression (every subdomain signed out)
+        # TUL-1036/1160: the step used to hang on the 11th spec until the whole job was cancelled
+        # ("The operation was canceled"), and a cancelled job skips even `if: always()` steps, so no
+        # trace was ever uploaded. A step timeout ends it as a normal failure, so the report and
+        # traces below upload. The spec set takes ~5 min when healthy.
+        timeout-minutes: 12
         working-directory: web
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
@@ -478,6 +483,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Playwright report + traces
+        # `!cancelled()` would skip exactly the runs we need; always() uploads after a step timeout.
         if: always()
         uses: actions/upload-artifact@v4
         with:
