@@ -6012,6 +6012,7 @@
       "dash": "—",
       "untitled": "(sans titre)",
       "itemMissing": "Cet article n'est plus dans ce catalogue. La liste ci-dessous est à jour.",
+      "itemProviderOwned": "Ce service appartient à votre profil de prestataire. Modifiez-le dans Services.",
       "type": {
         "product": "Produit",
         "service": "Service",

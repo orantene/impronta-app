@@ -3,6 +3,7 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import type { SearchResult } from "@/lib/search/global-search-types";
+import { formatPrice } from "@/lib/money/format-price";
 
 /**
  * globalSearch — cross-surface command-palette search.
@@ -170,13 +171,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
 }
 
 function formatCents(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 2 }).format(
-      cents / 100,
-    );
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatPrice({ amountCents: cents, currency, locale: "en", audience: "talent" }).primary;
 }
 
 type ClientRow = { id: string; tenant_id: string; display_name: string | null; email: string | null };

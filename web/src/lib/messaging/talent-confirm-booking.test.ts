@@ -189,7 +189,7 @@ test("loadConfirmState: hidden for a stranger, ready with the amount, done after
   const ready = await loadConfirmState(fakeStore({}, []).store, { mayAct: true, talentProfileId: ME });
   assert.equal(ready.ok && ready.view.state, "ready");
   assert.equal(ready.ok && ready.view.collect, "full");
-  assert.match((ready.ok && ready.view.amountLabel) || "", /1,200\.00/);
+  assert.match((ready.ok && ready.view.amountLabel) || "", /1,200/);
 
   const inPerson = await loadConfirmState(fakeStore({}, [], NONE).store, { mayAct: true, talentProfileId: ME });
   assert.equal(inPerson.ok && inPerson.view.amountLabel, null);

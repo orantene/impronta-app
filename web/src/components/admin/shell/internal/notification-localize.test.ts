@@ -89,3 +89,16 @@ test("TUL-721: day-of reminder bells localize title and body, with a readable da
     "Your booking on 2026-10-15 is tomorrow.",
   );
 });
+
+// TUL-391 (ES half): support-ticket bells stayed English in an ES dashboard.
+test("TUL-391: support-ticket bells render in ES, subject text untouched", () => {
+  const t = (s: string) => localizeNotificationText(s, "es");
+  assert.equal(t("Resolved: QA- Batch4 ticket TUL-51"), "Resuelto: QA- Batch4 ticket TUL-51");
+  assert.equal(t("Rate how it went if you have a moment."), "Cuéntanos cómo te fue si tienes un momento.");
+  assert.equal(t("Ticket #12 needs you"), "El ticket #12 te necesita");
+  assert.equal(t("Reply on #12"), "Respuesta en #12");
+  assert.equal(t("Still need help on #12?"), "¿Sigues necesitando ayuda con #12?");
+  assert.equal(t("A proposed fix on #12 expired"), "Venció una corrección propuesta en #12");
+  assert.equal(t("Weekly support digest"), "Resumen semanal de soporte");
+  assert.equal(localizeNotificationText("Resolved: QA ticket", "en"), "Resolved: QA ticket");
+});

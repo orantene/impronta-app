@@ -36,9 +36,28 @@ test("every sidebar tooltip has a Spanish row", () => {
 // TUL-702 / TUL-704: a Spanish word written without its accent reads as a typo.
 test("es.json has no unaccented Spanish markers", () => {
   const rx =
-    /(?<![\p{L}\d_{])(?:[A-Za-z]+(?:cion|sion)|aqui|asi|despues|todavia|tambien|ademas|numero|pagina|paginas|telefono|dia|dias|sesion|version|catalogo|busqueda|duracion|ubicacion|politica|envian)(?![\p{L}\d_}])/iu;
+    /(?<![\p{L}\d_{])(?:[A-Za-z]+(?:cion|sion)|aqui|asi|despues|todavia|tambien|ademas|numero|pagina|paginas|telefono|dia|dias|sesion|version|catalogo|busqueda|duracion|ubicacion|politica|envian|ultima|ultimo|metodo)(?![\p{L}\d_}])/iu;
   const bad = [...strings(es)].filter(([, v]) => rx.test(v)).map(([k, v]) => `${k}: ${v.slice(0, 70)}`);
   assert.deepEqual(bad, []);
+});
+
+// TUL-702 (QA Batch 6/7): "en que sala", "rosters" on talent-facing copy, and a free calendar slot read "Gratis 10:00-18:00".
+test("TUL-702: no 'en que' / 'quien atiende', and no 'rosters' in the talent plan copy", () => {
+  const all = [...strings(es)];
+  assert.deepEqual(all.filter(([, v]) => /\ben que sala\b|\bcon quien atiende\b/i.test(v)).map(([k]) => k), []);
+  for (const key of ["dashboard.talent.plan.upgradeNote", "dashboard.talent.visibility.showEverywhereHint"]) {
+    const v = at(es, key);
+    if (typeof v === "string") assert.doesNotMatch(v, /rosters|Directory\b/, key);
+  }
+  assert.doesNotMatch(JSON.stringify(es), /Sigues en todos los rosters|ocultarte en todos los rosters/);
+});
+
+test("TUL-702: a free calendar gap reads Libre in Spanish, never the plan word Gratis", () => {
+  for (const f of ["talent/agenda/AgendaCalendarViews.tsx", "talent/shared/week-rhythm-1.tsx"]) {
+    const src = read(f);
+    assert.doesNotMatch(src, /copy\.t\("Free"\)/, f);
+    assert.match(src, /copy\.isSpanish \? "Libre" : "Free"/, f);
+  }
 });
 
 test("workspace settings speak Spanish: no tenants, slots or dev text", () => {
