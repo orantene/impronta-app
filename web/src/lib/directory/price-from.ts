@@ -29,8 +29,15 @@ import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headlin
  * relationship, and a talent can sit on several rosters at once (the live
  * data already has talent on 5 tenants). Agencies routinely negotiate
  * different rates for the same person, so an unscoped query would publish
- * Agency A's negotiated rate on Agency B's public directory. Without a tenant
- * scope we return nothing rather than guess whose price to show.
+ * Agency A's negotiated rate on Agency B's public directory. On an AGENCY
+ * host the tenant filter is therefore mandatory.
+ *
+ * Platform / hub host (tenantId null, TUL-791): there is no agency to leak
+ * to, and the talent's own profile there already shows every published
+ * offering (`loadPublicOfferingsForProfile` skips the tenant filter at null).
+ * The card used to return nothing at null scope, so it read only "Consultar"
+ * while the profile said "Desde $500". Null scope now reads the same rows the
+ * profile reads.
  */
 export type StartingPrice = { amountCents: number; currency: string; priceType: string };
 
@@ -57,13 +64,14 @@ export async function fetchTalentsWithPublishedOfferings(
   tenantId: string | null,
 ): Promise<Set<string>> {
   const out = new Set<string>();
-  if (talentProfileIds.length === 0 || !tenantId) return out;
+  if (talentProfileIds.length === 0) return out;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("talent_offerings")
     .select("talent_profile_id")
-    .in("talent_profile_id", talentProfileIds)
-    .eq("tenant_id", tenantId)
+    .in("talent_profile_id", talentProfileIds);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .eq("status", "published")
     .eq("moderation_state", "approved")
     .in("visibility", ["public", "on_request"])
@@ -100,15 +108,16 @@ export async function fetchStartingPrices(
 ): Promise<StartingPriceResult> {
   const prices = new Map<string, StartingPrice>();
   const bookableIds = new Set<string>();
-  if (talentProfileIds.length === 0 || !tenantId) return { prices, bookableIds };
+  if (talentProfileIds.length === 0) return { prices, bookableIds };
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("talent_offerings")
     .select(
       "talent_profile_id, amount_cents, currency, price_type, is_featured, booking_mode, duration_minutes, kind, price_display",
     )
-    .in("talent_profile_id", talentProfileIds)
-    .eq("tenant_id", tenantId)
+    .in("talent_profile_id", talentProfileIds);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .eq("status", "published")
     .eq("moderation_state", "approved")
     .in("visibility", ["public", "on_request"]);

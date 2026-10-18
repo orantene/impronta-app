@@ -100,3 +100,4 @@ src/components/marketing/footer-tap-targets.static.test.ts
 src/lib/talent-site/server/my-presence-load-parallel.static.test.ts
 src/components/edit-chrome/section-display-name-i18n.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
+src/lib/talent-site/server/builder-open-skeleton.static.test.ts

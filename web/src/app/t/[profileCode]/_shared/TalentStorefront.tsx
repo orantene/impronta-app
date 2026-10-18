@@ -25,15 +25,19 @@ import { orderCategoryNames } from "@/lib/site-admin/builder-node/services-catal
 import { LightSectionLabel } from "../_light/section-label";
 import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
+import { servicePageHrefs } from "@/lib/talent-site/service-page";
 
 export async function TalentStorefront({
   offerings,
   locale,
   heading,
+  siteUrl,
 }: {
   offerings: TalentOffering[];
   locale: string;
   heading: string;
+  /** The talent's published site address; each service links to its page there (TUL-795). */
+  siteUrl?: string | null;
 }) {
   // Defensive re-filter (loader already applies the public policy).
   const visible = offerings.filter(
@@ -74,15 +78,19 @@ export async function TalentStorefront({
   // a failed fetch prints no line rather than a guessed one.
   const usdRates = showsUsdEquivalent(locale) && needsUsdRates(visible) ? await loadUsdRates() : null;
 
+  // Only an absolute site address (custom domain or subdomain) hosts service
+  // pages at its root; the in-platform fallback path does not.
+  const serviceHrefs = siteUrl && /^https?:\/\//i.test(siteUrl) ? servicePageHrefs(visible, siteUrl) : undefined;
+
   return (
     <section aria-labelledby="storefront-heading" data-profile-section="storefront">
       <LightSectionLabel id="storefront-heading">{heading}</LightSectionLabel>
 
       <div className="mt-5">
         {showFilter ? (
-          <StorefrontFilter visible={visible} locale={locale} categories={categories} categoryLabels={categoryLabels} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+          <StorefrontFilter visible={visible} locale={locale} categories={categories} categoryLabels={categoryLabels} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} />
         ) : (
-          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} />
         )}
       </div>
     </section>

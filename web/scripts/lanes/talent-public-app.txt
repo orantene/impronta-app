@@ -30,3 +30,5 @@ src/app/t/?profileCode?/_chat/guest-first-send.test.ts
 src/app/t/?profileCode?/_chat/guest-name-split.test.ts
 src/app/t/?profileCode?/_chat/composer-key-action.test.ts
 src/app/t/?profileCode?/grk052-placeholders.static.test.ts
+src/components/talent/services/services-bootstrap.test.ts
+src/app/t/?profileCode?/_shared/storefront-service-link.test.ts
