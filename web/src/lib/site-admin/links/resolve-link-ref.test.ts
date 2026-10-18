@@ -188,3 +188,35 @@ test("FINDING-B FIX: prefixPublicHref never tenant-prefixes root auth routes", (
   assert.equal(prefixPublicHref("/login", ""), "/login");
   assert.equal(prefixPublicHref("/about", ""), "/about");
 });
+
+test("TUL-1247: an absolute app-host /w/<slug> link resolves to the site's own address", () => {
+  const abs = "https://app.staging.tulala.digital/w/qa-b7-studio/clases?x=1#top";
+  // Path host: keeps the /w/<slug> prefix, relative (no app origin).
+  assert.equal(
+    resolveLinkRef({ kind: "external-url", value: abs }, { pathPrefix: "/w/qa-b7-studio" }).href,
+    "/w/qa-b7-studio/clases?x=1#top",
+  );
+  // Branded host: no prefix at all.
+  const own = resolveLinkRef({ kind: "external-url", value: abs }, HOST);
+  assert.equal(own.href, "/clases?x=1#top");
+  assert.equal(own.external, false);
+  assert.equal(own.openInNew, false);
+  // Home of the site.
+  assert.equal(
+    resolveLinkRef({ kind: "external-url", value: "https://app.tulala.digital/w/acme" }, HOST).href,
+    "/",
+  );
+});
+
+test("TUL-1247: genuine external links and non-/w/ app links are untouched", () => {
+  for (const v of [
+    "https://instagram.com/acme",
+    "https://app.tulala.digital/talent/profile",
+    "https://evil.example/w/acme/x",
+    "https://app.tulala.digital.evil.example/w/acme/x",
+  ]) {
+    const r = resolveLinkRef({ kind: "external-url", value: v }, HOST);
+    assert.equal(r.href, v);
+    assert.equal(r.external, true);
+  }
+});

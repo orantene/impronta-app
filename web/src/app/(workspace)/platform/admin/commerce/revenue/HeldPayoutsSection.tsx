@@ -16,6 +16,7 @@ import type { HeldLedgerRow, HeldPayoutsResult } from "@/lib/payments/booking-pa
 import { heldCountLabel } from "@/lib/payments/held-payouts-display";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { formatPrice } from "@/lib/money/format-price";
 
 const HQ = {
   card: "#16161A",
@@ -31,12 +32,7 @@ const HQ = {
 const F = '"Inter", system-ui, sans-serif';
 
 function fmt(cents: number, currency: string): string {
-  const code = (currency || "mxn").toUpperCase();
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${code}`;
-  }
+  return formatPrice({ amountCents: cents, currency: currency || "MXN", locale: "en", audience: "talent" }).primary;
 }
 
 function ageDays(iso: string): number {
