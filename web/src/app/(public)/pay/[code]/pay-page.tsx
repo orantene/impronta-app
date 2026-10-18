@@ -24,6 +24,8 @@ import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { hostServesTenantPayLinks } from "@/lib/payments/pay-host-links";
 
 /**
  * Absolute origin for Stripe success/cancel URLs. Prefer NEXT_PUBLIC_BASE_URL
@@ -199,8 +201,11 @@ export async function PayByCodePage({
   // null, so "Back to the conversation" never appeared).
   const inquiryId = orderRow?.inquiry_id ?? loaded.inquiryId ?? null;
   const threadToken = inquiryId && loaded.tenantId ? signThreadToken(inquiryId, loaded.tenantId) : null;
-  const threadHref = threadToken ? publicThreadPath(threadToken) : null;
-  const receiptHref = orderRow?.receipt_code ? `/r/${orderRow.receipt_code}` : null;
+  // TUL-1252: on the app host /pay is served, but /c and /r are tenant-only
+  // there, so a relative link to either would be the 404 this page fixed.
+  const tenantLinksServe = hostServesTenantPayLinks((await getPublicHostContext()).kind);
+  const threadHref = threadToken && tenantLinksServe ? publicThreadPath(threadToken) : null;
+  const receiptHref = orderRow?.receipt_code && tenantLinksServe ? `/r/${orderRow.receipt_code}` : null;
   const cameFromConversation = Boolean(inquiryId);
   const orderLines = ((lines ?? []) as { label: string | null; units: number; unit_cents: number }[]).map((line) => ({
     label: line.label ?? "",
