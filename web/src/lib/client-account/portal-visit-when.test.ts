@@ -13,8 +13,8 @@ test("portal visits read in their own local time with the zone named", () => {
   const b = portalVisitWhen({ ...es, workspaceZone: "UTC", locale: "en" });
   assert.ok(a && /10:00/.test(a.time), a?.time);
   assert.ok(b && /10:00/.test(b.time), b?.time);
-  assert.ok(a?.tzLabel.includes("America/Mexico_City"));
-  assert.ok(b?.tzLabel.includes("Europe/Madrid"));
+  assert.equal(a?.tzLabel, "Mexico City time");
+  assert.equal(b?.tzLabel, "Madrid time");
 });
 
 test("zone order: talent hours, then booking zone, then workspace zone", () => {

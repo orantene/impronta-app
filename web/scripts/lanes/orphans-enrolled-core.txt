@@ -43,8 +43,10 @@ src/components/talent/get-found/get-found-text-contrast.static.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/i18n/client-payload-dedupe.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
+src/lib/events/zone-time-label.test.ts
 src/lib/field-engine/public-surface-visibility.test.ts
 src/lib/guide/guide-search.test.ts
 src/lib/i18n/place-names-es.test.ts
@@ -54,6 +56,7 @@ src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/onboarding/type-search.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
