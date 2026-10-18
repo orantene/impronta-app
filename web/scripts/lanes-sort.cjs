@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports -- Node CJS helper script. */
 // TUL-1185 / TUL-1186: keep web/scripts/lanes/*.txt sorted.
 //
 // Every PR that enrols a test used to append one line to the END of a list, so each merge to
