@@ -12,9 +12,9 @@ import {
 } from "@/lib/bookings/transactions";
 import {
   calculateTransactionAmountsForBasisPoints,
-  feePercent,
   formatCents,
 } from "@/lib/bookings/commission";
+import { effectiveFeeLabel } from "@/lib/bookings/fee-display";
 import { loadCommissionContext, loadInquiryActivity, type InquiryActivityItem } from "../../../_data-bridge";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import {
@@ -304,7 +304,13 @@ export default async function WorkspaceWorkDetailPage({
         grossCents: transaction.grossAmountCents,
         feeCents: transaction.platformFeeCents,
         netCents: transaction.netAmountCents,
-        feeLabel: feePercent(transaction.platformFeeBasisPoints),
+        // TUL-1176: no commission snapshot on this path (a snapshot wins below): the rate of what was
+        // CHARGED (fee / gross); the stored bps is 0 on pass-through rows by design.
+        feeLabel: effectiveFeeLabel({
+          platformFeeCents: transaction.platformFeeCents,
+          grossAmountCents: transaction.grossAmountCents,
+          storedBasisPoints: transaction.platformFeeBasisPoints,
+        }),
         currency: transaction.currency,
       }
     : preview
@@ -334,10 +340,13 @@ export default async function WorkspaceWorkDetailPage({
         grossCents: snapGrossChargedCents,
         feeCents: snapPlatformCents, // the REAL platform fee, not a flat plan %
         netCents: snapWorkspaceCents, // the workspace's actual net (agency margin)
-        feeLabel:
-          snapGrossChargedCents > 0
-            ? `${Math.round((snapPlatformCents / snapGrossChargedCents) * 100)}%`
-            : "0%",
+        // Snapshot exists: keep showing the snapshot rate (same output as before, TUL-1176).
+        feeLabel: effectiveFeeLabel({
+          platformFeeCents: snapPlatformCents,
+          grossAmountCents: snapGrossChargedCents,
+          storedBasisPoints: 0,
+          snapshot: { platformFeeCents: snapPlatformCents, grossChargedCents: snapGrossChargedCents },
+        }),
         currency: commissionSnapshots[0].currency_code,
       }
     : null;

@@ -95,7 +95,7 @@ export const RAIL_ES_TEXT: Record<string, string> = {
   "View booking": "Ver reserva",
   "New conversation": "Nueva conversación",
   "Clients write to you from your page. Share your link and new conversations show up here. You can also start one with + New conversation.":
-    "Tus clientas te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes iniciar una con + Nueva conversación.",
+    "Tus clientes te escriben desde tu página. Comparte tu enlace y las conversaciones nuevas aparecen aquí. También puedes iniciar una con + Nueva conversación.",
   "Copy your link": "Copiar tu enlace",
   "Open your page": "Abrir tu página",
   "Pick services, add extras.": "Elige servicios y extras.",

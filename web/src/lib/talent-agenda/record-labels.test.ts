@@ -8,13 +8,13 @@ const shape = { startsAt: "2026-10-03T15:00:00Z", endsAt: "2026-10-03T15:30:00Z"
 test("F61: the record's When carries the date (en)", () => {
   const label = recordWhenLabel({ ...shape, locale: "en" }) ?? "";
   assert.match(label, /^Sat, Oct 3 · 10:00/);
-  assert.match(label, /10:30\s?AM Cancun$/);
+  assert.match(label, /10:30\s?AM Cancún$/);
 });
 
 test("F61: the record's When carries the date (es)", () => {
   const label = recordWhenLabel({ ...shape, locale: "es" }) ?? "";
   assert.match(label, /^sáb,? 3 (de )?oct/);
-  assert.match(label, /Cancun$/);
+  assert.match(label, /Cancún$/);
 });
 
 test("F61: unusable times give null (the caller keeps its fallback)", () => {

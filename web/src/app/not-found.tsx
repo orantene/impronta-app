@@ -14,7 +14,8 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
-import { notFoundCopy } from "@/lib/i18n/not-found-copy";
+import { notFoundCopy, notFoundUnnamedSite } from "@/lib/i18n/not-found-copy";
+import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
@@ -28,10 +29,12 @@ export const dynamic = "force-dynamic";
 
 type AgencyBrand = {
   name: string;
+  /** false when the workspace has no name we can show; the eyebrow is then left out. */
+  named: boolean;
   homeHref: string;
 };
 
-async function loadAgencyBrand(): Promise<AgencyBrand | null> {
+async function loadAgencyBrand(locale: string): Promise<AgencyBrand | null> {
   try {
     const ctx = await getPublicHostContext();
     if (!ctx || ctx.kind !== "agency" || !ctx.tenantId) return null;
@@ -45,9 +48,16 @@ async function loadAgencyBrand(): Promise<AgencyBrand | null> {
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
 
-    const name = (data as { public_name?: string | null } | null)?.public_name?.trim();
+    let name = (data as { public_name?: string | null } | null)?.public_name?.trim() || "";
+    if (!name) {
+      // TUL-697: a workspace with no public_name used to read "en Studio". Use the account name or wordmark.
+      const emailBrand = await resolveTenantBrand(ctx.tenantId).catch(() => null);
+      name = emailBrand?.accountName?.trim() || emailBrand?.wordmark?.trim() || "";
+    }
+    // Still unnamed: say "this site", never the literal word "Studio".
     return {
-      name: name && name.length > 0 ? name : "Studio",
+      name: name || notFoundUnnamedSite(locale),
+      named: name !== "",
       homeHref: "/",
     };
   } catch {
@@ -112,11 +122,12 @@ export default async function NotFound() {
     }
   }
 
-  const brand = await loadAgencyBrand();
-  const isAgency = brand !== null;
+  // #3992: the locale is the browser-aware one; #3996: the name fallback needs it, so it resolves first.
   const locale = await resolveNotFoundLocale();
+  const brand = await loadAgencyBrand(locale);
+  const isAgency = brand !== null;
   const copy = notFoundCopy(locale, brand ? brand.name : null);
-  const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "";
+  const eyebrow = isAgency && brand?.named ? brand.name.toUpperCase() : "";
   const BRAND_INK = "#0B0B0D";
   const { heading, body } = copy;
   // Tenant 404: links keep the /w/<slug> prefix and the tenant's own locale

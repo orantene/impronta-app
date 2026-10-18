@@ -121,3 +121,14 @@ export function cityForLocale(city: string, locale: string): string {
   if (!locale.toLowerCase().startsWith("es")) return city;
   return CITY_ES[city] ?? city;
 }
+
+const strip = (v: string) => v.normalize("NFD").replace(/\p{M}/gu, "");
+
+/**
+ * Zone labels printed in either language ("1:00 PM Cancun"): only the ACCENT is restored
+ * ("Cancún", "Mérida"), never a translation, so English copy is untouched otherwise (TUL-702).
+ */
+export function cityWithAccents(city: string): string {
+  const es = CITY_ES[city];
+  return es && strip(es) === strip(city) ? es : city;
+}
