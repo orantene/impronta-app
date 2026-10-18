@@ -199,7 +199,7 @@ export function ProTierValueCard({
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", padding: "4px 9px", borderRadius: 999 }} className="text-admin-green bg-admin-success-soft">
           {targetMeta.label} · {targetMeta.monthlyPrice}
         </span>
-        <span className="text-admin-ink-muted text-xs">{copy.t("vs your current")} {TALENT_TIER_META[currentTier].label}</span>
+        <span className="text-admin-ink-muted text-xs">{copy.t("vs your current")} {copy.t(TALENT_TIER_META[currentTier].label)}</span>
       </div>
       <h3 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, letterSpacing: -0.2, lineHeight: 1.2, marginBottom: 12 }} className="text-admin-ink">
         {copy.t(isFree
@@ -321,7 +321,7 @@ export function ProTierCompactStrip({
     >
       <Icon name="sparkle" size={13} color={COLORS.green} stroke={1.7} />
       <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }} className="text-admin-ink">
-        {copy.isSpanish ? "En" : "On"} {TALENT_TIER_META[currentTier].label}.{" "}
+        {copy.isSpanish ? "En" : "On"} {copy.t(TALENT_TIER_META[currentTier].label)}.{" "}
         <span style={{ fontWeight: 600 }} className="text-admin-green">{targetMeta.label}</span> {copy.t("unlocks 3 modules")} · {targetMeta.monthlyPrice}
       </span>
       <span className="text-admin-green text-admin-11h font-semibold">

@@ -30,6 +30,7 @@ import {
   type SheetDescriptor,
 } from "@/components/reservation-thread";
 import { PALETTES } from "@/components/reservation-thread/tokens";
+import { formatPrice } from "@/lib/money/format-price";
 import ParticipantThreadShell, {
   type ParticipantThreadMessage,
   type ParticipantThreadSendResult,
@@ -120,15 +121,8 @@ function statusToClosedReason(status: string): string | undefined {
 }
 
 function fmtMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(cents / 100);
-  } catch {
-    return `${currency} ${(cents / 100).toFixed(0)}`;
-  }
+  // English-only admin thread: statuses here are English strings.
+  return formatPrice({ amountCents: cents, currency, locale: "en", audience: "talent" }).primary;
 }
 
 function fmtDateShort(iso: string | null): string {

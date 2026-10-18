@@ -248,7 +248,7 @@ export function ClientAccountArea(props: Props) {
   // ── Home: tabs ──────────────────────────────────────────────────────────
   const tab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
   const tabLabel: Record<AccountTab, string> = {
-    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), settings: a("tabSettings"),
+    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), settings: a("tabSettings"), help: a("tabHelp"),
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
@@ -369,12 +369,35 @@ export function ClientAccountArea(props: Props) {
         )}
       </>
     );
+  } else if (tab === "help") {
+    // TUL-729: a client account had no Ayuda at all. Plain answers about what a client can actually do here.
+    const faq: ReadonlyArray<readonly [string, string]> = [
+      ["helpPayQ", "helpPayA"], ["helpChangeQ", "helpChangeA"], ["helpReceiptQ", "helpReceiptA"], ["helpAskQ", "helpAskA"],
+    ];
+    body = (
+      <section data-testid="client-help">
+        <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("helpTitle")}</h2>
+        <div style={{ display: "grid", gap: 10 }}>
+          {faq.map(([q, ans]) => (
+            <div key={q} style={card}>
+              <strong>{a(q)}</strong>
+              <p style={{ margin: "6px 0 0", color: MUTED }}>{a(ans)}</p>
+            </div>
+          ))}
+        </div>
+        <p style={{ marginTop: 16 }}><Link href="/account?tab=messages" style={{ color: INK }}>{a("helpOpenMessages")}</Link></p>
+      </section>
+    );
   } else if (props.data.profile) {
     body = (
       <>
         {props.email ? <p style={{ color: MUTED, marginTop: 0 }}>{a("fieldEmail")}: {props.email}</p> : null}
         <SettingsForm
-          initial={props.data.profile}
+          // TUL-1259: the select shows the language the page is actually in. A
+          // stored profile locale that disagrees with the UI (e.g. "en" saved
+          // before the visitor switched) made Spanish Ajustes say "Inglés";
+          // saving now stores what the visitor sees.
+          initial={{ ...props.data.profile, locale: loc }}
           copy={{
             name: a("fieldName"), phone: a("fieldPhone"), language: a("fieldLanguage"), marketing: a("fieldMarketing"),
             save: a("save"), saved: a("saved"), invalid: a("phoneInvalid"), generic: a("errGeneric"), langEn: a("langEn"), langEs: a("langEs"),

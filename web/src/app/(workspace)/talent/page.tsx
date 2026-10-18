@@ -18,7 +18,6 @@ import {
   ACTIVE_TALENT_TENANT_COOKIE,
   loadPrimaryTalentAgency,
 } from "@/lib/talent/active-agency-context";
-import { loadTalentSelfProfileByUser } from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
@@ -26,8 +25,10 @@ import { buildStartUrl } from "@/lib/onboarding/legacy-signup-redirect";
 import { legacyFlowLang } from "@/lib/onboarding/legacy-signup-redirect.server";
 
 async function resolveTalentProfileId(userId: string): Promise<string | null> {
-  const self = await loadTalentSelfProfileByUser(userId);
-  if (self?.id) return self.id;
+  // TUL-1177: only the id is needed to pick the redirect. loadTalentSelfProfileByUser runs a
+  // profile read with taxonomy embeds plus headshot, gallery, bios, plan and switch reads; the
+  // very next request (/talent/today -> layout) runs it anyway, so doing it here doubled the
+  // sign-in cost for nothing. Same row (user_id, limit 1); the agency-cookie seeding below is unchanged.
   const admin = createServiceRoleClient();
   if (!admin) return null;
   // limit(1), not maybeSingle: two rows is an error from maybeSingle and

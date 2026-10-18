@@ -17,6 +17,11 @@ test("TUL-923: the default country comes from the guest's browser, then the tale
   assert.equal(guestDefaultPhoneIso({ languages: ["es"], fallbackCountry: "MX", locale: "es" }), "MX");
   assert.equal(guestDefaultPhoneIso({ languages: ["es"], locale: "es" }), "MX");
   assert.equal(guestDefaultPhoneIso({ languages: [], locale: "en" }), "US");
+  // TUL-923 recurrence: an en-US browser must not beat the talent's own country or a Mexican time zone.
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-US", "en"], fallbackCountry: "MX", locale: "es" }), "MX");
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-US"], timeZone: "America/Cancun", locale: "es" }), "MX");
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-US"], timeZone: "America/New_York", locale: "en" }), "US");
+  assert.equal(guestDefaultPhoneIso({ languages: ["en-US"], fallbackCountry: "MX", timeZone: "America/New_York", locale: "en" }), "MX");
   assert.equal(guestDefaultPhoneIso({ languages: ["es-419"], fallbackCountry: "CO", locale: "es" }), "CO", "a numeric region is not a country");
 });
 

@@ -59,10 +59,10 @@ function WebsitePreviewCard({ canBook, ready }: { canBook: boolean; ready: boole
       </div>
       <p className="px-4 py-3 text-[13.5px] leading-snug text-admin-ink-muted">
         {canBook
-          ? T("Clients can pick a time from your availability.", "Las clientas pueden elegir una hora de tu disponibilidad.")
+          ? T("Clients can pick a time from your availability.", "Los clientes pueden elegir una hora de tu disponibilidad.")
           : T(
               "Clients can only send a request until you set your availability.",
-              "Las clientas solo pueden enviar una solicitud hasta que definas tu disponibilidad.",
+              "Los clientes solo pueden enviar una solicitud hasta que definas tu disponibilidad.",
             )}
       </p>
     </section>

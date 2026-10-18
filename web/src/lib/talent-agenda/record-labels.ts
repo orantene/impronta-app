@@ -1,3 +1,4 @@
+import { cityWithAccents } from "@/components/admin/shell/internal/talent/agenda/timezone-city-es";
 /**
  * Booking record copy (F61, F62). Pure so the strings are testable.
  */
@@ -26,7 +27,7 @@ export function recordWhenLabel(input: {
   } catch {
     return null;
   }
-  const city = input.tz ? input.tz.split("/").pop()?.replace(/_/g, " ") ?? "" : "";
+  const city = input.tz ? cityWithAccents(input.tz.split("/").pop()?.replace(/_/g, " ") ?? "") : "";
   return `${day} · ${time}${city ? ` ${city}` : ""}`;
 }
 

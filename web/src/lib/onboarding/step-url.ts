@@ -4,7 +4,7 @@
  * Progress itself is restored by the saved-progress resume, not by the URL.
  * Pure, so it is unit tested.
  */
-const STEP = /^[a-z][a-z0-9-]{0,40}$/;
+const STEP = /^[A-Za-z][A-Za-z0-9-]{0,40}$/;
 
 export function urlWithStep(href: string, step: string | null | undefined): string {
   const url = new URL(href);

@@ -75,7 +75,7 @@ describe("T2.5 dual timezone", () => {
       "America/Merida",
       "Europe/Madrid",
     );
-    assert.match(label, /Merida/);
+    assert.match(label, /Mérida/);
     assert.match(label, /Madrid/);
   });
 });

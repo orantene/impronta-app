@@ -87,7 +87,7 @@ export const BUSINESS_TYPES: readonly BusinessType[] = [
     "beauty",
     "Beauty salon",
     "Salón de belleza",
-    ["salon de belleza", "salón de belleza", "beauty salon", "estetica", "estética", "centro de belleza"],
+    ["salon de belleza", "salón de belleza", "beauty salon", "estetica", "estética", "centro de belleza", "beauty studio", "estudio de belleza"],
     "salon_barber",
   ),
   t("hair-salon", "beauty", "Hair salon", "Peluquería", ["hairdresser", "peluqueria", "peluquería", "hair salon", "corte de pelo", "corte de cabello", "haircut", "hair stylist", "estilista"], "salon_barber"),
