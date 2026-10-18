@@ -3,6 +3,8 @@
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { resolveGreetingName } from "@/lib/dashboard/greeting-name";
 import Link from "next/link";
+import { useVerifiedLiveBadge } from "@/components/talent/website-reward/useVerifiedLiveBadge";
+import { LiveWebsiteTitle } from "@/components/talent/website-reward/LiveWebsiteTitle";
 import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
@@ -268,6 +270,8 @@ export function AgendaTodayPage({
   });
   const percent = eligibility?.percent ?? null;
   const qualityMode = resolveQualityCardMode({ percent, sitePublished });
+  // TUL-818: the same verified answer as the top pill, so this card never says "live" while the pill says "checking".
+  const liveBadge = useVerifiedLiveBadge(sitePublished);
   const requiredSlices = (eligibility?.slices ?? []).filter((s) => s.required);
   const openSlice = useOpenWebsiteSlice();
   const leftCount = requiredSlices.filter((s) => s.done === false).length;
@@ -486,10 +490,7 @@ export function AgendaTodayPage({
   if (qualityMode === "live") {
     qualityCard = (
       <section className={`${CARD} p-4`}>
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[var(--tc-ok)]" aria-hidden />
-          <span className="text-[13.5px] font-semibold text-[var(--tc-ok)]">{copy.t("Your website is live")}</span>
-        </div>
+        <LiveWebsiteTitle badge={liveBadge} />
         {siteHost ? (
           <div className="mt-1.5 break-all text-[17px] font-semibold text-[var(--tc-primary)]">{siteHost}</div>
         ) : null}

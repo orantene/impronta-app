@@ -8,6 +8,7 @@ import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i1
 import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
 import type { LocationSettings } from "@/lib/talent/location-settings";
 import { LocationSettingsCard } from "./LocationSettingsCard";
+import { whereChoicesForPlace, type ServiceWhere } from "@/lib/onboarding/service-where";
 
 // PDF p15 "Defaults · the rules every item starts with". Four cards in a
 // 2x2 grid (one column on phone), the arithmetic worked out under each rule.
@@ -276,7 +277,7 @@ export function DefaultsScreen({
         {/* Where you work */}
         <Card title={copy.t("Where you work")} hint={copy.t("Used to offer and to block time")}>
           <div className="flex flex-wrap gap-2">
-            {WHERE_OPTIONS.map((o) => {
+            {WHERE_OPTIONS.filter((o) => whereChoicesForPlace(defaults.placeMode, defaults.where as ServiceWhere[]).includes(o.id)).map((o) => {
               const on = defaults.where.includes(o.id);
               return (
                 <button

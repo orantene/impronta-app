@@ -65,7 +65,8 @@ function CatalogWhoPhone({
         autoComplete="tel-national"
         placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
         aria-invalid={invalid}
-        aria-label="WhatsApp"
+        aria-label={es ? "WhatsApp (opcional)" : "WhatsApp (optional)"}
+        aria-required={false}
         data-testid="cb-phone"
       />
     </div>
@@ -98,8 +99,9 @@ export function CatalogWhoContact({
   return (
     <>
       <label className="jb-field">
-        <span>{es ? "Nombre" : "Name"}</span>
+        <span>{es ? "Nombre" : "Name"} <i data-testid="cb-name-required">{es ? "(obligatorio)" : "(required)"}</i></span>
         <input
+          aria-required
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={onBlur}
@@ -109,9 +111,10 @@ export function CatalogWhoContact({
         />
         {touched && !nameValid ? <em role="alert">{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
       </label>
-      <div className="jb-field" role="group" aria-label="WhatsApp">
-        <span>
-          WhatsApp <i>{es ? "opcional" : "optional"}</i>
+      <div className="jb-field" role="group" aria-label={es ? "WhatsApp (opcional)" : "WhatsApp (optional)"}>
+        {/* TUL-842: the field is optional for a booking; the label says so in words, not only in the aria text. */}
+        <span data-testid="cb-phone-label">
+          WhatsApp <i>{es ? "(opcional)" : "(optional)"}</i>
         </span>
         <CatalogWhoPhone
           es={es} locale={locale} fallbackCountry={fallbackCountry} value={phone} onChange={setPhone}
@@ -121,8 +124,9 @@ export function CatalogWhoContact({
         {askAttempted && !chatPhoneValid ? <em role="alert">{es ? "WhatsApp hace falta para chatear." : "WhatsApp is needed to chat."}</em> : null}
       </div>
       <label className="jb-field">
-        <span>{es ? "Correo" : "Email"}</span>
+        <span>{es ? "Correo" : "Email"} <i data-testid="cb-email-required">{es ? "(obligatorio)" : "(required)"}</i></span>
         <input
+          aria-required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onBlur={onBlur}
