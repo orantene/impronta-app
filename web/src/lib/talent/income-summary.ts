@@ -21,13 +21,35 @@ export function resolveIncomeSummaryYear(raw: string | null | undefined, fallbac
 }
 
 /**
- * Keeps only the rows worked in `year` and re-sums the tiles from them, so a
- * 2025 summary never carries 2026 data (the loader only has a lower bound).
- * Row amounts are untouched.
+ * Which date puts a booking in a year. One basis per figure, stated on the PDF:
+ *  - "worked": the year the job was WORKED (workDate). Drives the tiles and the booking table.
+ *  - "paid": the year the money was PAID OUT (payoutDate). Drives the "paid out" line.
+ * A row is on exactly one side of each basis: a December job paid in January is a worked-in-December
+ * row and a paid-in-January row; it is never dropped from a basis and never counted twice within one.
  */
-export function restrictEarningsToYear(earnings: TalentEarnings, year: number): TalentEarnings {
-  const prefix = `${year}-`;
-  const rows: TalentEarningsRow[] = earnings.rows.filter((r) => (r.workDate ?? "").startsWith(prefix));
+export type IncomeSummaryBasis = "worked" | "paid";
+
+function rowInYear(r: TalentEarningsRow, year: number, basis: IncomeSummaryBasis): boolean {
+  const date = basis === "paid" ? r.payoutDate : r.workDate;
+  return (date ?? "").startsWith(`${year}-`);
+}
+
+/** The agency key: tenant id when the row carries it, else the display name (older rows). */
+function agencyKey(r: { tenantId?: string | null; agencyName: string }): string {
+  return r.tenantId ? `t:${r.tenantId}` : `n:${r.agencyName}`;
+}
+
+/**
+ * Keeps only the rows on `basis` for `year` and re-sums the tiles and per-agency lines from them, so a
+ * 2025 summary never carries 2026 data (the loader only has a lower bound). Row amounts are untouched.
+ * Agencies are keyed by tenant id; the display label is carried separately.
+ */
+export function restrictEarningsToYear(
+  earnings: TalentEarnings,
+  year: number,
+  basis: IncomeSummaryBasis = "worked",
+): TalentEarnings {
+  const rows: TalentEarningsRow[] = earnings.rows.filter((r) => rowInYear(r, year, basis));
   let gross = 0;
   let net = 0;
   let pending = 0;
@@ -38,15 +60,16 @@ export function restrictEarningsToYear(earnings: TalentEarnings, year: number): 
     net += r.netCents;
     if (r.status === "invoiced" || r.status === "pending") pending += r.netCents;
     else if (r.status === "confirmed") pipeline += r.netCents;
-    const a = byAgency.get(r.agencyName) ?? { net: 0, count: 0, last: null };
+    const key = agencyKey(r);
+    const a = byAgency.get(key) ?? { net: 0, count: 0, last: null };
     a.net += r.netCents;
     a.count += 1;
     if (!a.last || r.workDate > a.last) a.last = r.workDate;
-    byAgency.set(r.agencyName, a);
+    byAgency.set(key, a);
   }
   const perAgency = earnings.perAgency
     .map((p) => {
-      const a = byAgency.get(p.name);
+      const a = byAgency.get(`t:${p.tenantId}`) ?? byAgency.get(`n:${p.name}`);
       return a ? { ...p, ytdNetCents: a.net, bookingsCount: a.count, lastBookingAt: a.last } : null;
     })
     .filter((p): p is NonNullable<typeof p> => p !== null)
@@ -64,6 +87,13 @@ export function restrictEarningsToYear(earnings: TalentEarnings, year: number): 
   };
 }
 
+/** Net money PAID OUT in `year` (payout-date basis): paid rows only, each once. */
+export function paidOutNetCents(earnings: TalentEarnings, year: number): number {
+  return earnings.rows
+    .filter((r) => r.status === "paid" && rowInYear(r, year, "paid"))
+    .reduce((sum, r) => sum + r.netCents, 0);
+}
+
 export type IncomeSummaryStrings = {
   title: (year: number) => string;
   generated: string;
@@ -71,6 +101,8 @@ export type IncomeSummaryStrings = {
   gross: string;
   pending: string;
   pipeline: string;
+  paidOut: (year: number) => string;
+  basisNote: string;
   perAgency: string;
   bookingsHeading: string;
   noAgency: string;
@@ -93,6 +125,8 @@ const EN: IncomeSummaryStrings = {
   gross: "Gross",
   pending: "Pending",
   pipeline: "Pipeline",
+  paidOut: (y) => `Paid out in ${y} (by payout date)`,
+  basisNote: "Net, gross, pending and pipeline count bookings by the date the work was done.",
   perAgency: "PER AGENCY",
   bookingsHeading: "BOOKINGS",
   noAgency: "No agency earnings in this period.",
@@ -124,6 +158,8 @@ const ES: IncomeSummaryStrings = {
   gross: "Bruto",
   pending: "Pendiente",
   pipeline: "Por cobrar",
+  paidOut: (y) => `Pagado en ${y} (por fecha de pago)`,
+  basisNote: "Neto, bruto, pendiente y por cobrar cuentan las reservas por la fecha en que se hizo el trabajo.",
   perAgency: "POR AGENCIA",
   bookingsHeading: "RESERVAS",
   noAgency: "Sin ingresos de agencias en este periodo.",

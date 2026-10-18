@@ -15,6 +15,7 @@ import {
   incomeSummaryStrings,
   resolveIncomeSummaryLocale,
   resolveIncomeSummaryYear,
+  paidOutNetCents,
   restrictEarningsToYear,
 } from "@/lib/talent/income-summary";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
@@ -63,7 +64,10 @@ export async function GET(request: Request) {
     sinceISO,
   });
   // The loader only has a lower bound, so cut the bundle to the requested year (TUL-1243).
-  const earnings = restrictEarningsToYear(primaryBundleOrEmpty(earningsByCurrency), year);
+  const allEarnings = primaryBundleOrEmpty(earningsByCurrency);
+  // Tiles and the booking table use the WORKED basis; the paid-out line uses the PAYOUT-date basis.
+  const earnings = restrictEarningsToYear(allEarnings, year, "worked");
+  const paidOutCents = paidOutNetCents(allEarnings, year);
 
   const talentName = guard.talentProfile.displayName ?? "Talent";
   const profileCode = guard.talentProfile.profileCode ?? "";
@@ -188,6 +192,10 @@ export async function GET(request: Request) {
     });
   });
   cursor += 54;
+  drawText(`${L.paidOut(year)}: ${fmt(paidOutCents, totals.currency)}`, { size: 9, bold: true });
+  cursor += 12;
+  drawText(L.basisNote, { size: 8, color: muted });
+  cursor += 6;
 
   // ── Section: Per Agency ─────────────────────────────────────────
   cursor += 4;

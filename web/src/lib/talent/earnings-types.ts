@@ -5,6 +5,8 @@ export type TalentEarningsRow = {
   workDate: string;
   payoutDate: string | null;
   agencyName: string;
+  /** The agency's tenant id: the stable key (two agencies can share a display name). */
+  tenantId?: string;
   client: string;
   grossCents: number;
   netCents: number;
@@ -284,6 +286,7 @@ export function buildTalentEarnings(
       workDate: row.workDate,
       payoutDate: row.payoutDate,
       agencyName: row.agencyName,
+      tenantId: row.tenantId,
       client: row.clientLabel,
       grossCents: row.grossCents,
       netCents: row.netCents,
