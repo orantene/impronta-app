@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
+  replyLanguageDirective,
+  replyLanguageMismatch,
   bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
   normalizeBookingAssistantLocale,
@@ -49,4 +52,25 @@ test("TUL-1154: ambiguous message falls back to the page locale", () => {
   assert.equal(detectGuestMessageLocale("5"), null);
   assert.equal(resolveBookingAssistantReplyLocale("ok", "es"), "es");
   assert.equal(resolveBookingAssistantReplyLocale("ok", "en"), "en");
+});
+
+test("TUL-1154: the model is told the reply language explicitly, in both languages", () => {
+  assert.match(replyLanguageDirective("en"), /REPLY_LANGUAGE=English/);
+  assert.match(replyLanguageDirective("es"), /REPLY_LANGUAGE=Spanish/);
+});
+
+test("TUL-1154: an English guest never gets a Spanish reply posted", () => {
+  const guest = "Are you available March 8 for a wedding in Tulum, and what do you charge?";
+  assert.equal(replyLanguageMismatch(guest, "Hola, sí estoy disponible para esa fecha y el precio es de 5000 pesos."), true);
+  assert.equal(replyLanguageMismatch(guest, "Yes, I am available on that date and the price is 5000 pesos."), false);
+  // unclear on either side: never block
+  assert.equal(replyLanguageMismatch("ok", "Hola, sí estoy disponible."), false);
+  assert.equal(replyLanguageMismatch(guest, "5000 MXN"), false);
+});
+
+test("TUL-1154: the turn sends the directive to the model and swaps a wrong-language reply for the handoff copy", () => {
+  const src = readFileSync("src/lib/ai/booking-assistant/turn.server.ts", "utf8");
+  assert.match(src, /replyLanguageDirective\(locale\),\s*\n\s*"UNTRUSTED_GUEST_MESSAGE_BEGIN"/);
+  assert.match(src, /replyLanguageMismatch\(args\.guestMessage, sanitized\.text\)/);
+  assert.match(src, /sanitized\.escalate \|\| !sanitized\.text\.trim\(\) \|\| wrongLanguage/);
 });

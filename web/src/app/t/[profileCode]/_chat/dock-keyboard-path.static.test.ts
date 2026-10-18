@@ -19,7 +19,14 @@ test("TUL-1082: focus moves into the dock on open (desktop composer)", () => {
   assert.match(panel, /textareaRef\.current\?\.focus\(\)/);
 });
 
-test("TUL-1082: focus returns to the launcher after close", () => {
+test("TUL-1082: focus returns to the control that opened the dock, the launcher, or a visible chat opener", () => {
   assert.match(launcher, /wasOpenRef\.current && !open/);
-  assert.match(launcher, /pillRef\.current\?\.focus\(\)/);
+  // the opener (catalog bar / selection dock chat button) first, then the launcher, then any visible opener
+  assert.match(launcher, /openerRef\.current,\s*\n\s*pillRef\.current,\s*\n\s*\.\.\.Array\.from\(document\.querySelectorAll<HTMLElement>\(CHAT_OPENER_SELECTOR\)\)/);
+  assert.match(launcher, /document\.addEventListener\("focusin", onFocusIn\)/);
+});
+
+test("TUL-1082: focus always moves into the dock on open (composer on desktop, the dialog itself otherwise)", () => {
+  assert.match(panel, /panel\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(panel, /data-guest-chat-panel=""\s*\n\s*tabIndex=\{-1\}/);
 });

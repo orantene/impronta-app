@@ -1,5 +1,5 @@
 import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
-import { zoneCity } from "@/lib/events/public-event-time";
+import { zoneTimeLabel } from "@/lib/events/zone-time-label";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 import { resolveOfferingCta, type TalentOffering } from "@/lib/talent/offerings-types";
 import {
@@ -7,7 +7,6 @@ import {
   type TalentBookingPosture,
 } from "@/lib/talent/selling-booking-settings";
 import { deriveOfferingCta, offeringCtaLabel } from "@/lib/talent/offering-cta-derivation";
-import { localizePlaceCity } from "@/lib/talent-site/city-label";
 
 export type CatalogBookingMode = "demo" | "live";
 
@@ -525,39 +524,13 @@ export function catalogSelectedDateLabel(date: Date, es: boolean): string {
   return es ? `${day} ${date.getDate()} ${month}` : `${day} ${month} ${date.getDate()}`;
 }
 
-/** IANA city names whose Spanish/English display needs an accent (QA DS-07: "Hora de Cancun"). */
-const ZONE_CITY_DISPLAY: Record<string, string> = {
-  Cancun: "Cancún",
-  Merida: "Mérida",
-  Mazatlan: "Mazatlán",
-  Bogota: "Bogotá",
-  Asuncion: "Asunción",
-  Sao_Paulo: "São Paulo",
-  Port_of_Spain: "Port of Spain",
-};
-
-/**
- * TUL-59 / TUL-533: "Hora de {city}" / "{city} time".
- * Prefer the talent's place city when known (Houston over Chicago for
- * America/Chicago; Morelia over Mexico City for America/Mexico_City). Otherwise
- * name the IANA zone in the page language (ES → Ciudad de México, not Mexico City).
- * Accent-only overrides keep Cancún / Mérida etc. when the shared zone map has no entry.
- */
+/** TUL-59 / TUL-533 / TUL-1147: "Hora de {city}" / "{city} time". One source: `zoneTimeLabel`, shared with the client's visit pages. */
 export function catalogTimezoneLabel(
   tz: string | null | undefined,
   es: boolean,
   placeCity?: string | null,
 ): string {
-  const zone = (tz ?? "").trim();
-  if (!zone) return "";
-  const place = placeCity?.trim();
-  if (place) {
-    const city = localizePlaceCity(place, es ? "es" : "en");
-    return es ? `Hora de ${city}` : `${city} time`;
-  }
-  const raw = zone.includes("/") ? (zone.split("/").pop() ?? zone) : zone;
-  const city = ZONE_CITY_DISPLAY[raw] ?? zoneCity(zone, es ? "es" : "en");
-  return es ? `Hora de ${city}` : `${city} time`;
+  return zoneTimeLabel(tz, es, placeCity);
 }
 
 /** Local yyyy-mm-dd of a day, used to validate a restored day pick. */

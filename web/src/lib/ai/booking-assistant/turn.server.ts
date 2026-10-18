@@ -25,6 +25,8 @@ import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
   bookingAssistantHandoffCopy,
+  replyLanguageDirective,
+  replyLanguageMismatch,
   resolveBookingAssistantReplyLocale,
   type BookingHandoffReason,
 } from "./handoff";
@@ -483,6 +485,7 @@ export async function maybeRunBookingAssistantTurn(
           grounding,
           "SERVICE_CATALOG_END",
           `locale=${locale}`,
+          replyLanguageDirective(locale),
           "UNTRUSTED_GUEST_MESSAGE_BEGIN",
           args.guestMessage.slice(0, 800),
           "UNTRUSTED_GUEST_MESSAGE_END",
@@ -541,7 +544,9 @@ export async function maybeRunBookingAssistantTurn(
     }
 
     const sanitized = sanitizeBookingAssistantOutput(completion.text, grounding);
-    if (sanitized.escalate || !sanitized.text.trim()) {
+    // TUL-1154: never post a reply in the other language than the guest wrote.
+    const wrongLanguage = replyLanguageMismatch(args.guestMessage, sanitized.text);
+    if (sanitized.escalate || !sanitized.text.trim() || wrongLanguage) {
       if (handedOffBefore) return null;
       const reason: BookingHandoffReason = "unsure";
       return insertSystemEvent({

@@ -49,6 +49,7 @@ import { useLauncherSessionRestore } from "./use-launcher-session-restore";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
 import { useYieldBookingBar } from "./use-yield-booking-bar";
+import { CHAT_OPENER_SELECTOR, isKeyboardReachable, pickFocusReturnTarget } from "./dock-focus-return";
 import {
   DEFAULT_ACCENT,
   FONT,
@@ -216,9 +217,30 @@ export function TalentProfileChatLauncher({
   // TUL-1082: the launcher unmounts while the dock is open, so Esc / X used to
   // drop focus on <body>. Hand it back to the launcher once it remounts.
   const wasOpenRef = useRef(false);
+  // The control the guest last focused before the dock opened: with the catalog bar / selection
+  // dock up, the launcher is hidden and THAT control (not the pill) is the opener to return to.
+  const openerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) return undefined;
+    const onFocusIn = (e: FocusEvent) => {
+      if (e.target instanceof HTMLElement && e.target !== document.body) openerRef.current = e.target;
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, [open]);
   useEffect(() => {
     if (wasOpenRef.current && !open) {
-      const raf = requestAnimationFrame(() => pillRef.current?.focus());
+      const raf = requestAnimationFrame(() => {
+        const target = pickFocusReturnTarget<HTMLElement>(
+          [
+            openerRef.current,
+            pillRef.current,
+            ...Array.from(document.querySelectorAll<HTMLElement>(CHAT_OPENER_SELECTOR)),
+          ],
+          isKeyboardReachable,
+        );
+        target?.focus();
+      });
       wasOpenRef.current = false;
       return () => cancelAnimationFrame(raf);
     }

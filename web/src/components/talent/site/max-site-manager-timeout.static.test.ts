@@ -20,8 +20,12 @@ test("TUL-728: a timed-out or thrown load always ends in the retry state, never 
   assert.match(src, /const retry = \(\) => \{\s*setLoading\(true\);\s*setError\(null\);\s*void reload\(\);/);
 });
 
-test("TUL-728: 'Hide a public page' in Settings routes to Where I appear and never touches the manager loader", () => {
+test("TUL-728 / TUL-1114: 'Hide a public page' opens the hide/show list inside Settings, never navigates away, never touches the manager loader", () => {
   const settings = readFileSync("src/components/admin/shell/internal/talent/pages/SettingsPage.tsx", "utf8");
-  assert.match(settings, /key: "hide",[\s\S]*?onOpen: \(\) => setTalentPage\("public-page"\)/);
+  const at = settings.indexOf('key: "hide",');
+  const row = settings.slice(at, at + 600);
+  assert.match(row, /panel: <TalentSiteAppearancesPanel \/>/);
+  assert.doesNotMatch(row, /onOpen/, "the row must not navigate out of Settings");
+  assert.doesNotMatch(row, /setTalentPage\("public-page"\)/);
   assert.doesNotMatch(settings, /loadMaxSiteManagerAction/);
 });

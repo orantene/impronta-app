@@ -472,10 +472,16 @@ export function MiniChatPanel({
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
-    const focusTimer = phone ? undefined : setTimeout(() => textareaRef.current?.focus(), 60);
+    // TUL-1082: focus always moves INTO the dock on open, so the first Tab lands inside it. The
+    // composer on desktop; the dialog itself on a phone (no keyboard pop-up) or if the composer is absent.
+    const focusTimer = setTimeout(() => {
+      if (!phone) textareaRef.current?.focus();
+      const panel = document.querySelector<HTMLElement>("[data-guest-chat-panel]");
+      if (panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
+    }, 60);
     return () => {
       window.removeEventListener("keydown", onKey);
-      if (focusTimer) clearTimeout(focusTimer);
+      clearTimeout(focusTimer);
     };
   }, [open, onClose]);
 
@@ -788,8 +794,9 @@ export function MiniChatPanel({
       role="dialog"
       aria-modal="false"
       data-guest-chat-panel=""
+      tabIndex={-1}
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
-      style={miniPanelContainerStyle(P, compactSheet, keyboardInsetPx)}
+      style={{ ...miniPanelContainerStyle(P, compactSheet, keyboardInsetPx), outline: "none" }}
     >
       <MiniChatPanelColumn {...columnProps} />
     </div>
