@@ -36,6 +36,7 @@ import { messagingClientAddItem } from "@/lib/server-actions/messaging-client";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
 
+import { selectCatalogRow } from "./catalog-select";
 import { requestChatAddService } from "@/components/public-booking/chat-catalog-events";
 
 import { dockServiceCtaLabel, dockServiceOpensBookingSheet, dockStorefrontCtaLabel } from "./dock-cta-label";
@@ -383,6 +384,8 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         // TUL-1068: hub talent pages (/t/<code>) have no /book or /events, so Select would 404 and drop the widget.
         const onHubProfile = /^\/(?:[a-z]{2}\/)?t\//.test(pathname ?? "");
         const buyHref = buyPath && !onHubProfile ? clientLocaleHref(pathname ?? "/", buyPath) : null;
+        // TUL-1068 #1: a service/class Select stays in the widget (never a /book link).
+        const selectInPage = (row.category === "service" || row.category === "class") && !!row.offeringId;
         const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
@@ -415,11 +418,18 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accentInk={accentInk}
               />
             ) : null}
-            {buyHref && row.available ? (
+            {selectInPage && row.available ? (
+              <SmallButton itemName={row.title}
+                label={t("public.guestChat.catalogAdd")}
+                onClick={() => { selectCatalogRow({ offeringId: row.offeringId ?? null, requestIsland: requestChatAddService, addToInquiry: () => void onAdd(row) }); }}
+                C={C}
+                accent={accent}
+                accentInk={accentInk}
+              />
+            ) : buyHref && row.available ? (
               <SmallButton itemName={row.title}
                 label={row.category === "service" || row.category === "class" ? t("public.guestChat.catalogAdd") : dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
                 href={buyHref}
-                onSelect={row.offeringId && (row.category === "service" || row.category === "class") ? () => requestChatAddService(row.offeringId as string) : undefined}
                 C={C}
                 accent={accent}
                 accentInk={accentInk}
