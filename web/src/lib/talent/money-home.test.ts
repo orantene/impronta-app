@@ -269,7 +269,13 @@ describe("F69 talentOwedSummary: Today card and Money page share one number", ()
       assert.ok(src.includes("talentOwedSummary("), f);
     }
     const today = readFileSync(new URL("../../components/admin/shell/internal/talent/agenda/AgendaTodayPage.tsx", import.meta.url), "utf8");
-    assert.ok(today.includes("loadTalentClients("), "Today reads the same client ledger");
+    // TUL-1242: both surfaces load the ledger through ONE hook (loading / ready / error), which
+    // calls the same loadTalentClients action; neither calls the action directly any more.
+    const money = readFileSync(new URL("../../components/talent/money/MoneyHomePage.tsx", import.meta.url), "utf8");
+    const hook = readFileSync(new URL("../../components/talent/money/use-talent-ledger-clients.ts", import.meta.url), "utf8");
+    assert.ok(today.includes("useTalentLedgerClients("), "Today reads the same client ledger");
+    assert.ok(money.includes("useTalentLedgerClients("), "Money reads the same client ledger");
+    assert.ok(hook.includes("loadTalentClients("), "the shared hook is the one reader of the ledger");
   });
 });
 
