@@ -6,6 +6,7 @@ import {
   clampWords,
   localiseBakedLanguagesLine,
 } from "./talent-locale-swaps";
+import { accentHeadline, seedHeadlineFor } from "./hero-headline";
 
 const en = "I studied engineering for three years, until I understood that what I really loved was working with my hands and making people feel beautiful every single day, from the first coffee of the morning until the last client of the night.";
 const es = "Estudié ingeniería tres años, hasta que entendí que lo que amaba era trabajar con mis manos y hacer que la gente se sienta bella cada día.";
@@ -105,6 +106,22 @@ test("an ASCII-folded baked city swaps to its accented form, alone and in the ey
   assert.equal(es["Based in Cancun"], "Con base en Cancún");
   const en = buildTalentLocaleSwaps({ ...src, homeCity: { en: "Cancún" } }, "en");
   assert.equal(en["Cancun"], "Cancún");
+});
+
+test("TUL-858: a Spanish-baked tree reads English on /en (headline, bio, trade), never the reverse leak", () => {
+  const src = {
+    bioI18n: { en, es },
+    typeNames: [{ en: "Nail Artist", es: "Manicurista" }],
+    homeCity: { en: "Playa del Carmen" },
+    seedKey: "TAL-1",
+  };
+  const seed = seedHeadlineFor("Nail Artist", "TAL-1")!;
+  const m = buildTalentLocaleSwaps(src, "en");
+  assert.equal(m[accentHeadline(seed.es)], accentHeadline(seed.en));
+  assert.ok(m[es]?.startsWith("I studied engineering"));
+  assert.equal(m["Manicurista"], "Nail Artist");
+  // Spanish visitors still go the other way.
+  assert.equal(buildTalentLocaleSwaps(src, "es")[accentHeadline(seed.en)], accentHeadline(seed.es));
 });
 
 test("ES swaps the baked About languages line (TUL-121 design polish)", () => {
