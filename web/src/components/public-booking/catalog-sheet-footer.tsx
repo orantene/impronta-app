@@ -5,8 +5,10 @@ import type { ReactNode } from "react";
 /** The catalog booking sheet footer: total plus the step's primary action (split out for max-lines). */
 export function CatalogSheetFooter({
   step, es, totalLabel, onContinueChoose, chooseDisabled, chooseLabel,
-  whenReady, onContinueWhen, whoCta, onDone,
+  whenReady, onContinueWhen, whoCta, onDone, paymentLine,
 }: {
+  /** TUL-976: prepaid vs pay-at-appointment line under the total on the choose and when steps (display only). */
+  paymentLine?: string | null;
   step: "choose" | "when" | "who" | "done";
   es: boolean;
   /** The footer total line (null on done). */
@@ -26,6 +28,9 @@ export function CatalogSheetFooter({
         <div className="jb-total">
           <span>Total</span>
           {totalLabel}
+          {paymentLine && (step === "choose" || step === "when") ? (
+            <small data-catalog-pay-line>{paymentLine}</small>
+          ) : null}
         </div>
       ) : (
         <span />

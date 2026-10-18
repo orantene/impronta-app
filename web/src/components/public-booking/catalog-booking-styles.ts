@@ -114,6 +114,7 @@ export const CATALOG_BOOKING_CSS = `
 .jb-total{display:grid}
 .jb-total span{font-size:.6875rem;letter-spacing:.12em;text-transform:uppercase;color:var(--cb-muted)}
 .jb-total b{font-size:1.1875rem;font-variant-numeric:tabular-nums}
+.jb-total small{font-size:.75rem;line-height:1.3;color:var(--cb-muted);max-width:26ch}
 .jb-cta{appearance:none;border:0;cursor:pointer;min-height:52px;padding:0 24px;border-radius:10px;background:var(--cb-primary);color:#fff;font-family:inherit;font-size:.9375rem;font-weight:600}
 .jb-cta:hover:not(:disabled){filter:brightness(.92)}
 .jb-cta:disabled{background:var(--cb-edge);color:#fff;cursor:not-allowed}

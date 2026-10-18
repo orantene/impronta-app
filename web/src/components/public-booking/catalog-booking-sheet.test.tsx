@@ -430,6 +430,15 @@ function goToWho(host: Element, d: OfferingRequestDetail) {
   if (when && !when.disabled) act(() => when.click());
 }
 
+test("TUL-976: the choose-step footer states how payment works, not only the total", () => {
+  const { host, unmount } = mount("demo", mockBook());
+  open(detail({ addOns: [], reserveMode: "deposit", depositPct: 40, allowPayInPerson: false }));
+  const line = host.querySelector(".jb-total [data-catalog-pay-line]");
+  assert.ok(line, "payment line under the total on the choose step");
+  assert.match(line.textContent ?? "", /40%/);
+  unmount();
+});
+
 test("who-step pay copy matches free studio vs deposit (no studio lie)", () => {
   const book = mockBook();
   const { host, unmount } = mount("demo", book);
