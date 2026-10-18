@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HubAgencyList } from "./hub-agency-list";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
@@ -274,7 +275,8 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
   if (admin && tenantIds.length > 0) {
-    const { data: agencyRows } = await admin.from("agencies").select("id, display_name").in("id", tenantIds);
+    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name").in("id", tenantIds);
+    if (namesError) logServerError("hubLanding.agencyNames", namesError);
     for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null }>) {
       const n = a.display_name?.trim();
       if (n) names.set(a.id, n);
