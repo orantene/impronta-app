@@ -465,7 +465,9 @@ export async function captureGuestChip(input: GuestChipInput): Promise<GuestChip
     // A hub owns no roster of its own (it lists the cross-tenant index): unchanged.
     let chipInput = input;
     if (input.kind === "talent") {
-      const { data: tenantRow } = await admin.from("agencies").select("kind").eq("id", inquiry.tenantId).maybeSingle();
+      const { data: tenantRow, error: kindErr } = await admin.from("agencies").select("kind").eq("id", inquiry.tenantId).maybeSingle();
+      // A failed read leaves the kind unknown, which scopes to the roster (fails closed).
+      if (kindErr) logServerError("guestChip.talentScope.kind", kindErr);
       if ((tenantRow as { kind?: string | null } | null)?.kind !== "hub") {
         chipInput = {
           ...input,
