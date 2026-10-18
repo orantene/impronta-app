@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
-import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
 import { isSignOutPath } from "@/lib/auth/sign-out-paths";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
@@ -295,12 +295,7 @@ export async function updateSession(
         );
         supabaseResponse = attachGuestCookie(nextPreservingUrl());
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, {
-            ...options,
-            ...(authCookieDomain && isSupabaseAuthCookie(name)
-              ? { domain: authCookieDomain }
-              : {}),
-          }),
+          supabaseResponse.cookies.set(name, value, scopeAuthCookieOptions(name, options, authCookieDomain)),
         );
       },
     },

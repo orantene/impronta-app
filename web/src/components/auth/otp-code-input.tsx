@@ -44,10 +44,16 @@ export function OtpCodeInput({
   resetKey?: number;
 }) {
   const [digits, setDigits] = useState<string[]>(() => Array(length).fill(""));
+  // TUL-1234: the freshest digits, readable synchronously. Two key events can
+  // land before React re-renders (fast typing, autofill plus a keystroke); each
+  // handler used to copy the stale `digits` from its closure and silently
+  // dropped the digit the previous event had just written.
+  const digitsRef = useRef<string[]>(digits);
   const [seenReset, setSeenReset] = useState(resetKey);
   if (seenReset !== resetKey) {
     setSeenReset(resetKey);
-    setDigits(Array(length).fill(""));
+    digitsRef.current = Array(length).fill("");
+    setDigits(digitsRef.current);
   }
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const value = digits.join("");
@@ -60,6 +66,7 @@ export function OtpCodeInput({
 
   const commit = useCallback(
     (next: string[]) => {
+      digitsRef.current = next;
       setDigits(next);
     },
     [],
@@ -96,7 +103,7 @@ export function OtpCodeInput({
     (start: number, text: string) => {
       const incoming = text.replace(/\D+/g, "");
       if (!incoming) return;
-      const next = [...digits];
+      const next = [...digitsRef.current];
       let i = start;
       for (const ch of incoming) {
         if (i >= length) break;
@@ -106,13 +113,13 @@ export function OtpCodeInput({
       commit(next);
       focusBox(Math.min(i, length - 1));
     },
-    [commit, digits, focusBox, length],
+    [commit, focusBox, length],
   );
 
   const onKeyDown = (i: number) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Backspace") {
       e.preventDefault();
-      const next = [...digits];
+      const next = [...digitsRef.current];
       if (next[i]) {
         next[i] = "";
         commit(next);

@@ -65,6 +65,9 @@ export function ClientAccountArea(props: Props) {
           {props.audience === "client" ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: MUTED }}>
               {props.email ? <span style={{ overflowWrap: "anywhere" }}>{props.email}</span> : null}
+              {/* TUL-777: the same avatar + quick-links menu the talent-site and hub headers use
+                  (initials, Mis reservas / Mensajes / Recibos / Mi cuenta, Cerrar sesion). */}
+              <ClientAccountButton variant="header" locale={loc} />
               <LogOutButton label={a("logOut")} />
             </div>
           ) : null}

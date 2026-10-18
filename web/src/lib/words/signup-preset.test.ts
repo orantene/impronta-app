@@ -172,3 +172,16 @@ test("pet grooming wins over the salon row it shares words with", () => {
   }
   assert.equal(pickSignupPreset({ audience: "business", businessDescription: "Hair salon" }), "salon_barber");
 });
+
+test("TUL-1248: a hair studio is a salon, not a gym (the word studio must not win)", () => {
+  for (const businessDescription of [
+    "Hair studio in Cancún, cuts and color",
+    "Estudio de cabello en Cancún",
+    "Beauty and hair studio, Cancún",
+    "I am a hairdresser with my own studio",
+  ]) {
+    assert.equal(pickSignupPreset({ audience: "business", businessDescription }), "salon_barber", businessDescription);
+  }
+  // The gym row still works for a real gym.
+  assert.equal(pickSignupPreset({ audience: "business", businessDescription: "Pilates studio" }), "studio_gym");
+});
