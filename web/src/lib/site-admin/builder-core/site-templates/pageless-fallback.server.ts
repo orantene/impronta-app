@@ -43,7 +43,8 @@ export async function resolveLookFallbackHomeTree(
     // next to English-only blocks.
     let tenantDefault: string | null = null;
     if (!input.locale) {
-      const { data: ident } = await supabase.from("agency_business_identity").select("default_locale").eq("tenant_id", input.tenantId).maybeSingle<{ default_locale: string | null }>();
+      const { data: ident, error: identErr } = await supabase.from("agency_business_identity").select("default_locale").eq("tenant_id", input.tenantId).maybeSingle<{ default_locale: string | null }>();
+      if (identErr) logServerError("pageless-fallback.identity", identErr);
       tenantDefault = ident?.default_locale ?? agency?.supported_locales?.[0] ?? null;
     }
     const locale: SiteLocale = siteWriteLocale({ tenantDefault, explicit: input.locale });
