@@ -18,18 +18,17 @@ const base = {
   touched: false, nameValid: true, phoneValid: true, emailValid: true, askAttempted: false, chatPhoneValid: true,
 };
 
-test("ES phone label is Teléfono / WhatsApp with no WhatsApp OPCIONAL chip", () => {
+test("ES phone label is Teléfono / WhatsApp, optional said in words after the name", () => {
   const html = renderToStaticMarkup(<CatalogWhoContact es {...base} />);
-  assert.match(html, /Teléfono \/ WhatsApp/);
-  assert.doesNotMatch(html, /WhatsApp <i>/);
+  assert.match(html, /Teléfono \/ WhatsApp <i>\(opcional\)<\/i>/);
+  assert.doesNotMatch(html, /<span[^>]*>\s*WhatsApp <i>/);
   assert.doesNotMatch(html, /aria-label="WhatsApp"/);
-  assert.match(html, /Opcional\. Para avisarte/);
+  assert.match(html, /aria-label="Teléfono \/ WhatsApp \(opcional\)"/);
 });
 
 test("EN phone label is Phone / WhatsApp", () => {
   const html = renderToStaticMarkup(<CatalogWhoContact es={false} {...base} locale="en" />);
-  assert.match(html, /Phone \/ WhatsApp/);
-  assert.match(html, /Optional\. If we need to reach you/);
+  assert.match(html, /Phone \/ WhatsApp <i>\(optional\)<\/i>/);
 });
 
 test("Notes box renders when a setter is given and the note is not null", () => {

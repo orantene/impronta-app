@@ -18,6 +18,11 @@ export function phoneLabel(es: boolean): string {
   return es ? "Teléfono / WhatsApp" : "Phone / WhatsApp";
 }
 
+/** The optional state is said in words (TUL-842), after the name, never as the name. */
+export function phoneLabelOptional(es: boolean): string {
+  return `${phoneLabel(es)} ${es ? "(opcional)" : "(optional)"}`;
+}
+
 /** TUL-1236: the optional notes box (access, context). Hidden for task sheets, which already ask "What's going on?". */
 export function catalogNotesLabel(es: boolean): string {
   return es ? "Notas" : "Notes";
@@ -74,9 +79,9 @@ function CatalogWhoPhone({
         type="tel"
         inputMode="tel"
         autoComplete="tel-national"
-        placeholder={es ? "Opcional. Para avisarte de cualquier cambio" : "Optional. If we need to reach you"}
+        placeholder={es ? "Para avisarte de cualquier cambio" : "If we need to reach you"}
         aria-invalid={invalid}
-        aria-label={phoneLabel(es)}
+        aria-label={phoneLabelOptional(es)}
         data-testid="cb-phone"
       />
     </div>
@@ -123,8 +128,10 @@ export function CatalogWhoContact({
         />
         {touched && !nameValid ? <em role="alert">{es ? "Escribe tu nombre para confirmar." : "Enter your name to confirm."}</em> : null}
       </label>
-      <div className="jb-field" role="group" aria-label={phoneLabel(es)}>
-        <span>{phoneLabel(es)}</span>
+      <div className="jb-field" role="group" aria-label={phoneLabelOptional(es)}>
+        <span data-testid="cb-phone-label">
+          {phoneLabel(es)} <i>{es ? "(opcional)" : "(optional)"}</i>
+        </span>
         <CatalogWhoPhone
           es={es} locale={locale} fallbackCountry={fallbackCountry} value={phone} onChange={setPhone}
           onBlur={onBlur} invalid={touched && !phoneValid}
@@ -150,7 +157,7 @@ export function CatalogWhoContact({
       {setNote && note !== null ? (
         <label className="jb-field" data-catalog-who-notes="">
           <span>
-            {catalogNotesLabel(es)} <i>{es ? "opcional" : "optional"}</i>
+            {catalogNotesLabel(es)} <i>{es ? "(opcional)" : "(optional)"}</i>
           </span>
           <textarea
             rows={2}
