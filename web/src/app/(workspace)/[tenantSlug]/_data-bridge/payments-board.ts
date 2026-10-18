@@ -84,13 +84,14 @@ export async function loadPaymentsBoard(input: { tenantId: string; tenantSlug: s
   const preferredCurrency = (agency.data as { preferred_currency?: string | null } | null)?.preferred_currency ?? null;
   let offeringCurrency: string | null = null;
   if (admin && !/^[A-Za-z]{3}$/.test((preferredCurrency ?? "").trim())) {
-    const { data: offering } = await admin
+    const { data: offering, error: offeringError } = await admin
       .from("talent_offerings")
       .select("currency")
       .eq("tenant_id", input.tenantId)
       .not("currency", "is", null)
       .limit(1)
       .maybeSingle();
+    if (offeringError) logServerError("dataBridge.paymentsBoard/offeringCurrency", offeringError);
     offeringCurrency = (offering as { currency?: string | null } | null)?.currency ?? null;
   }
   const workspaceCurrency = pickWorkspaceCurrency(preferredCurrency, offeringCurrency);
