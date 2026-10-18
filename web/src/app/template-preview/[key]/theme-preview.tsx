@@ -228,8 +228,13 @@ export async function ThemeCatalogPreview({
     demoSource?.kind === "demo-talent"
       ? await resolveDemoPreviewHydration(demoSource, { platformAdminVerified: codeSource && viewerIsAdmin })
       : null;
+  // TUL-1246: a demo-talent source the gate refused (row no longer a real
+  // seeded demo) must NOT fall through to a stored profile; it gets the
+  // public persona, never anyone's real content.
   const hydration =
-    maisonSeed?.hydration ?? demoHydration ?? (await resolvePreviewHydration(talentProfileId));
+    maisonSeed?.hydration ??
+    demoHydration ??
+    (await resolvePreviewHydration(demoSource?.kind === "demo-talent" ? null : talentProfileId));
   const seedDataSources: BuilderNodeRenderDataSources | undefined = maisonSeed?.dataSources;
   const built = buildDesignTrees(design.payload, hydration.tokens);
   if (!built.ok) notFound();

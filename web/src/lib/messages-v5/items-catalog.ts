@@ -147,23 +147,31 @@ export async function loadCatalogRowsForScope(
   return [...talent, ...offerings, ...sessions, ...tables];
 }
 
+/** Talent that may surface to a guest (mirrors `default-storefront-roster` PUBLISHED_STATUSES). */
+const GUEST_VISIBLE_WORKFLOW = new Set(["approved", "published"]);
+
 export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name )")
+    .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name, workflow_status )")
     .eq("tenant_id", tenantId)
-    .neq("status", "removed")
+    // A guest sees only people who are ACTIVE on this roster. `neq removed` also
+    // listed pending / inactive / archived_for_downgrade members (TUL-1068).
+    .eq("status", "active")
     .order("created_at", { ascending: true })
     .limit(TALENT_CAP);
   if (error) {
     logServerError("messagesV5.itemsCatalog/roster", error);
     return [];
   }
-  type Raw = { talent_profile_id: string; talent_profiles: { id: string; profile_code: string | null; display_name: string | null } | { id: string; profile_code: string | null; display_name: string | null }[] | null };
+  type Prof = { id: string; profile_code: string | null; display_name: string | null; workflow_status?: string | null };
+  type Raw = { talent_profile_id: string; talent_profiles: Prof | Prof[] | null };
   const people: { id: string; name: string }[] = [];
   for (const raw of (data ?? []) as unknown as Raw[]) {
     const profile = Array.isArray(raw.talent_profiles) ? raw.talent_profiles[0] : raw.talent_profiles;
     if (!profile) continue;
+    // Same publish filter as the storefront roster and the talent picker.
+    if (!GUEST_VISIBLE_WORKFLOW.has(profile.workflow_status ?? "")) continue;
     people.push({ id: profile.id, name: profile.display_name?.trim() || profile.profile_code || "Talent" });
   }
   const busyById = new Map<string, boolean>();
