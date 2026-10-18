@@ -2187,6 +2187,15 @@
           "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
           "notCreated": "Why: we could not create your address. Open the editor to finish it."
         },
+        "draftSaw": {
+          "status": "What we saw: your address answered with error {status} instead of your page.",
+          "statusUnknown": "What we saw: your address answered with an error instead of your page.",
+          "network": "What we saw: your address did not answer at all.",
+          "nameMissing": "What we saw: your address opened, but your name is not on the page yet.",
+          "noName": "What we saw: your page has no name to check against. Open the editor and add one.",
+          "noUrl": "What we saw: your page has no address yet.",
+          "protected": "What we saw: your address is behind a sign-in wall, so we could not look at it."
+        },
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
         "draftDetails": "Details for support",
