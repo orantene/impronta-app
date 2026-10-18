@@ -186,17 +186,35 @@ const ENTRY_POINTS: { name: string; clientJs: boolean; run: (page: Page, arm: ()
     clientJs: true,
     run: async (page, arm) => {
       await gotoSettled(page, `${HOSTS[0]}/account`);
-      const control = page
-        .getByRole("button", { name: /^(log out|sign out|cerrar sesi[oó]n)$/i })
+      // The product's account menu renders "Sign out" as role="menuitem" (IdentityBar-2
+      // AccountMenuItem), which a role=button locator never matches; a plain button elsewhere
+      // is also accepted. Matching only buttons made this spec "pass by skipping".
+      const LOG_OUT = /^(log out|sign out|cerrar sesi[oó]n)$/i;
+      const target = page
+        .getByRole("button", { name: LOG_OUT })
+        .or(page.getByRole("menuitem", { name: LOG_OUT }))
         .first();
-      await control.waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
-      if ((await control.count()) === 0) {
+      await target.waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
+      if ((await target.count()) === 0) {
         await gotoSettled(page, `${HOSTS[0]}/`);
-        const menu = page.getByRole("button", { name: /account|cuenta/i }).first();
-        if (await menu.count()) await menu.click();
+        const menu = page.getByRole("button", { name: /open account menu|abrir men[uú] de cuenta/i }).first();
+        await menu.waitFor({ state: "visible", timeout: 30_000 });
+        // Open the menu and wait for the control. The first click can land before React attaches
+        // its handler, so retry, but never click a menu that is already open (it would close it).
+        try {
+          await expect(async () => {
+            if ((await menu.getAttribute("aria-expanded")) !== "true") await menu.click();
+            await expect(target).toBeVisible({ timeout: 4_000 });
+          }).toPass({ timeout: 20_000 });
+        } catch {
+          // The skip above the describe already covers a fixture that is not ready, so reaching
+          // here means a race or a real regression: fail loudly, never skip.
+          throw new Error(
+            "TALENT_SITE_E2E_FIXTURE_READY is set but no Log out / Sign out control (button or menuitem) " +
+              "appeared within 20 s of opening the account menu on the signed-in landing page",
+          );
+        }
       }
-      const target = page.getByRole("button", { name: /^(log out|sign out|cerrar sesi[oó]n)$/i }).first();
-      test.skip((await target.count()) === 0, "no visible Log out control on this fixture's pages");
       // Hydration: the control is in the SSR HTML before React attaches its handler, and a click
       // in that window submits nothing. Wait until it is visible and enabled, and the page has
       // finished loading, then arm the response wait and click.
