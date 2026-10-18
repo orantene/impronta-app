@@ -19,6 +19,7 @@ import {
 } from "@/lib/talent/who-step-payment-copy";
 
 import type { CatalogBookFn } from "./catalog-booking-confirm";
+import { requestInfoHref } from "./catalog-request-info-href";
 import { PolicyLinkSheet } from "./PolicyLinkSheet";
 import {
   openCatalogBookingChat,
@@ -489,9 +490,19 @@ export function CatalogBookingSheet({
     else openCatalogBookingChat(handoff);
   };
   const emptyConsultButton = (
-    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
-      {es ? "Consultar disponibilidad" : "Check availability"}
-    </button>
+    <>
+      <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
+        {es ? "Consultar disponibilidad" : "Check availability"}
+      </button>
+      {/* TUL-861: a form path that does not open the chat. */}
+      <a
+        className="jb-back-link"
+        data-catalog-empty-request=""
+        href={requestInfoHref(typeof window !== "undefined" ? window.location.pathname : "/", locale)}
+      >
+        {es ? "Pedir información" : "Request information"}
+      </a>
+    </>
   );
 
   return (
