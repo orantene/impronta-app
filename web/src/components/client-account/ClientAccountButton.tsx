@@ -83,6 +83,10 @@ export function ClientAccountButton({
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
   const [open, setOpen] = useState(false);
+  const [hubHost, setHubHost] = useState(false);
+  useEffect(() => {
+    setHubHost(/^hub\./i.test(window.location.hostname));
+  }, []);
   const [me, setMe] = useState<Me>({ signedIn: false });
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -464,6 +468,22 @@ export function ClientAccountButton({
     <>
       <style>{`[data-client-account-dock]{--client-account-dock-bottom:194px}@media (max-width:480px){[data-client-account-dock]{--client-account-dock-bottom:calc(88px + env(safe-area-inset-bottom))}${DOCK_NARROW_SIDE_CSS}}[data-client-account-sheet]{position:fixed;z-index:120;background:${BG};color:${INK};border:1px solid ${LINE};box-shadow:0 12px 40px rgba(0,0,0,.25);padding:20px;display:flex;flex-direction:column;gap:12px;font-family:var(--site-body-font,inherit)}@media (min-width:640px){[data-client-account-sheet]{width:340px;border-radius:14px;right:16px;${variant === "dock" ? "bottom:250px" : "top:64px"}}}@media (max-width:639px){[data-client-account-sheet]{left:0;right:0;bottom:0;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}}`}</style>
       {hideTrigger ? null : <span data-client-account-dock={variant === "dock" ? "" : undefined}>{trigger}</span>}
+      {/* TUL-863: on the hub host the header shows words, not only the person icon. */}
+      {!hideTrigger && variant === "header" && hubHost && !me.signedIn ? (
+        <span data-client-account-text-links="" style={{ display: "inline-flex", gap: 6, marginInlineStart: 6 }}>
+          {([["signIn", "client-account-text-signin"], ["createAccount", "client-account-text-create"]] as const).map(([key, testId]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setOpen(true)}
+              data-testid={testId}
+              style={{ minHeight: 44, padding: "0 10px", border: 0, background: "transparent", color: INK, fontSize: 14, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              {t(`public.clientAccount.${key}`)}
+            </button>
+          ))}
+        </span>
+      ) : null}
       {open ? (
         <>
           <div onClick={close} aria-hidden style={{ position: "fixed", inset: 0, zIndex: 119, background: "rgba(0,0,0,.25)" }} />

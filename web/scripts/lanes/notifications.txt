@@ -140,3 +140,4 @@ src/lib/server/no-detached-dispatch.static.test.ts
 src/lib/notifications/whatsapp/inbound.test.ts
 src/lib/i18n/es-public-qa-round3.static.test.ts
 src/lib/i18n/not-found-locale.test.ts
+src/components/public-booking/catalog-request-info-href.test.ts

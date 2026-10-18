@@ -55,6 +55,20 @@ test("TUL-928 / TUL-930: 390px booking sheet keeps the phone row inside the card
   assert.match(css, /data-catalog-start-over/);
 });
 
+test("TUL-863: the hub host header shows Sign in / Create account text links next to the icon", () => {
+  const f = read("src/components/client-account/ClientAccountButton.tsx");
+  assert.match(f, /\/\^hub\\\.\/i\.test\(window\.location\.hostname\)/);
+  assert.match(f, /data-client-account-text-links/);
+  assert.match(f, /client-account-text-signin/);
+  assert.match(f, /client-account-text-create/);
+  const en = JSON.parse(read("messages/en.json")).public.clientAccount;
+  const es = JSON.parse(read("messages/es.json")).public.clientAccount;
+  assert.equal(en.signIn, "Sign in");
+  assert.equal(en.createAccount, "Create account");
+  assert.equal(es.signIn, "Iniciar sesión");
+  assert.equal(es.createAccount, "Crear cuenta");
+});
+
 test("TUL-933: the service address is a wrapping textarea", () => {
   const f = read("src/components/public-booking/ServiceAddressField.tsx");
   assert.match(f, /<textarea/);

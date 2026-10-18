@@ -2374,6 +2374,7 @@
     },
     "clientAccount": {
       "signIn": "Sign in",
+      "createAccount": "Create account",
       "account": "Account",
       "openLabel": "Open account menu",
       "closeLabel": "Close",
