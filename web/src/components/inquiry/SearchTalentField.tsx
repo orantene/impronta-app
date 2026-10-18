@@ -24,6 +24,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
+import { usePublicT } from "@/i18n/use-public-t";
+import { interpolate } from "@/i18n/interpolate";
 import type { RosterLiteItem } from "./InquiryDrawer";
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -55,8 +57,10 @@ export function SearchTalentField({
   roster,
   selectedIds,
   onAdd,
-  placeholder = "Search talent by name",
+  placeholder: placeholderProp,
 }: SearchTalentFieldProps) {
+  const t = usePublicT();
+  const placeholder = placeholderProp ?? t("public.inquiryDrawer.talentSearchPlaceholder");
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,7 +154,7 @@ export function SearchTalentField({
               <button
                 type="button"
                 onClick={() => onAdd(r)}
-                aria-label={`Add ${r.name} to your inquiry`}
+                aria-label={interpolate(t("public.inquiryDrawer.talentSearchAddAria"), { name: r.name })}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -242,7 +246,7 @@ export function SearchTalentField({
                     color: C.inkMuted,
                   }}
                 >
-                  Add
+                  {t("public.inquiryDrawer.talentSearchAdd")}
                 </span>
               </button>
             </li>
@@ -262,7 +266,7 @@ export function SearchTalentField({
               background: C.surface,
             }}
           >
-            No talent match that name. Try another, or let the agency recommend.
+            {t("public.inquiryDrawer.talentSearchEmpty")}
           </div>
         )
       )}

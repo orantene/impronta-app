@@ -4,7 +4,11 @@ import { DirectoryInquiryModalProvider } from "@/components/directory/directory-
 import { getPublicHostContext, getPublicPathPrefix } from "@/lib/saas/scope";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { resolveNotFoundSlug } from "@/lib/site-admin/server/page-roles";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { cookies, headers } from "next/headers";
+import type { Metadata } from "next";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { notFoundLocale } from "@/lib/i18n/not-found-locale";
 import { localeUrlSettings, withLocaleHref } from "@/i18n/pathnames";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -51,6 +55,27 @@ async function loadAgencyBrand(): Promise<AgencyBrand | null> {
   }
 }
 
+/** TUL-877/1079: the 404 speaks the browser's language when nobody chose one. */
+async function resolveNotFoundLocale(): Promise<string> {
+  const h = await headers();
+  const jar = await cookies();
+  return notFoundLocale({
+    locale: await getRequestLocale(),
+    acceptLanguage: h.get("accept-language"),
+    cookieLocale: jar.get(LOCALE_COOKIE)?.value,
+    pathname: h.get(ORIGINAL_PATHNAME_HEADER),
+    search: h.get(ORIGINAL_SEARCH_HEADER),
+  });
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await resolveNotFoundLocale();
+  return {
+    title: { absolute: locale.startsWith("es") ? "Página no encontrada · Tulala" : "Page not found · Tulala" },
+    robots: { index: false, follow: false },
+  };
+}
+
 export default async function NotFound() {
   // PAGE ROLES — if this agency assigned a page the `notFound` role, render THAT
   // page (with the shell) as the 404 body. This boundary already renders with a
@@ -89,7 +114,7 @@ export default async function NotFound() {
 
   const brand = await loadAgencyBrand();
   const isAgency = brand !== null;
-  const locale = await getRequestLocale();
+  const locale = await resolveNotFoundLocale();
   const copy = notFoundCopy(locale, brand ? brand.name : null);
   const eyebrow = isAgency && brand ? brand.name.toUpperCase() : "";
   const BRAND_INK = "#0B0B0D";

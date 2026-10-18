@@ -73,6 +73,8 @@ import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity
 import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersonation/acting-as";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
+import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
+import { TalentShellSkeleton } from "./_talent-shell-skeleton";
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
@@ -229,6 +231,39 @@ export async function TalentLayoutInner({
     return <>{children}</>;
   }
 
+  // TUL-1240: the shell wave below used to start only after three serial hops (agency
+  // lookup, self-profile read, seed-hop check), so reads that need none of them waited
+  // behind all three. Start those now and let the hops overlap them; the wave below
+  // awaits the same promises under the same spans. Skipped when a locale-seed hop is
+  // possible: that path redirects and re-enters this layout, and must not do the work twice.
+  const jar = await cookies();
+  const seedHopPossible = talentLocaleSeedHopPossible({
+    attemptCookie: jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value,
+    originalPathnameHeader: hdrs.get("x-impronta-original-pathname"),
+    pathname,
+  });
+  const early = seedHopPossible
+    ? null
+    : {
+        inquiries: loadTalentInquiriesAllAgencies(baseProfile.id),
+        userPrefs: loadUserPrefs(session.user.id),
+        displayName: loadProfileDisplayName(subjectUserId),
+        profileEditorLayout: loadProfileEditorLayout(),
+        workspaceUi: loadPlatformWorkspaceUi(),
+        operatingCurrency: loadPlatformOperatingCurrency(),
+        requestLocale: getRequestLocale(),
+        inboxSummary: loadTalentInboxSummary(readCtx).catch(() => null),
+        dashboardData: loadTalentDashboardData().catch(() => null),
+        siteDashboard: loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
+          requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
+        }),
+      };
+  if (early) {
+    // A redirect()/notFound() before the wave must not leave these as unhandled rejections;
+    // the wave still awaits the originals, so a real failure surfaces exactly as before.
+    for (const promise of Object.values(early)) promise.catch(() => undefined);
+  }
+
   // TUL-536: independent of the agency lookup and the batch below, so it runs
   // beside them instead of as a serial query after them. Never rejects.
   const ownedWorkspaceSlugPromise = loadOwnedWorkspaceSlug(subjectUserId);
@@ -245,15 +280,8 @@ export async function TalentLayoutInner({
   // hop re-enters this layout, so deciding after them ran every read twice on
   // each sign-in (sign-in clears the locale cookies, so the hop is the norm).
   // The locale state is one cheap read that the batch below reuses.
-  const jar = await cookies();
   const talentLocaleStatePromise = loadTalentLocaleState(talentSelfProfile.id);
-  if (
-    talentLocaleSeedHopPossible({
-      attemptCookie: jar.get(TALENT_LOCALE_SEED_ATTEMPT_COOKIE)?.value,
-      originalPathnameHeader: hdrs.get("x-impronta-original-pathname"),
-      pathname,
-    })
-  ) {
+  if (seedHopPossible) {
     const early = await timed("talent.localeStateForSeedHop", talentLocaleStatePromise);
     perfMark("talent.before-seed-hop-redirect", t0);
     const seedPlan = talentLocaleSeedPlan({
@@ -264,7 +292,14 @@ export async function TalentLayoutInner({
       primary: early.seedPrimary,
     });
     if (seedPlan.locale || seedPlan.stamp) {
-      redirect(talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`));
+      // TUL-1177/1182: a HARD navigation, not redirect(): a layout redirect() to the seed
+      // Route Handler inside the post-sign-in soft navigation makes the client router
+      // re-apply it (the admin twin looped hundreds of times). The skeleton paints meanwhile.
+      return (
+        <LocaleSeedHardRedirect attemptCookie={TALENT_LOCALE_SEED_ATTEMPT_COOKIE} href={talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`)}>
+          <TalentShellSkeleton />
+        </LocaleSeedHardRedirect>
+      );
     }
   }
 
@@ -306,7 +341,7 @@ export async function TalentLayoutInner({
     talentAttentionSignals,
     talentPayoutCountry,
   ] = await Promise.all([
-    timed("talent.loadTalentInquiriesAllAgencies", () => loadTalentInquiriesAllAgencies(baseProfile.id)),
+    timed("talent.loadTalentInquiriesAllAgencies", () => early?.inquiries ?? loadTalentInquiriesAllAgencies(baseProfile.id)),
     timed("talent.loadTalentAgencies", () => loadTalentAgencies(talentSelfProfile.id)),
     timed("talent.loadTalentRepresentation", () => loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode)),
     timed("talent.findTenantMembership", () => tenantId ? findTenantMembership(tenantId) : Promise.resolve(null)),
@@ -319,9 +354,9 @@ export async function TalentLayoutInner({
           talentProfileId: talentSelfProfile.id,
         })
       : Promise.resolve(zeroShellCounts)),
-    timed("talent.loadUserPrefs", () => loadUserPrefs(session.user.id)),
+    timed("talent.loadUserPrefs", () => early?.userPrefs ?? loadUserPrefs(session.user.id)),
     timed("talent.loadTenantIdentity", () => tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null)),
-    timed("talent.loadProfileDisplayName", () => loadProfileDisplayName(subjectUserId)),
+    timed("talent.loadProfileDisplayName", () => early?.displayName ?? loadProfileDisplayName(subjectUserId)),
 
     // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
     // legacy calendar bridge so Today/Calendar stay unchanged.
@@ -332,7 +367,7 @@ export async function TalentLayoutInner({
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null })),
     timed("talent.loadTalentEarningsByCurrency", () => loadTalentEarningsByCurrency(talentSelfProfile.id)),
-    timed("talent.loadTalentPersonalSiteDashboardState", () => loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
+    timed("talent.loadTalentPersonalSiteDashboardState", () => early?.siteDashboard ?? loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
       requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
     })),
 
@@ -347,7 +382,7 @@ export async function TalentLayoutInner({
 
     // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
     // to the hardcoded structure), so it can't break the layout.
-    timed("talent.loadProfileEditorLayout", () => loadProfileEditorLayout()),
+    timed("talent.loadProfileEditorLayout", () => early?.profileEditorLayout ?? loadProfileEditorLayout()),
 
     // P1 — DB-resolved client field source (wizard/drawer type-specific
     // catalog). Null when every surface is `static` (default). `tenantId` may
@@ -375,20 +410,20 @@ export async function TalentLayoutInner({
     // upsell instead of zeros. Bridged here rather than fetched on mount: an
     // in-shell fetch on this surface has stuck on "Loading" before.
     timed("talent.loadTalentPageAnalytics", () => loadTalentPageAnalytics(subjectUserId, talentSelfProfile.id)),
-    timed("talent.loadPlatformWorkspaceUi", () => loadPlatformWorkspaceUi()),
+    timed("talent.loadPlatformWorkspaceUi", () => early?.workspaceUi ?? loadPlatformWorkspaceUi()),
 
     // Real completeness for the Today card (same source as the guided wizard).
     // Never fatal: a load failure leaves the card on its old estimate.
-    timed("talent.loadTalentDashboardData", () => loadTalentDashboardData().catch(() => null)),
+    timed("talent.loadTalentDashboardData", () => early?.dashboardData ?? loadTalentDashboardData().catch(() => null)),
 
     // TUL-220: these four used to be awaited one after another AFTER the batch
     // above, stacking four round trips onto every talent page before the shell
     // could stream. None depends on the batch, so they ride in it.
     // The bell counts only conversations she can open in Messages (TUL-52 B).
-    timed("talent.loadTalentInboxSummary", () => loadTalentInboxSummary(readCtx).catch(() => null)),
+    timed("talent.loadTalentInboxSummary", () => early?.inboxSummary ?? loadTalentInboxSummary(readCtx).catch(() => null)),
     timed("talent.loadTalentPlanGrants", () => loadTalentPlanGrants(talentSelfProfile.id).catch(() => null)),
-    timed("talent.loadPlatformOperatingCurrency", () => loadPlatformOperatingCurrency()),
-    timed("talent.getRequestLocale", () => getRequestLocale()),
+    timed("talent.loadPlatformOperatingCurrency", () => early?.operatingCurrency ?? loadPlatformOperatingCurrency()),
+    timed("talent.getRequestLocale", () => early?.requestLocale ?? getRequestLocale()),
 
     // TUL-392: theme update waiting + site needs publish (Attention signals).
     timed("talent.loadTalentAttentionSignals", () => loadTalentAttentionSignals(talentSelfProfile.id)),
