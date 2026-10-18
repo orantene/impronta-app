@@ -21,6 +21,7 @@ import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
 import { ReviewableBookingsSection } from "../_components/ReviewableBookingsSection";
 import { BookingPayNowButton } from "../_components/BookingPayNowButton";
+import { formatPrice } from "@/lib/money/format-price";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -276,10 +277,7 @@ function BookingRow({
         {payableTxn ? (
           <BookingPayNowButton
             inquiryId={booking.id}
-            amountLabel={new Intl.NumberFormat(
-              locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US",
-              { style: "currency", currency: payableTxn.currency, maximumFractionDigits: 2 },
-            ).format(payableTxn.amountCents / 100)}
+            amountLabel={formatPrice({ amountCents: payableTxn.amountCents, currency: payableTxn.currency, locale }).primary}
             label={payNowLabel}
           />
         ) : (
@@ -435,8 +433,7 @@ export default async function ClientBookingsPage({ params }: { params: PageParam
 function PaymentsSection({ transactions, locale }: { transactions: ClientTransactionRow[]; locale: string }) {
   if (transactions.length === 0) return null;
   const t = createTranslator(locale);
-  const fmt = (cents: number, cur: string) =>
-    new Intl.NumberFormat(locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US", { style: "currency", currency: cur, maximumFractionDigits: 2 }).format(cents / 100);
+  const fmt = (cents: number, cur: string) => formatPrice({ amountCents: cents, currency: cur, locale }).primary;
   const CHECKOUT_LABEL: Record<string, string> = {
     deposit: t("dashboard.clientBookings.deposit"),
     balance: t("dashboard.clientBookings.balance"),

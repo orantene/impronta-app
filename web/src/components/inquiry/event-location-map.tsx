@@ -4,6 +4,8 @@ import { ConsentEmbed } from "@/components/consent/consent-embed";
 
 import { ExternalLink, MapPin, Navigation } from "lucide-react";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { usePublicT } from "@/i18n/use-public-t";
+import { interpolate } from "@/i18n/interpolate";
 import { withGoogleMapsLanguage } from "@/lib/i18n/vendor-locale";
 
 /**
@@ -29,6 +31,7 @@ export function EventLocationMap({
   locale?: string | null;
 }) {
   const dashboardLocale = useDashboardLocale();
+  const t = usePublicT();
   const mapLocale = locale ?? dashboardLocale;
   const loc = location?.trim();
   if (!loc) return null;
@@ -60,12 +63,12 @@ export function EventLocationMap({
             src={embedUrl}
             provider="maps"
             locale={mapLocale}
-            title={`Map: ${loc}`}
+            title={interpolate(t("public.inquiryDrawer.mapTitle"), { place: loc })}
             className="block h-full w-full border-0"
             iframeProps={{
               loading: "lazy",
               referrerPolicy: "no-referrer-when-downgrade",
-              "aria-label": `Google Maps preview for ${loc}`,
+              "aria-label": interpolate(t("public.inquiryDrawer.mapAria"), { place: loc }),
             }}
           />
         </div>
@@ -79,7 +82,7 @@ export function EventLocationMap({
           className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/20 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/8 hover:text-[var(--impronta-gold)]"
         >
           <ExternalLink className="size-3" aria-hidden />
-          View on map
+          {t("public.inquiryDrawer.mapView")}
         </a>
         <a
           href={directionsUrl}
@@ -88,7 +91,7 @@ export function EventLocationMap({
           className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-muted/20 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/8 hover:text-[var(--impronta-gold)]"
         >
           <Navigation className="size-3" aria-hidden />
-          Get directions
+          {t("public.inquiryDrawer.mapDirections")}
         </a>
       </div>
     </div>

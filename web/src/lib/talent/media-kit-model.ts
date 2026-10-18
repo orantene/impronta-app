@@ -20,6 +20,7 @@
  */
 
 import type { Locale } from "@/i18n/config";
+import { formatPrice } from "@/lib/money/format-price";
 import { resolveLocalized, type LocalizedMap } from "@/lib/i18n/resolve-localized";
 import {
   formatCityCountryLabel,
@@ -177,16 +178,7 @@ export function resolveMediaKitTalentTypes(
 }
 
 function formatMoney(cents: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.round(cents / 100));
-  } catch {
-    return `${Math.round(cents / 100).toLocaleString("en-US")} ${currency}`;
-  }
+  return formatPrice({ amountCents: Math.round(cents / 100) * 100, currency, locale: "en", audience: "talent" }).primary;
 }
 
 /**
