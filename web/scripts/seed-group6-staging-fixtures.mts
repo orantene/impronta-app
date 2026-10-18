@@ -95,8 +95,9 @@ const env: Record<string, string | undefined> = { ...process.env };
 if (args.envFile) Object.assign(env, parseEnvText(readFileSync(args.envFile, "utf8")));
 if (args.stripe) {
   // The key comes from STRIPE_SECRET_KEY or a local file (mode 600), and is never printed.
-  if (args.stripeKeyFile) {
-    const path = args.stripeKeyFile.replace(/^~(?=\/|$)/, homedir());
+  const keyFileArg = args.stripeKeyFile as string | null;
+  if (keyFileArg) {
+    const path = keyFileArg.replace(/^~(?=\/|$)/, homedir());
     let st;
     try {
       st = statSync(path);
@@ -845,7 +846,7 @@ async function openStripe(): Promise<StripeClient> {
   if (stripeClient) return stripeClient;
   const { default: Stripe } = await import("stripe");
   const stripe = new Stripe(env.STRIPE_SECRET_KEY as string);
-  const [balance, account] = await Promise.all([stripe.balance.retrieve(), stripe.accounts.retrieve()]);
+  const [balance, account] = await Promise.all([stripe.balance.retrieve(), stripe.accounts.retrieveCurrent()]);
   const live = checkLivemode({
     balanceLivemode: (balance as unknown as { livemode?: boolean }).livemode,
     accountLivemode: (account as unknown as { livemode?: boolean }).livemode,
@@ -954,7 +955,7 @@ async function attachRefundablePaymentIntent(): Promise<string> {
 /** --stripe --preflight: verify the key, list what exists, print what --apply --stripe would do. Writes nothing. */
 async function stripePreflight() {
   const stripe = await openStripe(); // refuses unless sk_test_ AND livemode=false
-  const account = await stripe.accounts.retrieve();
+  const account = await stripe.accounts.retrieveCurrent();
   console.log(`[group6-fixtures] preflight: key is sk_test_ and the API reports livemode=false. account ${account.id}, country ${account.country ?? "?"}`);
   const found = await stripe.prices.list({ lookup_keys: ALL_PLAN_LOOKUP_KEYS, limit: 20 });
   const prices: Record<string, string | null> = {};
