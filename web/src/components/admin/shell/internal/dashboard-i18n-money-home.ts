@@ -34,6 +34,7 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "this month": "este mes",
   "No payments recorded this month.": "No hay pagos registrados este mes.",
   "Owed to you": "Te deben",
+  "Could not load what you are owed.": "No se pudo cargar lo que te deben.",
   "Nobody owes you anything on file.": "Nadie te debe nada en el registro.",
   "Next payout": "Próximo depósito",
   "None scheduled": "Ninguno programado",
