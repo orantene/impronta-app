@@ -9,7 +9,7 @@ Skipped by order: TUL-934, TUL-984, TUL-52, TAL-93938. Legend: OPEN-PR = fix is 
 |---|---|---|
 | TUL-973 | QA Journeys EN page shows Spanish section copy | WORK: page-less workspace home was composed with a hardcoded `es` base; now uses the tenant default locale (TUL-506 rule). Not browser-verified. |
 | TUL-711 | Workspace public ES polish (EXP7) | WORK for the last open item: rosterless `/w/<slug>/directory` redirected to the platform `/book`; now keeps the `/w/<slug>` base. Scroll cue, Skip to content, titles: ON-MAIN (#3828, #3920). "Empty sections public copy": PARKED, product call (keep). |
-| TUL-1227 | Fresh talent: dashboard stuck on "Loading your space"; name doubled | No code change. The stall is a 45-50 s first render (no seed-hop loop, see #3977 body): OPEN-PR #3981 (dashboard speed, TUL-1177 class) and #3977 (hardening). Doubled name: not reproducible from code (one fact write, `person.professional_name`, trimmed once); needs a staging re-run. |
+| TUL-1227 | Fresh talent: dashboard stuck on "Loading your space"; name doubled | No code change. The stall is a 45-50 s first render (no seed-hop loop, see #3977 body): #3981 (dashboard speed, TUL-1177 class) is now MERGED, so fixed on main; #3977 (hardening) still open. Doubled name: not reproducible from code (one fact write, `person.professional_name`, trimmed once); needs a staging re-run. |
 
 ## Covered by an open PR (no work here)
 
@@ -20,9 +20,9 @@ Skipped by order: TUL-934, TUL-984, TUL-52, TAL-93938. Legend: OPEN-PR = fix is 
 | 1013, 1024, 1075, 1246 | #3983 |
 | 1068 | #3983 + #3988 |
 | 1070 | #3983 |
-| 1177, 1182, 1240, 1244, 1245 | #3981 |
+| 1177, 1182, 1240, 1244, 1245 | #3981 MERGED (fixed on main, 9f156f381d), needs staging QA |
 | 1176 | merged #3876, only a stale Failed flag |
-| 817, 829, 830, 831, 835 | #3982 (see parked) |
+| 817, 829, 830, 831, 835 | #3982 MERGED; cards still parked (see below) |
 | 36, 43, 533, 727, 828, 976, 1061, 1243 / 146..1248 / 1022..933 / 621..1256 / 39..1261 / 1003..1249 | PKG-1..6 (#4000-#4005) |
 
 ## Fix already on main (needs staging QA, not code)
@@ -61,3 +61,6 @@ Skipped by order: TUL-934, TUL-984, TUL-52, TAL-93938. Legend: OPEN-PR = fix is 
 | 1237 | Cannot reproduce from code; links resolve through locale helpers | QA re-run |
 | 1251 | Cannot reproduce from code; mode switch is a plain button | QA re-run |
 | 934 | skipped by order (promos, Oran) | Oran |
+
+## Update 2026-10-18 (after merging main 9f156f381d)
+Merged since: #3981, #3982, #3987, #3992, #3985, #3997. Every card above now carries a `## Claude dev — 2026-10-18 (PKG-7)` Notion note. No further unparked real work remained in the uncovered set; PKG-7 code is TUL-973 and TUL-711 only.
