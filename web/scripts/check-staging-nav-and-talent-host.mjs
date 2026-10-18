@@ -4,11 +4,11 @@
  *
  *  1. TUL-1247: the tenant-site header/nav of staging workspace sites must not contain an
  *     absolute `app[.staging].tulala.digital/w/...` link.
- *  2. Talent host: with TALENT_SITE_ROOT_DOMAIN + TALENT_SITE_SUBDOMAINS_ENABLED set, the T1
+ *  2. Talent host: with TALENT_SITE_SUBDOMAINS_ENABLED=true (the only flag; the *.staging.tulala.digital alias exists), the T1
  *     fixture site and its posts answer as the code says (published 200, expired 200 with a
- *     notice, taken down 404, missing 404). SKIPS (exit 0, "env not set") when the env is empty.
+ *     notice, taken down 404, missing 404). SKIPS (exit 0) when the flag is not "true" or the site host does not resolve.
  *
- * Env: --env-file <staging env pull> (the two TALENT_SITE_* values), gate token from ~/.tulala-qa.env.
+ * Env: --env-file <staging env pull> (TALENT_SITE_SUBDOMAINS_ENABLED), gate token from ~/.tulala-qa.env.
  * Usage (from web/): node scripts/check-staging-nav-and-talent-host.mjs --env-file <tmp>
  */
 import { readFileSync } from "node:fs";
@@ -16,7 +16,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import { PREFIX, parseEnvText } from "./lib/group6-fixtures.mjs";
-import { decideNavCheck, decideProbe, talentHostPlan } from "./lib/staging-nav-host-checks.mjs";
+import { WORKSPACE_POST_BASE, WORKSPACE_POST_PROBES, decideNavCheck, decideProbe, siteHostResolves, talentHostPlan } from "./lib/staging-nav-host-checks.mjs";
 
 const APP_HOST = "https://app.staging.tulala.digital";
 const HUB_HOST = "https://staging.tulala.digital"; // the card says the same pages render here
@@ -30,7 +30,7 @@ const load = (path) => {
   }
 };
 const i = process.argv.indexOf("--env-file");
-const env = i > -1 ? load(process.argv[i + 1]) : {};
+const env = { ...process.env, ...(i > -1 ? load(process.argv[i + 1]) : {}) };
 const gateToken = load(join(homedir(), ".tulala-qa.env")).STAGING_GATE_CI_TOKEN;
 const headers = gateToken ? { [GATE_HEADER]: gateToken } : {};
 
@@ -72,14 +72,35 @@ const plan = talentHostPlan(env);
 if (plan.skip) {
   console.log(`[staging-checks] SKIP talent host: ${plan.reason}`);
 } else {
-  for (const p of plan.probes) {
-    try {
-      const res = await fetch(`https://${plan.host}${p.path}`, { redirect: "manual", headers });
-      const v = decideProbe(p, res.status);
-      say(v.ok, `talent host ${p.label} ${p.path} -> ${res.status} (expected ${v.expected})`);
-    } catch {
-      say(false, `talent host ${p.label} ${p.path} -> request failed`);
+  let homeStatus = 0;
+  try {
+    homeStatus = (await fetch(`https://${plan.host}/`, { redirect: "manual", headers })).status;
+  } catch {
+    homeStatus = 0;
+  }
+  if (!siteHostResolves(homeStatus)) {
+    console.log(`[staging-checks] SKIP talent host: TALENT_SITE_SUBDOMAINS_ENABLED not set on the deployed build (${plan.host} home answered ${homeStatus || "no response"})`);
+  } else {
+    for (const p of plan.probes) {
+      try {
+        const res = await fetch(`https://${plan.host}${p.path}`, { redirect: "manual", headers });
+        const v = decideProbe(p, res.status);
+        say(v.ok, `talent host ${p.label} ${p.path} -> ${res.status} (expected ${v.expected})`);
+      } catch {
+        say(false, `talent host ${p.label} ${p.path} -> request failed`);
+      }
     }
+  }
+}
+
+// 3. Posts on the fixture workspace site (always runnable: no flag needed).
+for (const p of WORKSPACE_POST_PROBES) {
+  try {
+    const res = await fetch(`${WORKSPACE_POST_BASE}${p.path}`, { redirect: "manual", headers });
+    const v = decideProbe(p, res.status);
+    say(v.ok, `workspace posts ${p.label} ${p.path} -> ${res.status} (expected ${v.expected})`);
+  } catch {
+    say(false, `workspace posts ${p.label} ${p.path} -> request failed`);
   }
 }
 

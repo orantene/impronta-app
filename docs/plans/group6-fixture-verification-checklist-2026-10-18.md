@@ -32,7 +32,7 @@ Status key: **covered** = fixture exists on staging and read back; **missing** =
 | 12 | on_request service price withheld (D-10a) | none | hub `/t/TAL-96002`, "QA Emergencia 24h" | covered |
 | 13 | Offerings with images, image optimizer | none | hub `/t/TAL-96002`, `/t/TAL-96001` | covered (3 stock photos already on staging storage) |
 | 14 | TUL-585 reviews + aggregateRating JSON-LD (and none when zero) | none | view-source hub `/t/TAL-96001` (3 verified) vs `/t/TAL-96002` (0) | covered |
-| 15 | TUL-1009 posts: published, expired, taken down, `/posts` 301 | none | `/blog/qa-fixture-g6-guia-limpieza` etc. on the T1 site host | missing: talent site host does not route on staging (`TALENT_SITE_ROOT_DOMAIN` / `TALENT_SITE_SUBDOMAINS_ENABLED` empty); rows exist. `check-staging-nav-and-talent-host.mjs` runs the probes the moment the env is set |
+| 15 | TUL-1009 posts: published, expired, taken down, missing | none | workspace site: `https://staging.tulala.digital/w/qa-fixture-g6-ws/blog/qa-fixture-g6-guia-limpieza` (also `-oferta-vencida`, `-articulo-oculto`) | covered on the WORKSPACE site (posts now belong to the owner workspace, tenant scope). Expected: published 200; expired 200 with a notice; taken down 404; missing 404. NOT possible on the talent host: see PRODUCT BUG below. Probed by `check-staging-nav-and-talent-host.mjs` |
 | 16 | TUL-1255 `next=/<slug>/admin` for a workspace owner who is a talent | O | app `/login?next=/qa-fixture-g6-ws/admin` | covered |
 | 17 | TUL-1250 `/client` not blank; TUL-1182 / 1177 / 1240 post-sign-in speed | C1, T1, T2, O | app `/client`, `/talent/today`, `/qa-fixture-g6-ws/admin` | covered (T2 = talent without agency) |
 | 18 | TUL-1241 `/talent/support`, `/talent/help` in ES | T1 | app paths | covered |
@@ -43,7 +43,7 @@ Status key: **covered** = fixture exists on staging and read back; **missing** =
 | 23 | TUL-951 / 856 / 923 / 861 / 863 hub profile drawer, share URL, phone default, times | none | hub `/es/t/TAL-96001`, `/t/TAL-96001` | covered (T1 hours Mon-Sat 9-18 Cancun) |
 | 24 | TUL-1247 header links are never absolute app-host `/w/` URLs | none | hub `https://staging.tulala.digital/w/qa-b7-studio/` header (and `/w/qa-fixture-g6-ws/`) | covered by `check-staging-nav-and-talent-host.mjs`: today it FAILS on `qa-b7-studio` (5 absolute app-host links, pre-#3979 build) and PASSES on the fixture workspace; re-run after the staging cut |
 | 25 | TUL-834 billing portal + invoices; plan change / proration; paid-plan half of 1059 | T1 | app `/talent/settings` billing | missing: Stripe TEST customer + subscription (`STRIPE_SECRET_KEY` empty in the preview env; run seed `--apply --stripe` with an `sk_test_` key). Proration also needs catalog TEST `product_prices` rows (a DB write needing a decision) |
-| 26 | Guest inbox Lighthouse 95+ on the guest thread page | a GUEST (signed-out) inquiry thread | guest thread URL | missing, seed-able: all fixtures use a signed-in client. Needs a guest inquiry + guest session link; say go and I add it |
+| 26 | Guest inbox Lighthouse a11y 95+ on the guest thread page (TUL-1103) | none (signed out) | link in `~/.tulala-qa-guest-thread-g6.url` (written by `node scripts/print-group6-guest-thread-link.mjs --env-file <staging env pull> --check`); form `https://app.staging.tulala.digital/c/t/<token>?lang=es` | covered: guest inquiry + guest session + 3-message client thread to T1 (NEW). The page needs no cookie or login: the token is an HMAC of (inquiry, hub tenant) with `GUEST_COOKIE_SECRET`, valid 30 days (re-run the script to renew). Send the staging gate header `x-staging-gate-token` (from `~/.tulala-qa.env`) or pass the gate first |
 | 27 | "+qamax fixture has no inquiries, offers, bookings or clients" (TUL-280, 715, 391 parts) | TAL-93940 persona | existing QA Max talent | not covered by design: this seed never touches existing talents; the same data now exists on T1 |
 | 28 | Tenant-site header nav / ES workspace public home (TUL-699, 1247) | O | hub `/w/qa-fixture-g6-ws/` (200, default site) | covered for the nav check; the ES home copy of TUL-699 is the existing site, not a fixture |
 
@@ -55,8 +55,8 @@ CI / lane items (#3984, #3999). Run them signed out on the hub / app hosts; no s
 ## C. Prerequisites that block whole groups
 
 1. `STRIPE_SECRET_KEY` (sk_test_) for staging seeds: rows 10, 25 and the checkout end of row 4.
-2. `TALENT_SITE_ROOT_DOMAIN` + `TALENT_SITE_SUBDOMAINS_ENABLED` on staging: row 15 and any "site host" check.
-3. A PM go for the guest-inquiry fixture (row 26) and for catalog TEST `product_prices` (row 25).
+2. `TALENT_SITE_SUBDOMAINS_ENABLED="true"` on the staging deployment (the only flag; the wildcard alias exists): row 15 and any "site host" check. Full env list: `docs/plans/staging-env-vars-needed-2026-10-18.md`.
+3. A PM go for catalog TEST `product_prices` (row 25). Order of the Stripe steps: `docs/plans/stripe-test-run-order-2026-10-18.md`.
 4. The 528-case plan file, to map the cases beyond the ones above.
 
 ## D. Read-only scripts that prove the fixtures are usable (status codes only)
@@ -64,3 +64,8 @@ CI / lane items (#3984, #3999). Run them signed out on the hub / app hosts; no s
 - `node scripts/check-group6-fixture-login.mjs --env-file <staging env pull>`: password grant for the 5 fixture logins (T1, T2, C1, C2, O) + app-host landing.
 - `node scripts/check-staging-nav-and-talent-host.mjs --env-file <staging env pull>`: TUL-1247 nav check now (hub `/w/<slug>/`, follows the 308); talent host + post states once the env exists (skips with "env not set" until then).
 - `npx tsx scripts/seed-group6-staging-fixtures.mts --env-file <tmp>`: read-only plan + schema check.
+
+## Product bug found: talent-scope posts cannot exist on staging
+
+`cms_posts.tenant_id` is still `NOT NULL` on staging. Posts v1 stores talent-site posts as `talent_profile_id = <id>, tenant_id = NULL`, and the public reader (`talentScopedQuery`) only returns rows with `tenant_id IS NULL`. The Posts v1 migration was recorded earlier as `20261014220352 posts_v1_blocks_categories_takedown` (without the `ALTER COLUMN tenant_id DROP NOT NULL` that `20261231400700` now carries, and `20261231400700` has no row in `schema_migrations`), so the constraint `cms_posts_scope_present` exists but the NOT NULL was never dropped. Effect: a talent without a workspace can save a post that fails on insert, and `/blog/<slug>` on a talent host is 404 for every post (the symptom PM saw). A fixture row with `tenant_id = hub` is invisible to the talent reader and leaks into the HUB's public blog, so the seed no longer writes it.
+Fix is a DB change (apply the missing `DROP NOT NULL` on `cms_posts`, `cms_redirects`, `cms_post_categories` on staging): needs a migration decision, so it is NOT done here. Until then the post routes are testable only on the workspace site.

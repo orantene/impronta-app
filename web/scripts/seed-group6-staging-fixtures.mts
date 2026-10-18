@@ -30,7 +30,8 @@
  * Run from web/:
  *   npx tsx scripts/seed-group6-staging-fixtures.mts --env-file <tmp> [--selftest|--apply|--cleanup --apply]
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 
 import {
   buildDefaultShellTree,
@@ -43,7 +44,15 @@ import {
   STAGING_MARKER_AGENCY_ID,
   cancunInstant,
   checkDbTarget,
+  STRIPE_FIXTURE_SUBSCRIPTIONS,
+  ALL_PLAN_LOOKUP_KEYS,
+  TEST_COUPON_IDS,
+  checkKeyFileMode,
+  checkLivemode,
   checkStripeKey,
+  describeStripeApply,
+  parseKeyFileText,
+  planLookupKey,
   ownedRootIds,
   parseArgs,
   parseEnvText,
@@ -68,6 +77,8 @@ const note = (m: Record<string, string[]>, t: string, id: string) => {
 const J = (v: unknown) => JSON.stringify(v);
 const id = (k: string) => stableId(k);
 
+const ownerRootPostIds = () => ownedRootIds().cms_posts;
+
 function die(msg: string, code = 1): never {
   console.error(`[group6-fixtures] ${msg}`);
   process.exit(code);
@@ -75,24 +86,40 @@ function die(msg: string, code = 1): never {
 
 const args = parseArgs(process.argv.slice(2));
 if (args.help) {
-  console.log("usage: seed-group6-staging-fixtures.mts [--env-file path] [--selftest | --apply [--stripe] | --cleanup [--apply]]");
+  console.log("usage: seed-group6-staging-fixtures.mts [--env-file path] [--selftest | --apply [--stripe [--stripe-key-file path]] | --cleanup [--apply] | --stripe --preflight]");
   process.exit(0);
 }
 if (args.errors.length) die(args.errors.join("; "), 2);
 
 const env: Record<string, string | undefined> = { ...process.env };
 if (args.envFile) Object.assign(env, parseEnvText(readFileSync(args.envFile, "utf8")));
-const verdict = checkDbTarget(env);
-if (!verdict.ok) die(`refusing to run:\n  - ${verdict.reasons.join("\n  - ")}`, 2);
 if (args.stripe) {
+  // The key comes from STRIPE_SECRET_KEY or a local file (mode 600), and is never printed.
+  if (args.stripeKeyFile) {
+    const path = args.stripeKeyFile.replace(/^~(?=\/|$)/, homedir());
+    let st;
+    try {
+      st = statSync(path);
+    } catch {
+      die(`--stripe-key-file: cannot read ${path}`, 2);
+    }
+    const m = checkKeyFileMode(st.mode);
+    if (!m.ok) die(`--stripe-key-file: ${m.reason}`, 2);
+    const fromFile = parseKeyFileText(readFileSync(path, "utf8"));
+    if (!fromFile) die("--stripe-key-file: no key found in the file", 2);
+    env.STRIPE_SECRET_KEY = fromFile;
+  }
   const k = checkStripeKey(env.STRIPE_SECRET_KEY);
   if (!k.ok) die(`--stripe: ${k.reason}`, 2);
 }
+// Preflight is read-only and Stripe-only: it needs no database login.
+const verdict = args.preflight ? { ok: true as const, reasons: [] as string[] } : checkDbTarget(env);
+if (!verdict.ok) die(`refusing to run:\n  - ${verdict.reasons.join("\n  - ")}`, 2);
 const password = env.QA_FIXTURE_PASSWORD?.trim() || null;
 if (password && password.length < 12) die("QA_FIXTURE_PASSWORD must be at least 12 characters", 2);
 
 const client = new pgMod.default.Client({ connectionString: env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-await client.connect();
+if (!args.preflight) await client.connect();
 const q = (text: string, params: unknown[] = []) => client.query(text, params);
 
 /** insert one row; ON CONFLICT DO NOTHING on the given target (default the id pk). Never updates. */
@@ -574,19 +601,28 @@ async function seedReviews(t1: string, clientUser: string, doneBookings: string[
   }
 }
 
-async function seedPosts(t1: string, t1User: string) {
+/**
+ * Posts live under the OWNER'S WORKSPACE (tenant scope), not on the talent profile. The talent scope
+ * (talent_profile_id set, tenant_id NULL) cannot exist on staging today: `cms_posts.tenant_id` is still
+ * NOT NULL there (the Posts v1 migration was recorded earlier under 20261014220352 without the DROP NOT NULL),
+ * so a row with tenant_id = hub is invisible to the talent reader AND would leak into the hub's public blog.
+ * Workspace scope renders on the workspace site: <hub>/w/qa-fixture-g6-ws/blog/<slug>.
+ */
+async function seedPosts(ws: string, ownerUser: string) {
+  // Earlier runs wrote these four ids under the hub tenant (wrong scope). Remove only OUR rows in that scope.
+  await q("delete from public.cms_posts where id = any($1::uuid[]) and tenant_id = $2", [ownerRootPostIds(), HUB_TENANT_ID]);
   const now = new Date();
   const ago = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
   const base = {
-    tenant_id: HUB_TENANT_ID,
-    talent_profile_id: t1,
-    created_by: t1User,
-    updated_by: t1User,
+    tenant_id: ws,
+    talent_profile_id: null,
+    created_by: ownerUser,
+    updated_by: ownerUser,
     include_in_sitemap: true,
     noindex: false,
     is_unlisted: false,
     is_featured: false,
-    author_profile_id: t1User,
+    author_profile_id: ownerUser,
   };
   const esId = id("post:es");
   await ins("public.cms_posts", {
@@ -645,6 +681,7 @@ const TEMPLATE_WORKSPACE = "290eabc3-616b-4723-8cbf-7687b6c9c6b6"; // qa-b7-stud
 const TEMPLATE_PAYLATER_ORDER = "4f965f34-68a9-4deb-b114-cbeac9e2eb7e"; // pending_payment order of a QA booking, read as a template only
 const TEMPLATE_OFFER_MSG = "026464fa-e5a7-480a-981a-3721cc9b78d7";
 const TEMPLATE_TEXT_MSG = "b72f00df-e21b-4b11-9d6e-7a455ba87974";
+const TEMPLATE_GUEST_INQ = "590da39b-4687-4dda-9c85-36746817c9ab"; // a guest (no client user) QA inquiry, read as a shape template only
 const TEMPLATE_OFFER_ID = "01eb51b4-aac4-4116-8e51-f4606e93e496";
 
 /** TUL-1255 / TUL-1182 / TUL-734: a workspace (MXN, no payments yet) whose owner also has the talent role. */
@@ -730,6 +767,54 @@ async function seedMessages(inq: string, offer: string, clientUser: string, t1Us
   }
 }
 
+/** Signed-out guest inquiry (no client account) with a short client thread to T1, for the guest-inbox Lighthouse card (TUL-1103). */
+async function seedGuestThread(t1: string, t1User: string) {
+  const gs = id("guest_session");
+  const inq = id("inquiry:guest");
+  const group = id("reqgroup:guest");
+  const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60000).toISOString();
+  await ins("public.guest_sessions", { id: gs, session_key: id("guest_session_key") });
+  await clone("public.inquiries", "s.id = $1", [TEMPLATE_GUEST_INQ], {
+    id: inq,
+    contact_name: "qa-fixture Invitado",
+    contact_email: EMAILS.guest,
+    contact_phone: null,
+    client_user_id: null,
+    client_account_id: null,
+    guest_session_id: gs,
+    owner_user_id: t1User,
+    customer_id: null,
+    status: "coordination",
+    current_offer_id: null,
+    message: `${PREFIX}: consulta de un invitado (fixture TUL-1103)`,
+    event_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+    created_at: at(60),
+    updated_at: at(5),
+    source_context: { host_kind: "hub", talent_ids: [t1], referrer_page: "/t/TAL-96001", host_tenant_id: HUB_TENANT_ID },
+  });
+  await clone("public.inquiry_requirement_groups", "s.inquiry_id = $1", [TEMPLATE_GUEST_INQ], { id: group, inquiry_id: inq });
+  const parts = await q("select id, role from public.inquiry_participants where inquiry_id = $1", [TEMPLATE_GUEST_INQ]);
+  for (const p of parts.rows) {
+    const isTalent = p.role === "talent";
+    await clone("public.inquiry_participants", "s.id = $1", [p.id], {
+      id: id(`participant:guest:${isTalent ? "talent" : "client"}`),
+      inquiry_id: inq,
+      requirement_group_id: group,
+      user_id: isTalent ? t1User : null,
+      talent_profile_id: isTalent ? t1 : null,
+    });
+  }
+  const text = (key: string, sender: string | null, guestSession: string | null, body: string, minutesAgo: number) =>
+    clone("public.inquiry_messages", "s.id = $1", [TEMPLATE_TEXT_MSG], {
+      id: id(key), inquiry_id: inq, thread_type: "private", sender_user_id: sender, guest_session_id: guestSession,
+      message_kind: "text", body, metadata: {}, card_payload: null, created_at: at(minutesAgo), edited_at: null, deleted_at: null,
+    });
+  await text("msg:guest:1", null, gs, "Hola, me gustaria cotizar una limpieza para mi casa el proximo mes.", 45);
+  await text("msg:guest:2", t1User, null, "Con gusto. Me confirmas la direccion y los metros cuadrados?", 30);
+  await text("msg:guest:3", null, gs, "Es un departamento de 80 m2 en la zona centro.", 20);
+  return { inq, gs };
+}
+
 /** TUL-391: English-stored support-ticket bells for the ES talent (the bell must localize them at render). */
 async function seedTicketBells(t1User: string) {
   const tpl = await q("select id from public.user_notifications where surface = 'talent' and kind = 'ticket' and title like 'Resolved:%' limit 1");
@@ -749,55 +834,143 @@ async function seedTicketBells(t1User: string) {
   }
 }
 
-// ------------------------------------------------------------------ Stripe TEST (optional)
-async function seedStripe(t1: string, t1User: string) {
+// ------------------------------------------------------------------ Stripe TEST (optional, --stripe)
+// Re-run safety: Stripe idempotency keys last only 24h, so every object is looked up first
+// (customers / PaymentIntents by metadata search, subscriptions by customer, prices by lookup key)
+// and the idempotency key is only a second guard inside one run.
+type StripeClient = InstanceType<(typeof import("stripe"))["default"]>;
+let stripeClient: StripeClient | null = null;
+
+async function openStripe(): Promise<StripeClient> {
+  if (stripeClient) return stripeClient;
   const { default: Stripe } = await import("stripe");
   const stripe = new Stripe(env.STRIPE_SECRET_KEY as string);
-  const sid = id("talent_subscription");
-  const have = await q("select stripe_subscription_id from public.talent_subscriptions where id = $1", [sid]);
-  if (have.rowCount) {
-    note(existed, "public.talent_subscriptions", sid);
-    return;
-  }
-  const customer = await stripe.customers.create(
-    {
-      email: EMAILS.limpieza,
-      name: "qa-fixture Limpieza Hogar",
-      payment_method: "pm_card_visa",
-      invoice_settings: { default_payment_method: "pm_card_visa" },
-      metadata: { seed: PREFIX },
-    },
-    { idempotencyKey: `${PREFIX}_customer` },
-  );
-  const sub = await stripe.subscriptions.create(
-    {
-      customer: customer.id,
-      items: [
-        {
-          price_data: {
-            currency: "usd",
-            product: (await stripe.products.create({ name: `${PREFIX} Talent Max (TEST)`, metadata: { seed: PREFIX } }, { idempotencyKey: `${PREFIX}_product` })).id,
-            recurring: { interval: "month" },
-            unit_amount: 1900,
-          },
-        },
-      ],
-      metadata: { seed: PREFIX, talent_profile_id: t1 },
-    },
-    { idempotencyKey: `${PREFIX}_subscription` },
-  );
-  await ins("public.talent_subscriptions", {
-    id: sid,
-    talent_profile_id: t1,
-    user_id: t1User,
-    stripe_subscription_id: sub.id,
-    stripe_customer_id: customer.id,
-    plan_key: "talent_portfolio",
-    status: sub.status,
-    current_period_end: new Date((sub.items.data[0]?.current_period_end ?? Math.floor(Date.now() / 1000) + 2592000) * 1000).toISOString(),
-    stripe_price_id: sub.items.data[0]?.price.id ?? null,
+  const [balance, account] = await Promise.all([stripe.balance.retrieve(), stripe.accounts.retrieve()]);
+  const live = checkLivemode({
+    balanceLivemode: (balance as unknown as { livemode?: boolean }).livemode,
+    accountLivemode: (account as unknown as { livemode?: boolean }).livemode,
   });
-  console.log(`[group6-fixtures] Stripe TEST customer ${customer.id} + subscription ${sub.id} created (cannot be deleted; --cleanup --stripe cancels them)`);
+  if (!live.ok) die(`--stripe: ${live.reason}`, 2);
+  stripeClient = stripe;
+  return stripe;
+}
+
+const metaQuery = (k: string, v: string) => `metadata['${k}']:'${v}'`;
+
+async function findCustomer(stripe: StripeClient, key: string) {
+  const found = await stripe.customers.search({ query: `${metaQuery("seed", PREFIX)} AND ${metaQuery("fixture_key", key)}`, limit: 1 });
+  return found.data[0] ?? null;
+}
+
+async function priceByLookup(stripe: StripeClient, lookupKey: string) {
+  const found = await stripe.prices.list({ lookup_keys: [lookupKey], limit: 1 });
+  return found.data[0] ?? null;
+}
+
+/** (a) paid-plan fixtures: a TEST customer + subscription on the catalog TEST price, one row in talent_subscriptions each. */
+async function seedStripePlans(rows: Array<{ key: "limpieza" | "owner"; talentId: string; userId: string; email: string; name: string }>) {
+  const stripe = await openStripe();
+  for (const spec of STRIPE_FIXTURE_SUBSCRIPTIONS) {
+    const row = rows.find((r) => r.key === spec.key);
+    if (!row) continue;
+    const sid = spec.key === "limpieza" ? id("talent_subscription") : id(`talent_subscription:${spec.key}`);
+    const have = await q("select 1 from public.talent_subscriptions where id = $1", [sid]);
+    if (have.rowCount) {
+      note(existed, "public.talent_subscriptions", sid);
+      continue;
+    }
+    const lookup = planLookupKey(spec.planKey, spec.interval);
+    const price = await priceByLookup(stripe, lookup);
+    if (!price) die(`TEST price ${lookup} does not exist: run web/scripts/seed-stripe-test-prices.mjs first`, 2);
+    let customer = await findCustomer(stripe, spec.key);
+    if (!customer) {
+      customer = await stripe.customers.create(
+        { email: row.email, name: row.name, payment_method: "pm_card_visa", metadata: { seed: PREFIX, fixture_key: spec.key } },
+        { idempotencyKey: `${PREFIX}_customer_${spec.key}` },
+      );
+    }
+    if (!customer.invoice_settings?.default_payment_method) {
+      // The attached method has its own id; pm_card_visa itself cannot be a default.
+      const pms = await stripe.paymentMethods.list({ customer: customer.id, type: "card", limit: 1 });
+      if (pms.data[0]) await stripe.customers.update(customer.id, { invoice_settings: { default_payment_method: pms.data[0].id } });
+    }
+    const existing = await stripe.subscriptions.list({ customer: customer.id, status: "all", limit: 10 });
+    let sub = existing.data.find((s2) => s2.metadata?.seed === PREFIX && s2.metadata?.fixture_key === spec.key && s2.status !== "canceled");
+    if (!sub) {
+      sub = await stripe.subscriptions.create(
+        { customer: customer.id, items: [{ price: price.id }], metadata: { seed: PREFIX, fixture_key: spec.key, talent_profile_id: row.talentId } },
+        { idempotencyKey: `${PREFIX}_subscription_${spec.key}` },
+      );
+    }
+    const periodEnd = (sub.items.data[0] as unknown as { current_period_end?: number } | undefined)?.current_period_end
+      ?? (sub as unknown as { current_period_end?: number }).current_period_end
+      ?? Math.floor(Date.now() / 1000) + 2592000;
+    await ins("public.talent_subscriptions", {
+      id: sid,
+      talent_profile_id: row.talentId,
+      user_id: row.userId,
+      stripe_subscription_id: sub.id,
+      stripe_customer_id: customer.id,
+      plan_key: spec.planKey,
+      status: sub.status,
+      current_period_end: new Date(periodEnd * 1000).toISOString(),
+      stripe_price_id: price.id,
+    });
+    console.log(`[group6-fixtures] Stripe TEST ${spec.key}: customer ${customer.id}, subscription ${sub.id} on ${lookup}`);
+  }
+}
+
+/** (b) a real PaymentIntent for the refundable booking, attached to OUR existing money row (never a second one). */
+async function attachRefundablePaymentIntent(): Promise<string> {
+  const stripe = await openStripe();
+  const txn = id("txn:refundable");
+  const cur = await q("select provider_metadata from public.booking_transactions where id = $1", [txn]);
+  const existingPi = (cur.rows[0]?.provider_metadata as { payment_intent_id?: string } | null)?.payment_intent_id;
+  if (existingPi) return existingPi;
+  const found = await stripe.paymentIntents.search({ query: metaQuery("transaction_id", txn), limit: 1 });
+  let intent = found.data[0];
+  if (!intent) {
+    intent = await stripe.paymentIntents.create(
+      {
+        amount: 80000,
+        currency: "mxn",
+        payment_method: "pm_card_visa",
+        confirm: true,
+        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+        description: `${PREFIX} refundable booking payment`,
+        metadata: { transaction_id: txn, booking_id: id("booking:refundable"), seed: PREFIX },
+      },
+      { idempotencyKey: `${PREFIX}_pi_refundable` },
+    );
+  }
+  if (intent.status !== "succeeded") die(`PaymentIntent ${intent.id} ended ${intent.status}`);
+  await q(
+    "update public.booking_transactions set provider_metadata = coalesce(provider_metadata, '{}'::jsonb) || $2::jsonb where id = $1",
+    [txn, J({ payment_intent_id: intent.id })],
+  );
+  return intent.id;
+}
+
+/** --stripe --preflight: verify the key, list what exists, print what --apply --stripe would do. Writes nothing. */
+async function stripePreflight() {
+  const stripe = await openStripe(); // refuses unless sk_test_ AND livemode=false
+  const account = await stripe.accounts.retrieve();
+  console.log(`[group6-fixtures] preflight: key is sk_test_ and the API reports livemode=false. account ${account.id}, country ${account.country ?? "?"}`);
+  const found = await stripe.prices.list({ lookup_keys: ALL_PLAN_LOOKUP_KEYS, limit: 20 });
+  const prices: Record<string, string | null> = {};
+  for (const k of ALL_PLAN_LOOKUP_KEYS) prices[k] = found.data.find((p) => p.lookup_key === k)?.id ?? null;
+  const coupons: Record<string, boolean> = {};
+  for (const c of TEST_COUPON_IDS) coupons[c] = await stripe.coupons.retrieve(c).then(() => true, () => false);
+  const customers: Record<string, boolean> = {};
+  for (const s of STRIPE_FIXTURE_SUBSCRIPTIONS) customers[s.key] = Boolean(await findCustomer(stripe, s.key));
+  const pi = await stripe.paymentIntents.search({ query: metaQuery("transaction_id", id("txn:refundable")), limit: 1 });
+  console.log("[group6-fixtures] TEST prices by lookup key:");
+  for (const [k, v] of Object.entries(prices)) console.log(`  ${k.padEnd(38)} ${v ?? "missing"}`);
+  console.log("[group6-fixtures] TEST coupons:");
+  for (const [k, v] of Object.entries(coupons)) console.log(`  ${k.padEnd(38)} ${v ? "present" : "missing"}`);
+  console.log("[group6-fixtures] --apply --stripe would:");
+  for (const line of describeStripeApply({ prices, coupons, customers, paymentIntents: { refundable: pi.data.length > 0 } })) console.log(`  ${line}`);
+  console.log("[group6-fixtures] preflight wrote nothing (search results can lag a minute behind creation).");
 }
 
 // ------------------------------------------------------------------ cleanup (FK-descendant purge, scoped to our ids)
@@ -847,12 +1020,11 @@ async function cleanup() {
   const roots = ownedRootIds();
   // Stripe objects first (ids are in our own subscription row).
   if (args.stripe) {
-    const subs = await q("select stripe_subscription_id, stripe_customer_id from public.talent_subscriptions where id = $1", [id("talent_subscription")]);
-    if (subs.rowCount) {
-      const { default: Stripe } = await import("stripe");
-      const stripe = new Stripe(env.STRIPE_SECRET_KEY as string);
-      await stripe.subscriptions.cancel(subs.rows[0].stripe_subscription_id as string).catch(() => undefined);
-      await stripe.customers.del(subs.rows[0].stripe_customer_id as string).catch(() => undefined);
+    const subs = await q("select stripe_subscription_id, stripe_customer_id from public.talent_subscriptions where id = any($1::uuid[])", [[id("talent_subscription"), id("talent_subscription:owner")]]);
+    const stripe = await openStripe();
+    for (const r of subs.rows) {
+      await stripe.subscriptions.cancel(r.stripe_subscription_id as string).catch(() => undefined);
+      await stripe.customers.del(r.stripe_customer_id as string).catch(() => undefined);
     }
   }
   // Order matters only for readability; purge() handles descendants. Money rows hang off bookings.
@@ -865,6 +1037,7 @@ async function cleanup() {
   await purge("public.talent_bookings", "id", roots.agency_bookings);
   await purge("public.orders", "id", roots.orders);
   await purge("public.user_notifications", "id", roots.user_notifications);
+  await purge("public.guest_sessions", "id", roots.guest_sessions);
   await purge("public.customers", "id", roots.customers);
   await purge("public.media_assets", "id", roots.media_assets);
   await purge("public.talent_profiles", "id", roots.talent_profiles);
@@ -879,7 +1052,7 @@ const COUNT_TABLES = [
   "public.talent_profiles", "public.talent_sites", "public.talent_pages", "public.talent_offerings", "public.talent_offering_media",
   "public.agency_bookings", "public.talent_bookings", "public.booking_talent", "public.booking_transactions", "public.inquiries",
   "public.inquiry_offers", "public.inquiry_participants", "public.cms_posts", "public.talent_reviews", "public.media_assets",
-  "public.customers", "public.client_profiles", "public.orders", "public.order_lines", "public.inquiry_messages", "public.agency_memberships", "public.agency_talent_roster", "public.profiles", "auth.users", "auth.identities", "public.agencies",
+  "public.customers", "public.client_profiles", "public.guest_sessions", "public.orders", "public.order_lines", "public.inquiry_messages", "public.agency_memberships", "public.agency_talent_roster", "public.profiles", "auth.users", "auth.identities", "public.agencies",
   "public.talent_subscriptions", "public.notification_dispatch_log", "public.user_notifications",
 ];
 
@@ -997,7 +1170,6 @@ async function seedAll() {
   });
 
   const now = new Date();
-  const pi = args.stripe ? await makeRefundablePaymentIntent() : null;
   const away = await seedBooking({
     key: "away", title: "QA Visita a domicilio (away)", startsAt: cancunInstant(now, 0, 15), endsAt: cancunInstant(now, 0, 17),
     bookingStatus: "confirmed", address: "Calle 12 #34, Col. Centro, Cancun", paid: false, amountCents: 80000, provider: "manual",
@@ -1006,7 +1178,7 @@ async function seedAll() {
   const refundable = await seedBooking({
     key: "refundable", title: "QA Reserva pagada (reembolsable)", startsAt: cancunInstant(now, 1, 10), endsAt: cancunInstant(now, 1, 13),
     bookingStatus: "confirmed", address: "Av. Tulum 100, Cancun", paid: true, amountCents: 80000, provider: "stripe",
-    clientUser: uClient, customerId, t1, t1User: uLimpieza, paymentIntentId: pi,
+    clientUser: uClient, customerId, t1, t1User: uLimpieza,
   });
   const done = await seedBooking({
     key: "done", title: "QA Reserva completada", startsAt: cancunInstant(now, -5, 10), endsAt: cancunInstant(now, -5, 13),
@@ -1051,29 +1223,18 @@ async function seedAll() {
   const chain = await seedOfferChain(t1, uLimpieza, uClient, customerId, o1);
   await seedMessages(chain.inq, chain.offer, uClient, uLimpieza);
   await seedTicketBells(uLimpieza);
+  const guest = await seedGuestThread(t1, uLimpieza);
   await seedReviews(t1, uClient, [done, done2, done3]);
-  await seedPosts(t1, uLimpieza);
-  if (args.stripe) await seedStripe(t1, uLimpieza);
-  return { uClient2, paid2, t1, t2, tOwner, uLimpieza, uQuote, uClient, uOwner, ws, payLater, agencyOnly, away, refundable, done, done2, done3, ...chain, pi };
-}
-
-async function makeRefundablePaymentIntent(): Promise<string> {
-  const { default: Stripe } = await import("stripe");
-  const stripe = new Stripe(env.STRIPE_SECRET_KEY as string);
-  const intent = await stripe.paymentIntents.create(
-    {
-      amount: 80000,
-      currency: "mxn",
-      payment_method: "pm_card_visa",
-      confirm: true,
-      automatic_payment_methods: { enabled: true, allow_redirects: "never" },
-      description: `${PREFIX} refundable booking payment`,
-      metadata: { transaction_id: id("txn:refundable"), booking_id: id("booking:refundable"), seed: PREFIX },
-    },
-    { idempotencyKey: `${PREFIX}_pi_refundable` },
-  );
-  if (intent.status !== "succeeded") die(`PaymentIntent ${intent.id} ended ${intent.status}`);
-  return intent.id;
+  await seedPosts(ws, uOwner);
+  let pi: string | null = null;
+  if (args.stripe) {
+    pi = await attachRefundablePaymentIntent();
+    await seedStripePlans([
+      { key: "limpieza", talentId: t1, userId: uLimpieza, email: EMAILS.limpieza, name: "qa-fixture Limpieza Hogar" },
+      { key: "owner", talentId: tOwner, userId: uOwner, email: EMAILS.owner, name: "qa-fixture Dueno Estudio" },
+    ]);
+  }
+  return { guest, uClient2, paid2, t1, t2, tOwner, uLimpieza, uQuote, uClient, uOwner, ws, payLater, agencyOnly, away, refundable, done, done2, done3, ...chain, pi };
 }
 
 function printReport(r?: Awaited<ReturnType<typeof seedAll>>) {
@@ -1092,6 +1253,7 @@ function printReport(r?: Awaited<ReturnType<typeof seedAll>>) {
     console.log(`  T1 user / T2 user   ${r.uLimpieza} / ${r.uQuote}`);
     console.log(`  sent offer          ${r.offer} (inquiry ${r.inq})`);
     console.log(`  bookings            away ${r.away} | refundable ${r.refundable} | completed ${r.done}`);
+    console.log(`  guest inquiry ${r.guest.inq} (guest_session ${r.guest.gs}); link: node scripts/print-group6-guest-thread-link.mjs`);
     console.log(`  client 2 (all paid) user ${r.uClient2} | booking ${r.paid2}`);
     console.log(`  owner talent_profile ${r.tOwner} (TAL-96003)`);
     console.log(`  owner user / workspace ${r.uOwner} / ${r.ws} (slug ${PREFIX}-ws)`);
@@ -1115,6 +1277,7 @@ async function verifySummary(r: Awaited<ReturnType<typeof seedAll>>) {
   const agencyOnly = await one("select (select count(*)::int from public.agency_bookings where id = $1) ab, (select count(*)::int from public.talent_bookings where id = $1) tb, (select count(*)::int from public.booking_talent where booking_id = $1) bt", [r.agencyOnly]);
   const msgs = await one("select count(*)::int n from public.inquiry_messages where inquiry_id = $1 and deleted_at is null", [r.inq]);
   const ws = await one("select (select count(*)::int from public.agency_memberships where tenant_id = $1 and profile_id = $2 and status = 'active') m, (select preferred_currency from public.agencies where id = $1) cur, (select app_role::text from public.profiles where id = $2) role", [r.ws, r.uOwner]);
+  const guestMsgs = await one("select count(*)::int n from public.inquiry_messages where inquiry_id = $1 and thread_type = 'private' and deleted_at is null", [r.guest.inq]);
   const bells = await one("select count(*)::int n from public.user_notifications where user_id = $1 and kind = 'ticket'", [r.uLimpieza]);
   const lookup = await q("select public.talent_site_subdomain_lookup($1) as l", [`${PREFIX}-limpieza`]).catch(() => null);
   console.log("\n[group6-fixtures] read-back (what Verify will see):");
@@ -1123,11 +1286,15 @@ async function verifySummary(r: Awaited<ReturnType<typeof seedAll>>) {
   console.log(`  T1 rating_count ${rev.rating_count} avg ${rev.rating_avg} | verified-paid reviews ${verified.n}/3`);
   console.log(`  paid transactions on the four paid bookings ${tx.paid}/${tx.n}`);
   console.log(`  pay-later booking unpaid with pending_payment order ${owed.n}/1 | agency-only booking: agency_bookings ${agencyOnly.ab}, talent_bookings ${agencyOnly.tb} (must be 0), booking_talent ${agencyOnly.bt}`);
-  console.log(`  offer thread messages ${msgs.n} | owner membership ${ws.m} role ${ws.role} workspace currency ${ws.cur} | ticket bells ${bells.n}`);
+  console.log(`  offer thread messages ${msgs.n} | owner membership ${ws.m} role ${ws.role} workspace currency ${ws.cur} | ticket bells ${bells.n} | guest thread messages ${guestMsgs.n}`);
   console.log(`  site lookup rpc ${lookup ? JSON.stringify(lookup.rows[0]?.l ?? null).slice(0, 160) : "(rpc unavailable)"}`);
 }
 
 async function main() {
+  if (args.preflight) {
+    await stripePreflight();
+    return;
+  }
   const mode = args.cleanup ? (args.apply ? "cleanup-apply" : "cleanup-plan") : args.selftest ? "selftest" : args.apply ? "apply" : "plan";
   console.log(`[group6-fixtures] target OK (staging fxlankepwnvelxjrahwk). mode=${mode}${password ? "" : " (no QA_FIXTURE_PASSWORD: logins get no password)"}`);
 
@@ -1204,5 +1371,5 @@ try {
   console.error(`[group6-fixtures] FAILED (rolled back): ${e instanceof Error ? e.message : "unknown error"}`);
   process.exitCode = 1;
 } finally {
-  await client.end();
+  if (!args.preflight) await client.end();
 }

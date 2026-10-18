@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { absoluteAppWorkspaceLinks, decideNavCheck, decideProbe, headerNavHrefs, talentHostPlan } from "./staging-nav-host-checks.mjs";
+import { WORKSPACE_POST_BASE, WORKSPACE_POST_PROBES, absoluteAppWorkspaceLinks, decideNavCheck, decideProbe, headerNavHrefs, siteHostResolves, talentHostPlan } from "./staging-nav-host-checks.mjs";
 
 const GOOD = '<header><a href="/about">About</a><nav><a href="/w/acme/contact">Contact</a></nav></header><main><a href="https://app.staging.tulala.digital/w/x/y">body link</a></main>';
 const BAD = '<header><nav><a href="https://app.staging.tulala.digital/w/acme/catalogue">Catalogue</a><a href="/home">Home</a></nav></header>';
@@ -24,22 +24,30 @@ test("nav verdict: needs 200, no bad links, and some links to inspect", () => {
   assert.equal(decideNavCheck(200, "<main>no header</main>").ok, false);
 });
 
-test("talent host skips when either env value is empty or unset", () => {
-  for (const env of [{}, { TALENT_SITE_ROOT_DOMAIN: "", TALENT_SITE_SUBDOMAINS_ENABLED: "" }, { TALENT_SITE_ROOT_DOMAIN: "staging.tulala.digital" }, { TALENT_SITE_SUBDOMAINS_ENABLED: "1" }, { TALENT_SITE_ROOT_DOMAIN: "x.digital", TALENT_SITE_SUBDOMAINS_ENABLED: "0" }]) {
+test("talent host skips unless TALENT_SITE_SUBDOMAINS_ENABLED is exactly \"true\"", () => {
+  for (const env of [{}, { TALENT_SITE_SUBDOMAINS_ENABLED: "" }, { TALENT_SITE_SUBDOMAINS_ENABLED: "1" }, { TALENT_SITE_SUBDOMAINS_ENABLED: "TRUE" }, { TALENT_SITE_SUBDOMAINS_ENABLED: "false" }, { TALENT_SITE_ROOT_DOMAIN: "x.digital" }]) {
     const p = talentHostPlan(env);
     assert.equal(p.skip, true);
-    assert.match(p.reason, /env not set/);
+    assert.match(p.reason, /TALENT_SITE_SUBDOMAINS_ENABLED not set/);
   }
 });
 
-test("talent host plan targets the T1 fixture host and the post states", () => {
-  const p = talentHostPlan({ TALENT_SITE_ROOT_DOMAIN: ".staging.tulala.digital", TALENT_SITE_SUBDOMAINS_ENABLED: "true" });
+test("talent host plan targets the T1 fixture host on the staging wildcard and the post states", () => {
+  const p = talentHostPlan({ TALENT_SITE_SUBDOMAINS_ENABLED: "true" });
   assert.equal(p.skip, false);
   assert.equal(p.host, "qa-fixture-g6-limpieza.staging.tulala.digital");
-  const byPath = Object.fromEntries(p.probes.map((x) => [x.path, x.expect]));
+  assert.deepEqual(p.probes.map((x) => x.path), ["/"]);
+  const byPath = Object.fromEntries(WORKSPACE_POST_PROBES.map((x) => [x.path, x.expect]));
+  assert.equal(WORKSPACE_POST_BASE, "https://staging.tulala.digital/w/qa-fixture-g6-ws");
   assert.deepEqual(byPath["/blog/qa-fixture-g6-guia-limpieza"], [200]);
+  assert.deepEqual(byPath["/blog/qa-fixture-g6-oferta-vencida"], [200]);
   assert.deepEqual(byPath["/blog/qa-fixture-g6-articulo-oculto"], [404]);
   assert.deepEqual(byPath["/blog/qa-fixture-g6-no-such-post"], [404]);
   assert.equal(decideProbe(p.probes[0], 200).ok, true);
   assert.equal(decideProbe(p.probes[0], 404).ok, false);
+});
+
+test("the site host only counts as resolving on a 200 home", () => {
+  assert.equal(siteHostResolves(200), true);
+  for (const st of [0, 301, 404, 500]) assert.equal(siteHostResolves(st), false);
 });

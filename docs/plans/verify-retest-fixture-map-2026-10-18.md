@@ -3,8 +3,8 @@
 For the PRs merged on `main` after staging's deployment (`dpl_8GkWu...`, pre-#3984): #3984 #3999 #3982 #3978 #3980 #3979 #3985 #3987 #3992 #3997 #3981.
 Fixtures are the `qa-fixture-g6` rows on staging only (project `fxlankepwnvelxjrahwk`), built by
 `web/scripts/seed-group6-staging-fixtures.mts` (see `docs/plans/staging-fixtures-group6-2026-10-18.md` for how it runs, guards and cleanup).
-Hosts: app = `https://app.staging.tulala.digital`, hub = `https://staging.tulala.digital`. The talent subdomain site host is not routable on
-staging (`TALENT_SITE_ROOT_DOMAIN` and `TALENT_SITE_SUBDOMAINS_ENABLED` are empty in the preview env), so the T1 public site is reached through the
+Hosts: app = `https://app.staging.tulala.digital`, hub = `https://staging.tulala.digital`. The talent subdomain host `qa-fixture-g6-limpieza.staging.tulala.digital` (the `*.staging.tulala.digital` alias exists) routes only when the deployed
+build has `TALENT_SITE_SUBDOMAINS_ENABLED="true"` (exact string; empty in the preview env today); until then the T1 public site is reached through the
 hub profile `/t/TAL-96001` (and `/es/t/TAL-96001`). Sign in with the password in `~/.tulala-qa-fixtures-g6.env` (never pasted anywhere).
 All checks: ES + EN, 390px + desktop; nothing here was browser-verified by the dev.
 
@@ -61,5 +61,13 @@ Applied on staging 2026-10-18 after a passing clean-start --selftest; a second -
 1. **Paid plan billing portal / invoices / proration (TUL-834, plan change, the paid-plan half of 1059):** needs a Stripe TEST customer and subscription. The preview env `STRIPE_SECRET_KEY` is empty. Run the seed with `--apply --stripe` and an `sk_test_` key (code written, untested). Proration additionally needs catalog TEST prices (`product_prices`), a DB write that is a separate decision.
 2. **Real refund click and a Stripe-backed pay-later payment:** the refundable booking has no real PaymentIntent without `--stripe`. Paying the pay-later booking through checkout works with staging's own Stripe TEST config, not this seed.
 3. **TUL-1247 stored absolute `/w/` URL:** no nav item with that URL is seeded because the real stored value is unknown. Needs the staging nav data from the reporter.
-4. **Talent subdomain site host:** staging does not route `*.` talent hosts (env empty); `/blog/<slug>` posts on T1 (published, expired, taken down) can only be checked once a site host works. PM decision: enable the staging talent root domain, or accept hub-only checks.
+4. **Posts on a talent host:** the T1 host `qa-fixture-g6-limpieza.staging.tulala.digital` resolves (200) but every `/blog/<slug>` is 404 because `cms_posts.tenant_id` is still NOT NULL on staging, so talent-scope posts (tenant NULL) cannot exist (details and fix in `group6-fixture-verification-checklist-2026-10-18.md`, section Product bug). The fixture posts therefore live on the owner workspace: `https://staging.tulala.digital/w/qa-fixture-g6-ws/blog/qa-fixture-g6-guia-limpieza` (published), `-oferta-vencida` (expired, renders with a notice), `-articulo-oculto` (taken down, 404). A DB migration decision is needed for the talent-host version.
 5. ~~Second client for TUL-1242~~ done: C2 (all paid) added 2026-10-18; C keeps the owed work.
+
+## Guest (signed-out) thread for Lighthouse (TUL-1103, NEW)
+
+- Rows: guest session `qa-fixture-g6` (`guest_sessions`), guest inquiry (no client user, contact `qa-fixture-g6-guest@impronta.test`) to T1 with a 3-message client thread (`thread_type private`, guest / talent / guest).
+- Entry for a signed-out visitor: the signed thread link `https://app.staging.tulala.digital/c/t/<token>?lang=es` (route `web/src/app/(public)/c/t/[token]/page.tsx`). No cookie is needed: `verifyThreadToken` checks an HMAC over (inquiry id, tenant id) made with `GUEST_COOKIE_SECRET`; the hub tenant is not host-gated on the app host.
+- Get the link: `cd web && node scripts/print-group6-guest-thread-link.mjs --env-file <staging env pull> --check` writes it to `~/.tulala-qa-guest-thread-g6.url` (mode 600; the token is never printed) and prints only the status code of a gated GET (200 = renders). Valid 30 days; re-run to renew.
+- The cookie route (`impronta_guest`, the HMAC-signed guest session id) is NOT used here: that cookie only resumes an in-browser chat on a talent profile (`/t/TAL-96001`), it is not needed for `/c/t/`.
+- Lighthouse: 390x844, signed out, send `x-staging-gate-token` (value in `~/.tulala-qa.env`) so the staging gate lets the run through.

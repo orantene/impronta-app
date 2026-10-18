@@ -41,29 +41,41 @@ export function decideNavCheck(status, html) {
   return { ok: true, reason: `${total} header/nav links, none absolute app-host /w/` };
 }
 
-const TRUTHY = new Set(["1", "true", "yes", "on"]);
+/** The staging wildcard alias *.staging.tulala.digital already exists (PM); no root-domain env var exists in web/src. */
+export const STAGING_TALENT_ROOT = "staging.tulala.digital";
 
-/** Talent-host probe plan, or a skip when the staging env values are empty. */
+/**
+ * Talent-host probe plan. Only `TALENT_SITE_SUBDOMAINS_ENABLED === "true"` (exact string,
+ * web/src/lib/access/talent-site-subdomains.ts) gates talent subdomain routing.
+ */
 export function talentHostPlan(env) {
-  const root = String(env.TALENT_SITE_ROOT_DOMAIN ?? "").trim().replace(/^\.+|\.+$/g, "");
-  const enabled = TRUTHY.has(String(env.TALENT_SITE_SUBDOMAINS_ENABLED ?? "").trim().toLowerCase());
-  if (!root || !enabled) {
-    return { skip: true, reason: "env not set: TALENT_SITE_ROOT_DOMAIN and TALENT_SITE_SUBDOMAINS_ENABLED must both be set" };
+  if (String(env.TALENT_SITE_SUBDOMAINS_ENABLED ?? "") !== "true") {
+    return { skip: true, reason: "TALENT_SITE_SUBDOMAINS_ENABLED not set (must be exactly \"true\")" };
   }
-  const host = `${PREFIX}-limpieza.${root}`;
+  const host = `${PREFIX}-limpieza.${STAGING_TALENT_ROOT}`;
   return {
     skip: false,
     host,
-    probes: [
-      { path: "/", expect: [200], label: "T1 site home" },
-      { path: `/blog/${PREFIX}-guia-limpieza`, expect: [200], label: "published post (es)" },
-      { path: `/blog/${PREFIX}-cleaning-guide`, expect: [200], label: "published post (en)" },
-      // Code (posts-public-model): expired still renders with a notice (200, noindex); taken down answers 404.
-      { path: `/blog/${PREFIX}-oferta-vencida`, expect: [200], label: "expired post (renders with notice)" },
-      { path: `/blog/${PREFIX}-articulo-oculto`, expect: [404], label: "taken-down post" },
-      { path: `/blog/${PREFIX}-no-such-post`, expect: [404], label: "missing post" },
-    ],
+    probes: [{ path: "/", expect: [200], label: "T1 site home" }],
   };
+}
+
+/**
+ * Posts live under the owner workspace (tenant scope; the talent scope cannot exist on staging, see the seed).
+ * They render on the workspace site: <hub>/w/qa-fixture-g6-ws/blog/<slug>. Code (posts-public-model): published 200;
+ * expired still renders with a notice (200, noindex); taken down and missing answer 404.
+ */
+export const WORKSPACE_POST_BASE = "https://staging.tulala.digital/w/qa-fixture-g6-ws";
+export const WORKSPACE_POST_PROBES = [
+  { path: `/blog/${PREFIX}-guia-limpieza`, expect: [200], label: "published post (es)" },
+  { path: `/blog/${PREFIX}-oferta-vencida`, expect: [200], label: "expired post (renders with notice)" },
+  { path: `/blog/${PREFIX}-articulo-oculto`, expect: [404], label: "taken-down post" },
+  { path: `/blog/${PREFIX}-no-such-post`, expect: [404], label: "missing post" },
+];
+
+/** The site host "resolves" when its home answers 200; anything else means routing is not live there. */
+export function siteHostResolves(status) {
+  return status === 200;
 }
 
 export function decideProbe(probe, status) {
