@@ -1,0 +1,3 @@
+# TUL-1185/1186: lane lists are sorted (node web/scripts/lanes-sort.cjs); union keeps two local
+# appends from conflicting. GitHub server-side merges ignore this, which is why the order matters.
+web/scripts/lanes/*.txt merge=union
