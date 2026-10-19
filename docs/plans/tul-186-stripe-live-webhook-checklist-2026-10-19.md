@@ -15,14 +15,16 @@ Probes today (unsigned POST, nothing written): `app.tulala.digital/api/webhooks/
 Talent and workspace subscriptions use `getStripe()` (US). Subscription and invoice events go to the **US** endpoint only. Do not add them to the MX endpoint.
 
 ## Checklist (LIVE mode in each dashboard; endpoints are per mode)
+This is every account-level event `lib/stripe/webhook-routing.ts` routes (the staging workflow #4051 keeps the same list, test-pinned). Set the endpoint's API version to `2026-04-22.dahlia`, the version `lib/stripe/client.ts` pins.
+
 **Stripe US account, Developers > Webhooks**
-- [ ] Account endpoint: `https://app.tulala.digital/api/webhooks/stripe`, "Your account". Events: `checkout.session.completed`, `.expired`, `.async_payment_succeeded`, `.async_payment_failed`; `customer.subscription.created`, `.updated`, `.deleted`, `.trial_will_end`; `invoice.finalized`, `.paid`, `.payment_succeeded`, `.payment_failed`, `.marked_uncollectible`, `.voided`; `payment_intent.succeeded`, `.payment_failed`; `charge.refunded`; `charge.dispute.created`, `.updated`, `.closed`, `.funds_withdrawn`, `.funds_reinstated`; `payout.created`, `.paid`, `.failed`, `.canceled`; `transfer.updated`, `.reversed`.
+- [ ] Account endpoint: `https://app.tulala.digital/api/webhooks/stripe`, "Your account". Events: `checkout.session.completed`, `.expired`, `.async_payment_succeeded`, `.async_payment_failed`; `customer.subscription.created`, `.updated`, `.deleted`, `.trial_will_end`; `subscription_schedule.created`, `.updated`, `.released`, `.canceled`, `.completed`, `.aborted` (period-end plan changes); `invoice.finalized`, `.paid`, `.payment_succeeded`, `.payment_failed`, `.marked_uncollectible`, `.voided`; `payment_intent.succeeded`, `.payment_failed`; `charge.refunded`; `refund.updated`, `.failed`; `charge.dispute.created`, `.updated`, `.closed`, `.funds_withdrawn`, `.funds_reinstated`; `payout.created`, `.paid`, `.failed`, `.canceled`; `transfer.updated`, `.reversed`.
 - [ ] Connect endpoint: same URL, "Connected accounts". Events: `account.updated`, `capability.updated`, `account.external_account.created`, `.updated`, `.deleted`.
 - [ ] Register ONE US URL only (`/api/stripe/webhook` is the same handler; two URLs means double deliveries).
 
 **Stripe Mexico account, Developers > Webhooks**
 - [ ] No MX endpoint points at `/api/webhooks/stripe` (US path). Fix any that does.
-- [ ] Account endpoint: `https://app.tulala.digital/api/webhooks/stripe-mx`, "Your account". Same list as US minus the `customer.subscription.*` and `invoice.*` events.
+- [ ] Account endpoint: `https://app.tulala.digital/api/webhooks/stripe-mx`, "Your account". Same list as US minus the `customer.subscription.*`, `subscription_schedule.*` and `invoice.*` events.
 - [ ] Connect endpoint: same URL, "Connected accounts", same 5 Connect events.
 
 **Vercel, Production scope only (paste secrets in the dashboard, never in chat)**
