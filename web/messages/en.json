@@ -16865,6 +16865,7 @@
         "empty": "Nothing to order on this visit yet.",
         "add": "Add",
         "soldOut": "Sold out",
+        "priceOnRequest": "Price on request",
         "offerTitle": "A substitution is waiting",
         "acceptOffer": "Accept {name}",
         "back": "Your table"

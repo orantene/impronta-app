@@ -1,12 +1,13 @@
-import { sortGuestMenu, toGuestMenuItem, type GuestMenuItem, type GuestMenuRow } from "./guest-menu-item";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import "server-only";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { submitOrderToPreparation } from "@/lib/preparation/tickets";
 import { createPaymentLink } from "@/lib/payments/links";
 import { loadOpenVisitByToken } from "./qr";
+import { sortGuestMenu, toGuestMenuItem, type GuestMenuItem, type GuestMenuRow } from "./guest-menu-item";
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
@@ -33,15 +34,15 @@ async function openVisit(admin: VenueAdmin, tenantId: string, token: string) {
 }
 
 /** Cover photo URL per offering (first by sort order); one query. */
-async function loadCoverImages(admin: SupabaseClient, offeringIds: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
+async function loadCoverImages(admin: SupabaseClient, offeringIds: string[]): Promise<Map<string, { url: string; alt: string | null }>> {
+  const out = new Map<string, { url: string; alt: string | null }>();
   if (offeringIds.length === 0) return out;
   const { data } = await admin
     .from("talent_offering_media")
-    .select("offering_id, sort_order, media_assets:media_asset_id ( public_url, bucket_id, storage_path )")
+    .select("offering_id, sort_order, media_assets:media_asset_id ( public_url, bucket_id, storage_path, alt )")
     .in("offering_id", offeringIds)
     .order("sort_order", { ascending: true });
-  type Media = { public_url: string | null; bucket_id: string | null; storage_path: string | null };
+  type Media = { public_url: string | null; bucket_id: string | null; storage_path: string | null; alt?: string | null };
   for (const r of (data ?? []) as unknown as Array<{ offering_id: string; media_assets: Media | Media[] | null }>) {
     if (out.has(r.offering_id)) continue;
     const m = Array.isArray(r.media_assets) ? r.media_assets[0] : r.media_assets;
@@ -51,7 +52,7 @@ async function loadCoverImages(admin: SupabaseClient, offeringIds: string[]): Pr
       (m.bucket_id === "media-public" && m.storage_path
         ? admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl
         : null);
-    if (url) out.set(r.offering_id, url);
+    if (url) out.set(r.offering_id, { url, alt: typeof m.alt === "string" ? m.alt : null });
   }
   return out;
 }
@@ -70,7 +71,11 @@ export async function guestVisitMenu(
         .select(
           "id, title, description, amount_cents, prep_station_id, status, category, category_i18n, title_i18n, description_i18n, sort_order, inventory_qty, capacity_pool_id",
         )
-        .eq("tenant_id", input.tenantId),
+        .eq("tenant_id", input.tenantId)
+        // Workspace menu items only: a roster talent's service is not a dish.
+        .eq("owner_kind", "workspace")
+        // Sort BEFORE the cap, so the 200 that survive are the owner's first 200.
+        .order("sort_order", { ascending: true }),
     ).limit(200),
     loadNonMenuOfferingIds(admin, input.tenantId),
   ]);
@@ -82,11 +87,11 @@ export async function guestVisitMenu(
   const menuRows = withoutNonMenuOfferings(((data ?? []) as unknown as GuestMenuRow[]).map((r) => ({ ...r, id: String(r.id) })), nonMenu.ids);
   // TUL-1271 #5: the photo, in the guest's language, in the owner's order. A failed photo read
   // never hides the menu (the item simply has no picture).
-  const images = await loadCoverImages(admin as unknown as SupabaseClient, menuRows.map((r) => r.id)).catch(() => new Map<string, string>());
+  const images = await loadCoverImages(admin as unknown as SupabaseClient, menuRows.map((r) => r.id)).catch(() => new Map<string, { url: string; alt: string | null }>());
   const locale = input.locale ?? "en";
   return {
     ok: true,
-    items: sortGuestMenu(menuRows.map((row) => toGuestMenuItem(row, locale, images.get(row.id) ?? null))),
+    items: sortGuestMenu(menuRows.map((row) => toGuestMenuItem(row, locale, images.get(row.id)?.url ?? null, images.get(row.id)?.alt ?? null))),
   };
 }
 

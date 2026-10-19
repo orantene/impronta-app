@@ -57,7 +57,8 @@ export type PosCatalogItem = {
 
 /** The tab id of an owner category, so it can never collide with a kind id (`service`, `product`). */
 export function categoryTabId(category: string): string {
-  return `cat:${category}`;
+  // Case and spacing ignored: "Drinks" and " drinks " are one tab.
+  return `cat:${category.trim().toLowerCase()}`;
 }
 
 function tabIdFor(item: Pick<PosCatalogItem, "kind" | "category">): string {
@@ -258,7 +259,7 @@ export function toCategoryTabs(
   for (const item of catalog) {
     const category = item.category?.trim();
     if (category) {
-      if (!categories.includes(category)) categories.push(category);
+      if (!categories.some((c) => categoryTabId(c) === categoryTabId(category))) categories.push(category);
     } else if (!kinds.includes(item.kind)) {
       kinds.push(item.kind);
     }

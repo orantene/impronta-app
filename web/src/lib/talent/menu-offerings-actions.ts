@@ -184,6 +184,17 @@ export async function upsertWorkspaceMenuItem(
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
     }
 
+    // The kitchen station must be this workspace's own (the column is a bare uuid).
+    if (offering.prepStationId) {
+      const { data: station } = await admin
+        .from("prep_stations")
+        .select("id")
+        .eq("id", offering.prepStationId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      if (!station) return { ok: false, error: "That kitchen station is not in this workspace." };
+    }
+
     const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const patch = {
       ...offeringToRowPatch({

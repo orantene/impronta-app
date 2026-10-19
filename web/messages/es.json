@@ -16865,6 +16865,7 @@
         "empty": "Aún no hay nada que pedir en esta visita.",
         "add": "Añadir",
         "soldOut": "Agotado",
+        "priceOnRequest": "Precio a consultar",
         "offerTitle": "Hay una sustitución esperando",
         "acceptOffer": "Aceptar {name}",
         "back": "Tu mesa"

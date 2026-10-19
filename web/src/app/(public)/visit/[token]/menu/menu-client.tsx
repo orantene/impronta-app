@@ -21,10 +21,12 @@ import { venueEngineRefusalSentence, type VenueEngineRefusalSentences } from "@/
 export type GuestMenuItem = {
   id: string;
   title: string;
-  amountCents: number;
+  /** Null: no price of its own (priced by option or on request). */
+  amountCents: number | null;
   description?: string | null;
   category?: string | null;
   imageUrl?: string | null;
+  imageAlt?: string | null;
   soldOut?: boolean;
 };
 export type GuestOffer = { lineId: string; offeringId: string; label: string };
@@ -47,6 +49,7 @@ export function GuestMenuClient(props: {
     empty: string;
     add: string;
     soldOut: string;
+    priceOnRequest: string;
     offerTitle: string;
     acceptOffer: string;
     back: string;
@@ -63,7 +66,7 @@ export function GuestMenuClient(props: {
     () => props.items.filter((item) => (qty[item.id] ?? 0) > 0),
     [props.items, qty],
   );
-  const draftCents = added.reduce((sum, item) => sum + item.amountCents * (qty[item.id] ?? 0), 0);
+  const draftCents = added.reduce((sum, item) => sum + (item.amountCents ?? 0) * (qty[item.id] ?? 0), 0);
 
   async function run(work: () => Promise<{ ok: true } | { ok: false; reason: string }>) {
     setBusy(true);
@@ -161,20 +164,20 @@ export function GuestMenuClient(props: {
                 <div className="flex items-center gap-3 rounded-[16px] border-[1.5px] border-admin-border bg-admin-card px-4 py-3">
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-[10px] object-cover" loading="lazy" />
+                  <img src={item.imageUrl} alt={item.imageAlt ?? ""} className="h-14 w-14 shrink-0 rounded-[10px] object-cover" loading="lazy" />
                 ) : null}
                 <div className="min-w-0 flex-1">
                   <p className="m-0 text-[15px] font-semibold text-admin-ink">{item.title}</p>
                   {item.description ? <p className="m-0 line-clamp-2 text-[12.5px] text-admin-ink-muted">{item.description}</p> : null}
                   <p className="m-0 text-[13px] text-admin-ink-muted">
-                    {formatOrderMoney(item.amountCents, props.currency)}
+                    {item.amountCents == null ? props.copy.priceOnRequest : formatOrderMoney(item.amountCents, props.currency)}
                     {item.soldOut ? ` · ${props.copy.soldOut}` : ""}
                   </p>
                 </div>
                 <button
                   type="button"
                   aria-label={props.copy.add}
-                  disabled={busy || item.soldOut === true}
+                  disabled={busy || item.soldOut === true || item.amountCents == null}
                   data-testid={`guest-add-${item.id}`}
                   onClick={() =>
                     void run(async () => {

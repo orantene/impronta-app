@@ -40,9 +40,9 @@ test("toGuestMenuItem: a counted pool at zero is sold out; unlimited and uncount
 
 test("sortGuestMenu: the owner's order, then title", () => {
   const items = [
-    { ...toGuestMenuItem(row({ id: "b", title: "B", title_i18n: null, sort_order: 1 }), "en", null) },
-    { ...toGuestMenuItem(row({ id: "a", title: "A", title_i18n: null, sort_order: 1 }), "en", null) },
-    { ...toGuestMenuItem(row({ id: "c", title: "C", title_i18n: null, sort_order: 0 }), "en", null) },
+    { ...toGuestMenuItem(row({ id: "b", title: "B", title_i18n: null, category: null, category_i18n: null, sort_order: 1 }), "en", null) },
+    { ...toGuestMenuItem(row({ id: "a", title: "A", title_i18n: null, category: null, category_i18n: null, sort_order: 1 }), "en", null) },
+    { ...toGuestMenuItem(row({ id: "c", title: "C", title_i18n: null, category: null, category_i18n: null, sort_order: 0 }), "en", null) },
   ];
   assert.deepEqual(sortGuestMenu(items).map((i) => i.id), ["c", "a", "b"]);
 });
@@ -53,7 +53,7 @@ function cat(patch: Partial<PosCatalogItem> = {}): PosCatalogItem {
 
 test("counter: tiles group by the owner's category and carry the Favorites flag", () => {
   const tiles = toProductTiles([cat({ id: "a", category: "Coffee", favourite: true }), cat({ id: "b" })], "USD");
-  assert.equal(tiles[0]!.categoryId, "cat:Coffee");
+  assert.equal(tiles[0]!.categoryId, "cat:coffee");
   assert.equal(tiles[0]!.favourite, true);
   assert.equal(tiles[1]!.categoryId, "product");
   assert.equal(tiles[0]!.amountCents, 650);
@@ -62,8 +62,8 @@ test("counter: tiles group by the owner's category and carry the Favorites flag"
 test("counter: tabs list the owner's categories, then the kinds of uncategorised items", () => {
   const tabs = toCategoryTabs([cat({ category: "Coffee" }), cat({ category: "Coffee" }), cat({ category: "Food" }), cat()], { product: "Products" });
   assert.deepEqual(tabs, [
-    { id: "cat:Coffee", label: "Coffee" },
-    { id: "cat:Food", label: "Food" },
+    { id: "cat:coffee", label: "Coffee" },
+    { id: "cat:food", label: "Food" },
     { id: "product", label: "Products" },
   ]);
 });
@@ -82,4 +82,46 @@ test("wiring: the QR menu reads, localises and orders; the counter reads categor
   assert.match(sell, /products\.some\(\(p\) => p\.favourite\)/);
   const page = src("../../app/(public)/visit/[token]/menu/page.tsx");
   assert.match(page, /locale/);
+});
+
+// ── TUL-1338 ────────────────────────────────────────────────────────────
+
+test("sortGuestMenu groups by category (case-insensitive), groups ordered by their first item, uncategorised last", () => {
+  const mk = (id: string, category: string | null, sort: number) =>
+    toGuestMenuItem(row({ id, title: id, title_i18n: null, category, category_i18n: null, sort_order: sort }), "en", null);
+  const sorted = sortGuestMenu([mk("a", "Drinks", 0), mk("b", "Food", 1), mk("c", "drinks", 2), mk("d", null, 3), mk("e", "Food", 4)]);
+  assert.deepEqual(sorted.map((i) => i.id), ["a", "c", "b", "e", "d"]);
+});
+
+test("a null amount stays null (Price on request); a real zero stays zero", () => {
+  assert.equal(toGuestMenuItem(row({ amount_cents: null }), "en", null).amountCents, null);
+  assert.equal(toGuestMenuItem(row({ amount_cents: 0 }), "en", null).amountCents, 0);
+});
+
+test("the image alt rides along", () => {
+  assert.equal(toGuestMenuItem(row(), "en", "https://x/y.jpg", "A latte").imageAlt, "A latte");
+  assert.equal(toGuestMenuItem(row(), "en", null).imageAlt, null);
+});
+
+test("counter tabs merge categories that differ only by case or spacing", () => {
+  const tabs = toCategoryTabs([cat({ category: "Drinks" }), cat({ category: " drinks " }), cat({ category: "Food" })], {});
+  assert.deepEqual(tabs, [
+    { id: "cat:drinks", label: "Drinks" },
+    { id: "cat:food", label: "Food" },
+  ]);
+  const tiles = toProductTiles([cat({ category: "DRINKS" })], "USD");
+  assert.equal(tiles[0]!.categoryId, "cat:drinks");
+});
+
+test("TUL-1338 wiring", () => {
+  const order = src("./guest-order.ts");
+  assert.ok(order.indexOf('import "server-only"') < order.indexOf("guest-menu-item"), "imports go below server-only");
+  assert.match(order, /\.eq\("owner_kind", "workspace"\)/, "the QR lists workspace menu items only");
+  assert.ok(order.indexOf('.order("sort_order"') > -1 && order.indexOf('.order("sort_order"') < order.indexOf(".limit(200)"), "sort before limit");
+  const page = src("../../app/(public)/visit/[token]/menu/page.tsx");
+  assert.doesNotMatch(page, /items=\{menu\.items\}/, "the client gets a stripped item, not prepStationId/sortOrder");
+  const avail = src("../../components/admin/shell/internal/page-modules/catalog/item-tab-availability.tsx");
+  assert.doesNotMatch(avail, /\[item, patch\]/, "the station list is not refetched on every edit");
+  const actions = src("../talent/menu-offerings-actions.ts");
+  assert.match(actions, /prep_stations/, "the station is checked against this workspace on save");
 });

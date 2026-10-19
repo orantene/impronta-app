@@ -201,8 +201,10 @@ function FulfillmentFields({
   const t = useT();
   const reason = t("dashboard.catalog.fulfillment.reason");
   const [stations, setStations] = useState<Array<{ id: string; name: string }>>([]);
+  // Fetch once per mount: the deps are a boolean, so an edit to the item never refetches the list.
+  const canLoad = Boolean(item && patch);
   useEffect(() => {
-    if (!item || !patch) return;
+    if (!canLoad) return;
     let cancelled = false;
     void prepStationsList().then((res) => {
       if (!cancelled && res.ok) setStations(res.stations.map((s) => ({ id: s.id, name: s.name })));
@@ -210,7 +212,7 @@ function FulfillmentFields({
     return () => {
       cancelled = true;
     };
-  }, [item, patch]);
+  }, [canLoad]);
   const canPick = Boolean(item && patch);
   return (
     <>

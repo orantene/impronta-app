@@ -27,15 +27,17 @@ export type GuestMenuItem = {
   title: string;
   description: string | null;
   category: string | null;
-  amountCents: number;
+  /** Null = no price of its own (priced by option or on request); never shown as 0. */
+  amountCents: number | null;
   prepStationId: string | null;
   imageUrl: string | null;
+  imageAlt: string | null;
   /** A counted pool with nothing left. Unlimited and uncounted items are never sold out. */
   soldOut: boolean;
   sortOrder: number;
 };
 
-export function toGuestMenuItem(row: GuestMenuRow, locale: string, imageUrl: string | null): GuestMenuItem {
+export function toGuestMenuItem(row: GuestMenuRow, locale: string, imageUrl: string | null, imageAlt: string | null = null): GuestMenuItem {
   const chain = [locale, "en"];
   const textRow = {
     title: row.title ?? "",
@@ -52,15 +54,34 @@ export function toGuestMenuItem(row: GuestMenuRow, locale: string, imageUrl: str
     title: offeringText(textRow, "title", locale, chain) ?? row.title ?? "",
     description: offeringText(textRow, "description", locale, chain),
     category,
-    amountCents: Number(row.amount_cents ?? 0),
+    amountCents: typeof row.amount_cents === "number" ? row.amount_cents : null,
     prepStationId: row.prep_station_id ? String(row.prep_station_id) : null,
     imageUrl,
+    imageAlt: imageAlt && imageAlt.trim() ? imageAlt.trim() : null,
     soldOut: Boolean(row.capacity_pool_id) && typeof row.inventory_qty === "number" && row.inventory_qty <= 0,
     sortOrder: typeof row.sort_order === "number" ? row.sort_order : 0,
   };
 }
 
-/** The owner's order (`sort_order`), then title, so the menu does not shuffle between reads. */
+/** One group per category, case and spacing ignored. */
+function categoryKey(category: string | null): string | null {
+  const k = category?.trim().toLowerCase();
+  return k ? k : null;
+}
+
+/**
+ * The owner's order (`sort_order`, then title), GROUPED by category so a heading never repeats:
+ * groups run in the order of their first item, uncategorised items last.
+ */
 export function sortGuestMenu(items: readonly GuestMenuItem[]): GuestMenuItem[] {
-  return [...items].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+  const byOrder = [...items].sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
+  const groups = new Map<string | null, GuestMenuItem[]>();
+  for (const item of byOrder) {
+    const key = categoryKey(item.category);
+    const list = groups.get(key) ?? [];
+    list.push(item);
+    groups.set(key, list);
+  }
+  const named = [...groups.entries()].filter(([k]) => k !== null).flatMap(([, list]) => list);
+  return [...named, ...(groups.get(null) ?? [])];
 }
