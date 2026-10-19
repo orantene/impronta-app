@@ -1,5 +1,7 @@
 # Vercel env audit (TUL-1030), 2026-10-19
 
+Findings 7-11 were folded in from the dev session's parallel audit (2026-10-19, names only) and re-checked against origin/main.
+
 Project `tulala` (prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2). **Names and scopes only; no value was read** (except the non-secret flag `STRIPE_FORCE_TEST_MODE`, which is `1` on Preview and Production). Pulled with `vercel api /v10/projects/<id>/env`, values dropped before anything was written.
 
 **167 entries, 107 names.** 49 names are Production-only, 9 Preview-only, 41 have at least one branch-scoped entry, 20 have a Development entry, 16 exist in all three.
@@ -11,8 +13,30 @@ Project `tulala` (prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2). **Names and scopes only; no
 4. **Stale branch scopes.** `qa/stripe-test-r2` (branch still exists) carries `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `COMMISSION_PROCESSING_PASS_THROUGH`, `SKIP_MIGRATION_DRIFT_CHECK`. `cursor/qa-isolated-target-guard-11b1` (branch GONE) still scopes `NEXT_PUBLIC_MESSAGES_V5`. Delete both sets (the first holds a service-role key for a dead QA run).
 5. **Staging is split between `preview@main` and preview-wide.** Example: `STRIPE_SECRET_KEY` is `@main`, its `_TEST` sibling is preview-wide; `NEXT_PUBLIC_SITE_URL` exists both preview-wide and `@main`. Only `main` builds staging, so one rule is enough.
 6. **`SKIP_MIGRATION_DRIFT_CHECK` is set on Production.** It turns off the guard that catches code shipped ahead of its migration. Confirm it is intended; otherwise remove.
-7. **Development scope is half-populated** (20 names, includes `CRON_SECRET`-class secrets like `AI_CREDENTIALS_ENCRYPTION_KEY`, `SUPABASE_ACCESS_TOKEN`). Local work uses `web/.env.local` and the lh isolated env, so Development secrets in Vercel are unused attack surface.
-8. **Type drift.** 26 names mix `encrypted`/`sensitive`/`plain` across scopes (e.g. `NEXT_PUBLIC_SUPABASE_URL`, `TALENT_*` flags). Secrets should be `sensitive`; public flags and URLs `plain`.
+7. **Development carries PRODUCTION values.** 20 names have a Development entry, and these are ONE entry shared with Production (`production+development` in the list below), i.e. the same value: `GOOGLE_PLACES_API_KEY`, `GUEST_COOKIE_SECRET`, `IMPERSONATION_COOKIE_SECRET`, `IMPERSONATION_QA_TALENT_USER_ID`, `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL` and `_ANON_KEY` (the prod project), `OPENAI_API_KEY`, `PREVIEW_JWT_SECRET`, `SUPABASE_ACCESS_TOKEN`. Others (`AI_CREDENTIALS_ENCRYPTION_KEY`, Upstash) sit in Development too. `vercel env pull` for development hands out prod cookie/JWT secrets and the prod Supabase project. Local work uses `web/.env.local` and the lh isolated env, so remove these from Development.
+8. **Duplicate Preview scopes.** `NEXT_PUBLIC_SITE_URL` and `IMPERSONATION_QA_CLIENT_USER_ID` each have a preview-wide AND a `preview@main` entry; the branch one wins on `main`, so the other is dead or surprising. Keep one.
+9. **Security names read by code but set in NO environment** (checked on origin/main 2026-10-19; confirm each is "off by design"):
+
+| Name | What happens while it is unset | Where to set it |
+|---|---|---|
+| `INVITE_TOKEN_HMAC_SECRET` | `/invite/[token]` redirects every invite to the config-error page (`app/invite/[token]/route.ts:42`): invite links cannot work | Production + Preview if invites are in use |
+| `LEGAL_IP_HASH_SALT` | `hashIp` falls back to the public constant `tulala-legal` (`lib/legal/acceptances.core.ts:47`): legal-acceptance IP hashes are effectively unsalted | Production (random) |
+| `SIGNUP_IP_SALT` | Falls back to the public constant `rostra-signup-v1` (`get-started/actions.ts:312`): same problem for signup IP hashes | Production (random) |
+| `LINK_SCAN_SALT` | Scan-session hashing returns null (`lib/links/link-store.ts:339`): link scan analytics degrade, nothing breaks | Production |
+| `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web push channel is off (`notifications/channels/push.ts:16`) | Production when push launches |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`, `TWILIO_WHATSAPP_FROM`, `TWILIO_WEBHOOK_SECRET` | SMS (`messaging/channels/sms.ts:4`) and Twilio WhatsApp (`notifications/whatsapp/twilio.ts:26`) are off | Production when launched |
+
+10. **Names new in open PRs** (set them before or with the PR, never copied across environments):
+
+| Name | PR | Scope | While unset |
+|---|---|---|---|
+| `ACTOR_HEADER_SECRET` | #4038 (signed actor headers) | Production AND Preview, a DIFFERENT random value in each | Fast path off: slower, never wrong. A value shared by prod and staging would make a staging-signed header valid on prod |
+| `DEV_SIGNIN_TOKEN` | #4038 | Non-production refs only (the PR refuses it on Vercel production) | Dev sign-in refused |
+| `LOCAL_QA` | #4038 | Local only, never on Vercel (refused when `VERCEL=1`) | Off |
+| `SERVICE_PRESENTATION_RESOLVER_ENABLED` | #4031 | Preview(main) when the PR is ready for staging QA | Flag off |
+
+11. **Correction to docs/plans/staging-env-vars-needed-2026-10-18.md:** `TALENT_SITE_ROOT_DOMAIN` IS read by code. `resolveTalentSiteRootDomain` (`lib/talent-site/site-public-url.ts:55`) uses it off production to add the staging talent-site root (e.g. `staging.tulala.digital`). Production ignores it and always uses `tulala.digital`. It exists only as `preview@main`, which is correct for staging. Keep it.
+12. **Type drift.** 26 names mix `encrypted`/`sensitive`/`plain` across scopes (e.g. `NEXT_PUBLIC_SUPABASE_URL`, `TALENT_*` flags). Secrets should be `sensitive`; public flags and URLs `plain`.
 
 ## Proposed layout
 | Scope | Holds | Rule |
@@ -26,7 +50,8 @@ Project `tulala` (prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2). **Names and scopes only; no
 2. Split the 3 shared entries (finding 3).
 3. Delete the `qa/stripe-test-r2` and `cursor/qa-isolated-target-guard-11b1` entries (finding 4).
 4. Collapse `preview@main` entries into preview-wide ones, one name at a time, deleting the duplicate (finding 5).
-5. Remove Development-scope secrets (finding 7).
+5. Remove Development-scope secrets, starting with the ones shared with Production (finding 7). Drop the duplicate Preview rows (finding 8).
+5b. Set `LEGAL_IP_HASH_SALT`, `SIGNUP_IP_SALT` (random, Production) and decide `INVITE_TOKEN_HMAC_SECRET` (finding 9). Add `ACTOR_HEADER_SECRET` to Production and Preview with different values before #4038 deploys (finding 10).
 6. After the live switch: delete Production `_TEST` siblings and the flag (finding 1).
 
 ## Full list (name | scopes | types)
