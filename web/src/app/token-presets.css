@@ -5789,12 +5789,12 @@ html[data-theme="dark"] [data-tone="light"] {
 /* A flat (surface / solid) header paints a light bar: its icons, burger, language codes and wordmark must follow the
    theme ink, never the over-hero white (Mono, Frame). Controls inherit `color`, so setting it here fixes them all. */
 .site-header[data-tone="solid"], .site-header[data-tone="surface"] { color: var(--token-color-ink, #111); }
-/* A transparent header floats over the hero photo: nav links, language codes and the wordmark read white (as when
-   scrolled) over the existing scrim, instead of a design's muted grey that washes out on a light photo (Solace). */
-.site-header[data-tone="transparent"]:not([data-scrolled="true"]) .site-header__nav-link,
-.site-header[data-tone="transparent"]:not([data-scrolled="true"]) .site-header__lang-code:not([data-active]),
-.site-header[data-tone="transparent"]:not([data-scrolled="true"]) .site-header__lang-sep,
-.site-header[data-tone="transparent"]:not([data-scrolled="true"]) .site-header__brand-label { color: #ffffff; }
+/* ONLY a header that is explicitly over a dark / photo hero (navChrome "overlay", e.g. Solace) paints nav links, language
+   codes and the wordmark white over the existing scrim. A transparent header on a LIGHT page (Folio) keeps its ink. */
+.site-header[data-nav-chrome="overlay"][data-tone="transparent"]:not([data-scrolled="true"]) .site-header__nav-link,
+.site-header[data-nav-chrome="overlay"][data-tone="transparent"]:not([data-scrolled="true"]) .site-header__lang-code:not([data-active]),
+.site-header[data-nav-chrome="overlay"][data-tone="transparent"]:not([data-scrolled="true"]) .site-header__lang-sep,
+.site-header[data-nav-chrome="overlay"][data-tone="transparent"]:not([data-scrolled="true"]) .site-header__brand-label { color: #ffffff; }
 
 /* Noir & Or — talent shell scroll-to-solid. The header floats transparent over
  * the (always-dark, scrimmed) hero with light text, then a tiny client observer
