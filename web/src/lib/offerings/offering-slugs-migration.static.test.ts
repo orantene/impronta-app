@@ -4,7 +4,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { reservedCatalogWords, CATALOG_WORDS } from "./offering-paths";
+// The closed list of TUL-1324 (a), restated: this PR must not depend on it (no stacking).
+const CLOSED_WORDS = ["services", "tours", "menu", "classes", "spaces"];
 
 const ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../supabase/migrations");
 const FILE = "20261231418800_offering_slugs_supersedes_415800_tul1324.sql";
@@ -45,8 +46,7 @@ test("the word check lists exactly the code's closed list; rollback is in the he
   const m = /catalog_path_word IN \(([^)]*)\)/.exec(body);
   assert.deepEqual(
     m?.[1].split(",").map((s) => s.trim().replace(/'/g, "")),
-    CATALOG_WORDS.map((w) => w.id),
+    CLOSED_WORDS,
   );
   assert.match(sql, /-- Rollback[\s\S]*DROP TABLE IF EXISTS public\.offering_slugs/);
-  assert.ok(reservedCatalogWords().includes("tours"));
 });
