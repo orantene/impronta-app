@@ -11,8 +11,7 @@ const home = readFileSync(resolve(SRC, "components/talent/services/ServicesHome.
 test("5a: the product editor's save persists the variants (not only upsert + images)", () => {
   const onSave = home.slice(home.indexOf("onSave={async (next, publish, pendingImageIds)"));
   assert.match(onSave, /await upsertTalentOffering\(talentId, payload\)/);
-  assert.match(onSave, /setOfferingVariants\(\s*talentId,\s*res\.item\.id,/);
-  assert.match(onSave, /next\.variants !== undefined/);
+  assert.match(onSave, /next\.variants && \(await setOfferingVariants\(talentId, res\.item\.id,/);
 });
 
 test("5a: variants-only replace leaves the extras table untouched", async () => {
@@ -42,5 +41,5 @@ test("5a: variants-only replace leaves the extras table untouched", async () => 
 });
 
 test("item 8: defaults, extras and share destinations load on mount, not only after Organize/Defaults", () => {
-  assert.match(home, /useEffect\(\(\) => \{\s*void refreshExtras\(\);[\s\S]{0,200}\[talentId\]\);/);
+  assert.match(home, /useEffect\(\(\) => \{\s*void refreshExtras\(\);\s*\}, \[refreshExtras\]\);/);
 });
