@@ -11,19 +11,53 @@ import type { MetadataRoute } from "next";
 export const PUBLIC_DISALLOW = ["/api/", "/admin/", "/preview/", "/_vercel/"];
 
 /**
- * AI SEARCH / user-initiated agents, named explicitly so a public host is
- * unambiguously open to answer engines. Same rules as `*`. TRAINING crawlers
- * (GPTBot, ClaudeBot, CCBot, Google-Extended, ...) are deliberately NOT listed.
+ * TUL-1326 (decision: AI search ON, AI training OFF, one toggle).
+ *
+ * AI TRAINING crawlers: they collect pages to train models, send no visitor
+ * back, and are refused on every public host with an explicit `Disallow: /`.
+ * (Unlisted, they used to fall into the `*` group and were allowed.)
  */
-export const AI_SEARCH_USER_AGENTS = [
+export const AI_TRAINING_USER_AGENTS = [
+  "GPTBot",
+  "ClaudeBot",
+  "anthropic-ai",
+  "Claude-Web",
+  "Google-Extended",
+  "CCBot",
+  "Bytespider",
+  "Applebot-Extended",
+  "Meta-ExternalAgent",
+  "cohere-ai",
+  "Diffbot",
+  "ImagesiftBot",
+  "Omgilibot",
+] as const;
+
+/**
+ * AI SEARCH / user-initiated agents: they fetch a page to answer a person, so
+ * they are allowed on public pages, llms.txt AND the public read endpoints
+ * (`/api/public/`) they exist to read.
+ */
+export const AI_ANSWER_USER_AGENTS = [
   "OAI-SearchBot",
   "ChatGPT-User",
   "PerplexityBot",
   "Claude-SearchBot",
   "Claude-User",
-  "Googlebot",
-  "Bingbot",
 ] as const;
+
+/** Answer agents plus the two classic search engines, named so a host is unambiguously open. */
+export const AI_SEARCH_USER_AGENTS = [...AI_ANSWER_USER_AGENTS, "Googlebot", "Bingbot"] as const;
+
+/**
+ * THE one list of AI bots, shared by robots.txt and the per-site toggle: when
+ * "IA puede leer mi sitio" is OFF every one of these is refused. (Googlebot and
+ * Bingbot are ordinary search and are never part of the AI toggle.)
+ */
+export const AI_CRAWLER_USER_AGENTS = [...AI_TRAINING_USER_AGENTS, ...AI_ANSWER_USER_AGENTS] as const;
+
+/** The public read endpoints answer agents may use (catalog, markdown, slots). */
+export const AI_PUBLIC_API_ALLOW = "/api/public/";
 
 const INDEXABLE_KINDS = new Set(["marketing", "agency", "talent_site"]);
 
@@ -56,10 +90,13 @@ export function buildRobots(
         disallow: PUBLIC_DISALLOW,
       },
       {
+        // `/api/public/` is longer than `/api/`, so for these agents the public
+        // read endpoints stay open while the rest of /api/ stays closed.
         userAgent: [...AI_SEARCH_USER_AGENTS],
-        allow: "/",
+        allow: ["/", AI_PUBLIC_API_ALLOW],
         disallow: PUBLIC_DISALLOW,
       },
+      { userAgent: [...AI_TRAINING_USER_AGENTS], disallow: "/" },
     ],
     sitemap: new URL("/sitemap.xml", base).toString(),
     host: base.host,
