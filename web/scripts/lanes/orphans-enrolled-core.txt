@@ -25,6 +25,7 @@ src/components/admin/shell/internal/talent/agenda/working-hours-panel.static.tes
 src/components/admin/shell/internal/talent/availability-accepting.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.deeplink.static.test.ts
 src/components/admin/shell/internal/talent/pages/my-profile-layout.static.test.ts
+src/components/admin/shell/internal/talent/pages/my-profile-preview-link.static.test.ts
 src/components/admin/shell/internal/talent/pages/profile-render-safety.static.test.ts
 src/components/admin/shell/internal/talent/pages/talent-clients-dates.static.test.ts
 src/components/admin/shell/internal/talent/pages/talent-hydration-418.static.test.ts
