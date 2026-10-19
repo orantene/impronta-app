@@ -46,6 +46,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyBookingDayOfReminder } from "@/lib/notifications/producers/booking-day-of-reminder-notify";
 import { runReviewRequestReminders } from "@/lib/notifications/producers/review-request-reminder-notify";
+import { runAutoReviewRequests, type AutoReviewRunSummary } from "@/lib/reviews/auto-review-request";
 import type { DispatchResult } from "@/lib/notifications/types";
 import {
   bookingIsOnLocalDay,
@@ -236,12 +237,20 @@ export async function GET(request: Request) {
     // on exactly the cadence it had: once a day, at 08:00 UTC. Making the
     // enclosing cron hourly must not quietly run it twenty-four times.
     let reviewReminders = { scanned: 0, reminded: 0 };
+    let autoReviews: AutoReviewRunSummary | null = null;
     const reviewSweepDue = now.getUTCHours() === REVIEW_SWEEP_UTC_HOUR;
     if (reviewSweepDue) {
       try {
         reviewReminders = await runReviewRequestReminders();
       } catch (err) {
         logServerError("cron/booking-reminders.review-reminders", err);
+      }
+      // G2: the one automatic review request per completed booking, same daily
+      // run. Idempotent (plan + unique index + stable eventId) and never throws.
+      try {
+        autoReviews = await runAutoReviewRequests(now);
+      } catch (err) {
+        logServerError("cron/booking-reminders.auto-review-requests", err);
       }
     }
 
@@ -258,6 +267,9 @@ export async function GET(request: Request) {
       reviewSweepDue,
       reviewRequestsScanned: reviewReminders.scanned,
       reviewRequestsReminded: reviewReminders.reminded,
+      autoReviewRequestsCreated: autoReviews?.created ?? 0,
+      autoReviewRequestsInvited: autoReviews?.invited ?? 0,
+      autoReviewRequestsFailed: autoReviews?.failed ?? 0,
       ...totals,
     };
     void improntaLog("notif.cron.booking_reminders", summary);
