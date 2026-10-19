@@ -21,6 +21,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
+import { isTalentOwnedStoragePath } from "@/lib/media/talent-storage-path";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -453,6 +454,23 @@ export async function registerPortfolioPhoto(
       return { ok: false, error: "Talent not on this roster." };
     }
 
+    // TUL-1269: the key must live under THIS talent's own storage prefix, or be an object this
+    // talent already owns (the gallery re-adds existing assets). Anything else is another
+    // talent's or tenant's blob, which `removePortfolioPhoto` would later delete.
+    if (!isTalentOwnedStoragePath(talentId, input.storagePath)) {
+      const { data: owned, error: ownedErr } = await r.admin
+        .from("media_assets")
+        .select("id")
+        .eq("owner_talent_profile_id", talentId)
+        .eq("bucket_id", "media-public")
+        .eq("storage_path", String(input.storagePath ?? ""))
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle();
+      if (ownedErr) logServerError("roster.registerPortfolioPhoto.ownedLookup", ownedErr);
+      if (ownedErr || !owned) return { ok: false, error: "That file is not in this talent's storage." };
+    }
+
     // Plan count quota (media pricing pass 2026-08-15 §3a). A portfolio photo
     // is a net add, charged to the talent's plan because the row is
     // talent-owned regardless of which side of the workspace uploaded it.
@@ -525,6 +543,10 @@ export async function removePortfolioPhoto(
   try {
     const r = await gate(tenantSlug);
     if (!r.ok) return r;
+    // TUL-1269: a workspace may only delete photos of talent on ITS roster.
+    if (!(await rosterMatch(r.admin, r.scope.tenantId, talentId))) {
+      return { ok: false, error: "Talent not on this roster." };
+    }
 
     const { data: row } = await r.admin
       .from("media_assets")
@@ -537,7 +559,8 @@ export async function removePortfolioPhoto(
     const { error } = await r.admin
       .from("media_assets")
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", mediaAssetId);
+      .eq("id", mediaAssetId)
+      .eq("owner_talent_profile_id", talentId);
 
     if (error) {
       logServerError("roster.removePortfolioPhoto.update", error);
@@ -545,9 +568,13 @@ export async function removePortfolioPhoto(
     }
 
     const m = row as { bucket_id: string; storage_path: string };
-    r.admin.storage.from(m.bucket_id).remove([m.storage_path]).catch((err) =>
-      logServerError("roster.removePortfolioPhoto.storage", err),
-    );
+    // Only ever delete a blob under this talent's own prefix; any other key keeps the row soft-deleted
+    // but leaves the object alone.
+    if (m.bucket_id === "media-public" && isTalentOwnedStoragePath(talentId, m.storage_path)) {
+      r.admin.storage.from(m.bucket_id).remove([m.storage_path]).catch((err) =>
+        logServerError("roster.removePortfolioPhoto.storage", err),
+      );
+    }
 
     refresh(tenantSlug, talentId);
     return { ok: true };
