@@ -21,6 +21,7 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 
 export type BrandKitExtractResult =
   | { ok: true; tokens: Record<string, string> }
@@ -55,36 +56,30 @@ export async function extractBrandKitFromUrl(input: {
     return { ok: false, error: "Invalid URL — must be http:// or https://." };
   }
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  let html: string;
-  try {
-    const res = await fetch(target.toString(), {
-      signal: ctrl.signal,
-      headers: {
-        "User-Agent": "Tulala-BrandExtractor/1.0",
-        Accept: "text/html,application/xhtml+xml",
-      },
-    });
-    if (!res.ok) return { ok: false, error: `Site returned ${res.status}.` };
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html")) {
-      return { ok: false, error: "URL didn't return HTML." };
-    }
-    const buf = await res.arrayBuffer();
-    const sliced = buf.byteLength > MAX_BYTES ? buf.slice(0, MAX_BYTES) : buf;
-    html = new TextDecoder("utf-8", { fatal: false }).decode(sliced);
-  } catch (err) {
+  // H1: safeFetch refuses private/metadata addresses, pins the vetted IP,
+  // re-checks each redirect hop and stops reading at MAX_BYTES (the old
+  // path buffered the whole response, then sliced).
+  const res = await safeFetch(target.toString(), {
+    maxBytes: MAX_BYTES,
+    overflow: "truncate",
+    timeoutMs: TIMEOUT_MS,
+    headers: {
+      "User-Agent": "Tulala-BrandExtractor/1.0",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
+  if (!res.ok) {
     return {
       ok: false,
-      error:
-        (err as Error).name === "AbortError"
-          ? "Timed out fetching the site."
-          : "Couldn't fetch that URL.",
+      error: res.reason === "timeout" ? "Timed out fetching the site." : "Couldn't fetch that URL.",
     };
-  } finally {
-    clearTimeout(t);
   }
+  if (res.status < 200 || res.status >= 300) return { ok: false, error: `Site returned ${res.status}.` };
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html")) {
+    return { ok: false, error: "URL didn't return HTML." };
+  }
+  const html = decodeBody(res.body);
 
   // ---- color extraction ------------------------------------------------
   // Histogram of hex matches, normalized to lowercase #rrggbb.

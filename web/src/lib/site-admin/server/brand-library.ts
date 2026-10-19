@@ -227,7 +227,9 @@ export async function registerBrandingUpload(
   let height: number | null = null;
   try {
     const sharp = (await import("sharp")).default;
-    const meta = await sharp(buf).metadata();
+    // H1: header read under the shared 100 MP cap.
+    const { SHARP_INPUT_LIMITS } = await import("@/lib/media/image-sanitize.server");
+    const meta = await sharp(buf, SHARP_INPUT_LIMITS).metadata();
     width = meta.width ?? null;
     height = meta.height ?? null;
   } catch {

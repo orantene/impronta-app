@@ -14,11 +14,15 @@ src/lib/client-account/return-to.test.ts
 src/lib/client-account/tenant-source.test.ts
 src/lib/client-account/visit-zone.test.ts
 src/lib/integrations/captcha-domain-notice.test.ts
+src/lib/media/image-sanitize.server.test.ts
+src/lib/media/upload-guards.test.ts
 src/lib/money/dashboard-money-format.test.ts
 src/lib/orders/order-principal.test.ts
 src/lib/payments/failed-refund-attention.test.ts
 src/lib/payments/paid-after-cancel.test.ts
 src/lib/saas/roster-seat-limit.security.test.ts
+src/lib/security/safe-fetch.test.ts
+src/lib/security/upload-hardening-wiring.static.test.ts
 src/lib/server-actions/no-db-on-guard-fail.contract.test.ts
 src/lib/stripe/charge-platform.test.ts
 src/lib/stripe/key-mode.test.ts
