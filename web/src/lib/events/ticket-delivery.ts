@@ -207,6 +207,24 @@ async function deliverAdmissions(
 ): Promise<DeliveryResult> {
   const claimedAt = new Date().toISOString();
 
+  // A forced resend overwrites a REAL delivery record with its claim. If the resend then
+  // fails, putting back `null` would erase the proof the guest already got their tickets and
+  // the next webhook retry would mail them AGAIN. So the earlier record is remembered and
+  // restored on release; only a first-time claim goes back to null.
+  const priorDelivery = new Map<string, unknown>();
+  if (input.force) {
+    const { data: prior, error: pErr } = await admin
+      .from("admissions")
+      .select("id, delivery")
+      .eq("tenant_id", input.tenantId)
+      .in("id", input.admissionIds);
+    if (pErr) {
+      logServerError("events.ticketDelivery/priorDelivery", pErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    for (const r of (prior ?? []) as Array<{ id: string; delivery: unknown }>) priorDelivery.set(r.id, r.delivery ?? null);
+  }
+
   // 1. Claim. `force` (a resend) skips the null filter and stamps `resent_at`
   //    on top of whatever delivery record exists.
   let claim = admin
@@ -235,11 +253,17 @@ async function deliverAdmissions(
   }
 
   const release = async () => {
-    await admin
-      .from("admissions")
-      .update({ delivery: null })
-      .eq("tenant_id", input.tenantId)
-      .in("id", rows.map((r) => r.id));
+    // Rows that had no record go back to null (claimable by the next attempt); rows that had a
+    // real earlier delivery get that record back.
+    const fresh = rows.filter((r) => (priorDelivery.get(r.id) ?? null) === null).map((r) => r.id);
+    if (fresh.length > 0) {
+      await admin.from("admissions").update({ delivery: null }).eq("tenant_id", input.tenantId).in("id", fresh);
+    }
+    for (const r of rows) {
+      const prior = priorDelivery.get(r.id) ?? null;
+      if (prior === null) continue;
+      await admin.from("admissions").update({ delivery: prior }).eq("tenant_id", input.tenantId).eq("id", r.id);
+    }
   };
 
   try {
