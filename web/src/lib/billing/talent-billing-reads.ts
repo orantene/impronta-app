@@ -43,3 +43,17 @@ export async function loadTalentStripeCustomerId(sb: SupabaseClient, userId: str
   if (error) throw error;
   return (data as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
 }
+
+/** The talent profile's Stripe subscription id, or null (TUL-835 card lookup). */
+export async function loadTalentStripeSubscriptionId(
+  sb: SupabaseClient,
+  talentProfileId: string,
+): Promise<string | null> {
+  const { data, error } = await sb
+    .from("talent_subscriptions")
+    .select("stripe_subscription_id")
+    .eq("talent_profile_id", talentProfileId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null;
+}
