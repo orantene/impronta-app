@@ -141,3 +141,24 @@ test("the talent action routes through the shared rule and the workspace rule is
     assert.ok(mine.includes(needle), `talent rule drifted: ${needle}`);
   }
 });
+
+function actionsSource(): string {
+  return readFileSync(join(resolve(process.cwd(), "src/lib/talent"), "offerings-actions.ts"), "utf8");
+}
+
+test("no direct delete query on the offerings table in offerings-actions (only the helper deletes)", () => {
+  const src = actionsSource();
+  assert.equal(/offeringsTable\([^)]*\)\s*\.delete\(/.test(src), false);
+  assert.equal(/from\(["']talent_offerings["']\)\s*\.delete\(/.test(src), false);
+});
+
+test("deleteTalentOfferingForever has no old bookings pre-check: a booked service reaches the archive path", () => {
+  const src = actionsSource();
+  const start = src.indexOf("export async function deleteTalentOfferingForever(");
+  const end = src.indexOf("export async function reorderTalentOfferings");
+  const body = src.slice(start, end);
+  assert.ok(start > 0 && end > start);
+  assert.equal(body.includes("talent_bookings"), false);
+  assert.equal(body.includes("has bookings"), false);
+  assert.ok(body.includes("deleteTalentOffering("));
+});

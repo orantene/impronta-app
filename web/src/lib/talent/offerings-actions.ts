@@ -374,15 +374,7 @@ export async function deleteTalentOfferingForever(
   if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, error: "Server configuration error." };
-  const { count: bookingCount } = await admin
-    .from("talent_bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("offering_id", offeringId);
-  if ((bookingCount ?? 0) > 0) {
-    return { ok: false, error: "This item has bookings, so it cannot be deleted." };
-  }
+  // TUL-1335: no bookings pre-check here; deleteTalentOffering archives anything with history.
   return deleteTalentOffering(talentProfileId, offeringId);
 }
 
