@@ -41,7 +41,8 @@ test("both Today data paths mount the flow-driven website card", () => {
 
 test("the flow hook shares ONE activation store and keeps the last good value", () => {
   const hook = read("src/components/talent/website-reward/useWebsiteFlow.ts");
-  assert.equal((hook.match(/loadTalentSiteActivationStateAction\(/g) ?? []).length, 1);
+  // TUL-1274: one read, through the GET helper (not a server action on mount).
+  assert.equal((hook.match(/readTalentDashboard\("site-activation"\)/g) ?? []).length, 1);
   assert.match(hook, /if \(next\) storeValue = next;/);
   assert.match(hook, /storeInFlight/);
 });

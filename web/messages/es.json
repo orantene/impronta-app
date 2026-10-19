@@ -22610,5 +22610,43 @@
         "description": "Novedades del producto y consejos ocasionales de buenas prácticas."
       }
     }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirma los datos de tu negocio",
+      "description": "Nombre, servicios y horario confirmados para que tus clientes sepan qué ofreces."
+    },
+    "services": {
+      "title": "Agrega tus servicios",
+      "description": "Enumera lo que ofreces con duración y precio o cotización."
+    },
+    "hours": {
+      "title": "Define tu horario",
+      "description": "Elige los días y horas en que tus clientes pueden reservar."
+    },
+    "location": {
+      "title": "Indica dónde trabajas",
+      "description": "Agrega tu zona para que tus clientes te encuentren."
+    },
+    "photos": {
+      "title": "Agrega fotos",
+      "description": "Muestra tu trabajo con al menos una foto."
+    },
+    "team": {
+      "title": "Invita a tu equipo",
+      "description": "Suma a las personas que atienden clientes contigo. Puedes hacerlo después."
+    },
+    "payments": {
+      "title": "Conecta los pagos",
+      "description": "Conecta tu cuenta de cobro para que tus clientes puedan pagarte."
+    },
+    "preview": {
+      "title": "Vista previa de tu página",
+      "description": "Mira tu página como la verán tus clientes."
+    },
+    "publish": {
+      "title": "Publica tu sitio web",
+      "description": "Pon tu sitio en línea y comparte el enlace."
+    }
   }
 }

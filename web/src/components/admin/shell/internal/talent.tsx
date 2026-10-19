@@ -291,7 +291,9 @@ function TalentSidebar() {
         {previewHref && (
           <a
             data-tulala-talent-preview-link
-            href={previewHref}
+            // No production href before the browser origin is known (see MyProfilePage).
+            href={origin ? previewHref : undefined}
+            aria-disabled={origin ? undefined : true}
             target="_blank"
             rel="noreferrer"
             className="flex w-full items-center gap-[8px] rounded-[8px] px-[10px] py-[8px] font-admin-body text-[12.5px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"

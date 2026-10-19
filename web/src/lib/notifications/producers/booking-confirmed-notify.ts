@@ -1,6 +1,7 @@
 import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
+import type { NotificationEvent } from "@/lib/notifications/types";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -30,19 +31,27 @@ import { logServerError } from "@/lib/server/safe-error";
  * `eventId` (`booking-confirmed:<bookingId>`) collapses a re-paid / re-delivered
  * transaction (and a multi-payment booking) to a single confirmation per booking.
  */
-export function notifyBookingConfirmed(params: {
+export function buildBookingConfirmedEvent(params: {
   tenantId: string;
   inquiryId: string;
   bookingId: string;
-}): Promise<void> {
-  return dispatchEventNotifications({
+}): NotificationEvent {
+  return {
     type: "booking.confirmed",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
     bookingId: params.bookingId,
     eventId: `booking-confirmed:${params.bookingId}`,
     payload: { bookingId: params.bookingId },
-  }).then(() => undefined, (err) => {
+  };
+}
+
+export function notifyBookingConfirmed(params: {
+  tenantId: string;
+  inquiryId: string;
+  bookingId: string;
+}): Promise<void> {
+  return dispatchEventNotifications(buildBookingConfirmedEvent(params)).then(() => undefined, (err) => {
     logServerError("notifyBookingConfirmed", err);
   });
 }

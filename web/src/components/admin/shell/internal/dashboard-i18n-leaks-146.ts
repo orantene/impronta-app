@@ -24,8 +24,8 @@ export const LEAKS_146_ES_TEXT: Record<string, string> = {
   "Views per day · last 30 days": "Visitas por día · últimos 30 días",
   "Counted from views of your public profile pages and from inquiries you were named on. Booking accept rate, average day rate and per-client spend are not tracked yet.":
     "Se cuenta a partir de las visitas a tus páginas públicas de perfil y de las consultas en las que se te nombró. La tasa de aceptación de reservas, la tarifa promedio por día y el gasto por cliente aún no se miden.",
-  "Page analytics — profile views and inquiry conversion — are part of Pro and Portfolio. Your views are being recorded now; upgrade to read them. Your earnings and pipeline are live on the Money page today.":
-    "Las analíticas de páginas (visitas al perfil y conversión de consultas) forman parte de Pro y Portfolio. Tus visitas se están registrando ahora; mejora tu plan para verlas. Tus ingresos y tu flujo ya están disponibles hoy en la página de Dinero.",
+  "Page analytics — profile views and inquiry conversion — are part of {plan}. Your views are being recorded now; upgrade to read them. Your earnings and pipeline are live on the Money page today.":
+    "Las analíticas de páginas (visitas al perfil y conversión de consultas) forman parte de {plan}. Tus visitas se están registrando ahora; mejora tu plan para verlas. Tus ingresos y tu flujo ya están disponibles hoy en la página de Dinero.",
 
   // Stale deployment banner
   "Reload": "Recargar",
