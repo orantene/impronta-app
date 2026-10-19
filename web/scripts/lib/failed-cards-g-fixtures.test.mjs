@@ -164,6 +164,8 @@ test("G4: a published one-night event with 2 seats, one visible tier, and a 1-us
   assert.ok(Date.parse(session.starts_at) > Date.parse("2026-10-19T12:00:00Z") && Date.parse(session.ends_at) > Date.parse(session.starts_at));
   assert.equal(offering.owner_kind, "workspace");
   assert.equal(offering.kind, "package");
+  assert.equal(offering.price_type, "flat_package", "matches the existing event offerings and the column default");
+  assert.equal(offering.booking_mode, "request");
   assert.equal(tier.offering_id, offering.id);
   assert.equal(tier.is_hidden, false);
   assert.equal(tier.capacity_pool_id, undefined, "an event tier never stores a pool id (the pool is resolved per night)");

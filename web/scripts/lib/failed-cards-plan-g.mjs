@@ -149,7 +149,7 @@ export function planG4(now, ws) {
     // The event's catalog row, shaped like createEventWithOffering (kind package, workspace-owned, no talent).
     insert(fx, "public.talent_offerings", "offering:g4-event", {
       id: offeringId, tenant_id: ws, owner_kind: "workspace", talent_profile_id: null, kind: "package", title,
-      description: "Música en vivo y baile. Cupo limitado.", currency: "MXN", amount_cents: 25000, price_type: "event", price_display: "exact",
+      description: "Música en vivo y baile. Cupo limitado.", currency: "MXN", amount_cents: 25000, price_type: "flat_package", price_display: "exact",
       booking_mode: "request", status: "published", moderation_state: "approved", visibility: "public", category: "Eventos",
       title_i18n: J({ es: title, en: "Live Salsa Night" }), attributes: J({}),
     }),
