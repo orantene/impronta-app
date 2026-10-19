@@ -44,18 +44,20 @@ describe("talent booking record never hangs", () => {
     assert.match(src, /knownStatusLabel/);
   });
 
-  it("the server loaders read as the same effective user as the layout", () => {
+  it("the server loaders read as the same effective user as the layout (via the non-action helper)", () => {
     const src = readFileSync(join(process.cwd(), "src/lib/talent-agenda/load-record-item.ts"), "utf8");
-    assert.match(src, /effectiveReadContext/);
-    assert.doesNotMatch(src, /loadTalentActor\(\)/);
+    assert.match(src, /loadRecordActor/);
+    assert.doesNotMatch(src, /effective-read|EffectiveReadContext/);
+    const helper = readFileSync(join(process.cwd(), "src/lib/talent-agenda/record-actor.ts"), "utf8");
+    assert.match(helper, /effectiveReadContext/);
+    assert.doesNotMatch(helper, /^"use server"/m);
   });
 });
 
 describe("record loaders: multi-role and past bookings", () => {
   it("read her own rows by her profile ids through the service client, with no date window on the stub", () => {
     const src = readFileSync(join(process.cwd(), "src/lib/talent-agenda/load-record-item.ts"), "utf8");
-    assert.match(src, /firstProfile: true/);
-    assert.match(src, /ownProfileIds/);
+    assert.match(src, /actor\.admin/);
     assert.doesNotMatch(src, /actor\.supabase/);
     const stub = readFileSync(join(process.cwd(), "src/lib/talent-agenda/booking-stub.ts"), "utf8");
     assert.doesNotMatch(stub, /starts_at|gte\(|tenant_id/);
