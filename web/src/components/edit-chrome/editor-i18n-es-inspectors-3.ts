@@ -353,4 +353,8 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
     "Este bloque no puede ir ahí. Selecciona primero una sección y agrégalo dentro.",
   // TUL-124: empty testimonials slot / live-dropped block badge
   "Not shown on your site": "No se muestra en tu sitio",
+  // W-10 rotating words + W-12 tag filter
+  "Tag filter": "Filtro por etiqueta",
+  "Chips above the photos (All, Headshots, Family...). Visitors tap a chip to show only that tag. Tag a photo in your media library.":
+    "Botones sobre las fotos (Todo, Retratos, Familia...). Quien visita toca uno para ver solo esa etiqueta. Etiqueta una foto en tu biblioteca de medios.",
 };

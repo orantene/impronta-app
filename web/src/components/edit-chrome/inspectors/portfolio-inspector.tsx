@@ -263,6 +263,21 @@ export function PortfolioContentInspector({
             </span>
           </span>
         </label>
+        {/* The renderer reads `tagFilter`: chips (All + each shot tag) above the shots; needs 2+ tags. */}
+        <label className="flex items-start gap-2 text-[13px] text-stone-800">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={p.tagFilter === true}
+            onChange={(e) => commitPatch({ tagFilter: e.target.checked })}
+          />
+          <span>
+            Tag filter
+            <span className="mt-0.5 block text-[12px] text-stone-500">
+              Chips above the photos (All, Headshots, Family...). Visitors tap a chip to show only that tag. Tag a photo in your media library.
+            </span>
+          </span>
+        </label>
         <label className="flex items-start gap-2 text-[13px] text-stone-800">
           <input
             type="checkbox"

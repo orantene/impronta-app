@@ -1142,9 +1142,12 @@ export const portfolioPropsSchema = z.object({
         mediaId: z.string().max(80),
         offeringId: z.string().max(80).optional(),
         caption: z.string().max(240).optional(),
+        tag: z.string().max(40).optional(),
       }),
     )
     .max(48)
+  /** Contact sheet: filter chips (Todo + each tag) above the grid. */
+  tagFilter: z.boolean().optional(),
     .optional(),
   linkMode: z.enum(["offering", "none"]).optional(),
   emptyMessage: z.string().max(240).optional(),

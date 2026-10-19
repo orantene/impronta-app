@@ -19,6 +19,8 @@ import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
+import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
+import { frameDarkHero } from "./frame-hero";
 import {
   aboutBlock,
   portfolioBlock,
@@ -127,9 +129,12 @@ export function buildMonoPayload(): DesignPayload {
 // contact sheet (W-12), services as cards.
 export function buildFramePayload(): DesignPayload {
   const id = seqIds("frame");
-  const hero = tuneHeading(
-    heroSplit(id, { ratio: "40-60", chips: false, accent: false, eyebrow: true, minHeight: "56vh" }),
-    { textTransform: "uppercase", letterSpacing: "0.02em" },
+  const hero = frameDarkHero(
+    tuneHeading(
+      heroSplit(id, { ratio: "40-60", chips: false, accent: false, eyebrow: true, minHeight: "56vh" }),
+    tokenDefaults: { ...FRAME_STYLE_TOKEN_DEFAULTS },
+      { textTransform: "uppercase", letterSpacing: "0.02em" },
+    ),
   );
   return {
     shellTree: shell(id, {
@@ -491,9 +496,9 @@ export { COLLECTION_DESIGN_SUMMARY_ES } from "./design-summaries-es";
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
   "maison-v2": [],
-  solace: ["W-10 rotating word", "studio/villa hero toggle (app)"],
-  mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
-  frame: ["W-12 contact sheet tag filter and loupe"],
+  solace: ["studio/villa hero toggle (app)"],
+  mono: ["inline 3-tap slot picker (app)"],
+  frame: [],
   folio: [],
   gridline: [],
 };

@@ -23,6 +23,7 @@
 import { authoredPaletteOverrides } from "./collection/authored";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
+import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
 import { countUsableDemos } from "./usable-demos";
@@ -379,11 +380,12 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ],
   }),
   design({
+    fonts: { heading: FRAME_HEADING_FONT, body: FRAME_BODY_FONT },
     ...collection("frame"),
     styleTags: ["Image-led", "Bold"],
     featureTags: ["Portfolio", "Service menu", "Quote requests", "Video & media"],
     palettes: [
-      pal("gallery", "Gallery White", "Blanco galería", ["#FFFFFF", "#F4F4F4", "#E1E1E1", "#111111", "#111111", "#FFFFFF"], { highContrast: true }),
+      pal("gallery", "Contact sheet", "Hoja de contactos", ["#E6E6E1", "#F5F5F2", "#CFCFC8", "#121212", "#D4351C", "#FFFFFF"], { muted: "#5C5C57" }),
       pal("darkroom", "Darkroom", "Cuarto oscuro", ["#0E0E0E", "#191919", "#2E2E2E", "#F2F2F2", "#E0B04A", "#0E0E0E"], { dark: true }),
       pal("film", "Film & Amber", "Película y ámbar", ["#FFFFFF", "#F7F2EA", "#E8DFD0", "#221D16", "#8C5A14", "#FFFFFF"]),
     ],

@@ -1343,6 +1343,9 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
       mediaId: string;
       offeringId?: string;
       caption?: string;
+      tag?: string;
+    /** Show filter chips (All + each shot tag) above the shots. Needs 2+ distinct tags. */
+    tagFilter?: boolean;
     }>;
     /** offering = photo opens that service; none = display only. */
     linkMode?: "offering" | "none";
