@@ -28,5 +28,5 @@ test("typed code reaches startTalentUpgrade; the ?promo= value is the fallback a
 
 test("the orphan shell is not the only mount", () => {
   assert.match(shell, /<PromoCodeInput /);
-  assert.match(drawer, /<PromoCodeInput /);
+  assert.match(drawer, /<PromoCodeInput\b/);
 });
