@@ -40,7 +40,8 @@ import {
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
-import { needsRouteLookup, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { needsRouteLookup, needsServiceLookup, serviceRouteVerdict, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
 import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
 import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -213,6 +214,16 @@ export default async function TalentSiteHostPage({
     // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
     if (verdict === "privacy-redirect") permanentRedirect(`/${POLICY_SLUG.privacy}`);
     if (verdict === "not-found") notFound();
+  }
+  // TUL-1273 #5: a removed or archived service is a real 404 too (same reason as above). The id8 in
+  // the slug decides; the public offerings read is the render's own cached read.
+  if (needsServiceLookup(seg, preview)) {
+    const [offerings, pages] = await Promise.all([
+      loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => null),
+      loadMaxSitePages(talentProfileId),
+    ]);
+    // A failed read leaves the verdict to the renderer rather than 404ing a live service.
+    if (offerings && serviceRouteVerdict(seg, offerings, pages.map((p) => p.slug)) === "not-found") notFound();
   }
   return (
     <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>
