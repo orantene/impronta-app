@@ -24,7 +24,14 @@ import { buildOfferingRequestDetail } from "@/lib/talent-site/offering-request-d
 import type { OpenIntent } from "@/lib/talent-site/open-intent-queue";
 
 export type BookEntry =
-  | { kind: "sheet"; offeringId: string; eventName: string; detail: OfferingRequestDetail }
+  | {
+      kind: "sheet";
+      offeringId: string;
+      eventName: string;
+      detail: OfferingRequestDetail;
+      /** TUL-1270 #13: every bookable service by offering id8, for `#book-<id8>` share links (hub only). */
+      targets?: Readonly<Record<string, { eventName: string; detail: OfferingRequestDetail }>>;
+    }
   | { kind: "inquire" };
 
 export type BookableEntry = {

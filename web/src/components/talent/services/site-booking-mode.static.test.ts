@@ -33,10 +33,7 @@ test("Services list and editor flag overrides; manager badge shows the EFFECTIVE
   assert.match(read("./ItemStateChips.tsx"), /overrideBadgeLabel/);
   assert.match(read("./ServicesHome.tsx"), /sitePosture=\{defaults\?\.bookingPosture\}/);
   assert.match(read("./EditorScreen.tsx"), /<SiteModeOverrideNotice/);
-  const m = read("./TalentOfferingsManager.tsx");
-  assert.doesNotMatch(m, /\{it\.bookingMode === "instant" && \(/);
-  assert.match(m, /siteBookingModeView\(it\.bookingMode, sitePosture\)\.effective === "instant"/);
-  assert.match(m, /<SiteOverrideChip/);
+  // TUL-1270 #10: the legacy TalentOfferingsManager (and its badge) is retired.
 });
 
 test("no behaviour edits: resolver and surface gate untouched by this change", () => {
