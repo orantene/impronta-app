@@ -15081,6 +15081,8 @@
           "recording": "Recording…"
         }
       },
+      "counterCatalogErrorTitle": "The catalog could not be loaded",
+      "counterCatalogErrorBody": "Something went wrong reading this workspace's items, so the counter is not showing them. Reload the page. If it keeps happening, contact support.",
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "projects": {
