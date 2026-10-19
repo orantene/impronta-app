@@ -114,6 +114,7 @@ src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/saas/plan-seat-caps.test.ts
 src/lib/saas/posts-tenant-isolation.static.test.ts
 src/lib/saas/preview-host.test.ts
+src/lib/saas/profiles-no-self-promotion.static.test.ts
 src/lib/saas/public-booking-surface.static.test.ts
 src/lib/saas/public-hrefs.test.ts
 src/lib/saas/public-profile-override-tenant.test.ts

@@ -142,9 +142,10 @@ export async function createAdminClient(
     return { error: createErr?.message || CLIENT_ERROR.signUp };
   }
 
-  const { supabase } = auth;
-
-  const { error: profileErr } = await supabase
+  // The brand-new user is not tied to any workspace yet, and role / status
+  // changes are platform-admin-only for direct sessions (see
+  // profiles_protect_role_status), so these two writes use the service role.
+  const { error: profileErr } = await admin
     .from("profiles")
     .update({
       display_name,
@@ -160,7 +161,7 @@ export async function createAdminClient(
     return { error: CLIENT_ERROR.update };
   }
 
-  const { error: clientProfileErr } = await supabase
+  const { error: clientProfileErr } = await admin
     .from("client_profiles")
     .upsert(
       {
