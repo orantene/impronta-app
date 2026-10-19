@@ -28,6 +28,14 @@ import "server-only";
  * the order without the column: exactly today's behaviour, no new failure mode.
  * Once the migration is applied the same deploy starts enforcing, no code change.
  *
+ * A REPLAY IS BOUND TO THE BUYER. The first order (and its Checkout session) is
+ * handed back only when the caller's contact email matches the first order's
+ * buyer: `customers.email` when the order has a customer, else the payment row's
+ * `payer_email`; case-insensitive. Anyone else holding the key gets
+ * `engine_error` and learns nothing about the first order (money review of
+ * #4099). An order with no email on either side matches only a caller with no
+ * email, by phone when both have one.
+ *
  * Replay is NOT a fingerprint check: the key is per intent (the client makes a
  * new one for a new basket), so a reuse with different lines returns the first
  * order, the way a replayed command does.
@@ -100,6 +108,46 @@ export async function findKeyedOrder(
   return { ok: true, keyColumn: true, order: (data as KeyedOrder | null) ?? null };
 }
 
+export type ReplayBuyer = { email?: string | null; phone?: string | null };
+
+const NOT_YOURS: PurchaseResult = {
+  ok: false,
+  reason: "engine_error",
+  error: "This order could not be placed. Please start again.",
+};
+
+const norm = (v: string | null | undefined) => (typeof v === "string" && v.trim() ? v.trim().toLowerCase() : null);
+
+/** Does the caller look like the first order's buyer? An unreadable buyer refuses. */
+async function sameBuyer(
+  admin: Pick<SupabaseClient, "from">,
+  order: KeyedOrder,
+  payerEmail: string | null,
+  buyer: ReplayBuyer,
+): Promise<boolean | "unavailable"> {
+  let email = norm(payerEmail);
+  let phone: string | null = null;
+  if (order.customer_id) {
+    const { data, error } = await admin
+      .from("customers")
+      .select("id, email, phone_e164")
+      .eq("id", order.customer_id)
+      .maybeSingle();
+    if (error) {
+      logServerError("orders.replayKeyedPurchase/customer", error);
+      return "unavailable";
+    }
+    const c = data as { email?: string | null; phone_e164?: string | null } | null;
+    email = norm(c?.email) ?? email;
+    phone = norm(c?.phone_e164);
+  }
+  const callerEmail = norm(buyer.email);
+  if (email || callerEmail) return email !== null && email === callerEmail;
+  const callerPhone = norm(buyer.phone);
+  if (phone || callerPhone) return phone !== null && phone === callerPhone;
+  return true;
+}
+
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -111,6 +159,7 @@ export async function replayKeyedPurchase(
   admin: Pick<SupabaseClient, "from">,
   tenantId: string,
   key: string,
+  buyer: ReplayBuyer,
   found?: KeyedOrder | null,
 ): Promise<PurchaseResult | null> {
   let order = found ?? null;
@@ -136,15 +185,26 @@ export async function replayKeyedPurchase(
 
   const { data: txns, error: txnErr } = await admin
     .from("booking_transactions")
-    .select("id, booking_id, status, gross_amount_cents, created_at")
+    .select("id, booking_id, status, gross_amount_cents, created_at, payer_email")
     .eq("order_id", order.id);
   if (txnErr) {
     logServerError("orders.replayKeyedPurchase/txn", txnErr);
     return { ok: false, reason: "engine_error", error: "Could not place the order." };
   }
-  const txn = ((txns ?? []) as Array<{ id: string; booking_id: string | null; status: string; gross_amount_cents: number | null; created_at?: string | null }>)
+  type TxnRow = { id: string; booking_id: string | null; status: string; gross_amount_cents: number | null; created_at?: string | null; payer_email?: string | null };
+  const allTxns = (txns ?? []) as TxnRow[];
+  const txn = allTxns
     .filter((t) => t.status !== "failed" && t.status !== "cancelled")
     .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0] ?? null;
+
+  // Bound to the buyer BEFORE anything else about the order is read or returned.
+  const payerEmail = allTxns.map((t) => t.payer_email ?? null).find((e) => !!e) ?? null;
+  const mine = await sameBuyer(admin, order, payerEmail, buyer);
+  if (mine === "unavailable") return { ok: false, reason: "engine_error", error: "Could not place the order." };
+  if (!mine) {
+    logServerError("orders.replayKeyedPurchase/buyer_mismatch", `key reused by a different buyer for order ${order.id}`);
+    return NOT_YOURS;
+  }
 
   let bookingId = txn?.booking_id ?? null;
   if (!bookingId) {

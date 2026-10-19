@@ -57,6 +57,8 @@ function fakeDb(opts: FakeOpts = {}) {
     order_lines: [],
     booking_transactions: [],
     capacity_allocations: [],
+    // `ensure_customer_for_tenant` below always answers cust_1; this is its row.
+    customers: [{ id: "cust_1", tenant_id: TENANT, email: "guest@example.com" }],
   };
   const rpcCalls: Array<{ fn: string; args: unknown }> = [];
   const orderUpdates: Row[] = [];
@@ -341,6 +343,31 @@ test("a key whose first order was cancelled (refused, unwound) may be used again
   // Still sold out, but it RAN: a refusal is not replayed as a success.
   assert.equal(!again.ok && again.reason, "sold_out");
   assert.equal(db.rpcCalls.filter((c) => c.fn === "reserve_resource_set_v2").length, 2);
+});
+
+test("same key with a DIFFERENT email gets no order and no Checkout back", async () => {
+  const db = fakeDb({ stock: 5 });
+  const first = await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:shared-key" }));
+  assert.equal(first.ok, true);
+  const other = await createPurchase(
+    db.admin,
+    menuOrder({ clientOrderKey: "menu:shared-key", contact: { email: "someone-else@example.com" } }),
+  );
+  assert.equal(other.ok, false, `a stranger must not receive the first order, got ${JSON.stringify(other)}`);
+  assert.equal(!other.ok && other.reason, "engine_error");
+  assert.equal(JSON.stringify(other).includes(first.ok ? first.orderId : "-"), false, "no order id leaks");
+  assert.equal(liveOrders(db.tables).length, 1, "and no second order is made under that key");
+  assert.equal(db.tables.booking_transactions.length, 1);
+});
+
+test("same key with the SAME email (any case) gets the first order back", async () => {
+  const db = fakeDb({ stock: 5 });
+  const first = await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:same-buyer" }));
+  const again = await createPurchase(
+    db.admin,
+    menuOrder({ clientOrderKey: "menu:same-buyer", contact: { email: "Guest@Example.com" } }),
+  );
+  assert.equal(first.ok && again.ok && again.orderId === first.orderId, true, JSON.stringify(again));
 });
 
 test("different keys are different orders", async () => {

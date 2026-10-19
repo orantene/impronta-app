@@ -137,7 +137,7 @@ export async function createPurchase(
     // ── 0. A repeated clientOrderKey replays the first order (purchase-idempotency.ts).
     const keyed = input.clientOrderKey ? await findKeyedOrder(admin, input.tenantId, input.clientOrderKey) : null;
     if (keyed && !keyed.ok) return { ok: false, reason: "engine_error", error: "Could not place the order." };
-    const replay = keyed?.order ? await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, keyed.order) : null;
+    const replay = keyed?.order ? await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, input.contact, keyed.order) : null;
     if (replay) return replay;
 
     // ── 1. Load the catalog. Policy AND price come from these rows, never
@@ -357,7 +357,7 @@ export async function createPurchase(
 
     // Lost the race for this key: the unique index refused us, so the winner's order is the answer.
     if (orderErr && isClientKeyConflict(orderErr)) {
-      const winner = await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey);
+      const winner = await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, input.contact);
       if (winner) return winner;
     }
     if (orderErr || !orderRow) {
