@@ -27,20 +27,23 @@ export type BusinessOnboardingStep = {
   /** "all" or the TRADE_PROFILES keys the step applies to. */
   trades: "all" | readonly string[];
   readinessKey: ReadinessKey;
+  /** Full catalog keys (kept as literals so the dead-key guard sees them used). */
+  titleKey: string;
+  descriptionKey: string;
 };
 
 const TEAM_TRADES = ["beauty", "barber", "massage", "trainer", "clean", "chef"] as const;
 
 export const BUSINESS_ONBOARDING_STEPS: readonly BusinessOnboardingStep[] = [
-  { id: "basics", order: 10, trades: "all", readinessKey: "essentials" },
-  { id: "services", order: 20, trades: "all", readinessKey: "services" },
-  { id: "hours", order: 30, trades: "all", readinessKey: "availability" },
-  { id: "location", order: 40, trades: "all", readinessKey: "location" },
-  { id: "photos", order: 50, trades: "all", readinessKey: "photo" },
-  { id: "team", order: 60, trades: TEAM_TRADES, readinessKey: "team" },
-  { id: "payments", order: 70, trades: "all", readinessKey: "payments" },
-  { id: "preview", order: 80, trades: "all", readinessKey: "preview" },
-  { id: "publish", order: 90, trades: "all", readinessKey: "website" },
+  { id: "basics", order: 10, trades: "all", readinessKey: "essentials", titleKey: "businessOnboarding.basics.title", descriptionKey: "businessOnboarding.basics.description" },
+  { id: "services", order: 20, trades: "all", readinessKey: "services", titleKey: "businessOnboarding.services.title", descriptionKey: "businessOnboarding.services.description" },
+  { id: "hours", order: 30, trades: "all", readinessKey: "availability", titleKey: "businessOnboarding.hours.title", descriptionKey: "businessOnboarding.hours.description" },
+  { id: "location", order: 40, trades: "all", readinessKey: "location", titleKey: "businessOnboarding.location.title", descriptionKey: "businessOnboarding.location.description" },
+  { id: "photos", order: 50, trades: "all", readinessKey: "photo", titleKey: "businessOnboarding.photos.title", descriptionKey: "businessOnboarding.photos.description" },
+  { id: "team", order: 60, trades: TEAM_TRADES, readinessKey: "team", titleKey: "businessOnboarding.team.title", descriptionKey: "businessOnboarding.team.description" },
+  { id: "payments", order: 70, trades: "all", readinessKey: "payments", titleKey: "businessOnboarding.payments.title", descriptionKey: "businessOnboarding.payments.description" },
+  { id: "preview", order: 80, trades: "all", readinessKey: "preview", titleKey: "businessOnboarding.preview.title", descriptionKey: "businessOnboarding.preview.description" },
+  { id: "publish", order: 90, trades: "all", readinessKey: "website", titleKey: "businessOnboarding.publish.title", descriptionKey: "businessOnboarding.publish.description" },
 ];
 
 export type ResolvedOnboardingStep = BusinessOnboardingStep & { done: boolean };
