@@ -110,7 +110,7 @@ export type ServiceSlugResolution<T> =
   | { kind: "missing" };
 
 /** The slug a service answers on: its stored custom slug, else the derived `servicio-<title>-<id8>`. */
-export function currentServiceSlug(o: { id: string; title: string }, content?: SlugContent | null): string {
+export function currentServiceSlug(o: { id: string; title: string }, content?: Pick<SlugContent, "slug"> | null): string {
   const custom = content?.slug?.trim().toLowerCase();
   return custom ? custom : serviceSlug(o);
 }
