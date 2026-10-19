@@ -24,6 +24,7 @@ import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-local
 import { headers } from "next/headers";
 import type { Locale } from "@/i18n/config";
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
+import { applyDirectoryIndexing } from "@/lib/seo/directory-indexing";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { DirectoryComponent } from "@/lib/site-admin/sections/directory/Component";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
@@ -31,9 +32,13 @@ import { publicLocaleHref } from "@/i18n/client-directory-href";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const locale = await getRequestLocale();
-  return buildPublicPageMetadata("directory", locale);
+  return applyDirectoryIndexing(await buildPublicPageMetadata("directory", locale), await searchParams);
 }
 
 /**
