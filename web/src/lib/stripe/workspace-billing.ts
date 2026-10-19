@@ -34,6 +34,8 @@ import {
 } from "@/lib/billing/subscription-discounts";
 import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
+import { trialParams } from "@/lib/billing/trial-eligibility";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -211,8 +213,8 @@ export async function createWorkspaceCheckoutSession(opts: {
   // number was displayed in marketing copy and never sent to Stripe, so a
   // "14-day free trial" charged on day zero.
   const trialOffer = await loadTrialOffer("workspace", opts.planKey);
-  const trialDays =
-    trialOffer?.isEnabled && trialOffer.trialDays > 0 ? trialOffer.trialDays : null;
+  // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
+  const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId }, customerResult.data, trialOffer);
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -239,7 +241,7 @@ export async function createWorkspaceCheckoutSession(opts: {
           // which workspace. Omitted rather than sent empty when unknown.
           ...(opts.buyerUserId ? { user_id: opts.buyerUserId } : {}),
         },
-        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
+        ...trialParams(trialDays),
       },
       ...discount.params,
       // Adaptive Pricing: Stripe converts the USD price to the customer's local

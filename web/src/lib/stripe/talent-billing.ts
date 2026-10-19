@@ -30,6 +30,8 @@ import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { duplicateSubscriptionGuard } from "@/lib/billing/subscription-guard.server";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
+import { trialParams } from "@/lib/billing/trial-eligibility";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -207,8 +209,8 @@ export async function createTalentCheckoutSession(opts: {
   // The admin-configured trial, finally sent to Stripe rather than only shown
   // in marketing copy.
   const trialOffer = await loadTrialOffer("talent", opts.planKey);
-  const trialDays =
-    trialOffer?.isEnabled && trialOffer.trialDays > 0 ? trialOffer.trialDays : null;
+  // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
+  const trialDays = await checkoutTrialDays({ kind: "talent", talentProfileId: opts.talentProfileId, userId: opts.userId }, customerResult.data, trialOffer);
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -235,7 +237,7 @@ export async function createTalentCheckoutSession(opts: {
           billing_interval:  price.interval,
           checkout_type:     "talent_subscription",
         },
-        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
+        ...trialParams(trialDays),
       },
       ...discount.params,
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
