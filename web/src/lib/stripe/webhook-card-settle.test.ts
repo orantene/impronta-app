@@ -84,6 +84,7 @@ function harness(over: HarnessOptions = {}) {
     recordChargePlatform: over.recordChargePlatform ?? (async () => true),
     loadChargePlatformForTransaction: over.loadChargePlatformForTransaction ?? (async () => "us"),
     getAdmin: () => (over.admin === undefined ? fakeAdmin({}) : over.admin),
+    advanceDraft: async () => ({ ok: true, advanced: false }),
   };
   return { deps, paidWith };
 }

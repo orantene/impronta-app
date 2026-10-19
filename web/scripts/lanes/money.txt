@@ -42,6 +42,7 @@ src/lib/bookings/payment-booking.test.ts
 src/lib/bookings/policy-overrides.test.ts
 src/lib/bookings/quote-versions.test.ts
 src/lib/bookings/recurring.test.ts
+src/lib/bookings/transaction-transition-write.test.ts
 src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
@@ -224,6 +225,7 @@ src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
+src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts
 src/lib/talent-agenda/abandoned-order.test.ts
 src/lib/talent-agenda/booked-guest-load.test.ts
