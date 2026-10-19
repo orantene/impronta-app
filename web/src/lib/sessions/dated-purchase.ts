@@ -185,3 +185,19 @@ export function buildDatedPurchase(a: DatedPurchaseArgs): PurchaseInput | null {
     ageAttestation: typeof a.confirmedAge === "number" ? { confirmedAge: a.confirmedAge } : null,
   };
 }
+
+/* ─── Held-migration columns ───────────────────────────────────────────── */
+
+/**
+ * How to read the result of selecting a column the held migration adds.
+ *  - no error: use the value;
+ *  - Postgres 42703 (undefined column): the migration is not applied yet, so
+ *    the value is "not set";
+ *  - ANY other error is a failed read and must stop the sale. Treating a
+ *    transient error as "not set" would fail OPEN (a private item sells, sales
+ *    stay open past the cutoff).
+ */
+export function heldColumnRead(error: { code?: string | null } | null | undefined): "value" | "missing" | "fail" {
+  if (!error) return "value";
+  return error.code === "42703" ? "missing" : "fail";
+}

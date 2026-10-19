@@ -156,3 +156,14 @@ test("purchase: a default single-price item has a null variant and the default p
   assert.deepEqual(input.lines, [{ offeringId: "o", variantId: null, sessionId: "s1", units: 3 }]);
   assert.equal(input.capacity?.[0].poolId, "p-default");
 });
+
+import { heldColumnRead } from "./dated-purchase";
+
+test("held column read: only a missing column (42703) reads as not set; every other error fails", () => {
+  assert.equal(heldColumnRead(null), "value");
+  assert.equal(heldColumnRead(undefined), "value");
+  assert.equal(heldColumnRead({ code: "42703" }), "missing");
+  assert.equal(heldColumnRead({ code: "57014" }), "fail");
+  assert.equal(heldColumnRead({ code: null }), "fail");
+  assert.equal(heldColumnRead({}), "fail");
+});

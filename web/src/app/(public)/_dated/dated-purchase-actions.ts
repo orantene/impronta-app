@@ -36,6 +36,7 @@ import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import {
   buildDatedPurchase,
+  heldColumnRead,
   salesState,
   validateDatedCart,
   type DatedLeg,
@@ -120,7 +121,14 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
       .eq("id", d.offeringId)
       .eq("tenant_id", d.tenantId)
       .maybeSingle();
-    if (!flagErr && flags?.private_on_request === true) return { ok: false, reason: "private_on_request" };
+    // Only a missing column (migration not applied) reads as "not set"; any other
+    // error stops the sale: failing open would sell a private item.
+    const flagRead = heldColumnRead(flagErr);
+    if (flagRead === "fail") {
+      logServerError("dated.buy.privateFlag", flagErr);
+      return { ok: false, reason: "engine_error" };
+    }
+    if (flagRead === "value" && flags?.private_on_request === true) return { ok: false, reason: "private_on_request" };
 
     const { data: session, error: sErr } = await admin
       .from("sessions")
@@ -148,7 +156,12 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
       .eq("id", d.sessionId)
       .eq("tenant_id", d.tenantId)
       .maybeSingle();
-    if (!closeErr) salesCloseAt = (closeRow?.sales_close_at as string | null) ?? null;
+    const closeRead = heldColumnRead(closeErr);
+    if (closeRead === "fail") {
+      logServerError("dated.buy.salesClose", closeErr);
+      return { ok: false, reason: "engine_error" };
+    }
+    if (closeRead === "value") salesCloseAt = (closeRow?.sales_close_at as string | null) ?? null;
     if (session.series_id) {
       const { data: serRow, error: serErr } = await admin
         .from("session_series")
@@ -156,7 +169,12 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
         .eq("id", String(session.series_id))
         .eq("tenant_id", d.tenantId)
         .maybeSingle();
-      if (!serErr) salesCloseMinutes = (serRow?.sales_close_minutes as number | null) ?? null;
+      const serRead = heldColumnRead(serErr);
+      if (serRead === "fail") {
+        logServerError("dated.buy.salesCloseSeries", serErr);
+        return { ok: false, reason: "engine_error" };
+      }
+      if (serRead === "value") salesCloseMinutes = (serRow?.sales_close_minutes as number | null) ?? null;
     }
     const sales = salesState({ startsAt, salesCloseAt, salesCloseMinutes, now: new Date() });
     if (!sales.open) return { ok: false, reason: sales.reason === "closed" ? "sales_closed" : "date_not_on_sale" };
@@ -303,8 +321,24 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
         .from("order_lines")
         .select("id, units, session_id, variant_id")
         .eq("order_id", result.orderId);
+      // A repeat of the same free order must not mint or mail twice: mint is an
+      // upsert and delivery is claimed, and we also skip when tickets already exist.
+      const lineIdsForGuard = (lineRows ?? []).map((l) => l.id as string);
+      let alreadyMinted = false;
+      if (!lineErr && lineIdsForGuard.length > 0) {
+        const { data: existingAdm, error: admErr } = await admin
+          .from("admissions")
+          .select("id")
+          .eq("tenant_id", d.tenantId)
+          .in("order_line_id", lineIdsForGuard)
+          .limit(1);
+        if (admErr) logServerError("dated.buy.compGuard", admErr);
+        else alreadyMinted = (existingAdm ?? []).length > 0;
+      }
       if (lineErr) {
         logServerError("dated.buy.compLines", lineErr);
+      } else if (alreadyMinted) {
+        ticketEmailed = false;
       } else {
         try {
           await mintAdmissionsForPaidOrder(admin, {

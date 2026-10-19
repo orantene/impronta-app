@@ -27,8 +27,10 @@ test("sales stop and the private-date flag are enforced, and fail closed", () =>
   assert.match(src, /salesState\(/);
   assert.match(src, /sales_closed/);
   assert.match(src, /private_on_request/);
-  // a missing held column must not break the sale
-  assert.match(src, /if \(!closeErr\)/);
+  // a missing held column must not break the sale, but any OTHER error must stop it (fail closed)
+  assert.doesNotMatch(src, /if \(!(?:flagErr|closeErr|serErr)\b/);
+  assert.equal((src.match(/heldColumnRead\(/g) ?? []).length, 3);
+  assert.equal((src.match(/=== "fail"/g) ?? []).length, 3);
 });
 
 test("no clamping of quantities and no raw price from the client", () => {
@@ -39,4 +41,9 @@ test("no clamping of quantities and no raw price from the client", () => {
 test("ticketEmailed is true only when delivery really succeeded", () => {
   assert.match(src, /ticketEmailed = delivered\.ok === true/);
   assert.match(src, /let ticketEmailed = false/);
+});
+
+test("a repeated free order does not mint or mail twice", () => {
+  assert.match(src, /alreadyMinted/);
+  assert.match(src, /\.from\("admissions"\)[\s\S]{0,200}\.eq\("tenant_id", d\.tenantId\)/);
 });
