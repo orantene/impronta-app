@@ -83,6 +83,21 @@ export function isPublishTransition(
   return nextStatus === "published" && priorStatus !== "published";
 }
 
+/**
+ * THE save rule both gates use (server: offeringSaveGate; editor: the Publish
+ * button). Returns the gaps that block THIS save: the readiness list when the
+ * save moves the item onto the menu, nothing otherwise. A live item can always
+ * save its other fields; the editor still shows what it is missing.
+ */
+export function publishBlockers(
+  o: PublishReadinessInput & { status?: string | null },
+  priorStatus: string | null | undefined,
+  defaultPosture?: string | null,
+): PublishGap[] {
+  if (!isPublishTransition(o.status, priorStatus)) return [];
+  return publishReadiness(o, defaultPosture).missing;
+}
+
 const GAP_EN: Record<PublishGap, string> = {
   name: "a name",
   price: "a price",

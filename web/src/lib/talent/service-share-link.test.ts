@@ -109,3 +109,14 @@ test("TUL-1270 #13: Share in the Services list opens the share sheet (link + QR)
   assert.match(sheet, /serviceShareUrl\(/);
   assert.match(sheet, /clipboard\.writeText/);
 });
+
+test("TUL-1270 #13 review: the profile link uses the server's canonical /t host, never the dashboard origin", () => {
+  const r = serviceShareUrl({
+    offering: { id: ID, title: "Uñas gel", kind: "service" },
+    destinations: [{ id: "directory", href: "/t/TAL-00031", shareUrl: "https://tulala.digital/t/TAL-00031" }],
+    origin: "https://impronta.tulala.digital",
+  });
+  assert.equal(r?.url, "https://tulala.digital/t/TAL-00031#book-3f2a9c1b");
+  const loader = readFileSync(join(process.cwd(), "src/lib/talent/services-settings-actions.ts"), "utf8");
+  assert.match(loader, /shareUrl: await canonicalTalentUrl\(code\)/);
+});

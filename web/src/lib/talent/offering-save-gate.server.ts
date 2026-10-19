@@ -5,8 +5,9 @@ import "server-only";
  * upsertTalentOffering right after validateOffering.
  *  - #11: a save that moves an item onto the public menu (new + published, or a
  *    stored draft/hidden/archived row published) must pass publishReadiness.
- *    Saves of an already-live item are not re-gated here, so list quick edits
- *    keep working; the editor blocks Save changes on a live item instead.
+ *    Saves of an already-live item are not re-gated (list quick edits and the
+ *    editor's Save changes keep working). The rule is publishBlockers, the
+ *    same function the editor's Publish button uses.
  *  - #12: a save that NEWLY picks instant booking on a plan without instant is
  *    refused (instantPlanRefuses); stored instant rows keep saving.
  * One read of the stored row (status, booking_mode) when the item exists.
@@ -18,7 +19,7 @@ import { loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { INSTANT_PLAN_REFUSAL_EN, instantPlanRefuses } from "@/lib/talent/instant-plan-gate";
-import { isPublishTransition, notReadyToPublishMessage, publishReadiness } from "@/lib/talent/publish-readiness";
+import { isPublishTransition, notReadyToPublishMessage, publishBlockers } from "@/lib/talent/publish-readiness";
 
 type Prior = { status: string | null; booking_mode: string | null } | null;
 
@@ -53,8 +54,8 @@ export async function offeringSaveGate(
   }
 
   if (isPublishTransition(offering.status, prior?.status)) {
-    const readiness = publishReadiness(offering, await loadTalentDefaultPosture(talentProfileId));
-    if (!readiness.ready) return { ok: false, error: notReadyToPublishMessage(offering.title, readiness.missing) };
+    const missing = publishBlockers(offering, prior?.status, await loadTalentDefaultPosture(talentProfileId));
+    if (missing.length > 0) return { ok: false, error: notReadyToPublishMessage(offering.title, missing) };
   }
 
   if (wantsInstant && prior?.booking_mode !== "instant") {

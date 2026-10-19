@@ -3,27 +3,30 @@
 /**
  * TUL-1270 #10: the profile drawer used to mount the legacy English-only
  * services editor (TalentOfferingsManager, now deleted). It now points to the
- * one current Services editor instead. A talent gets a button; staff see who
- * manages the menu (the talent edits it in Services).
+ * one current Services editor instead. A talent gets a button to Services;
+ * staff with access to the talent (authorizeForTalent: workspace staff whose
+ * roster has the talent) edit in the drawer through StaffServicesPanel.
  */
 import Link from "next/link";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 
+import { StaffServicesPanel } from "./StaffServicesPanel";
+
 const COPY = {
   en: {
     self: "Your services, prices and booking rules are edited in Services.",
-    staff: "The talent edits services, prices and booking rules in their Services editor.",
+    staff: "Services, prices and booking rules for this talent. The talent sees the same editor in Services.",
     open: "Open Services",
   },
   es: {
     self: "Tus servicios, precios y reglas de reserva se editan en Servicios.",
-    staff: "El talento edita sus servicios, precios y reglas de reserva en su editor de Servicios.",
+    staff: "Servicios, precios y reglas de reserva de este talento. El talento ve el mismo editor en Servicios.",
     open: "Abrir Servicios",
   },
 } as const;
 
-export function ServicesEditorLink({ isSelf }: { isSelf: boolean }) {
+export function ServicesEditorLink({ isSelf, talentId }: { isSelf: boolean; talentId: string }) {
   const copy = useDashboardText();
   const t = copy.isSpanish ? COPY.es : COPY.en;
   return (
@@ -34,6 +37,11 @@ export function ServicesEditorLink({ isSelf }: { isSelf: boolean }) {
           {t.open}
         </Link>
       ) : null}
+      {isSelf ? null : (
+        <div className="w-full">
+          <StaffServicesPanel talentId={talentId} />
+        </div>
+      )}
     </div>
   );
 }

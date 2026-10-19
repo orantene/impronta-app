@@ -16,7 +16,7 @@ const COPY = {
     notYet: "Not yet",
     ok: "Clients have everything they need to book it.",
     needs: "Add these before you publish:",
-    needsLive: "This item is live. Add these before you save changes:",
+    needsLive: "This item is live and saves as usual. Add these so clients can book it:",
     photo: "Tip: add a photo so it stands out.",
   },
   es: {
@@ -25,7 +25,7 @@ const COPY = {
     notYet: "Todavía no",
     ok: "Tus clientes tienen todo lo que necesitan para reservarlo.",
     needs: "Agrega esto antes de publicar:",
-    needsLive: "Este servicio está publicado. Agrega esto antes de guardar cambios:",
+    needsLive: "Este servicio está publicado y se guarda como siempre. Agrega esto para que tus clientes puedan reservarlo:",
     photo: "Consejo: agrega una foto para que destaque.",
   },
 } as const;

@@ -4200,8 +4200,8 @@ export function TalentProfileShellDrawer() {
               >
                 <CommercialTermsEditor talentId={payload.talentId} />
                 <DirectBookingRosterSwitch talentId={payload.talentId} />
-                {/* TUL-1270 #10: the legacy services editor is retired; one editor (Services). */}
-                <ServicesEditorLink isSelf={isSelf} />
+                {/* TUL-1270 #10: legacy editor retired; talent: link to Services; staff: the current editor here. */}
+                <ServicesEditorLink isSelf={isSelf} talentId={payload.talentId} />
               </ProfileAccordionSection>
             )}
 

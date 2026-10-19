@@ -32,7 +32,8 @@ import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { PublishReadinessPanel } from "./PublishReadinessPanel";
 import { InstantPlanNotice } from "./InstantPlanNotice";
-import { publishReadiness } from "@/lib/talent/publish-readiness";
+import { publishBlockers, publishReadiness } from "@/lib/talent/publish-readiness";
+import { IdentityRequirementField } from "./IdentityRequirementField";
 import { localizeOfferingSaveError } from "./offering-editor-save";
 import { canLeaveEditor } from "./offering-editor-leave";
 import { defaultWhere, whereChoicesForPlace } from "@/lib/onboarding/service-where";
@@ -137,7 +138,7 @@ export function EditorScreen({
   const quote = item.priceDisplay === "quote";
   // TUL-1270 #11: the same rule the server applies on publish (structured list of what is missing).
   const readiness = publishReadiness(item, defaults?.bookingPosture);
-  const ready = readiness.ready;
+  const blocked = publishBlockers({ ...item, status: "published" }, isNew ? undefined : item.status, defaults?.bookingPosture);
 
   const depositPct = item.depositPct ?? defaults?.depositPct ?? null;
   const depositOwn = item.depositPct != null;
@@ -236,7 +237,7 @@ export function EditorScreen({
         <div className="flex flex-wrap gap-2.5">
           <button type="button" className={btn} onClick={() => setPreview(true)}>{copy.t("Preview")}</button>
           {isLive ? (
-            <button type="button" className={primary} disabled={Boolean(busy) || !ready} onClick={() => void save(false)}>
+            <button type="button" className={primary} disabled={Boolean(busy)} onClick={() => void save(false)}>
               {busy ? copy.t("Saving…") : copy.t("Save changes")}
             </button>
           ) : (
@@ -244,7 +245,7 @@ export function EditorScreen({
               <button type="button" className={btn} disabled={Boolean(busy)} onClick={() => void save(false)}>
                 {busy === "draft" ? copy.t("Saving…") : copy.t("Save draft")}
               </button>
-              <button type="button" className={primary} disabled={Boolean(busy) || !ready} onClick={() => void save(true)}>
+              <button type="button" className={primary} disabled={Boolean(busy) || blocked.length > 0} onClick={() => void save(true)}>
                 {busy === "publish"
                   ? copy.t("Publishing…")
                   : kind === "package" ? copy.t("Publish package") : kind === "product" ? copy.t("Publish product") : copy.t("Publish service")}
@@ -401,6 +402,7 @@ export function EditorScreen({
             ) : null}
             {!quote && <SiteModeOverrideNotice own={item.bookingMode} site={defaultMode} locale={locale} />}
             <InstantPlanNotice talentId={talentId} effectiveMode={effectiveMode} quote={quote} />
+            {activeMode === "instant" && <IdentityRequirementField item={item} patch={patch} />}
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
                 {copy.t(

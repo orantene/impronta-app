@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
   isPublishTransition,
   notReadyToPublishMessage,
+  publishBlockers,
   publishGapLabel,
   publishReadiness,
   publishRefusalToSpanish,
@@ -75,24 +76,35 @@ test("TUL-1270 #11: server refusal names what is missing, in English and in Span
   assert.doesNotMatch(en + publishGapLabel("deposit", true), /—/, "no em dashes in new copy");
 });
 
-test("TUL-1270 #11: the server refuses an incomplete publish (hooked into upsertTalentOffering)", () => {
+test("TUL-1270 #11: publishBlockers blocks only a move onto the menu; a live item saves its other fields", () => {
+  const gap = { ...BASE, durationMinutes: null, currency: "" };
+  assert.deepEqual(publishBlockers({ ...gap, status: "published" }, "draft"), ["length", "currency"]);
+  assert.deepEqual(publishBlockers({ ...gap, status: "published" }, undefined), ["length", "currency"]);
+  assert.deepEqual(publishBlockers({ ...gap, status: "published" }, "published"), [], "live item: Save changes allowed");
+  assert.deepEqual(publishBlockers({ ...gap, status: "draft" }, "draft"), [], "Save draft never blocked");
+});
+
+test("TUL-1270 #11: the server gate and the editor use the SAME rule (publishBlockers)", () => {
   const actions = readFileSync(join(process.cwd(), "src/lib/talent/offerings-actions.ts"), "utf8");
   assert.match(actions, /const gate = await offeringSaveGate\(admin, talentProfileId, offering\);/);
   assert.match(actions, /if \(!gate\.ok\) return gate;/);
   const gate = readFileSync(join(process.cwd(), "src/lib/talent/offering-save-gate.server.ts"), "utf8");
-  assert.match(gate, /isPublishTransition\(/);
-  assert.match(gate, /publishReadiness\(/);
+  assert.match(gate, /publishBlockers\(offering, prior\?\.status,/);
   assert.match(gate, /notReadyToPublishMessage\(/);
+  const editor = readFileSync(join(process.cwd(), "src/components/talent/services/EditorScreen.tsx"), "utf8");
+  assert.match(editor, /publishBlockers\(\{ \.\.\.item, status: "published" \}, isNew \? undefined : item\.status, defaults\?\.bookingPosture\)/);
+  assert.match(editor, /disabled=\{Boolean\(busy\) \|\| blocked\.length > 0\} onClick=\{\(\) => void save\(true\)\}/);
+  // A live item's Save changes is never disabled by readiness (the server does not re-gate it either).
+  assert.match(editor, /disabled=\{Boolean\(busy\)\} onClick=\{\(\) => void save\(false\)\}>\s*\{busy \? copy\.t\("Saving…"\) : copy\.t\("Save changes"\)\}/);
 });
 
-test("TUL-1270 #11: the editor shows the list and blocks Publish AND Save changes on a live item", () => {
+test("TUL-1270 #11: the editor panel shows the missing list (live items get it inline too)", () => {
   const editor = readFileSync(join(process.cwd(), "src/components/talent/services/EditorScreen.tsx"), "utf8");
-  assert.match(editor, /publishReadiness\(/);
   assert.match(editor, /<PublishReadinessPanel /);
-  assert.match(editor, /disabled=\{Boolean\(busy\) \|\| !ready\} onClick=\{\(\) => void save\(false\)\}/);
   const panel = readFileSync(join(process.cwd(), "src/components/talent/services/PublishReadinessPanel.tsx"), "utf8");
   assert.match(panel, /publishGapLabel\(/);
   assert.match(panel, /Listo para publicar/);
+  assert.match(panel, /needsLive/);
   const save = readFileSync(join(process.cwd(), "src/components/talent/services/offering-editor-save.ts"), "utf8");
   assert.match(save, /publishRefusalToSpanish\(/);
 });
