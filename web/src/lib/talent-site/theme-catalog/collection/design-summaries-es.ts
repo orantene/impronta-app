@@ -20,4 +20,6 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
     "De la fecha al último baile: portada centrada, comparación de tres paquetes, cuadrícula de fotos y preguntas tranquilas. Para novias y eventos.",
   clarity:
     "Reserva en lenguaje claro: retrato junto a la promesa, solicitud en tres pasos, qué esperar y preguntas claras. Para consultas.",
+  mosaic:
+    "Dos disciplinas, un portafolio: portada, servicios con foto, mosaico con filtro y un cierre enorme. Para creativos que hacen dos cosas.",
 };

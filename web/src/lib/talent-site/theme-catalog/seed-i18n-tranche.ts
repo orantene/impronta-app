@@ -1,5 +1,8 @@
 /** Tranche themes (Table, Ribbon, Clarity, Mosaic, Prism) seed Spanish: kept out of seed-i18n.ts so that hot file stays one spread line. */
 export const TRANCHE_SEED_TEXT_ES: Readonly<Record<string, string>> = {
+  "Pick a {i}chapter{/i}": "Elige un {i}capítulo{/i}",
+  "One {i}portfolio{/i}": "Un solo {i}portafolio{/i}",
+  "Photos, site, or both.": "Fotos, sitio o las dos.",
   "Your request in three steps": "Tu solicitud en tres pasos",
   "Step 1": "Paso 1",
   "The space": "El espacio",

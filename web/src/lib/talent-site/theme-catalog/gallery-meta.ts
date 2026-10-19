@@ -27,6 +27,7 @@ import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults
 import { TABLE_BODY_FONT, TABLE_HEADING_FONT, TABLE_PALETTE } from "./collection/table";
 import { RIBBON_BODY_FONT, RIBBON_HEADING_FONT, RIBBON_PALETTE } from "./collection/ribbon";
 import { CLARITY_BODY_FONT, CLARITY_HEADING_FONT, CLARITY_PALETTE } from "./collection/clarity";
+import { MOSAIC_BODY_FONT, MOSAIC_HEADING_FONT, MOSAIC_PALETTE } from "./collection/mosaic";
 import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
@@ -471,6 +472,19 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       planned("massage", { en: "Massage Therapist", es: "Masajista" }, ["massage"], "teal"),
       planned("tutor", { en: "Tutor", es: "Tutor" }, ["tutor"], "teal"),
+    ],
+  }),
+  design({
+    ...collection("mosaic"),
+    fonts: { heading: MOSAIC_HEADING_FONT, body: MOSAIC_BODY_FONT },
+    styleTags: ["Bold", "Image-led"],
+    featureTags: ["Portfolio", "Service menu", "Video & media", "Bento tiles"],
+    palettes: [
+      pal("raspberry", "Raspberry", "Frambuesa", [MOSAIC_PALETTE.page, MOSAIC_PALETTE.surface, MOSAIC_PALETTE.line, MOSAIC_PALETTE.ink, MOSAIC_PALETTE.accent, MOSAIC_PALETTE.onAccent], { muted: MOSAIC_PALETTE.muted }),
+    ],
+    demos: [
+      planned("photographer", { en: "Photographer", es: "Fotógrafo" }, ["photographer"], "raspberry"),
+      planned("designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "raspberry"),
     ],
   }),
 ];

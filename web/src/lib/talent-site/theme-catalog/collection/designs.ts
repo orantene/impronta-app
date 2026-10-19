@@ -24,6 +24,7 @@ import { frameDarkHero } from "./frame-hero";
 import { buildTablePayload } from "./table";
 import { buildRibbonPayload } from "./ribbon";
 import { buildClarityPayload } from "./clarity";
+import { buildMosaicPayload } from "./mosaic";
 import { solaceRotatingHero } from "./solace-hero";
 import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
@@ -518,6 +519,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     14,
     buildClarityPayload,
   ),
+  entry(
+    "mosaic",
+    "Mosaic",
+    "Two disciplines, one portfolio: a cover, image-led services, a filterable mosaic and a huge closing line. Built for creatives who do two things.",
+    "creator",
+    ["mosaic"],
+    15,
+    buildMosaicPayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -542,4 +552,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   table: [],
   ribbon: [],
   clarity: [],
+  mosaic: [],
 };
