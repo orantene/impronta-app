@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 // F1 (TUL-1273 deferred): HELD migration adds a published-offerings leg to the directory
-// search. Pins: same signature, every existing leg kept, only guest-sellable (D-10)
-// talent offerings, no SECURITY DEFINER, no facet function touched.
+// search. Pins: same signature, every existing leg kept, only listable (D-10a:
+// published + approved + public or on_request) talent offerings, no SECURITY DEFINER, no facet function touched.
 const FILE = "supabase/migrations/_pending_pm/20261231415600_directory_search_offerings.sql";
 const sql = readFileSync(join(process.cwd(), "..", FILE), "utf8");
 const code = sql
@@ -42,13 +42,14 @@ test("F1: adds the offerings leg over title, category and description", () => {
   }
 });
 
-test("F1 D-10: the offerings leg is fail-safe (published + approved + public talent rows only)", () => {
+test("F1 D-10a: the offerings leg is fail-safe (published + approved + public/on_request talent rows only)", () => {
   const leg = code.slice(code.indexOf("FROM public.talent_offerings o"));
   assert.match(leg, /o\.status = 'published'/);
   assert.match(leg, /o\.moderation_state = 'approved'/);
-  assert.match(leg, /o\.visibility = 'public'/);
+  assert.match(leg, /o\.visibility IN \('public', 'on_request'\)/);
   assert.match(leg, /o\.owner_kind = 'talent'/);
   assert.match(leg, /tp\.deleted_at IS NULL/);
   assert.match(leg, /tp\.is_publicly_hidden = false/);
-  assert.doesNotMatch(leg, /on_request|agency_only/);
+  assert.doesNotMatch(leg, /agency_only|pending|rejected|draft|archived/);
+  assert.doesNotMatch(leg, /amount_cents|price_/, "the leg never reads a price");
 });

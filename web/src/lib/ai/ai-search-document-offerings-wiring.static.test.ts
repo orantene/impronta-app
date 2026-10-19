@@ -13,9 +13,12 @@ test("F1: rebuild loads offerings via the guest-sellable loader and passes them 
   assert.match(rebuild, /\bofferings,/);
 });
 
-test("F1 D-10: the loader scopes to guest-sellable talent offerings and checks the read error", () => {
+test("F1 D-10a: the loader scopes to listable talent offerings, reads no price, checks the read error", () => {
   const loader = src("src/lib/ai/load-ai-search-document-offerings.ts");
-  assert.match(loader, /scopeToGuestSellableOfferings\(/);
+  assert.match(loader, /\.eq\("status", "published"\)/);
+  assert.match(loader, /\.eq\("moderation_state", "approved"\)/);
+  assert.match(loader, /\.in\("visibility", \["public", "on_request"\]\)/);
+  assert.doesNotMatch(loader, /amount_cents|price_display|price_type/);
   assert.match(loader, /\.eq\("owner_kind", "talent"\)/);
   assert.match(loader, /\{ data, error \}/);
   assert.match(loader, /\.order\("sort_order"/);

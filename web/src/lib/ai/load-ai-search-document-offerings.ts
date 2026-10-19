@@ -1,13 +1,14 @@
 /**
- * F1 (TUL-1273 deferred): loads a talent's guest-sellable offerings (D-10:
- * published + approved + public, talent-owned) for the AI search document.
+ * F1 (TUL-1273 deferred): loads a talent's LISTABLE offerings (D-10a:
+ * published + approved + public or on_request, talent-owned) for the AI search
+ * document. No price column is read; on_request text is stripped of amounts by
+ * the builder.
  * A read error logs and yields [] so the rest of the document still rebuilds.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AiSearchDocumentOffering } from "@/lib/ai/ai-search-document-offerings";
 import { AI_DOC_OFFERINGS_MAX } from "@/lib/ai/ai-search-document-offerings";
-import { scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 import { logServerError } from "@/lib/server/safe-error";
 
 type OfferingRow = {
@@ -25,12 +26,14 @@ export async function loadAiSearchDocumentOfferings(
   supabase: SupabaseClient,
   talentProfileId: string,
 ): Promise<AiSearchDocumentOffering[]> {
-  const query = supabase
+  const { data, error } = await supabase
     .from("talent_offerings")
     .select("id, title, category, description, sort_order, status, moderation_state, visibility")
     .eq("talent_profile_id", talentProfileId)
-    .eq("owner_kind", "talent");
-  const { data, error } = await scopeToGuestSellableOfferings(query)
+    .eq("owner_kind", "talent")
+    .eq("status", "published")
+    .eq("moderation_state", "approved")
+    .in("visibility", ["public", "on_request"])
     .order("sort_order", { ascending: true })
     .order("id", { ascending: true })
     // Over-fetch a little: the builder re-checks the gate and drops empty titles.

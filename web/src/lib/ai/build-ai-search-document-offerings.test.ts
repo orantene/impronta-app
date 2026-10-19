@@ -13,8 +13,8 @@ import {
 } from "@/lib/ai/ai-search-document-offerings";
 
 // F1 (TUL-1273 deferred): published services feed the talent's AI search document.
-// D-10: only PUBLISHED + APPROVED + PUBLIC offerings; never agency_only / on_request /
-// pending / rejected / draft / archived.
+// D-10a: PUBLISHED + APPROVED + (PUBLIC or ON_REQUEST) offerings are listed; an on_request
+// one carries NO price text. Never agency_only / pending / rejected / draft / archived.
 
 function baseInput(offerings: AiSearchDocumentOffering[]): BuildAiSearchDocumentInput {
   return {
@@ -51,10 +51,9 @@ test("F1: a published, approved, public offering's title, category and descripti
   assert.match(doc, /Full bridal look with trial session\./);
 });
 
-test("F1 D-10: private, pending, rejected, draft and archived offerings never reach the document", () => {
+test("F1 D-10a: agency_only, pending, rejected, draft and archived offerings never reach the document", () => {
   const hidden: AiSearchDocumentOffering[] = [
     sellable({ id: "a", title: "SecretAgencyOnly", visibility: "agency_only" }),
-    sellable({ id: "b", title: "SecretOnRequest", visibility: "on_request" }),
     sellable({ id: "c", title: "SecretPending", moderation_state: "pending" }),
     sellable({ id: "d", title: "SecretRejected", moderation_state: "rejected" }),
     sellable({ id: "e", title: "SecretDraft", status: "draft" }),
@@ -65,6 +64,31 @@ test("F1 D-10: private, pending, rejected, draft and archived offerings never re
   const doc = buildAiSearchDocument(baseInput([...hidden, sellable({ id: "z", title: "Public facial" })]));
   assert.match(doc, /Public facial/);
   assert.doesNotMatch(doc, /Secret/);
+});
+
+test("F1 D-10a: an on_request offering is listed, with no price text", () => {
+  const doc = buildAiSearchDocument(
+    baseInput([
+      sellable({
+        id: "r",
+        title: "Private chef dinner",
+        category: "Dining",
+        description: "From $4,500 MXN per event. Desde 300 USD. Menu designed with you.",
+        visibility: "on_request",
+      }),
+    ]),
+  );
+  const line = doc.split("\n").find((l) => l.startsWith("Service: Private chef dinner"));
+  assert.ok(line, "on_request offering is listed");
+  assert.match(line!, /Dining/);
+  assert.match(line!, /Menu designed with you\./);
+  assert.doesNotMatch(line!, /\d/, "no digits");
+  assert.doesNotMatch(line!, /\$|MXN|USD|\bfrom\b|\bdesde\b/i, "no price words");
+});
+
+test("F1: a public offering keeps its own text (price stripping is on_request only)", () => {
+  const doc = buildAiSearchDocument(baseInput([sellable({ description: "Two looks, 3 hours." })]));
+  assert.match(doc, /Two looks, 3 hours\./);
 });
 
 test("F1: offerings section is deterministic regardless of input order", () => {

@@ -1,8 +1,8 @@
 -- HELD (PM applies). F1 (TUL-1273 deferred): services searchable in the directory.
 --
 -- Adds ONE leg to public.directory_search_public_talent_ids(text): talents whose
--- published, approved, PUBLIC talent offerings match the query by title,
--- category or description. Everything else is byte-identical to the live body
+-- published, approved, public or on_request (D-10a) talent offerings match the
+-- query by title, category or description. Everything else is byte-identical to the live body
 -- (pg_get_functiondef on staging fxlank, 2026-10-19): same signature, same
 -- RETURNS SETOF uuid / plpgsql / STABLE / search_path, invoker rights (not
 -- SECURITY DEFINER), and the name/bio, location, taxonomy and System B value
@@ -10,6 +10,10 @@
 --
 -- The facet-count RPCs already filter p_search through this function
 -- (20261231413000), so facet counts pick the new leg up with no change there.
+--
+-- APPLY GATE: before applying anywhere, compare
+-- pg_get_functiondef('public.directory_search_public_talent_ids(text)'::regprocedure)
+-- on the target with this body minus the OFFERINGS leg; abort if they differ.
 --
 -- Idempotent: CREATE OR REPLACE. Rollback: re-run the function body from the
 -- live definition (the same text minus the OFFERINGS leg).
@@ -145,9 +149,10 @@ BEGIN
     UNION
 
     -- OFFERINGS leg (F1, TUL-1273). A talent is found by the services they sell.
-    -- D-10 guest-sellable rule, fail-safe: ONLY talent-owned rows that are
-    -- published AND approved AND public. Never agency_only / on_request /
-    -- pending / rejected / draft / archived, and never a workspace-owned row.
+    -- D-10a listing rule, fail-safe: ONLY talent-owned rows that are published
+    -- AND approved AND (public OR on_request). Never agency_only / pending /
+    -- rejected / draft / archived, and never a workspace-owned row. The leg
+    -- returns talent ids only and reads no price column.
     -- Title / category / description (plus their en/es maps) match as words via
     -- the same 'simple' tsquery as the name leg; title and category also match as
     -- substrings (>= 2 chars). Description is word-match only so a short
@@ -160,7 +165,7 @@ BEGIN
       AND o.owner_kind = 'talent'
       AND o.status = 'published'
       AND o.moderation_state = 'approved'
-      AND o.visibility = 'public'
+      AND o.visibility IN ('public', 'on_request')
       AND (
         (v_tsq IS NOT NULL AND numnode(v_tsq) > 0 AND to_tsvector(
           'simple',
