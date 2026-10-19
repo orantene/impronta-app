@@ -222,7 +222,7 @@ export async function replaceOfferingChildren(
       logServerError(`${logScope}.variantsSet`, error);
       return { ok: false, error: "Failed to save options." };
     }
-    savedVariants = (data ?? []) as typeof savedVariants;
+    savedVariants = (data ?? []) as unknown as typeof savedVariants;
   }
   if (!variantsOnly && addOns.length > 0) {
     const { data, error } = await insertRows(
@@ -233,7 +233,7 @@ export async function replaceOfferingChildren(
       logServerError(`${logScope}.addonsSet`, error);
       return { ok: false, error: "Failed to save extras." };
     }
-    savedAddOns = (data ?? []) as typeof savedAddOns;
+    savedAddOns = (data ?? []) as unknown as typeof savedAddOns;
   }
   return {
     ok: true,
