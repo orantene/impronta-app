@@ -12,6 +12,7 @@ import type {
 import type { PurchaseRefusalReason } from "@/lib/orders/purchase";
 import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
+import { loadGroupExtras } from "@/lib/orders/purchase-catalog-groups";
 
 /**
  * Catalog reads and refusal mapping for the purchase pipeline.
@@ -201,6 +202,15 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       amountCents: row.amount_cents,
     });
   }
+
+  // Shared extras (talent_addon_groups) ride the sheet as add-ons with the
+  // GROUP id; price them from the group row so they are not refused.
+  const groupExtras = await loadGroupExtras(
+    admin,
+    new Map(typedRows.map((r) => [r.id, r.talent_profile_id] as const)),
+  );
+  if (!groupExtras.ok) return { ok: false, error: "Could not load the extras." };
+  for (const g of groupExtras.addons) addons.set(g.addonId, g);
 
   return { ok: true, policies, rawOfferings, offerings, variants, addons };
 }
