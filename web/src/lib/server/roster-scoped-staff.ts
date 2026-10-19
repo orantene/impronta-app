@@ -32,7 +32,7 @@ export async function requireRosterScopedStaff(
     logServerError("roster-scoped-staff", error);
     return { ok: false, error: "Not authorized." };
   }
-  const onRoster = new Set((data ?? []).map((r) => r.talent_profile_id as string));
+  const onRoster = new Set(((data ?? []) as Array<{ talent_profile_id: string }>).map((r) => r.talent_profile_id));
   if (!ids.every((id) => onRoster.has(id))) {
     return { ok: false, error: "That talent isn't on your roster." };
   }
