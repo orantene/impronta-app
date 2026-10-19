@@ -23,7 +23,7 @@ const BUSINESS_CATALOG_ROW_LIMIT = 500;
 const ID_CHUNK = 100;
 
 export type BusinessCatalogLoad =
-  | { kind: "ok"; offerings: TalentOffering[]; talentCode: string | null }
+  | { kind: "ok"; offerings: TalentOffering[]; talentCode: string | null; talentProfileId: string | null }
   /** The shared hub host lists no talent without an explicit profile. */
   | { kind: "talent_required" }
   /** Unknown, hidden, deleted or unlisted profile: one answer, nothing revealed. */
@@ -101,11 +101,12 @@ export async function loadBusinessCatalogOfferings(
 
     const testScope = await loadTestServiceScope(admin, rows);
     rows = rows.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
-    if (rows.length === 0) return { kind: "ok", offerings: [], talentCode };
+    if (rows.length === 0) return { kind: "ok", offerings: [], talentCode, talentProfileId: onlyTalentId };
     const children = await loadOfferingChildren(admin, rows.map((r) => r.id), { locale: input.locale });
     return {
       kind: "ok",
       talentCode,
+      talentProfileId: onlyTalentId,
       offerings: rows.map((r) =>
         stripPublicOfferingFlightFields({ ...rowToOffering(r, input.locale, []), variants: children.variants.get(r.id) ?? [] }),
       ),

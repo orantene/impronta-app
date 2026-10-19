@@ -25,6 +25,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { aiReadVerdictForRequest } from "@/lib/seo/ai-bot-gate.server";
 import { aiAccessJson, resolveAiAccess } from "@/lib/offerings/ai-access";
 import { pageOf, parseCatalogPaging, toBusinessCatalogServices } from "@/lib/offerings/business-catalog";
 import { loadBusinessCatalogOfferings } from "@/lib/offerings/business-catalog.server";
@@ -91,6 +92,19 @@ export async function GET(request: Request) {
     }
     if (loaded.kind === "profile_not_public") return NextResponse.json({ error: "not_found" }, { status: 404, headers: CORS });
     if (loaded.kind === "unavailable") return NextResponse.json({ error: "service_unavailable" }, { status: 503, headers: CORS });
+    // TUL-1326 one toggle: an AI bot is refused (no data) while this site's "IA puede leer
+    // mi sitio" switch is OFF or unreadable. Hub: the talent's switch; agency: the workspace's.
+    const verdict = await aiReadVerdictForRequest(
+      admin,
+      request,
+      loaded.talentProfileId ? { talentProfileId: loaded.talentProfileId } : { tenantId: host.tenantId },
+    );
+    if (verdict === "refuse") {
+      return NextResponse.json(
+        { error: "ai_access_off" },
+        { status: 403, headers: { ...CORS, "Cache-Control": "no-store", Vary: "User-Agent" } },
+      );
+    }
     const all = toBusinessCatalogServices(loaded.offerings, locale);
     const page = pageOf(all, paging);
     return NextResponse.json(
@@ -104,7 +118,9 @@ export async function GET(request: Request) {
         services: page.items,
         ai: aiAccessJson(resolveAiAccess({ subject: "business" })),
       },
-      { headers: { ...CORS, "Cache-Control": "public, max-age=60, s-maxage=60" } },
+      // No shared (CDN) caching: the answer depends on the User-Agent, and a cached 200
+      // must never be served to an AI bot the switch refuses.
+      { headers: { ...CORS, "Cache-Control": "public, max-age=60", Vary: "User-Agent" } },
     );
   } catch (err) {
     logServerError("api.public.booking.businessCatalog", err);
