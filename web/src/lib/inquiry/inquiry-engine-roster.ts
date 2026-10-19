@@ -234,8 +234,8 @@ export async function addTalentToRoster(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { talentProfileId: ctx.talentProfileId },
-      notifications: tp?.user_id
-        ? [{ userId: tp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+      notifications: tp.userId
+        ? [{ userId: tp.userId, title: "Inquiry invitation", body: "You were added to an inquiry." }]
         : [],
     });
 
@@ -628,8 +628,8 @@ export async function swapTalent(
         eventType: "roster_talent_swapped",
         body: "A talent on the lineup was swapped for another.",
       },
-      notifications: incomingTp?.user_id
-        ? [{ userId: incomingTp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+      notifications: incomingTp.userId
+        ? [{ userId: incomingTp.userId, title: "Inquiry invitation", body: "You were added to an inquiry." }]
         : [],
     });
 

@@ -355,8 +355,8 @@ export async function promoteAlternate(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { talentProfileId: alt.talent_profile_id, promotedFromWaitlist: true },
-      notifications: tp?.user_id
-        ? [{ userId: tp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+      notifications: tp.userId
+        ? [{ userId: tp.userId, title: "Inquiry invitation", body: "You were added to an inquiry." }]
         : [],
     });
 
