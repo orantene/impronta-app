@@ -36,6 +36,7 @@ import { todayPrimaryAction } from "@/lib/talent-agenda/today-view";
 import { type MoneyLanding } from "@/lib/money/today-money-tiles";
 import { countTalentAwaitingInquiries } from "../../shell-count-bubbles-logic";
 import { TodaySkeleton } from "./today-skeleton";
+import { TalentPastDueNotice } from "@/components/billing/TalentPastDueNotice";
 
 export { TodaySkeleton } from "./today-skeleton";
 
@@ -61,7 +62,10 @@ export function TalentTodayPage() {
     bridgeTalentChecklistDismissed,
     effectiveTalentInquiries,
     shellCounts,
+    tenantSlug,
   } = useAdminShell();
+  // TUL-835: past-due card warning, on both Today layouts.
+  const pastDueNotice = tenantSlug ? <TalentPastDueNotice tenantSlug={tenantSlug} /> : null;
   // ONE completion value (mockup rule): the website-eligibility model is the
   // single source read by Today, the header reward control and the website
   // card. Called above the agenda early return (hooks rule).
@@ -158,6 +162,8 @@ export function TalentTodayPage() {
       setTalentPage("money");
     };
     return (
+      <>
+      {pastDueNotice}
       <AgendaTodayPage
         profile={bridgeTalentSelfProfile}
         items={bridgeTalentAgendaItems ?? []}
@@ -192,6 +198,7 @@ export function TalentTodayPage() {
         onOpenMoney={openMoney}
         onSetUpPayouts={() => openDrawer("talent-payouts")}
       />
+      </>
     );
   }
 
@@ -369,6 +376,7 @@ export function TalentTodayPage() {
         }
       `}</style>
 
+      {pastDueNotice}
       <TalentAgencyFilterChips />
 
       {/* Fresh-talent onboarding banner — only for talents who were just

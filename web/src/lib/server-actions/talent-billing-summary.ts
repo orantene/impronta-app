@@ -12,7 +12,12 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
 import { getPlan, isKnownPlan } from "@/lib/access/plan-catalog";
-import { loadTalentProviderInvoices, loadTalentStripeCustomerId } from "@/lib/billing/talent-billing-reads";
+import {
+  loadTalentProviderInvoices,
+  loadTalentStripeCustomerId,
+  loadTalentStripeSubscriptionId,
+} from "@/lib/billing/talent-billing-reads";
+import { pickDefaultCard, talentPastDueView, type TalentPastDueView } from "@/lib/billing/talent-billing-display";
 
 export type TalentBillingInvoice = {
   id: string;
@@ -27,7 +32,15 @@ export type TalentBillingInvoice = {
 
 export type TalentBillingSummary = {
   planLabel: string;
-  subscription: { status: string; nextChargeAt: string | null; cancelAtPeriodEnd: boolean } | null;
+  /** Raw plan key, so the panel can print the dashboard's own plan name (TUL-835). */
+  planKey: string;
+  subscription: {
+    status: string;
+    nextChargeAt: string | null;
+    cancelAtPeriodEnd: boolean;
+    /** When it first went past_due (starts the grace window). */
+    pastDueSince: string | null;
+  } | null;
   card: { brand: string; last4: string } | null;
   invoices: TalentBillingInvoice[];
 };
@@ -68,19 +81,41 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
 
     if (live && isStripeConfigured()) {
       try {
-        const customerId = await loadTalentStripeCustomerId(sb, session.user.id);
+        // TUL-835: Stripe keeps the default card on the subscription for a
+        // Checkout subscription, on the customer's invoice settings, or as a
+        // legacy default source. Read all three (display only, no writes).
         const stripe = getStripe();
+        const [customerId, subscriptionId] = await Promise.all([
+          loadTalentStripeCustomerId(sb, session.user.id),
+          loadTalentStripeSubscriptionId(sb, talentProfile.id),
+        ]);
+        let subscriptionDefaultPaymentMethod: unknown = null;
+        if (stripe && subscriptionId) {
+          // A failed subscription read must not hide the customer's card.
+          subscriptionDefaultPaymentMethod = await stripe.subscriptions
+            .retrieve(subscriptionId, { expand: ["default_payment_method"] })
+            .then((s) => s.default_payment_method)
+            .catch((err: unknown) => {
+              logServerError("talent-billing-summary.card.subscription", err);
+              return null;
+            });
+        }
+        let customerInvoiceDefaultPaymentMethod: unknown = null;
+        let customerDefaultSource: unknown = null;
         if (stripe && customerId) {
           const c = await stripe.customers.retrieve(customerId, {
-            expand: ["invoice_settings.default_payment_method"],
+            expand: ["invoice_settings.default_payment_method", "default_source"],
           });
           if (!c.deleted) {
-            const pm = c.invoice_settings?.default_payment_method;
-            if (pm && typeof pm !== "string" && pm.card) {
-              card = { brand: pm.card.brand, last4: pm.card.last4 };
-            }
+            customerInvoiceDefaultPaymentMethod = c.invoice_settings?.default_payment_method ?? null;
+            customerDefaultSource = c.default_source ?? null;
           }
         }
+        card = pickDefaultCard({
+          subscriptionDefaultPaymentMethod,
+          customerInvoiceDefaultPaymentMethod,
+          customerDefaultSource,
+        });
       } catch (err) {
         logServerError("talent-billing-summary.card", err);
       }
@@ -91,11 +126,29 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
     ok: true,
     summary: {
       planLabel: isKnownPlan(planKey) ? getPlan(planKey).displayName : planKey,
+      planKey,
       subscription: live
-        ? { status: sub!.status, nextChargeAt: sub!.currentPeriodEnd, cancelAtPeriodEnd: sub!.cancelAtPeriodEnd }
+        ? {
+            status: sub!.status,
+            nextChargeAt: sub!.currentPeriodEnd,
+            cancelAtPeriodEnd: sub!.cancelAtPeriodEnd,
+            pastDueSince: sub!.pastDueSince ?? null,
+          }
         : null,
       card,
       invoices,
     },
   };
+}
+
+/**
+ * TUL-835: the past-due banner state for the signed-in talent's own
+ * subscription (dashboard), or null when there is nothing to warn about.
+ * Self-scoped via requireTalentSelf(); one RLS read, no Stripe call.
+ */
+export async function loadTalentPastDueState(): Promise<TalentPastDueView | null> {
+  const scope = await requireTalentSelf();
+  if (!scope.ok) return null;
+  const sub = await loadTalentSubscriptionState(scope.talentProfile.id, scope.session.supabase);
+  return talentPastDueView(sub);
 }

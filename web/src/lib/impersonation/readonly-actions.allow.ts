@@ -13,7 +13,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions.ts", ["loadWorkspaceYearlyCheckoutPlans"], READ],
   ["app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts", ["previewTalentPlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmTalentPlanChange is guarded"],
   ["app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions.ts", ["loadTalentYearlyCheckoutPlans"], READ],
-  ["lib/server-actions/talent-billing-summary.ts", ["loadTalentBillingSummary"], READ],
+  ["lib/server-actions/talent-billing-summary.ts", ["loadTalentBillingSummary", "loadTalentPastDueState"], READ],
   ["lib/server-actions/validate-promo-code.ts", ["validatePromoCode"], "promo preview: validates a code against the catalog, redeems nothing and calls no Stripe API"],
   ["lib/talent-site/server/site-live-verified.ts", ["loadMySiteLiveVerifiedAction"], READ],
   ["lib/server-actions/posts-reader-actions.ts", ["talentListPostsAction"], READ],
