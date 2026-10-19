@@ -9,9 +9,10 @@ Workflow: `.github/workflows/stripe-staging-webhook.yml`. Script: `web/scripts/s
 
 ## Run
 1. Actions > Stripe staging webhook > Run workflow, `lane=us`, `dry_run=yes`. Read the plan line: `create`, `reuse` or a REFUSED reason. It prints the Stripe account id (not secret) so it can be compared with the account the Preview `STRIPE_SECRET_KEY_TEST` belongs to.
-2. Run again with `dry_run=no`. It creates the endpoint (28 account-level events, metadata `managed_by=tulala-staging-webhook-workflow`) and writes `STRIPE_WEBHOOK_SECRET_TEST` as a **sensitive, Preview-only, all-branches** Vercel var. Production entries with the same name are never read or written.
+2. Run again with `dry_run=no`. It creates the endpoint (36 account-level events: every non-Connect event `webhook-routing.ts` routes, including the 6 `subscription_schedule.*` that prove period-end plan changes and `refund.updated`/`refund.failed`; a test fails if the router gains one that is not listed. `api_version` is pinned to the app client's `2026-04-22.dahlia`, also test-pinned. Metadata `managed_by=tulala-staging-webhook-workflow`) and writes `STRIPE_WEBHOOK_SECRET_TEST` as a **sensitive, Preview-only, all-branches** Vercel var. Production entries with the same name are never read or written.
 3. Re-runs are safe: endpoint + var present = only the event list is synced.
-4. If the endpoint exists but the var was lost, Stripe cannot show the secret again: run with `recreate=yes`. It deletes only an endpoint this workflow made.
+4. A disabled endpoint on the same URL is ignored (never reused or deleted).
+5. If the endpoint exists but the var was lost, Stripe cannot show the secret again: run with `recreate=yes`. It deletes only an endpoint this workflow made.
 
 ## Refusals (exit 2, nothing written)
 Key not `sk_test_`/`rk_test_`; `/v1/balance` not `livemode:false`; URL not an https staging host; an endpoint already on the other lane; two endpoints on the same URL; a Vercel entry for the var shared by preview and production; two preview-wide entries.

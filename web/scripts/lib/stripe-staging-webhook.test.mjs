@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
+  CONNECT_ONLY_EVENTS,
   ENABLED_EVENTS,
+  STRIPE_API_VERSION,
   MANAGED_BY,
   checkBalanceLivemode,
   checkTargetUrl,
@@ -89,4 +94,29 @@ test("endpoint plan", () => {
     "create",
   );
   assert.equal(planEndpoint({ endpoints: [ours, { ...ours, id: "we_4" }], url, otherUrl, varExists: true }).action, "refuse");
+  // A disabled endpoint on the same URL is ignored: not reused, not counted as a duplicate.
+  const disabled = { id: "we_5", url, status: "disabled", metadata: { managed_by: MANAGED_BY } };
+  assert.equal(planEndpoint({ endpoints: [disabled], url, otherUrl, varExists: false }).action, "create");
+  assert.equal(planEndpoint({ endpoints: [disabled, ours], url, otherUrl, varExists: true }).action, "reuse");
+});
+
+const WEB = join(dirname(fileURLToPath(import.meta.url)), "../..");
+
+test("every account-level event the router handles is on the endpoint, and nothing else", () => {
+  const routing = readFileSync(join(WEB, "src/lib/stripe/webhook-routing.ts"), "utf8");
+  const routed = new Set([...routing.matchAll(/case "([a-z_]+(?:\.[a-z_]+)+)":/g)].map((m) => m[1]));
+  assert.ok(routed.size > 20, `parsed only ${routed.size} cases`);
+  const accountLevel = [...routed].filter((e) => !CONNECT_ONLY_EVENTS.includes(e));
+  for (const e of accountLevel) assert.ok(ENABLED_EVENTS.includes(e), `routed but not enabled: ${e}`);
+  for (const e of ENABLED_EVENTS) assert.ok(routed.has(e), `enabled but not routed: ${e}`);
+  for (const e of CONNECT_ONLY_EVENTS) assert.ok(!ENABLED_EVENTS.includes(e), e);
+  assert.ok(ENABLED_EVENTS.includes("subscription_schedule.released"));
+  assert.ok(ENABLED_EVENTS.includes("refund.failed"));
+});
+
+test("endpoint api_version equals the app client's pinned apiVersion", () => {
+  const client = readFileSync(join(WEB, "src/lib/stripe/client.ts"), "utf8");
+  const pins = [...client.matchAll(/apiVersion:\s*"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(pins.length >= 1);
+  for (const v of pins) assert.equal(v, STRIPE_API_VERSION);
 });

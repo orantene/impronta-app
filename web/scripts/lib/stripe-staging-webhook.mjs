@@ -17,15 +17,26 @@
 export const MANAGED_BY = "tulala-staging-webhook-workflow";
 export const DEFAULT_BASE_URL = "https://pay.staging.tulala.digital";
 
+/**
+ * The API version the app's Stripe client pins (lib/stripe/client.ts `apiVersion`).
+ * The endpoint is created with the same version so event payloads match what the
+ * handler parses. A test fails if client.ts moves without this.
+ */
+export const STRIPE_API_VERSION = "2026-04-22.dahlia";
+
+/** Connect-only events (need a Connect endpoint); everything else the router handles goes on this one. */
+export const CONNECT_ONLY_EVENTS = ["account.updated", "capability.updated"];
+
 export const LANES = {
   us: { path: "/api/webhooks/stripe", secretVar: "STRIPE_WEBHOOK_SECRET_TEST" },
   mx: { path: "/api/webhooks/stripe-mx", secretVar: "STRIPE_MX_WEBHOOK_SECRET_TEST" },
 };
 
 /**
- * Account-level (non-Connect) events the platform handler routes
- * (lib/stripe/webhook-routing.ts). account.updated / capability.updated are
- * Connect events and need a separate Connect endpoint; billing does not use them.
+ * Every account-level (non-Connect) event the platform handler routes
+ * (lib/stripe/webhook-routing.ts `case "<type>":`). A test parses that file and
+ * fails when a routed event is missing here. account.updated / capability.updated
+ * are Connect events (CONNECT_ONLY_EVENTS) and need a separate Connect endpoint.
  */
 export const ENABLED_EVENTS = [
   "checkout.session.completed",
@@ -36,6 +47,12 @@ export const ENABLED_EVENTS = [
   "customer.subscription.updated",
   "customer.subscription.deleted",
   "customer.subscription.trial_will_end",
+  "subscription_schedule.created",
+  "subscription_schedule.updated",
+  "subscription_schedule.released",
+  "subscription_schedule.canceled",
+  "subscription_schedule.completed",
+  "subscription_schedule.aborted",
   "invoice.finalized",
   "invoice.paid",
   "invoice.payment_succeeded",
@@ -45,6 +62,8 @@ export const ENABLED_EVENTS = [
   "payment_intent.succeeded",
   "payment_intent.payment_failed",
   "charge.refunded",
+  "refund.updated",
+  "refund.failed",
   "charge.dispute.created",
   "charge.dispute.updated",
   "charge.dispute.closed",
@@ -136,7 +155,8 @@ export function planEndpoint({ endpoints, url, otherUrl, varExists, recreate }) 
   if (other.length) {
     return { action: "refuse", reason: `an endpoint already targets the other lane (${otherUrl}); one account must not deliver to both` };
   }
-  const match = all.filter((e) => e.url === url);
+  // A disabled endpoint on the same URL never delivers: ignore it (it is not reused or deleted).
+  const match = all.filter((e) => e.url === url && e.status !== "disabled");
   if (match.length > 1) return { action: "refuse", reason: `${match.length} endpoints already target ${url}; fix by hand` };
   if (match.length === 0) return { action: "create" };
   const ep = match[0];

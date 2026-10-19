@@ -15,6 +15,7 @@ import {
   DEFAULT_BASE_URL,
   ENABLED_EVENTS,
   MANAGED_BY,
+  STRIPE_API_VERSION,
   checkBalanceLivemode,
   checkTestKey,
   laneConfig,
@@ -129,10 +130,12 @@ async function main() {
   form.append("description", `Tulala staging (TEST), ${lane} lane. Managed by stripe-staging-webhook workflow.`);
   form.append("metadata[managed_by]", MANAGED_BY);
   form.append("metadata[lane]", lane);
-  if (env.STRIPE_API_VERSION) form.append("api_version", env.STRIPE_API_VERSION);
+  // Same version the app's client pins, so payloads match what the handler parses.
+  form.append("api_version", STRIPE_API_VERSION);
   const created = await stripe("POST", "/v1/webhook_endpoints", form);
   if (created.livemode !== false) die("created endpoint is not livemode=false");
-  console.log(`Stripe: created ${created.id} (${ENABLED_EVENTS.length} events, api_version ${created.api_version ?? "account default"}).`);
+  if (created.api_version !== STRIPE_API_VERSION) die(`created endpoint api_version ${created.api_version} != ${STRIPE_API_VERSION}`);
+  console.log(`Stripe: created ${created.id} (${ENABLED_EVENTS.length} events, api_version ${created.api_version}).`);
   if (!created.secret) die("Stripe returned no signing secret");
   await writeSecret(pick.entry, created.secret);
   console.log("Done. Takes effect on the next staging build (no build fired here).");
