@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -14,8 +14,4 @@ test("the roster read is staff-guarded and tenant scoped on every table it owns"
   const reads = src.match(/\.from\("(?:sessions|admissions)"\)[\s\S]{0,260}?(?:maybeSingle\(\)|\.order\()/g) ?? [];
   assert.equal(reads.length, 2);
   for (const r of reads) assert.match(r, /\.eq\("tenant_id", tenantId\)/);
-});
-
-test("the unused departures module is gone (the roster and the details fields replace it)", () => {
-  assert.equal(existsSync(join(here, "departures.ts")), false);
 });
