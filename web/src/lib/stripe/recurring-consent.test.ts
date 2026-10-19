@@ -48,7 +48,7 @@ test("unknown locale falls back to English; within Stripe's 1200 char limit; no 
 for (const file of ["talent-billing.ts", "workspace-billing.ts"]) {
   test(`${file} spreads recurringConsentParams with locale + interval into the session`, () => {
     const src = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
-    assert.match(src, /\.\.\.recurringConsentParams\(\{[^}]*locale: opts\.locale[^}]*interval: price\.interval/s);
+    assert.match(src, /\.\.\.recurringConsentParams\(\{[^}]*locale: opts\.locale[^}]*interval: price\.interval/);
   });
 }
 
@@ -102,6 +102,6 @@ test("trial copy has no em dashes and fits Stripe's limit", () => {
 for (const file of ["talent-billing.ts", "workspace-billing.ts"]) {
   test(`${file} passes the session's own trialDays into the consent copy`, () => {
     const src = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
-    assert.match(src, /\.\.\.recurringConsentParams\(\{[^}]*trialDays[^}]*\}\)/s);
+    assert.match(src, /\.\.\.recurringConsentParams\(\{[^}]*trialDays[^}]*\}\)/);
   });
 }
