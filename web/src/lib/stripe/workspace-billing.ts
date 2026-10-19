@@ -37,7 +37,8 @@ import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
 import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
-import { singleOpenTrialSession } from "@/lib/billing/trial-checkout-session";
+import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
+import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -256,15 +257,22 @@ export async function createWorkspaceCheckoutSession(opts: {
     sessionParams,
   );
   // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
-  const trialMarker = await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+  const trialSweep = await sweepTrialSessions(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
+  const createParams: Stripe.Checkout.SessionCreateParams = { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialSweep.marker } };
 
   try {
-    const session = await stripe.checkout.sessions.create(
-      { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialMarker } },
+    const created = await stripe.checkout.sessions.create(
+      createParams,
       // Idempotency: a double submit must not mint a SECOND Checkout session.
       // One subscription per workspace per plan; a second session risks a second sub.
       { idempotencyKey },
     );
+    // TUL-1280 review P1: a replayed session the sweep already expired is re-keyed, never handed back dead.
+    const session =
+      trialDays != null
+        ? await reopenIfExpired(stripe, created, createParams, idempotencyKey, trialSweep.expiredIds)
+        : created;
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

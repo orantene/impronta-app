@@ -150,7 +150,7 @@ test("wiring: both checkouts key the session on the fingerprint of the exact par
     assert.match(src, /checkoutSessionKey\([\s\S]*?,\s*sessionParams,?\s*\)/, `${file} fingerprints sessionParams`);
     assert.match(
       src,
-      /stripe\.checkout\.sessions\.create\(\s*\{ \.\.\.sessionParams, metadata: \{ \.\.\.sessionParams\.metadata, \.\.\.trialMarker \} \},\s*(?:\/\/[^\n]*\s*)*\{ idempotencyKey \}/,
+      /stripe\.checkout\.sessions\.create\(\s*createParams,\s*(?:\/\/[^\n]*\s*)*\{ idempotencyKey \}/,
       `${file} sends sessionParams (+ the marker only) under that key`,
     );
   }

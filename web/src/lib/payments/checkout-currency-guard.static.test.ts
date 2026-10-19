@@ -25,6 +25,7 @@ export const ALLOW_LIST: Readonly<Record<string, string>> = {
   "src/lib/stripe/client-billing.ts": "Discover client subscription, verification fee and top-up: platform products priced in USD, no seller",
   "src/lib/stripe/talent-domain-billing.ts": "domain registration resale: platform product priced in USD, no seller",
   "src/lib/stripe/talent-domain-renewal.ts": "domain renewal at registrar cost: platform bills the talent in USD, the registrar's currency, no seller",
+  "src/lib/billing/checkout-session-reopen.ts": "re-sends the talent/workspace plan subscription Checkout params unchanged after an expired replay (TUL-1280): platform price, no seller",
 };
 
 const CREATOR_RE =

@@ -31,34 +31,46 @@ export type SessionStripe = {
 
 /**
  * Expires the customer's other open trial sessions and returns the marker to
- * ADD to this session's metadata ({} when this checkout carries no trial).
+ * ADD to this session's metadata ({} when this checkout carries no trial),
+ * plus the ids it expired in THIS request (checkout-session-reopen.ts uses them
+ * to spot a replayed session that is already dead). Per Stripe customer: talent
+ * and workspace customers are separate and never cross-swept.
  */
-export async function singleOpenTrialSession(
+export async function sweepTrialSessions(
   stripe: SessionStripe | null,
   customerId: string,
   trialDays: number | null,
   idempotencyKey: string,
   onError: (where: string, err: unknown) => void,
-): Promise<Record<string, string>> {
-  if (trialDays == null || trialDays <= 0) return {};
+): Promise<{ marker: Record<string, string>; expiredIds: Set<string> }> {
+  const expiredIds = new Set<string>();
+  if (trialDays == null || trialDays <= 0) return { marker: {}, expiredIds };
   const marker = { [TRIAL_SESSION_MARKER]: idempotencyKey };
-  if (!stripe) return marker;
+  if (!stripe) return { marker, expiredIds };
 
   let open: { id: string; metadata?: Record<string, string> | null }[];
   try {
     open = (await stripe.checkout.sessions.list({ customer: customerId, status: "open", limit: 100 })).data;
   } catch (err) {
     onError("billing.trialSession.list", err);
-    return marker;
+    return { marker, expiredIds };
   }
   for (const s of open) {
     const key = s.metadata?.[TRIAL_SESSION_MARKER];
     if (!key || key === idempotencyKey) continue;
     try {
       await stripe.checkout.sessions.expire(s.id);
+      expiredIds.add(s.id);
     } catch (err) {
       onError("billing.trialSession.expire", err);
     }
   }
-  return marker;
+  return { marker, expiredIds };
+}
+
+/** The metadata marker only (see sweepTrialSessions). */
+export async function singleOpenTrialSession(
+  ...args: Parameters<typeof sweepTrialSessions>
+): Promise<Record<string, string>> {
+  return (await sweepTrialSessions(...args)).marker;
 }
