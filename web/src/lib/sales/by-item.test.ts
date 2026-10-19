@@ -95,3 +95,43 @@ test("the aggregator never mutates the stored lines or orders (amounts-unchanged
   aggregateSalesByItem(lines, orders);
   assert.equal(JSON.stringify({ lines, orders }), before);
 });
+
+test("TUL-1345: the row is named after the offering title, not the newest line label", () => {
+  const rows = aggregateSalesByItem(
+    [line("o1", "off-a", "Burger · Large + Cheese", 1, 1500), line("o2", "off-a", "Burger · Small", 1, 1000)],
+    [order("o1", "paid", "USD", "2026-10-11T12:00:00Z"), order("o2", "paid", "USD", "2026-10-10T12:00:00Z")],
+    new Map([["off-a", "Burger"]]),
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, "Burger");
+});
+
+test("TUL-1345: an item sold in two sizes is one row whose sub-rows add up to its totals", () => {
+  const rows = aggregateSalesByItem(
+    [
+      line("o1", "off-a", "Burger · Large", 2, 3000, 1500),
+      line("o2", "off-a", "Burger · Small", 1, 1000),
+      line("o2", "off-a", "Burger · Large", 1, 1500),
+    ],
+    [order("o1", "partially_refunded"), order("o2", "paid")],
+    new Map([["off-a", "Burger"]]),
+  );
+  assert.equal(rows.length, 1);
+  const r = rows[0];
+  assert.deepEqual(r.variants.map((v) => v.label), ["Large", "Small"]);
+  const sum = (k: "quantity" | "grossCents" | "refundedCents" | "netCents") => r.variants.reduce((a, v) => a + v[k], 0);
+  assert.equal(sum("quantity"), r.quantity);
+  assert.equal(sum("grossCents"), r.grossCents);
+  assert.equal(sum("refundedCents"), r.refundedCents);
+  assert.equal(sum("netCents"), r.netCents);
+  assert.equal(r.variants[0].quantity, 3);
+});
+
+test("TUL-1345: with no known title the newest label still names the row; custom lines have no sub-rows", () => {
+  const rows = aggregateSalesByItem(
+    [line("o1", "off-a", "Haircut", 1, 3000), line("o2", null, "Tip", 1, 500)],
+    [order("o1", "paid"), order("o2", "paid")],
+  );
+  assert.equal(rows.find((r) => r.offeringId === "off-a")?.title, "Haircut");
+  assert.deepEqual(rows.find((r) => r.offeringId === null)?.variants, []);
+});
