@@ -69,10 +69,29 @@ test("an order from ANOTHER TENANT is refused, even with its own transaction", a
   assert.deepEqual(r, { ok: false, reason: "not_found" });
 });
 
-test("an order that is already paid is not charged again", async () => {
-  const paid = { ...TABLES, orders: [{ ...TABLES.orders[0], status: "paid" }] };
-  const r = await resolveSessionCardPayment(fakeAdmin(paid), { tenantId: T1, orderId: O1, transactionId: X1 });
-  assert.deepEqual(r, { ok: false, reason: "not_found" });
+for (const status of ["draft", "paid", "fulfilled", "partially_refunded", "refunded", "cancelled"]) {
+  test(`an order in status ${status} is never charged`, async () => {
+    const t = { ...TABLES, orders: [{ ...TABLES.orders[0], status }] };
+    const r = await resolveSessionCardPayment(fakeAdmin(t), { tenantId: T1, orderId: O1, transactionId: X1 });
+    assert.deepEqual(r, { ok: false, reason: "not_found" });
+  });
+}
+
+test("an order whose seat hold has expired is never charged", async () => {
+  const t = { ...TABLES, orders: [{ ...TABLES.orders[0], hold_expires_at: new Date(Date.now() - 60_000).toISOString() }] };
+  assert.deepEqual(await resolveSessionCardPayment(fakeAdmin(t), { tenantId: T1, orderId: O1, transactionId: X1 }), { ok: false, reason: "not_found" });
+});
+
+test("an unexpired hold is still chargeable", async () => {
+  const t = { ...TABLES, orders: [{ ...TABLES.orders[0], hold_expires_at: new Date(Date.now() + 600_000).toISOString() }] };
+  assert.equal((await resolveSessionCardPayment(fakeAdmin(t), { tenantId: T1, orderId: O1, transactionId: X1 })).ok, true);
+});
+
+test("a missing or blank currency fails closed instead of defaulting to USD", async () => {
+  for (const currency of [null, undefined, "", "  "]) {
+    const t = { ...TABLES, orders: [{ ...TABLES.orders[0], currency }] };
+    assert.deepEqual(await resolveSessionCardPayment(fakeAdmin(t), { tenantId: T1, orderId: O1, transactionId: X1 }), { ok: false, reason: "not_found" }, String(currency));
+  }
 });
 
 test("a zero-amount transaction never opens checkout", async () => {

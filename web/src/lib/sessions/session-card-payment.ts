@@ -7,7 +7,7 @@
  *
  * A guest can send any ids to a server action, so the transaction is only
  * charged when it belongs to the given order AND that order belongs to the
- * given tenant AND is still unpaid AND there is money to collect. Anything else
+ * given tenant AND is open (`pending_payment`, hold not expired) AND has a currency AND there is money to collect. Anything else
  * is `not_found`, before Stripe is reached.
  */
 
@@ -35,13 +35,21 @@ export async function resolveSessionCardPayment(
 ): Promise<SessionCardPaymentLookup> {
   const { data: order, error: oErr } = await admin
     .from("orders")
-    .select("id, tenant_id, status, receipt_code, currency, customer_id")
+    .select("id, tenant_id, status, receipt_code, currency, customer_id, hold_expires_at")
     .eq("id", d.orderId)
     .eq("tenant_id", d.tenantId)
     .maybeSingle();
   if (oErr) return { ok: false, reason: "engine_error" };
   const o = order as Row | null;
-  if (!o || o.status === "paid") return { ok: false, reason: "not_found" };
+  // ONLY the open, unpaid state bookSessionSeat creates is chargeable. Every other
+  // status (paid, fulfilled, partially_refunded, refunded, cancelled, draft, ...) is
+  // refused, and so is a seat hold that has already expired.
+  if (!o || o.status !== "pending_payment") return { ok: false, reason: "not_found" };
+  const holdUntil = o.hold_expires_at ? Date.parse(String(o.hold_expires_at)) : null;
+  if (holdUntil !== null && Number.isFinite(holdUntil) && holdUntil <= Date.now()) return { ok: false, reason: "not_found" };
+  // Fail closed: never default a missing currency to USD.
+  const currency = typeof o.currency === "string" ? o.currency.trim() : "";
+  if (!currency) return { ok: false, reason: "not_found" };
 
   const { data: txn, error: tErr } = await admin
     .from("booking_transactions")
@@ -72,7 +80,7 @@ export async function resolveSessionCardPayment(
   return {
     ok: true,
     amountCents,
-    currency: String(o.currency ?? "USD"),
+    currency,
     receiptCode: String(o.receipt_code ?? ""),
     bookingId: (x.booking_id as string | null) ?? null,
     inquiryId: (x.source_inquiry_id as string | null) ?? null,
