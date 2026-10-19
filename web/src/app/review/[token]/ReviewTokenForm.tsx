@@ -405,7 +405,7 @@ export function ReviewTokenForm({
         </span>
       </div>
 
-      {/* Would you book them again? */}
+      {/* Re-booking question */}
       <div style={{ marginTop: 16 }}>
         <div role="group" aria-label={fillCopy(t.bookAgainFor, { name: talentName })} style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 7, letterSpacing: 0.1 }}>
           {t.bookAgain}
