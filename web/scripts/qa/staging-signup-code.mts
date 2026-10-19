@@ -13,7 +13,8 @@
  *   - email allow-list: qa-onb-choice+*@impronta.test, tulalaqa+* (any domain), *@mail.grokbot.com
  *   - --email, URL and service key are all required
  *   - the shared scripts/isolated-target-guard.mjs also runs
- * Prints ONLY the code (or, when Supabase returns no email_otp, the action link). Exit 0 ok, 1 lookup failed.
+ * Prints ONLY the code. When Supabase returns no email_otp it prints nothing sensitive and exits 1
+ * (the action link carries a token, so it is never printed). Exit 0 ok, 1 lookup failed.
  */
 import { readFileSync } from "node:fs";
 

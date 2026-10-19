@@ -3,7 +3,7 @@
  * admin client factory, the env, stdout and stderr are all injected, so every guard is
  * unit-testable and a refusal provably makes NO network call (the factory is never invoked).
  *
- * Exit codes: 0 printed a code or a link, 1 the lookup failed, 2 refused by a guard.
+ * Exit codes: 0 printed a code, 1 the lookup failed, 2 refused by a guard.
  * Never prints keys, tokens, the service-role key or the project URL.
  */
 import { PRODUCTION_PROJECT_REF, QA_JOURNEYS_PROJECT_REF } from "../isolated-target-guard.mjs";
@@ -91,12 +91,7 @@ export async function run({ argv, env, createAdminClient, guard, out, err }) {
       out(String(props.email_otp));
       return 0;
     }
-    if (props.action_link) {
-      err("[staging-signup-code] no email_otp returned; printing the action link instead");
-      out(String(props.action_link));
-      return 0;
-    }
-    err("[staging-signup-code] lookup returned neither a code nor a link");
+    err("[staging-signup-code] no email_otp returned; cannot print a code");
     return 1;
   } catch (e) {
     err(`[staging-signup-code] lookup failed: ${e instanceof Error ? e.message : "unknown error"}`);

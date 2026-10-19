@@ -109,13 +109,15 @@ test("happy path prints only the code", async () => {
   }
 });
 
-test("falls back to the action link when email_otp is absent", async () => {
+test("no email_otp: exits 1 and prints no URL or token text", async () => {
   const h = harness();
-  h.result.props = { action_link: "https://example.invalid/link" };
+  h.result.props = { action_link: "https://example.invalid/link?token=SECRETTOK" };
   try {
     const code = await run(h.deps);
-    assert.equal(code, 0);
-    assert.deepEqual(h.lines.out, ["https://example.invalid/link"]);
+    assert.equal(code, 1);
+    const all = [...h.lines.out, ...h.lines.err].join("\n");
+    assert.deepEqual(h.lines.out, []);
+    assert.ok(!/https?:|SECRETTOK|example\.invalid/.test(all));
   } finally {
     h.restore();
   }

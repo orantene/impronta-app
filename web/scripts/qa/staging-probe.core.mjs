@@ -139,11 +139,31 @@ export async function runProbe({ opts, fetchImpl, now = () => Date.now(), gateTo
   }
   const baseHeaders = gateToken ? { [GATE_HEADER]: gateToken } : {};
   const cache = new Map();
+  // redirect:"manual": the gate token must never follow a redirect to another origin. A 3xx is a
+  // result (status + Location host only). Only a redirect to the SAME host (an allowed staging host)
+  // is re-requested explicitly, up to 3 hops, re-sending the token only to that same host.
   const get = async (url, extra = {}) => {
     const t0 = now();
-    const res = await fetchImpl(url, { method: "GET", redirect: "follow", headers: { ...baseHeaders, ...extra } });
-    const ttfb = now() - t0;
-    const text = res.status >= 200 && res.status < 400 ? await res.text() : "";
+    let cur = url;
+    let res;
+    let ttfb = 0;
+    for (let hop = 0; hop < 4; hop += 1) {
+      res = await fetchImpl(cur, { method: "GET", redirect: "manual", headers: { ...baseHeaders, ...extra } });
+      if (hop === 0) ttfb = now() - t0;
+      if (res.status < 300 || res.status >= 400) break;
+      const loc = res.headers && typeof res.headers.get === "function" ? res.headers.get("location") : null;
+      let next = null;
+      try {
+        next = loc ? new URL(loc, cur) : null;
+      } catch {
+        next = null;
+      }
+      if (!next || next.hostname !== new URL(cur).hostname || hostRefusal(next.host)) {
+        return { status: res.status, text: "", ttfb, total: now() - t0, locationHost: next ? next.hostname : "" };
+      }
+      cur = next.toString();
+    }
+    const text = res.status >= 200 && res.status < 300 ? await res.text() : "";
     return { status: res.status, text, ttfb, total: now() - t0 };
   };
   const page = async (url) => {

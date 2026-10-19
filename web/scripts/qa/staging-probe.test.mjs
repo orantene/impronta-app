@@ -84,6 +84,44 @@ test("all green: exit 0, never prints the gate token, sends it as a header", asy
   assert.ok(r.site.requested.every((q) => q.init.method === "GET"));
 });
 
+test("a cross-origin redirect is NOT followed and the token header never reaches the foreign host", async () => {
+  const seen = [];
+  const site = makeSite();
+  const fetchImpl = async (url, init) => {
+    const u = new URL(url);
+    seen.push({ host: u.hostname, init });
+    if (u.pathname === "/llms.txt") {
+      return { status: 302, headers: { get: () => "https://evil.example.com/steal" }, text: async () => "" };
+    }
+    return site.fetchImpl(url, init);
+  };
+  const r = await runProbe({ opts: { expectSha: SHA }, fetchImpl, gateToken: "gate-secret-token", out: () => {} });
+  assert.ok(!seen.some((q) => q.host === "evil.example.com"), "foreign host must never be requested");
+  assert.ok(seen.every((q) => q.init.redirect === "manual"));
+  assert.equal(row(r, "TUL-589", "llms").status, "FAIL");
+  assert.match(row(r, "TUL-589", "llms").detail, /status 302/);
+});
+
+test("a same-host redirect is re-requested explicitly", async () => {
+  const site = makeSite();
+  const hosts = [];
+  const fetchImpl = async (url, init) => {
+    const u = new URL(url);
+    hosts.push(u.pathname);
+    if (u.pathname === "/llms.txt") {
+      return { status: 308, headers: { get: () => "/llms-real.txt" }, text: async () => "" };
+    }
+    if (u.pathname === "/llms-real.txt") {
+      assert.equal(init.headers["x-staging-gate-token"], "gate-secret-token");
+      return { status: 200, headers: { get: () => null }, text: async () => "# llms" };
+    }
+    return site.fetchImpl(url, init);
+  };
+  const r = await runProbe({ opts: { expectSha: SHA }, fetchImpl, gateToken: "gate-secret-token", out: () => {} });
+  assert.ok(hosts.includes("/llms-real.txt"));
+  assert.equal(row(r, "TUL-589", "llms").status, "PASS");
+});
+
 test("TUL-589 llms.txt / IndexNow fail branches", async () => {
   const r = await probe({ routes: { "/llms.txt": "", "/indexnow-key.txt": "<html>" } });
   assert.equal(row(r, "TUL-589", "llms").status, "FAIL");
