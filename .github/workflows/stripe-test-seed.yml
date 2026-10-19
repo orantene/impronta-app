@@ -49,12 +49,13 @@ jobs:
         run: |
           set -o pipefail
           # --fail without a body: an error response can quote part of the key, so it is never shown.
-          if ! body="$(curl -sS --fail -H "Authorization: Bearer ${STRIPE_SECRET_KEY}" https://api.stripe.com/v1/account 2>/dev/null)"; then
-            echo "Stripe /v1/account request failed"; exit 1
+          # /v1/account has NO livemode field (verified 2026-10-19: absent there, present=false on /v1/balance), so read it from /v1/balance.
+          if ! body="$(curl -sS --fail -H "Authorization: Bearer ${STRIPE_SECRET_KEY}" https://api.stripe.com/v1/balance 2>/dev/null)"; then
+            echo "Stripe /v1/balance request failed"; exit 1
           fi
           live="$(printf '%s' "$body" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).livemode===false?"false":"not-false")}catch{console.log("unreadable")}})')"
           if [ "$live" != "false" ]; then
-            echo "Stripe account livemode is not false; refusing."; exit 1
+            echo "Stripe livemode is not false (read from /v1/balance); refusing."; exit 1
           fi
           echo "livemode=false"
       - name: Create or find the TEST prices
