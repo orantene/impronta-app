@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = join(
   HERE, "..", "..", "..", "..", "supabase", "migrations", "_pending_pm",
-  "20261231414500_offering_variants_public_read_hide_hidden_tiers.sql",
+  "20261231414600_offering_variants_public_read_hide_hidden_tiers.sql",
 );
 const sql = readFileSync(FILE, "utf8").replace(/--[^\n]*/g, "");
 
