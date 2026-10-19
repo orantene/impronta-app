@@ -35,10 +35,23 @@ async function recordReadContext(): Promise<EffectiveReadContext | undefined> {
  * booking is looked up by her own profile id, so another talent's id is null.
  */
 export async function loadTalentAgendaRecordItem(bookingId: string): Promise<TalentAgendaItem | null> {
+  try {
+    return await readRecordItem(bookingId);
+  } catch (error) {
+    logServerError("talent-agenda.recordItem", error);
+    console.error("[4114 debug] record item threw", error); // TEMP #4114 debug: remove after lh proof
+    return null;
+  }
+}
+
+async function readRecordItem(bookingId: string): Promise<TalentAgendaItem | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const ctx = await recordReadContext();
   const actor = await loadTalentActor(ctx, undefined, { firstProfile: true, adminFallback: true });
-  if (!actor.ok) return null;
+  if (!actor.ok) {
+    console.error("[4114 debug] actor not ok", actor.reason, "impersonated:", Boolean(ctx?.impersonated)); // TEMP #4114 debug: remove after lh proof
+    return null;
+  }
   // Her own rows, read through the service client keyed on HER profile ids (never a tenant):
   // the session client's row-level security is not a reliable reader for a user who is both a
   // talent and a workspace admin, nor for an impersonated one. A user can own several talent
@@ -54,7 +67,10 @@ export async function loadTalentAgendaRecordItem(bookingId: string): Promise<Tal
       logServerError("talent-agenda.recordItem", error);
       return null;
     });
-    if (!target) continue;
+    if (!target) {
+      console.error("[4114 debug] no record target for profile", talentProfileId); // TEMP #4114 debug: remove after lh proof
+      continue;
+    }
     const window = agendaWindowAround(target.startsAt);
     if (!window) continue;
     const agenda = await loadTalentAgenda(talentProfileId, window, {
@@ -62,6 +78,7 @@ export async function loadTalentAgendaRecordItem(bookingId: string): Promise<Tal
     });
     const item = agendaItemFromSnapshot(agenda.items, target.bookingId);
     if (item) return item;
+    console.error("[4114 debug] target found but agenda item missing", agenda.items.length); // TEMP #4114 debug: remove after lh proof
   }
   return null;
 }
@@ -89,11 +106,26 @@ async function ownProfileIds(actor: { talentProfileId: string; userId: string; a
  * reads what exists: the booking's own title, else the first order line's
  * label. Null when the booking is not hers.
  */
-export async function loadTalentTimelessBookingStub(bookingId: string): Promise<{ title: string; service: string | null; clientName: string | null; status: string | null } | null> {
+type TimelessStub = { title: string; service: string | null; clientName: string | null; status: string | null };
+
+export async function loadTalentTimelessBookingStub(bookingId: string): Promise<TimelessStub | null> {
+  try {
+    return await readStub(bookingId);
+  } catch (error) {
+    logServerError("talent-agenda.recordStub", error);
+    console.error("[4114 debug] stub threw", error); // TEMP #4114 debug: remove after lh proof
+    return null;
+  }
+}
+
+async function readStub(bookingId: string): Promise<TimelessStub | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const ctx = await recordReadContext();
   const actor = await loadTalentActor(ctx, undefined, { firstProfile: true, adminFallback: true });
-  if (!actor.ok) return null;
+  if (!actor.ok) {
+    console.error("[4114 debug] actor not ok", actor.reason, "impersonated:", Boolean(ctx?.impersonated)); // TEMP #4114 debug: remove after lh proof
+    return null;
+  }
   for (const talentProfileId of await ownProfileIds(actor)) {
     const stub = await readTimelessBookingStub(
       { supabase: actor.admin as unknown as StubDb, admin: actor.admin as unknown as StubDb },
@@ -102,5 +134,6 @@ export async function loadTalentTimelessBookingStub(bookingId: string): Promise<
     );
     if (stub) return stub;
   }
+  console.error("[4114 debug] stub not found for any of her profiles"); // TEMP #4114 debug: remove after lh proof
   return null;
 }

@@ -62,7 +62,9 @@ export function BookingRecordRoute({
         const stub = item ? null : await loadTalentTimelessBookingStub(bookingId).catch(() => null);
         if (!cancelled) setLoaded({ id: bookingId, item, service: stub?.service ?? null, clientName: stub?.clientName ?? null, status: stub?.status ?? null });
       } catch {
-        if (!cancelled) setLoaded({ id: bookingId, item: null });
+        // The item read failed: the summary read is independent, so still try it.
+        const stub = await loadTalentTimelessBookingStub(bookingId).catch(() => null);
+        if (!cancelled) setLoaded({ id: bookingId, item: null, service: stub?.service ?? null, clientName: stub?.clientName ?? null, status: stub?.status ?? null });
       }
     })();
     return () => {

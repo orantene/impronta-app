@@ -28,7 +28,7 @@ describe("talent booking record never hangs", () => {
     assert.match(src, /RECORD_LOAD_TIMEOUT_MS/);
     assert.match(src, /setTimeout\(/);
     assert.match(src, /clearTimeout\(timer\)/);
-    assert.match(src, /catch \{\s*if \(!cancelled\) setLoaded\(\{ id: bookingId, item: null \}\)/);
+    assert.match(src, /catch \{[\s\S]*loadTalentTimelessBookingStub\(bookingId\)\.catch[\s\S]*setLoaded\(\{ id: bookingId, item: null/);
   });
 
   it("nothing loaded renders an honest state: no stub record, no default status pill", () => {
