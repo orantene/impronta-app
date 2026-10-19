@@ -73,11 +73,16 @@ export async function loadOfferingDisplayTitle(
 ): Promise<string | null> {
   if (!offeringId) return null;
   try {
-    const { data } = await svc
+    const { data, error } = await svc
       .from("talent_offerings")
       .select("title, title_i18n")
       .eq("id", offeringId)
       .maybeSingle<{ title: string | null; title_i18n: unknown }>();
+    if (error) {
+      // A name that cannot be read is simply not shown; the page and the invite still work.
+      logServerError("reviews/offering/title", error);
+      return null;
+    }
     const title = (data?.title ?? "").trim();
     if (!title) return null;
     return localizedServiceTitle({ title, title_i18n: data?.title_i18n }, locale, title);
@@ -91,17 +96,26 @@ export async function loadOfferingDisplayTitle(
 export async function bookingLocaleOf(svc: SupabaseClient, bookingId: string | null): Promise<string | null> {
   if (!bookingId) return null;
   try {
-    const { data: b } = await svc
+    const { data: b, error: bErr } = await svc
       .from("agency_bookings")
       .select("source_inquiry_id")
       .eq("id", bookingId)
       .maybeSingle<{ source_inquiry_id: string | null }>();
+    if (bErr) {
+      logServerError("reviews/offering/locale", bErr);
+      return null;
+    }
     if (!b?.source_inquiry_id) return null;
-    const { data: inq } = await svc
+    const { data: inq, error: inqErr } = await svc
       .from("inquiries")
       .select("source_context")
       .eq("id", b.source_inquiry_id)
       .maybeSingle<{ source_context: unknown }>();
+    if (inqErr) {
+      // No language known: the caller falls back to the browser's, then English.
+      logServerError("reviews/offering/locale", inqErr);
+      return null;
+    }
     const c = (inq?.source_context ?? {}) as { locale?: unknown; guest_locale?: unknown };
     return normalizeBookingLocale(c.locale) ?? normalizeBookingLocale(c.guest_locale) ?? null;
   } catch (err) {

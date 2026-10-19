@@ -230,11 +230,13 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
         summary.created += 1;
         uninvitedRowId = created.id;
 
-        const { data: talent } = await svc
+        const { data: talent, error: talentErr } = await svc
           .from("talent_profiles")
           .select("display_name")
           .eq("id", d.talentProfileId)
           .maybeSingle<{ display_name: string | null }>();
+        // The name only personalises the invite; without it the email uses its neutral wording.
+        if (talentErr) logServerError("reviews/auto/talent-name", talentErr);
         const locale = await bookingLocaleOf(svc, b.id);
         const serviceName = await loadOfferingDisplayTitle(svc, offeringId, locale ?? "en");
         const reviewUrl = created.invite_token
