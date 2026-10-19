@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -119,7 +120,7 @@ export default async function MePage() {
           {/* allowCreate stays true: see the file header. A guest who bought
               with an email must get in without being told anything about
               accounts. */}
-          <EmailCodeForm nextPath="/me" locale={locale} allowCreate />
+          <EmailCodeForm nextPath="/me" locale={locale} marketingOrigin={resolveMarketingOrigin()} allowCreate />
         </div>
       </main>
     );
