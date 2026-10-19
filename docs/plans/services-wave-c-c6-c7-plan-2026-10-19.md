@@ -1,7 +1,7 @@
 # Services Wave C: C6 and C7 plan (for Oran's approval)
 
 Date: 2026-10-19. Status: APPROVED by PM 2026-10-19 (decisions below), nothing built yet. Parent plan: `services-execution-plan-2026-10-19.md` §2 Wave C.
-Builds on: #4031 (resolver, merged), #4087 (C3 quick view), #4093 (C5 business service pages), #4035 (C1 slug library).
+Builds on: #4031 (resolver, merged), #4035 (C1 slug library, merged), #4087 (C3 quick view), #4093 (C5 business service pages), #4105 (C1 wiring).
 Everything below ships behind `SERVICE_PRESENTATION_RESOLVER_ENABLED` (default OFF), like C3 and C5.
 
 Plan rules confirmed by Oran: free talent = no own page (quick view + share link); paid talent (`talent_pro`, `talent_portfolio`) = own page; business plans (studio, agency, network) = everything.
@@ -60,7 +60,7 @@ Plan rules confirmed by Oran: free talent = no own page (quick view + share link
 
 ## Order once approved
 
-C4 (after #4087 merges) and C1 wiring (after #4035 merges) come first, then C7 slices 1 and 3, then C6 slices 1, 2, 4, then C7 slice 2, then C6 slice 3 after migration 415800 is applied.
+C4 (after #4087 merges) and the C1 follow-ups (#4105 is open: the pre-stream 308 after #4080 merges, the business 308 step after #4093 merges) come first, then C7 slices 1 and 3, then C6 slices 1, 2, 4, then C7 slice 2, then C6 slice 3 after migration 415800 is applied.
 
 ## Rollback
 
