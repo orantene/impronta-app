@@ -48,7 +48,7 @@ test("BILL-B: the modal knows the page-analytics paywall in en + es", () => {
 
 test("BILL-B: the paywall names the same plan the upgrade modal sells (one plan name, from the catalog label)", () => {
   for (const locale of ["es", "en"] as const) {
-    const offer = buildUpgradeOffer({ feature: "page-analytics", locale });
+    const offer = buildUpgradeOffer({ feature: "page-analytics", interval: "m", locale });
     assert.equal(upgradePlanLabel(locale), offer.planLabel, locale);
     const title = translateDashboardText("Page analytics are part of {plan}", locale).replace("{plan}", upgradePlanLabel(locale));
     assert.ok(title.endsWith(offer.planLabel), title);
