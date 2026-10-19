@@ -28,6 +28,7 @@ import {
 } from "./catalog-audiences";
 import { formatAppointmentLabel, formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
 import { BOOKING_CANCELLED_CATALOG_ENTRIES } from "./catalog-entries-booking-cancelled";
+import { BOOKING_RESERVED_CATALOG_ENTRIES } from "./catalog-entries-booking-reserved";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
 import { TALENT_DOMAIN_CATALOG_ENTRIES } from "./catalog-entries-talent-domain";
@@ -656,6 +657,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ROSTER_JOIN_APPROVED,
   ROSTER_JOIN_REJECTED,
   ...BOOKING_CANCELLED_CATALOG_ENTRIES,
+  ...BOOKING_RESERVED_CATALOG_ENTRIES,
   BOOKING_DAY_OF_REMINDER_CLIENT,
   BOOKING_DAY_OF_REMINDER_TALENT,
   WORKSPACE_OVER_SEAT_LIMIT,

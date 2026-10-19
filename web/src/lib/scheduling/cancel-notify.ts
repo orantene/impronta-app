@@ -7,7 +7,7 @@ import { logServerError } from "@/lib/server/safe-error";
 export type BookingSetCancelledNotice = {
   tenantId: string;
   bookingId: string;
-  /** The booking's source inquiry; the notice needs it for contact + roster. */
+  /** The booking's source inquiry; null recipients come from the booking itself. */
   inquiryId: string | null;
   /** Sum of paid transactions; null when it could not be read. */
   paidCents: number | null;
@@ -31,14 +31,6 @@ export type BookingSetCancelNotifier = (notice: BookingSetCancelledNotice) => vo
  */
 export const notifyBookingSetCancelled: BookingSetCancelNotifier = (notice) => {
   try {
-    if (!notice.inquiryId) {
-      // A booking with no source inquiry has no contact/roster to hydrate from.
-      logServerError(
-        "scheduling.cancelNotify.noInquiry",
-        new Error(`booking ${notice.bookingId} has no source inquiry; cancel notice skipped`),
-      );
-      return;
-    }
     notifyBookingCancelled({
       tenantId: notice.tenantId,
       inquiryId: notice.inquiryId,

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { bookingRefundLine } from "./booking-cancelled-copy";
+import { bookingRefundLine, cancelledByLine } from "./booking-cancelled-copy";
 import { BOOKING_CANCELLED_CATALOG_ENTRIES } from "./catalog-entries-booking-cancelled";
 import type { NotificationEvent, ResolvedRecipient } from "./types";
 
@@ -55,19 +55,26 @@ test("three recipients, email + in-app", () => {
 });
 
 for (const id of IDS) {
-  test(`${id}: EN shows service, date and a refund line`, () => {
+  const talent = id.endsWith("talent");
+  test(`${id}: EN shows service and date${talent ? ", never a refund line" : " and a refund line"}`, () => {
     const out = html(id, "en");
     assert.match(out, /Corte de cabello/);
     assert.match(out, /mié 14 oct/);
-    assert.match(out, /Refund/);
-    assert.match(out, /800/);
+    if (talent) assert.doesNotMatch(out, /Refund|\$800|cancellation policy/);
+    else {
+      assert.match(out, /Refund/);
+      assert.match(out, /800/);
+    }
   });
-  test(`${id}: ES shows service, date and a refund line`, () => {
+  test(`${id}: ES shows service and date${talent ? ", never a refund line" : " and a refund line"}`, () => {
     const out = html(id, "es");
     assert.match(out, /Corte de cabello/);
     assert.match(out, /mié 14 oct/);
-    assert.match(out, /Reembolso/);
-    assert.match(out, /800/);
+    if (talent) assert.doesNotMatch(out, /Reembolso|\$800|política de cancelación/);
+    else {
+      assert.match(out, /Reembolso/);
+      assert.match(out, /800/);
+    }
   });
 }
 
@@ -81,26 +88,45 @@ test("client copy is in the client's voice, staff copy is not", () => {
   assert.match(html("booking.cancelled.client", "es"), /Tu reserva de Corte de cabello se canceló/);
 });
 
-test("in-app body names the service and date", () => {
+test("the copy says who cancelled, or that it expired, in both languages", () => {
+  const by = (audience: "client" | "workspace", locale: string, who: string) => cancelledByLine({ audience, locale, by: who });
+  assert.equal(by("client", "en", "client"), "You cancelled this booking.");
+  assert.equal(by("client", "en", "customer"), "You cancelled this booking.");
+  assert.equal(by("client", "en", "system"), "This booking expired before it was confirmed.");
+  assert.equal(by("workspace", "en", "staff"), "Cancelled by the workspace team.");
+  assert.equal(by("workspace", "es", "system"), "Venció antes de confirmarse.");
+  assert.equal(by("client", "es", "talent"), "El proveedor canceló esta reserva.");
+  assert.equal(by("client", "en", "nope"), null);
+  const out = html("booking.cancelled.client", "en");
+  assert.doesNotMatch(out, /cancelled this booking/, "no byLine without cancelledBy in the payload");
+});
+
+test("in-app title and body name the service and date, in EN and ES", () => {
   for (const e of BOOKING_CANCELLED_CATALOG_ENTRIES) {
-    const body = e.in_app!.body!(event, who("client", "en")) ?? "";
-    assert.match(body, /Corte de cabello/);
-    assert.match(body, /14 oct/);
+    for (const l of ["en", "es"]) {
+      const body = e.in_app!.body!(event, who("client", l)) ?? "";
+      assert.match(body, /Corte de cabello/);
+      assert.match(body, /14 oct/);
+      assert.match(body, l === "es" ? /se canceló/ : /has been cancelled/);
+      assert.match(e.in_app!.title(event, who("client", l)), l === "es" ? /cancel/ : /cancelled/);
+    }
   }
 });
 
 test("refund line covers refund, kept, nothing paid and unknown, in both languages, with no em dash", () => {
-  const f = (paid: number | null, refund: number | null, locale: string, audience: "client" | "workspace" = "client") =>
+  const f = (paid: number | null, refund: number | null, locale: string, audience: "client" | "workspace" | "talent" = "client") =>
     bookingRefundLine({ audience, locale, paidCents: paid, refundCents: refund, currency: "MXN" });
   assert.match(f(5000, 5000, "en"), /^Refund: .*50.*cancellation policy/);
   assert.match(f(5000, 0, "en"), /Refund: none/);
   assert.match(f(0, 0, "en"), /nothing to refund/);
-  assert.match(f(null, null, "en"), /follows the cancellation policy/);
+  assert.equal(f(null, null, "en"), null, "unknown paid amount drops the line");
+  assert.equal(f(null, null, "es"), null);
+  assert.equal(f(5000, 5000, "en", "talent"), null, "the talent never sees the client's refund");
   assert.match(f(5000, 5000, "es"), /^Reembolso: /);
   assert.match(f(5000, 0, "es"), /Reembolso: ninguno/);
   assert.match(f(0, 0, "es"), /nada que reembolsar/);
   assert.match(f(5000, 2500, "en", "workspace"), /^Refund to the client/);
   for (const l of ["en", "es"]) for (const [p, r] of [[5000, 5000], [5000, 0], [0, 0], [null, null]] as const) {
-    assert.doesNotMatch(f(p, r, l), /—/);
+    assert.doesNotMatch(f(p, r, l) ?? "", /—/);
   }
 });

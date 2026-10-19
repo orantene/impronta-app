@@ -15,6 +15,8 @@ interface Props {
   serviceName?: string | null;
   /** Display-only refund line (see booking-cancelled-copy). */
   refundLine?: string | null;
+  /** Who cancelled (or that it expired), already in the recipient's language. */
+  byLine?: string | null;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
@@ -28,6 +30,7 @@ export default function BookingCanceled({
   audience = "workspace",
   serviceName,
   refundLine,
+  byLine,
   brand,
   unsubscribeUrl,
   categoryLabel,
@@ -58,6 +61,7 @@ export default function BookingCanceled({
     >
       <Heading style={h2}>{t.heading}</Heading>
       <Text style={body}>{intro}</Text>
+      {byLine && <Text style={body}>{byLine}</Text>}
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
       <Button brand={brand} href={inquiryUrl}>{t.button}</Button>

@@ -22,7 +22,8 @@ import { afterResponse } from "@/lib/server/after-response";
  */
 export type BookingCancelledParams = {
   tenantId: string;
-  inquiryId: string;
+  /** Null for a booking with no source inquiry (recipients come from the booking). */
+  inquiryId: string | null;
   bookingId: string;
   /** Display-only extras (paid/refund amounts, who cancelled) merged into the payload. */
   extra?: Record<string, unknown>;

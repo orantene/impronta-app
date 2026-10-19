@@ -150,7 +150,15 @@ export async function sweepExpiredFreeReserves(
         .then((r) => {
           if (r.error) logServerError("cron/expire-free-reserves/audit", r.error);
         });
-      if (b.tenant_id) notifyBookingCancelled({ tenantId: b.tenant_id, inquiryId, bookingId: b.id });
+      if (b.tenant_id) {
+        // A free reserve took no payment: the notice says it expired, with no refund to chase.
+        notifyBookingCancelled({
+          tenantId: b.tenant_id,
+          inquiryId,
+          bookingId: b.id,
+          extra: { paidCents: 0, refundCents: 0, cancelledBy: "system", cancelReason: "expired" },
+        });
+      }
     } catch (err) {
       logServerError("cron/expire-free-reserves/side-effects", err);
     }

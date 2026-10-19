@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { cancelBookingSet } from "./cancel-booking";
-import { notifyBookingSetCancelled, type BookingSetCancelledNotice } from "./cancel-notify";
+import type { BookingSetCancelledNotice } from "./cancel-notify";
 import { buildBookingCancelledEvent } from "@/lib/notifications/producers/booking-cancelled-notify";
 
 type Txn = { gross_amount_cents: number; status: string };
@@ -102,20 +102,6 @@ test("amounts unchanged: the result and every table touched are identical with a
   assert.equal(withHook.ok && withHook.refundableCents, 7300);
   assert.deepEqual(a.writes, [], "the notice writes nothing to money or booking tables");
   assert.deepEqual(a.reads, b.reads);
-});
-
-test("a booking with no source inquiry is skipped by the real hook without throwing", () => {
-  assert.doesNotThrow(() =>
-    notifyBookingSetCancelled({
-      tenantId: "t1",
-      bookingId: "b1",
-      inquiryId: null,
-      paidCents: 0,
-      refundableCents: 0,
-      currency: "MXN",
-      by: "staff",
-    }),
-  );
 });
 
 test("the event carries one stable id per booking and the refund facts", () => {

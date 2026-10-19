@@ -42,6 +42,7 @@ import {
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { notifyBookingReserved } from "@/lib/notifications/producers/booking-reserved-notify";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
@@ -906,11 +907,20 @@ export async function markPaid(
     // DISTINCT eventId from the receipt above, so the two never collide on the
     // dispatch_log dedupe key. Requires the source inquiry for client/talent
     // audience + schedule hydration.
-    // Deposits (TUL-1268): the client and every booked talent are told on the
-    // deposit payment too ("Booking confirmed" + the talent's new-booking
-    // notice). The stable per-booking eventId collapses the later balance
-    // payment to the same single confirmation. Display only: no amount moves.
-    if (result.data.sourceInquiryId && !paidAfterCancel) {
+    // A DEPOSIT reserves the booking (TUL-1268): "Booking reserved" to the client
+    // (deposit paid + balance due) and the talent's new-booking notice. The full
+    // "Booking confirmed" goes out when the balance/full payment lands, once (the
+    // two use different per-booking event ids). Display only: no amount moves.
+    if (isDeposit && !paidAfterCancel) {
+      notifyBookingReserved({
+        tenantId: result.data.sourceTenantId,
+        inquiryId: result.data.sourceInquiryId ?? null,
+        bookingId: result.data.bookingId,
+        depositCents: result.data.grossAmountCents,
+        currency: result.data.currency,
+      });
+    }
+    if (result.data.sourceInquiryId && !isDeposit && !paidAfterCancel) {
       notifyBookingConfirmed({
         tenantId: result.data.sourceTenantId,
         inquiryId: result.data.sourceInquiryId,

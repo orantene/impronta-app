@@ -50,15 +50,63 @@ const COPY = {
   },
 } as const;
 
-export function bookingRefundLine(input: CancelRefundInput): string {
+/**
+ * The refund line, or null when there is nothing honest to say: the talent
+ * never sees the client's money, and an unknown paid amount drops the line
+ * instead of guessing (the staff pipeline cancel and a failed paid read).
+ */
+export function bookingRefundLine(input: CancelRefundInput): string | null {
+  if (input.audience === "talent") return null;
   const locale = normalizeEmailLocale(input.locale);
   const c = COPY[locale][input.audience === "client" ? "client" : "staff"];
   const code = (input.currency ?? "").trim().toUpperCase();
   const paid = input.paidCents;
   const refund = input.refundCents;
-  if (paid === null || refund === null) return c.unknown;
+  if (paid === null || refund === null) return null;
   if (paid <= 0) return c.none;
   if (refund <= 0) return c.kept;
   if (!/^[A-Z]{3}$/.test(code)) return c.unknown;
   return c.refund.replace("{amount}", formatDashboardMoney(refund / 100, code, locale));
+}
+
+const BY = {
+  en: {
+    client: {
+      client: "You cancelled this booking.",
+      talent: "The provider cancelled this booking.",
+      staff: "The team cancelled this booking.",
+      system: "This booking expired before it was confirmed.",
+    },
+    other: {
+      client: "Cancelled by the client.",
+      talent: "Cancelled by the talent.",
+      staff: "Cancelled by the workspace team.",
+      system: "Expired before it was confirmed.",
+    },
+  },
+  es: {
+    client: {
+      client: "Tú cancelaste esta reserva.",
+      talent: "El proveedor canceló esta reserva.",
+      staff: "El equipo canceló esta reserva.",
+      system: "Esta reserva venció antes de confirmarse.",
+    },
+    other: {
+      client: "Cancelada por el cliente.",
+      talent: "Cancelada por el talento.",
+      staff: "Cancelada por el equipo del espacio de trabajo.",
+      system: "Venció antes de confirmarse.",
+    },
+  },
+} as const;
+
+/** Who cancelled, in the recipient's language; null when unknown. `customer` is the legacy alias of `client`. */
+export function cancelledByLine(input: {
+  audience: "client" | "talent" | "workspace";
+  locale: string | null | undefined;
+  by: string | null | undefined;
+}): string | null {
+  const by = input.by === "customer" ? "client" : input.by;
+  if (by !== "client" && by !== "talent" && by !== "staff" && by !== "system") return null;
+  return BY[normalizeEmailLocale(input.locale)][input.audience === "client" ? "client" : "other"][by];
 }
