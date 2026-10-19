@@ -16,6 +16,7 @@ import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
 import { livePhasePrice } from "@/lib/catalog/price-phases";
 import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
+import { isWholeQuantity } from "@/lib/orders/purchase-policy";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -294,7 +295,7 @@ export async function addLine(
   if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
     return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
   }
-  if (!Number.isFinite(input.line.units) || input.line.units <= 0) {
+  if (!isWholeQuantity(input.line.units)) { // TUL-1268 M9: refused, never truncated
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
 
@@ -516,7 +517,7 @@ export async function updateLine(
   if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
     return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
   }
-  if (!Number.isFinite(input.units) || input.units <= 0) {
+  if (!isWholeQuantity(input.units)) { // TUL-1268 M9: refused, never truncated
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
   const line = loaded.lines.find((l) => l.id === input.lineId);

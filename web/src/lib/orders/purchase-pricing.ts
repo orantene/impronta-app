@@ -87,7 +87,8 @@ export type PricingRefusal = {
     | "below_min_per_order"
     | "above_max_per_order"
     | "addon_not_on_offering"
-    | "amount_out_of_range";
+    | "amount_out_of_range"
+    | "invalid_units";
   offeringId?: string;
   message: string;
 };
@@ -128,6 +129,17 @@ export function pricePurchase(
         reason: "offering_not_priceable",
         offeringId: req.offeringId,
         message: "This one is quoted rather than booked online.",
+      };
+    }
+
+    // Whole units only, on every line (TUL-1268 M9). Only variant lines checked
+    // this before, so 0.5 of a plain service priced at half. Refused, never rounded.
+    if (!Number.isSafeInteger(req.units) || req.units < 1) {
+      return {
+        ok: false,
+        reason: "invalid_units",
+        offeringId: req.offeringId,
+        message: "That quantity is not available.",
       };
     }
 

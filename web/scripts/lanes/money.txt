@@ -123,6 +123,7 @@ src/lib/orders/refund-record-lines.test.ts
 src/lib/orders/refund-resume-effects.test.ts
 src/lib/orders/settle-at-door.test.ts
 src/lib/orders/settles-on-creation.test.ts
+src/lib/orders/travel-fee.test.ts
 src/lib/orders/unwind-failed-checkout.test.ts
 src/lib/payments/activity-shape.test.ts
 src/lib/payments/balance-transactions.test.ts

@@ -55,6 +55,7 @@ import {
   reversalLegKey,
 } from "@/lib/payments/booking-payouts-ledger";
 import { flagTalentResidual } from "@/lib/payments/refund-talent-residual";
+import { reverseRefundedChargePayouts } from "@/lib/payments/refund-charge-share";
 import {
   notifyBookingPayoutReversal as notifyBookingPayoutReversalReal,
   notifyClientPartialRefund as notifyClientPartialRefundReal,
@@ -603,7 +604,7 @@ export async function handleBookingRefund(
 
   if (ref.bookingId) {
     const sb = d.resolveSupabase();
-    const outcomes = await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: `refund ${input.chargeId}` }, { sb, stripe });
+    const outcomes = await reverseRefundedChargePayouts({ ...ref, bookingId: ref.bookingId }, { reference: `refund ${input.chargeId}`, anchor: input.chargeId }, { sb, stripe });
     if (sb) {
       await markBookingRefunded(sb, ref.bookingId);
       await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
@@ -699,9 +700,9 @@ export async function handleBookingDispute(
     }
     if (ref.bookingId) {
       const sb = d.resolveSupabase();
-      const outcomes = await reverseBookingPayouts(
-        ref.bookingId,
-        { mode: "full", reference: `dispute_lost ${input.disputeId}` },
+      const outcomes = await reverseRefundedChargePayouts(
+        { ...ref, bookingId: ref.bookingId },
+        { reference: `dispute_lost ${input.disputeId}`, anchor: input.disputeId },
         { sb, stripe },
       );
       if (sb) {
