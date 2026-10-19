@@ -99,6 +99,7 @@ src/lib/saas/branded-admin-url.test.ts
 src/lib/saas/catalog-tax-entitlements-rls.static.test.ts
 src/lib/saas/code-snippets-tenant-isolation.test.ts
 src/lib/saas/contact-host.test.ts
+src/lib/saas/definer-function-actor-guards.static.test.ts
 src/lib/saas/domain-canonical.test.ts
 src/lib/saas/edit-surface-scope.security.test.ts
 src/lib/saas/ensure-self-roster.test.ts
