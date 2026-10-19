@@ -5,6 +5,7 @@ export const BILLING_ES_TEXT: Record<string, string> = {
   "Current plan": "Plan actual",
   "Next charge": "Próximo cobro",
   "Cancels on": "Se cancela el",
+  "Ends on": "Termina el",
   "Card": "Tarjeta",
   "ending in": "terminada en",
   "No card on file": "Sin tarjeta registrada",

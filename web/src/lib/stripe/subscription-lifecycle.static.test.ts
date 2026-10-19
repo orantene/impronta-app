@@ -124,7 +124,8 @@ test("talent cancel and resume reach STRIPE with idempotency keys", () => {
   assert.doesNotMatch(cancel, /refunds\.create/);
   const resume = bodyOf(talentBilling, "resumeTalentSubscription");
   assert.match(resume, /stripe\.subscriptions\.update\(/);
-  assert.match(resume, /cancel_at_period_end:\s*false/);
+  // The single undo param (flag or cancel_at, never both) comes from the helper.
+  assert.match(resume, /resumeSubscriptionParams\(/);
   assert.match(resume, /idempotencyKey/);
   assert.doesNotMatch(resume, /checkout\.sessions\.create|invoices\.create/);
 });

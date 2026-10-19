@@ -26,6 +26,7 @@ src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
+src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/review-trial-days.test.ts
