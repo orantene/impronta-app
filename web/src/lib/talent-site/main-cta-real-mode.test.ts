@@ -10,7 +10,7 @@ import { test } from "node:test";
 
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { localiseSeededDesignLabels, resolveSiteCtaMode, type SiteCtaMode } from "./design-label-locale";
-import { mainCtaLabel, mainCtaModeFromPosture } from "./main-cta";
+import { mainCtaLabel, mainCtaModeFromPosture, mainCtaModeFromSiteMode } from "./main-cta";
 
 const tree = (): BuilderNode[] =>
   [
@@ -33,10 +33,11 @@ const props = (t: BuilderNode[], i: number) => t[i]!.props as { label: string; h
 const hdr = (t: BuilderNode[]) =>
   (t[2]!.props as { sectionProps: { primaryCta: { label: string; href: string }; regions: { right: Array<{ label: string; href: string }> } } }).sectionProps;
 
-const MODES: Array<[SiteCtaMode, "instant" | "request" | "message"]> = [
+const MODES: Array<[SiteCtaMode, "instant" | "request" | "message" | "buy"]> = [
   ["instant", "instant"],
   ["request", "request"],
   ["inquiry", "message"],
+  ["buy", "buy"],
 ];
 
 test("the seeded label follows the real mode, ES and EN, using the one helper's wording", () => {
@@ -49,6 +50,25 @@ test("the seeded label follows the real mode, ES and EN, using the one helper's 
     }
   }
   assert.equal(mainCtaLabel("instant", "es"), "Reservar cita");
+  assert.equal(props(localiseSeededDesignLabels(tree(), "es", "request"), 0).label, "Solicitar cita");
+  assert.equal(props(localiseSeededDesignLabels(tree(), "en", "request"), 0).label, "Request an appointment");
+  assert.equal(props(localiseSeededDesignLabels(tree(), "es", "buy"), 0).label, "Comprar");
+  assert.equal(props(localiseSeededDesignLabels(tree(), "en", "buy"), 0).label, "Buy");
+});
+
+test("buy mode never falls back to booking wording and opens the catalog (#services), not #book", () => {
+  for (const loc of ["es", "en"] as const) {
+    const t = localiseSeededDesignLabels(tree(), loc, "buy");
+    assert.doesNotMatch(props(t, 0).label, /book|reserv|solicit|request/i);
+    assert.equal(props(t, 0).href, "#services");
+    assert.equal(hdr(t).primaryCta.href, "#services");
+  }
+});
+
+test("a null mode (mode unknown) never retargets the anchor", () => {
+  const t = localiseSeededDesignLabels(tree(), "es", null);
+  assert.equal(props(t, 0).href, "#services");
+  assert.equal(hdr(t).primaryCta.href, "#services");
 });
 
 test("the anchor lands on booking wherever booking is on, and stays on services for inquiry", () => {
@@ -65,14 +85,19 @@ test("the anchor lands on booking wherever booking is on, and stays on services 
 });
 
 test("a button the talent re-pointed or retyped is never rewritten", () => {
+  const typed = ["Agenda tu sesión", "Message me", "Comprar", "Buy", "Reservar cita", "Solicitar cita", "Request an appointment", "Escríbeme"];
   const edited = [
     { id: "a", kind: "button", props: { label: "Book an appointment", href: "/contact" } },
-    { id: "b", kind: "button", props: { label: "Agenda tu sesión", href: "#services" } },
+    ...typed.map((label, i) => ({ id: `t${i}`, kind: "button", props: { label, href: "#services" } })),
   ] as unknown as BuilderNode[];
-  const t = localiseSeededDesignLabels(edited, "es", "instant");
-  assert.equal(props(t, 0).href, "/contact");
-  assert.equal(props(t, 1).href, "#services");
-  assert.equal(props(t, 1).label, "Agenda tu sesión");
+  for (const mode of ["instant", "request", "inquiry", "buy"] as SiteCtaMode[]) {
+    const t = localiseSeededDesignLabels(edited, "es", mode);
+    assert.equal(props(t, 0).href, "/contact");
+    typed.forEach((label, i) => {
+      assert.equal(props(t, i + 1).href, "#services", `${mode}: ${label} href`);
+      if (label === "Agenda tu sesión") assert.equal(props(t, i + 1).label, label);
+    });
+  }
 });
 
 test("a real posture resolves to the mode: instant, request (plan or hours ceiling), inquiry (message-first or paused)", () => {
@@ -83,4 +108,14 @@ test("a real posture resolves to the mode: instant, request (plan or hours ceili
   assert.equal(resolveSiteCtaMode({ ...base, acceptingBookings: false }), "inquiry");
   assert.equal(resolveSiteCtaMode({ sellingDefaults: { bookingPosture: "inquiry" }, confirmsByHand: false }), "inquiry");
   assert.equal(mainCtaModeFromPosture("inquiry"), "message");
+  assert.equal(mainCtaModeFromSiteMode("buy"), "buy");
+  assert.equal(mainCtaModeFromSiteMode("inquiry"), "message");
+});
+
+test("a talent selling goods or packages resolves to buy; services or a pause do not", () => {
+  const base = { sellingDefaults: { bookingPosture: "instant" }, confirmsByHand: false };
+  assert.equal(resolveSiteCtaMode({ ...base, sellsGoods: true }), "buy");
+  assert.equal(resolveSiteCtaMode({ ...base, sellsGoods: true, acceptingBookings: false }), "buy", "a shop is not a booking pause");
+  assert.equal(resolveSiteCtaMode({ ...base, sellsGoods: false }), "instant");
+  assert.equal(resolveSiteCtaMode(base), "instant");
 });

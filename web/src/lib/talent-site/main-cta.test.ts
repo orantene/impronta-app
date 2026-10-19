@@ -15,10 +15,14 @@ import { mainCtaLabel, mainCtaModeFromPosture, mainCtaModeFromServiceMode } from
 test("the rule, ES and EN", () => {
   assert.equal(mainCtaLabel("instant", "es"), "Reservar cita");
   assert.equal(mainCtaLabel("instant", "en"), "Book an appointment");
-  assert.equal(mainCtaLabel("request", "es"), "Solicitar");
-  assert.equal(mainCtaLabel("request", "en"), "Request");
+  // Request mode matches Maison: Solicitar cita / Request an appointment.
+  assert.equal(mainCtaLabel("request", "es"), "Solicitar cita");
+  assert.equal(mainCtaLabel("request", "en"), "Request an appointment");
   assert.equal(mainCtaLabel("message", "es"), "Escríbeme");
   assert.equal(mainCtaLabel("message", "en"), "Message me");
+  // The 4th mode: talents selling goods or packages. Never booking wording.
+  assert.equal(mainCtaLabel("buy", "es"), "Comprar");
+  assert.equal(mainCtaLabel("buy", "en"), "Buy");
 });
 
 test("locale tags and unknown locales resolve to ES or EN, EN by default", () => {
@@ -43,7 +47,7 @@ function headerCtaLabel(tree: ReturnType<typeof buildDefaultShellTree>): string 
 
 test("a new site's shell seed takes its header CTA from the selling mode", () => {
   assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "instant" })), "Book an appointment");
-  assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "request" })), "Request");
+  assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "request" })), "Request an appointment");
   assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A", mainCtaMode: "message" })), "Message me");
 });
 
@@ -51,14 +55,21 @@ test("with no selling mode the legacy seed is unchanged, so existing sites keep 
   assert.equal(headerCtaLabel(buildDefaultShellTree({ displayName: "A" })), "Inquire");
 });
 
-test("a seeded CTA localises per mode on a Spanish site; a label the talent typed is never rewritten", () => {
+test("only SEEDED default labels localise; a label the talent typed by hand is never rewritten", () => {
   const props = (label: string) => ({ primaryCta: { label, href: "/contact" } });
   const out = (label: string) => (localiseTalentHeaderDefaults(props(label), "es") as { primaryCta: { label: string } }).primaryCta.label;
   assert.equal(out("Book an appointment"), "Reservar cita");
-  assert.equal(out("Request"), "Solicitar");
-  assert.equal(out("Message me"), "Escríbeme");
   assert.equal(out("Inquire"), "Escríbeme");
-  assert.equal(out("Mi propio texto"), "Mi propio texto");
+  // Mode wordings are OUTPUTS, not seeds: a talent can type any of them.
+  for (const typed of ["Request", "Request an appointment", "Message me", "Buy", "Comprar", "Mi propio texto"]) {
+    assert.equal(out(typed), typed, typed);
+  }
+});
+
+test("the new tests are enrolled in a lane so CI runs them", () => {
+  const lanes = readFileSync(join(process.cwd(), "scripts/lanes/storefront.txt"), "utf8").split("\n");
+  assert.ok(lanes.includes("src/lib/talent-site/main-cta.test.ts"));
+  assert.ok(lanes.includes("src/lib/talent-site/main-cta-real-mode.test.ts"));
 });
 
 test("no theme hardcodes the old inquiry CTA wording: the Folio demo footer uses the helper", () => {

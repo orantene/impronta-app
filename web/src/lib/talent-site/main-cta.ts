@@ -3,20 +3,24 @@
  * talent sells, and no theme hardcodes its own wording:
  *
  *   instant booking          Reservar cita / Book an appointment
- *   request or quote only    Solicitar / Request
+ *   request or quote only    Solicitar cita / Request an appointment
  *   message-first trades     Escríbeme / Message me
+ *   goods or packages        Comprar / Buy (opens the shop or catalog)
  *
  * Pure. Used by the new-site shell seed and the demo fixtures. Existing sites
  * keep whatever text they saved: nothing here rewrites a saved label.
  */
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 
-export type MainCtaMode = "instant" | "request" | "message";
+export type MainCtaMode = "instant" | "request" | "message" | "buy";
 
 const LABELS: Record<MainCtaMode, { es: string; en: string }> = {
   instant: { es: "Reservar cita", en: "Book an appointment" },
-  request: { es: "Solicitar", en: "Request" },
+  // Request mode matches Maison: Solicitar cita / Request an appointment.
+  request: { es: "Solicitar cita", en: "Request an appointment" },
   message: { es: "Escríbeme", en: "Message me" },
+  // Talents selling goods or packages: opens the shop / catalog, never booking wording.
+  buy: { es: "Comprar", en: "Buy" },
 };
 
 export const MAIN_CTA_MODES = Object.keys(LABELS) as MainCtaMode[];
@@ -36,9 +40,7 @@ export function mainCtaModeFromServiceMode(mode: "instant" | "request" | "quote"
   return mode === "instant" ? "instant" : "request";
 }
 
-/** Which mode an English seeded label belongs to, or null when it is not a seeded main-CTA label. */
-export function mainCtaModeOfSeededLabel(label: string): MainCtaMode | null {
-  const l = label.trim().toLowerCase();
-  for (const mode of MAIN_CTA_MODES) if (LABELS[mode].en.toLowerCase() === l) return mode;
-  return null;
+/** A site-wide CTA mode (`resolveSiteCtaMode`) as a main CTA mode. */
+export function mainCtaModeFromSiteMode(mode: "instant" | "request" | "inquiry" | "buy"): MainCtaMode {
+  return mode === "inquiry" ? "message" : mode;
 }

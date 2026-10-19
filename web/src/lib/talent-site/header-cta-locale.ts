@@ -6,7 +6,7 @@
  * typed themselves is never rewritten.
  */
 
-import { mainCtaLabel, mainCtaModeOfSeededLabel } from "./main-cta";
+import { mainCtaLabel } from "./main-cta";
 
 const SEEDED_CTA_LABEL = "inquire";
 
@@ -30,9 +30,10 @@ export function talentHeaderCtaLabel(locale: string | null | undefined): string 
 function localiseLabel(label: unknown, locale: string): unknown {
   if (typeof label !== "string") return label;
   if (label.trim().toLowerCase() === SEEDED_CTA_LABEL) return talentHeaderCtaLabel(locale);
-  // TUL-639: the seeded main-CTA wordings follow the selling mode in the visitor's language.
-  const mode = mainCtaModeOfSeededLabel(label);
-  return mode ? mainCtaLabel(mode, locale) : label;
+  // TUL-639: ONLY the seeded default ("Book an appointment") localises here. The mode
+  // wordings (Request an appointment, Message me, Buy...) are outputs of the render-time
+  // mode pass, never seeds, so a label the talent typed by hand is never rewritten.
+  return label.trim() === "Book an appointment" ? mainCtaLabel("instant", locale) : label;
 }
 
 /**
