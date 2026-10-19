@@ -30,4 +30,22 @@ describe("talent booking record never hangs", () => {
     assert.match(src, /clearTimeout\(timer\)/);
     assert.match(src, /catch \{\s*if \(!cancelled\) setLoaded\(\{ id: bookingId, item: null \}\)/);
   });
+
+  it("nothing loaded renders an honest state: no stub record, no default status pill", () => {
+    const src = read("talent/agenda/BookingRecordRoute.tsx");
+    assert.match(src, /data-booking-record-unavailable/);
+    assert.match(src, /We could not load this booking/);
+    // The empty stub record (title "Booking", sourceLabel "Direct", whenLabel "No time assigned") is gone.
+    assert.doesNotMatch(src, /sourceLabel: "Direct"/);
+    assert.doesNotMatch(src, /whenLabel: copy\.t\("No time assigned"\)/);
+    assert.doesNotMatch(src, /Agreed/);
+    // Status text only for a status we actually read.
+    assert.match(src, /knownStatusLabel/);
+  });
+
+  it("the server loaders read as the same effective user as the layout", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/talent-agenda/load-record-item.ts"), "utf8");
+    assert.match(src, /effectiveReadContext/);
+    assert.doesNotMatch(src, /loadTalentActor\(\)/);
+  });
 });

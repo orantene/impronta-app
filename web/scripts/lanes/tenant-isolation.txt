@@ -193,6 +193,7 @@ src/lib/supabase/cookie-domain.test.ts
 src/lib/supabase/talent-profiles-anon-grants.static.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
+src/lib/talent-agenda/booking-stub.test.ts
 src/lib/talent-agenda/record-item.test.ts
 src/lib/talent-agenda/record-labels.test.ts
 src/lib/talent-agenda/resolve-record-target.test.ts
