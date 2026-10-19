@@ -7,6 +7,8 @@ import { withLocalePath, type LocaleUrlSettings } from "@/i18n/pathnames";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { tagFor } from "@/lib/site-admin/cache-tags";
+import { scopeHasListablePosts } from "@/lib/cms/blog-nav";
+import { withBlogHeaderLink } from "@/lib/cms/blog-nav-link";
 
 export type PublicNavLink = {
   label: string;
@@ -151,9 +153,13 @@ export async function getPublicCmsNavigationLinks(
   );
   if (rows.length === 0) return [];
 
-  return rows.map((r) => ({
+  const links = rows.map((r) => ({
     label: r.label,
     href: resolvePublicCmsNavHref(r.href, locale, settings),
     sort_order: r.sort_order,
   }));
+  if (zone !== "header") return links;
+  // Blog link (TUL-1003): only with a listable post (cached, 5 min), never duplicated.
+  const hasPosts = await scopeHasListablePosts({ kind: "tenant", tenantId: publicScope.tenantId }, locale).catch(() => false);
+  return withBlogHeaderLink(links, hasPosts, resolvePublicCmsNavHref("/blog", locale, settings));
 }

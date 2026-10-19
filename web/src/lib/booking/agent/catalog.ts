@@ -7,7 +7,7 @@
  * a person reads on the page.
  */
 
-import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 
 export type AgentService = {
   id: string;
@@ -41,7 +41,8 @@ export function toAgentServices(offerings: readonly TalentOffering[], locale: st
       description: shortDescription(o.description),
       duration_minutes: typeof o.durationMinutes === "number" && o.durationMinutes > 0 ? o.durationMinutes : null,
       price: offeringPriceLabel(o, locale),
-      amount_cents: o.amountCents,
+      // D-10a: a hidden price (quote / on request) must not leak as a raw figure either.
+      amount_cents: o.visibility === "on_request" || offeringIsQuote(o) ? null : o.amountCents,
       currency: o.currency,
       bookable: o.publicCtaHidden !== true,
     }));

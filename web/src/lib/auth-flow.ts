@@ -4,6 +4,7 @@ import {
 } from "@/i18n/pathnames";
 import { pickLocale, type LocaleEntries } from "@/lib/i18n/pick-locale";
 import { isWorkspaceOnboardingPath } from "@/lib/saas/workspace-signup";
+import { isSafeInternalPath } from "@/lib/safe-internal-path";
 
 export type AccessProfile = {
   account_status: string | null;
@@ -23,14 +24,30 @@ export type AccessProfile = {
   home_surface_preference?: string | null;
 };
 
+const LOCALE_THEN_PROTOCOL_RELATIVE = /^(?:\/[a-z]{2}(?:-[a-zA-Z]{2,4})?)+(?:\/{2,}|\/?\\)/;
+
 export function normalizeNextPath(
   nextPath: string | null | undefined,
   fallback = "/",
 ): string {
   if (!nextPath) return fallback;
-  return nextPath.startsWith("/") && !nextPath.startsWith("//")
-    ? nextPath
-    : fallback;
+  // The raw value and its percent-decoded forms (a server or a later hop may decode once or twice):
+  // `/%2F%2Fevil`, `/%5Cevil`, `/%09/evil` and `/en/%2F%2Fevil` all become protocol-relative.
+  let candidate = nextPath;
+  for (let i = 0; i < 3; i += 1) {
+    if (!isSafeInternalPath(candidate)) return fallback;
+    // `/en//evil.example` is only protocol-relative once the locale prefix is gone, so test that too.
+    if (LOCALE_THEN_PROTOCOL_RELATIVE.test(candidate.split(/[?#]/, 1)[0] ?? candidate)) return fallback;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(candidate.split(/[?#]/, 1)[0] ?? candidate);
+    } catch {
+      return fallback;
+    }
+    if (decoded === (candidate.split(/[?#]/, 1)[0] ?? candidate)) break;
+    candidate = decoded;
+  }
+  return nextPath;
 }
 
 /**

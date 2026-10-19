@@ -15,11 +15,23 @@ export type DunningNoticeDeps = {
   claim(row: { invoiceId: string; scope: "talent" | "workspace"; subscriptionId: string | null; to: string }): Promise<boolean>;
   release(invoiceId: string): Promise<void>;
   send(input: { to: string; subject: string; html: string }): Promise<"sent" | "skipped" | "failed">;
+  /**
+   * The recipient's app language (talent preferred_locale, or the workspace
+   * default), or null when unknown. Optional: without it the Stripe customer
+   * locale decides, then English.
+   */
+  recipientLocale?(query: { scope: "talent" | "workspace"; subscriptionId: string | null }): Promise<string | null>;
 };
 
 export type DunningNoticeResult = "sent" | "duplicate" | "no_recipient" | "skipped" | "failed";
 
-function localeOf(invoice: Stripe.Invoice): "es" | "en" {
+function normalizeLocale(value: string | null | undefined): "es" | "en" | null {
+  const v = (value ?? "").trim().toLowerCase();
+  if (!v) return null;
+  return v.startsWith("es") ? "es" : "en";
+}
+
+function stripeLocaleOf(invoice: Stripe.Invoice): "es" | "en" | null {
   // stripe@22 types dropped Invoice.customer_preferred_locales, but webhook
   // payloads on older API versions still carry it; fall back to an expanded
   // customer's preferred_locales.
@@ -31,8 +43,28 @@ function localeOf(invoice: Stripe.Invoice): "es" | "en" {
       ? (customer as Stripe.Customer).preferred_locales
       : null;
   const locales = legacy?.length ? legacy : expanded;
-  const first = locales?.[0] ?? "";
-  return first.toLowerCase().startsWith("es") ? "es" : "en";
+  return normalizeLocale(locales?.[0]);
+}
+
+/**
+ * TUL-835: the recipient's own app language wins (same rule as booking
+ * notices: a member's own locale first), then the Stripe customer locale, then
+ * English. A failed lookup never blocks the email.
+ */
+async function localeOf(
+  invoice: Stripe.Invoice,
+  query: { scope: "talent" | "workspace"; subscriptionId: string | null },
+  deps: DunningNoticeDeps,
+): Promise<"es" | "en"> {
+  let app: "es" | "en" | null = null;
+  if (deps.recipientLocale) {
+    try {
+      app = normalizeLocale(await deps.recipientLocale(query));
+    } catch {
+      app = null;
+    }
+  }
+  return app ?? stripeLocaleOf(invoice) ?? "en";
 }
 
 export async function sendPaymentFailedNotice(
@@ -56,7 +88,7 @@ export async function sendPaymentFailedNotice(
   });
   if (!owned) return "duplicate";
 
-  const locale = localeOf(invoice);
+  const locale = await localeOf(invoice, { scope: input.scope, subscriptionId: input.subscriptionId }, deps);
   const result = await deps.send({
     to,
     subject: paymentFailedSubject(locale),

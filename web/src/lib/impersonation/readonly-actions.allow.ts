@@ -23,6 +23,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/site-admin/builder-node/posts-feed-demo-action.ts", ["loadPostsFeedDemoCardsAction"], READ],
   ["lib/promos/actions.ts", ["loadPromosPage", "getPromoAttention", "loadPromoBookings"], READ],
   ["lib/promos/booking-quote.actions.ts", ["previewBookingQuoteAction"], "public client price preview: reads only, holds nothing, no talent session"],
+  ["lib/orders/checkout-quote.actions.ts", ["quoteBookingCollectAction"], "public client fee preview: reads only, creates and holds nothing, no talent session"],
   ["lib/promos/callouts/dismissals.actions.ts", ["loadCalloutState"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/actions.ts", ["actionLoadTalentMediaBundleAll"], READ],
   ["app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions.ts", ["actionLoadProfileShellMedia", "actionLoadProfileShellAlbumPage"], READ],

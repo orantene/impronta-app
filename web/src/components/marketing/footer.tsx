@@ -53,12 +53,13 @@ const FOOTER_FEATURE_KEYS = [
   "premium-support",
 ] as const;
 
-export async function MarketingFooter({ priceCurrency = null }: { priceCurrency?: string | null } = {}) {
+export async function MarketingFooter({ priceCurrency = null, locale: localeOverride }: { priceCurrency?: string | null; locale?: string } = {}) {
   // L50 Phase 2: every marketing footer ends with a currency picker so
   // any page is the gateway to changing the displayed currency. The
   // footer doesn't know which page it's on, so it resolves from cookie
   // + IP only (no URL param).
-  const locale = await getRequestLocale();
+  // A talent profile speaks the talent's language, which can differ from the request locale.
+  const locale = localeOverride ?? (await getRequestLocale());
   const { currency, source } = await resolveCurrency(null, locale);
   const copy = getMarketingCopy(locale).footer;
   const brand = getMarketingCopy(locale).brand;

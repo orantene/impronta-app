@@ -6,8 +6,10 @@ import { useDashboardText } from "../../dashboard-i18n";
 import { Bullet, CapsLabel, Icon } from "../../primitives";
 import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, POLAROID_SET, TALENT_PROFILES_BY_ID, TALENT_SPECIALTY_LABEL, applyProfileOverride, buildFreshTalentProfile, computeProfileCompleteness, getProfileById, useAdminShell, useProfileOverrideSubscription } from "../../state";
 import { formatCount } from "@/lib/talent/format-count";
+import { upgradePlanLabel } from "@/components/talent/upgrade/upgrade-modal-model";
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { BadgeChip, ProfileChip, TierPill } from "./profile-sections-2";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 
 
 
@@ -512,11 +514,20 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
         </div>
         <div data-tulala-analytics-upsell className="rounded-xl border border-admin-border-soft bg-admin-card px-4 py-3">
           <div className="text-admin-ink text-admin-12 mb-1 font-medium">
-            {copy.t("Page analytics are part of Pro")}
+            {copy.t("Page analytics are part of {plan}").replace("{plan}", upgradePlanLabel(copy.isSpanish ? "es" : "en"))}
           </div>
           <div className="text-admin-ink-dim text-admin-11 leading-relaxed">
-            {copy.t("Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.")}
+            {copy.t("Your profile views and inquiry conversion are being recorded right now. Upgrade to {plan} to see them.").replace("{plan}", upgradePlanLabel(copy.isSpanish ? "es" : "en"))}
           </div>
+          {/* BILL-B: the paywall had no way forward. Same upgrade path as every talent paywall. */}
+          <button
+            type="button"
+            data-tulala-analytics-upgrade
+            onClick={() => openUpgrade({ feature: "page-analytics", from: "profile-analytics-upsell" })}
+            className="mt-2.5 inline-flex cursor-pointer items-center rounded-md border-0 bg-admin-ink px-3 py-1.5 text-[12px] font-semibold text-admin-surface"
+          >
+            {copy.t("Upgrade plan")}
+          </button>
         </div>
       </div>
     );

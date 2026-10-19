@@ -4,6 +4,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { lateCancelRefundCents, type LateCancelRefund } from "@/lib/talent-policies/answers";
+import { notifyBookingSetCancelled, type BookingSetCancelNotifier } from "./cancel-notify";
 import { bookingOfferingId, loadBookingCancelPolicy } from "./booking-cancel-policy";
 
 export { bookingOfferingId };
@@ -94,6 +95,8 @@ export async function cancelBookingSet(
     /** Auth user who cancelled when known; null for guest/token/system. */
     actorUserId?: string | null;
     nowMs?: number;
+    /** Test seam for the single notify hook; defaults to the real one. */
+    notify?: BookingSetCancelNotifier;
   },
 ): Promise<CancelBookingResult> {
   if (input.operationKey.trim().length < 8) return { ok: false, reason: "invalid" };
@@ -115,7 +118,7 @@ export async function cancelBookingSet(
   // page on the isolated database, 2026-09-11.
   const { data: booking, error: loadErr } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, starts_at, order_id")
+    .select("id, tenant_id, starts_at, order_id, source_inquiry_id, currency_code")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (loadErr) {
@@ -127,6 +130,8 @@ export async function cancelBookingSet(
     tenant_id: string;
     starts_at?: string | null;
     order_id?: string | null;
+    source_inquiry_id?: string | null;
+    currency_code?: string | null;
   };
   if (b.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
 
@@ -169,6 +174,22 @@ export async function cancelBookingSet(
     await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "order", recordId: orderId });
   }
 
+  // The single notify hook (TUL-1268): once per accepted cancel, whatever the
+  // entry point. A replayed cancel (`already`) was notified the first time.
+  const notify = input.notify ?? notifyBookingSetCancelled;
+  const tell = (paid: number | null, refundable: number | null) => {
+    if (reply.already === true) return;
+    notify({
+      tenantId: input.tenantId,
+      bookingId: input.bookingId,
+      inquiryId: b.source_inquiry_id ?? null,
+      paidCents: paid,
+      refundableCents: refundable,
+      currency: b.currency_code ?? null,
+      by,
+    });
+  };
+
   let paidCents = 0;
   if (orderId) {
     const { data: txns, error: txnErr } = await admin
@@ -177,6 +198,8 @@ export async function cancelBookingSet(
       .eq("order_id", orderId);
     if (txnErr) {
       logServerError("scheduling.cancelBookingSet.paid", txnErr);
+      // The cancel is done; still tell everyone, with a generic refund line.
+      tell(null, null);
       return { ok: false, reason: "unavailable" };
     }
     for (const t of (txns ?? []) as Array<{ gross_amount_cents: number; status: string }>) {
@@ -196,6 +219,8 @@ export async function cancelBookingSet(
     startsAt: b.starts_at ?? null,
     nowMs: input.nowMs ?? Date.now(),
   });
+
+  tell(paidCents, refundableCents);
 
   const replyBy = reply.by == null ? by : normalizeCancelBy(String(reply.by));
 

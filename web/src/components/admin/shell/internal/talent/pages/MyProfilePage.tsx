@@ -265,7 +265,11 @@ export function MyProfilePage() {
       </p>
       {previewHref ? (
         <a
-          href={previewHref}
+          // Until the browser origin is known (hydration render), the href would be the
+          // production canonical host; on localhost/staging a click then leaves for prod.
+          // The link becomes clickable once the real origin has been read.
+          href={origin ? previewHref : undefined}
+          aria-disabled={origin ? undefined : true}
           target="_blank"
           rel="noreferrer"
           className="block rounded-2xl border border-admin-border-soft bg-white p-4 font-admin-body text-[13px] font-semibold text-[var(--tc-action)]"

@@ -288,6 +288,17 @@ function contentSecurityPolicy(): string {
   return directives.join("; ");
 }
 
+/** Token / private-link surfaces: never search results (A6, TUL-1273). */
+const PRIVATE_NOINDEX_PATHS = [
+  "/manage/:path*",
+  "/pay/:path*",
+  "/c/t/:path*",
+  "/ticket/:path*",
+  "/visit/:path*",
+  "/r/:path*",
+  "/link/:path*",
+];
+
 const securityHeaders: { key: string; value: string }[] = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -303,6 +314,11 @@ if (isProd) {
 }
 
 const nextConfig: NextConfig = {
+  /**
+   * `isomorphic-dompurify` drags jsdom into the server build (SVG sanitizer, TUL-1269). jsdom reads
+   * its own stylesheet files at runtime, so it must stay a real `require` instead of being bundled.
+   */
+  serverExternalPackages: ["isomorphic-dompurify", "jsdom"],
   /**
    * Skip the integrated `next build` type-check. Under Next 16.2.3 (Turbopack)
    * this phase intermittently HANGS on Vercel's build machines after a clean
@@ -508,6 +524,10 @@ const nextConfig: NextConfig = {
             },
           ]
         : []),
+      ...PRIVATE_NOINDEX_PATHS.map((source) => ({
+        source,
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      })),
       /** Promo landing pages (and their OG images) are never indexed: header-level, in addition to the page metadata. */
       { source: "/p/:slug*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
       { source: "/t/:code/p/:slug*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },

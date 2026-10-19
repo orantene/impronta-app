@@ -21,23 +21,18 @@ type Db = Pick<SupabaseClient, "from">;
 
 export type TalentPlanInput = { id: string; talent_plan_key: string | null };
 
-/** Batch resolve: profile id -> effective plan key (always has an entry per input). */
-export async function resolveEffectiveTalentPlans(
-  db: Db,
-  rows: readonly TalentPlanInput[],
-  now: Date = new Date(),
-): Promise<Map<string, string | null>> {
-  const out = new Map<string, string | null>();
-  for (const r of rows) out.set(r.id, r.talent_plan_key);
-  if (rows.length === 0) return out;
+type PastDueRow = { status: string; pastDueSince: string | null };
+
+/** past_due subscription rows by profile id (earliest failure wins). Null on a read error. */
+async function loadPastDueByProfile(db: Db, ids: readonly string[]): Promise<Map<string, PastDueRow> | null> {
   try {
     const { data, error } = await db
       .from("talent_subscriptions")
       .select("talent_profile_id, status, past_due_since")
-      .in("talent_profile_id", rows.map((r) => r.id))
+      .in("talent_profile_id", ids)
       .eq("status", "past_due");
-    if (error || !data) return out;
-    const byProfile = new Map<string, { status: string; pastDueSince: string | null }>();
+    if (error || !data) return null;
+    const byProfile = new Map<string, PastDueRow>();
     for (const s of data as {
       talent_profile_id: string;
       status: string;
@@ -49,14 +44,52 @@ export async function resolveEffectiveTalentPlans(
         byProfile.set(s.talent_profile_id, { status: s.status, pastDueSince: s.past_due_since });
       }
     }
-    for (const r of rows) {
-      const billing = byProfile.get(r.id);
-      if (billing) out.set(r.id, effectiveEntitlementPlan(r.talent_plan_key, billing, now));
-    }
+    return byProfile;
   } catch {
-    // fail open
+    return null;
+  }
+}
+
+/** Batch resolve: profile id -> effective plan key (always has an entry per input). */
+export async function resolveEffectiveTalentPlans(
+  db: Db,
+  rows: readonly TalentPlanInput[],
+  now: Date = new Date(),
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  for (const r of rows) out.set(r.id, r.talent_plan_key);
+  if (rows.length === 0) return out;
+  // Fail open: a read error keeps every stored plan.
+  const byProfile = await loadPastDueByProfile(db, rows.map((r) => r.id));
+  if (!byProfile) return out;
+  for (const r of rows) {
+    const billing = byProfile.get(r.id);
+    if (billing) out.set(r.id, effectiveEntitlementPlan(r.talent_plan_key, billing, now));
   }
   return out;
+}
+
+/** What the talent past-due banner needs (TUL-835), or null when not past_due. */
+export type TalentPastDueFact = { status: "past_due"; pastDueSince: string | null };
+
+/**
+ * The effective plan key PLUS the past-due fact, from the SAME single
+ * talent_subscriptions read. The talent shell loader uses this so the Today
+ * past-due banner costs no extra read or server action per page load.
+ */
+export async function resolveEffectiveTalentPlanKeyWithPastDue(
+  db: Db,
+  talentProfileId: string,
+  storedPlanKey: string | null,
+  now: Date = new Date(),
+): Promise<{ planKey: string | null; pastDue: TalentPastDueFact | null }> {
+  const byProfile = await loadPastDueByProfile(db, [talentProfileId]);
+  const billing = byProfile?.get(talentProfileId);
+  if (!billing) return { planKey: storedPlanKey, pastDue: null };
+  return {
+    planKey: effectiveEntitlementPlan(storedPlanKey, billing, now),
+    pastDue: { status: "past_due", pastDueSince: billing.pastDueSince },
+  };
 }
 
 /** Single-talent convenience over the batch resolver. */

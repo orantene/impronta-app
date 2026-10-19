@@ -2,6 +2,7 @@
 
 - Source: https://claude.ai/artifact/NwPUiuw85SrcFWHjogZ13j (tabs: Experience, Dev handoff, Builder map)
 - Captured: 2026-09-30, single-file export (`index.html`, about 264 KB). Images load from images.unsplash.com.
+- Review kit: `kit.js` (shared Tulala Theme Review kit, same bytes as Folio/Gridline). The HTML still ships its older inline Experience shell; `kit.js` is pinned for the Theme Review pack bar and tooling that expects it next to `index.html`.
 - Reference demo: Alba, TAL-93020 (Rosé palette). Her content must equal the mockup's.
 - Device switch: `#devseg button[data-d=390|360|1440]`. Journey steps: `#steps button[data-step=N]`.
 

@@ -90,6 +90,7 @@ export type ProvisioningDomainSweepReport = {
   stillVerified: number;
   results: Array<{
     id: string;
+    tenantId: string;
     hostname: string;
     from: CustomDomainLifecycleStatus;
     to: CustomDomainLifecycleStatus;
@@ -1220,6 +1221,7 @@ export async function sweepProvisioningCustomDomains(
 
       report.results.push({
         id: row.id,
+        tenantId: row.tenantId,
         hostname: row.hostname,
         from: row.status,
         to: transition.status,
@@ -1232,6 +1234,7 @@ export async function sweepProvisioningCustomDomains(
       report.stillVerified += 1;
       report.results.push({
         id: row.id,
+        tenantId: row.tenantId,
         hostname: row.hostname,
         from: row.status,
         to: row.status,

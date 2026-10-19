@@ -206,7 +206,7 @@ export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<
   const { data, error } = await scopeToGuestSellableOfferings(
     admin
       .from("talent_offerings")
-      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
+      .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
       .eq("tenant_id", tenantId),
   )
     .in("kind", ["package", "service", "product"])
@@ -215,7 +215,7 @@ export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<
     logServerError("messagesV5.itemsCatalog/offerings", error);
     return [];
   }
-  type Row = { id: string; title: string | null; amount_cents: number | null; kind: string; inventory_qty: number | null; capacity_pool_id: string | null; duration_minutes: number | null; talent_profile_id: string | null };
+  type Row = { id: string; title: string | null; amount_cents: number | null; currency: string | null; kind: string; inventory_qty: number | null; capacity_pool_id: string | null; duration_minutes: number | null; talent_profile_id: string | null };
   const offerRows = (data ?? []) as Row[];
   const ownerIds = [...new Set(offerRows.map((r) => r.talent_profile_id).filter((v): v is string => Boolean(v)))];
   const owners = new Map<string, string>();
@@ -237,6 +237,7 @@ export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<
       title: row.title?.trim() || "Item",
       sub: row.duration_minutes && row.duration_minutes > 0 ? `${row.duration_minutes} min` : null,
       amountCents: typeof row.amount_cents === "number" ? row.amount_cents : null,
+      currency: row.currency?.trim().toUpperCase() || null,
       availability: soldOut ? { kind: "busy", reason: "sold_out" } : { kind: "free" },
       offeringId: row.id,
       durationMinutes: row.duration_minutes,

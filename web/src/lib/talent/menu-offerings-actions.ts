@@ -14,7 +14,9 @@ import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
+import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
+import { loadWorkspaceMenuDefaults } from "@/lib/talent/workspace-menu-defaults";
 import {
   loadOfferingChildren,
   replaceOfferingChildren,
@@ -98,12 +100,14 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+    // B5: the language and the create defaults do not depend on the rows; start them now.
+    const defaultsPending = loadWorkspaceMenuDefaults(admin, tenantId);
 
     // Event offerings live on the same table (`owner_kind=workspace`) but
     // belong to Events, not Menu. Exclude any id that an `events.offering_id`
     // points at so a ticketed night never shows up as a sellable menu package.
     const ownerTalentIds = await fetchOwnerTalentIds(admin, tenantId);
-    const [{ data, error }, { data: eventRows, error: evErr }] = await Promise.all([
+    const [{ data, error }, nonMenu] = await Promise.all([
       offeringsTable(admin)
         .select("*")
         .eq("tenant_id", tenantId)
@@ -118,32 +122,24 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
         // in whatever order the last update left them.
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
-      admin
-        .from("events")
-        .select("offering_id")
-        .eq("tenant_id", tenantId)
-        .not("offering_id", "is", null),
+      loadNonMenuOfferingIds(admin, tenantId),
     ]);
     if (error) {
       logServerError("menu.offerings.load", error);
       return { ok: false, error: "Could not load the menu." };
     }
-    if (evErr) {
+    if (nonMenu.error) {
       // Fail closed in the editor: better to refuse the load than list a
       // ticketed event as a menu dish (public board fails open on purpose).
-      logServerError("menu.offerings.eventIds", evErr);
+      logServerError("menu.offerings.eventIds", nonMenu.error);
       return { ok: false, error: "Could not load the menu." };
     }
-    const eventOfferingIds = new Set(
-      (eventRows ?? [])
-        .map((r) => (r as { offering_id?: unknown }).offering_id)
-        .filter((id): id is string => typeof id === "string" && id.length > 0),
-    );
-    const rows = ((data ?? []) as TalentOfferingRow[]).filter((r) => !eventOfferingIds.has(r.id));
+    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], nonMenu.ids);
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
-    const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
-    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    // B5: one stage, not three: the children beside the defaults started above.
+    const [children, defaults] = await Promise.all([loadOfferingChildren(admin, rows.map((r) => r.id)), defaultsPending]);
+    const primaryLocale = defaults.primaryLocale;
     const items = rows.map((r) => {
       // The editor edits the PRIMARY-language text; the maps ride along.
       const item = rowToOffering(r, primaryLocale, [], [primaryLocale]);
@@ -152,19 +148,13 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       return item;
     });
     // TUL-77 (#36): defaults from business family + country, not one
-    // restaurant-shaped answer for every workspace.
-    const [{ data: agencyRow, error: agencyErr }, { data: identityRow, error: identityErr }] = await Promise.all([
-      admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle<{ settings: unknown }>(),
-      admin.from("agency_business_identity").select("address_country").eq("tenant_id", tenantId).maybeSingle<{ address_country: string | null }>(),
-    ]);
-    // A failed read falls back to the neutral defaults (Service, platform currency).
-    if (agencyErr) logServerError("menu.offerings.defaults.agency", agencyErr);
-    if (identityErr) logServerError("menu.offerings.defaults.identity", identityErr);
-    const family = resolveTenantBusinessType(agencyErr ? null : agencyRow?.settings).family;
+    // restaurant-shaped answer for every workspace. A failed read already fell
+    // back to the neutral defaults (Service, platform currency).
+    const family = resolveTenantBusinessType(defaults.agencySettings).family;
     return {
       ok: true,
       items,
-      defaultCurrency: defaultCurrencyForCountry(identityErr ? null : identityRow?.address_country, auth.defaultCurrency),
+      defaultCurrency: defaultCurrencyForCountry(defaults.addressCountry, auth.defaultCurrency),
       defaultCreateType: defaultCreateTypeForFamily(family),
     };
   } catch (err) {

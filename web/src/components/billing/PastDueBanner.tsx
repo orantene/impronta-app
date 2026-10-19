@@ -9,6 +9,7 @@
 import * as React from "react";
 import { createTranslator } from "@/i18n/messages";
 import { resolveDunningGrace } from "@/lib/billing/dunning-grace";
+import { pastDueGraceBody } from "@/lib/billing/past-due-grace-copy";
 import { openSubscriptionPortal } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { openTalentSubscriptionPortal } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
 
@@ -34,7 +35,7 @@ export function PastDueBanner({
   const expired = grace.phase === "expired";
   const body = expired
     ? t("admin.account.billing.pastDueExpiredBody")
-    : t("admin.account.billing.pastDueGraceBody").replace("{days}", String(grace.daysLeft));
+    : pastDueGraceBody(locale, grace.daysLeft);
 
   function open() {
     if (pending) return;
