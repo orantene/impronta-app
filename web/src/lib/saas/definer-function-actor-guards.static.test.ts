@@ -1,5 +1,5 @@
 /**
- * Pins the HELD migration 20261231415300_definer_function_actor_guards.sql
+ * Pins the APPLIED migration 20261231415300_definer_function_actor_guards.sql
  * (PR 0b-4: signed-in users cannot rewrite other people's data through
  * database functions). Static text pins; the behaviour was verified in a
  * rolled-back staging transaction (see the PR body).
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = join(
-  HERE, "..", "..", "..", "..", "supabase", "migrations", "_pending_pm",
+  HERE, "..", "..", "..", "..", "supabase", "migrations",
   "20261231415300_definer_function_actor_guards.sql",
 );
 const sql = readFileSync(FILE, "utf8");

@@ -1,6 +1,5 @@
 -- PR 0b-4: signed-in users cannot rewrite other people's data through database
--- functions. HELD FILE (supabase/migrations/_pending_pm/): NOT applied by the
--- author. PM moves it to supabase/migrations/ and runs db:push at merge.
+-- functions. APPLIED to staging and production 2026-10-18 (Oran: do all DB security fixes tonight).
 --
 -- Four SECURITY DEFINER functions were executable by `authenticated` and never
 -- read auth.uid() (confirmed on staging fxlank 2026-10-18 by ACL + body scan, and
