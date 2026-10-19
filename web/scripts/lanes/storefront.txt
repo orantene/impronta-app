@@ -51,6 +51,7 @@ src/lib/scheduling/bookings-off-wording.static.test.ts
 src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
 src/lib/seo/a6-price-hiding.test.ts
 src/lib/seo/a6-seo-pack.static.test.ts
+src/lib/seo/ai-bot-gate.test.ts
 src/lib/seo/directory-indexing.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts
 src/lib/seo/event-json-ld.test.ts

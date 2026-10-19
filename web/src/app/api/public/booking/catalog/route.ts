@@ -9,6 +9,7 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { aiReadVerdictForRequest } from "@/lib/seo/ai-bot-gate.server";
 import { contractsToMarkdown } from "@/lib/offerings/contract";
 import { loadAgentContracts, loadAgentServices, resolveAgentSite } from "@/lib/booking/agent/agent-site.server";
 import { AGENT_MCP_PATH, AGENT_SLOTS_PATH } from "@/lib/seo/talent-llms-txt";
@@ -32,12 +33,17 @@ export async function GET(request: Request) {
   try {
     const site = await resolveAgentSite(admin, request);
     if (!site) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    // TUL-1326 one toggle: an AI bot is refused (no data) while this talent's "IA puede
+    // leer mi sitio" switch is OFF or unreadable. Browsers and guests are unaffected.
+    if ((await aiReadVerdictForRequest(admin, request, { talentProfileId: site.talentProfileId })) === "refuse") {
+      return NextResponse.json({ error: "ai_access_off" }, { status: 403, headers: { Vary: "Accept, User-Agent" } });
+    }
     const reqUrl = new URL(request.url);
     // F2: the same contracts, as markdown, for assistants that read text.
     if (reqUrl.searchParams.get("format") === "md" || (request.headers.get("accept") ?? "").includes("text/markdown")) {
       const contracts = await loadAgentContracts(site);
       return new NextResponse(contractsToMarkdown(site.name, contracts), {
-        headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "private, max-age=60", Vary: "Accept" },
+        headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "private, max-age=60", Vary: "Accept, User-Agent" },
       });
     }
     const services = await loadAgentServices(site);
@@ -51,7 +57,7 @@ export async function GET(request: Request) {
         open_times: `${site.origin}${AGENT_SLOTS_PATH}?offering=<service_id>&days=7`,
         mcp: `${site.origin}${AGENT_MCP_PATH}${mcpQuery}`,
       },
-      { headers: { "Cache-Control": "private, max-age=60", Vary: "Accept" } },
+      { headers: { "Cache-Control": "private, max-age=60", Vary: "Accept, User-Agent" } },
     );
   } catch (err) {
     logServerError("api.public.booking.catalog", err);

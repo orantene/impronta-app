@@ -178,7 +178,7 @@ test("D-10a: listings include on_request with the price withheld; the bookable A
 
 test("the catalog route varies on Accept (JSON and markdown share a URL)", () => {
   const route = fs.readFileSync(path.join(WEB, "src/app/api/public/booking/catalog/route.ts"), "utf8");
-  assert.equal((route.match(/Vary: "Accept"/g) ?? []).length, 2);
+  assert.equal((route.match(/Vary: "Accept, User-Agent"/g) ?? []).length, 3);
 });
 
 // ─── TUL-1327: version, from-price, fail closed ──────────────────────────────
