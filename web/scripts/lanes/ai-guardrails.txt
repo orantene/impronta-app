@@ -54,6 +54,7 @@ src/lib/quality/no-conflict-markers.static.test.ts
 src/lib/rate-limit-kv-guest-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
 src/lib/security/redact-display.test.ts
+src/lib/seo/robots-ai-policy.test.ts
 src/lib/seo/robots-per-environment.test.ts
 src/lib/seo/staging-noindex.static.test.ts
 src/lib/seo/talent-site-not-found-robots.static.test.ts

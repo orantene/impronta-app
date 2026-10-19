@@ -27,7 +27,6 @@ import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { stripeJsLocale, type StripeJsLocale } from "@/lib/i18n/vendor-locale";
 import { interpolate } from "@/i18n/interpolate";
 
-const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 // One promise PER LOCALE. Stripe.js reads the BROWSER language when no `locale`
 // is passed, so a client paying inside a Spanish app on an English browser got
 // an English Payment Element. loadStripe memoises the script load internally,
@@ -37,10 +36,10 @@ const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 const stripePromises = new Map<string, Promise<Stripe | null>>();
 function getStripePromise(
   locale: StripeJsLocale | undefined,
-  /** Publishable key of the platform that owns this charge (MX sellers differ). */
+  /** SERVER-RESOLVED publishable key of the platform that owns this charge (MX sellers differ; forced test mode yields the _TEST key). Never read from the build-inlined env. */
   publishableKey: string | null | undefined,
 ): Promise<Stripe | null> | null {
-  const pk = publishableKey || PUBLISHABLE_KEY;
+  const pk = publishableKey;
   if (!pk) return null;
   const key = `${pk}|${locale ?? ""}`;
   let promise = stripePromises.get(key);

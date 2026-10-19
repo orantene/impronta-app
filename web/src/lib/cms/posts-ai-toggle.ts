@@ -12,7 +12,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { loadAiCrawlersAllowed } from "@/lib/cms/posts-public-site";
+import { readAiCrawlersFlag } from "@/lib/cms/posts-public-site";
 import type { PostScope } from "@/lib/cms/posts-writer";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -50,7 +50,8 @@ export async function writeAiCrawlersAllowed(
 /** Owner-read helper: reuses the public loader; default ON on any failure. */
 export async function loadOwnAiCrawlersAllowed(scope: PostScope): Promise<boolean> {
   try {
-    return await loadAiCrawlersAllowed(scope);
+    // The owner's screen shows the saved value; unreadable shows the default (ON).
+    return (await readAiCrawlersFlag(scope)) ?? true;
   } catch (error) {
     logServerError("cms/posts-ai-toggle/own-read", error);
     return true;

@@ -33,6 +33,7 @@ import {
   type TrialPhase,
 } from "@/lib/plan-trials";
 import { loadTrialOffers } from "@/lib/plan-trials/offers";
+import { displayTrialDays } from "@/lib/billing/trial-eligibility.server";
 import {
   isWorkspacePlanTier,
   PLAN_TIER_LABEL,
@@ -194,6 +195,11 @@ export async function loadWorkspacePlanSummary(params: {
         localized === fallbackKey ? resolveTier(summary.plan).renew : localized;
     }
 
+    // TUL-1280: never promise a trial this workspace or this person already had (DB only).
+    const offerTrialDays = offer
+      ? await displayTrialDays({ kind: "workspace", tenantId, buyerUserId: session.user.id }, offer)
+      : 0;
+
     return {
       ok: true,
       summary: {
@@ -245,7 +251,7 @@ export async function loadWorkspacePlanSummary(params: {
                 PLAN_TIER_LABEL[offer.planKey as WorkspacePlanTier] ??
                 offer.planKey,
               trialDays: offer.trialDays,
-              isTrialEnabled: offer.isEnabled,
+              isTrialEnabled: offerTrialDays > 0,
               ctaHeadline: offer.ctaHeadline,
               ctaSubtext: offer.ctaSubtext,
             }

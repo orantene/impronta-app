@@ -24,8 +24,15 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     nonProduction: isNonProductionDeploy(process.env.VERCEL_ENV),
   });
   if (hostContext.kind !== "agency" && hostContext.kind !== "talent_site") return base;
-  const site = await resolveAnyPostSite().catch(() => null);
+  // TUL-1326: fail CLOSED. If the site or its flag cannot be read, the AI bots
+  // are refused (training is refused on every host regardless, in `base`).
+  let site: Awaited<ReturnType<typeof resolveAnyPostSite>>;
+  try {
+    site = await resolveAnyPostSite();
+  } catch {
+    return applyAiCrawlerToggle(base, false);
+  }
   if (!site) return base;
-  const allowed = await loadAiCrawlersAllowed(site.scope).catch(() => true);
+  const allowed = await loadAiCrawlersAllowed(site.scope).catch(() => false);
   return applyAiCrawlerToggle(base, allowed);
 }
