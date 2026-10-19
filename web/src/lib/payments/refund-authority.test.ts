@@ -9,6 +9,7 @@ import {
   planOwnBookingRefund,
   refundAuthorityMessage,
   talentMayRefundOwnBooking,
+  talentRequestedCents,
 } from "./refund-authority";
 
 /**
@@ -192,4 +193,41 @@ test("own-booking plan: never more than asked, charges with nothing left are ski
   assert.deepEqual(plan, [{ transactionId: "t1", amountCents: 500 }]);
   const total = plan.reduce((s, l) => s + l.amountCents, 0);
   assert.equal(total, 500);
+});
+
+// ─── review condition 1: the Money row sends gross paid, not the remainder ──
+
+test("talent: a row already partly refunded refunds exactly the remainder (paid 5000, 2000 refunded)", async () => {
+  // The Money row carries paidCents (5000). 2000 is already back with the client.
+  const charges = [{ transactionId: "t1", remainingCents: 3000 }];
+  const refundable = charges.reduce((s, c) => s + c.remainingCents, 0);
+  const requested = talentRequestedCents(5000, refundable);
+  assert.equal(requested, 3000);
+  const out = await authorizeRefund({
+    capable: true,
+    requestedCents: requested,
+    refundableCents: refundable,
+    allowFullRemainder: false,
+    enforceLimit: async () => ({ ok: true }),
+  });
+  assert.deepEqual(out, { ok: true, amountCents: 3000 });
+  if (!out.ok) return;
+  assert.deepEqual(planOwnBookingRefund(out.amountCents, charges), [{ transactionId: "t1", amountCents: 3000 }]);
+});
+
+test("talent: an ask inside the remainder is untouched; bad asks pass through for the guard to refuse", () => {
+  assert.equal(talentRequestedCents(1200, 3000), 1200);
+  assert.equal(talentRequestedCents(3000, 3000), 3000);
+  assert.equal(talentRequestedCents(0, 3000), 0);
+  assert.equal(talentRequestedCents(-5, 3000), -5);
+  assert.equal(talentRequestedCents(10.5, 3000), 10.5);
+  // Nothing left: the ask is kept so the guard answers nothing_left, not invalid_amount.
+  assert.equal(talentRequestedCents(5000, 0), 5000);
+});
+
+// ─── review condition 3: over_limit copy ────────────────────────────────────
+
+test("over_limit says a manager with a higher limit has to make the refund (en + es)", () => {
+  assert.equal(refundAuthorityMessage("over_limit", "en"), "A manager with a higher limit has to make this refund.");
+  assert.equal(refundAuthorityMessage("over_limit", "es"), "Un gerente con un límite mayor tiene que hacer este reembolso.");
 });

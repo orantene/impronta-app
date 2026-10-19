@@ -73,8 +73,8 @@ const COPY: Readonly<Record<RefundAuthorityCode, { en: string; es: string }>> = 
     es: "Eso es más de lo que queda por reembolsar en este pago.",
   },
   over_limit: {
-    en: "This refund is over your role's limit. A manager has to approve it; the request is in their inbox.",
-    es: "Este reembolso supera el límite de tu rol. Un responsable tiene que aprobarlo; la solicitud está en su bandeja.",
+    en: "A manager with a higher limit has to make this refund.",
+    es: "Un gerente con un límite mayor tiene que hacer este reembolso.",
   },
   unavailable: {
     en: "The refund could not be checked right now. Nothing was refunded. Try again.",
@@ -158,6 +158,19 @@ export function talentMayRefundOwnBooking(input: {
 }): boolean {
   if (!isDeadBookingStatus(input.status)) return false;
   return (input.sourceType ?? "").trim().toLowerCase() !== "agency";
+}
+
+/**
+ * What the talent's refund asks for. The Money row carries the gross paid
+ * after cancelling, and a charge may already be partly refunded, so a valid
+ * positive ask is clamped down to what is left. Anything else (zero,
+ * negative, fractional, or nothing left at all) is passed through unchanged
+ * so `authorizeRefund` refuses it with the right code.
+ */
+export function talentRequestedCents(askedCents: number, refundableCents: number): number {
+  if (!Number.isInteger(askedCents) || askedCents <= 0) return askedCents;
+  if (!Number.isFinite(refundableCents) || refundableCents <= 0) return askedCents;
+  return Math.min(askedCents, Math.floor(refundableCents));
 }
 
 /**

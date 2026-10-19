@@ -28,6 +28,7 @@ import {
   planOwnBookingRefund,
   refundAuthorityMessage,
   talentMayRefundOwnBooking,
+  talentRequestedCents,
   type RefundAuthorityCode,
 } from "@/lib/payments/refund-authority";
 import { enforceRoleLimit } from "@/lib/approvals/enforce";
@@ -136,7 +137,9 @@ export async function refundOwnBookingPayment(input: {
       status: bookingRow.status,
       sourceType: bookingRow.source_type_snapshot,
     }),
-    requestedCents: input.amountCents,
+    // The row sends gross paid; clamp to what is left (a partly refunded
+    // charge must refund exactly its remainder, not be refused).
+    requestedCents: talentRequestedCents(input.amountCents, refundableCents),
     refundableCents,
     allowFullRemainder: false,
     enforceLimit: async (refundCents) =>
