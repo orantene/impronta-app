@@ -10,6 +10,7 @@ import type {
   PricedAddon,
 } from "@/lib/orders/purchase-pricing";
 import type { PurchaseRefusalReason } from "@/lib/orders/purchase";
+import { isSellableOnChannel, type PurchaseChannel } from "@/lib/offerings/guest-sellable";
 import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 
@@ -37,6 +38,9 @@ export type Catalog =
           /** `talent_offerings.requires_identity` — the product asking for a name. */
           requiresIdentity: boolean;
           identityReason: string | null;
+          /** `talent_offerings.visibility` / `moderation_state`, for the guest-sellable gate. */
+          visibility: string | null;
+          moderationState: string | null;
         }
       >;
       offerings: Map<string, PricedOffering>;
@@ -51,7 +55,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     .select(
       "id, tenant_id, title, status, price_type, amount_cents, currency, talent_profile_id, " +
         "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours, " +
-        "kind, duration_minutes, requires_identity, identity_reason",
+        "kind, duration_minutes, requires_identity, identity_reason, visibility, moderation_state",
     )
     .in("id", offeringIds);
 
@@ -96,6 +100,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     cancellation_hours: number | null;
     requires_identity: boolean | null;
     identity_reason: string | null;
+    visibility: string | null;
+    moderation_state: string | null;
   };
 
   const policies = new Map<string, OfferingPolicy>();
@@ -108,6 +114,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       talentProfileId: string | null;
       requiresIdentity: boolean;
       identityReason: string | null;
+      visibility: string | null;
+      moderationState: string | null;
     }
   >();
 
@@ -166,6 +174,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       talentProfileId: row.talent_profile_id,
       requiresIdentity: row.requires_identity === true,
       identityReason: row.identity_reason ?? null,
+      visibility: row.visibility ?? null,
+      moderationState: row.moderation_state ?? null,
     });
   }
 
@@ -294,4 +304,27 @@ export async function loadOfferingCapacityPoolId(
     ok: true,
     poolId: (data as { capacity_pool_id?: string | null } | null)?.capacity_pool_id ?? null,
   };
+}
+
+/**
+ * D-10 / D-10a at checkout. The policy gate only reads `status`, so an
+ * `agency_only` or `pending` service used to look buyable by id. A guest charge
+ * needs published + approved + public (`on_request` is not `public`, so it can
+ * never take an instant charge). FAILS CLOSED: a row with no visibility or
+ * moderation value is refused. The staff desk (`channel: "staff"`) is exempt.
+ */
+export function refuseUnsellableOfferings(
+  catalog: Extract<Catalog, { ok: true }>,
+  offeringIds: readonly string[],
+  channel: PurchaseChannel | undefined,
+): { ok: true } | { ok: false; reason: PurchaseRefusalReason; offeringId: string; error: string } {
+  for (const offeringId of offeringIds) {
+    const raw = catalog.rawOfferings.get(offeringId);
+    const status = catalog.policies.get(offeringId)?.status;
+    const row = raw ? { status, moderation_state: raw.moderationState, visibility: raw.visibility } : null;
+    if (!isSellableOnChannel(row, channel)) {
+      return { ok: false, reason: "offering_not_published", offeringId, error: "That item is no longer available." };
+    }
+  }
+  return { ok: true };
 }

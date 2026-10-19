@@ -81,6 +81,7 @@ src/lib/money/money-spine-view.test.ts
 src/lib/money/money-spine.static.test.ts
 src/lib/money/september-ledger-fixture.test.ts
 src/lib/money/today-money-tiles.test.ts
+src/lib/offerings/services-safety.static.test.ts
 src/lib/ops/balance-reconcile.test.ts
 src/lib/ops/cron-heartbeat.test.ts
 src/lib/orders/age-gate.test.ts
