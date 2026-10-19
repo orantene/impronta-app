@@ -16,6 +16,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-page-offerings";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { pinnedServiceId } from "@/lib/client-account/book-again";
 import { BookPageClient } from "./BookPageClient";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -36,7 +37,12 @@ function slugFromPathPrefix(prefix: string): string {
   return m?.[1] ?? "";
 }
 
-export default async function BookPage() {
+export default async function BookPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ service?: string | string[] }>;
+}) {
+  const { service } = await searchParams;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
 
@@ -102,6 +108,7 @@ export default async function BookPage() {
           tenantId={tenantId}
           agencyName={agencyName}
           offerings={offerings}
+          initialServiceId={pinnedServiceId(offerings, service)}
           signedIn={guestChrome.signedIn}
           client={guestChrome.client}
           captcha={guestChrome.captcha}

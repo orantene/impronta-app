@@ -24,7 +24,7 @@
 import Link from "next/link";
 
 import { TulalaLogo } from "@/components/brand/tulala-logo";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { authLegalHref } from "./auth-legal-href";
 
 export type AuthShellBrand = {
@@ -475,10 +475,10 @@ export function AuthFooter({
                 smaller problem than misrepresenting whose terms apply.
                 Contact is the one that IS host-aware — see the ruling comment
                 in `layout.tsx`. */}
-            <FooterLink href={authLegalHref(getSiteUrl(), "terms", locale)}>
+            <FooterLink href={authLegalHref(resolveMarketingOrigin(), "terms", locale)}>
               {legal.terms}
             </FooterLink>
-            <FooterLink href={authLegalHref(getSiteUrl(), "privacy", locale)}>
+            <FooterLink href={authLegalHref(resolveMarketingOrigin(), "privacy", locale)}>
               {legal.privacy}
             </FooterLink>
             <FooterLink href={contactHref}>{legal.contact}</FooterLink>

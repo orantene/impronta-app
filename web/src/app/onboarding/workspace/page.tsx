@@ -1,5 +1,5 @@
 import { loadAccessProfile } from "@/lib/access-profile";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { provisionWorkspaceFromLead } from "@/lib/saas/workspace-signup.server";
 import { buildWorkspaceRegisterPath } from "@/lib/saas/workspace-signup";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
@@ -62,7 +62,7 @@ function WorkspaceStateCard({
             </Button>
           ) : (
             <Button asChild className="w-full" variant="outline">
-              <a href={`${getSiteUrl()}/get-started`}>Back to Get Started</a>
+              <a href={`${resolveMarketingOrigin()}/get-started`}>Back to Get Started</a>
             </Button>
           )}
         </div>
@@ -84,7 +84,7 @@ export default async function OnboardingWorkspacePage({
       <WorkspaceStateCard
         title="Start from Get Started"
         message="We couldn't find the workspace signup request. Start again from Get Started and we'll generate the right claim link for your free workspace."
-        primaryHref={`${getSiteUrl()}/get-started`}
+        primaryHref={`${resolveMarketingOrigin()}/get-started`}
         primaryLabel="Start again"
       />
     );
@@ -95,7 +95,7 @@ export default async function OnboardingWorkspacePage({
       <WorkspaceStateCard
         title="Setup required"
         message={SUPABASE_ENV_HELP}
-        primaryHref={`${getSiteUrl()}/get-started`}
+        primaryHref={`${resolveMarketingOrigin()}/get-started`}
         primaryLabel="Back home"
       />
     );
@@ -107,7 +107,7 @@ export default async function OnboardingWorkspacePage({
       <WorkspaceStateCard
         title="Setup required"
         message={SUPABASE_ENV_HELP}
-        primaryHref={`${getSiteUrl()}/get-started`}
+        primaryHref={`${resolveMarketingOrigin()}/get-started`}
         primaryLabel="Back home"
       />
     );
@@ -175,7 +175,7 @@ export default async function OnboardingWorkspacePage({
       primaryHref={
         retryable
           ? `/onboarding/workspace?lead=${encodeURIComponent(leadId)}`
-          : `${getSiteUrl()}/get-started`
+          : `${resolveMarketingOrigin()}/get-started`
       }
       primaryLabel={retryable ? "Try again" : "Start again"}
       supportMailto={

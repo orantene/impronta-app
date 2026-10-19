@@ -136,6 +136,12 @@ export type EmailConfig = {
   subject: (event: NotificationEvent, recipient: ResolvedRecipient) => string;
   render: (args: EmailTemplateArgs) => ReactElement;
   /**
+   * Files to attach to THIS recipient's email (G1: the booking's one .ics).
+   * Pure over the hydrated event. An empty or absent result attaches nothing,
+   * and a throw is logged and the email still goes out without the file.
+   */
+  attachments?: (args: EmailTemplateArgs) => Array<{ filename: string; content: Uint8Array | Buffer; contentType?: string }>;
+  /**
    * High-frequency entries (messages) opt into the digest path (spec §7).
    * When true, the dispatcher writes the dispatch_log row as `queued` with
    * `payload.digest = true` and SKIPS the immediate send — the digest cron

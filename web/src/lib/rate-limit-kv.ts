@@ -255,6 +255,8 @@ interface KvLimiter {
   checkSupportMessageSend(key: string): Promise<KvRateLimitResult>;
   /** Public booking slots: 60 / 60 s / IP. */
   checkBookingSlots(key: string): Promise<KvRateLimitResult>;
+  /** F3: public business catalog API: 30 / 60 s / IP, its own bucket (slot lookups cannot starve it, nor it them). */
+  checkPublicCatalog(key: string): Promise<KvRateLimitResult>;
 }
 
 /** No-op fallback used when Upstash env vars are absent. */
@@ -302,6 +304,9 @@ const noopLimiter: KvLimiter = {
     return { ok: true };
   },
   async checkBookingSlots() {
+    return { ok: true };
+  },
+  async checkPublicCatalog() {
     return { ok: true };
   },
 };
@@ -499,6 +504,13 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    const publicCatalogLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(30, "1 m"),
+      prefix: "rl:public_catalog",
+      analytics: false,
+    });
+
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
         return runLimiter("checkInquiryCreate", inquiryCreateLimiter, key);
@@ -558,6 +570,10 @@ async function getLimiter(): Promise<KvLimiter> {
 
       async checkBookingSlots(key: string): Promise<KvRateLimitResult> {
         return runLimiter("checkBookingSlots", bookingSlotsLimiter, key);
+      },
+
+      async checkPublicCatalog(key: string): Promise<KvRateLimitResult> {
+        return runLimiter("checkPublicCatalog", publicCatalogLimiter, key);
       },
     };
   } catch {
@@ -700,6 +716,13 @@ export async function checkBookingSlots(ip: string): Promise<KvRateLimitResult> 
   const limiter = await getLimiter();
   const key = (ip.trim() || "x").toLowerCase();
   return limiter.checkBookingSlots(`booking_slots:${key}`);
+}
+
+/** F3: public business catalog API: 30 requests per minute per trusted client IP, separate from slots. */
+export async function checkPublicCatalog(ip: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  const key = (ip.trim() || "x").toLowerCase();
+  return limiter.checkPublicCatalog(`public_catalog:${key}`);
 }
 
 /**

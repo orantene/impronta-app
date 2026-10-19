@@ -1,3 +1,4 @@
+import { shareImageUrl } from "@/lib/seo/share-image";
 import type { Metadata } from "next";
 
 import { createTranslator } from "@/i18n/messages";
@@ -64,13 +65,19 @@ export async function buildPublicPageMetadata(
   );
   // Crawlers need an absolute image URL; relative paths resolve on the tenant host.
   const shareImageTrim = shareImageRaw?.trim() ?? "";
-  const shareImage = !shareImageTrim
+  const shareImageAbsolute = !shareImageTrim
     ? undefined
     : /^https?:\/\//i.test(shareImageTrim)
       ? shareImageTrim
       : ctx.hostname
         ? `https://${ctx.hostname}${shareImageTrim.startsWith("/") ? "" : "/"}${shareImageTrim}`
         : undefined;
+  // F5: a business photo is served at 1200 px through the optimizer so the
+  // WhatsApp preview (which drops images over ~300 KB) shows.
+  const shareImage =
+    shareImageAbsolute && ctx.hostname
+      ? shareImageUrl(shareImageAbsolute, `https://${ctx.hostname}`)
+      : shareImageAbsolute;
 
   return {
     // `title` already carries the tenant brand suffix (`… · {brand}` above), so
