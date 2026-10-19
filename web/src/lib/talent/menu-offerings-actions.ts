@@ -30,6 +30,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { normalizeWorkspaceLocale } from "@/lib/talent/workspace-primary-locale";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
@@ -50,6 +51,20 @@ async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFai
 
 function offeringsTable(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>) {
   return admin.from("talent_offerings");
+}
+
+/** The workspace's primary language (business identity default_locale); "en" when unset or unreadable. */
+async function workspacePrimaryLocale(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .from("agency_business_identity")
+    .select("default_locale")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ default_locale: string | null }>();
+  if (error) logServerError("menu.offerings.primaryLocale", error);
+  return normalizeWorkspaceLocale(error ? null : data?.default_locale);
 }
 
 /** True when this offering is the catalog row behind a ticketed event. */
@@ -128,8 +143,10 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const items = rows.map((r) => {
-      const item = rowToOffering(r, "en", []);
+      // The editor edits the PRIMARY-language text; the maps ride along.
+      const item = rowToOffering(r, primaryLocale, [], [primaryLocale]);
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
       return item;
@@ -177,13 +194,14 @@ export async function upsertWorkspaceMenuItem(
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
     }
 
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const patch = {
       ...offeringToRowPatch({
         ...offering,
         ownerKind: "workspace",
         talentProfileId: null,
         tenantId,
-      }, "en"), // workspace menus have no per-owner primary yet: English, as before
+      }, primaryLocale), // the workspace's own language: a Spanish title is stored as `es`, not `en`
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,
@@ -214,7 +232,7 @@ export async function upsertWorkspaceMenuItem(
     }
     if (!saved) return { ok: false, error: "Failed to save." };
     revalidatePath("/");
-    return { ok: true, item: rowToOffering(saved, "en", offering.imageUrls ?? []) };
+    return { ok: true, item: rowToOffering(saved, primaryLocale, offering.imageUrls ?? [], [primaryLocale]) };
   } catch (err) {
     logServerError("menu.offerings.upsert", err);
     return { ok: false, error: "Unexpected error." };
@@ -299,7 +317,7 @@ export async function setWorkspaceMenuItemOptions(
     if (await isEventOfferingId(admin, tenantId, offeringId)) {
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
     }
-    const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings");
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings", await workspacePrimaryLocale(admin, tenantId));
     if (!saved.ok) return saved;
     revalidatePath("/");
     return saved;

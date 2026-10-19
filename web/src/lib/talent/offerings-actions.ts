@@ -558,13 +558,13 @@ export async function setOfferingOptions(
   offeringId: string,
   input: {
     variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
   },
 ): Promise<
   | {
       ok: true;
       variants: { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
     }
   | { ok: false; error: string }
 > {

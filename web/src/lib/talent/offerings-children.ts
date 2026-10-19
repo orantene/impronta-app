@@ -122,7 +122,7 @@ export async function loadOfferingChildren(
 
 export type OfferingChildrenInput = {
   variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-  addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+  addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
 };
 
 export type OfferingChildrenSaved =
@@ -170,9 +170,15 @@ export async function replaceOfferingChildren(
         typeof a.amountCents === "number" && Number.isFinite(a.amountCents) && a.amountCents >= 0
           ? Math.round(a.amountCents)
           : null,
+      // Minutes the extra adds to the slot. Dropping it here lost the time on
+      // every Options save and every Duplicate (Services Phase 0 item 5e).
+      duration_minutes:
+        typeof a.durationMinutes === "number" && Number.isFinite(a.durationMinutes) && a.durationMinutes > 0
+          ? Math.round(a.durationMinutes)
+          : null,
     }))
     .filter(
-      (a): a is { label_i18n: Record<string, string>; label: string; amount_cents: number } =>
+      (a): a is { label_i18n: Record<string, string>; label: string; amount_cents: number; duration_minutes: number | null } =>
         Boolean(a.label) && a.amount_cents != null,
     )
     .slice(0, MAX_OPTIONS_PER_OFFERING);
@@ -184,18 +190,19 @@ export async function replaceOfferingChildren(
     return { ok: false, error: "Failed to save options." };
   }
   let savedVariants: { id: string; label: string; amount_cents: number | null; label_i18n?: unknown }[] = [];
-  let savedAddOns: { id: string; label: string; amount_cents: number; label_i18n?: unknown }[] = [];
+  let savedAddOns: { id: string; label: string; amount_cents: number; duration_minutes?: number | null; label_i18n?: unknown }[] = [];
   // Tolerates a database without the label_i18n column (pre-migration).
   const insertRows = async (
     table: "talent_offering_variants" | "talent_offering_addons",
     rows: Record<string, unknown>[],
   ) => {
-    const first = await db.from(table).insert(rows).select("id, label, amount_cents, label_i18n");
+    const extra = table === "talent_offering_addons" ? ", duration_minutes" : "";
+    const first = await db.from(table).insert(rows).select(`id, label, amount_cents${extra}, label_i18n`);
     if (!first.error || !isPostgrestMissingColumnError(first.error)) return first;
     return db
       .from(table)
       .insert(rows.map(({ label_i18n: _drop, ...rest }) => rest))
-      .select("id, label, amount_cents");
+      .select(`id, label, amount_cents${extra}`);
   };
   if (variants.length > 0) {
     const { data, error } = await insertRows(
@@ -211,7 +218,7 @@ export async function replaceOfferingChildren(
   if (addOns.length > 0) {
     const { data, error } = await insertRows(
       "talent_offering_addons",
-      addOns.map((a, i) => ({ offering_id: offeringId, label: a.label, label_i18n: a.label_i18n, amount_cents: a.amount_cents, sort_order: i })),
+      addOns.map((a, i) => ({ offering_id: offeringId, label: a.label, label_i18n: a.label_i18n, amount_cents: a.amount_cents, duration_minutes: a.duration_minutes, sort_order: i })),
     );
     if (error) {
       logServerError(`${logScope}.addonsSet`, error);
@@ -222,7 +229,13 @@ export async function replaceOfferingChildren(
   return {
     ok: true,
     variants: savedVariants.map((v) => ({ id: v.id, label: v.label, amountCents: v.amount_cents, ...mapOfSaved(v.label_i18n) })),
-    addOns: savedAddOns.map((a) => ({ id: a.id, label: a.label, amountCents: a.amount_cents, ...mapOfSaved(a.label_i18n) })),
+    addOns: savedAddOns.map((a) => ({
+      id: a.id,
+      label: a.label,
+      amountCents: a.amount_cents,
+      durationMinutes: typeof a.duration_minutes === "number" && a.duration_minutes > 0 ? a.duration_minutes : null,
+      ...mapOfSaved(a.label_i18n),
+    })),
   };
 }
 
