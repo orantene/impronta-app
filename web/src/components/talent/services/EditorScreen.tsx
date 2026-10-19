@@ -30,6 +30,9 @@ import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
 import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
+import { PublishReadinessPanel } from "./PublishReadinessPanel";
+import { InstantPlanNotice } from "./InstantPlanNotice";
+import { publishReadiness } from "@/lib/talent/publish-readiness";
 import { localizeOfferingSaveError } from "./offering-editor-save";
 import { canLeaveEditor } from "./offering-editor-leave";
 import { defaultWhere, whereChoicesForPlace } from "@/lib/onboarding/service-where";
@@ -132,18 +135,9 @@ export function EditorScreen({
     setItem({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
 
   const quote = item.priceDisplay === "quote";
-  const needsLength = kind !== "product" && !quote;
-  const ready =
-    Boolean(item.title.trim()) && (quote || item.amountCents != null) && (!needsLength || item.durationMinutes != null);
-  const readyWhy = quote
-    ? copy.t("Priced by quote, so it needs only a name.")
-    : kind === "product"
-      ? ready
-        ? copy.t("Sold at a fixed price, so it needs a price. It has one.")
-        : copy.t("Sold at a fixed price, so it needs a price.")
-      : ready
-        ? copy.t("Sold at a fixed price, so it needs a price and a length. It has both.")
-        : copy.t("Sold at a fixed price, so it needs a price and a length.");
+  // TUL-1270 #11: the same rule the server applies on publish (structured list of what is missing).
+  const readiness = publishReadiness(item, defaults?.bookingPosture);
+  const ready = readiness.ready;
 
   const depositPct = item.depositPct ?? defaults?.depositPct ?? null;
   const depositOwn = item.depositPct != null;
@@ -242,7 +236,7 @@ export function EditorScreen({
         <div className="flex flex-wrap gap-2.5">
           <button type="button" className={btn} onClick={() => setPreview(true)}>{copy.t("Preview")}</button>
           {isLive ? (
-            <button type="button" className={primary} disabled={Boolean(busy)} onClick={() => void save(false)}>
+            <button type="button" className={primary} disabled={Boolean(busy) || !ready} onClick={() => void save(false)}>
               {busy ? copy.t("Saving…") : copy.t("Save changes")}
             </button>
           ) : (
@@ -406,6 +400,7 @@ export function EditorScreen({
               </p>
             ) : null}
             {!quote && <SiteModeOverrideNotice own={item.bookingMode} site={defaultMode} locale={locale} />}
+            <InstantPlanNotice talentId={talentId} effectiveMode={effectiveMode} quote={quote} />
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
                 {copy.t(
@@ -562,15 +557,7 @@ export function EditorScreen({
             </span>
           </div>
           <ClientCard item={{ ...item, bookingMode: effectiveMode }} locale={locale} rates={rates} depositCents={depositCents} cancelHours={cancelHours} />
-          <div className="rounded-2xl border border-admin-border-soft bg-white px-4 py-4">
-            <div className="flex items-center justify-between">
-              <p className={LABEL}>{copy.t("Ready to publish?")}</p>
-              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${ready ? "tc-status tc-status-ok" : "tc-status tc-status-warn"}`}>
-                {ready ? copy.t("Yes") : copy.t("Not yet")}
-              </span>
-            </div>
-            <p className="mt-2 text-[13.5px] leading-snug text-admin-ink">{readyWhy}</p>
-          </div>
+          <PublishReadinessPanel readiness={readiness} isLive={isLive} />
         </aside>
       </div>
 

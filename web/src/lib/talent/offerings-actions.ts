@@ -41,6 +41,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { setOfferingStock, stockChanged } from "@/lib/capacity";
+import { offeringSaveGate } from "@/lib/talent/offering-save-gate.server"; // TUL-1270 #11/#12
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
@@ -187,6 +188,8 @@ export async function upsertTalentOffering(
 
     const errors = validateOffering(offering, await loadTalentDefaultPosture(talentProfileId));
     if (errors.length > 0) return { ok: false, error: errors[0] };
+    const gate = await offeringSaveGate(admin, talentProfileId, offering);
+    if (!gate.ok) return gate;
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it
     // stops a third currency reaching checkout, where it was never priced.
