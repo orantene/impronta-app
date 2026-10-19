@@ -48,6 +48,7 @@ import { withStagingGate } from "@/lib/saas/staging-gate";
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
+import { allowDevSurfacesFor } from "@/lib/saas/dev-surfaces";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -70,18 +71,12 @@ async function proxyInner(request: NextRequest) {
   // up front. The proxy is the only writer of these; resetting them here means even the
   // short-circuit's `NextResponse.next()` forwards a request the client could not have forged.
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
-  // Compile-time flag (next.config) covers `next dev` where Edge inlines
-  // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
-  // `VERCEL_ENV=preview npx next start` after a production compile. Host
-  // is never a gate. Route handlers still 403 outside dev/preview.
-  const allowDevSurfaces =
-    process.env.TULALA_ALLOW_DEV_SURFACES === "1" ||
-    process.env.NODE_ENV === "development" ||
-    process.env.VERCEL_ENV === "preview" ||
-    // Isolated harness hosts survive Edge HMR of this file, which re-reads an
-    // empty process.env and would otherwise 404 /api/dev/signin (D-022). The
-    // route handler still 403s outside development / Vercel preview.
-    (request.headers.get("host") ?? "").split(":")[0].toLowerCase().endsWith(".local");
+  // Dev surfaces: the rule is in dev-surfaces.ts (Host only counts off Vercel, TUL-1269). Every env var is
+  // read by its LITERAL name here so Edge can inline it (next.config injects TULALA_ALLOW_DEV_SURFACES).
+  const allowDevSurfaces = allowDevSurfacesFor(
+    { TULALA_ALLOW_DEV_SURFACES: process.env.TULALA_ALLOW_DEV_SURFACES, NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, VERCEL: process.env.VERCEL },
+    request.headers.get("host"),
+  );
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // Stripe webhook + cron + analytics-events must reach their route handlers

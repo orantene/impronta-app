@@ -46,6 +46,7 @@ import { notifyBookingReserved } from "@/lib/notifications/producers/booking-res
 import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
+import { writeGuardedTransition } from "@/lib/bookings/transaction-transition-write";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,7 +107,8 @@ export type BookingTransaction = {
 
 export type TransactionResult<T = void> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  /** `already_transitioned`: a concurrent writer moved the row first; run no side effects. */
+  | { ok: false; error: string; code?: "already_transitioned" };
 
 export type PayoutReceiverCandidate = {
   payoutAccountId: string;
@@ -1556,23 +1558,26 @@ async function transitionStatus(
       };
     }
 
-    const { data, error } = await sb
-      .from("booking_transactions")
-      .update({
-        status: toStatus,
-        updated_at: new Date().toISOString(),
-        ...extraFields,
-      })
-      .eq("id", transactionId)
-      .select("*")
-      .single();
-
-    if (error) {
-      logServerError(`transactions.transition.${toStatus}`, error);
+    // Guarded on the from-set: two racing settles both pass the read above, and
+    // the trigger allows paid -> paid, so only the database can pick one winner.
+    const written = await writeGuardedTransition(sb, {
+      transactionId,
+      fromStatuses: fromArr,
+      patch: { status: toStatus, updated_at: new Date().toISOString(), ...extraFields },
+    });
+    if (!written.ok) {
+      if (written.alreadyTransitioned) {
+        return {
+          ok: false,
+          error: `Already transitioned: '${transactionId}' left ${fromArr.join("/")} before this write.`,
+          code: "already_transitioned",
+        };
+      }
+      logServerError(`transactions.transition.${toStatus}`, written.error);
       return { ok: false, error: `Failed to update transaction status.` };
     }
 
-    const row = data as TransactionRow;
+    const row = written.row as unknown as TransactionRow;
     const transitionEvent = describeTransactionTransitionEvent({
       toStatus,
       fromStatus: currentStatus,

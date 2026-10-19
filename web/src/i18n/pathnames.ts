@@ -1,4 +1,5 @@
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+import { collapseLeadingSeparators } from "@/lib/safe-internal-path";
 
 /**
  * The ONLY two fields URL grammar depends on.
@@ -57,7 +58,8 @@ export function pathnameWithoutAnyLocalePrefix(
     if (!seg || !set.has(seg)) break;
     p = p.slice(`/${seg}`.length) || "/";
   }
-  return p;
+  // `/en//evil.example` must not become the protocol-relative `//evil.example` (open redirect).
+  return collapseLeadingSeparators(p);
 }
 
 export function stripLocaleFromPathname(
@@ -167,5 +169,7 @@ export function stripDefaultLocalePrefixFromPath(
     if (!seg || seg !== def) break;
     p = p.slice(`/${seg}`.length) || "/";
   }
+  // Same open-redirect guard as pathnameWithoutAnyLocalePrefix: never emit `//host` or `/\host`.
+  p = collapseLeadingSeparators(p);
   return `${p}${query}${hash}`;
 }

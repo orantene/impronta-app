@@ -23,6 +23,7 @@ src/lib/billing/commission-processing-client-pays.test.ts
 src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
+src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
@@ -44,6 +45,7 @@ src/lib/bookings/payment-booking.test.ts
 src/lib/bookings/policy-overrides.test.ts
 src/lib/bookings/quote-versions.test.ts
 src/lib/bookings/recurring.test.ts
+src/lib/bookings/transaction-transition-write.test.ts
 src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
@@ -226,6 +228,7 @@ src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
+src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts
 src/lib/talent-agenda/abandoned-order.test.ts
 src/lib/talent-agenda/booked-guest-load.test.ts
@@ -233,6 +236,7 @@ src/lib/talent-agenda/booking-blocks-and-names.test.ts
 src/lib/talent-agenda/send-quote-currency-message.static.test.ts
 src/lib/talent-agenda/unified-status.test.ts
 src/lib/talent/booking-owed.test.ts
+src/lib/talent/income-summary.test.ts
 src/lib/talent/menu-order-offer.test.ts
 src/lib/talent/menu-workspace-locale.test.ts
 src/lib/talent/money-row-paid-chip.static.test.ts

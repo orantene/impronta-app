@@ -280,7 +280,7 @@ export function TalentTaxDocsDrawer() {
         {[
           { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: new Date().getUTCFullYear() }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear()}` },
           ...(view.showW8 ? [{ label: t("dashboard.talentDrawers.monetization.docW8Label"), body: t("dashboard.talentDrawers.monetization.docW8Body"), action: t("dashboard.talentDrawers.monetization.docOpen"), href: "https://www.irs.gov/pub/irs-pdf/fw8ben.pdf" }] : []),
-          { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: 2025 }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: "/api/talent/tax-summary?year=2025" },
+          { label: interpolate(t("dashboard.talentDrawers.monetization.docIncomeSummary"), { year: new Date().getUTCFullYear() - 1 }), body: t("dashboard.talentDrawers.monetization.docIncomeSummaryBody"), action: t("dashboard.talentDrawers.monetization.docDownload"), href: `/api/talent/tax-summary?year=${new Date().getUTCFullYear() - 1}` },
         ].map((doc, idx) => (
           <button
             key={idx}

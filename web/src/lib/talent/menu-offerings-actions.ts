@@ -16,6 +16,7 @@ import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-te
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
+import { loadWorkspaceMenuDefaults } from "@/lib/talent/workspace-menu-defaults";
 import {
   loadOfferingChildren,
   replaceOfferingChildren,
@@ -99,6 +100,8 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
+    // B5: the language and the create defaults do not depend on the rows; start them now.
+    const defaultsPending = loadWorkspaceMenuDefaults(admin, tenantId);
 
     // Event offerings live on the same table (`owner_kind=workspace`) but
     // belong to Events, not Menu. Exclude any id that an `events.offering_id`
@@ -134,8 +137,9 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], nonMenu.ids);
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
-    const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
-    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    // B5: one stage, not three: the children beside the defaults started above.
+    const [children, defaults] = await Promise.all([loadOfferingChildren(admin, rows.map((r) => r.id)), defaultsPending]);
+    const primaryLocale = defaults.primaryLocale;
     const items = rows.map((r) => {
       // The editor edits the PRIMARY-language text; the maps ride along.
       const item = rowToOffering(r, primaryLocale, [], [primaryLocale]);
@@ -144,19 +148,13 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       return item;
     });
     // TUL-77 (#36): defaults from business family + country, not one
-    // restaurant-shaped answer for every workspace.
-    const [{ data: agencyRow, error: agencyErr }, { data: identityRow, error: identityErr }] = await Promise.all([
-      admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle<{ settings: unknown }>(),
-      admin.from("agency_business_identity").select("address_country").eq("tenant_id", tenantId).maybeSingle<{ address_country: string | null }>(),
-    ]);
-    // A failed read falls back to the neutral defaults (Service, platform currency).
-    if (agencyErr) logServerError("menu.offerings.defaults.agency", agencyErr);
-    if (identityErr) logServerError("menu.offerings.defaults.identity", identityErr);
-    const family = resolveTenantBusinessType(agencyErr ? null : agencyRow?.settings).family;
+    // restaurant-shaped answer for every workspace. A failed read already fell
+    // back to the neutral defaults (Service, platform currency).
+    const family = resolveTenantBusinessType(defaults.agencySettings).family;
     return {
       ok: true,
       items,
-      defaultCurrency: defaultCurrencyForCountry(identityErr ? null : identityRow?.address_country, auth.defaultCurrency),
+      defaultCurrency: defaultCurrencyForCountry(defaults.addressCountry, auth.defaultCurrency),
       defaultCreateType: defaultCreateTypeForFamily(family),
     };
   } catch (err) {

@@ -61,6 +61,8 @@ import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
 import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { renderMaxSiteDocument } from "./render-max-site-document";
+import { scopeHasListablePosts } from "@/lib/cms/blog-nav";
+import { withBlogNavItem } from "@/lib/talent-site/blog-nav-item";
 
 /** Re-export so existing `import type { MaxSiteSeo } from "./render-max-site"` stays valid. */
 export type { MaxSiteSeo };
@@ -188,6 +190,12 @@ async function renderTalentMaxSiteUnguarded(
     const pTenant = early(timed("maxSite.tenant", () => loadTalentManagingTenantId(talentProfileId, { bypassCache })));
     const pIdentity = early(timed("maxSite.identity", () => loadTalentSiteIdentity(talentProfileId, { bypassCache })));
     const pDemo = early(timed("maxSite.isDemo", () => loadMaxSiteIsDemo(talentProfileId)));
+    // Blog nav link (TUL-1003): host-root sites only; a cached existence lookup that starts with the other reads.
+    const pBlogNav = early(
+      input.hrefMode === "host-root"
+        ? scopeHasListablePosts({ kind: "talent", talentProfileId }, input.locale).catch(() => false)
+        : Promise.resolve(false),
+    );
     const pDemoBookings = early(pDemo.then((demo) => (demo ? loadMaxSiteAcceptingBookings(talentProfileId) : true)));
     // Public published tokens can start with the other profile reads; draft preview loads later.
     const pTokens = early(
@@ -290,14 +298,15 @@ async function renderTalentMaxSiteUnguarded(
     const navSource: readonly MaxSitePageRow[] = requirePublished
       ? pages
       : pages.map((p) => ({ ...p, status: "published" }));
-    const nav = buildMaxSiteNav(navSource);
+    const hrefMode = input.hrefMode ?? "path";
+    const nav = withBlogNavItem(buildMaxSiteNav(navSource), await pBlogNav, hrefMode);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
       fixed.shellTree,
       nav,
       site.siteSlug,
       publicPathPrefix,
-      input.hrefMode ?? "path",
+      hrefMode,
       localiseSeededDesignLabel("Book", locale, ctaMode),
     );
 

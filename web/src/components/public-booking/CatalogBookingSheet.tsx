@@ -767,6 +767,7 @@ export function CatalogBookingSheet({
         <CatalogSheetFooter
           step={step}
           es={es}
+          paymentLine={paymentFixture}
           totalLabel={
             <b data-catalog-price={isQuote ? "quote" : "money"}>
               {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}

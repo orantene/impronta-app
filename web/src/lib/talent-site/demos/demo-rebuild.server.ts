@@ -16,7 +16,7 @@ import {
   type DemoSpec,
 } from "./design-step.server";
 import { assertDemoTarget, type DemoTarget } from "./guard.server";
-import { demosFor, findDemo } from "./registry";
+import { DEMO_REGISTRY, demoContentCode, demosFor, findDemo } from "./registry";
 import { stableJson } from "./stable";
 import type {
   DemoDesign,
@@ -62,7 +62,8 @@ export const DEFAULT_PORTS: RebuildPorts = {
   async content(admin, entry, talentProfileId, write) {
     const res = await applyContentFixture(admin, entry, defaultFixtureFor(entry), { write });
     const changed = [...res.changed];
-    const note = await ensureGuideServices({ admin, write, stamp: "rebuild" }, entry.profileCode, talentProfileId);
+    // Guide services are content: an alias gets its canonical demo's extra service (writes still target talentProfileId).
+    const note = await ensureGuideServices({ admin, write, stamp: "rebuild" }, demoContentCode(entry), talentProfileId);
     if (note && !changed.includes("content")) changed.push("content");
     return changed;
   },
@@ -119,11 +120,27 @@ export function plannedSteps(
   return { changed, needsPublish };
 }
 
-function selectEntries(req: DemoRebuildRequest): { entries: DemoRegistryEntry[]; unknown: string[] } {
-  const base = demosFor(req.design);
-  if (!req.only?.length) return { entries: base, unknown: [] };
+/** PURE: the registry entries a request rebuilds. Staging aliases only when named in `only`. */
+export function selectEntries(req: DemoRebuildRequest): { entries: DemoRegistryEntry[]; unknown: string[] } {
+  if (!req.only?.length) return { entries: demosFor(req.design), unknown: [] };
   const unknown = req.only.filter((c) => !findDemo(c));
-  return { entries: base.filter((d) => req.only!.includes(d.profileCode)), unknown };
+  return {
+    entries: DEMO_REGISTRY.filter((d) => (!req.design || d.design === req.design) && req.only!.includes(d.profileCode)),
+    unknown,
+  };
+}
+
+/** PURE: the design-step spec for one entry. Identity = profileCode; content = copyFrom when set. */
+export function specFor(entry: DemoRegistryEntry, live: boolean): DemoSpec {
+  return {
+    design: entry.design,
+    palette: entry.palette,
+    ...(entry.keepLook ? { keepLook: true } : {}),
+    profileCode: entry.profileCode,
+    ...(entry.copyFrom ? { copyFrom: entry.copyFrom } : {}),
+    ...(entry.contentFixture ? { contentFixture: entry.contentFixture } : {}),
+    live,
+  };
 }
 
 async function insertRun(
@@ -169,14 +186,7 @@ async function rebuildOne(
   if (!target.ok) return { ...base, version: null, status: "refused", changed: [], error: target.reason };
 
   const rows = await ports.loadRows(admin, entry.profileCode);
-  const spec: DemoSpec = {
-    design: entry.design,
-    palette: entry.palette,
-    ...(entry.keepLook ? { keepLook: true } : {}),
-    profileCode: entry.profileCode,
-    ...(entry.contentFixture ? { contentFixture: entry.contentFixture } : {}),
-    live: Array.isArray(rows.site.shell_published) || !!rows.site.site_published_at,
-  };
+  const spec = specFor(entry, Array.isArray(rows.site.shell_published) || !!rows.site.site_published_at);
   const contentChanged = await ports.content(admin, entry, target.talentProfileId, false);
   let plan = await ports.plan(admin, spec, rows);
   const version = plan.design.version;

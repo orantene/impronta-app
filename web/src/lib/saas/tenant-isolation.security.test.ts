@@ -83,10 +83,15 @@ test("INVARIANT proxy.ts: the strip-then-set contract is documented at the call 
 });
 
 test("INVARIANT proxy.ts: /api/dev and /dev gates use a compile-time flag, never Host", () => {
+  // The proxy reads the flag by its literal name (Edge inlines it); the rule is in dev-surfaces.ts.
   assert.match(
     PROXY_SRC,
-    /TULALA_ALLOW_DEV_SURFACES === "1"/,
+    /TULALA_ALLOW_DEV_SURFACES: process\.env\.TULALA_ALLOW_DEV_SURFACES/,
     "dev surfaces must be gated by the next.config compile-time flag",
+  );
+  assert.match(
+    readFileSync(join(SRC_ROOT, "lib/saas/dev-surfaces.ts"), "utf8"),
+    /TULALA_ALLOW_DEV_SURFACES === "1"/,
   );
   const nextConfig = readFileSync(join(SRC_ROOT, "..", "next.config.ts"), "utf8");
   assert.match(

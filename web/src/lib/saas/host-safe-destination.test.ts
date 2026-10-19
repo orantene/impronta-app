@@ -44,8 +44,9 @@ test("unknown host kinds and absolute destinations are left alone", () => {
     hostSafeDestination("https://app.example.com/client", "marketing"),
     "https://app.example.com/client",
   );
-  // Protocol-relative is never rewritten into an app-host URL.
-  assert.equal(hostSafeDestination("//evil.example/admin", "marketing"), "//evil.example/admin");
+  // Protocol-relative is never rewritten into an app-host URL, and (TUL-1269) is never passed on as a
+  // redirect destination either: a browser would follow it off-site.
+  assert.equal(hostSafeDestination("//evil.example/admin", "marketing"), "/");
 });
 
 // ── Talent post-auth default (register ?as=talent) ────────────────────────────

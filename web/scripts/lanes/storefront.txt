@@ -1,6 +1,8 @@
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
+src/components/admin/shell/internal/page-modules/active-locale-pill.test.ts
+src/components/admin/shell/internal/talent-surface-no-clip.static.test.ts
 src/components/admin/shell/internal/talent/agenda/booking-record-reference.static.test.ts
 src/components/admin/shell/internal/talent/pages/today-setup-card-wrap.static.test.ts
 src/components/edit-chrome/mobile-edit-panel-tablet.static.test.ts
@@ -37,6 +39,9 @@ src/lib/client-account/merge_verified_client_customers.migration.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
 src/lib/client-account/signin-apple.static.test.ts
 src/lib/client-account/signin-methods.static.test.ts
+src/lib/cms/blog-index-model.test.ts
+src/lib/cms/blog-index-wiring.static.test.ts
+src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
@@ -62,9 +67,11 @@ src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts
+src/lib/talent-site/blog-nav-item.test.ts
 src/lib/talent-site/dashboard-my-website.test.ts
 src/lib/talent-site/demo-english-plan.test.ts
 src/lib/talent-site/demos/demo-money-copy.test.ts
+src/lib/talent-site/demos/staging-alias.test.ts
 src/lib/talent-site/header-brand-name.test.ts
 src/lib/talent-site/hero-proof-line.test.ts
 src/lib/talent-site/hub-book-follow-ups.test.ts
@@ -108,6 +115,7 @@ src/lib/talent/plan-ceiling-readiness.test.ts
 src/lib/talent/presence-placements.test.ts
 src/lib/talent/public-profile-href.test.ts
 src/lib/talent/site-switches.test.ts
+src/lib/talent/today-setup-ring.test.ts
 src/lib/talent/unrostered-wall.test.ts
 src/lib/talent/website-eligibility-facts.test.ts
 src/lib/talent/website-eligibility-offer.test.ts

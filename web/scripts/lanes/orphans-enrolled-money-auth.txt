@@ -5,6 +5,7 @@ src/components/talent/upgrade/upgrade-modal-model.test.ts
 src/lib/auth/card-locale-toggle.test.ts
 src/lib/auth/send-email-code-core.test.ts
 src/lib/auth/use-server-type-reexport.static.test.ts
+src/lib/billing/plan-intent-start.test.ts
 src/lib/captcha/platform-hosts.test.ts
 src/lib/captcha/turnstile-auto-widget/cloudflare-client.test.ts
 src/lib/captcha/turnstile-auto-widget/decision.test.ts
