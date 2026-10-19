@@ -14,6 +14,7 @@ import "server-only";
  * in-code defaults (`effectiveServiceContent`), which equal today's page.
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { SERVICE_CONTENT_COLUMNS, serviceContentFromRow, type ServiceContentFields } from "./service-content-fields";
 
 type PgError = { code?: string; message?: string } | null;
@@ -70,10 +71,10 @@ export async function serviceContentColumnsAvailable(
       return true;
     }
     if (isMissingColumnError(error)) markAbsent(now);
-    else console.warn("[service-content] probe failed; using defaults for this request:", error.message ?? error.code);
+    else logServerError("service-content.probe", error);
     return false;
   } catch (e) {
-    console.warn("[service-content] probe threw; using defaults for this request:", e);
+    logServerError("service-content.probe", e);
     return false;
   }
 }
@@ -95,7 +96,7 @@ export async function loadServiceContentFields(
     const { data, error } = await db.from("talent_offerings").select(`id, ${COLUMNS}`).in("id", ids);
     if (error) {
       if (isMissingColumnError(error)) markAbsent(opts.now ?? Date.now());
-      else console.warn("[service-content] read failed; using defaults:", error.message ?? error.code);
+      else logServerError("service-content.read", error);
       return out;
     }
     for (const row of Array.isArray(data) ? data : []) {
@@ -104,7 +105,7 @@ export async function loadServiceContentFields(
     }
     return out;
   } catch (e) {
-    console.warn("[service-content] read threw; using defaults:", e);
+    logServerError("service-content.read", e);
     return out;
   }
 }

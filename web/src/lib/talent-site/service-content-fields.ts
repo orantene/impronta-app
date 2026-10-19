@@ -12,6 +12,7 @@
  */
 import { parseServiceSlug, serviceMetaText, serviceSlug } from "./service-page";
 import { isReservedServiceSlug } from "./service-slug-reserved";
+import { improntaLog } from "@/lib/server/structured-log";
 
 export const SERVICE_PRESENTATION_MODES = ["own_page", "quick_view", "expand", "book_direct"] as const;
 export type ServicePresentationMode = (typeof SERVICE_PRESENTATION_MODES)[number];
@@ -100,7 +101,7 @@ function uniq(list: string[]): string[] {
 
 function warnDropped(field: string, value: unknown): void {
   if (process.env.NODE_ENV !== "production" && value != null) {
-    console.warn(`[service-content] dropped invalid ${field}:`, value);
+    void improntaLog("service_content_dropped", { field, value: String(value).slice(0, 80) });
   }
 }
 
