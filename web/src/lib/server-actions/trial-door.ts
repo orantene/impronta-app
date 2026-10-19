@@ -9,6 +9,7 @@
 import { getPlan } from "@/lib/access/plan-catalog";
 import { isTrialDoorId, TRIAL_DOORS, trialChargeDate } from "@/lib/billing/trial-door";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { displayTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
@@ -42,7 +43,8 @@ export async function loadTrialDoorOffer(door: string): Promise<TrialDoorOffer |
     const plan = getPlan(planKey);
     if (plan.monthlyPriceCents == null) continue;
     const offer = await loadTrialOffer("workspace", planKey);
-    const trialDays = offer?.isEnabled && offer.trialDays > 0 ? offer.trialDays : 0;
+    // TUL-1280: one trial per user; a returning buyer sees "charged today", not a trial.
+    const trialDays = await displayTrialDays({ kind: "user", userId: session.user.id }, offer);
     return {
       door,
       planKey,
