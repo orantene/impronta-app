@@ -15,6 +15,7 @@ src/components/admin/shell/internal/page-modules/mobile-bottom-nav.static.test.t
 src/components/admin/shell/internal/page-modules/pos-mode-switch.static.test.ts
 src/components/admin/shell/internal/page-modules/workspace-nav-groups.test.ts
 src/components/admin/shell/internal/state/talent-page-segment.test.ts
+src/components/admin/shell/internal/talent-drawers/commission-display.test.ts
 src/components/admin/shell/internal/talent-drawers/no-fixture-fallback.static.test.ts
 src/components/analytics/analytics-consent-banner.static.test.ts
 src/components/edit-chrome/bridge-reference-identity.test.ts
