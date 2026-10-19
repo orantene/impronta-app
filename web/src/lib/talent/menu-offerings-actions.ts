@@ -7,6 +7,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -16,6 +17,8 @@ import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-te
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
+import { loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
+import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
 import { loadWorkspaceMenuDefaults } from "@/lib/talent/workspace-menu-defaults";
 import {
   loadOfferingChildren,
@@ -138,11 +141,17 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     // B5: one stage, not three: the children beside the defaults started above.
-    const [children, defaults] = await Promise.all([loadOfferingChildren(admin, rows.map((r) => r.id)), defaultsPending]);
+    const [children, defaults, images] = await Promise.all([
+      loadOfferingChildren(admin, rows.map((r) => r.id)),
+      defaultsPending,
+      loadOfferingImageAssets(admin as unknown as SupabaseClient, rows.map((r) => r.id)),
+    ]);
     const primaryLocale = defaults.primaryLocale;
     const items = rows.map((r) => {
       // The editor edits the PRIMARY-language text; the maps ride along.
-      const item = rowToOffering(r, primaryLocale, [], [primaryLocale]);
+      const assets = images.get(r.id) ?? [];
+      const item = rowToOffering(r, primaryLocale, assets.map((a) => a.url), [primaryLocale]);
+      item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
       return item;
@@ -515,5 +524,72 @@ export async function setMenuItemStockAction(
   } catch (error) {
     logServerError("menuOfferings.setStock", error);
     return { ok: false, error: "Could not update stock." };
+  }
+}
+
+
+type PhotoResult = { ok: true; assets: { id: string; url: string }[] } | { ok: false; error: string };
+
+/**
+ * TUL-1271 #1 — set an item's photos (cover first). The item must be this
+ * workspace's own row, and every photo must be a live asset of this workspace
+ * (uploaded through the tenant library), so an id from another business is refused.
+ */
+export async function setWorkspaceItemPhotos(
+  tenantId: string,
+  offeringId: string,
+  mediaAssetIds: string[],
+): Promise<PhotoResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+
+    const { data: own } = await offeringsTable(admin)
+      .select("id")
+      .eq("id", offeringId)
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .maybeSingle();
+    if (!own) return { ok: false, error: "Not found." };
+
+    const wanted = nextPhotoIds(mediaAssetIds, {}).slice(0, MAX_ITEM_PHOTOS);
+    if (wanted.length > 0) {
+      const { data: mine, error: ownErr } = await admin
+        .from("media_assets")
+        .select("id")
+        .in("id", wanted)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null);
+      if (ownErr) {
+        logServerError("menu.offerings.photoOwner", ownErr);
+        return { ok: false, error: "Failed to update photos." };
+      }
+      const owned = new Set(((mine ?? []) as { id: string }[]).map((m) => m.id));
+      if (wanted.some((id) => !owned.has(id))) return { ok: false, error: "One of those photos is not in your library." };
+    }
+
+    const media = admin.from("talent_offering_media");
+    const { error: delErr } = await media.delete().eq("offering_id", offeringId);
+    if (delErr) {
+      logServerError("menu.offerings.photoClear", delErr);
+      return { ok: false, error: "Failed to update photos." };
+    }
+    if (wanted.length > 0) {
+      const { error: insErr } = await media.insert(wanted.map((mid, i) => ({ offering_id: offeringId, media_asset_id: mid, sort_order: i })));
+      if (insErr) {
+        logServerError("menu.offerings.photoSet", insErr);
+        return { ok: false, error: "Failed to update photos." };
+      }
+    }
+    revalidatePath("/admin/menu");
+    const assets = (await loadOfferingImageAssets(admin as unknown as SupabaseClient, [offeringId])).get(offeringId) ?? [];
+    return { ok: true, assets };
+  } catch (err) {
+    logServerError("menu.offerings.photos", err);
+    return { ok: false, error: "Unexpected error." };
   }
 }
