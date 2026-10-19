@@ -92,12 +92,46 @@ const bulkTalentActionSchema = z.object({
   action: z.enum(["approve", "hide", "feature", "unfeature", "soft_delete"]),
 });
 
+/**
+ * `requireStaff()` is a GLOBAL-role gate: every self-serve studio owner holds
+ * app_role 'agency_staff', so on its own it admits an owner to ANOTHER
+ * workspace's talent. Mutations on a talent profile must also prove the talent
+ * is on the caller's active workspace roster. Platform super_admins keep
+ * god-mode (they have no workspace to scope to).
+ */
+async function requireRosterScopedStaff(
+  talentIds: string[],
+): Promise<Awaited<ReturnType<typeof requireStaff>>> {
+  const auth = await requireStaff();
+  if (!auth.ok) return auth;
+  if (auth.profile?.app_role === "super_admin") return auth;
+  const ids = [...new Set(talentIds.filter(Boolean))];
+  if (ids.length === 0) return { ok: false, error: "Not authorized." };
+  const scope = await getTenantScope();
+  if (!scope?.tenantId) return { ok: false, error: "Not authorized." };
+  const { data, error } = await auth.supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", scope.tenantId)
+    .neq("status", "removed")
+    .in("talent_profile_id", ids);
+  if (error) {
+    logServerError("admin-talent/roster-scope", error);
+    return { ok: false, error: "Not authorized." };
+  }
+  const onRoster = new Set((data ?? []).map((r) => r.talent_profile_id as string));
+  if (!ids.every((id) => onRoster.has(id))) {
+    return { ok: false, error: "That talent isn't on your roster." };
+  }
+  return auth;
+}
+
 export async function updateTalentProfile(
   _prev: TalentActionState,
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
 
@@ -343,7 +377,7 @@ export async function updateTalentWorkflowVisibilityInline(input: {
   visibility: string;
 }): Promise<WorkflowVisibilityInlineResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([String(input?.talent_id ?? "").trim()]);
   if (!auth.ok) return { error: auth.error };
   const parsed = talentWorkflowVisibilityInlineSchema.safeParse(input);
   if (!parsed.success) {
@@ -411,7 +445,7 @@ export async function assignTaxonomyTerm(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_profile_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -438,7 +472,7 @@ export async function removeTaxonomyTerm(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_profile_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -465,7 +499,7 @@ export async function softDeleteTalentProfile(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -508,7 +542,9 @@ export async function adminBulkTalentAction(
   input: BulkTalentActionInput,
 ): Promise<{ error?: string; ok?: boolean; updated?: number }> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff(
+    Array.isArray(input?.talentIds) ? input.talentIds.map((id) => String(id).trim()) : [],
+  );
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
 
@@ -624,7 +660,7 @@ export async function restoreTalentProfile(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
