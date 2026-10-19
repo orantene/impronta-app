@@ -6,6 +6,8 @@
  * typed themselves is never rewritten.
  */
 
+import { mainCtaLabel, mainCtaModeOfSeededLabel } from "./main-cta";
+
 const SEEDED_CTA_LABEL = "inquire";
 
 const CTA_LABEL_BY_LOCALE: Record<string, string> = {
@@ -27,9 +29,10 @@ export function talentHeaderCtaLabel(locale: string | null | undefined): string 
 
 function localiseLabel(label: unknown, locale: string): unknown {
   if (typeof label !== "string") return label;
-  return label.trim().toLowerCase() === SEEDED_CTA_LABEL
-    ? talentHeaderCtaLabel(locale)
-    : label;
+  if (label.trim().toLowerCase() === SEEDED_CTA_LABEL) return talentHeaderCtaLabel(locale);
+  // TUL-639: the seeded main-CTA wordings follow the selling mode in the visitor's language.
+  const mode = mainCtaModeOfSeededLabel(label);
+  return mode ? mainCtaLabel(mode, locale) : label;
 }
 
 /**
