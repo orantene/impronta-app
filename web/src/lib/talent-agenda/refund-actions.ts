@@ -29,6 +29,7 @@ import {
   refundAuthorityMessage,
   talentMayRefundOwnBooking,
   talentRequestedCents,
+  talentRefundCurrency,
   type RefundAuthorityCode,
 } from "@/lib/payments/refund-authority";
 import { enforceRoleLimit } from "@/lib/approvals/enforce";
@@ -42,7 +43,8 @@ import type { AgendaActionResult } from "./booking-actions";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type RefundOwnBookingResult =
-  | { ok: true; refundedCents: number; currency: string; already?: boolean }
+  /** `currency` is the refunded charge's own; null only when nothing moved and none was recorded. */
+  | { ok: true; refundedCents: number; currency: string | null; already?: boolean }
   | (AgendaActionResult & {
       ok: false;
       /** Set when the refund guard refused: the sentence to show, in English and Spanish. */
@@ -116,7 +118,7 @@ export async function refundOwnBookingPayment(input: {
   // Each charge's own remainder, as the engine computes it (settled minus
   // already refunded, minus non-refundable fees). A charge the engine would
   // refuse (cash, already refunded) has nothing refundable here.
-  const charges: Array<{ transactionId: string; remainingCents: number; currency: string }> = [];
+  const charges: Array<{ transactionId: string; remainingCents: number; currency: string | null }> = [];
   for (const txn of settled) {
     const eligibility = await loadRefundEligibility(txn.id);
     if ("error" in eligibility) {
@@ -126,10 +128,13 @@ export async function refundOwnBookingPayment(input: {
     charges.push({
       transactionId: txn.id,
       remainingCents: eligibility.blockedReason ? 0 : eligibility.remainingCents,
-      currency: eligibility.currency || txn.currency || "USD",
+      // The refunded charge's own recorded currency. No default: a missing
+      // one fails closed below (currency_unknown).
+      currency: txn.currency,
     });
   }
   const refundableCents = charges.reduce((sum, c) => sum + c.remainingCents, 0);
+  const refundCurrency = talentRefundCurrency(charges);
 
   const tenantId = bookingRow.tenant_id ?? "";
   const authorized = await authorizeRefund({
@@ -157,14 +162,18 @@ export async function refundOwnBookingPayment(input: {
   if (!authorized.ok) {
     // Nothing left on a booking the talent may refund: same calm answer the
     // button always gave ("Nothing left to refund on this booking").
-    if (authorized.code === "nothing_left") return { ok: true, refundedCents: 0, currency: charges[0]?.currency ?? "USD", already: true };
+    if (authorized.code === "nothing_left") {
+      return { ok: true, refundedCents: 0, currency: refundCurrency.ok ? refundCurrency.currency : null, already: true };
+    }
     return refused(authorized.code);
   }
+  // Money is about to move: the charge's currency must be known (and single).
+  if (!refundCurrency.ok) return refused("currency_unknown");
 
   const legs = planOwnBookingRefund(authorized.amountCents, charges);
 
   let moved = 0;
-  let currency = charges[0]?.currency ?? "USD";
+  let currency: string | null = refundCurrency.currency;
   let lastError: string | null = null;
 
   for (const leg of legs) {

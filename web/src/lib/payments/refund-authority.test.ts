@@ -10,6 +10,7 @@ import {
   refundAuthorityMessage,
   talentMayRefundOwnBooking,
   talentRequestedCents,
+  talentRefundCurrency,
 } from "./refund-authority";
 
 /**
@@ -223,6 +224,54 @@ test("talent: an ask inside the remainder is untouched; bad asks pass through fo
   assert.equal(talentRequestedCents(10.5, 3000), 10.5);
   // Nothing left: the ask is kept so the guard answers nothing_left, not invalid_amount.
   assert.equal(talentRequestedCents(5000, 0), 5000);
+});
+
+// ─── currency comes from the refunded charge, never a USD default ───────────
+
+test("talent refund currency: the charge's own currency, normalised", () => {
+  assert.deepEqual(
+    talentRefundCurrency([{ currency: " mxn ", remainingCents: 3000 }]),
+    { ok: true, currency: "MXN" },
+  );
+});
+
+test("talent refund currency: a charge with money left but no currency fails closed", () => {
+  assert.deepEqual(talentRefundCurrency([{ currency: null, remainingCents: 3000 }]), { ok: false });
+  assert.deepEqual(talentRefundCurrency([{ currency: "  ", remainingCents: 3000 }]), { ok: false });
+  assert.deepEqual(
+    talentRefundCurrency([
+      { currency: "MXN", remainingCents: 1000 },
+      { currency: null, remainingCents: 500 },
+    ]),
+    { ok: false },
+  );
+});
+
+test("talent refund currency: charges in two currencies fail closed (never summed)", () => {
+  assert.deepEqual(
+    talentRefundCurrency([
+      { currency: "MXN", remainingCents: 1000 },
+      { currency: "USD", remainingCents: 500 },
+    ]),
+    { ok: false },
+  );
+});
+
+test("talent refund currency: a spent charge's missing currency does not block; nothing left reports what is known", () => {
+  assert.deepEqual(
+    talentRefundCurrency([
+      { currency: null, remainingCents: 0 },
+      { currency: "MXN", remainingCents: 1000 },
+    ]),
+    { ok: true, currency: "MXN" },
+  );
+  assert.deepEqual(talentRefundCurrency([{ currency: null, remainingCents: 0 }]), { ok: true, currency: null });
+  assert.deepEqual(talentRefundCurrency([]), { ok: true, currency: null });
+});
+
+test("currency_unknown refusal has its own en + es sentence", () => {
+  assert.match(refundAuthorityMessage("currency_unknown", "en"), /currency/i);
+  assert.match(refundAuthorityMessage("currency_unknown", "es"), /moneda/i);
 });
 
 // ─── review condition 3: over_limit copy ────────────────────────────────────

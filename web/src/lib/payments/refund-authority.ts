@@ -42,6 +42,8 @@ export const REFUND_AUTHORITY_CODES = [
   "over_remainder",
   "over_limit",
   "unavailable",
+  /** The refunded charge has no recorded currency (or charges disagree): fail closed, never assume USD. */
+  "currency_unknown",
 ] as const;
 
 export type RefundAuthorityCode = (typeof REFUND_AUTHORITY_CODES)[number];
@@ -75,6 +77,10 @@ const COPY: Readonly<Record<RefundAuthorityCode, { en: string; es: string }>> = 
   over_limit: {
     en: "A manager with a higher limit has to make this refund.",
     es: "Un gerente con un límite mayor tiene que hacer este reembolso.",
+  },
+  currency_unknown: {
+    en: "The currency of this payment is not recorded, so it cannot be refunded here. Nothing was refunded.",
+    es: "La moneda de este pago no está registrada, así que no se puede reembolsar aquí. No se reembolsó nada.",
   },
   unavailable: {
     en: "The refund could not be checked right now. Nothing was refunded. Try again.",
@@ -171,6 +177,32 @@ export function talentRequestedCents(askedCents: number, refundableCents: number
   if (!Number.isInteger(askedCents) || askedCents <= 0) return askedCents;
   if (!Number.isFinite(refundableCents) || refundableCents <= 0) return askedCents;
   return Math.min(askedCents, Math.floor(refundableCents));
+}
+
+/**
+ * The currency a talent refund is in, taken ONLY from the refunded charges'
+ * own `currency` (normalised, upper case). Every charge that still has money
+ * to give back must carry the same recorded currency; a missing one or two
+ * different ones fail closed (`ok: false`), never a USD default and never a
+ * sum across currencies. With nothing left to refund, the first known
+ * currency (or null) is reported, since no money moves.
+ */
+export function talentRefundCurrency(
+  charges: ReadonlyArray<{ currency: string | null | undefined; remainingCents: number }>,
+): { ok: true; currency: string | null } | { ok: false } {
+  const norm = (c: string | null | undefined) => {
+    const v = (c ?? "").trim().toUpperCase();
+    return v.length > 0 ? v : null;
+  };
+  const live = charges.filter((c) => c.remainingCents > 0);
+  if (live.length === 0) {
+    const known = charges.map((c) => norm(c.currency)).find((c) => c !== null) ?? null;
+    return { ok: true, currency: known };
+  }
+  const codes = new Set(live.map((c) => norm(c.currency)));
+  if (codes.has(null) || codes.size !== 1) return { ok: false };
+  const [only] = [...codes];
+  return only ? { ok: true, currency: only } : { ok: false };
 }
 
 /**

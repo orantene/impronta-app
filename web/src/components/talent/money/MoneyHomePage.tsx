@@ -616,7 +616,7 @@ export function MoneyHomePage() {
         setRefundStatus(t("Nothing left to refund on this booking."));
       } else {
         setRefundStatus(
-          `${t("Refund sent")} ${(res.refundedCents / 100).toFixed(2)} ${res.currency}. ${t("Money updates when Stripe confirms it.")}`,
+          `${t("Refund sent")} ${(res.refundedCents / 100).toFixed(2)} ${res.currency ?? ""}. ${t("Money updates when Stripe confirms it.")}`,
         );
       }
       router.refresh();

@@ -110,6 +110,15 @@ test("talent refund: requested amount only, never 'everything', own booking's ch
   assert.doesNotMatch(fn, /amountCents:\s*null/);
 });
 
+test("talent refund: currency comes from the refunded charge and fails closed, never a USD default", () => {
+  const { src, fn } = body(DOORS[4]!);
+  assert.doesNotMatch(src, /["']USD["']/i, "no hard-coded USD anywhere in the talent refund file");
+  assert.match(fn, /talentRefundCurrency\(/);
+  assert.match(fn, /refused\("currency_unknown"\)/);
+  // The refusal happens before any money moves.
+  assert.ok(fn.indexOf('refused("currency_unknown")') < fn.indexOf("executeBookingRefund("));
+});
+
 test("desk hybrid component refund forwards the requested amount", () => {
   const { fn } = body(DOORS[0]!);
   const call = fn.slice(fn.indexOf("cancelHybridComponents("), fn.indexOf("refundOrderLines("));
