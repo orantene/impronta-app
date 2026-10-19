@@ -18322,6 +18322,11 @@
         "identityReason": "Say why the buyer's name is needed.",
         "currency": "Pick a currency."
       },
+      "warning": {
+        "photo": "No photo yet: it will show without a picture on the counter and the menu.",
+        "category": "No category yet: it will sit under All items.",
+        "channel": "Request-only items are not sold on the counter or the table QR menu."
+      },
       "details": {
         "title": "Details",
         "intro": "The name and words the tile, the menu and the receipt carry",
