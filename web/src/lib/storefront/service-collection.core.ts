@@ -50,7 +50,7 @@ export async function readServiceCollectionCore(
         title: o.title,
         description: o.description,
         durationMinutes: o.durationMinutes,
-        fromCents: props.showFromPrice === false ? null : fromCents,
+        fromCents: props.showFromPrice === false || o.visibility === "on_request" ? null : fromCents,
         currency: o.currency || "USD",
         priceDisplay: o.priceDisplay,
         bookingMode: o.bookingMode,

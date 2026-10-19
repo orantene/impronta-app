@@ -13,7 +13,7 @@ import {
 } from "@/lib/promos/actions";
 import type { PromoCopy } from "@/lib/promos/copy/talent";
 import { promoTips } from "@/lib/promos/results/compute";
-import { formatMoney, formatShortDate, progressOf } from "@/lib/promos/talent-view";
+import { canSharePromo, formatMoney, formatShortDate, progressOf } from "@/lib/promos/talent-view";
 import { offerLabel, scheduleLine } from "./describe";
 import { InfoTip, PANEL_MD, ProgressBar, PromoSwitch, StatusBadge, UI } from "./ui";
 
@@ -172,7 +172,8 @@ export function PromoDetailSheet({ item, data, copy, onClose, onEdit, onShare, o
         </div>
 
         <div className="flex flex-col gap-2 border-t border-[var(--tc-border,#e5e5ea)] bg-white px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]" data-promo-footer>
-          {!ended ? <button type="button" className={`${UI.primary} w-full`} onClick={() => onShare(item)}>{copy.t("page.share")}</button> : null}
+          {canSharePromo(status) ? <button type="button" className={`${UI.primary} w-full`} onClick={() => onShare(item)}>{copy.t("page.share")}</button> : null}
+          {status === "draft" ? <p className={`m-0 text-center text-[13px] ${UI.muted}`} data-promo-share-hint>{copy.t("detail.share_after_publish")}</p> : null}
           <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-[repeat(2,minmax(0,1fr))]" data-promo-footer-grid>
             {!ended ? <button type="button" className={`${UI.secondary} w-full`} onClick={() => onEdit(item)}>{copy.t("detail.edit")}</button> : null}
             <button type="button" className={`${UI.secondary} w-full`} disabled={busy} onClick={() => void run(() => duplicatePromo(item.id), "toast.duplicated", true)}>

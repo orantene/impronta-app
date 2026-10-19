@@ -41,7 +41,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
     loadPublicIdentity(tenant.tenantId).catch(() => null),
     loadAgencyAccountSite(tenant.tenantId),
   ]);
-  const brandName = identity?.public_name?.trim() || (hostContext === "agency" ? tenant.slug : PLATFORM_BRAND.name);
+  const brandName = identity?.public_name?.trim() || PLATFORM_BRAND.name; // TUL-776: neutral platform name, never a URL slug
   const userId = session.user?.id ?? null;
   const appRole = session.profile?.app_role ?? null;
   const audience = accountAudience({ userId, appRole });

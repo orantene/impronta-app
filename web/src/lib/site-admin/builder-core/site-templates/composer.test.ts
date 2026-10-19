@@ -76,4 +76,16 @@ test("industry text resolves to a business type, whole phrase then words", async
   assert.equal(businessTypeFromIndustry("food and restaurant")?.id, "restaurant");
   assert.equal(businessTypeFromIndustry("salón de uñas")?.id, "nail-salon");
   assert.equal(businessTypeFromIndustry("zzzz"), null);
+  // TUL-1248: the generic word "studio" never picks a vertical (was boxing-studio).
+  assert.notEqual(businessTypeFromIndustry("beauty and hair studio")?.id, "boxing-studio");
+  assert.equal(businessTypeFromIndustry("hair studio")?.family, "beauty");
+  assert.equal(businessTypeFromIndustry("studio"), null);
+});
+
+test("TUL-591: a generic 'studio' word never picks the alphabetical-first studio (boxing) for a hair/beauty studio", async () => {
+  const { businessTypeFromIndustry } = await import("./compose-site-from-brief.server");
+  for (const text of ["beauty hair studio", "hair studio", "estudio de cabello", "estudio de belleza", "beauty studio"]) {
+    const hit = businessTypeFromIndustry(text);
+    assert.equal(hit?.family, "beauty", `${text} -> ${hit?.id}`);
+  }
 });

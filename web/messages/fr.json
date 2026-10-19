@@ -6012,6 +6012,7 @@
       "dash": "—",
       "untitled": "(sans titre)",
       "itemMissing": "Cet article n'est plus dans ce catalogue. La liste ci-dessous est à jour.",
+      "itemProviderOwned": "Ce service appartient à votre profil de prestataire. Modifiez-le dans Services.",
       "type": {
         "product": "Produit",
         "service": "Service",
@@ -8072,6 +8073,10 @@
           "header": {
             "handling": "{name} s'occupe de votre demande",
             "handlingTeam": "L'équipe s'occupe de votre demande"
+          },
+          "offerBanner": {
+            "hint": "Vous avez une offre à examiner",
+            "cta": "Voir l'offre"
           },
           "stream": {
             "you": "Vous",

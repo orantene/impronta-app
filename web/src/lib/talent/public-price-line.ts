@@ -9,10 +9,13 @@ export type PublicPriceInput = {
   amountCents: number | null | undefined;
   currency: string | null | undefined;
   priceDisplay: string | null | undefined;
+  /** D-10a: an `on_request` service withholds its price (stays listed). */
+  visibility?: string | null;
 };
 
 /** "$700 MXN" or "desde $700 MXN" / "from $700 MXN"; null when the price is not public or not numeric. */
 export function publicPriceLine(o: PublicPriceInput, locale: string): string | null {
+  if (o.visibility === "on_request") return null;
   if (!o.amountCents || o.amountCents <= 0 || !o.currency) return null;
   if (o.priceDisplay !== "exact" && o.priceDisplay !== "from") return null;
   const es = locale.toLowerCase().startsWith("es");

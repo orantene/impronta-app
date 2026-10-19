@@ -193,7 +193,10 @@ import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
-import { renderPromoBlock } from "./promo-block";
+import {
+  renderPromoBlockFallback,
+  type BuilderPromoBlockRenderer,
+} from "./promo-block-fallback";
 import { headerLogoDeclarations } from "../header-logo-limits";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
@@ -563,6 +566,15 @@ export interface BuilderNodeRenderOptions {
    * tenant-less preview, or in a test.
    */
   renderNativeLiveBlock?: BuilderNativeLiveBlockRenderer | null;
+  /**
+   * TUL-1178 step 2: the real promo renderer (`renderPromoBlock` in `promo-block.tsx`), injected
+   * by a SERVER caller that holds promo data (the live site and the My content preview). It is
+   * injected, not imported here, so the builder canvas (browser) does not bundle the promo
+   * picker, its copy, its CSS and the client island, none of which the canvas can use because
+   * it gets no promo data. Absent: the editor canvas shows a static hint, every other caller
+   * renders the hidden marker the real block renders with no data.
+   */
+  renderPromoBlock?: BuilderPromoBlockRenderer | null;
   // Server-resolved captcha for this tenant (`resolveTenantCaptcha`). The
   // `form` node MUST render the widget whenever the tenant has an active
   // provider, because /api/cms/forms/submit enforces captcha at TENANT level:
@@ -683,6 +695,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
     | "currentPath"
     | "availableLocales"
     | "renderNativeLiveBlock"
+    | "renderPromoBlock"
   >
 > & {
   currentPath?: string;
@@ -693,6 +706,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
   // BUILDER 2027 · P2A — null when no server caller injected a live engine;
   // the three delegating kinds then render their self-contained native markup.
   renderNativeLiveBlock: BuilderNativeLiveBlockRenderer | null;
+  renderPromoBlock: BuilderPromoBlockRenderer | null;
   // ABTEST-1 — undefined/null seed → control always renders, no tracking.
   experimentSeed: string | null | undefined;
   experimentTenantId: string | null | undefined;
@@ -6385,13 +6399,19 @@ function renderBuilderNodeElement(
       );
     }
     case "promo": {
-      return renderPromoBlock({
+      const promoArgs = {
         node: localizeBlockNode(node, options.contentLocale),
         data: options.dataSources?.promoWidgets,
         locale: options.visitorLocale ?? options.contentLocale?.locale,
         signedIn: options.visibilityContext?.signedIn,
         styleAttr: sharedNodeStyle(node.props.style),
-      });
+      };
+      return options.renderPromoBlock
+        ? options.renderPromoBlock(promoArgs)
+        : renderPromoBlockFallback({
+            ...promoArgs,
+            editorPreview: options.contentLocale?.editorPreview === true,
+          });
     }
     case "menu_board": {
       const p = node.props;
@@ -6430,7 +6450,12 @@ function renderBuilderNodeElement(
         currency: string;
         priceType: string;
         priceDisplay: string;
+        visibility?: string | null;
       }): string => {
+        // D-10a: an on_request service stays listed, its price is withheld.
+        if (item.visibility === "on_request") {
+          return (options.contentLocale?.locale ?? "en").toLowerCase().startsWith("es") ? "Bajo consulta" : "On request";
+        }
         // `amountCents == null` is already a quote per offeringIsQuote; the
         // explicit check also narrows the type for formatMoney below.
         if (item.amountCents == null || offeringIsQuote(item)) {
@@ -6461,8 +6486,9 @@ function renderBuilderNodeElement(
         currency: string;
         priceType: string;
         priceDisplay: string;
+        visibility?: string | null;
       }) => {
-        const usd = usdLine(item);
+        const usd = item.visibility === "on_request" ? null : usdLine(item);
         return (
           <span className="site-builder-node--menu-board-item-price">
             {formatPriceLabel(item)}
@@ -9290,6 +9316,7 @@ function normalizeBuilderNodeRenderOptions(
     visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     renderNativeLiveBlock: options.renderNativeLiveBlock ?? null,
+    renderPromoBlock: options.renderPromoBlock ?? null,
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
     contentLocale: options.contentLocale,

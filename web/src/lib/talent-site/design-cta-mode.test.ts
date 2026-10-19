@@ -160,3 +160,21 @@ test("resolveSiteCtaMode: accepting_bookings off forces inquiry (GRK-068)", () =
     "instant",
   );
 });
+
+test("TUL-876: spec_table rows read in the visitor's language (no Spanish REVISIÓN tag on /en)", () => {
+  const spanish = [
+    {
+      id: "p",
+      kind: "spec_table",
+      props: { rows: [{ label: "Revisión", value: "$550" }, { label: "Garantía", value: "30 días" }] },
+    },
+  ] as unknown as BuilderNode[];
+  const en = JSON.stringify(localiseSeededDesignLabels(spanish, "en", "instant"));
+  assert.ok(en.includes('"label":"Review"') && en.includes('"label":"Warranty"'));
+  assert.ok(!en.includes("Revisión"));
+  const english = [
+    { id: "p", kind: "spec_table", props: { rows: [{ label: "Review", value: "$550" }] } },
+  ] as unknown as BuilderNode[];
+  const es = JSON.stringify(localiseSeededDesignLabels(english, "es", "instant"));
+  assert.ok(es.includes('"label":"Revisión"') && es.includes('"value":"$550"'));
+});

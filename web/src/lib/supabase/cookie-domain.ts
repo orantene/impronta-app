@@ -74,6 +74,23 @@ export function isSupabaseAuthCookie(name: string): boolean {
   return name.includes("-auth-token") || name.includes("-code-verifier");
 }
 
+/**
+ * TUL-757: THE one place that decides whether a cookie write carries the shared
+ * `Domain`. Every server-side writer (RSC client, proxy refresh, OAuth start and
+ * callback routes) calls this instead of repeating the `domain && isAuth(name)`
+ * ternary, so no writer can drift to host-only and mint a second, shadowing
+ * session cookie beside the `.tulala.digital` one. Non-auth cookies and
+ * host-only hosts (`domain` undefined) are returned unchanged.
+ */
+export function scopeAuthCookieOptions<T extends object>(
+  name: string,
+  options: T | undefined,
+  domain: string | undefined,
+): T & { domain?: string } {
+  const base = (options ?? {}) as T;
+  return domain && isSupabaseAuthCookie(name) ? { ...base, domain } : base;
+}
+
 /** Parent domains we may need to expire when Desk writes host-only auth. */
 export const SHARED_AUTH_COOKIE_PARENTS = SHARED_COOKIE_PARENTS;
 

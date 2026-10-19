@@ -35,13 +35,12 @@ export function RefundsEs() {
           heading: "Quién es el vendedor",
           body: (
             <>
-              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              {/* LEGAL_REVIEW_PENDING: collect-and-pay-out model (TUL-43 option A, Oran 2026-10-16); counsel review pending */}
               <p>
-                El talento es el comerciante registrado de cada pago con tarjeta que recibe,
-                mediante su cuenta de Stripe Connect. El talento o espacio de trabajo es el
-                vendedor. {PLATFORM_BRAND.name} ofrece la plataforma y las herramientas de
-                procesamiento de pagos. Los datos de la tarjeta se ingresan en Stripe y nunca
-                pasan por {PLATFORM_BRAND.name}.
+                El talento o espacio de trabajo es el vendedor del servicio.{" "}
+                {PLATFORM_BRAND.name} cobra el pago con tarjeta mediante Stripe y paga la parte
+                del vendedor, y ofrece la plataforma y las herramientas de pago. Los datos de la
+                tarjeta se ingresan en Stripe y nunca pasan por {PLATFORM_BRAND.name}.
               </p>
               <p className="text-xs opacity-70">Pendiente de revisión legal</p>
             </>
@@ -72,6 +71,8 @@ export function RefundsEs() {
               <p>
                 Las comisiones de procesamiento de tarjeta no son reembolsables. Ni el talento
                 ni {PLATFORM_BRAND.name} cubren esas comisiones cuando se emite un reembolso.
+                Tampoco se reembolsa la tarifa de servicio de {PLATFORM_BRAND.name} que paga el
+                cliente.
               </p>
             </>
           ),
@@ -91,10 +92,12 @@ export function RefundsEs() {
           heading: "Contracargos y disputas",
           body: (
             <p>
-              Si un cliente disputa un cargo con su banco, los contracargos y las disputas son
-              responsabilidad del talento. Si se pierde una disputa, {PLATFORM_BRAND.name}{" "}
-              puede descontar el monto disputado y cualquier comisión de disputa de los pagos
-              futuros del talento.
+              Si un cliente disputa un cargo con su banco, la disputa se presenta contra la
+              cuenta de pagos de {PLATFORM_BRAND.name}, y {PLATFORM_BRAND.name}{" "}
+              la gestiona ante la red de tarjetas, con la ayuda del talento para las pruebas.
+              Si se pierde una disputa, {PLATFORM_BRAND.name} puede revertir el pago de esa
+              transacción y puede recuperar la comisión de disputa de los pagos futuros del
+              vendedor.
             </p>
           ),
         },

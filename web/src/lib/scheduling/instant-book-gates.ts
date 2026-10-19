@@ -117,7 +117,7 @@ export function assertInstantPosture(input: {
     return {
       ok: false,
       reason: "not_accepting_bookings",
-      error: "Not taking new bookings right now. Send an inquiry instead.",
+      error: "Not taking new bookings right now. You can still send an inquiry.",
     };
   }
   return {

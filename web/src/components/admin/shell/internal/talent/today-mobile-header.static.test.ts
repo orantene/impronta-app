@@ -49,3 +49,14 @@ test("TUL-907: at 390 the name chip only links in Talent Studio, announces its t
   const en = JSON.parse(readFileSync(join(process.cwd(), "messages/en.json"), "utf8")).dashboard.mobile;
   assert.equal(en.talentPillAria, "Open my profile");
 });
+
+test("TUL-1110: the name row in the talent account menu is a real link to Perfil, not a plain div", () => {
+  const menu = readFileSync(join(root, "page-modules/TalentAccountMenuSection.tsx"), "utf8");
+  const at = menu.indexOf('testId="name"');
+  assert.ok(at > -1, "name row present");
+  const row = menu.slice(at - 40, at + 400);
+  assert.match(row, /<RowShell/);
+  assert.match(row, /href="\/talent\/profile"/);
+  assert.match(row, /onClick=\{onNavigate\}/);
+  assert.doesNotMatch(menu, /role="none"\s*\n\s*className="mb-\[4px\] flex items-center gap-\[10px\] border-b/);
+});

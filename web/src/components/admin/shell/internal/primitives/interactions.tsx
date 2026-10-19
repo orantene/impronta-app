@@ -296,7 +296,8 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
     <button
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: scrollBehavior() })}
-      aria-label="Scroll to top"
+      // TUL-146: only mounts after a scroll (client-only), so reading <html lang> is hydration-safe.
+      aria-label={typeof document !== "undefined" && document.documentElement.lang.toLowerCase().startsWith("es") ? "Volver arriba" : "Scroll to top"}
       style={{
         position: "fixed",
         bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",

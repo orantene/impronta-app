@@ -6,5 +6,5 @@
  */
 export const QA_MINORS_1007_ES_TEXT: Record<string, string> = {
   "Add the people you already work with. New clients appear here when they book or message you.":
-    "Agrega a las personas con quienes ya trabajas. Las clientas nuevas aparecen aquí cuando reservan o te escriben.",
+    "Agrega a las personas con quienes ya trabajas. Las clientes nuevos aparecen aquí cuando reservan o te escriben.",
 };

@@ -85,6 +85,18 @@ export function buildLineupNoteBody(count: number, mode: string): string {
 }
 
 /**
+ * TUL-1238: the note is stored in English, so the guest surface localises the two
+ * canonical bodies at render time (a Spanish visitor never reads "Lineup · 2 talent").
+ * Any other body passes through untouched.
+ */
+export function localizeLineupNoteBody(body: string, t: (key: string) => string): string {
+  const m = /^Lineup · (\d+) talent$/.exec(body);
+  if (m) return t("public.guestChat.systemLineupCount").replace("{count}", m[1]!);
+  if (body === "Let the agency recommend") return t("public.guestChat.systemLineupRecommend");
+  return body;
+}
+
+/**
  * True when a message's metadata marks it as a talent lineup note. BOTH note
  * shapes carry `chip_kind: "talent"`:
  *   • group bubble (direct insert):    { chip_kind: "talent" }

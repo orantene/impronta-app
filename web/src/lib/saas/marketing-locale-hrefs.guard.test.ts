@@ -107,6 +107,12 @@ test("marketing internal hrefs go through withLocaleHref", () => {
   );
 });
 
+test("TUL-1237: /about audience cards (data hrefs) are localised before they reach next/link", () => {
+  const source = readFileSync("src/app/(marketing)/about/page.tsx", "utf8");
+  assert.match(source, /href=\{withLocaleHref\(link\.href, locale\)\}/);
+  assert.doesNotMatch(source, /href=\{link\.href\}/);
+});
+
 test("MarketingCta localises internally so every caller is covered", () => {
   const source = readFileSync("src/components/marketing/cta-link.tsx", "utf8");
   assert.match(

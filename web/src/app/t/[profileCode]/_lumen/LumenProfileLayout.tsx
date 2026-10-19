@@ -586,6 +586,7 @@ export function LumenProfileLayout(props: LightProfileLayoutProps) {
                   {hasStorefront ? (
                     <TalentStorefront
                       offerings={storefrontOfferings}
+                      siteUrl={maxSiteUrl}
                       locale={locale}
                       heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
                     />

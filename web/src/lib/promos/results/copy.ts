@@ -1,14 +1,11 @@
 import type { MonthRollup, PromoResult, TipId } from "./compute";
+import { formatPrice } from "@/lib/money/format-price";
 
 /** ES/EN strings for results. No em dashes. One number per card, earned and given paired. */
 export type Lang = "es" | "en";
 
 export function money(cents: number, currency: string, lang: Lang): string {
-  return new Intl.NumberFormat(lang === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return formatPrice({ amountCents: Math.round(cents / 100) * 100, currency, locale: lang }).primary;
 }
 
 const L = {

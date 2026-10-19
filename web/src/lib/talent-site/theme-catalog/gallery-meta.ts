@@ -450,9 +450,21 @@ export function galleryExtraDesignsEnabled(): boolean {
   );
 }
 
-/** Designs the gallery shows: the finished set, or all with the flag on. */
+/**
+ * TUL-747: finished-in-code designs whose catalog row exists but is NOT published (e.g. Folio while it is
+ * still a draft with no release). Their preview 404s by design, so the picker must not offer them. Set once
+ * per page by the client host from the server bootstrap; the server never calls the setter, so the
+ * server-side module state stays empty.
+ */
+let unavailableGallerySlugs: ReadonlySet<string> = new Set();
+export function setGalleryUnavailableSlugs(slugs: readonly string[] | null | undefined): void {
+  unavailableGallerySlugs = new Set((slugs ?? []).map((s) => s.trim().toLowerCase()));
+}
+
+/** Designs the gallery shows: the finished set, or all with the flag on; never an unreleased (unpublished) one. */
 export function visibleGalleryDesigns(showExtra: boolean = galleryExtraDesignsEnabled()): readonly GalleryDesign[] {
-  return showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
+  const base = showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
+  return unavailableGallerySlugs.size ? base.filter((d) => !unavailableGallerySlugs.has(d.slug)) : base;
 }
 
 export function getGalleryDesign(slug: string): GalleryDesign | undefined {

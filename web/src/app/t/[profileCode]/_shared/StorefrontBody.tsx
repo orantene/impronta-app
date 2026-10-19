@@ -14,6 +14,7 @@ import Image from "next/image";
 import type { TalentOffering, OfferingKind } from "@/lib/talent/offerings-types";
 import { offeringIsQuote, offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { OfferingCta } from "./OfferingCta";
+import { durationLabel } from "@/lib/talent/duration-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { pauseBannerCopy } from "@/lib/talent/accepting-readiness";
@@ -46,11 +47,23 @@ function UsdLine({ it, locale, fx }: { it: TalentOffering; locale: string; fx: U
   );
 }
 
+/** TUL-795: the way from the hub profile to the service's own detail page. */
+function DetailLink({ href, locale }: { href?: string; locale: string }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      data-service-detail-link
+      className="shrink-0 text-xs font-medium underline underline-offset-4"
+      style={{ color: "var(--plt-ink-soft)" }}
+    >
+      {pickLocale(locale, { en: "View details", es: "Ver detalle" })}
+    </a>
+  );
+}
+
 function DurationChip({ minutes, locale }: { minutes: number; locale: string }) {
-  const label =
-    minutes >= 60 && minutes % 60 === 0
-      ? `${minutes / 60} h`
-      : `${minutes} min`;
+  const label = durationLabel(minutes, locale);
   return (
     <span
       className="plt-mono inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.1em]"
@@ -62,7 +75,7 @@ function DurationChip({ minutes, locale }: { minutes: number; locale: string }) 
   );
 }
 
-function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
+function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null, href }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string }) {
   // Sold out is a POOL fact, not a kind fact. Gating on `kind === "product"`
   // meant a seat-limited package never showed sold out, because it never sold
   // down. `inventoryQty` is the pool mirror maintained by the stock RPCs, so a
@@ -94,6 +107,7 @@ function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { i
         {offeringPriceLabel(it, locale)}
         <UsdLine it={it} locale={locale} fx={usdRates} />
       </p>
+      <DetailLink href={href} locale={locale} />
       {soldOut ? (
         <span className="plt-mono inline-flex shrink-0 items-center rounded-full border px-2 py-1 text-[0.625rem] uppercase tracking-[0.1em]" style={{ borderColor: "var(--plt-hairline-strong)", color: "var(--plt-muted-soft)" }}>
           {locale === "es" ? "Agotado" : "Sold out"}
@@ -105,7 +119,7 @@ function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null }: { i
   );
 }
 
-function PackageCard({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
+function PackageCard({ it, locale, confirmsByHand = false, usdRates = null, href }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string }) {
   return (
     <div
       className="overflow-hidden rounded-[var(--plt-radius-md)] border"
@@ -131,6 +145,7 @@ function PackageCard({ it, locale, confirmsByHand = false, usdRates = null }: { 
             {offeringPriceLabel(it, locale)}
         <UsdLine it={it} locale={locale} fx={usdRates} />
           </p>
+          <DetailLink href={href} locale={locale} />
           <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
         </div>
       </div>
@@ -175,7 +190,7 @@ function ProductTile({ it, locale, confirmsByHand = false, usdRates = null }: { 
   );
 }
 
-function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
+function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null, href }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string }) {
   const tag = pickLocale(locale, { en: "Signature", es: "Insignia" });
   return (
     <div
@@ -205,6 +220,7 @@ function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null }: {
             {offeringPriceLabel(it, locale)}
         <UsdLine it={it} locale={locale} fx={usdRates} />
           </p>
+          <DetailLink href={href} locale={locale} />
           <OfferingCta offering={it} locale={locale} confirmsByHand={confirmsByHand} />
         </div>
       </div>
@@ -223,6 +239,7 @@ export function StorefrontBody({
   showFeatured = true,
   confirmsByHand = false,
   usdRates = null,
+  serviceHrefs,
 }: {
   visible: TalentOffering[];
   locale: string;
@@ -230,6 +247,8 @@ export function StorefrontBody({
   confirmsByHand?: boolean;
   /** Rates for the "≈ US$" line; null prints no line. */
   usdRates?: UsdRates | null;
+  /** TUL-795: offering id -> its service detail page (talent site host). */
+  serviceHrefs?: Record<string, string>;
 }) {
   if (visible.length === 0) return null;
   // WSF-C §8: the loader stamps the talent's pause on every offering.
@@ -261,7 +280,7 @@ export function StorefrontBody({
           {pickLocale(locale, { en: "She confirms by hand.", es: "Ella confirma a mano.", fr: "Elle confirme à la main." })}
         </p>
       ) : null}
-      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} /> : null}
+      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[featured.id]} /> : null}
 
       {groups.map((g) => (
         <div key={g.kind} className="mb-6 last:mb-0">
@@ -280,13 +299,13 @@ export function StorefrontBody({
               style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg-raised)" }}
             >
               {g.items.map((it) => (
-                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} />
               ))}
             </div>
           ) : g.kind === "package" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {g.items.map((it) => (
-                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} />
               ))}
             </div>
           ) : (

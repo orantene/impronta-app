@@ -12,6 +12,7 @@ import { offeringMatrixValue } from "@/lib/talent/offering-matrix";
 import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 import { publicPriceForJsonLd, resolvePublicPrice } from "@/lib/talent/public-price";
+import { durationLabel } from "@/lib/talent/duration-label";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
 
@@ -128,8 +129,8 @@ export type ServicePageCopy = {
 export function servicePageCopy(locale: string): ServicePageCopy {
   const en = locale.toLowerCase().startsWith("en");
   return en
-    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => `${n} min`, priceFrom: "From", quote: "Request a quote", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before`, materials: "Materials", warranty: "Warranty", response: "Response time" }
-    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => `${n} min`, priceFrom: "Desde", quote: "Pedir cotización", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes`, materials: "Materiales", warranty: "Garantía", response: "Tiempo de respuesta" };
+    ? { book: "Book this service", bookShort: "Book", back: "All services", minutes: (n) => durationLabel(n), priceFrom: "From", quote: "Request a quote", related: "Other services", freeCancel: (h) => `Free cancellation up to ${h} h before`, materials: "Materials", warranty: "Warranty", response: "Response time" }
+    : { book: "Reservar este servicio", bookShort: "Reservar", back: "Todos los servicios", minutes: (n) => durationLabel(n), priceFrom: "Desde", quote: "Pedir cotización", related: "Otros servicios", freeCancel: (h) => `Cancelación gratuita hasta ${h} h antes`, materials: "Materiales", warranty: "Garantía", response: "Tiempo de respuesta" };
 }
 
 /** "All services" link: the home page's services section, locale-aware (`/` or `/en` -> `/#services`, `/en/#services`). */

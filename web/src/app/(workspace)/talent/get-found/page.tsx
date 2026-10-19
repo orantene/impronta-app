@@ -16,6 +16,13 @@ import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * TUL-1226: this standalone page used bare Tailwind greys and never set a text colour or font, so its
+ * headings and values took whatever the dashboard shell around it handed down (QA saw them very pale).
+ * The sibling talent pages (Discover, Trust) declare ink and font themselves; this does the same.
+ */
+const GET_FOUND_TEXT = { color: "var(--color-admin-ink)", fontFamily: '"Inter", system-ui, sans-serif' } as const;
+
 /** TUL-584: Google Business Profile setup guide, pre-filled from the talent's own data. */
 export default async function PlatformTalentGetFoundPage() {
   const session = await getCachedActorSession();
@@ -82,7 +89,7 @@ export default async function PlatformTalentGetFoundPage() {
   );
 
   return (
-    <>
+    <div style={GET_FOUND_TEXT}>
       <SeoScoreCard seo={seo} lang={lang} />
       <GoogleBusinessGuide guide={guide} lang={lang} />
       <SearchConsoleGuide guide={gscGuide} lang={lang} initialToken={gscToken} />
@@ -91,6 +98,6 @@ export default async function PlatformTalentGetFoundPage() {
           {lang === "es" ? "Volver a Mi presencia" : "Back to My presence"}
         </Link>
       </div>
-    </>
+    </div>
   );
 }

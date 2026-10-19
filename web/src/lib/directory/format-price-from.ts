@@ -10,21 +10,14 @@
  * on a card. Falls back to a bare `$N` when the currency code is one Intl
  * rejects — a bad code must never throw inside render.
  */
+import { formatPrice } from "@/lib/money/format-price";
+
 export function formatPriceFromLabel(
   amountCents: number,
   currency: string,
   locale: string,
 ): string {
-  let amount: string;
-  try {
-    amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(Math.round(amountCents / 100));
-  } catch {
-    amount = `$${Math.round(amountCents / 100)}`;
-  }
+  const amount = formatPrice({ amountCents: Math.round(amountCents / 100) * 100, currency, locale }).primary;
   return locale === "es" ? `Desde ${amount}` : `From ${amount}`;
 }
 

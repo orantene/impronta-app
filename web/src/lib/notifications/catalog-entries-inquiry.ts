@@ -6,7 +6,7 @@ import { brandForSeller } from "./booking-confirmed-email";
 import ClientInquiryReceived from "../../../emails/client/InquiryReceived";
 import ClientReplyReady from "../../../emails/client/ReplyReady";
 import ClientOfferReady from "../../../emails/client/OfferReady";
-import { clientManageUrl } from "./client-visit-url";
+import { clientManageUrl, clientOfferUrl } from "./client-visit-url";
 import ClientBookingConfirmed from "../../../emails/client/BookingConfirmed";
 import TalentInquiryInvited from "../../../emails/talent/InquiryInvited";
 import TalentOfferReady from "../../../emails/talent/OfferReady";
@@ -167,7 +167,7 @@ const OFFER_SENT_CLIENT: CatalogEntry = {
         clientName: recipient.displayName ?? str(event.payload.contactName),
         contactName: str(event.payload.contactName),
         totalAmount: str(event.payload.offerTotal) ?? "",
-        offerUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}?tab=offer`),
+        offerUrl: clientOfferUrl(brand, `/client/inquiries/${event.inquiryId}?tab=offer`, { inquiryId: event.inquiryId, tenantId: event.tenantId }),
         brand,
         unsubscribeUrl,
         categoryLabel: "offer",

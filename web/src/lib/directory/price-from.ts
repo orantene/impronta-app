@@ -2,7 +2,14 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headline-price";
+import {
+  buildStartingPrices,
+  type OfferingPriceRow,
+  type StartingPrice,
+  type StartingPriceResult,
+} from "@/lib/directory/starting-price-rows";
+
+export type { StartingPrice, StartingPriceResult };
 
 /**
  * Batched "starting from" price per talent for directory cards.
@@ -29,17 +36,16 @@ import { pickHeadlinePrice, type CatalogPriceRow } from "@/lib/directory/headlin
  * relationship, and a talent can sit on several rosters at once (the live
  * data already has talent on 5 tenants). Agencies routinely negotiate
  * different rates for the same person, so an unscoped query would publish
- * Agency A's negotiated rate on Agency B's public directory. Without a tenant
- * scope we return nothing rather than guess whose price to show.
+ * Agency A's negotiated rate on Agency B's public directory. On an AGENCY
+ * host the tenant filter is therefore mandatory.
+ *
+ * Platform / hub host (tenantId null, TUL-791): there is no agency to leak
+ * to, and the talent's own profile there already shows every published
+ * offering (`loadPublicOfferingsForProfile` skips the tenant filter at null).
+ * The card used to return nothing at null scope, so it read only "Consultar"
+ * while the profile said "Desde $500". Null scope now reads the same rows the
+ * profile reads.
  */
-export type StartingPrice = { amountCents: number; currency: string; priceType: string };
-
-export type StartingPriceResult = {
-  prices: Map<string, StartingPrice>;
-  /** Talents with a published timed request/instant offering on this tenant. */
-  bookableIds: Set<string>;
-};
-
 /**
  * Talents with ANY published, publicly-visible offering — priced or not.
  *
@@ -57,13 +63,14 @@ export async function fetchTalentsWithPublishedOfferings(
   tenantId: string | null,
 ): Promise<Set<string>> {
   const out = new Set<string>();
-  if (talentProfileIds.length === 0 || !tenantId) return out;
+  if (talentProfileIds.length === 0) return out;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("talent_offerings")
     .select("talent_profile_id")
-    .in("talent_profile_id", talentProfileIds)
-    .eq("tenant_id", tenantId)
+    .in("talent_profile_id", talentProfileIds);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .eq("status", "published")
     .eq("moderation_state", "approved")
     .in("visibility", ["public", "on_request"])
@@ -71,7 +78,7 @@ export async function fetchTalentsWithPublishedOfferings(
     // with a blank/zero amount is an incomplete draft, not a pricing
     // statement, and must still be eligible for the agency default.
     .or(
-      "price_display.eq.quote,price_type.eq.custom,amount_cents.is.null,amount_cents.eq.0",
+      "price_display.eq.quote,price_type.eq.custom,visibility.eq.on_request,amount_cents.is.null,amount_cents.eq.0",
     );
 
   if (error || !data) return out;
@@ -81,69 +88,27 @@ export async function fetchTalentsWithPublishedOfferings(
   return out;
 }
 
-type OfferingPriceRow = {
-  talent_profile_id: string;
-  amount_cents: number | null;
-  currency: string | null;
-  price_type: string | null;
-  is_featured: boolean | null;
-  booking_mode: string | null;
-  duration_minutes: number | null;
-  kind: string | null;
-  price_display: string | null;
-};
-
 export async function fetchStartingPrices(
   supabase: SupabaseClient,
   talentProfileIds: string[],
   tenantId: string | null,
 ): Promise<StartingPriceResult> {
-  const prices = new Map<string, StartingPrice>();
-  const bookableIds = new Set<string>();
-  if (talentProfileIds.length === 0 || !tenantId) return { prices, bookableIds };
+  const empty: StartingPriceResult = { prices: new Map(), bookableIds: new Set() };
+  if (talentProfileIds.length === 0) return empty;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("talent_offerings")
     .select(
-      "talent_profile_id, amount_cents, currency, price_type, is_featured, booking_mode, duration_minutes, kind, price_display",
+      "talent_profile_id, amount_cents, currency, price_type, is_featured, booking_mode, duration_minutes, kind, price_display, visibility",
     )
-    .in("talent_profile_id", talentProfileIds)
-    .eq("tenant_id", tenantId)
+    .in("talent_profile_id", talentProfileIds);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .eq("status", "published")
     .eq("moderation_state", "approved")
     .in("visibility", ["public", "on_request"]);
 
-  if (error || !data) return { prices, bookableIds };
+  if (error || !data) return empty;
 
-  const byTalent = new Map<string, CatalogPriceRow[]>();
-  for (const row of data as OfferingPriceRow[]) {
-    if (
-      row.kind !== "product" &&
-      (row.duration_minutes ?? 0) > 0 &&
-      // null = inherits the talent default (WSF-B); only inquiry has no slots.
-      row.booking_mode !== "inquiry"
-    ) {
-      bookableIds.add(row.talent_profile_id);
-    }
-    const amountCents = row.amount_cents;
-    const priced =
-      row.price_type !== "custom" &&
-      row.price_display !== "quote" &&
-      typeof amountCents === "number" &&
-      amountCents > 0;
-    if (!priced) continue;
-    const list = byTalent.get(row.talent_profile_id) ?? [];
-    list.push({
-      amountCents,
-      currency: (row.currency ?? "USD").toUpperCase(),
-      priceType: row.price_type ?? "",
-      isFeatured: row.is_featured === true,
-    });
-    byTalent.set(row.talent_profile_id, list);
-  }
-  for (const [talentId, rows] of byTalent) {
-    const headline = pickHeadlinePrice(rows);
-    if (headline) prices.set(talentId, headline);
-  }
-  return { prices, bookableIds };
+  return buildStartingPrices(data as OfferingPriceRow[]);
 }

@@ -7,6 +7,7 @@ import {
   listWorkspaceOfferings,
   loadPostForWriter,
 } from "@/lib/cms/posts-writer-read";
+import { loadOwnAiCrawlersAllowed } from "@/lib/cms/posts-ai-toggle";
 import { resolveWorkspacePostContext } from "@/lib/cms/workspace-post-context";
 import { getRequestLocale } from "@/i18n/request-locale";
 
@@ -32,9 +33,10 @@ export default async function AdminWebsitePostWriterPage({
   const ui = await getRequestLocale();
   const locale: "es" | "en" = ui === "es" ? "es" : "en";
   const postLocale = isPostLocale(post.locale) ? post.locale : "es";
-  const [categories, offerings] = await Promise.all([
+  const [categories, offerings, aiCrawlersAllowed] = await Promise.all([
     listPostCategories(ctx.supabase, scope, postLocale),
     listWorkspaceOfferings(ctx.supabase, ctx.tenantId, postLocale),
+    loadOwnAiCrawlersAllowed(scope),
   ]);
 
   const writerPost = post.title === "Sin título" ? { ...post, title: "" } : post;
@@ -50,6 +52,7 @@ export default async function AdminWebsitePostWriterPage({
         backHref={`${adminBase}/website/posts`}
         upgradeHref={`${adminBase}/account`}
         lapsed={!ctx.canPublish}
+        aiCrawlersAllowed={aiCrawlersAllowed}
         mediaTenantId={ctx.tenantId}
         mediaTalentProfileId={null}
       />

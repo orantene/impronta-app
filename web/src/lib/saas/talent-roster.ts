@@ -15,6 +15,25 @@ export type RosterVisibility = "site_visible" | "featured";
 
 const PUBLIC_VISIBILITIES: RosterVisibility[] = ["site_visible", "featured"];
 
+/** The chainable filters a PostgREST roster query exposes (structural, so fakes and real clients both fit). */
+type RosterChain = { eq(column: string, value: unknown): RosterChain; in(column: string, values: readonly unknown[]): RosterChain };
+
+/**
+ * THE tenant-scoped, guest-visible roster filter (TUL-1068/1070/1246 audit).
+ * Every guest-facing read of `agency_talent_roster` (Concierge dock rows, the
+ * talent picker, cart portraits, the chip roster check, directory id lists)
+ * goes through this one function, so "this tenant, active, shown on the site,
+ * not hidden" is defined once. `guest-roster-scope.static.test.ts` fails a
+ * guest read that skips it.
+ */
+export function scopeToGuestVisibleRoster<Q>(query: Q, tenantId: string): Q {
+  return (query as unknown as RosterChain)
+    .eq("tenant_id", tenantId)
+    .eq("status", "active")
+    .in("agency_visibility", PUBLIC_VISIBILITIES)
+    .eq("talent_site_hidden", false) as unknown as Q;
+}
+
 /**
  * Filter a list of talent_profile_ids down to the ones that are on the given
  * tenant's roster and publicly visible. Returns the subset that is valid.
@@ -26,13 +45,10 @@ export async function filterTalentIdsOnTenantRoster(
   talentProfileIds: string[],
 ): Promise<string[]> {
   if (talentProfileIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!inner(profile_kind)")
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .in("agency_visibility", PUBLIC_VISIBILITIES)
-    .eq("talent_site_hidden", false)
+  const { data, error } = await scopeToGuestVisibleRoster(
+    supabase.from("agency_talent_roster").select("talent_profile_id, talent_profiles!inner(profile_kind)"),
+    tenantId,
+  )
     .in("talent_profile_id", talentProfileIds)
     .eq("talent_profiles.profile_kind", "person");
   if (error) return [];
@@ -54,13 +70,10 @@ export async function listTalentIdsOnTenantRoster(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!inner(profile_kind)")
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .in("agency_visibility", PUBLIC_VISIBILITIES)
-    .eq("talent_site_hidden", false)
+  const { data, error } = await scopeToGuestVisibleRoster(
+    supabase.from("agency_talent_roster").select("talent_profile_id, talent_profiles!inner(profile_kind)"),
+    tenantId,
+  )
     .eq("talent_profiles.profile_kind", "person");
   if (error) return [];
   return (data ?? []).map((row) => row.talent_profile_id as string);
@@ -96,13 +109,10 @@ export async function isTalentOnTenantRoster(
   tenantId: string,
   talentProfileId: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!inner(profile_kind)")
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .in("agency_visibility", PUBLIC_VISIBILITIES)
-    .eq("talent_site_hidden", false)
+  const { data, error } = await scopeToGuestVisibleRoster(
+    supabase.from("agency_talent_roster").select("talent_profile_id, talent_profiles!inner(profile_kind)"),
+    tenantId,
+  )
     .eq("talent_profile_id", talentProfileId)
     .eq("talent_profiles.profile_kind", "person")
     .maybeSingle();

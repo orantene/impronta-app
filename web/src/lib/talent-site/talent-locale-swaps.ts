@@ -196,6 +196,10 @@ export function buildTalentLocaleSwaps(
   // The hero headline seeded from her trade ("Hands that {i}speak{/i} for you.") has a Spanish form.
   const seed = seedHeadlineFor(tradeEn, src.seedKey);
   if (seed && key === "es") add(accentHeadline(seed.en), accentHeadline(seed.es));
+  // TUL-858: a tree baked in Spanish (her main language) must not leave the Spanish
+  // seeded headline / proof line on the English page. Seeded text only; nothing invented.
+  if (seed && key === "en") add(accentHeadline(seed.es), accentHeadline(seed.en));
+  if (src.proof && key === "en") add(formatHeroProofLine(src.proof, "es"), formatHeroProofLine(src.proof, "en"));
   if (src.proof && key === "es") {
     add(formatHeroProofLine(src.proof, "en"), formatHeroProofLine(src.proof, "es"));
     // About `{{languagesLine}}` bakes "Languages: …" from talent_languages at

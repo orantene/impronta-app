@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
+import { useMenuKeyboard } from "@/hooks/use-menu-keyboard";
 import { HeaderPopover } from "./marketing-header-popover";
 
 /**
@@ -80,6 +81,7 @@ export function MarketingLanguageMenu({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  useMenuKeyboard(ref, open, () => setOpen(false));
 
   const locales = availableLocales ?? FALLBACK_LANGUAGE_SETTINGS.publicLocales;
   if (locales.length <= 1) return null;

@@ -5,6 +5,8 @@
  * the server action.
  */
 
+import { resolveOwnTradeWords } from "./writing-helper-trade-words";
+
 export const WRITING_OPS = ["write", "rewrite", "expand", "shorten", "tone"] as const;
 export type WritingOp = (typeof WRITING_OPS)[number];
 export const WRITING_TONES = ["warm", "professional", "fun"] as const;
@@ -35,7 +37,8 @@ export const BIO_MIN_CHARS = 30;
 export const WRITING_HELPER_DAILY_CAP = 30;
 
 export function buildWritingPrompt(req: WritingRequest): { systemPrompt: string; userMessage: string } {
-  const f = req.facts;
+  // TUL-993: the fact is the catalogue title; give the model the person's own gender/number.
+  const f = { ...req.facts, discipline: req.facts.discipline ? resolveOwnTradeWords(req.facts.discipline, req.text) : null };
   const langName = req.locale === "es" ? "Spanish (Mexico)" : "English";
   const system = [
     `You help a self-employed person write the short bio on their own page. Write in ${langName}, first person, plain words a client would use when searching.`,

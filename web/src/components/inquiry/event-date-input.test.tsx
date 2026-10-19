@@ -49,3 +49,19 @@ test("TUL-953: half-typed date shows the English inline error after blur", () =>
 test("TUL-953: a complete or empty date shows no error", () => {
   assert.equal(blurWith("en", false), null);
 });
+
+test("TUL-953: a half-typed date reports incomplete to the parent so Send is held", () => {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  const seen: boolean[] = [];
+  act(() => {
+    root.render(<DashboardLocaleProvider locale="en"><EventDateInput value="" onChange={() => {}} onIncompleteChange={(b) => seen.push(b)} style={{}} /></DashboardLocaleProvider>);
+  });
+  const input = host.querySelector("input")!;
+  Object.defineProperty(input, "validity", { value: { badInput: true }, configurable: true });
+  act(() => { input.dispatchEvent(new dom.window.Event("focusout", { bubbles: true })); });
+  assert.deepEqual(seen, [true]);
+  act(() => root.unmount());
+  host.remove();
+});

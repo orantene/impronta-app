@@ -74,14 +74,18 @@ export default async function AccountRedirectPage({
   const profile = session.profile;
 
   if (!profile?.app_role) {
-    redirect("/onboarding/role");
+    // TUL-772: carry a client `next`, so the role picker stays on this app host
+    // instead of the TUL-117 hand-off to the marketing /start funnel.
+    redirect("/onboarding/role?next=%2Faccount");
   }
 
   if (
     profile.account_status === "onboarding" ||
     profile.account_status === "registered"
   ) {
-    redirect("/onboarding/role");
+    // TUL-772: carry a client `next`, so the role picker stays on this app host
+    // instead of the TUL-117 hand-off to the marketing /start funnel.
+    redirect("/onboarding/role?next=%2Faccount");
   }
 
   if (isStaffRole(profile.app_role)) {

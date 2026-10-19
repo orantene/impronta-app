@@ -74,7 +74,8 @@ test("picker assumes single-tenant input — mixing tenants is a query bug", () 
   // If both an Agency-A row and an Agency-B row ever reach here, the picker
   // has no way to tell them apart and would publish one agency's negotiated
   // rate on the other's directory. The guard is upstream: fetchStartingPrices
-  // filters .eq("tenant_id", tenantId) and returns nothing without a scope.
+  // filters .eq("tenant_id", tenantId) whenever a tenant is in scope (the
+  // platform host, tenantId null, reads the same rows the profile reads).
   const singleTenantRows = [row(35000, "half_day"), row(60000, "day", true)];
   assert.deepEqual(pickHeadlinePrice(singleTenantRows), {
     amountCents: 60000,

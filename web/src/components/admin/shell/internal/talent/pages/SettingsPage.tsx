@@ -23,6 +23,7 @@ import { TalentInstagramCard } from "@/components/talent/connections/TalentInsta
 import { TALENT_INSTAGRAM_RETURN_MARKER } from "@/lib/talent-integrations/instagram-card-state";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { useDashboardText } from "../../dashboard-i18n";
+import { TalentSiteAppearancesPanel } from "@/components/talent/site/TalentSiteAppearancesPanel";
 import { PasskeysCard } from "../../modern-features";
 import { Icon } from "../../primitives";
 import { MY_TALENT_PROFILE, TALENT_TIER_META, useAdminShell } from "../../state";
@@ -330,8 +331,9 @@ export function SettingsPage() {
       key: "hide",
       label: tx("Hide a public page"),
       sub: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
-      tag: { text: tx("In Where I appear"), tone: "ok" },
-      onOpen: () => setTalentPage("public-page"),
+      // TUL-728 / TUL-1114: unfold the listings (each with its own Hide) in place. It used to
+      // jump to Presence, which left Settings and had no hide control for the row.
+      panel: <TalentSiteAppearancesPanel locale={copy.isSpanish ? "es" : "en"} />,
     },
   ];
   if (bridgeTalentSelfProfile && tenantSlug) {

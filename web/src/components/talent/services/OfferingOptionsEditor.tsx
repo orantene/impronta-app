@@ -51,7 +51,7 @@ const inputStyle: React.CSSProperties = {
   fontFamily: FONT,
 };
 
-type Row = { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap };
+type Row = { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap; durationMinutes?: number | null };
 
 /**
  * One option / extra label, translatable (PR 7): an `xs` badge over the input.
@@ -258,7 +258,7 @@ export function OfferingOptionsEditor({
       variants: nextVariants.map((v) => ({ label: v.label, amountCents: v.amountCents, labelI18n: v.labelI18n })),
       addOns: nextAddOns
         .filter((a): a is Row & { amountCents: number } => a.amountCents != null)
-        .map((a) => ({ label: a.label, amountCents: a.amountCents, labelI18n: a.labelI18n })),
+        .map((a) => ({ label: a.label, amountCents: a.amountCents, labelI18n: a.labelI18n, durationMinutes: a.durationMinutes ?? null })),
     });
     setBusy(false);
     if (res.ok) onSynced(res.variants, res.addOns);

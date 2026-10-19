@@ -74,3 +74,14 @@ test("act: refuses without identity; buys through createPurchase; replays by key
   const r = await actPackageSelectorCore(sold, INPUT);
   assert.ok(!r.ok && r.reason === "full");
 });
+
+test("D-10: the package buy path refuses an agency_only or pending package before createPurchase", async () => {
+  for (const over of [{ visibility: "agency_only" }, { moderation_state: "pending" }]) {
+    const base = { tenant_id: TENANT, status: "published", moderation_state: "approved", visibility: "public", currency: "USD", price_type: "flat_package", price_display: "exact" };
+    const { admin } = fakeAdmin({ talent_offerings: [{ ...base, ...over, id: PKG, kind: "package", title: "Combo", amount_cents: 900 }] });
+    const { deps, purchases } = setup({ admin });
+    const r = await actPackageSelectorCore(deps, INPUT);
+    assert.ok(!r.ok && r.code === "not_sellable", JSON.stringify(over));
+    assert.equal(purchases.length, 0);
+  }
+});

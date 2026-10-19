@@ -79,7 +79,7 @@ export function mapEngineFail(res: Extract<InstantEngineResult, { ok: false }>):
                 : res.reason === "too_soon"
                   ? res.error ?? "That time is too soon. Pick a later start."
                   : res.reason === "not_accepting_bookings"
-                    ? res.error ?? "Not taking new bookings right now. Send an inquiry instead."
+                    ? res.error ?? "Not taking new bookings right now. You can still send an inquiry."
                   : res.reason === "inquiry_only" || res.reason === "request_only"
                     ? res.error ?? "This one is booked by request. Send a message to ask for a time."
                     : res.reason === "bad_duration"

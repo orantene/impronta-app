@@ -808,7 +808,9 @@ export async function startGuestChatInquiry(
         return fail(
           accepting.reason,
           accepting.reason === "not_accepting_bookings"
-            ? "Not taking new bookings right now. You can still send an inquiry."
+            ? input.locale === "es"
+              ? "No estoy tomando nuevas reservas por ahora. Puedes consultarme."
+              : "Not taking new bookings right now. You can still send an inquiry."
             : notAcceptingMessage(input.locale),
         );
       }

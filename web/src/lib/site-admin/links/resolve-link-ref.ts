@@ -57,6 +57,31 @@ function finalize(
   return out;
 }
 
+/**
+ * TUL-1247: a tenant-site link saved as an ABSOLUTE platform-app URL
+ * (`https://app.staging.tulala.digital/w/<slug>/clases`) sends the visitor off
+ * the host they are on and onto the app host, where `/w/...` is not served (EN
+ * 404). The page belongs to THIS site, so rebuild it from the tenant's own
+ * address: drop the app origin and the `/w/<slug>` segment, then re-apply the
+ * context's own prefix (`/w/<slug>` on the path host, none on a branded host).
+ * Returns null for any URL that is not a platform-app `/w/<slug>` link, so
+ * genuine external links are untouched.
+ */
+const PLATFORM_APP_HOST = /^app\.(?:staging\.)?tulala\.digital$/i;
+export function ownSitePathFromPlatformAppUrl(href: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(href);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  if (!PLATFORM_APP_HOST.test(u.hostname)) return null;
+  const m = u.pathname.match(/^\/w\/[^/]+(\/.*)?$/);
+  if (!m) return null;
+  return `${m[1] || "/"}${u.search}${u.hash}`;
+}
+
 export function resolveLinkRef(ref: LinkRef, ctx: LinkResolveCtx): ResolvedLink {
   const prefix = ctx.pathPrefix ?? "";
   const v = (ref.value ?? "").trim();
@@ -93,6 +118,8 @@ export function resolveLinkRef(ref: LinkRef, ctx: LinkResolveCtx): ResolvedLink 
       return finalize(origin ? `${origin}${path}` : path, ref, true, true);
     }
     case "external-url": {
+      const own = ownSitePathFromPlatformAppUrl(v);
+      if (own) return finalize(prefixPublicHref(own, prefix), ref, false, false);
       return finalize(v, ref, true, true);
     }
     case "mailto": {

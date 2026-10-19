@@ -4,6 +4,9 @@ import { getSiteUrl } from "@/lib/auth-flow";
 import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 import Link from "next/link";
+import { useState } from "react";
+
+import { readAuthConsentDraft, writeAuthConsentDraft } from "@/lib/auth/email-draft";
 
 import { createTranslator } from "@/i18n/messages";
 
@@ -15,6 +18,9 @@ import { createTranslator } from "@/i18n/messages";
 export function AgeTermsCheckbox({ locale = "en" }: { locale?: string }) {
   const t = createTranslator(locale);
   const links = ageTermsLinks(getSiteUrl(), locale);
+  // TUL-1235: controlled + draft-backed. An uncontrolled box was reset to
+  // unchecked by the form action after any server error (invalid email).
+  const [checked, setChecked] = useState(() => readAuthConsentDraft());
   return (
     <label
       className="flex items-start gap-2 text-[0.8125rem] leading-snug"
@@ -24,6 +30,11 @@ export function AgeTermsCheckbox({ locale = "en" }: { locale?: string }) {
         type="checkbox"
         name="age_terms"
         required
+        checked={checked}
+        onChange={(e) => {
+          setChecked(e.target.checked);
+          writeAuthConsentDraft(e.target.checked);
+        }}
         className="mt-0.5 size-4 shrink-0"
         data-testid="signup-age-terms"
       />

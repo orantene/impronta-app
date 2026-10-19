@@ -356,7 +356,7 @@ test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
   // Nombre + WhatsApp required — no handoff, sheet stays open.
   assert.equal(handoffs.length, 0);
   assert.ok(host.querySelector("[data-catalog-ask]"));
-  assert.match(host.textContent ?? "", /WhatsApp hace falta para chatear/);
+  assert.match(host.textContent ?? "", /teléfono o WhatsApp para chatear/);
   assert.equal(book.calls.length, 0);
   act(() => root.unmount());
   host.remove();

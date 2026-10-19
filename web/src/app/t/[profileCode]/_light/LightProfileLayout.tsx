@@ -533,6 +533,7 @@ export function LightProfileLayout({
             {storefrontOfferings.length > 0 ? (
               <TalentStorefront
                 offerings={storefrontOfferings}
+                siteUrl={maxSiteUrl}
                 locale={locale}
                 heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
               />

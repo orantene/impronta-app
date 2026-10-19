@@ -12,6 +12,7 @@ import {
   workspaceUnpublishPostAction,
   workspaceUpdatePostSettingsAction,
 } from "@/lib/server-actions/posts-writer-actions";
+import { workspaceSetAiCrawlersAllowedAction } from "@/lib/server-actions/posts-ai-toggle-actions";
 import type { PostWriterActions } from "@/lib/cms/post-writer-types";
 import { PostWriter, type PostWriterProps } from "./PostWriter";
 
@@ -29,8 +30,17 @@ const BY_LOCALE: Record<"es" | "en", PostWriterActions> = {
   en: makeWorkspacePostActions("en"),
 };
 
-export type WorkspacePostWriterClientProps = Omit<PostWriterProps, "actions" | "upgradeAudience">;
+export type WorkspacePostWriterClientProps = Omit<PostWriterProps, "actions" | "upgradeAudience" | "aiCrawlers"> & {
+  aiCrawlersAllowed?: boolean;
+};
 
-export function WorkspacePostWriterClient(props: WorkspacePostWriterClientProps) {
-  return <PostWriter {...props} actions={BY_LOCALE[props.locale]} upgradeAudience="workspace" />;
+export function WorkspacePostWriterClient({ aiCrawlersAllowed, ...props }: WorkspacePostWriterClientProps) {
+  return (
+    <PostWriter
+      {...props}
+      actions={BY_LOCALE[props.locale]}
+      upgradeAudience="workspace"
+      aiCrawlers={{ initialAllowed: aiCrawlersAllowed ?? true, onSave: workspaceSetAiCrawlersAllowedAction }}
+    />
+  );
 }

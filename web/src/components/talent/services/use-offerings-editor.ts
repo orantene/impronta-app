@@ -33,6 +33,7 @@ import {
 } from "@/lib/talent/menu-offerings-actions";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { settleServerAction } from "@/lib/client/settle-server-action";
+import { takeServicesSeed } from "./services-bootstrap";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,
@@ -126,15 +127,20 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     // Services fires several actions on mount and they run one at a time, so
     // the list read gets a longer budget than the 4 s default.
     const settle = { area: "talent-services", budgetMs: 10_000 };
+    // TUL-824: the first load comes from the server route's seed (no queued
+    // server action); reloads and a missing/stale seed call the action.
+    const seeded = isWorkspace || loadTick > 0 ? null : takeServicesSeed(talentId);
     const load = isWorkspace
       ? settleServerAction(() => loadWorkspaceMenuForEditor(workspaceTenantId), {
           ...settle,
           label: "loadWorkspaceMenuForEditor",
         })
-      : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
-          ...settle,
-          label: "loadTalentOfferingsForEditor",
-        });
+      : seeded
+        ? Promise.resolve(seeded)
+        : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
+            ...settle,
+            label: "loadTalentOfferingsForEditor",
+          });
     load
       .then((res) => {
         if (cancelled) return;

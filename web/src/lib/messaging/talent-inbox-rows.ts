@@ -20,6 +20,9 @@ type Actor = Extract<Awaited<ReturnType<typeof loadTalentActor>>, { ok: true }>;
  * cannot drift (TUL-52 B: bell said 25 unread, Messages showed 0).
  */
 export async function loadTalentInboxForActor(actor: Actor, filter: InboxFilter) {
+  // TUL-625: the hub lookup does not depend on the id scan; start it first so it
+  // resolves while the scans and the inbox read run instead of after them.
+  const hubPromise = getPlatformHubTenant().catch(() => null);
   const listed = await listTalentInquiryIds(actor.admin, actor.talentProfileId);
   if (!listed.ok) return listed;
   const inbox = await loadMessagingInbox(actor.admin, {
@@ -31,7 +34,7 @@ export async function loadTalentInboxForActor(actor: Actor, filter: InboxFilter)
   });
   if (!inbox.ok) return inbox;
   // Her own hub sales are hers; every other tenant's thread is an agency's.
-  const hub = await getPlatformHubTenant();
+  const hub = await hubPromise;
   let rows = inbox.rows.map((row) => ({ ...row, agency: !talentIsSeller(row.tenantId, hub?.tenantId ?? null) }));
   let unreadCount = inbox.unreadCount;
   // Live talents: hide agent/journey fixture threads from the inbox. Demo
