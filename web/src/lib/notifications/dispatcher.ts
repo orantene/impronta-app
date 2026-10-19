@@ -52,6 +52,8 @@ import {
  */
 export async function dispatchEventNotifications(
   event: NotificationEvent,
+  /** Test seam: an in-memory context and channel handlers (no email/DB). */
+  deps?: { ctx?: AudienceContext; handlers?: Partial<Record<NotificationChannel, ChannelHandler>> },
 ): Promise<DispatchResult> {
   const result: DispatchResult = { dispatched: 0, suppressed: 0, failed: 0, queued: 0, skipped: 0 };
 
@@ -63,7 +65,7 @@ export async function dispatchEventNotifications(
   const entries = findCatalogEntries(event.type);
   if (entries.length === 0) return result;
 
-  const ctx = buildAudienceContext();
+  const ctx = deps?.ctx ?? buildAudienceContext();
   if (!ctx) {
     logServerError(
       "notifications.dispatch",
@@ -78,9 +80,8 @@ export async function dispatchEventNotifications(
   // disabled (transactional/billing notices are never overlay-disabled).
   const overlay = await loadNotificationOverlay(ctx.admin);
 
-  const { sendEmailNotification } = await import("./channels/email");
-  const handlers: Partial<Record<NotificationChannel, ChannelHandler>> = {
-    email: sendEmailNotification,
+  const handlers: Partial<Record<NotificationChannel, ChannelHandler>> = deps?.handlers ?? {
+    email: (await import("./channels/email")).sendEmailNotification,
     in_app: sendInAppNotification,
     push: sendPushNotification,
     whatsapp: sendWhatsAppNotification,
@@ -340,7 +341,7 @@ export async function dispatchEventNotifications(
 // Handlers return a provider message id, or null when nothing was sent
 // (unconfigured channel / no endpoint). The dispatcher marks null as
 // `skipped`, not `sent`.
-type ChannelHandler = (
+export type ChannelHandler = (
   event: NotificationEvent,
   entry: CatalogEntry,
   recipient: ResolvedRecipient,

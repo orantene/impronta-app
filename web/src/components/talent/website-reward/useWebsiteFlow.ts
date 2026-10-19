@@ -9,7 +9,7 @@ import {
   WEBSITE_ELIGIBILITY_CHANGED_EVENT,
 } from "@/components/talent/studio/useWebsiteEligibility";
 import { dashboardPlanKind } from "@/lib/talent/dashboard-status";
-import { loadTalentSiteActivationStateAction } from "@/lib/talent-site/server/site-activation-state";
+import { readTalentDashboard } from "@/lib/talent/dashboard-reads";
 import type { TalentSiteActivationState } from "@/lib/talent-site/server/site-management-types";
 import { appliedThemeLabel, appliedThemeLine } from "@/lib/talent-site/theme-catalog/applied-theme-label";
 import {
@@ -82,7 +82,8 @@ function refreshActivationStore(): Promise<void> {
     storeAgain = true;
     return storeInFlight;
   }
-  storeInFlight = loadTalentSiteActivationStateAction()
+  // TUL-1274: a GET, not a server action: an action here could refetch the whole tree.
+  storeInFlight = readTalentDashboard("site-activation")
     .then((next) => {
       if (next) storeValue = next;
       storeStale = false;

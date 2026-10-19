@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
 import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { eventsListMetadata } from "@/lib/seo/event-metadata";
 
 /**
  * `/events` — the tenant's public list of what is on.
@@ -27,9 +29,9 @@ import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Events",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return eventsListMetadata(await getRequestLocale());
+}
 
 type Row = {
   id: string;
@@ -119,7 +121,7 @@ export default async function PublicEventsPage() {
     <>
       <PublicHeader />
       <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Events</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{eventsListMetadata(await getRequestLocale()).title}</h1>
 
         {cards.length === 0 ? (
           <p className="mt-4 text-sm text-black/60">

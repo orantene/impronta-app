@@ -91,7 +91,7 @@ function rowKeys(row: CommerceHealthRow): Keys {
     return {
       label: SECRET_KEYS.label,
       detail: row.data.present ? SECRET_KEYS.set : SECRET_KEYS.unset,
-      fix: row.data.name === "STRIPE_MX_WEBHOOK_SECRET_CONNECT" ? SECRET_KEYS.fixMx : SECRET_KEYS.fix,
+      fix: (row.data.base ?? row.data.name) === "STRIPE_MX_WEBHOOK_SECRET_CONNECT" ? SECRET_KEYS.fixMx : SECRET_KEYS.fix,
     };
   }
   if (row.id === "mx-lane") {

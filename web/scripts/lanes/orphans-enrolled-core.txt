@@ -1,12 +1,15 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
 scripts/e2e-web-server-command.test.ts
+scripts/lib/failed-cards-fixtures.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
 src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
+src/app/(workspace)/talent/talent-layout-frame.render.test.tsx
 src/app/(workspace)/talent/talent-layout-perf-trace.static.test.ts
 src/app/start/layout-landmark.static.test.ts
+src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
 src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
 src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
@@ -27,6 +30,7 @@ src/components/admin/shell/internal/talent/agenda/working-hours-panel.static.tes
 src/components/admin/shell/internal/talent/availability-accepting.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.deeplink.static.test.ts
 src/components/admin/shell/internal/talent/pages/my-profile-layout.static.test.ts
+src/components/admin/shell/internal/talent/pages/my-profile-preview-link.static.test.ts
 src/components/admin/shell/internal/talent/pages/profile-render-safety.static.test.ts
 src/components/admin/shell/internal/talent/pages/talent-clients-dates.static.test.ts
 src/components/admin/shell/internal/talent/pages/talent-hydration-418.static.test.ts
@@ -49,6 +53,7 @@ src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
+src/i18n/profile-locale-client-messages.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
 src/lib/events/zone-time-label.test.ts
@@ -61,6 +66,7 @@ src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
@@ -81,6 +87,8 @@ src/lib/talent-taxonomy-service.test.ts
 src/lib/talent/clients-badge.test.ts
 src/lib/talent/clients-directory.test.ts
 src/lib/talent/clients-initial.test.ts
+src/lib/talent/dashboard-mount-reads.static.test.ts
+src/lib/talent/dashboard-reads.test.ts
 src/lib/talent/format-count.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/offerings-load-parallel.static.test.ts
