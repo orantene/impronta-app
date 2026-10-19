@@ -163,6 +163,8 @@ src/lib/payments/payout-transfer-retry.test.ts
 src/lib/payments/processing-fee.test.ts
 src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
+src/lib/payments/refund-authority-wire.static.test.ts
+src/lib/payments/refund-authority.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
