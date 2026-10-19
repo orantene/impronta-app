@@ -7,6 +7,7 @@
  */
 
 import { createPurchase } from "@/lib/orders/purchase";
+import { fireMenuOrderToKitchen } from "@/lib/orders/menu-order-prep";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -136,6 +137,9 @@ export async function submitMenuOrder(
         reason: result.reason,
       };
     }
+
+    // TUL-1332: the kitchen sees the order like a POS or QR one. Best effort: never fails the order.
+    await fireMenuOrderToKitchen(admin, { tenantId: input.tenantId, orderId: result.orderId });
 
     return {
       ok: true,
