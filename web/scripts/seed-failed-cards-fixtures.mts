@@ -44,7 +44,8 @@ function die(msg: string, code = 1): never {
   process.exit(code);
 }
 
-const args = parseFcArgs(process.argv.slice(2));
+// parseFcArgs is plain JS: its empty-array defaults infer as never[], so pin the shape here.
+const args = parseFcArgs(process.argv.slice(2)) as Omit<ReturnType<typeof parseFcArgs>, "stripe" | "only"> & { stripe: string[]; only: string[] | null };
 if (args.help) {
   console.log("usage: seed-failed-cards-fixtures.mts [--env-file p] [--only F1,..] [--selftest | --apply --backup-file p | --cleanup [--apply --backup-file p]] [--stripe S2,S3,S4,S6 [--stripe-key-file p] [--stripe-mx-key-file p]]");
   process.exit(0);
@@ -173,7 +174,10 @@ async function execClone(op: Op) {
 
 async function execAuthUser(op: Op) {
   const r = op.row as { email: string; name: string; confirmed: boolean; needsPassword: boolean };
-  if ((await q("select 1 from auth.users where id = $1", [op.id])).rowCount) return bump("auth.users", "existed");
+  if ((await q("select 1 from auth.users where id = $1", [op.id])).rowCount) {
+    bump("auth.users", "existed");
+    return;
+  }
   if (r.needsPassword && !password) throw new Error(`${op.fx} ${op.key}: needs QA_FIXTURE_PASSWORD (>= 12 chars)`);
   const crypt = password ? "extensions.crypt($3::text, extensions.gen_salt('bf'))" : "''";
   await q(
@@ -198,7 +202,10 @@ async function updateOwned(table: string, id: string, set: Row) {
   if (!cur.rowCount) throw new Error(`${table} ${id}: row to update is missing`);
   const before = cur.rows[0].j as Row;
   const differs = Object.entries(set).some(([k, v]) => J(before[k] ?? null) !== J(v ?? null));
-  if (!differs) return bump(table, "existed");
+  if (!differs) {
+    bump(table, "existed");
+    return;
+  }
   if (!created.has(id)) {
     backup.updated.push({ table, id, before });
     saveBackup();
