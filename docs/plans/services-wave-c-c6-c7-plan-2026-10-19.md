@@ -1,22 +1,26 @@
 # Services Wave C: C6 and C7 plan (for Oran's approval)
 
-Date: 2026-10-19. Status: PLAN ONLY, nothing built. Parent plan: `services-execution-plan-2026-10-19.md` §2 Wave C.
+Date: 2026-10-19. Status: APPROVED by PM 2026-10-19 (decisions below), nothing built yet. Parent plan: `services-execution-plan-2026-10-19.md` §2 Wave C.
 Builds on: #4031 (resolver, merged), #4087 (C3 quick view), #4093 (C5 business service pages), #4035 (C1 slug library).
 Everything below ships behind `SERVICE_PRESENTATION_RESOLVER_ENABLED` (default OFF), like C3 and C5.
 
-Plan rules confirmed by Oran: free talent = no own page (quick view + share link); paid talent (`talent_pro`, `talent_portfolio`) = own page; business plans (studio, agency, network) = everything, including a custom page per service.
+Plan rules confirmed by Oran: free talent = no own page (quick view + share link); paid talent (`talent_pro`, `talent_portfolio`) = own page; business plans (studio, agency, network) = everything.
+
+**Decisions (PM, 2026-10-19):**
+1. A custom page per service is for business plans (studio, agency, network) AND paid talents. Free talents keep the default designed page.
+2. Owners may hide the reviews, FAQ and photo widgets. The booking panel (price, CTA, policies) stays protected: it can be moved and restyled, never removed.
 
 ## C6: service page design set once per site, with a protected booking panel (TUL-1272 #6)
 
 **Today.** A talent service page is one hand-coded component for every design (`web/src/lib/talent-site/server/service-main.tsx`). A business service page (C5, #4093) is a second hand-coded component (`web/src/app/(public)/_services/business-service-view.tsx`). Neither can be styled in the builder.
 
 **What changes for the owner.** In the builder, a new entry, "Diseño de páginas de servicio" ("Service page design"), opens ONE template page per site. Every service page on the site uses it. The owner arranges ready-made service widgets the same way they arrange any page, and each widget fills itself from the service being viewed:
-- gallery (the service's photos)
+- gallery (the service's photos; the owner may hide it)
 - title and facts (category, price, duration)
 - description
 - included / what to bring (from the typed facts already on the service)
-- FAQ
-- reviews
+- FAQ (the owner may hide it)
+- reviews (the owner may hide it)
 - related services
 - free sections (text, image, CTA) the owner adds around them
 
@@ -24,7 +28,7 @@ Plan rules confirmed by Oran: free talent = no own page (quick view + share link
 
 **Defaults.** Every theme gets a default template made of the same widgets in today's order, so a site that never opens the editor looks the same as today. `service-main.tsx` and the C5 view stay as the engine fallback when no template exists or it fails to render.
 
-**Custom page for one service (business plans, also paid talent if Oran agrees).** "Diseñar esta página" on a service copies the template into a page linked to that service, the same model events already use: `events.page_id`, `resolveLinkedBuilderPage` (`web/src/lib/events/event-page-link.ts`), a 308 from the builder page's own URL to the service URL, the `?edit=1` exemption, a "Página" tab on the service. The column already exists in the held migration 415800 (`talent_offerings.page_id`), so C6 needs no new migration beyond that one.
+**Custom page for one service (business plans and paid talents; decision 1).** "Diseñar esta página" on a service copies the template into a page linked to that service, the same model events already use: `events.page_id`, `resolveLinkedBuilderPage` (`web/src/lib/events/event-page-link.ts`), a 308 from the builder page's own URL to the service URL, the `?edit=1` exemption, a "Página" tab on the service. The column already exists in the held migration 415800 (`talent_offerings.page_id`), so C6 needs no new migration beyond that one.
 
 **"Edit this page" on talent sites (G3.8).** An owner viewing their own service page sees "Editar esta página", which opens the template (or the custom page) in the builder.
 
@@ -36,9 +40,7 @@ Plan rules confirmed by Oran: free talent = no own page (quick view + share link
 
 **Size.** Large: 4 PRs, roughly the size of the events page work. Slice 3 waits on migration 415800.
 
-**Open questions for Oran.**
-- Custom page per service for paid talents too, or businesses only?
-- May the owner hide the reviews and FAQ widgets entirely (proposed: yes), and the photos (proposed: yes)?
+**Decided.** Both former open questions are answered above (decisions 1 and 2). The plan gate for slice 3 is "studio / agency / network workspace, or `talent_pro` / `talent_portfolio` talent"; free talents see the default template only.
 
 ## C7: rich service pages in every language; Posts link to services (TUL-1272 #8)
 
