@@ -388,3 +388,37 @@ test("a restore that throws never fails the webhook; the error is logged", async
     "each failure is logged under refunds.restoreInventory",
   );
 });
+
+test("E5: deposit refunded first restores nothing; the balance refund then restores once, and its replay changes nothing", async () => {
+  // Deposit 30000 + balance 70000 on one booking and order (CHARGE_CENTS split in two).
+  const fake = makeFake(seed());
+  const dep = fake.tables.booking_transactions.find((t) => t.id === TXN);
+  if (dep) dep.gross_amount_cents = 30000;
+  fake.tables.booking_transactions.push({ id: TXN_OTHER, booking_id: BOOKING, order_id: ORDER, source_tenant_id: TENANT, status: "paid", refund_of_transaction_id: null, gross_amount_cents: 70000 });
+  const charges: Record<string, { txn: string; amount: number }> = { pi_dep: { txn: TXN, amount: 30000 }, pi_bal: { txn: TXN_OTHER, amount: 70000 } };
+  const stripe = {
+    paymentIntents: {
+      retrieve: async (id: string) => ({ id, amount: charges[id]?.amount ?? 0, metadata: { transaction_id: charges[id]?.txn ?? "", booking_id: BOOKING } }),
+    },
+    transfers: { list: async () => ({ data: [] }), createReversal: async () => ({ id: "trr" }) },
+    refunds: { list: async () => ({ data: [], has_more: false }) },
+  } as unknown as Stripe;
+  // markRefunded flips the charge like the real one, so the next refund sees it as refunded.
+  const flipping: RefundDeps = {
+    ...deps(fake),
+    markRefunded: async (id: string) => {
+      const row = fake.tables.booking_transactions.find((t) => t.id === id);
+      if (row) row.status = "refunded";
+      return { ok: true as const, data: { id } as never };
+    },
+  };
+
+  await handleBookingRefund(stripe, { paymentIntentId: "pi_dep", chargeId: "ch_dep", refundedCents: 30000, refundId: "re_dep", refundAmountCents: 30000 }, flipping);
+  assertNothingRestored(fake, "the balance is still paid");
+
+  const balance = { paymentIntentId: "pi_bal", chargeId: "ch_bal", refundedCents: 70000, refundId: "re_bal", refundAmountCents: 70000 };
+  await handleBookingRefund(stripe, balance, flipping);
+  assertRestoredOnce(fake);
+  await handleBookingRefund(stripe, balance, flipping);
+  assertRestoredOnce(fake);
+});

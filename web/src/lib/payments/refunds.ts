@@ -607,9 +607,13 @@ export async function handleBookingRefund(
     }
   }
 
+  // E5: another charge on the booking is still live (or the payouts need review): no refund flips, no restore.
+  let shareOnly = false;
   if (ref.bookingId) {
     const sb = d.resolveSupabase();
-    const { outcomes, shareOnly } = await reverseRefundedChargePayouts({ ...ref, bookingId: ref.bookingId }, { reference: `refund ${input.chargeId}`, anchor: input.chargeId }, { sb, stripe });
+    const reversal = await reverseRefundedChargePayouts({ ...ref, bookingId: ref.bookingId }, { reference: `refund ${input.chargeId}`, anchor: input.chargeId }, { sb, stripe });
+    const outcomes = reversal.outcomes;
+    shareOnly = reversal.shareOnly || reversal.needsManualReview === true;
     if (sb) {
       if (!shareOnly) await markBookingRefunded(sb, ref.bookingId); // E5: another charge is still paid
       if (!shareOnly) await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
@@ -617,7 +621,7 @@ export async function handleBookingRefund(
     }
   }
 
-  await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
+  if (!shareOnly) await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
   return true;
 }
 
@@ -705,13 +709,16 @@ export async function handleBookingDispute(
         message: `[dispute.lost] markRefunded(${ref.transactionId}) not applied: ${marked.error}`,
       });
     }
+    let shareOnly = false; // E5: see the full-refund path
     if (ref.bookingId) {
       const sb = d.resolveSupabase();
-      const { outcomes, shareOnly } = await reverseRefundedChargePayouts(
+      const reversal = await reverseRefundedChargePayouts(
         { ...ref, bookingId: ref.bookingId },
         { reference: `dispute_lost ${input.disputeId}`, anchor: input.disputeId },
         { sb, stripe },
       );
+      const outcomes = reversal.outcomes;
+      shareOnly = reversal.shareOnly || reversal.needsManualReview === true;
       if (sb) {
         if (!shareOnly) await markBookingRefunded(sb, ref.bookingId); // E5: another charge is still paid
         if (!shareOnly) await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
@@ -719,7 +726,7 @@ export async function handleBookingDispute(
       }
     }
 
-    await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
+    if (!shareOnly) await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
     logServerError(
       `stripe-webhook.dispute.lost[txn=${ref.transactionId}]`,
       new Error(`Dispute ${input.disputeId} LOST — transfers reversed, booking refunded (amount=${input.amount} reason=${input.reason}).`),
