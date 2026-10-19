@@ -12,6 +12,7 @@ import { PricingLaddersSection } from "@/components/marketing/pricing-ladders-se
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
 import { parseBillingInterval } from "@/lib/pricing/pricing-cta-href";
+import { parsePricingAudience } from "@/lib/pricing/pricing-audience";
 import { pricingPlanRedirect, pricingQueryHasPlan } from "@/lib/pricing/pricing-plan-redirect";
 import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
@@ -52,7 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ currency?: string; interval?: string; plan?: string; from?: string }>;
+  searchParams: Promise<{ currency?: string; interval?: string; plan?: string; from?: string; for?: string }>;
 }) {
   const resolved = await searchParams;
   const locale = await getRequestLocale();
@@ -153,6 +154,7 @@ export default async function PricingPage({
       <PricingLaddersSection
         currency={currency}
         interval={parseBillingInterval(resolved.interval)}
+        audience={parsePricingAudience(resolved.for)}
       />
 
       <MarketingSection

@@ -64,6 +64,9 @@ import { formatPrice } from "@/lib/money/format-price";
 import { approxCurrencyForLocale, fxRateFor } from "@/lib/pricing/approx-local-price";
 import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { BillingIntervalToggle } from "./billing-interval-toggle";
+import { PricingAudienceTabs } from "./pricing-audience-tabs";
+import { InfoTip } from "./info-tip";
+import type { PricingAudience } from "@/lib/pricing/pricing-audience";
 import {
   buildPricingCtaHref,
   type PricingPackageSlug,
@@ -116,6 +119,8 @@ type IntervalCopy = {
   savePct: string;
   popular: string;
   approxNote: string;
+  infoLabel: string;
+  approxTip: string;
 };
 
 function buildCards(
@@ -183,10 +188,13 @@ function buildCards(
 export async function PricingLaddersSection({
   currency,
   interval = "month",
+  audience = "person",
 }: {
   currency: DefaultCurrencyCode;
   /** From the page's ?interval= searchParam (server-parsed, no flash). */
   interval?: BillingInterval;
+  /** From ?for= (server-parsed): which ladder tab is open on first paint. */
+  audience?: PricingAudience;
 }) {
   const viewer = await resolvePricingViewer();
   const locale = await getRequestLocale();
@@ -199,6 +207,8 @@ export async function PricingLaddersSection({
     savePct: t("public.pricingInterval.savePct"),
     popular: t("public.pricingInterval.popular"),
     approxNote: t("public.pricingInterval.approxNote"),
+    infoLabel: c.audience.infoLabel,
+    approxTip: c.audience.approxTip,
   };
   const [talentRows, workspaceRows] = await Promise.all([
     loadMarketingTiers("talent", currency),
@@ -234,6 +244,10 @@ export async function PricingLaddersSection({
         : [],
     ),
   );
+  const ladderPanel = (id: Ladder["id"]) => {
+    const ladder = ladders.find((l) => l.id === id);
+    return ladder ? <LadderBlock ladder={ladder} ic={ic} /> : null;
+  };
   const toggleCopy = {
     groupLabel: t("public.pricingInterval.groupLabel"),
     monthly: t("public.pricingInterval.monthly"),
@@ -265,10 +279,21 @@ export async function PricingLaddersSection({
 
         <div className="mt-10">
           <BillingIntervalToggle copy={toggleCopy} initialInterval={interval}>
-            <div className="mt-12 space-y-16">
-              {ladders.map((ladder) => (
-                <LadderBlock key={ladder.id} ladder={ladder} ic={ic} />
-              ))}
+            <div className="mt-10">
+              <PricingAudienceTabs
+                copy={{
+                  tablist: c.audience.tablist,
+                  person: c.person.label,
+                  business: c.business.label,
+                }}
+                initialAudience={
+                  ladders.some((l) => l.id === audience)
+                    ? audience
+                    : (ladders[0]?.id ?? "person")
+                }
+                person={ladderPanel("person")}
+                business={ladderPanel("business")}
+              />
             </div>
           </BillingIntervalToggle>
         </div>
@@ -299,24 +324,13 @@ function gridClassFor(count: number): string {
 
 function LadderBlock({ ladder, ic }: { ladder: Ladder; ic: IntervalCopy }) {
   return (
-    <section aria-labelledby={`ladder-${ladder.id}`}>
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-4">
-        <h3
-          id={`ladder-${ladder.id}`}
-          className="plt-display text-[1.375rem] font-semibold leading-[1.1] tracking-[-0.025em]"
-          style={{ color: "var(--plt-ink)" }}
-        >
-          {ladder.label}
-        </h3>
-        <p className="text-[0.9375rem]" style={{ color: "var(--plt-muted)" }}>
-          {ladder.blurb}
-        </p>
-      </div>
-      <div
-        aria-hidden
-        className="mt-4 h-px w-full"
-        style={{ background: "var(--plt-hairline)" }}
-      />
+    <section aria-label={ladder.label}>
+      <p
+        className="mx-auto max-w-xl text-center text-[0.9375rem]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        {ladder.blurb}
+      </p>
       <div className={`mt-6 ${gridClassFor(ladder.cards.length)}`}>
         {ladder.cards.map((card) => (
           <TierCard key={`${ladder.id}-${card.key}`} card={card} ic={ic} />
@@ -388,7 +402,8 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
           {card.approx?.month ? (
             <span data-testid="price-approx-local">
               {card.monthlyLine ? " · " : ""}
-              {card.approx.month} {ic.approxNote}
+              {card.approx.month} {ic.approxNote}{" "}
+              <InfoTip label={ic.infoLabel} text={ic.approxTip} />
             </span>
           ) : null}
         </p>
@@ -412,7 +427,8 @@ function TierCard({ card, ic }: { card: Card; ic: IntervalCopy }) {
             <span>{y.billedLine}</span>
             {card.approx?.year ? (
               <span data-testid="price-approx-local">
-                {card.approx.year} {ic.approxNote}
+                {card.approx.year} {ic.approxNote}{" "}
+                <InfoTip label={ic.infoLabel} text={ic.approxTip} />
               </span>
             ) : null}
             {y.savePct > 0 ? (
