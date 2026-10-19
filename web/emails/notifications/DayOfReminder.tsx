@@ -19,6 +19,11 @@ interface Props {
   eventDate: string | null;
   eventLocation: string | null;
   inquiryUrl: string;
+  /** G1: the service facts, when the booking has them. */
+  serviceName?: string | null;
+  durationLabel?: string | null;
+  timeZoneLabel?: string | null;
+  policyLabel?: string | null;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
@@ -31,6 +36,10 @@ export default function DayOfReminder({
   eventDate,
   eventLocation,
   inquiryUrl,
+  serviceName,
+  durationLabel,
+  timeZoneLabel,
+  policyLabel,
   brand,
   unsubscribeUrl,
   categoryLabel,
@@ -48,8 +57,11 @@ export default function DayOfReminder({
   };
 
   const fields = [
-    eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    serviceName ? { label: t.serviceLabel, value: serviceName } : null,
+    eventDate ? { label: t.dateLabel, value: timeZoneLabel ? `${eventDate} (${timeZoneLabel})` : eventDate } : null,
+    durationLabel ? { label: t.durationLabel, value: durationLabel } : null,
     eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
+    policyLabel ? { label: t.policyLabel, value: policyLabel } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (

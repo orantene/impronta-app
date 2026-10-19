@@ -27,6 +27,7 @@ import type { StripeAccountKey } from "@/lib/stripe/client";
 import { loadChargePlatformForTransaction, recordChargePlatform } from "@/lib/stripe/charge-platform";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { advanceDraftForSettlement, type DraftAdvanceResult } from "@/lib/stripe/webhook-draft-advance";
 
 /** Audit #5: pull the actually-charged amount + currency from the settlement event
  *  (PaymentIntent or Checkout Session) so it can be reconciled against the booking
@@ -75,6 +76,8 @@ export type SettleDeps = {
   recordChargePlatform: (transactionId: string, key: StripeAccountKey) => Promise<boolean>;
   loadChargePlatformForTransaction: (transactionId: string) => Promise<StripeAccountKey>;
   getAdmin: () => SupabaseClient | null;
+  /** TUL-1268 M1: a checkout row still at `draft` steps to `payment_requested` first. */
+  advanceDraft: (sb: SupabaseClient, transactionId: string) => Promise<DraftAdvanceResult>;
 };
 
 export async function settleCheckoutPayment(
@@ -88,6 +91,7 @@ export async function settleCheckoutPayment(
   const recordPlatform = deps.recordChargePlatform ?? recordChargePlatform;
   const loadPlatform = deps.loadChargePlatformForTransaction ?? loadChargePlatformForTransaction;
   const getAdmin = deps.getAdmin ?? createServiceRoleClient;
+  const advanceDraft = deps.advanceDraft ?? advanceDraftForSettlement;
   // The platform that delivered this settlement IS the platform that took the
   // charge. Record it BEFORE markPaid fans out payouts (transfers, refunds and
   // reversals all key off it), and flag a disagreement with what checkout stored.
@@ -133,6 +137,13 @@ export async function settleCheckoutPayment(
         return { ok: true, outcome: "amount_mismatch" };
       }
     }
+  }
+  // TUL-1268 M1: a guest card checkout opens its row at `draft` and nothing
+  // moved it on, so `markPaid` refused it forever. Charged means requested.
+  const sbAdvance = getAdmin();
+  if (sbAdvance) {
+    const advanced = await advanceDraft(sbAdvance, action.transactionId);
+    if (!advanced.ok) return { ok: false, error: advanced.error };
   }
   // Thread the settling PaymentIntent onto the transaction so a refund can
   // later be issued against the real charge (see markPaid).
