@@ -720,10 +720,11 @@ export async function repriceAndValidate(
         logServerError("pos.reprice.variant", variantError);
         return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
       }
-      // TUL-1349: the chosen option must still exist, still belong to this
-      // item and not be hidden. Fail closed.
+      // TUL-1349: the chosen option must still exist and still belong to this
+      // item (every channel). A HIDDEN option is refused for guests only: hidden
+      // options are the staff-only and comp options a cashier legitimately sells.
       const v = variant as { amount_cents?: number | null; offering_id?: string; is_hidden?: boolean | null } | null;
-      if (!v || v.offering_id !== line.offering_id || v.is_hidden === true) {
+      if (!v || v.offering_id !== line.offering_id || (v.is_hidden === true && !isStaffChannel(loaded.order.source_channel))) {
         return { ok: false, reason: "item_unavailable", error: "This item is no longer available." };
       }
       const amount = v.amount_cents;

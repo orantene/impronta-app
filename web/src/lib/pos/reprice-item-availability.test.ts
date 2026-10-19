@@ -85,9 +85,8 @@ test("POS staff keep the status-only rule: an agency_only item still sells at th
 });
 
 for (const channel of [undefined, GUEST]) {
-  test(`${channel ?? "pos"}: a chosen variant that was hidden, deleted or moved is refused`, async () => {
+  test(`${channel ?? "pos"}: a chosen variant that was deleted or moved to another item is refused`, async () => {
     for (const mutate of [
-      (st: ReturnType<typeof makeStore>) => { st.talent_offering_variants[0].is_hidden = true; },
       (st: ReturnType<typeof makeStore>) => { st.talent_offering_variants.length = 0; },
       (st: ReturnType<typeof makeStore>) => { st.talent_offering_variants[0].offering_id = "other"; },
     ]) {
@@ -99,6 +98,25 @@ for (const channel of [undefined, GUEST]) {
     }
   });
 }
+
+test("a HIDDEN variant: the POS order passes (staff and comp options), the guest order is refused", async () => {
+  const pos = await openCartWithItem({ variant: { is_hidden: true } });
+  assert.equal((await repriceAndValidate(fakeAdmin(pos.store), { tenantId: "t1", orderId: pos.orderId })).ok, true);
+
+  const guest = await openCartWithItem({ channel: GUEST, variant: { is_hidden: true } });
+  const r = await repriceAndValidate(fakeAdmin(guest.store), { tenantId: "t1", orderId: guest.orderId });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.reason, "item_unavailable");
+});
+
+test("a variant hidden AFTER it went into a guest cart is refused; the same change leaves a POS cart alone", async () => {
+  const guest = await openCartWithItem({ channel: GUEST, variant: {} });
+  guest.store.talent_offering_variants[0].is_hidden = true;
+  assert.equal((await repriceAndValidate(fakeAdmin(guest.store), { tenantId: "t1", orderId: guest.orderId })).ok, false);
+  const pos = await openCartWithItem({ variant: {} });
+  pos.store.talent_offering_variants[0].is_hidden = true;
+  assert.equal((await repriceAndValidate(fakeAdmin(pos.store), { tenantId: "t1", orderId: pos.orderId })).ok, true);
+});
 
 test("a visible variant still reprices", async () => {
   const { store, orderId } = await openCartWithItem({ variant: {} });
