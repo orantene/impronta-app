@@ -19,6 +19,7 @@
  */
 
 import { isPlatformAdmin, type ProfileForPlatformRole } from "./platform-role";
+import { normalizeNextPath } from "@/lib/auth-flow";
 
 export type LandingProfile = ProfileForPlatformRole & {
   account_status?: string | null;
@@ -53,7 +54,8 @@ export type LandingDestination =
 export function landingPath(input: LandingPathInput): LandingDestination {
   const { profile, membershipSlugs, validatedNext } = input;
 
-  if (validatedNext && validatedNext.startsWith("/") && !validatedNext.startsWith("//")) {
+  // TUL-1269: one shared open-redirect rule (also refuses `/\x`, tab forms, `/en//x`, encoded variants).
+  if (validatedNext && normalizeNextPath(validatedNext, "") !== "") {
     return validatedNext;
   }
 

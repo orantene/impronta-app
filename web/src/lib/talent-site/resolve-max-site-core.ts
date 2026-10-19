@@ -25,6 +25,7 @@ import { readI18n } from "@/lib/i18n/i18n-columns";
 import type { BuilderNode, BuilderNavLink } from "@/lib/site-admin/builder-node/types";
 import { mirrorPropsI18nOntoNodes } from "@/lib/site-admin/builder-node/i18n-overlay";
 import { ensureHeaderCta } from "./header-ensure-cta";
+import { capNavKeepingReserved } from "./blog-nav-item";
 
 /** Effective tier for the gate. `talent_portfolio` is the Max plan key. */
 export const TALENT_MAX_PLAN_KEY = "talent_portfolio";
@@ -85,6 +86,8 @@ export interface MaxSiteNavItem {
   slug: string;
   label: string;
   isHome: boolean;
+  /** Platform-added entry (the Blog link): survives the site_header item cap. */
+  reserved?: boolean;
 }
 
 /**
@@ -391,8 +394,7 @@ export function hydrateShellNav(
   // The `site_header` config shape: schema-legal `{label, href}` pairs, capped
   // and truncated so `safeParse` can never reject the header (see the constants
   // above). `links` above is the richer builder-node shape and is left uncapped.
-  const navItems = nav
-    .slice(0, SITE_HEADER_MAX_NAV_ITEMS)
+  const navItems = capNavKeepingReserved(nav, SITE_HEADER_MAX_NAV_ITEMS)
     .map((item) => ({
       label: item.label.slice(0, SITE_HEADER_MAX_NAV_LABEL),
       href: maxSitePageHref(siteSlug, item, publicPathPrefix, hrefMode),

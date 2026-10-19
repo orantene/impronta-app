@@ -241,6 +241,6 @@ test("wiring: both checkouts reconcile AFTER create, only for trial sessions, cr
     assert.match(src, /\{ idempotencyKey \}/, `${file} keeps its idempotency key`);
     assert.match(src, /line_items: \[\{ price: priceId, quantity: 1 \}\]/);
     assert.match(src, /\.\.\.discount\.params,/);
-    assert.match(src, /\.\.\.trialGuard\.marker,/);
+    assert.match(src, /metadata: \{ \.\.\.sessionParams\.metadata, \.\.\.trialGuard\.marker \}/);
   }
 });

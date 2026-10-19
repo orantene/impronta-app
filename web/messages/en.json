@@ -1758,7 +1758,7 @@
     },
     "bookPage": {
       "title": "Reserve a time",
-      "lead": "Pick a service and a time. We will confirm shortly.",
+      "lead": "Pick a service and a time. The line under the price says whether you pay now or at the appointment.",
       "bookCta": "Book",
       "chooseService": "Service",
       "studioFallback": "the studio",
@@ -2697,6 +2697,7 @@
         "qualityLeftMany": "{count} things left before your free website",
         "qualityUnlocked": "Everything your free website needs is here",
         "qualityUnknown": "We could not load every check yet",
+        "qualityChecking": "Checking your profile…",
         "finish": "Finish the next one",
         "sectionsTitle": "Edit your profile",
         "sectionsHint": "Every field shows up on your page. There is no second place to edit it.",
@@ -21205,7 +21206,10 @@
       "billing": {
         "redirecting": "Redirecting…",
         "pastDueTitle": "Payment failed.",
-        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueGraceBody": {
+          "one": "Your payment didn't go through. Paid features stay on for {count} more day. Update your card to keep them.",
+          "other": "Your payment didn't go through. Paid features stay on for {count} more days. Update your card to keep them."
+        },
         "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
         "updateCard": "Update your card",
         "restorePlan": "Restore plan",

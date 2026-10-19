@@ -32,6 +32,7 @@ import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
+import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
 import { prepareTrialSession } from "@/lib/billing/trial-checkout-session";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
@@ -214,45 +215,52 @@ export async function createTalentCheckoutSession(opts: {
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
   const trialDays = await checkoutTrialDays({ kind: "talent", talentProfileId: opts.talentProfileId, userId: opts.userId }, customerResult.data, trialOffer);
 
-  const idempotencyKey = checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) });
-  // TUL-1280: at most one open trial session per customer (pre-create sweep + post-create reconcile).
-  const trialGuard = await prepareTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
-
-  try {
-    const session = await stripe.checkout.sessions.create({
-      customer: customerResult.data,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      // TUL-836: {CHECKOUT_SESSION_ID} lets the success page sync the plan if the webhook is late.
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success&session_id={CHECKOUT_SESSION_ID}${returnQuery(opts.returnToken)}`,
-      cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
-      // Show Checkout in the talent's app language, not their browser's.
-      locale: stripeCheckoutLocale(opts.locale),
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    customer: customerResult.data,
+    mode: "subscription",
+    line_items: [{ price: priceId, quantity: 1 }],
+    // TUL-836: {CHECKOUT_SESSION_ID} lets the success page sync the plan if the webhook is late.
+    success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success&session_id={CHECKOUT_SESSION_ID}${returnQuery(opts.returnToken)}`,
+    cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
+    // Show Checkout in the talent's app language, not their browser's.
+    locale: stripeCheckoutLocale(opts.locale),
+    metadata: {
+      talent_profile_id: opts.talentProfileId,
+      user_id:           opts.userId,
+      plan_key:          opts.planKey,
+      billing_interval:  price.interval,
+      checkout_type:     "talent_subscription",
+    },
+    subscription_data: {
       metadata: {
         talent_profile_id: opts.talentProfileId,
         user_id:           opts.userId,
         plan_key:          opts.planKey,
         billing_interval:  price.interval,
         checkout_type:     "talent_subscription",
-        ...trialGuard.marker,
       },
-      subscription_data: {
-        metadata: {
-          talent_profile_id: opts.talentProfileId,
-          user_id:           opts.userId,
-          plan_key:          opts.planKey,
-          billing_interval:  price.interval,
-          checkout_type:     "talent_subscription",
-        },
-        ...trialParams(trialDays),
-      },
-      ...discount.params,
-      // Adaptive Pricing: auto-converts to customer's local currency at checkout.
-      adaptive_pricing: { enabled: true },
+      ...trialParams(trialDays),
     },
-    // Idempotency: a double submit must not mint a SECOND Checkout session.
-    // One subscription per talent profile per plan; a second session risks a second sub.
-    { idempotencyKey });
+    ...discount.params,
+    // Adaptive Pricing: auto-converts to customer's local currency at checkout.
+    adaptive_pricing: { enabled: true },
+  };
+  // TUL-1280 retest: the key follows the exact params (a trial decided differently after a cancel
+  // must not reuse the key; Stripe rejects that). Identical params still dedupe a double submit.
+  const idempotencyKey = checkoutSessionKey(
+    checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }),
+    sessionParams,
+  );
+  // TUL-1280: at most one open trial session per customer (pre-create sweep + post-create reconcile).
+  const trialGuard = await prepareTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
+  try {
+    const session = await stripe.checkout.sessions.create(
+      { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialGuard.marker } },
+      // Idempotency: a double submit must not mint a SECOND Checkout session.
+      // One subscription per talent profile per plan; a second session risks a second sub.
+      { idempotencyKey },
+    );
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
