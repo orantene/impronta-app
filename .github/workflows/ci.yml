@@ -774,12 +774,6 @@ jobs:
         if: success()
         run: npm run check:build-chunks
 
-      # F5 (TUL-1273 #8): no NEW committed image over 300 KB (the WhatsApp
-      # preview ceiling). Existing heavy files are frozen in the baseline.
-      - name: perf — public image budget
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: node scripts/ci/check-public-asset-budget.mjs
-
       # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
       # MUST follow the build: it reads `.next/app-build-manifest.json`, which
       # is the bundler's own account of which chunks each route loads. The

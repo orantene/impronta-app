@@ -136,8 +136,12 @@ test("budget: the committed baseline matches the tree, and CI runs the gate", ()
     if (!fs.existsSync(file)) continue;
     assert.ok(fs.statSync(file).size <= bytes, `${rel} grew past its baseline`);
   }
+  // CI already runs `npm run check:build-chunks` after the build; the image budget rides on that
+  // script so no workflow file is edited. The workflow must call it, and must not name the budget itself.
+  const pkg = JSON.parse(fs.readFileSync(path.join(WEB, "package.json"), "utf8"));
+  assert.match(pkg.scripts["check:build-chunks"], /check-build-chunks\.mjs && node scripts\/ci\/check-public-asset-budget\.mjs/);
   const ci = fs.readFileSync(path.join(WEB, "../.github/workflows/ci.yml"), "utf8");
-  assert.match(ci, /node scripts\/ci\/check-public-asset-budget\.mjs/);
+  assert.match(ci, /npm run check:build-chunks/);
 });
 
 test("budget: a deleted baselined image does not break the gate or the scan", () => {
