@@ -21,7 +21,7 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
   const [menu, visit] = await Promise.all([
-    guestVisitMenu(admin, { tenantId: host.tenantId, token }),
+    guestVisitMenu(admin, { tenantId: host.tenantId, token, locale }),
     loadOpenVisitByToken(admin, { tenantId: host.tenantId, publicToken: token }),
   ]);
   if (!menu.ok || !visit.ok) notFound();
@@ -67,6 +67,7 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
         askBill: tr("dashboard.visit.menu.askBill"),
         empty: tr("dashboard.visit.menu.empty"),
         add: tr("dashboard.visit.menu.add"),
+        soldOut: tr("dashboard.visit.menu.soldOut"),
         offerTitle: tr("dashboard.visit.menu.offerTitle"),
         acceptOffer: tr("dashboard.visit.menu.acceptOffer"),
         back: tr("dashboard.visit.menu.back"),

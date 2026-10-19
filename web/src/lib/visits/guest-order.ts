@@ -1,3 +1,5 @@
+import { sortGuestMenu, toGuestMenuItem, type GuestMenuItem, type GuestMenuRow } from "./guest-menu-item";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -30,16 +32,45 @@ async function openVisit(admin: VenueAdmin, tenantId: string, token: string) {
   return loaded;
 }
 
+/** Cover photo URL per offering (first by sort order); one query. */
+async function loadCoverImages(admin: SupabaseClient, offeringIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (offeringIds.length === 0) return out;
+  const { data } = await admin
+    .from("talent_offering_media")
+    .select("offering_id, sort_order, media_assets:media_asset_id ( public_url, bucket_id, storage_path )")
+    .in("offering_id", offeringIds)
+    .order("sort_order", { ascending: true });
+  type Media = { public_url: string | null; bucket_id: string | null; storage_path: string | null };
+  for (const r of (data ?? []) as unknown as Array<{ offering_id: string; media_assets: Media | Media[] | null }>) {
+    if (out.has(r.offering_id)) continue;
+    const m = Array.isArray(r.media_assets) ? r.media_assets[0] : r.media_assets;
+    if (!m) continue;
+    const url =
+      m.public_url ??
+      (m.bucket_id === "media-public" && m.storage_path
+        ? admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl
+        : null);
+    if (url) out.set(r.offering_id, url);
+  }
+  return out;
+}
+
 export async function guestVisitMenu(
   admin: VenueAdmin,
-  input: { tenantId: string; token: string },
-): Promise<{ ok: true; items: Array<{ id: string; title: string; amountCents: number; prepStationId: string | null }> } | GuestFail> {
+  input: { tenantId: string; token: string; locale?: string },
+): Promise<{ ok: true; items: GuestMenuItem[] } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
   // D-10: published AND approved AND public; tenant scoping is the .eq below.
   const [{ data, error }, nonMenu] = await Promise.all([
     scopeToGuestSellableOfferings(
-      admin.from("talent_offerings").select("id, title, amount_cents, prep_station_id, status").eq("tenant_id", input.tenantId),
+      admin
+        .from("talent_offerings")
+        .select(
+          "id, title, description, amount_cents, prep_station_id, status, category, category_i18n, title_i18n, description_i18n, sort_order, inventory_qty, capacity_pool_id",
+        )
+        .eq("tenant_id", input.tenantId),
     ).limit(200),
     loadNonMenuOfferingIds(admin, input.tenantId),
   ]);
@@ -48,15 +79,14 @@ export async function guestVisitMenu(
     return { ok: false, reason: "unavailable" };
   }
   // TUL-1271 item 6: event-backing and reservation offerings are not menu items.
-  const menuRows = withoutNonMenuOfferings(((data ?? []) as Record<string, unknown>[]).map((r): Record<string, unknown> & { id: string } => ({ ...r, id: String(r.id) })), nonMenu.ids);
+  const menuRows = withoutNonMenuOfferings(((data ?? []) as unknown as GuestMenuRow[]).map((r) => ({ ...r, id: String(r.id) })), nonMenu.ids);
+  // TUL-1271 #5: the photo, in the guest's language, in the owner's order. A failed photo read
+  // never hides the menu (the item simply has no picture).
+  const images = await loadCoverImages(admin as unknown as SupabaseClient, menuRows.map((r) => r.id)).catch(() => new Map<string, string>());
+  const locale = input.locale ?? "en";
   return {
     ok: true,
-    items: menuRows.map((row) => ({
-      id: String(row.id),
-      title: String(row.title ?? ""),
-      amountCents: Number(row.amount_cents ?? 0),
-      prepStationId: row.prep_station_id ? String(row.prep_station_id) : null,
-    })),
+    items: sortGuestMenu(menuRows.map((row) => toGuestMenuItem(row, locale, images.get(row.id) ?? null))),
   };
 }
 

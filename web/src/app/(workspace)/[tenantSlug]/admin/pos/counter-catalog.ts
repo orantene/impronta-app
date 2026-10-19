@@ -42,6 +42,8 @@ type OfferingRow = {
   kind: string | null;
   inventory_qty: number | null;
   capacity_pool_id: string | null;
+  category: string | null;
+  is_featured: boolean | null;
 };
 
 type VariantRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
@@ -69,7 +71,7 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
   const [catalog, upcoming, nonMenu] = await Promise.all([
     admin
       .from("talent_offerings")
-      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id")
+      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, category, is_featured")
       .eq("tenant_id", input.tenantId)
       .eq("owner_kind", "workspace")
       .eq("status", "published")
@@ -131,6 +133,8 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
     sessions: sessionsByOffering.get(row.id) ?? [],
     options: optionsByOffering.get(row.id),
     stock: stockOf(row),
+    category: row.category?.trim() || null,
+    favourite: row.is_featured === true,
   }));
   return { items, sessionsByOffering, readFailed };
 }

@@ -181,6 +181,8 @@ export type TalentOffering = {
   visibility: OfferingVisibility;
   moderationState: OfferingModerationState;
   isFeatured: boolean;
+  /** Kitchen / prep station that makes it. undefined = not loaded. */
+  prepStationId?: string | null;
   sortOrder: number;
   /** Long-tail sink (variations/add-ons sub-shapes, compliance, quote vars). */
   attributes: Record<string, unknown>;
@@ -221,6 +223,8 @@ export type TalentOfferingRow = {
   /** Per-locale category label; absent before migration 20261231299520. */
   category_i18n?: Record<string, string> | null;
   inventory_qty: number | null;
+  /** Kitchen / prep station (TUL-1271 #5). */
+  prep_station_id?: string | null;
   capacity_pool_id?: string | null;
   consumes_units?: number | null;
   status: string;
@@ -377,6 +381,7 @@ export function rowToOffering(
       ? row.moderation_state
       : "approved",
     isFeatured: row.is_featured === true,
+    ...(row.prep_station_id !== undefined ? { prepStationId: row.prep_station_id ?? null } : {}),
     sortOrder: typeof row.sort_order === "number" && Number.isFinite(row.sort_order) ? row.sort_order : 0,
     attributes: row.attributes && typeof row.attributes === "object" ? row.attributes : {},
     imageUrls,
@@ -429,6 +434,7 @@ export function offeringToRowPatch(
     visibility: o.visibility,
     moderation_state: o.moderationState,
     is_featured: o.isFeatured === true,
+    ...(o.prepStationId !== undefined ? { prep_station_id: o.prepStationId } : {}),
     sort_order: o.sortOrder,
     attributes: o.attributes ?? {},
     title_i18n: nullIfEmpty(i18nPair(o.titleI18n, title, primaryLocale)),
