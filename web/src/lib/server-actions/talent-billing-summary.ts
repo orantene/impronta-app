@@ -17,6 +17,7 @@ import {
   loadTalentStripeCustomerId,
   loadTalentStripeSubscriptionId,
 } from "@/lib/billing/talent-billing-reads";
+import { invoiceDisplayState } from "@/lib/billing/invoice-display";
 import { pickDefaultCard } from "@/lib/billing/talent-billing-display";
 
 export type TalentBillingInvoice = {
@@ -28,6 +29,9 @@ export type TalentBillingInvoice = {
   status: string | null;
   pdfUrl: string | null;
   hostedUrl: string | null;
+  /** TUL-1232: a charge Stripe tried and could not collect. */
+  failed: boolean;
+  nextAttemptAt: string | null;
 };
 
 export type TalentBillingSummary = {
@@ -74,6 +78,11 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
           status: r.status,
           pdfUrl: r.invoice_pdf_url,
           hostedUrl: r.hosted_invoice_url,
+          ...invoiceDisplayState({
+            status: r.status,
+            attemptCount: r.attempt_count ?? 0,
+            nextAttemptAt: r.next_payment_attempt,
+          }),
         }));
     } catch (err) {
       logServerError("talent-billing-summary.invoices", err);

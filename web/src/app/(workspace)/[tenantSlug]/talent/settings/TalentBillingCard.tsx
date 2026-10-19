@@ -132,7 +132,28 @@ export function TalentBillingCard({ tenantSlug }: { tenantSlug: string }) {
                   <tr key={inv.id} className="border-t border-neutral-100">
                     <td className="py-1.5">{day(inv.date)}</td>
                     <td className="py-1.5">{money(inv.amountCents, inv.currency)}</td>
-                    <td className="py-1.5">{copy.t(INVOICE_STATUS[inv.status ?? ""] ?? inv.status ?? "")}</td>
+                    <td className="py-1.5">
+                      {inv.failed ? (
+                        <div data-invoice-failed>
+                          <span className="font-semibold text-red-700">{copy.t("Payment failed")}</span>
+                          <div className="text-neutral-600">
+                            {copy.t("Your card could not be charged.")}
+                            {inv.nextAttemptAt ? ` ${copy.t("We will retry on")} ${day(inv.nextAttemptAt)}.` : ""}
+                          </div>
+                          {inv.hostedUrl ? (
+                            <a href={inv.hostedUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+                              {copy.t("Update card")}
+                            </a>
+                          ) : (
+                            <button type="button" onClick={openPortal} disabled={pending} className="font-semibold underline">
+                              {copy.t("Update card")}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        copy.t(INVOICE_STATUS[inv.status ?? ""] ?? inv.status ?? "")
+                      )}
+                    </td>
                     <td className="py-1.5">
                       {link ? (
                         <a href={link} target="_blank" rel="noopener noreferrer" className="underline">
