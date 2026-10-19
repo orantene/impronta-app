@@ -47,7 +47,14 @@ function walk(dir, root, acc) {
   for (const e of entries) {
     const full = join(dir, e.name);
     if (e.isDirectory()) walk(full, root, acc);
-    else if (RASTER.test(e.name)) acc.push({ path: relative(root, full).split(sep).join("/"), bytes: statSync(full).size });
+    else if (RASTER.test(e.name)) {
+      // A file deleted between the listing and the stat is simply gone: skip it.
+      try {
+        acc.push({ path: relative(root, full).split(sep).join("/"), bytes: statSync(full).size });
+      } catch {
+        /* removed while scanning */
+      }
+    }
   }
 }
 

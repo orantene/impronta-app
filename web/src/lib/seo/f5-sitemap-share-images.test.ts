@@ -131,9 +131,19 @@ test("budget: a new heavy image fails, a frozen one passes, growth fails", () =>
 test("budget: the committed baseline matches the tree, and CI runs the gate", () => {
   const baseline = JSON.parse(fs.readFileSync(path.join(WEB, "scripts/ci/public-asset-budget.baseline.json"), "utf8"));
   for (const [rel, bytes] of Object.entries(baseline) as Array<[string, number]>) {
-    const stat = fs.statSync(path.join(WEB, "public", rel));
-    assert.ok(stat.size <= bytes, `${rel} grew past its baseline`);
+    // A baselined image that has since been deleted is fine (the ratchet only goes down).
+    const file = path.join(WEB, "public", rel);
+    if (!fs.existsSync(file)) continue;
+    assert.ok(fs.statSync(file).size <= bytes, `${rel} grew past its baseline`);
   }
   const ci = fs.readFileSync(path.join(WEB, "../.github/workflows/ci.yml"), "utf8");
   assert.match(ci, /node scripts\/ci\/check-public-asset-budget\.mjs/);
+});
+
+test("budget: a deleted baselined image does not break the gate or the scan", () => {
+  const files = [{ path: "marketing/small.jpg", bytes: 10 }];
+  // The baseline names an image that is no longer on disk: nothing to report.
+  assert.deepEqual(findBudgetViolations(files, { "marketing/deleted-heavy.jpg": 900 * 1024 }), []);
+  const script = fs.readFileSync(path.join(WEB, "scripts/ci/check-public-asset-budget.mjs"), "utf8");
+  assert.match(script, /removed while scanning/);
 });
