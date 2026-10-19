@@ -1,4 +1,140 @@
 {
-  "$comment": "Reviewed public functions that anon and/or authenticated may EXECUTE, beyond PUBLIC_SURFACE_FUNCTIONS and POLICY_HELPER_FUNCTIONS (web/src/lib/saas/public-surface-functions.ts, read automatically for both roles). Read by web/scripts/lib/function-execute-guard-cli.mjs. Add a name ONLY when the function defends itself in its body (auth.uid() ownership/tenant check, bearer key) and say how in `reason`. roles: anon and/or authenticated.",
-  "reviewed": []
+  "$comment": "PUBLIC SCHEMA ONLY. Reviewed functions that anon and/or authenticated may EXECUTE, keyed by SIGNATURE (name + argument types, as printed by the guard), so a new overload is never covered by an old review. Read by web/scripts/lib/function-execute-guard-cli.mjs. Role policy comes from web/src/lib/saas/public-surface-functions.ts: PUBLIC_SURFACE_FUNCTIONS may be reviewed for anon and authenticated, POLICY_HELPER_FUNCTIONS for authenticated ONLY (their current anon grants are recorded in the baseline, not endorsed here). Add an entry ONLY when the function defends itself in its body (auth.uid() ownership/tenant check, bearer key) and say how in reason.",
+  "reviewed": [
+    {
+      "signature": "ensure_guest_session(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: guest session bootstrap; bearer session key"
+    },
+    {
+      "signature": "guest_add_saved_talent(text, uuid)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: keyed on the guest session key"
+    },
+    {
+      "signature": "guest_list_saved_talent_ids(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: keyed on the guest session key"
+    },
+    {
+      "signature": "guest_remove_saved_talent(text, uuid)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: keyed on the guest session key"
+    },
+    {
+      "signature": "talent_public_site_for_profile_code(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: read-only public site facts for a profile code"
+    },
+    {
+      "signature": "resolve_talent_profile_code(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: read-only alias resolver; returns id + live code + is_alias only"
+    },
+    {
+      "signature": "receipt_for_code(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: opaque receipt code; withholds holder_email; foreign tenant = 404"
+    },
+    {
+      "signature": "talent_site_domain_lookup(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: read-only edge host resolution, active domains of visible talents only"
+    },
+    {
+      "signature": "talent_site_subdomain_lookup(text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "reason": "PUBLIC_SURFACE_FUNCTIONS: read-only edge host resolution, published sites of visible talents only"
+    },
+    {
+      "signature": "is_active_staff_of_tenant(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "is_agency_staff()",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "is_platform_admin()",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "is_staff_of_tenant(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "is_talent_profile_owner(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "talent_has_public_roster(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "talent_is_site_visible_anywhere(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "talent_profile_has_max(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    },
+    {
+      "signature": "talent_profile_has_pro_or_max(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
+    }
+  ]
 }

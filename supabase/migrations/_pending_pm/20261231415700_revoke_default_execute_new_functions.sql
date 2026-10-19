@@ -3,6 +3,12 @@
 -- HELD (supabase/migrations/_pending_pm/). NOT APPLIED ANYWHERE. TUL-1269 #6
 -- systemic, package I2. PM moves it into supabase/migrations/ and pushes it.
 --
+-- SCOPE: PUBLIC SCHEMA ONLY for anon/authenticated (statement 2). Statement 1
+-- removes the implicit PUBLIC grant globally because Postgres offers no
+-- per-schema way to do it; statement 3 puts it back for `extensions`, and
+-- `storage` keeps its own explicit defaults, so in practice only `public`
+-- (and any schema created later) changes.
+--
 -- WHAT IT CHANGES
 --   New functions that the `postgres` role creates (every migration here runs
 --   as postgres; staging 2026-10-19: all 483 non-extension functions in
@@ -39,15 +45,22 @@
 --     service_role until the migration says otherwise:
 --         GRANT EXECUTE ON FUNCTION public.f(args) TO authenticated;
 --     and, only for a reviewed public surface, TO anon.
---   * This includes functions Postgres calls on the user's behalf: RLS policy
---     helpers, SECURITY INVOKER functions used in views, and column DEFAULT
---     expressions. Without the grant the query fails with "permission denied
---     for function" for that role.
+--   * RULE: a NEW function used in an RLS policy (one that applies to
+--     authenticated or PUBLIC) or in a column DEFAULT MUST be granted:
+--         GRANT EXECUTE ON FUNCTION public.helper(args) TO authenticated;
+--     Postgres calls these with the querying role's privileges, so without
+--     the grant every signed-in query on that table fails at RUNTIME with
+--     "permission denied for function" (the migration itself succeeds).
+--     The CI guard flags exactly this ("Missing authenticated grant").
+--     The same applies to SECURITY INVOKER functions used in views.
+--     Policy helpers are authenticated-only by default; granting one to anon
+--     needs a policy that applies to anon and a reviewed allow-list entry.
 --   * Trigger functions need nothing: EXECUTE is checked at CREATE TRIGGER
 --     time against the creator (postgres), not when the trigger fires.
 --   * The CI guard (web/scripts/lib/function-execute-guard*.mjs, Local
---     Supabase job) is the other half: a new function granted to anon or
---     authenticated must also be added to the reviewed allow-list.
+--     Supabase job, public schema only) is the other half: a new function
+--     granted to anon or authenticated must also be added, by SIGNATURE, to
+--     web/scripts/function-execute-allowlist.json with a reason.
 --
 -- IDEMPOTENT: ALTER DEFAULT PRIVILEGES sets state; running it twice is the
 -- same as running it once.

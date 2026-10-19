@@ -68,7 +68,8 @@ import { letsAnonWrite } from "./anon-write-policy-shape.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // CI mode (TUL-1269 #6, I2): the CI job's LOCAL Postgres after the migration
-// replay, anon AND authenticated, against a committed baseline. No token.
+// replay, anon AND authenticated, PUBLIC SCHEMA ONLY, against a committed
+// baseline and a signature-keyed reviewed allow-list. No token.
 if (process.argv.includes("--local-pg")) {
   const { runLocalGuard } = await import("./lib/function-execute-guard-cli.mjs");
   process.exit(await runLocalGuard(process.argv.slice(2)));
