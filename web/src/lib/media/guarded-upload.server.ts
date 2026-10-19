@@ -95,7 +95,7 @@ export async function readGuardedAttachment(
   const head = new Uint8Array(await file.slice(0, SNIFF_HEAD_BYTES).arrayBuffer());
   const verdict = guardAttachmentBytes(head, file.type);
   if (!verdict.ok) return refuse(verdict.reason, 415, opts.t);
-  let bytes = Buffer.from(await file.arrayBuffer());
+  let bytes: Buffer = Buffer.from(await file.arrayBuffer());
   if (verdict.kind === "image") {
     try {
       bytes = await cleanImage(bytes);

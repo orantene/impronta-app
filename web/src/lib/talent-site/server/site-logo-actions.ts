@@ -189,8 +189,7 @@ export async function uploadMaxSiteLogoAction(
   const body = raster?.ok ? ({ ok: true, bytes: raster.bytes } as const) : sanitizeSvgLogoBuffer(await file.text());
   if (!body.ok) return { ok: false, code: "invalid_input", error: body.error };
   const bytes = body.bytes;
-  const byteSize =
-    bytes instanceof Buffer ? bytes.byteLength : (bytes as ArrayBuffer).byteLength;
+  const byteSize = bytes.byteLength;
 
   const { error: uploadErr } = await admin.storage
     .from(LOGO_BUCKET)
