@@ -37,7 +37,7 @@ async function recordReadContext(): Promise<EffectiveReadContext | undefined> {
 export async function loadTalentAgendaRecordItem(bookingId: string): Promise<TalentAgendaItem | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const ctx = await recordReadContext();
-  const actor = await loadTalentActor(ctx, undefined, { firstProfile: true });
+  const actor = await loadTalentActor(ctx, undefined, { firstProfile: true, adminFallback: true });
   if (!actor.ok) return null;
   // Her own rows, read through the service client keyed on HER profile ids (never a tenant):
   // the session client's row-level security is not a reliable reader for a user who is both a
@@ -92,7 +92,7 @@ async function ownProfileIds(actor: { talentProfileId: string; userId: string; a
 export async function loadTalentTimelessBookingStub(bookingId: string): Promise<{ title: string; service: string | null; clientName: string | null; status: string | null } | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const ctx = await recordReadContext();
-  const actor = await loadTalentActor(ctx, undefined, { firstProfile: true });
+  const actor = await loadTalentActor(ctx, undefined, { firstProfile: true, adminFallback: true });
   if (!actor.ok) return null;
   for (const talentProfileId of await ownProfileIds(actor)) {
     const stub = await readTimelessBookingStub(

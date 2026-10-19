@@ -54,8 +54,10 @@ export async function loadTalentActor(
    * workspace-owned one) makes `.maybeSingle()` an error, so every reader that used it came
    * back "unavailable". READ-ONLY callers opt in to the layout's own rule (`limit(1)`, see
    * loadTalentSelfProfileByUser). Mutations keep the strict single-profile lookup.
+   * `adminFallback`: the layout reads with `createServiceRoleClient() ?? supabase`; a read-only
+   * caller may do the same instead of failing when no service key is configured.
    */
-  opts?: { firstProfile?: boolean },
+  opts?: { firstProfile?: boolean; adminFallback?: boolean },
 ): Promise<TalentActor | { ok: false; reason: MessagingRefusal }> {
   const supabase = await deps.rlsClient();
   if (!supabase) return fail("unavailable");
@@ -65,7 +67,7 @@ export async function loadTalentActor(
   } = await supabase.auth.getUser();
   if (authError) return fail("unavailable");
   if (!user) return fail("not_allowed");
-  const admin = deps.adminClient();
+  const admin = deps.adminClient() ?? (opts?.adminFallback ? supabase : null);
   if (!admin) return fail("unavailable");
   const subjectId = readUserId(user.id, ctx);
   let data: unknown;
