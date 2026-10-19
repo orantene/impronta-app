@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
+import type { ServicePageOffering } from "./service-page";
 import { needsRouteLookup, needsServiceLookup, serviceRouteVerdict, talentRouteVerdict } from "./route-verdict";
 
 test("TUL-1140: an unknown slug is a not-found verdict, a slug a page owns renders", () => {
@@ -27,7 +28,10 @@ test("a normal slug and the legacy privacy slug do trigger the lookup", () => {
 });
 
 // TUL-1273 #5: a removed or archived service answers HTTP 404, not a streamed 200.
-const OFFERINGS = [{ id: "a1b2c3d4-0000-0000-0000-000000000000", kind: "service" as const, visibility: "public" as const, title: "Masaje" }];
+// Only the fields the slug resolver reads; the full offering shape is not needed here.
+const OFFERINGS = [
+  { id: "a1b2c3d4-0000-0000-0000-000000000000", kind: "service", visibility: "public", title: "Masaje" },
+] as unknown as ServicePageOffering[];
 
 test("TUL-1273 #5: service slugs trigger the service lookup, other slugs and draft previews do not", () => {
   assert.equal(needsServiceLookup("servicio-masaje-a1b2c3d4", undefined), true);
