@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { TRIAL_SESSION_MARKER, sweepTrialSessions } from "./trial-checkout-session";
 import { checkoutSessionKey, stableParamsJson } from "./checkout-session-key";
 import { reopenIfExpired } from "./checkout-session-reopen";
+import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "./trial-price-identity";
 import {
   TRIAL_RACE_RETRY_ERROR,
   pickTrialWinner,
@@ -248,31 +249,70 @@ test("wiring: both checkouts reconcile AFTER create, only for trial sessions, cr
     assert.match(src, /line_items: \[\{ price: priceId, quantity: 1 \}\]/);
     assert.match(src, /\.\.\.discount\.params,/);
     assert.match(src, /metadata: \{ \.\.\.sessionParams\.metadata, \.\.\.trialSweep\.marker \}/);
-    assert.match(src, /requestedPlanKey: opts\.planKey/, `${file} passes the requested plan`);
+    assert.match(src, /requestedPriceIdentity: priceIdentity/, `${file} passes the requested price identity`);
+    assert.match(src, /\[TRIAL_PRICE_IDENTITY\]: priceIdentity/, `${file} stamps the identity on trial sessions`);
+    assert.match(src, /const priceIdentity = trialPriceIdentity\(\{ planKey: opts\.planKey, interval: price\.interval, priceId, discount: discount\.params \}\);/, `${file} builds the identity from the sent price + discount`);
     assert.ok(src.indexOf("await reopenIfExpired(") < src.indexOf("await reconcileTrialSession("), `${file} re-opens before reconciling`);
   }
 });
 
-test("loser whose winner is a DIFFERENT plan gets the retry error, never the other plan's Checkout", async () => {
+const PRO_MONTH = { planKey: "talent_pro", interval: "month", priceId: "price_test_pro_month_usd", discount: { allow_promotion_codes: true } };
+
+/** Two open trial sessions: A (older, winner) with identity `a`, B (loser) asking for identity `b`. */
+async function raceWith(a: Parameters<typeof trialPriceIdentity>[0], b: Parameters<typeof trialPriceIdentity>[0]) {
   const st = store();
-  const a = st.create("cs_a", 100);
-  a.metadata = { ...a.metadata!, plan_key: "talent_portfolio" };
+  const winner = st.create("cs_a", 100);
+  winner.metadata = { ...winner.metadata!, plan_key: a.planKey, [TRIAL_PRICE_IDENTITY]: trialPriceIdentity(a) };
+  const loser = st.create("cs_b", 101);
+  loser.metadata = { ...loser.metadata!, plan_key: b.planKey, [TRIAL_PRICE_IDENTITY]: trialPriceIdentity(b) };
+  const r = await reconcileTrialSession(st.stripe, "cus_test_1", { id: loser.id, url: loser.url! }, {
+    otherTrialKnownOpen: false,
+    requestedPriceIdentity: trialPriceIdentity(b),
+    onError: noLog,
+  });
+  return { r, winner, loser };
+}
+
+test("P1 wrong price: a winner with ANY different price identity gives the retry error, never its URL", async () => {
+  const cases: [string, Parameters<typeof trialPriceIdentity>[0]][] = [
+    ["different plan", { ...PRO_MONTH, planKey: "talent_portfolio", priceId: "price_test_portfolio_month_usd" }],
+    ["interval (Pro-month vs Pro-year)", { ...PRO_MONTH, interval: "year", priceId: "price_test_pro_year_usd" }],
+    ["interval only (same price id string)", { ...PRO_MONTH, interval: "year" }],
+    ["currency (USD vs MXN price)", { ...PRO_MONTH, priceId: "price_test_pro_month_mxn" }],
+    ["promo / discount", { ...PRO_MONTH, discount: { discounts: [{ promotion_code: "promo_test_10" }] } }],
+    ["coupon", { ...PRO_MONTH, discount: { discounts: [{ coupon: "co_test_half" }] } }],
+  ];
+  for (const [name, winnerIdentity] of cases) {
+    const { r, winner, loser } = await raceWith(winnerIdentity, PRO_MONTH);
+    assert.deepEqual(r, { error: TRIAL_RACE_RETRY_ERROR }, name);
+    assert.equal(loser.status, "expired", `${name}: the loser still expires itself`);
+    assert.equal(winner.status, "open", `${name}: the winner survives`);
+  }
+});
+
+test("identical price identity: the loser gets the winner's URL", async () => {
+  const { r, winner } = await raceWith(PRO_MONTH, { ...PRO_MONTH });
+  assert.deepEqual(r, { url: winner.url });
+});
+
+test("a winner WITHOUT an identity (created before this change) is treated as a mismatch", async () => {
+  const st = store();
+  st.create("cs_a", 100);
   const b = st.create("cs_b", 101);
-  b.metadata = { ...b.metadata!, plan_key: "talent_pro" };
   const r = await reconcileTrialSession(st.stripe, "cus_test_1", { id: b.id, url: b.url! }, {
     otherTrialKnownOpen: false,
-    requestedPlanKey: "talent_pro",
+    requestedPriceIdentity: trialPriceIdentity(PRO_MONTH),
     onError: noLog,
   });
   assert.deepEqual(r, { error: TRIAL_RACE_RETRY_ERROR });
-  assert.equal(b.status, "expired");
-  assert.equal(a.status, "open", "the winner survives");
-  const same = await reconcileTrialSession(st.stripe, "cus_test_1", { id: b.id, url: b.url! }, {
-    otherTrialKnownOpen: false,
-    requestedPlanKey: "talent_portfolio",
-    onError: noLog,
-  });
-  assert.deepEqual(same, { url: a.url }, "same plan: the winner's Checkout");
+});
+
+test("trialPriceIdentity: deterministic, key-order independent, readable prefix, short", () => {
+  const a = trialPriceIdentity({ ...PRO_MONTH, discount: { discounts: [{ coupon: "c", x: 1 }] } });
+  const b = trialPriceIdentity({ ...PRO_MONTH, discount: { discounts: [{ x: 1, coupon: "c" }] } });
+  assert.equal(a, b);
+  assert.ok(a.startsWith("talent_pro|month|price_test_pro_month_usd|d:"), a);
+  assert.ok(a.length <= 120);
 });
 
 /** Full flow fake: list/expire/create (idempotent replay, reuse-with-other-params throws)/retrieve. */
@@ -310,16 +350,20 @@ function flowStripe() {
   return { stripe, sessions };
 }
 
-async function flowClick(f: ReturnType<typeof flowStripe>, plan: string) {
-  const sessionParams = { metadata: { plan_key: plan }, line_items: [{ price: `price_${plan}`, quantity: 1 }] };
-  const key = checkoutSessionKey(`cs_talent_p1_${plan}`, sessionParams);
+async function flowClick(f: ReturnType<typeof flowStripe>, plan: string, interval = "month") {
+  const identity = trialPriceIdentity({ planKey: plan, interval, priceId: `price_${plan}_${interval}`, discount: { allow_promotion_codes: true } });
+  const sessionParams = {
+    metadata: { plan_key: plan, billing_interval: interval, [TRIAL_PRICE_IDENTITY]: identity },
+    line_items: [{ price: `price_${plan}_${interval}`, quantity: 1 }],
+  };
+  const key = checkoutSessionKey(`cs_talent_p1_${plan}_${interval}`, sessionParams);
   const sweep = await sweepTrialSessions(f.stripe, "cus_test_1", 14, key, noLog);
   const createParams = { ...sessionParams, metadata: { ...sessionParams.metadata, ...sweep.marker } };
   const created = await f.stripe.checkout.sessions.create(createParams, { idempotencyKey: key });
   const session = await reopenIfExpired(f.stripe, created, createParams, key, sweep.expiredIds);
   return reconcileTrialSession(f.stripe, "cus_test_1", { id: session.id, url: session.url }, {
     otherTrialKnownOpen: sweep.otherTrialKnownOpen,
-    requestedPlanKey: plan,
+    requestedPriceIdentity: identity,
     onError: noLog,
   });
 }
@@ -338,4 +382,22 @@ test("A -> B -> A through sweep, re-open and reconcile: an OPEN session of the r
     assert.equal(open[0].metadata.plan_key, "talent_pro");
     assert.equal((again as { url: string }).url, open[0].url, "the URL handed back is the open session");
   }
+});
+
+test("two tabs at the same instant, Pro-month vs Pro-year: one open session; the loser gets the retry error", async () => {
+  const f = flowStripe();
+  // Both creates land before either reconciles (sweeps saw nothing).
+  const mk = async (interval: string) => {
+    const identity = trialPriceIdentity({ planKey: "talent_pro", interval, priceId: `price_talent_pro_${interval}`, discount: null });
+    const createParams = { metadata: { plan_key: "talent_pro", [TRIAL_SESSION_MARKER]: `k_${interval}`, [TRIAL_PRICE_IDENTITY]: identity } };
+    const s = await f.stripe.checkout.sessions.create(createParams, { idempotencyKey: `k_${interval}` });
+    return { s, identity };
+  };
+  const month = await mk("month");
+  const year = await mk("year");
+  const rYear = await reconcileTrialSession(f.stripe, "cus_test_1", { id: year.s.id, url: year.s.url }, { otherTrialKnownOpen: false, requestedPriceIdentity: year.identity, onError: noLog });
+  const rMonth = await reconcileTrialSession(f.stripe, "cus_test_1", { id: month.s.id, url: month.s.url }, { otherTrialKnownOpen: false, requestedPriceIdentity: month.identity, onError: noLog });
+  assert.deepEqual(rMonth, { url: month.s.url });
+  assert.deepEqual(rYear, { error: TRIAL_RACE_RETRY_ERROR }, "never the monthly Checkout for a yearly request");
+  assert.equal(f.sessions.filter((s) => s.status === "open").length, 1);
 });
