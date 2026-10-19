@@ -1,5 +1,11 @@
 /** Tranche themes (Table, Ribbon, Clarity, Mosaic, Prism) seed Spanish: kept out of seed-i18n.ts so that hot file stays one spread line. */
 export const TRANCHE_SEED_TEXT_ES: Readonly<Record<string, string>> = {
+  "Your request in three steps": "Tu solicitud en tres pasos",
+  "Step 1": "Paso 1",
+  "The space": "El espacio",
+  "Shall we start?": "¿Empezamos?",
+  "Common questions": "Preguntas frecuentes",
+  "What do you need?": "¿Qué necesitas?",
   "Packages": "Paquetes",
   "Three ways to {i}go with you{/i}": "Tres formas de {i}acompañarte{/i}",
   "Updos, waves and {i}veils{/i}": "Recogidos, ondas y {i}velos{/i}",

@@ -26,6 +26,7 @@ import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
 import { TABLE_BODY_FONT, TABLE_HEADING_FONT, TABLE_PALETTE } from "./collection/table";
 import { RIBBON_BODY_FONT, RIBBON_HEADING_FONT, RIBBON_PALETTE } from "./collection/ribbon";
+import { CLARITY_BODY_FONT, CLARITY_HEADING_FONT, CLARITY_PALETTE } from "./collection/clarity";
 import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
@@ -457,6 +458,19 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       planned("bridal", { en: "Bridal Hair & Makeup", es: "Peinado y maquillaje de novia" }, ["bridal_makeup", "hair"], "cream"),
       planned("singer", { en: "Singer", es: "Cantante" }, ["singer"], "cream"),
+    ],
+  }),
+  design({
+    ...collection("clarity"),
+    fonts: { heading: CLARITY_HEADING_FONT, body: CLARITY_BODY_FONT },
+    styleTags: ["Minimal", "Warm"],
+    featureTags: ["Service list", "Booking-ready", "Quote requests", "Text-first"],
+    palettes: [
+      pal("teal", "Clinic Teal", "Verde clínica", [CLARITY_PALETTE.page, CLARITY_PALETTE.surface, CLARITY_PALETTE.line, CLARITY_PALETTE.ink, CLARITY_PALETTE.accent, CLARITY_PALETTE.onAccent], { muted: CLARITY_PALETTE.muted }),
+    ],
+    demos: [
+      planned("massage", { en: "Massage Therapist", es: "Masajista" }, ["massage"], "teal"),
+      planned("tutor", { en: "Tutor", es: "Tutor" }, ["tutor"], "teal"),
     ],
   }),
 ];

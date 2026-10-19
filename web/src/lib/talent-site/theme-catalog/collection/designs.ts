@@ -23,6 +23,7 @@ import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
 import { frameDarkHero } from "./frame-hero";
 import { buildTablePayload } from "./table";
 import { buildRibbonPayload } from "./ribbon";
+import { buildClarityPayload } from "./clarity";
 import { solaceRotatingHero } from "./solace-hero";
 import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
@@ -508,6 +509,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     13,
     buildRibbonPayload,
   ),
+  entry(
+    "clarity",
+    "Clarity",
+    "Plain-language booking: a portrait beside the promise, a three-step request, what to expect and a clear FAQ. Built for consultations.",
+    "minimal",
+    ["clarity"],
+    14,
+    buildClarityPayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -531,4 +541,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   gridline: [],
   table: [],
   ribbon: [],
+  clarity: [],
 };

@@ -18,4 +18,6 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
     "Primero el menú: portada dividida, filas de carta, un mosaico de cenas y tu historia. Para chefs privados.",
   ribbon:
     "De la fecha al último baile: portada centrada, comparación de tres paquetes, cuadrícula de fotos y preguntas tranquilas. Para novias y eventos.",
+  clarity:
+    "Reserva en lenguaje claro: retrato junto a la promesa, solicitud en tres pasos, qué esperar y preguntas claras. Para consultas.",
 };
