@@ -21,8 +21,9 @@ g.HTMLElement = dom.window.HTMLElement;
 g.IS_REACT_ACT_ENVIRONMENT = true;
 
 /* eslint-disable import/first -- jsdom globals before react-dom */
-import { act, useState, type ReactNode } from "react";
+import { act, Profiler, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { TALENT_PAGES_ALL } from "@/components/admin/shell/internal/state/fixtures";
 import { pickTalentFrameContent, TalentLayoutFrame, type TalentLayoutFrameMode } from "./_talent-layout-frame";
 /* eslint-enable import/first */
 
@@ -109,3 +110,37 @@ test("first load that misses the profile still renders the bare page", () => {
   assert.equal(host.querySelector("[data-shell]"), null);
   act(() => root.unmount());
 });
+
+/**
+ * Coordinator QA on #4061 (d3927b5): direct entry into /talent/profile and
+ * /talent/today was reported stuck on the shell skeleton. Pin that the frame
+ * itself never holds a direct entry: for every talent route key, the first
+ * render shows that page (never a skeleton), and the frame commits exactly
+ * once (no state update while the page hydrates). With shell data absent
+ * (profile read miss) the bare page renders on the first commit too.
+ */
+for (const key of TALENT_PAGES_ALL) {
+  test(`direct entry /talent ${key}: the frame renders the page on the first commit, with and without shell data`, () => {
+    for (const mode of ["shell", "degraded", "passthrough"] as const) {
+      const host = dom.window.document.createElement("div");
+      dom.window.document.body.appendChild(host);
+      const root = createRoot(host);
+      const phases: string[] = [];
+      const page = <main data-talent-page={key}>{key}</main>;
+      act(() => {
+        root.render(
+          <Profiler id="frame" onRender={(_id, phase) => phases.push(phase)}>
+            <TalentLayoutFrame mode={mode}>
+              {mode === "shell" ? <Shell version={1}>{page}</Shell> : page}
+            </TalentLayoutFrame>
+          </Profiler>,
+        );
+      });
+      assert.equal(host.querySelector("[data-talent-page]")?.getAttribute("data-talent-page"), key, `${mode}: page rendered`);
+      assert.equal(host.textContent?.includes("Cargando tu espacio"), false, `${mode}: no skeleton`);
+      assert.deepEqual(phases, ["mount"], `${mode}: one commit, no re-render on mount`);
+      act(() => root.unmount());
+      host.remove();
+    }
+  });
+}

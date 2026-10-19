@@ -37,9 +37,12 @@ export function pickTalentFrameContent(
 }
 
 export function TalentLayoutFrame({ mode, children }: { mode: TalentLayoutFrameMode; children: ReactNode }) {
-  const [lastShell, setLastShell] = useState<ReactNode>(null);
+  // Seeded from the first render, so a direct entry never re-renders the frame
+  // on mount (no state update during hydration). Later shells replace it; the
+  // updater returns the same value when nothing changed, which React bails out on.
+  const [lastShell, setLastShell] = useState<ReactNode>(() => (mode === "shell" ? children : null));
   useEffect(() => {
-    if (mode === "shell") setLastShell(() => children);
+    if (mode === "shell") setLastShell((prev) => (prev === children ? prev : children));
   }, [mode, children]);
   return <>{pickTalentFrameContent(mode, children, lastShell)}</>;
 }
