@@ -50,3 +50,14 @@ test("BILL-B: the /pricing page honours plan-bearing requests through the redire
   assert.match(src, /pricingPlanRedirect\(/);
   assert.match(src, /redirect\(/);
 });
+
+test("BILL-B follow-up: the paywall source (from) survives the /pricing redirect; junk is dropped", () => {
+  assert.equal(
+    pricingPlanRedirect({ plan: "talent_portfolio", interval: "y", from: "profile-analytics-upsell", viewer: talent }),
+    `${APP}/talent/plan?plan=talent_portfolio&interval=year&from=profile-analytics-upsell`,
+  );
+  assert.equal(
+    pricingPlanRedirect({ plan: "talent_portfolio", interval: "year", from: "<x>", viewer: anon }),
+    "/start?plan=talent_portfolio&interval=year",
+  );
+});

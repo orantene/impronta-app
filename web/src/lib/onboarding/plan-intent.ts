@@ -9,6 +9,8 @@
  * (`startTalentUpgrade`), this only decides whether to offer the upgrade.
  */
 
+import { TALENT_PAID_TIER_LABEL, TALENT_PAID_TIER_LABEL_ES } from "@/lib/access/talent-tier-label";
+
 export const PAID_TALENT_PLAN_KEYS = ["talent_pro", "talent_portfolio"] as const;
 export type PaidTalentPlanKey = (typeof PAID_TALENT_PLAN_KEYS)[number];
 
@@ -44,10 +46,15 @@ export function parsePlanIntent(plan: unknown, interval: unknown): PlanIntent | 
   return { plan: plan as PlanIntent["plan"], interval: parsePlanIntentInterval(interval) };
 }
 
-/** Display name for "Finish upgrading to {plan}". */
-export function planIntentLabel(intent: PlanIntent): string {
+/**
+ * Display name for "Finish upgrading to {plan}". The one paid talent plan uses
+ * the catalog tier label (Web Office / Oficina Web, lib/access/talent-tier-label),
+ * the same name the upgrade modal and the billing panel show; "Portfolio" had no
+ * Spanish name.
+ */
+export function planIntentLabel(intent: PlanIntent, locale?: string | null): string {
   switch (intent.plan) {
-    case "talent_portfolio": return "Portfolio";
+    case "talent_portfolio": return (locale ?? "").toLowerCase().startsWith("es") ? TALENT_PAID_TIER_LABEL_ES : TALENT_PAID_TIER_LABEL;
     case "talent_pro": return "Pro";
     case "website": return "Website";
     case "studio": return "Studio";
@@ -107,10 +114,18 @@ export function planIntentAction(input: {
   return "plan_change";
 }
 
-/** Query string (no leading `?`) for the intent, empty when none. */
-export function planIntentQuery(intent: PlanIntent | null): string {
+/** `from` (which paywall or link started the upgrade) when it is a plain slug; anything else is dropped. */
+export function sanitizePlanIntentFrom(from: unknown): string | null {
+  return typeof from === "string" && /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(from) ? from : null;
+}
+
+/** Query string (no leading `?`) for the intent, empty when none. `from` survives redirects (BILL-B). */
+export function planIntentQuery(intent: PlanIntent | null, from?: unknown): string {
   if (!intent) return "";
-  return new URLSearchParams({ plan: intent.plan, interval: intent.interval }).toString();
+  const q = new URLSearchParams({ plan: intent.plan, interval: intent.interval });
+  const f = sanitizePlanIntentFrom(from);
+  if (f) q.set("from", f);
+  return q.toString();
 }
 
 /**

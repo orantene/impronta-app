@@ -182,7 +182,7 @@ export default async function WorkspaceAccountPage({
         <WorkspacePlanChangeOpener
           planKey={planChangeIntent.plan}
           interval={planChangeIntent.interval}
-          planName={planIntentLabel(planChangeIntent)}
+          planName={planIntentLabel(planChangeIntent, locale)}
           tenantSlug={tenantSlug}
         />
       ) : null}

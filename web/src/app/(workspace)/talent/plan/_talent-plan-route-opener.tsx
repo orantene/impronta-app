@@ -10,6 +10,7 @@ import type { PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
 import { planIntentLabel, type PaidTalentPlanKey } from "@/lib/onboarding/plan-intent";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 /**
  * Opens the tier-compare drawer once when /talent/plan mounts (TUL-666).
@@ -26,6 +27,7 @@ export function TalentPlanRouteOpener({
   intent: { plan: PaidTalentPlanKey; interval: "month" | "year" } | null;
 }) {
   const shell = useAdminShellOptional();
+  const locale = useDashboardLocale();
   const openDrawer = shell?.openDrawer ?? null;
   const tenantSlug = shell?.tenantSlug ?? null;
   const ran = useRef(false);
@@ -61,7 +63,7 @@ export function TalentPlanRouteOpener({
     [slug, target],
   );
   if (!target || !slug) return null;
-  const name = planIntentLabel({ plan: target.planKey as "talent_pro" | "talent_portfolio", interval: target.interval });
+  const name = planIntentLabel({ plan: target.planKey as "talent_pro" | "talent_portfolio", interval: target.interval }, locale);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-xl bg-background p-5 shadow-xl">

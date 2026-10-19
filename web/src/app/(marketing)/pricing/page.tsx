@@ -52,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ currency?: string; interval?: string; plan?: string }>;
+  searchParams: Promise<{ currency?: string; interval?: string; plan?: string; from?: string }>;
 }) {
   const resolved = await searchParams;
   const locale = await getRequestLocale();
@@ -62,6 +62,7 @@ export default async function PricingPage({
     const target = pricingPlanRedirect({
       plan: resolved.plan,
       interval: resolved.interval,
+      from: resolved.from,
       viewer: await resolvePricingViewer(),
     });
     if (target) redirect(target.startsWith("/") ? withLocaleHref(target, locale) : target);

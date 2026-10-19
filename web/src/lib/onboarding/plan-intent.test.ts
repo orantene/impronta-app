@@ -29,6 +29,10 @@ test("parsePlanIntent ignores free, workspace and junk", () => {
 test("planIntentQuery", () => {
   assert.equal(planIntentQuery(null), "");
   assert.equal(planIntentQuery({ plan: "talent_pro", interval: "year" }), "plan=talent_pro&interval=year");
+  assert.equal(planIntentQuery({ plan: "talent_portfolio", interval: "year" }, "profile-analytics-upsell"), "plan=talent_portfolio&interval=year&from=profile-analytics-upsell");
+  for (const junk of ["", " ", "a b", "<script>", "x".repeat(65), 7, null, "../evil"]) {
+    assert.equal(planIntentQuery({ plan: "talent_pro", interval: "month" }, junk), "plan=talent_pro&interval=month", String(junk));
+  }
 });
 
 test("upgradeHrefFromToday swaps the today path and needs an intent", () => {
@@ -59,6 +63,10 @@ test("workspaceUpgradeHref points at the admin billing page for workspace plans 
 test("planIntentLabel", () => {
   assert.equal(planIntentLabel({ plan: "studio", interval: "month" }), "Studio");
   assert.equal(planIntentLabel({ plan: "talent_pro", interval: "month" }), "Pro");
+  assert.equal(planIntentLabel({ plan: "talent_portfolio", interval: "year" }, "es"), "Oficina Web");
+  assert.equal(planIntentLabel({ plan: "talent_portfolio", interval: "year" }, "es-MX"), "Oficina Web");
+  assert.equal(planIntentLabel({ plan: "talent_portfolio", interval: "year" }, "en"), "Web Office");
+  assert.equal(planIntentLabel({ plan: "talent_portfolio", interval: "year" }), "Web Office");
 });
 
 test("workspaceAutoStartDecision starts once for a purchasable plan and skips otherwise", () => {

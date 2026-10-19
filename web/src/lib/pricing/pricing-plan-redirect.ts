@@ -20,11 +20,13 @@ import type { PricingViewer } from "./pricing-cta-href";
 export function pricingPlanRedirect(input: {
   plan: unknown;
   interval: unknown;
+  /** Paywall source (`from`), kept through the redirect when it is a plain slug. */
+  from?: unknown;
   viewer: PricingViewer;
 }): string | null {
   const intent = parsePlanIntent(input.plan, input.interval);
   if (!intent) return null;
-  const q = planIntentQuery(intent);
+  const q = planIntentQuery(intent, input.from);
   const v = input.viewer;
   if (isTalentIntent(intent) && v.kind === "talent") {
     return `${v.appUrl}/talent/plan?${q}`;
