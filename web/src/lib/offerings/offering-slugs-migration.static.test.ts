@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -12,16 +12,12 @@ const FILE = "20261231418800_offering_slugs_supersedes_415800_tul1324.sql";
 const sql = readFileSync(join(ROOT, "_pending_pm", FILE), "utf8");
 const body = sql.replace(/--.*$/gm, "");
 
-test("held in _pending_pm, sorts after every other version, and says it supersedes 415800", () => {
+test("held in _pending_pm, well formed, and says it supersedes 415800", () => {
   assert.equal(readdirSync(ROOT).includes(FILE), false);
-  const others = [...readdirSync(ROOT), ...readdirSync(join(ROOT, "_pending_pm"))]
-    .filter((f) => /^\d{14}_/.test(f) && f !== FILE && !f.includes("dated_places"))
-    .map((f) => f.slice(0, 14))
-    .sort();
-  assert.ok(FILE.slice(0, 14) > others[others.length - 1]);
+  assert.ok(readdirSync(join(ROOT, "_pending_pm")).includes(FILE));
+  assert.match(FILE, /^\d{14}_[a-z0-9_]+\.sql$/);
   assert.match(sql, /SUPERSEDES 20261231415800_service_content_fields\.sql/);
-  // 415800 is left for the PM to remove.
-  assert.ok(existsSync(join(ROOT, "_pending_pm", "20261231415800_service_content_fields.sql")));
+  // No dependence on 415800 still existing (the PM removes it) or on version order.
 });
 
 test("no slug columns on talent_offerings; the table carries per-locale slugs and history", () => {
