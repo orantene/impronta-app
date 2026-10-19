@@ -269,6 +269,8 @@ export async function GET(request: Request) {
       autoReviewRequestsCreated: autoReviews?.created ?? 0,
       autoReviewRequestsInvited: autoReviews?.invited ?? 0,
       autoReviewRequestsFailed: autoReviews?.failed ?? 0,
+      autoReviewRequestsDisabled: autoReviews?.disabled ?? null,
+      autoReviewRequestsDeferredByCap: autoReviews?.deferredByCap ?? 0,
       ...totals,
     };
     void improntaLog("notif.cron.booking_reminders", summary);

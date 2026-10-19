@@ -9,8 +9,11 @@ import { test } from "node:test";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { parseAutoReviewConfig } from "./auto-review-config";
 import {
   AUTO_REVIEW_MAX_DAYS_AFTER_END,
+  AUTO_REVIEW_MAX_PER_RUN,
+  recipientKey,
   bookingEndedAt,
   decideAutoReviewRequests,
   type AutoReviewBooking,
@@ -128,6 +131,7 @@ test("the page reads its words from the copy, not from English literals", () => 
 // ─── Automatic request, once ──────────────────────────────────────────────────
 
 const NOW = new Date("2026-10-20T08:00:00Z");
+const CUTOFF = new Date("2026-10-01T00:00:00Z");
 
 function booking(over: Partial<AutoReviewBooking> = {}): AutoReviewBooking {
   return {
@@ -151,6 +155,7 @@ function decide(b: AutoReviewBooking, talents: string[] = ["tp1"], requested: st
     bookings: [b],
     talentsByBooking: new Map([[b.id, talents]]),
     requestedBookingIds: new Set(requested),
+    cutoff: CUTOFF,
   });
 }
 
@@ -312,4 +317,94 @@ test("review fix: a request whose invite never went out is removed so the next r
   assert.match(producer, /\.delete\(\)\s*\.eq\("id", uninvitedRowId\)\s*\.eq\("source", "auto"\)\s*\.eq\("status", "pending"\)/);
   // opt-outs and skips are not retried
   assert.match(producer, /sent\.failed === 0\) \{[\s\S]*?uninvitedRowId = null;/);
+});
+
+// ─── TUL-1328 guards: kill switch, first-run cutoff, cap, frequency ───────────
+
+function run(bookings: AutoReviewBooking[], extra: Partial<Parameters<typeof decideAutoReviewRequests>[0]> = {}) {
+  return decideAutoReviewRequests({
+    now: NOW,
+    bookings,
+    talentsByBooking: new Map(bookings.map((b) => [b.id, ["tp1"]])),
+    requestedBookingIds: new Set(),
+    cutoff: CUTOFF,
+    ...extra,
+  });
+}
+
+test("kill switch: default OFF; on needs a valid cutoff or it stays off", () => {
+  assert.deepEqual(parseAutoReviewConfig({}, NOW), { enabled: false, reason: "off" });
+  assert.deepEqual(parseAutoReviewConfig({ AUTO_REVIEW_REQUESTS_ENABLED: "0" }, NOW), { enabled: false, reason: "off" });
+  assert.deepEqual(parseAutoReviewConfig({ AUTO_REVIEW_REQUESTS_ENABLED: "yes" }, NOW), { enabled: false, reason: "off" });
+  assert.deepEqual(parseAutoReviewConfig({ AUTO_REVIEW_REQUESTS_ENABLED: "1" }, NOW), { enabled: false, reason: "no_cutoff" });
+  assert.deepEqual(parseAutoReviewConfig({ AUTO_REVIEW_REQUESTS_ENABLED: "1", AUTO_REVIEW_REQUESTS_FROM: "soon" }, NOW), { enabled: false, reason: "bad_cutoff" });
+  assert.deepEqual(parseAutoReviewConfig({ AUTO_REVIEW_REQUESTS_ENABLED: "1", AUTO_REVIEW_REQUESTS_FROM: "2031-01-01" }, NOW), { enabled: false, reason: "future_cutoff" });
+  const on = parseAutoReviewConfig({ AUTO_REVIEW_REQUESTS_ENABLED: "true", AUTO_REVIEW_REQUESTS_FROM: "2026-10-20T00:00:00Z" }, NOW);
+  assert.equal(on.enabled, true);
+  if (on.enabled) assert.equal(on.cutoff.toISOString(), "2026-10-20T00:00:00.000Z");
+});
+
+test("the producer is inert when the switch is off: it returns before touching the database", () => {
+  const producer = read("src/lib/reviews/auto-review-request.ts");
+  const switchAt = producer.indexOf("parseAutoReviewConfig(process.env, now)");
+  const clientAt = producer.indexOf("createServiceRoleClient()");
+  assert.ok(switchAt > 0 && clientAt > switchAt, "the switch is read before any client is created");
+  assert.match(producer, /summary\.disabled = config\.reason;\s*return summary;/);
+});
+
+test("first-run cutoff: a booking that ended before it is never asked (no backfill); no cutoff asks nobody", () => {
+  const old = booking({ id: "old", ends_at: "2026-09-25T10:00:00Z", starts_at: "2026-09-25T09:00:00Z" });
+  const fresh = booking({ id: "fresh" });
+  const d = run([old, fresh]);
+  assert.deepEqual(d.due.map((x) => x.booking.id), ["fresh"]);
+  assert.equal(d.skipped.before_cutoff, 1);
+  const none = run([fresh], { cutoff: null });
+  assert.equal(none.due.length, 0);
+  assert.equal(none.skipped.before_cutoff, 1);
+  // a cutoff later than the booking's end excludes it even inside the 14-day window
+  assert.equal(run([fresh], { cutoff: new Date("2026-10-19T20:00:00Z") }).due.length, 0);
+  // the producer clamps its query to the cutoff too
+  assert.match(read("src/lib/reviews/auto-review-request.ts"), /windowStart\.getTime\(\) > config\.cutoff\.getTime\(\) \? windowStart : config\.cutoff/);
+});
+
+test("per-run cap: at most the cap per run, oldest first, the rest deferred", () => {
+  assert.equal(AUTO_REVIEW_MAX_PER_RUN, 50);
+  const many = Array.from({ length: 7 }, (_, i) =>
+    booking({
+      id: `b${i}`,
+      contact_email: `p${i}@real.com`,
+      ends_at: `2026-10-1${i}T15:00:00Z`,
+      starts_at: `2026-10-1${i}T14:00:00Z`,
+    }),
+  );
+  const d = run(many.slice().reverse(), { maxPerRun: 3 });
+  assert.deepEqual(d.due.map((x) => x.booking.id), ["b0", "b1", "b2"]);
+  assert.equal(d.skipped.over_cap, 4);
+  assert.equal(run(many, { maxPerRun: 0 }).due.length, 0);
+});
+
+test("per-recipient frequency guard: one request per person per cooldown, across runs and within a run", () => {
+  assert.equal(recipientKey("u1", "a@b.com"), "user:u1");
+  assert.equal(recipientKey(null, "a@b.com"), "email:a@b.com");
+  assert.equal(recipientKey(null, null), null);
+  const a = booking({ id: "a", contact_email: "same@real.com" });
+  const b = booking({ id: "b", contact_email: "same@real.com", ends_at: "2026-10-19T16:00:00Z" });
+  const within = run([a, b]);
+  assert.equal(within.due.length, 1);
+  assert.equal(within.skipped.recipient_recent, 1);
+  const across = run([a], { recentRecipientKeys: new Set(["email:same@real.com"]) });
+  assert.equal(across.due.length, 0);
+  assert.equal(across.skipped.recipient_recent, 1);
+  const byUser = run([booking({ id: "c", contact_email: null, client_user_id: "u9" })], { recentRecipientKeys: new Set(["user:u9"]) });
+  assert.equal(byUser.skipped.recipient_recent, 1);
+  // the guard is read from the database for the candidate people, and refuses the run if it cannot be read
+  const producer = read("src/lib/reviews/auto-review-request.ts");
+  assert.match(producer, /\.eq\("source", "auto"\)\s*\.gte\("created_at", sinceIso\)/);
+  assert.match(producer, /Without the answer the guard cannot be applied/);
+});
+
+test("the cron reports the guard state", () => {
+  const route = read("src/app/api/cron/booking-reminders/route.ts");
+  assert.match(route, /autoReviewRequestsDisabled/);
+  assert.match(route, /autoReviewRequestsDeferredByCap/);
 });

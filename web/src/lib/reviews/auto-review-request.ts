@@ -6,9 +6,12 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   AUTO_REVIEW_MAX_DAYS_AFTER_END,
+  AUTO_REVIEW_RECIPIENT_COOLDOWN_DAYS,
   decideAutoReviewRequests,
+  recipientKey,
   type AutoReviewBooking,
 } from "./auto-review-request-plan";
+import { parseAutoReviewConfig } from "./auto-review-config";
 import { bookingLocaleOf, loadOfferingDisplayTitle, offeringIdForBooking } from "./review-offering";
 import { tenantReviewsEnabled } from "./reviews-entitlement";
 
@@ -39,6 +42,10 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 const PG_UNIQUE_VIOLATION = "23505";
 
 export type AutoReviewRunSummary = {
+  /** Why nothing ran: the kill switch is off or the cutoff is missing or bad (see auto-review-config.ts). */
+  disabled: string | null;
+  /** Candidates left for the next run by the per-run cap. */
+  deferredByCap: number;
   scanned: number;
   created: number;
   invited: number;
@@ -51,6 +58,8 @@ export type AutoReviewRunSummary = {
 
 export async function runAutoReviewRequests(now: Date = new Date()): Promise<AutoReviewRunSummary> {
   const summary: AutoReviewRunSummary = {
+    disabled: null,
+    deferredByCap: 0,
     scanned: 0,
     created: 0,
     invited: 0,
@@ -59,11 +68,19 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
     failed: 0,
     retryNextRun: 0,
   };
+  // Kill switch (default OFF) and first-run cutoff: no backfill of past bookings.
+  const config = parseAutoReviewConfig(process.env, now);
+  if (!config.enabled) {
+    summary.disabled = config.reason;
+    return summary;
+  }
   const svc = createServiceRoleClient();
   if (!svc) return summary;
 
   try {
-    const cutoff = new Date(now.getTime() - (AUTO_REVIEW_MAX_DAYS_AFTER_END + 1) * 86_400_000);
+    // Never earlier than the first-run cutoff, never older than the look-back window.
+    const windowStart = new Date(now.getTime() - (AUTO_REVIEW_MAX_DAYS_AFTER_END + 1) * 86_400_000);
+    const cutoff = windowStart.getTime() > config.cutoff.getTime() ? windowStart : config.cutoff;
     const cutoffIso = cutoff.toISOString();
     const cutoffYmd = cutoffIso.slice(0, 10);
     const { data, error } = await svc
@@ -120,8 +137,57 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
       talentsByBooking.set(r.booking_id, list);
     }
 
-    const decision = decideAutoReviewRequests({ now, bookings, talentsByBooking, requestedBookingIds });
+    // Frequency guard: people who already got an automatic request recently.
+    const recentRecipientKeys = new Set<string>();
+    const candidateEmails = [...new Set(bookings.map((b) => (b.contact_email ?? "").trim().toLowerCase()).filter(Boolean))];
+    const candidateUsers = [...new Set(bookings.map((b) => b.client_user_id).filter((v): v is string => !!v))];
+    const sinceIso = new Date(now.getTime() - AUTO_REVIEW_RECIPIENT_COOLDOWN_DAYS * 86_400_000).toISOString();
+    for (const part of chunk(candidateEmails, ID_CHUNK)) {
+      const { data: recent, error: recentErr } = await svc
+        .from("review_requests")
+        .select("invited_email, client_user_id")
+        .eq("source", "auto")
+        .gte("created_at", sinceIso)
+        .in("invited_email", part);
+      if (recentErr) {
+        // Without the answer the guard cannot be applied: refuse the run (fail closed).
+        logServerError("reviews/auto/recent", recentErr);
+        summary.failed += 1;
+        return summary;
+      }
+      for (const r of (recent ?? []) as Array<{ invited_email: string | null; client_user_id: string | null }>) {
+        const k = recipientKey(r.client_user_id, (r.invited_email ?? "").trim().toLowerCase() || null);
+        if (k) recentRecipientKeys.add(k);
+        if (r.invited_email) recentRecipientKeys.add(`email:${r.invited_email.trim().toLowerCase()}`);
+      }
+    }
+    for (const part of chunk(candidateUsers, ID_CHUNK)) {
+      const { data: recent, error: recentErr } = await svc
+        .from("review_requests")
+        .select("client_user_id")
+        .eq("source", "auto")
+        .gte("created_at", sinceIso)
+        .in("client_user_id", part);
+      if (recentErr) {
+        logServerError("reviews/auto/recent", recentErr);
+        summary.failed += 1;
+        return summary;
+      }
+      for (const r of (recent ?? []) as Array<{ client_user_id: string | null }>) {
+        if (r.client_user_id) recentRecipientKeys.add(`user:${r.client_user_id}`);
+      }
+    }
+
+    const decision = decideAutoReviewRequests({
+      now,
+      bookings,
+      talentsByBooking,
+      requestedBookingIds,
+      cutoff: config.cutoff,
+      recentRecipientKeys,
+    });
     summary.alreadyRequested = decision.skipped.already_requested;
+    summary.deferredByCap = decision.skipped.over_cap;
 
     const entitled = new Map<string, boolean>();
     for (const d of decision.due) {

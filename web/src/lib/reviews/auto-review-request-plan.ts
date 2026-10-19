@@ -22,6 +22,18 @@ export const AUTO_REVIEW_MIN_HOURS_AFTER_END = 3;
 /** Stop asking this many days after the booking ended. */
 export const AUTO_REVIEW_MAX_DAYS_AFTER_END = 14;
 
+/** Most automatic requests one daily run may create. The rest wait for the next run. */
+export const AUTO_REVIEW_MAX_PER_RUN = 50;
+/** One automatic request per person (email or account) in this many days, across bookings. */
+export const AUTO_REVIEW_RECIPIENT_COOLDOWN_DAYS = 30;
+
+/** The key a person is counted under for the frequency guard: their account, else their email. */
+export function recipientKey(clientUserId: string | null, invitedEmail: string | null): string | null {
+  if (clientUserId) return `user:${clientUserId}`;
+  if (invitedEmail) return `email:${invitedEmail}`;
+  return null;
+}
+
 export type AutoReviewBooking = {
   id: string;
   tenant_id: string;
@@ -42,7 +54,10 @@ export type AutoReviewSkip =
   | "too_old"
   | "no_recipient"
   | "talent_count"
-  | "already_requested";
+  | "already_requested"
+  | "before_cutoff"
+  | "recipient_recent"
+  | "over_cap";
 
 export type AutoReviewDecision = {
   /** Bookings to create a request for, with the one talent and the address to ask. */
@@ -82,6 +97,16 @@ export function decideAutoReviewRequests(input: {
   talentsByBooking: ReadonlyMap<string, readonly string[]>;
   /** Booking ids that already have a review request of any kind. */
   requestedBookingIds: ReadonlySet<string>;
+  /**
+   * First-run cutoff: only a booking that ENDED at or after this instant is
+   * asked. No cutoff means nothing is asked (the guard fails closed), so turning
+   * the feature on never back-fills past clients.
+   */
+  cutoff: Date | null;
+  /** Keys (see `recipientKey`) that already got an automatic request inside the cooldown. */
+  recentRecipientKeys?: ReadonlySet<string>;
+  /** Defaults to AUTO_REVIEW_MAX_PER_RUN. */
+  maxPerRun?: number;
 }): AutoReviewDecision {
   const out: AutoReviewDecision = {
     due: [],
@@ -93,13 +118,23 @@ export function decideAutoReviewRequests(input: {
       no_recipient: 0,
       talent_count: 0,
       already_requested: 0,
+      before_cutoff: 0,
+      recipient_recent: 0,
+      over_cap: 0,
     },
   };
+  const cutoffMs = input.cutoff ? input.cutoff.getTime() : null;
+  const cap = Math.max(0, input.maxPerRun ?? AUTO_REVIEW_MAX_PER_RUN);
+  const seenRecipients = new Set<string>(input.recentRecipientKeys ?? []);
   const nowMs = input.now.getTime();
   const minMs = AUTO_REVIEW_MIN_HOURS_AFTER_END * 3_600_000;
   const maxMs = AUTO_REVIEW_MAX_DAYS_AFTER_END * 86_400_000;
 
-  for (const b of input.bookings) {
+  // Oldest first, so when the per-run cap bites the longest-waiting clients go first.
+  const ordered = [...input.bookings].sort(
+    (a, b) => (bookingEndedAt(a)?.getTime() ?? 0) - (bookingEndedAt(b)?.getTime() ?? 0),
+  );
+  for (const b of ordered) {
     if (b.status !== "completed") {
       out.skipped.not_completed += 1;
       continue;
@@ -107,6 +142,11 @@ export function decideAutoReviewRequests(input: {
     const ended = bookingEndedAt(b);
     if (!ended) {
       out.skipped.no_end += 1;
+      continue;
+    }
+    // First-run cutoff: no cutoff, or a booking that ended before it, is never asked.
+    if (cutoffMs === null || ended.getTime() < cutoffMs) {
+      out.skipped.before_cutoff += 1;
       continue;
     }
     const age = nowMs - ended.getTime();
@@ -133,6 +173,17 @@ export function decideAutoReviewRequests(input: {
       out.skipped.talent_count += 1;
       continue;
     }
+    // One automatic request per person per cooldown, also within this very run.
+    const key = recipientKey(clientUserId, invitedEmail);
+    if (key && seenRecipients.has(key)) {
+      out.skipped.recipient_recent += 1;
+      continue;
+    }
+    if (out.due.length >= cap) {
+      out.skipped.over_cap += 1;
+      continue;
+    }
+    if (key) seenRecipients.add(key);
     out.due.push({ booking: b, talentProfileId: talents[0], clientUserId, invitedEmail });
   }
   return out;
