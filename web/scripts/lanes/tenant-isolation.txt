@@ -47,6 +47,7 @@ src/lib/directory/discover-index-gates.guard.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/directory/resource-profile-leakage.static.test.ts
 src/lib/directory/taxonomy-tenant-safety.test.ts
+src/lib/events/hidden-tiers-anon-rls.static.test.ts
 src/lib/health/prod-gating-flags.test.ts
 src/lib/impersonation/client-api-read.test.ts
 src/lib/impersonation/client-loaders-read-client.test.ts
