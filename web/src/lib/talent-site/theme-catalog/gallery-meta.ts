@@ -21,7 +21,8 @@
  * gallery UI and never used as a featured / preview demo (TUL-327 / G7).
  */
 import { authoredPaletteOverrides } from "./collection/authored";
-import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
+import { collectionDesignCard } from "./collection/design-cards";
+import { COLLECTION_DESIGN_SUMMARY_ES } from "./collection/design-summaries-es";
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
 import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
@@ -256,7 +257,7 @@ const MAISON_V2_FONTS: GalleryFonts = {
 // ── Designs ─────────────────────────────────────────────────────────────────
 
 function collection(slug: string) {
-  const d = COLLECTION_DESIGNS.find((x) => x.slug === slug);
+  const d = collectionDesignCard(slug);
   if (!d) throw new Error(`gallery-meta: collection design ${slug} missing`);
   return { slug: d.slug, name: d.title, description: { en: d.summary, es: COLLECTION_DESIGN_SUMMARY_ES[slug] ?? d.summary } };
 }
@@ -387,7 +388,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     styleTags: ["Image-led", "Bold"],
     featureTags: ["Portfolio", "Service menu", "Quote requests", "Video & media"],
     palettes: [
-      pal("gallery", "Contact sheet", "Hoja de contactos", ["#E6E6E1", "#F5F5F2", "#CFCFC8", "#121212", "#D4351C", "#FFFFFF"], { muted: "#5C5C57" }),
+      pal("gallery", "Contact sheet", "Hoja de contactos", ["#E6E6E1", "#F5F5F2", "#CFCFC8", "#121212", "#D4351C", "#FFFFFF"], { muted: "#5C5C57", highContrast: true }),
       pal("darkroom", "Darkroom", "Cuarto oscuro", ["#0E0E0E", "#191919", "#2E2E2E", "#F2F2F2", "#E0B04A", "#0E0E0E"], { dark: true }),
       pal("film", "Film & Amber", "Película y ámbar", ["#FFFFFF", "#F7F2EA", "#E8DFD0", "#221D16", "#8C5A14", "#FFFFFF"]),
     ],
