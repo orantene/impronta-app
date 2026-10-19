@@ -25,6 +25,23 @@ export function scopeToGuestSellableOfferings<Q>(query: Q): Q {
 }
 
 /**
+ * TUL-1347: the STAFF quote list (Messages items picker). Staff quote
+ * `on_request` and `agency_only` services, so visibility is not a gate here;
+ * published AND approved still is. Used ONLY by `messagingLoadItemsCatalog`;
+ * the guest dock keeps `scopeToGuestSellableOfferings`.
+ */
+export function scopeToStaffQuotableOfferings<Q>(query: Q): Q {
+  return (query as unknown as EqChain).eq("status", "published").eq("moderation_state", "approved") as unknown as Q;
+}
+
+export type CatalogScope = "guest" | "staff";
+
+/** One switch for the readers: guest (default, strict) or staff quote list. */
+export function scopeOfferingsFor<Q>(query: Q, scope: CatalogScope | undefined): Q {
+  return scope === "staff" ? scopeToStaffQuotableOfferings(query) : scopeToGuestSellableOfferings(query);
+}
+
+/**
  * Which door a purchase came through. `guest` is every public and storefront
  * surface and is the DEFAULT: a caller that forgets to say gets the strict rule.
  * `staff` is the point of sale booking a walk-in at the desk, where a person
