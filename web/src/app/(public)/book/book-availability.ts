@@ -31,3 +31,20 @@ export function pickInitialOfferingId(offerings: readonly BookAvailabilityInput[
   const notRuledOut = offerings.find((o) => !isRequestOnlyService(o));
   return (notRuledOut ?? offerings[0])?.id ?? "";
 }
+
+/**
+ * Which service /book shows. A requested service (TUL-65 `?service=`, already
+ * validated against the loaded list) wins over the default picker until the
+ * visitor picks one by hand; a hand pick always wins. An id that is not in the
+ * list falls back to the picker's choice, then the first service.
+ */
+export function resolveSelectedOfferingId(input: {
+  offerings: readonly BookAvailabilityInput[];
+  requestedId?: string | null;
+  userPickedId?: string | null;
+}): string {
+  const has = (id?: string | null) => !!id && input.offerings.some((o) => o.id === id);
+  if (has(input.userPickedId)) return input.userPickedId as string;
+  if (has(input.requestedId)) return input.requestedId as string;
+  return pickInitialOfferingId(input.offerings);
+}

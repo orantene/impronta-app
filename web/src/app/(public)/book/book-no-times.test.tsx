@@ -30,7 +30,7 @@ function offering(id: string, title: string, extra: Record<string, unknown> = {}
   } as never;
 }
 
-function render(offerings: unknown[], locale: string) {
+function render(offerings: unknown[], locale: string, initialServiceId?: string) {
   return renderToStaticMarkup(
     createElement(BookPageClient, {
       tenantSlug: "qa-journeys",
@@ -38,6 +38,7 @@ function render(offerings: unknown[], locale: string) {
       offerings: offerings as never,
       locale,
       contactHref: "/w/qa-journeys/contact",
+      initialServiceId,
     }),
   );
 }
@@ -119,4 +120,19 @@ test("unprobed service: the picker empty state carries the request action", () =
 test("house-owned services never had times (no regression from false)", () => {
   const src = readFileSync(join(__dirname, "../../../lib/scheduling/public-open-times.ts"), "utf8");
   assert.match(src, /!offering\.talent_profile_id\) return \{ ok: true, slots: \[\], reason: "not_bookable_here" \}/);
+});
+
+// #4078 x #4045: the requested service stays selected and still gets the right CTA.
+test("requested ?service= wins over a probed service listed first", () => {
+  const list = [
+    offering("a", "Cut", { hasOpenTimes: true }),
+    offering("b", "Color"),
+    offering("c", "Quote", { hasOpenTimes: false }),
+  ];
+  assert.match(render(list, "en", "b"), /data-book-selected="b"/);
+  assert.doesNotMatch(render(list, "en", "b"), /data-book-no-times/);
+  const noTimes = render(list, "en", "c");
+  assert.match(noTimes, /data-book-selected="c"/);
+  assert.match(noTimes, /data-book-no-times="c"/);
+  assert.match(render(list, "en", "missing"), /data-book-selected="a"/);
 });

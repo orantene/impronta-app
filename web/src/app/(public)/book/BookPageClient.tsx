@@ -13,7 +13,7 @@ import { bookPagePaymentLine } from "@/lib/talent/who-step-payment-copy";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
-import { isRequestOnlyService, pickInitialOfferingId } from "./book-availability";
+import { isRequestOnlyService, resolveSelectedOfferingId } from "./book-availability";
 import { BookLocaleScope } from "./BookLocaleScope";
 import { BookNoTimesRequest } from "./BookNoTimesRequest";
 
@@ -43,19 +43,17 @@ export function BookPageClient({
   /** TUL-65 Book again: opens on this service, bypassing the default picker. Ignored when not in `offerings`. */
   initialServiceId?: string;
 }) {
-  const [userPicked, setUserPicked] = useState(false);
-  const pinnedId = offerings.some((o) => o.id === initialServiceId) ? initialServiceId : "";
+  const [userPickedId, setUserPickedId] = useState("");
   const cookieT = usePublicT();
   const pageLocale = (localeProp?.trim() || "en").startsWith("es") ? "es" : "en";
   const t = useMemo(
     () => (localeProp?.trim() ? translatorFor(pageLocale) : cookieT),
     [localeProp, pageLocale, cookieT],
   );
-  const [offeringId, setOfferingId] = useState(() => pickInitialOfferingId(offerings));
-  const selected = useMemo(
-    () => offerings.find((o) => o.id === (pinnedId && !userPicked ? pinnedId : offeringId)) ?? offerings[0] ?? null,
-    [offerings, offeringId, pinnedId, userPicked],
-  );
+  const selected = useMemo(() => {
+    const id = resolveSelectedOfferingId({ offerings, requestedId: initialServiceId, userPickedId });
+    return offerings.find((o) => o.id === id) ?? offerings[0] ?? null;
+  }, [offerings, initialServiceId, userPickedId]);
   const noTimes = selected ? isRequestOnlyService(selected) : false;
   const bookable = selected
     ? pickBookableOffering([selected], { locationLabel: null })
@@ -119,10 +117,7 @@ export function BookPageClient({
           <span className="font-medium">{t("public.bookPage.chooseService")}</span>
           <select
             value={selected.id}
-            onChange={(e) => {
-              setUserPicked(true);
-              setOfferingId(e.target.value);
-            }}
+            onChange={(e) => setUserPickedId(e.target.value)}
             className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2 text-[var(--token-color-ink,#0B0B0D)]"
           >
             {offerings.map((o) => (
