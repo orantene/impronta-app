@@ -20,7 +20,6 @@ import {
 import {
   rowToOffering,
   type TalentOffering,
-  type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { withEffectivePolicy, withPublicAvailability } from "@/lib/talent/offering-policy-resolver";
 import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
@@ -32,7 +31,8 @@ import { stripPublicOfferingFlightFields } from "@/lib/talent/offerings-public-s
 import { hideTestServiceOnPublicSite } from "@/lib/talent/qa-test-service";
 import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
 import { loadTenantKind } from "@/lib/inquiry/tenant-kind.server";
-import { isHubProfileListableOffering, publicOfferingsScope } from "./hub-profile-offerings";
+import { publicOfferingsScope } from "./hub-profile-offerings";
+import { selectPublicOfferingRows, type PublicOfferingRowsDb } from "./offerings-public-rows";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -89,23 +89,14 @@ async function loadPublicOfferingsForProfileUncached(
     });
     const scopedTenantId = scope.filterTenantId;
 
-    let query = db
-      .from("talent_offerings")
-      .select("*")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("owner_kind", "talent")
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .in("visibility", ["public", "on_request"]);
-    if (scopedTenantId) query = query.eq("tenant_id", scopedTenantId);
-    const { data, error } = await query.order("sort_order", { ascending: true });
-    if (error) {
-      logServerError("public.offerings.load", error);
+    // Talent-owned, D-10 guest-visible rows (offerings-public-rows.ts).
+    const read = await selectPublicOfferingRows(db as unknown as PublicOfferingRowsDb, talentProfileId, scopedTenantId);
+    if (!read.ok) {
+      logServerError("public.offerings.load", read.error);
       return [];
     }
     // Drop QA/E2E harness leftovers on demo/fixture talents before media/child loads (TUL-537).
-    // The hub/guest rule re-checked in code: talent-owned, published, approved, public or on_request.
-    const loaded = ((data ?? []) as TalentOfferingRow[]).filter((r) => isHubProfileListableOffering(r));
+    const loaded = read.rows;
     const testScope = await loadTestServiceScope(db, loaded);
     const rows = loaded.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
     if (rows.length === 0) return [];

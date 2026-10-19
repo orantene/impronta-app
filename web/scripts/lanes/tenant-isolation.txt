@@ -199,6 +199,7 @@ src/lib/talent/hub-profile-offerings.test.ts
 src/lib/talent/load-representation.test.ts
 src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
+src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
 src/lib/team/redeem-role.test.ts

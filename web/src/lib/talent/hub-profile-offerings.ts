@@ -80,7 +80,8 @@ export function hubCardBookTarget(input: {
   offeringTenantKind: string | null | undefined;
 }): HubCardBookTarget {
   if (!isHubProfileHost(input.hostKind)) return "in_place";
-  if (!input.offeringTenantId) return "in_place";
+  // No tenant on the row: no seller the hub rails could charge under (fail closed).
+  if (!input.offeringTenantId) return "owner_link";
   return input.offeringTenantKind === "hub" ? "in_place" : "owner_link";
 }
 
@@ -89,4 +90,41 @@ export function ownerBookHref(siteUrl: string | null | undefined, offeringId: st
   const base = (siteUrl ?? "").trim().replace(/\/+$/, "");
   if (!/^https?:\/\/[^/]/i.test(base)) return null;
   return `${base}/book?service=${encodeURIComponent(offeringId)}`;
+}
+
+type InPlaceCandidate = {
+  ownerKind?: string | null;
+  tenantId: string | null;
+  status?: string | null;
+  moderationState?: string | null;
+  visibility?: string | null;
+};
+
+/**
+ * The offerings the hub's IN-PLACE booking (Book button, `#book`, `#book-<id8>`,
+ * slot picker) may open. Those rails run under the HUB tenant, so on a hub host
+ * only talent-owned, guest-visible rows a hub tenant sells qualify; another
+ * workspace's row only links out (hubCardBookTarget). Unknown tenant kind fails
+ * closed. Non-hub hosts are unchanged (every offering stays).
+ */
+export function filterInPlaceBookOfferings<T extends InPlaceCandidate>(
+  offerings: readonly T[],
+  input: { hostKind: string; tenantKinds: ReadonlyMap<string, string | null> },
+): T[] {
+  if (!isHubProfileHost(input.hostKind)) return [...offerings];
+  return offerings.filter((o) => {
+    const listable = isHubProfileListableOffering({
+      owner_kind: o.ownerKind,
+      status: o.status,
+      moderation_state: o.moderationState,
+      visibility: o.visibility,
+    });
+    if (!listable || !o.tenantId) return false;
+    const target = hubCardBookTarget({
+      hostKind: input.hostKind,
+      offeringTenantId: o.tenantId,
+      offeringTenantKind: input.tenantKinds.get(o.tenantId) ?? null,
+    });
+    return target === "in_place";
+  });
 }
