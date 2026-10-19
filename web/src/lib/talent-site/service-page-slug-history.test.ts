@@ -93,3 +93,15 @@ test("currentServiceSlug: custom slug when set, derived slug otherwise", () => {
   assert.equal(currentServiceSlug(A, null), serviceSlug(A));
   assert.equal(currentServiceSlug(A, content({ slug: "  " })), serviceSlug(A));
 });
+
+test("two rows' histories hold the same slug: the lowest id wins, whatever the input order", () => {
+  const map = new Map([
+    [A.id, content({ slug: "corte-nuevo", slugHistory: ["oferta"] })],
+    [B.id, content({ slug: "barba-nueva", slugHistory: ["oferta"] })],
+  ]);
+  const winner = [A.id, B.id].sort()[0];
+  for (const list of [[A, B], [B, A]]) {
+    const r = resolveServiceSlugWithHistory(list, "oferta", map);
+    assert.equal(r.kind === "redirect" && r.offering.id, winner);
+  }
+});

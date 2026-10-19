@@ -139,7 +139,8 @@ export function resolveServiceSlugWithHistory<T extends ServicePageOffering>(
 ): ServiceSlugResolution<T> {
   const req = requestedSlug(slug);
   if (!req) return { kind: "missing" };
-  const eligible = offerings.filter(isServicePageEligible);
+  // Sorted by id so a slug two rows both claim (history vs history) always picks the same row.
+  const eligible = offerings.filter(isServicePageEligible).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const content = (o: T) => contentById?.get(o.id) ?? null;
 
   const byCurrent = eligible.find((o) => content(o)?.slug?.trim().toLowerCase() === req);
@@ -151,7 +152,7 @@ export function resolveServiceSlugWithHistory<T extends ServicePageOffering>(
     return to === req ? { kind: "current", offering: byHistory, slug: to } : { kind: "redirect", offering: byHistory, slug: to, status: 301 };
   }
 
-  const legacy = resolveServiceBySlug(eligible, req);
+  const legacy = resolveServiceBySlug(offerings, req);
   if (!legacy) return { kind: "missing" };
   const to = currentServiceSlug(legacy, content(legacy));
   return content(legacy)?.slug?.trim() && to !== req

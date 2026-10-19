@@ -10,7 +10,8 @@
  * Pure (no DB, no server-only). `database.types.ts` is regenerated elsewhere, so the row shape
  * is a local shim (`ServiceContentRowShim`), not the generated type.
  */
-import { serviceMetaText, serviceSlug } from "./service-page";
+import { parseServiceSlug, serviceMetaText, serviceSlug } from "./service-page";
+import { isReservedServiceSlug } from "./service-slug-reserved";
 
 export const SERVICE_PRESENTATION_MODES = ["own_page", "quick_view", "expand", "book_direct"] as const;
 export type ServicePresentationMode = (typeof SERVICE_PRESENTATION_MODES)[number];
@@ -76,11 +77,11 @@ const SLUG_SHAPE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SUMMARY_MAX = 160;
 
-/** Lower-cased, trimmed slug when it has the stored shape, else null. */
+/** Lower-cased, trimmed slug when it has the stored shape and is not a reserved word, else null. */
 export function normalizeStoredServiceSlug(v: unknown): string | null {
   if (typeof v !== "string") return null;
   const s = v.trim().toLowerCase();
-  return s.length > 0 && s.length <= 96 && SLUG_SHAPE.test(s) ? s : null;
+  return s.length > 0 && s.length <= 96 && SLUG_SHAPE.test(s) && !isReservedServiceSlug(s) ? s : null;
 }
 
 function text(v: unknown): string | null {
@@ -110,7 +111,9 @@ function warnDropped(field: string, value: unknown): void {
 export function serviceContentFromRow(row: unknown): ServiceContentFields {
   if (!row || typeof row !== "object") return EMPTY_SERVICE_CONTENT;
   const r = row as ServiceContentRowShim;
-  const slug = normalizeStoredServiceSlug(r.slug);
+  // A custom slug in the derived `servicio-<title>-<id8>` grammar would be ambiguous: read as none.
+  const stored = normalizeStoredServiceSlug(r.slug);
+  const slug = stored && parseServiceSlug(stored) === null ? stored : null;
   if (r.slug != null && !slug) warnDropped("slug", r.slug);
   const history = Array.isArray(r.slug_history)
     ? uniq(r.slug_history.map(normalizeStoredServiceSlug).filter((s): s is string => s !== null && s !== slug))
