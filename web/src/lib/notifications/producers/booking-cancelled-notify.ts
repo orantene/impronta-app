@@ -2,6 +2,7 @@ import "server-only";
 
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
+import type { NotificationEvent } from "@/lib/notifications/types";
 import { afterResponse } from "@/lib/server/after-response";
 
 /**
@@ -19,19 +20,29 @@ import { afterResponse } from "@/lib/server/after-response";
  * Fire-and-forget: the dispatcher no-ops without RESEND_API_KEY and the stable
  * `eventId` (`booking-cancelled:<bookingId>`) dedupes a retried cancel.
  */
-export function notifyBookingCancelled(params: {
+export type BookingCancelledParams = {
   tenantId: string;
-  inquiryId: string;
+  /** Null for a booking with no source inquiry (recipients come from the booking). */
+  inquiryId: string | null;
   bookingId: string;
-}): void {
-  afterResponse(() => dispatchEventNotifications({
+  /** Display-only extras (paid/refund amounts, who cancelled) merged into the payload. */
+  extra?: Record<string, unknown>;
+};
+
+/** The one event shape every cancel path dispatches (stable eventId = one notice per booking). */
+export function buildBookingCancelledEvent(params: BookingCancelledParams): NotificationEvent {
+  return {
     type: "booking.cancelled",
     tenantId: params.tenantId,
     inquiryId: params.inquiryId,
     bookingId: params.bookingId,
     eventId: `booking-cancelled:${params.bookingId}`,
-    payload: { bookingId: params.bookingId },
-  }).catch((err) => {
+    payload: { ...(params.extra ?? {}), bookingId: params.bookingId },
+  };
+}
+
+export function notifyBookingCancelled(params: BookingCancelledParams): void {
+  afterResponse(() => dispatchEventNotifications(buildBookingCancelledEvent(params)).catch((err) => {
     logServerError("notifyBookingCancelled", err);
   }));
 }

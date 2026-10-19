@@ -34,6 +34,12 @@ export interface DemoRegistryEntry {
    * palette, and the gallery palette check is skipped. `palette` is a placeholder.
    */
   keepLook?: boolean;
+  /**
+   * Staging-code alias (TUL-890): the profile code whose demo content, copy and
+   * style this entry uses. Identity (guard, profile rows, backups, restore,
+   * cache bust) always stays `profileCode`. Absent = the entry's own code.
+   */
+  copyFrom?: string;
 }
 
 export type DemoStepId =

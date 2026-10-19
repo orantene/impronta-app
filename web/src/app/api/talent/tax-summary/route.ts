@@ -6,7 +6,18 @@
 // are intentionally excluded (legal-exposure reasoning in L47).
 
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import {
+  formatIncomeGeneratedDate,
+  formatIncomeMoney,
+  incomeSummaryStrings,
+  resolveIncomeSummaryLocale,
+  resolveIncomeSummaryYear,
+  paidOutNetCents,
+  restrictEarningsToYear,
+} from "@/lib/talent/income-summary";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import {
   loadTalentEarningsByCurrency,
@@ -14,19 +25,6 @@ import {
 } from "@/lib/talent/earnings-by-currency";
 
 export const dynamic = "force-dynamic";
-
-function fmt(cents: number, currency = "USD"): string {
-  try {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.round(cents / 100));
-  } catch {
-    return `${Math.round(cents / 100).toLocaleString()} ${currency}`;
-  }
-}
 
 const PAGE_W = PageSizes.A4[0]; // 595.28
 const PAGE_H = PageSizes.A4[1]; // 841.89
@@ -41,10 +39,12 @@ function yFromTop(cursor: number): number {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const yearParam = Number(url.searchParams.get("year") ?? new Date().getUTCFullYear());
-  const year = Number.isFinite(yearParam) && yearParam >= 2020 && yearParam <= 2100
-    ? Math.trunc(yearParam)
-    : new Date().getUTCFullYear();
+  const year = resolveIncomeSummaryYear(url.searchParams.get("year"), new Date().getUTCFullYear());
+  // Language: an explicit ?locale= wins, then the visitor's language cookie, then English.
+  const jar = await cookies();
+  const locale = resolveIncomeSummaryLocale(url.searchParams.get("locale") ?? jar.get(LOCALE_COOKIE)?.value);
+  const L = incomeSummaryStrings(locale);
+  const fmt = (cents: number, currency: string) => formatIncomeMoney(cents, currency, L.numberLocale);
 
   const guard = await requireTalentSelf();
   if (!guard.ok) {
@@ -63,12 +63,16 @@ export async function GET(request: Request) {
   const earningsByCurrency = await loadTalentEarningsByCurrency(guard.talentProfile.id, {
     sinceISO,
   });
-  const earnings = primaryBundleOrEmpty(earningsByCurrency);
+  // The loader only has a lower bound, so cut the bundle to the requested year (TUL-1243).
+  const allEarnings = primaryBundleOrEmpty(earningsByCurrency);
+  // Tiles and the booking table use the WORKED basis; the paid-out line uses the PAYOUT-date basis.
+  const earnings = restrictEarningsToYear(allEarnings, year, "worked");
+  const paidOutCents = paidOutNetCents(allEarnings, year);
 
   const talentName = guard.talentProfile.displayName ?? "Talent";
   const profileCode = guard.talentProfile.profileCode ?? "";
   const { totals } = earnings;
-  const generatedAt = new Date().toUTCString();
+  const generatedAt = formatIncomeGeneratedDate(new Date(), L.numberLocale);
 
   // ── Build PDF ──────────────────────────────────────────────────
   const pdfDoc = await PDFDocument.create();
@@ -140,11 +144,11 @@ export async function GET(request: Request) {
   }
 
   // ── Header ──────────────────────────────────────────────────────
-  drawText(`Income Summary — ${year}`, { size: 18, bold: true });
+  drawText(L.title(year), { size: 18, bold: true });
   cursor += 24;
   const subtitle = profileCode
-    ? `${talentName}  ·  ${profileCode}  ·  Generated ${generatedAt}`
-    : `${talentName}  ·  Generated ${generatedAt}`;
+    ? `${talentName}  ·  ${profileCode}  ·  ${L.generated} ${generatedAt}`
+    : `${talentName}  ·  ${L.generated} ${generatedAt}`;
   drawText(subtitle, { size: 9, color: muted });
   cursor += 16;
   drawHRule(black, 1);
@@ -152,10 +156,10 @@ export async function GET(request: Request) {
 
   // ── Totals strip ────────────────────────────────────────────────
   const tiles = [
-    { label: "YTD Net", value: fmt(totals.ytdNetCents, totals.currency) },
-    { label: "YTD Gross", value: fmt(totals.ytdGrossCents, totals.currency) },
-    { label: "Pending", value: fmt(totals.pendingCents, totals.currency) },
-    { label: "Pipeline", value: fmt(totals.confirmedPipelineCents, totals.currency) },
+    { label: L.net, value: fmt(totals.ytdNetCents, totals.currency) },
+    { label: L.gross, value: fmt(totals.ytdGrossCents, totals.currency) },
+    { label: L.pending, value: fmt(totals.pendingCents, totals.currency) },
+    { label: L.pipeline, value: fmt(totals.confirmedPipelineCents, totals.currency) },
   ];
   const tileW = CW / 4 - 6;
   tiles.forEach((tile, i) => {
@@ -188,24 +192,28 @@ export async function GET(request: Request) {
     });
   });
   cursor += 54;
+  drawText(`${L.paidOut(year)}: ${fmt(paidOutCents, totals.currency)}`, { size: 9, bold: true });
+  cursor += 12;
+  drawText(L.basisNote, { size: 8, color: muted });
+  cursor += 6;
 
   // ── Section: Per Agency ─────────────────────────────────────────
   cursor += 4;
-  drawText("PER AGENCY", { size: 8, bold: true, color: muted });
+  drawText(L.perAgency, { size: 8, bold: true, color: muted });
   cursor += 14;
   drawHRule();
   cursor += 10;
 
   if (earnings.perAgency.length === 0) {
-    drawText("No agency earnings in this period.", { size: 9, color: muted });
+    drawText(L.noAgency, { size: 9, color: muted });
     cursor += 14;
   } else {
     // Table header
     const agencyCols = [
-      { label: "Agency", x: ML, w: 200, align: "left" as const },
-      { label: "Bookings", x: ML + 200, w: 70, align: "right" as const },
-      { label: "Net", x: ML + 270, w: 100, align: "right" as const },
-      { label: "Last Booking", x: ML + 370, w: CW - 370, align: "right" as const },
+      { label: L.agency, x: ML, w: 200, align: "left" as const },
+      { label: L.bookings, x: ML + 200, w: 70, align: "right" as const },
+      { label: L.net, x: ML + 270, w: 100, align: "right" as const },
+      { label: L.lastBooking, x: ML + 370, w: CW - 370, align: "right" as const },
     ];
     agencyCols.forEach((col) => {
       page.drawText(col.label.toUpperCase(), {
@@ -246,22 +254,22 @@ export async function GET(request: Request) {
   // ── Section: Bookings ───────────────────────────────────────────
   cursor += 8;
   ensureSpace(80);
-  drawText("BOOKINGS", { size: 8, bold: true, color: muted });
+  drawText(L.bookingsHeading, { size: 8, bold: true, color: muted });
   cursor += 14;
   drawHRule();
   cursor += 10;
 
   if (earnings.rows.length === 0) {
-    drawText("No bookings in this period.", { size: 9, color: muted });
+    drawText(L.noBookings, { size: 9, color: muted });
     cursor += 14;
   } else {
     const bookCols = [
-      { label: "Date", x: ML, w: 72, align: "left" as const },
-      { label: "Agency", x: ML + 72, w: 110, align: "left" as const },
-      { label: "Client", x: ML + 182, w: 110, align: "left" as const },
-      { label: "Gross", x: ML + 292, w: 70, align: "right" as const },
-      { label: "Net", x: ML + 362, w: 70, align: "right" as const },
-      { label: "Status", x: ML + 432, w: CW - 432, align: "right" as const },
+      { label: L.date, x: ML, w: 72, align: "left" as const },
+      { label: L.agency, x: ML + 72, w: 110, align: "left" as const },
+      { label: L.client, x: ML + 182, w: 110, align: "left" as const },
+      { label: L.gross, x: ML + 292, w: 70, align: "right" as const },
+      { label: L.net, x: ML + 362, w: 70, align: "right" as const },
+      { label: L.status, x: ML + 432, w: CW - 432, align: "right" as const },
     ];
     bookCols.forEach((col) => {
       page.drawText(col.label.toUpperCase(), {
@@ -284,7 +292,7 @@ export async function GET(request: Request) {
         { text: row.client, col: bookCols[2] },
         { text: fmt(row.grossCents, totals.currency), col: bookCols[3] },
         { text: fmt(row.netCents, totals.currency), col: bookCols[4] },
-        { text: row.status, col: bookCols[5] },
+        { text: L.statusLabel(row.status), col: bookCols[5] },
       ];
       rowData.forEach(({ text, col }) => {
         let t = text;
@@ -304,9 +312,7 @@ export async function GET(request: Request) {
   cursor += 12;
   drawHRule();
   cursor += 10;
-  const disclaimer =
-    "Tulala reports platform earnings only. Off-platform work declared in Tulala is not included. " +
-    "Tax obligations depend on your jurisdiction — this document is informational, not a tax filing.";
+  const disclaimer = L.disclaimer;
   // Word-wrap disclaimer
   const words = disclaimer.split(" ");
   let line = "";

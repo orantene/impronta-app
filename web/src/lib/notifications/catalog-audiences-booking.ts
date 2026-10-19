@@ -3,7 +3,7 @@ import "server-only";
 import { formatAppointmentWhen, normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { bookingSellerName, formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
-import { allRosterTalent, clientOrGuest, loadInquiryView, str } from "./catalog-audiences";
+import { allRosterTalent, assignedCoordinator, clientOrGuest, loadInquiryView, str, workspaceAdmins } from "./catalog-audiences";
 import type { AudienceContext, AudienceMember, NotificationEvent } from "./types";
 
 /**
@@ -130,7 +130,7 @@ export async function loadBookingConfirmedView(
   if (!bookingId || !event.tenantId) return base;
   const { data, error } = await ctx.admin
     .from("agency_bookings")
-    .select("starts_at, ends_at, timezone, title, total_client_revenue, currency_code")
+    .select("starts_at, ends_at, timezone, title, total_client_revenue, currency_code, contact_name, contact_email, client_user_id")
     .eq("id", bookingId)
     .eq("tenant_id", event.tenantId)
     .maybeSingle();
@@ -146,9 +146,17 @@ export async function loadBookingConfirmedView(
         title: string | null;
         total_client_revenue: number | string | null;
         currency_code: string | null;
+        contact_name: string | null;
+        contact_email: string | null;
+        client_user_id: string | null;
       }
     | null;
   if (!row) return base;
+  // A booking with no source inquiry still has its own contact: the client
+  // recipient comes from the booking row (TUL-1268 cancel/reserve notices).
+  const contactFallback = str(base.contactEmail)
+    ? {}
+    : { contactName: row.contact_name, contactEmail: row.contact_email, clientUserId: row.client_user_id };
   // TUL-852: the confirmation names the service and the price in the booking's
   // own currency. A null stays null so the template drops the row.
   const serviceName = pickServiceName({
@@ -166,7 +174,18 @@ export async function loadBookingConfirmedView(
     .eq("booking_id", bookingId);
   const talentCount = typeof count === "number" ? count : 0;
   const sellerName = await loadBookingSellerName(event.tenantId, bookingId, ctx);
-  const withDetails = { ...base, serviceName, priceLabel, talentCount, sellerName };
+  const totalNum = Number(row.total_client_revenue);
+  const totalCents = Number.isFinite(totalNum) && totalNum > 0 ? Math.round(totalNum * 100) : null;
+  const withDetails = {
+    ...base,
+    ...contactFallback,
+    serviceName,
+    priceLabel,
+    talentCount,
+    sellerName,
+    totalCents,
+    currencyCode: row.currency_code,
+  };
   if (!row.starts_at) return withDetails;
   const when = formatAppointmentWhen({
     startsAt: row.starts_at,
@@ -193,3 +212,53 @@ export const bookingConfirmedTalent = async (
   ctx: AudienceContext,
 ): Promise<AudienceMember[]> =>
   withBookingLocale(await allRosterTalent(event, ctx), str(event.payload.locale));
+
+/**
+ * Talent on a booking. With a source inquiry this is the inquiry roster; with
+ * none (a booking made straight on the engine) the talents come from
+ * `booking_talent` -> `talent_profiles.user_id`. Talents without an account
+ * have no inbox and are skipped.
+ */
+export const bookingTalentAudience = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> => {
+  if (event.inquiryId) return bookingConfirmedTalent(event, ctx);
+  const bookingId = event.bookingId ?? str(event.payload.bookingId);
+  if (!bookingId || !event.tenantId) return [];
+  const { data: bt, error: btErr } = await ctx.admin
+    .from("booking_talent")
+    .select("talent_profile_id")
+    .eq("booking_id", bookingId);
+  if (btErr) {
+    logServerError("notifications.bookingTalent.roster", btErr);
+    return [];
+  }
+  const ids = ((bt ?? []) as Array<{ talent_profile_id: string | null }>)
+    .map((r) => r.talent_profile_id)
+    .filter((x): x is string => !!x);
+  if (ids.length === 0) return [];
+  const { data: tps, error: tpErr } = await ctx.admin.from("talent_profiles").select("id, user_id").in("id", ids);
+  if (tpErr) {
+    logServerError("notifications.bookingTalent.users", tpErr);
+    return [];
+  }
+  const seen = new Set<string>();
+  const members: AudienceMember[] = [];
+  for (const r of (tps ?? []) as Array<{ user_id: string | null }>) {
+    if (!r.user_id || seen.has(r.user_id)) continue;
+    seen.add(r.user_id);
+    members.push({ kind: "user", userId: r.user_id, role: "talent" });
+  }
+  return withBookingLocale(members, str(event.payload.locale));
+};
+
+/**
+ * The coordinator: the inquiry's assigned one, or, for a booking with no
+ * source inquiry, the workspace default (owners and admins).
+ */
+export const coordinatorOrWorkspaceDefault = async (
+  event: NotificationEvent,
+  ctx: AudienceContext,
+): Promise<AudienceMember[]> =>
+  event.inquiryId ? assignedCoordinator(event) : workspaceAdmins(event, ctx);

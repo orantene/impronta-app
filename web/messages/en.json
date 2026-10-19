@@ -46,7 +46,11 @@
       "shell": {
         "clientHeading": "Book and manage everything in one place.",
         "clientLead": "Create a free client account to follow your bookings, messages and payments.",
-        "clientPoints": {"book": "Follow every booking and payment", "thread": "Message the talent or team in one thread", "secure": "Sign in with a code or a password"},
+        "clientPoints": {
+          "book": "Follow every booking and payment",
+          "thread": "Message the talent or team in one thread",
+          "secure": "Sign in with a code or a password"
+        },
         "back": "Back to {site}",
         "tenantHeading": "Your work and your bookings, in one place.",
         "tenantLead": "Manage your profile, your bookings, and your messages with {brand}.",
@@ -1755,7 +1759,7 @@
     },
     "bookPage": {
       "title": "Reserve a time",
-      "lead": "Pick a service and a time. We will confirm shortly.",
+      "lead": "Pick a service and a time. The line under the price says whether you pay now or at the appointment.",
       "bookCta": "Book",
       "chooseService": "Service",
       "studioFallback": "the studio",
@@ -2472,14 +2476,6 @@
     }
   },
   "dashboard": {
-    "promoCode": {
-      "toggle": "Have a code?",
-      "label": "Promo code",
-      "placeholder": "Enter code",
-      "apply": "Apply",
-      "checking": "Checking...",
-      "remove": "Remove"
-    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -2621,16 +2617,6 @@
     "switchWorkspace": "Switch workspace",
     "workspaceTalentQa": "Talent QA user",
     "workspaceClientQa": "Client QA user",
-    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
-    "workspaceQaReason": {
-      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
-      "no_profile": "The configured QA user has no profile in this database.",
-      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
-      "wrong_role": "The configured QA user does not have the role this switch needs.",
-      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
-      "not_authorized": "Only a super admin can use the QA switch.",
-      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
-    },
     "workspaceSwitcherHint": "QA preview, read-only",
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",
@@ -2714,6 +2700,7 @@
         "qualityLeftMany": "{count} things left before your free website",
         "qualityUnlocked": "Everything your free website needs is here",
         "qualityUnknown": "We could not load every check yet",
+        "qualityChecking": "Checking your profile…",
         "finish": "Finish the next one",
         "sectionsTitle": "Edit your profile",
         "sectionsHint": "Every field shows up on your page. There is no second place to edit it.",
@@ -14132,10 +14119,8 @@
       "noCustomer": "No name on file",
       "unavailableTitle": "We could not load your sales",
       "unavailableBody": "This is on our side, not yours. Please refresh in a moment.",
-      "export": "Export (scoped)",
+      "export": "Export CSV",
       "newSale": "New sale",
-      "periodChip": "All time",
-      "paymentChip": "Payment: any",
       "sellerChip": "Seller",
       "colType": "Type",
       "colRef": "Ref",
@@ -14176,12 +14161,34 @@
         "void": "Void"
       },
       "notWired": {
-        "export": "An export needs a period and a seller filter, which are not modelled yet.",
         "newSale": "Turn the Counter mode on under Settings › POS to open a sale.",
-        "period": "Sales are not filtered by period yet; this list is the most recent 200 of each kind.",
-        "payment": "Sales are not filtered by payment state yet; the pill on each row says it.",
         "seller": "This workspace is the only seller; per-professional filtering is not modelled yet."
       },
+      "viewLabel": "View",
+      "viewActivity": "Activity",
+      "viewItems": "By item",
+      "periodLabel": "Period",
+      "period": { "all": "All time", "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days", "month": "This month" },
+      "methodLabel": "Payment method",
+      "method": { "any": "Any", "cash": "Cash", "card": "Card at the counter", "online": "Online", "other": "Other" },
+      "colItem": "Item",
+      "colQuantity": "Qty",
+      "colGross": "Gross",
+      "colRefunded": "Refunded",
+      "colNet": "Net",
+      "colOrders": "Orders",
+      "itemUnnamed": "Unnamed item",
+      "itemCustom": "(custom line)",
+      "itemsEmptyTitle": "No paid sales in this period",
+      "itemsEmptyBody": "Paid orders for this period and payment method will be grouped by item here.",
+      "itemsFootnote": "Paid orders only. Amounts are the stored order line amounts, one currency per row, never added across currencies. Refunds are taken off the net.",
+      "csvItem": "Item",
+      "csvQuantity": "Quantity",
+      "csvGross": "Gross",
+      "csvRefunded": "Refunded",
+      "csvNet": "Net",
+      "csvOrders": "Orders",
+      "csvCurrency": "Currency",
       "filterAll": "All"
     },
     "payments": {
@@ -15098,6 +15105,8 @@
           "recording": "Recording…"
         }
       },
+      "counterCatalogErrorTitle": "The catalog could not be loaded",
+      "counterCatalogErrorBody": "Something went wrong reading this workspace's items, so the counter is not showing them. Reload the page. If it keeps happening, contact support.",
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "projects": {
@@ -17804,11 +17813,6 @@
       "filesNone": "No file is attached to a milestone yet.",
       "kpiCollectedNoteOne": "1 record paid"
     },
-    "adminNotFound": {
-      "title": "Page not found",
-      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
-      "back": "Back to Overview"
-    },
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",
@@ -20441,6 +20445,29 @@
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
     },
+    "promoCode": {
+      "toggle": "Have a code?",
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "checking": "Checking...",
+      "remove": "Remove"
+    },
+    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
+    "workspaceQaReason": {
+      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
+      "no_profile": "The configured QA user has no profile in this database.",
+      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
+      "wrong_role": "The configured QA user does not have the role this switch needs.",
+      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
+      "not_authorized": "Only a super admin can use the QA switch.",
+      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
+    },
+    "adminNotFound": {
+      "title": "Page not found",
+      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
+      "back": "Back to Overview"
+    },
     "platformPosts": {
       "nav": "Posts"
     },
@@ -21182,7 +21209,10 @@
       "billing": {
         "redirecting": "Redirecting…",
         "pastDueTitle": "Payment failed.",
-        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueGraceBody": {
+          "one": "Your payment didn't go through. Paid features stay on for {count} more day. Update your card to keep them.",
+          "other": "Your payment didn't go through. Paid features stay on for {count} more days. Update your card to keep them."
+        },
         "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
         "updateCard": "Update your card",
         "restorePlan": "Restore plan",
@@ -22606,6 +22636,44 @@
         "label": "Product & tips",
         "description": "Occasional product updates and best-practice tips."
       }
+    }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirm your business basics",
+      "description": "Name, services and hours confirmed so clients know what you offer."
+    },
+    "services": {
+      "title": "Add your services",
+      "description": "List what you offer with a duration and a price or a quote."
+    },
+    "hours": {
+      "title": "Set your hours",
+      "description": "Choose the days and times clients can book you."
+    },
+    "location": {
+      "title": "Say where you work",
+      "description": "Add your area so clients know where to find you."
+    },
+    "photos": {
+      "title": "Add photos",
+      "description": "Show your work with at least one photo."
+    },
+    "team": {
+      "title": "Invite your team",
+      "description": "Add the people who take clients with you. You can do this later."
+    },
+    "payments": {
+      "title": "Connect payments",
+      "description": "Connect your payout account so clients can pay you."
+    },
+    "preview": {
+      "title": "Preview your page",
+      "description": "See your page the way clients will see it."
+    },
+    "publish": {
+      "title": "Publish your website",
+      "description": "Put your site live and share the link."
     }
   }
 }

@@ -12,7 +12,7 @@
 
 import { checkStripeKeyModes, stripeKeyMode } from "@/lib/stripe/key-mode";
 import { WEBHOOK_LANES, laneForEventId, type WebhookLane } from "@/lib/stripe/webhook-lanes";
-import { resolvedStripeEnv } from "@/lib/stripe/env-keys";
+import { isStripeForceTestMode, resolvedStripeEnv } from "@/lib/stripe/env-keys";
 
 export type HealthRowStatus = "ok" | "warn" | "error";
 export type KeyMode = "test" | "live" | "unset";
@@ -53,6 +53,12 @@ export type HeldPayoutsHealth =
 export interface CommerceHealthInput {
   keyModes: Record<KeyModeVar, KeyMode>;
   webhookSecretsSet: Record<WebhookSecretVar, boolean>;
+  /**
+   * STRIPE_FORCE_TEST_MODE=1 (TUL-186): every webhook secret is read from its
+   * `_TEST` sibling, so the rows name that variable. Without this the panel said
+   * "STRIPE_MX_WEBHOOK_SECRET: set" while the app read the unset `_TEST` one.
+   */
+  forcedTestMode?: boolean;
   /** Held-payouts read: exact count, capped (lower bound), or a failed read. */
   heldPayouts: HeldPayoutsHealth;
   /** Transactions in payment_requested for more than 24h. */
@@ -117,12 +123,12 @@ export const LANE_FILTER_OR = {
 /** Reduce env to modes/booleans. The only function here that touches secrets. */
 export function snapshotKeyEnv(
   env: Record<string, string | undefined> = resolvedStripeEnv(),
-): Pick<CommerceHealthInput, "keyModes" | "webhookSecretsSet"> {
+): Pick<CommerceHealthInput, "keyModes" | "webhookSecretsSet" | "forcedTestMode"> {
   const keyModes = {} as Record<KeyModeVar, KeyMode>;
   for (const n of KEY_MODE_VARS) keyModes[n] = stripeKeyMode(env[n]) ?? "unset";
   const webhookSecretsSet = {} as Record<WebhookSecretVar, boolean>;
   for (const n of WEBHOOK_SECRET_VARS) webhookSecretsSet[n] = Boolean(env[n]?.trim());
-  return { keyModes, webhookSecretsSet };
+  return { keyModes, webhookSecretsSet, forcedTestMode: isStripeForceTestMode(env) };
 }
 
 /** Which env var the MX client actually reads, or "none". Mirrors client.ts's `||` chain. */
@@ -154,7 +160,12 @@ function keyModeRow(keyModes: Record<KeyModeVar, KeyMode>): CommerceHealthRow {
   };
 }
 
-function webhookSecretRows(set: Record<WebhookSecretVar, boolean>): CommerceHealthRow[] {
+/** The env name the app actually reads for a webhook secret (env-keys.ts `stripeEnv`). */
+export function effectiveSecretVar(n: WebhookSecretVar, forcedTestMode: boolean): string {
+  return forcedTestMode ? `${n}_TEST` : n;
+}
+
+function webhookSecretRows(set: Record<WebhookSecretVar, boolean>, forcedTestMode = false): CommerceHealthRow[] {
   return WEBHOOK_SECRET_VARS.map((n) => {
     const present = set[n];
     // The US base secret is required for any US event to verify; the rest are
@@ -164,11 +175,12 @@ function webhookSecretRows(set: Record<WebhookSecretVar, boolean>): CommerceHeal
       : n === "STRIPE_WEBHOOK_SECRET"
         ? "error"
         : "warn";
+    const name = effectiveSecretVar(n, forcedTestMode);
     return {
       id: `secret:${n}`,
       status,
-      detail: `${n}: ${present ? "set" : "not set"}`,
-      data: { name: n, present },
+      detail: `${name}: ${present ? "set" : "not set"}`,
+      data: { name, base: n, present, forcedTestMode },
     };
   });
 }
@@ -259,7 +271,7 @@ export function mxLaneRow(mx: MxLaneHealth, connectSecretSet: boolean, now: Date
 
 export function computeCommerceHealth(input: CommerceHealthInput): CommerceHealthRow[] {
   const rows: CommerceHealthRow[] = [keyModeRow(input.keyModes)];
-  rows.push(...webhookSecretRows(input.webhookSecretsSet));
+  rows.push(...webhookSecretRows(input.webhookSecretsSet, input.forcedTestMode ?? false));
   rows.push(heldRow(input.heldPayouts));
   rows.push({
     id: "stuck-payment-requested",

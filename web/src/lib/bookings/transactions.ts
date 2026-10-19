@@ -42,9 +42,11 @@ import {
   notifyTalentPayoutSettled,
 } from "@/lib/notifications/producers/payment-notify";
 import { notifyBookingConfirmed } from "@/lib/notifications/producers/booking-confirmed-notify";
+import { notifyBookingReserved } from "@/lib/notifications/producers/booking-reserved-notify";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
 import { guardPaidAfterCancellation } from "@/lib/payments/paid-after-cancel";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
+import { writeGuardedTransition } from "@/lib/bookings/transaction-transition-write";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -105,7 +107,8 @@ export type BookingTransaction = {
 
 export type TransactionResult<T = void> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  /** `already_transitioned`: a concurrent writer moved the row first; run no side effects. */
+  | { ok: false; error: string; code?: "already_transitioned" };
 
 export type PayoutReceiverCandidate = {
   payoutAccountId: string;
@@ -906,8 +909,19 @@ export async function markPaid(
     // DISTINCT eventId from the receipt above, so the two never collide on the
     // dispatch_log dedupe key. Requires the source inquiry for client/talent
     // audience + schedule hydration.
-    // 6.3 deposits: do NOT send the "booking confirmed" email on a deposit — the
-    // booking isn't confirmed until the balance is collected.
+    // A DEPOSIT reserves the booking (TUL-1268): "Booking reserved" to the client
+    // (deposit paid + balance due) and the talent's new-booking notice. The full
+    // "Booking confirmed" goes out when the balance/full payment lands, once (the
+    // two use different per-booking event ids). Display only: no amount moves.
+    if (isDeposit && !paidAfterCancel) {
+      notifyBookingReserved({
+        tenantId: result.data.sourceTenantId,
+        inquiryId: result.data.sourceInquiryId ?? null,
+        bookingId: result.data.bookingId,
+        depositCents: result.data.grossAmountCents,
+        currency: result.data.currency,
+      });
+    }
     if (result.data.sourceInquiryId && !isDeposit && !paidAfterCancel) {
       notifyBookingConfirmed({
         tenantId: result.data.sourceTenantId,
@@ -1544,23 +1558,26 @@ async function transitionStatus(
       };
     }
 
-    const { data, error } = await sb
-      .from("booking_transactions")
-      .update({
-        status: toStatus,
-        updated_at: new Date().toISOString(),
-        ...extraFields,
-      })
-      .eq("id", transactionId)
-      .select("*")
-      .single();
-
-    if (error) {
-      logServerError(`transactions.transition.${toStatus}`, error);
+    // Guarded on the from-set: two racing settles both pass the read above, and
+    // the trigger allows paid -> paid, so only the database can pick one winner.
+    const written = await writeGuardedTransition(sb, {
+      transactionId,
+      fromStatuses: fromArr,
+      patch: { status: toStatus, updated_at: new Date().toISOString(), ...extraFields },
+    });
+    if (!written.ok) {
+      if (written.alreadyTransitioned) {
+        return {
+          ok: false,
+          error: `Already transitioned: '${transactionId}' left ${fromArr.join("/")} before this write.`,
+          code: "already_transitioned",
+        };
+      }
+      logServerError(`transactions.transition.${toStatus}`, written.error);
       return { ok: false, error: `Failed to update transaction status.` };
     }
 
-    const row = data as TransactionRow;
+    const row = written.row as unknown as TransactionRow;
     const transitionEvent = describeTransactionTransitionEvent({
       toStatus,
       fromStatus: currentStatus,

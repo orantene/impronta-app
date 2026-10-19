@@ -15,6 +15,7 @@ import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-page-offerings";
+import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { BookPageClient } from "./BookPageClient";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -24,6 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t("public.bookPage.title"),
     description: t("public.bookPage.lead"),
+    ...(await buildTenantLocaleAlternates(locale, "/book")),
   };
 }
 

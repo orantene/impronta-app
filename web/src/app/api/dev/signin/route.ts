@@ -4,13 +4,10 @@
  * GET /api/dev/signin?email=foo@bar.com&password=xxx&next=/slug/admin
  *
  * Signs in with email + password using the anon key, sets Supabase SSR cookies
- * on the response, then redirects to `next`. Allowed in:
- *   - NODE_ENV=development (local `npm run dev`)
- *   - VERCEL_ENV=preview (Vercel preview deploys — already SSO-gated behind
- *     the Vercel team-auth wall, so the relaxation doesn't expose anything
- *     to anonymous internet visitors)
- * Blocked in production (NODE_ENV=production AND VERCEL_ENV=production) — the
- * handler returns HTTP 403 in that path (see the !isDev && !isPreview guard).
+ * on the response, then redirects to `next`. Whether it answers is decided by
+ * `devSigninAllowed` (./guard.ts): never against the prod Supabase project, never on
+ * a Vercel deploy without the `x-dev-signin-token` header, open on a non-Vercel
+ * server that talks to the isolated or a local Supabase (local QA slot, CI).
  *
  * ⚠ PRE-MERGE GATE (P5-SHIP): this file MUST be dropped or verified still
  * 403-guarded before the feat/builder-2027-fullpage branch is merged to main.
@@ -21,14 +18,14 @@ import { createServerClient } from "@supabase/ssr";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { mintFixtureSession } from "./fixture-session";
+import { devSigninAllowed } from "./guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const isDev = process.env.NODE_ENV === "development";
-  const isPreview = process.env.VERCEL_ENV === "preview";
-  if (!isDev && !isPreview) {
-    return new NextResponse("Not available in production.", { status: 403 });
+  // TUL-1269: see ./guard.ts. Never against the prod project; never on Vercel without the token.
+  if (!devSigninAllowed(process.env, request.headers)) {
+    return new NextResponse("Not available.", { status: 403 });
   }
 
   const { searchParams } = request.nextUrl;

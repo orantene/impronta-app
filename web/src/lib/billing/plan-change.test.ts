@@ -6,10 +6,13 @@ import { confirmPlanChange, previewPlanChange, type PlanChangeRequest, type Plan
 
 type Call = { method: string; args: unknown[] };
 
-function fakeSub(over: { plan?: string; interval?: "month" | "year"; schedule?: string | null; owner?: string } = {}): Stripe.Subscription {
+function fakeSub(
+  over: { plan?: string; interval?: "month" | "year"; schedule?: string | null; owner?: string; trialEnd?: number } = {},
+): Stripe.Subscription {
   return {
     id: "sub_1",
-    status: "active",
+    status: over.trialEnd ? "trialing" : "active",
+    trial_end: over.trialEnd ?? null,
     customer: "cus_1",
     schedule: over.schedule ?? null,
     metadata: { plan_key: over.plan ?? "talent_pro", talent_profile_id: over.owner ?? "tp_1" },
@@ -165,4 +168,27 @@ test("someone else's subscription and a missing price are refused", async () => 
   assert.equal(!p.ok && p.code, "not_allowed");
   const noPrice = await previewPlanChange(other, req({ toPriceId: null }), NOW);
   assert.equal(!noPrice.ok && noPrice.code, "no_price");
+});
+
+test("downgrade while trialing keeps the trial on the current phase (nothing billed today)", async () => {
+  const calls: Call[] = [];
+  const stripe = fakeStripe(fakeSub({ plan: "talent_portfolio", trialEnd: 2_000_000_000 }), calls);
+  const p = await previewPlanChange(stripe, req({ toPlan: "talent_pro" }), NOW);
+  assert.ok(p.ok);
+  assert.equal(p.amountDueToday, 0);
+  const c = await confirmPlanChange(stripe, req({ toPlan: "talent_pro" }), p.prorationDate, NOW);
+  assert.ok(c.ok);
+  const [, params] = find(calls, "schedules.update").args as [string, { phases: { trial_end?: number }[] }];
+  assert.equal(params.phases[0].trial_end, 2_000_000_000);
+  assert.equal(params.phases[1].trial_end, undefined);
+});
+
+test("downgrade on an active (not trialing) plan sets no trial_end", async () => {
+  const calls: Call[] = [];
+  const stripe = fakeStripe(fakeSub({ plan: "talent_portfolio" }), calls);
+  const p = await previewPlanChange(stripe, req({ toPlan: "talent_pro" }), NOW);
+  assert.ok(p.ok);
+  await confirmPlanChange(stripe, req({ toPlan: "talent_pro" }), p.prorationDate, NOW);
+  const [, params] = find(calls, "schedules.update").args as [string, { phases: { trial_end?: number }[] }];
+  assert.equal("trial_end" in params.phases[0], false);
 });
