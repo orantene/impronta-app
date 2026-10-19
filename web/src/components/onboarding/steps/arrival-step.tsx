@@ -11,7 +11,7 @@ import { draftReasonKey, draftSawKey, draftSupportLine, type ArrivalPayload } fr
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
-import { buildArrivalNextSteps } from "@/lib/onboarding/arrival-next-steps";
+import { buildArrivalNextSteps, servicesHrefFor } from "@/lib/onboarding/arrival-next-steps";
 
 import { PrimaryButton, Sub, Title } from "../ui";
 
@@ -126,7 +126,7 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = nu
   const business = arrival.variant === "business" || arrival.variant === "both" || arrival.variant === "fallback";
   const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
   // onb1-19: only tick rows with evidence (siteLive). Never i===0.
-  const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business }, t);
+  const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business, servicesHref: servicesHrefFor(arrival.panelHref, business) }, t);
 
   return (
     <div data-testid="onb-arrival" data-variant={arrival.variant}>
@@ -221,7 +221,9 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = nu
           {nextSteps.map((step) => (
             <li key={step.label} className="flex items-center gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }} data-done={step.done ? "true" : "false"}>
               <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: step.done ? "var(--tl-positive)" : "transparent", color: step.done ? "#fff" : "var(--tl-muted)", border: step.done ? "none" : "1px solid var(--tl-hairline-strong)" }}>{step.done ? "✓" : ""}</span>
-              {step.label}
+              {step.href ? (
+                <a href={step.href} data-testid="onb-next-step-services" className="font-semibold underline underline-offset-2" style={{ color: "var(--tl-ink)" }}>{step.label}</a>
+              ) : step.label}
             </li>
           ))}
         </ul>

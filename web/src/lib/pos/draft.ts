@@ -357,6 +357,23 @@ export async function addLine(
     sessionTitle = sess.title?.trim() || null;
   }
 
+  // TUL-1330 [MONEY]: a dish priced only by its options (amount_cents null, menu-imported tiers)
+  // has no price until an option is chosen. Without this, a line with no option priced at 0.
+  if (off.amount_cents == null && !input.line.variantId) {
+    const { data: tiers, error: tierErr } = await admin
+      .from("talent_offering_variants")
+      .select("id")
+      .eq("offering_id", off.id)
+      .limit(1);
+    if (tierErr) {
+      logServerError("pos.addLine.tiers", tierErr);
+      return { ok: false, reason: "unavailable", error: "Could not read the options." };
+    }
+    if (((tiers ?? []) as unknown[]).length > 0) {
+      return { ok: false, reason: "invalid", error: "Choose an option first." };
+    }
+  }
+
   let unitCents = Math.max(0, Math.trunc(num(off.amount_cents)));
   let label = off.title?.trim() || "Item";
   if (sessionTitle) label = `${label} · ${sessionTitle}`;
@@ -404,6 +421,11 @@ export async function addLine(
   if (!phase.ok) return { ok: false, reason: "unavailable", error: "Could not read the price." };
   const pricePhaseId = phase.priceCents != null ? phase.phaseId : null;
   if (phase.priceCents != null) unitCents = Math.max(0, Math.trunc(phase.priceCents));
+  // TUL-1330: a guest line must never resolve to an UNSET price at $0 (a priced-by-option dish whose
+  // chosen option has no amount, or an item nobody priced). A real free item has amount 0, not null.
+  if (proposedBy === "client" && unitCents === 0 && off.amount_cents == null) {
+    return { ok: false, reason: "invalid", error: "That item has no price yet." };
+  }
 
   // The extras, priced. Before the line is written, because a refused add-on
   // must leave the sale untouched rather than add a mispriced line and then

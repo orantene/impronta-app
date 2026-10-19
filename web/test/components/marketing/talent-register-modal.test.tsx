@@ -27,7 +27,7 @@ const noop = () => {};
 
 describe("platform variant", () => {
   it("renders Spanish copy on /es", () => {
-    render(<TalentRegisterModal locale="es" onClose={noop} />);
+    render(<TalentRegisterModal marketingOrigin="https://tulala.digital" locale="es" onClose={noop} />);
 
     expect(screen.getByText("Únete como talento · gratis")).toBeInTheDocument();
     expect(screen.getByText(/Tu página de talento,/)).toBeInTheDocument();
@@ -40,7 +40,7 @@ describe("platform variant", () => {
   });
 
   it("still renders English by default", () => {
-    render(<TalentRegisterModal onClose={noop} />);
+    render(<TalentRegisterModal marketingOrigin="https://tulala.digital" onClose={noop} />);
     expect(screen.getByText("Join as talent · free")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Create my talent page/ })).toBeInTheDocument();
     expect(screen.queryByText("Gratis para siempre")).not.toBeInTheDocument();
@@ -53,12 +53,12 @@ describe("the locale stamped on the new account", () => {
     document.body.querySelector('input[name="locale"]') as HTMLInputElement | null;
 
   it("submits the active locale, not a hardcoded 'en'", () => {
-    render(<TalentRegisterModal locale="es" onClose={noop} />);
+    render(<TalentRegisterModal marketingOrigin="https://tulala.digital" locale="es" onClose={noop} />);
     expect(localeField()).toHaveValue("es");
   });
 
   it("submits en on the English surface", () => {
-    render(<TalentRegisterModal locale="en" onClose={noop} />);
+    render(<TalentRegisterModal marketingOrigin="https://tulala.digital" locale="en" onClose={noop} />);
     expect(localeField()).toHaveValue("en");
   });
 });
@@ -72,7 +72,7 @@ describe("tenant-branded variant", () => {
   };
 
   it("localizes the join copy and keeps the workspace name verbatim", () => {
-    render(<TalentRegisterModal locale="es" tenant={tenant} onClose={noop} />);
+    render(<TalentRegisterModal marketingOrigin="https://tulala.digital" locale="es" tenant={tenant} onClose={noop} />);
     expect(screen.getByText("Únete al roster")).toBeInTheDocument();
     // The workspace's own name is a proper noun — never translated.
     expect(screen.getByText("Impronta Models.")).toBeInTheDocument();

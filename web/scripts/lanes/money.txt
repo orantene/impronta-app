@@ -15,6 +15,8 @@ src/lib/account/export-scoping.test.ts
 src/lib/approvals/enforce.test.ts
 src/lib/approvals/requests.test.ts
 src/lib/approvals/role-limits-wire.static.test.ts
+src/lib/billing/checkout-session-key.test.ts
+src/lib/billing/checkout-session-reopen.test.ts
 src/lib/billing/commission-engine-xtenant.test.ts
 src/lib/billing/commission-engine.characterization.test.ts
 src/lib/billing/commission-house-lane.characterization.test.ts
@@ -27,8 +29,13 @@ src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/refunded-charge-net.test.ts
+src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
+src/lib/billing/talent-upgrade-promo-box.static.test.ts
+src/lib/billing/trial-eligibility-stripe.test.ts
+src/lib/billing/trial-eligibility-user.test.ts
+src/lib/billing/trial-eligibility.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
@@ -227,6 +234,7 @@ src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
+src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts

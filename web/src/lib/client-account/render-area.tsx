@@ -78,6 +78,7 @@ export async function renderClientAccountPage(view: AccountView) {
         email={session.user?.email ?? null}
         timeZone={tenant.timeZone}
         data={data}
+        bookHere
       />
     </>
   );
