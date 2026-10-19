@@ -24,13 +24,16 @@ import {
   deleteTalentOffering,
   reorderTalentOfferings,
   importLegacyToOfferings,
+  setOfferingOptions,
 } from "@/lib/talent/offerings-actions";
 import {
   loadWorkspaceMenuForEditor,
   upsertWorkspaceMenuItem,
   deleteWorkspaceMenuItem,
   reorderWorkspaceMenuItems,
+  setWorkspaceMenuItemOptions,
 } from "@/lib/talent/menu-offerings-actions";
+import { childrenInputFromItem } from "@/lib/talent/duplicate-children";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { settleServerAction } from "@/lib/client/settle-server-action";
 import { takeServicesSeed } from "./services-bootstrap";
@@ -326,14 +329,27 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
           sortOrder: items.length,
           imageUrls: [],
         });
-        setSaving(false);
         if (res.ok) {
-          setItems((cur) => [...cur, res.item]);
+          // TUL-1271 #8: the copy keeps the original's options and extras.
+          const kids = childrenInputFromItem(it);
+          const copied = kids
+            ? await (isWorkspace
+                ? setWorkspaceMenuItemOptions(workspaceTenantId, res.item.id, kids)
+                : setOfferingOptions(talentId, res.item.id, kids))
+            : null;
+          setSaving(false);
+          const withKids =
+            copied && copied.ok ? { ...res.item, variants: copied.variants, addOns: copied.addOns } : res.item;
+          setItems((cur) => [...cur, withKids]);
           flashSaved();
-        } else setError(res.error);
+          if (copied && !copied.ok) setError(copied.error);
+        } else {
+          setSaving(false);
+          setError(res.error);
+        }
       });
     },
-    [items.length, upsertOne, flashSaved],
+    [items.length, upsertOne, flashSaved, isWorkspace, workspaceTenantId, talentId],
   );
 
   // `owner` is a fresh object literal on every caller render; the two fields

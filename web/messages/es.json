@@ -18100,6 +18100,7 @@
       "untitled": "(sin título)",
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
+      "itemProviderOwnedLink": "Abrir Servicios",
       "type": {
         "product": "Producto",
         "service": "Servicio",

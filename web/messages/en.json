@@ -18100,6 +18100,7 @@
       "untitled": "(untitled)",
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
       "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
+      "itemProviderOwnedLink": "Open Services",
       "type": {
         "product": "Product",
         "service": "Service",
