@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { publishedCmsPagePath } from "@/lib/cms/clean-urls";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 import { createClient } from "@/lib/supabase/server";
 import { businessFixedSitemapPaths } from "@/lib/seo/business-workspace-seo";
 import { loadIsEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-emptiness";
@@ -268,6 +270,8 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     }),
   ), ...postEntries];
 }
+
+const agencyPathAllowed = (path: string) => isPathAllowedForHostKind("agency", path);
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries = await buildSitemap();
@@ -579,7 +583,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       const locales = localesBySlug.get(row.slug) ?? [row.locale];
       const alt = buildLocaleAlternates({
         origin: base,
-        pathnameWithoutLocale: `${pathPrefix}/${row.slug}`,
+        pathnameWithoutLocale: pathPrefix === "/p" ? publishedCmsPagePath(row.slug, agencyPathAllowed) : `${pathPrefix}/${row.slug}`,
         currentLocale: row.locale,
         defaultLocale: localeSettings.defaultLocale,
         supportedLocales: locales,

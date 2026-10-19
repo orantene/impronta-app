@@ -101,6 +101,7 @@ src/lib/orders/orders-list-refunded-owes-nothing.test.ts
 src/lib/orders/orders-list.test.ts
 src/lib/orders/orders-page-wire.static.test.ts
 src/lib/orders/purchase-attribution.test.ts
+src/lib/orders/purchase-catalog-groups.test.ts
 src/lib/orders/purchase-pass-through-collect.test.ts
 src/lib/orders/purchase-policy.test.ts
 src/lib/orders/purchase-pricing.test.ts
@@ -220,8 +221,12 @@ src/lib/talent-agenda/send-quote-currency-message.static.test.ts
 src/lib/talent-agenda/unified-status.test.ts
 src/lib/talent/booking-owed.test.ts
 src/lib/talent/menu-order-offer.test.ts
+src/lib/talent/menu-workspace-locale.test.ts
 src/lib/talent/money-row-paid-chip.static.test.ts
 src/lib/talent/new-service-currency.static.test.ts
+src/lib/talent/offering-save-patch.test.ts
+src/lib/talent/offering-variants-save.test.ts
+src/lib/talent/offerings-children-replace.test.ts
 src/lib/venues/*.test.ts
 src/lib/visits/check-ops.test.ts
 src/lib/visits/commands.test.ts
