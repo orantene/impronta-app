@@ -61,8 +61,10 @@ async function restoreInventoryAfterFullRefundInner(sb: SupabaseClient, transact
   const r = outcome.result;
   if (r.stampedAdmissionIds.length > 0) {
     // Messages v5 / S2: ticket chips follow the stamp, like the desk path.
-    const { data } = await sb.from("orders").select("tenant_id").eq("id", outcome.orderId).maybeSingle();
-    const tenantId = (data as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+    // A failed read only skips the chip sync: the restore itself already landed.
+    const { data, error } = await sb.from("orders").select("tenant_id").eq("id", outcome.orderId).maybeSingle();
+    if (error) logServerError(`refunds.restoreInventory.orderTenant[order=${outcome.orderId}]`, error);
+    const tenantId = error ? null : ((data as { tenant_id?: string | null } | null)?.tenant_id ?? null);
     if (tenantId) {
       for (const admissionId of r.stampedAdmissionIds) {
         await syncConversationRecord(sb, { tenantId, kind: "tickets", recordId: admissionId });
