@@ -40,16 +40,18 @@ export function ServiceQuickViewHost({
       byHref.set(new URL(target.href, window.location.href).href, { offeringId, target });
     }
     const byId = new Map(offerings.map((o) => [o.id, o]));
+    /** Share id (`servicio-<id8>`) -> this widget's dialog for it (data-sqv-key; the DOM id is per widget). */
     const dialogFor = (id: string): HTMLDialogElement | null => {
       if (!id) return null;
       try {
-        return root.querySelector<HTMLDialogElement>(`dialog#${cssEscape(id)}`);
+        return root.querySelector<HTMLDialogElement>(`dialog.sqv[data-sqv-key="${cssEscape(id)}"]`);
       } catch {
         return null;
       }
     };
-    const clearHash = (id: string) => {
-      if (window.location.hash === `#${id}`) {
+    const clearHash = (domId: string) => {
+      const key = root.querySelector<HTMLDialogElement>(`dialog.sqv[id="${cssEscape(domId)}"]`)?.dataset.sqvKey ?? domId;
+      if (window.location.hash === `#${key}`) {
         window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
       }
     };
@@ -112,6 +114,15 @@ export function ServiceQuickViewHost({
     const dialogs = Array.from(root.querySelectorAll<HTMLDialogElement>("dialog.sqv"));
     const onClose = (e: Event) => clearHash((e.currentTarget as HTMLDialogElement).id);
     for (const d of dialogs) d.addEventListener("close", onClose);
+    /** On load / hashchange only the FIRST widget on the page holding this service opens it. */
+    const firstOwner = (id: string): boolean => {
+      try {
+        const first = document.querySelector(`dialog.sqv[data-sqv-key="${cssEscape(id)}"]`);
+        return !!first && root.contains(first);
+      } catch {
+        return false;
+      }
+    };
     const fromHash = () => {
       // A crafted or truncated fragment (`#%E0%A4%A`) must never crash the page.
       let id: string;
@@ -120,7 +131,7 @@ export function ServiceQuickViewHost({
       } catch {
         return;
       }
-      open(id);
+      if (firstOwner(id)) open(id);
     };
     root.addEventListener("click", onClick);
     window.addEventListener("hashchange", fromHash);

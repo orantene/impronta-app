@@ -8,7 +8,6 @@
  *
  * Pure: no DB, no React, so the widget, the business site and tests share it.
  */
-import { serviceSlug } from "@/lib/talent-site/service-page";
 import type { PresentationMode } from "./types";
 
 /** The widget's "Al tocar" setting. `auto` = "Según cada servicio". */
@@ -29,13 +28,18 @@ export type ServiceCardTarget = {
 };
 
 /**
- * Stable fragment id of a service's quick view: the `servicio-<title>-<id8>` slug its page
- * uses, plus a short key of the widget node so two services widgets on one page never share
- * a dialog id.
+ * TUL-1339: the PERMANENT share id of a service's quick view, `servicio-<id8>` (first 8 hex of the
+ * offering id). No title and no widget id, so a rename or a rebuilt widget never breaks a link
+ * someone already shared. It is the URL fragment (`#servicio-1a2b3c4d`).
  */
-export function serviceQuickViewId(o: { id: string; title: string }, nodeKey?: string | null): string {
+export function serviceQuickViewId(o: { id: string; title?: string }): string {
+  return `servicio-${o.id.replace(/-/g, "").slice(0, 8).toLowerCase()}`;
+}
+
+/** The dialog's DOM id: the share id plus a short widget key, unique when two widgets list one service. */
+export function serviceQuickViewDomId(shareId: string, nodeKey?: string | null): string {
   const key = (nodeKey ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(-8);
-  return key ? `${serviceSlug(o)}-${key}` : serviceSlug(o);
+  return key ? `${shareId}--${key}` : shareId;
 }
 
 /** The widget setting forces one mode; `auto` keeps the service's resolved mode. */

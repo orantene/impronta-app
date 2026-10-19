@@ -13,6 +13,7 @@ import type { ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import {
   isServiceTapAction,
   serviceCardTarget,
+  serviceQuickViewDomId,
   serviceQuickViewId,
   wantedModeForTap,
   type ServiceCardTarget,
@@ -68,7 +69,7 @@ export function serviceCatalogPresentation(input: {
       entitlements: { allowedModes: source.allowedModes },
     }).mode;
     const pageHref = input.pageHrefs[o.id] ?? null;
-    const quickViewId = serviceQuickViewId(o, input.nodeId);
+    const quickViewId = serviceQuickViewId(o);
     const target = serviceCardTarget({
       mode: wantedModeForTap(tap, resolved),
       pageAllowed,
@@ -80,7 +81,7 @@ export function serviceCatalogPresentation(input: {
     if (target.quickViewId) {
       out.quickViews.push(
         buildServiceQuickView(o, {
-          quickViewId,
+          domId: serviceQuickViewDomId(quickViewId, input.nodeId),
           locale: input.locale,
           homePath,
           pageHref: pageAllowed ? pageHref : null,

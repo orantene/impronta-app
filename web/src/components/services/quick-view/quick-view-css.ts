@@ -1,7 +1,7 @@
 /**
  * Quick view styles (TUL-1272 #3). One <dialog>: a centered popup on desktop,
  * a bottom sheet under 640 px (390 px phones). Paints from the site's theme
- * tokens only. `:target` keeps a shared `#servicio-...` link readable without JS.
+ * tokens only.
  */
 const INK = "var(--token-color-ink, CanvasText)";
 const BG = "var(--token-color-background, Canvas)";
@@ -27,13 +27,6 @@ dialog.sqv {
 }
 dialog.sqv[open] { display: flex; }
 dialog.sqv::backdrop { background: color-mix(in srgb, ${INK} 45%, transparent); }
-dialog.sqv:target:not([open]) {
-  display: flex;
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  box-shadow: 0 0 0 100vmax color-mix(in srgb, ${INK} 45%, transparent);
-}
 .sqv-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 0 24px 24px; }
 .sqv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 24px 8px; }
 .sqv-title { margin: 0; font-family: var(--site-heading-font, inherit); font-size: 22px; line-height: 1.2; }
@@ -73,8 +66,7 @@ dialog.sqv:target:not([open]) {
     margin: auto 0 0;
     border-radius: 16px 16px 0 0;
   }
-  dialog.sqv:target:not([open]) { inset: auto 0 0 0; }
-  .sqv-head { padding: 16px 16px 8px; }
+    .sqv-head { padding: 16px 16px 8px; }
   .sqv-scroll { padding: 0 16px 16px; }
   .sqv-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
   .sqv-title { font-size: 20px; }

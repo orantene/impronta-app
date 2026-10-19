@@ -24,7 +24,7 @@ const O: QuickViewOffering = {
 describe("buildServiceQuickView", () => {
   it("carries the service facts: photos (deduped), price, duration, description, policies", () => {
     const qv = buildServiceQuickView(O, { locale: "es", homePath: "/", pageHref: null });
-    assert.equal(qv.id, "servicio-corte-de-pelo-1a2b3c4d");
+    assert.equal(qv.id, "servicio-1a2b3c4d");
     assert.equal(qv.offeringId, O.id);
     assert.deepEqual(qv.photos, ["https://cdn.example/a.jpg", "https://cdn.example/b.jpg"]);
     assert.match(qv.priceText ?? "", /450/);

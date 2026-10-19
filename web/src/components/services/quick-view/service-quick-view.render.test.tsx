@@ -34,11 +34,14 @@ describe("ServiceQuickViewLayer", () => {
       locale: "es",
       homePath: "/",
       pageHref: "/servicio-clase-de-cocina-1a2b3c4d",
+      domId: "servicio-1a2b3c4d--n1",
       reviews: { average: 4.8, count: 12, reviews: [{ id: "r1", rating: 5, body: "Excelente", clientName: "Ana" } as never] },
     });
     const html = renderToStaticMarkup(<ServiceQuickViewLayer nodeId="n1" views={[qv]} />);
-    assert.match(html, /<dialog[^>]*id="servicio-clase-de-cocina-1a2b3c4d"/);
-    assert.match(html, /aria-labelledby="servicio-clase-de-cocina-1a2b3c4d-title"/);
+    // DOM id unique per widget; the permanent share id travels in data-sqv-key.
+    assert.match(html, /<dialog[^>]*id="servicio-1a2b3c4d--n1"/);
+    assert.match(html, /data-sqv-key="servicio-1a2b3c4d"/);
+    assert.match(html, /aria-labelledby="servicio-1a2b3c4d--n1-title"/);
     assert.match(html, /Clase de cocina/);
     assert.match(html, /Pasta fresca en casa\./);
     assert.match(html, /https:\/\/cdn\.example\/p2\.jpg/);
@@ -50,7 +53,6 @@ describe("ServiceQuickViewLayer", () => {
     assert.match(html, /href="\/\?book=1a2b3c4d-0000-4000-8000-000000000000#book"[^>]*data-sqv-book="1a2b3c4d-0000-4000-8000-000000000000"/);
     assert.match(html, /href="\/servicio-clase-de-cocina-1a2b3c4d"[^>]*>Ver página completa</);
     assert.match(html, /<button type="button" class="sqv-close" aria-label="Cerrar" data-sqv-close="">/);
-    assert.match(html, /<noscript><a href="#" class="sqv-close sqv-close-nojs"/);
   });
 
   it("no page, no CTA: neither link is rendered; on_request shows no amount", () => {
@@ -69,10 +71,9 @@ describe("ServiceQuickViewLayer", () => {
     assert.equal(renderToStaticMarkup(<ServiceQuickViewLayer nodeId="n1" views={[]} />), "");
   });
 
-  it("CSS: centered popup on desktop, bottom sheet under 640 px, no-JS :target fallback, no hex colours", () => {
+  it("CSS: centered popup on desktop, bottom sheet under 640 px, no hex colours", () => {
     assert.match(SERVICE_QUICK_VIEW_CSS, /@media \(max-width: 639px\)/);
     assert.match(SERVICE_QUICK_VIEW_CSS, /border-radius: 16px 16px 0 0/);
-    assert.match(SERVICE_QUICK_VIEW_CSS, /:target/);
     assert.doesNotMatch(SERVICE_QUICK_VIEW_CSS, /#[0-9a-fA-F]{3,8}\b/);
   });
 });

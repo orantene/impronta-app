@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { JSDOM } from "jsdom";
 
-const QV = "servicio-clase-aaaaaaaa";
+const QV = "servicio-aaaaaaaa";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { pretendToBeVisual: true, url: "https://maria.test/en" });
 const g = globalThis as Record<string, unknown>;
 g.window = dom.window;
@@ -53,7 +53,7 @@ function setup(opens: "quick_view" | "book") {
     <section data-builder-node-id="n1">
       <a id="card" href="#${QV}">Clase</a>
       <a id="other" href="/en/contact">Contact</a>
-      <dialog class="sqv" id="${QV}">
+      <dialog class="sqv" id="${QV}--n1" data-sqv-key="${QV}">
         <button id="close" type="button" data-sqv-close="">x</button>
         <a id="book" href="/en?book=${OFFERING.id}#book" data-sqv-book="${OFFERING.id}">Book</a>
       </dialog>
@@ -70,7 +70,7 @@ function setup(opens: "quick_view" | "book") {
       />,
     );
   });
-  return { doc, root, dialog: doc.getElementById(QV) as HTMLDialogElement };
+  return { doc, root, dialog: doc.getElementById(`${QV}--n1`) as HTMLDialogElement };
 }
 
 function click(el: Element): MouseEvent {

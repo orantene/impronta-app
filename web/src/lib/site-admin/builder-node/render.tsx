@@ -6033,7 +6033,7 @@ function renderBuilderNodeElement(
       const quickViews = servicesCatalogQuickViews({
         offerings: visible, nodeId: node.id, locale, linkBase: options.dataSources.talentServiceLinkBase,
         pageHrefs: servicePageHrefs(visible, options.dataSources.talentServiceLinkBase),
-        source: options.dataSources.servicePresentation, confirmsByHand,
+        source: options.dataSources.servicePresentation, confirmsByHand, tapAction: p.tapAction,
         bookingPosture: options.dataSources.talentOfferingsBookingSettings?.bookingPosture,
       });
       const serviceHrefs = quickViews.hrefs;

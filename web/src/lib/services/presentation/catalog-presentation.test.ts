@@ -52,9 +52,10 @@ describe("serviceCatalogPresentation", () => {
   it("dancer on the free plan: no own page, every card links to its quick view on the list", () => {
     const out = serviceCatalogPresentation({ nodeId: "n1", offerings: [A, B], source: FREE, linkBase: "/en", pageHrefs: PAGE_HREFS, locale: "en" });
     assert.ok(out);
-    assert.equal(out.hrefs[A.id], "#servicio-clase-de-salsa-aaaaaaaa-n1");
-    assert.equal(out.hrefs[B.id], "#servicio-clase-privada-bbbbbbbb-n1");
-    assert.deepEqual(out.quickViews.map((q) => q.id), ["servicio-clase-de-salsa-aaaaaaaa-n1", "servicio-clase-privada-bbbbbbbb-n1"]);
+    assert.equal(out.hrefs[A.id], "#servicio-aaaaaaaa");
+    assert.equal(out.hrefs[B.id], "#servicio-bbbbbbbb");
+    assert.deepEqual(out.quickViews.map((q) => q.id), ["servicio-aaaaaaaa", "servicio-bbbbbbbb"]);
+    assert.deepEqual(out.quickViews.map((q) => q.domId), ["servicio-aaaaaaaa--n1", "servicio-bbbbbbbb--n1"]);
     assert.equal(out.quickViews[0]!.pageHref, null);
   });
 
@@ -68,7 +69,7 @@ describe("serviceCatalogPresentation", () => {
       locale: "es",
     });
     assert.ok(out);
-    assert.equal(out.hrefs[A.id], "#servicio-clase-de-salsa-aaaaaaaa-n1");
+    assert.equal(out.hrefs[A.id], "#servicio-aaaaaaaa");
     assert.equal(out.quickViews[0]!.pageHref, "/servicio-clase-de-salsa-aaaaaaaa");
     assert.equal(out.quickViews[0]!.bookHref, `/?book=${A.id}#book`);
   });

@@ -1,7 +1,8 @@
 /**
  * The quick views of one services list (TUL-1272 #3, #9). Server-safe (no hooks):
- * every fact sits in the page HTML inside a closed <dialog>, so crawlers read it
- * and a `#servicio-...` share link opens it. `ServiceQuickViewHost` (client) only
+ * every fact sits in the page HTML inside a closed <dialog>, so crawlers read it,
+ * and the permanent `#servicio-<id8>` share link opens it (the host maps the fragment
+ * to the dialog through `data-sqv-key`; the DOM id is unique per widget). `ServiceQuickViewHost` (client) only
  * opens and closes the dialogs and routes "Reservar" into the booking sheet.
  */
 import type { ServiceQuickView } from "@/lib/services/presentation/quick-view-model";
@@ -20,20 +21,14 @@ function QuickViewDialog({ v }: { v: ServiceQuickView }) {
   const faqCopy = serviceFaqCopy(v.locale);
   const rc = serviceReviewsCopy(v.locale);
   const facts = [v.categoryLabel, v.priceText ?? v.priceNote, v.durationText].filter(Boolean).join(" · ");
-  const titleId = `${v.id}-title`;
+  const titleId = `${v.domId}-title`;
   return (
-    <dialog id={v.id} className="sqv" aria-labelledby={titleId} data-service-quick-view={v.offeringId}>
+    <dialog id={v.domId} className="sqv" aria-labelledby={titleId} data-sqv-key={v.id} data-service-quick-view={v.offeringId}>
       <div className="sqv-head">
         <h2 id={titleId} className="sqv-title">{v.title}</h2>
         <button type="button" className="sqv-close" aria-label={c.close} data-sqv-close="">
           <span aria-hidden>×</span>
         </button>
-        {/* No JS: the dialog shows through :target; this link clears the fragment to close it. */}
-        <noscript>
-          <a href="#" className="sqv-close sqv-close-nojs" aria-label={c.close}>
-            <span aria-hidden>×</span>
-          </a>
-        </noscript>
       </div>
       <div className="sqv-scroll">
         {facts ? <p className="sqv-facts">{facts}</p> : null}
@@ -125,7 +120,7 @@ export function ServiceQuickViewLayer({
     <>
       {views.length > 0 ? <style>{SERVICE_QUICK_VIEW_CSS}</style> : null}
       {views.map((v) => (
-        <QuickViewDialog key={v.id} v={v} />
+        <QuickViewDialog key={v.domId} v={v} />
       ))}
       <ServiceQuickViewHost
         nodeId={nodeId}

@@ -5,6 +5,7 @@ import {
   SERVICE_TAP_ACTIONS,
   isServiceTapAction,
   serviceCardTarget,
+  serviceQuickViewDomId,
   serviceQuickViewId,
   wantedModeForTap,
 } from "./card-target";
@@ -14,15 +15,16 @@ const ID = "1a2b3c4d-0000-4000-8000-000000000000";
 const QV = serviceQuickViewId({ id: ID, title: "Corte & barba" });
 
 describe("serviceQuickViewId", () => {
-  it("is the stable servicio-<title>-<id8> slug, usable as a fragment id", () => {
-    assert.equal(QV, "servicio-corte-barba-1a2b3c4d");
-    assert.match(QV, /^[a-z0-9-]+$/);
+  it("TUL-1339: permanent share id: servicio-<id8>, no title, no widget id", () => {
+    assert.equal(QV, "servicio-1a2b3c4d");
+    // A rename or a rebuilt widget never changes it, so shared links keep working.
+    assert.equal(serviceQuickViewId({ id: ID, title: "Otro nombre" }), QV);
   });
-  it("is unique per widget when a node key is given (two services widgets on one page)", () => {
-    const a = serviceQuickViewId({ id: ID, title: "Corte & barba" }, "node_ABC-123xyz");
-    const b = serviceQuickViewId({ id: ID, title: "Corte & barba" }, "node_DEF-456");
+  it("the dialog DOM id is unique per widget (two services widgets on one page); the share id is not", () => {
+    const a = serviceQuickViewDomId(QV, "node_ABC-123xyz");
+    const b = serviceQuickViewDomId(QV, "node_DEF-456");
     assert.notEqual(a, b);
-    assert.match(a, /^servicio-corte-barba-1a2b3c4d-[a-z0-9]{1,8}$/);
+    assert.match(a, /^servicio-1a2b3c4d--[a-z0-9]{1,8}$/);
   });
 });
 

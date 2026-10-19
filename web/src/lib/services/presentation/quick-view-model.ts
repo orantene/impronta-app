@@ -62,8 +62,10 @@ export function serviceQuickViewCopy(locale: string): ServiceQuickViewCopy {
 }
 
 export type ServiceQuickView = {
-  /** Fragment id: `#<id>` on the list opens this quick view. */
+  /** Permanent share id (`servicio-<id8>`): `#<id>` on the page opens this quick view. */
   id: string;
+  /** The dialog's DOM id (unique per widget). */
+  domId: string;
   offeringId: string;
   title: string;
   categoryLabel: string | null;
@@ -97,8 +99,8 @@ function policyLines(o: QuickViewOffering, c: ServiceQuickViewCopy): string[] {
 export function buildServiceQuickView(
   o: QuickViewOffering,
   opts: {
-    /** Fragment id (unique per widget); defaults to the service slug. */
-    quickViewId?: string;
+    /** The dialog's DOM id (unique per widget); defaults to the share id. */
+    domId?: string;
     locale: string;
     /** Locale home path ("/" or "/en"): the booking deep link hangs off it. */
     homePath: string;
@@ -117,7 +119,8 @@ export function buildServiceQuickView(
     SERVICE_PHOTO_MAX_QUICK_VIEW,
   );
   return {
-    id: opts.quickViewId ?? serviceQuickViewId(o),
+    id: serviceQuickViewId(o),
+    domId: opts.domId ?? serviceQuickViewId(o),
     offeringId: o.id,
     title: o.title.trim(),
     categoryLabel: o.categoryLabel ?? o.category ?? null,
