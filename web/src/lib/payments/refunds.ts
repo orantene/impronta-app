@@ -120,6 +120,24 @@ function resolveRefundDeps(deps: RefundDeps): {
 }
 
 /**
+ * Run the restore at a webhook call site. The money is already booked, so a
+ * restore failure is logged and swallowed: a throw would 500 the webhook and
+ * make Stripe retry a refund that is already recorded.
+ */
+async function runRestoreInventory(
+  restore: (sb: SupabaseClient, transactionId: string) => Promise<void>,
+  sb: SupabaseClient | null,
+  transactionId: string,
+): Promise<void> {
+  if (!sb) return;
+  try {
+    await restore(sb, transactionId);
+  } catch (err) {
+    logServerError(`refunds.restoreInventory[txn=${transactionId}]`, err);
+  }
+}
+
+/**
  * TUL-1268 M5: a FULL refund (charge.refunded with the whole charge back, or a
  * lost dispute) puts back what the order took: tickets refunded, seats and
  * stock released, promo redemption voided. The SAME step the Orders desk runs
@@ -129,6 +147,14 @@ function resolveRefundDeps(deps: RefundDeps): {
  * refunds never call this (a Stripe refund names an amount, not units).
  */
 export async function restoreInventoryAfterFullRefund(sb: SupabaseClient, transactionId: string): Promise<void> {
+  try {
+    await restoreInventoryAfterFullRefundInner(sb, transactionId);
+  } catch (err) {
+    logServerError(`refunds.restoreInventory[txn=${transactionId}]`, err);
+  }
+}
+
+async function restoreInventoryAfterFullRefundInner(sb: SupabaseClient, transactionId: string): Promise<void> {
   const outcome = await restoreAfterChargeFullyRefunded(sb, { transactionId });
   if (!outcome.restored) {
     if (outcome.reason !== "no_order") {
@@ -652,8 +678,7 @@ export async function handleBookingRefund(
   }
 
   // TUL-1268 M5: the charge is fully refunded, so the order gives back its tickets, seats and promo.
-  const sbRestore = d.resolveSupabase();
-  if (sbRestore) await d.restoreInventory(sbRestore, ref.transactionId);
+  await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
   return true;
 }
 
@@ -756,8 +781,7 @@ export async function handleBookingDispute(
     }
 
     // TUL-1268 M5: a lost dispute is a full refund; the order gives back its tickets, seats and promo.
-    const sbRestore = d.resolveSupabase();
-    if (sbRestore) await d.restoreInventory(sbRestore, ref.transactionId);
+    await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
     logServerError(
       `stripe-webhook.dispute.lost[txn=${ref.transactionId}]`,
       new Error(`Dispute ${input.disputeId} LOST — transfers reversed, booking refunded (amount=${input.amount} reason=${input.reason}).`),

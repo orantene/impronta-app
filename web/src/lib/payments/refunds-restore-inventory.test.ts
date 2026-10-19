@@ -193,19 +193,24 @@ function seed(extraTxns: Row[] = []): Record<string, Row[]> {
     agency_bookings: [{ id: BOOKING, order_id: ORDER, tenant_id: TENANT }],
     orders: [{ id: ORDER, tenant_id: TENANT, status: "paid" }],
     order_lines: [
-      { id: "L_ticket", order_id: ORDER, total_cents: 60000, refunded_cents: 0 },
-      { id: "L_seat", order_id: ORDER, total_cents: 40000, refunded_cents: 0 },
-      { id: "L_comp", order_id: ORDER, total_cents: 0, refunded_cents: 0 },
+      { id: "L_ticket", order_id: ORDER, unit_cents: 30000, units: 2, discount_cents: 0, total_cents: 60000, refunded_cents: 0 },
+      { id: "L_seat", order_id: ORDER, unit_cents: 40000, units: 1, discount_cents: 0, total_cents: 40000, refunded_cents: 0 },
+      // A paid ticket the promo discounted to $0: the guest still holds a ticket the refund must void.
+      { id: "L_promo", order_id: ORDER, unit_cents: 3000, units: 1, discount_cents: 3000, total_cents: 0, refunded_cents: 0 },
+      // A true comp: listed at $0, never charged.
+      { id: "L_comp", order_id: ORDER, unit_cents: 0, units: 1, discount_cents: 0, total_cents: 0, refunded_cents: 0 },
     ],
     admissions: [
       { id: "A1", order_line_id: "L_ticket", line_seq: 1, admitted_count: 0, status: "valid", allocation_id: "AL1" },
       { id: "A2", order_line_id: "L_ticket", line_seq: 2, admitted_count: 0, status: "valid", allocation_id: "AL2" },
+      { id: "A_promo", order_line_id: "L_promo", line_seq: 1, admitted_count: 0, status: "valid", allocation_id: "AL_promo" },
       { id: "A_comp", order_line_id: "L_comp", line_seq: 1, admitted_count: 0, status: "valid", allocation_id: "AL_comp" },
     ],
     capacity_allocations: [
       { id: "AL1", order_line_id: "L_ticket", state: "committed" },
       { id: "AL2", order_line_id: "L_ticket", state: "committed" },
       { id: "AL_seat", order_line_id: "L_seat", state: "committed" },
+      { id: "AL_promo", order_line_id: "L_promo", state: "committed" },
       { id: "AL_comp", order_line_id: "L_comp", state: "committed" },
     ],
     tenant_promo_redemptions: [{ id: "P1", order_id: ORDER, status: "confirmed" }],
@@ -237,8 +242,8 @@ function deps(fake: Fake): RefundDeps {
 const sorted = (xs: string[]) => [...xs].sort();
 
 function assertRestoredOnce(fake: Fake) {
-  assert.deepEqual(sorted(fake.admissionStamps), ["A1", "A2"], "each paid ticket refunded exactly once");
-  assert.deepEqual(sorted(fake.allocationReleases), ["AL1", "AL2", "AL_seat"], "each paid seat released exactly once");
+  assert.deepEqual(sorted(fake.admissionStamps), ["A1", "A2", "A_promo"], "each paid ticket (incl. one discounted to $0) refunded exactly once");
+  assert.deepEqual(sorted(fake.allocationReleases), ["AL1", "AL2", "AL_promo", "AL_seat"], "each paid seat released exactly once");
   assert.deepEqual(fake.promoVoids, ["P1"], "promo redemption voided exactly once");
   const comp = fake.tables.admissions.find((a) => a.id === "A_comp");
   assert.equal(comp?.status, "valid", "a $0 comp ticket nobody paid for is not touched");
@@ -342,6 +347,44 @@ test("an attended ticket keeps its seat even on a full refund", async () => {
     { paymentIntentId: PI, chargeId: CHARGE, refundedCents: CHARGE_CENTS, refundId: "re_full", refundAmountCents: CHARGE_CENTS },
     deps(fake),
   );
-  assert.deepEqual(fake.admissionStamps, ["A2"], "the scanned ticket is a dispute, not a refund-by-line");
+  assert.deepEqual(sorted(fake.admissionStamps), ["A2", "A_promo"], "the scanned ticket is a dispute, not a refund-by-line");
   assert.ok(!fake.allocationReleases.includes("AL1"), "its seat is not freed through the line either");
+});
+
+test("a restore that throws never fails the webhook; the error is logged", async () => {
+  const fake = makeFake(seed());
+  const logged: string[] = [];
+  const realError = console.error;
+  console.error = (...args: unknown[]) => {
+    logged.push(args.map(String).join(" "));
+  };
+  let handled: boolean;
+  let disputeHandled: boolean;
+  try {
+    const throwing: RefundDeps = {
+      ...deps(fake),
+      restoreInventory: async () => {
+        throw new Error("restore exploded");
+      },
+    };
+    handled = await handleBookingRefund(
+      stripeFake(),
+      { paymentIntentId: PI, chargeId: CHARGE, refundedCents: CHARGE_CENTS, refundId: "re_full", refundAmountCents: CHARGE_CENTS },
+      throwing,
+    );
+    disputeHandled = await handleBookingDispute(
+      stripeFake(),
+      { paymentIntentId: PI, disputeId: "dp_3", amount: CHARGE_CENTS, reason: "fraudulent", status: "lost", closed: true },
+      throwing,
+    );
+  } finally {
+    console.error = realError;
+  }
+  assert.equal(handled, true, "the refund is still booked; no throw reaches the webhook");
+  assert.equal(disputeHandled, true, "the lost dispute is still booked");
+  assert.equal(
+    logged.filter((l) => l.includes("refunds.restoreInventory") && l.includes("restore exploded")).length,
+    2,
+    "each failure is logged under refunds.restoreInventory",
+  );
 });

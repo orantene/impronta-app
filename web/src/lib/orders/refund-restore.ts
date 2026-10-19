@@ -166,6 +166,30 @@ export async function restoreRefundedLines(
   return out;
 }
 
+type RestoreLineRow = {
+  id: string;
+  unit_cents: number | null;
+  discount_cents: number | null;
+  total_cents: number | null;
+};
+
+/**
+ * A true comp line: listed at $0 (a comp tier or free item), never charged, so a
+ * refund gives nothing back for it and must not void the guest's ticket.
+ *
+ * Read from the LIST price (`unit_cents`, the catalog price written at
+ * purchase), never from `total_cents`: a promo can discount a paid ticket to a
+ * $0 total, and that guest's ticket must still be refunded with the order.
+ * A line that carries a discount had a price, so it is never a comp.
+ */
+export function isCompLine(l: Omit<RestoreLineRow, "id">): boolean {
+  return (
+    Number(l.unit_cents ?? 0) <= 0
+    && Number(l.discount_cents ?? 0) <= 0
+    && Number(l.total_cents ?? 0) <= 0
+  );
+}
+
 /** Statuses in which a charge still holds the customer's money. */
 const MONEY_HELD_STATUSES = ["paid", "payout_pending", "payout_sent", "disputed"] as const;
 
@@ -217,17 +241,13 @@ export async function restoreAfterChargeFullyRefunded(
 
     const { data: lineRows, error: lineErr } = await sb
       .from("order_lines")
-      .select("id, total_cents")
+      .select("id, unit_cents, discount_cents, total_cents")
       .eq("order_id", orderId);
     if (lineErr) {
       logServerError(`${scope}.lines`, lineErr);
       return { restored: false, reason: "unavailable" };
     }
-    // Paid lines only: a $0 comp on the same order was never charged, so a
-    // refund gives nothing back for it and must not void the guest's ticket.
-    const lineIds = ((lineRows ?? []) as Array<{ id: string; total_cents: number | null }>)
-      .filter((l) => Number(l.total_cents ?? 0) > 0)
-      .map((l) => l.id);
+    const lineIds = ((lineRows ?? []) as RestoreLineRow[]).filter((l) => !isCompLine(l)).map((l) => l.id);
 
     const result = await restoreRefundedLines(sb, {
       orderId,
