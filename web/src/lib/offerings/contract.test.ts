@@ -201,7 +201,7 @@ test("a FROM price is a lowest price everywhere: words say from/desde, JSON-LD i
   assert.equal(ld.offers["@type"], "AggregateOffer");
   assert.equal(ld.offers.lowPrice, "550.00");
   assert.equal("price" in ld.offers, false);
-  assert.equal("minPrice" in JSON.stringify(ld), false);
+  assert.equal(JSON.stringify(ld).includes("minPrice"), false);
   assert.equal(contractToApiService(en).price_mode, "from");
 });
 
