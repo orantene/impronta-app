@@ -5,6 +5,7 @@
  * the components through the one pipeline. Idempotent by client key.
  */
 
+import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import type { PurchaseInput, PurchaseResult } from "@/lib/orders/purchase-types";
 import type { CheckoutSessionInput, CheckoutSessionResult } from "@/lib/payments/stripe-checkout";
@@ -98,9 +99,9 @@ export async function actPackageSelectorCore(deps: PackageSelectorDeps, input: P
     key: input.clientOrderKey,
     args: { packageId: input.packageId, units, email, payment: input.payment },
     run: async () => {
-      const { data: row, error } = await deps.admin.from("talent_offerings").select("id, kind, status, currency, title").eq("id", input.packageId).eq("tenant_id", input.tenantId).maybeSingle();
+      const { data: row, error } = await deps.admin.from("talent_offerings").select("id, kind, status, currency, title, moderation_state, visibility").eq("id", input.packageId).eq("tenant_id", input.tenantId).maybeSingle();
       if (error) return mapEngineRefusal("unavailable", deps.locale);
-      if (!row || row.kind !== "package" || row.status !== "published") return mapEngineRefusal("not_sellable", deps.locale);
+      if (!row || row.kind !== "package" || !isGuestSellableOffering(row)) return mapEngineRefusal("not_sellable", deps.locale);
       const purchase = await deps.createPurchase(deps.admin, {
         tenantId: input.tenantId,
         clientOrderKey: input.clientOrderKey,

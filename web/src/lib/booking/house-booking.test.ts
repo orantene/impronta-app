@@ -93,3 +93,26 @@ test("the mode values match the Appointments union exactly", () => {
     assert.ok(["inquire", "request", "instant"].includes(mode), mode);
   }
 });
+
+test("item 6: a house service is never LISTED as instant while the slots route refuses it", async () => {
+  const { houseListingModeFor, HOUSE_SLOTS_SUPPORTED } = await import("./house-booking");
+  assert.equal(HOUSE_SLOTS_SUPPORTED, false);
+  // pool + duration used to list as instant, then the sheet found no slots
+  assert.equal(houseListingModeFor(HOUSE, AGENCY_HOST), "request");
+  // the usual "Service (appointment)" card has no pool: it now shows, as a request
+  assert.equal(houseListingModeFor({ ...HOUSE, capacityPoolId: null }, AGENCY_HOST), "request");
+  // an unsupported host still lists nothing
+  assert.equal(houseListingModeFor(HOUSE, { kind: "marketing" }), "inquire");
+  // talent rows are not the house path
+  assert.notEqual(houseListingModeFor(TALENT, AGENCY_HOST), "instant");
+});
+
+test("item 6: the owner is told why a house service cannot be booked online yet", async () => {
+  const { houseNotBookableReason } = await import("./house-booking");
+  const base = { talentProfileId: null, durationMinutes: 30, kind: "service" as const, bookingMode: "instant" as const };
+  assert.equal(houseNotBookableReason(base), "no_provider");
+  assert.equal(houseNotBookableReason({ ...base, durationMinutes: null }), "no_duration");
+  assert.equal(houseNotBookableReason({ ...base, bookingMode: "inquiry" }), null);
+  assert.equal(houseNotBookableReason({ ...base, kind: "product" }), null);
+  assert.equal(houseNotBookableReason({ ...base, talentProfileId: "t1" }), null);
+});
