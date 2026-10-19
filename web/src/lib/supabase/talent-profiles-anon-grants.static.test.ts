@@ -1,7 +1,7 @@
 /**
  * PR 0b-3: anon may not read talents' private details.
  *
- * The held migration (supabase/migrations/_pending_pm/20261231415200_*) revokes
+ * The held migration (supabase/migrations/_pending_pm/20261231415500_*) revokes
  * the table-wide SELECT on public.talent_profiles from `anon` and re-grants every
  * column EXCEPT a private set. These static pins keep two things true:
  *
@@ -26,7 +26,7 @@ const MIGRATION = join(
   "supabase",
   "migrations",
   "_pending_pm",
-  "20261231415200_talent_profiles_anon_column_grants.sql",
+  "20261231415500_talent_profiles_anon_column_grants.sql",
 );
 
 const PRIVATE_COLUMNS = [

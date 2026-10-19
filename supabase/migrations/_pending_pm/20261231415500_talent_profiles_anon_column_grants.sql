@@ -1,4 +1,4 @@
--- 20261231415200_talent_profiles_anon_column_grants.sql
+-- 20261231415500_talent_profiles_anon_column_grants.sql
 --
 -- HELD FILE (supabase/migrations/_pending_pm/). NOT applied by the author.
 -- PM applies: mv to supabase/migrations/, then `cd web && npm run db:push`.
