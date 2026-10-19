@@ -26,6 +26,7 @@ import "server-only";
  * Nothing here writes.
  */
 
+import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -63,7 +64,7 @@ export type CounterCatalog = {
 };
 
 export async function loadCounterCatalog(admin: Admin, input: { tenantId: string; nowIso: string }): Promise<CounterCatalog> {
-  const [catalog, upcoming] = await Promise.all([
+  const [catalog, upcoming, nonMenu] = await Promise.all([
     admin
       .from("talent_offerings")
       .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id")
@@ -79,11 +80,17 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
       .gte("starts_at", input.nowIso)
       .order("starts_at", { ascending: true })
       .limit(80),
+    loadNonMenuOfferingIds(admin, input.tenantId),
   ]);
   if (catalog.error) logServerError("pos.page.catalog", catalog.error);
   if (upcoming.error) logServerError("pos.page.sessions", upcoming.error);
 
-  const rows = (catalog.data ?? []) as OfferingRow[];
+  if (nonMenu.error) logServerError("pos.page.nonMenuIds", nonMenu.error);
+
+  // TUL-1271 item 6: event-backing and reservation offerings are not counter
+  // items. If that exclusion list cannot be read, show nothing rather than
+  // sell a ticketed night or a table booking off the counter.
+  const rows = nonMenu.error ? [] : withoutNonMenuOfferings((catalog.data ?? []) as OfferingRow[], nonMenu.ids);
   const ids = rows.map((row) => row.id);
 
   // Variants are children of the offering (no tenant column of their own);
