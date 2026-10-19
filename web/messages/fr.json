@@ -5629,7 +5629,8 @@
         "seller": "Cet espace de travail est le seul vendeur ; le filtre par professionnel n'est pas encore modélisé."
       },
       "viewLabel": "Vue",
-      "view": { "activity": "Activité", "items": "Par article" },
+      "viewActivity": "Activité",
+      "viewItems": "Par article",
       "periodLabel": "Période",
       "period": { "all": "Toute la période", "today": "Aujourd'hui", "7d": "7 derniers jours", "30d": "30 derniers jours", "month": "Ce mois-ci" },
       "methodLabel": "Mode de paiement",

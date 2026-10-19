@@ -14161,7 +14161,8 @@
         "seller": "This workspace is the only seller; per-professional filtering is not modelled yet."
       },
       "viewLabel": "View",
-      "view": { "activity": "Activity", "items": "By item" },
+      "viewActivity": "Activity",
+      "viewItems": "By item",
       "periodLabel": "Period",
       "period": { "all": "All time", "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days", "month": "This month" },
       "methodLabel": "Payment method",

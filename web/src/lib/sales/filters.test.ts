@@ -62,6 +62,6 @@ test("ordersMatchingMethod keeps orders with a money-status, non-refund tender i
     { order_id: "o4", provider: "manual", metadata: { paid_via: "cash" }, status: "paid", refund_of_transaction_id: "x" },
   ];
   assert.deepEqual([...ordersMatchingMethod(tx, "cash")].sort(), ["o1"]);
-  assert.deepEqual([...ordersMatchingMethod(tx, "online")], ["o2"]);
+  assert.deepEqual([...(ordersMatchingMethod(tx, "online") ?? [])], ["o2"]);
   assert.equal(ordersMatchingMethod(tx, "any"), null);
 });

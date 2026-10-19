@@ -14161,7 +14161,8 @@
         "seller": "Este espacio de trabajo es el único vendedor; el filtro por profesional todavía no está modelado."
       },
       "viewLabel": "Vista",
-      "view": { "activity": "Actividad", "items": "Por artículo" },
+      "viewActivity": "Actividad",
+      "viewItems": "Por artículo",
       "periodLabel": "Período",
       "period": { "all": "Todo el tiempo", "today": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días", "month": "Este mes" },
       "methodLabel": "Método de pago",

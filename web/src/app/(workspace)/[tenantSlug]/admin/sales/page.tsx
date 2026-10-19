@@ -218,10 +218,10 @@ export default async function SalesPage({
 
       <nav aria-label={t("viewLabel")} className="flex flex-wrap items-center gap-[8px]">
         <SalesChipLink href={chipHref({ view: "activity" })} active={view === "activity"}>
-          {t("view.activity")}
+          {t("viewActivity")}
         </SalesChipLink>
         <SalesChipLink href={chipHref({ view: "items" })} active={view === "items"}>
-          {t("view.items")}
+          {t("viewItems")}
         </SalesChipLink>
       </nav>
 

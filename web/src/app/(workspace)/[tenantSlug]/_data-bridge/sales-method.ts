@@ -16,13 +16,14 @@ const PAGE = 1000;
  * first error stops the read and is returned, never swallowed.
  */
 export async function readAllPages<T>(
-  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  // Row type is the caller's claim about the select list (the client is untyped here).
+  page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
 ): Promise<{ data: T[]; error: { message: string } | null }> {
   const data: T[] = [];
   for (let from = 0; ; from += PAGE) {
     const res = await page(from, from + PAGE - 1);
     if (res.error) return { data, error: res.error };
-    const got = res.data ?? [];
+    const got = (res.data ?? []) as T[];
     data.push(...got);
     if (got.length < PAGE) return { data, error: null };
   }
