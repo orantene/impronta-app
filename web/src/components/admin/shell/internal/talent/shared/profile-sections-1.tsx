@@ -8,6 +8,7 @@ import { AVAILABILITY_BLOCKS, COLORS, FONTS, MY_TALENT_PROFILE, POLAROID_SET, TA
 import { formatCount } from "@/lib/talent/format-count";
 import { actionLoadTalentMediaBundle } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { BadgeChip, ProfileChip, TierPill } from "./profile-sections-2";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 
 
 
@@ -517,6 +518,15 @@ export function EngagementStrip({ profile }: { profile?: import("../../state").M
           <div className="text-admin-ink-dim text-admin-11 leading-relaxed">
             {copy.t("Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.")}
           </div>
+          {/* BILL-B: the paywall had no way forward. Same upgrade path as every talent paywall. */}
+          <button
+            type="button"
+            data-tulala-analytics-upgrade
+            onClick={() => openUpgrade({ feature: "page-analytics", from: "profile-analytics-upsell" })}
+            className="mt-2.5 inline-flex cursor-pointer items-center rounded-md border-0 bg-admin-ink px-3 py-1.5 text-[12px] font-semibold text-admin-surface"
+          >
+            {copy.t("Upgrade plan")}
+          </button>
         </div>
       </div>
     );

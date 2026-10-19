@@ -26,11 +26,22 @@ export function isWorkspaceIntent(intent: PlanIntent | null): intent is { plan: 
   return !!intent && (PAID_WORKSPACE_PLAN_KEYS as readonly string[]).includes(intent.plan);
 }
 
+/**
+ * Tolerant interval read (BILL-B): `year` or `y` is yearly, anything else
+ * (`month`, `m`, missing, junk) is monthly. `m|y` is what the in-app upgrade
+ * modal sent before it pointed at /talent/plan, so old links keep the yearly
+ * choice.
+ */
+export function parsePlanIntentInterval(interval: unknown): "month" | "year" {
+  const v = typeof interval === "string" ? interval.trim().toLowerCase() : "";
+  return v === "year" || v === "y" ? "year" : "month";
+}
+
 export function parsePlanIntent(plan: unknown, interval: unknown): PlanIntent | null {
   if (typeof plan !== "string") return null;
   const ok = (PAID_TALENT_PLAN_KEYS as readonly string[]).includes(plan) || (PAID_WORKSPACE_PLAN_KEYS as readonly string[]).includes(plan);
   if (!ok) return null;
-  return { plan: plan as PlanIntent["plan"], interval: interval === "year" ? "year" : "month" };
+  return { plan: plan as PlanIntent["plan"], interval: parsePlanIntentInterval(interval) };
 }
 
 /** Display name for "Finish upgrading to {plan}". */

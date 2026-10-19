@@ -14,9 +14,10 @@
  * prices talent plans in USD only, so the modal shows USD and no converted
  * MXN figure: a converted price would be price math nobody bills against.
  *
- * CHECKOUT IS NOT HERE. `buildUpgradeCheckoutHref` is the mock entry point
- * (`/pricing?plan=&interval=&from=`) until TUL-830 ships a real talent
- * checkout; `start-upgrade-checkout.ts` is the one adapter it will swap.
+ * CHECKOUT IS NOT HERE. `buildUpgradeCheckoutHref` points at `/talent/plan`
+ * (`?plan=&interval=month|year&from=`), the app route that starts checkout or
+ * opens the plan-change confirm; `start-upgrade-checkout.ts` is the one
+ * adapter every caller goes through.
  */
 
 import { PLAN_CATALOG, type PlanKey } from "@/lib/access/plan-catalog";
@@ -39,6 +40,7 @@ export const UPGRADE_FEATURES = [
   "press-band",
   "media-kit",
   "seo-controls",
+  "page-analytics",
   "generic",
 ] as const;
 export type UpgradeFeature = (typeof UPGRADE_FEATURES)[number];
@@ -74,6 +76,7 @@ const FEATURE_COPY: Record<UpgradeFeature, Record<UpgradeLocale, string>> = {
   "press-band": { es: "Banda de prensa", en: "Press band" },
   "media-kit": { es: "Media kit con tu marca", en: "Branded media kit" },
   "seo-controls": { es: "Controles de SEO", en: "SEO controls" },
+  "page-analytics": { es: "El análisis de la página", en: "Page analytics" },
   generic: { es: "Todo Oficina Web", en: "All of Web Office" },
 };
 
@@ -202,9 +205,17 @@ export function buildUpgradeOffer(input: {
   };
 }
 
+/** Modal interval to the `month | year` the plan route and plan-intent read. */
+export function upgradeIntervalParam(interval: UpgradeInterval): "month" | "year" {
+  return interval === "y" ? "year" : "month";
+}
+
 /**
- * The mock checkout entry point until TUL-830: the pricing page, carrying the
- * plan, interval and paywall that sent the talent there.
+ * Where the modal's primary button goes (BILL-B, TUL-829): `/talent/plan`, the
+ * app route that resolves the talent's workspace and starts checkout (or the
+ * in-app plan-change confirm for a subscriber). It reads `plan` and
+ * `interval=month|year`; the old `/pricing?plan=&interval=m|y` target ignored
+ * both, so the chosen plan and the yearly toggle were lost.
  */
 export function buildUpgradeCheckoutHref(input: {
   planKey: PlanKey;
@@ -213,8 +224,8 @@ export function buildUpgradeCheckoutHref(input: {
 }): string {
   const params = new URLSearchParams({
     plan: input.planKey,
-    interval: input.interval,
+    interval: upgradeIntervalParam(input.interval),
     from: input.from || "unknown",
   });
-  return `/pricing?${params.toString()}`;
+  return `/talent/plan?${params.toString()}`;
 }

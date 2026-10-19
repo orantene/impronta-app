@@ -7,18 +7,24 @@ import { confirmTalentPlanChange, previewTalentPlanChange } from "@/app/(workspa
 import { PlanChangeConfirm } from "@/components/billing/plan-change-confirm";
 import { upgradeOutcome } from "@/lib/billing/upgrade-outcome";
 import type { PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
-import { planIntentLabel } from "@/lib/onboarding/plan-intent";
+import { planIntentLabel, type PaidTalentPlanKey } from "@/lib/onboarding/plan-intent";
 import { useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
-import { isTalentIntent, readPlanIntentFromUrl } from "@/lib/onboarding/plan-intent";
 
 /**
  * Opens the tier-compare drawer once when /talent/plan mounts (TUL-666).
  * TUL-828: when the URL carries a valid paid intent (`?plan=&interval=` from
  * /pricing via /start), start that checkout instead; any failure falls back to
  * the drawer so the person is never left on a blank page.
+ * BILL-B: the intent arrives as a prop (parsed once by the server page), and
+ * the upgrade action runs at most once per mount (ref guard), so nothing
+ * re-queues it behind the page's other server actions.
  */
-export function TalentPlanRouteOpener() {
+export function TalentPlanRouteOpener({
+  intent,
+}: {
+  intent: { plan: PaidTalentPlanKey; interval: "month" | "year" } | null;
+}) {
   const shell = useAdminShellOptional();
   const openDrawer = shell?.openDrawer ?? null;
   const tenantSlug = shell?.tenantSlug ?? null;
@@ -28,8 +34,7 @@ export function TalentPlanRouteOpener() {
   useEffect(() => {
     if (ran.current || !openDrawer) return;
     ran.current = true;
-    const intent = readPlanIntentFromUrl();
-    if (!isTalentIntent(intent) || !tenantSlug) {
+    if (!intent || !tenantSlug) {
       openDrawer("talent-tier-compare");
       return;
     }
@@ -42,7 +47,9 @@ export function TalentPlanRouteOpener() {
         else openDrawer("talent-tier-compare");
       })
       .catch(() => openDrawer("talent-tier-compare"));
-  }, [openDrawer, tenantSlug]);
+    // `intent` is server data fixed for this mount; the ref guard above keeps
+    // a later identity change from firing a second upgrade action.
+  }, [openDrawer, tenantSlug, intent]);
   const slug = tenantSlug;
   const target = change;
   const preview = useCallback(

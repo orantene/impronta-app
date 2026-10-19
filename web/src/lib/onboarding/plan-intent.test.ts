@@ -1,13 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parsePlanIntent, planIntentLabel, planIntentQuery, upgradeHrefFromToday, workspaceAutoStartDecision, workspaceUpgradeHref } from "./plan-intent";
+import { parsePlanIntent, parsePlanIntentInterval, planIntentLabel, planIntentQuery, upgradeHrefFromToday, workspaceAutoStartDecision, workspaceUpgradeHref } from "./plan-intent";
 
 test("parsePlanIntent keeps only paid talent plans", () => {
   assert.deepEqual(parsePlanIntent("talent_pro", "year"), { plan: "talent_pro", interval: "year" });
   assert.deepEqual(parsePlanIntent("talent_portfolio", "month"), { plan: "talent_portfolio", interval: "month" });
   assert.deepEqual(parsePlanIntent("talent_pro", "weekly"), { plan: "talent_pro", interval: "month" });
   assert.deepEqual(parsePlanIntent("talent_pro", undefined), { plan: "talent_pro", interval: "month" });
+});
+
+test("BILL-B: parsePlanIntent is tolerant of the modal's old m|y interval", () => {
+  assert.deepEqual(parsePlanIntent("talent_portfolio", "y"), { plan: "talent_portfolio", interval: "year" });
+  assert.deepEqual(parsePlanIntent("talent_portfolio", "m"), { plan: "talent_portfolio", interval: "month" });
+  assert.deepEqual(parsePlanIntent("talent_pro", "y"), { plan: "talent_pro", interval: "year" });
+  assert.deepEqual(parsePlanIntent("talent_pro", "Year"), { plan: "talent_pro", interval: "year" });
+  for (const [raw, want] of [["y", "year"], ["year", "year"], ["m", "month"], ["month", "month"], ["", "month"], ["yr", "month"], [null, "month"], [7, "month"]] as const) {
+    assert.equal(parsePlanIntentInterval(raw), want, String(raw));
+  }
 });
 
 test("parsePlanIntent ignores free, workspace and junk", () => {

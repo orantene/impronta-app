@@ -98,6 +98,9 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   "public-page": "public-page",
   posts: "posts",
   settings: "settings",
+  // BILL-B: /talent/plan sits on Settings. Without this the shell first
+  // mounted Today (its chunk + mount-time actions) and then swapped pages.
+  plan: "settings",
 };
 
 /** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
