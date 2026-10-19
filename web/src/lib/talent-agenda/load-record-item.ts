@@ -39,7 +39,6 @@ export async function loadTalentAgendaRecordItem(bookingId: string): Promise<Tal
     return await readRecordItem(bookingId);
   } catch (error) {
     logServerError("talent-agenda.recordItem", error);
-    console.error("[4114 debug] record item threw", error); // TEMP #4114 debug: remove after lh proof
     return null;
   }
 }
@@ -49,7 +48,6 @@ async function readRecordItem(bookingId: string): Promise<TalentAgendaItem | nul
   const ctx = await recordReadContext();
   const actor = await loadTalentActor(ctx, undefined, { firstProfile: true, adminFallback: true });
   if (!actor.ok) {
-    console.error("[4114 debug] actor not ok", actor.reason, "impersonated:", Boolean(ctx?.impersonated)); // TEMP #4114 debug: remove after lh proof
     return null;
   }
   // Her own rows, read through the service client keyed on HER profile ids (never a tenant):
@@ -68,7 +66,6 @@ async function readRecordItem(bookingId: string): Promise<TalentAgendaItem | nul
       return null;
     });
     if (!target) {
-      console.error("[4114 debug] no record target for profile", talentProfileId); // TEMP #4114 debug: remove after lh proof
       continue;
     }
     const window = agendaWindowAround(target.startsAt);
@@ -78,7 +75,6 @@ async function readRecordItem(bookingId: string): Promise<TalentAgendaItem | nul
     });
     const item = agendaItemFromSnapshot(agenda.items, target.bookingId);
     if (item) return item;
-    console.error("[4114 debug] target found but agenda item missing", agenda.items.length); // TEMP #4114 debug: remove after lh proof
   }
   return null;
 }
@@ -113,7 +109,6 @@ export async function loadTalentTimelessBookingStub(bookingId: string): Promise<
     return await readStub(bookingId);
   } catch (error) {
     logServerError("talent-agenda.recordStub", error);
-    console.error("[4114 debug] stub threw", error); // TEMP #4114 debug: remove after lh proof
     return null;
   }
 }
@@ -123,7 +118,6 @@ async function readStub(bookingId: string): Promise<TimelessStub | null> {
   const ctx = await recordReadContext();
   const actor = await loadTalentActor(ctx, undefined, { firstProfile: true, adminFallback: true });
   if (!actor.ok) {
-    console.error("[4114 debug] actor not ok", actor.reason, "impersonated:", Boolean(ctx?.impersonated)); // TEMP #4114 debug: remove after lh proof
     return null;
   }
   for (const talentProfileId of await ownProfileIds(actor)) {
@@ -134,6 +128,5 @@ async function readStub(bookingId: string): Promise<TimelessStub | null> {
     );
     if (stub) return stub;
   }
-  console.error("[4114 debug] stub not found for any of her profiles"); // TEMP #4114 debug: remove after lh proof
   return null;
 }

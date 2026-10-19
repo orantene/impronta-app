@@ -23,12 +23,13 @@ describe("talent booking record never hangs", () => {
     assert.match(body, /<BookingRecordRoute/);
   });
 
-  it("the record route settles on error and on a timeout instead of rendering null forever", () => {
+  it("the record route reads in parallel, never fails on a timer, and shows loading until settled", () => {
     const src = read("talent/agenda/BookingRecordRoute.tsx");
-    assert.match(src, /RECORD_LOAD_TIMEOUT_MS/);
-    assert.match(src, /setTimeout\(/);
+    assert.match(src, /readRecordInParallel/);
+    assert.match(src, /recordViewState/);
     assert.match(src, /clearTimeout\(timer\)/);
-    assert.match(src, /catch \{[\s\S]*loadTalentTimelessBookingStub\(bookingId\)\.catch[\s\S]*setLoaded\(\{ id: bookingId, item: null/);
+    assert.doesNotMatch(src, /RECORD_LOAD_TIMEOUT_MS/);
+    assert.doesNotMatch(src, /console\.error/);
   });
 
   it("nothing loaded renders an honest state: no stub record, no default status pill", () => {

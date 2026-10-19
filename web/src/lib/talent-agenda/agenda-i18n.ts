@@ -687,6 +687,7 @@ const ES: Record<string, string> = {
   "We could not load this booking": "No pudimos cargar esta reserva",
   "Nothing was changed. Go back and open it again.": "No se cambió nada. Vuelve y ábrela de nuevo.",
   Refunded: "Reembolsado",
+  "Still loading…": "Sigue cargando…",
   "No time": "Sin hora",
   "Set a time": "Asignar hora",
   "Not set yet": "Aún sin definir",
