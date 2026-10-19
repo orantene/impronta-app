@@ -40,6 +40,7 @@ src/lib/bookings/payment-booking.test.ts
 src/lib/bookings/policy-overrides.test.ts
 src/lib/bookings/quote-versions.test.ts
 src/lib/bookings/recurring.test.ts
+src/lib/bookings/transaction-transition-write.test.ts
 src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
