@@ -62,9 +62,15 @@ on:
 permissions:
   contents: read
 
+# A `labeled` event for any label other than `full-ci` does not change what this
+# workflow runs (the migrations job's `if` below skips it), so it gets its own
+# throwaway group: otherwise adding e.g. a "ready" label would cancel a 20 minute
+# in-flight run and replace it with a skipped one. Runs on main/production refs
+# are never cancelled (this workflow does not trigger on push, but the guard
+# keeps that true if a push trigger is ever added).
 concurrency:
-  group: talent-website-e2e-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: talent-website-e2e-${{ (github.event.action == 'labeled' && github.event.label.name != 'full-ci') && format('label-noop-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   migrations:
@@ -95,6 +101,33 @@ jobs:
           # version the lane cannot reproduce — a CLI release could change the
           # replay result with no commit here to explain it.
           version: 2.117.0
+
+      # Docker image cache for `supabase start` (see the comment above the start
+      # step). Keyed on the pinned CLI version (which fixes every image tag) and
+      # on config.toml (postgres major_version). Restored BEFORE the override
+      # step below so the hashed config is the committed one. A miss is normal
+      # (first run per key) and simply falls through to the registry pull.
+      - name: Compute Supabase image cache key
+        id: imgkey
+        run: echo "key=supabase-images-v1-cli2.117.0-${{ hashFiles('supabase/config.toml') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Supabase image cache
+        id: imgcache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.imgkey.outputs.key }}
+
+      - name: Load cached Supabase images
+        if: steps.imgcache.outputs.cache-hit == 'true'
+        run: |
+          start=$(date +%s)
+          ls -lh "$RUNNER_TEMP/supabase-images"
+          # A corrupt or partial cache must never fail the lane: fall through to
+          # the normal pull (and the retry loop) instead.
+          docker load -i "$RUNNER_TEMP/supabase-images/images.tar" || echo "::warning title=image cache::docker load failed, falling back to registry pull"
+          echo "docker load took $(( $(date +%s) - start ))s"
+          docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}'
 
       - name: CI-only config overrides (seed off, CLI migrations off)
         run: |
@@ -129,16 +162,31 @@ jobs:
       # spans six minutes of refills. A run that dies here measures the RUNNER,
       # not our fixtures, so it is worth spending minutes to avoid producing a
       # misleading number.
+      #
+      # IMAGE CACHE (since 2026-10-19): the images are cached across runs with
+      # actions/cache (restore + load above, docker save + save below), so a hit
+      # makes `supabase start` find every image locally and pull nothing, which
+      # removes the registry bucket from the critical path. Only images that were
+      # not already on the runner before `supabase start` are saved, i.e. exactly
+      # the ones the CLI pulled for the services started with the -x list below
+      # (db, auth, rest, storage, kong, mailpit, etc.; the heavy excluded ones
+      # such as studio, edge-runtime, logflare, vector and imgproxy are never
+      # pulled, so never cached). Size is a few GB, under the 10 GB repo limit.
       - name: Start local Supabase
+        id: start
         run: |
           set -o pipefail
           supabase --version
+          docker images --format '{{.Repository}}:{{.Tag}}' | sort -u > "$RUNNER_TEMP/images-before.txt"
+          pull_start=$(date +%s)
           # Retry the pull-heavy start: even authenticated, a transient registry
           # failure should cost 30 seconds, not the whole run.
           for attempt in 1 2 3 4 5; do
             if supabase start \
                  -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime; then
               echo "supabase start succeeded on attempt $attempt"
+              echo "supabase start took $(( $(date +%s) - pull_start ))s (image cache hit: ${{ steps.imgcache.outputs.cache-hit || 'false' }})"
+              echo "- supabase start: $(( $(date +%s) - pull_start ))s, attempt $attempt, image cache hit: ${{ steps.imgcache.outputs.cache-hit || 'false' }}" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             if [ "$attempt" -lt 5 ]; then
@@ -149,6 +197,30 @@ jobs:
           done
           echo "::error title=supabase start::failed 5 times over ~6 minutes. If the log shows toomanyrequests this is the shared ghcr bucket, NOT our code — the run proves nothing about the fixtures."
           exit 1
+
+      - name: Save Supabase images for the cache
+        id: save_images
+        # Right after a successful start (not at job end) so a later red test
+        # step cannot lose the cache. Skipped on a hit: keys are immutable.
+        if: steps.start.outcome == 'success' && steps.imgcache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/supabase-images"
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>' | sort -u > "$RUNNER_TEMP/images-after.txt"
+          comm -13 "$RUNNER_TEMP/images-before.txt" "$RUNNER_TEMP/images-after.txt" > "$RUNNER_TEMP/images-new.txt"
+          echo "Caching $(wc -l < "$RUNNER_TEMP/images-new.txt") images:"; cat "$RUNNER_TEMP/images-new.txt"
+          if [ ! -s "$RUNNER_TEMP/images-new.txt" ]; then echo "nothing to cache"; rm -rf "$RUNNER_TEMP/supabase-images"; exit 0; fi
+          docker save -o "$RUNNER_TEMP/supabase-images/images.tar" $(cat "$RUNNER_TEMP/images-new.txt")
+          ls -lh "$RUNNER_TEMP/supabase-images"
+          echo "saved=true" >> "$GITHUB_OUTPUT"
+
+      - name: Store Supabase image cache
+        if: steps.start.outcome == 'success' && steps.imgcache.outputs.cache-hit != 'true' && steps.save_images.outputs.saved == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.imgkey.outputs.key }}
 
       - name: psql client
         run: |
