@@ -8,14 +8,17 @@
  * workspaces. A person who trialed as a talent, or in any workspace they own
  * or belong to, gets no new trial by signing up another workspace or profile.
  */
-import type {
-  HistoryRead,
-  StripeSubscriptionLite,
-  SubscriptionHistoryRow,
+import {
+  stripeShowsPriorSubscription,
+  type HistoryRead,
+  type StripeSubscriptionLite,
+  type SubscriptionHistoryRow,
 } from "./trial-eligibility";
 
 /** How many history rows / Stripe subscriptions to look at. One is enough to refuse. */
 export const TRIAL_HISTORY_LIMIT = 20;
+/** Stripe pages read before giving up; hitting the cap with more left fails CLOSED. */
+export const TRIAL_HISTORY_MAX_PAGES = 10;
 
 /** Membership statuses that mean the person actually joined the workspace. */
 export const JOINED_MEMBERSHIP_STATUSES = ["active", "pending_acceptance", "suspended", "removed"];
@@ -31,9 +34,12 @@ export type HistoryDb = { from: (table: string) => { select: (cols: string) => D
 
 export type HistoryStripe = {
   subscriptions: {
-    list: (params: { customer: string; status: "all"; limit: number }) => Promise<{
-      data: StripeSubscriptionLite[];
-    }>;
+    list: (params: {
+      customer: string;
+      status: "all";
+      limit: number;
+      starting_after?: string;
+    }) => Promise<{ data: (StripeSubscriptionLite & { id: string })[]; has_more: boolean }>;
   };
 };
 
@@ -141,15 +147,31 @@ export async function readSubjectHistory(db: HistoryDb, subject: TrialHistorySub
   );
 }
 
-/** Every subscription the Stripe customer ever had (status "all"). */
+/**
+ * Every subscription the Stripe customer ever had (status "all"), paging until
+ * qualifying history is found or the list ends. One retry per page; a page that
+ * fails twice throws (the decision fails closed). Hitting the page cap with
+ * more pages left is an error, never "clean history".
+ */
 export async function readStripeSubscriptionHistory(
   stripe: HistoryStripe,
   customerId: string,
 ): Promise<HistoryRead<StripeSubscriptionLite>> {
-  const list = await stripe.subscriptions.list({
-    customer: customerId,
-    status: "all",
-    limit: TRIAL_HISTORY_LIMIT,
-  });
-  return { data: list.data, error: null };
+  const seen: StripeSubscriptionLite[] = [];
+  let startingAfter: string | undefined;
+  for (let page = 0; page < TRIAL_HISTORY_MAX_PAGES; page += 1) {
+    const params = {
+      customer: customerId,
+      status: "all" as const,
+      limit: TRIAL_HISTORY_LIMIT,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    };
+    const list = await stripe.subscriptions.list(params).catch(() => stripe.subscriptions.list(params));
+    seen.push(...list.data);
+    if (stripeShowsPriorSubscription(list.data)) return { data: seen, error: null };
+    const last = list.data.at(-1);
+    if (!list.has_more || !last) return { data: seen, error: null };
+    startingAfter = last.id;
+  }
+  return { data: null, error: new Error(`trial history: Stripe page cap (${TRIAL_HISTORY_MAX_PAGES}) hit`) };
 }

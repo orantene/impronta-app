@@ -36,6 +36,7 @@ import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
+import { singleOpenTrialSession } from "@/lib/billing/trial-checkout-session";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -216,6 +217,10 @@ export async function createWorkspaceCheckoutSession(opts: {
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
   const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId, buyerUserId: opts.buyerUserId }, customerResult.data, trialOffer);
 
+  const idempotencyKey = checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) });
+  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
+  const trialMarker = await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
   try {
     const session = await stripe.checkout.sessions.create({
       customer: customerResult.data,
@@ -230,6 +235,7 @@ export async function createWorkspaceCheckoutSession(opts: {
         plan_key: opts.planKey,
         billing_interval: price.interval,
         checkout_type: "workspace_subscription",
+        ...trialMarker,
       },
       subscription_data: {
         metadata: {
@@ -250,7 +256,7 @@ export async function createWorkspaceCheckoutSession(opts: {
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per workspace per plan; a second session risks a second sub.
-    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
+    { idempotencyKey });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };

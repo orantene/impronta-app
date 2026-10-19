@@ -95,7 +95,7 @@ test("Stripe read fails on a clean DB: fail closed, no trial, error logged", asy
   const { d, calls } = deps({ stripe: new Error("ECONNRESET") });
   assert.equal(await decideCheckoutTrialDays(OFFER, d), null);
   assert.deepEqual(calls.errors, ["billing.trialEligibility.stripe"]);
-  assert.equal(calls.stripe, 2, "one retry before failing closed");
+  assert.equal(calls.stripe, 1, "retries live per page in the Stripe reader");
 });
 
 test("both reads fail: no trial, logged, and the decision still resolves (checkout proceeds)", async () => {
@@ -191,7 +191,7 @@ test("Stripe reader lists every status for the customer (read-only list call)", 
     subscriptions: {
       list: async (p: { customer: string; status: "all"; limit: number }) => {
         params.push(p);
-        return { data: [{ status: "canceled", trial_start: 1 }] };
+        return { data: [{ id: "sub_1", status: "canceled", trial_start: 1 }], has_more: false };
       },
     },
   };

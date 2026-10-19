@@ -27,6 +27,7 @@ src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
+src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
 src/lib/bookings/booking-payment-sync.test.ts

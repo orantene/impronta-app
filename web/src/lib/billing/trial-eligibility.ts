@@ -10,8 +10,8 @@
  * Sources of truth, in order:
  *   1. our own subscription rows: one trial per USER across talent and every
  *      workspace they joined (see trial-eligibility-readers.ts)
- *   2. the Stripe customer's subscription list (status "all"; checkout only,
- *      one retry); display surfaces pass no Stripe reader
+ *   2. the Stripe customer's subscription list (status "all", paged; checkout only,
+ *      one retry per page); display surfaces pass no Stripe reader
  * Fail CLOSED: a read that errors grants NO trial (checkout still proceeds,
  * the buyer simply pays from day one). Pure apart from the injected readers.
  */
@@ -104,9 +104,8 @@ export async function decideCheckoutTrialDays(
   if (dbShowsPriorSubscription(db.data)) return null;
 
   if (deps.readStripeHistory) {
-    // One retry on a transient Stripe error before failing closed.
-    let stripe = await safeRead(deps.readStripeHistory);
-    if (stripe.error) stripe = await safeRead(deps.readStripeHistory);
+    // The Stripe reader retries each page once itself; an error here fails closed.
+    const stripe = await safeRead(deps.readStripeHistory);
     if (stripe.error) {
       deps.onError("billing.trialEligibility.stripe", stripe.error);
       return null;

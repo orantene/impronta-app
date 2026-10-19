@@ -32,6 +32,7 @@ import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
+import { singleOpenTrialSession } from "@/lib/billing/trial-checkout-session";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -212,6 +213,10 @@ export async function createTalentCheckoutSession(opts: {
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
   const trialDays = await checkoutTrialDays({ kind: "talent", talentProfileId: opts.talentProfileId, userId: opts.userId }, customerResult.data, trialOffer);
 
+  const idempotencyKey = checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) });
+  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
+  const trialMarker = await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
   try {
     const session = await stripe.checkout.sessions.create({
       customer: customerResult.data,
@@ -228,6 +233,7 @@ export async function createTalentCheckoutSession(opts: {
         plan_key:          opts.planKey,
         billing_interval:  price.interval,
         checkout_type:     "talent_subscription",
+        ...trialMarker,
       },
       subscription_data: {
         metadata: {
@@ -245,7 +251,7 @@ export async function createTalentCheckoutSession(opts: {
     },
     // Idempotency: a double submit must not mint a SECOND Checkout session.
     // One subscription per talent profile per plan; a second session risks a second sub.
-    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
+    { idempotencyKey });
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
