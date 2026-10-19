@@ -170,7 +170,7 @@ function unguardedUses(file: string, rawSource: string, guarded: Map<string, Set
   if (SYSTEM_EXEMPT[file]) return [];
   // Comments blanked; import / re-export statements removed (a name in an
   // import list is not a call).
-  const src = blankComments(rawSource).replace(/^\s*(?:import|export)\s[^;]*?\sfrom\s*["'][^"']+["'];?/gms, "");
+  const src = blankComments(rawSource).replace(/^\s*(?:import|export)\s[^;]*?\sfrom\s*["'][^"']+["'];?/gm, "");
   const offenders: string[] = [];
   for (const m of src.matchAll(MOVERS)) {
     const at = m.index ?? 0;
