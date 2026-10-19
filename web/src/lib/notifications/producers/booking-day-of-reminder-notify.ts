@@ -24,13 +24,14 @@ import type { DispatchResult } from "@/lib/notifications/types";
  */
 export function notifyBookingDayOfReminder(params: {
   tenantId: string;
-  inquiryId: string;
+  /** Null for a booking made straight on the engine (G1): it is reminded through its own contact and booked talent. */
+  inquiryId: string | null;
   bookingId: string;
 }): Promise<DispatchResult> {
   return dispatchEventNotifications({
     type: "booking.day_of_reminder",
     tenantId: params.tenantId,
-    inquiryId: params.inquiryId,
+    ...(params.inquiryId ? { inquiryId: params.inquiryId } : {}),
     bookingId: params.bookingId,
     eventId: `booking-reminder:${params.bookingId}`,
     payload: { bookingId: params.bookingId },

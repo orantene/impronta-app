@@ -27,6 +27,7 @@ src/lib/onboarding/plan-intent.test.ts
 src/lib/orders/order-principal.test.ts
 src/lib/payments/failed-refund-attention.test.ts
 src/lib/payments/paid-after-cancel.test.ts
+src/lib/pricing/pricing-audience.test.ts
 src/lib/pricing/pricing-plan-redirect.test.ts
 src/lib/saas/roster-seat-limit.security.test.ts
 src/lib/server-actions/no-db-on-guard-fail.contract.test.ts

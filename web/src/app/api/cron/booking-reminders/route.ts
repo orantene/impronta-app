@@ -145,10 +145,9 @@ async function bookingsForSweep(
 
   if (error) return { scanned: [], eligible: [], error: error.message };
   const scanned = (data ?? []) as BookingRow[];
-  const eligible = scanned.filter(
-    (row) =>
-      row.source_inquiry_id && bookingIsOnLocalDay(row, sweep.tomorrowYmd, sweep.timezone),
-  );
+  // G1: every live booking is reminded, with or without a source inquiry. One
+  // made straight on the engine carries its own contact and booked talent.
+  const eligible = scanned.filter((row) => bookingIsOnLocalDay(row, sweep.tomorrowYmd, sweep.timezone));
   return { scanned, eligible, error: null };
 }
 
@@ -197,7 +196,7 @@ export async function GET(request: Request) {
         eligible.map((r) =>
           notifyBookingDayOfReminder({
             tenantId: r.tenant_id,
-            inquiryId: r.source_inquiry_id as string,
+            inquiryId: r.source_inquiry_id,
             bookingId: r.id,
           }),
         ),

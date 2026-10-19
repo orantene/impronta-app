@@ -23,7 +23,17 @@ import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { ActionButton, Outcome, StatePill, UsedIn } from "../appointments-classes-ui";
 import type { CatalogNav } from "./CatalogPage";
 import { houseNotBookableReason } from "@/lib/booking/house-booking-reasons";
-import { ITEM_TABS, PUBLISH_BLOCKER_KEY, itemType, publishBlockers, type ItemTab } from "./catalog-model";
+import {
+  ITEM_TABS,
+  PUBLISH_BLOCKER_KEY,
+  PUBLISH_WARNING_KEY,
+  canSaveDraftInPlace,
+  draftSeedFor,
+  itemType,
+  publishBlockers,
+  publishWarnings,
+  type ItemTab,
+} from "./catalog-model";
 import { TabStrip } from "./catalog-ui";
 import { DetailsTab } from "./item-tab-details";
 import { PricingTab, PricingSide } from "./item-tab-pricing";
@@ -86,6 +96,8 @@ export function CatalogItemEditor({
 
   const blockers = publishBlockers(item).map((code) => t(PUBLISH_BLOCKER_KEY[code]));
   const canPublish = blockers.length === 0;
+  const warnings = publishWarnings(item).map((code) => t(PUBLISH_WARNING_KEY[code]));
+  const showSaveDraft = canSaveDraftInPlace(item, isDraft);
   // A workspace (house) service has no provider calendar, so the public slots
   // route has no times for it. Say so, with the fix (Services Phase 0 item 6).
   const notBookable = item.ownerKind === "workspace" ? houseNotBookableReason(item) : null;
@@ -94,7 +106,7 @@ export function CatalogItemEditor({
     if (isDraft) {
       // The hook validates and inserts the draft it holds, with the status
       // applied on top so the insert carries it.
-      const saved = await editor.saveDraft({ status });
+      const saved = await editor.saveDraft(status === "draft" ? draftSeedFor(item) : { status });
       if (saved) {
         nav.go({ item: saved.id, tab: nav.tab });
         editor.setDraft(null);
@@ -183,9 +195,11 @@ export function CatalogItemEditor({
               <ActionButton reason={t("dashboard.catalog.editor.previewReason")} testId="catalog-preview-pos">
                 {t("dashboard.catalog.editor.previewPos")}
               </ActionButton>
-              <ActionButton onClick={() => void persist("draft")} disabled={editor.saving} testId="catalog-save-draft">
-                {t("dashboard.catalog.editor.saveDraft")}
-              </ActionButton>
+              {showSaveDraft ? (
+                <ActionButton onClick={() => void persist("draft")} disabled={editor.saving} testId="catalog-save-draft">
+                  {t("dashboard.catalog.editor.saveDraft")}
+                </ActionButton>
+              ) : null}
               <ActionButton
                 tone="primary"
                 onClick={() => void persist("published")}
@@ -200,6 +214,11 @@ export function CatalogItemEditor({
           {editor.error ? (
             <Outcome kind="refused" testId="catalog-editor-refusal">
               {editor.error}
+            </Outcome>
+          ) : null}
+          {canPublish && warnings.length > 0 ? (
+            <Outcome kind="note" testId="catalog-publish-warnings">
+              {warnings.join(" ")}
             </Outcome>
           ) : null}
           {notBookable ? (
