@@ -35,15 +35,47 @@ const EXTRAS: DemoRegistryEntry[] = [
   { design: "folio", profileCode: "TAL-93007", palette: "current", reference: false, keepLook: true, contentFixture: "TAL-93007" },
 ];
 
-export const DEMO_REGISTRY: readonly DemoRegistryEntry[] = [
+const CANONICAL: readonly DemoRegistryEntry[] = [
   ...REFERENCES,
   ...EXTRAS.filter((d) => !REFERENCES.some((r) => r.profileCode === d.profileCode)),
   ...FROM_THEME_DEMOS.filter((d) => ![...REFERENCES, ...EXTRAS].some((r) => r.profileCode === d.profileCode)),
 ];
 
-/** Demos of one design (all designs when omitted). */
+/**
+ * STAGING-CODE ALIASES (TUL-890 / TUL-537 A3). On staging (fxlank) these demo
+ * talents live under staging-only codes because their canonical codes belong to
+ * unrelated QA talents there. Each alias is the canonical entry (same design,
+ * palette, content fixture) under the staging code, with `copyFrom` = canonical
+ * code, so a rebuild produces the canonical demo's site. On production the
+ * staging codes do not exist, so the guard refuses them ("profile not found").
+ * Never alias Jor (TAL-93938).
+ */
+export const STAGING_ALIASES: ReadonlyArray<{ profileCode: string; copyFrom: string }> = [
+  { profileCode: "TAL-97001", copyFrom: MATEO_CODE }, // Mateo Ferrer, folio
+  { profileCode: "TAL-97002", copyFrom: ALBA_CODE }, // Alba, maison-v2
+  { profileCode: "TAL-97003", copyFrom: "TAL-93103" }, // Linh Tran, maison-v2
+];
+
+const ALIASES: DemoRegistryEntry[] = STAGING_ALIASES.flatMap(({ profileCode, copyFrom }) => {
+  const canonical = CANONICAL.find((d) => d.profileCode === copyFrom);
+  if (!canonical || copyFrom === "TAL-93938" || profileCode === "TAL-93938") return [];
+  return [{ ...canonical, profileCode, copyFrom, reference: false }];
+});
+
+export const DEMO_REGISTRY: readonly DemoRegistryEntry[] = [...CANONICAL, ...ALIASES];
+
+/**
+ * Demos of one design (all designs when omitted). Staging aliases are left out:
+ * pickers, counts and full rebuilds see only canonical demos; an alias is rebuilt
+ * when named in `only` (and `findDemo` / the guard know it).
+ */
 export function demosFor(design?: DemoDesign): DemoRegistryEntry[] {
-  return DEMO_REGISTRY.filter((d) => !design || d.design === design);
+  return DEMO_REGISTRY.filter((d) => !d.copyFrom && (!design || d.design === design));
+}
+
+/** PURE: the code whose demo CONTENT (copy, styles, fixtures, facts, apps, switches) an entry or spec uses. */
+export function demoContentCode(d: { profileCode: string; copyFrom?: string }): string {
+  return d.copyFrom ?? d.profileCode;
 }
 
 export function findDemo(profileCode: string): DemoRegistryEntry | undefined {

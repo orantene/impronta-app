@@ -27,6 +27,7 @@ import { folioSiteCopyFor } from "./folio-site-copy";
 import { demoSiteSwitchColumns } from "./demo-site-settings";
 import { placeDemoApps } from "./app-placement";
 import { applyDemoSiteCopy } from "./site-copy";
+import { demoContentCode } from "./registry";
 import type { DemoDesign } from "./types";
 import { sameStable } from "./stable";
 
@@ -41,6 +42,11 @@ export interface DemoSpec {
   keepLook?: boolean;
   /** Content fixture key (registry `contentFixture`): Gridline fills its empty node text from it. */
   contentFixture?: string;
+  /**
+   * Registry `copyFrom` (staging-code alias, TUL-890): profile code whose demo
+   * content/copy/style this spec uses; identity stays `profileCode`.
+   */
+  copyFrom?: string;
 }
 
 type Row = Record<string, unknown> & { id: string };
@@ -198,7 +204,9 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
   if (!keepLook && !gallery?.palettes.some((p) => p.key === spec.palette)) {
     throw new Error(`${spec.design} has no palette ${spec.palette}`);
   }
-  const style = spec.design === "maison-v2" ? MAISON_V2_DEMO_STYLES[spec.profileCode] : undefined;
+  // Content lookups use the content code (an alias's canonical demo); identity and error labels keep profileCode.
+  const contentCode = demoContentCode(spec);
+  const style = spec.design === "maison-v2" ? MAISON_V2_DEMO_STYLES[contentCode] : undefined;
   const catalogLook = keepLook ? null : spec.design === "folio" ? await loadMaisonCatalogRow(admin, "look", `folio-${spec.palette}`) : null;
   const styled = style && !keepLook ? styleLook(style, spec.palette, spec.profileCode) : null;
   const galleryTokens = keepLook ? null : catalogLook ? null : (styled?.look ?? galleryPaletteLookTokens(spec.design, spec.palette));
@@ -214,13 +222,13 @@ export async function planDemoDesign(admin: SupabaseClient, spec: DemoSpec, rows
     !style && spec.design === "gridline" && !!spec.contentFixture
       ? ((await gridlineCopiedTrees(admin, tp.id, spec.contentFixture, built)) as Trees)
       : !style && spec.design === "folio"
-        ? (folioCopiedTrees(built, spec.profileCode) as Trees)
+        ? (folioCopiedTrees(built, contentCode) as Trees)
         : null;
   const styledTrees = style
     ? styleTrees(built, style, await loadMedia(admin, tp.id), spec.profileCode)
     : (copied ?? { shellTree: built.shellTree, homeTree: built.homeTree });
   // Trade apps (Nail Designer on nails demos) are demo content placed after the Menu band, never a design default.
-  const apps = placeDemoApps(styledTrees.homeTree as never, spec);
+  const apps = placeDemoApps(styledTrees.homeTree as never, { design: spec.design, profileCode: contentCode });
   const trees: Trees = apps.placed ? { ...styledTrees, homeTree: apps.tree as never } : styledTrees;
   const nextTokens = {
     ...(keepLook
@@ -298,7 +306,8 @@ export async function writeDemoDraft(
       pending_design: null,
       draft_updated_at: now,
       updated_at: now,
-      ...demoSiteSwitchColumns(spec.profileCode),
+      // Booking / inquiry / chat switches are part of the demo's content (what the site shows), so an alias copies them.
+      ...demoSiteSwitchColumns(demoContentCode(spec)),
     })
     .eq("id", site.id)
     .eq("talent_profile_id", tp.id);
