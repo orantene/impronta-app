@@ -71,20 +71,10 @@ async function proxyInner(request: NextRequest) {
   // up front. The proxy is the only writer of these; resetting them here means even the
   // short-circuit's `NextResponse.next()` forwards a request the client could not have forged.
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
-  // Compile-time flag (next.config) covers `next dev` where Edge inlines
-  // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
-  // `VERCEL_ENV=preview npx next start` after a production compile. Host
-  // is never a gate. Route handlers still 403 outside dev/preview.
-  // Each variable is read by its literal name so Edge can inline it at build time (next.config injects
-  // TULALA_ALLOW_DEV_SURFACES); passing `process.env` as a whole would read an empty object there.
-  // The rule itself lives in dev-surfaces.ts; the Host header only counts off Vercel (TUL-1269).
+  // Dev surfaces: the rule is in dev-surfaces.ts (Host only counts off Vercel, TUL-1269). Every env var is
+  // read by its LITERAL name here so Edge can inline it (next.config injects TULALA_ALLOW_DEV_SURFACES).
   const allowDevSurfaces = allowDevSurfacesFor(
-    {
-      TULALA_ALLOW_DEV_SURFACES: process.env.TULALA_ALLOW_DEV_SURFACES,
-      NODE_ENV: process.env.NODE_ENV,
-      VERCEL_ENV: process.env.VERCEL_ENV,
-      VERCEL: process.env.VERCEL,
-    },
+    { TULALA_ALLOW_DEV_SURFACES: process.env.TULALA_ALLOW_DEV_SURFACES, NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, VERCEL: process.env.VERCEL },
     request.headers.get("host"),
   );
 

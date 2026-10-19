@@ -65,3 +65,12 @@ test("dev surfaces: a client Host header never opens them on Vercel production",
   assert.equal(allowDevSurfacesFor({ NODE_ENV: "production" }, "harness.local:3102"), true, "isolated harness off Vercel");
   assert.equal(allowDevSurfacesFor({ NODE_ENV: "production" }, "app.tulala.digital"), false);
 });
+
+test("INVARIANT proxy.ts keeps every dev-surface env read as a literal (Edge inlining) and stays within max-lines", () => {
+  const src = readFileSync(join(process.cwd(), "src/proxy.ts"), "utf8");
+  for (const name of ["TULALA_ALLOW_DEV_SURFACES", "NODE_ENV", "VERCEL_ENV", "VERCEL"]) {
+    assert.match(src, new RegExp(`${name}: process\\.env\\.${name}\\b`), `${name} read by literal name`);
+  }
+  assert.doesNotMatch(src, /allowDevSurfacesFor\(process\.env/);
+  assert.ok(src.split("\n").length <= 800, "proxy.ts must stay within the 800-line ESLint max-lines cap");
+});
