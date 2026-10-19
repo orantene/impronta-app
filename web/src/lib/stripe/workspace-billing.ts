@@ -36,6 +36,7 @@ import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
+import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
 import { singleOpenTrialSession } from "@/lib/billing/trial-checkout-session";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
@@ -217,46 +218,53 @@ export async function createWorkspaceCheckoutSession(opts: {
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
   const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId, buyerUserId: opts.buyerUserId }, customerResult.data, trialOffer);
 
-  const idempotencyKey = checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) });
-  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
-  const trialMarker = await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
-
-  try {
-    const session = await stripe.checkout.sessions.create({
-      customer: customerResult.data,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success${returnQuery(opts.returnToken)}`,
-      cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
-      // Show Checkout in the owner's app language, not their browser's.
-      locale: stripeCheckoutLocale(opts.locale),
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    customer: customerResult.data,
+    mode: "subscription",
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success${returnQuery(opts.returnToken)}`,
+    cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
+    // Show Checkout in the owner's app language, not their browser's.
+    locale: stripeCheckoutLocale(opts.locale),
+    metadata: {
+      tenant_id: opts.tenantId,
+      plan_key: opts.planKey,
+      billing_interval: price.interval,
+      checkout_type: "workspace_subscription",
+    },
+    subscription_data: {
       metadata: {
         tenant_id: opts.tenantId,
         plan_key: opts.planKey,
         billing_interval: price.interval,
         checkout_type: "workspace_subscription",
-        ...trialMarker,
+        // Read back by the webhook so a redemption records WHO, not just
+        // which workspace. Omitted rather than sent empty when unknown.
+        ...(opts.buyerUserId ? { user_id: opts.buyerUserId } : {}),
       },
-      subscription_data: {
-        metadata: {
-          tenant_id: opts.tenantId,
-          plan_key: opts.planKey,
-          billing_interval: price.interval,
-          checkout_type: "workspace_subscription",
-          // Read back by the webhook so a redemption records WHO, not just
-          // which workspace. Omitted rather than sent empty when unknown.
-          ...(opts.buyerUserId ? { user_id: opts.buyerUserId } : {}),
-        },
-        ...trialParams(trialDays),
-      },
-      ...discount.params,
-      // Adaptive Pricing: Stripe converts the USD price to the customer's local
-      // currency (subscription mode cannot force `currency` off the Price's USD).
-      adaptive_pricing: { enabled: true },
+      ...trialParams(trialDays),
     },
-    // Idempotency: a double submit must not mint a SECOND Checkout session.
-    // One subscription per workspace per plan; a second session risks a second sub.
-    { idempotencyKey });
+    ...discount.params,
+    // Adaptive Pricing: Stripe converts the USD price to the customer's local
+    // currency (subscription mode cannot force `currency` off the Price's USD).
+    adaptive_pricing: { enabled: true },
+  };
+  // TUL-1280 retest: the key follows the exact params (a trial decided differently after a cancel
+  // must not reuse the key; Stripe rejects that). Identical params still dedupe a double submit.
+  const idempotencyKey = checkoutSessionKey(
+    checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }),
+    sessionParams,
+  );
+  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
+  const trialMarker = await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
+  try {
+    const session = await stripe.checkout.sessions.create(
+      { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialMarker } },
+      // Idempotency: a double submit must not mint a SECOND Checkout session.
+      // One subscription per workspace per plan; a second session risks a second sub.
+      { idempotencyKey },
+    );
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
