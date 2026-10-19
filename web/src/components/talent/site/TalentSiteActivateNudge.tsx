@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
-import { loadTalentSiteActivationStateAction } from "@/lib/talent-site/server/site-activation-state";
+import { readTalentDashboard } from "@/lib/talent/dashboard-reads";
 import { talentSiteHost } from "@/lib/talent-site/site-public-url";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 
@@ -46,14 +46,15 @@ export function TalentSiteActivateNudge({ onOpenSite }: { onOpenSite: () => void
 
   useEffect(() => {
     let live = true;
-    void loadTalentSiteActivationStateAction().then((s) => {
+    // TUL-1274: a GET, not a server action: an action on mount could refetch the whole tree.
+    void readTalentDashboard("site-activation").then((s) => {
       if (!live || !s) return;
       if (s.canManage && !s.isPublished) {
         setShow(true);
         setStarted(s.hasSite);
         setSiteSlug(s.siteSlug);
       }
-    });
+    }).catch(() => undefined);
     return () => {
       live = false;
     };

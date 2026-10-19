@@ -43,6 +43,7 @@ import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fa
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadUserPrefs, type UserPrefs } from "@/lib/server-actions/user-prefs";
 import { TalentShellClient } from "@/components/admin/shell/admin-shell-client";
+import { TalentLayoutFrame } from "./_talent-layout-frame";
 import { SupportLauncherShellMount } from "@/components/support/SupportLauncherShellMount";
 import type { TalentPage } from "@/components/admin/shell/internal/state";
 import { loadTenantIdentity, loadProfileDisplayName, type TenantIdentityPayload } from "../[tenantSlug]/_layout-identity";
@@ -219,7 +220,8 @@ export async function TalentLayoutInner({
     // Hand the page the children without shell so the route can still run;
     // a later navigation reloads the shell once the profile is readable.
     if (isTalentRoot || pathname.startsWith("/talent/")) {
-      return <>{children}</>;
+      // TUL-1274: same frame as the shell, so a refresh that misses keeps the shell mounted.
+      return <TalentLayoutFrame mode="degraded">{children}</TalentLayoutFrame>;
     }
     notFound();
   }
@@ -228,7 +230,7 @@ export async function TalentLayoutInner({
   // /talent/today (which runs the full shell loads once), so running ~20 dashboard reads here
   // only to throw the result away on that redirect doubled the sign-in cost.
   if (isTalentRoot) {
-    return <>{children}</>;
+    return <TalentLayoutFrame mode="passthrough">{children}</TalentLayoutFrame>;
   }
 
   // TUL-1240: the shell wave below used to start only after three serial hops (agency
@@ -296,9 +298,11 @@ export async function TalentLayoutInner({
       // Route Handler inside the post-sign-in soft navigation makes the client router
       // re-apply it (the admin twin looped hundreds of times). The skeleton paints meanwhile.
       return (
+        <TalentLayoutFrame mode="passthrough">
         <LocaleSeedHardRedirect attemptCookie={TALENT_LOCALE_SEED_ATTEMPT_COOKIE} href={talentLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`)}>
           <TalentShellSkeleton />
         </LocaleSeedHardRedirect>
+        </TalentLayoutFrame>
       );
     }
   }
@@ -489,6 +493,7 @@ export async function TalentLayoutInner({
   const actingAsCopy = actingAs ? talentActingAsBannerCopy(requestLocale, actingAs.name) : null;
 
   return (
+    <TalentLayoutFrame mode="shell">
     <DashboardLocaleProvider locale={requestLocale}>
     {actingAs && actingAsCopy ? (
       <ImpersonationBanner
@@ -608,5 +613,6 @@ export async function TalentLayoutInner({
     </TalentShellClient>
     </TalentSiteDashboardProvider>
     </DashboardLocaleProvider>
+    </TalentLayoutFrame>
   );
 }

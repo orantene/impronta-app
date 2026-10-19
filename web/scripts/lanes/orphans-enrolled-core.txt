@@ -5,8 +5,10 @@ src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
 src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
+src/app/(workspace)/talent/talent-layout-frame.render.test.tsx
 src/app/(workspace)/talent/talent-layout-perf-trace.static.test.ts
 src/app/start/layout-landmark.static.test.ts
+src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
 src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
 src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.render.test.tsx
@@ -79,6 +81,8 @@ src/lib/talent-taxonomy-service.test.ts
 src/lib/talent/clients-badge.test.ts
 src/lib/talent/clients-directory.test.ts
 src/lib/talent/clients-initial.test.ts
+src/lib/talent/dashboard-mount-reads.static.test.ts
+src/lib/talent/dashboard-reads.test.ts
 src/lib/talent/format-count.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/offerings-load-parallel.static.test.ts
