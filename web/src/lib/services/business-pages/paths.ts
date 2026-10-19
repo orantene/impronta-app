@@ -56,12 +56,20 @@ export function businessServicePathWithoutLocale(locale: string, slug: string): 
   return `/${businessServiceSegment(locale)}/${slug}`;
 }
 
-/** Gate check on a locale- and tenant-stripped path: exactly `/(services|servicios)/<slug>`. */
+/**
+ * Gate check on a locale- and tenant-stripped path: exactly `/(services|servicios)/<words>-<id8>`.
+ * The id8 is required: `/services/photography` is a nested CMS page (clean URLs) and must keep
+ * rewriting to the CMS catch-all.
+ */
 export function isBusinessServicePagePath(pathname: string): boolean {
   const parts = pathname.split("/");
   if (parts.length !== 3 || parts[0] !== "") return false;
   const [, segment, slug] = parts;
-  return (segment === BUSINESS_SERVICE_SEGMENTS.en || segment === BUSINESS_SERVICE_SEGMENTS.es) && ANY_SLUG.test(slug ?? "");
+  return (
+    (segment === BUSINESS_SERVICE_SEGMENTS.en || segment === BUSINESS_SERVICE_SEGMENTS.es) &&
+    ANY_SLUG.test(slug ?? "") &&
+    parseBusinessServiceSlug(slug) !== null
+  );
 }
 
 export type BusinessServiceRoute =

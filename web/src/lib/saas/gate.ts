@@ -10,6 +10,7 @@ import { HUB_API_EXACT_PATHS, HUB_API_PREFIXES, AGENCY_API_PREFIXES, AGENCY_BLOG
 import { anyExact, anyPrefix, hasPrefix } from "./path-utils";
 import { isWorkspaceSlugPath } from "./reserved-slugs";
 import { isBusinessServicePagePath } from "@/lib/services/business-pages/paths";
+import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 
 /**
  * True when `pathname` is permitted on `kind`. `pathname` must be locale-
@@ -45,8 +46,10 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, CANONICAL_RECEIPT_PREFIX)) return kind === "agency" || kind === "hub";
   // TUL-1272 #5: one business service page, `/services/<slug>` or `/servicios/<slug>`.
   // Two segments only: a CMS page may own the single-segment `/servicios` list.
-  // Business (agency) hosts only, never the hub (ruling 2026-10-19).
-  if (isBusinessServicePagePath(pathname)) return kind === "agency";
+  // Business (agency) hosts only, never the hub (ruling 2026-10-19). Only while the presentation
+  // flag is on (flag off = exactly main: the CMS catch-all keeps these paths), and only slugs that
+  // carry the id8 (nested CMS pages like `/services/photography` stay the CMS's).
+  if (kind === "agency" && servicePresentationResolverEnabled() && isBusinessServicePagePath(pathname)) return true;
   // TUL-1252: the pay page is looked up by code alone (the code is the
   // credential), so the platform app host serves it too. The client account
   // lives on app.<domain>; its "Pagar ahora" links are relative and 404'd there.
