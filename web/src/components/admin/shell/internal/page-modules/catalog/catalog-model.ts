@@ -151,8 +151,8 @@ export function canSaveDraftInPlace(o: Pick<TalentOffering, "status">, isNew: bo
 /**
  * TUL-1271 #7 — the deeper "Before publish" checks, said as warnings: they do
  * not stop a Publish (an owner may sell without a photo), but they name what
- * the shop will look like. `channel` flags a request-only item, which the
- * counter and the QR menu will not sell.
+ * the shop will look like. `channel` flags a price-on-request item: it is public
+ * (D-10a), shown without a price on the site, and still sellable at the counter.
  */
 export type PublishWarning = "photo" | "category" | "channel";
 
