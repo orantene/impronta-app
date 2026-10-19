@@ -18,7 +18,8 @@ import WorkspaceAssignmentTimedOut from "../../../emails/workspace/AssignmentTim
 import WorkspaceTalentDeclined from "../../../emails/workspace/TalentDeclined";
 import InquiryCancelledEmail from "../../../emails/notifications/InquiryCancelled";
 import DigestEmail from "../../../emails/notifications/Digest";
-import type { CatalogEntry } from "./types";
+import type { CatalogEntry, NotificationEvent } from "./types";
+import { buildBookingCalendarAttachment } from "./booking-service-facts";
 import {
   allRosterTalent,
   assignedCoordinator,
@@ -269,6 +270,40 @@ const OFFER_PENDING_APPROVAL_WORKSPACE: CatalogEntry = {
   },
 };
 
+/** The client's manage link for a confirmed booking (email button and .ics URL). */
+function clientBookingUrl(
+  event: NotificationEvent,
+  brand: Parameters<typeof clientManageUrl>[0],
+): string {
+  const bookingId = str(event.payload.bookingId);
+  return clientManageUrl(
+    brand,
+    bookingId,
+    bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
+    undefined,
+    { inquiryId: event.inquiryId, tenantId: event.tenantId },
+  );
+}
+
+/** G1: the confirmation's ONE calendar file (client only; null without a start time). */
+function clientBookingCalendar(event: NotificationEvent, brand: Parameters<typeof clientManageUrl>[0]) {
+  const bookingId = str(event.payload.bookingId);
+  if (!bookingId) return null;
+  const minutes = Number(event.payload.durationMinutes);
+  return buildBookingCalendarAttachment({
+    bookingId,
+    serviceName: str(event.payload.serviceName) ?? null,
+    sellerName: str(event.payload.sellerName) ?? brand.accountName ?? null,
+    startsAt: str(event.payload.startsAt) ?? null,
+    endsAt: str(event.payload.endsAt) ?? null,
+    durationMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : null,
+    address: str(event.payload.eventLocation) ?? null,
+    policyLabel: str(event.payload.policyLabel) ?? null,
+    url: clientBookingUrl(event, brand),
+    locale: brand.locale ?? null,
+  });
+}
+
 /** booking.confirmed (emitted at payment) → client confirmation. */
 const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
   id: "booking.confirmed.client",
@@ -281,8 +316,11 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
   email: {
     templateId: "client.booking_confirmed",
     subject: () => "Booking confirmed",
+    attachments: ({ event, brand }) => {
+      const ics = clientBookingCalendar(event, brandForSeller(brand, str(event.payload.sellerName)));
+      return ics ? [ics] : [];
+    },
     render: ({ event, recipient, brand, unsubscribeUrl }) => {
-      const bookingId = str(event.payload.bookingId);
       const sellerBrand = brandForSeller(brand, str(event.payload.sellerName));
       return React.createElement(ClientBookingConfirmed, {
         clientName: recipient.displayName ?? str(event.payload.contactName),
@@ -291,13 +329,11 @@ const BOOKING_CONFIRMED_CLIENT: CatalogEntry = {
         eventLocation: str(event.payload.eventLocation),
         serviceName: str(event.payload.serviceName),
         priceLabel: str(event.payload.priceLabel),
-        bookingUrl: clientManageUrl(
-          brand,
-          bookingId,
-          bookingId ? `/client/bookings/${bookingId}` : `/client/inquiries/${event.inquiryId}`,
-          undefined,
-          { inquiryId: event.inquiryId, tenantId: event.tenantId },
-        ),
+        durationLabel: str(event.payload.durationLabel),
+        timeZoneLabel: str(event.payload.timeZoneName),
+        policyLabel: str(event.payload.policyLabel),
+        hasCalendarFile: Boolean(clientBookingCalendar(event, sellerBrand)),
+        bookingUrl: clientBookingUrl(event, brand),
         sellerName: sellerBrand.accountName,
         brand: sellerBrand,
         unsubscribeUrl,

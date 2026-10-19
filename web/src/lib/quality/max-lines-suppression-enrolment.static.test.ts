@@ -102,7 +102,6 @@ const NOT_YET_ENROLLED: readonly string[] = [
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/EditorSections.tsx",
   "src/lib/site-admin/edit-mode/starter-action.ts",
   "src/app/(workspace)/[tenantSlug]/client/messages/DetailsTab.tsx",
-  "src/components/talent/services/TalentOfferingsManager.tsx",
   "src/components/admin/shell/internal/messages/shared/machinery-16.tsx",
   "src/lib/site-admin/builder-node/operations.test.ts",
   "src/lib/site-admin/sections/shared/section-template-starters.ts",
