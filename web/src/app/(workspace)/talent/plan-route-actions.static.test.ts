@@ -30,13 +30,20 @@ test("BILL-B: the plan page parses the intent on the server and passes it as a p
   assert.match(page, /<TalentPlanRouteOpener intent=\{intent\} \/>/);
 });
 
-test("BILL-B: the opener calls the upgrade action once per mount and reads no URL intent", () => {
+test("BILL-B + TUL-831: the opener has one upgrade call site, joins the run in flight, and retries an aborted call", () => {
   const opener = read("plan/_talent-plan-route-opener.tsx");
   assert.doesNotMatch(opener, /readPlanIntentFromUrl/);
   const calls = opener.match(/startTalentUpgrade\(/g) ?? [];
   assert.equal(calls.length, 1, "exactly one startTalentUpgrade call site");
-  const effect = opener.slice(opener.indexOf("useEffect(() => {"), opener.indexOf("startTalentUpgrade("));
-  assert.match(effect, /if \(ran\.current \|\| !openDrawer\) return;\s*ran\.current = true;/);
+  // TUL-831 (downgrade confirm never opened): the guard is "an outcome was
+  // applied", not "the action was fired". A fired-but-aborted action used to
+  // leave a one-shot guard set with nothing ever retrying.
+  assert.doesNotMatch(opener, /ran\.current = true/);
+  assert.match(opener, /sharedPlanIntentStart\(\s*planIntentRunKey\(/);
+  assert.match(opener, /if \(!live \|\| done\.current\) return;\s*done\.current = true;/);
+  assert.match(opener, /return \(\) => \{\s*live = false;\s*\};/);
+  // Primitive deps: an RSC refresh hands a new `intent` object; it must not re-run.
+  assert.match(opener, /\}, \[openDrawer, tenantSlug, plan, interval\]\);/);
   // No other server action fires on mount from the opener (preview/confirm run
   // only inside the confirm dialog, after the upgrade answered).
   const mountEffect = opener.slice(opener.indexOf("useEffect(() => {"), opener.indexOf("const slug = tenantSlug;"));
