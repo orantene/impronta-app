@@ -8,7 +8,7 @@ import { loadOpenVisitByToken } from "./qr";
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
-import type { GuestMenuOption } from "./guest-menu-options";
+import { guestVariantSellable, type GuestMenuOption } from "./guest-menu-options";
 
 export type GuestReason =
   | "visit_closed"
@@ -157,6 +157,24 @@ export async function guestVisitAddLine(
   if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
   // TUL-1271 item 6: an event-backing or reservation id is not a menu item either (fails closed).
   if (await anyNonMenuOffering(admin, input.tenantId, [off.id])) return { ok: false, reason: "item_unavailable" };
+
+  // [MONEY] A guest names a variant by id, so it is re-read here: it must be this
+  // dish's, not hidden (staff-only, comp or test options stay unreachable from the
+  // QR) and inside its sales window. The staff POS path is unchanged.
+  if (input.variantId) {
+    const { data: variant, error: variantErr } = await admin
+      .from("talent_offering_variants")
+      .select("id, offering_id, is_hidden, sales_from, sales_until")
+      .eq("id", input.variantId)
+      .eq("offering_id", off.id)
+      .maybeSingle();
+    if (variantErr) {
+      logServerError("visits.guestVisitAddLine.variant", variantErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    const v = variant as { offering_id?: string; is_hidden?: boolean | null; sales_from?: string | null; sales_until?: string | null } | null;
+    if (!guestVariantSellable(v, off.id, new Date())) return { ok: false, reason: "item_unavailable" };
+  }
 
   const draft = await guestDraft(admin, {
     tenantId: input.tenantId,

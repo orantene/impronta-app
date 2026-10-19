@@ -54,3 +54,27 @@ export const GUEST_OPTION_COPY: Record<"en" | "es", GuestOptionCopy> = {
 export function guestOptionCopy(locale: string): GuestOptionCopy {
   return locale.toLowerCase().startsWith("es") ? GUEST_OPTION_COPY.es : GUEST_OPTION_COPY.en;
 }
+
+/**
+ * May an anonymous QR guest order this variant? It must be a row of THIS dish,
+ * not hidden, and inside its sales window (open ended when unset). Unknown or
+ * malformed windows refuse. Pure.
+ */
+export function guestVariantSellable(
+  v: { offering_id?: string; is_hidden?: boolean | null; sales_from?: string | null; sales_until?: string | null } | null | undefined,
+  offeringId: string,
+  now: Date,
+): boolean {
+  if (!v || v.offering_id !== offeringId) return false;
+  if (v.is_hidden === true) return false;
+  const t = now.getTime();
+  if (v.sales_from) {
+    const from = Date.parse(v.sales_from);
+    if (!Number.isFinite(from) || t < from) return false;
+  }
+  if (v.sales_until) {
+    const until = Date.parse(v.sales_until);
+    if (!Number.isFinite(until) || t >= until) return false;
+  }
+  return true;
+}

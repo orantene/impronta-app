@@ -5,6 +5,7 @@ import {
   GUEST_OPTION_COPY,
   guestOptionCopy,
   guestPriceLabel,
+  guestVariantSellable,
   lineUnitCents,
   needsOption,
   type GuestMenuOptionItem,
@@ -57,4 +58,16 @@ test("copy: ES and EN, same keys, no em dashes", () => {
   assert.equal(guestOptionCopy("en").choose, "Choose an option");
   assert.equal(guestOptionCopy("es-MX").from, "Desde");
   for (const l of ["en", "es"] as const) for (const v of Object.values(GUEST_OPTION_COPY[l])) assert.ok(!v.includes("—"));
+});
+
+test("guest variant gate: this dish only, not hidden, inside the sales window", () => {
+  const now = new Date("2026-10-19T12:00:00Z");
+  const ok = { offering_id: "d", is_hidden: false };
+  assert.equal(guestVariantSellable(ok, "d", now), true);
+  assert.equal(guestVariantSellable({ ...ok, is_hidden: true }, "d", now), false);
+  assert.equal(guestVariantSellable(ok, "other", now), false);
+  assert.equal(guestVariantSellable(null, "d", now), false);
+  assert.equal(guestVariantSellable({ ...ok, sales_from: "2026-10-20T00:00:00Z" }, "d", now), false);
+  assert.equal(guestVariantSellable({ ...ok, sales_until: "2026-10-19T12:00:00Z" }, "d", now), false);
+  assert.equal(guestVariantSellable({ ...ok, sales_until: "garbage" }, "d", now), false);
 });

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { guestVisitMenu } from "./guest-order";
+import { guestVisitAddLine, guestVisitMenu } from "./guest-order";
 
 const TENANT = "11111111-1111-4111-8111-111111111111";
 const DISH = "22222222-2222-4222-8222-222222222222";
@@ -64,4 +64,21 @@ test("the client sends the chosen variant and asks before adding an option-price
   assert.match(src, /variantId: optionId/);
   assert.match(src, /setPicking\(open \? null : item\.id\)/);
   assert.match(src, /oc\.choose/);
+});
+
+test("a guest who posts a HIDDEN variant id is refused and nothing is added", async () => {
+  // The fake has no insert/update/rpc: any attempt to create a draft or add a
+  // line would throw, so a clean refusal also proves nothing was written.
+  const admin = fake();
+  const base = { tenantId: TENANT, token: "tok", offeringId: DISH, qty: 1, actorUserId: "u1" };
+  const hidden = await guestVisitAddLine(admin, { ...base, variantId: "v-h" });
+  assert.deepEqual(hidden, { ok: false, reason: "item_unavailable" });
+  const foreign = await guestVisitAddLine(admin, { ...base, variantId: "v-nope" });
+  assert.deepEqual(foreign, { ok: false, reason: "item_unavailable" });
+});
+
+test("the gate runs in the guest path before any draft is created", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/visits/guest-order.ts"), "utf8");
+  const gate = src.indexOf("guestVariantSellable(v, off.id");
+  assert.ok(gate > 0 && gate < src.indexOf("await guestDraft(admin"));
 });
