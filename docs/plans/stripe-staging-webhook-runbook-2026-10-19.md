@@ -28,8 +28,17 @@ The workflow above stays as it is on main (us/mx account webhook only). Everythi
 
 ```
 node web/scripts/stripe/provision-staging-test.mjs --lane <us|connect|mx|portal|client-pro-price|all> \
-     [--apply] [--recreate] [--client-pro-amount-cents N] [--keys-file PATH]
+     [--apply] [--recreate] [--replace-unmarked-mx-platform] [--client-pro-amount-cents N] [--keys-file PATH]
 ```
+
+`--lane all` = us, connect, mx, portal. **`client-pro-price` is NOT in `all`** (consultant, 2026-10-19). It runs only when named explicitly.
+
+**`--replace-unmarked-mx-platform`** covers this case: the MX platform URL (`/api/webhooks/stripe-mx`) already has an endpoint that this tooling did not make (no `managed_by` marker), and Preview has no `STRIPE_MX_WEBHOOK_SECRET_TEST`. In that case the flag:
+1. CREATES a new marked endpoint on the same URL with the 36 events,
+2. writes `STRIPE_MX_WEBHOOK_SECRET_TEST`,
+3. then DISABLES (never deletes) the old unmarked endpoint(s), in that order, so delivery has no gap. Events delivered twice in the overlap are absorbed by the event-id idempotency claim.
+
+The dry run names the old endpoint id(s). Without the flag that case refuses. The flag never applies to any other lane, or to an endpoint we made (that is `--recreate`).
 
 **Dry run by default.** Only `--apply` writes. Planning lives in `web/scripts/lib/stripe-staging-config.mjs` (tests in `stripe-staging-config.test.mjs`, money lane).
 
@@ -56,12 +65,13 @@ node web/scripts/stripe/provision-staging-test.mjs --lane <us|connect|mx|portal|
 - **Existing vars.** `STRIPE_WEBHOOK_SECRET_TEST` and `STRIPE_MX_WEBHOOK_SECRET_CONNECT_TEST` already exist in Preview. If the dry run plans `create` for their lane with `will be REPLACED`, no matching endpoint targets the staging URL today; confirm the old value is not in use before `--apply`.
 - **Portal features** (mirrors `scripts/seed-stripe-portal-config.mjs`, body shared via `scripts/lib/stripe-portal-config.mjs`): invoice history on; payment method update on; cancel at period end, no proration; plan switching on (price changes, `create_prorations`) across the products behind the 10 plan lookup keys `tulala_<plan>_<month|year>_usd`; pause off; customer name/address/tax updates off. An existing tagged configuration is reused unchanged. With no plan prices on the account, `lane=portal` refuses and `lane=all` skips that account's portal.
 - **Client Pro price.** `lib/stripe/client-billing.ts` reads `STRIPE_CLIENT_PRO_PRICE_ID` through `stripeEnv`; no other `STRIPE_PRICE_*` name is read through `stripeEnv` (plan prices resolve from `product_prices`). The amount is not authoritative in code (the `/client/subscription` page shows a `$49 / mo` placeholder; `CLIENT_PRO_PRICING_LIVE=false`), so CREATING the price needs `--client-pro-amount-cents`. An existing price with the lookup key is reused (and refused if its amount differs from the input, or it is not monthly USD). With no price and no amount, `--lane client-pro-price` refuses and `--lane all` skips.
-- **Publishable keys.** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST` and `STRIPE_MX_PUBLISHABLE_KEY_TEST` are already in Preview and pin the accounts. `NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY_TEST` is not: the Stripe API cannot return a publishable key, so copy the MX `pk_test_` from the dashboard (Developers > API keys) into Vercel Preview. The plan prints this list.
+- **Publishable keys.** `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST` and `STRIPE_MX_PUBLISHABLE_KEY_TEST` are already in Preview and pin the accounts. `NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY_TEST` is not needed: `getStripeMxPublishableKey()` (`lib/stripe/client.ts`) falls back to `STRIPE_MX_PUBLISHABLE_KEY` (test-pinned).
 
 ### Run order
-1. `node web/scripts/stripe/provision-staging-test.mjs --lane all`: a dry run. Read every plan line.
-2. Same with `--apply` (add `--client-pro-amount-cents N` once the amount is decided). This needs the consultant's review first.
-3. Re-runs are safe: existing endpoints only get their event list synced, and the portal and price are reused, with their ids rewritten to the same value.
+1. `node web/scripts/stripe/provision-staging-test.mjs --lane all --replace-unmarked-mx-platform`: a dry run. Read every plan line.
+2. Same with `--apply`, after the PM's final yes.
+3. Client Pro, later and separately: `--lane client-pro-price --client-pro-amount-cents N`.
+4. Re-runs are safe: existing endpoints only get their event list synced, and the portal and price are reused, with their ids rewritten to the same value.
 
 ## Not covered
 `STRIPE_CLIENT_SUBSCRIPTION_WEBHOOK_SECRET_TEST` (`/api/discover/subscriptions/webhook` needs its own endpoint; Client Pro is not sold yet), `STRIPE_V2_*_TEST`, `STRIPE_TERMINAL_READER_ID_TEST`. `TEST_SIBLING_COVERAGE` in `stripe-staging-config.mjs` lists every mode-bound name and its source; a test fails when `env-keys.ts` gains one.

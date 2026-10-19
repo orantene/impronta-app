@@ -108,7 +108,14 @@ export function vercelWriteBody(value) {
 export const CLI_LANES = ["us", "connect", "mx", "portal", "client-pro-price", "all"];
 
 export function parseArgs(argv) {
-  const o = { lane: null, apply: false, recreate: false, clientProAmountCents: "", envFile: DEFAULT_ENV_FILE };
+  const o = {
+    lane: null,
+    apply: false,
+    recreate: false,
+    replaceUnmarkedMxPlatform: false,
+    clientProAmountCents: "",
+    envFile: DEFAULT_ENV_FILE,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -120,6 +127,7 @@ export function parseArgs(argv) {
       if (a === "--lane") o.lane = next();
       else if (a === "--apply") o.apply = true;
       else if (a === "--recreate") o.recreate = true;
+      else if (a === "--replace-unmarked-mx-platform") o.replaceUnmarkedMxPlatform = true;
       else if (a === "--client-pro-amount-cents") o.clientProAmountCents = next();
       // Deliberately NOT --env-file: Node 20 consumes that flag even after the
       // script name and loads the whole file into process.env.
@@ -142,8 +150,19 @@ const LANE_STEPS = {
   mx: ["webhook:mx", "webhook:mx-connect"],
   portal: ["portal:us", "portal:mx"],
   "client-pro-price": ["client-pro-price"],
-  all: ["webhook:us", "webhook:us-connect", "webhook:mx", "webhook:mx-connect", "portal:us", "portal:mx", "client-pro-price"],
+  // client-pro-price is deliberately NOT in `all` (consultant, 2026-10-19):
+  // explicit --lane client-pro-price only.
+  all: ["webhook:us", "webhook:us-connect", "webhook:mx", "webhook:mx-connect", "portal:us", "portal:mx"],
 };
+
+/**
+ * --replace-unmarked-mx-platform applies to the MX PLATFORM endpoint only: an
+ * existing unmarked endpoint there is replaced (create marked, write secret,
+ * then disable the old one). Every other lane keeps the plain refusal.
+ */
+export function replaceUnmarkedFor(stepId, flag) {
+  return stepId === "webhook:mx" && flag === true;
+}
 
 /**
  * The steps a lane runs. Without the MX key in the env file, MX steps are
@@ -288,7 +307,7 @@ export function toForm(obj, form = new URLSearchParams(), prefix = "") {
 /**
  * Where each `_TEST` sibling (env-keys.ts MODE_BOUND) comes from on staging.
  * script      : provision-staging-test.mjs writes it (lane in `how`)
- * manual      : PM/Oran copies it from the Stripe dashboard
+ * fallback    : not needed; the app falls back to another name that is present
  * present     : already in Vercel Preview (names checked 2026-10-19)
  * not-covered : out of this script's scope (see note)
  */
@@ -297,7 +316,10 @@ export const TEST_SIBLING_COVERAGE = {
   STRIPE_MX_SECRET_KEY_TEST: { source: "present", how: "Preview has it (sensitive)" },
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_TEST: { source: "present", how: "Preview has it (encrypted); pins the US account" },
   STRIPE_MX_PUBLISHABLE_KEY_TEST: { source: "present", how: "Preview has it (encrypted); pins the MX account" },
-  NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY_TEST: { source: "manual", how: "MX pk_test_ from the dashboard; not readable via the Stripe API" },
+  NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY_TEST: {
+    source: "fallback",
+    how: "getStripeMxPublishableKey() (lib/stripe/client.ts) falls back to STRIPE_MX_PUBLISHABLE_KEY_TEST, which Preview has",
+  },
   STRIPE_WEBHOOK_SECRET_TEST: { source: "script", how: "lane us" },
   STRIPE_WEBHOOK_SECRET_CONNECT_TEST: { source: "script", how: "lane connect" },
   STRIPE_MX_WEBHOOK_SECRET_TEST: { source: "script", how: "lane mx" },

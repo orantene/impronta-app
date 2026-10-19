@@ -205,8 +205,13 @@ export function pickVercelEntry(envs, key) {
  * with no stored secret cannot be "adopted".
  * `kind` ("account" default | "connect") limits every check to endpoints of that
  * kind: an account endpoint and a Connect endpoint legitimately share one URL.
+ *   replace-unmarked : `replaceUnmarked` + no var + every live endpoint on the
+ *                      URL is NOT ours -> create a marked endpoint, write the
+ *                      secret, THEN disable (never delete) `disableIds`, so
+ *                      delivery has no gap (duplicates in the overlap are
+ *                      absorbed by the event-id idempotency claim).
  */
-export function planEndpoint({ endpoints, url, otherUrl, varExists, recreate, kind = "account" }) {
+export function planEndpoint({ endpoints, url, otherUrl, varExists, recreate, kind = "account", replaceUnmarked = false }) {
   const all = (endpoints ?? []).filter((e) => endpointKind(e) === kind);
   const other = all.filter((e) => e.url === otherUrl && e.status !== "disabled");
   if (other.length) {
@@ -214,6 +219,9 @@ export function planEndpoint({ endpoints, url, otherUrl, varExists, recreate, ki
   }
   // A disabled endpoint on the same URL never delivers: ignore it (it is not reused or deleted).
   const match = all.filter((e) => e.url === url && e.status !== "disabled");
+  if (replaceUnmarked && !varExists && match.length > 0 && match.every((e) => e.metadata?.managed_by !== MANAGED_BY)) {
+    return { action: "replace-unmarked", disableIds: match.map((e) => e.id) };
+  }
   if (match.length > 1) return { action: "refuse", reason: `${match.length} endpoints already target ${url}; fix by hand` };
   if (match.length === 0) return { action: "create" };
   const ep = match[0];

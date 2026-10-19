@@ -3,7 +3,14 @@
  * Provision the staging Stripe TEST config from this Mac (TUL-830).
  *
  *   node web/scripts/stripe/provision-staging-test.mjs --lane <us|connect|mx|portal|client-pro-price|all>
- *        [--apply] [--recreate] [--client-pro-amount-cents N] [--keys-file PATH]
+ *        [--apply] [--recreate] [--replace-unmarked-mx-platform]
+ *        [--client-pro-amount-cents N] [--keys-file PATH]
+ *
+ * --lane all = us, connect, mx, portal. client-pro-price runs only when named.
+ * --replace-unmarked-mx-platform: when the MX platform URL already has an
+ * endpoint NOT made by this tooling and Preview has no secret for it, create a
+ * marked endpoint, write STRIPE_MX_WEBHOOK_SECRET_TEST, then DISABLE (never
+ * delete) the old one(s). Without it that case refuses.
  *
  * DRY RUN BY DEFAULT: without --apply it only reads (Stripe lists, Vercel env
  * names) and prints the plan: names, URLs, counts, account fingerprints. Never
@@ -52,7 +59,6 @@ import {
   KEY_NAMES,
   PORTAL_VARS,
   PUBLISHABLE_NAMES,
-  TEST_SIBLING_COVERAGE,
   checkAccountMatch,
   checkDistinctAccounts,
   clientProPriceParams,
@@ -63,6 +69,7 @@ import {
   planPortal,
   portalFeatureSummary,
   readNamedVars,
+  replaceUnmarkedFor,
   selectSteps,
   toForm,
   vercelWriteBody,
@@ -215,6 +222,7 @@ async function planAll() {
         varExists: !!entry,
         recreate: args.recreate,
         kind: lc.kind,
+        replaceUnmarked: replaceUnmarkedFor(id, args.replaceUnmarkedMxPlatform),
       });
       plans.push({
         id,
@@ -265,15 +273,21 @@ async function planAll() {
         : p.entry
           ? "will be REPLACED"
           : "will be created";
-    const head = p.plan.action === "skip" ? p.plan.reason : p.plan.action === "refuse" ? `REFUSE: ${p.plan.reason}` : p.plan.action;
+    const head =
+      p.plan.action === "skip"
+        ? p.plan.reason
+        : p.plan.action === "refuse"
+          ? `REFUSE: ${p.plan.reason}`
+          : p.plan.action === "replace-unmarked"
+            ? `replace-unmarked: 1) create a marked endpoint, 2) write the var, 3) DISABLE (not delete) ${p.plan.disableIds.join(", ")}`
+            : p.plan.action;
     console.log(`[${p.id}] account ${fp[p.account]} | ${head}`);
     console.log(`    object: ${p.target}`);
     console.log(`    var:    ${p.varName} (${p.entry ? "exists" : "missing"}; ${writes})`);
   }
   const willWrite = plans.filter((p) => !["skip", "refuse"].includes(p.plan.action) && !(p.kind === "webhook" && p.plan.action === "reuse"));
   console.log(`\nVercel Preview vars that --apply would write: ${willWrite.length ? willWrite.map((p) => p.varName).join(", ") : "(none)"}.`);
-  const manual = Object.entries(TEST_SIBLING_COVERAGE).filter(([, v]) => v.source === "manual").map(([k]) => k);
-  console.log(`Manual (PM/Oran, Stripe dashboard -> Vercel Preview): ${manual.join(", ")}.`);
+  if (args.lane === "all") console.log("client-pro-price is not part of --lane all (explicit --lane client-pro-price only).");
   return plans;
 }
 
@@ -308,6 +322,13 @@ async function applyWebhook({ id, lc, entry, plan }) {
   console.log(`  Stripe: created ${lc.kind} endpoint (${lc.events.length} events, api_version ${created.api_version}).`);
   if (!created.secret) die("Stripe returned no signing secret");
   writeVar(entry, lc.secretVar, created.secret);
+  if (plan.action === "replace-unmarked") {
+    // Only after the new endpoint exists and its secret is in Preview: no delivery gap.
+    for (const oldId of plan.disableIds) {
+      await stripe(lc.account, "POST", `/v1/webhook_endpoints/${oldId}`, toForm({ disabled: true }));
+      console.log(`  Stripe: disabled the old unmarked endpoint ${oldId} (not deleted).`);
+    }
+  }
 }
 
 async function applyPortal({ account, products, entry, plan, varName }) {

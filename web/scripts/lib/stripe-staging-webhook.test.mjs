@@ -170,6 +170,38 @@ test("endpoint plan is per kind: an account endpoint and a Connect endpoint shar
   assert.equal(planEndpoint({ endpoints: [connOther], url, otherUrl, varExists: false }).action, "create");
 });
 
+test("unmarked endpoint + missing var: refuse without replaceUnmarked; with it, create marked then disable the old", () => {
+  const url = "https://pay.staging.tulala.digital/api/webhooks/stripe-mx";
+  const otherUrl = "https://pay.staging.tulala.digital/api/webhooks/stripe";
+  const unmarked = { id: "we_old", url, metadata: {} };
+  // Without the flag: today's refusal, unchanged.
+  const refused = planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: false });
+  assert.equal(refused.action, "refuse");
+  // recreate alone still never touches an unmarked endpoint.
+  assert.equal(planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: false, recreate: true }).action, "refuse");
+  // With the flag: create a marked endpoint first, then disable (never delete) the old one.
+  assert.deepEqual(planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: false, replaceUnmarked: true }), {
+    action: "replace-unmarked",
+    disableIds: ["we_old"],
+  });
+  // Several unmarked endpoints on the URL: all are disabled after the new one exists.
+  const two = [unmarked, { ...unmarked, id: "we_old2" }];
+  assert.deepEqual(planEndpoint({ endpoints: two, url, otherUrl, varExists: false, replaceUnmarked: true }).disableIds, ["we_old", "we_old2"]);
+  // Without the flag, several is still the duplicate refusal.
+  assert.equal(planEndpoint({ endpoints: two, url, otherUrl, varExists: false }).action, "refuse");
+  // A marked endpoint is ours: the flag does not apply (recreate path / reuse as before).
+  const ours = { id: "we_ours", url, metadata: { managed_by: MANAGED_BY } };
+  assert.equal(planEndpoint({ endpoints: [ours], url, otherUrl, varExists: false, replaceUnmarked: true }).action, "refuse");
+  assert.equal(planEndpoint({ endpoints: [ours], url, otherUrl, varExists: true, replaceUnmarked: true }).action, "reuse");
+  // Var present + unmarked endpoint: plain reuse, nothing replaced.
+  assert.equal(planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: true, replaceUnmarked: true }).action, "reuse");
+  // Already-disabled endpoints are not counted or disabled again.
+  const disabled = { id: "we_dis", url, status: "disabled", metadata: {} };
+  assert.deepEqual(planEndpoint({ endpoints: [unmarked, disabled], url, otherUrl, varExists: false, replaceUnmarked: true }).disableIds, ["we_old"]);
+  // Mixed marked + unmarked on one URL with the var missing: ambiguous, refuse.
+  assert.equal(planEndpoint({ endpoints: [unmarked, ours], url, otherUrl, varExists: false, replaceUnmarked: true }).action, "refuse");
+});
+
 test("Connect endpoint events = every routed event a connected account delivers, nothing else", () => {
   const routing = readFileSync(join(WEB, "src/lib/stripe/webhook-routing.ts"), "utf8");
   // Group fall-through labels with the block that follows them.

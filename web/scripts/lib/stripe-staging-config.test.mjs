@@ -24,6 +24,7 @@ import {
   planPortal,
   portalFeatureSummary,
   readNamedVars,
+  replaceUnmarkedFor,
   selectSteps,
   toForm,
   vercelWriteBody,
@@ -135,6 +136,8 @@ test("args: dry run by default; only --apply writes", () => {
   assert.equal(d.apply, false);
   assert.equal(d.recreate, false);
   assert.equal(d.envFile, DEFAULT_ENV_FILE);
+  assert.equal(d.replaceUnmarkedMxPlatform, false);
+  assert.equal(parseArgs(["--lane", "all", "--replace-unmarked-mx-platform"]).replaceUnmarkedMxPlatform, true);
   const a = parseArgs(["--lane", "portal", "--apply", "--recreate", "--client-pro-amount-cents", "4900", "--keys-file", "/tmp/x.env"]);
   assert.deepEqual([a.lane, a.apply, a.recreate, a.clientProAmountCents, a.envFile], ["portal", true, true, "4900", "/tmp/x.env"]);
   // Not --env-file: Node 20 itself consumes --env-file even after the script
@@ -157,10 +160,17 @@ test("each single lane selects only its own steps", () => {
   assert.equal(selectSteps("eu", { hasMxKey: true }).ok, false);
 });
 
-test("lane all runs every step, MX included", () => {
+test("lane all runs every step, MX included, but NOT client-pro-price (explicit lane only)", () => {
   const r = selectSteps("all", { hasMxKey: true });
-  assert.deepEqual(r.steps, ["webhook:us", "webhook:us-connect", "webhook:mx", "webhook:mx-connect", "portal:us", "portal:mx", "client-pro-price"]);
+  assert.deepEqual(r.steps, ["webhook:us", "webhook:us-connect", "webhook:mx", "webhook:mx-connect", "portal:us", "portal:mx"]);
+  assert.ok(!r.steps.includes("client-pro-price"));
   assert.deepEqual(r.skipped, []);
+});
+
+test("the replace-unmarked flag applies to the MX platform lane only", () => {
+  assert.equal(replaceUnmarkedFor("webhook:mx", true), true);
+  assert.equal(replaceUnmarkedFor("webhook:mx", false), false);
+  for (const id of ["webhook:us", "webhook:us-connect", "webhook:mx-connect"]) assert.equal(replaceUnmarkedFor(id, true), false, id);
 });
 
 test("MX key missing: lane mx refuses; lane all / portal skip only the MX steps", () => {
@@ -169,7 +179,7 @@ test("MX key missing: lane mx refuses; lane all / portal skip only the MX steps"
   assert.match(mx.reason, /STRIPE_MX_SECRET_KEY is not in the env file/);
   const all = selectSteps("all", { hasMxKey: false });
   assert.equal(all.ok, true);
-  assert.deepEqual(all.steps, ["webhook:us", "webhook:us-connect", "portal:us", "client-pro-price"]);
+  assert.deepEqual(all.steps, ["webhook:us", "webhook:us-connect", "portal:us"]);
   assert.deepEqual(all.skipped.map((s) => s.id), ["webhook:mx", "webhook:mx-connect", "portal:mx"]);
   for (const s of all.skipped) assert.equal(s.reason, "skipped: STRIPE_MX_SECRET_KEY not in the env file");
   assert.deepEqual(selectSteps("portal", { hasMxKey: false }).steps, ["portal:us"]);
@@ -290,10 +300,13 @@ test("every mode-bound Stripe name in env-keys.ts has a stated staging source", 
   assert.ok(names.length >= 16);
   assert.deepEqual(Object.keys(TEST_SIBLING_COVERAGE).sort(), [...names].sort());
   for (const [n, how] of Object.entries(TEST_SIBLING_COVERAGE)) {
-    assert.ok(["script", "manual", "present", "not-covered"].includes(how.source), n);
+    assert.ok(["script", "present", "fallback", "not-covered"].includes(how.source), n);
   }
   assert.equal(TEST_SIBLING_COVERAGE.STRIPE_CLIENT_PRO_PRICE_ID_TEST.source, "script");
-  assert.equal(TEST_SIBLING_COVERAGE.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY_TEST.source, "manual");
+  // Not needed: getStripeMxPublishableKey() falls back to STRIPE_MX_PUBLISHABLE_KEY (client.ts).
+  assert.equal(TEST_SIBLING_COVERAGE.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY_TEST.source, "fallback");
+  const client = readFileSync(join(WEB, "src/lib/stripe/client.ts"), "utf8");
+  assert.match(client, /stripeEnv\("NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY"\) \|\|\s*stripeEnv\("STRIPE_MX_PUBLISHABLE_KEY"\)/);
 });
 
 // ─── The script itself (static) ──────────────────────────────────────────────
