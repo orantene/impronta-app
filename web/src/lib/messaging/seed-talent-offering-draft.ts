@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { verifyTalentOfferingIntent, type TalentOfferingIntentKind } from "@/lib/messaging/talent-offering-intent";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
@@ -27,7 +28,7 @@ export async function seedTalentOfferingDraft(
 
   const { data: offering, error: offErr } = await admin
     .from("talent_offerings")
-    .select("id, title, currency, talent_profile_id, tenant_id, status")
+    .select("id, title, currency, talent_profile_id, tenant_id, status, moderation_state, visibility")
     .eq("id", choice.offering)
     .maybeSingle();
   if (offErr || !offering) return { ok: false, reason: "invalid" };
@@ -38,8 +39,12 @@ export async function seedTalentOfferingDraft(
     talent_profile_id: string | null;
     tenant_id: string | null;
     status: string | null;
+    moderation_state: string | null;
+    visibility: string | null;
   };
-  if (off.tenant_id !== input.tenantId || off.talent_profile_id !== input.talentProfileId || off.status !== "published") {
+  // D-10: re-checked here, not only at mint time, so an old token cannot seed a
+  // service that has since gone private or unapproved.
+  if (off.tenant_id !== input.tenantId || off.talent_profile_id !== input.talentProfileId || !isGuestSellableOffering(off)) {
     return { ok: false, reason: "mismatch" };
   }
 

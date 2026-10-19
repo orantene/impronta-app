@@ -22,6 +22,7 @@ import type { OfferingsEditor } from "@/components/talent/services/use-offerings
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { ActionButton, Outcome, StatePill, UsedIn } from "../appointments-classes-ui";
 import type { CatalogNav } from "./CatalogPage";
+import { houseNotBookableReason } from "@/lib/booking/house-booking-reasons";
 import { ITEM_TABS, PUBLISH_BLOCKER_KEY, itemType, publishBlockers, type ItemTab } from "./catalog-model";
 import { TabStrip } from "./catalog-ui";
 import { DetailsTab } from "./item-tab-details";
@@ -85,6 +86,9 @@ export function CatalogItemEditor({
 
   const blockers = publishBlockers(item).map((code) => t(PUBLISH_BLOCKER_KEY[code]));
   const canPublish = blockers.length === 0;
+  // A workspace (house) service has no provider calendar, so the public slots
+  // route has no times for it. Say so, with the fix (Services Phase 0 item 6).
+  const notBookable = item.ownerKind === "workspace" ? houseNotBookableReason(item) : null;
 
   async function persist(status: TalentOffering["status"]) {
     if (isDraft) {
@@ -196,6 +200,11 @@ export function CatalogItemEditor({
           {editor.error ? (
             <Outcome kind="refused" testId="catalog-editor-refusal">
               {editor.error}
+            </Outcome>
+          ) : null}
+          {notBookable ? (
+            <Outcome kind="note" testId="catalog-not-bookable-online">
+              {t(notBookable === "no_duration" ? "dashboard.catalog.editor.notBookableNoDuration" : "dashboard.catalog.editor.notBookableNoProvider")}
             </Outcome>
           ) : null}
           <UsedIn

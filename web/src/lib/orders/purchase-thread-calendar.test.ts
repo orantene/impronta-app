@@ -72,6 +72,8 @@ function threadFakeAdmin() {
     tenant_id: TENANT,
     title: "Bozo",
     status: "published",
+    moderation_state: "approved",
+    visibility: "public",
     price_type: "fixed",
     amount_cents: 10000,
     talent_profile_id: TALENT,
