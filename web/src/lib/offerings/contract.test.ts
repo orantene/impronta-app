@@ -12,6 +12,7 @@ import { buildTalentLlmsTxt } from "@/lib/seo/talent-llms-txt";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 import {
+  OFFERING_CONTRACT_VERSION,
   buildOfferingContract,
   contractToApiService,
   contractToFactsLine,
@@ -131,7 +132,7 @@ test("the public API list is built from the contract and keeps its filters", () 
     "en",
   );
   assert.deepEqual(list.map((s) => s.id), ["11111111-1111-4111-8111-111111111111"]);
-  assert.deepEqual(Object.keys(list[0]).sort(), ["amount_cents", "bookable", "currency", "description", "duration_minutes", "id", "price", "title"]);
+  assert.deepEqual(Object.keys(list[0]).sort(), ["amount_cents", "bookable", "currency", "description", "duration_minutes", "id", "price", "price_mode", "title"]);
   const contracts = toAgentContracts([offering()], "en", { providerName: "Luna", pageUrl: () => "https://luna.test/s" });
   assert.equal(contracts[0].providerName, "Luna");
   assert.equal(contracts[0].url, "https://luna.test/s");
@@ -156,7 +157,7 @@ test("wiring: the catalog route serves markdown from the same contracts; llms lo
   assert.match(route, /contractsToMarkdown\(site\.name, contracts\)/);
   assert.match(route, /text\/markdown/);
   const loader = fs.readFileSync(path.join(WEB, "src/lib/seo/talent-llms-txt.server.ts"), "utf8");
-  assert.match(loader, /toAgentContracts\(offerings, "en"/);
+  assert.match(loader, /toAgentContracts\(offerings, llmsLocale/);
   const site = fs.readFileSync(path.join(WEB, "src/lib/booking/agent/agent-site.server.ts"), "utf8");
   assert.match(site, /toAgentApiServices\(offerings, site\.locale\)/);
 });
@@ -178,4 +179,56 @@ test("D-10a: listings include on_request with the price withheld; the bookable A
 test("the catalog route varies on Accept (JSON and markdown share a URL)", () => {
   const route = fs.readFileSync(path.join(WEB, "src/app/api/public/booking/catalog/route.ts"), "utf8");
   assert.equal((route.match(/Vary: "Accept"/g) ?? []).length, 2);
+});
+
+// ─── TUL-1327: version, from-price, fail closed ──────────────────────────────
+
+test("the contract is versioned", () => {
+  const c = buildOfferingContract(offering(), ctx);
+  assert.equal(c.version, OFFERING_CONTRACT_VERSION);
+  assert.equal(OFFERING_CONTRACT_VERSION, 1);
+});
+
+test("a FROM price is a lowest price everywhere: words say from/desde, JSON-LD is AggregateOffer.lowPrice, never an exact price", () => {
+  const es = buildOfferingContract(offering({ priceDisplay: "from" }), { locale: "es", providerName: "Luna" });
+  const en = buildOfferingContract(offering({ priceDisplay: "from" }), { locale: "en", providerName: "Luna" });
+  assert.equal(es.price.mode, "from");
+  assert.match(es.price.text, /desde/i);
+  assert.match(en.price.text, /from/i);
+  assert.match(contractToMarkdown(es), /Price: .*desde/i);
+  assert.match(contractToLlmsLine(en), /from/i);
+  const ld = contractToJsonLd(en) as { offers: Record<string, unknown> };
+  assert.equal(ld.offers["@type"], "AggregateOffer");
+  assert.equal(ld.offers.lowPrice, "550.00");
+  assert.equal("price" in ld.offers, false);
+  assert.equal("minPrice" in JSON.stringify(ld), false);
+  assert.equal(contractToApiService(en).price_mode, "from");
+});
+
+test("schema: exact, quote and on-request JSON-LD shapes", () => {
+  const exact = contractToJsonLd(buildOfferingContract(offering(), ctx)) as { offers: Record<string, unknown>; "@type": string };
+  assert.equal(exact["@type"], "Service");
+  assert.deepEqual(exact.offers, { "@type": "Offer", price: "550.00", priceCurrency: "MXN" });
+  for (const over of [{ priceDisplay: "quote" as const }, { visibility: "on_request" as const }]) {
+    const ld = contractToJsonLd(buildOfferingContract(offering(over), ctx));
+    assert.equal("offers" in ld, false);
+    assert.equal(ld["@context"], "https://schema.org");
+  }
+});
+
+test("fail closed: a source that does not say published + approved + public is not guest-sellable", () => {
+  const base = buildOfferingContract(offering(), ctx);
+  assert.equal(base.guestSellable, true);
+  for (const missing of ["status", "moderationState", "visibility"] as const) {
+    const o = { ...offering() } as Record<string, unknown>;
+    delete o[missing];
+    assert.equal(buildOfferingContract(o as unknown as TalentOffering, ctx).guestSellable, false, `missing ${missing}`);
+  }
+});
+
+test("llms.txt services read in the talent's language", () => {
+  const loader = fs.readFileSync(path.join(WEB, "src/lib/seo/talent-llms-txt.server.ts"), "utf8");
+  assert.match(loader, /preferred_locale/);
+  assert.match(loader, /const llmsLocale = .*startsWith\("es"\) \? "es" : "en"/);
+  assert.doesNotMatch(loader, /loadPublicOfferingsForProfile\(talentProfileId, "en"/);
 });

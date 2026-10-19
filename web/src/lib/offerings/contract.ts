@@ -32,7 +32,14 @@ export type OfferingContractSource = PublicPriceInput & {
   cancellationHours?: number | null;
 };
 
+/**
+ * Contract version. Bump it when a field is removed or changes meaning; adding a
+ * field does not bump it. Consumers (API clients, assistants) can branch on it.
+ */
+export const OFFERING_CONTRACT_VERSION = 1;
+
 export type OfferingContract = {
+  version: typeof OFFERING_CONTRACT_VERSION;
   id: string;
   title: string;
   /** Full text, whitespace collapsed. */
@@ -79,6 +86,7 @@ export function buildOfferingContract(
       : description
     : null;
   return {
+    version: OFFERING_CONTRACT_VERSION,
     id: o.id,
     title: o.title.trim(),
     description,
@@ -92,11 +100,11 @@ export function buildOfferingContract(
       currency: price.currency,
       text: price.text,
     },
+    // Fails CLOSED: a source that does not say it is published, approved and public is not sellable.
     guestSellable: isGuestSellableOffering({
-      // Public loaders only return published + approved rows; an absent field is not a refusal.
-      status: o.status ?? "published",
-      moderation_state: o.moderationState ?? "approved",
-      visibility: o.visibility ?? "public",
+      status: o.status,
+      moderation_state: o.moderationState,
+      visibility: o.visibility,
     }),
     bookable: o.publicCtaHidden !== true,
     url: ctx.url ?? null,
@@ -117,6 +125,8 @@ export function contractToApiService(c: OfferingContract): {
   price: string;
   amount_cents: number | null;
   currency: string;
+  /** exact | from | quote | on_request: a "from" figure is the lowest price, not the price. */
+  price_mode: PublicPriceMode;
   bookable: boolean;
 } {
   return {
@@ -127,6 +137,7 @@ export function contractToApiService(c: OfferingContract): {
     price: c.price.text,
     amount_cents: c.price.amountCents,
     currency: c.price.currency,
+    price_mode: c.price.mode,
     bookable: c.bookable,
   };
 }
@@ -155,6 +166,7 @@ export function contractToMarkdown(c: OfferingContract): string {
  */
 export function contractToJsonLd(c: OfferingContract): Record<string, unknown> {
   const hasPrice = c.price.amountCents != null && c.price.amountCents > 0;
+  const money = hasPrice ? ((c.price.amountCents as number) / 100).toFixed(2) : "";
   return {
     "@context": "https://schema.org",
     "@type": "Service",
@@ -166,12 +178,11 @@ export function contractToJsonLd(c: OfferingContract): Record<string, unknown> {
     ...(c.imageUrl ? { image: c.imageUrl } : {}),
     ...(hasPrice
       ? {
-          offers: {
-            "@type": "Offer",
-            price: ((c.price.amountCents as number) / 100).toFixed(2),
-            priceCurrency: c.price.currency,
-            ...(c.price.mode === "from" ? { priceSpecification: { "@type": "PriceSpecification", minPrice: ((c.price.amountCents as number) / 100).toFixed(2), priceCurrency: c.price.currency } } : {}),
-          },
+          // A "from" price is a LOWEST price: AggregateOffer.lowPrice, never an exact `price`.
+          offers:
+            c.price.mode === "from"
+              ? { "@type": "AggregateOffer", lowPrice: money, priceCurrency: c.price.currency }
+              : { "@type": "Offer", price: money, priceCurrency: c.price.currency },
         }
       : {}),
   };

@@ -24,7 +24,7 @@ export async function loadTalentLlmsTxt(
   try {
     const { data: p, error } = await admin
       .from("talent_profiles")
-      .select("display_name, first_name, deleted_at, is_publicly_hidden, profile_kind, is_demo")
+      .select("display_name, first_name, deleted_at, is_publicly_hidden, profile_kind, is_demo, preferred_locale")
       .eq("id", talentProfileId)
       .maybeSingle();
     if (error || !p) return null;
@@ -34,7 +34,7 @@ export async function loadTalentLlmsTxt(
     ]);
     const row = p as {
       display_name: string | null; first_name: string | null; deleted_at: string | null;
-      is_publicly_hidden: boolean | null; profile_kind: string | null; is_demo: boolean | null;
+      is_publicly_hidden: boolean | null; profile_kind: string | null; is_demo: boolean | null; preferred_locale: string | null;
     };
     const eligible = isTalentLlmsEligible({
       deletedAt: row.deleted_at,
@@ -58,13 +58,15 @@ export async function loadTalentLlmsTxt(
     ]);
     // F2: the Services list is the offering contract, the same record the page
     // and the public API read. Any failure falls back to the SEO facts list.
+    // The services read in the talent's own language (their preferred locale), English otherwise.
+    const llmsLocale = (row.preferred_locale ?? "").toLowerCase().startsWith("es") ? "es" : "en";
     let contracts: OfferingContract[] = [];
     try {
       const tenant = await loadTalentSiteInquiryTenant(admin, talentProfileId);
       const scope = agentCatalogScope("talent_site", tenant.ok ? tenant.tenant.tenantId : null);
       if (scope) {
-        const offerings = await loadPublicOfferingsForProfile(talentProfileId, "en", scope.tenantId, { channel: scope.channel });
-        contracts = toAgentContracts(offerings, "en", { providerName: name });
+        const offerings = await loadPublicOfferingsForProfile(talentProfileId, llmsLocale, scope.tenantId, { channel: scope.channel });
+        contracts = toAgentContracts(offerings, llmsLocale, { providerName: name });
       }
     } catch (err) {
       logServerError("talentLlmsTxt.contracts", err);
