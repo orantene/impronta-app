@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import type { Database } from "@/lib/supabase/database.types";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
@@ -1447,7 +1448,8 @@ export async function submitTalentRate(
     try {
       let talentName = "Talent";
       if (line.talent_profile_id) {
-        const { data: tp } = await supabase
+        // TUL-1382: the rate-card name must not blank for a removed, unpublished talent.
+        const { data: tp } = await (await staffTalentClient(supabase))
           .from("talent_profiles")
           .select("display_name")
           .eq("id", line.talent_profile_id as string)

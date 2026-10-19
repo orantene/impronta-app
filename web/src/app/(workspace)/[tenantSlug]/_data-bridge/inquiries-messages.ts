@@ -7,6 +7,7 @@ import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
+import { backfillMissingTalentEmbeds } from "@/lib/talent/backfill-talent-embeds";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
 import { inquiryMessagingState, linkedRecordsByInquiry, type InquiryMessagingState } from "./inquiries-messaging-state";
@@ -504,6 +505,13 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
     // Confidence: resolve a real face + discipline for every lineup talent in
     // ONE batch (across all inquiries) so the Lineup tab + roster cards in the
     // admin/talent/client shells show people, not initials-in-a-box.
+    // TUL-1382: removed, unpublished talents lose their embed under the roster-scoped
+    // policy; fill the name through the service client (ids come from the authorized lineup).
+    await backfillMissingTalentEmbeds(
+      supabase,
+      (participantsRes.data ?? []) as Array<Record<string, unknown>>,
+      "display_name, first_name, last_name",
+    );
     const lineupChips = await loadTalentChipInfo(
       supabase,
       ((participantsRes.data ?? []) as Array<{ talent_profile_id: string | null }>).map(

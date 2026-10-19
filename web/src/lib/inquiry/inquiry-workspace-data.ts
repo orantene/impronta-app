@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { backfillMissingTalentEmbeds } from "@/lib/talent/backfill-talent-embeds";
 import { logServerError } from "@/lib/server/safe-error";
 
 function normalizeTalentProfileJoin(
@@ -71,6 +72,8 @@ export async function loadInquiryRoster(
 
   if (!rows || rows.length === 0) return [];
 
+  // TUL-1382: a removed, unpublished talent has a NULL embed under the roster-scoped policy.
+  await backfillMissingTalentEmbeds(supabase, rows as Array<Record<string, unknown>>, "profile_code, display_name, user_id");
   const talentIds = rows.map((r) => r.talent_profile_id).filter(Boolean) as string[];
   const thumbs = await loadTalentThumbUrls(supabase, talentIds);
   const tags = await loadPrimaryTalentTags(supabase, talentIds);
@@ -143,6 +146,7 @@ export async function loadInquiryRosterPeekMany(
       `
       inquiry_id,
       sort_order,
+      talent_profile_id,
       talent_profiles ( profile_code, display_name )
     `,
     )
@@ -154,6 +158,8 @@ export async function loadInquiryRosterPeekMany(
   if (partErr) {
     logServerError("inquiry-workspace-data/loadInquiryRosterPeekMany/participants", partErr);
   } else {
+    // TUL-1382: counts and labels must not drop a removed, unpublished talent.
+    await backfillMissingTalentEmbeds(supabase, (parts ?? []) as Array<Record<string, unknown>>, "profile_code, display_name");
     applyPeekRows((parts ?? []) as Array<Record<string, unknown>>);
   }
 
