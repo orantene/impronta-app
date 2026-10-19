@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { StartFlow } from "@/components/onboarding/start-flow";
 import { defaultFlowLocale, flowLocaleFromPath } from "@/lib/onboarding/flow";
@@ -34,5 +35,6 @@ export default async function StartPage({
     country: h.get("x-vercel-ip-country"),
   });
   const choice = isOnboardingChoice(sp.choice) ? sp.choice : null;
-  return <StartFlow initialLocale={locale} startChoice={choice} planIntent={parsePlanIntent(sp.plan, sp.interval)} />;
+  return <StartFlow initialLocale={locale} startChoice={choice} planIntent={parsePlanIntent(sp.plan, sp.interval)}
+      marketingOrigin={resolveMarketingOrigin()} />;
 }

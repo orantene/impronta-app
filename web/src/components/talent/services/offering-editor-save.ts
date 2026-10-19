@@ -8,6 +8,9 @@
  *   dashboards need copy.t + title-bearing templates before display.
  */
 
+import { INSTANT_PLAN_REFUSAL_EN, INSTANT_PLAN_REFUSAL_ES } from "@/lib/talent/instant-plan-gate";
+import { publishRefusalToSpanish } from "@/lib/talent/publish-readiness";
+
 export function resolveOfferingEditorSaveStatus(input: {
   publish: boolean;
   offeringId: string;
@@ -98,6 +101,10 @@ export function localizeOfferingSaveError(
     const m = trimmed.match(tmpl.re);
     if (m?.[1]) return tmpl.es(m[1]);
   }
+  // TUL-1270 #11/#12: the publish-readiness and plan refusals.
+  const notReady = publishRefusalToSpanish(trimmed);
+  if (notReady) return notReady;
+  if (trimmed === INSTANT_PLAN_REFUSAL_EN) return INSTANT_PLAN_REFUSAL_ES;
 
   return opts.generic;
 }
