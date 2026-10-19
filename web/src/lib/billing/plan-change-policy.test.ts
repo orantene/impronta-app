@@ -106,6 +106,24 @@ test("schedule keeps the current price to period end, then the new price with ne
   assert.deepEqual(p.phases[1].metadata, { plan_key: "talent_pro", billing_interval: "month" });
 });
 
+test("schedule carries trial_end on the current phase only while a trial is running (TUL-831)", () => {
+  const base = {
+    currentPriceId: "price_portfolio_year",
+    currentPhaseStart: 100,
+    currentPeriodEnd: 200,
+    toPriceId: "price_pro_month",
+    toPlan: "talent_pro",
+    toInterval: "month" as const,
+  };
+  const trialing = buildScheduleUpdateParams({ ...base, trialEnd: 200 });
+  assert.equal((trialing.phases[0] as { trial_end?: number }).trial_end, 200);
+  assert.equal("trial_end" in trialing.phases[1], false);
+  for (const trialEnd of [null, undefined, 100, 50]) {
+    const p = buildScheduleUpdateParams({ ...base, trialEnd });
+    assert.equal("trial_end" in p.phases[0], false, String(trialEnd));
+  }
+});
+
 test("idempotency key is stable for one preview and changes with a new preview", () => {
   const base = { subscriptionId: "sub_1", toPlan: "talent_portfolio", toInterval: "year" as const, prorationDate: 1700, step: "update" as const };
   assert.equal(planChangeIdempotencyKey(base), planChangeIdempotencyKey({ ...base }));

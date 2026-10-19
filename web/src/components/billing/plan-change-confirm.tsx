@@ -4,6 +4,7 @@ import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import * as React from "react";
 
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import {
   planChangeCopyKey,
@@ -69,6 +70,7 @@ export function PlanChangeConfirm({
   onCancel: () => void;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const pc = usePlanChange(preview, confirm);
   const p = pc.preview;
 
@@ -83,7 +85,7 @@ export function PlanChangeConfirm({
       plan: planName,
       amount: money(p.amountDueToday, p.currency),
       date: p.effectiveAt
-        ? new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric" }).format(new Date(p.effectiveAt))
+        ? new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" }).format(new Date(p.effectiveAt))
         : "",
     });
   }
