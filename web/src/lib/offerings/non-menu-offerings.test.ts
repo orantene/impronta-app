@@ -7,8 +7,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { loadCounterCatalog } from "@/app/(workspace)/[tenantSlug]/admin/pos/counter-catalog";
-import { guestVisitMenu } from "@/lib/visits/guest-order";
-import { loadNonMenuOfferingIds } from "./non-menu-offerings";
+import { readFileSync } from "node:fs";
+import { guestVisitAddLine, guestVisitMenu } from "@/lib/visits/guest-order";
+import { anyNonMenuOffering, loadNonMenuOfferingIds, saleHoldsNonMenuOffering } from "./non-menu-offerings";
 
 type Row = Record<string, unknown>;
 
@@ -32,6 +33,8 @@ function fake(opts: { failTable?: string } = {}) {
     venue_service_rules: [{ tenant_id: TENANT, reservation_offering_id: RESERVATION }],
     sessions: [],
     talent_offering_variants: [],
+    orders: [{ id: "o-event", tenant_id: TENANT }, { id: "o-ok", tenant_id: TENANT }, { id: "o-res", tenant_id: TENANT }],
+    order_lines: [{ order_id: "o-event", offering_id: EVENT_PKG }, { order_id: "o-ok", offering_id: COFFEE }, { order_id: "o-res", offering_id: COFFEE }, { order_id: "o-res", offering_id: RESERVATION }],
     visits: [{ id: "v1", tenant_id: TENANT, space_id: "s1", public_token: "tok", status: "open", opened_at: null, party_size: 2 }],
     spaces: [{ id: "s1", code: "T1", name: "Table 1" }],
   };
@@ -79,4 +82,59 @@ test("QR guest menu omits event-backing and reservation offerings, keeps ordinar
 test("QR guest menu is unavailable when the exclusion list cannot be read (fail closed)", async () => {
   const menu = await guestVisitMenu(fake({ failTable: "venue_service_rules" }), { tenantId: TENANT, token: "tok" });
   assert.equal(menu.ok, false);
+});
+
+const addLine = (admin: never, offeringId: string) =>
+  guestVisitAddLine(admin, { tenantId: TENANT, token: "tok", offeringId, qty: 1, actorUserId: "u1" });
+
+test("guestVisitAddLine refuses an event-backing id and a reservation id", async () => {
+  for (const id of [EVENT_PKG, RESERVATION]) {
+    const r = await addLine(fake(), id);
+    assert.deepEqual(r, { ok: false, reason: "item_unavailable" });
+  }
+});
+
+test("guestVisitAddLine refuses (fails closed) when the exclusion list cannot be read", async () => {
+  const r = await addLine(fake({ failTable: "events" }), COFFEE);
+  assert.deepEqual(r, { ok: false, reason: "item_unavailable" });
+});
+
+test("guestVisitAddLine does not refuse an ordinary item on this ground", async () => {
+  const r = await addLine(fake(), COFFEE);
+  assert.ok(r.ok || r.reason !== "item_unavailable");
+});
+
+test("POS add guard (anyNonMenuOffering): event and reservation ids blocked, ordinary allowed, read error blocks", async () => {
+  assert.equal(await anyNonMenuOffering(fake(), TENANT, [EVENT_PKG]), true);
+  assert.equal(await anyNonMenuOffering(fake(), TENANT, [RESERVATION]), true);
+  assert.equal(await anyNonMenuOffering(fake(), TENANT, [COFFEE]), false);
+  assert.equal(await anyNonMenuOffering(fake({ failTable: "venue_service_rules" }), TENANT, [COFFEE]), true);
+});
+
+test("POS checkout guard (saleHoldsNonMenuOffering): event or reservation line blocks the sale, ordinary sale passes", async () => {
+  assert.equal(await saleHoldsNonMenuOffering(fake(), TENANT, "o-event"), true);
+  assert.equal(await saleHoldsNonMenuOffering(fake(), TENANT, "o-res"), true);
+  assert.equal(await saleHoldsNonMenuOffering(fake(), TENANT, "o-ok"), false);
+  assert.equal(await saleHoldsNonMenuOffering(fake({ failTable: "order_lines" }), TENANT, "o-ok"), true);
+  assert.equal(await saleHoldsNonMenuOffering(fake(), TENANT, "missing"), true);
+});
+
+test("POS catalog read failure is flagged so the page shows an error, not an empty counter", async () => {
+  const bad = await loadCounterCatalog(fake({ failTable: "talent_offerings" }), { tenantId: TENANT, nowIso: "2026-10-19T00:00:00Z" });
+  assert.equal(bad.readFailed, true);
+  const good = await loadCounterCatalog(fake(), { tenantId: TENANT, nowIso: "2026-10-19T00:00:00Z" });
+  assert.equal(good.readFailed, false);
+});
+
+test("posAddLine and posStartCollection call the guards; the page renders the error copy in en and es", () => {
+  const dir = "src/app/(workspace)/[tenantSlug]/admin/pos/";
+  const actions = readFileSync(dir + "actions.ts", "utf8");
+  assert.match(actions, /anyNonMenuOffering\(g\.admin, g\.tenantId, \[parsed\.data\.offeringId\]\)/);
+  assert.match(actions, /saleHoldsNonMenuOffering\(g\.admin, g\.tenantId, parsed\.data\.orderId\)/);
+  assert.match(readFileSync(dir + "page.tsx", "utf8"), /catalog\.readFailed/);
+  for (const l of ["en", "es"]) {
+    const m = JSON.parse(readFileSync(`messages/${l}.json`, "utf8")).dashboard.pos;
+    assert.ok(m.counterCatalogErrorTitle && m.counterCatalogErrorBody);
+    assert.ok(!/\u2014/.test(m.counterCatalogErrorTitle + m.counterCatalogErrorBody));
+  }
 });

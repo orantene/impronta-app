@@ -61,6 +61,8 @@ export type CounterCatalog = {
   readonly items: PosCatalogItem[];
   /** Upcoming sessions per offering id, for the basket's session labels. */
   readonly sessionsByOffering: ReadonlyMap<string, readonly { id: string; title: string; startsAt: string }[]>;
+  /** The catalog or its exclusion list could not be read; `items` is empty and the page says so. */
+  readonly readFailed: boolean;
 };
 
 export async function loadCounterCatalog(admin: Admin, input: { tenantId: string; nowIso: string }): Promise<CounterCatalog> {
@@ -90,7 +92,8 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
   // TUL-1271 item 6: event-backing and reservation offerings are not counter
   // items. If that exclusion list cannot be read, show nothing rather than
   // sell a ticketed night or a table booking off the counter.
-  const rows = nonMenu.error ? [] : withoutNonMenuOfferings((catalog.data ?? []) as OfferingRow[], nonMenu.ids);
+  const readFailed = Boolean(catalog.error || nonMenu.error);
+  const rows = readFailed ? [] : withoutNonMenuOfferings((catalog.data ?? []) as OfferingRow[], nonMenu.ids);
   const ids = rows.map((row) => row.id);
 
   // Variants are children of the offering (no tenant column of their own);
@@ -129,7 +132,7 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
     options: optionsByOffering.get(row.id),
     stock: stockOf(row),
   }));
-  return { items, sessionsByOffering };
+  return { items, sessionsByOffering, readFailed };
 }
 
 export type CounterLineFacts = {

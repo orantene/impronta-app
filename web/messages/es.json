@@ -15095,6 +15095,8 @@
           "recording": "Registrando…"
         }
       },
+      "counterCatalogErrorTitle": "No se pudo cargar el catálogo",
+      "counterCatalogErrorBody": "Algo salió mal al leer los artículos de este espacio de trabajo, por eso el mostrador no los muestra. Recarga la página. Si sigue pasando, contacta a soporte.",
       "counterOffTitle": "El mostrador está desactivado",
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "projects": {

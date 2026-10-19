@@ -6,7 +6,7 @@ import { submitOrderToPreparation } from "@/lib/preparation/tickets";
 import { createPaymentLink } from "@/lib/payments/links";
 import { loadOpenVisitByToken } from "./qr";
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
-import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
+import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
 
 export type GuestReason =
@@ -126,6 +126,8 @@ export async function guestVisitAddLine(
   const off = offering as { id: string; status: string; moderation_state?: string; visibility?: string } | null;
   // D-10: an id guessed from another surface must not add an unapproved or hidden service.
   if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
+  // TUL-1271 item 6: an event-backing or reservation id is not a menu item either (fails closed).
+  if (await anyNonMenuOffering(admin, input.tenantId, [off.id])) return { ok: false, reason: "item_unavailable" };
 
   const draft = await guestDraft(admin, {
     tenantId: input.tenantId,

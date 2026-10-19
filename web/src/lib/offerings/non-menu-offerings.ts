@@ -42,3 +42,29 @@ export async function loadNonMenuOfferingIds(admin: Admin, tenantId: string): Pr
 export function withoutNonMenuOfferings<T extends { id: string }>(rows: readonly T[], excluded: ReadonlySet<string>): T[] {
   return rows.filter((row) => !excluded.has(row.id));
 }
+
+/**
+ * Write-path guard: true when any of `offeringIds` may not be sold off a menu
+ * surface (counter, QR menu), OR when the exclusion list could not be read
+ * (fail closed). Ticketed-event desks (door) do not call this.
+ */
+export async function anyNonMenuOffering(admin: Admin, tenantId: string, offeringIds: readonly string[]): Promise<boolean> {
+  if (offeringIds.length === 0) return false;
+  const { ids, error } = await loadNonMenuOfferingIds(admin, tenantId);
+  if (error) return true;
+  return offeringIds.some((id) => ids.has(id));
+}
+
+/** Checkout guard: true when the tenant's sale holds a non-menu offering, or any read fails (fail closed). */
+export async function saleHoldsNonMenuOffering(
+  admin: Admin,
+  tenantId: string,
+  orderId: string,
+): Promise<boolean> {
+  const { data: order, error: orderError } = await admin.from("orders").select("id").eq("id", orderId).eq("tenant_id", tenantId).maybeSingle();
+  if (orderError || !order) return true;
+  const { data: lines, error: linesError } = await admin.from("order_lines").select("offering_id").eq("order_id", orderId);
+  if (linesError) return true;
+  const ids = ((lines ?? []) as Array<{ offering_id: string | null }>).map((l) => l.offering_id).filter((id): id is string => Boolean(id));
+  return anyNonMenuOffering(admin, tenantId, ids);
+}
