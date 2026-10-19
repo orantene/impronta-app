@@ -3291,6 +3291,8 @@
       "saving": "Saving…",
       "done": "Done",
       "gotIt": "Got it",
+      "recordNotFoundTitle": "We could not load this record",
+      "recordNotFoundBody": "Nothing was changed. Close this and open it again from the list.",
       "copy": "Copy",
       "open": "Open",
       "comingSoon": "Coming soon",

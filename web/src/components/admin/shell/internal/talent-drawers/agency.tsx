@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { RecordNotFoundDrawer } from "./record-not-found";
 import { TRUST_TIER_KEYS } from "../primitives/trust-tier-copy-keys";
 import { talentPublicProfileHref, talentPublicProfileLabel } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
@@ -140,13 +141,15 @@ export function TalentAgencyRelationshipDrawer() {
   }
 
   // Resolve display data — prefer bridge, fall back to mock fixture.
-  const mockAgency = MY_AGENCIES.find((x) => x.id === payloadAgencyId) ?? MY_AGENCIES[0];
-  const name       = bridgeAgency?.agencyName ?? mockAgency.name;
-  const status     = bridgeAgency?.rosterStatus ?? mockAgency.status;
-  const joinedAt   = bridgeAgency?.addedAt ?? mockAgency.joinedAt;
-  const isPrimary  = bridgeAgency?.isPrimary ?? mockAgency.isPrimary;
-  const planTier   = (bridgeAgency?.plan ?? mockAgency.planTier) as "free" | "studio" | "agency";
-  const commissionRate = mockAgency.commissionRate; // bridge doesn't carry this yet
+  const mockAgency = MY_AGENCIES.find((x) => x.id === payloadAgencyId);
+  // Neither a real roster row nor a prototype row for this id: say so, never show another agency.
+  if (!bridgeAgency && !mockAgency) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
+  const name       = bridgeAgency?.agencyName ?? mockAgency!.name;
+  const status     = bridgeAgency?.rosterStatus ?? mockAgency!.status;
+  const joinedAt   = bridgeAgency?.addedAt ?? mockAgency!.joinedAt;
+  const isPrimary  = bridgeAgency?.isPrimary ?? mockAgency!.isPrimary;
+  const planTier   = (bridgeAgency?.plan ?? mockAgency!.planTier) as "free" | "studio" | "agency";
+  const commissionRate = mockAgency?.commissionRate ?? 0; // bridge doesn't carry this yet
 
   const planLabel = planTier === "free" ? t("dashboard.talentDrawers.agency.planFree") : planTier === "studio" ? t("dashboard.talentDrawers.agency.planStudio") : t("dashboard.talentDrawers.agency.planAgency");
   const commissionLabel = commissionRate === 0
