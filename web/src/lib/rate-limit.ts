@@ -5,6 +5,28 @@ type Bucket = { count: number; resetAt: number };
 const buckets = new Map<string, Bucket>();
 
 /**
+ * H3: hard cap on distinct keys held in memory. A spray of spoofed IPs used to
+ * add one bucket per request forever; at the cap, expired buckets are swept and,
+ * if the table is still full, the oldest keys are dropped (insertion order).
+ */
+export const RATE_LIMIT_MAX_BUCKETS = 5000;
+
+export function rateLimitBucketCount(): number {
+  return buckets.size;
+}
+
+function makeRoom(now: number): void {
+  if (buckets.size < RATE_LIMIT_MAX_BUCKETS) return;
+  for (const [k, b] of buckets) {
+    if (now >= b.resetAt) buckets.delete(k);
+  }
+  for (const k of buckets.keys()) {
+    if (buckets.size < RATE_LIMIT_MAX_BUCKETS) break;
+    buckets.delete(k);
+  }
+}
+
+/**
  * Fixed-window counter stored in process memory.
  *
  * Limitations (acceptable for an early hardening pass, not a final prod story):
@@ -28,6 +50,7 @@ export function tryConsumeRateLimit(
   const now = Date.now();
   let bucket = buckets.get(key);
   if (!bucket || now >= bucket.resetAt) {
+    makeRoom(now);
     bucket = { count: 0, resetAt: now + windowMs };
     buckets.set(key, bucket);
   }
