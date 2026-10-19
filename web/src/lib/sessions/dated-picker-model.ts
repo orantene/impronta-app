@@ -110,3 +110,22 @@ export const DATED_PICKER_COPY: Record<"en" | "es", DatedPickerCopy> = {
 export function datedPickerCopy(locale: string): DatedPickerCopy {
   return locale.toLowerCase().startsWith("es") ? DATED_PICKER_COPY.es : DATED_PICKER_COPY.en;
 }
+
+/**
+ * Which transactions may still be sent to the card page: only ones waiting for
+ * money. Paid, void, refunded, disputed, failed and every unknown status are
+ * refused, so a stale link or a replay can never open a second checkout.
+ */
+export function transactionPayable(status: unknown): boolean {
+  return status === "draft" || status === "payment_requested" || status === "pending";
+}
+
+/** Order states that can never be paid again. Unknown states are not payable either. */
+export function orderPayable(status: unknown): boolean {
+  return status === "draft" || status === "pending_payment";
+}
+
+/** A currency is an ISO code or it is nothing: no default, no guess. */
+export function cleanCurrency(raw: unknown): string | null {
+  return typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim()) ? raw.trim().toUpperCase() : null;
+}

@@ -11,6 +11,7 @@
  * the order pipeline. Seats are advisory; the pool decides at booking.
  */
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import type { DatedPicker, DatedPickerDate } from "@/app/(public)/_dated/dated-picker-actions";
@@ -161,9 +162,9 @@ export function DatedPlacesStep(props: DatedPlacesStepProps) {
       <div role="status" data-testid="dated-done" className="flex flex-col gap-2">
         <p>{done.text}</p>
         {done.receiptCode ? (
-          <a href={`/r/${done.receiptCode}`} className="underline">
+          <Link href={`/r/${done.receiptCode}`} className="underline">
             {c.viewReceipt}
-          </a>
+          </Link>
         ) : null}
       </div>
     );

@@ -28,3 +28,14 @@ test("the step never claims an email unless the server said so, and has no hard 
 test("the step uses the picker copy, not literals", () => {
   assert.doesNotMatch(step, />\s*(Pick a date|Elige una fecha|Pay and book)\s*</);
 });
+
+test("the card hop refuses paid or void transactions and a missing currency, with no USD default", () => {
+  assert.match(actions, /transactionPayable\(txn\.status\)/);
+  assert.match(actions, /orderPayable\(order\.status\)/);
+  assert.doesNotMatch(actions, /\?\? "USD"/);
+});
+
+test("the receipt link is next/link, not a bare anchor", () => {
+  assert.match(step, /import Link from "next\/link"/);
+  assert.doesNotMatch(step, /<a href=/);
+});

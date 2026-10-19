@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DATED_PICKER_COPY, dateState, datedPickerCopy, safeReturnPath, seatsLabel } from "./dated-picker-model";
+import { cleanCurrency, orderPayable, transactionPayable, DATED_PICKER_COPY, dateState, datedPickerCopy, safeReturnPath, seatsLabel } from "./dated-picker-model";
 
 const base = { seatsLeft: 10, salesOpen: true, privateOnRequest: false };
 
@@ -47,4 +47,19 @@ test("return path must be a same-site path", () => {
   assert.equal(safeReturnPath("https://evil.example"), "/");
   assert.equal(safeReturnPath("/a\\b"), "/");
   assert.equal(safeReturnPath(undefined), "/");
+});
+
+test("only a transaction still waiting for money may open a checkout", () => {
+  for (const ok of ["draft", "payment_requested", "pending"]) assert.equal(transactionPayable(ok), true, ok);
+  for (const no of ["paid", "payout_pending", "payout_sent", "cancelled", "refunded", "disputed", "failed", "void", "weird", null, undefined]) {
+    assert.equal(transactionPayable(no), false, String(no));
+  }
+  assert.equal(orderPayable("pending_payment"), true);
+  for (const no of ["paid", "fulfilled", "cancelled", "refunded", "partially_refunded", "quoted", "x", null]) assert.equal(orderPayable(no), false, String(no));
+});
+
+test("a missing or malformed currency is nothing, never USD", () => {
+  assert.equal(cleanCurrency("mxn"), "MXN");
+  assert.equal(cleanCurrency(" USD "), "USD");
+  for (const bad of [null, undefined, "", "US", "DOLLAR", 5]) assert.equal(cleanCurrency(bad), null, String(bad));
 });

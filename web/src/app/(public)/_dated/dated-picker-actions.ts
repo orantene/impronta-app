@@ -24,7 +24,7 @@ import { doorOfferState } from "@/lib/events/ticket-purchase";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
-import { dateState, safeReturnPath, type DateState } from "@/lib/sessions/dated-picker-model";
+import { cleanCurrency, dateState, orderPayable, safeReturnPath, transactionPayable, type DateState } from "@/lib/sessions/dated-picker-model";
 import { resolveSalesCloseAt } from "@/lib/sessions/dated-sales-close";
 import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 
@@ -86,6 +86,12 @@ export async function loadDatedPicker(input: unknown): Promise<DatedPicker> {
       return { ok: false, reason: "unavailable" };
     }
     if (!offering || !isGuestSellableOffering(offering)) return { ok: false, reason: "not_sellable" };
+    // No currency, no price: never display a guessed one.
+    const currency = cleanCurrency(offering.currency);
+    if (!currency) {
+      logServerError("dated.picker.currency", `offering ${offeringId} has no currency`);
+      return { ok: false, reason: "unavailable" };
+    }
 
     let privateOnRequest = false;
     const { data: flag, error: flagErr } = await admin
@@ -241,7 +247,7 @@ export async function loadDatedPicker(input: unknown): Promise<DatedPicker> {
     return {
       ok: true,
       title: String(offering.title ?? ""),
-      currency: String(offering.currency ?? "USD"),
+      currency,
       defaultAmountCents: tierRows.length === 0 && offering.amount_cents != null ? Number(offering.amount_cents) : null,
       tiers,
       dates,
@@ -265,7 +271,7 @@ const paySchema = z.object({
 
 export type DatedCardResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "invalid_request" | "not_found" | "engine_error" };
+  | { ok: false; reason: "invalid_request" | "not_found" | "not_payable" | "engine_error" };
 
 export async function startDatedCardPayment(input: unknown): Promise<DatedCardResult> {
   await requireNotImpersonating();
@@ -286,6 +292,13 @@ export async function startDatedCardPayment(input: unknown): Promise<DatedCardRe
       return { ok: false, reason: "engine_error" };
     }
     if (!order) return { ok: false, reason: "not_found" };
+    // Already paid, cancelled, refunded: nothing to charge.
+    if (!orderPayable(order.status)) return { ok: false, reason: "not_payable" };
+    const currency = cleanCurrency(order.currency);
+    if (!currency) {
+      logServerError("dated.pay.currency", `order ${d.orderId} has no currency`);
+      return { ok: false, reason: "engine_error" };
+    }
     const { data: txn, error: tErr } = await admin
       .from("booking_transactions")
       .select("id, order_id, booking_id, source_inquiry_id, gross_amount_cents, status")
@@ -297,6 +310,8 @@ export async function startDatedCardPayment(input: unknown): Promise<DatedCardRe
       return { ok: false, reason: "engine_error" };
     }
     if (!txn) return { ok: false, reason: "not_found" };
+    // Only a transaction still waiting for money may open a checkout.
+    if (!transactionPayable(txn.status)) return { ok: false, reason: "not_payable" };
     const bookingId = (txn.booking_id as string | null) ?? null;
     if (!bookingId) {
       logServerError("dated.pay.txn", `transaction ${String(txn.id)} has no booking id`);
@@ -316,7 +331,7 @@ export async function startDatedCardPayment(input: unknown): Promise<DatedCardRe
     const res = await createCheckoutSessionForTransaction({
       transactionId: String(txn.id),
       amountCents: Number(txn.gross_amount_cents),
-      currency: String(order.currency ?? "USD"),
+      currency,
       payerEmail: (customer?.email as string | null) ?? null,
       inquiryId: (txn.source_inquiry_id as string | null) ?? null,
       bookingId,
