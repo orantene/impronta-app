@@ -104,7 +104,8 @@ test("AI access: reading is always open; booking only when a talent turned it on
 
 test("the route is rate limited, tenant-host only, read-only, and reachable on every host kind it serves", () => {
   const route = read("src/app/api/public/booking/business-catalog/route.ts");
-  assert.match(route, /checkBookingSlots\(resolvePublicClientIp/);
+  assert.match(route, /checkPublicCatalog\(resolvePublicClientIp/);
+  assert.doesNotMatch(route, /checkBookingSlots/);
   assert.match(route, /status: 429/);
   assert.match(route, /host\.kind !== "agency" && host\.kind !== "hub"/);
   assert.match(route, /status: 404/);
@@ -120,4 +121,37 @@ test("the loader filters guest-sellable in the query and drops QA test services"
   assert.match(loader, /scopeToGuestSellableOfferings\(/);
   assert.match(loader, /eq\("tenant_id", tenantId\)/);
   assert.match(loader, /hideTestServiceOnPublicSite/);
+});
+
+test("its own rate-limit bucket: separate prefix and limit from slot lookups", () => {
+  const kv = read("src/lib/rate-limit-kv.ts");
+  assert.match(kv, /prefix: "rl:public_catalog"/);
+  assert.match(kv, /Ratelimit\.slidingWindow\(30, "1 m"\),\n      prefix: "rl:public_catalog"/);
+  assert.match(kv, /public_catalog:\$\{key\}/);
+  assert.notEqual("rl:public_catalog", "rl:booking_slots");
+});
+
+test("cross-origin readable: CORS * on every response and an OPTIONS handler", () => {
+  const route = read("src/app/api/public/booking/business-catalog/route.ts");
+  assert.match(route, /"Access-Control-Allow-Origin": "\*"/);
+  assert.match(route, /export function OPTIONS\(\)/);
+  assert.match(route, /status: 204/);
+  // every NextResponse.json carries the CORS headers
+  const jsonCalls = route.match(/NextResponse\.json\(/g) ?? [];
+  const withCors = route.match(/\.\.\.CORS|headers: CORS/g) ?? [];
+  assert.ok(withCors.length >= jsonCalls.length, "a response is missing CORS");
+});
+
+test("language comes from ?lang= only (default es), never cookies or Accept-Language, so the cache cannot cross languages", () => {
+  const route = read("src/app/api/public/booking/business-catalog/route.ts");
+  assert.match(route, /searchParams\.get\("lang"\)/);
+  assert.doesNotMatch(route, /getRequestLocale|accept-language|cookies\(/i);
+  assert.match(route, /=== "en" \? "en" : "es"/);
+});
+
+test("on_request services are intentionally absent: this is the bookable-only catalog", () => {
+  const route = read("src/app/api/public/booking/business-catalog/route.ts");
+  assert.match(route, /on request are intentionally NOT listed/);
+  const [onReq] = toBusinessCatalogServices([offering({ id: "r", visibility: "on_request" })], "es");
+  assert.equal(onReq, undefined);
 });
