@@ -75,12 +75,16 @@ test("the void patch stamps status and time, nothing else", () => {
 
 test("full refund VOIDS the redemption; it never deletes it", () => {
   const src = read("src/lib/orders/refund-execute-lines.ts");
-  const at = src.indexOf("releasesPromoRedemption(plan)");
-  assert.ok(at > -1, "the FULL ruling still gates the release (partial keeps it confirmed)");
-  const block = src.slice(at, at + 600);
+  assert.match(src, /releasePromo: releasesPromoRedemption\(plan\)/, "the FULL ruling still gates the release (partial keeps it confirmed)");
+  // The release itself lives in the shared restore step (TUL-1268 M5), which the webhook also runs.
+  const restore = read("src/lib/orders/refund-restore.ts");
+  const at = restore.indexOf("if (input.releasePromo)");
+  assert.ok(at > -1, "the release is gated on the caller's ruling");
+  const block = restore.slice(at, at + 600);
   assert.match(block, /voidRedemptionPatch\(\)/);
   assert.doesNotMatch(block, /\.delete\(\)/, "deleting erases the audit trail");
   assert.doesNotMatch(src, /tenant_promo_redemptions"\)\s*\.delete\(/);
+  assert.doesNotMatch(restore, /tenant_promo_redemptions"\)\s*\.delete\(/);
 });
 
 test("checkout counts only limit statuses, both total and per customer", () => {
