@@ -185,10 +185,6 @@ test("collection Designs stamp shared navChrome modes on the standard header", (
     mono: "no_nav",
     frame: "filter_bar",
     folio: undefined,
-    ribbon: "chapter_dots",
-    clarity: "bottom_tab",
-    mosaic: "side_rail",
-    prism: "filter_bar",
   };
   for (const d of COLLECTION_DESIGNS) {
     let chrome: string | undefined;

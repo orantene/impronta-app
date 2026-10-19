@@ -14,14 +14,4 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
   folio: "Portada de revista con tu nombre como cabecera, un libro de trabajos y una tarifa clara.",
   gridline:
     "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
-  table:
-    "Primero el menú: portada dividida, filas de carta, un mosaico de cenas y tu historia. Para chefs privados.",
-  ribbon:
-    "De la fecha al último baile: portada centrada, comparación de tres paquetes, cuadrícula de fotos y preguntas tranquilas. Para novias y eventos.",
-  clarity:
-    "Reserva en lenguaje claro: retrato junto a la promesa, solicitud en tres pasos, qué esperar y preguntas claras. Para consultas.",
-  mosaic:
-    "Dos disciplinas, un portafolio: portada, servicios con foto, mosaico con filtro y un cierre enorme. Para creativos que hacen dos cosas.",
-  prism:
-    "Varias disciplinas, una matriz de ofertas: portada tipo bento, un filtro que atenúa lo que no encaja, tarjetas de proyecto y un cierre oscuro. Para freelancers multidisciplinarios.",
 };

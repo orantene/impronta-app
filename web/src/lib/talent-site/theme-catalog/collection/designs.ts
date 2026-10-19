@@ -21,11 +21,6 @@ import type { DesignPayload } from "../types";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
 import { frameDarkHero } from "./frame-hero";
-import { buildTablePayload } from "./table";
-import { buildRibbonPayload } from "./ribbon";
-import { buildClarityPayload } from "./clarity";
-import { buildMosaicPayload } from "./mosaic";
-import { buildPrismPayload } from "./prism";
 import { solaceRotatingHero } from "./solace-hero";
 import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
@@ -493,51 +488,6 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     11,
     buildGridlinePayload,
   ),
-  entry(
-    "table",
-    "Table",
-    "A dinner menu first: a split cover, ruled menu rows, a masonry of dinners and a story. Built for private chefs.",
-    "classic",
-    ["table"],
-    12,
-    buildTablePayload,
-  ),
-  entry(
-    "ribbon",
-    "Ribbon",
-    "A date-to-last-dance timeline: a centered cover, a three-package comparison, a photo grid and a quiet FAQ. Built for bridal and events.",
-    "classic",
-    ["ribbon"],
-    13,
-    buildRibbonPayload,
-  ),
-  entry(
-    "clarity",
-    "Clarity",
-    "Plain-language booking: a portrait beside the promise, a three-step request, what to expect and a clear FAQ. Built for consultations.",
-    "minimal",
-    ["clarity"],
-    14,
-    buildClarityPayload,
-  ),
-  entry(
-    "mosaic",
-    "Mosaic",
-    "Two disciplines, one portfolio: a cover, image-led services, a filterable mosaic and a huge closing line. Built for creatives who do two things.",
-    "creator",
-    ["mosaic"],
-    15,
-    buildMosaicPayload,
-  ),
-  entry(
-    "prism",
-    "Prism",
-    "Several disciplines, one offer matrix: a bento cover, a filter that dims what does not fit, project cards and a dark closing band. Built for multi-skill freelancers.",
-    "bold",
-    ["prism"],
-    16,
-    buildPrismPayload,
-  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -559,9 +509,4 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   frame: [],
   folio: [],
   gridline: [],
-  table: [],
-  ribbon: [],
-  clarity: [],
-  mosaic: [],
-  prism: [],
 };

@@ -33,9 +33,9 @@ describe("TUL-38 readiness (data only)", () => {
       assert.equal(demosByDesign.get(d.slug) ?? 0, 7, `${d.slug} should have 7 mapped demos`);
     }
   });
-  it("only the finished designs are assignable today; the drafts wait", () => {
+  it("only the finished designs are assignable today; solace, mono and frame wait for their release", () => {
     const drafts = COLLECTION_DESIGNS.map((d) => d.slug).filter((s) => !(FINISHED_GALLERY_SLUGS as readonly string[]).includes(s));
-    assert.deepEqual([...drafts].sort(), ["clarity", "frame", "mono", "mosaic", "prism", "ribbon", "solace", "table"]);
+    assert.deepEqual([...drafts].sort(), ["frame", "mono", "solace"]);
   });
   it("never lists a forbidden profile code (Jorgelina, QA twin)", () => {
     const codes = map.entries.map((e) => e.profileCode);
