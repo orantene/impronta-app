@@ -5,6 +5,7 @@ import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { deriveTenantIdFromRequest } from "@/lib/analytics/derive-tenant";
 import { sanitizeReferrer, scrubAnalyticsPayload, stripUrlQuery } from "@/lib/analytics/sanitize-url";
+import { classifyTrafficSource, trafficPayloadFields } from "@/lib/analytics/traffic-source";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { tryConsumeRateLimit, rateLimitJsonResponse } from "@/lib/rate-limit";
 
@@ -29,6 +30,8 @@ const bodySchema = z.object({
   tenant_id: pgUuidSchema().nullable().optional(),
   /** Document referrer for top-referrers analytics (truncated to 2048 chars). */
   referrer: z.string().max(2048).nullable().optional(),
+  /** F6: a short utm_source token. Used to NAME the source and then dropped; never stored. */
+  utm_source: z.string().max(64).nullable().optional(),
   path: z.string().max(2048).nullable().optional(),
   locale: z.string().max(16).nullable().optional(),
 });
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Validation failed", issues: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, payload, session_id, talent_id, tenant_id, referrer, path, locale } = parsed.data;
+  const { name, payload, session_id, talent_id, tenant_id, referrer, utm_source, path, locale } = parsed.data;
 
   if (!eventNames.has(name)) {
     return NextResponse.json({ error: "Unknown event name" }, { status: 400 });
@@ -83,9 +86,18 @@ export async function POST(request: Request) {
   // emails: referrer is reduced to its origin and url-like payload fields to
   // origin + path before anything is stored.
   const safeReferrer = sanitizeReferrer(referrer);
+  // F6: say which kind of door sent the visit (AI assistant, search, social...)
+  // as a class and a name from a fixed list. The raw utm token is read here and
+  // discarded; no URL and no query string is stored.
+  const ownHost = (request.headers.get("host") ?? "").split(":")[0];
+  const traffic = trafficPayloadFields(
+    classifyTrafficSource({ referrer: safeReferrer, utmSource: utm_source, ownHosts: ownHost ? [ownHost] : [] }),
+  );
   const mergedPayload: Record<string, unknown> = {
     ...scrubAnalyticsPayload(payload),
     ...(safeReferrer ? { referrer: safeReferrer } : {}),
+    // Last, so a client cannot pre-seed a class of its own.
+    ...traffic,
   };
 
   // `talent_id` belongs in the COLUMN, not just the payload — every

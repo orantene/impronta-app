@@ -3,6 +3,7 @@
 import { redactSecretPath } from "./redact-secret-path";
 import type { ProductAnalyticsEventName, ProductAnalyticsPayload } from "./product-events";
 import { getSessionId } from "./session-id";
+import { utmSourceToken } from "./traffic-source";
 
 function postInternal(name: ProductAnalyticsEventName, payload: ProductAnalyticsPayload) {
   if (typeof window === "undefined") return;
@@ -28,6 +29,10 @@ function postInternal(name: ProductAnalyticsEventName, payload: ProductAnalytics
   // the same state everything was in before.
   const sessionId = getSessionId();
 
+  // F6: only a short plain utm_source token leaves the browser (AI assistants tag
+  // their links with it); the server names the source and does not store the token.
+  const utmSource = utmSourceToken(window.location?.search ?? null);
+
   const body = JSON.stringify({
     name,
     payload,
@@ -37,6 +42,7 @@ function postInternal(name: ProductAnalyticsEventName, payload: ProductAnalytics
     ...(tenantId ? { tenant_id: tenantId } : {}),
     ...(talentId ? { talent_id: talentId } : {}),
     ...(referrer ? { referrer } : {}),
+    ...(utmSource ? { utm_source: utmSource } : {}),
   });
   void fetch("/api/analytics/events", {
     method: "POST",
