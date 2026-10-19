@@ -11,7 +11,7 @@ import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS } from "@/lib/talent-site/theme-catalog/collection/designs";
-import { FINISHED_GALLERY_SLUGS } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { FINISHED_GALLERY_SLUGS, getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { hashBuiltinPayload, syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-builtins.server";
 import { isAuthoredReflected } from "@/lib/talent-site/theme-catalog/authored-sync-rule";
 import { authoredOverlayVersion } from "@/lib/talent-site/theme-catalog/collection/authored";
@@ -21,7 +21,7 @@ import { demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 
-import { buildStudioChecklist, studioFlagOn } from "./studio-checklist";
+import { buildStudioChecklist, buildTokenPreview, studioFlagOn } from "./studio-checklist";
 import {
   codeVersionOf,
   deriveFactoryStatus,
@@ -155,6 +155,12 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
       referenceDemoCode,
       mockupRun,
       studio: studioOn ? studioChecklistFor(slug, { referenceDemoCode, galleryVisible, mockupRun }) : undefined,
+      studioTokens: studioOn
+        ? buildTokenPreview({
+            fonts: getGalleryDesign(slug)?.fonts ?? null,
+            palettes: (getGalleryDesign(slug)?.palettes ?? []).map((p) => ({ key: p.key, name: p.name.en, page: p.page, section: p.section, text: p.text, accent: p.accent })),
+          })
+        : undefined,
       codeSeedReview: factoryNeedsCodeSeedReview({
         slug,
         codeDiffers,

@@ -61,3 +61,29 @@ export function buildStudioChecklist(f: StudioFacts): StudioChecklist {
   ];
   return { rows, ready: rows.every((r) => r.ok) };
 }
+
+/** Read-only preview of a design's editable token defaults (Studio: tokens, then preview, then the editor saves the draft). */
+export interface StudioTokenPreview {
+  heading: string;
+  body: string;
+  palettes: Array<{ key: string; name: string; swatches: Array<{ role: string; hex: string }> }>;
+}
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+export function buildTokenPreview(input: {
+  fonts?: { heading: string; body: string } | null;
+  palettes: ReadonlyArray<{ key: string; name: string; page: string; section: string; text: string; accent: string }>;
+}): StudioTokenPreview {
+  return {
+    heading: input.fonts?.heading ?? "",
+    body: input.fonts?.body ?? "",
+    palettes: input.palettes.map((p) => ({
+      key: p.key,
+      name: p.name,
+      swatches: (["page", "section", "text", "accent"] as const)
+        .map((role) => ({ role, hex: p[role] }))
+        .filter((s) => HEX.test(s.hex)),
+    })),
+  };
+}

@@ -389,6 +389,26 @@ function DesignCard({
         </div>
       ) : null}
 
+      {row.studioTokens ? (
+        <div className="mt-3" data-studio-tokens>
+          <p className="text-xs uppercase tracking-wider text-white/40">{STUDIO_COPY[lang].tokens}</p>
+          {row.studioTokens.heading ? (
+            <p className="mt-1 text-lg" style={{ fontFamily: row.studioTokens.heading }} data-studio-type-sample>
+              Aa {row.studioTokens.heading.split(",")[0]}
+            </p>
+          ) : null}
+          {row.studioTokens.palettes.map((p) => (
+            <div key={p.key} className="mt-1 flex items-center gap-1" data-studio-palette={p.key}>
+              {p.swatches.map((s) => (
+                <span key={s.role} title={`${s.role} ${s.hex}`} className="inline-block h-4 w-4 rounded border border-white/20" style={{ background: s.hex }} />
+              ))}
+              <span className="ml-1 text-xs text-white/60">{p.name}</span>
+            </div>
+          ))}
+          <p className="mt-1 text-xs text-white/50">{STUDIO_COPY[lang].editHint}</p>
+        </div>
+      ) : null}
+
       {row.canRebuild ? <DemoRebuildPanel design={row.slug} lang={lang} /> : null}
     </section>
   );

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { STUDIO_COPY } from "./studio-checklist-copy";
-import { buildStudioChecklist, studioFlagOn, type StudioFacts } from "./studio-checklist";
+import { buildStudioChecklist, buildTokenPreview, studioFlagOn, type StudioFacts } from "./studio-checklist";
 
 const FULL: StudioFacts = {
   packFiles: ["index.html", "kit.js", "parity-map.json", "content.json", "README.md"],
@@ -65,5 +65,27 @@ describe("STUDIO_COPY", () => {
       assert.ok(!JSON.stringify(STUDIO_COPY[lang]).includes("—"));
     }
     assert.notEqual(STUDIO_COPY.en.title, STUDIO_COPY.es.title);
+  });
+});
+
+describe("buildTokenPreview", () => {
+  it("keeps fonts and valid hex swatches only, per palette", () => {
+    const out = buildTokenPreview({
+      fonts: { heading: "Manrope, sans-serif", body: "Inter" },
+      palettes: [{ key: "paper", name: "Paper", page: "#FFFFFF", section: "var(--x)", text: "#0F0F0F", accent: "#0E6B6B" }],
+    });
+    assert.equal(out.heading, "Manrope, sans-serif");
+    assert.deepEqual(out.palettes[0]!.swatches.map((s) => s.role), ["page", "text", "accent"]);
+  });
+  it("no fonts = empty strings (platform default pair)", () => {
+    assert.equal(buildTokenPreview({ palettes: [] }).heading, "");
+  });
+});
+
+describe("STUDIO_COPY tokens", () => {
+  it("has EN and ES token-preview labels", () => {
+    assert.ok(STUDIO_COPY.en.tokens.length > 0 && STUDIO_COPY.es.tokens.length > 0);
+    assert.notEqual(STUDIO_COPY.en.tokens, STUDIO_COPY.es.tokens);
+    assert.ok(STUDIO_COPY.en.editHint.length > 0 && STUDIO_COPY.es.editHint.length > 0);
   });
 });

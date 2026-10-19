@@ -15,6 +15,8 @@ export const STUDIO_COPY = {
       gallery: "Gallery visibility decided (finished)",
     },
     noRun: "no run found",
+    tokens: "Token defaults (preview)",
+    editHint: "Change any font, size, colour or shape in the design editor, then Publish and update demos to save a draft release.",
   },
   es: {
     title: "Lista de verificación",
@@ -31,5 +33,7 @@ export const STUDIO_COPY = {
       gallery: "Visibilidad en la galería decidida (terminado)",
     },
     noRun: "sin ejecución",
+    tokens: "Valores predeterminados (vista previa)",
+    editHint: "Cambia cualquier fuente, tamaño, color o forma en el editor de diseño y luego Publica y actualiza demos para guardar un borrador de lanzamiento.",
   },
 } as const;

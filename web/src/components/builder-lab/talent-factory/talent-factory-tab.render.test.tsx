@@ -116,14 +116,19 @@ describe("TalentFactoryTab render", () => {
         { key: "gallery" as const, ok: true },
       ],
     };
-    const withStudio: FactoryOverview = { ...DATA, rows: [row("frame", "Frame", { studio })] };
+    const studioTokens = { heading: "Manrope, sans-serif", body: "Inter", palettes: [{ key: "paper", name: "Paper & Teal", swatches: [{ role: "page", hex: "#FFFFFF" }, { role: "accent", hex: "#0E6B6B" }] }] };
+    const withStudio: FactoryOverview = { ...DATA, rows: [row("frame", "Frame", { studio, studioTokens })] };
     const en = renderToStaticMarkup(<TalentFactoryTab initial={withStudio} />);
     assert.match(en, /data-studio-checklist="blocked"/);
     assert.match(en, /Not ready/);
     assert.match(en, /W-12 contact sheet/);
+    assert.match(en, /data-studio-tokens/);
+    assert.match(en, /Paper &amp; Teal/);
+    assert.match(en, /save a draft release/);
     const es = renderToStaticMarkup(<TalentFactoryTab locale="es" initial={withStudio} />);
     assert.match(es, /Lista de verificación/);
     assert.match(es, /Bloqueado/);
+    assert.match(es, /borrador de lanzamiento/);
     assert.doesNotMatch(es, /—/);
   });
 });
