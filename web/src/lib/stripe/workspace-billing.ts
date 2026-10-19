@@ -13,6 +13,7 @@
  *   supabase/server.ts → SSR client (RLS-bound reads from server actions)
  */
 
+import { subscriptionCancelMirror } from "@/lib/billing/pending-cancellation";
 import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
@@ -396,7 +397,7 @@ export async function syncStripeSubscriptionToDb(
           status,
           current_period_start:   periodStart,
           current_period_end:     periodEnd,
-          cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
+          ...subscriptionCancelMirror(subscription),
           cancelled_at:           cancelledAt,
           trial_end:              trialEnd,
           stripe_price_id:        priceId,
@@ -588,7 +589,8 @@ export async function reactivateWorkspaceSubscription(
 
   try {
     const updated = await stripe.subscriptions.update(row.stripe_subscription_id, {
-      cancel_at_period_end: false,
+      // Portal cancels set cancel_at; clear it so undo really undoes.
+      cancel_at_period_end: false, cancel_at: "",
     });
     const periodEnd = updated.items?.data?.[0]?.current_period_end ?? null;
     const renewsAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : row.current_period_end ?? null;
