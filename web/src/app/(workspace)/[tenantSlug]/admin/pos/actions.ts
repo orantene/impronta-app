@@ -1,5 +1,6 @@
 "use server";
 
+import { posOffIds } from "@/lib/pos/pos-enabled";
 import { z } from "zod";
 import { headers } from "next/headers";
 import { logServerError } from "@/lib/server/safe-error";
@@ -85,6 +86,10 @@ export async function posAddLine(input: {
   if (!g.ok) return g;
   // TUL-1271 item 6: not a counter item (fail closed); Messages quotes (inquiryId) keep their rules.
   if (!parsed.data.inquiryId && (await anyNonMenuOffering(g.admin, g.tenantId, [parsed.data.offeringId]))) return { ok: false as const, reason: "invalid" as const, error: "That item is not for sale here." };
+  // TUL-1321: the POS switch is the COUNTER's. Messages quotes and class sales are other channels.
+  if (!parsed.data.inquiryId && !parsed.data.sessionId && (await posOffIds(g.admin, g.tenantId, [parsed.data.offeringId])).size > 0) {
+    return { ok: false as const, reason: "invalid" as const, error: "That item is not sold at the counter." };
+  }
   return addLine(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
@@ -796,5 +801,7 @@ export async function posResolveScanCode(raw: string): Promise<PosScanResolveRes
   }
   const row = data as { id: string; title: string | null } | null;
   if (!row) return { ok: false, reason: "no_match", error: "no_match" };
+  // TUL-1321: a scan is the counter channel; POS off means no scan sale.
+  if ((await posOffIds(g.admin, g.tenantId, [row.id])).size > 0) return { ok: false, reason: "no_match", error: "no_match" };
   return { ok: true, offeringId: row.id, title: row.title?.trim() || row.id.slice(0, 8) };
 }

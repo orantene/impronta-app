@@ -31,7 +31,7 @@ const IDENTITY_KEY: Record<IdentityReason, string> = {
   entitlement: "dashboard.catalog.policies.identity.entitlement",
 };
 
-export function ChannelsTab({ item, patch, saving }: TabProps) {
+export function ChannelsTab({ item, patch, saving, editor, isDraft }: TabProps) {
   const t = useT();
   const locale = useDashboardLocale();
   const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(item.amountCents, item.currency, locale);
@@ -61,7 +61,7 @@ export function ChannelsTab({ item, patch, saving }: TabProps) {
           note={published ? placement : t("dashboard.catalog.channels.counterOff")}
           on={posOn}
           reason={saving ? t("dashboard.catalog.saving") : null}
-          onChange={(next) => patch(posSwitchPatch(item, next))}
+          onChange={(next) => patch(posSwitchPatch(item, next, { columnPresent: editor.items.some((i) => typeof i.posEnabled === "boolean"), isDraft }))}
           override={price}
           overrideLabel={t("dashboard.catalog.channels.priceOverride")}
           testId="catalog-channel-pos"
