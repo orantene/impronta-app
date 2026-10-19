@@ -43,6 +43,7 @@ src/components/marketing/directory/directory-es-labels.test.ts
 src/components/onboarding/arrival-failed.static.test.ts
 src/components/onboarding/choose-step-keyboard.static.test.ts
 src/components/onboarding/onboarding-module.grk109.static.test.ts
+src/components/onboarding/resume-lookup.test.ts
 src/components/onboarding/steps/onb1-13-entry.static.test.ts
 src/components/onboarding/steps/save-step-consent.static.test.ts
 src/components/onboarding/steps/setup-hours-layout.static.test.ts
