@@ -25,6 +25,7 @@ import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/d
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
 import { TABLE_BODY_FONT, TABLE_HEADING_FONT, TABLE_PALETTE } from "./collection/table";
+import { RIBBON_BODY_FONT, RIBBON_HEADING_FONT, RIBBON_PALETTE } from "./collection/ribbon";
 import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
@@ -443,6 +444,19 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       planned("private-chef", { en: "Private Chef", es: "Chef privado" }, ["chef"], "table"),
       planned("bartender", { en: "Bartender", es: "Bartender" }, ["bartender"], "table"),
+    ],
+  }),
+  design({
+    ...collection("ribbon"),
+    fonts: { heading: RIBBON_HEADING_FONT, body: RIBBON_BODY_FONT },
+    styleTags: ["Editorial", "Warm", "Minimal"],
+    featureTags: ["Packages", "Portfolio", "Quote requests", "Personal story"],
+    palettes: [
+      pal("cream", "Cream & Green", "Crema y verde", [RIBBON_PALETTE.page, RIBBON_PALETTE.surface, RIBBON_PALETTE.line, RIBBON_PALETTE.ink, RIBBON_PALETTE.accent, RIBBON_PALETTE.onAccent], { muted: RIBBON_PALETTE.muted }),
+    ],
+    demos: [
+      planned("bridal", { en: "Bridal Hair & Makeup", es: "Peinado y maquillaje de novia" }, ["bridal_makeup", "hair"], "cream"),
+      planned("singer", { en: "Singer", es: "Cantante" }, ["singer"], "cream"),
     ],
   }),
 ];

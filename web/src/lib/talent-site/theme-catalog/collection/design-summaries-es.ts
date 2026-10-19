@@ -16,4 +16,6 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
     "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
   table:
     "Primero el menú: portada dividida, filas de carta, un mosaico de cenas y tu historia. Para chefs privados.",
+  ribbon:
+    "De la fecha al último baile: portada centrada, comparación de tres paquetes, cuadrícula de fotos y preguntas tranquilas. Para novias y eventos.",
 };

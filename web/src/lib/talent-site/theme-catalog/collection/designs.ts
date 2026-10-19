@@ -22,6 +22,7 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
 import { frameDarkHero } from "./frame-hero";
 import { buildTablePayload } from "./table";
+import { buildRibbonPayload } from "./ribbon";
 import { solaceRotatingHero } from "./solace-hero";
 import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
@@ -498,6 +499,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     12,
     buildTablePayload,
   ),
+  entry(
+    "ribbon",
+    "Ribbon",
+    "A date-to-last-dance timeline: a centered cover, a three-package comparison, a photo grid and a quiet FAQ. Built for bridal and events.",
+    "classic",
+    ["ribbon"],
+    13,
+    buildRibbonPayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -520,4 +530,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   folio: [],
   gridline: [],
   table: [],
+  ribbon: [],
 };
