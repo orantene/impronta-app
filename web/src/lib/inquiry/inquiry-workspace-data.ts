@@ -73,7 +73,7 @@ export async function loadInquiryRoster(
   if (!rows || rows.length === 0) return [];
 
   // TUL-1382: a removed, unpublished talent has a NULL embed under the roster-scoped policy.
-  await backfillMissingTalentEmbeds(supabase, rows as Array<Record<string, unknown>>, "profile_code, display_name, user_id");
+  await backfillMissingTalentEmbeds(supabase, rows as Array<Record<string, unknown>>, "profile_code, display_name");
   const talentIds = rows.map((r) => r.talent_profile_id).filter(Boolean) as string[];
   const thumbs = await loadTalentThumbUrls(supabase, talentIds);
   const tags = await loadPrimaryTalentTags(supabase, talentIds);

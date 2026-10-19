@@ -89,3 +89,28 @@ test("each history screen backfills its talent embed (one read per screen)", () 
   assert.match(read("src/app/api/admin/inspector/talent/route.ts"), /status === "removed"/);
   assert.match(read("src/lib/talent/talent-chip-info.ts"), /staffTalentClient/);
 });
+
+test("security: the backfill reads display columns only; user_id can never be requested through it", async () => {
+  const log: string[] = [];
+  const rows: Row[] = [{ id: "p1", talent_profile_id: REMOVED, talent_profiles: null }];
+  await backfillMissingTalentEmbeds(fake({ talent_profiles: [{ id: REMOVED, display_name: "Rita", profile_code: "TAL-9", user_id: "secret-user" }] }, log), rows, "profile_code, display_name, user_id");
+  assert.ok(!log.some((l) => /user_id/.test(l)), `selected: ${log.join("|")}`);
+  assert.deepEqual(rows[0].talent_profiles, { profile_code: "TAL-9", display_name: "Rita" });
+  assert.ok(!JSON.stringify(rows).includes("secret-user"));
+});
+
+test("no caller of the backfill asks for user_id (the client dashboard reaches the roster peek)", () => {
+  for (const f of [
+    "src/lib/inquiry/inquiry-workspace-data.ts",
+    "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts",
+    "src/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages.ts",
+  ]) {
+    const src = readFileSync(join(process.cwd(), f), "utf8");
+    for (const m of src.matchAll(/backfillMissingTalentEmbeds\([^;]*?"([^"]*)"\s*\)/gs)) assert.doesNotMatch(m[1]!, /user_id/, f);
+  }
+});
+
+test("this test is enrolled in a lane so CI runs it", () => {
+  const lanes = readFileSync(join(process.cwd(), "scripts/lanes/builder.txt"), "utf8").split("\n");
+  assert.ok(lanes.includes("src/lib/talent/backfill-talent-embeds.test.ts"));
+});

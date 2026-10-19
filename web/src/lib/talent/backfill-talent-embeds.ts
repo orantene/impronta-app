@@ -19,6 +19,8 @@ import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 
 type RowWithTalent = { talent_profile_id?: string | null; talent_profiles?: unknown };
 
+const SAFE_COLUMNS: ReadonlySet<string> = new Set(["display_name", "first_name", "last_name", "profile_code"]);
+
 function missing(embed: unknown): boolean {
   return embed == null || (Array.isArray(embed) && embed.length === 0);
 }
@@ -33,9 +35,13 @@ export async function backfillMissingTalentEmbeds(
   );
   if (need.length === 0) return;
   const ids = [...new Set(need.map((r) => r.talent_profile_id as string))];
+  // SECURITY: this reaches client-facing payloads (the client dashboard roster peek), so only
+  // display columns may ever be read through the service client. user_id is never one of them.
+  const safe = columns.split(",").map((c) => c.trim()).filter((c) => SAFE_COLUMNS.has(c));
+  if (safe.length === 0) return;
   const client = await staffTalentClient(supabase);
   // `id` is always selected so rows can be matched back.
-  const { data } = await client.from("talent_profiles").select(`id, ${columns}`).in("id", ids);
+  const { data } = await client.from("talent_profiles").select(`id, ${safe.join(", ")}`).in("id", ids);
   const byId = new Map<string, Record<string, unknown>>();
   for (const p of (data ?? []) as Array<Record<string, unknown>>) {
     const { id, ...rest } = p;
