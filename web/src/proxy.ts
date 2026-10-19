@@ -75,7 +75,18 @@ async function proxyInner(request: NextRequest) {
   // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
   // `VERCEL_ENV=preview npx next start` after a production compile. Host
   // is never a gate. Route handlers still 403 outside dev/preview.
-  const allowDevSurfaces = allowDevSurfacesFor(process.env, request.headers.get("host"));
+  // Each variable is read by its literal name so Edge can inline it at build time (next.config injects
+  // TULALA_ALLOW_DEV_SURFACES); passing `process.env` as a whole would read an empty object there.
+  // The rule itself lives in dev-surfaces.ts; the Host header only counts off Vercel (TUL-1269).
+  const allowDevSurfaces = allowDevSurfacesFor(
+    {
+      TULALA_ALLOW_DEV_SURFACES: process.env.TULALA_ALLOW_DEV_SURFACES,
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+      VERCEL: process.env.VERCEL,
+    },
+    request.headers.get("host"),
+  );
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // Stripe webhook + cron + analytics-events must reach their route handlers
