@@ -51,7 +51,7 @@ test("markPaid gates confirm, booking sync, payout and order completion on the g
   for (const gate of [
     /sourceInquiryId && !paidAfterCancel/,
     /bookingId && !paidAfterCancel/,
-    /!isDeposit && !paidAfterCancel\) \{\s*notifyBookingConfirmed|sourceInquiryId && !isDeposit && !paidAfterCancel/,
+    /sourceInquiryId && !paidAfterCancel\) \{\s*notifyBookingConfirmed/,
     /paidAfterCancel\s*\?\s*\(\{ ok: false, reason: "no_order" \}/,
   ]) {
     assert.match(body, gate);

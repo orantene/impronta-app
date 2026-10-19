@@ -906,9 +906,11 @@ export async function markPaid(
     // DISTINCT eventId from the receipt above, so the two never collide on the
     // dispatch_log dedupe key. Requires the source inquiry for client/talent
     // audience + schedule hydration.
-    // 6.3 deposits: do NOT send the "booking confirmed" email on a deposit — the
-    // booking isn't confirmed until the balance is collected.
-    if (result.data.sourceInquiryId && !isDeposit && !paidAfterCancel) {
+    // Deposits (TUL-1268): the client and every booked talent are told on the
+    // deposit payment too ("Booking confirmed" + the talent's new-booking
+    // notice). The stable per-booking eventId collapses the later balance
+    // payment to the same single confirmation. Display only: no amount moves.
+    if (result.data.sourceInquiryId && !paidAfterCancel) {
       notifyBookingConfirmed({
         tenantId: result.data.sourceTenantId,
         inquiryId: result.data.sourceInquiryId,

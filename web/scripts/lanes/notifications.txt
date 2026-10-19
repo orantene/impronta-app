@@ -39,6 +39,7 @@ src/lib/billing/snapshot-aggregations.test.ts
 src/lib/billing/subscription-discounts.test.ts
 src/lib/billing/tenant-campaign-promo.test.ts
 src/lib/billing/trial-door.test.ts
+src/lib/bookings/deposit-booking-notice.static.test.ts
 src/lib/bookings/ledger-paid.test.ts
 src/lib/brand/email-palette.test.ts
 src/lib/brand/marketing-origin.test.ts
@@ -63,6 +64,7 @@ src/lib/notifications/attention-signals-wiring.static.test.ts
 src/lib/notifications/attention-signals.test.ts
 src/lib/notifications/auth-email-locale.test.ts
 src/lib/notifications/auth-email-signup-es.static.test.ts
+src/lib/notifications/booking-cancelled-notice.test.tsx
 src/lib/notifications/booking-noun.test.ts
 src/lib/notifications/catalog-entries-reservation.test.ts
 src/lib/notifications/catalog-guest-support.test.ts
@@ -110,6 +112,7 @@ src/lib/pricing/pick-marketing-currency.test.ts
 src/lib/pricing/plan-claim-audit.test.ts
 src/lib/quality/commerce-drawer-deeplink.static.test.ts
 src/lib/quality/upgrade-flow-wiring.static.test.ts
+src/lib/scheduling/cancel-notify-hook.test.ts
 src/lib/server/no-detached-dispatch.static.test.ts
 src/lib/site-admin/sections/site_header/brand-label-phone.static.test.ts
 src/lib/stripe/checkout-idempotency.static.test.ts

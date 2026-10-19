@@ -10,6 +10,11 @@ interface Props {
   contactName: string | null;
   eventDate: string | null;
   inquiryUrl: string;
+  /** Which voice and copy block to use. Defaults to the staff notice. */
+  audience?: "client" | "talent" | "workspace";
+  serviceName?: string | null;
+  /** Display-only refund line (see booking-cancelled-copy). */
+  refundLine?: string | null;
   brand?: EmailBrand;
   unsubscribeUrl?: string;
   categoryLabel?: string;
@@ -20,16 +25,28 @@ export default function BookingCanceled({
   contactName,
   eventDate,
   inquiryUrl,
+  audience = "workspace",
+  serviceName,
+  refundLine,
   brand,
   unsubscribeUrl,
   categoryLabel,
 }: Props) {
-  const t = getEmailCopy(brand?.locale)["workspace.booking_cancelled"];
+  const copy = getEmailCopy(brand?.locale);
+  const t = copy[`${audience}.booking_cancelled`];
   const isEs = (brand?.locale ?? "").toLowerCase().startsWith("es");
-  const event = contactName ?? (isEs ? "La reserva" : "The booking");
+  const event =
+    audience === "client"
+      ? isEs ? "Tu reserva" : "Your booking"
+      : contactName ?? (isEs ? "La reserva" : "The booking");
+  const intro = serviceName
+    ? interpolate(t.introService, { event, service: serviceName })
+    : interpolate(t.intro, { event });
 
   const fields = [
+    serviceName ? { label: t.fieldService, value: serviceName } : null,
     eventDate ? { label: t.fieldDate, value: eventDate } : null,
+    refundLine ? { label: t.fieldRefund, value: refundLine } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
@@ -40,7 +57,7 @@ export default function BookingCanceled({
       categoryLabel={categoryLabel}
     >
       <Heading style={h2}>{t.heading}</Heading>
-      <Text style={body}>{interpolate(t.intro, { event })}</Text>
+      <Text style={body}>{intro}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
       <Button brand={brand} href={inquiryUrl}>{t.button}</Button>
