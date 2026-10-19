@@ -57,6 +57,7 @@ src/lib/talent-site/bio-language-hint.test.ts
 src/lib/talent-site/dashboard-my-website.test.ts
 src/lib/talent-site/demo-english-plan.test.ts
 src/lib/talent-site/demos/demo-money-copy.test.ts
+src/lib/talent-site/demos/staging-alias.test.ts
 src/lib/talent-site/header-brand-name.test.ts
 src/lib/talent-site/hero-proof-line.test.ts
 src/lib/talent-site/hub-book-follow-ups.test.ts
