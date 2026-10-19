@@ -7,6 +7,10 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  fetchStoredObjectHead,
+  verifyDeclaredAgainstBytes,
+} from "@/lib/server/sniff-upload-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
 import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
@@ -1108,6 +1112,29 @@ export type DocumentUploadResult = ActionResult<{
  * talent. That is not an error — it only means the workspace audit entry
  * is skipped, since there is no workspace to file it under.
  */
+/**
+ * TUL-1289: a signed PUT lets the browser set the stored mimetype, so the
+ * finalize lanes sniff the real bytes instead. A mismatch (or an unreadable
+ * head) removes the object and refuses; on success the SNIFFED type is the
+ * one recorded.
+ */
+async function verifyStoredObjectType(
+  admin: SupabaseClient,
+  bucket: string,
+  storagePath: string,
+  declared: string,
+  opts: { family?: "video" } = {},
+): Promise<{ ok: true; mime: string } | { ok: false; error: string }> {
+  const head = await fetchStoredObjectHead(admin, bucket, storagePath);
+  const verdict = head
+    ? verifyDeclaredAgainstBytes(declared, head, opts)
+    : ({ ok: false, reason: "Could not verify upload. Try again." } as const);
+  if (verdict.ok) return verdict;
+  const { error: removeErr } = await admin.storage.from(bucket).remove([storagePath]);
+  if (removeErr) logServerError("media.actions.verifyStoredType.remove", removeErr);
+  return { ok: false, error: verdict.reason };
+}
+
 type TalentDocumentAuth =
   | { ok: true; tenantId: string | null; actor: "staff" | "self" }
   | { ok: false; error: string };
@@ -1155,9 +1182,15 @@ export async function actionUploadTalentDocument(
   const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
 
   const bytes = await file.arrayBuffer();
+  // TUL-1289: the real bytes decide the type, not the browser's claim.
+  const docType = verifyDeclaredAgainstBytes(
+    file.type || "application/octet-stream",
+    new Uint8Array(bytes.slice(0, 64)),
+  );
+  if (!docType.ok) return { ok: false, error: docType.reason };
   const { error: upErr } = await admin.storage
     .from("media-originals")
-    .upload(storagePath, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
+    .upload(storagePath, bytes, { contentType: docType.mime, upsert: false });
 
   if (upErr) {
     logServerError("media.actions.uploadTalentDocument", upErr);
@@ -1184,7 +1217,7 @@ export async function actionUploadTalentDocument(
       storagePath,
       bucketId: "media-originals",
       sizeBytes: file.size,
-      mimeType: file.type || "application/octet-stream",
+      mimeType: docType.mime,
     },
   };
 }
@@ -1261,13 +1294,21 @@ export async function actionFinalizeDocumentUpload(
     return { ok: false, error: "File must be under 50 MB." };
   }
 
+  const typed = await verifyStoredObjectType(
+    admin,
+    "media-originals",
+    storagePath,
+    meta.mimetype || "application/octet-stream",
+  );
+  if (!typed.ok) return { ok: false, error: typed.error };
+
   return {
     ok: true,
     data: {
       storagePath,
       bucketId: "media-originals",
       sizeBytes: meta.size,
-      mimeType: meta.mimetype || "application/octet-stream",
+      mimeType: typed.mime,
     },
   };
 }
@@ -2164,7 +2205,16 @@ export async function actionRegisterUploadedAsset(
   } | null;
   if (variantKind === "reel") {
     const stat = await statStoredObject(admin, storagePath);
-    verified = stat ? { width: null, height: null, ...stat } : null;
+    if (stat) {
+      // TUL-1289: the stat's mimetype is client-set; the bytes must be a video.
+      const typed = await verifyStoredObjectType(admin, "media-public", storagePath, stat.mimeType, {
+        family: "video",
+      });
+      if (!typed.ok) return { ok: false, error: typed.error };
+      verified = { width: null, height: null, byteSize: stat.byteSize, mimeType: typed.mime };
+    } else {
+      verified = null;
+    }
   } else {
     verified = await reverifyStoredObject(admin, storagePath, variantKind);
   }
