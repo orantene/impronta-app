@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -8,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { orderRef, tierWord } from "@/lib/pos/door-model";
+import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadTicketByCode } from "@/lib/venues/ticket-self";
 import { resolveVenueEngineRefusals } from "@/lib/venues/engine-refusals";
@@ -38,6 +40,11 @@ export default async function TicketSelfPage({ params }: { params: Promise<{ cod
   const admin = createServiceRoleClient();
   if (!admin) notFound();
   const decoded = decodeURIComponent(code);
+  // H2 (TUL-1269 #12): ticket codes are signed, but guessing is still free
+  // without a limit. Per caller, before any read.
+  const hdrs = await headers();
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  if (!tryConsumeRateLimit(`ticket-page:${ip}`, 60, 60_000)) notFound();
   const ticket = await loadTicketByCode(admin, { tenantId: host.tenantId, code: decoded });
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);

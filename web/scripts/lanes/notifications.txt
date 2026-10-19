@@ -67,6 +67,7 @@ src/lib/notifications/auth-email-signup-es.static.test.ts
 src/lib/notifications/booking-cancelled-notice.test.tsx
 src/lib/notifications/booking-notices-dispatch.test.ts
 src/lib/notifications/booking-noun.test.ts
+src/lib/notifications/booking-service-facts.test.tsx
 src/lib/notifications/catalog-entries-reservation.test.ts
 src/lib/notifications/catalog-guest-support.test.ts
 src/lib/notifications/catalog-render-urls.test.ts

@@ -16,17 +16,16 @@ import SeatLimitReached from "../../../emails/workspace/SeatLimitReached";
 import type { CatalogEntry, NotificationEvent } from "./types";
 import { bookingNoun } from "./booking-noun";
 import {
-  allRosterTalent,
   clientOrGuest,
   emailInvitee,
   eventUser,
-  loadInquiryView,
   platformAdmins,
   str,
   workspaceAdmins,
   workspaceManagersPlus,
 } from "./catalog-audiences";
 import { formatAppointmentLabel, formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
+import { bookingConfirmedClient, bookingTalentAudience, loadBookingConfirmedView } from "./catalog-audiences-booking";
 import { BOOKING_CANCELLED_CATALOG_ENTRIES } from "./catalog-entries-booking-cancelled";
 import { BOOKING_RESERVED_CATALOG_ENTRIES } from "./catalog-entries-booking-reserved";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
@@ -453,6 +452,26 @@ function appointmentWhen(event: NotificationEvent, locale: string | null | undef
   return when && what ? `${when} · ${what}` : when;
 }
 
+/**
+ * G1: when the reminder says the booking happens. A talent-site appointment keeps
+ * its own label; a booking whose start is known reads the already formatted
+ * "mié 14 oct, 13:30 - 14:30" (loadBookingConfirmedView); a bare date is formatted.
+ */
+function reminderWhen(event: NotificationEvent, locale: string | null | undefined): string | undefined {
+  const appt = appointmentWhen(event, locale);
+  if (appt) return appt;
+  const date = str(event.payload.eventDate);
+  if (str(event.payload.startsAt)) return date ?? undefined;
+  return formatDateLabel(date) ?? undefined;
+}
+
+/** G1: the client's link, with or without a source inquiry (a direct booking has none). */
+function reminderClientPath(event: NotificationEvent): string {
+  if (event.inquiryId) return `/client/inquiries/${event.inquiryId}`;
+  const bookingId = str(event.payload.bookingId) ?? event.bookingId;
+  return bookingId ? `/client/bookings/${bookingId}` : "/client";
+}
+
 /** TUL-136: appointment wording for talent-site bookings, event wording otherwise. */
 function dayOfWord(event: NotificationEvent, appointment: string, eventText: string): string {
   return bookingNoun(event.payload) === "appointment" ? appointment : eventText;
@@ -469,8 +488,10 @@ const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.day_of_reminder"],
-  hydrate: loadInquiryView,
-  resolveAudience: clientOrGuest,
+  hydrate: loadBookingConfirmedView,
+  // With an inquiry the long-standing audience; a booking with none (direct
+  // booking, G1) is reminded at the contact typed on the booking itself.
+  resolveAudience: (event, ctx) => (event.inquiryId ? clientOrGuest(event, ctx) : bookingConfirmedClient(event, ctx)),
   in_app: {
     kind: "booking",
     surface: "client",
@@ -487,9 +508,13 @@ const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(DayOfReminder, {
         recipientName: recipient.displayName ?? str(event.payload.contactName),
-        eventDate: appointmentWhen(event, brand.locale) ?? formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventDate: reminderWhen(event, brand.locale) ?? null,
         eventLocation: str(event.payload.eventLocation) ?? str(event.payload.appointmentLocation),
-        inquiryUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
+        serviceName: str(event.payload.serviceName),
+        durationLabel: str(event.payload.durationLabel),
+        timeZoneLabel: str(event.payload.timeZoneName),
+        policyLabel: str(event.payload.policyLabel),
+        inquiryUrl: pageUrl(brand, reminderClientPath(event)),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
@@ -508,8 +533,8 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.day_of_reminder"],
-  hydrate: loadInquiryView,
-  resolveAudience: allRosterTalent,
+  hydrate: loadBookingConfirmedView,
+  resolveAudience: bookingTalentAudience,
   in_app: {
     kind: "booking",
     surface: "talent",
@@ -526,9 +551,12 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(DayOfReminder, {
         recipientName: recipient.displayName,
-        eventDate: appointmentWhen(event, brand.locale) ?? formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventDate: reminderWhen(event, brand.locale) ?? null,
         eventLocation: str(event.payload.eventLocation) ?? str(event.payload.appointmentLocation),
-        inquiryUrl: pageUrl(brand, inquiryPathForRole("talent", event.inquiryId)),
+        serviceName: str(event.payload.serviceName),
+        durationLabel: str(event.payload.durationLabel),
+        timeZoneLabel: str(event.payload.timeZoneName),
+        inquiryUrl: pageUrl(brand, event.inquiryId ? inquiryPathForRole("talent", event.inquiryId) : "/talent/inbox"),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",

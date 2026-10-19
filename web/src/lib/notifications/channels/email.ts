@@ -208,8 +208,20 @@ export async function sendEmailNotification(
   const replyTo = threading?.replyTo ?? tenantReplyTo;
   if (threading) headers = { ...headers, ...threading.headers };
 
+  // G1: files the entry attaches (the confirmation's one .ics). A failure to
+  // build one is logged; the email still goes out without it.
+  let attachments: ReturnType<NonNullable<typeof cfg.attachments>> | undefined;
+  if (cfg.attachments) {
+    try {
+      attachments = cfg.attachments({ event: renderEvent, recipient, brand: brandForRecipient, unsubscribeUrl });
+    } catch (err) {
+      logServerError(`notifications.email.attachments:${entry.id}`, err);
+    }
+  }
+
   const result = await sendEmailResult({
     to: toAddress,
+    ...(attachments && attachments.length > 0 ? { attachments } : {}),
     subject,
     html,
     headers,
