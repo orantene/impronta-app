@@ -77,7 +77,7 @@ export function distinctAxes(a: Record<Axis, string>, b: Record<Axis, string>): 
  * owner original (TH20-Mono, O1). Their pairs report as todo (still run, do not
  * gate) until the port lands; remove the slug here then.
  */
-const PORT_PENDING: ReadonlySet<string> = new Set(["mono"]);
+const PORT_PENDING: ReadonlySet<string> = new Set([]);
 
 describe("theme distinctness matrix (O6)", () => {
   const slugs = COLLECTION_DESIGNS.map((d) => d.slug);

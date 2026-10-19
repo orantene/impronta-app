@@ -1348,9 +1348,9 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
       offeringId?: string;
       caption?: string;
       tag?: string;
+    }>;
     /** Show filter chips (All + each shot tag) above the shots. Needs 2+ distinct tags. */
     tagFilter?: boolean;
-    }>;
     /** offering = photo opens that service; none = display only. */
     linkMode?: "offering" | "none";
     emptyMessage?: string;
@@ -2643,7 +2643,8 @@ export interface BuilderNavNode extends BuilderNodeBase {
       | "side_rail"
       | "bottom_tab"
       | "filter_bar"
-      | "chapter_dots";
+      | "chapter_dots"
+      | "no_nav";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
     // Mobile-menu palette — the authoring path to the --bn-nav-menu-* custom

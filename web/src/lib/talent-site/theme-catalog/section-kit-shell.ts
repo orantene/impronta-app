@@ -186,17 +186,22 @@ export function buildKitShell(
     },
     children: [
       brand,
-      {
-        id: makeId(),
-        kind: "nav",
-        props: {
-          ariaLabel: "Primary",
-          links,
-          ...(opts.navChrome && opts.navChrome !== "top_bar"
-            ? { navChrome: opts.navChrome }
-            : {}),
-        },
-      },
+      // `no_nav` (Mono, TH20): name, city and the booking button only; no link strip, no burger.
+      ...(opts.navChrome === "no_nav"
+        ? []
+        : [
+            {
+              id: makeId(),
+              kind: "nav",
+              props: {
+                ariaLabel: "Primary",
+                links,
+                ...(opts.navChrome && opts.navChrome !== "top_bar"
+                  ? { navChrome: opts.navChrome }
+                  : {}),
+              },
+            } as BuilderNode,
+          ]),
       // Every theme header needs a primary CTA (GRK-081); kit shells without
       // utility_bar previously shipped heading+nav only.
       {
@@ -335,9 +340,11 @@ export function buildKitStandardShell(
         ...props,
         sectionProps: {
           ...sectionProps,
-          ...(hasLinks
-            ? { navItems: opts.navLinks!.map((l) => ({ label: l.label, href: l.href })) }
-            : {}),
+          ...(opts.navChrome === "no_nav"
+            ? { navItems: [] }
+            : hasLinks
+              ? { navItems: opts.navLinks!.map((l) => ({ label: l.label, href: l.href })) }
+              : {}),
           ...(hasChrome ? { navChrome: opts.navChrome } : {}),
           ...(hasCta ? { primaryCta: nextPrimaryCta, ...(nextRegions ? { regions: nextRegions } : {}) } : {}),
         },

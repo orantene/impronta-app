@@ -22,6 +22,7 @@ import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
 import { frameDarkHero } from "./frame-hero";
 import { solaceRotatingHero } from "./solace-hero";
+import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
   aboutBlock,
   portfolioBlock,
@@ -99,13 +100,17 @@ export function buildSolacePayload(): DesignPayload {
 // searchable price list straight after it, a short FAQ; no gallery.
 export function buildMonoPayload(): DesignPayload {
   const id = seqIds("mono");
-  const hero = tuneHeading(heroCentered(id, { chips: false, accent: true }), {
-    size: "display",
-    fontWeight: 800,
-    letterSpacing: "-0.03em",
-  });
+  const hero = monoLeftHero(
+    tuneHeading(heroCentered(id, { chips: false, accent: true }), {
+      size: "display",
+      fontWeight: 800,
+      letterSpacing: "-0.04em",
+    }),
+  );
   return {
-    shellTree: shell(id),
+    tokenDefaults: { ...MONO_STYLE_TOKEN_DEFAULTS },
+    // TH20: the header is the name and city plus the booking button, no link strip.
+    shellTree: shell(id, { navChrome: "no_nav" }),
     homeTree: [
       hero,
       servicesSection(id, {
@@ -135,11 +140,11 @@ export function buildFramePayload(): DesignPayload {
   const hero = frameDarkHero(
     tuneHeading(
       heroSplit(id, { ratio: "40-60", chips: false, accent: false, eyebrow: true, minHeight: "56vh" }),
-    tokenDefaults: { ...FRAME_STYLE_TOKEN_DEFAULTS },
       { textTransform: "uppercase", letterSpacing: "0.02em" },
     ),
   );
   return {
+    tokenDefaults: { ...FRAME_STYLE_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navChrome: "filter_bar",
       navLinks: [
@@ -151,7 +156,7 @@ export function buildFramePayload(): DesignPayload {
     }),
     homeTree: [
       hero,
-      portfolioBlock(id, { layout: "contact_sheet", columns: 4, heading: "Work", showCaptions: true }),
+      portfolioBlock(id, { layout: "contact_sheet", columns: 4, heading: "Work", showCaptions: true, tagFilter: true, limit: 16 }),
       servicesSection(id, {
         label: "Sessions and prices",
         eyebrow: "Book",

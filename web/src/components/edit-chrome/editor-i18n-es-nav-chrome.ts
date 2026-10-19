@@ -7,4 +7,5 @@ export const NAV_CHROME_ES_LABELS = {
   "Bottom tabs": "Pestañas inferiores",
   "Filter bar": "Barra de filtros",
   "Chapter dots": "Puntos de capítulo",
+  "Name only": "Solo tu nombre",
 } as const;

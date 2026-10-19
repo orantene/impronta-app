@@ -1150,9 +1150,9 @@ export const portfolioPropsSchema = z.object({
       }),
     )
     .max(48)
+    .optional(),
   /** Contact sheet: filter chips (Todo + each tag) above the grid. */
   tagFilter: z.boolean().optional(),
-    .optional(),
   linkMode: z.enum(["offering", "none"]).optional(),
   emptyMessage: z.string().max(240).optional(),
   useWebsiteTheme: z.boolean().optional(),
@@ -2096,6 +2096,7 @@ const navPropsSchema = z.object({
       "bottom_tab",
       "filter_bar",
       "chapter_dots",
+      "no_nav",
     ])
     .optional(),
 

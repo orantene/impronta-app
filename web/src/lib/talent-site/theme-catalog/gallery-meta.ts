@@ -24,6 +24,7 @@ import { authoredPaletteOverrides } from "./collection/authored";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
+import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
 import { countUsableDemos } from "./usable-demos";
@@ -364,10 +365,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
   }),
   design({
     ...collection("mono"),
+    fonts: { heading: MONO_HEADING_FONT, body: MONO_BODY_FONT },
     styleTags: ["Minimal", "Bold"],
     featureTags: ["Service list", "Booking-ready", "Text-first", "Packages"],
     palettes: [
-      pal("paper", "Paper & Black", "Papel y negro", ["#FFFFFF", "#F5F5F5", "#E3E3E3", "#0F0F0F", "#0F0F0F", "#FFFFFF"], { highContrast: true }),
+      pal("paper", "Paper & Teal", "Papel y verde azulado", ["#FFFFFF", "#F4F4F2", "#E3E3E0", "#0F0F0F", "#0E6B6B", "#FFFFFF"], { muted: "#5F5F5B" }),
       pal("cobalt", "Cobalt", "Cobalto", ["#FFFFFF", "#F2F4F8", "#DEE3EC", "#161A22", "#1F4FB8", "#FFFFFF"]),
       pal("signal", "Signal Red", "Rojo señal", ["#FFFFFF", "#F7F3F2", "#E8E0DE", "#1A1414", "#B3261E", "#FFFFFF"]),
       pal("carbon", "Carbon", "Carbón", ["#111111", "#1B1B1B", "#333333", "#F5F5F5", "#F5F5F5", "#111111"], { dark: true }),
@@ -380,8 +382,8 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ],
   }),
   design({
-    fonts: { heading: FRAME_HEADING_FONT, body: FRAME_BODY_FONT },
     ...collection("frame"),
+    fonts: { heading: FRAME_HEADING_FONT, body: FRAME_BODY_FONT },
     styleTags: ["Image-led", "Bold"],
     featureTags: ["Portfolio", "Service menu", "Quote requests", "Video & media"],
     palettes: [
