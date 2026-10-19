@@ -133,7 +133,17 @@ export function TalentBillingCard({ tenantSlug }: { tenantSlug: string }) {
                     <td className="py-1.5">{day(inv.date)}</td>
                     <td className="py-1.5">{money(inv.amountCents, inv.currency)}</td>
                     <td className="py-1.5">
-                      {inv.failed ? (
+                      {inv.needsAction ? (
+                        <div data-invoice-needs-action>
+                          <span className="font-semibold text-amber-700">{copy.t("Needs action")}</span>
+                          <div className="text-neutral-600">{copy.t("Your bank needs you to confirm this payment.")}</div>
+                          {inv.hostedUrl ? (
+                            <a href={inv.hostedUrl} target="_blank" rel="noopener noreferrer" className="font-semibold underline">
+                              {copy.t("Confirm payment")}
+                            </a>
+                          ) : null}
+                        </div>
+                      ) : inv.failed ? (
                         <div data-invoice-failed>
                           <span className="font-semibold text-red-700">{copy.t("Payment failed")}</span>
                           <div className="text-neutral-600">
