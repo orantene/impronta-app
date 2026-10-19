@@ -194,8 +194,10 @@ export async function deliverTicketsForOrder(
       locale: input.locale ?? null,
       force: Boolean(input.force),
     });
-    if (ownsOrder && (!result.ok || result.sent === 0)) {
-      // Nothing went out: give the order claim back so a retry can deliver.
+    if (ownsOrder && (!result.ok || result.sent === 0 || result.skipped > 0)) {
+      // Nothing went out, or only PART of the order did (another run holds, or
+      // failed on, the rest): give the order claim back so a retry can deliver
+      // what is left. The per-admission claims stop sent tickets going twice.
       await admin.from("billing_notice_ledger").delete().eq("dedupe_key", key);
     }
     return result;

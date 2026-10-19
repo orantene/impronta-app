@@ -155,6 +155,32 @@ test("TUL-1267: a failed or unsendable delivery releases the order claim so it c
   assert.equal(w.billing_notice_ledger.length, 0);
 });
 
+test("TUL-1267: a partial send releases the order claim, and the retry sends only the unsent admissions", async () => {
+  // Two admissions on one order. Another run already holds ADM2's claim (its
+  // delivery is set), so this run claims and sends only ADM.
+  const a1 = { ...world().admissions[0] };
+  const a2 = { ...world().admissions[0], id: ADM2, holder_email: "ben@example.com", delivery: { method: "email", claimed_at: "x" } };
+  const w = world({ billing_notice_ledger: [], admissions: [a1, a2] });
+  const first = await deliverTicketsForOrder(fakeAdmin(w, []), { tenantId: T, orderId: ORDER });
+  assert.deepEqual(first, { ok: true, sent: 1, skipped: 1 });
+  assert.equal(w.billing_notice_ledger.length, 0, "partial: the order claim is released so a retry can proceed");
+
+  // That other run failed and released ADM2; ADM was stamped as sent.
+  a1.delivery = { method: "email", sent_at: "y" } as never;
+  a2.delivery = null as never;
+  const calls: Call[] = [];
+  const retry = await deliverTicketsForOrder(fakeAdmin(w, calls), { tenantId: T, orderId: ORDER });
+  assert.deepEqual(retry, { ok: true, sent: 1, skipped: 1 }, "only the unsent admission goes out; the sent one is not repeated");
+  const claim = calls.find((c) => c.table === "admissions" && c.op === "update")!;
+  assert.ok(claim.filters.some(([c, op, v]) => c === "delivery" && op === "is" && v === null));
+  // Now both are delivered. The retry saw one already sent, so it also stays
+  // releasable; a further replay is still safe because the per-admission claims
+  // find nothing undelivered.
+  assert.equal(w.billing_notice_ledger.length, 0);
+  a2.delivery = { method: "email", sent_at: "z" } as never;
+  assert.deepEqual(await deliverTicketsForOrder(fakeAdmin(w, []), { tenantId: T, orderId: ORDER }), { ok: true, sent: 0, skipped: 2 });
+});
+
 test("TUL-1267: a forced resend ignores the order claim", async () => {
   const w = world({ billing_notice_ledger: [{ dedupe_key: `tickets:${ORDER}` }] });
   const res = await deliverTicketsForOrder(fakeAdmin(w, []), { tenantId: T, orderId: ORDER, force: true });
