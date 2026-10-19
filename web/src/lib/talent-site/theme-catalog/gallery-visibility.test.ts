@@ -26,7 +26,7 @@ test("default gallery shows exactly the three finished designs", () => {
   assert.deepEqual(out.results.map((r) => r.design.slug), THREE);
   assert.equal(out.themeCount, 3);
   // Hidden designs stay in code for previews and saved sites.
-  assert.equal(GALLERY_DESIGNS.length, 11);
+  assert.equal(GALLERY_DESIGNS.length, 12);
   assert.equal(searchGallery({ query: "solace" }).themeCount, 0);
 });
 
@@ -42,13 +42,13 @@ test("finished set is pinned to Maison v2, Folio and Gridline; Maison v1 stays r
 test("flag on shows all seven designs", () => {
   process.env.TALENT_GALLERY_EXTRA_DESIGNS = "1";
   try {
-    assert.equal(visibleGalleryDesigns().length, 11);
-    assert.equal(searchGallery().themeCount, 11);
+    assert.equal(visibleGalleryDesigns().length, 12);
+    assert.equal(searchGallery().themeCount, 12);
     assert.deepEqual(suggestedDesignsForTrade("Personal Trainer"), ["mono", "solace"]);
   } finally {
     delete process.env.TALENT_GALLERY_EXTRA_DESIGNS;
   }
-  assert.equal(searchGallery({ showExtra: true }).themeCount, 11);
+  assert.equal(searchGallery({ showExtra: true }).themeCount, 12);
   assert.equal(searchGallery({ showExtra: false }).themeCount, 3);
 });
 

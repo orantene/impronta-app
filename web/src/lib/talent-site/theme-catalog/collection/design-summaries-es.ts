@@ -22,4 +22,6 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
     "Reserva en lenguaje claro: retrato junto a la promesa, solicitud en tres pasos, qué esperar y preguntas claras. Para consultas.",
   mosaic:
     "Dos disciplinas, un portafolio: portada, servicios con foto, mosaico con filtro y un cierre enorme. Para creativos que hacen dos cosas.",
+  prism:
+    "Varias disciplinas, una matriz de ofertas: portada tipo bento, un filtro que atenúa lo que no encaja, tarjetas de proyecto y un cierre oscuro. Para freelancers multidisciplinarios.",
 };

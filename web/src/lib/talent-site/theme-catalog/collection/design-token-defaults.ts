@@ -15,6 +15,7 @@ import { TABLE_DESIGN_TOKEN_DEFAULTS } from "./table";
 import { RIBBON_DESIGN_TOKEN_DEFAULTS } from "./ribbon";
 import { CLARITY_DESIGN_TOKEN_DEFAULTS } from "./clarity";
 import { MOSAIC_DESIGN_TOKEN_DEFAULTS } from "./mosaic";
+import { PRISM_DESIGN_TOKEN_DEFAULTS } from "./prism";
 import { MONO_DESIGN_TOKEN_DEFAULTS } from "./mono-defaults";
 import { MAISON_V2_TOKEN_DEFAULTS } from "./maison-v2-tokens";
 
@@ -23,6 +24,7 @@ const CODE_DESIGN_TOKEN_DEFAULTS: Readonly<Record<string, Readonly<Record<string
   folio: FOLIO_DESIGN_TOKEN_DEFAULTS,
   frame: FRAME_DESIGN_TOKEN_DEFAULTS,
   mono: MONO_DESIGN_TOKEN_DEFAULTS,
+  prism: PRISM_DESIGN_TOKEN_DEFAULTS,
   mosaic: MOSAIC_DESIGN_TOKEN_DEFAULTS,
   clarity: CLARITY_DESIGN_TOKEN_DEFAULTS,
   ribbon: RIBBON_DESIGN_TOKEN_DEFAULTS,

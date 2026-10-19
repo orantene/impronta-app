@@ -25,6 +25,7 @@ import { buildTablePayload } from "./table";
 import { buildRibbonPayload } from "./ribbon";
 import { buildClarityPayload } from "./clarity";
 import { buildMosaicPayload } from "./mosaic";
+import { buildPrismPayload } from "./prism";
 import { solaceRotatingHero } from "./solace-hero";
 import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
@@ -528,6 +529,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     15,
     buildMosaicPayload,
   ),
+  entry(
+    "prism",
+    "Prism",
+    "Several disciplines, one offer matrix: a bento cover, a filter that dims what does not fit, project cards and a dark closing band. Built for multi-skill freelancers.",
+    "bold",
+    ["prism"],
+    16,
+    buildPrismPayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -553,4 +563,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   ribbon: [],
   clarity: [],
   mosaic: [],
+  prism: [],
 };

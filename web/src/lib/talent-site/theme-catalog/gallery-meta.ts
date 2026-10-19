@@ -28,6 +28,7 @@ import { TABLE_BODY_FONT, TABLE_HEADING_FONT, TABLE_PALETTE } from "./collection
 import { RIBBON_BODY_FONT, RIBBON_HEADING_FONT, RIBBON_PALETTE } from "./collection/ribbon";
 import { CLARITY_BODY_FONT, CLARITY_HEADING_FONT, CLARITY_PALETTE } from "./collection/clarity";
 import { MOSAIC_BODY_FONT, MOSAIC_HEADING_FONT, MOSAIC_PALETTE } from "./collection/mosaic";
+import { PRISM_BODY_FONT, PRISM_HEADING_FONT, PRISM_PALETTE } from "./collection/prism";
 import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
@@ -485,6 +486,19 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       planned("photographer", { en: "Photographer", es: "Fotógrafo" }, ["photographer"], "raspberry"),
       planned("designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "raspberry"),
+    ],
+  }),
+  design({
+    ...collection("prism"),
+    fonts: { heading: PRISM_HEADING_FONT, body: PRISM_BODY_FONT },
+    styleTags: ["Bold", "Minimal"],
+    featureTags: ["Packages", "Portfolio", "Quote requests", "Multi-talent"],
+    palettes: [
+      pal("mint", "Mint & Ink", "Menta y tinta", [PRISM_PALETTE.page, PRISM_PALETTE.surface, PRISM_PALETTE.line, PRISM_PALETTE.ink, PRISM_PALETTE.accent, PRISM_PALETTE.onAccent], { muted: PRISM_PALETTE.muted }),
+    ],
+    demos: [
+      planned("computer_tech", { en: "Computer Technician", es: "Técnico de computadoras" }, ["computer_tech"], "mint"),
+      planned("designer", { en: "Graphic Designer", es: "Diseñador gráfico" }, ["designer"], "mint"),
     ],
   }),
 ];
