@@ -2473,6 +2473,15 @@
     }
   },
   "dashboard": {
+    "uploadGuard": {
+      "notAnImage": "Este archivo no es una imagen compatible. Usa JPEG, PNG, WebP o GIF.",
+      "typeNotAllowed": "Este tipo de imagen no es compatible aquí. Usa JPEG, PNG, WebP o GIF.",
+      "blockedFile": "Este tipo de archivo no se puede subir.",
+      "tooLarge": "Este archivo es demasiado grande.",
+      "tooManyPixels": "Esta imagen tiene demasiados píxeles. Redúcela e inténtalo de nuevo.",
+      "unreadable": "No pudimos leer esta imagen. Prueba con otro archivo.",
+      "privateLink": "Ese enlace no apunta a una dirección web pública."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",

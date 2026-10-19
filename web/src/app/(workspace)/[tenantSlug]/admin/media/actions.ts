@@ -33,6 +33,7 @@ import { authorizeTalentMediaRead } from "@/lib/media/talent-media-read-auth.ser
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 import { PHOTO_RASTER_MIMES as PHOTOS, SNIFF_HEAD_BYTES, guardImageBlob, guardImageBytes } from "@/lib/media/upload-guards";
 import { hasEmbeddedMetadata } from "@/lib/media/image-sanitize.server";
+import { readGuardedAttachment, uploadGuardError } from "@/lib/media/guarded-upload.server";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 import { downloadDriveFile, parseDriveUrl } from "./_drive-import-helpers";
@@ -120,7 +121,7 @@ export async function actionUploadAndAssignMedia(
     return { ok: false, error: "SVG and unknown image types are not supported." };
   }
   const sniffed = isImage ? await guardImageBlob(file, { allowed: PHOTOS }) : null; // H1: bytes decide the type
-  if (sniffed && !sniffed.ok) return { ok: false, error: sniffed.error };
+  if (sniffed && !sniffed.ok) return { ok: false, error: await uploadGuardError(sniffed.reason) };
   const fileMime = sniffed?.ok ? sniffed.mime : file.type;
   // Images cap at 8 MB (was 25 MB) — we now sharp-resize server-side
   // before storage, so the raw upload doesn't need to be huge.
@@ -826,7 +827,7 @@ export async function actionUploadToStagingStorage(
     return { ok: false, error: "SVG and unknown image types are not supported." };
   }
   const sniffed = await guardImageBlob(file, { allowed: PHOTOS }); // H1: bytes decide the type
-  if (!sniffed.ok) return { ok: false, error: sniffed.error };
+  if (!sniffed.ok) return { ok: false, error: await uploadGuardError(sniffed.reason) };
   // 8 MB cap (down from 25 MB) — sharp re-encodes server-side now, so
   // raw uploads don't need to be huge. See media-resize.ts.
   if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File must be under 5 MB." };
@@ -1155,16 +1156,16 @@ export async function actionUploadTalentDocument(
 
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "No file provided." };
-  // 50MB cap — generous for PDF contracts but blocks runaway uploads.
-  if (file.size > 50 * 1024 * 1024) return { ok: false, error: "File must be under 50 MB." };
+  // H1: size cap, executables/markup refused, type from bytes, photos stripped of GPS.
+  const guarded = await readGuardedAttachment(file, { maxBytes: 50 * 1024 * 1024 });
+  if (!guarded.ok) return { ok: false, error: guarded.error };
 
   const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
   const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
 
-  const bytes = await file.arrayBuffer();
   const { error: upErr } = await admin.storage
     .from("media-originals")
-    .upload(storagePath, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
+    .upload(storagePath, guarded.bytes, { contentType: guarded.contentType, upsert: false });
 
   if (upErr) {
     logServerError("media.actions.uploadTalentDocument", upErr);
@@ -1190,8 +1191,8 @@ export async function actionUploadTalentDocument(
     data: {
       storagePath,
       bucketId: "media-originals",
-      sizeBytes: file.size,
-      mimeType: file.type || "application/octet-stream",
+      sizeBytes: guarded.byteSize,
+      mimeType: guarded.contentType,
     },
   };
 }

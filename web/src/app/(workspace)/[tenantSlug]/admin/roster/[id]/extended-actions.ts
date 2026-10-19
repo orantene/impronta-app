@@ -24,6 +24,8 @@ import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { isTalentOwnedStoragePath } from "@/lib/media/talent-storage-path";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { verifyStoredImage } from "@/lib/media/guarded-upload.server";
+import { PHOTO_RASTER_MIMES } from "@/lib/media/upload-guards";
 
 type Result<T = null> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -469,6 +471,18 @@ export async function registerPortfolioPhoto(
         .maybeSingle();
       if (ownedErr) logServerError("roster.registerPortfolioPhoto.ownedLookup", ownedErr);
       if (ownedErr || !owned) return { ok: false, error: "That file is not in this talent's storage." };
+    }
+
+    // H1: the browser PUT these bytes straight into the PUBLIC bucket. Verify
+    // them before registering: type from the bytes, pixel cap, EXIF/GPS
+    // stripped in place. Only fresh uploads under the talent's own prefix.
+    if (isTalentOwnedStoragePath(talentId, input.storagePath)) {
+      const verified = await verifyStoredImage(r.admin, "media-public", input.storagePath, {
+        maxBytes: 15 * 1024 * 1024,
+        allowed: PHOTO_RASTER_MIMES,
+      });
+      if (!verified.ok) return { ok: false, error: verified.error };
+      input = { ...input, mimeType: verified.mime, fileSize: verified.byteSize };
     }
 
     // Plan count quota (media pricing pass 2026-08-15 §3a). A portfolio photo

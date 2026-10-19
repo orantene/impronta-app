@@ -37,6 +37,7 @@ import {
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { SNIFF_HEAD_BYTES, guardImageBytes } from "@/lib/media/upload-guards";
+import { uploadGuardError } from "@/lib/media/guarded-upload.server";
 import { hasEmbeddedMetadata } from "@/lib/media/image-sanitize.server";
 
 export const runtime = "nodejs";
@@ -175,7 +176,7 @@ export async function POST(req: Request) {
   if (kind === "image") {
     const validation =
       sniffed && !sniffed.ok
-        ? sniffed
+        ? { ok: false as const, status: sniffed.status, error: await uploadGuardError(sniffed.reason) }
         : validateImageUpload({ mime: initialMime, byteSize: storedSize });
     if (!validation.ok) {
       await supabase.storage.from(BUCKET).remove([storagePath]);

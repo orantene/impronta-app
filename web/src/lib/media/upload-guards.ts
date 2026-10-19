@@ -131,11 +131,11 @@ export type ImageBytesVerdict =
       ok: false;
       status: 415;
       reason: "not_an_image" | "markup" | "type_not_allowed";
-      error: string;
     };
 
 /**
- * Decide an upload from its bytes. `allowed` is the route's raster set; the
+ * Decide an upload from its bytes. Refusals carry a `reason` code; the words
+ * (en + es) come from `upload-guard-copy.ts`, never from here. `allowed` is the route's raster set; the
  * returned `mime`/`ext` are what the caller stores, never the client claim.
  */
 export function guardImageBytes(
@@ -143,14 +143,12 @@ export function guardImageBytes(
   opts: { allowed?: ReadonlyArray<SniffedImageMime> } = {},
 ): ImageBytesVerdict {
   const allowed = opts.allowed ?? LIBRARY_RASTER_MIMES;
-  const label = allowed.map((m) => EXT_FOR_SNIFFED_MIME[m].toUpperCase()).join(", ");
   const mime = sniffImageMime(head);
   if (!mime) {
     return {
       ok: false,
       status: 415,
       reason: looksLikeMarkup(head) ? "markup" : "not_an_image",
-      error: `This file is not a supported image. Accepted: ${label}.`,
     };
   }
   if (!allowed.includes(mime)) {
@@ -158,7 +156,6 @@ export function guardImageBytes(
       ok: false,
       status: 415,
       reason: "type_not_allowed",
-      error: `Unsupported image type. Accepted: ${label}.`,
     };
   }
   return { ok: true, mime, ext: EXT_FOR_SNIFFED_MIME[mime] };
@@ -172,6 +169,84 @@ export async function guardImageBlob(
   const head = new Uint8Array(await blob.slice(0, SNIFF_HEAD_BYTES).arrayBuffer());
   return guardImageBytes(head, opts);
 }
+
+/** Cap on a provider-generated image download (OpenAI image URLs). */
+export const GENERATED_IMAGE_MAX_BYTES = 25 * 1024 * 1024;
+
+/**
+ * Server-action request body ceiling, mirroring `serverActions.bodySizeLimit`
+ * ("4mb") in next.config.ts (pinned by upload-hardening-wiring.static.test).
+ * A server action receives its FormData already parsed, so the File is fully
+ * buffered before any check in this module runs: for server actions THIS is
+ * the real upper bound, and per-action caps above it are unreachable.
+ * Route handlers get `checkDeclaredLength` + the streaming cap instead.
+ */
+export const SERVER_ACTION_BODY_LIMIT_BYTES = 4 * 1024 * 1024;
+
+/** A server action's file cap, clamped to what the platform can deliver. */
+export function serverActionFileCap(cap: number): number {
+  return Math.min(cap, SERVER_ACTION_BODY_LIMIT_BYTES);
+}
+
+export type AttachmentKind = "image" | "pdf" | "office" | "video" | "audio" | "archive" | "other";
+
+export type AttachmentVerdict =
+  | { ok: true; kind: AttachmentKind; mime: string }
+  | { ok: false; status: 415; reason: "executable" | "markup" };
+
+const EXECUTABLE_HEADS: ReadonlyArray<ReadonlyArray<number>> = [
+  [0x4d, 0x5a], // MZ: Windows PE / DOS
+  [0x7f, 0x45, 0x4c, 0x46], // ELF
+  [0xfe, 0xed, 0xfa, 0xce], [0xfe, 0xed, 0xfa, 0xcf], // Mach-O
+  [0xce, 0xfa, 0xed, 0xfe], [0xcf, 0xfa, 0xed, 0xfe],
+  [0xca, 0xfe, 0xba, 0xbe], // Mach-O fat / Java class
+  [0x23, 0x21], // "#!" script
+];
+
+function startsWith(head: Uint8Array, sig: ReadonlyArray<number>): boolean {
+  return head.length >= sig.length && sig.every((b, i) => head[i] === b);
+}
+
+/**
+ * Free-form attachments (inquiry briefs, mood boards, documents): any type may
+ * be shared, EXCEPT executables and markup (HTML/SVG/XML is a script vector
+ * wherever the file is later opened). The stored content type comes from the
+ * bytes, falling back to `application/octet-stream`, never the client claim.
+ */
+export function guardAttachmentBytes(head: Uint8Array, claimedMime?: string | null): AttachmentVerdict {
+  const claimed = (claimedMime ?? "").toLowerCase();
+  if (EXECUTABLE_HEADS.some((sig) => startsWith(head, sig))) {
+    return { ok: false, status: 415, reason: "executable" };
+  }
+  if (looksLikeMarkup(head)) return { ok: false, status: 415, reason: "markup" };
+  const image = sniffImageMime(head);
+  if (image) return { ok: true, kind: "image", mime: image };
+  if (ascii(head, 0, 5) === "%PDF-") return { ok: true, kind: "pdf", mime: "application/pdf" };
+  if (startsWith(head, [0x50, 0x4b, 0x03, 0x04]) || startsWith(head, [0xd0, 0xcf, 0x11, 0xe0])) {
+    // OOXML is a zip and legacy .doc/.xls is OLE: the bytes prove the family,
+    // the claim may only pick a known office type inside it.
+    return { ok: true, kind: "office", mime: OFFICE_MIMES.has(claimed) ? claimed : "application/octet-stream" };
+  }
+  if (ascii(head, 4, 4) === "ftyp") return { ok: true, kind: "video", mime: "video/mp4" };
+  if (startsWith(head, [0x1a, 0x45, 0xdf, 0xa3])) return { ok: true, kind: "video", mime: "video/webm" };
+  if (ascii(head, 0, 3) === "ID3" || startsWith(head, [0xff, 0xfb])) {
+    return { ok: true, kind: "audio", mime: "audio/mpeg" };
+  }
+  if (TEXT_MIMES.has(claimed) && !head.includes(0)) return { ok: true, kind: "other", mime: claimed };
+  return { ok: true, kind: "other", mime: "application/octet-stream" };
+}
+
+const OFFICE_MIMES = new Set([
+  "application/zip",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+]);
+
+const TEXT_MIMES = new Set(["text/plain", "text/csv"]);
 
 /** True while `width x height` stays inside the decode budget. */
 export function withinPixelBudget(

@@ -39,6 +39,7 @@ import {
 } from "@/lib/site-admin/media/validation";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { checkDeclaredLength, guardImageBlob } from "@/lib/media/upload-guards";
+import { uploadGuardError } from "@/lib/media/guarded-upload.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -181,7 +182,7 @@ export async function POST(req: Request) {
   // H1: for images the bytes decide the type, never the client's File.type.
   const sniffed = kind === "image" ? await guardImageBlob(file) : null;
   if (sniffed && !sniffed.ok) {
-    return NextResponse.json({ ok: false, error: sniffed.error }, { status: sniffed.status });
+    return NextResponse.json({ ok: false, error: await uploadGuardError(sniffed.reason) }, { status: sniffed.status });
   }
   const mime = sniffed?.ok ? sniffed.mime : (file.type || "").toLowerCase();
   const imageValidation =

@@ -2473,6 +2473,15 @@
     }
   },
   "dashboard": {
+    "uploadGuard": {
+      "notAnImage": "This file is not a supported image. Use JPEG, PNG, WebP or GIF.",
+      "typeNotAllowed": "This image type is not supported here. Use JPEG, PNG, WebP or GIF.",
+      "blockedFile": "This file type cannot be uploaded.",
+      "tooLarge": "This file is too large.",
+      "tooManyPixels": "This image has too many pixels. Resize it and try again.",
+      "unreadable": "We could not read this image. Try a different file.",
+      "privateLink": "That link does not point to a public web address."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
