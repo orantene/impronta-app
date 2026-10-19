@@ -10,13 +10,40 @@
  * quote an offering, call `sellability(row, ctx)` / `isSellable` / `scopeToSellableOfferings`.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-const require = createRequire(import.meta.url);
-const { scan } = require(join(process.cwd(), "scripts/d1-scan-sellable.cjs")) as { scan: (root: string) => Record<string, number> };
+const PATTERNS = [
+  /\bmoderation_?[sS]tate["']?\s*[!=]==/g,
+  /\.eq\(\s*"moderation_state"/g,
+  /\.eq\(\s*"visibility",\s*"public"\s*\)/g,
+  /\bvisibility\s*[!=]==\s*"agency_only"/g,
+];
+const EXEMPT = new Set(["src/lib/offerings/sellable.ts"]);
+
+function walk(dir: string, out: string[]): string[] {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) walk(p, out);
+    else if (/\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name) && !/\.d\.ts$/.test(name)) out.push(p);
+  }
+  return out;
+}
+
+/** Per-file count of inline sell checks outside the one module. */
+function scan(root: string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const abs of walk(join(root, "src"), [])) {
+    const rel = abs.slice(root.length + 1).split("\\").join("/");
+    if (EXEMPT.has(rel)) continue;
+    const src = readFileSync(abs, "utf8");
+    let n = 0;
+    for (const re of PATTERNS) n += (src.match(re) ?? []).length;
+    if (n > 0) counts[rel] = n;
+  }
+  return counts;
+}
 
 const BASELINE: Record<string, number> = {
   "src/app/api/directory/preview/[talentId]/route.ts": 1,
