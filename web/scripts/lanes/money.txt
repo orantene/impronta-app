@@ -1,4 +1,5 @@
 src/app/(workspace)/?tenantSlug?/_data-bridge/overview-board-setup-wave.static.test.ts
+src/app/(workspace)/?tenantSlug?/_data-bridge/sales-by-item.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/_projects/projects-mode-model.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/counter-model.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/door-client-never-silent.static.test.ts
@@ -87,6 +88,10 @@ src/lib/ops/balance-reconcile.test.ts
 src/lib/ops/cron-heartbeat.test.ts
 src/lib/orders/age-gate.test.ts
 src/lib/orders/capacity-lost-compensation.test.ts
+src/lib/orders/checkout-quote-display.test.ts
+src/lib/orders/checkout-quote-gate.test.ts
+src/lib/orders/checkout-quote-invariance.test.ts
+src/lib/orders/checkout-quote.test.ts
 src/lib/orders/complete-order.test.ts
 src/lib/orders/expire-orders.test.ts
 src/lib/orders/hybrid-package.test.ts
@@ -207,6 +212,10 @@ src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
 src/lib/projects/project-record.test.ts
 src/lib/sales/activity-shape.test.ts
+src/lib/sales/by-item-wire.static.test.ts
+src/lib/sales/by-item.test.ts
+src/lib/sales/csv.test.ts
+src/lib/sales/filters.test.ts
 src/lib/scheduling/offering-home-tenant.test.ts
 src/lib/scheduling/waitlist-offers.test.ts
 src/lib/storefront/trusted-public-origin.test.ts

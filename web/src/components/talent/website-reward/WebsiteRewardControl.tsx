@@ -17,7 +17,7 @@ import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/Tale
 import { resolveTalentDashboardLivePill } from "@/lib/talent-site/dashboard-my-website";
 import { loadMyBio, saveMyBio } from "@/lib/server-actions/ai-writing-helper";
 import { resolveTalentDashboardMyWebsite } from "@/lib/talent-site/dashboard-my-website";
-import { loadMySiteLiveVerifiedAction } from "@/lib/talent-site/server/site-live-verified";
+import { readTalentDashboard } from "@/lib/talent/dashboard-reads";
 import { liveBadgeState } from "@/lib/onboarding/live-badge";
 
 // Missing-item keys come from buildTalentChecklist (src/lib/talent-dashboard.ts).
@@ -117,7 +117,8 @@ export function WebsiteRewardControl({ placement }: { placement: "topbar" | "mob
   useEffect(() => {
     if (!personalLive) return;
     let gone = false;
-    loadMySiteLiveVerifiedAction()
+    // TUL-1274: a GET, not a server action: an action on mount could refetch the whole tree.
+    readTalentDashboard("site-live-verified")
       .then((v) => {
         if (!gone) setLiveVerified(v);
       })
