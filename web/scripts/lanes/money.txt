@@ -144,6 +144,7 @@ src/lib/payments/collected-today.test.ts
 src/lib/payments/connect-lane-attention.test.ts
 src/lib/payments/deposit-single-producer.static.test.ts
 src/lib/payments/disburse.test.ts
+src/lib/payments/dispute-evidence.test.ts
 src/lib/payments/failed-refund-attention-note.test.ts
 src/lib/payments/failed-refund-settlement.test.ts
 src/lib/payments/link-checkout-extend-claim.test.ts
