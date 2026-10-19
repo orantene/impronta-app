@@ -14,6 +14,12 @@ interface Props {
   /** TUL-852: the service booked and its price in the booking currency. */
   serviceName?: string | null;
   priceLabel?: string | null;
+  /** G1: how long it lasts, the zone the time is written in, and the cancellation promise. */
+  durationLabel?: string | null;
+  timeZoneLabel?: string | null;
+  policyLabel?: string | null;
+  /** True when the .ics calendar file is attached to this email. */
+  hasCalendarFile?: boolean;
   bookingUrl: string;
   /** The business the client booked with; shown under the brand mark. */
   sellerName?: string | null;
@@ -29,6 +35,10 @@ export default function BookingConfirmed({
   eventLocation,
   serviceName,
   priceLabel,
+  durationLabel,
+  timeZoneLabel,
+  policyLabel,
+  hasCalendarFile,
   bookingUrl,
   sellerName,
   brand,
@@ -40,9 +50,11 @@ export default function BookingConfirmed({
 
   const fields = [
     serviceName ? { label: t.serviceLabel, value: serviceName } : null,
-    eventDate ? { label: t.dateLabel, value: eventDate } : null,
+    eventDate ? { label: t.dateLabel, value: timeZoneLabel ? `${eventDate} (${timeZoneLabel})` : eventDate } : null,
+    durationLabel ? { label: t.durationLabel, value: durationLabel } : null,
     priceLabel ? { label: t.priceLabel, value: priceLabel } : null,
     eventLocation ? { label: t.locationLabel, value: eventLocation } : null,
+    policyLabel ? { label: t.policyLabel, value: policyLabel } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
@@ -57,6 +69,7 @@ export default function BookingConfirmed({
       <Text style={body}>{`${greeting} ${t.intro}`}</Text>
       {fields.length > 0 && <FieldTable fields={fields} />}
       <Text style={note}>{t.note}</Text>
+      {hasCalendarFile && <Text style={note}>{t.calendarNote}</Text>}
       <Button brand={brand} href={bookingUrl}>{t.button}</Button>
     </Layout>
   );
