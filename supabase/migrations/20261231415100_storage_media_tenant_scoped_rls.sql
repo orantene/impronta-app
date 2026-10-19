@@ -1,5 +1,5 @@
 -- 20261231415100_storage_media_tenant_scoped_rls.sql
--- HELD FILE (PM applies). P0 SECURITY, PR 0b-2: "businesses only touch their own files".
+-- APPLIED to staging and production 2026-10-18 (Oran: do all DB security fixes tonight). P0 SECURITY, PR 0b-2: "businesses only touch their own files".
 --
 -- THE HOLE. The storage policies on the buckets media-public and media-originals
 -- gate staff with the GLOBAL helper public.is_agency_staff() (profiles.app_role

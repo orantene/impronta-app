@@ -5,21 +5,19 @@
  * media through the Storage API. The fix scopes staff to the tenant that owns the
  * object path via storage_media_staff_can_touch(name) -> is_staff_of_tenant().
  *
- * Static: reads the migration text (held in _pending_pm until PM applies it, then in
- * migrations/) and the upload call sites. No DB connection.
+ * Static: reads the migration text (in migrations/) and the upload call sites. No DB connection.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..", "..", "..", "..");
 const FILE = "20261231415100_storage_media_tenant_scoped_rls.sql";
-const held = join(REPO, "supabase", "migrations", "_pending_pm", FILE);
 const applied = join(REPO, "supabase", "migrations", FILE);
-const sql = readFileSync(existsSync(held) ? held : applied, "utf8");
+const sql = readFileSync(applied, "utf8");
 // Executable SQL only: strip -- comments so prose cannot satisfy or fail a pin.
 const code = sql.replace(/--.*$/gm, "");
 
