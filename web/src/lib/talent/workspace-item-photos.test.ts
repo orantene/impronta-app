@@ -43,3 +43,18 @@ test("the Catalog loads the photos and the Details tab uploads through the tenan
   assert.match(details, /<ItemPhotosField/);
   assert.doesNotMatch(details, /<input type="file" disabled/);
 });
+
+test("alt text: an action writes it for this workspace's asset and the field edits it", () => {
+  const actions = src("./menu-offerings-actions.ts");
+  const body = actions.slice(actions.indexOf("export async function setWorkspacePhotoAlt"));
+  assert.match(body, /authorizeForWorkspace\(tenantId\)/);
+  assert.match(body, /\.eq\("tenant_id", tenantId\)/);
+  assert.match(body, /slice\(0, 200\)/);
+  const field = readFileSync(
+    new URL("../../components/admin/shell/internal/page-modules/catalog/item-photos-field.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(field, /setWorkspacePhotoAlt/);
+  assert.match(field, /compressImage/);
+  assert.match(src("./offering-images.server.ts"), /alt/);
+});

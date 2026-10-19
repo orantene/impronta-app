@@ -10,7 +10,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { offeringToRowPatch, rowToOffering, blankOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
-import { isPosSellable, isMissingColumnError } from "./pos-enabled";
+import { isPosSellable, isMissingColumnError, posOffIds } from "./pos-enabled";
 
 function row(patch: Partial<TalentOfferingRow> = {}): TalentOfferingRow {
   return {
@@ -50,10 +50,22 @@ test("isMissingColumnError recognises the Postgres and PostgREST codes", () => {
   assert.equal(isMissingColumnError(null), false);
 });
 
-test("the counter, the add-line guard and the scan resolver honour the flag", () => {
+test("the counter channels honour the flag; the shared addLine does NOT (QR, door, class and quotes sell POS-off items)", () => {
   const src = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
   assert.match(src("../../app/(workspace)/[tenantSlug]/admin/pos/counter-catalog.ts"), /isPosSellable/);
-  assert.match(src("./draft.ts"), /isPosSellable/);
+  assert.match(src("../../app/(workspace)/[tenantSlug]/admin/pos/actions.ts"), /posOffIds/);
+  assert.match(src("./classes/walkin.ts"), /posOffIds/);
+  assert.doesNotMatch(src("./draft.ts"), /pos_enabled|isPosSellable|posOffIds/);
+});
+
+test("posOffIds: only rows with pos_enabled = false; a missing column or an error means nobody is off", async () => {
+  const reader = (result: { data: unknown; error: { code?: string | null } | null }) => ({
+    from: () => ({ select: () => ({ eq: () => ({ in: async () => result }) }) }),
+  });
+  const off = await posOffIds(reader({ data: [{ id: "a", pos_enabled: false }, { id: "b", pos_enabled: true }, { id: "c" }], error: null }), "t", ["a", "b", "c"]);
+  assert.deepEqual([...off], ["a"]);
+  assert.equal((await posOffIds(reader({ data: null, error: { code: "42703" } }), "t", ["a"])).size, 0);
+  assert.equal((await posOffIds(reader({ data: [], error: null }), "t", [])).size, 0);
 });
 
 test("a held migration adds the column additively with a rollback", () => {

@@ -10,7 +10,8 @@
 import { useRef, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
-import { setWorkspaceItemPhotos } from "@/lib/talent/menu-offerings-actions";
+import { compressImage } from "@/lib/client/image-compress";
+import { setWorkspaceItemPhotos, setWorkspacePhotoAlt } from "@/lib/talent/menu-offerings-actions";
 import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
 import { Field, INPUT } from "./catalog-ui";
 import type { TabProps } from "./CatalogItemEditor";
@@ -38,7 +39,9 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
     setError(null);
     try {
       const body = new FormData();
-      body.set("file", file);
+      // Compress in the browser first: the upload route is body-capped (~4.5 MB) and a phone photo is bigger.
+      const small = (await compressImage(file)).file;
+      body.set("file", small);
       body.set("tenantId", tenantId);
       const resp = await fetch("/api/admin/media/upload", { method: "POST", body });
       const json = (await resp.json().catch(() => null)) as { ok?: boolean; item?: { id?: string }; error?: string } | null;
@@ -65,9 +68,10 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
     >
       <div className="flex flex-wrap items-center gap-[8px]" data-testid="catalog-field-photos-list">
         {assets.map((a, i) => (
-          <div key={a.id} className="relative h-[64px] w-[64px] overflow-hidden rounded-[10px] border border-admin-border bg-admin-surface">
+          <div key={a.id} className="flex w-[96px] flex-col gap-[4px]">
+          <div className="relative h-[64px] w-[64px] overflow-hidden rounded-[10px] border border-admin-border bg-admin-surface">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={a.url} alt="" className="h-full w-full object-cover" />
+            <img src={a.url} alt={a.alt ?? ""} className="h-full w-full object-cover" />
             {i === 0 ? (
               <span className="absolute bottom-0 left-0 right-0 bg-admin-ink/70 text-center font-admin-body text-[10px] text-white">
                 {t("dashboard.catalog.details.photosCover")}
@@ -85,6 +89,24 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
             >
               ×
             </button>
+          </div>
+          <input
+            type="text"
+            defaultValue={a.alt ?? ""}
+            maxLength={200}
+            placeholder={t("dashboard.catalog.details.photosAlt")}
+            aria-label={t("dashboard.catalog.details.photosAlt")}
+            data-testid={`catalog-photo-alt-${a.id}`}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v === (a.alt ?? "")) return;
+              void setWorkspacePhotoAlt(tenantId, a.id, v).then((res) => {
+                if (!res.ok) setError(res.error);
+                else editor.syncImages(item.id, assets.map((x) => (x.id === a.id ? { ...x, alt: v || null } : x)));
+              });
+            }}
+            className="h-[26px] w-full min-w-0 rounded-[6px] border border-admin-border bg-admin-card px-[6px] font-admin-body text-[11px] text-admin-ink"
+          />
           </div>
         ))}
         {assets.length < MAX_ITEM_PHOTOS ? (

@@ -21,15 +21,23 @@ test("itemChannels: POS off removes the counter and leaves the website", () => {
   assert.deepEqual(itemChannels(item()), ["website", "pos"]);
 });
 
-test("posSwitchPatch: with the column it writes the flag only, never status; without it, the old status behaviour", () => {
-  assert.deepEqual(posSwitchPatch(item({ posEnabled: true }), false), { posEnabled: false });
-  assert.deepEqual(posSwitchPatch(item({ posEnabled: false, status: "published" }), true), { posEnabled: true });
-  assert.deepEqual(posSwitchPatch(item(), false), { status: "draft" });
-  assert.deepEqual(posSwitchPatch(item({ status: "draft" }), true), { status: "published" });
+test("posSwitchPatch: with the column it writes the flag only, never status", () => {
+  const on = { columnPresent: true, isDraft: false };
+  assert.deepEqual(posSwitchPatch(item({ posEnabled: true }), false, on), { posEnabled: false });
+  assert.deepEqual(posSwitchPatch(item({ posEnabled: false, status: "published" }), true, on), { posEnabled: true });
+  // A brand-new draft carries no flag yet, but the column exists: still the flag, never "published".
+  assert.deepEqual(posSwitchPatch(item({ status: "draft" }), true, { columnPresent: true, isDraft: true }), { posEnabled: true });
+});
+
+test("posSwitchPatch before the migration: a saved item keeps the status behaviour, an unsaved draft is never published by the switch", () => {
+  const legacy = { columnPresent: false, isDraft: false };
+  assert.deepEqual(posSwitchPatch(item(), false, legacy), { status: "draft" });
+  assert.deepEqual(posSwitchPatch(item({ status: "draft" }), true, legacy), { status: "published" });
+  assert.deepEqual(posSwitchPatch(item({ status: "draft" }), true, { columnPresent: false, isDraft: true }), {});
 });
 
 test("the Channels tab writes the POS switch through posSwitchPatch", () => {
   const src = readFileSync(new URL("./item-tab-channels.tsx", import.meta.url), "utf8");
-  assert.match(src, /posSwitchPatch\(item, next\)/);
+  assert.match(src, /posSwitchPatch\(item, next,/);
   assert.doesNotMatch(src, /patch\(\{ status: next \? "published" : "draft" \}\)/);
 });

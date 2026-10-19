@@ -189,7 +189,7 @@ export type TalentOffering = {
   /** Resolved gallery, hero first (media_assets.public_url). */
   imageUrls: string[];
   /** Editor-only: gallery with asset ids (drives upload/remove). Public loads omit it. */
-  imageAssets?: { id: string; url: string }[];
+  imageAssets?: { id: string; url: string; alt?: string | null }[];
   /** Selectable options (client picks one). Loaded from talent_offering_variants. */
   variants?: OfferingVariant[];
   /** Stackable extras (client picks any). Loaded from talent_offering_addons. */

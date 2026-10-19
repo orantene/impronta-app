@@ -528,7 +528,7 @@ export async function setMenuItemStockAction(
 }
 
 
-type PhotoResult = { ok: true; assets: { id: string; url: string }[] } | { ok: false; error: string };
+type PhotoResult = { ok: true; assets: { id: string; url: string; alt: string | null }[] } | { ok: false; error: string };
 
 /**
  * TUL-1271 #1 — set an item's photos (cover first). The item must be this
@@ -590,6 +590,44 @@ export async function setWorkspaceItemPhotos(
     return { ok: true, assets };
   } catch (err) {
     logServerError("menu.offerings.photos", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+
+/**
+ * TUL-1340 — the alt text of one of this workspace's photos (read by screen readers on the QR
+ * menu and the site). The asset must be a live asset of this workspace; text is trimmed to 200.
+ */
+export async function setWorkspacePhotoAlt(
+  tenantId: string,
+  mediaAssetId: string,
+  alt: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+    const clean = String(alt ?? "").trim().slice(0, 200);
+    const { data, error } = await admin
+      .from("media_assets")
+      .update({ alt: clean || null })
+      .eq("id", mediaAssetId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .select("id");
+    if (error) {
+      logServerError("menu.offerings.photoAlt", error);
+      return { ok: false, error: "Failed to save." };
+    }
+    if (!data || data.length === 0) return { ok: false, error: "Not found." };
+    revalidatePath("/admin/menu");
+    return { ok: true };
+  } catch (err) {
+    logServerError("menu.offerings.photoAlt", err);
     return { ok: false, error: "Unexpected error." };
   }
 }
