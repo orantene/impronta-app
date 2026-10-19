@@ -37,3 +37,33 @@ export async function loadOfferingImageAssets(
   }
   return out;
 }
+
+type EmbeddedMedia = {
+  sort_order?: number | null;
+  media_asset_id: string;
+  media_assets: { public_url: string | null; bucket_id: string | null; storage_path: string | null; alt?: string | null } | Array<{ public_url: string | null; bucket_id: string | null; storage_path: string | null; alt?: string | null }> | null;
+};
+
+/** The select fragment that embeds an offering's photos in the SAME row read (no second round trip). */
+export const OFFERING_MEDIA_EMBED = "talent_offering_media ( sort_order, media_asset_id, media_assets:media_asset_id ( public_url, bucket_id, storage_path, alt ) )";
+
+/** Hero-first photo assets from a row that embedded `OFFERING_MEDIA_EMBED`. */
+export function imagesFromEmbed(
+  admin: SupabaseClient,
+  row: { talent_offering_media?: unknown },
+): { id: string; url: string; alt: string | null }[] {
+  const embedded = Array.isArray(row.talent_offering_media) ? (row.talent_offering_media as EmbeddedMedia[]) : [];
+  const sorted = [...embedded].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const out: { id: string; url: string; alt: string | null }[] = [];
+  for (const r of sorted) {
+    const m = Array.isArray(r.media_assets) ? r.media_assets[0] : r.media_assets;
+    if (!m) continue;
+    let url = m.public_url ?? null;
+    if (!url && m.bucket_id === "media-public" && m.storage_path) {
+      url = admin.storage.from("media-public").getPublicUrl(m.storage_path).data.publicUrl;
+    }
+    if (!url) continue;
+    out.push({ id: r.media_asset_id, url, alt: typeof m.alt === "string" && m.alt.trim() ? m.alt : null });
+  }
+  return out;
+}

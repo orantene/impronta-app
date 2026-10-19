@@ -34,7 +34,7 @@ test("the action checks the item and every photo belong to this workspace before
 });
 
 test("the Catalog loads the photos and the Details tab uploads through the tenant library route", () => {
-  assert.match(src("./menu-offerings-actions.ts"), /loadOfferingImageAssets/);
+  assert.match(src("./menu-offerings-actions.ts"), /imagesFromEmbed/);
   const dir = "../../components/admin/shell/internal/page-modules/catalog/";
   const field = readFileSync(new URL(`${dir}item-photos-field.tsx`, import.meta.url), "utf8");
   const details = readFileSync(new URL(`${dir}item-tab-details.tsx`, import.meta.url), "utf8");

@@ -17,7 +17,7 @@ import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-te
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
-import { loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
+import { OFFERING_MEDIA_EMBED, imagesFromEmbed, loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
 import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
 import { loadWorkspaceMenuDefaults } from "@/lib/talent/workspace-menu-defaults";
 import {
@@ -112,7 +112,8 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     const ownerTalentIds = await fetchOwnerTalentIds(admin, tenantId);
     const [{ data, error }, nonMenu] = await Promise.all([
       offeringsTable(admin)
-        .select("*")
+        // The photos ride in the same read (embedded join): no extra round trip on the load path.
+        .select(`*, ${OFFERING_MEDIA_EMBED}`)
         .eq("tenant_id", tenantId)
         // TUL-915: the house rows PLUS the workspace OWNER's own provider rows
         // (onboarding writes those as owner_kind='talent' and the public site
@@ -141,15 +142,11 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     // B5: one stage, not three: the children beside the defaults started above.
-    const [children, defaults, images] = await Promise.all([
-      loadOfferingChildren(admin, rows.map((r) => r.id)),
-      defaultsPending,
-      loadOfferingImageAssets(admin as unknown as SupabaseClient, rows.map((r) => r.id)),
-    ]);
+    const [children, defaults] = await Promise.all([loadOfferingChildren(admin, rows.map((r) => r.id)), defaultsPending]);
     const primaryLocale = defaults.primaryLocale;
     const items = rows.map((r) => {
       // The editor edits the PRIMARY-language text; the maps ride along.
-      const assets = images.get(r.id) ?? [];
+      const assets = imagesFromEmbed(admin as unknown as SupabaseClient, r as unknown as { talent_offering_media?: unknown });
       const item = rowToOffering(r, primaryLocale, assets.map((a) => a.url), [primaryLocale]);
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
@@ -583,9 +580,8 @@ export async function setWorkspaceItemPhotos(
 
     // Insert-then-remove (never remove-then-insert): a failed write leaves the OLD photos in place
     // instead of none. The upsert also rewrites sort_order for photos that stay.
-    const media = admin.from("talent_offering_media");
     if (wanted.length > 0) {
-      const { error: upErr } = await media.upsert(
+      const { error: upErr } = await admin.from("talent_offering_media").upsert(
         wanted.map((mid, i) => ({ offering_id: offeringId, media_asset_id: mid, sort_order: i })),
         { onConflict: "offering_id,media_asset_id" },
       );
