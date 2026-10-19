@@ -138,3 +138,18 @@ test("posAddLine and posStartCollection call the guards; the page renders the er
     assert.ok(!/\u2014/.test(m.counterCatalogErrorTitle + m.counterCatalogErrorBody));
   }
 });
+
+// Exempt by PM 2026-10-19: Messages quote-adds with an inquiryId and the door/box-office paths.
+test("exemption 1: posAddLine skips the non-menu guard when an inquiryId is present (Messages quotes)", () => {
+  const actions = readFileSync("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts", "utf8");
+  assert.match(actions, /if \(!parsed\.data\.inquiryId && \(await anyNonMenuOffering\(/);
+});
+
+test("exemption 2: door and box-office paths never call the non-menu guard", () => {
+  const dir = "src/app/(workspace)/[tenantSlug]/admin/pos/";
+  for (const f of ["door-actions.ts", "door-box-office.tsx", "door-box-checkout.tsx", "door-client.tsx", "door-lookup.tsx", "door-gate.tsx", "door-shared.ts", "door-ui.tsx"]) {
+    assert.doesNotMatch(readFileSync(dir + f, "utf8"), /non-menu-offerings|anyNonMenuOffering|saleHoldsNonMenuOffering/, f);
+  }
+  assert.doesNotMatch(readFileSync("src/lib/pos/draft.ts", "utf8"), /non-menu-offerings/);
+  assert.doesNotMatch(readFileSync("src/lib/pos/collection.ts", "utf8"), /non-menu-offerings/);
+});
