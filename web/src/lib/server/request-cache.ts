@@ -16,6 +16,7 @@ import {
   ACTOR_STATUS_HEADER,
   isPlausibleForwardedActor,
 } from "@/lib/saas/actor-headers";
+import { ACTOR_SIG_HEADER, actorSecret, verifyActorSignature } from "@/lib/saas/actor-signature";
 
 /**
  * Request-scoped Supabase server client (cookie session). Multiple RSC/action
@@ -107,6 +108,14 @@ async function tryActorFromForwardedHeaders(
     if (!actorId) return null;
     const onboarded = h.get(ACTOR_ONBOARDED_HEADER);
     const homePref = h.get(ACTOR_HOME_PREF_HEADER);
+    // TUL-1269: and only when the proxy's HMAC over exactly these values verifies. A request on a
+    // path the proxy matcher skips can carry any forged set; it cannot carry a valid signature.
+    const signed = await verifyActorSignature(
+      actorSecret(process.env),
+      { id: actorId, email, appRole, status, onboarded, homePref },
+      h.get(ACTOR_SIG_HEADER),
+    );
+    if (!signed) return null;
     return {
       supabase,
       user: syntheticUserFromHeaders(actorId, email),

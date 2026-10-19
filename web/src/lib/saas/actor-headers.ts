@@ -19,6 +19,8 @@ export const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
 /** Hybrid accounts' chosen home, so the fast path routes like middleware does. */
 export const ACTOR_HOME_PREF_HEADER = "x-impronta-actor-home-pref";
 
+export const ACTOR_SIG_HEADER_NAME = "x-impronta-actor-sig";
+
 export const ACTOR_HEADERS = [
   ACTOR_ID_HEADER,
   ACTOR_EMAIL_HEADER,
@@ -26,6 +28,7 @@ export const ACTOR_HEADERS = [
   ACTOR_STATUS_HEADER,
   ACTOR_ONBOARDED_HEADER,
   ACTOR_HOME_PREF_HEADER,
+  ACTOR_SIG_HEADER_NAME,
 ] as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -26,6 +26,8 @@ test("INVARIANT the redeem route uses roleAfterRedeem and team actions require m
     assert.match(body, /lacksMembershipCapability\(tenantId\)\) return NOT_ALLOWED/, `${fn} gated`);
   }
   assert.match(src, /userHasCapability\("manage_memberships", tenantId\)/);
+  const change = src.slice(src.indexOf("export async function changeTeamMemberRole"), src.indexOf("export async function setInquiryCoordinatorTalent"));
+  assert.match(change, /lacksMembershipCapability\(tenantId\)\) return NOT_ALLOWED/);
   const promote = src.slice(src.indexOf("export async function promoteRosterTalentToAdmin"));
   assert.match(promote, /\.select\("id, status, role"\)[\s\S]*role === "owner"[\s\S]*forbidden/);
 });

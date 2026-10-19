@@ -34,7 +34,7 @@ test("every actor header the middleware writes is in the stripped set", () => {
     assert.match(src, new RegExp(`\\b${name}\\b`), `${name} is imported by updateSession`);
   }
   assert.match(src, /from "@\/lib\/saas\/actor-headers"/);
-  assert.equal(ACTOR_HEADERS.length, 6);
+  assert.equal(ACTOR_HEADERS.length, 7, "six actor fields plus the signature");
 });
 
 test("the fast path refuses a header that is not shaped like the proxy's output", () => {

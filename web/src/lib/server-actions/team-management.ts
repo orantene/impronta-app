@@ -495,6 +495,8 @@ export async function changeTeamMemberRole(
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
+    // Same gate as the other team actions (TUL-1269): the manage_memberships capability.
+    if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
 
     if (!VALID_ROLES.has(role)) {
       return { ok: false, error: "Invalid role.", reason: "validation_failed" };
@@ -507,21 +509,6 @@ export async function changeTeamMemberRole(
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
-
-    // Caller must be an active owner or admin of this tenant.
-    const { data: myMembership } = await tenantScopedQuery(
-      admin,
-      "agency_memberships",
-      tenantId,
-    )
-      .select("role")
-      .eq("profile_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-    const myRole = (myMembership as { role?: string } | null)?.role;
-    if (myRole !== "owner" && myRole !== "admin") {
-      return { ok: false, error: "Only an owner or admin can change roles.", reason: "forbidden" };
-    }
 
     // Target must be an active member. The owner role is transfer-only —
     // it can never be set or cleared through this action.

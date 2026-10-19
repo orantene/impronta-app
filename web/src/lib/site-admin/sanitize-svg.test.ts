@@ -46,3 +46,12 @@ test("a normal brand mark still passes", () => {
   assert.deepEqual(r.errors, []);
   assert.equal(r.ok, true);
 });
+
+test("a mark that fails the sanitizer yields no svg, and every render site drops it", async () => {
+  assert.equal(sanitizeBrandMarkSvg("<svg onload=alert(1)></svg>").svg, undefined);
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  for (const f of ["src/components/public-header.tsx", "src/components/marketing/tenant-register-mount.tsx", "src/app/share/pitch/[token]/page.tsx"]) {
+    assert.match(readFileSync(join(process.cwd(), f), "utf8"), /sanitizeBrandMarkSvg\([^)]*\)\.svg \?\? null/, f);
+  }
+});

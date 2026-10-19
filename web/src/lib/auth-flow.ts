@@ -31,9 +31,22 @@ export function normalizeNextPath(
   fallback = "/",
 ): string {
   if (!nextPath) return fallback;
-  if (!isSafeInternalPath(nextPath)) return fallback;
-  // `/en//evil.example` is only protocol-relative once the locale prefix is gone, so test that too.
-  if (LOCALE_THEN_PROTOCOL_RELATIVE.test(nextPath.split(/[?#]/, 1)[0] ?? nextPath)) return fallback;
+  // The raw value and its percent-decoded forms (a server or a later hop may decode once or twice):
+  // `/%2F%2Fevil`, `/%5Cevil`, `/%09/evil` and `/en/%2F%2Fevil` all become protocol-relative.
+  let candidate = nextPath;
+  for (let i = 0; i < 3; i += 1) {
+    if (!isSafeInternalPath(candidate)) return fallback;
+    // `/en//evil.example` is only protocol-relative once the locale prefix is gone, so test that too.
+    if (LOCALE_THEN_PROTOCOL_RELATIVE.test(candidate.split(/[?#]/, 1)[0] ?? candidate)) return fallback;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(candidate.split(/[?#]/, 1)[0] ?? candidate);
+    } catch {
+      return fallback;
+    }
+    if (decoded === (candidate.split(/[?#]/, 1)[0] ?? candidate)) break;
+    candidate = decoded;
+  }
   return nextPath;
 }
 

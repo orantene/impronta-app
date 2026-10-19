@@ -48,6 +48,7 @@ import { withStagingGate } from "@/lib/saas/staging-gate";
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
+import { allowDevSurfacesFor } from "@/lib/saas/dev-surfaces";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -74,14 +75,7 @@ async function proxyInner(request: NextRequest) {
   // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
   // `VERCEL_ENV=preview npx next start` after a production compile. Host
   // is never a gate. Route handlers still 403 outside dev/preview.
-  const allowDevSurfaces =
-    process.env.TULALA_ALLOW_DEV_SURFACES === "1" ||
-    process.env.NODE_ENV === "development" ||
-    process.env.VERCEL_ENV === "preview" ||
-    // Isolated harness hosts survive Edge HMR of this file, which re-reads an
-    // empty process.env and would otherwise 404 /api/dev/signin (D-022). The
-    // route handler still 403s outside development / Vercel preview.
-    (request.headers.get("host") ?? "").split(":")[0].toLowerCase().endsWith(".local");
+  const allowDevSurfaces = allowDevSurfacesFor(process.env, request.headers.get("host"));
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // Stripe webhook + cron + analytics-events must reach their route handlers

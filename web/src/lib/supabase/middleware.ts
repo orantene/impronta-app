@@ -7,6 +7,7 @@ import {
   ACTOR_ONBOARDED_HEADER,
   ACTOR_STATUS_HEADER,
 } from "@/lib/saas/actor-headers";
+import { ACTOR_SIG_HEADER, actorSecret, signActorFields } from "@/lib/saas/actor-signature";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
@@ -476,6 +477,21 @@ export async function updateSession(
       forwardedHeaders.set(
         ACTOR_HOME_PREF_HEADER,
         sessionProfile.home_surface_preference,
+      );
+    }
+    // TUL-1269: sign the set so the reader can tell it from a copy forged on a path the proxy skips.
+    const actorKey = actorSecret(process.env);
+    if (actorKey) {
+      forwardedHeaders.set(
+        ACTOR_SIG_HEADER,
+        await signActorFields(actorKey, {
+          id: user.id,
+          email: user.email ?? null,
+          appRole: sessionProfile?.app_role ?? null,
+          status: sessionProfile?.account_status ?? null,
+          onboarded: sessionProfile?.onboarding_completed_at ? "1" : "0",
+          homePref: sessionProfile?.home_surface_preference ?? null,
+        }),
       );
     }
 

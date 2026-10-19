@@ -56,6 +56,17 @@ test("LOCAL_QA=1 off Vercel is allowed for a non-prod ref only", () => {
   assert.equal(allow({ NEXT_PUBLIC_SUPABASE_URL: "https://other.supabase.co" }), false, "unknown ref, no flag");
 });
 
+test("admin-boot workflow combo (VERCEL_ENV=preview, VERCEL unset, local supabase) stays open", () => {
+  assert.equal(allow({ NODE_ENV: "production", VERCEL_ENV: "preview", NEXT_PUBLIC_SUPABASE_URL: LOCAL }), true);
+});
+
+test("production with a client-supplied Host: *.local header is 403 (host is not an input to the rule)", () => {
+  const headers = { get: (n: string) => (n === "host" ? "evil.local" : null) };
+  const prod = { VERCEL: "1", VERCEL_ENV: "production", NODE_ENV: "production", NEXT_PUBLIC_SUPABASE_URL: PROD };
+  assert.equal(devSigninAllowed(prod, headers), false);
+  assert.equal(devSigninAllowed({ ...prod, NEXT_PUBLIC_SUPABASE_URL: FXLANK }, headers), false);
+});
+
 test("INVARIANT the route uses devSigninAllowed and keeps passwordless sign-in to @impronta.test", () => {
   const src = readFileSync(join(process.cwd(), "src/app/api/dev/signin/route.ts"), "utf8");
   assert.match(src, /devSigninAllowed\(process\.env, request\.headers\)/);
