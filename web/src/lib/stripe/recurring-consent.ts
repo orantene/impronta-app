@@ -36,7 +36,7 @@ const COPY: Record<"en" | "es", Copy> = {
       `Free for ${days} days, then your plan renews automatically ${every} until you cancel.`,
     trialAccept: (days, every, link) =>
       `I understand my card will not be charged today. After the ${days}-day free trial, Tulala will charge it the price shown ${every} until I cancel, under the ${link}. ` +
-      `I can cancel any time in Settings before the trial ends to avoid a charge, and keep access to the end of the period I paid for.`,
+      `I can cancel any time in Settings before the trial ends to avoid a charge, and keep access until the trial ends.`,
   },
   es: {
     every: { month: "cada mes", year: "cada año" },
@@ -49,7 +49,7 @@ const COPY: Record<"en" | "es", Copy> = {
       `Gratis por ${days} días, luego tu plan se renueva automáticamente ${every} hasta que canceles.`,
     trialAccept: (days, every, link) =>
       `Entiendo que no se me cobrará hoy. Después de los ${days} días de prueba gratis, Tulala cargará a mi tarjeta el precio indicado ${every} hasta que cancele, según los ${link}. ` +
-      `Puedo cancelar cuando quiera en Ajustes antes de que termine la prueba para evitar un cargo, y conservar el acceso hasta el final del periodo pagado.`,
+      `Puedo cancelar cuando quiera en Ajustes antes de que termine la prueba para evitar un cargo, y conservar el acceso hasta que termine la prueba.`,
   },
 };
 

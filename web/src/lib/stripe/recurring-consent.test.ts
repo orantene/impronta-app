@@ -59,7 +59,8 @@ test("trial EN: not charged today, charged after N days, cancel before trial end
   assert.match(msg, /14-day free trial/);
   assert.match(msg, /every month until I cancel/);
   assert.match(msg, /before the trial ends/);
-  assert.match(msg, /end of the period I paid for/);
+  assert.match(msg, /keep access until the trial ends/);
+  assert.doesNotMatch(msg, /period I paid for/);
   assert.doesNotMatch(msg, /charge my card the price shown now/);
   assert.match(p.custom_text.submit.message, /Free for 14 days/);
 });
@@ -71,7 +72,8 @@ test("trial ES yearly: no cargo hoy, cargo tras N dias, cancelar antes de que te
   assert.match(msg, /7 días de prueba gratis/);
   assert.match(msg, /cada año hasta que cancele/);
   assert.match(msg, /antes de que termine la prueba/);
-  assert.match(msg, /final del periodo pagado/);
+  assert.match(msg, /conservar el acceso hasta que termine la prueba/);
+  assert.doesNotMatch(msg, /periodo pagado/);
   assert.doesNotMatch(msg, /ahora y/);
   assert.match(p.custom_text.submit.message, /Gratis por 7 días/);
 });
