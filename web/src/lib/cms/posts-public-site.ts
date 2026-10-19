@@ -163,14 +163,27 @@ async function loadTalentDisplayName(talentProfileId: string): Promise<string | 
  * "IA puede leer mi sitio" (default ON). agency_branding for workspace sites,
  * talent_sites for talent sites. A read error or missing row keeps the default.
  */
-export async function loadAiCrawlersAllowed(scope: PostScope): Promise<boolean> {
+/**
+ * The stored "IA puede leer mi sitio" flag: true/false as saved, true when the
+ * site has no row (the default), and null when it could not be READ.
+ */
+export async function readAiCrawlersFlag(scope: PostScope): Promise<boolean | null> {
   const db = createServiceRoleClient();
-  if (!db) return true;
+  if (!db) return null;
   const { data, error } =
     scope.kind === "tenant"
       ? await db.from("agency_branding").select("ai_crawlers_allowed").eq("tenant_id", scope.tenantId).maybeSingle()
       : await db.from("talent_sites").select("ai_crawlers_allowed").eq("talent_profile_id", scope.talentProfileId).maybeSingle();
   if (error) logServerError("cms/posts-public-site/ai-crawlers", error);
-  if (error || !data) return true;
+  if (error) return null;
+  if (!data) return true;
   return (data as { ai_crawlers_allowed: boolean | null }).ai_crawlers_allowed !== false;
+}
+
+/**
+ * TUL-1326: the toggle FAILS CLOSED. An unreadable flag (no service client, a
+ * query error) means the AI bots are refused, never allowed by accident.
+ */
+export async function loadAiCrawlersAllowed(scope: PostScope): Promise<boolean> {
+  return (await readAiCrawlersFlag(scope)) === true;
 }
