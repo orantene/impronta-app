@@ -452,6 +452,8 @@ export async function placeInstantPurchase(
     // A deposit offering used to send "full" and charge the whole total.
     paymentChoice: instantBookPaymentChoice(input.payInPerson, effective.reserveMode),
     sourceChannel: input.sourceChannel,
+    // The desk is the one staff channel; everything else is a guest (D-10).
+    channel: staffDesk ? "staff" : "guest",
     sourcePage: input.sourcePage,
     capacity: capacity.length > 0 ? capacity : undefined,
     // The calendar slot, when this purchase takes someone's time. Capacity

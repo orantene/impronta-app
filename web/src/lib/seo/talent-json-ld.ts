@@ -21,6 +21,7 @@
  *    than nulls).
  */
 
+import { jsonLdScriptString } from "@/lib/seo/json-ld-script";
 import type { OfferingVariant } from "@/lib/talent/offerings-types";
 import { publicPriceForJsonLd } from "@/lib/talent/public-price";
 
@@ -349,5 +350,5 @@ export function buildRosterItemListJsonLd(
  *  output helps cache + diff). */
 export function jsonLdToString(obj: Record<string, JsonValue> | null): string {
   if (!obj) return "";
-  return JSON.stringify(obj);
+  return jsonLdScriptString(obj);
 }

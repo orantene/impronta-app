@@ -1,7 +1,7 @@
 "use client";
 
 import { attentionSummary, photoOnlyTip } from "./attention-summary";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteTalentOfferingForever,
   duplicateTalentOffering,
@@ -9,6 +9,7 @@ import {
   setOfferingPublication,
   upsertTalentOffering,
 } from "@/lib/talent/offerings-actions";
+import { setOfferingVariants } from "@/lib/talent/offering-variants-actions";
 import {
   loadAddonGroups,
   loadCategoryOrder,
@@ -224,18 +225,18 @@ export function ServicesHome({
     setTypeOpen(false);
   };
 
-  const refreshExtras = async () => {
-    const [d, c, a, dest] = await Promise.all([
-      loadSellingDefaults(talentId),
-      loadCategoryOrder(talentId),
-      loadAddonGroups(talentId),
-      loadOfferingDestinations(talentId),
-    ]);
+  const refreshExtras = useCallback(async () => {
+    const [d, c, a, dest] = await Promise.all([loadSellingDefaults(talentId), loadCategoryOrder(talentId), loadAddonGroups(talentId), loadOfferingDestinations(talentId)]);
     if (d.ok) setDefaults(d.defaults);
     if (c.ok) setCategoryOrder(c.order);
     if (a.ok) setAddons(a.groups);
     if (dest.ok) setDestinations(dest.destinations);
-  };
+  }, [talentId]);
+
+  // Also on mount (item 8): editor, Share and deposit/cancel defaults need them from the first row click.
+  useEffect(() => {
+    void refreshExtras();
+  }, [refreshExtras]);
 
   const chips: Array<{ id: Filter; label: string; count: number }> = [
     { id: "all", label: copy.t("All"), count: counts.all },
@@ -389,21 +390,17 @@ export function ServicesHome({
         onOpenWorkingHours={openWorkingHours}
         onBack={() => setScreen("list")}
         onSave={async (next, publish, pendingImageIds) => {
-          // Direct upsert (hook saveDraft never sees this screen's draft). Status
-          // via resolveOfferingEditorSaveStatus — draft vs keep-live (Codex P1).
+          // Direct upsert (hook saveDraft never sees this draft); status keeps live rows live.
           const payload: TalentOffering = {
             ...next,
-            status: resolveOfferingEditorSaveStatus({
-              publish,
-              offeringId: next.id,
-              currentStatus: next.status,
-            }),
+            status: resolveOfferingEditorSaveStatus({ publish, offeringId: next.id, currentStatus: next.status }),
           };
           const res = await upsertTalentOffering(talentId, payload);
           if (!res.ok) throw new Error(res.error);
-          if (pendingImageIds?.length) {
-            await setOfferingImages(talentId, res.item.id, pendingImageIds);
-          }
+          if (pendingImageIds?.length) await setOfferingImages(talentId, res.item.id, pendingImageIds);
+          // Sizes/versions live on the draft until here; [] clears, undefined writes nothing.
+          const v = next.variants && (await setOfferingVariants(talentId, res.item.id, next.variants.map(({ label, amountCents, labelI18n }) => ({ label, amountCents, labelI18n }))));
+          if (v && !v.ok) throw new Error(v.error);
           editor.reload();
           if (publicationWord(res.item) === "live") setBannerId(res.item.id);
           setScreen("list");

@@ -36,6 +36,9 @@ function fakeAdmin(opts: {
   poolTenantId?: string;
   allowPayInPerson?: boolean;
   amountCents?: number;
+  visibility?: string;
+  moderationState?: string;
+  status?: string;
 } = {}) {
   const calls: Call[] = [];
 
@@ -43,7 +46,9 @@ function fakeAdmin(opts: {
     id: OFFERING,
     tenant_id: TENANT,
     title: "Posing course",
-    status: "published",
+    status: opts.status ?? "published",
+    visibility: opts.visibility ?? "public",
+    moderation_state: opts.moderationState ?? "approved",
     price_type: "fixed",
     amount_cents: opts.amountCents ?? 5000,
     talent_profile_id: null,
@@ -501,4 +506,52 @@ test("a FAILED pool lookup is distinguishable from 'no pool'", async () => {
   // produced unlimited sales. A caller that cannot tell "no cap" from "could
   // not find out" picks the interpretation that sells.
   assert.equal(b.ok, false, "a read failure must NOT resolve to 'no pool'");
+});
+
+// ── D-10 / D-10a: checkout reads visibility + moderation, not just status ────
+
+test("D-10: a guest cannot buy an agency_only, pending, rejected, draft or on_request service by id", async () => {
+  const cases: Array<[string, Parameters<typeof fakeAdmin>[0]]> = [
+    ["agency_only", { visibility: "agency_only" }],
+    ["pending", { moderationState: "pending" }],
+    ["rejected", { moderationState: "rejected" }],
+    ["draft", { status: "draft" }],
+    // D-10a: an on_request service never takes an instant charge, even with reserve_mode full.
+    ["on_request instant", { visibility: "on_request", reserveMode: "full" }],
+  ];
+  for (const [label, opts] of cases) {
+    const { calls, admin } = fakeAdmin(opts);
+    const r = await createPurchase(admin, input());
+    assert.equal(r.ok, false, `${label} must be refused`);
+    assert.equal(!r.ok && r.reason, "offering_not_published", label);
+    assert.deepEqual(
+      calls.filter((c) => c.op === "insert" || c.op === "update"),
+      [],
+      `${label} must write nothing`,
+    );
+  }
+});
+
+test("D-10: a row with no visibility or moderation value is refused (fails closed)", async () => {
+  const { admin } = fakeAdmin({ visibility: "", moderationState: "" });
+  const r = await createPurchase(admin, input());
+  assert.equal(!r.ok && r.reason, "offering_not_published");
+});
+
+test("D-10: a published + approved + public service still sells to a guest", async () => {
+  const { admin } = fakeAdmin();
+  const r = await createPurchase(admin, input());
+  assert.equal(r.ok, true, JSON.stringify(r));
+});
+
+test("D-10: the staff desk (POS) keeps selling an agency_only or pending service", async () => {
+  for (const opts of [{ visibility: "agency_only" }, { moderationState: "pending" }]) {
+    const { admin } = fakeAdmin(opts);
+    const r = await createPurchase(admin, input({ channel: "staff" }));
+    assert.equal(r.ok, true, JSON.stringify(r));
+  }
+  // The desk is still not a way to sell a draft.
+  const { admin } = fakeAdmin({ status: "draft" });
+  const r = await createPurchase(admin, input({ channel: "staff" }));
+  assert.equal(!r.ok && r.reason, "offering_not_published");
 });

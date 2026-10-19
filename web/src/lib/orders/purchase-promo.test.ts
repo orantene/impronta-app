@@ -47,7 +47,7 @@ function fake(opts: {
   const calls: Call[] = [];
   const redemptions: Row[] = [];
   const offeringRow = {
-    id: OFFERING, tenant_id: TENANT, title: "Uñas", status: "published", price_type: "fixed",
+    id: OFFERING, tenant_id: TENANT, title: "Uñas", status: "published", moderation_state: "approved", visibility: "public", price_type: "fixed",
     amount_cents: opts.amountCents ?? 50000, currency: "MXN", talent_profile_id: null,
     reserve_mode: opts.reserveMode ?? "full", deposit_pct: null, allow_pay_in_person: false,
     require_account_to_book: false, cancellation_hours: null,

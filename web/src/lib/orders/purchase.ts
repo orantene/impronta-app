@@ -5,22 +5,15 @@ import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolvePurchaseBuyer } from "@/lib/orders/purchase-buyer";
 import { releaseCapacity, capacityHoldTtlSeconds } from "@/lib/capacity";
-import {
-  releaseReservationHold,
-} from "@/lib/scheduling/reservation-hold";
+import { releaseReservationHold } from "@/lib/scheduling/reservation-hold";
 import { timedInstantMissingSlot } from "@/lib/scheduling/instant-book-hours";
 import { appointmentWindowFor } from "@/lib/scheduling/appointment-window";
 import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
 import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
-import {
-  resolvePurchasePolicy,
-} from "@/lib/orders/purchase-policy";
-import {
-  loadCatalog,
-  mapCapacityRefusal,
-} from "@/lib/orders/purchase-catalog";
+import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
+import { loadCatalog, mapCapacityRefusal, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
 import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemption/order-redemptions";
@@ -152,6 +145,10 @@ export async function createPurchase(
 
     const catalog = await loadCatalog(admin, offeringIds);
     if (!catalog.ok) return { ok: false, reason: "engine_error", error: catalog.error };
+
+    // D-10 / D-10a: guest charges need published + approved + public.
+    const sellable = refuseUnsellableOfferings(catalog, offeringIds, input.channel);
+    if (!sellable.ok) return sellable;
 
     const seller = await refuseUnclaimedSellers(admin, catalog);
     if (!seller.ok) {
