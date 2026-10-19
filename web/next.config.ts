@@ -304,6 +304,11 @@ if (isProd) {
 
 const nextConfig: NextConfig = {
   /**
+   * `isomorphic-dompurify` drags jsdom into the server build (SVG sanitizer, TUL-1269). jsdom reads
+   * its own stylesheet files at runtime, so it must stay a real `require` instead of being bundled.
+   */
+  serverExternalPackages: ["isomorphic-dompurify", "jsdom"],
+  /**
    * Skip the integrated `next build` type-check. Under Next 16.2.3 (Turbopack)
    * this phase intermittently HANGS on Vercel's build machines after a clean
    * compile — the log freezes at "Running TypeScript ..." and the deploy is

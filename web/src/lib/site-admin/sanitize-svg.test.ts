@@ -24,6 +24,19 @@ test("external and script-bearing attribute values are rejected", () => {
   reject('<svg><foreignObject><div/></foreignObject></svg>', "foreignObject");
 });
 
+test("elements and attributes outside the brand-mark policy are rejected", () => {
+  reject('<svg><style>*{fill:red}</style></svg>', "style element");
+  reject('<svg><rect style="fill:red"/></svg>', "style attribute");
+  reject('<svg><a href="https://evil.example"><rect/></a></svg>', "link");
+  reject('<svg><image href="https://evil.example/x.png"/></svg>', "image");
+  reject('<svg><animate attributeName="href" values="javascript:alert(1)"/></svg>', "animate");
+  reject('<svg><use href="javascript:alert(1)"/></svg>', "javascript href");
+  reject('<svg><rect data-x="1"/></svg>', "data attribute");
+  reject('<svg><title><img src=x onerror=alert(1)></title></svg>', "mXSS-style payload");
+  reject('<?xml version="1.0"?><svg></svg>', "prolog");
+  reject('<svg></svg><script>alert(1)</script>', "trailing content");
+});
+
 test("a normal brand mark still passes", () => {
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" aria-label="Logo">' +

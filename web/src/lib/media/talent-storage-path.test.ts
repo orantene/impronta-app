@@ -18,6 +18,10 @@ test("TUL-1269: only keys under this talent's own prefixes are accepted", () => 
   assert.equal(isTalentOwnedStoragePath(T, `/${T}/x.jpg`), false, "leading slash");
   assert.equal(isTalentOwnedStoragePath(T, `${T}\\x.jpg`), false, "backslash");
   assert.equal(isTalentOwnedStoragePath(T, `tenant-assets/${T}/x.jpg`), false, "other tree");
+  assert.equal(isTalentOwnedStoragePath(T, `talent-portfolio/${T}/../../${OTHER}/x.jpg`), false, "traversal under portfolio prefix");
+  assert.equal(isTalentOwnedStoragePath(T, `${T}/%252e%252e/x.jpg`), false, "double-encoded traversal");
+  assert.equal(isTalentOwnedStoragePath(T, `${T}/gallery\\..\\x.jpg`), false, "backslash traversal");
+  assert.equal(isTalentOwnedStoragePath(T, `other/${T}/x.jpg`), false, "prefix not at the start");
   assert.equal(isTalentOwnedStoragePath(T, `${T}/`), false, "no object name");
   assert.equal(isTalentOwnedStoragePath("not-a-uuid", "not-a-uuid/x.jpg"), false);
   assert.equal(isTalentOwnedStoragePath(T, undefined), false);
