@@ -21,7 +21,7 @@ function makeCtx(tables: Record<string, Row[]>, users: Record<string, { email: s
   const logKeys = new Set<string>();
   const from = (table: string) => {
     const filters: Array<(r: Row) => boolean> = [];
-    let rows = () => (tables[table] ?? []).filter((r) => filters.every((f) => f(r)));
+    const rows = () => (tables[table] ?? []).filter((r) => filters.every((f) => f(r)));
     let inserted: Row | null = null;
     const chain: Record<string, unknown> = {};
     chain.select = () => chain;
