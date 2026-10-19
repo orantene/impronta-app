@@ -41,6 +41,13 @@ const KEY = "tulala:catalog-done";
 export const CATALOG_DONE_TTL_MS = 10 * 60_000;
 /** An automatic re-open of the same service this soon after confirming is the refresh, not the guest. */
 export const CATALOG_DONE_REOPEN_GUARD_MS = 30_000;
+/**
+ * TUL-1253: a bare MOUNT restores the confirmation only this soon after it was written
+ * (the cookie-mint route refresh, slow on staging, still fits). Any later mount (back
+ * navigation, a new visit in the tab) is not a refresh, so it must not resurrect an
+ * old confirmation as if the guest had just reopened the sheet.
+ */
+export const CATALOG_DONE_MOUNT_RESTORE_MS = 2 * 60_000;
 
 let memory: CatalogDoneSnapshot | null = null;
 
@@ -121,6 +128,10 @@ export function useCatalogDoneSnapshot(a: {
   useEffect(() => {
     const snap = loadCatalogDone();
     if (!snap) return;
+    if (Date.now() - snap.at > CATALOG_DONE_MOUNT_RESTORE_MS) {
+      clearCatalogDone(); // TUL-1253: stale, not a refresh echo
+      return;
+    }
     savedRef.current = true; // already written; do not re-save with an empty day list
     restoringRef.current = true;
     setDoneSlot(snap.slotLabel);

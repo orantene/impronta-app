@@ -85,7 +85,7 @@ import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogSheetFooter } from "./catalog-sheet-footer";
-import { isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
+import { clearCatalogDone, isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -521,7 +521,7 @@ export function CatalogBookingSheet({
       <div className="jb-sheet">
         <CatalogSheetHeader
           kicker={step === "done" ? doneStatus.headline : es ? "Tu reserva" : "Your booking"}
-          title={detail.title} closeLabel={es ? "Cerrar" : "Close"} onClose={() => setDetail(null)}
+          title={detail.title} closeLabel={es ? "Cerrar" : "Close"} onClose={() => { clearCatalogDone(); setDetail(null); }}
         />
 
         <div className="jb-body">
@@ -774,7 +774,7 @@ export function CatalogBookingSheet({
           onContinueChoose={() => setStep("when")}
           whenReady={selectedTime}
           onContinueWhen={() => { if (catalogCanContinueWhen(time)) setStep("who"); }}
-          onDone={() => setDetail(null)}
+          onDone={() => { clearCatalogDone(); setDetail(null); }} // TUL-1253: forget synchronously, a refresh remount must not bring it back
           whoCta={
             <button
               type="button"
