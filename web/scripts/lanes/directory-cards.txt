@@ -1,4 +1,5 @@
 src/app/t/?profileCode?/_chat/use-launcher-scroll-collapse.test.ts
+src/components/directory/directory-talent-type-bar.grk055.static.test.ts
 src/components/directory/discovery-state-sync.test.ts
 src/components/directory/profile-discovery-cta.static.test.ts
 src/components/home/default-storefront-links.static.test.ts
