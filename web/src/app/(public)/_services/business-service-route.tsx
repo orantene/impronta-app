@@ -74,7 +74,7 @@ export async function businessServiceMetadata(segment: BusinessServiceSegment, {
   const loaded = await load(slug);
   if (!loaded || loaded.res.status !== "ok") return { robots: { index: false } };
   const { offering } = loaded.res;
-  const route = businessServiceRoute({ requested: { segment, slug }, locale: loaded.locale, offering });
+  const route = businessServiceRoute({ requested: { segment, slug }, locale: loaded.locale, offering: { id: offering.id, title: loaded.res.slugTitle } });
   const canonicalSlug = route.kind === "render" ? route.slug : slug;
   const identity = await loadPublicIdentity(loaded.tenantId).catch(() => null);
   const meta = serviceMetaText(offering, identity?.public_name?.trim() || null, { locale: loaded.locale });
@@ -96,7 +96,7 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
   }
   if (loaded.res.status !== "ok") notFound();
   const { offering } = loaded.res;
-  const route = businessServiceRoute({ requested: { segment, slug }, locale: loaded.locale, offering });
+  const route = businessServiceRoute({ requested: { segment, slug }, locale: loaded.locale, offering: { id: offering.id, title: loaded.res.slugTitle } });
   if (route.kind === "missing") notFound();
   if (route.kind === "redirect") permanentRedirect(await localePath(loaded.locale, route.pathWithoutLocale));
 

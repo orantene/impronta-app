@@ -22,11 +22,16 @@ function row(id8: string, extra: Partial<BusinessServiceRow> = {}): BusinessServ
 }
 
 describe("pickBusinessServiceRow", () => {
-  const owners = new Set([OWNER]);
-  it("finds the workspace's own published, approved, public or on_request service by id8", () => {
-    assert.equal(pickBusinessServiceRow([row("aaaaaaaa")], "masaje-aaaaaaaa", T, owners)?.id, row("aaaaaaaa").id);
-    assert.ok(pickBusinessServiceRow([row("aaaaaaaa", { visibility: "on_request" })], "x-aaaaaaaa", T, owners));
-    assert.ok(pickBusinessServiceRow([row("aaaaaaaa", { owner_kind: "talent", talent_profile_id: OWNER })], "aaaaaaaa", T, owners));
+  const none = new Set<string>();
+  it("finds the workspace's own (house) published, approved, public or on_request service by id8", () => {
+    assert.equal(pickBusinessServiceRow([row("aaaaaaaa")], "masaje-aaaaaaaa", T, none)?.id, row("aaaaaaaa").id);
+    assert.ok(pickBusinessServiceRow([row("aaaaaaaa", { visibility: "on_request" })], "x-aaaaaaaa", T, none));
+  });
+  it("TUL-1325: never a talent-owned row, not even the owner's own (its one canonical is the talent site)", () => {
+    assert.equal(pickBusinessServiceRow([row("aaaaaaaa", { owner_kind: "talent", talent_profile_id: OWNER })], "aaaaaaaa", T, none), null);
+  });
+  it("TUL-1322: never an event-backing package or the reservation item (non-menu offerings)", () => {
+    assert.equal(pickBusinessServiceRow([row("aaaaaaaa", { kind: "package" })], "aaaaaaaa", T, new Set([row("aaaaaaaa").id as string])), null);
   });
   it("never a draft, pending, agency-only, product, another tenant's or a roster talent's row", () => {
     for (const extra of [
@@ -37,25 +42,33 @@ describe("pickBusinessServiceRow", () => {
       { tenant_id: "33333333-3333-4333-8333-333333333333" },
       { owner_kind: "talent", talent_profile_id: "44444444-4444-4444-8444-444444444444" },
     ] as Partial<BusinessServiceRow>[]) {
-      assert.equal(pickBusinessServiceRow([row("aaaaaaaa", extra)], "aaaaaaaa", T, owners), null, JSON.stringify(extra));
+      assert.equal(pickBusinessServiceRow([row("aaaaaaaa", extra)], "aaaaaaaa", T, none), null, JSON.stringify(extra));
     }
   });
 });
 
-function fakeDb(plan: string | null, opts: { planError?: boolean } = {}) {
+function fakeDb(plan: string | null, opts: { planError?: boolean; eventOfferingIds?: string[]; nonMenuError?: boolean } = {}) {
   const reads: string[] = [];
+  const filters: string[] = [];
   const chain = (table: string) => {
     const q: Record<string, unknown> = {};
     const self = () => q;
-    for (const m of ["select", "eq", "or", "in", "order", "limit"]) q[m] = self;
+    for (const m of ["select", "or", "in", "order", "limit", "not", "range"]) q[m] = self;
+    q.eq = (c: string, v: unknown) => (filters.push(`${table}.${c}=${String(v)}`), q);
     q.maybeSingle = async () =>
       table === "agencies"
         ? opts.planError ? { data: null, error: { message: "x" } } : { data: { plan_tier: plan }, error: null }
         : { data: null, error: null };
-    q.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: table === "talent_offerings" ? [row("aaaaaaaa", { title: "Masaje relajante" })] : [], error: null }).then(res);
+    q.then = (res: (v: unknown) => unknown) => {
+      if (table === "events") {
+        return Promise.resolve(opts.nonMenuError ? { data: null, error: { message: "x" } } : { data: (opts.eventOfferingIds ?? []).map((offering_id) => ({ offering_id })), error: null }).then(res);
+      }
+      if (table === "venue_service_rules") return Promise.resolve({ data: [], error: null }).then(res);
+      return Promise.resolve({ data: table === "talent_offerings" ? [row("aaaaaaaa", { title: "Masaje relajante" }), row("bbbbbbbb", { title: "Cena show", kind: "package" })] : [], error: null }).then(res);
+    };
     return q;
   };
-  return { db: { from: (t: string) => (reads.push(t), chain(t)) } as never, reads };
+  return { db: { from: (t: string) => (reads.push(t), chain(t)) } as never, reads, filters };
 }
 
 describe("businessServicePagesOn", () => {
@@ -85,6 +98,25 @@ describe("sitemap entries", () => {
     ]);
     assert.ok(out[0]!.alternates?.languages);
   });
+  it("TUL-1322: event-backing packages and the reservation item are left out of the sitemap", async () => {
+    const out = await loadBusinessServiceSitemapEntries({
+      supabase: fakeDb("agency", { eventOfferingIds: [row("bbbbbbbb").id as string] }).db,
+      tenantId: T, origin: "https://spa.example", defaultLocale: "es", supportedLocales: ["es"], flagOn: true,
+    });
+    assert.deepEqual(out.map((e) => e.url), ["https://spa.example/servicios/masaje-relajante-aaaaaaaa"]);
+  });
+  it("TUL-1322: a failed non-menu read fails closed (no entries)", async () => {
+    const out = await loadBusinessServiceSitemapEntries({
+      supabase: fakeDb("agency", { nonMenuError: true }).db,
+      tenantId: T, origin: "https://spa.example", defaultLocale: "es", supportedLocales: ["es"], flagOn: true,
+    });
+    assert.deepEqual(out, []);
+  });
+  it("TUL-1325: rows are house rows only (owner_kind = workspace)", async () => {
+    const { db, filters } = fakeDb("agency");
+    await loadBusinessServiceSitemapEntries({ supabase: db, tenantId: T, origin: "https://spa.example", defaultLocale: "es", supportedLocales: ["es"], flagOn: true });
+    assert.ok(filters.includes("talent_offerings.owner_kind=workspace"));
+  });
   it("flag off lists nothing", async () => {
     const out = await loadBusinessServiceSitemapEntries({ supabase: fakeDb("agency").db, tenantId: T, origin: "https://spa.example", defaultLocale: "es", supportedLocales: ["es"], flagOn: false });
     assert.deepEqual(out, []);
@@ -106,7 +138,7 @@ describe("loadBusinessServiceRows: order and no silent cap", () => {
         const q: Record<string, unknown> = {};
         let from = 0;
         let to = 0;
-        for (const m of ["select", "eq", "or", "in"]) q[m] = () => q;
+        for (const m of ["select", "eq", "or", "in", "not"]) q[m] = () => q;
         q.order = (col: string) => (orders.push(col), q);
         q.limit = () => q;
         q.range = (a: number, b: number) => ((from = a), (to = b), ranges.push([a, b]), q);
@@ -118,7 +150,7 @@ describe("loadBusinessServiceRows: order and no silent cap", () => {
       },
     } as never;
     const { loadBusinessServiceRows } = await import("./load.server");
-    const out = await loadBusinessServiceRows(db, T, { ownerTalentIds: new Set() });
+    const out = await loadBusinessServiceRows(db, T, { nonMenuIds: new Set() });
     assert.equal(out?.rows.length, total);
     assert.deepEqual(orders.slice(0, 2), ["sort_order", "id"]);
     assert.ok(ranges.length >= 2);
@@ -132,5 +164,12 @@ describe("route wiring (static)", () => {
     assert.match(src, /businessServiceBookHref\(bookPath, offering\.id\)/);
     assert.doesNotMatch(src, /serviceBookHref\(/);
     assert.match(src, /const load = cache\(/);
+  });
+  it("TUL-1323: the slug (route, 308 target, canonical, hreflang) is built from the primary-language title, the same as the sitemap", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/app/(public)/_services/business-service-route.tsx", "utf8");
+    assert.match(src, /offering: \{ id: offering\.id, title: loaded\.res\.slugTitle \}/);
+    const load = readFileSync("src/lib/services/business-pages/load.server.ts", "utf8");
+    assert.match(load, /slugTitle: String\(row\.title \?\? ""\)/);
   });
 });

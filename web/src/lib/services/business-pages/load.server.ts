@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveEffectiveWorkspacePlanKey } from "@/lib/billing/effective-workspace-plan";
-import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
+import { loadNonMenuOfferingIds } from "@/lib/offerings/non-menu-offerings";
 import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { rowToOffering, type TalentOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 
@@ -28,17 +28,23 @@ const MAX_PAGES = 10;
 
 export type BusinessServiceRow = TalentOfferingRow;
 
-/** Pure: the row a slug's id8 points at, among rows this workspace owns and guests may see. */
+/**
+ * Pure: the row a slug's id8 points at, among rows guests may see on THIS business's pages.
+ * House rows only (owner_kind = 'workspace'): a talent-owned row, even the owner's own, has its
+ * one canonical on the talent site (TUL-1325). Non-menu rows (event-backing packages, the
+ * reservation item) never get a page (TUL-1322).
+ */
 export function pickBusinessServiceRow(
   rows: readonly BusinessServiceRow[],
   slug: string,
   tenantId: string,
-  ownerTalentIds: ReadonlySet<string>,
+  nonMenuIds: ReadonlySet<string>,
 ): BusinessServiceRow | null {
   const id8 = parseBusinessServiceSlug(slug);
   if (!id8) return null;
   const eligible = rows
-    .filter((r) => isWorkspaceOfferingRow(r, tenantId, ownerTalentIds))
+    .filter((r) => r.tenant_id === tenantId && r.owner_kind === "workspace")
+    .filter((r) => !nonMenuIds.has(String(r.id)))
     .filter((r) => r.status === "published" && r.moderation_state === "approved")
     .filter((r) => r.visibility === "public" || r.visibility === "on_request")
     .filter((r) => (PAGE_KINDS as readonly string[]).includes(r.kind as string))
@@ -59,14 +65,26 @@ export async function businessServicePagesOn(db: Db, tenantId: string, flagOn = 
   return businessServicePagesAllowed({ flagOn, planTier: effective });
 }
 
-/** Published + approved workspace-owned services and packages (public and on_request), sort_order then id, every page. */
+/**
+ * Published + approved HOUSE services and packages (owner_kind = 'workspace'; public and on_request),
+ * sort_order then id, every page, minus non-menu rows (event-backing packages incl. draft events,
+ * the reservation item). A failed non-menu read fails CLOSED (null: no page, no sitemap entry).
+ */
 export async function loadBusinessServiceRows(
   db: Db,
   tenantId: string,
-  opts: { publicOnly?: boolean; ownerTalentIds?: Set<string> } = {},
-): Promise<{ rows: BusinessServiceRow[]; ownerTalentIds: Set<string> } | null> {
+  opts: { publicOnly?: boolean; nonMenuIds?: ReadonlySet<string> } = {},
+): Promise<{ rows: BusinessServiceRow[]; nonMenuIds: ReadonlySet<string> } | null> {
   try {
-    const ownerTalentIds = opts.ownerTalentIds ?? (await fetchOwnerTalentIds(db, tenantId));
+    let nonMenuIds = opts.nonMenuIds;
+    if (!nonMenuIds) {
+      const nonMenu = await loadNonMenuOfferingIds(db, tenantId);
+      if (nonMenu.error) {
+        logServerError("business-service-pages/non-menu", nonMenu.error);
+        return null;
+      }
+      nonMenuIds = nonMenu.ids;
+    }
     const rows: BusinessServiceRow[] = [];
     for (let page = 0; page < MAX_PAGES; page += 1) {
       const from = page * PAGE;
@@ -74,7 +92,7 @@ export async function loadBusinessServiceRows(
         .from("talent_offerings")
         .select("*")
         .eq("tenant_id", tenantId)
-        .or(workspaceOfferingOrFilter(ownerTalentIds))
+        .eq("owner_kind", "workspace")
         .eq("status", "published")
         .eq("moderation_state", "approved")
         .in("visibility", opts.publicOnly ? ["public"] : ["public", "on_request"])
@@ -90,7 +108,8 @@ export async function loadBusinessServiceRows(
       rows.push(...batch);
       if (batch.length < PAGE) break;
     }
-    return { rows, ownerTalentIds };
+    const excluded = nonMenuIds;
+    return { rows: rows.filter((r) => !excluded.has(String(r.id))), nonMenuIds: excluded };
   } catch (error) {
     logServerError("business-service-pages/rows", error);
     return null;
@@ -100,7 +119,12 @@ export async function loadBusinessServiceRows(
 export type BusinessServicePageLoad =
   | { status: "off" }
   | { status: "missing" }
-  | { status: "ok"; offering: TalentOffering };
+  | {
+      status: "ok";
+      offering: TalentOffering;
+      /** The PRIMARY-language title (the row's base `title`): the slug, its 308s, canonical, hreflang and the sitemap all use it (TUL-1323). */
+      slugTitle: string;
+    };
 
 /** The page's one read path: gate, rows, the slug's row, its photos. */
 export async function loadBusinessServicePage(input: {
@@ -114,8 +138,12 @@ export async function loadBusinessServicePage(input: {
   if (!(await businessServicePagesOn(input.db, input.tenantId, input.flagOn))) return { status: "off" };
   const loaded = await loadBusinessServiceRows(input.db, input.tenantId);
   if (!loaded) return { status: "missing" };
-  const row = pickBusinessServiceRow(loaded.rows, input.slug, input.tenantId, loaded.ownerTalentIds);
+  const row = pickBusinessServiceRow(loaded.rows, input.slug, input.tenantId, loaded.nonMenuIds);
   if (!row) return { status: "missing" };
   const images = await input.loadImages([String(row.id)]).catch(() => new Map<string, string[]>());
-  return { status: "ok", offering: rowToOffering(row, input.locale, images.get(String(row.id)) ?? []) };
+  return {
+    status: "ok",
+    offering: rowToOffering(row, input.locale, images.get(String(row.id)) ?? []),
+    slugTitle: String(row.title ?? ""),
+  };
 }
