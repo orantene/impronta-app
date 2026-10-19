@@ -573,7 +573,7 @@ export async function setWorkspaceItemPhotos(
         logServerError("menu.offerings.photoOwner", ownErr);
         return { ok: false, error: "Failed to update photos." };
       }
-      const owned = new Map(((mine ?? []) as unknown as { id: string; mime_type: string | null }[]).map((m) => [m.id, m.mime_type]));
+      const owned = new Map(((mine ?? []) as unknown as { id: string; mime_type: string | null }[]).map((m): [string, string | null] => [m.id, m.mime_type]));
       if (wanted.some((id) => !owned.has(id))) return { ok: false, error: "One of those photos is not in your library." };
       // Photos only: a document or video id must not become a picture.
       if (wanted.some((id) => { const mt = owned.get(id); return typeof mt === "string" && mt !== "" && !mt.startsWith("image/"); })) {

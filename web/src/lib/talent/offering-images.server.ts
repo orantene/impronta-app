@@ -2,6 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { logServerError } from "@/lib/server/safe-error";
+
 /** Hero-first image assets for a set of offerings in one query (id + public URL). */
 export async function loadOfferingImageAssets(
   admin: SupabaseClient,
@@ -9,11 +11,16 @@ export async function loadOfferingImageAssets(
 ): Promise<Map<string, { id: string; url: string; alt: string | null }[]>> {
   const out = new Map<string, { id: string; url: string; alt: string | null }[]>();
   if (offeringIds.length === 0) return out;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_offering_media")
     .select("offering_id, sort_order, media_asset_id, media_assets:media_asset_id ( public_url, bucket_id, storage_path, alt )")
     .in("offering_id", offeringIds)
     .order("sort_order", { ascending: true });
+  if (error) {
+    // A failed photo read must not take the item down: no photos, and the failure is logged.
+    logServerError("offeringImages.load", error);
+    return out;
+  }
   type MediaJoin = { public_url: string | null; bucket_id: string | null; storage_path: string | null; alt?: string | null };
   type Row = { offering_id: string; media_asset_id: string; media_assets: MediaJoin | MediaJoin[] | null };
   for (const r of (data ?? []) as unknown as Row[]) {
