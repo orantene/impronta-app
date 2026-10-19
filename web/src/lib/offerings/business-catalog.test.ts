@@ -119,7 +119,7 @@ test("the route is rate limited, tenant-host only, read-only, and reachable on e
 test("the loader filters guest-sellable in the query and drops QA test services", () => {
   const loader = read("src/lib/offerings/business-catalog.server.ts");
   assert.match(loader, /scopeToGuestSellableOfferings\(/);
-  assert.match(loader, /eq\("tenant_id", tenantId\)/);
+  assert.match(loader, /eq\("tenant_id", input\.tenantId\)/);
   assert.match(loader, /hideTestServiceOnPublicSite/);
 });
 

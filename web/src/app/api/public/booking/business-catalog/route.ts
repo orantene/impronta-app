@@ -14,6 +14,11 @@
  * Accept-Language, so a cached response can never be served in another language.
  * Services that are on request are intentionally NOT listed: this API is the
  * bookable-only catalog.
+ *
+ * TUL-1320: the shared HUB host (one tenant for every talent on the network)
+ * lists nothing by tenant alone; it needs `?talent=<public profile code>` naming
+ * a public, listed, non-deleted profile. Ticketed-event and reservation rows are
+ * never listed.
  * Lives under /api/public/booking so the surface allow-list already reaches it.
  */
 
@@ -66,16 +71,33 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const paging = parseCatalogPaging(url.searchParams);
     const locale = langOf(url);
-    const [offerings, identity] = await Promise.all([
-      loadBusinessCatalogOfferings(admin, host.tenantId, locale),
-      loadPublicIdentity(host.tenantId).catch(() => null),
+    const hostKind = host.kind;
+    const [loaded, identity] = await Promise.all([
+      loadBusinessCatalogOfferings(admin, {
+        tenantId: host.tenantId,
+        hostKind,
+        profileCode: url.searchParams.get("talent"),
+        locale,
+      }),
+      // The hub is a network, not one business: it has no single name to give.
+      hostKind === "hub" ? Promise.resolve(null) : loadPublicIdentity(host.tenantId).catch(() => null),
     ]);
-    const all = toBusinessCatalogServices(offerings, locale);
+    // TUL-1320: the shared hub host never lists by tenant alone.
+    if (loaded.kind === "talent_required") {
+      return NextResponse.json(
+        { error: "talent_required", hint: "On this host pass ?talent=<public profile code>." },
+        { status: 400, headers: CORS },
+      );
+    }
+    if (loaded.kind === "profile_not_public") return NextResponse.json({ error: "not_found" }, { status: 404, headers: CORS });
+    if (loaded.kind === "unavailable") return NextResponse.json({ error: "service_unavailable" }, { status: 503, headers: CORS });
+    const all = toBusinessCatalogServices(loaded.offerings, locale);
     const page = pageOf(all, paging);
     return NextResponse.json(
       {
         business: identity?.public_name?.trim() || null,
         site: url.origin,
+        ...(loaded.talentCode ? { talent: loaded.talentCode } : {}),
         total: all.length,
         offset: paging.offset,
         next_offset: page.next_offset,

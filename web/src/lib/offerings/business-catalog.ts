@@ -86,3 +86,42 @@ export function pageOf<T>(all: readonly T[], paging: BusinessCatalogPaging): { i
   const end = paging.offset + items.length;
   return { items, next_offset: end < all.length ? end : null };
 }
+
+// ─── Who may be listed (TUL-1320) ─────────────────────────────────────────────
+
+/** A public profile code, as in `/t/<code>` and the agent catalog's `?talent=`. */
+export const CATALOG_PROFILE_CODE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+export const CATALOG_PROFILE_COLUMNS = "id, deleted_at, is_publicly_hidden, is_publicly_listed, visibility, profile_kind";
+
+export type CatalogProfileRow = {
+  id: string;
+  deleted_at: string | null;
+  is_publicly_hidden: boolean | null;
+  is_publicly_listed: boolean | null;
+  visibility: string | null;
+  profile_kind: string | null;
+};
+
+/**
+ * The same public-listing gate the sitemap and the directory use: not deleted,
+ * not hidden, publicly listed, visibility public, and not a resource profile.
+ * A missing flag is NOT a yes.
+ */
+export function isPublicCatalogProfile(p: CatalogProfileRow): boolean {
+  return (
+    p.deleted_at == null &&
+    p.is_publicly_hidden === false &&
+    p.is_publicly_listed === true &&
+    p.visibility === "public" &&
+    p.profile_kind !== "resource"
+  );
+}
+
+/** Workspace-owned rows (no talent) stay; a talent-owned row stays only while its talent is public. */
+export function keepRowsOfPublicOwners<T extends { talent_profile_id: string | null }>(
+  rows: readonly T[],
+  publicTalentIds: ReadonlySet<string>,
+): T[] {
+  return rows.filter((r) => r.talent_profile_id == null || publicTalentIds.has(r.talent_profile_id));
+}
