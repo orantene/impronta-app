@@ -22,9 +22,10 @@ import {
   type TalentIntegrationRow,
 } from "./repository";
 
-type CardResult =
+export type TalentInstagramCardResult =
   | { ok: true; state: TalentInstagramCardState }
   | { ok: false; error: string };
+type CardResult = TalentInstagramCardResult;
 
 function stateFor(row: TalentIntegrationRow | null, planKey: string): TalentInstagramCardState {
   return deriveTalentInstagramCardState({
