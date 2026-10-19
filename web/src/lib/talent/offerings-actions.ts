@@ -19,6 +19,7 @@ import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
 import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -279,6 +280,7 @@ export async function upsertTalentOffering(
     // Public Max-site offerings/seoFacts sit behind unstable_cache — bust so
     // the storefront shows the save without waiting for the 120 s TTL.
     bustTalentSiteCache(talentProfileId, null);
+    await scheduleRebuildAiSearchDocument(admin, talentProfileId); // F1: services feed AI search
     return {
       ok: true,
       item: rowToOffering(saved, auth.primaryLocale, offering.imageUrls ?? [], [auth.primaryLocale]),
@@ -310,6 +312,7 @@ export async function deleteTalentOffering(
   }
   revalidatePath("/talent/services");
   bustTalentSiteCache(talentProfileId, null);
+  await scheduleRebuildAiSearchDocument(admin, talentProfileId); // F1
   return { ok: true };
 }
 
@@ -404,6 +407,7 @@ export async function reorderTalentOfferings(
   }
   revalidatePath("/talent/services");
   bustTalentSiteCache(talentProfileId, null);
+  await scheduleRebuildAiSearchDocument(admin, talentProfileId); // F1
   return { ok: true };
 }
 
@@ -750,6 +754,7 @@ export async function importLegacyToOfferings(talentProfileId: string): Promise<
       logServerError("talent.offerings.import", error);
       return { ok: false, error: "Import failed." };
     }
+    await scheduleRebuildAiSearchDocument(admin, talentProfileId); // F1
     return await loadTalentOfferingsForEditor(talentProfileId);
   } catch (err) {
     logServerError("talent.offerings.import", err);
