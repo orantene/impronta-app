@@ -14686,6 +14686,7 @@
           "tenderShort": "El efectivo contado es menor que el monto a cobrar.",
           "emptySale": "No hay nada en esta venta para cobrar.",
           "itemRefused": "Ese artículo no puede ir en esta venta.",
+          "itemUnavailable": "Este artículo ya no está disponible.",
           "discountRefused": "Ese código no se puede aplicar a esta venta.",
           "discountNeedsCustomer": "Un código de descuento necesita un cliente con nombre. Agrega uno primero.",
           "readerUnavailable": "No hay un lector de tarjetas listo en este dispositivo.",

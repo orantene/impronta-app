@@ -2372,6 +2372,7 @@
           "tenderShort": "L'espèce comptée est inférieure au montant à encaisser.",
           "emptySale": "Il n'y a rien à encaisser sur cette vente.",
           "itemRefused": "Cet article ne peut pas figurer sur cette vente.",
+          "itemUnavailable": "Cet article n'est plus disponible.",
           "discountRefused": "Ce code ne peut pas être appliqué à cette vente.",
           "discountNeedsCustomer": "Un code de réduction exige un client nommé. Ajoutez-en un d'abord.",
           "readerUnavailable": "Aucun lecteur de carte n'est prêt sur cet appareil.",

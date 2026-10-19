@@ -14,6 +14,7 @@ import { addonCentsOnLine, priceAddons } from "./addons";
 import { LINE_COLUMNS, lineDiscountCents, num, totalsInput, type Admin, type LineAuthor, type LineRow, type OrderRow } from "./sale-rows";
 import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
+import { isSellableOnChannel } from "@/lib/offerings/guest-sellable";
 import { livePhasePrice } from "@/lib/catalog/price-phases";
 import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
 
@@ -82,7 +83,7 @@ async function loadDraft(
   const { data: order, error } = await admin
     .from("orders")
     .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents, promo_code_id",
+      "id, tenant_id, status, currency, customer_id, guest_session_id, source_channel, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents, promo_code_id",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -636,6 +637,11 @@ export async function removeLine(
   return { ok: true, orderId: input.orderId };
 }
 
+/** Counter draft channels (`pos`, `pos:*`) are staff; anything else is a guest. */
+function isStaffChannel(sourceChannel: string | null | undefined): boolean {
+  return sourceChannel === "pos" || (typeof sourceChannel === "string" && sourceChannel.startsWith("pos:"));
+}
+
 export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
@@ -685,7 +691,7 @@ export async function repriceAndValidate(
     if (!phase.ok) return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     const { data: offering, error } = await admin
       .from("talent_offerings")
-      .select("id, amount_cents, title, status")
+      .select("id, amount_cents, title, status, moderation_state, visibility")
       .eq("id", line.offering_id)
       .eq("tenant_id", input.tenantId)
       .maybeSingle();
@@ -695,7 +701,11 @@ export async function repriceAndValidate(
     }
     // TUL-1349: an item unpublished or archived after it went into the cart
     // must not complete checkout. Fail closed, refuse only; no price is touched.
-    if (offering && (offering as { status?: string | null }).status !== "published") {
+    // Staff at the counter keep the status-only rule; EVERY other channel (the
+    // guest cart, anything unknown) is held to D-10 / D-10a: published AND
+    // approved AND public, so an item that later became agency_only, on_request
+    // or rejected cannot take an instant charge.
+    if (offering && !isSellableOnChannel(offering as Record<string, unknown>, isStaffChannel(loaded.order.source_channel) ? "staff" : "guest")) {
       return { ok: false, reason: "item_unavailable", error: "This item is no longer available." };
     }
     if (!offering && phase.priceCents == null) continue;
@@ -703,14 +713,20 @@ export async function repriceAndValidate(
     if (line.variant_id) {
       const { data: variant, error: variantError } = await admin
         .from("talent_offering_variants")
-        .select("id, amount_cents")
+        .select("id, amount_cents, offering_id, is_hidden")
         .eq("id", line.variant_id)
         .maybeSingle();
       if (variantError) {
         logServerError("pos.reprice.variant", variantError);
         return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
       }
-      const amount = (variant as { amount_cents?: number | null } | null)?.amount_cents;
+      // TUL-1349: the chosen option must still exist, still belong to this
+      // item and not be hidden. Fail closed.
+      const v = variant as { amount_cents?: number | null; offering_id?: string; is_hidden?: boolean | null } | null;
+      if (!v || v.offering_id !== line.offering_id || v.is_hidden === true) {
+        return { ok: false, reason: "item_unavailable", error: "This item is no longer available." };
+      }
+      const amount = v.amount_cents;
       if (amount != null) unitCents = Math.max(0, Math.trunc(num(amount)));
     }
     if (phase.priceCents != null) unitCents = phase.priceCents;

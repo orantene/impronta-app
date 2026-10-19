@@ -14686,6 +14686,7 @@
           "tenderShort": "The cash counted is less than the amount being collected.",
           "emptySale": "There is nothing on this sale to charge for.",
           "itemRefused": "That item cannot go on this sale.",
+          "itemUnavailable": "This item is no longer available.",
           "discountRefused": "That code cannot be applied to this sale.",
           "discountNeedsCustomer": "A discount code needs a named customer. Attach one first.",
           "readerUnavailable": "No card reader is ready on this device.",
