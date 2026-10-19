@@ -12,6 +12,12 @@
  *                              check zero rows left; ROLLBACK (nothing persists)
  *   --apply --backup-file <f>  insert and COMMIT (new rows only, ON CONFLICT DO NOTHING; re-run is a no-op)
  *   --cleanup [--apply --backup-file <f>]   delete ONLY this seed's rows (deterministic ids), FK descendants first
+ *   --link-accounts [--apply --backup-file <f>]   give each seeded profile a demo login account
+ *                              (demo-<slug>@impronta.test, no password, app_metadata.demo_batch = DEMO_BATCH as the
+ *                              demo pipeline's guard requires, app_metadata.seed = staging-demo-hosts) and turn on
+ *                              English (secondary_locales) where the host is flagged `english`. Needs
+ *                              NEXT_PUBLIC_SUPABASE_URL (fxlank) + SUPABASE_SERVICE_ROLE_KEY in the env file. This is
+ *                              what lets `npm run demos:rebuild -- --only <code>` build the real demo site.
  *   --only karla-beltran,...   limit the seeded hosts
  * Held hosts are reported, never written: their canonical profile code belongs to another staging talent.
  * Shared fxlank rows: note the PM before any --apply (feedback rule 2026-10-08).
@@ -20,9 +26,12 @@
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
+import { createClient } from "@supabase/supabase-js";
+
 import { buildDefaultShellTree, buildStarterHomePageTree } from "../src/lib/talent-site/default-max-site-trees";
+import { DEMO_BATCH } from "../src/lib/talent-site/theme-catalog/demo-account";
 import { STAGING_MARKER_AGENCY_ID, checkDbTarget, parseEnvText } from "./lib/group6-fixtures.mjs";
-import { CHECK_ONLY_LABELS, DEMO_HOSTS, diffLines, hostOps, parseArgs, sdhId, selectHosts, verifyOps } from "./lib/staging-demo-hosts.mjs";
+import { CHECK_ONLY_LABELS, DEMO_HOSTS, accountFor, checkApiTarget, diffLines, ownsAccount, hostOps, parseArgs, sdhId, selectHosts, verifyOps } from "./lib/staging-demo-hosts.mjs";
 
 type Row = Record<string, unknown>;
 type Op = { kind: string; table: string; key: string; id: string; row: Row; conflict: string[] };
@@ -50,15 +59,26 @@ if (args.envFile) Object.assign(env, parseEnvText(readFileSync(args.envFile, "ut
 const verdict = checkDbTarget(env);
 if (!verdict.ok) die(`refusing to run:\n  - ${verdict.reasons.join("\n  - ")}`, 2);
 
-const mode = args.cleanup ? (args.apply ? "cleanup-apply" : "cleanup-plan") : args.selftest ? "selftest" : args.apply ? "apply" : "plan";
+const mode = args.linkAccounts
+  ? (args.apply ? "link-apply" : "link-plan")
+  : args.cleanup ? (args.apply ? "cleanup-apply" : "cleanup-plan") : args.selftest ? "selftest" : args.apply ? "apply" : "plan";
+// Auth admin creates (link) or deletes (cleanup) demo login accounts; it refuses anything but fxlank.
+function authApi() {
+  const api = checkApiTarget(env);
+  if (!api.ok) die(`refusing to run:\n  - ${api.reasons.join("\n  - ")}`, 2);
+  return createClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } }).auth.admin;
+}
+const authAdmin = mode === "link-apply" ? authApi() : null;
 const hosts = selectHosts(args.only) as Host[];
 const client = new pgMod.default.Client({ connectionString: env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 await client.connect();
 const q = (text: string, params: unknown[] = []) => client.query(text, params);
 
-const backup: { target: string; mode: string; at: string; created: Array<{ table: string; id: string }>; deleted: Array<{ table: string; id: string; row: Row }> } = {
-  target: "fxlankepwnvelxjrahwk", mode, at: new Date().toISOString(), created: [], deleted: [],
-};
+const backup: {
+  target: string; mode: string; at: string;
+  created: Array<{ table: string; id: string }>; deleted: Array<{ table: string; id: string; row: Row }>;
+  accounts: Array<{ email: string; userId: string; action: "created" | "reused" | "deleted"; profileBefore?: Row }>;
+} = { target: "fxlankepwnvelxjrahwk", mode, at: new Date().toISOString(), created: [], deleted: [], accounts: [] };
 const saveBackup = () => {
   if (args.backupFile) writeFileSync(args.backupFile, JSON.stringify(backup, null, 2), { mode: 0o600 });
 };
@@ -162,6 +182,55 @@ async function cleanup(selected: Host[]): Promise<number> {
   return n;
 }
 
+// ------------------------------------------------------------------ demo login accounts
+async function authUserByEmail(email: string): Promise<{ id: string; app_metadata: Row } | null> {
+  const r = await q("select id::text id, raw_app_meta_data m from auth.users where lower(email) = lower($1)", [email]);
+  return r.rowCount ? { id: r.rows[0].id as string, app_metadata: (r.rows[0].m ?? {}) as Row } : null;
+}
+
+/** Plan or link one demo login account per selected host whose profile row this seed owns. */
+async function linkAccounts(selected: Host[], apply: boolean): Promise<number> {
+  let n = 0;
+  for (const h of selected) {
+    const tid = ownIds(h)["public.talent_profiles"];
+    const tp = await q("select user_id::text uid, secondary_locales sl from public.talent_profiles where id = $1", [tid]);
+    if (!tp.rowCount) { console.log(`${TAG} ${h.key}: no seeded profile row (run --apply first); skipped`); continue; }
+    const acct = accountFor(h, DEMO_BATCH);
+    const existing = await authUserByEmail(acct.email);
+    if (existing && !ownsAccount({ app_metadata: existing.app_metadata })) die(`${acct.email} exists and was not made by this seed; refusing`, 2);
+    const linkedTo = tp.rows[0].uid as string | null;
+    if (linkedTo && linkedTo !== existing?.id) die(`${h.key}: profile already linked to another account; refusing`, 2);
+    console.log(`${TAG} ${h.key.padEnd(20)} ${acct.email.padEnd(44)} ${existing ? "account exists (this seed's)" : "create account"}; link profile; secondary_locales=${JSON.stringify(acct.secondaryLocales)}`);
+    if (!apply) continue;
+    let userId = existing?.id ?? null;
+    if (!userId) {
+      const { data, error } = await authAdmin!.createUser({ email: acct.email, email_confirm: true, user_metadata: acct.userMetadata, app_metadata: acct.appMetadata });
+      if (error || !data.user) throw new Error(`createUser ${acct.email}: ${error?.message ?? "no user"}`);
+      userId = data.user.id;
+      backup.accounts.push({ email: acct.email, userId, action: "created" });
+    } else backup.accounts.push({ email: acct.email, userId, action: "reused" });
+    saveBackup();
+    await q("begin");
+    // The auth insert trigger made a public.profiles row (role client, onboarding); make it the demo talent's, as demo-talents/seed.mts does.
+    await q("update public.profiles set display_name = $2, app_role = 'talent', account_status = 'active', onboarding_completed_at = coalesce(onboarding_completed_at, now()), updated_at = now() where id = $1", [userId, h.display]);
+    const up = await q("update public.talent_profiles set user_id = $2, secondary_locales = $3::text[], updated_at = now() where id = $1 and (user_id is null or user_id = $2)", [tid, userId, acct.secondaryLocales]);
+    if (up.rowCount !== 1) throw new Error(`${h.key}: profile link updated ${up.rowCount} rows, expected 1`);
+    await q("commit");
+    n += 1;
+  }
+  return n;
+}
+
+/** Accounts linked to this seed's profiles (or carrying its email) that this seed made. */
+async function seedAccounts(selected: Host[]): Promise<Array<{ email: string; id: string }>> {
+  const out: Array<{ email: string; id: string }> = [];
+  for (const h of selected) {
+    const u = await authUserByEmail(accountFor(h, DEMO_BATCH).email);
+    if (u && ownsAccount({ app_metadata: u.app_metadata })) out.push({ email: accountFor(h, DEMO_BATCH).email, id: u.id });
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ main
 async function buildOps(selected: Host[]): Promise<Op[]> {
   const trees = {
@@ -188,7 +257,10 @@ try {
     const missing = lines.filter((l) => l.action.startsWith("MISSING ->")).length;
     console.log(`${TAG} summary: ${lines.length} hosts, ${lines.filter((l) => l.action.startsWith("OK")).length} resolve, ${missing} missing (seedable), ${lines.filter((l) => l.action.startsWith("HELD")).length} held, ${lines.filter((l) => l.action.startsWith("BLOCKED")).length} blocked`);
     console.log(`${TAG} --apply would insert ${ops.length} rows (${hosts.length} hosts x profile/site/home page); own rows present now: ${Object.values(obs.ownRows).reduce((a, b) => a + b, 0)}`);
-    if (mode === "cleanup-plan") console.log(`${TAG} --cleanup --apply would delete this seed's rows only (ids above) plus their FK descendants`);
+    if (mode === "cleanup-plan") {
+      console.log(`${TAG} --cleanup --apply would delete this seed's rows only (ids above) plus their FK descendants`);
+      for (const a of await seedAccounts(hosts)) console.log(`${TAG} --cleanup --apply would also delete demo login account ${a.email} (${a.id}) and its public.profiles row`);
+    }
     await q("rollback");
     console.log(`${TAG} DRY RUN: nothing written`);
   } else if (mode === "selftest") {
@@ -212,10 +284,32 @@ try {
     const created = await insertOps(await buildOps(hosts));
     await q("commit");
     console.log(`${TAG} APPLIED: ${created} rows created (backup ${args.backupFile})`);
+  } else if (mode === "link-plan" || mode === "link-apply") {
+    const n = await linkAccounts(hosts, mode === "link-apply");
+    console.log(mode === "link-apply" ? `${TAG} LINKED: ${n} demo login accounts (backup ${args.backupFile})` : `${TAG} DRY RUN: nothing written (add --apply --backup-file <f>)`);
   } else if (mode === "cleanup-apply") {
+    const accounts = await seedAccounts(hosts);
+    const cleanupAdmin = accounts.length ? authApi() : null; // check the API target BEFORE any delete
     await q("begin");
     const removed = await cleanup(hosts);
+    // Then the accounts' public.profiles rows (FK descendants first), all in the same transaction.
+    const pids = accounts.map((a) => a.id);
+    let removedProfiles = 0;
+    if (pids.length) {
+      removedProfiles += await purge("public.profiles", pids);
+      const rows = await q("delete from public.profiles t where id = any($1::uuid[]) returning to_jsonb(t) j", [pids]);
+      for (const r of rows.rows) backup.deleted.push({ table: "public.profiles", id: String((r.j as Row).id), row: r.j as Row });
+      removedProfiles += rows.rowCount ?? 0;
+    }
     await q("commit");
+    saveBackup();
+    for (const a of accounts) {
+      const { error } = await cleanupAdmin!.deleteUser(a.id);
+      if (error) throw new Error(`deleteUser ${a.email}: ${error.message}`);
+      backup.accounts.push({ email: a.email, userId: a.id, action: "deleted" });
+      saveBackup();
+    }
+    console.log(`${TAG} accounts: ${accounts.length} demo login accounts deleted (${removedProfiles} profile rows)`);
     console.log(`${TAG} CLEANUP APPLIED: ${removed} rows deleted (backup ${args.backupFile})`);
   }
 } catch (e) {

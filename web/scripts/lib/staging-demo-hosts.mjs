@@ -37,11 +37,11 @@ export function sdhId(key) {
 export const DEMO_HOSTS = [
   {
     key: "karla-beltran", labels: ["karla-beltran-demo"], baseSlug: "karla-beltran", code: "TAL-93209",
-    display: "Karla Beltrán", tagline: "Reparación de electrodomésticos en Hermosillo", theme: "gridline", card: "TUL-890", status: "seed",
+    display: "Karla Beltrán", tagline: "Reparación de electrodomésticos en Hermosillo", theme: "gridline", card: "TUL-890", status: "seed", english: true,
   },
   {
     key: "saul-tapia-ortega", labels: ["saul-tapia-ortega-demo"], baseSlug: "saul-tapia-ortega", code: "TAL-93208",
-    display: "Saúl Tapia Ortega", tagline: "Carpintería a la medida en Morelia", theme: "gridline", card: "TUL-890", status: "seed",
+    display: "Saúl Tapia Ortega", tagline: "Carpintería a la medida en Morelia", theme: "gridline", card: "TUL-890", status: "seed", english: true,
   },
   {
     key: "mateo-ferrer", labels: ["mateo-ferrer-demo", "folio-demo"], baseSlug: "mateo-ferrer", code: "TAL-97001",
@@ -64,8 +64,41 @@ export function hostname(label) {
   return `${label}.${STAGING_ROOT}`;
 }
 
+/** Marker on every auth account this seed creates; cleanup deletes ONLY accounts carrying it. */
+export const ACCOUNT_SEED_TAG = "staging-demo-hosts";
+
+/**
+ * The demo login account for a host (--link-accounts). The demo pipeline's guard
+ * (demos/guard.server.ts + theme-catalog/demo-account.ts) requires a demo email AND
+ * app_metadata.demo_batch === DEMO_BATCH exactly, so the batch is passed in from that
+ * module and ownership is marked separately in app_metadata.seed. No password is set.
+ */
+export function accountFor(host, demoBatch) {
+  return {
+    email: `demo-${host.baseSlug}@impronta.test`,
+    userMetadata: { full_name: host.display },
+    appMetadata: { demo: true, demo_batch: demoBatch, seed: ACCOUNT_SEED_TAG },
+    secondaryLocales: host.english ? ["en"] : [],
+  };
+}
+
+/** An existing auth user may be reused (re-run) only when this seed made it. */
+export function ownsAccount(user) {
+  return user?.app_metadata?.seed === ACCOUNT_SEED_TAG;
+}
+
+/** The Supabase API target must be the staging project, never production. */
+export function checkApiTarget(env) {
+  const url = String(env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+  const reasons = [];
+  if (!/^https:\/\/fxlankepwnvelxjrahwk\.supabase\.co\/?$/.test(url)) reasons.push("NEXT_PUBLIC_SUPABASE_URL is not the staging project fxlankepwnvelxjrahwk");
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) reasons.push("SUPABASE_SERVICE_ROLE_KEY is not set");
+  for (const [k, v] of Object.entries(env)) if (typeof v === "string" && v.includes("pluhdapdnuiulvxmyspd")) reasons.push(`${k} mentions the production project`);
+  return { ok: reasons.length === 0, reasons };
+}
+
 export function parseArgs(argv) {
-  const out = { apply: false, cleanup: false, selftest: false, backupFile: null, envFile: null, only: null, help: false, errors: [] };
+  const out = { apply: false, cleanup: false, selftest: false, linkAccounts: false, backupFile: null, envFile: null, only: null, help: false, errors: [] };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     const val = () => {
@@ -77,6 +110,7 @@ export function parseArgs(argv) {
     if (a === "--apply") out.apply = true;
     else if (a === "--cleanup") out.cleanup = true;
     else if (a === "--selftest") out.selftest = true;
+    else if (a === "--link-accounts") out.linkAccounts = true;
     else if (a === "--backup-file") out.backupFile = val();
     else if (a === "--env-file") out.envFile = val();
     else if (a === "--only") out.only = String(val() ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -84,6 +118,7 @@ export function parseArgs(argv) {
     else out.errors.push(`unknown argument ${a}`);
   }
   if (out.selftest && (out.apply || out.cleanup)) out.errors.push("--selftest cannot be combined with --apply or --cleanup");
+  if (out.linkAccounts && (out.cleanup || out.selftest)) out.errors.push("--link-accounts cannot be combined with --cleanup or --selftest");
   if (out.apply && !out.backupFile) out.errors.push("--apply needs --backup-file <new path> (the run records what it wrote there)");
   if (out.only) {
     const known = new Set(DEMO_HOSTS.map((h) => h.key));

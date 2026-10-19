@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { checkDbTarget } from "./group6-fixtures.mjs";
-import { DEMO_HOSTS, diffLines, hostOps, hostname, parseArgs, sdhId, selectHosts, verifyOps } from "./staging-demo-hosts.mjs";
+import { ACCOUNT_SEED_TAG, DEMO_HOSTS, accountFor, checkApiTarget, diffLines, ownsAccount, hostOps, hostname, parseArgs, sdhId, selectHosts, verifyOps } from "./staging-demo-hosts.mjs";
 
 const trees = { shell: (n) => [{ kind: "header", props: { text: n } }], home: (n, t) => [{ kind: "heading", props: { text: `${n} ${t}` } }] };
 const now = new Date("2026-10-19T12:00:00Z");
@@ -83,4 +83,26 @@ test("staging-demo-hosts: the diff names every card host on the staging root", (
   assert.ok(lines.every((l) => l.host.endsWith(".staging.tulala.digital")));
   const blocked = diffLines({ resolved: {}, codeOwner: { "TAL-93209": { demo: false } }, slugTaken: {}, ownRows: {} });
   assert.match(blocked.find((l) => l.host === hostname("karla-beltran-demo")).action, /^BLOCKED/);
+});
+
+test("staging-demo-hosts: demo accounts pass the demo guard's rules and are marked as this seed's", () => {
+  const karla = DEMO_HOSTS.find((h) => h.key === "karla-beltran");
+  const a = accountFor(karla, "demo-2026-09-28");
+  assert.equal(a.email, "demo-karla-beltran@impronta.test");
+  assert.match(a.email, /^demo-[^@]+@impronta\.test$/);
+  assert.equal(a.appMetadata.demo_batch, "demo-2026-09-28");
+  assert.equal(a.appMetadata.seed, ACCOUNT_SEED_TAG);
+  assert.deepEqual(a.secondaryLocales, ["en"]);
+  assert.deepEqual(accountFor(DEMO_HOSTS.find((h) => h.key === "linh-tran"), "b").secondaryLocales, []);
+  assert.equal(ownsAccount({ app_metadata: { seed: ACCOUNT_SEED_TAG } }), true);
+  assert.equal(ownsAccount({ app_metadata: { demo_batch: "demo-2026-09-28" } }), false);
+  assert.equal(ownsAccount(null), false);
+});
+
+test("staging-demo-hosts: the API target must be fxlank with a service key, never production", () => {
+  assert.equal(checkApiTarget({ NEXT_PUBLIC_SUPABASE_URL: "https://fxlankepwnvelxjrahwk.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "k" }).ok, true);
+  assert.equal(checkApiTarget({ NEXT_PUBLIC_SUPABASE_URL: "https://pluhdapdnuiulvxmyspd.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "k" }).ok, false);
+  assert.equal(checkApiTarget({ NEXT_PUBLIC_SUPABASE_URL: "https://fxlankepwnvelxjrahwk.supabase.co" }).ok, false);
+  assert.equal(checkApiTarget({ NEXT_PUBLIC_SUPABASE_URL: "https://fxlankepwnvelxjrahwk.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "k", OTHER: "x pluhdapdnuiulvxmyspd" }).ok, false);
+  assert.deepEqual(parseArgs(["--link-accounts", "--cleanup"]).errors.length > 0, true);
 });
