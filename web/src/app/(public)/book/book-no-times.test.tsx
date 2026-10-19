@@ -92,7 +92,11 @@ test("page locale scope wins over the cookie locale, es and en", async () => {
     return createElement("span", null, usePublicT()("public.bookPage.requestCta"));
   }
   const html = (locale: "en" | "es") =>
-    renderToStaticMarkup(createElement(BookLocaleScope, { locale }, createElement(Probe)));
+    renderToStaticMarkup(
+      <BookLocaleScope locale={locale}>
+        <Probe />
+      </BookLocaleScope>,
+    );
   assert.match(html("es"), /Enviar una solicitud/);
   assert.match(html("en"), /Send a request/);
   const client = readFileSync(join(__dirname, "BookPageClient.tsx"), "utf8");
