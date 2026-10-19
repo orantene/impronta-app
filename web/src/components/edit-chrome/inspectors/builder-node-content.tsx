@@ -1,5 +1,6 @@
 "use client";
 
+import { RotatingWordsEditor } from "./rotating-words-editor";
 import {
   useCallback,
   useEffect,
@@ -627,6 +628,12 @@ function BuilderNodeContentInspectorBody({
             />
           </div>
           <LiveTextToggle liveText={node.props.liveText} commitPatch={(p) => void commitPatch(p)} />
+          <RotatingWordsEditor
+            node={node}
+            tenantId={tenantId}
+            commitPatch={(p) => void commitPatch(p)}
+            LocalizableTextField={BuilderNodeLocalizableTextField}
+          />
           <div className={KIT.field}>
             <label className={KIT.label}>{t("Level")}</label>
             <Segmented

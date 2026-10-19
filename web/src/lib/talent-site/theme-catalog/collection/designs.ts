@@ -21,6 +21,7 @@ import type { DesignPayload } from "../types";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
 import { frameDarkHero } from "./frame-hero";
+import { solaceRotatingHero } from "./solace-hero";
 import {
   aboutBlock,
   portfolioBlock,
@@ -55,10 +56,12 @@ export { buildGridlinePayload, buildMaisonV2Payload };
 // editorial single column, a two-column image pair, centered contact.
 export function buildSolacePayload(): DesignPayload {
   const id = seqIds("solace");
-  const hero = tuneHeading(heroCover(id, { accent: false }), {
-    fontWeight: 300,
-    letterSpacing: "-0.01em",
-  });
+  const hero = solaceRotatingHero(
+    tuneHeading(heroCover(id, { accent: false }), {
+      fontWeight: 300,
+      letterSpacing: "-0.01em",
+    }),
+  );
   return {
     shellTree: shell(id, {
       navChrome: "overlay",

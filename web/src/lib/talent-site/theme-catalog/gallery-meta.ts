@@ -347,7 +347,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     styleTags: ["Minimal", "Warm"],
     featureTags: ["Service list", "Booking-ready", "Classes", "Personal story"],
     palettes: [
-      pal("linen", "Linen & Clay", "Lino y barro", ["#FFFFFF", "#F6F2EC", "#E6DED2", "#2B2620", "#8A5A3C", "#FFFFFF"], {
+      pal("linen", "Linen & Moss", "Lino y musgo", ["#EDE9E1", "#F6F3EC", "#D9D3C7", "#2B2620", "#3E4A3A", "#FFFFFF"], {
         muted: "#6B6258",
       }),
       pal("eucalyptus", "Eucalyptus", "Eucalipto", ["#FFFFFF", "#EEF3F0", "#D9E3DD", "#1D2622", "#3F6B5A", "#FFFFFF"]),

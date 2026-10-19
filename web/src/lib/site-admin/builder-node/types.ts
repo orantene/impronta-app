@@ -969,6 +969,10 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
     fieldBindings?: BuilderNodeFieldBindings;
     /** Follows a profile value at render time (see live-text-keys.ts); `text` is the fallback. */
     liveText?: LiveTextKey;
+    /** W-10 rotating word: cycled in place of the `{rotate}` marker in `text`. */
+    rotatingWords?: Array<{ text: string }>;
+    /** Milliseconds each rotating word stays (1500 to 8000). */
+    rotateMs?: number;
     style?: BuilderNodeStyle;
   };
 }

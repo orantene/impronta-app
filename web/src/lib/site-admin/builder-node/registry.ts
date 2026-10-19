@@ -793,7 +793,7 @@ const splitPropsSchema = z.object({
   style: builderNodeStyleSchema,
 });
 
-const headingPropsSchema = z.object({
+export const headingPropsSchema = z.object({
   text: z.string().min(1).max(240),
   level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   href: z.string().max(500).optional(),
@@ -801,6 +801,10 @@ const headingPropsSchema = z.object({
   fieldBindings: fieldBindingPropsSchema.optional(),
   /** Follows a profile value at render time (see live-text-keys.ts). */
   liveText: z.enum(LIVE_TEXT_KEYS).optional(),
+  /** W-10 rotating word: cycled in place of the `{rotate}` marker in `text`. */
+  rotatingWords: z.array(z.object({ text: z.string().max(24) })).max(6).optional(),
+  /** Milliseconds each rotating word stays (1500 to 8000). */
+  rotateMs: z.number().int().min(1500).max(8000).optional(),
   style: builderNodeStyleSchema,
 });
 

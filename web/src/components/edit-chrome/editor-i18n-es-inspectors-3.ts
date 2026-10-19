@@ -357,4 +357,11 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Tag filter": "Filtro por etiqueta",
   "Chips above the photos (All, Headshots, Family...). Visitors tap a chip to show only that tag. Tag a photo in your media library.":
     "Botones sobre las fotos (Todo, Retratos, Familia...). Quien visita toca uno para ver solo esa etiqueta. Etiqueta una foto en tu biblioteca de medios.",
+  "Rotating words": "Palabras rotativas",
+  "Put {rotate} in the heading where the word goes. The words take turns, in italics. Visitors who prefer reduced motion see the first word only.":
+    "Pon {rotate} en el título donde va la palabra. Las palabras se turnan, en cursiva. Quien prefiere menos movimiento ve solo la primera palabra.",
+  "Add {rotate} to the heading text, or these words will not show.":
+    "Agrega {rotate} al texto del título, o estas palabras no se mostrarán.",
+  "Add a word": "Agregar una palabra",
+  "Seconds per word": "Segundos por palabra",
 };
