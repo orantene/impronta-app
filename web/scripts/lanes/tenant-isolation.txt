@@ -178,6 +178,7 @@ src/lib/site-admin/sections/no-hardcoded-copy.static.test.ts
 src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/supabase/auth-cookie-variants.security.test.ts
 src/lib/supabase/cookie-domain.test.ts
+src/lib/supabase/talent-profiles-anon-grants.static.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
 src/lib/talent-agenda/record-item.test.ts
