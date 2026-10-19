@@ -736,6 +736,9 @@ export async function processStripeEvent(
         if (receipt === "failed") {
           throw new TransientWebhookError(`payment receipt email send failed for event ${event.id}`);
         }
+        if (receipt === "no_currency") {
+          logServerError("stripe-webhook.receipt.no_currency", `paid invoice without a currency, no receipt sent (event ${event.id})`);
+        }
       }
       return;
     }

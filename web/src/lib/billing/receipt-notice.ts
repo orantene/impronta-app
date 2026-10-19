@@ -21,7 +21,7 @@ export type ReceiptNoticeDeps = {
   recipientLocale?(query: { scope: "talent" | "workspace"; subscriptionId: string | null }): Promise<string | null>;
 };
 
-export type ReceiptNoticeResult = "sent" | "duplicate" | "no_recipient" | "not_charged" | "skipped" | "failed";
+export type ReceiptNoticeResult = "sent" | "duplicate" | "no_recipient" | "not_charged" | "no_currency" | "skipped" | "failed";
 
 export function receiptNoticeKey(invoiceId: string): string {
   return `receipt:${invoiceId}`;
@@ -56,6 +56,9 @@ export async function sendPaymentReceiptNotice(
   const { invoice } = input;
   if (!invoice.id) return "not_charged";
   if (invoice.status !== "paid" || (invoice.amount_paid ?? 0) <= 0) return "not_charged";
+  // Fail closed: a receipt never guesses the currency of a charge.
+  const currency = invoice.currency?.trim();
+  if (!currency) return "no_currency";
   const to = invoice.customer_email?.trim();
   if (!to) return "no_recipient";
 
@@ -85,7 +88,7 @@ export async function sendPaymentReceiptNotice(
     html: renderPaymentReceiptEmail({
       locale,
       amountCents: invoice.amount_paid,
-      currency: invoice.currency ?? "usd",
+      currency,
       invoiceNumber: invoice.number ?? null,
       viewUrl,
       pdfUrl: invoice.invoice_pdf ?? null,
@@ -94,6 +97,12 @@ export async function sendPaymentReceiptNotice(
   if (result === "failed") {
     await deps.release(key);
     return "failed";
+  }
+  if (result === "skipped") {
+    // Email is not configured: nothing was sent, so give the claim back and a
+    // later replay (once email is on) can still deliver this receipt.
+    await deps.release(key);
+    return "skipped";
   }
   return result;
 }

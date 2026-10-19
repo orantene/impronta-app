@@ -104,6 +104,29 @@ describe("receipt email per paid subscription invoice", () => {
   });
 });
 
+describe("consultant fixes (TUL-1232)", () => {
+  test("email not configured (send skipped) releases the claim so a receipt can still go out later", async () => {
+    const skipped = fakeDeps("skipped");
+    assert.equal(await sendPaymentReceiptNotice(args(invoice()), skipped.deps), "skipped");
+    assert.equal(skipped.ledger.size, 0);
+    // Later, with email configured, a replay sends it.
+    const delivered: string[] = [];
+    const later: ReceiptNoticeDeps = { ...skipped.deps, async send(input) { delivered.push(input.to); return "sent"; } };
+    assert.equal(await sendPaymentReceiptNotice(args(invoice()), later), "sent");
+    assert.equal(delivered.length, 1);
+    assert.equal(await sendPaymentReceiptNotice(args(invoice()), later), "duplicate");
+  });
+
+  test("a missing currency fails closed: no claim, no email, never defaults to usd", async () => {
+    for (const currency of [undefined, null, "", "  "]) {
+      const { deps, sent, ledger } = fakeDeps();
+      assert.equal(await sendPaymentReceiptNotice(args(invoice({ currency })), deps), "no_currency");
+      assert.equal(sent.length, 0);
+      assert.equal(ledger.size, 0);
+    }
+  });
+});
+
 describe("receipt email render", () => {
   test("escapes the invoice number and shows the formatted amount in ES", () => {
     const html = renderPaymentReceiptEmail({
