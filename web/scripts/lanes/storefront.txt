@@ -47,6 +47,7 @@ src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
+src/lib/services/presentation/resolve.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
