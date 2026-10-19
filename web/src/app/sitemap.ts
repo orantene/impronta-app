@@ -52,6 +52,7 @@ import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { localeAlternateUrl } from "@/i18n/alternates";
 import { listPublishedPostRows } from "@/lib/cms/posts-public";
 import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
+import { loadEventSitemapEntries } from "@/lib/seo/event-sitemap-entries";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -643,6 +644,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     localeSettings.supportedLocales,
   ).catch(() => []);
   const postEntries: MetadataRoute.Sitemap = postSitemapEntries(postRows, postUrl, new Date());
+  postEntries.push(...(await loadEventSitemapEntries({ supabase, tenantId: publicScope.tenantId, origin: base, defaultLocale: localeSettings.defaultLocale, supportedLocales: localeSettings.supportedLocales }))); // F4: public events (logic in lib/seo/event-sitemap-entries.ts)
 
   // Phase G PR 1 — include the agency's published roster in the sitemap.
   // Without this, talent profile pages (`/t/<profileCode>`) are crawlable

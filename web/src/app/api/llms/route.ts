@@ -4,7 +4,8 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { publicRequestSiteBase } from "@/lib/seo/request-base";
 import { buildLlmsTxt } from "@/lib/seo/llms-txt";
 import { decideLlmsRoute } from "@/lib/seo/talent-llms-txt";
-import { loadTalentLlmsTxt } from "@/lib/seo/talent-llms-txt.server";
+import { resolveAnyPostSite } from "@/lib/cms/posts-public-site";
+import { siteLlmsResponse } from "@/lib/seo/site-llms-response.server";
 
 const HEADERS = {
   "content-type": "text/plain; charset=utf-8",
@@ -25,6 +26,9 @@ export async function GET(): Promise<Response> {
     return new Response(buildLlmsTxt(publicRequestSiteBase(hostContext)), { headers: HEADERS });
   }
   if (decision.route === "not_found") return notFound();
-  const body = await loadTalentLlmsTxt(decision.talentProfileId, publicRequestSiteBase(hostContext));
-  return body ? new Response(body, { headers: HEADERS }) : notFound();
+  // One composer: the same loader as /llms.txt (AI toggle gate, posts, services, booking endpoints).
+  const site = await resolveAnyPostSite().catch(() => null);
+  if (!site || site.family !== "talent" || site.scope.kind !== "talent") return notFound();
+  if (site.scope.talentProfileId !== decision.talentProfileId) return notFound();
+  return siteLlmsResponse(site);
 }

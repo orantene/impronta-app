@@ -130,6 +130,7 @@ import {
 import { TalentProfileInquireButton } from "./talent-profile-inquire-button";
 import { TalentProfileInstantBookButton } from "./talent-profile-instant-book-button";
 import { HubProfileCta } from "./hub-profile-book-cta";
+import { ProfileLocaleMessages } from "./profile-locale-messages";
 import { FreeformHubBook } from "./freeform-hub-book";
 import { HubProfileBookingChrome } from "./hub-profile-booking-chrome";
 import type { HubProfileCtaSlot } from "@/lib/talent-site/hub-profile-book-cta";
@@ -1531,6 +1532,7 @@ export async function TalentProfileView({
   const profileCode = await liveTalentProfileCode(rawProfileCode, { pathname: `/t/${rawProfileCode}` });
   const isModal = variant === "modal", { preview } = sp;
   let locale = await getRequestLocale();
+  const requestLocale = locale;
   let t = createTranslator(locale);
   const previewMode = preview === "1";
   const [initialSavedIds, initialFavoriteIds] = await Promise.all([
@@ -2356,6 +2358,7 @@ export async function TalentProfileView({
 
   const profileBody = (
     <>
+      <ProfileLocaleMessages profileLocale={locale} requestLocale={requestLocale} />
       <DiscoveryStateBridge savedIds={initialSavedIds} favoriteIds={initialFavoriteIds} />
 
       {/* ── Profile body — template chosen per-tenant (classic | noir) ── */}
@@ -2627,7 +2630,7 @@ export async function TalentProfileView({
               <div className="flex-1 pt-[var(--plt-header-h,84px)] sm:pt-[72px]">
                 {profileBody}
               </div>
-              <MarketingFooter priceCurrency={profilePriceCurrency(storefrontOfferings)} />
+              <MarketingFooter priceCurrency={profilePriceCurrency(storefrontOfferings)} locale={locale} />
             </div>
           ) : (
             // AGENCY HOST — keep the white-label agency chrome: the platform

@@ -228,6 +228,14 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # TUL-1269 #6 (I2): a NEW public function executable by anon or
+      # authenticated must be on a reviewed list. Reads this job's local
+      # Postgres via PG* env; no deps, no token. WARN-ONLY (exit 0) until the
+      # printed baseline is committed and FUNCTION_EXECUTE_GUARD_ENFORCE flips.
+      - name: Guard — new function EXECUTE grants (anon/authenticated)
+        if: steps.schema.outcome == 'success'
+        run: node web/scripts/check-anon-function-grants.mjs --local-pg
+
       - name: Install dependencies (npm ci)
         working-directory: web
         run: npm ci

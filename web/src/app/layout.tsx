@@ -65,6 +65,7 @@ import { CLIENT_MESSAGES_GLOBAL } from "@/i18n/messages.client";
 import { getClientMessagesPayload } from "@/i18n/messages";
 import { TenantRegisterMount } from "@/components/marketing/tenant-register-mount";
 import { PlatformJsonLd } from "@/components/marketing/platform-json-ld";
+import { shouldEmitPlatformJsonLd } from "@/lib/seo/platform-json-ld-gate";
 import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style-engine";
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import { PwaServiceWorkerRegister } from "@/components/pwa/sw-register";
@@ -267,7 +268,10 @@ export default async function RootLayout({
             Emitted on the platform/marketing surface only; `publicScope` is
             non-null solely for tenant-resolved storefront requests, where the
             Tulala Organization entity would be wrong. */}
-        {!publicScope && <PlatformJsonLd />}
+        {shouldEmitPlatformJsonLd({
+          hasPublicScope: Boolean(publicScope),
+          hostContext: reqHeaders.get(HOST_CONTEXT_HEADER),
+        }) && <PlatformJsonLd />}
         {/* Phase 13 — load tenant Google Fonts when picker tokens set. */}
         <GoogleFontsLink tokens={designTokens} />
         {/* Custom fonts — tenant-uploaded brand faces (@font-face + preload).
