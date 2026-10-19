@@ -134,6 +134,7 @@ src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-site-canonical-redirect.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/team-seat-limit.test.ts
+src/lib/saas/tenant-admin-tables-role-rls.static.test.ts
 src/lib/saas/tenant-isolation.security.test.ts
 src/lib/saas/tenant-isolation.test.ts
 src/lib/saas/tracking-tenant-isolation.test.ts

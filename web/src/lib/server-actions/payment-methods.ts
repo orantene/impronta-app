@@ -8,6 +8,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "./result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { WORKSPACE_MONEY_GATES } from "@/lib/billing/workspace-money-gates";
 
 /**
  * F.4 — Payment method editor.
@@ -139,8 +140,9 @@ export async function createSetupIntent(): Promise<
 > {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
-    if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
+    // TUL-1269 M2: changing the workspace's cards is billing (owner), not staff.
+    const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.paymentMethods });
+    if (!auth.ok) return { ok: false, error: auth.error, reason: "forbidden" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
     }
@@ -178,8 +180,9 @@ export async function setDefaultPaymentMethod(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
-    if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
+    // TUL-1269 M2: changing the workspace's cards is billing (owner), not staff.
+    const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.paymentMethods });
+    if (!auth.ok) return { ok: false, error: auth.error, reason: "forbidden" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
     }
@@ -209,8 +212,9 @@ export async function detachPaymentMethod(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
-    if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
+    // TUL-1269 M2: changing the workspace's cards is billing (owner), not staff.
+    const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.paymentMethods });
+    if (!auth.ok) return { ok: false, error: auth.error, reason: "forbidden" };
     if (!isStripeConfigured()) {
       return { ok: false, error: "Payments are not configured.", reason: "payment_required" };
     }
