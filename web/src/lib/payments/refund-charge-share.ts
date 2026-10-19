@@ -84,30 +84,73 @@ type ShareLegRow = {
  * caller must then NOT mark the booking or its order refunded (the balance is
  * still paid). It is true even when no leg exists yet (deposit refunded before
  * the balance paid out).
+ *
+ * FAILS CLOSED (consultant P1): when the charges, the legs or Stripe's transfer
+ * list cannot be read, the split is unknown, so NOTHING is reversed. The result
+ * says `needsManualReview`, the refunded charge is flagged for a person
+ * (`metadata.needs_attention = payout_reversal_review`), and `shareOnly` is true
+ * so the caller leaves the booking and order as they are for that person.
  */
 export async function reverseRefundedChargePayouts(
   ref: { bookingId: string; transactionId: string; chargeAmountCents: number },
   plan: { reference: string; anchor: string },
   deps: { sb: SupabaseClient | null; stripe?: Stripe | null },
-): Promise<{ outcomes: PayoutReversalOutcome[]; shareOnly: boolean }> {
-  const full = async () => ({
-    outcomes: await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: plan.reference }, deps),
-    shareOnly: false,
-  });
+): Promise<{ outcomes: PayoutReversalOutcome[]; shareOnly: boolean; needsManualReview?: true }> {
   const sb = deps.sb;
-  if (!sb) return full();
+  const review = async (why: string) => {
+    logServerError(
+      `refunds.chargeShare.PAYOUT_REVERSAL_NEEDS_REVIEW[booking=${ref.bookingId}]`,
+      new Error(`${plan.reference}: ${why}. No payout was reversed; a person must reverse the refunded charge's share.`),
+    );
+    if (sb) await flagPayoutReversalReview(sb, ref.transactionId, `${plan.reference}: ${why}`);
+    return { outcomes: [], shareOnly: true, needsManualReview: true as const };
+  };
+  if (!sb) return review("no database client");
 
   const { data: chargeRows, error: chargeErr } = await sb
     .from("booking_transactions")
     .select("id, status, gross_amount_cents, refund_of_transaction_id")
     .eq("booking_id", ref.bookingId);
-  if (chargeErr) {
-    logServerError(`refunds.chargeShare.read[booking=${ref.bookingId}]`, chargeErr);
-    return full();
-  }
+  if (chargeErr) return review(`booking charges could not be read (${chargeErr.message})`);
   const share = chargeShareOf(ref.transactionId, ref.chargeAmountCents, (chargeRows ?? []) as BookingChargeRow[]);
-  if (share.otherLiveChargeCents <= 0) return full();
-  return { outcomes: await reverseShare(sb, ref.bookingId, share, plan, deps.stripe ?? null), shareOnly: true };
+  if (share.otherLiveChargeCents <= 0) {
+    return { outcomes: await reverseBookingPayouts(ref.bookingId, { mode: "full", reference: plan.reference }, deps), shareOnly: false };
+  }
+  const outcomes = await reverseShare(sb, ref.bookingId, share, plan, deps.stripe ?? null);
+  if (typeof outcomes === "string") return review(outcomes);
+  return { outcomes, shareOnly: true };
+}
+
+/** The `needs_attention` value the refunded charge carries when its payout share was not reversed. */
+export const PAYOUT_REVERSAL_REVIEW_ATTENTION = "payout_reversal_review" as const;
+
+/**
+ * Stamp the refunded charge for a person, the same `metadata.needs_attention`
+ * shape as the other refund attention flags. A different attention already on
+ * the row is kept (the review note is added beside it). Idempotent.
+ */
+async function flagPayoutReversalReview(sb: SupabaseClient, transactionId: string, why: string): Promise<void> {
+  const { data, error } = await sb.from("booking_transactions").select("metadata").eq("id", transactionId).maybeSingle();
+  if (error) {
+    logServerError(`refunds.chargeShare.flagRead[txn=${transactionId}]`, error);
+    return;
+  }
+  const meta = ((data as { metadata?: unknown } | null)?.metadata ?? {}) as Record<string, unknown>;
+  if (meta.payout_reversal_review === true) return;
+  const note = `Refund not reflected in payouts (${why}). Reverse this charge's share of the payouts by hand.`;
+  const { error: updErr } = await sb
+    .from("booking_transactions")
+    .update({
+      metadata: {
+        ...meta,
+        ...(meta.needs_attention ? {} : { needs_attention: PAYOUT_REVERSAL_REVIEW_ATTENTION, needs_attention_note: note }),
+        payout_reversal_review: true,
+        payout_reversal_review_note: note,
+        needs_attention_at: meta.needs_attention_at ?? new Date().toISOString(),
+      },
+    })
+    .eq("id", transactionId);
+  if (updErr) logServerError(`refunds.chargeShare.flag[txn=${transactionId}]`, updErr);
 }
 
 async function reverseShare(
@@ -116,15 +159,12 @@ async function reverseShare(
   share: { refundedChargeCents: number; otherLiveChargeCents: number },
   plan: { reference: string; anchor: string },
   stripeIn: Stripe | null,
-): Promise<PayoutReversalOutcome[]> {
+): Promise<PayoutReversalOutcome[] | string> {
   const { data: legRows, error: legErr } = await sb
     .from("booking_payouts")
     .select("id, participant_id, party, amount_cents, status, stripe_transfer_id, last_error")
     .eq("booking_id", bookingId);
-  if (legErr) {
-    logServerError(`refunds.chargeShare.legs[booking=${bookingId}]`, legErr);
-    return [];
-  }
+  if (legErr) return `payout legs could not be read (${legErr.message})`;
   const legs = (legRows ?? []) as ShareLegRow[];
   if (legs.length === 0) return [];
 
@@ -139,7 +179,8 @@ async function reverseShare(
         transferAmount.set(t.id, t.amount);
       }
     } catch (err) {
-      logServerError(`refunds.chargeShare.list[booking=${bookingId}]`, err);
+      // amount_reversed unknown: reversing now could take a share twice. Never guess.
+      return `Stripe transfers could not be listed (${err instanceof Error ? err.message : "list failed"})`;
     }
   }
 
