@@ -7,6 +7,7 @@
  */
 
 import { createPurchase } from "@/lib/orders/purchase";
+import { toPurchaseLines } from "@/lib/orders/menu-order-lines";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -100,7 +101,8 @@ export async function submitMenuOrder(
       clientOrderKey: `menu:${input.tenantId}:${email}:${input.sourcePage ?? ""}`,
       actorUserId,
       contact: { email, phone: input.contactPhone ?? null, displayName: name },
-      lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.quantity })),
+      // TUL-1332: the chosen option and extras ride along as ids; the pipeline prices them.
+      lines: toPurchaseLines(input.lines),
       // INTENT, never policy. The pipeline re-derives what this offering allows
       // from its own row and refuses if they disagree — which is the whole
       // indictment of the engine this replaces: it rendered offerings whose
@@ -122,6 +124,9 @@ export async function submitMenuOrder(
         result.reason === "offering_not_priceable"
         || result.reason === "unknown_offering"
         || result.reason === "offering_not_published"
+        || result.reason === "variant_required"
+        || result.reason === "variant_not_on_offering"
+        || result.reason === "addon_not_on_offering"
       ) {
         return {
           ok: false,

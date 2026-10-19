@@ -1793,6 +1793,8 @@
       "phone": "Phone",
       "quoteOnRequest": "Quote on request",
       "selectAtLeastOne": "Choose {nounPlural}",
+      "chooseOption": "Choose an option",
+      "extrasLabel": "Extras",
       "selectQuantities": "Select quantities",
       "sending": "Sending",
       "sent": "Order sent.",

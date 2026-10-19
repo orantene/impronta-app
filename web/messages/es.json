@@ -1793,6 +1793,8 @@
       "phone": "Teléfono",
       "quoteOnRequest": "Precio a consultar",
       "selectAtLeastOne": "Elige {nounPlural}",
+      "chooseOption": "Elige una opción",
+      "extrasLabel": "Extras",
       "selectQuantities": "Selecciona las cantidades",
       "sending": "Enviando",
       "sent": "Pedido enviado.",

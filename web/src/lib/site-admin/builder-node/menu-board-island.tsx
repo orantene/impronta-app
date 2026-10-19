@@ -14,6 +14,7 @@ import {
   reconcileQuantities,
   shouldPayInPerson,
 } from "./menu-board-stock";
+import { choiceFor, lineChoiceMissing, optionPriceLabel, type MenuChoice, type MenuChoiceOption } from "./menu-board-choices";
 
 // Do NOT statically import menu-order-actions or menu-board-actions — those
 // files are "use server" and pull server-only into render.tsx → fidelity/perf
@@ -33,6 +34,9 @@ export type MenuBoardOffering = {
   unitsLeft: number | null;
   /** Offering policy: may the customer settle in person? */
   allowPayInPerson: boolean;
+  /** TUL-1332: options (pick one) and extras (pick any); ids go to the server, which prices them. */
+  options?: ReadonlyArray<MenuChoiceOption>;
+  extras?: ReadonlyArray<MenuChoiceOption>;
 };
 
 /**
@@ -53,6 +57,9 @@ export type MenuBoardCopy = {
   itemsSelected: string;
   itemsSelectedOne: string;
   selectAtLeastOne: string;
+  /** TUL-1332: "Choose an option" (a dish with options needs one) and the extras heading. */
+  chooseOption: string;
+  extrasLabel: string;
   name: string;
   email: string;
   phone: string;
@@ -164,6 +171,9 @@ const MB_CSS = `
 .site-builder-node--menu-board-stepper-stock{flex-basis:100%;font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--token-color-primary)}
 @media (min-width:640px){.site-builder-node--menu-board-stepper-stock{flex-basis:auto}}
 .site-builder-node--menu-board-stepper-stock[data-sold-out="true"]{color:var(--token-color-muted);text-decoration:line-through}
+.site-builder-node--menu-board-option{margin-top:0.4rem;max-width:100%;font:inherit;font-size:16px;padding:0.5rem 0.7rem;border-radius:10px;border:1px solid color-mix(in srgb,var(--token-color-ink) 28%,transparent);background:transparent;color:inherit}
+.site-builder-node--menu-board-extras{margin:0.4rem 0 0;padding:0;border:0;display:grid;gap:0.25rem;font-size:0.85rem}
+.site-builder-node--menu-board-extras>legend{padding:0;font-weight:600;font-size:0.8rem;color:var(--token-color-muted)}
 .site-builder-node--menu-board-form{display:grid;gap:0.9rem;padding:1.15rem 1.2rem;border:1px solid var(--token-color-line);border-radius:18px;background:color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-surface-raised,transparent))}
 @media (min-width:640px){.site-builder-node--menu-board-form{grid-template-columns:repeat(3,1fr);align-items:end}.site-builder-node--menu-board-form-head,.site-builder-node--menu-board-form-error,.site-builder-node--menu-board-form-status,.site-builder-node--menu-board-form-note,.site-builder-node--menu-board-submit{grid-column:1/-1}}
 .site-builder-node--menu-board-form-head{display:grid;gap:0.2rem}
@@ -188,6 +198,7 @@ export function MenuBoardIsland({
   usdRates = null,
 }: MenuBoardIslandProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [choices, setChoices] = useState<Record<string, MenuChoice>>({});
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -311,9 +322,10 @@ export function MenuBoardIsland({
         .map((offering) => ({
           offering,
           quantity: clampQty(quantities[offering.id] ?? 0),
+          choice: choiceFor(offering, choices[offering.id]),
         }))
         .filter(({ quantity }) => quantity > 0),
-    [offerings, quantities],
+    [offerings, quantities, choices],
   );
 
   const selectedCount = selectedLines.length;
@@ -334,6 +346,11 @@ export function MenuBoardIsland({
       setError(copy.contactRequired);
       return;
     }
+    const needsOption = selectedLines.find(({ offering, choice }) => lineChoiceMissing(offering, choice));
+    if (needsOption) {
+      setError(`${copy.chooseOption}: ${needsOption.offering.title}`);
+      return;
+    }
     const soldOutLine = selectedLines.find(({ offering }) => isSoldOut(offering));
     if (soldOutLine) {
       setError(fill(copy.soldOutError, { item: soldOutLine.offering.title }));
@@ -351,9 +368,11 @@ export function MenuBoardIsland({
           contactName: name,
           contactEmail: email,
           contactPhone: phone,
-          lines: selectedLines.map(({ offering, quantity }) => ({
+          lines: selectedLines.map(({ offering, quantity, choice }) => ({
             offeringId: offering.id,
             quantity,
+            variantId: choice.variantId,
+            addonIds: choice.addonIds,
           })),
           // A HINT ONLY. The engine re-derives this from the trusted offering
           // rows and ignores a value the policy does not permit, so this cannot
@@ -379,6 +398,7 @@ export function MenuBoardIsland({
         void refresh();
         setStatus(copy.sent);
         setQuantities({});
+        setChoices({});
         setContactName("");
         setContactEmail("");
         setContactPhone("");
@@ -415,6 +435,54 @@ export function MenuBoardIsland({
                   <p className="site-builder-node--menu-board-stepper-description">
                     {offering.description}
                   </p>
+                ) : null}
+                {offering.options && offering.options.length > 0 ? (
+                  <select
+                    className="site-builder-node--menu-board-option"
+                    aria-label={`${copy.chooseOption}: ${offering.title}`}
+                    value={choiceFor(offering, choices[offering.id]).variantId ?? ""}
+                    disabled={isPending}
+                    onChange={(e) =>
+                      setChoices((current) => ({
+                        ...current,
+                        [offering.id]: { ...choiceFor(offering, current[offering.id]), variantId: e.target.value || null },
+                      }))
+                    }
+                  >
+                    <option value="">{copy.chooseOption}</option>
+                    {offering.options.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {optionPriceLabel(option, offering.currency, formatMenuMoney)}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {offering.extras && offering.extras.length > 0 ? (
+                  <fieldset className="site-builder-node--menu-board-extras">
+                    <legend>{copy.extrasLabel}</legend>
+                    {offering.extras.map((extra) => {
+                      const current = choiceFor(offering, choices[offering.id]);
+                      return (
+                        <label key={extra.id}>
+                          <input
+                            type="checkbox"
+                            checked={current.addonIds.includes(extra.id)}
+                            disabled={isPending}
+                            onChange={(e) =>
+                              setChoices((all) => {
+                                const base = choiceFor(offering, all[offering.id]);
+                                const addonIds = e.target.checked
+                                  ? [...base.addonIds, extra.id]
+                                  : base.addonIds.filter((id) => id !== extra.id);
+                                return { ...all, [offering.id]: { ...base, addonIds } };
+                              })
+                            }
+                          />{" "}
+                          {optionPriceLabel(extra, offering.currency, (cents, cur) => `+${formatMenuMoney(cents, cur)}`)}
+                        </label>
+                      );
+                    })}
+                  </fieldset>
                 ) : null}
               </div>
               <div className="site-builder-node--menu-board-stepper-controls">
