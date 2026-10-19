@@ -14,7 +14,9 @@ src/lib/directory/location-facets.test.ts
 src/lib/directory/pagination.test.ts
 src/lib/directory/portfolio-boost.test.ts
 src/lib/directory/presentability-order.test.ts
+src/lib/directory/price-from-hub-scope.static.test.ts
 src/lib/directory/pricing-defaults-shape.test.ts
+src/lib/directory/starting-price-rows.test.ts
 src/lib/directory/talent-type-labels.test.ts
 src/lib/fields/height-plausibility.test.ts
 src/lib/quality/guest-session-minting.static.test.ts

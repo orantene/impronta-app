@@ -6450,7 +6450,12 @@ function renderBuilderNodeElement(
         currency: string;
         priceType: string;
         priceDisplay: string;
+        visibility?: string | null;
       }): string => {
+        // D-10a: an on_request service stays listed, its price is withheld.
+        if (item.visibility === "on_request") {
+          return (options.contentLocale?.locale ?? "en").toLowerCase().startsWith("es") ? "Bajo consulta" : "On request";
+        }
         // `amountCents == null` is already a quote per offeringIsQuote; the
         // explicit check also narrows the type for formatMoney below.
         if (item.amountCents == null || offeringIsQuote(item)) {
@@ -6481,8 +6486,9 @@ function renderBuilderNodeElement(
         currency: string;
         priceType: string;
         priceDisplay: string;
+        visibility?: string | null;
       }) => {
-        const usd = usdLine(item);
+        const usd = item.visibility === "on_request" ? null : usdLine(item);
         return (
           <span className="site-builder-node--menu-board-item-price">
             {formatPriceLabel(item)}

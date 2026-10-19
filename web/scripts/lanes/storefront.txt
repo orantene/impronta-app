@@ -68,6 +68,7 @@ src/lib/talent-site/live-text.test.ts
 src/lib/talent-site/my-website-target.test.ts
 src/lib/talent-site/seo-description-fallback.test.ts
 src/lib/talent-site/server/builder-load-parallel.static.test.ts
+src/lib/talent-site/server/builder-open-skeleton.static.test.ts
 src/lib/talent-site/server/first-publish-delegate.test.ts
 src/lib/talent-site/server/max-site-loader-timing.test.ts
 src/lib/talent-site/server/my-presence-load-parallel.static.test.ts

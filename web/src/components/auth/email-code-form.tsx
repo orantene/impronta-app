@@ -89,6 +89,14 @@ function QuietAction({
   );
 }
 
+/**
+ * TUL-784: the password lane is ~5.3rem taller than the code lane (password
+ * field + "keep me signed in" row). Without this, tapping "Use a password
+ * instead" pushed the submit button ~85px down, under the pointer. The code
+ * lane reserves that space so the toggle link stays where the visitor tapped.
+ */
+export const METHOD_SWAP_RESERVE = "pb-[5.3rem]";
+
 export function EmailCodeForm({
   nextPath,
   locale = "en",
@@ -239,7 +247,7 @@ export function EmailCodeForm({
 
         <form
           action={verifyAction}
-          className="space-y-3.5"
+          className={`space-y-3.5 ${passwordFallback ? METHOD_SWAP_RESERVE : ""}`}
           onSubmit={() => setLane("verify")}
         >
           <input type="hidden" name="email" value={email} />
@@ -339,7 +347,7 @@ export function EmailCodeForm({
       <form
         action={sendAction}
         noValidate // TUL-893: the server answers in the page language; no English browser tooltip
-        className="space-y-3.5"
+        className={`space-y-3.5 ${passwordFallback ? METHOD_SWAP_RESERVE : ""}`}
         onSubmit={() => {
           setBackToEmail(false);
           setLane("send");

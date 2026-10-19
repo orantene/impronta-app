@@ -450,7 +450,7 @@ export function NoirProfileLayout(props: LightProfileLayoutProps) {
           {hasServiceMenu ? (
             <div style={{ marginTop: hasServices ? 28 : 0 }}>
               {hasStorefront
-                ? <TalentStorefront offerings={storefrontOfferings} locale={locale} heading={L("Services & pricing", "Servicios y precios")} />
+                ? <TalentStorefront offerings={storefrontOfferings} siteUrl={maxSiteUrl} locale={locale} heading={L("Services & pricing", "Servicios y precios")} />
                 : <ServiceMenuBlock items={serviceMenuItems} locale={locale} heading={L("Services & pricing", "Servicios y precios")} disciplineLabels={disciplineLabels} />}
             </div>
           ) : null}

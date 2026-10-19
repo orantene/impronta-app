@@ -94,7 +94,8 @@ function toService(o: BookableOffering): AppointmentService {
     title: o.title,
     description: o.description,
     durationMinutes: o.durationMinutes,
-    amountCents: o.amountCents,
+    // D-10a: on_request withholds the price (display only).
+    amountCents: o.visibility === "on_request" ? null : o.amountCents,
     currency: o.currency || "USD",
     depositPct: o.reserveMode === "deposit" ? o.depositPct : null,
     allowPayInPerson: o.allowPayInPerson,

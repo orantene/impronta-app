@@ -121,7 +121,8 @@ export async function readClassTimetableCore(
       if (offErr) return { ok: false, reason: "unavailable" };
       for (const o of (offRows ?? []) as Array<Record<string, unknown>>) {
         offerings.set(String(o.id), {
-          amountCents: o.amount_cents == null ? null : Number(o.amount_cents),
+          // D-10a: on_request withholds the price (display only).
+          amountCents: o.amount_cents == null || o.visibility === "on_request" ? null : Number(o.amount_cents),
           currency: String(o.currency ?? "USD"),
           published: isGuestSellableOffering(o), // D-10: published AND approved AND public
         });
