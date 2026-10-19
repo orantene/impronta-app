@@ -6,6 +6,7 @@ import type { BookEntry } from "@/lib/talent-site/book-entry";
 import { TALENT_BOOK_HREF } from "@/lib/talent-site/contact-channels";
 import { hubBookHashIntent } from "@/lib/talent-site/hub-book-hash";
 import { requestTalentOpen } from "@/lib/talent-site/open-intent-client";
+import { parseHubServiceHash } from "@/lib/talent/service-share-hash";
 
 /** The URL whose fragment already opened: effect re-runs must not re-open it. */
 let coldLoadHandledFor = "";
@@ -29,10 +30,12 @@ export function HubBookHashBridge({ bookEntry }: { bookEntry: BookEntry }) {
       const href = link.getAttribute("href") ?? "";
       if (hubBookHashIntent(href, bookEntry) == null) return;
       event.preventDefault();
-      if (window.location.hash !== TALENT_BOOK_HREF) {
-        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${TALENT_BOOK_HREF}`);
+      // TUL-1270 #13: a `#book-<id8>` link keeps its own hash (it names one service).
+      const hash = parseHubServiceHash(href) ? `#${href.split("#").pop() ?? ""}` : TALENT_BOOK_HREF;
+      if (window.location.hash !== hash) {
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
       }
-      openFrom(TALENT_BOOK_HREF);
+      openFrom(hash);
     };
     const onHash = () => openFrom(window.location.hash);
     if (coldLoadHandledFor !== window.location.href) {
