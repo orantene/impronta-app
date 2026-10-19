@@ -106,3 +106,48 @@ CREATE POLICY staff_insert_originals_media ON storage.objects
 CREATE POLICY staff_delete_originals_media ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'media-originals' AND public.storage_media_staff_can_touch(name));
+
+-- PRODUCTION DRIFT (found 2026-10-18 before applying to prod): production carries three MERGED
+-- policies on storage.objects (objects_merged_{select,insert,delete}_authenticated) that fold
+-- inquiry-files, pitch-files and the media buckets together and use the GLOBAL is_agency_staff()
+-- for media-public / media-originals. Policies are permissive (OR), so the replacement policies
+-- above would NOT close the hole there. Staging has no such policies. Rewrite them in place,
+-- keeping the inquiry-files / pitch-files / talent-own branches byte for byte, when they exist.
+-- (storage_media_staff_can_touch also covers platform admins through is_staff_of_tenant.)
+-- objects_merged_select_authenticated never granted media-public select to staff (public read
+-- covers it), so only media-originals changes there.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = 'storage.objects'::regclass AND polname = 'objects_merged_select_authenticated') THEN
+    ALTER POLICY objects_merged_select_authenticated ON storage.objects
+      USING (
+        ((bucket_id = 'inquiry-files'::text) AND public.is_staff_of_tenant(public._inquiry_files_tenant_from_path(name)))
+        OR ((bucket_id = 'pitch-files'::text) AND public.is_staff_of_tenant(public._pitch_files_tenant_from_path(name)))
+        OR ((bucket_id = 'media-originals'::text) AND public.storage_media_staff_can_touch(name))
+        OR ((bucket_id = 'media-originals'::text) AND (EXISTS (SELECT 1 FROM public.talent_profiles t WHERE ((t.id)::text = (storage.foldername(objects.name))[1] AND t.user_id = auth.uid()))))
+      );
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = 'storage.objects'::regclass AND polname = 'objects_merged_insert_authenticated') THEN
+    ALTER POLICY objects_merged_insert_authenticated ON storage.objects
+      WITH CHECK (
+        ((bucket_id = 'inquiry-files'::text) AND public.is_staff_of_tenant(public._inquiry_files_tenant_from_path(name)))
+        OR ((bucket_id = 'pitch-files'::text) AND public.is_staff_of_tenant(public._pitch_files_tenant_from_path(name)))
+        OR ((bucket_id = 'media-originals'::text) AND public.storage_media_staff_can_touch(name))
+        OR ((bucket_id = 'media-public'::text) AND public.storage_media_staff_can_touch(name))
+        OR ((bucket_id = 'media-originals'::text) AND (EXISTS (SELECT 1 FROM public.talent_profiles t WHERE ((t.id)::text = (storage.foldername(objects.name))[1] AND t.user_id = auth.uid()))))
+        OR ((bucket_id = 'media-public'::text) AND (EXISTS (SELECT 1 FROM public.talent_profiles t WHERE ((t.id)::text = (storage.foldername(objects.name))[1] AND t.user_id = auth.uid()))))
+      );
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_policy WHERE polrelid = 'storage.objects'::regclass AND polname = 'objects_merged_delete_authenticated') THEN
+    ALTER POLICY objects_merged_delete_authenticated ON storage.objects
+      USING (
+        ((bucket_id = 'inquiry-files'::text) AND public.is_staff_of_tenant(public._inquiry_files_tenant_from_path(name)))
+        OR ((bucket_id = 'pitch-files'::text) AND public.is_staff_of_tenant(public._pitch_files_tenant_from_path(name)))
+        OR ((bucket_id = 'media-originals'::text) AND public.storage_media_staff_can_touch(name))
+        OR ((bucket_id = 'media-public'::text) AND public.storage_media_staff_can_touch(name))
+        OR ((bucket_id = 'media-originals'::text) AND (EXISTS (SELECT 1 FROM public.talent_profiles t WHERE ((t.id)::text = (storage.foldername(objects.name))[1] AND t.user_id = auth.uid()))))
+        OR ((bucket_id = 'media-public'::text) AND (EXISTS (SELECT 1 FROM public.talent_profiles t WHERE ((t.id)::text = (storage.foldername(objects.name))[1] AND t.user_id = auth.uid()))))
+      );
+  END IF;
+END $$;
+
