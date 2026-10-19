@@ -33,6 +33,8 @@ import { recommendForBrief } from "@/lib/tulala/engine.server";
 import { loadTulalaEntitlements } from "@/lib/tulala/entitlements";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { emailOnLead } from "@/lib/tulala/approve.server";
+import { displayTrialDays } from "@/lib/billing/trial-eligibility.server";
+import { shownTrialDays } from "@/lib/billing/review-trial-days";
 
 import { TulalaAgentChrome } from "@/components/tulala/agent-chrome";
 
@@ -80,6 +82,15 @@ export default async function ReviewPage() {
     ? (entitlements.talent.find((p) => p.planKey === recommendation.plans.talent) ?? null)
     : null;
 
+  // TUL-1285: a signed-in returning user is not promised a trial Checkout will not apply.
+  const viewerId = resolved.isAuthenticated ? resolved.userId : null;
+  const eligible = (uid: string, offer: { isEnabled: boolean; trialDays: number }) =>
+    displayTrialDays({ kind: "user", userId: uid }, offer);
+  const [workspaceTrialDays, talentTrialDays] = await Promise.all([
+    shownTrialDays(workspacePlan, viewerId, eligible),
+    shownTrialDays(talentPlan, viewerId, eligible),
+  ]);
+
   return (
     <TulalaAgentChrome locale={locale}>
       <ReviewScreen
@@ -94,7 +105,7 @@ export default async function ReviewPage() {
                 displayName: workspacePlan.displayName,
                 // Suppressed on a degraded catalog: see the header comment.
                 price: recommendation.catalogDegraded ? null : workspacePlan.formattedMonthly,
-                trialDays: workspacePlan.trialEnabled ? workspacePlan.trialDays : null,
+                trialDays: workspaceTrialDays,
                 highlights: workspacePlan.highlights.slice(0, 4),
                 rosterSeats: workspacePlan.rosterSeats,
               }
@@ -103,7 +114,7 @@ export default async function ReviewPage() {
             ? {
                 displayName: talentPlan.displayName,
                 price: recommendation.catalogDegraded ? null : talentPlan.formattedMonthly,
-                trialDays: talentPlan.trialEnabled ? talentPlan.trialDays : null,
+                trialDays: talentTrialDays,
                 highlights: talentPlan.highlights.slice(0, 4),
                 rosterSeats: talentPlan.rosterSeats,
               }
