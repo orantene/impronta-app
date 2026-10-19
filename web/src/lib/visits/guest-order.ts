@@ -8,6 +8,7 @@ import { loadOpenVisitByToken } from "./qr";
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
+import type { GuestMenuOption } from "./guest-menu-options";
 
 export type GuestReason =
   | "visit_closed"
@@ -33,7 +34,7 @@ async function openVisit(admin: VenueAdmin, tenantId: string, token: string) {
 export async function guestVisitMenu(
   admin: VenueAdmin,
   input: { tenantId: string; token: string },
-): Promise<{ ok: true; items: Array<{ id: string; title: string; amountCents: number; prepStationId: string | null }> } | GuestFail> {
+): Promise<{ ok: true; items: Array<{ id: string; title: string; amountCents: number | null; options: GuestMenuOption[]; prepStationId: string | null }> } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
   // D-10: published AND approved AND public; tenant scoping is the .eq below.
@@ -49,12 +50,40 @@ export async function guestVisitMenu(
   }
   // TUL-1271 item 6: event-backing and reservation offerings are not menu items.
   const menuRows = withoutNonMenuOfferings(((data ?? []) as Record<string, unknown>[]).map((r): Record<string, unknown> & { id: string } => ({ ...r, id: String(r.id) })), nonMenu.ids);
+  // TUL-1348: the options (sizes) of each dish. Read per dish id; a failed read
+  // hides the whole menu rather than show an option-priced dish at a wrong price.
+  const optionsByItem = new Map<string, GuestMenuOption[]>();
+  const ids = menuRows.map((r) => String(r.id));
+  if (ids.length > 0) {
+    const { data: variants, error: vErr } = await admin
+      .from("talent_offering_variants")
+      .select("id, offering_id, label, amount_cents, is_hidden, sort_order")
+      .in("offering_id", ids)
+      .order("sort_order", { ascending: true });
+    if (vErr) {
+      logServerError("visits.guestVisitMenu.options", vErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    for (const v of (variants ?? []) as Array<Record<string, unknown>>) {
+      if (v.is_hidden === true) continue;
+      const key = String(v.offering_id);
+      const list = optionsByItem.get(key) ?? [];
+      list.push({
+        id: String(v.id),
+        label: String(v.label ?? ""),
+        amountCents: v.amount_cents == null ? null : Number(v.amount_cents),
+      });
+      optionsByItem.set(key, list);
+    }
+  }
   return {
     ok: true,
     items: menuRows.map((row) => ({
       id: String(row.id),
       title: String(row.title ?? ""),
-      amountCents: Number(row.amount_cents ?? 0),
+      // null = no base price (priced only by its options); never shown as 0.
+      amountCents: row.amount_cents == null ? null : Number(row.amount_cents),
+      options: optionsByItem.get(String(row.id)) ?? [],
       prepStationId: row.prep_station_id ? String(row.prep_station_id) : null,
     })),
   };
