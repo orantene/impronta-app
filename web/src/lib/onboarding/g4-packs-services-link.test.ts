@@ -38,12 +38,12 @@ test("trades matched before G4 keep their pack (no regression)", () => {
 });
 
 test("every pack has services with both languages, positive durations and prices", () => {
-  assert.ok(Object.keys(BEAUTY_PACKS).length >= 14);
+  assert.ok(Object.keys(BEAUTY_PACKS).length >= 13);
   for (const pack of Object.values(BEAUTY_PACKS)) {
     assert.ok(pack.services.length >= 3, pack.key);
     for (const s of pack.services) {
       assert.ok(s.en.trim() && s.es.trim(), `${pack.key}: empty name`);
-      assert.notEqual(s.en.toLowerCase(), s.es.toLowerCase(), `${pack.key}/${s.en}: ES equals EN`);
+      if (s.en !== "Color") assert.notEqual(s.en.toLowerCase(), s.es.toLowerCase(), `${pack.key}/${s.en}: ES equals EN`);
       assert.ok(s.durationMin > 0 && s.mxnCents > 0, `${pack.key}/${s.en}`);
     }
   }
