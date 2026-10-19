@@ -130,6 +130,10 @@ test("capability lattice: membership role alone decides the graded surfaces", ()
 const REQUIRE_STAFF_ALLOW_LIST: ReadonlyArray<readonly [string, string]> = [
   ["src/lib/server/action-guards.ts", "the definition itself"],
   [
+    "src/lib/server/roster-scoped-staff.ts",
+    "PR 0b-1 guard: calls requireStaff() only as the first step, then narrows non-platform staff to the talent's roster tenants (the scoping this guard exists to add)",
+  ],
+  [
     "src/app/api/admin/translations/export/route.ts",
     "exports the shared platform translation catalog — cross-tenant by construction, no tenant to scope to",
   ],
@@ -145,10 +149,6 @@ const REQUIRE_STAFF_ALLOW_LIST: ReadonlyArray<readonly [string, string]> = [
   [
     "src/lib/server-actions/admin-clients.ts",
     "writes global client_profiles rows + provisions auth users; has no tenant scope to prove (own lane)",
-  ],
-  [
-    "src/lib/server-actions/admin-talent.ts",
-    "writes the global talent_profiles table with no tenant proof in the action; converting needs a roster-membership check first (own lane)",
   ],
   [
     "src/lib/server-actions/admin-talent-translations.ts",

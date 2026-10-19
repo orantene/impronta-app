@@ -48,6 +48,7 @@ src/lib/directory/discover-index-gates.guard.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/directory/resource-profile-leakage.static.test.ts
 src/lib/directory/taxonomy-tenant-safety.test.ts
+src/lib/events/hidden-tiers-anon-rls.static.test.ts
 src/lib/health/prod-gating-flags.test.ts
 src/lib/impersonation/client-api-read.test.ts
 src/lib/impersonation/client-loaders-read-client.test.ts
@@ -114,6 +115,7 @@ src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/saas/plan-seat-caps.test.ts
 src/lib/saas/posts-tenant-isolation.static.test.ts
 src/lib/saas/preview-host.test.ts
+src/lib/saas/profiles-no-self-promotion.static.test.ts
 src/lib/saas/public-booking-surface.static.test.ts
 src/lib/saas/public-hrefs.test.ts
 src/lib/saas/public-profile-override-tenant.test.ts
@@ -133,6 +135,7 @@ src/lib/saas/tenant-isolation.security.test.ts
 src/lib/saas/tenant-isolation.test.ts
 src/lib/saas/tracking-tenant-isolation.test.ts
 src/lib/saas/unsupported-locale-redirect.test.ts
+src/lib/saas/user-delete-fk-sweep.static.test.ts
 src/lib/saas/workspace-live-url.test.ts
 src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-public-url.test.ts
@@ -181,6 +184,7 @@ src/lib/site-admin/sections/no-hardcoded-copy.static.test.ts
 src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/supabase/auth-cookie-variants.security.test.ts
 src/lib/supabase/cookie-domain.test.ts
+src/lib/supabase/talent-profiles-anon-grants.static.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
 src/lib/talent-agenda/record-item.test.ts

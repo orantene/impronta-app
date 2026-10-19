@@ -2789,6 +2789,8 @@
           "recording": "Enregistrement…"
         }
       },
+      "counterCatalogErrorTitle": "Le catalogue n'a pas pu être chargé",
+      "counterCatalogErrorBody": "Une erreur est survenue à la lecture des articles de cet espace de travail, le comptoir ne les affiche donc pas. Rechargez la page. Si le problème persiste, contactez le support.",
       "counterOffTitle": "Le comptoir est désactivé",
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
       "projects": {

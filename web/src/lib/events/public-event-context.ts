@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { formatVenueAddress } from "@/lib/events/venue-address";
 
 /**
  * The venue and workspace facts a PUBLIC event page needs and the anon client
@@ -19,6 +20,8 @@ import { logServerError } from "@/lib/server/safe-error";
 export type PublicEventContext = {
   venueTimezone: string | null;
   venueName: string | null;
+  /** One-line postal address from the venue's discrete columns, null when none is filled in. */
+  venueAddress: string | null;
   workspaceTimezone: string | null;
   workspaceDisplayName: string | null;
   supportedLocales: string[];
@@ -27,6 +30,7 @@ export type PublicEventContext = {
 const EMPTY: PublicEventContext = {
   venueTimezone: null,
   venueName: null,
+  venueAddress: null,
   workspaceTimezone: null,
   workspaceDisplayName: null,
   supportedLocales: [],
@@ -44,7 +48,7 @@ export async function readPublicEventContext(input: {
 
   const [venue, agency] = await Promise.all([
     input.venueId
-      ? admin.from("venues").select("timezone, name").eq("id", input.venueId).eq("tenant_id", input.tenantId).maybeSingle()
+      ? admin.from("venues").select("timezone, name, address_line1, address_line2, city, region, postal_code, country_code").eq("id", input.venueId).eq("tenant_id", input.tenantId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     admin.from("agencies").select("timezone, display_name, supported_locales").eq("id", input.tenantId).maybeSingle(),
   ]);
@@ -56,6 +60,7 @@ export async function readPublicEventContext(input: {
   return {
     venueTimezone: (venue.data?.timezone as string | null) ?? null,
     venueName: (venue.data?.name as string | null) ?? null,
+    venueAddress: formatVenueAddress(venue.data),
     workspaceTimezone: (agency.data?.timezone as string | null) ?? null,
     workspaceDisplayName: (agency.data?.display_name as string | null) ?? null,
     supportedLocales: Array.isArray(locales) ? locales.filter((l): l is string => typeof l === "string") : [],

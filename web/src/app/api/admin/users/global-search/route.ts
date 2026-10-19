@@ -7,6 +7,7 @@ import type {
 } from "@/lib/admin/global-user-search-types";
 import { isStaffRole } from "@/lib/auth-flow";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { getTenantScope } from "@/lib/saas/scope";
 
 const MAX_ROWS = 100;
 const FETCH_CAP = 220;
@@ -146,6 +147,23 @@ export async function GET(request: Request) {
   const access = await loadAccessProfile(supabase, user.id);
   if (!isStaffRole(access?.app_role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Platform-wide people search (talent, admins, every client) is a PLATFORM
+  // ADMIN surface. `app_role = 'agency_staff'` is held by every self-serve
+  // studio owner, so it must never open the whole directory. Workspace staff
+  // keep only the client picker (role=client), narrowed below to the clients
+  // of their own workspace.
+  const isPlatformAdmin = access?.app_role === "super_admin";
+  let workspaceTenantId: string | null = null;
+  if (!isPlatformAdmin) {
+    if (roleParam !== "client") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    workspaceTenantId = (await getTenantScope())?.tenantId ?? null;
+    if (!workspaceTenantId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const hasQ = qRaw.length > 0;
@@ -578,6 +596,44 @@ export async function GET(request: Request) {
           });
         }
       }
+    }
+  }
+
+  if (workspaceTenantId) {
+    const candidateIds = results
+      .map((r) => r.userId)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    const allowed = new Set<string>();
+    if (candidateIds.length > 0) {
+      const [relRes, inqRes] = await Promise.all([
+        supabase
+          .from("agency_client_relationships")
+          .select("client_profiles!inner(user_id)")
+          .eq("tenant_id", workspaceTenantId)
+          .in("client_profiles.user_id", candidateIds),
+        supabase
+          .from("inquiries")
+          .select("client_user_id")
+          .eq("tenant_id", workspaceTenantId)
+          .in("client_user_id", candidateIds),
+      ]);
+      if (relRes.error || inqRes.error) {
+        return NextResponse.json({ error: "Search failed" }, { status: 500 });
+      }
+      for (const row of relRes.data ?? []) {
+        const cp = (row as Record<string, unknown>).client_profiles;
+        const one = Array.isArray(cp) ? cp[0] : cp;
+        const uid = one && typeof one === "object" ? (one as Record<string, unknown>).user_id : null;
+        if (typeof uid === "string") allowed.add(uid);
+      }
+      for (const row of inqRes.data ?? []) {
+        const uid = (row as Record<string, unknown>).client_user_id;
+        if (typeof uid === "string") allowed.add(uid);
+      }
+    }
+    for (let i = results.length - 1; i >= 0; i--) {
+      const uid = results[i].userId;
+      if (!uid || !allowed.has(uid)) results.splice(i, 1);
     }
   }
 
