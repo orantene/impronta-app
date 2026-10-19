@@ -12,7 +12,9 @@ src/app/start/layout-landmark.static.test.ts
 src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
 src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
+src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.render.test.tsx
+src/components/admin/shell/internal/page-modules/catalog/catalog-list-columns.test.ts
 src/components/admin/shell/internal/palette-help-key.static.test.ts
 src/components/admin/shell/internal/shell-count-bubbles.test.ts
 src/components/admin/shell/internal/shell-hydration.static.test.ts
