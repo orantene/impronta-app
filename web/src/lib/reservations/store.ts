@@ -202,6 +202,8 @@ export type ServiceRulesPatch = Partial<{
   depositFromParty: number | null;
   depositCentsPerPerson: number;
   freeCancelHours: number;
+  /** TUL-1334: the offering a table booking is sold as. null clears it. */
+  reservationOfferingId: string | null;
   waitlistEnabled: boolean;
   walkinsEnabled: boolean;
   notesEnabled: boolean;
@@ -223,6 +225,7 @@ const RULES_COLUMN: Record<keyof ServiceRulesPatch, string> = {
   depositFromParty: "deposit_from_party",
   depositCentsPerPerson: "deposit_cents_per_person",
   freeCancelHours: "free_cancel_hours",
+  reservationOfferingId: "reservation_offering_id",
   waitlistEnabled: "waitlist_enabled",
   walkinsEnabled: "walkins_enabled",
   notesEnabled: "notes_enabled",
