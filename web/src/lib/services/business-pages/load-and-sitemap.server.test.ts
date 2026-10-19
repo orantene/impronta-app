@@ -126,10 +126,11 @@ describe("loadBusinessServiceRows: order and no silent cap", () => {
 });
 
 describe("route wiring (static)", () => {
-  it("the booking panel opens THIS service, and one request loads once", async () => {
+  it("the booking panel goes to the workspace /book page with THIS service (business homes do not read ?book=), and one request loads once", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync("src/app/(public)/_services/business-service-route.tsx", "utf8");
-    assert.match(src, /serviceBookHref\(offering\.id, homeHref\)/);
+    assert.match(src, /businessServiceBookHref\(bookPath, offering\.id\)/);
+    assert.doesNotMatch(src, /serviceBookHref\(/);
     assert.match(src, /const load = cache\(/);
   });
 });

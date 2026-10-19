@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  businessServiceBookHref,
   businessServicePagesAllowed,
   businessServicePageCopy,
   buildBusinessServiceJsonLd,
@@ -82,5 +83,15 @@ describe("copy", () => {
     const en = businessServicePageCopy("en");
     assert.deepEqual(Object.keys(es).sort(), Object.keys(en).sort());
     for (const v of [...Object.values(es), ...Object.values(en)]) if (typeof v === "string") assert.equal(v.includes("—"), false);
+  });
+});
+
+describe("businessServiceBookHref", () => {
+  it("the workspace /book page with the service preselected (?service=, the param /book reads per #4078)", () => {
+    assert.equal(businessServiceBookHref("/book", "1a2b3c4d-0000-4000-8000-000000000000"), "/book?service=1a2b3c4d-0000-4000-8000-000000000000");
+    assert.equal(businessServiceBookHref("/es/book", "x y"), "/es/book?service=x%20y");
+  });
+  it("talent-site deep link (?book=...#book) is never used: business homes do not handle it", () => {
+    assert.doesNotMatch(businessServiceBookHref("/book", "abc"), /[?&]book=|#book/);
   });
 });

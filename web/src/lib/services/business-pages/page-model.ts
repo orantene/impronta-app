@@ -127,3 +127,14 @@ export function buildBusinessServiceJsonLd(input: {
   if (faq) graph.push(faq);
   return { "@context": ctx, "@graph": graph };
 }
+
+/**
+ * Where "Reservar" goes on a business service page: the workspace's own `/book` page with this
+ * service preselected (`?service=<id>`). Verified 2026-10-19: business (agency) homes do NOT read
+ * the talent-site deep link `?book=<id>#book` (only `_talent-site/TalentSiteContactBridge` does),
+ * so that link would be dead here. `/book` honours `?service=` once #4078 lands; until then the
+ * param is ignored and the guest still lands on the working booking page.
+ */
+export function businessServiceBookHref(bookPath: string, offeringId: string): string {
+  return `${bookPath}?service=${encodeURIComponent(offeringId)}`;
+}

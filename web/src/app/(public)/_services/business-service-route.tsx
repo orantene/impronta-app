@@ -20,7 +20,7 @@ import { getPublicTenantScope } from "@/lib/saas/scope";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadBusinessServicePage } from "@/lib/services/business-pages/load.server";
-import { buildBusinessServiceJsonLd, businessServiceFacts } from "@/lib/services/business-pages/page-model";
+import { buildBusinessServiceJsonLd, businessServiceBookHref, businessServiceFacts } from "@/lib/services/business-pages/page-model";
 import {
   businessServicePathWithoutLocale,
   businessServiceRoute,
@@ -29,7 +29,7 @@ import {
 import { loadOfferingImageUrls } from "@/lib/storefront/catalog-images";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { serviceBookHref, serviceMetaText } from "@/lib/talent-site/service-page";
+import { serviceMetaText } from "@/lib/talent-site/service-page";
 import { serviceFaqItems } from "@/lib/talent-site/service-page-faq";
 
 import { BusinessServiceView } from "./business-service-view";
@@ -100,13 +100,15 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
   if (route.kind === "missing") notFound();
   if (route.kind === "redirect") permanentRedirect(await localePath(loaded.locale, route.pathWithoutLocale));
 
-  const [identity, alternates, homeHref] = await Promise.all([
+  const [identity, alternates, homeHref, bookPath] = await Promise.all([
     loadPublicIdentity(loaded.tenantId).catch(() => null),
     alternatesFor(loaded.locale, route.slug),
     localePath(loaded.locale, "/"),
+    localePath(loaded.locale, "/book"),
   ]);
-  // The booking deep link opens THIS service in the site's booking sheet.
-  const bookHref = serviceBookHref(offering.id, homeHref);
+  // Business homes do not read the talent deep link (?book=...#book): go to the workspace's
+  // /book page with this service preselected (`?service=`, read by /book per #4078).
+  const bookHref = businessServiceBookHref(bookPath, offering.id);
   const facts = businessServiceFacts(offering, loaded.locale);
   const faq = serviceFaqItems(offering, [], loaded.locale);
   const canonical = alternates.alternates?.canonical ? String(alternates.alternates.canonical) : null;
