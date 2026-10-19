@@ -106,4 +106,24 @@ describe("TalentFactoryTab render", () => {
   it("authored_pending shows the pull command", () => {
     assert.match(html, /npm run theme:pull-authored -- --design pending/);
   });
+  it("renders the Studio checklist only when a row carries one (flag off = absent)", () => {
+    assert.doesNotMatch(html, /data-studio-checklist/);
+    const studio = {
+      ready: false,
+      rows: [
+        { key: "pack" as const, ok: false, detail: "kit.js" },
+        { key: "gaps" as const, ok: false, detail: "W-12 contact sheet tag filter and loupe" },
+        { key: "gallery" as const, ok: true },
+      ],
+    };
+    const withStudio: FactoryOverview = { ...DATA, rows: [row("frame", "Frame", { studio })] };
+    const en = renderToStaticMarkup(<TalentFactoryTab initial={withStudio} />);
+    assert.match(en, /data-studio-checklist="blocked"/);
+    assert.match(en, /Not ready/);
+    assert.match(en, /W-12 contact sheet/);
+    const es = renderToStaticMarkup(<TalentFactoryTab locale="es" initial={withStudio} />);
+    assert.match(es, /Lista de verificación/);
+    assert.match(es, /Bloqueado/);
+    assert.doesNotMatch(es, /—/);
+  });
 });

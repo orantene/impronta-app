@@ -5,6 +5,8 @@
  * business starters are a different product and never appear here.
  */
 
+import type { StudioChecklist } from "./studio-checklist";
+
 export type FactoryStatus = "up_to_date" | "code_ahead" | "not_synced" | "authored_pending" | "authored_hidden";
 
 /** The newest local mockup-parity run for one design (summary.json subset). */
@@ -49,6 +51,8 @@ export interface FactoryDesignRow {
    * git yet — offer "Review code seed in Builder Lab" (TUL-366).
    */
   codeSeedReview?: boolean;
+  /** Theme Studio finished checklist (TUL-20); present only when TALENT_THEME_STUDIO=1. */
+  studio?: StudioChecklist;
 }
 
 export interface FactoryOverview {

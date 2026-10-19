@@ -33,6 +33,8 @@ const btn =
   "rounded border border-white/30 px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40";
 const link = "text-white/80 underline underline-offset-4 hover:text-white";
 
+import { STUDIO_COPY } from "./studio-checklist-copy";
+
 export function TalentFactoryTab({
   locale,
   initial,
@@ -370,6 +372,22 @@ function DesignCard({
           </button>
         </div>
       </div>
+
+      {row.studio ? (
+        <div className="mt-4 border-t border-white/10 pt-3" data-studio-checklist={row.studio.ready ? "ready" : "blocked"}>
+          <p className="text-xs uppercase tracking-wider text-white/40">
+            {STUDIO_COPY[lang].title}: {row.studio.ready ? STUDIO_COPY[lang].ready : STUDIO_COPY[lang].notReady}
+          </p>
+          <ul className="mt-1 space-y-0.5 text-sm text-white/70">
+            {row.studio.rows.map((r) => (
+              <li key={r.key} data-studio-row={r.key} data-ok={r.ok ? "1" : "0"}>
+                {r.ok ? STUDIO_COPY[lang].ok : STUDIO_COPY[lang].blocked}: {STUDIO_COPY[lang].rows[r.key]}
+                {r.detail ? ` (${r.detail})` : r.key === "parity" && !r.ok ? ` (${STUDIO_COPY[lang].noRun})` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {row.canRebuild ? <DemoRebuildPanel design={row.slug} lang={lang} /> : null}
     </section>
