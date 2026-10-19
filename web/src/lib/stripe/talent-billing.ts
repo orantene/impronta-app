@@ -35,6 +35,8 @@ import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
 import {
   cleanCancelComment,
@@ -238,6 +240,8 @@ export async function createTalentCheckoutSession(opts: {
         ...(trialDays != null ? { trial_period_days: trialDays } : {}),
       },
       ...discount.params,
+      // TUL-1229: explicit recurring-charge agreement (required checkbox + renewal text) before Subscribe.
+      ...recurringConsentParams({ locale: opts.locale, interval: price.interval, marketingOrigin: resolveMarketingOrigin() }),
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
     },

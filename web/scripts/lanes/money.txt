@@ -224,6 +224,7 @@ src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
+src/lib/stripe/recurring-consent.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts
