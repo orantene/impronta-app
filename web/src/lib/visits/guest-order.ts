@@ -48,7 +48,7 @@ export async function guestVisitMenu(
     return { ok: false, reason: "unavailable" };
   }
   // TUL-1271 item 6: event-backing and reservation offerings are not menu items.
-  const menuRows = withoutNonMenuOfferings(((data ?? []) as Record<string, unknown>[]).map((r) => ({ ...r, id: String(r.id) })), nonMenu.ids);
+  const menuRows = withoutNonMenuOfferings(((data ?? []) as Record<string, unknown>[]).map((r): Record<string, unknown> & { id: string } => ({ ...r, id: String(r.id) })), nonMenu.ids);
   return {
     ok: true,
     items: menuRows.map((row) => ({
