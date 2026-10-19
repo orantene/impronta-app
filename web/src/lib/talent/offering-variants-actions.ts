@@ -27,12 +27,12 @@ export async function setOfferingVariants(
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
-    const { data: own } = await admin.from("talent_offerings")
+    const { data: own, error: ownErr } = await admin.from("talent_offerings")
       .select("id")
       .eq("id", offeringId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle();
-    if (!own) return { ok: false, error: "Not found." };
+    if (ownErr || !own) return { ok: false, error: "Not found." };
     const saved = await replaceOfferingChildren(
       admin,
       offeringId,
