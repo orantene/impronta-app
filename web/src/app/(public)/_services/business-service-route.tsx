@@ -10,6 +10,7 @@
  */
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
+import { cache } from "react";
 
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
@@ -28,14 +29,15 @@ import {
 import { loadOfferingImageUrls } from "@/lib/storefront/catalog-images";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { serviceMetaText } from "@/lib/talent-site/service-page";
+import { serviceBookHref, serviceMetaText } from "@/lib/talent-site/service-page";
 import { serviceFaqItems } from "@/lib/talent-site/service-page-faq";
 
 import { BusinessServiceView } from "./business-service-view";
 
 export type BusinessServiceParams = { params: Promise<{ slug: string }> };
 
-async function load(slug: string) {
+/** One read per request: metadata and the page share it (React cache, keyed on the slug). */
+const load = cache(async (slug: string) => {
   const scope = await getPublicTenantScope();
   const admin = createServiceRoleClient();
   if (!scope || !admin) return null;
@@ -48,7 +50,7 @@ async function load(slug: string) {
     loadImages: (ids) => loadOfferingImageUrls(admin, ids),
   });
   return { res, locale, tenantId: scope.tenantId };
-}
+});
 
 function alternatesFor(locale: string, slug: string) {
   return buildTenantLocaleAlternates(locale, businessServicePathWithoutLocale(locale, slug), {
@@ -98,12 +100,13 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
   if (route.kind === "missing") notFound();
   if (route.kind === "redirect") permanentRedirect(await localePath(loaded.locale, route.pathWithoutLocale));
 
-  const [identity, alternates, homeHref, bookPath] = await Promise.all([
+  const [identity, alternates, homeHref] = await Promise.all([
     loadPublicIdentity(loaded.tenantId).catch(() => null),
     alternatesFor(loaded.locale, route.slug),
     localePath(loaded.locale, "/"),
-    localePath(loaded.locale, "/book"),
   ]);
+  // The booking deep link opens THIS service in the site's booking sheet.
+  const bookHref = serviceBookHref(offering.id, homeHref);
   const facts = businessServiceFacts(offering, loaded.locale);
   const faq = serviceFaqItems(offering, [], loaded.locale);
   const canonical = alternates.alternates?.canonical ? String(alternates.alternates.canonical) : null;
@@ -121,7 +124,7 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
         facts={facts}
         faq={faq}
         homeHref={homeHref}
-        bookHref={offering.publicCtaHidden ? null : bookPath}
+        bookHref={offering.publicCtaHidden ? null : bookHref}
       />
       <PublicFooter />
     </>

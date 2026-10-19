@@ -21,7 +21,10 @@ import { parseBusinessServiceSlug } from "./paths";
 type Db = Pick<SupabaseClient, "from">;
 
 const PAGE_KINDS = ["service", "package"] as const;
-const MAX_ROWS = 500;
+/** PostgREST row cap per request; reads page through it so nothing is silently dropped. */
+const PAGE = 1000;
+/** Hard stop against a runaway loop (10k services per workspace). */
+const MAX_PAGES = 10;
 
 export type BusinessServiceRow = TalentOfferingRow;
 
@@ -56,30 +59,38 @@ export async function businessServicePagesOn(db: Db, tenantId: string, flagOn = 
   return businessServicePagesAllowed({ flagOn, planTier: effective });
 }
 
-/** Published + approved workspace-owned services and packages (public and on_request). */
+/** Published + approved workspace-owned services and packages (public and on_request), sort_order then id, every page. */
 export async function loadBusinessServiceRows(
   db: Db,
   tenantId: string,
-  opts: { publicOnly?: boolean } = {},
+  opts: { publicOnly?: boolean; ownerTalentIds?: Set<string> } = {},
 ): Promise<{ rows: BusinessServiceRow[]; ownerTalentIds: Set<string> } | null> {
   try {
-    const ownerTalentIds = await fetchOwnerTalentIds(db, tenantId);
-    const { data, error } = await db
-      .from("talent_offerings")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .or(workspaceOfferingOrFilter(ownerTalentIds))
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .in("visibility", opts.publicOnly ? ["public"] : ["public", "on_request"])
-      .in("kind", [...PAGE_KINDS])
-      .order("sort_order", { ascending: true })
-      .limit(MAX_ROWS);
-    if (error) {
-      logServerError("business-service-pages/rows", error);
-      return null;
+    const ownerTalentIds = opts.ownerTalentIds ?? (await fetchOwnerTalentIds(db, tenantId));
+    const rows: BusinessServiceRow[] = [];
+    for (let page = 0; page < MAX_PAGES; page += 1) {
+      const from = page * PAGE;
+      const { data, error } = await db
+        .from("talent_offerings")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .or(workspaceOfferingOrFilter(ownerTalentIds))
+        .eq("status", "published")
+        .eq("moderation_state", "approved")
+        .in("visibility", opts.publicOnly ? ["public"] : ["public", "on_request"])
+        .in("kind", [...PAGE_KINDS])
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        logServerError("business-service-pages/rows", error);
+        return null;
+      }
+      const batch = (data ?? []) as BusinessServiceRow[];
+      rows.push(...batch);
+      if (batch.length < PAGE) break;
     }
-    return { rows: (data ?? []) as BusinessServiceRow[], ownerTalentIds };
+    return { rows, ownerTalentIds };
   } catch (error) {
     logServerError("business-service-pages/rows", error);
     return null;

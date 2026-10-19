@@ -45,7 +45,8 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, CANONICAL_RECEIPT_PREFIX)) return kind === "agency" || kind === "hub";
   // TUL-1272 #5: one business service page, `/services/<slug>` or `/servicios/<slug>`.
   // Two segments only: a CMS page may own the single-segment `/servicios` list.
-  if (isBusinessServicePagePath(pathname)) return kind === "agency" || kind === "hub";
+  // Business (agency) hosts only, never the hub (ruling 2026-10-19).
+  if (isBusinessServicePagePath(pathname)) return kind === "agency";
   // TUL-1252: the pay page is looked up by code alone (the code is the
   // credential), so the platform app host serves it too. The client account
   // lives on app.<domain>; its "Pagar ahora" links are relative and 404'd there.

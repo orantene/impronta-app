@@ -95,3 +95,41 @@ describe("sitemap entries", () => {
     assert.match(src, /loadBusinessServiceSitemapEntries\(\{/);
   });
 });
+
+describe("loadBusinessServiceRows: order and no silent cap", () => {
+  it("orders by sort_order then id and pages past 1000 rows", async () => {
+    const orders: string[] = [];
+    const ranges: Array<[number, number]> = [];
+    const total = 1203;
+    const db = {
+      from: () => {
+        const q: Record<string, unknown> = {};
+        let from = 0;
+        let to = 0;
+        for (const m of ["select", "eq", "or", "in"]) q[m] = () => q;
+        q.order = (col: string) => (orders.push(col), q);
+        q.limit = () => q;
+        q.range = (a: number, b: number) => ((from = a), (to = b), ranges.push([a, b]), q);
+        q.then = (res: (v: unknown) => unknown) => {
+          const n = Math.max(0, Math.min(to, total - 1) - from + 1);
+          return Promise.resolve({ data: Array.from({ length: n }, (_, i) => row(String(from + i).padStart(8, "0"))), error: null }).then(res);
+        };
+        return q;
+      },
+    } as never;
+    const { loadBusinessServiceRows } = await import("./load.server");
+    const out = await loadBusinessServiceRows(db, T, { ownerTalentIds: new Set() });
+    assert.equal(out?.rows.length, total);
+    assert.deepEqual(orders.slice(0, 2), ["sort_order", "id"]);
+    assert.ok(ranges.length >= 2);
+  });
+});
+
+describe("route wiring (static)", () => {
+  it("the booking panel opens THIS service, and one request loads once", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync("src/app/(public)/_services/business-service-route.tsx", "utf8");
+    assert.match(src, /serviceBookHref\(offering\.id, homeHref\)/);
+    assert.match(src, /const load = cache\(/);
+  });
+});
