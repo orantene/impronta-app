@@ -235,14 +235,14 @@ const TRADE_PATTERNS: Array<[string, RegExp]> = [
   // Facial before cleaning: "limpieza facial" is a facial, not home cleaning.
   ["facial", /facial|\besthetic(ian)?s?\b|\best[eé]tic[ao]s?\b|cosmetolog|dermapl|peeling|skin ?care|cuidado de la piel/i],
   ["cleaning", /clean|limpie|limpio|aseo|housekeep/i],
+  // Before hair so "peluquería canina" / "dog grooming" are pets. "hot dogs", "corn dogs" and "perros calientes" are food, not a pet business.
+  ["pets", /(?<!(?:hot|corn)[ -])\bdogs?\b(?![ -]?(?:stands?|carts?|vendors?|trucks?))|\bpets?\b|\bmascotas?\b|\bperr[oa]s?\b(?! calientes?\b)|\bcanin[oa]s?\b|veterinar/i],
   ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
   // G4: appended last so every trade matched before keeps its pack.
   ["massage", /massag|masaj|\bspa\b|quiropr|physio|fisioter/i],
   ["fitness", /personal train|trainer|fitness|yoga|pilates|entrenador|crossfit|gimnas/i],
   ["photography", /photograph|fot[oó]graf/i],
   ["tutoring", /\btutor|\bteachers?\b|\bteaching\b|\bprofesor(a|es)?\b|\bmaestr[ao]s? particular(es)?\b|\bprivate lessons?\b|\bclases? (de|particular)/i],
-  // "hot dogs", "corn dogs" and "perros calientes" are food, not a pet business.
-  ["pets", /(?<!(?:hot|corn)[ -])\bdogs?\b(?![ -]?(?:stands?|carts?|vendors?|trucks?))|\bpets?\b|\bmascotas?\b|\bperr[oa]s?\b(?! calientes?\b)|\bcanin[oa]s?\b|veterinar/i],
   ["tattoo", /tattoo|tatu/i],
 ];
 
