@@ -16,6 +16,9 @@ import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photo
 import { Field, INPUT } from "./catalog-ui";
 import type { TabProps } from "./CatalogItemEditor";
 
+/** The upload route reads the file from this multipart field. The file is compressed first (see below). */
+const UPLOAD_FIELD = "file";
+
 export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabProps, "item" | "editor" | "tenantId" | "isDraft">) {
   const t = useT();
   const [busy, setBusy] = useState(false);
@@ -41,7 +44,7 @@ export function ItemPhotosField({ item, editor, tenantId, isDraft }: Pick<TabPro
       const body = new FormData();
       // Compress in the browser first: the upload route is body-capped (~4.5 MB) and a phone photo is bigger.
       const small = (await compressImage(file)).file;
-      body.set("file", small);
+      body.set(UPLOAD_FIELD, small);
       body.set("tenantId", tenantId);
       const resp = await fetch("/api/admin/media/upload", { method: "POST", body });
       const json = (await resp.json().catch(() => null)) as { ok?: boolean; item?: { id?: string }; error?: string } | null;

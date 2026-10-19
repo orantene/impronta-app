@@ -44,3 +44,9 @@ export async function posOffIds(admin: unknown, tenantId: string, offeringIds: r
   if (error || !Array.isArray(data)) return new Set();
   return new Set((data as Array<{ id: string; pos_enabled?: boolean | null }>).filter((r) => r.pos_enabled === false).map((r) => r.id));
 }
+
+/** True when this one item is switched off for the counter. */
+export async function isPosOff(admin: unknown, tenantId: string, offeringId: string): Promise<boolean> {
+  return (await posOffIds(admin, tenantId, [offeringId])).size > 0;
+}
+

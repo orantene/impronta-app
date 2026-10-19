@@ -53,7 +53,9 @@ test("isMissingColumnError recognises the Postgres and PostgREST codes", () => {
 test("the counter channels honour the flag; the shared addLine does NOT (QR, door, class and quotes sell POS-off items)", () => {
   const src = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
   assert.match(src("../../app/(workspace)/[tenantSlug]/admin/pos/counter-catalog.ts"), /isPosSellable/);
-  assert.match(src("../../app/(workspace)/[tenantSlug]/admin/pos/actions.ts"), /posOffIds/);
+  assert.match(src("../../app/(workspace)/[tenantSlug]/admin/pos/actions.ts"), /counterAddRefusal/);
+  assert.match(src("../../app/(workspace)/[tenantSlug]/admin/pos/actions.ts"), /isPosOff/);
+  assert.match(src("./counter-guard.ts"), /isPosOff/);
   assert.match(src("./classes/walkin.ts"), /posOffIds/);
   assert.doesNotMatch(src("./draft.ts"), /pos_enabled|isPosSellable|posOffIds/);
 });
