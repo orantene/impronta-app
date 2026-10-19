@@ -36,6 +36,7 @@ src/lib/client-account/dock-visibility.test.ts
 src/lib/impersonation/client-portal-effective-user.static.test.ts
 src/lib/inquiry/claim-return-url.test.ts
 src/lib/onboarding/legacy-signup-redirect.test.ts
+src/lib/rate-limit-bounded.test.ts
 src/lib/rate-limit-fail-open.test.ts
 src/lib/rate-limit-kv-auth.test.ts
 src/lib/saas/business-workspace-signup.static.test.ts

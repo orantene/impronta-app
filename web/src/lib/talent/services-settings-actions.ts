@@ -1,5 +1,6 @@
 "use server";
 
+import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -52,6 +53,8 @@ export type OfferingDestination = {
   label: string;
   href: string | null;
   enquiryTo: string;
+  /** TUL-1270 #13: absolute public URL on the canonical platform host (directory only). */
+  shareUrl?: string | null;
 };
 
 async function requireOwner(talentProfileId: string) {
@@ -232,6 +235,7 @@ export async function loadOfferingDestinations(
       label: "Tulala profile",
       href: `/t/${code}`,
       enquiryTo: auth.profile.display_name ?? "You",
+      shareUrl: await canonicalTalentUrl(code),
     });
   }
   const { data: roster, error: rosterError } = await auth.admin

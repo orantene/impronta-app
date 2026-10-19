@@ -61,6 +61,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/talent/offerings-actions.ts", ["loadTalentOfferingsForEditor", "listTalentPortfolioPhotos"], READ],
   ["lib/talent/services-menu-actions.ts", ["loadTalentServicesMenu", "loadTalentServicePerformance"], READ],
   ["lib/talent/talent-booking-terms-actions.ts", ["loadTalentBookingTerms"], READ],
+  ["lib/talent/instant-plan-entitlement-action.ts", ["loadInstantPlanEntitlement"], READ],
   ["app/(workspace)/platform/admin/commerce/commission/actions.ts", ["loadPlatformCommissionConfig"], READ],
   ["app/(workspace)/platform/admin/tenants/actions.ts", ["actionGetTenantManagementDetail"], READ],
   ["app/(workspace)/platform/admin/integrations/platform-integration-actions.ts", ["loadPlatformIntegrationDefaults"], READ],
