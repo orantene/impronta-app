@@ -241,7 +241,7 @@ export async function createTalentCheckoutSession(opts: {
       },
       ...discount.params,
       // TUL-1229: explicit recurring-charge agreement (required checkbox + renewal text) before Subscribe.
-      ...recurringConsentParams({ locale: opts.locale, interval: price.interval, marketingOrigin: resolveMarketingOrigin() }),
+      ...recurringConsentParams({ locale: opts.locale, interval: price.interval, trialDays, marketingOrigin: resolveMarketingOrigin() }),
       // Adaptive Pricing: auto-converts to customer's local currency at checkout.
       adaptive_pricing: { enabled: true },
     },
