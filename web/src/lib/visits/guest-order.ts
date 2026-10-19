@@ -37,11 +37,16 @@ async function openVisit(admin: VenueAdmin, tenantId: string, token: string) {
 async function loadCoverImages(admin: SupabaseClient, offeringIds: string[]): Promise<Map<string, { url: string; alt: string | null }>> {
   const out = new Map<string, { url: string; alt: string | null }>();
   if (offeringIds.length === 0) return out;
-  const { data } = await admin
+  const { data, error } = await admin
     .from("talent_offering_media")
     .select("offering_id, sort_order, media_assets:media_asset_id ( public_url, bucket_id, storage_path, alt )")
     .in("offering_id", offeringIds)
     .order("sort_order", { ascending: true });
+  if (error) {
+    // A failed photo read never hides the menu: no pictures, and the failure is logged.
+    logServerError("visits.coverImages", error);
+    return out;
+  }
   type Media = { public_url: string | null; bucket_id: string | null; storage_path: string | null; alt?: string | null };
   for (const r of (data ?? []) as unknown as Array<{ offering_id: string; media_assets: Media | Media[] | null }>) {
     if (out.has(r.offering_id)) continue;

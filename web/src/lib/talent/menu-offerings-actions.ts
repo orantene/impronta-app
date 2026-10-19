@@ -186,12 +186,16 @@ export async function upsertWorkspaceMenuItem(
 
     // The kitchen station must be this workspace's own (the column is a bare uuid).
     if (offering.prepStationId) {
-      const { data: station } = await admin
+      const { data: station, error: stationErr } = await admin
         .from("prep_stations")
         .select("id")
         .eq("id", offering.prepStationId)
         .eq("tenant_id", tenantId)
         .maybeSingle();
+      if (stationErr) {
+        logServerError("menu.offerings.station", stationErr);
+        return { ok: false, error: "Failed to save." };
+      }
       if (!station) return { ok: false, error: "That kitchen station is not in this workspace." };
     }
 
