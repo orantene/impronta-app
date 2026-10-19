@@ -37,29 +37,50 @@ async function recordReadContext(): Promise<EffectiveReadContext | undefined> {
 export async function loadTalentAgendaRecordItem(bookingId: string): Promise<TalentAgendaItem | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const ctx = await recordReadContext();
-  const actor = await loadTalentActor(ctx);
+  const actor = await loadTalentActor(ctx, undefined, { firstProfile: true });
   if (!actor.ok) return null;
-  // Under impersonation the RLS client is the staff session, which cannot read her rows:
-  // read through the service client, still keyed on her own talent_profile_id below.
-  const readDb = ctx?.impersonated ? actor.admin : actor.supabase;
-  // TUL-1244: talent_bookings, then agency bookings she is on, then an accepted offer's order id.
-  const target = await resolveRecordTarget(
-    { supabase: readDb as unknown as RecordTargetDb, admin: actor.admin as unknown as RecordTargetDb },
-    actor.talentProfileId,
-    bookingId,
-  ).catch((error: unknown) => {
-    logServerError("talent-agenda.recordItem", error);
-    return null;
-  });
-  if (!target) return null;
-  const window = agendaWindowAround(target.startsAt);
-  if (!window) return null;
-  const agenda = await loadTalentAgenda(
-    actor.talentProfileId,
-    window,
-    ctx?.impersonated ? { supabase: actor.admin as unknown as NonNullable<NonNullable<Parameters<typeof loadTalentAgenda>[2]>["supabase"]> } : undefined,
-  );
-  return agendaItemFromSnapshot(agenda.items, target.bookingId);
+  // Her own rows, read through the service client keyed on HER profile ids (never a tenant):
+  // the session client's row-level security is not a reliable reader for a user who is both a
+  // talent and a workspace admin, nor for an impersonated one. A user can own several talent
+  // profiles (hub plus workspace-owned), so each of hers is tried; the booking must be hers.
+  const ids = await ownProfileIds(actor);
+  for (const talentProfileId of ids) {
+    // TUL-1244: talent_bookings, then agency bookings she is on, then an accepted offer's order id.
+    const target = await resolveRecordTarget(
+      { supabase: actor.admin as unknown as RecordTargetDb, admin: actor.admin as unknown as RecordTargetDb },
+      talentProfileId,
+      bookingId,
+    ).catch((error: unknown) => {
+      logServerError("talent-agenda.recordItem", error);
+      return null;
+    });
+    if (!target) continue;
+    const window = agendaWindowAround(target.startsAt);
+    if (!window) continue;
+    const agenda = await loadTalentAgenda(talentProfileId, window, {
+      supabase: actor.admin as unknown as NonNullable<NonNullable<Parameters<typeof loadTalentAgenda>[2]>["supabase"]>,
+    });
+    const item = agendaItemFromSnapshot(agenda.items, target.bookingId);
+    if (item) return item;
+  }
+  return null;
+}
+
+/** Every talent profile id the effective user owns, the actor's own first. Read only. */
+async function ownProfileIds(actor: { talentProfileId: string; userId: string; admin: unknown }): Promise<string[]> {
+  const out = [actor.talentProfileId];
+  try {
+    const res = await (actor.admin as { from(t: string): { select(c: string): { eq(c: string, v: string): PromiseLike<{ data: unknown }> } } })
+      .from("talent_profiles")
+      .select("id")
+      .eq("user_id", actor.userId);
+    for (const row of (res.data ?? []) as Array<{ id?: unknown }>) {
+      if (typeof row.id === "string" && !out.includes(row.id)) out.push(row.id);
+    }
+  } catch {
+    // keep the actor's own profile
+  }
+  return out;
 }
 
 /**
@@ -71,11 +92,15 @@ export async function loadTalentAgendaRecordItem(bookingId: string): Promise<Tal
 export async function loadTalentTimelessBookingStub(bookingId: string): Promise<{ title: string; service: string | null; clientName: string | null; status: string | null } | null> {
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const ctx = await recordReadContext();
-  const actor = await loadTalentActor(ctx);
+  const actor = await loadTalentActor(ctx, undefined, { firstProfile: true });
   if (!actor.ok) return null;
-  return readTimelessBookingStub(
-    { supabase: (ctx?.impersonated ? actor.admin : actor.supabase) as unknown as StubDb, admin: actor.admin as unknown as StubDb },
-    actor.talentProfileId,
-    bookingId,
-  );
+  for (const talentProfileId of await ownProfileIds(actor)) {
+    const stub = await readTimelessBookingStub(
+      { supabase: actor.admin as unknown as StubDb, admin: actor.admin as unknown as StubDb },
+      talentProfileId,
+      bookingId,
+    );
+    if (stub) return stub;
+  }
+  return null;
 }

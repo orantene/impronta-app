@@ -49,6 +49,13 @@ const DEFAULT_ACTOR_DEPS: TalentActorDeps = {
 export async function loadTalentActor(
   ctx?: EffectiveReadContext,
   deps: TalentActorDeps = DEFAULT_ACTOR_DEPS,
+  /**
+   * `firstProfile`: a user who owns more than one talent profile (a hub profile plus a
+   * workspace-owned one) makes `.maybeSingle()` an error, so every reader that used it came
+   * back "unavailable". READ-ONLY callers opt in to the layout's own rule (`limit(1)`, see
+   * loadTalentSelfProfileByUser). Mutations keep the strict single-profile lookup.
+   */
+  opts?: { firstProfile?: boolean },
 ): Promise<TalentActor | { ok: false; reason: MessagingRefusal }> {
   const supabase = await deps.rlsClient();
   if (!supabase) return fail("unavailable");
@@ -61,8 +68,16 @@ export async function loadTalentActor(
   const admin = deps.adminClient();
   if (!admin) return fail("unavailable");
   const subjectId = readUserId(user.id, ctx);
-  const { data, error } = await admin.from("talent_profiles").select("id, is_demo, display_name").eq("user_id", subjectId).maybeSingle();
-  if (error) return fail("unavailable");
+  let data: unknown;
+  if (opts?.firstProfile) {
+    const res = await admin.from("talent_profiles").select("id, is_demo, display_name").eq("user_id", subjectId).limit(1);
+    if (res.error) return fail("unavailable");
+    data = ((res.data ?? []) as unknown[])[0] ?? null;
+  } else {
+    const res = await admin.from("talent_profiles").select("id, is_demo, display_name").eq("user_id", subjectId).maybeSingle();
+    if (res.error) return fail("unavailable");
+    data = res.data;
+  }
   if (!data) return fail("not_allowed");
   const row = data as { id: string; is_demo?: boolean | null; display_name?: string | null };
   return {

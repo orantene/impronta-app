@@ -49,3 +49,14 @@ describe("talent booking record never hangs", () => {
     assert.doesNotMatch(src, /loadTalentActor\(\)/);
   });
 });
+
+describe("record loaders: multi-role and past bookings", () => {
+  it("read her own rows by her profile ids through the service client, with no date window on the stub", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/talent-agenda/load-record-item.ts"), "utf8");
+    assert.match(src, /firstProfile: true/);
+    assert.match(src, /ownProfileIds/);
+    assert.doesNotMatch(src, /actor\.supabase/);
+    const stub = readFileSync(join(process.cwd(), "src/lib/talent-agenda/booking-stub.ts"), "utf8");
+    assert.doesNotMatch(stub, /starts_at|gte\(|tenant_id/);
+  });
+});
