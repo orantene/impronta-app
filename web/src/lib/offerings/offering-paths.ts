@@ -185,7 +185,7 @@ export function resolveOfferingPath(input: {
   if (!parsed.legacy && parsed.slug === null && parsed.word) {
     const canonical = canonicalOfferingPath({ word: ownerWord, locale, settings, pathPrefix: parsed.pathPrefix });
     if (canonical === input.pathname) return { kind: "list", word: ownerWord, locale };
-    return { kind: "redirect", status: statusFor(input.pathname, canonical, settings), to: canonical };
+    return { kind: "redirect", status: statusFor(input.pathname, canonical, settings, locale), to: canonical };
   }
 
   // The item: exact slug (current or history) first, then the id fallback.
@@ -222,7 +222,7 @@ export function resolveOfferingPath(input: {
     pathPrefix: parsed.pathPrefix,
   });
   if (canonical !== input.pathname) {
-    return { kind: "redirect", status: statusFor(input.pathname, canonical, settings), to: canonical };
+    return { kind: "redirect", status: statusFor(input.pathname, canonical, settings, locale), to: canonical };
   }
   // A Spanish word is served by the route on disk under the English word.
   if (!isSpanish(locale) || catalogWordForLocale(ownerWord, locale) === catalogWordForLocale(ownerWord, "en")) {
@@ -236,8 +236,17 @@ export function resolveOfferingPath(input: {
   };
 }
 
-/** 308 only when stripping/adding the locale prefix is the whole difference. */
-function statusFor(from: string, to: string, settings: LocaleUrlSettings): 301 | 308 {
+/**
+ * 308 only when the prefix is the WHOLE difference and the language does not
+ * change (the default locale's redundant prefix). A request that lands in a
+ * different language than its path implied (the Spanish word without `/es`) is
+ * a content redirect: 301.
+ */
+function statusFor(from: string, to: string, settings: LocaleUrlSettings, targetLocale: string): 301 | 308 {
+  const first = from.split("/").filter(Boolean)[0];
+  const implied =
+    first && settings.publicLocales.some((l) => l.toLowerCase() === first.toLowerCase()) ? first : settings.defaultLocale;
+  if (implied.toLowerCase() !== targetLocale.toLowerCase()) return 301;
   const strip = (p: string) => {
     const parts = p.split("/").filter(Boolean);
     if (parts[0] && settings.publicLocales.some((l) => l.toLowerCase() === parts[0].toLowerCase())) parts.shift();
