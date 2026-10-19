@@ -16,6 +16,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-page-offerings";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { serviceFirst } from "@/lib/client-account/book-again";
 import { BookPageClient } from "./BookPageClient";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -36,7 +37,12 @@ function slugFromPathPrefix(prefix: string): string {
   return m?.[1] ?? "";
 }
 
-export default async function BookPage() {
+export default async function BookPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ service?: string | string[] }>;
+}) {
+  const { service } = await searchParams;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
 
@@ -73,12 +79,15 @@ export default async function BookPage() {
     }
   }
 
-  const offerings = await loadPublicBookableOfferings({
+  const loadedOfferings = await loadPublicBookableOfferings({
     tenantId: tenantId || null,
     talentProfileId: talentId,
     locale,
     host: { kind: host.kind, tenantId: host.kind === "agency" ? host.tenantId : tenantId || null },
   });
+
+  // TUL-65: "Book again" from /account arrives with ?service=<offering id>.
+  const offerings = serviceFirst(loadedOfferings, service);
 
   let agencyName = t("public.bookPage.studioFallback");
   if (tenantId) {
