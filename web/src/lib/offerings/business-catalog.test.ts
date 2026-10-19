@@ -145,7 +145,8 @@ test("cross-origin readable: CORS * on every response and an OPTIONS handler", (
 test("language comes from ?lang= only (default es), never cookies or Accept-Language, so the cache cannot cross languages", () => {
   const route = read("src/app/api/public/booking/business-catalog/route.ts");
   assert.match(route, /searchParams\.get\("lang"\)/);
-  assert.doesNotMatch(route, /getRequestLocale|accept-language|cookies\(/i);
+  const code = route.replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(code, /getRequestLocale|accept-language|cookies\(/i);
   assert.match(route, /=== "en" \? "en" : "es"/);
 });
 
