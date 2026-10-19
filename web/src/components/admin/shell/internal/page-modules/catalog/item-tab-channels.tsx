@@ -21,6 +21,7 @@ import { IDENTITY_REASONS, type IdentityReason, type TalentOffering } from "@/li
 import { Icon } from "../../primitives";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
+import { posSwitchPatch } from "./catalog-pos-switch";
 import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
@@ -36,6 +37,7 @@ export function ChannelsTab({ item, patch, saving }: TabProps) {
   const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(item.amountCents, item.currency, locale);
   const published = item.status === "published";
   const onWebsite = item.visibility !== "agency_only";
+  const posOn = published && item.posEnabled !== false;
   const reason = t("dashboard.catalog.channels.reason");
   const overrideReason = t("dashboard.catalog.channels.overrideReason");
   const placement = item.isFeatured ? t("dashboard.catalog.channels.favorites") : item.category ?? t("dashboard.catalog.channels.allItems");
@@ -57,9 +59,9 @@ export function ChannelsTab({ item, patch, saving }: TabProps) {
         <ChannelRow
           name={t("dashboard.catalog.channels.posCounter")}
           note={published ? placement : t("dashboard.catalog.channels.counterOff")}
-          on={published}
+          on={posOn}
           reason={saving ? t("dashboard.catalog.saving") : null}
-          onChange={(next) => patch({ status: next ? "published" : "draft" })}
+          onChange={(next) => patch(posSwitchPatch(item, next))}
           override={price}
           overrideLabel={t("dashboard.catalog.channels.priceOverride")}
           testId="catalog-channel-pos"

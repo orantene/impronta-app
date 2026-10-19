@@ -7,6 +7,7 @@ import "server-only";
  * `cartTotals`. Catalog prices are re-read only in `repriceAndValidate`.
  */
 
+import { isMissingColumnError, isPosSellable } from "@/lib/pos/pos-enabled";
 import { logServerError } from "@/lib/server/safe-error";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { cartTotals, lineTotalCents, totalsAreWritable } from "@/lib/cart/totals";
@@ -298,26 +299,27 @@ export async function addLine(
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
 
-  const { data: offering, error: offErr } = await admin
-    .from("talent_offerings")
-    .select("id, title, amount_cents, currency, talent_profile_id, status")
-    .eq("id", input.line.offeringId)
-    .eq("tenant_id", input.tenantId)
-    .maybeSingle();
+  // TUL-1271 #3: `pos_enabled` is its own flag; read it when the column exists.
+  const offeringBase = "id, title, amount_cents, currency, talent_profile_id, status";
+  const readOffering = (columns: string) =>
+    admin.from("talent_offerings").select(columns).eq("id", input.line.offeringId).eq("tenant_id", input.tenantId).maybeSingle();
+  let { data: offering, error: offErr } = await readOffering(`${offeringBase}, pos_enabled`);
+  if (offErr && isMissingColumnError(offErr)) ({ data: offering, error: offErr } = await readOffering(offeringBase));
   if (offErr) {
     logServerError("pos.addLine.offering", offErr);
     return { ok: false, reason: "unavailable", error: "Could not read the catalog." };
   }
   if (!offering) return { ok: false, reason: "invalid", error: "That item is not in this catalog." };
-  const off = offering as {
+  const off = offering as unknown as {
     id: string;
     title: string | null;
     amount_cents: number | null;
     currency?: string | null;
     talent_profile_id: string | null;
     status: string | null;
+    pos_enabled?: boolean | null;
   };
-  if (off.status !== "published") {
+  if (!isPosSellable(off)) {
     return { ok: false, reason: "invalid", error: "That item is not for sale." };
   }
   const offeringCurrency = (off.currency || "USD").toUpperCase();
