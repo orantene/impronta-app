@@ -72,7 +72,7 @@ export function TalentSurface() {
     <div
       data-tulala-workspace-grid
       // Talent Studio primaries are the brand fill, not the workspace slate.
-      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-[var(--tc-canvas)] [--tulala-primary-fill:var(--tc-action)] [--tulala-primary-fill-deep:var(--tc-action-hover)]"
+      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_minmax(0,1fr)] bg-[var(--tc-canvas)] [--tulala-primary-fill:var(--tc-action)] [--tulala-primary-fill-deep:var(--tc-action-hover)]"
     >
       {/* The column carries the rail background so it runs the full page
           height; the sticky aside inside only pins the nav. */}
@@ -83,7 +83,7 @@ export function TalentSurface() {
         id="tulala-talent-content"
         tabIndex={-1}
         data-tulala-surface-main
-        className="mx-auto w-full max-w-[1240px] px-[28px] pb-[96px] pt-[28px] outline-none"
+        className="mx-auto w-full min-w-0 max-w-[1240px] px-[28px] pb-[96px] pt-[28px] outline-none"
       >
         <TalentRouter />
       </main>

@@ -90,14 +90,17 @@ export function inferWebsiteWorkingMode(
 ): WebsiteWorkingMode {
   const label = (primaryTypeLabel ?? "").toLowerCase();
   if (!label) return "bookings";
+  // Whole words, Unicode-aware (`\b` treats "í"/"ú" as a boundary, so
+  // "bailarín" never matched). The bridge hands the EN term name and falls
+  // back to ES, so each trade lists both languages (TUL-1276).
   if (
-    /\b(model|modelo|actor|actress|influencer|singer|cantante|dj|musician|músico|musico|dancer|bailar)\b/.test(
+    /(?:^|\P{L})(model|modelo|modela|actor|actress|actriz|influencer|singer|cantante|dj|musician|músico|musico|música|musica|dancer|bailar|bailarina|bailarín|bailarin)(?!\p{L})/u.test(
       label,
     )
   ) {
     return "inquiries";
   }
-  if (/\b(chef|cook|cocin|cater|private chef|chef privado)\b/.test(label)) {
+  if (/(?:^|\P{L})(chef|cook|cocin|cocinero|cocinera|cater|caterer|private chef|chef privado)(?!\p{L})/u.test(label)) {
     return "quotes";
   }
   return "bookings";
