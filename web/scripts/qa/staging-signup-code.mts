@@ -43,7 +43,7 @@ const code = await run({
   argv,
   env,
   guard: (e: Record<string, string | undefined>) => {
-    assertIsolatedJourneysTarget(e);
+    assertIsolatedJourneysTarget(e as NodeJS.ProcessEnv);
   },
   createAdminClient: async (url: string, key: string) => {
     const { createClient } = await import("@supabase/supabase-js");
