@@ -67,6 +67,11 @@ export type PurchaseInput = {
    * passes `staff`.
    */
   channel?: PurchaseChannel;
+  /**
+   * Hidden (`is_hidden`) tier ids this request legitimately unlocked by link.
+   * Only the ticket picker sets it, after matching the page's `?tier=` ref.
+   */
+  unlockedVariantIds?: string[];
   sourcePage?: string | null;
   /** Capacity pools this purchase must hold, per line. */
   capacity?: Array<{

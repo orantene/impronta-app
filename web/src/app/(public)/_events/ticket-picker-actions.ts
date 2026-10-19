@@ -40,6 +40,7 @@ import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-hol
 import { releaseCapacity } from "@/lib/capacity";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { orderOfferingsSellable } from "@/lib/orders/order-sellable-gate";
+import { tierRefUnlocks } from "@/lib/offerings/sellable";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const HORIZON_DAYS = 180;
@@ -315,6 +316,8 @@ const buySchema = z.object({
   phone: z.string().trim().max(40).optional(),
   promoCode: z.string().trim().max(40).optional(),
   clientOrderKey: z.string().min(8).max(80),
+  /** The page's `?tier=` deep-link ref (tier id or tier key): the unlock for a hidden / comp tier (D1). */
+  unlockTier: z.string().max(80).optional(),
   paymentChoice: z.enum(["full", "in_person"]),
   locale: z.string().max(10).optional(),
   /**
@@ -422,6 +425,8 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       units: d.units, email: d.email, displayName: d.displayName ?? null, phone: d.phone || null, promoCode: d.promoCode ?? null,
       locale: d.locale ?? null, sourcePage: `/events`,
       confirmedAge: d.confirmedAge ?? null,
+      // D1: a hidden / comp tier sells only when the buyer arrived by that tier's link.
+      unlockedVariantIds: tierRefUnlocks(d.unlockTier, { variantId: tier.id, tierKey: tier.poolKey }) ? [tier.id] : [],
     }));
     if (!result.ok) {
       if (result.reason === "sold_out") return { ok: false, reason: "sold_out" };

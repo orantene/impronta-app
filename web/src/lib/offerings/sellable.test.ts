@@ -7,9 +7,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { isSellable, scopeToSellableOfferings, sellability, type SellContext, type SellRefusalReason } from "./sellable";
+import { isSellable, scopeToSellableOfferings, sellability, tierRefUnlocks, variantSellability, type SellContext, type SellRefusalReason } from "./sellable";
 import { isSellableOnChannel } from "./guest-sellable";
-import { refuseUnsellableOfferings, type Catalog } from "@/lib/orders/purchase-catalog";
+import { refuseHiddenVariants, refuseUnsellableOfferings, type Catalog } from "@/lib/orders/purchase-catalog";
 import { offeringIsQuotable } from "@/lib/orders/checkout-quote-gate";
 import { orderOfferingsSellable } from "@/lib/orders/order-sellable-gate";
 import { offeringIsDirectlyBookable } from "@/lib/talent/offerings-types";
@@ -38,7 +38,7 @@ const CASES: Case[] = [
     expect: { guest: "not_public", client: "not_public", guest_request: "not_public", pos_desk: true, reservation: true },
   },
   {
-    name: "unlisted (a table-reservation offering)",
+    name: "an unknown visibility value (fails closed; the reservation offering is agency_only or public)",
     row: { ...OK, visibility: "unlisted" },
     expect: { guest: "not_public", client: "not_public", guest_request: "not_public", pos_desk: true, reservation: true },
   },
@@ -159,6 +159,17 @@ test("a card payment on an order whose offering is no longer guest-sellable is r
   assert.equal(good.ok, true);
   const missing = await orderOfferingsSellable(orderAdmin([{ offering_id: "o1" }], []), "ord", "guest");
   assert.equal(missing.ok, false, "an offering that cannot be read is not sold");
+  // createPurchase writes every ticket line with an offering id (a series is expanded to one line per
+  // night, each carrying it). Lines with NO offering id are ad-hoc staff lines (a surcharge / custom
+  // line); they are not catalog items, so the gate skips them instead of refusing a valid payment.
+  const series = await orderOfferingsSellable(
+    orderAdmin([{ offering_id: "o1" }, { offering_id: "o1" }, { offering_id: null }], [{ id: "o1", ...OK }]),
+    "ord",
+    "guest",
+  );
+  assert.equal(series.ok, true, "ticket order with a series line and a fee line (null offering id) is allowed");
+  const feeOnly = await orderOfferingsSellable(orderAdmin([{ offering_id: null }], []), "ord", "guest");
+  assert.equal(feeOnly.ok, false, "an order made only of non-catalog lines is not a catalog charge");
   const none = await orderOfferingsSellable(orderAdmin([], []), "ord", "guest");
   assert.equal(none.ok, false, "an order with no catalog line is not a catalog charge");
 });
@@ -172,13 +183,13 @@ test("startTicketCardPayment calls the shared gate before creating the Checkout 
 
 // ── Entry point: table reservation (regression guard, reserve.ts) ───────────
 
-test("a table reservation books against an unlisted, approved offering: its own channel, not the guest rule", () => {
-  const unlisted = catalogOf({ ...OK, visibility: "unlisted" });
+test("a table reservation books against an agency_only, approved offering: its own channel, not the guest rule", () => {
+  const unlisted = catalogOf({ ...OK, visibility: "agency_only" });
   assert.equal(refuseUnsellableOfferings(unlisted, ["o1"], undefined).ok, false, "a plain guest cannot buy it from the menu");
   assert.equal(refuseUnsellableOfferings(unlisted, ["o1"], "reservation").ok, true);
-  const pending = catalogOf({ ...OK, visibility: "unlisted", moderation_state: "pending" });
+  const pending = catalogOf({ ...OK, visibility: "agency_only", moderation_state: "pending" });
   assert.equal(refuseUnsellableOfferings(pending, ["o1"], "reservation").ok, false, "still must be approved");
-  const draft = catalogOf({ ...OK, visibility: "unlisted", status: "draft" });
+  const draft = catalogOf({ ...OK, visibility: "agency_only", status: "draft" });
   assert.equal(refuseUnsellableOfferings(draft, ["o1"], "reservation").ok, false, "still must be published");
 });
 
@@ -215,4 +226,56 @@ test("every surface that used to re-derive the rule now imports it", () => {
     ["src/lib/site-admin/builder-node/services-catalog-selection.ts", /isSellable\(/],
   ];
   for (const [file, re] of wired) assert.match(web(file), re, `${file} must use the shared rule`);
+});
+
+// ── Tier level: a hidden / comp tier is not sold to a guest without the link ─
+
+test("variantSellability: hidden tier refused for guest and client, ok for staff, ok when unlocked by link", () => {
+  assert.deepEqual(variantSellability({ is_hidden: false }, "guest"), { ok: true });
+  assert.deepEqual(variantSellability({ is_hidden: true }, "guest"), { ok: false, reason: "tier_hidden" });
+  assert.deepEqual(variantSellability({ is_hidden: true }, "client"), { ok: false, reason: "tier_hidden" });
+  assert.deepEqual(variantSellability({ is_hidden: true }, "guest_request"), { ok: false, reason: "tier_hidden" });
+  assert.deepEqual(variantSellability({ is_hidden: true }, "guest", { unlocked: true }), { ok: true });
+  assert.deepEqual(variantSellability({ is_hidden: true }, "pos_desk"), { ok: true });
+  assert.deepEqual(variantSellability({ is_hidden: true }, "reservation"), { ok: true });
+  assert.deepEqual(variantSellability({}, "guest"), { ok: true }, "a tier with no hidden flag is public");
+});
+
+test("tierRefUnlocks: the deep link ref is the tier id or its tier key, nothing else", () => {
+  const tier = { variantId: "AAAA-1", tierKey: "vip" };
+  assert.equal(tierRefUnlocks("aaaa-1", tier), true, "id, case-insensitive like the picker");
+  assert.equal(tierRefUnlocks("vip", tier), true);
+  assert.equal(tierRefUnlocks("other", tier), false);
+  assert.equal(tierRefUnlocks(undefined, tier), false);
+  assert.equal(tierRefUnlocks("", tier), false);
+});
+
+function catalogWithVariants(variants: Array<{ id: string; isHidden?: boolean }>): Extract<Catalog, { ok: true }> {
+  return {
+    ...catalogOf(OK),
+    variants: new Map(variants.map((v) => [v.id, { variantId: v.id, offeringId: "o1", label: "t", amountCents: 0, isHidden: v.isHidden }])) as never,
+  };
+}
+const line = (variantId: string | null) => [{ offeringId: "o1", variantId, units: 1 }];
+
+test("createPurchase: a guest purchase by a hidden tier id is refused; a public tier is fine; staff can sell it", () => {
+  const cat = catalogWithVariants([{ id: "pub" }, { id: "hid", isHidden: true }]);
+  assert.equal(refuseHiddenVariants(cat, line("hid"), undefined, []).ok, false, "default channel = guest");
+  assert.equal(refuseHiddenVariants(cat, line("hid"), "guest", []).ok, false);
+  assert.equal(refuseHiddenVariants(cat, line("pub"), "guest", []).ok, true);
+  assert.equal(refuseHiddenVariants(cat, line(null), "guest", []).ok, true, "no tier on the line");
+  assert.equal(refuseHiddenVariants(cat, line("hid"), "staff", []).ok, true, "POS desk may sell hidden tiers");
+  assert.equal(refuseHiddenVariants(cat, line("hid"), "guest", ["hid"]).ok, true, "the link unlock the ticket picker carries");
+  assert.equal(refuseHiddenVariants(cat, line("hid"), "guest", ["pub"]).ok, false, "unlocking one tier does not unlock another");
+});
+
+test("hidden tiers: loadCatalog reads is_hidden, createPurchase gates on it, only the ticket picker passes the link unlock", () => {
+  assert.match(web("src/lib/orders/purchase-catalog.ts"), /is_hidden/);
+  assert.match(web("src/lib/orders/purchase.ts"), /refuseHiddenVariants\(catalog, input\.lines, input\.channel, input\.unlockedVariantIds/);
+  assert.match(web("src/app/(public)/_events/ticket-picker-actions.ts"), /unlockedVariantIds/);
+  assert.match(web("src/app/(public)/_events/ticket-picker-actions.ts"), /tierRefUnlocks\(/);
+  assert.match(web("src/lib/site-admin/builder-node/ticket-picker-island.tsx"), /unlockTier: queryTier/);
+  for (const f of ["src/lib/storefront/cart-checkout.core.ts", "src/lib/storefront/class-timetable.core.ts", "src/lib/storefront/package-selector.core.ts", "src/app/(public)/_menu/menu-order-actions.ts", "src/app/(public)/_sessions/session-picker-actions.ts", "src/lib/scheduling/instant-purchase.ts", "src/lib/reservations/reserve.ts"]) {
+    assert.doesNotMatch(web(f), /unlockedVariantIds/, `${f} must not unlock hidden tiers`);
+  }
 });

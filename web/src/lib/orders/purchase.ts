@@ -13,7 +13,7 @@ import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry"
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
-import { loadCatalog, mapCapacityRefusal, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
+import { loadCatalog, mapCapacityRefusal, refuseHiddenVariants, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
 import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemption/order-redemptions";
@@ -149,6 +149,9 @@ export async function createPurchase(
     // D-10 / D-10a: guest charges need published + approved + public.
     const sellable = refuseUnsellableOfferings(catalog, offeringIds, input.channel);
     if (!sellable.ok) return sellable;
+    // D1: a hidden / comp tier is sold only by link (ticket picker) or at the staff desk.
+    const tierGate = refuseHiddenVariants(catalog, input.lines, input.channel, input.unlockedVariantIds);
+    if (!tierGate.ok) return tierGate;
 
     const seller = await refuseUnclaimedSellers(admin, catalog);
     if (!seller.ok) {

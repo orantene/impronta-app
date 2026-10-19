@@ -20,8 +20,8 @@
  *                    agency_only service is exactly what the desk sells.
  *  - `reservation`   the one offering a venue configured for table bookings
  *                    (`venue_service_rules.reservation_offering_id`). It is
- *                    deliberately NOT a menu item (often `unlisted` or
- *                    agency_only), so visibility is not part of the rule, but it
+ *                    deliberately NOT a menu item (agency_only or
+ *                    public, set by the owner), so visibility is not part of the rule, but it
  *                    must still be published AND approved. The id comes from the
  *                    owner's venue config, never from the request.
  *
@@ -32,6 +32,7 @@
 export type SellContext = "guest" | "client" | "guest_request" | "pos_desk" | "reservation";
 
 export type SellRefusalReason =
+  | "tier_hidden"
   | "not_found"
   | "not_published"
   | "not_approved"
@@ -85,4 +86,26 @@ export function scopeToSellableOfferings<Q>(query: Q, context: Exclude<SellConte
   const base = q.eq("status", "published").eq("moderation_state", "approved");
   if (context === "guest_request") return base.in("visibility", ["public", "on_request"]) as unknown as Q;
   return base.eq("visibility", "public") as unknown as Q;
+}
+
+/**
+ * Tier level (D1 addendum): a hidden or comp tier (`is_hidden`) is sold only by
+ * link. A guest / client / visitor needs the link's unlock; the POS desk and the
+ * venue reservation context may sell it. The unlock is the same one the ticket
+ * picker already uses (`?tier=<variantId|tierKey>`), see `tierRefUnlocks`.
+ */
+export function variantSellability(
+  variant: { is_hidden?: unknown; isHidden?: unknown } | null | undefined,
+  context: SellContext,
+  opts: { unlocked?: boolean } = {},
+): Sellability {
+  const hidden = (variant?.is_hidden ?? variant?.isHidden) === true;
+  if (!hidden || context === "pos_desk" || context === "reservation" || opts.unlocked) return { ok: true };
+  return { ok: false, reason: "tier_hidden" };
+}
+
+/** The deep-link ref names a tier by its id (case-insensitive) or its tier key. */
+export function tierRefUnlocks(ref: string | null | undefined, tier: { variantId: string; tierKey?: string | null }): boolean {
+  if (!ref) return false;
+  return ref.toLowerCase() === tier.variantId.toLowerCase() || (tier.tierKey != null && tier.tierKey !== "" && ref === tier.tierKey);
 }
