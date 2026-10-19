@@ -55,6 +55,7 @@ import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-mo
 import { blogIndexSitemapEntries } from "@/lib/seo/blog-index-sitemap-entries";
 import { loadEventSitemapEntries } from "@/lib/seo/event-sitemap-entries";
 import { loadBusinessServiceSitemapEntries } from "@/lib/services/business-pages/sitemap-entries";
+import { cleanSitemapEntries } from "@/lib/seo/sitemap-hygiene";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -277,7 +278,8 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
 const agencyPathAllowed = (path: string) => isPathAllowedForHostKind("agency", path);
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const entries = await buildSitemap();
+  // F5: canonical, de-duplicated, public-only, capped (see sitemap-hygiene.ts).
+  const { entries } = cleanSitemapEntries(await buildSitemap());
   // A `/w/<slug>` workspace shares the hub origin: move each URL under its prefix (TUL-591).
   const prefix = (await headers()).get(PUBLIC_PATH_PREFIX_HEADER);
   return prefix ? prefixPathWorkspaceSitemap(entries, prefix) : entries;

@@ -20,7 +20,6 @@ import {
 import {
   rowToOffering,
   type TalentOffering,
-  type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { withEffectivePolicy, withPublicAvailability } from "@/lib/talent/offering-policy-resolver";
 import { loadTalentSiteSwitches, loadWorkingHoursPresence } from "@/lib/talent/site-switches-server";
@@ -31,6 +30,9 @@ import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
 import { stripPublicOfferingFlightFields } from "@/lib/talent/offerings-public-strip";
 import { hideTestServiceOnPublicSite } from "@/lib/talent/qa-test-service";
 import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
+import { loadTenantKind } from "@/lib/inquiry/tenant-kind.server";
+import { publicOfferingsScope } from "./hub-profile-offerings";
+import { selectPublicOfferingRows, type PublicOfferingRowsDb } from "./offerings-public-rows";
 
 export async function loadPublicOfferingsForProfile(
   talentProfileId: string,
@@ -46,6 +48,9 @@ export async function loadPublicOfferingsForProfile(
    *
    * null/undefined = no agency context (the talent's own premium site, or a
    * platform host), where showing everything they offer is correct.
+   *
+   * A HUB tenant id (TUL-1272) is not a catalog owner: it reads the talent's
+   * own rows (owner_kind='talent') of every tenant on the direct channel.
    */
   tenantId?: string | null,
   /** WSF-C §7: "agency" skips the talent's switches (default: direct unless tenantId). */
@@ -76,22 +81,22 @@ async function loadPublicOfferingsForProfileUncached(
     const admin = createServiceRoleClient();
     if (!admin) return [];
     const db = admin;
+    // TUL-1272: a hub tenant reads the talent's own rows of every tenant.
+    const scope = publicOfferingsScope({
+      tenantId,
+      tenantKind: tenantId ? await loadTenantKind(tenantId) : null,
+      channel: opts?.channel,
+    });
+    const scopedTenantId = scope.filterTenantId;
 
-    let query = db
-      .from("talent_offerings")
-      .select("*")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .in("visibility", ["public", "on_request"]);
-    if (tenantId) query = query.eq("tenant_id", tenantId);
-    const { data, error } = await query.order("sort_order", { ascending: true });
-    if (error) {
-      logServerError("public.offerings.load", error);
+    // Talent-owned, D-10 guest-visible rows (offerings-public-rows.ts).
+    const read = await selectPublicOfferingRows(db as unknown as PublicOfferingRowsDb, talentProfileId, scopedTenantId);
+    if (!read.ok) {
+      logServerError("public.offerings.load", read.error);
       return [];
     }
     // Drop QA/E2E harness leftovers on demo/fixture talents before media/child loads (TUL-537).
-    const loaded = (data ?? []) as TalentOfferingRow[];
+    const loaded = read.rows;
     const testScope = await loadTestServiceScope(db, loaded);
     const rows = loaded.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
     if (rows.length === 0) return [];
@@ -134,7 +139,7 @@ async function loadPublicOfferingsForProfileUncached(
     // WSF-C: readiness everywhere; the talent's switches only on a direct
     // channel (no agency context, §7).
     const [switches, hours, plan] = await Promise.all([
-      tenantId || opts?.channel === "agency" ? Promise.resolve(null) : loadTalentSiteSwitches(db, talentProfileId),
+      scopedTenantId || scope.channel === "agency" ? Promise.resolve(null) : loadTalentSiteSwitches(db, talentProfileId),
       loadWorkingHoursPresence(db, [talentProfileId]),
       loadPlanAllowsInstant(db, [talentProfileId]),
     ]);
@@ -143,7 +148,7 @@ async function loadPublicOfferingsForProfileUncached(
       hasWorkingHours: hours.get(talentProfileId) ?? null,
       payoutsReady: isPlatformCheckoutReady(),
       // F27: agency-routed catalogs follow the agency's plan, not hers.
-      planAllowsInstant: tenantId ? undefined : plan.get(talentProfileId),
+      planAllowsInstant: scopedTenantId ? undefined : plan.get(talentProfileId),
     };
     const pause = switches ? publicContactMode(switches) : "open";
     return rows.map((r) => {

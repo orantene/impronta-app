@@ -42,8 +42,11 @@ src/components/inquiry/event-date-input.test.tsx
 src/components/marketing/directory/directory-es-labels.test.ts
 src/components/onboarding/arrival-failed.static.test.ts
 src/components/onboarding/choose-step-keyboard.static.test.ts
+src/components/onboarding/onboarding-module.grk109.static.test.ts
+src/components/onboarding/resume-lookup.test.ts
 src/components/onboarding/steps/onb1-13-entry.static.test.ts
 src/components/onboarding/steps/save-step-consent.static.test.ts
+src/components/onboarding/steps/setup-hours-layout.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/public-booking/catalog-who-contact-1236.test.tsx
 src/components/support/support-qa1054.static.test.ts
