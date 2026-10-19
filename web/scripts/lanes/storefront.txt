@@ -1,6 +1,7 @@
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
+src/components/admin/shell/internal/talent/agenda/booking-record-reference.static.test.ts
 src/components/admin/shell/internal/talent/pages/today-setup-card-wrap.static.test.ts
 src/components/edit-chrome/mobile-edit-panel-tablet.static.test.ts
 src/components/edit-chrome/mobile-health-message-es.test.ts
@@ -39,6 +40,7 @@ src/lib/client-account/signin-methods.static.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
+src/lib/scheduling/bookings-off-wording.static.test.ts
 src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
@@ -50,6 +52,7 @@ src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
 src/lib/storefront/*.test.ts
+src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts
 src/lib/talent-site/dashboard-my-website.test.ts
 src/lib/talent-site/demo-english-plan.test.ts
@@ -85,6 +88,7 @@ src/lib/talent-site/workspace-site-editor-url.test.ts
 src/lib/talent/chat-entry.test.ts
 src/lib/talent/dashboard-status.test.ts
 src/lib/talent/demo-talent.test.ts
+src/lib/talent/duration-format-consistency.static.test.ts
 src/lib/talent/generate-profile-code-overflow.migration.test.ts
 src/lib/talent/google-business-profile-guide.test.ts
 src/lib/talent/google-site-verification.test.ts

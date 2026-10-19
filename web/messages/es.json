@@ -1746,7 +1746,7 @@
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
-        "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
+        "notAccepting": "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
       },

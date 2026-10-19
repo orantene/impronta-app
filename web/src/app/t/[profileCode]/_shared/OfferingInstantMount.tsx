@@ -30,6 +30,7 @@ import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptch
 import { instantRequiresSlot } from "@/lib/scheduling/instant-book-gates";
 import { instantMountShouldHandle } from "@/lib/talent-site/profile-booking-owner";
 import { PolicyLinkSheet } from "@/components/public-booking/PolicyLinkSheet";
+import { durationLabel } from "@/lib/talent/duration-label";
 
 const INK = "#101211";
 const MUTED = "rgba(16,18,17,0.62)";
@@ -279,7 +280,7 @@ export function OfferingInstantMount({
           </span>
           {d.durationMinutes ? (
             <span style={{ fontSize: 12, color: MUTED }}>
-              · {d.durationMinutes >= 60 && d.durationMinutes % 60 === 0 ? `${d.durationMinutes / 60} h` : `${d.durationMinutes} min`}
+              · {durationLabel(d.durationMinutes)}
             </span>
           ) : null}
         </div>

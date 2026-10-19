@@ -195,7 +195,7 @@ test("CH-4 the in-chat list shows each service with Add and Ask, and a way back"
   );
   const rows = host.querySelectorAll("[data-card-chat-service]");
   assert.equal(rows.length, 2);
-  assert.match(rows[0]!.textContent ?? "", /75 min/);
+  assert.match(rows[0]!.textContent ?? "", /1 h 15 min/); // TUL-551: one duration format everywhere
   assert.match(rows[1]!.textContent ?? "", /A cotizar/, "a quote never paints as $0");
   act(() => rows[0]!.querySelector<HTMLButtonElement>("[data-card-chat-add]")!.click());
   act(() => rows[1]!.querySelector<HTMLButtonElement>("[data-card-chat-ask]")!.click());
@@ -219,7 +219,7 @@ test("CH-4 the list uses the menu's own price line: per unit, from, quote", asyn
   );
   const row = host.querySelector("[data-card-chat-service]")!.textContent ?? "";
   assert.match(row, /Desde \$120 por uña/);
-  assert.doesNotMatch(row, /75 min/);
+  assert.doesNotMatch(row, /1 h 15 min/);
   unmount();
 });
 
