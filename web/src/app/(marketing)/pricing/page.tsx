@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import {
@@ -11,6 +12,8 @@ import { PricingLaddersSection } from "@/components/marketing/pricing-ladders-se
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
 import { parseBillingInterval } from "@/lib/pricing/pricing-cta-href";
+import { pricingPlanRedirect, pricingQueryHasPlan } from "@/lib/pricing/pricing-plan-redirect";
+import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -49,10 +52,21 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ currency?: string; interval?: string }>;
+  searchParams: Promise<{ currency?: string; interval?: string; plan?: string; from?: string }>;
 }) {
   const resolved = await searchParams;
   const locale = await getRequestLocale();
+  // BILL-B: this page never read `plan`. A link that carries a paid plan goes
+  // on to the route that honours plan + interval (routing only, no checkout).
+  if (pricingQueryHasPlan(resolved.plan, resolved.interval)) {
+    const target = pricingPlanRedirect({
+      plan: resolved.plan,
+      interval: resolved.interval,
+      from: resolved.from,
+      viewer: await resolvePricingViewer(),
+    });
+    if (target) redirect(target.startsWith("/") ? withLocaleHref(target, locale) : target);
+  }
   const { currency, source } = await resolveCurrency(resolved, locale);
   // The displayed fee reads from platform_commission_config. A typed 0.06
   // shipped on this page once; the standing rule is that no displayed price or

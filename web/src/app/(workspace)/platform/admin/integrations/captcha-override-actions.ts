@@ -161,7 +161,13 @@ export async function resetWorkspaceCaptchaToPlatform(
         const row = await setIntegrationConfig(
           id,
           CAPTCHA_INTEGRATION_KEY,
-          { provider: null, site_key: null },
+          {
+            provider: null,
+            site_key: null,
+            managed_by: null,
+            managed_domain: null,
+            managed_widget_name: null,
+          },
           { status: "not_configured", lastVerifiedAt: null, lastError: null, actorId },
         );
         return secretsGone && row !== null;

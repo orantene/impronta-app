@@ -83,3 +83,45 @@ existing `QA- Limpieza profunda` rows. `npm run qa:scan-test-services` against s
 Nothing user-visible was browser-checked. Only DB read-backs and the transactional selftest were run: published public services on T1 = 1,
 quote-only 1, on_request 1, offering photo links 5, T1 `rating_count` 3, 4 of 4 paid transactions `paid`, site lookup RPC resolves
 `qa-fixture-g6-limpieza`.
+
+## Extension: failed-cards fixtures (2026-10-19)
+
+Script: `web/scripts/seed-failed-cards-fixtures.mts` (pure planners and guards in `web/scripts/lib/failed-cards-*.mjs`,
+unit tests `web/scripts/lib/failed-cards-fixtures.test.mjs`, lane `orphans-enrolled-core`). It extends this Group-6 seed
+(which must be applied first; the script refuses otherwise) for the fixtures in the Failed-card inventory of 2026-10-19:
+F1 F2 F3 F5 F6 F7 F8 F9 F10 F11 F12 F14 S5 S6 (DB) and S2 S3 S4 S6 (Stripe TEST). F13 (shared-row edits) is WAITING ON PM
+and S1 (staging Stripe keys + webhook) is PM dashboard work: neither is implemented.
+
+Rules it enforces before any write (unit-tested): DATABASE_URL user must contain `postgres.fxlankepwnvelxjrahwk` and no
+variable may name `pluhdapdnuiulvxmyspd`; the staging marker agency must exist; every id is `stableId("fc:" + key)`
+(deterministic, separate from Group-6 ids); every slug / hostname / design slug starts `qa-fixture-g6`; every mailbox is
+`qa-fixture-g6-*@impronta.test` or `tulalaqa+qa-fixture-g6-*@mail.grokbot.com` (F7's malformed address is the one named
+exception); no written value names TAL-93938, TAL-93940 (observe-only; its staging id is resolved and refused) or TUL-52;
+updates touch only this seed's own rows; workspace slugs, subdomain labels and site slugs never share a DNS label; no
+service title, description or category says QA / test / E2E (public loaders hide those on fixture talents on purpose).
+
+Run from `web/` with a read-only `vercel env pull --environment=preview --git-branch=main <tmp>` (delete it after):
+
+| Step | Command | Writes |
+|---|---|---|
+| Dry run (default) | `npx tsx scripts/seed-failed-cards-fixtures.mts --env-file <tmp>` | nothing (`BEGIN READ ONLY`): ops per table, rows already present, schema + natural-key collision check |
+| Self-test | `... --selftest` | nothing that persists: `BEGIN ISOLATION LEVEL REPEATABLE READ`, apply, read back every fixture id + per-card checks, cleanup, row-count drift check, `ROLLBACK`, then re-count fixture rows (must be 0) |
+| Apply (after the PM note) | `QA_FIXTURE_PASSWORD=... npx tsx ... --apply --backup-file <new path>` | the rows in the write list; the backup file records the before-image of every pre-existing row changed (none expected) |
+| Subset | `--only F1,F5` (F2 pulls in F3) | |
+| Stripe preflight | `... --stripe S2,S3,S4,S6 [--stripe-key-file <mode-600 file>] [--stripe-mx-key-file <file>]` | nothing (GETs only; key must be `sk_test_` and `/v1/balance` must say `livemode=false`) |
+| Stripe apply | `... --apply --backup-file <f> --stripe S2,S3,S4,S6` | S2 promotion code QA20 on `tulala_test_20pct_3m`; S3 customer + `workspace.studio` monthly subscription on `qa-fixture-g6-studio` (+1 `workspace_subscriptions`); S4 billing-portal configuration + a paid invoice on T1's subscription; S6 Express TEST accounts MX (MX platform key) / US / CA (US key) written to the S6 payout talents |
+| Undo | `... --cleanup` (plan) then `... --cleanup --apply --backup-file <f>` | deletes only fixture ids and their FK descendants (deleted rows' images go to the backup file); subdomain rows go with their workspace (ON DELETE CASCADE) |
+
+Notes:
+- The F3 studio is a NEW workspace `qa-fixture-g6-studio` (owner `qa-fixture-g6-studio-owner@impronta.test`) plus the empty-state
+  twin `qa-fixture-g6-studio-nohours`; `qa-fixture-g6-ws` is left unchanged (free, no payments) because TUL-1255/1182/734 rely on it.
+  S3 therefore subscribes `qa-fixture-g6-studio`.
+- F3 also gives T1 and T2 a published `qa-fixture-g6-servicios` page with a `services_catalog` block and adds two T2 services with
+  real titles (one public priced with a photo, one on_request without a price). Every Group-6 T1/T2 service title starts with "QA",
+  which `hideTestServiceOnPublicSite` drops on test-account talents, so those services never show publicly. T1 gets no new service
+  (TUL-841/896/933 need a single-service site). TAL-93023 (`qa-journeys-talent`, a shared journeys fixture) is not touched.
+- F12's tagged talent is a non test-account (it must be publicly listed), so it shows in the staging public directory; `--apply`
+  also runs `select public.refresh_talent_discover_index()` (skipped in the self-test).
+- The raw inserts send no email or bell (fan-out is app code). F14's thread lives in a workspace whose only member is a bot mailbox,
+  so later app-driven message digests for it never reach a person.
+- The self-test takes about 10-15 minutes on the pooler (FK-descendant cleanup walks every referencing table).

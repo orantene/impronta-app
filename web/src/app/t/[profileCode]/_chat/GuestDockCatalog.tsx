@@ -30,7 +30,7 @@ import { usePathname } from "next/navigation";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { guestRowPriceLabel } from "@/lib/messages-v5/guest-catalog-price";
 import type { ItemCategory } from "@/lib/messages-v5/items-picker";
 import { messagingClientAddItem } from "@/lib/server-actions/messaging-client";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
@@ -210,7 +210,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
       addAddedCatalogItem({
         id: row.id,
         title: row.title,
-        priceLabel: row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null,
+        priceLabel: guestRowPriceLabel(row),
         lineId: res.lineId,
         token,
       });
@@ -386,7 +386,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
         const buyHref = buyPath && !onHubProfile ? clientLocaleHref(pathname ?? "/", buyPath) : null;
         // TUL-1068 #1: a service/class Select stays in the widget (never a /book link).
         const selectInPage = (row.category === "service" || row.category === "class") && !!row.offeringId;
-        const price = row.amountCents != null && row.amountCents > 0 ? formatOrderMoney(row.amountCents, "USD") : null;
+        const price = guestRowPriceLabel(row);
         return (
           <div key={row.id} data-guest-catalog-row={row.category} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 14px", fontFamily: FONT }}>
             <div style={{ flex: "1 1 150px", minWidth: 0 }}>

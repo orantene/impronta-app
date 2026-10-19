@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
+import { parsePlanIntent } from "@/lib/onboarding/plan-intent";
 
 import {
   buildUpgradeCheckoutHref,
@@ -65,9 +66,37 @@ describe("TUL-829 upgrade modal model", () => {
     }
   });
 
-  it("checkout href is the /pricing mock with plan, interval and from", () => {
-    const href = buildUpgradeCheckoutHref({ planKey: "talent_portfolio", interval: "y", from: "custom-domain-row" });
-    assert.equal(href, "/pricing?plan=talent_portfolio&interval=y&from=custom-domain-row");
+  it("checkout href is /talent/plan with plan, interval=month|year and from (BILL-B)", () => {
+    assert.equal(
+      buildUpgradeCheckoutHref({ planKey: "talent_portfolio", interval: "y", from: "custom-domain-row" }),
+      "/talent/plan?plan=talent_portfolio&interval=year&from=custom-domain-row",
+    );
+    assert.equal(
+      buildUpgradeCheckoutHref({ planKey: "talent_portfolio", interval: "m", from: "apps" }),
+      "/talent/plan?plan=talent_portfolio&interval=month&from=apps",
+    );
+    assert.equal(
+      buildUpgradeCheckoutHref({ planKey: "talent_pro", interval: "y", from: "" }),
+      "/talent/plan?plan=talent_pro&interval=year&from=unknown",
+    );
+    assert.equal(
+      buildUpgradeCheckoutHref({ planKey: "talent_pro", interval: "m", from: "x" }),
+      "/talent/plan?plan=talent_pro&interval=month&from=x",
+    );
+  });
+
+  it("the CTA href round-trips through plan-intent with the chosen plan and interval (BILL-B)", () => {
+    for (const planKey of ["talent_pro", "talent_portfolio"] as const) {
+      for (const interval of ["m", "y"] as const) {
+        const href = buildUpgradeCheckoutHref({ planKey, interval, from: "t" });
+        const sp = new URL(href, "https://app.example").searchParams;
+        assert.equal(new URL(href, "https://app.example").pathname, "/talent/plan");
+        assert.deepEqual(parsePlanIntent(sp.get("plan"), sp.get("interval")), {
+          plan: planKey,
+          interval: interval === "y" ? "year" : "month",
+        });
+      }
+    }
   });
 
   it("locale + feature guards", () => {

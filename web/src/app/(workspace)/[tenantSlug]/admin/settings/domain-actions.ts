@@ -18,6 +18,7 @@ import {
   verifyCustomDomainRecord,
 } from "@/lib/saas/custom-domain-actions";
 import { customDomainCanBecomePrimary } from "@/lib/saas/custom-domain-routing";
+import { releaseAutoTurnstileWidgetForDomain } from "@/lib/captcha/turnstile-auto-widget/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { auditFailure } from "@/lib/audit/emit";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
@@ -512,6 +513,12 @@ export async function removeCustomDomainAction(formData: FormData): Promise<void
       code: vercelRemove.errorCode,
       message: vercelRemove.errorMessage,
     });
+  }
+
+  // TUL-1017: drop the tulala-auto Turnstile widget for this domain (never the
+  // workspace's own keys). OFF unless CAPTCHA_AUTO_WIDGET === "1"; never throws.
+  if (process.env.CAPTCHA_AUTO_WIDGET === "1") {
+    await releaseAutoTurnstileWidgetForDomain({ tenantId: scope.tenantId, hostname });
   }
 
   scheduleWorkspaceAudit({

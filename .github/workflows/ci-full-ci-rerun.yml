@@ -19,8 +19,10 @@ on:
     branches: [main]
     types: [labeled]
 
+# Any other label event gets a throwaway group: its job is skipped, and sharing
+# the PR group would cancel a full-ci re-run that is still awaiting the gate.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.label.name == 'full-ci' && github.event.pull_request.number || format('noop-{0}', github.run_id) }}
   cancel-in-progress: true
 
 permissions:

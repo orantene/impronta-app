@@ -3,6 +3,10 @@ import "server-only";
 import { envCaptchaFallback } from "@/lib/captcha/env-fallback";
 import { chooseCaptchaSource, hostFromHeaders } from "@/lib/captcha/platform-hosts";
 import {
+  isTulalaManagedCaptcha,
+  managedCaptchaAppliesToHost,
+} from "@/lib/captcha/turnstile-auto-widget/decision";
+import {
   CAPTCHA_INTEGRATION_KEY,
   CUSTOM_CODE_INTEGRATION_KEY,
   GOOGLE_MAPS_INTEGRATION_KEY,
@@ -290,7 +294,22 @@ export async function resolveTenantCaptcha(
       ? config.site_key.trim()
       : null;
 
-  if (provider && siteKey) {
+  // Host is read lazily (only when needed) so own-key pages behave as before.
+  let hostRead = false;
+  let hostValue: string | null = null;
+  const requestHost = async (): Promise<string | null> => {
+    if (!hostRead) {
+      hostValue = opts.host !== undefined ? (opts.host ?? null) : await currentRequestHost();
+      hostRead = true;
+    }
+    return hostValue;
+  };
+
+  // TUL-1017: tulala-auto keys only count as "own" on the domain their widget
+  // lists; anywhere else (the workspace's *.tulala.digital host) they cannot render.
+  const ownApplies =
+    !isTulalaManagedCaptcha(config) || managedCaptchaAppliesToHost(config, await requestHost());
+  if (provider && siteKey && ownApplies) {
     return {
       provider,
       siteKey,
@@ -312,7 +331,7 @@ export async function resolveTenantCaptcha(
   }
 
   // No tenant captcha → platform widget/secret, but only where it can render.
-  const host = opts.host !== undefined ? opts.host : await currentRequestHost();
+  const host = await requestHost();
   if (chooseCaptchaSource({ ownUsable: false, host }) === "none") return NO_CAPTCHA;
   const plat = await platformCaptcha();
   return {
