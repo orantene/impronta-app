@@ -2,7 +2,6 @@ import { chooseClientRole, chooseTalentRole } from "@/app/onboarding/actions";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
-  getSiteUrl,
   isTalentSignupNext,
   isTalentSurfaceNext,
   normalizeOptionalNextPath,
@@ -246,7 +245,7 @@ export default async function OnboardingRolePage({
               refusal is gone (see workspace-signup.ts), but an operator should
               never have had to guess in the first place. */}
           <RoleChoiceLink
-            href={`${getSiteUrl()}/get-started`}
+            href={`${resolveMarketingOrigin()}/get-started`}
             glyph={<WorkspaceGlyph />}
             title={t("public.onboarding.role.businessTitle")}
             description={t("public.onboarding.role.businessBody")}
@@ -334,7 +333,7 @@ function RoleChoiceBody({
  * hosts and /get-started is marketing-only, so a relative href would 404 on
  * the very surface that shows this card (verified against the running app:
  * app-host /get-started returns 404). Same reason the workspace error card
- * builds its Start-again link with getSiteUrl().
+ * builds its Start-again link with resolveMarketingOrigin().
  */
 function RoleChoiceLink({
   href,

@@ -79,6 +79,7 @@ export function OnboardingModule({
   startChoice = null,
   planIntent = null,
   onLocaleChange,
+  marketingOrigin,
 }: {
   locale: "en" | "es";
   intent: OnboardingIntent;
@@ -89,6 +90,8 @@ export function OnboardingModule({
   /** A paid plan carried from /pricing (`/start?plan=&interval=`); offered as "Finish upgrading" on arrival. */
   planIntent?: PlanIntent | null;
   onLocaleChange?: (locale: FlowLocale) => void;
+  /** Server-resolved marketing origin for legal links (TUL-750). */
+  marketingOrigin: string;
   /** `saved` is true when there is progress worth a "saved on this phone" toast. */
   onClose: (result: { saved: boolean }) => void;
 }) {
@@ -602,6 +605,7 @@ export function OnboardingModule({
         t={t}
         path={path}
         locale={locale}
+        marketingOrigin={marketingOrigin}
         choice={state.choice}
         ageConfirmed={ageConfirmed}
         busy={state.busy}

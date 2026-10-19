@@ -25,7 +25,10 @@ import {
 export function TenantRegisterModalHost({
   tenant,
   locale = "en",
+  marketingOrigin,
 }: {
+  /** Server-resolved marketing origin for the legal links (TUL-750). */
+  marketingOrigin: string;
   tenant: TenantRegisterContext;
   /** Active locale — drives modal copy and the locale stamped on signup. */
   locale?: string;
@@ -54,6 +57,7 @@ export function TenantRegisterModalHost({
     <TalentRegisterModal
       tenant={tenant}
       locale={locale}
+      marketingOrigin={marketingOrigin}
       onClose={() => setOpen(false)}
     />
   );

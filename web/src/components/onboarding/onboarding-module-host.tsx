@@ -37,7 +37,7 @@ function intentFromAnchor(a: HTMLAnchorElement): OnboardingIntent {
   return "unknown";
 }
 
-export function OnboardingModuleHost({ locale }: { locale: "en" | "es" }) {
+export function OnboardingModuleHost({ locale, marketingOrigin }: { locale: "en" | "es"; marketingOrigin: string }) {
   const [open, setOpen] = useState<OnboardingIntent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -101,6 +101,7 @@ export function OnboardingModuleHost({ locale }: { locale: "en" | "es" }) {
       {open ? (
         <OnboardingModule
           locale={locale}
+          marketingOrigin={marketingOrigin}
           intent={open}
           onClose={({ saved }) => {
             setOpen(null);
