@@ -47,6 +47,7 @@ import {
 } from "../primitives";
 import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { PromoCodeInput } from "@/components/billing/promo-code-input";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 import { DomainSetupDrawerBody } from "@/components/talent/site/DomainSetupDrawer";
@@ -319,6 +320,13 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   const t = useT();
   const [pending, setPending] = useState<TalentSubscriptionTier | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // TUL-1275: code applied in the "Have a code?" box; the ?promo= value from
+  // the URL pre-fills the box and stays the fallback when nothing is applied.
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [urlPromo, setUrlPromo] = useState<string | null>(null);
+  useEffect(() => {
+    setUrlPromo(readPromoCodeFromUrl());
+  }, []);
 
   // Pro fold (2026-09-23): the only upgrade path left is to Web Office.
   const upgradeable = (["max"] as const).filter((tier) => tier !== current);
@@ -330,7 +338,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       setPending(tier);
       setError(null);
       try {
-        const result = await startTalentUpgrade(planKey, tenantSlug, readPromoCodeFromUrl());
+        const result = await startTalentUpgrade(planKey, tenantSlug, appliedCode ?? urlPromo);
         if (result.ok) {
           window.location.assign(result.redirectUrl);
           return;
@@ -342,13 +350,26 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
         setPending(null);
       }
     },
-    [tenantSlug, t],
+    [tenantSlug, t, appliedCode, urlPromo],
   );
 
   if (!tenantSlug || upgradeable.length === 0) return null;
 
+  const promoPlan = TIER_PLAN_KEY[upgradeable[0]];
+
   return (
     <div className="mt-4">
+      {promoPlan ? (
+        <div className="mb-3 max-w-full" data-testid="talent-upgrade-promo-code">
+          <PromoCodeInput
+            key={urlPromo ?? "no-url-promo"}
+            plan={promoPlan}
+            interval="month"
+            defaultCode={urlPromo}
+            onApplied={(code) => setAppliedCode(code)}
+          />
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-[10px]">
         {upgradeable.map((tier) => {
           const price = tierMonthlyPrice(tier, locale);

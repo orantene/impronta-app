@@ -1,7 +1,15 @@
 import "server-only";
 
 import { formatAppointmentWhen, normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
+import { loadBookingCancelPolicy } from "@/lib/scheduling/booking-cancel-policy";
 import { logServerError } from "@/lib/server/safe-error";
+import {
+  formatCancellationPolicy,
+  formatDurationLabel,
+  minutesBetween,
+  pickAddress,
+  timeZoneLabel,
+} from "./booking-service-facts";
 import { bookingSellerName, formatBookingPrice, pickServiceName } from "./booking-confirmed-email";
 import { allRosterTalent, assignedCoordinator, clientOrGuest, loadInquiryView, str, workspaceAdmins } from "./catalog-audiences";
 import type { AudienceContext, AudienceMember, NotificationEvent } from "./types";
@@ -130,7 +138,7 @@ export async function loadBookingConfirmedView(
   if (!bookingId || !event.tenantId) return base;
   const { data, error } = await ctx.admin
     .from("agency_bookings")
-    .select("starts_at, ends_at, timezone, title, total_client_revenue, currency_code, contact_name, contact_email, client_user_id")
+    .select("starts_at, ends_at, timezone, title, total_client_revenue, currency_code, contact_name, contact_email, client_user_id, order_id, venue_address, venue_location_text")
     .eq("id", bookingId)
     .eq("tenant_id", event.tenantId)
     .maybeSingle();
@@ -149,6 +157,9 @@ export async function loadBookingConfirmedView(
         contact_name: string | null;
         contact_email: string | null;
         client_user_id: string | null;
+        order_id: string | null;
+        venue_address: string | null;
+        venue_location_text: string | null;
       }
     | null;
   if (!row) return base;
@@ -176,9 +187,34 @@ export async function loadBookingConfirmedView(
   const sellerName = await loadBookingSellerName(event.tenantId, bookingId, ctx);
   const totalNum = Number(row.total_client_revenue);
   const totalCents = Number.isFinite(totalNum) && totalNum > 0 ? Math.round(totalNum * 100) : null;
+  // G1: the rest of the service facts. The address is the booking's own venue
+  // first; the policy is the SAME answer the manage page and the cancel engine
+  // read (loadBookingCancelPolicy), so the email cannot promise a different
+  // window. A failed read drops the line, it never invents one.
+  const bookingLocale = str(base.locale);
+  const eventLocation = pickAddress({
+    venueAddress: row.venue_address,
+    venueLocationText: row.venue_location_text,
+    inquiryLocation: str(base.eventLocation),
+  });
+  let policyLabel: string | null = null;
+  try {
+    const policy = await loadBookingCancelPolicy(ctx.admin, { tenantId: event.tenantId, orderId: row.order_id });
+    policyLabel = formatCancellationPolicy(policy.cancelFreeHours, bookingLocale);
+  } catch (err) {
+    logServerError("notifications.bookingConfirmed.policy", err);
+  }
+  const durationMinutes = minutesBetween(row.starts_at, row.ends_at);
   const withDetails = {
     ...base,
     ...contactFallback,
+    ...(eventLocation ? { eventLocation } : {}),
+    durationMinutes,
+    durationLabel: formatDurationLabel(durationMinutes),
+    policyLabel,
+    timeZoneName: timeZoneLabel(row.starts_at, row.timezone, bookingLocale),
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
     serviceName,
     priceLabel,
     talentCount,
