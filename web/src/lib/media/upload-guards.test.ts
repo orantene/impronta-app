@@ -124,3 +124,9 @@ test("readResponseCapped refuses a lying-small Content-Length by bytes, a big on
   assert.equal(fine.ok, true);
   if (fine.ok) assert.equal(fine.bytes.byteLength, 512);
 });
+
+test("client pre-check (image-sniff.ts) reads the bytes, not the File's claim", async () => {
+  const { sniffImageBlob } = await import("./image-sniff");
+  assert.equal(await sniffImageBlob(new File([HTML], "a.jpg", { type: "image/jpeg" })), null);
+  assert.equal(await sniffImageBlob(new File([PNG], "a.jpg", { type: "image/jpeg" })), "image/png");
+});

@@ -4,8 +4,7 @@ import * as React from "react";
 import { useActionState, useEffect, useRef, useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTranslator } from "@/i18n/messages";
-import { guardImageBlob } from "@/lib/media/upload-guards";
-import { uploadGuardMessage } from "@/lib/media/upload-guard-copy";
+import { sniffImageBlob } from "@/lib/media/image-sniff";
 import { createClient } from "@/lib/supabase/client";
 import {
   type RosterTalentEditState,
@@ -195,11 +194,10 @@ function PhotoUploader({
       setStage({ kind: "error", message: t("admin.talent.edit.photo.errorSize") });
       return;
     }
-    // H1 pre-check: refuse a non-image by its bytes before decoding it; the
-    // canvas re-encode below drops EXIF/GPS, the register action re-verifies.
-    const sniffed = await guardImageBlob(file, { allowed: ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"] });
-    if (!sniffed.ok) {
-      setStage({ kind: "error", message: uploadGuardMessage(t, sniffed.reason) });
+    // H1: bytes decide the type; the register action re-verifies.
+    const mime = await sniffImageBlob(file);
+    if (!mime || mime === "image/heic") {
+      setStage({ kind: "error", message: t("dashboard.uploadGuard.notAnImage") });
       return;
     }
     try {
