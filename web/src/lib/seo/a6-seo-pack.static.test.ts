@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { shouldEmitPlatformJsonLd } from "./platform-json-ld-gate";
-import { serviceReviewsJsonLd } from "@/lib/talent-site/service-page-reviews";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
@@ -25,12 +24,10 @@ test("A6: platform JSON-LD is not mounted on talent-site hosts", () => {
   assert.equal(shouldEmitPlatformJsonLd({ hasPublicScope: false, hostContext: null }), true);
 });
 
-test("A6: Service JSON-LD carries no talent aggregateRating", () => {
-  const out = serviceReviewsJsonLd(
-    { average: 4.8, count: 12, reviews: [] },
-    false,
-  );
-  assert.equal("aggregateRating" in out, false);
+test("A6: Service JSON-LD attaches no talent-wide aggregateRating or review", () => {
+  const main = read("src/lib/talent-site/server/service-main.tsx");
+  assert.doesNotMatch(main, /serviceReviewsJsonLd/);
+  assert.doesNotMatch(read("src/lib/talent-site/service-page-reviews.ts"), /aggregateRating\s*=|out\.review/);
 });
 
 test("A6: /book emits canonical + hreflang", () => {

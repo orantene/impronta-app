@@ -36,3 +36,12 @@ test("A6: metadata - page n canonical and hreflang carry ?page=n; filtered is no
   assert.deepEqual(f.robots, { index: false, follow: true });
   assert.equal(f.alternates?.canonical, "https://x.test/directory");
 });
+
+test("A6: a relative canonical never throws (kept relative, or resolved against metadataBase)", () => {
+  const rel = { alternates: { canonical: "/directory", languages: { en: "/directory", es: "/es/directory" } } };
+  const out = applyDirectoryIndexing(rel, { page: "2" });
+  assert.equal(out.alternates?.canonical, "/directory?page=2");
+  assert.deepEqual(out.alternates?.languages, { en: "/directory?page=2", es: "/es/directory?page=2" });
+  const based = applyDirectoryIndexing({ ...rel, metadataBase: new URL("https://x.test") }, { page: "3" });
+  assert.equal(based.alternates?.canonical, "https://x.test/directory?page=3");
+});

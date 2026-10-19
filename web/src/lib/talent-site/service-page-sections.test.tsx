@@ -91,12 +91,12 @@ test("TUL-795 reviews: rating line + review cards render when data exists, nothi
   assert.doesNotMatch(html(A, "es", { reviews: null }), /data-talent-service-reviews/);
 });
 
-test("TUL-795 reviews: Service JSON-LD gains AggregateRating/Review only when shown and not demo", () => {
+test("TUL-795 reviews: Service JSON-LD never carries AggregateRating or Review", () => {
   // TUL-1085: the Service is the first node of an @graph that also carries the BreadcrumbList.
   const serviceNode = (jsonLd: unknown) => (jsonLd as { "@graph": Record<string, unknown>[] })["@graph"][0]!;
   const ld = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS }).jsonLd) as { aggregateRating?: { reviewCount: number }; review?: unknown[] };
   assert.equal(ld.aggregateRating, undefined);
-  assert.equal(ld.review?.length, 1);
+  assert.equal(ld.review, undefined);
   const demo = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS, demo: true }).jsonLd);
   assert.equal("aggregateRating" in demo, false);
   const none = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es" }).jsonLd);

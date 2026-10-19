@@ -94,5 +94,23 @@ test("A6: one composer lists services with prices, posts and the public booking 
 test("A6: the dead booking/agent llms-txt composer is gone and the Posts route uses the one composer", () => {
   assert.equal(existsSync(join(process.cwd(), "src/lib/booking/agent/llms-txt.ts")), false);
   const route = readFileSync(join(process.cwd(), "src/app/llms.txt/route.ts"), "utf8");
-  assert.match(route, /loadTalentLlmsTxt/);
+  assert.match(route, /siteLlmsResponse/);
+});
+
+test("A6: booking-off wording unless the talent turned on agent booking", () => {
+  const input = { name: "Jorgelina", trade: null, city: null, languages: [], services: [] };
+  const on = buildTalentLlmsTxt(base, { ...input, agentBookingEnabled: true });
+  assert.match(on, /does not book anything/);
+  assert.doesNotMatch(on, /has not turned on booking/);
+  const off = buildTalentLlmsTxt(base, { ...input, agentBookingEnabled: false });
+  assert.match(off, /Jorgelina has not turned on booking through AI assistants/);
+  assert.doesNotMatch(off, /does not book anything/);
+  assert.match(buildTalentLlmsTxt(base, input), /has not turned on booking/);
+});
+
+test("A6: /api/llms and /llms.txt share the one site composer (AI toggle + posts)", () => {
+  for (const f of ["src/app/llms.txt/route.ts", "src/app/api/llms/route.ts"]) {
+    assert.match(readFileSync(join(process.cwd(), f), "utf8"), /siteLlmsResponse/);
+  }
+  assert.match(readFileSync(join(process.cwd(), "src/lib/seo/site-llms-response.server.ts"), "utf8"), /loadAiCrawlersAllowed/);
 });

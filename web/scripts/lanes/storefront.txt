@@ -42,6 +42,7 @@ src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
 src/lib/scheduling/bookings-off-wording.static.test.ts
 src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
+src/lib/seo/a6-price-hiding.test.ts
 src/lib/seo/a6-seo-pack.static.test.ts
 src/lib/seo/directory-indexing.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts

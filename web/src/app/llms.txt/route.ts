@@ -13,10 +13,8 @@
  * noindex rows): see `buildLlmsTxt` / `isIndexablePost`.
  */
 import { GET as marketingOrTalentLlms } from "@/app/api/llms/route";
-import { buildLlmsTxt, llmsPostLinks } from "@/lib/cms/posts-public-model";
-import { listPublishedPostRows } from "@/lib/cms/posts-public";
-import { loadTalentLlmsTxt } from "@/lib/seo/talent-llms-txt.server";
-import { loadAiCrawlersAllowed, postSiteUrlFor, resolveAnyPostSite } from "@/lib/cms/posts-public-site";
+import { resolveAnyPostSite } from "@/lib/cms/posts-public-site";
+import { siteLlmsResponse } from "@/lib/seo/site-llms-response.server";
 
 export const dynamic = "force-dynamic";
 
@@ -26,29 +24,5 @@ export async function GET(): Promise<Response> {
   // handler. A filesystem route beats the next.config rewrite to /api/llms, so without this hand-off the
   // marketing host answered a bare "Not found" (QA Batch 18). That handler still 404s every other host.
   if (!site) return marketingOrTalentLlms();
-  const allowed = await loadAiCrawlersAllowed(site.scope).catch(() => true);
-  if (!allowed) return new Response("Not found", { status: 404, headers: { "X-Robots-Tag": "noindex" } });
-  const urlFor = postSiteUrlFor(site);
-  const rows = await listPublishedPostRows(site.scope, site.supportedLocales).catch(() => []);
-  const headersOut = {
-    "Content-Type": "text/plain; charset=utf-8",
-    "Cache-Control": "public, max-age=0, s-maxage=600, stale-while-revalidate=3600",
-  };
-  // Talent hosts: ONE composer (services, prices, posts, public booking endpoints).
-  if (site.scope.kind === "talent") {
-    const talentBody = await loadTalentLlmsTxt(
-      site.scope.talentProfileId,
-      new URL(site.origin),
-      llmsPostLinks(rows, urlFor, new Date()),
-    );
-    if (talentBody) return new Response(talentBody, { status: 200, headers: headersOut });
-  }
-  const body = buildLlmsTxt({
-    siteName: site.siteName,
-    homeUrl: urlFor("/", site.defaultLocale),
-    posts: rows,
-    urlFor,
-    now: new Date(),
-  });
-  return new Response(body, { status: 200, headers: headersOut });
+  return siteLlmsResponse(site);
 }

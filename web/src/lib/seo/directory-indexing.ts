@@ -16,10 +16,19 @@ export function directoryIndexing(sp: Sp): { page: number; filtered: boolean } {
   return { page, filtered };
 }
 
-function withPage(url: string, page: number): string {
-  const u = new URL(url);
-  u.searchParams.set("page", String(page));
-  return u.toString();
+/** Append ?page=n; a relative URL resolves against the metadata base, or is kept as-is when there is none. */
+function withPage(url: string, page: number, base: URL | null): string {
+  try {
+    const u = new URL(url, base ?? undefined);
+    u.searchParams.set("page", String(page));
+    return u.toString();
+  } catch {
+    // Relative with no base: append by hand rather than throw.
+    const [path, query = ""] = url.split("?");
+    const sp = new URLSearchParams(query);
+    sp.set("page", String(page));
+    return `${path}?${sp.toString()}`;
+  }
 }
 
 /**
@@ -30,17 +39,18 @@ export function applyDirectoryIndexing(meta: Metadata, sp: Sp): Metadata {
   const { page, filtered } = directoryIndexing(sp);
   if (filtered) return { ...meta, robots: { index: false, follow: true } };
   if (page <= 1 || !meta.alternates?.canonical) return meta;
+  const base = meta.metadataBase instanceof URL ? meta.metadataBase : null;
   const canonical = meta.alternates.canonical;
   const languages = meta.alternates.languages;
   return {
     ...meta,
     alternates: {
       ...meta.alternates,
-      canonical: typeof canonical === "string" ? withPage(canonical, page) : canonical,
+      canonical: typeof canonical === "string" ? withPage(canonical.toString(), page, base) : canonical,
       ...(languages
         ? {
             languages: Object.fromEntries(
-              Object.entries(languages).map(([k, v]) => [k, typeof v === "string" ? withPage(v, page) : v]),
+              Object.entries(languages).map(([k, v]) => [k, typeof v === "string" ? withPage(v, page, base) : v]),
             ),
           }
         : {}),
