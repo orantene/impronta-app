@@ -34,5 +34,5 @@ test("adds exactly the five dated-places columns, additive and idempotent", () =
 
 test("rollback SQL is in the header", () => {
   assert.match(sql, /-- Rollback[\s\S]*DROP COLUMN IF EXISTS dated_details_i18n/);
-  assert.match(sql, /-- {3}DROP COLUMN IF EXISTS tier_quotas/);
+  assert.match(sql, /-- +DROP COLUMN IF EXISTS tier_quotas/);
 });
