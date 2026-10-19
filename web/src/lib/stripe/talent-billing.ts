@@ -30,6 +30,11 @@ import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { duplicateSubscriptionGuard } from "@/lib/billing/subscription-guard.server";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
+import { trialParams } from "@/lib/billing/trial-eligibility";
+import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
+import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
+import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -209,19 +214,26 @@ export async function createTalentCheckoutSession(opts: {
   // The admin-configured trial, finally sent to Stripe rather than only shown
   // in marketing copy.
   const trialOffer = await loadTrialOffer("talent", opts.planKey);
-  const trialDays =
-    trialOffer?.isEnabled && trialOffer.trialDays > 0 ? trialOffer.trialDays : null;
+  // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
+  const trialDays = await checkoutTrialDays({ kind: "talent", talentProfileId: opts.talentProfileId, userId: opts.userId }, customerResult.data, trialOffer);
 
-  try {
-    const session = await stripe.checkout.sessions.create({
-      customer: customerResult.data,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      // TUL-836: {CHECKOUT_SESSION_ID} lets the success page sync the plan if the webhook is late.
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success&session_id={CHECKOUT_SESSION_ID}${returnQuery(opts.returnToken)}`,
-      cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
-      // Show Checkout in the talent's app language, not their browser's.
-      locale: stripeCheckoutLocale(opts.locale),
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    customer: customerResult.data,
+    mode: "subscription",
+    line_items: [{ price: priceId, quantity: 1 }],
+    // TUL-836: {CHECKOUT_SESSION_ID} lets the success page sync the plan if the webhook is late.
+    success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=success&session_id={CHECKOUT_SESSION_ID}${returnQuery(opts.returnToken)}`,
+    cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings?billing=cancelled`,
+    // Show Checkout in the talent's app language, not their browser's.
+    locale: stripeCheckoutLocale(opts.locale),
+    metadata: {
+      talent_profile_id: opts.talentProfileId,
+      user_id:           opts.userId,
+      plan_key:          opts.planKey,
+      billing_interval:  price.interval,
+      checkout_type:     "talent_subscription",
+    },
+    subscription_data: {
       metadata: {
         talent_profile_id: opts.talentProfileId,
         user_id:           opts.userId,
@@ -229,25 +241,38 @@ export async function createTalentCheckoutSession(opts: {
         billing_interval:  price.interval,
         checkout_type:     "talent_subscription",
       },
-      subscription_data: {
-        metadata: {
-          talent_profile_id: opts.talentProfileId,
-          user_id:           opts.userId,
-          plan_key:          opts.planKey,
-          billing_interval:  price.interval,
-          checkout_type:     "talent_subscription",
-        },
-        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
-      },
-      ...discount.params,
-      // TUL-1229: explicit recurring-charge agreement (required checkbox + renewal text) before Subscribe.
-      ...recurringConsentParams({ locale: opts.locale, interval: price.interval, trialDays, marketingOrigin: resolveMarketingOrigin() }),
-      // Adaptive Pricing: auto-converts to customer's local currency at checkout.
-      adaptive_pricing: { enabled: true },
+      ...trialParams(trialDays),
     },
-    // Idempotency: a double submit must not mint a SECOND Checkout session.
-    // One subscription per talent profile per plan; a second session risks a second sub.
-    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
+    ...discount.params,
+    // TUL-1229: explicit recurring-charge agreement (required checkbox + renewal text) before Subscribe.
+    // Part of sessionParams, so the idempotency key (checkoutSessionKey) hashes it: a re-click still dedupes.
+    ...recurringConsentParams({ locale: opts.locale, interval: price.interval, trialDays, marketingOrigin: resolveMarketingOrigin() }),
+    // Adaptive Pricing: auto-converts to customer's local currency at checkout.
+    adaptive_pricing: { enabled: true },
+  };
+  // TUL-1280 retest: the key follows the exact params (a trial decided differently after a cancel
+  // must not reuse the key; Stripe rejects that). Identical params still dedupe a double submit.
+  const idempotencyKey = checkoutSessionKey(
+    checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }),
+    sessionParams,
+  );
+  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
+  const trialSweep = await sweepTrialSessions(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
+  const createParams: Stripe.Checkout.SessionCreateParams = { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialSweep.marker } };
+
+  try {
+    const created = await stripe.checkout.sessions.create(
+      createParams,
+      // Idempotency: a double submit must not mint a SECOND Checkout session.
+      // One subscription per talent profile per plan; a second session risks a second sub.
+      { idempotencyKey },
+    );
+    // TUL-1280 review P1: a replayed session the sweep already expired is re-keyed, never handed back dead.
+    const session =
+      trialDays != null
+        ? await reopenIfExpired(stripe, created, createParams, idempotencyKey, trialSweep.expiredIds)
+        : created;
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
