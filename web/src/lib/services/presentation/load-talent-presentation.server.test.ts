@@ -66,14 +66,14 @@ describe("wiring", () => {
 
   it("the services_catalog block builds its links through serviceCatalogPresentation and mounts the quick views", () => {
     const src = readFileSync(join(process.cwd(), "src/lib/site-admin/builder-node/render.tsx"), "utf8");
-    assert.match(src, /servicesCatalogQuickViews\(\{/);
-    assert.match(src, /\{quickViews\.layer\}/);
-    // TUL-1339: the widget's "Al tocar" setting is read.
-    assert.match(src, /tapAction: p\.tapAction/);
+    assert.match(src, /<ServiceQuickViewLayerLazy/);
+    // TUL-1339: the widget's "Al tocar" setting is read (server-side, from the node props).
+    const server = readFileSync(join(process.cwd(), "src/lib/services/presentation/catalog-quick-views.server.ts"), "utf8");
+    assert.match(server, /tapAction: p\.tapAction/);
     const reg = readFileSync(join(process.cwd(), "src/lib/site-admin/builder-node/registry.ts"), "utf8");
     assert.match(reg, /tapAction: z\.enum\(\["auto", "page", "quick_view", "book"\]\)\.optional\(\)/);
     const insp = readFileSync(join(process.cwd(), "src/components/edit-chrome/inspectors/services-catalog-inspector.tsx"), "utf8");
     assert.match(insp, /onPatch\(\{ tapAction: e\.target\.value \}\)/);
-    assert.match(src, /servicePresentation\?: import\("@\/lib\/services\/presentation\/catalog-presentation"\)\.ServicePresentationSource/);
+    assert.match(src, /serviceQuickViews\?: Record<string, import\("@\/lib\/services\/presentation\/catalog-quick-views\.server"\)\.CatalogQuickViews>/);
   });
 });

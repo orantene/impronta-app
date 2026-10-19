@@ -68,6 +68,7 @@ src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
 src/lib/services/presentation/card-target.test.ts
 src/lib/services/presentation/catalog-presentation.test.ts
+src/lib/services/presentation/catalog-quick-views.server.test.ts
 src/lib/services/presentation/load-talent-presentation.server.test.ts
 src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts

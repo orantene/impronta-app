@@ -75,6 +75,7 @@ import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens"
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentServicePresentation } from "@/lib/services/presentation/load-talent-presentation.server";
+import { buildCatalogQuickViewsByNode } from "@/lib/services/presentation/catalog-quick-views.server";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
@@ -299,7 +300,6 @@ export async function renderMaxSiteDocument(args: {
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
     // TUL-792: published sites link each home service card to its service page.
-    ...(servicePresentation ? { servicePresentation } : {}),
     talentServiceLinkBase: draftPreview
       ? null
       : talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales).replace(/\/+$/, ""),
@@ -307,6 +307,15 @@ export async function renderMaxSiteDocument(args: {
     liveStatus,
     ...(promoWidgets ? { promoWidgets } : {}),
   };
+  // TUL-1272 #3: card hrefs + quick views per services widget, server-side (out of the admin bundle).
+  const serviceQuickViews = buildCatalogQuickViewsByNode({
+    blocks,
+    offerings: pricedDataSources.talentOfferings ?? [],
+    source: servicePresentation,
+    linkBase: pricedDataSources.talentServiceLinkBase,
+    locale,
+  });
+  if (Object.keys(serviceQuickViews).length > 0) Object.assign(pricedDataSources, { serviceQuickViews });
 
   // Forms keep tenant captcha; booking alone follows HQ guest_captcha_enforced.
   const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(
