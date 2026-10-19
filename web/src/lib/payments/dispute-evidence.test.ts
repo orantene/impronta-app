@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 
 import {
@@ -140,5 +141,47 @@ describe("evidence content", () => {
     const e = buildDisputeEvidence(facts({ cancellationPolicy: "p".repeat(50_000), title: "t".repeat(50_000) }));
     assert.ok((e.cancellation_policy_disclosure ?? "").length <= 20_000);
     assert.ok(e.product_description.length <= 20_000);
+  });
+});
+
+describe("what is NEVER submitted (private content stays out)", () => {
+  const src = readFileSync(new URL("./dispute-evidence-deps.ts", import.meta.url), "utf8");
+  const selects = [...src.matchAll(/\.select\(\s*"([^"]+)"/g)].map((m) => m[1]);
+
+  test("the loader reads exactly these columns, nothing else", () => {
+    assert.deepEqual(selects, [
+      "booking_id, gross_amount_cents, currency, paid_at, payer_email, source_inquiry_id",
+      "id, title, starts_at, ends_at, timezone, venue_name, venue_address, contact_name, contact_email, contact_phone, policy_version_id, refund_policy_key, source_inquiry_id",
+      "rendered_text_en, rendered_text_es",
+      "created_at, body",
+    ]);
+  });
+
+  test("no private or internal column or table is selected", () => {
+    const joined = selects.join(",");
+    for (const banned of [
+      "internal_notes", "notes", "payment_notes", "lodging_notes", "meals_notes", "transport_notes", "wardrobe_notes",
+      "equipment_notes", "access_notes", "override_reason", "total_talent_cost", "gross_profit", "call_sheet_payload",
+      "talent_cost", "payout", "client_summary",
+    ]) {
+      assert.ok(!new RegExp(`\\b${banned}\\b`).test(joined), banned);
+    }
+    assert.doesNotMatch(src, /talent_profiles|talent_private|talent_bookings|from\("messages"\)/);
+  });
+
+  test("messages: client thread, text kind only, internal notes and the talent group thread excluded", () => {
+    assert.match(src, /\.eq\("thread_type", CLIENT_THREAD\)/);
+    assert.match(src, /\.eq\("message_kind", "text"\)/);
+    assert.match(src, /\.neq\("message_kind", INTERNAL_NOTE_KIND\)/);
+    assert.match(src, /\.is\("deleted_at", null\)/);
+    assert.doesNotMatch(src, /TALENT_THREAD|"group"/);
+  });
+
+  test("the evidence object has only the documented fields", () => {
+    const e = buildDisputeEvidence(facts());
+    assert.deepEqual(Object.keys(e).sort(), [
+      "cancellation_policy_disclosure", "customer_email_address", "customer_name", "product_description",
+      "refund_policy_disclosure", "service_date", "uncategorized_text",
+    ]);
   });
 });

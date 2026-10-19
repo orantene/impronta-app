@@ -2,6 +2,7 @@ import "server-only";
 
 import type Stripe from "stripe";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
 import { logServerError } from "@/lib/server/safe-error";
 import {
   autoSubmitDisputeEvidence,
@@ -85,8 +86,11 @@ export async function loadDisputeEvidenceFacts(
       .from("inquiry_messages")
       .select("created_at, body")
       .eq("inquiry_id", inquiryId)
-      .eq("thread_type", "private")
+      // The CLIENT thread only (never the talent-side thread), text messages
+      // only, and never an internal note: see lib/messaging/thread-rule.ts.
+      .eq("thread_type", CLIENT_THREAD)
       .eq("message_kind", "text")
+      .neq("message_kind", INTERNAL_NOTE_KIND)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(12);
