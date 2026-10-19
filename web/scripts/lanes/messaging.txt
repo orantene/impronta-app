@@ -41,6 +41,7 @@ src/lib/messaging/*.test.ts
 src/lib/messaging/client-draft-guards.test.ts
 src/lib/messaging/inquiry-name-display.test.ts
 src/lib/messaging/offer-shared-seed.test.ts
+src/lib/messaging/talent-inbox-parallel.static.test.ts
 src/lib/saas/talent-site-anon-cache.test.ts
 src/lib/saas/talent-site-guest-identity.test.ts
 src/lib/saas/talent-site-private-cache-key.test.ts

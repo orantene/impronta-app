@@ -535,7 +535,7 @@
       },
       "inquiry": {
         "saveThisTalent": "Save This Talent",
-        "savedToInquiryCart": "Saved to your lineup",
+        "savedToInquiryCart": "Added to your inquiry",
         "contactAboutTalent": "Contact About Talent",
         "openInquiry": "Open inquiry",
         "flashCouldNotUpdateSaved": "Could not update saved list",
@@ -691,7 +691,7 @@
           "viewFullProfile": "View full profile",
           "close": "Close",
           "saveThisTalent": "Save This Talent",
-          "savedToCart": "Saved to your lineup",
+          "savedToCart": "Added to your inquiry",
           "imageAlt": "{name}, preview",
           "dialogAria": "{name}, quick preview"
         },
