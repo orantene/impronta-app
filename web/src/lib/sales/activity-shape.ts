@@ -199,10 +199,17 @@ export function salesFilterHref(input: {
   tenantSlug: string;
   kind: SalesKindFilter;
   channel: string;
+  /** Period / payment method / view; the default of each is left out of the URL. */
+  period?: string;
+  method?: string;
+  view?: string;
 }): string {
   const params = new URLSearchParams();
   if (input.kind !== "all") params.set("kind", input.kind);
   if (input.channel && input.channel !== "all") params.set("channel", input.channel);
+  if (input.period && input.period !== "all") params.set("period", input.period);
+  if (input.method && input.method !== "any") params.set("method", input.method);
+  if (input.view && input.view !== "activity") params.set("view", input.view);
   const qs = params.toString();
   const path = salesListPath(input.tenantSlug);
   return qs ? `${path}?${qs}` : path;

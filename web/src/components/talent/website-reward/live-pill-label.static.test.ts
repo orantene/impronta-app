@@ -32,7 +32,8 @@ test("ES and EN strings exist for the shared label", () => {
 });
 
 test("TUL-818: the personal live pill reads the verified state, not the published flag alone", () => {
-  assert.match(src, /loadMySiteLiveVerifiedAction\(\)/);
+  // TUL-1274: same verified reader, read through the GET helper (not a server action on mount).
+  assert.match(src, /readTalentDashboard\("site-live-verified"\)/);
   assert.match(src, /liveBadgeState\(\{ published: true, verified: liveVerified \}\)/);
   assert.match(src, /badge === "live" \? copy\.t\("Website live"\)/);
   assert.match(i18n, /"Checking your website": "Comprobando tu sitio"/);

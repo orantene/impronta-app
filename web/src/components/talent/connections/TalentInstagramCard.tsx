@@ -15,10 +15,8 @@ import { useEffect, useState, useTransition } from "react";
 import { SettingsCardLoading } from "@/app/(workspace)/[tenantSlug]/talent/settings/SettingsCardLoading";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { disconnectTalentIntegrationAction } from "@/lib/talent-integrations/actions";
-import {
-  loadTalentInstagramCardAction,
-  syncTalentInstagramAction,
-} from "@/lib/talent-integrations/instagram-actions";
+import { syncTalentInstagramAction } from "@/lib/talent-integrations/instagram-actions";
+import { readTalentDashboard } from "@/lib/talent/dashboard-reads";
 import {
   readTalentInstagramReturnNotice,
   talentInstagramConnectHref,
@@ -87,7 +85,8 @@ export function TalentInstagramCard({ onUpgrade }: { onUpgrade: () => void }) {
       const query = search.toString();
       window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
     }
-    void loadTalentInstagramCardAction()
+    // TUL-1274: a GET, not a server action: an action on mount could refetch the whole tree.
+    void readTalentDashboard("instagram-card")
       .then((res) => {
         if (!live) return;
         if (res.ok) setState(res.state);
@@ -126,8 +125,8 @@ export function TalentInstagramCard({ onUpgrade }: { onUpgrade: () => void }) {
         setMessage({ tone: "error", text: res.error });
         return;
       }
-      const next = await loadTalentInstagramCardAction();
-      if (next.ok) setState(next.state);
+      const next = await readTalentDashboard("instagram-card").catch(() => null);
+      if (next?.ok) setState(next.state);
       setMessage({ tone: "ok", text: t("Instagram disconnected.") });
     });
   }
