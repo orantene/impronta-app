@@ -18325,6 +18325,11 @@
         "identityReason": "Di por qué se necesita el nombre del comprador.",
         "currency": "Elige una moneda."
       },
+      "warning": {
+        "photo": "Aún sin foto: se verá sin imagen en el mostrador y en el menú.",
+        "category": "Aún sin categoría: quedará en Todos los artículos.",
+        "channel": "Precio a solicitud: se muestra sin precio en tu sitio. El personal aún puede venderlo en el mostrador."
+      },
       "details": {
         "title": "Detalles",
         "intro": "El nombre y las palabras que llevan la tarjeta, el menú y el recibo",

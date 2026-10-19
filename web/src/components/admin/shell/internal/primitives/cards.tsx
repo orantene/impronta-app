@@ -843,7 +843,7 @@ export function RiskScorePill({ score, label = "Trust health" }: { score: number
   return (
     <div title={copy.t("Internal heuristic: verifications, claim status, account age, recent rejections.")} style={{
       display: "inline-flex", alignItems: "center", gap: 8,
-      padding: "5px 11px", borderRadius: 999,
+      padding: "5px 11px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0,
       background: tone.bg, color: tone.fg,
       fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
     }}>
