@@ -29,7 +29,8 @@ import { createPurchase } from "@/lib/orders/purchase";
 import { commitCapacity } from "@/lib/capacity";
 import { saleWindowState } from "@/lib/events/tiers";
 import { doorOfferState } from "@/lib/events/ticket-purchase";
-import { mintAndDeliverForPaidOrder } from "@/lib/events/mint-and-deliver";
+import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
+import { deliverTicketsForOrder } from "@/lib/events/ticket-delivery";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -62,7 +63,15 @@ const buySchema = z.object({
 });
 
 export type StartDatedPurchaseResult =
-  | { ok: true; orderId: string; transactionId: string | null; receiptCode: string | null; payAtDoor: boolean }
+  | {
+      ok: true;
+      orderId: string;
+      transactionId: string | null;
+      receiptCode: string | null;
+      payAtDoor: boolean;
+      /** True only when the ticket email was really sent (free orders). Paid orders mail after payment. */
+      ticketEmailed: boolean;
+    }
   | {
       ok: false;
       reason:
@@ -284,6 +293,7 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
     // A zero-collect order is already paid and never reaches the webhook mint
     // seam: commit the hold and mint (and mail) here or the guest holds a
     // receipt with no ticket.
+    let ticketEmailed = false;
     if (result.collectCents === 0 && !result.payInPerson) {
       if (result.allocationIds.length > 0) {
         const committed = await commitCapacity(result.allocationIds, null, admin);
@@ -297,25 +307,27 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
         logServerError("dated.buy.compLines", lineErr);
       } else {
         try {
-          await mintAndDeliverForPaidOrder(
-            admin,
-            {
-              orderId: result.orderId,
-              tenantId: d.tenantId,
-              lines: (lineRows ?? []).map((l) => ({
-                id: l.id as string,
-                units: Number(l.units),
-                sessionId: (l.session_id as string | null) ?? null,
-                variantId: (l.variant_id as string | null) ?? null,
-                // The name the guest typed lands on the door list, not "Ticket".
-                holders: Array.from({ length: Number(l.units) }, () => ({
-                  name: d.displayName ?? null,
-                  email: d.email,
-                })),
+          await mintAdmissionsForPaidOrder(admin, {
+            orderId: result.orderId,
+            tenantId: d.tenantId,
+            lines: (lineRows ?? []).map((l) => ({
+              id: l.id as string,
+              units: Number(l.units),
+              sessionId: (l.session_id as string | null) ?? null,
+              variantId: (l.variant_id as string | null) ?? null,
+              // The name the guest typed lands on the door list, not "Ticket".
+              holders: Array.from({ length: Number(l.units) }, () => ({
+                name: d.displayName ?? null,
+                email: d.email,
               })),
-            },
-            { locale: d.locale ?? null },
-          );
+            })),
+          });
+          const delivered = await deliverTicketsForOrder(admin, {
+            tenantId: d.tenantId,
+            orderId: result.orderId,
+            locale: d.locale ?? null,
+          });
+          ticketEmailed = delivered.ok === true;
         } catch (mintErr) {
           logServerError("dated.buy.compMint", mintErr);
         }
@@ -328,6 +340,7 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
       transactionId: result.transactionId ?? null,
       receiptCode: (orderRow?.receipt_code as string | null) ?? null,
       payAtDoor: result.payInPerson === true,
+      ticketEmailed,
     };
   } catch (err) {
     logServerError("dated.buy", err);

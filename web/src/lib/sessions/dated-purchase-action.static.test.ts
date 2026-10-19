@@ -35,3 +35,8 @@ test("no clamping of quantities and no raw price from the client", () => {
   assert.doesNotMatch(src, /Math\.min\(\s*d\.legs|clamp/i);
   assert.doesNotMatch(src, /amountCents:\s*d\./);
 });
+
+test("ticketEmailed is true only when delivery really succeeded", () => {
+  assert.match(src, /ticketEmailed = delivered\.ok === true/);
+  assert.match(src, /let ticketEmailed = false/);
+});
