@@ -412,6 +412,12 @@ jobs:
         if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
         run: npm run test:release-theme-i18n
 
+      - name: tests — theme seed i18n heal inventory
+        # scripts/heal-seed-i18n-missing-es-plan.ts (TUL-369): read-only count of
+        # stored trees whose English seed lacks props.i18n.es. Pure, no DB.
+        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        run: npm run test:heal-seed-i18n-missing-es
+
       - name: tests — theme CTA patch release script
         # scripts/release-theme-cta-plan.ts: guards + flow of the guarded Maison v2
         # "Book an appointment" header/hero release (injected fakes, no DB).
