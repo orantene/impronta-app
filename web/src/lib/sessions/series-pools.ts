@@ -2,7 +2,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_POOL_KEY, type TierUnits } from "./session-plan";
-import { parseTierQuotas, planSeriesPools } from "./series-tiers";
+import { parseTierQuotas, planSeriesPools, tierPoolsEnabled } from "./series-tiers";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,6 +24,8 @@ export async function loadSeriesPoolPlan(
   a: { tenantId: string; seriesId: string; offeringId: string | null; seats: number },
 ): Promise<TierUnits[]> {
   const single: TierUnits[] = [{ poolKey: DEFAULT_POOL_KEY, units: a.seats }];
+  // Dark by default: today's single parentless pool unless the flag is on.
+  if (!tierPoolsEnabled()) return single;
   if (!a.offeringId) return single;
 
   const { data: variants, error: vErr } = await admin

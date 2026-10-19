@@ -64,3 +64,15 @@ export function planSeriesPools(a: {
   // No tiers: exactly the single parentless default pool of today.
   return { ok: true, pools };
 }
+
+/**
+ * Tier pools on materialised series are OFF unless this is exactly "true".
+ * The nightly sweep changes production behaviour when it is on (child pools
+ * for every series whose item has tiers), so it ships dark and is switched on
+ * deliberately, after the held migration and a staging check.
+ */
+export const TIER_POOLS_FLAG = "DATED_PLACES_TIER_POOLS_ENABLED";
+
+export function tierPoolsEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env[TIER_POOLS_FLAG] === "true";
+}
