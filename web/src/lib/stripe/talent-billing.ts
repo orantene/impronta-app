@@ -32,7 +32,8 @@ import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
-import { singleOpenTrialSession } from "@/lib/billing/trial-checkout-session";
+import { prepareTrialSession } from "@/lib/billing/trial-checkout-session";
+import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -214,8 +215,8 @@ export async function createTalentCheckoutSession(opts: {
   const trialDays = await checkoutTrialDays({ kind: "talent", talentProfileId: opts.talentProfileId, userId: opts.userId }, customerResult.data, trialOffer);
 
   const idempotencyKey = checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) });
-  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
-  const trialMarker = await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+  // TUL-1280: at most one open trial session per customer (pre-create sweep + post-create reconcile).
+  const trialGuard = await prepareTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -233,7 +234,7 @@ export async function createTalentCheckoutSession(opts: {
         plan_key:          opts.planKey,
         billing_interval:  price.interval,
         checkout_type:     "talent_subscription",
-        ...trialMarker,
+        ...trialGuard.marker,
       },
       subscription_data: {
         metadata: {
@@ -257,7 +258,13 @@ export async function createTalentCheckoutSession(opts: {
       return { ok: false, error: "Stripe returned no checkout URL." };
     }
 
-    return { ok: true, data: { url: session.url } };
+    // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL.
+    const settled =
+      trialDays != null
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialGuard.otherTrialKnownOpen, onError: logServerError })
+        : { url: session.url };
+    if ("error" in settled) return { ok: false, error: settled.error };
+    return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("talent-billing.createCheckoutSession", err);
     return { ok: false, error: "Could not create checkout session." };
