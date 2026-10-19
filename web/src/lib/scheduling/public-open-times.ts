@@ -11,6 +11,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { sellability } from "@/lib/offerings/sellable";
 import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduling/booking-surface";
 import { parseBookingHours } from "@/lib/scheduling/hours-types";
 import { loadBusyIntervals } from "@/lib/scheduling/load-busy";
@@ -99,9 +100,7 @@ export async function loadPublicOpenTimes(
   }
   if (
     !offering ||
-    offering.status !== "published" ||
-    offering.moderation_state !== "approved" || // D-10
-    offering.visibility !== "public" ||
+    !sellability(offering, "guest").ok || // D1: the one sellable rule (published + approved + public)
     offering.kind === "product"
   ) {
     return notFound;

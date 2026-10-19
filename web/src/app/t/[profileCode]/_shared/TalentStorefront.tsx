@@ -26,6 +26,7 @@ import { LightSectionLabel } from "../_light/section-label";
 import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import { servicePageHrefs } from "@/lib/talent-site/service-page";
+import { isSellable } from "@/lib/offerings/sellable";
 
 export async function TalentStorefront({
   offerings,
@@ -40,9 +41,7 @@ export async function TalentStorefront({
   siteUrl?: string | null;
 }) {
   // Defensive re-filter (loader already applies the public policy).
-  const visible = offerings.filter(
-    (o) => o.status === "published" && o.visibility !== "agency_only" && o.moderationState === "approved",
-  );
+  const visible = offerings.filter((o) => isSellable(o, "guest_request"));
   if (visible.length === 0) return null;
 
   const profileId = visible.find((o) => o.talentProfileId)?.talentProfileId ?? null;

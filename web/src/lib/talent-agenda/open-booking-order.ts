@@ -15,6 +15,7 @@ import { centsToTotalClientRevenue } from "@/lib/money/total-client-revenue";
 import { addCustomLine } from "@/lib/pos/custom-line";
 import { addLine, createDraftOrder } from "@/lib/pos/draft";
 import { logServerError } from "@/lib/server/safe-error";
+import { isSellable } from "@/lib/offerings/sellable";
 
 export type OpenBookingOrderInput = {
   tenantId: string;
@@ -87,7 +88,7 @@ export async function openBookingOrderForAgenda(
   let offering: OfferingSnap | null = null;
   if (offeringId) {
     offering = await readOwnedOffering(admin, offeringId, input.talentProfileId);
-    if (offering?.status === "published") {
+    if (isSellable(offering, "pos_desk")) {
       currency = (offering.currency || currency).toUpperCase();
       lineLabel = offering.title?.trim() || title;
       if (offering.amount_cents != null) {

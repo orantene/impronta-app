@@ -149,6 +149,9 @@ export async function createReservation(
       ? "deposit"
       : "in_person",
     sourceChannel: "reservation",
+    // D1: the venue's configured reservation offering is deliberately not a public menu
+    // item (unlisted / agency_only), so it uses its own sellable context: published + approved.
+    channel: "reservation",
     sourcePage: input.sourcePage ?? null,
     locale: input.locale ?? null,
     capacity: [

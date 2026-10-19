@@ -14,6 +14,7 @@
  */
 
 import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
+import { isSellable } from "@/lib/offerings/sellable";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -534,9 +535,9 @@ export function offeringIsDirectlyBookable(
 ): boolean {
   return (
     o.bookingMode === "instant" &&
-    o.status === "published" &&
-    o.moderationState === "approved" &&
-    o.visibility !== "agency_only" &&
+    // D1: "directly bookable" is a charge, so it asks for the guest context (an on_request
+    // service has request / quote paths only; checkout refuses an instant charge on it).
+    isSellable(o, "guest") &&
     o.priceType !== "custom" &&
     o.priceDisplay === "exact" &&
     o.amountCents != null &&

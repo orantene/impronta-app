@@ -33,6 +33,7 @@ import { DEFAULT_TIER_KEY } from "@/lib/sessions/tier-pools";
 import { uuidWire } from "@/lib/events/uuid-wire";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 const HORIZON_DAYS = 90;
 
@@ -112,16 +113,10 @@ export async function resolveSessionPickerOffering(
     ];
     if (offeringIds.length === 0) return { ok: false, reason: "none" };
 
-    const { data: offerings, error: offErr } = await tenantScopedQuery(
-      admin,
-      "talent_offerings",
-      tenantId,
-    )
-      .select("id")
-      .eq("status", "published")
-      .eq("moderation_state", "approved") // D-10
-      .eq("visibility", "public")
-      .in("id", offeringIds);
+    const { data: offerings, error: offErr } = await scopeToSellableOfferings(
+      tenantScopedQuery(admin, "talent_offerings", tenantId).select("id"),
+      "guest",
+    ).in("id", offeringIds);
     if (offErr) {
       logServerError("sessions.picker.resolve.offering", offErr);
       return { ok: false, reason: "unavailable" };
