@@ -34,6 +34,7 @@ import {
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { settleServerAction } from "@/lib/client/settle-server-action";
 import { takeServicesSeed } from "./services-bootstrap";
+import { firstCatalogLoad } from "./catalog-bootstrap";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,
@@ -130,11 +131,16 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     // TUL-824: the first load comes from the server route's seed (no queued
     // server action); reloads and a missing/stale seed call the action.
     const seeded = isWorkspace || loadTick > 0 ? null : takeServicesSeed(talentId);
+    const workspaceAction = () =>
+      settleServerAction(() => loadWorkspaceMenuForEditor(workspaceTenantId), {
+        ...settle,
+        label: "loadWorkspaceMenuForEditor",
+      });
+    // B5: the Catalog's first load is the route's server-loaded list too (catalog-bootstrap.ts).
     const load = isWorkspace
-      ? settleServerAction(() => loadWorkspaceMenuForEditor(workspaceTenantId), {
-          ...settle,
-          label: "loadWorkspaceMenuForEditor",
-        })
+      ? loadTick > 0
+        ? workspaceAction()
+        : firstCatalogLoad(workspaceTenantId, workspaceAction)
       : seeded
         ? Promise.resolve(seeded)
         : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
