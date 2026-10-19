@@ -32,4 +32,5 @@ test("TUL-1273 #5: a service slug's verdict is taken before the Suspense boundar
   assert.ok(start > 0 && susp > start, "service lookup must sit before the Suspense return");
   assert.match(page.slice(start, susp), /serviceRouteVerdict\(seg,/);
   assert.match(page.slice(start, susp), /notFound\(\)/);
+  assert.match(page.slice(start, susp), /offerings\.length > 0/, "an empty loader result is unknown, not a 404");
 });

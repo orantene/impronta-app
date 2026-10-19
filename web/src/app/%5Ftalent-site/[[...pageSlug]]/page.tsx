@@ -222,8 +222,9 @@ export default async function TalentSiteHostPage({
       loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => null),
       loadMaxSitePages(talentProfileId),
     ]);
-    // A failed read leaves the verdict to the renderer rather than 404ing a live service.
-    if (offerings && serviceRouteVerdict(seg, offerings, pages.map((p) => p.slug)) === "not-found") notFound();
+    // The loader returns [] on a failed read as well as for a talent with no services, so an empty
+    // result is UNKNOWN: fall through to the renderer rather than hard-404 a live service on a blip.
+    if (offerings && offerings.length > 0 && serviceRouteVerdict(seg, offerings, pages.map((p) => p.slug)) === "not-found") notFound();
   }
   return (
     <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>
