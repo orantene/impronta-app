@@ -156,3 +156,12 @@ test("trade words that only look similar do not pick a pack", () => {
   assert.equal(packKeyForTrade("estética facial"), "facial");
   assert.equal(packKeyForTrade("English teacher"), "tutoring");
 });
+
+test("TUL-1333: food and wordplay with dog/perro do not get the pets pack; real pet trades still do", () => {
+  for (const said of ["hot dogs", "hot dog stand", "hot-dog vendor", "corn dogs", "perros calientes", "perro caliente", "puesto de hot dogs"]) {
+    assert.notEqual(packKeyForTrade(said), "pets", said);
+  }
+  for (const said of ["dog groomer", "dog walker", "dogs", "paseador de perros", "peluquería canina", "pet sitter", "mascotas", "veterinaria", "perro"]) {
+    assert.equal(packKeyForTrade(said), "pets", said);
+  }
+});

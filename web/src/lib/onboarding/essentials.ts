@@ -241,7 +241,8 @@ const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["fitness", /personal train|trainer|fitness|yoga|pilates|entrenador|crossfit|gimnas/i],
   ["photography", /photograph|fot[oó]graf/i],
   ["tutoring", /\btutor|\bteachers?\b|\bteaching\b|\bprofesor(a|es)?\b|\bmaestr[ao]s? particular(es)?\b|\bprivate lessons?\b|\bclases? (de|particular)/i],
-  ["pets", /\bdogs?\b|\bpets?\b|mascota|perr[oa]|canin|veterinar/i],
+  // "hot dogs", "corn dogs" and "perros calientes" are food, not a pet business.
+  ["pets", /(?<!(?:hot|corn)[ -])\bdogs?\b(?![ -]?(?:stands?|carts?|vendors?|trucks?))|\bpets?\b|\bmascotas?\b|\bperr[oa]s?\b(?! calientes?\b)|\bcanin[oa]s?\b|veterinar/i],
   ["tattoo", /tattoo|tatu/i],
 ];
 
