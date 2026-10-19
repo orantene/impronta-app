@@ -22,7 +22,7 @@ const MIGRATION = join(
   "supabase",
   "migrations",
   "_pending_pm",
-  "20261231415000_profiles_no_self_promotion_tenant_scoped_staff.sql",
+  "20261231415400_profiles_no_self_promotion_tenant_scoped_staff.sql",
 );
 const sql = readFileSync(MIGRATION, "utf8");
 const WEB = join(REPO, "web", "src");
@@ -93,8 +93,8 @@ test("tenant helpers are roster / membership / relationship scoped and not anon-
   assert.match(sql, /public\.is_platform_admin\(\)/);
 });
 
-test("the migration is a held file, one transaction, number >= 20261231415000", () => {
-  assert.match(MIGRATION, /_pending_pm[\\/]20261231415000_/);
+test("the migration is a held file, one transaction, number >= 20261231415400", () => {
+  assert.match(MIGRATION, /_pending_pm[\\/]20261231415400_/);
   assert.equal((sql.match(/^BEGIN;$/gm) ?? []).length, 1);
   assert.equal((sql.match(/^COMMIT;$/gm) ?? []).length, 1);
 });
