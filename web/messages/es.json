@@ -14115,10 +14115,8 @@
       "noCustomer": "Sin nombre registrado",
       "unavailableTitle": "No pudimos cargar tus ventas",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
-      "export": "Exportar (con filtros)",
+      "export": "Exportar CSV",
       "newSale": "Nueva venta",
-      "periodChip": "Todo el tiempo",
-      "paymentChip": "Pago: cualquiera",
       "sellerChip": "Vendedor",
       "colType": "Tipo",
       "colRef": "Ref",
@@ -14159,12 +14157,34 @@
         "void": "Anulado"
       },
       "notWired": {
-        "export": "Una exportación necesita un filtro de periodo y de vendedor, que todavía no están modelados.",
         "newSale": "Activa el modo Mostrador en Ajustes › POS para abrir una venta.",
-        "period": "Las ventas todavía no se filtran por periodo; esta lista son las 200 más recientes de cada tipo.",
-        "payment": "Las ventas todavía no se filtran por estado de pago; la etiqueta de cada fila lo dice.",
         "seller": "Este espacio de trabajo es el único vendedor; el filtro por profesional todavía no está modelado."
       },
+      "viewLabel": "Vista",
+      "viewActivity": "Actividad",
+      "viewItems": "Por artículo",
+      "periodLabel": "Período",
+      "period": { "all": "Todo el tiempo", "today": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días", "month": "Este mes" },
+      "methodLabel": "Método de pago",
+      "method": { "any": "Cualquiera", "cash": "Efectivo", "card": "Tarjeta en mostrador", "online": "En línea", "other": "Otro" },
+      "colItem": "Artículo",
+      "colQuantity": "Cant.",
+      "colGross": "Bruto",
+      "colRefunded": "Reembolsado",
+      "colNet": "Neto",
+      "colOrders": "Pedidos",
+      "itemUnnamed": "Artículo sin nombre",
+      "itemCustom": "(línea personalizada)",
+      "itemsEmptyTitle": "No hay ventas pagadas en este período",
+      "itemsEmptyBody": "Aquí verás los pedidos pagados de este período y método de pago, agrupados por artículo.",
+      "itemsFootnote": "Solo pedidos pagados. Los importes son los de las líneas de pedido guardadas, una moneda por fila, nunca sumadas entre monedas. Los reembolsos se descuentan del neto.",
+      "csvItem": "Artículo",
+      "csvQuantity": "Cantidad",
+      "csvGross": "Bruto",
+      "csvRefunded": "Reembolsado",
+      "csvNet": "Neto",
+      "csvOrders": "Pedidos",
+      "csvCurrency": "Moneda",
       "filterAll": "Todo"
     },
     "payments": {
@@ -22609,6 +22629,44 @@
         "label": "Producto y consejos",
         "description": "Novedades del producto y consejos ocasionales de buenas prácticas."
       }
+    }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirma los datos de tu negocio",
+      "description": "Nombre, servicios y horario confirmados para que tus clientes sepan qué ofreces."
+    },
+    "services": {
+      "title": "Agrega tus servicios",
+      "description": "Enumera lo que ofreces con duración y precio o cotización."
+    },
+    "hours": {
+      "title": "Define tu horario",
+      "description": "Elige los días y horas en que tus clientes pueden reservar."
+    },
+    "location": {
+      "title": "Indica dónde trabajas",
+      "description": "Agrega tu zona para que tus clientes te encuentren."
+    },
+    "photos": {
+      "title": "Agrega fotos",
+      "description": "Muestra tu trabajo con al menos una foto."
+    },
+    "team": {
+      "title": "Invita a tu equipo",
+      "description": "Suma a las personas que atienden clientes contigo. Puedes hacerlo después."
+    },
+    "payments": {
+      "title": "Conecta los pagos",
+      "description": "Conecta tu cuenta de cobro para que tus clientes puedan pagarte."
+    },
+    "preview": {
+      "title": "Vista previa de tu página",
+      "description": "Mira tu página como la verán tus clientes."
+    },
+    "publish": {
+      "title": "Publica tu sitio web",
+      "description": "Pon tu sitio en línea y comparte el enlace."
     }
   }
 }

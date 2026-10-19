@@ -57,19 +57,24 @@ async function inBatches<T>(
 
 export async function loadWorkspaceOrders(
   tenantId: string,
-  opts: { limit?: number } = {},
+  opts: { limit?: number; createdFrom?: string | null; createdBefore?: string | null } = {},
 ): Promise<OrdersLoad> {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false };
 
   const limit = Math.min(Math.max(opts.limit ?? 200, 1), 500);
 
-  const { data: orderRows, error: ordersErr } = await admin
+  let ordersQuery = admin
     .from("orders")
     .select(
       "id, status, currency, total_cents, source_channel, created_at, inquiry_id, customer_id",
     )
-    .eq("tenant_id", tenantId)
+    .eq("tenant_id", tenantId);
+  // Sales period filter (optional): the window is applied in the query, so the
+  // `limit` below counts rows INSIDE the period, not the newest 200 overall.
+  if (opts.createdFrom) ordersQuery = ordersQuery.gte("created_at", opts.createdFrom);
+  if (opts.createdBefore) ordersQuery = ordersQuery.lt("created_at", opts.createdBefore);
+  const { data: orderRows, error: ordersErr } = await ordersQuery
     .order("created_at", { ascending: false })
     .limit(limit);
 

@@ -26,6 +26,8 @@ export type GuestCatalogRow = {
   title: string;
   sub: string | null;
   amountCents: number | null;
+  /** The row's own currency (TUL-1272 item 10). Null reads as USD. */
+  currency?: string | null;
   available: boolean;
   /** Why it cannot be added, when it cannot. */
   busy: string | null;
@@ -109,6 +111,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           title: r.title,
           sub: r.sub,
           amountCents: r.amountCents,
+          currency: r.currency ?? null,
           available: r.availability.kind !== "busy",
           busy: r.availability.kind === "busy" ? r.availability.reason : null,
           talentProfileId: r.talentProfileId ?? null,
