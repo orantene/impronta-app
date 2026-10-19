@@ -17,6 +17,8 @@ import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 export type PromoCodeInputProps = {
   plan: TalentPlanKey;
   interval: "month" | "year";
+  /** Pre-fills (and opens) the box, e.g. the `?promo=` value from the URL. */
+  defaultCode?: string | null;
   /** Called with the validated code + preview, or (null, null) when cleared. */
   onApplied: (code: string | null, preview: PromoPreview | null) => void;
 };
@@ -25,12 +27,12 @@ function usd(cents: number): string {
   return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
 }
 
-export function PromoCodeInput({ plan, interval, onApplied }: PromoCodeInputProps) {
+export function PromoCodeInput({ plan, interval, defaultCode, onApplied }: PromoCodeInputProps) {
   const t = useT();
   const locale = useDashboardLocale();
   const lang = locale === "es" ? "es" : "en";
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  const [open, setOpen] = useState(Boolean(defaultCode));
+  const [value, setValue] = useState(defaultCode ?? "");
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PromoPreview | null>(null);
   const [pending, start] = useTransition();
