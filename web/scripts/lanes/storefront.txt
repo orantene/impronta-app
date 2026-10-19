@@ -37,6 +37,7 @@ src/lib/client-account/merge_verified_client_customers.migration.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
 src/lib/client-account/signin-apple.static.test.ts
 src/lib/client-account/signin-methods.static.test.ts
+src/lib/events/venue-address.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
@@ -108,4 +109,3 @@ src/lib/talent/website-eligibility-facts.test.ts
 src/lib/talent/website-eligibility-offer.test.ts
 src/lib/talent/website-eligibility.test.ts
 src/lib/talent/website-flow.test.ts
-src/lib/events/venue-address.test.ts
