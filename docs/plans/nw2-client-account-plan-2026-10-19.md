@@ -8,7 +8,7 @@
 - `/book` (public) had no URL param for a service. `BookPageClient` starts on `offerings[0]`.
 
 ## What #2818 intended
-Closed Cursor PR "Sign in with Apple for /login + client popover (TUL-65)". It is only the Apple slice of the card (flag `AUTH_APPLE_PROVIDER_ENABLED`, `/auth/apple`, migration `20261231350656_client_auth_events_apple.sql`). It contains no favourites, reviews or rebook work. Apple sign-in, reviews and favourites remain open on TUL-65; this plan covers rebook (built) and favourites (plan only).
+Closed Cursor PR "Sign in with Apple for /login + client popover (TUL-65)". It is only the Apple slice of the card (flag `AUTH_APPLE_PROVIDER_ENABLED`, `/auth/apple`, migration `20261231350656_client_auth_events_apple.sql`). It contains no favourites, reviews or rebook work. The Apple slice has since landed on main behind the flag via integ #3080 (Notion Last move, 2026-10-19). Reviews and favourites remain open on TUL-65; this plan covers rebook (built) and favourites (plan only).
 
 ## Slice 1: REBOOK (built in this PR)
 - Behaviour: on a completed visit's detail page, one primary action "Book again" (icon + label, 44px min height) linking to `/book?service=<offeringId>` on the same host. `/book` moves that service to the front of the public, already-loaded offerings; unknown or missing ids change nothing.
@@ -26,9 +26,9 @@ Closed Cursor PR "Sign in with Apple for /login + client popover (TUL-65)". It i
 Why not built: needs a new table (migration), a save control on talent/directory surfaces (several files in the public site renderer, outside this lane), and a signed-in client gate on those surfaces. That is not small or clean for this PR.
 - Data: `client_favourites (id, client_user_id uuid not null, tenant_id uuid not null, talent_profile_id uuid not null, created_at, unique (client_user_id, tenant_id, talent_profile_id))`, RLS owner-only select/insert/delete, service-role reads through the existing tenant-scoped pattern in `area-data.server.ts`. Held file goes under `supabase/migrations/_pending_pm/`, applied by PM only. Scope by `talent_profile_id` (see incident: promos tenant-scoped on the shared hub).
 - Code (3 pieces): server action `toggleFavourite` (client session only, `assertNotImpersonating`, rate limited); a heart toggle on the talent profile header for signed-in clients; a "Saved" section in `/account` (new tab or Visits sub-block) listing saved talent with a "Book" link. All reads must degrade to an empty list when the table is absent (check error code `42P01`, log once).
-- Size: medium (about 8 files, 2 tests lanes, 1 migration, about 12 i18n keys: one contiguous block).
+- Size: medium (about 8 files, 2 test files, 1 migration, about 12 i18n keys: one contiguous block).
 - Risks: i18n block collides with the P3 PR; hub talents shared across tenants; guests have no account (heart should open sign-in, not fail silently).
 - Owner decisions: favourites per tenant host or global per client; whether signed-out guests can heart (recommend: no, sign-in prompt).
 
 ## Not in scope
-Apple sign-in (flagged, needs Supabase Apple config and the held migration), reviews code, emails.
+Apple sign-in (already on main behind the flag, needs Supabase Apple config), reviews code, emails.
