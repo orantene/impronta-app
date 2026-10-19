@@ -30,6 +30,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { normalizeWorkspaceLocale } from "@/lib/talent/workspace-primary-locale";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
@@ -50,6 +51,20 @@ async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFai
 
 function offeringsTable(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>) {
   return admin.from("talent_offerings");
+}
+
+/** The workspace's primary language (business identity default_locale); "en" when unset or unreadable. */
+async function workspacePrimaryLocale(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<string> {
+  const { data, error } = await admin
+    .from("agency_business_identity")
+    .select("default_locale")
+    .eq("tenant_id", tenantId)
+    .maybeSingle<{ default_locale: string | null }>();
+  if (error) logServerError("menu.offerings.primaryLocale", error);
+  return normalizeWorkspaceLocale(error ? null : data?.default_locale);
 }
 
 /** True when this offering is the catalog row behind a ticketed event. */
@@ -128,8 +143,10 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const items = rows.map((r) => {
-      const item = rowToOffering(r, "en", []);
+      // The editor edits the PRIMARY-language text; the maps ride along.
+      const item = rowToOffering(r, primaryLocale, [], [primaryLocale]);
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
       return item;
@@ -177,13 +194,14 @@ export async function upsertWorkspaceMenuItem(
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
     }
 
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const patch = {
       ...offeringToRowPatch({
         ...offering,
         ownerKind: "workspace",
         talentProfileId: null,
         tenantId,
-      }, "en"), // workspace menus have no per-owner primary yet: English, as before
+      }, primaryLocale), // the workspace's own language: a Spanish title is stored as `es`, not `en`
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,
@@ -214,17 +232,41 @@ export async function upsertWorkspaceMenuItem(
     }
     if (!saved) return { ok: false, error: "Failed to save." };
     revalidatePath("/");
-    return { ok: true, item: rowToOffering(saved, "en", offering.imageUrls ?? []) };
+    return { ok: true, item: rowToOffering(saved, primaryLocale, offering.imageUrls ?? [], [primaryLocale]) };
   } catch (err) {
     logServerError("menu.offerings.upsert", err);
     return { ok: false, error: "Unexpected error." };
   }
 }
 
+/**
+ * True when this item was ever published or sold. Such an item is ARCHIVED, never
+ * deleted: a hard delete nulls `order_lines.offering_id`, so past orders lose
+ * what they were for. Fails CLOSED: a failed history read counts as history.
+ */
+async function offeringHasHistory(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  offeringId: string,
+  row: { status: string | null; first_published_at: string | null },
+): Promise<boolean> {
+  if (row.status === "published" || row.first_published_at) return true;
+  const [lines, bookings] = await Promise.all([
+    admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
+    admin.from("talent_bookings").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
+  ]);
+  if (lines.error || bookings.error) {
+    logServerError("menu.offerings.history", lines.error ?? bookings.error);
+    return true;
+  }
+  return (lines.count ?? 0) > 0 || (bookings.count ?? 0) > 0;
+}
+
+export type DeleteMenuItemResult = { ok: boolean; error?: string; code?: "has_history" | "not_found" };
+
 export async function deleteWorkspaceMenuItem(
   tenantId: string,
   offeringId: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<DeleteMenuItemResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   const auth = await authorizeForWorkspace(tenantId);
@@ -234,17 +276,102 @@ export async function deleteWorkspaceMenuItem(
   if (await isEventOfferingId(admin, tenantId, offeringId)) {
     return { ok: false, error: "This item belongs to an event. Remove it under Events." };
   }
-  const { error } = await offeringsTable(admin)
+  const { data: row, error: rowErr } = await offeringsTable(admin)
+    .select("id, status, first_published_at")
+    .eq("id", offeringId)
+    .eq("tenant_id", tenantId)
+    .eq("owner_kind", "workspace")
+    .maybeSingle<{ id: string; status: string | null; first_published_at: string | null }>();
+  if (rowErr) {
+    logServerError("menu.offerings.deleteRead", rowErr);
+    return { ok: false, error: "Failed to delete." };
+  }
+  // A provider-owned row (the owner's own service, listed here) matches nothing
+  // in a workspace delete. Say so instead of reporting a delete that did not
+  // happen and letting the row vanish until the next reload.
+  if (!row) {
+    return { ok: false, code: "not_found", error: "This item is not part of the workspace menu. Remove it under Services." };
+  }
+  if (await offeringHasHistory(admin, offeringId, row)) {
+    return { ok: false, code: "has_history", error: "This item was published or sold, so it cannot be deleted. Archive it instead." };
+  }
+  const { data: gone, error } = await offeringsTable(admin)
     .delete()
     .eq("id", offeringId)
     .eq("tenant_id", tenantId)
-    .eq("owner_kind", "workspace");
+    .eq("owner_kind", "workspace")
+    .select("id");
   if (error) {
     logServerError("menu.offerings.delete", error);
     return { ok: false, error: "Failed to delete." };
   }
+  if (!gone || gone.length === 0) {
+    return { ok: false, code: "not_found", error: "This item was already removed. Reload the list." };
+  }
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Archive (off sale everywhere, history kept) or restore (back as a draft) a workspace item. */
+export async function setWorkspaceMenuItemArchived(
+  tenantId: string,
+  offeringId: string,
+  archived: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  const auth = await authorizeForWorkspace(tenantId);
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "Server configuration error." };
+  if (await isEventOfferingId(admin, tenantId, offeringId)) {
+    return { ok: false, error: "This item belongs to an event. Edit it under Events." };
+  }
+  const { data, error } = await offeringsTable(admin)
+    .update({ status: archived ? "archived" : "draft", updated_at: new Date().toISOString() })
+    .eq("id", offeringId)
+    .eq("tenant_id", tenantId)
+    .eq("owner_kind", "workspace")
+    .select("id");
+  if (error) {
+    logServerError("menu.offerings.archive", error);
+    return { ok: false, error: archived ? "Failed to archive." : "Failed to restore." };
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, error: "This item is not part of the workspace menu. Change it under Services." };
+  }
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/** The workspace's archived items, for the Archived view (the main load hides them). */
+export async function loadWorkspaceArchivedMenu(
+  tenantId: string,
+): Promise<{ ok: true; items: TalentOffering[] } | { ok: false; error: string }> {
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+    const { data, error } = await offeringsTable(admin)
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .eq("status", "archived")
+      .order("updated_at", { ascending: false });
+    if (error) {
+      logServerError("menu.offerings.archivedLoad", error);
+      return { ok: false, error: "Could not load archived items." };
+    }
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    return {
+      ok: true,
+      items: ((data ?? []) as TalentOfferingRow[]).map((r) => rowToOffering(r, primaryLocale, [], [primaryLocale])),
+    };
+  } catch (err) {
+    logServerError("menu.offerings.archivedLoad", err);
+    return { ok: false, error: "Unexpected error." };
+  }
 }
 
 export async function reorderWorkspaceMenuItems(
@@ -299,7 +426,7 @@ export async function setWorkspaceMenuItemOptions(
     if (await isEventOfferingId(admin, tenantId, offeringId)) {
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
     }
-    const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings");
+    const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings", await workspacePrimaryLocale(admin, tenantId));
     if (!saved.ok) return saved;
     revalidatePath("/");
     return saved;

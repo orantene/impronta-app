@@ -1,5 +1,6 @@
 import "server-only";
 
+import { jsonLdScriptString } from "@/lib/seo/json-ld-script";
 import { sanitizeStoredVerificationToken } from "@/lib/talent/google-site-verification";
 import type { Metadata } from "next";
 
@@ -125,7 +126,7 @@ export function maxSiteSeoToMetadata(
 export function maxSiteJsonLdString(seo: MaxSiteSeo): string {
   if (!seo.jsonLd) return "";
   try {
-    return JSON.stringify(seo.jsonLd);
+    return jsonLdScriptString(seo.jsonLd);
   } catch {
     return "";
   }

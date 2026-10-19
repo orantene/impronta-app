@@ -18196,7 +18196,8 @@
         "location": "Ubicación",
         "locationReason": "Un catálogo por espacio: los artículos aún no se registran por ubicación.",
         "channel": "Canal",
-        "incompleteOnly": "Solo incompletos"
+        "incompleteOnly": "Solo incompletos",
+        "archived": "Archivados"
       },
       "col": {
         "item": "Artículo",
@@ -18215,7 +18216,24 @@
         "duplicate": "Duplicar",
         "moveUp": "Subir",
         "moveDown": "Bajar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "archive": "Archivar",
+        "providerOwnedReason": "Este es uno de tus propios servicios. Cámbialo en Servicios."
+      },
+      "confirm": {
+        "deleteTitle": "¿Eliminar este artículo?",
+        "deleteBody": "{name} se eliminará para siempre. No se puede deshacer.",
+        "archiveTitle": "¿Archivarlo en su lugar?",
+        "archiveBody": "{name} ya se publicó o se vendió, así que no se puede eliminar. Al archivarlo sale de tu sitio y de tu mostrador, y los pedidos anteriores se conservan. Puedes restaurarlo cuando quieras.",
+        "delete": "Eliminar",
+        "archive": "Archivar",
+        "cancel": "Cancelar"
+      },
+      "archived": {
+        "title": "Artículos archivados",
+        "empty": "No hay nada archivado.",
+        "restore": "Restaurar",
+        "restoreNote": "Al restaurar, el artículo vuelve como borrador."
       },
       "create": {
         "title": "¿Qué vendes?",
@@ -18277,7 +18295,9 @@
         "saveDraft": "Guardar borrador",
         "publish": "Publicar",
         "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde.",
-        "save": "Guardar"
+        "save": "Guardar",
+        "notBookableNoProvider": "No se puede reservar en línea todavía: la reserva en línea necesita una persona con horario, y un servicio del negocio no la tiene. Tus clientes pueden enviar una solicitud. Para que elijan una hora, crea el servicio en Servicios para un miembro del equipo.",
+        "notBookableNoDuration": "No se puede reservar en línea todavía: agrega cuánto dura para poder ofrecer horarios."
       },
       "tab": {
         "label": "Secciones del artículo",

@@ -29,6 +29,7 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { patchForSave } from "@/lib/talent/offering-save-patch";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
@@ -204,7 +205,7 @@ export async function upsertTalentOffering(
     let saved: TalentOfferingRow | null = null;
     if (offering.id) {
       const { data, error } = await offeringsTable(admin)
-        .update(patch)
+        .update(patchForSave(patch, true))
         .eq("id", offering.id)
         .eq("talent_profile_id", talentProfileId)
         .select("*")
@@ -222,7 +223,7 @@ export async function upsertTalentOffering(
         .select("id", { count: "exact", head: true })
         .eq("talent_profile_id", talentProfileId);
 
-      const { data, error } = await offeringsTable(admin).insert(patch).select("*").maybeSingle();
+      const { data, error } = await offeringsTable(admin).insert(patchForSave(patch, false)).select("*").maybeSingle();
       if (error) {
         logServerError("talent.offerings.insert", error);
         return { ok: false, error: "Failed to save." };
@@ -562,13 +563,13 @@ export async function setOfferingOptions(
   offeringId: string,
   input: {
     variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
   },
 ): Promise<
   | {
       ok: true;
       variants: { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
     }
   | { ok: false; error: string }
 > {

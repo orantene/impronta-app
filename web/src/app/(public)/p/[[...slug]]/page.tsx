@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { publishedCmsPagePath } from "@/lib/cms/clean-urls";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -212,7 +214,7 @@ export async function generateMetadata({
   // Locale-free, prefix-free path. `buildTenantLocaleAlternates` adds both the
   // locale segment and the path-based tenant prefix (`/impronta/p/<slug>` on a
   // shared host), which the previous hardcoded `/p/<slug>` dropped.
-  const pathWithoutLocale = `/p/${slugPath}`;
+  const pathWithoutLocale = publishedCmsPagePath(slugPath, (path) => isPathAllowedForHostKind("agency", path));
   const alt = await buildTenantLocaleAlternates(locale, pathWithoutLocale, {
     // A draft previewed by staff has no published row, so fall back to the
     // locale being rendered rather than claiming translations that are not live.

@@ -18196,7 +18196,8 @@
         "location": "Location",
         "locationReason": "One catalog per workspace: items are not recorded per location yet.",
         "channel": "Channel",
-        "incompleteOnly": "Incomplete only"
+        "incompleteOnly": "Incomplete only",
+        "archived": "Archived"
       },
       "col": {
         "item": "Item",
@@ -18215,7 +18216,24 @@
         "duplicate": "Duplicate",
         "moveUp": "Move up",
         "moveDown": "Move down",
-        "delete": "Delete"
+        "delete": "Delete",
+        "archive": "Archive",
+        "providerOwnedReason": "This is one of your own services. Change it under Services."
+      },
+      "confirm": {
+        "deleteTitle": "Delete this item?",
+        "deleteBody": "{name} will be removed for good. This cannot be undone.",
+        "archiveTitle": "Archive it instead?",
+        "archiveBody": "{name} was published or sold, so it cannot be deleted. Archiving takes it off your site and counter and keeps past orders intact. You can restore it any time.",
+        "delete": "Delete",
+        "archive": "Archive",
+        "cancel": "Cancel"
+      },
+      "archived": {
+        "title": "Archived items",
+        "empty": "Nothing is archived.",
+        "restore": "Restore",
+        "restoreNote": "Restoring brings an item back as a draft."
       },
       "create": {
         "title": "What are you selling?",
@@ -18277,7 +18295,9 @@
         "saveDraft": "Save draft",
         "publish": "Publish",
         "draftHint": "Nothing is written until you save the draft or publish; a reload loses it.",
-        "save": "Save"
+        "save": "Save",
+        "notBookableNoProvider": "Cannot be booked online yet: online booking needs a person with working hours, and a workspace service has none. Clients can send a request instead. To let them pick a time, create the service under Services for a team member.",
+        "notBookableNoDuration": "Cannot be booked online yet: add how long it takes so times can be offered."
       },
       "tab": {
         "label": "Item sections",

@@ -11,7 +11,7 @@ const OFFERING = "22222222-2222-4222-8222-222222222222";
 const TENANT = "33333333-3333-4333-8333-333333333333";
 const INQUIRY = "44444444-4444-4444-8444-444444444444";
 
-function client(failTable: string): SupabaseClient {
+function client(failTable: string, offeringOver: Record<string, unknown> = {}): SupabaseClient {
   const chain = (table: string) => {
     const fail = table === failTable;
     const api = {
@@ -38,6 +38,9 @@ function client(failTable: string): SupabaseClient {
                         talent_profile_id: PROFILE,
                         tenant_id: TENANT,
                         status: "published",
+                        moderation_state: "approved",
+                        visibility: "public",
+                        ...offeringOver,
                       }
                     : null,
                 error: null,
@@ -66,6 +69,26 @@ test("a failed talent profile read is unavailable, not a missing actor", async (
       talentProfileId: PROFILE,
     });
     assert.deepEqual(result, { ok: false, reason: "unavailable" });
+  } finally {
+    process.env.GUEST_COOKIE_SECRET = prev;
+  }
+});
+
+test("D-10: a stale token cannot seed an agency_only, pending or on_request service", async () => {
+  const prev = process.env.GUEST_COOKIE_SECRET;
+  process.env.GUEST_COOKIE_SECRET = "test-secret-for-pos-messages";
+  try {
+    const token = signTalentOfferingIntent({ profileId: PROFILE, offeringId: OFFERING, intent: "ask" });
+    assert.ok(token);
+    for (const over of [{ visibility: "agency_only" }, { visibility: "on_request" }, { moderation_state: "pending" }]) {
+      const result = await seedTalentOfferingDraft(client("none", over), {
+        token: token!,
+        tenantId: TENANT,
+        inquiryId: INQUIRY,
+        talentProfileId: PROFILE,
+      });
+      assert.deepEqual(result, { ok: false, reason: "mismatch" }, JSON.stringify(over));
+    }
   } finally {
     process.env.GUEST_COOKIE_SECRET = prev;
   }
