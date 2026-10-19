@@ -88,7 +88,7 @@ export async function openBookingOrderForAgenda(
   let offering: OfferingSnap | null = null;
   if (offeringId) {
     offering = await readOwnedOffering(admin, offeringId, input.talentProfileId);
-    if (isSellable(offering, "pos_desk")) {
+    if (offering && isSellable(offering, "pos_desk")) {
       currency = (offering.currency || currency).toUpperCase();
       lineLabel = offering.title?.trim() || title;
       if (offering.amount_cents != null) {

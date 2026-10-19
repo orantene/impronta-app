@@ -279,3 +279,9 @@ test("hidden tiers: loadCatalog reads is_hidden, createPurchase gates on it, onl
     assert.doesNotMatch(web(f), /unlockedVariantIds/, `${f} must not unlock hidden tiers`);
   }
 });
+
+test("a missing offering is not sellable at the desk, and open-booking-order narrows null before reading it", () => {
+  assert.equal(isSellable(null, "pos_desk"), false);
+  assert.equal(isSellable(undefined, "pos_desk"), false);
+  assert.match(web("src/lib/talent-agenda/open-booking-order.ts"), /if \(offering && isSellable\(offering, "pos_desk"\)\)/);
+});
