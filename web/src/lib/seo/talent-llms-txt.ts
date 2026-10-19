@@ -5,6 +5,16 @@
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 
+export const AGENT_CATALOG_PATH = "/api/public/booking/catalog";
+export const AGENT_SLOTS_PATH = "/api/public/booking/slots";
+export const AGENT_MCP_PATH = "/api/public/booking/mcp";
+
+export interface TalentLlmsPost {
+  title: string;
+  url: string;
+  description: string;
+}
+
 export interface TalentLlmsService {
   title: string;
   priceText: string;
@@ -16,6 +26,10 @@ export interface TalentLlmsInput {
   city: string | null;
   languages: string[];
   services: TalentLlmsService[];
+  /** Indexable posts, already localized to absolute URLs. */
+  posts?: TalentLlmsPost[];
+  /** Talent switch "booking through AI assistants". Absent counts as OFF. */
+  agentBookingEnabled?: boolean;
 }
 
 export interface TalentLlmsGateInput {
@@ -57,7 +71,28 @@ export function buildTalentLlmsTxt(base: URL, t: TalentLlmsInput): string {
     out.push("## Services", "", ...t.services.map((s) => `- ${s.title}: ${s.priceText}`), "");
   }
   if (t.languages.length > 0) out.push("## Languages", "", t.languages.join(", "), "");
-  out.push("## Book", "", `- [Book or send an inquiry](${home})`, "");
+  if (t.posts && t.posts.length > 0) {
+    out.push(
+      "## Posts",
+      "",
+      ...t.posts.map((p) => `- [${p.title}](${p.url})${p.description ? `: ${p.description}` : ""}`),
+      "",
+    );
+  }
+  const origin = home.replace(/\/$/, "");
+  out.push(
+    "## Book",
+    "",
+    `- [Book or send an inquiry](${home})`,
+    `- [Service list (JSON)](${origin}${AGENT_CATALOG_PATH})`,
+    `- [Open times (JSON)](${origin}${AGENT_SLOTS_PATH}?offering=<service_id>&days=7): free start times, ISO 8601 UTC`,
+    `- [MCP server](${origin}${AGENT_MCP_PATH}): streamable HTTP, tools list_services, find_open_times, request_booking, get_request_status`,
+    "",
+    t.agentBookingEnabled === true
+      ? "request_booking does not book anything. It returns a link the person opens to confirm in the talent's chat. get_request_status takes the returned handoff_id and answers link_not_used, sent, accepted, declined or expired, with no personal details."
+      : `${t.name} has not turned on booking through AI assistants. You can read services and open times; send the person to this site to book.`,
+    "",
+  );
   return out.join("\n");
 }
 

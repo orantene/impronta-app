@@ -14,6 +14,7 @@ import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
+import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import {
   loadOfferingChildren,
@@ -103,7 +104,7 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     // belong to Events, not Menu. Exclude any id that an `events.offering_id`
     // points at so a ticketed night never shows up as a sellable menu package.
     const ownerTalentIds = await fetchOwnerTalentIds(admin, tenantId);
-    const [{ data, error }, { data: eventRows, error: evErr }] = await Promise.all([
+    const [{ data, error }, nonMenu] = await Promise.all([
       offeringsTable(admin)
         .select("*")
         .eq("tenant_id", tenantId)
@@ -118,28 +119,19 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
         // in whatever order the last update left them.
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true }),
-      admin
-        .from("events")
-        .select("offering_id")
-        .eq("tenant_id", tenantId)
-        .not("offering_id", "is", null),
+      loadNonMenuOfferingIds(admin, tenantId),
     ]);
     if (error) {
       logServerError("menu.offerings.load", error);
       return { ok: false, error: "Could not load the menu." };
     }
-    if (evErr) {
+    if (nonMenu.error) {
       // Fail closed in the editor: better to refuse the load than list a
       // ticketed event as a menu dish (public board fails open on purpose).
-      logServerError("menu.offerings.eventIds", evErr);
+      logServerError("menu.offerings.eventIds", nonMenu.error);
       return { ok: false, error: "Could not load the menu." };
     }
-    const eventOfferingIds = new Set(
-      (eventRows ?? [])
-        .map((r) => (r as { offering_id?: unknown }).offering_id)
-        .filter((id): id is string => typeof id === "string" && id.length > 0),
-    );
-    const rows = ((data ?? []) as TalentOfferingRow[]).filter((r) => !eventOfferingIds.has(r.id));
+    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], nonMenu.ids);
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     const children = await loadOfferingChildren(admin, rows.map((r) => r.id));
