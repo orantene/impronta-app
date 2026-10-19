@@ -3,6 +3,7 @@ import {
   sweepPendingCustomDomainVerifications,
   sweepProvisioningCustomDomains,
 } from "@/lib/saas/custom-domain-actions";
+import { provisionAutoTurnstileWidgetsForActivatedDomains } from "@/lib/captcha/turnstile-auto-widget/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -50,11 +51,28 @@ export async function GET(request: Request) {
       sweepPendingCustomDomainVerifications(supabase),
       sweepProvisioningCustomDomains(supabase),
     ]);
+
+    // TUL-1017: Turnstile widget per newly active custom domain. OFF unless
+    // CAPTCHA_AUTO_WIDGET === "1"; never fails the sweep (fail-safe = captcha "none").
+    let captchaAutoWidget: { created: number; skipped: number; failed: number } | null = null;
+    if (process.env.CAPTCHA_AUTO_WIDGET === "1") {
+      try {
+        const activated = provisioningReport.results
+          .filter((r) => r.to === "active" && r.from !== "active")
+          .map((r) => ({ tenantId: r.tenantId, hostname: r.hostname }));
+        const run = await provisionAutoTurnstileWidgetsForActivatedDomains(activated);
+        captchaAutoWidget = { created: run.created, skipped: run.skipped, failed: run.failed };
+      } catch (error) {
+        logServerError("cron/domain-verification.captchaAutoWidget", error);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       sweptAt: new Date().toISOString(),
       verification: verificationReport,
       provisioning: provisioningReport,
+      captchaAutoWidget,
     });
   } catch (error) {
     logServerError("cron/domain-verification", error);

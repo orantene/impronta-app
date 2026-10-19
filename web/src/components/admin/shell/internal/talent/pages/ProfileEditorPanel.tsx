@@ -57,7 +57,7 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
   const eligibility = flow.eligibility;
   const sum = summarizeEligibility(eligibility);
   const pct = sum.percent;
-  const mode = profileQualityMode({ published: flow.state === "published", unlocked: eligibility.unlocked, percent: pct });
+  const mode = profileQualityMode({ published: flow.state === "published", unlocked: eligibility.unlocked, percent: pct, loading: eligibility.factsLoading });
   // TUL-818: same verified answer as the top pill.
   const liveBadge = useVerifiedLiveBadge(flow.state === "published");
   const line =
@@ -67,9 +67,11 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
         : copy.t("Your website is live")
       : mode === "unlocked"
         ? t("dashboard.talentMyProfile.editor.qualityUnlocked")
-        : mode === "unknown"
-          ? t("dashboard.talentMyProfile.editor.qualityUnknown")
-          : interpolate(t(sum.left === 1 ? "dashboard.talentMyProfile.editor.qualityLeftOne" : "dashboard.talentMyProfile.editor.qualityLeftMany"), { count: sum.left });
+        : mode === "checking"
+          ? t("dashboard.talentMyProfile.editor.qualityChecking")
+          : mode === "unknown"
+            ? t("dashboard.talentMyProfile.editor.qualityUnknown")
+            : interpolate(t(sum.left === 1 ? "dashboard.talentMyProfile.editor.qualityLeftOne" : "dashboard.talentMyProfile.editor.qualityLeftMany"), { count: sum.left });
   return (
     <section
       data-testid="profile-ready-card"

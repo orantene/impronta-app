@@ -180,6 +180,7 @@ export async function confirmPlanChange(
         toPriceId,
         toPlan: req.toPlan,
         toInterval: req.toInterval,
+        trialEnd: c.sub.status === "trialing" ? (c.sub.trial_end ?? null) : null,
       }),
       { idempotencyKey: key("schedule_update") },
     );

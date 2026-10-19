@@ -11,6 +11,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { userHasCapability } from "@/lib/access";
 
 /**
  * F.1 — Team management server actions.
@@ -49,6 +50,19 @@ type Role = "admin" | "manager" | "editor" | "viewer";
 
 const VALID_ROLES = new Set<Role>(["admin", "manager", "editor", "viewer"]);
 
+/**
+ * TUL-1269: every team mutation below needs `manage_memberships` (owner or admin by the
+ * capability table), not merely workspace staff. A `viewer` or `editor` is staff too.
+ */
+async function lacksMembershipCapability(tenantId: string): Promise<boolean> {
+  return !(await userHasCapability("manage_memberships", tenantId));
+}
+const NOT_ALLOWED = {
+  ok: false as const,
+  error: "Only an owner or admin can manage the team.",
+  reason: "forbidden" as const,
+};
+
 // ─── 1. Email invite ──────────────────────────────────────────────────────
 
 export type InviteTeamMemberResult = ServerActionResult<{
@@ -68,6 +82,7 @@ export async function inviteTeamMember(
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
+    if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
 
     const trimmed = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -212,6 +227,7 @@ export async function promoteRosterTalentToAdmin(
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId } = auth;
+    if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
 
     if (!VALID_ROLES.has(role)) {
       return { ok: false, error: "Invalid role.", reason: "validation_failed" };
@@ -259,13 +275,17 @@ export async function promoteRosterTalentToAdmin(
     // Check for an existing membership row.
     const { data: existing } = await admin
       .from("agency_memberships")
-      .select("id, status")
+      .select("id, status, role")
       .eq("tenant_id", tenantId)
       .eq("profile_id", userId)
       .in("status", ["active", "invited", "pending_acceptance", "suspended"])
       .maybeSingle();
 
     if (existing) {
+      // An owner row is never touched here (TUL-1269): ownership moves only by transfer.
+      if ((existing as { role?: string | null }).role === "owner") {
+        return { ok: false, error: "The workspace owner's role can't be changed here.", reason: "forbidden" };
+      }
       // Already a member — just update role.
       const { error: updateErr } = await admin
         .from("agency_memberships")
@@ -408,6 +428,7 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
+    if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
 
     if (profileId === user.id) {
       return { ok: false, error: "You can't remove yourself.", reason: "forbidden" };
@@ -474,6 +495,8 @@ export async function changeTeamMemberRole(
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
+    // Same gate as the other team actions (TUL-1269): the manage_memberships capability.
+    if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
 
     if (!VALID_ROLES.has(role)) {
       return { ok: false, error: "Invalid role.", reason: "validation_failed" };
@@ -486,21 +509,6 @@ export async function changeTeamMemberRole(
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable.", reason: "unexpected" };
-
-    // Caller must be an active owner or admin of this tenant.
-    const { data: myMembership } = await tenantScopedQuery(
-      admin,
-      "agency_memberships",
-      tenantId,
-    )
-      .select("role")
-      .eq("profile_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
-    const myRole = (myMembership as { role?: string } | null)?.role;
-    if (myRole !== "owner" && myRole !== "admin") {
-      return { ok: false, error: "Only an owner or admin can change roles.", reason: "forbidden" };
-    }
 
     // Target must be an active member. The owner role is transfer-only —
     // it can never be set or cleared through this action.

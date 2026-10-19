@@ -46,7 +46,11 @@
       "shell": {
         "clientHeading": "Reserva y gestiona todo en un solo lugar.",
         "clientLead": "Crea una cuenta de cliente gratis para seguir tus reservas, mensajes y pagos.",
-        "clientPoints": {"book": "Sigue cada reserva y cada pago", "thread": "Escribe al talento o al equipo en un solo hilo", "secure": "Entra con un código o una contraseña"},
+        "clientPoints": {
+          "book": "Sigue cada reserva y cada pago",
+          "thread": "Escribe al talento o al equipo en un solo hilo",
+          "secure": "Entra con un código o una contraseña"
+        },
         "back": "Volver a {site}",
         "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
         "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
@@ -1754,7 +1758,7 @@
     },
     "bookPage": {
       "title": "Reserva un horario",
-      "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
+      "lead": "Elige un servicio y un horario. La línea bajo el precio dice si pagas ahora o en la cita.",
       "bookCta": "Agendar",
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
@@ -2469,14 +2473,6 @@
     }
   },
   "dashboard": {
-    "promoCode": {
-      "toggle": "¿Tienes un código?",
-      "label": "Código promocional",
-      "placeholder": "Ingresa el código",
-      "apply": "Aplicar",
-      "checking": "Verificando...",
-      "remove": "Quitar"
-    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",
@@ -2618,16 +2614,6 @@
     "switchWorkspace": "Cambiar espacio",
     "workspaceTalentQa": "Usuario QA talento",
     "workspaceClientQa": "Usuario QA cliente",
-    "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
-    "workspaceQaReason": {
-      "not_configured": "El cambio QA no está configurado: falta el id del usuario QA o el secreto de suplantación en este entorno.",
-      "no_profile": "El usuario QA configurado no tiene perfil en esta base de datos.",
-      "inactive": "El usuario QA existe pero su cuenta no está activa (sigue en onboarding o suspendida). Actívala y vuelve a intentarlo.",
-      "wrong_role": "El usuario QA configurado no tiene el rol que necesita este cambio.",
-      "not_allowlisted": "El id del usuario QA no está en la lista permitida de este entorno.",
-      "not_authorized": "Solo un super admin puede usar el cambio QA.",
-      "no_relationship": "El cliente QA no tiene una relación activa con una agencia, así que no hay espacio de cliente que abrir."
-    },
     "workspaceSwitcherHint": "Vista previa QA, solo lectura",
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",
@@ -2711,6 +2697,7 @@
         "qualityLeftMany": "Faltan {count} cosas para tu sitio gratis",
         "qualityUnlocked": "Tu sitio gratis ya tiene todo lo que necesita",
         "qualityUnknown": "Aún no pudimos cargar todas las revisiones",
+        "qualityChecking": "Revisando tu perfil…",
         "finish": "Completar lo siguiente",
         "sectionsTitle": "Editar tu perfil",
         "sectionsHint": "Cada campo aparece en tu página. No hay un segundo lugar donde editarlo.",
@@ -14129,10 +14116,8 @@
       "noCustomer": "Sin nombre registrado",
       "unavailableTitle": "No pudimos cargar tus ventas",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
-      "export": "Exportar (con filtros)",
+      "export": "Exportar CSV",
       "newSale": "Nueva venta",
-      "periodChip": "Todo el tiempo",
-      "paymentChip": "Pago: cualquiera",
       "sellerChip": "Vendedor",
       "colType": "Tipo",
       "colRef": "Ref",
@@ -14173,12 +14158,34 @@
         "void": "Anulado"
       },
       "notWired": {
-        "export": "Una exportación necesita un filtro de periodo y de vendedor, que todavía no están modelados.",
         "newSale": "Activa el modo Mostrador en Ajustes › POS para abrir una venta.",
-        "period": "Las ventas todavía no se filtran por periodo; esta lista son las 200 más recientes de cada tipo.",
-        "payment": "Las ventas todavía no se filtran por estado de pago; la etiqueta de cada fila lo dice.",
         "seller": "Este espacio de trabajo es el único vendedor; el filtro por profesional todavía no está modelado."
       },
+      "viewLabel": "Vista",
+      "viewActivity": "Actividad",
+      "viewItems": "Por artículo",
+      "periodLabel": "Período",
+      "period": { "all": "Todo el tiempo", "today": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días", "month": "Este mes" },
+      "methodLabel": "Método de pago",
+      "method": { "any": "Cualquiera", "cash": "Efectivo", "card": "Tarjeta en mostrador", "online": "En línea", "other": "Otro" },
+      "colItem": "Artículo",
+      "colQuantity": "Cant.",
+      "colGross": "Bruto",
+      "colRefunded": "Reembolsado",
+      "colNet": "Neto",
+      "colOrders": "Pedidos",
+      "itemUnnamed": "Artículo sin nombre",
+      "itemCustom": "(línea personalizada)",
+      "itemsEmptyTitle": "No hay ventas pagadas en este período",
+      "itemsEmptyBody": "Aquí verás los pedidos pagados de este período y método de pago, agrupados por artículo.",
+      "itemsFootnote": "Solo pedidos pagados. Los importes son los de las líneas de pedido guardadas, una moneda por fila, nunca sumadas entre monedas. Los reembolsos se descuentan del neto.",
+      "csvItem": "Artículo",
+      "csvQuantity": "Cantidad",
+      "csvGross": "Bruto",
+      "csvRefunded": "Reembolsado",
+      "csvNet": "Neto",
+      "csvOrders": "Pedidos",
+      "csvCurrency": "Moneda",
       "filterAll": "Todo"
     },
     "payments": {
@@ -15095,6 +15102,8 @@
           "recording": "Registrando…"
         }
       },
+      "counterCatalogErrorTitle": "No se pudo cargar el catálogo",
+      "counterCatalogErrorBody": "Algo salió mal al leer los artículos de este espacio de trabajo, por eso el mostrador no los muestra. Recarga la página. Si sigue pasando, contacta a soporte.",
       "counterOffTitle": "El mostrador está desactivado",
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "projects": {
@@ -17801,11 +17810,6 @@
       "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
       "kpiCollectedNoteOne": "1 registro pagado"
     },
-    "adminNotFound": {
-      "title": "Página no encontrada",
-      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
-      "back": "Volver al resumen"
-    },
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",
@@ -20438,6 +20442,29 @@
       "walletBody3": "Vincula solo una dirección que sea tuya. Revísala bien antes de guardar.",
       "checking": "Verificando si puedes cobrar en USDC..."
     },
+    "promoCode": {
+      "toggle": "¿Tienes un código?",
+      "label": "Código promocional",
+      "placeholder": "Ingresa el código",
+      "apply": "Aplicar",
+      "checking": "Verificando...",
+      "remove": "Quitar"
+    },
+    "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
+    "workspaceQaReason": {
+      "not_configured": "El cambio QA no está configurado: falta el id del usuario QA o el secreto de suplantación en este entorno.",
+      "no_profile": "El usuario QA configurado no tiene perfil en esta base de datos.",
+      "inactive": "El usuario QA existe pero su cuenta no está activa (sigue en onboarding o suspendida). Actívala y vuelve a intentarlo.",
+      "wrong_role": "El usuario QA configurado no tiene el rol que necesita este cambio.",
+      "not_allowlisted": "El id del usuario QA no está en la lista permitida de este entorno.",
+      "not_authorized": "Solo un super admin puede usar el cambio QA.",
+      "no_relationship": "El cliente QA no tiene una relación activa con una agencia, así que no hay espacio de cliente que abrir."
+    },
+    "adminNotFound": {
+      "title": "Página no encontrada",
+      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
+      "back": "Volver al resumen"
+    },
     "platformPosts": {
       "nav": "Posts"
     },
@@ -21179,7 +21206,10 @@
       "billing": {
         "redirecting": "Redirigiendo…",
         "pastDueTitle": "Pago fallido.",
-        "pastDueGraceBody": "Tu pago no pasó. Las funciones de pago siguen activas {days} día(s) más. Actualiza tu tarjeta para conservarlas.",
+        "pastDueGraceBody": {
+          "one": "Tu pago no pasó. Las funciones de pago siguen activas {count} día más. Actualiza tu tarjeta para conservarlas.",
+          "other": "Tu pago no pasó. Las funciones de pago siguen activas {count} días más. Actualiza tu tarjeta para conservarlas."
+        },
         "pastDueExpiredBody": "Tu pago no pasó y tu plan está en pausa. Tu contenido está a salvo. Restaura tu plan para recuperar las funciones de pago.",
         "updateCard": "Actualizar tarjeta",
         "restorePlan": "Restaurar plan",
@@ -22603,6 +22633,44 @@
         "label": "Producto y consejos",
         "description": "Novedades del producto y consejos ocasionales de buenas prácticas."
       }
+    }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirma los datos de tu negocio",
+      "description": "Nombre, servicios y horario confirmados para que tus clientes sepan qué ofreces."
+    },
+    "services": {
+      "title": "Agrega tus servicios",
+      "description": "Enumera lo que ofreces con duración y precio o cotización."
+    },
+    "hours": {
+      "title": "Define tu horario",
+      "description": "Elige los días y horas en que tus clientes pueden reservar."
+    },
+    "location": {
+      "title": "Indica dónde trabajas",
+      "description": "Agrega tu zona para que tus clientes te encuentren."
+    },
+    "photos": {
+      "title": "Agrega fotos",
+      "description": "Muestra tu trabajo con al menos una foto."
+    },
+    "team": {
+      "title": "Invita a tu equipo",
+      "description": "Suma a las personas que atienden clientes contigo. Puedes hacerlo después."
+    },
+    "payments": {
+      "title": "Conecta los pagos",
+      "description": "Conecta tu cuenta de cobro para que tus clientes puedan pagarte."
+    },
+    "preview": {
+      "title": "Vista previa de tu página",
+      "description": "Mira tu página como la verán tus clientes."
+    },
+    "publish": {
+      "title": "Publica tu sitio web",
+      "description": "Pon tu sitio en línea y comparte el enlace."
     }
   }
 }

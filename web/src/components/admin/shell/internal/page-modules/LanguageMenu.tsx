@@ -23,13 +23,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
-import { readLocaleFromDocumentCookie, setLocaleCookie } from "@/components/dashboard-locale-toggle";
+import { setLocaleCookie } from "@/components/dashboard-locale-toggle";
 import { getLocaleMetadata, type Locale } from "@/i18n/config";
 import { useDashboardText } from "../dashboard-i18n";
 import { Icon } from "../primitives";
 import { meetsRole, useAdminShell } from "../state";
 import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
 import { workspaceMenuLocales } from "./language-menu-locales";
+import { activeLocalePill } from "./active-locale-pill";
 import { LocaleSwitchPill } from "./LocaleSwitchPill";
 import { useTalentContentLocaleSeed } from "./use-talent-content-locale-seed";
 
@@ -44,14 +45,11 @@ export function LanguageMenu() {
     ? [talentLocales.primary, ...talentLocales.secondary]
     : workspaceMenuLocales(supportedLocales, tenantDefaultLocale);
   const defaultLocale: Locale = talentLocales?.primary ?? tenantDefaultLocale;
-  const localesKey = locales.join(",");
   const renderedLocale = useDashboardLocale();
-  const [active, setActive] = useState<Locale>(talentLocales?.primary ?? tenantDefaultLocale);
-
-  useEffect(() => {
-    const list = localesKey.split(",").filter((s): s is Locale => s.length > 0);
-    setActive(readLocaleFromDocumentCookie(defaultLocale, list));
-  }, [defaultLocale, localesKey]);
+  // TUL-1277: light the language the page RENDERED (the same value the copy
+  // uses), not a cookie read; a click lights the pick until the reload lands.
+  const [picked, setPicked] = useState<Locale | null>(null);
+  const active = activeLocalePill({ rendered: renderedLocale, picked, locales, fallback: defaultLocale });
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +74,7 @@ export function LanguageMenu() {
     // language, so picking the visible-but-different one was swallowed (2nd click).
     if (next === renderedLocale) return;
     setLocaleCookie(next);
-    setActive(next);
+    setPicked(next);
     window.location.reload();
   };
 

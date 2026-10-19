@@ -2,13 +2,18 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadMaxSiteByProfileId, loadTalentPlanKey } from "@/lib/talent-site/server/load-max-site";
 import { loadMaxSiteSeoFacts } from "@/lib/talent-site/server/max-site-seo-facts.server";
 import { loadTalentTypeLabels } from "@/lib/talent-site/server/load-talent-trades.server";
-import { buildTalentLlmsTxt, isTalentLlmsEligible, talentServicePriceText } from "./talent-llms-txt";
+import { buildTalentLlmsTxt, isTalentLlmsEligible, talentServicePriceText, type TalentLlmsPost } from "./talent-llms-txt";
 
 /** The llms.txt body for a talent-site host, or null (404) when not public. */
-export async function loadTalentLlmsTxt(talentProfileId: string, base: URL): Promise<string | null> {
+export async function loadTalentLlmsTxt(
+  talentProfileId: string,
+  base: URL,
+  posts: TalentLlmsPost[] = [],
+): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   try {
@@ -36,7 +41,7 @@ export async function loadTalentLlmsTxt(talentProfileId: string, base: URL): Pro
     });
     const name = row.display_name?.trim() || row.first_name?.trim() || "";
     if (!eligible || !name) return null;
-    const [facts, trades, langs] = await Promise.all([
+    const [facts, trades, langs, switches] = await Promise.all([
       loadMaxSiteSeoFacts(talentProfileId, "en"),
       loadTalentTypeLabels(talentProfileId),
       admin
@@ -44,11 +49,14 @@ export async function loadTalentLlmsTxt(talentProfileId: string, base: URL): Pro
         .select("language_name")
         .eq("talent_profile_id", talentProfileId)
         .order("display_order", { ascending: true }),
+      loadTalentSiteSwitches(admin, talentProfileId),
     ]);
     return buildTalentLlmsTxt(base, {
       name,
       trade: trades[0] ?? null,
       city: facts.addressLocality,
+      posts,
+      agentBookingEnabled: switches.chatConfig.agentBookingEnabled === true,
       languages: ((langs.data ?? []) as { language_name: string | null }[])
         .map((l) => l.language_name?.trim() ?? "")
         .filter(Boolean),

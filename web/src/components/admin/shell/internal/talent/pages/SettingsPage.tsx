@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { loadWebsiteSettingsEnabledAction } from "@/components/talent/website-settings/website-settings-gate-action";
+import { readTalentDashboard } from "@/lib/talent/dashboard-reads";
 import { requestWebsiteSettingsView } from "@/components/talent/website-settings/website-settings-intent";
 import { languageName } from "@/lib/i18n/locale-field-model";
 import { CommercialBookingTermsCard } from "@/app/(workspace)/[tenantSlug]/talent/settings/CommercialBookingTermsCard";
@@ -133,7 +133,8 @@ export function SettingsPage() {
   const [settingsOn, setSettingsOn] = useState(false);
   useEffect(() => {
     let live = true;
-    void loadWebsiteSettingsEnabledAction()
+    // TUL-1274: a GET, not a server action: an action here could refetch the whole tree.
+    void readTalentDashboard("website-settings-enabled")
       .then((on) => {
         if (live) setSettingsOn(on);
       })

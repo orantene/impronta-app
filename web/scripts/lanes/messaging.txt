@@ -9,6 +9,7 @@ src/app/t/*/_chat/dock-viewer-identity-mount.static.test.ts
 src/app/t/*/_chat/empty-first-visit.static.test.ts
 src/app/t/*/_chat/guest-added-items-dedupe.test.ts
 src/app/t/*/_chat/guest-dock-catalog.static.test.ts
+src/app/t/*/_chat/guest-dock-currency.static.test.ts
 src/app/t/*/_chat/guest-dock-inquiry-tray.test.ts
 src/app/t/*/_chat/guest-dock-v5.static.test.ts
 src/app/t/*/_chat/guest-handoff-contact.static.test.ts
@@ -36,6 +37,7 @@ src/lib/inquiry/guest-dock-items-label.test.ts
 src/lib/inquiry/hub-chat-es.i18n.test.ts
 src/lib/inquiry/skin-parity.render.test.tsx
 src/lib/messages-v5/context-view.test.ts
+src/lib/messages-v5/guest-catalog-price.test.ts
 src/lib/messages-v5/guest-next-step.test.ts
 src/lib/messaging/*.test.ts
 src/lib/messaging/client-draft-guards.test.ts

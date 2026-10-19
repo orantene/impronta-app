@@ -8,6 +8,8 @@
  * that is not a `/w/<slug>` site: those keep the normal `/register` redirect.
  * Pure.
  */
+import { normalizeNextPath } from "@/lib/auth-flow";
+
 export function pathWorkspaceClientSignUpHref(input: {
   /** The proxy's `x-impronta-public-path-prefix`, e.g. `/w/acme`. */
   publicPathPrefix: string | null | undefined;
@@ -20,7 +22,7 @@ export function pathWorkspaceClientSignUpHref(input: {
   const intent = input.params.intent;
   if (typeof intent === "string" && intent) query.set("intent", intent);
   const next = input.params.next;
-  const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+  const safeNext = typeof next === "string" ? normalizeNextPath(next, "/account") : "/account";
   query.set("next", safeNext);
   return `${input.appUrl.trim().replace(/\/$/, "")}/register?${query.toString()}`;
 }

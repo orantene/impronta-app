@@ -117,7 +117,7 @@ const RESERVED_TALENT_SITE_SLUGS = new Set([
 export type TalentSiteHostPath =
   | { kind: "passthrough" }
   | { kind: "render"; pageSlug: string | null }
-  /** Posts v1: `/blog/<slug>`, `/blog/<slug>/og`, `/blog/c/<category>` → `/_talent-site/blog/...`. */
+  /** Posts v1: bare `/blog` (index), `/blog/<slug>`, `/blog/<slug>/og`, `/blog/c/<category>` → `/_talent-site/blog/...`. */
   | { kind: "blog"; rewritePath: string }
   /** Posts v1: legacy `/posts/<slug>` → 301 `/blog/<slug>`. */
   | { kind: "redirect"; location: string; status: 301 };
@@ -125,13 +125,15 @@ export type TalentSiteHostPath =
 /**
  * Posts v1 (TUL-1009) blog grammar on a talent host. Multi-segment, so it is
  * matched explicitly here (the single-segment page-slug rule rejects it).
- * A bare `/blog` stays a normal single-segment page slug.
+ * The bare `/blog` is the post index (it wins over a talent page slugged
+ * "blog"; the Blog nav entry also yields to such a page).
  */
 function talentBlogPath(segments: readonly string[]): TalentSiteHostPath | null {
   if (segments[0] === "posts" && segments.length === 2 && TALENT_PAGE_SLUG.test(segments[1])) {
     return { kind: "redirect", location: `/blog/${segments[1]}`, status: 301 };
   }
   if (segments[0] !== "blog") return null;
+  if (segments.length === 1) return { kind: "blog", rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog` };
   const isSlug = (s: string | undefined) => !!s && TALENT_PAGE_SLUG.test(s);
   if (segments.length === 2 && isSlug(segments[1])) {
     return { kind: "blog", rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog/${segments[1]}` };
@@ -170,7 +172,7 @@ export function isTalentSiteHostPathAllowed(
   // Single-segment page slug → an inner site page (unless it's a reserved
   // platform word, which 404s here rather than routing into the talent site).
   const segments = pathname.split("/").filter(Boolean);
-  if (segments.length > 1) {
+  if (segments.length > 1 || segments[0] === "blog") {
     const blog = talentBlogPath(segments);
     if (blog) return blog;
   }

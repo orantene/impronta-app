@@ -36,6 +36,7 @@ const CUSTOMER_TEMPLATE_IDS = new Set([
   "client.offer_ready",
   "client.booking_confirmed",
   "client.booking_cancelled",
+  "client.booking_reserved",
   "client.booking_day_of_reminder",
   "client.payment_receipt",
   "client.deposit_received",

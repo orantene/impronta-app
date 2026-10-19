@@ -103,6 +103,58 @@ describe("invoice.paid replay", () => {
   });
 });
 
+describe("TUL-835 payment-failed email follows the recipient's app language", () => {
+  // An ES talent whose Stripe customer has no preferred_locales got the
+  // English subject. The app language (talent_profiles.preferred_locale or the
+  // workspace default) now decides, like booking notices.
+  const noStripeLocale = () => invoice({ id: "in_loc", customer_preferred_locales: [] });
+
+  test("ES recipient with no Stripe locale: Spanish subject and body", async () => {
+    const { deps, sent } = fakeDeps();
+    const seen: unknown[] = [];
+    deps.recipientLocale = async (q) => {
+      seen.push(q);
+      return "es";
+    };
+    assert.equal(await sendPaymentFailedNotice(args(noStripeLocale()), deps), "sent");
+    assert.equal(sent[0].subject, "Tu pago no pasó");
+    assert.match(sent[0].html, /lang="es"/);
+    assert.match(sent[0].html, /No pudimos cobrar tu suscripción/);
+    assert.match(sent[0].html, /Actualizar tarjeta/);
+    assert.deepEqual(seen, [{ scope: "talent", subscriptionId: "sub_1" }]);
+  });
+
+  test("EN recipient: English subject and body, even when Stripe guessed Spanish", async () => {
+    const { deps, sent } = fakeDeps();
+    deps.recipientLocale = async () => "en";
+    await sendPaymentFailedNotice(args(invoice({ id: "in_en", customer_preferred_locales: ["es-MX"] })), deps);
+    assert.equal(sent[0].subject, "Your payment didn't go through");
+    assert.match(sent[0].html, /We couldn&#39;t charge your/);
+    assert.match(sent[0].html, /Update your card/);
+  });
+
+  test("no app language: the Stripe customer locale still decides; a lookup error never blocks the email", async () => {
+    const { deps, sent } = fakeDeps();
+    deps.recipientLocale = async () => null;
+    await sendPaymentFailedNotice(args(invoice({ id: "in_a", customer_preferred_locales: ["es-ES"] })), deps);
+    assert.equal(sent[0].subject, "Tu pago no pasó");
+    deps.recipientLocale = async () => {
+      throw new Error("db down");
+    };
+    assert.equal(await sendPaymentFailedNotice(args(invoice({ id: "in_b", customer_preferred_locales: [] })), deps), "sent");
+    assert.equal(sent[1].subject, "Your payment didn't go through");
+  });
+
+  test("invariance: the grace days in the email are the policy constant in both languages", async () => {
+    for (const loc of ["es", "en"] as const) {
+      const { deps, sent } = fakeDeps();
+      deps.recipientLocale = async () => loc;
+      await sendPaymentFailedNotice(args(noStripeLocale()), deps);
+      assert.match(sent[0].html, loc === "es" ? /durante 7 días/ : /for 7 days/);
+    }
+  });
+});
+
 test("email html escapes the action url", () => {
   const html = renderPaymentFailedEmail({ locale: "en", actionUrl: 'https://x.test/?a="b"', graceDays: 7 });
   assert.ok(!html.includes('a="b"'));

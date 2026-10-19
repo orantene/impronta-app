@@ -44,6 +44,9 @@ export function useWebsiteEligibility() {
   const [bookableCount, setBookableCount] = useState<number | null>(null);
   const [hoursAvailability, setHoursAvailability] = useState<boolean | null>(null);
   const [version, setVersion] = useState(0);
+  // TUL-1279: which talent's services/hours reads have settled (ok or failed),
+  // so a card can tell "still checking" from "could not load".
+  const [settledFor, setSettledFor] = useState<string | null>(null);
 
   useEffect(() => {
     const bump = () => setVersion((v) => v + 1);
@@ -66,6 +69,7 @@ export function useWebsiteEligibility() {
     if (cache?.talentId === talentId && cache.hasAvailability != null && cache.bookableCount != null) {
       setBookableCount(cache.bookableCount);
       setHoursAvailability(cache.hasAvailability);
+      setSettledFor(talentId);
       return;
     }
     let cancelled = false;
@@ -96,6 +100,7 @@ export function useWebsiteEligibility() {
         cache = { talentId, bookableCount: nextCount, hasAvailability: nextAvail };
         setBookableCount(nextCount);
         setHoursAvailability(nextAvail);
+        setSettledFor(talentId);
       },
     );
     return () => {
@@ -126,6 +131,8 @@ export function useWebsiteEligibility() {
     ...getWebsiteEligibility(input),
     bookableCount,
     hasAvailability,
+    /** True until this talent's services / hours reads first settle. */
+    factsLoading: talentId != null && settledFor !== talentId,
     photoCount: bridgeTalentSelfProfile ? bridgeTalentSelfProfile.portfolioCount ?? null : null,
   };
 }

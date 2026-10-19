@@ -7,6 +7,16 @@ import {
   type AccessProfileWithDisplayName,
 } from "@/lib/access-profile";
 import { createClient } from "@/lib/supabase/server";
+import {
+  ACTOR_APP_ROLE_HEADER,
+  ACTOR_EMAIL_HEADER,
+  ACTOR_HOME_PREF_HEADER,
+  ACTOR_ID_HEADER,
+  ACTOR_ONBOARDED_HEADER,
+  ACTOR_STATUS_HEADER,
+  isPlausibleForwardedActor,
+} from "@/lib/saas/actor-headers";
+import { ACTOR_SIG_HEADER, actorSecret, verifyActorSignature } from "@/lib/saas/actor-signature";
 
 /**
  * Request-scoped Supabase server client (cookie session). Multiple RSC/action
@@ -38,16 +48,7 @@ export type CachedActorSession =
  * on every server action. Header names + spoof-stripping live in
  * `web/src/lib/supabase/middleware.ts`.
  */
-const ACTOR_ID_HEADER = "x-impronta-actor-id";
-const ACTOR_EMAIL_HEADER = "x-impronta-actor-email";
-const ACTOR_APP_ROLE_HEADER = "x-impronta-actor-app-role";
-const ACTOR_STATUS_HEADER = "x-impronta-actor-status";
-const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
-// Carried so a hybrid account's chosen home is the same on this fast path as in
-// middleware. Without it the account link would offer /talent while middleware
-// routes /admin — both valid for a hybrid, which makes the disagreement look
-// like a bug rather than a choice.
-const ACTOR_HOME_PREF_HEADER = "x-impronta-actor-home-pref";
+
 
 /**
  * Build a minimal Supabase `User`-shaped object from the middleware-supplied
@@ -99,12 +100,22 @@ async function tryActorFromForwardedHeaders(
   try {
     const h = await headers();
     const actorId = h.get(ACTOR_ID_HEADER);
-    if (!actorId) return null;
     const email = h.get(ACTOR_EMAIL_HEADER);
     const appRole = h.get(ACTOR_APP_ROLE_HEADER);
     const status = h.get(ACTOR_STATUS_HEADER);
+    // Only the proxy may write these; refuse anything not shaped like its output.
+    if (!isPlausibleForwardedActor(actorId, appRole, status)) return null;
+    if (!actorId) return null;
     const onboarded = h.get(ACTOR_ONBOARDED_HEADER);
     const homePref = h.get(ACTOR_HOME_PREF_HEADER);
+    // TUL-1269: and only when the proxy's HMAC over exactly these values verifies. A request on a
+    // path the proxy matcher skips can carry any forged set; it cannot carry a valid signature.
+    const signed = await verifyActorSignature(
+      actorSecret(process.env),
+      { id: actorId, email, appRole, status, onboarded, homePref },
+      h.get(ACTOR_SIG_HEADER),
+    );
+    if (!signed) return null;
     return {
       supabase,
       user: syntheticUserFromHeaders(actorId, email),
