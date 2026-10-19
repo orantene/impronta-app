@@ -9,6 +9,7 @@ import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 
 import { accountAudience, type AccountView } from "./area-pure";
 import { resolveAccountLocale } from "./account-locale.server";
+import { hostHasPublicBooking } from "./book-again";
 import { accountFlagKindForHost, agencyAccountTabs } from "./agency-area-pure";
 import { loadAgencyAccountSite } from "./area-site.server";
 import {
@@ -77,6 +78,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
         email={session.user?.email ?? null}
         timeZone={tenant.timeZone}
         data={data}
+        bookHere={hostHasPublicBooking(hostContext)}
         extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, userId, appRole })}
       />
     </>
