@@ -2697,6 +2697,7 @@
         "qualityLeftMany": "Faltan {count} cosas para tu sitio gratis",
         "qualityUnlocked": "Tu sitio gratis ya tiene todo lo que necesita",
         "qualityUnknown": "Aún no pudimos cargar todas las revisiones",
+        "qualityChecking": "Revisando tu perfil…",
         "finish": "Completar lo siguiente",
         "sectionsTitle": "Editar tu perfil",
         "sectionsHint": "Cada campo aparece en tu página. No hay un segundo lugar donde editarlo.",

@@ -1,6 +1,8 @@
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
+src/components/admin/shell/internal/page-modules/active-locale-pill.test.ts
+src/components/admin/shell/internal/talent-surface-no-clip.static.test.ts
 src/components/admin/shell/internal/talent/agenda/booking-record-reference.static.test.ts
 src/components/admin/shell/internal/talent/pages/today-setup-card-wrap.static.test.ts
 src/components/edit-chrome/mobile-edit-panel-tablet.static.test.ts
@@ -108,6 +110,7 @@ src/lib/talent/plan-ceiling-readiness.test.ts
 src/lib/talent/presence-placements.test.ts
 src/lib/talent/public-profile-href.test.ts
 src/lib/talent/site-switches.test.ts
+src/lib/talent/today-setup-ring.test.ts
 src/lib/talent/unrostered-wall.test.ts
 src/lib/talent/website-eligibility-facts.test.ts
 src/lib/talent/website-eligibility-offer.test.ts

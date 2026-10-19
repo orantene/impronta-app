@@ -37,6 +37,7 @@ import { type MoneyLanding } from "@/lib/money/today-money-tiles";
 import { countTalentAwaitingInquiries } from "../../shell-count-bubbles-logic";
 import { TodaySkeleton } from "./today-skeleton";
 import { TalentPastDueNotice } from "@/components/billing/TalentPastDueNotice";
+import { todaySetupRingLabel, todaySetupRingPercent } from "@/lib/talent/today-setup-ring";
 
 export { TodaySkeleton } from "./today-skeleton";
 
@@ -302,21 +303,19 @@ export function TalentTodayPage() {
   // drawer section. Only renders when the bridge has provided a real
   // talent profile (skips the prototype demo path).
   const isFreshSelf = !!bridgeTalentSelfProfile && !TALENT_PROFILES_BY_ID[selfTalentId];
-  // Prefer the REAL completeness from the layout bridge (DB columns + field
+  // Missing chips: the REAL checklist from the layout bridge (DB columns + field
   // catalog, the same source as the guided wizard). The estimate below runs
   // on the prototype profile shape, which has no identity fields, so it told
   // people who had just typed their phone and date of birth that both were
-  // still missing (owner QA 2026-09-10).
+  // still missing (owner QA 2026-09-10). The ring PERCENT is always the
+  // Profile quality value (TUL-1276), never the checklist score.
   const onboardingCompleteness = isFreshSelf
-    ? bridgeTalentCompletion
-      ? {
-          percent: completionPercent,
-          missing: bridgeTalentCompletion.missing.map((m) => ({
-            id: m.key,
-            label: m.label,
-          })),
-        }
-      : computeProfileCompleteness(profile, [profile.primaryType, ...profile.secondaryTypes])
+    ? {
+        percent: todaySetupRingPercent(websiteEligibility),
+        missing: bridgeTalentCompletion
+          ? bridgeTalentCompletion.missing.map((m) => ({ id: m.key, label: m.label }))
+          : computeProfileCompleteness(profile, [profile.primaryType, ...profile.secondaryTypes]).missing.map((m) => ({ id: m.id, label: m.label })),
+      }
     : null;
   const onboardingSectionForLabel = (label: string): string => {
     const lower = label.toLowerCase();
@@ -404,7 +403,7 @@ export function TalentTodayPage() {
         >
           <div className="flex flex-wrap items-center gap-3.5">
             <div style={{ flexShrink: 0, width: 56, height: 56, borderRadius: "50%", background: "#fff", border: `2px solid ${COLORS.accent}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }} className="text-admin-accent-deep">
-              {onboardingCompleteness.percent}%
+              {todaySetupRingLabel(onboardingCompleteness.percent)}
             </div>
             <div className="min-w-0 flex-[1_1_180px]">
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 2 }} className="text-admin-ink">

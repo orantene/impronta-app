@@ -2697,6 +2697,7 @@
         "qualityLeftMany": "{count} things left before your free website",
         "qualityUnlocked": "Everything your free website needs is here",
         "qualityUnknown": "We could not load every check yet",
+        "qualityChecking": "Checking your profile…",
         "finish": "Finish the next one",
         "sectionsTitle": "Edit your profile",
         "sectionsHint": "Every field shows up on your page. There is no second place to edit it.",
