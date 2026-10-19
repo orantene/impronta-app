@@ -21,6 +21,7 @@ import type { DesignPayload } from "../types";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
 import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
 import { frameDarkHero } from "./frame-hero";
+import { buildTablePayload } from "./table";
 import { solaceRotatingHero } from "./solace-hero";
 import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
@@ -488,6 +489,15 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
     11,
     buildGridlinePayload,
   ),
+  entry(
+    "table",
+    "Table",
+    "A dinner menu first: a split cover, ruled menu rows, a masonry of dinners and a story. Built for private chefs.",
+    "classic",
+    ["table"],
+    12,
+    buildTablePayload,
+  ),
 ];
 
 export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
@@ -509,4 +519,5 @@ export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>>
   frame: [],
   folio: [],
   gridline: [],
+  table: [],
 };

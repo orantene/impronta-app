@@ -24,6 +24,7 @@ import { authoredPaletteOverrides } from "./collection/authored";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
 import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
+import { TABLE_BODY_FONT, TABLE_HEADING_FONT, TABLE_PALETTE } from "./collection/table";
 import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
@@ -429,6 +430,19 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     demos: [
       talentDemo("alex-trevino", { en: "Electrician", es: "Electricista" }, ["electrician"], "default", "TAL-93030", "alex-trevino", "Alex Treviño"),
       ...guideDemos("gridline"),
+    ],
+  }),
+  design({
+    ...collection("table"),
+    fonts: { heading: TABLE_HEADING_FONT, body: TABLE_BODY_FONT },
+    styleTags: ["Editorial", "Dark", "Warm"],
+    featureTags: ["Service menu", "Portfolio", "Quote requests", "Personal story"],
+    palettes: [
+      pal("table", "Candlelight", "Luz de vela", [TABLE_PALETTE.page, TABLE_PALETTE.surface, TABLE_PALETTE.line, TABLE_PALETTE.ink, TABLE_PALETTE.accent, TABLE_PALETTE.onAccent], { muted: TABLE_PALETTE.muted, dark: true }),
+    ],
+    demos: [
+      planned("private-chef", { en: "Private Chef", es: "Chef privado" }, ["chef"], "table"),
+      planned("bartender", { en: "Bartender", es: "Bartender" }, ["bartender"], "table"),
     ],
   }),
 ];

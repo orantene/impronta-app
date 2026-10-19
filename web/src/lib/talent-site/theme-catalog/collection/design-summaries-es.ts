@@ -14,4 +14,6 @@ export const COLLECTION_DESIGN_SUMMARY_ES: Readonly<Record<string, string>> = {
   folio: "Portada de revista con tu nombre como cabecera, un libro de trabajos y una tarifa clara.",
   gridline:
     "Barra de utilidad con botón de llamada, portada con ficha técnica, un selector de tareas y una comparación clara de servicios. Para oficios que reciben llamadas.",
+  table:
+    "Primero el menú: portada dividida, filas de carta, un mosaico de cenas y tu historia. Para chefs privados.",
 };
