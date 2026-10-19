@@ -63,14 +63,15 @@ export async function resolveSessionCardPayment(
   const amountCents = Number(x.gross_amount_cents);
   if (!Number.isFinite(amountCents) || amountCents <= 0) return { ok: false, reason: "not_found" };
 
-  // Best effort, cosmetic: the offering title is the Stripe line description.
+  // Best effort, cosmetic: the offering title is the Stripe line description. Each read is
+  // error-checked; a failed read keeps the fallback (it never blocks the charge or changes its amount).
   let description = "Session";
   try {
-    const { data: line } = await admin.from("order_lines").select("offering_id").eq("order_id", d.orderId).limit(1).maybeSingle();
-    const offeringId = (line as Row | null)?.offering_id;
+    const { data: line, error: lineErr } = await admin.from("order_lines").select("offering_id").eq("order_id", d.orderId).limit(1).maybeSingle();
+    const offeringId = lineErr ? null : (line as Row | null)?.offering_id;
     if (typeof offeringId === "string") {
-      const { data: off } = await admin.from("talent_offerings").select("title").eq("id", offeringId).eq("tenant_id", d.tenantId).maybeSingle();
-      const title = (off as Row | null)?.title;
+      const { data: off, error: offErr } = await admin.from("talent_offerings").select("title").eq("id", offeringId).eq("tenant_id", d.tenantId).maybeSingle();
+      const title = offErr ? null : (off as Row | null)?.title;
       if (typeof title === "string" && title.trim()) description = title.trim();
     }
   } catch {
