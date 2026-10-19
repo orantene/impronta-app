@@ -110,7 +110,7 @@ export function buildMonoPayload(): DesignPayload {
   return {
     tokenDefaults: { ...MONO_STYLE_TOKEN_DEFAULTS },
     // TH20: the header is the name and city plus the booking button, no link strip.
-    shellTree: shell(id, { navChrome: "no_nav" }),
+    shellTree: shell(id, { navChrome: "no_nav", headerTone: "solid" }),
     homeTree: [
       hero,
       servicesSection(id, {
@@ -147,6 +147,7 @@ export function buildFramePayload(): DesignPayload {
     tokenDefaults: { ...FRAME_STYLE_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navChrome: "filter_bar",
+      headerTone: "solid",
       navLinks: [
         { label: "Work", href: "#gallery" },
         { label: "Book", href: "#book" },

@@ -281,12 +281,38 @@ export function withAccountItem(header: BuilderNode | undefined): BuilderNode | 
   return { ...header, props: { ...props, sectionProps: { ...sectionProps, regions: out } } } as unknown as BuilderNode;
 }
 
+/**
+ * `no_nav` header (Mono, TH20): wordmark + the booking CTA only. No link strip, and nothing
+ * folds into a hamburger on the phone: the CTA stays in the bar, the language switch keeps its
+ * own rule, every other item (social, phone, saved, inquiry, account) is hidden on the phone.
+ */
+function noNavRegions(regions: unknown): unknown {
+  if (!regions || typeof regions !== "object") return regions;
+  const out: Record<string, unknown> = {};
+  for (const [zone, items] of Object.entries(regions as Record<string, unknown>)) {
+    out[zone] = Array.isArray(items)
+      ? items
+          .filter((it) => !(it && typeof it === "object" && (it as Record<string, unknown>).type === "nav"))
+          .map((it) => {
+            if (!it || typeof it !== "object") return it;
+            const row = it as Record<string, unknown>;
+            const responsive = (row.responsive ?? {}) as Record<string, unknown>;
+            if (row.type === "wordmark" || row.type === "logo" || row.type === "language") return it;
+            return { ...row, responsive: { ...responsive, mobile: row.type === "cta" ? "show" : "hide" } };
+          })
+      : items;
+  }
+  return out;
+}
+
 export function buildKitStandardShell(
   makeId: KitIdFactory,
   opts: Pick<
     KitShellOptions,
     "displayName" | "logoUrl" | "homeHref" | "year" | "navChrome" | "navLinks" | "primaryCtaLabel"
   > & {
+    /** Header paint: a light theme with a flat bar (Mono, Frame) asks for `solid`; the default stays transparent over the hero. */
+    headerTone?: "surface" | "solid";
     /** Add the client `account` header item right after `language` (renders only when the flag is on). */
     accountItem?: boolean;
   },
@@ -308,7 +334,7 @@ export function buildKitStandardShell(
     const hasLinks = !!opts.navLinks && opts.navLinks.length > 0;
     const hasChrome = !!opts.navChrome && opts.navChrome !== "top_bar";
     const hasCta = !!opts.primaryCtaLabel?.trim();
-    if (!hasLinks && !hasChrome && !hasCta) return rawHeader;
+    if (!hasLinks && !hasChrome && !hasCta && !opts.headerTone) return rawHeader;
     const props = (rawHeader.props ?? {}) as Record<string, unknown>;
     const sectionProps = (props.sectionProps ?? {}) as Record<string, unknown>;
     const ctaLabel = opts.primaryCtaLabel?.trim();
@@ -334,18 +360,21 @@ export function buildKitStandardShell(
       }
       nextRegions = out;
     }
+    if (opts.navChrome === "no_nav") nextRegions = noNavRegions(nextRegions ?? regions);
     return {
       ...rawHeader,
       props: {
         ...props,
         sectionProps: {
           ...sectionProps,
+          ...(opts.navChrome === "no_nav" && nextRegions ? { regions: nextRegions } : {}),
           ...(opts.navChrome === "no_nav"
             ? { navItems: [] }
             : hasLinks
               ? { navItems: opts.navLinks!.map((l) => ({ label: l.label, href: l.href })) }
               : {}),
           ...(hasChrome ? { navChrome: opts.navChrome } : {}),
+          ...(opts.headerTone ? { tone: opts.headerTone } : {}),
           ...(hasCta ? { primaryCta: nextPrimaryCta, ...(nextRegions ? { regions: nextRegions } : {}) } : {}),
         },
       },

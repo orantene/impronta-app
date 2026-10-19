@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { NAV_CHROME_STYLES, isNavChromeStyle } from "@/lib/site-admin/nav-chrome";
+import { headerItemMobileResolved } from "@/lib/site-admin/sections/site_header/header-site-chrome";
 import { getGalleryDesign } from "../gallery-meta";
 import { designTokenDefaults } from "./design-token-defaults";
 import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS } from "./designs";
@@ -36,6 +37,17 @@ describe("mono golden (TH20)", () => {
     assert.doesNotMatch(json, /"kind":"nav"/);
     assert.match(json, /"navChrome":"no_nav"|"navItems":\[\]/);
     assert.ok(find(shell, (n) => n.kind === "button" || /"cta"/.test(JSON.stringify(n))), "booking CTA stays");
+  });
+  it("390: nothing folds into a hamburger; the CTA stays in the bar", () => {
+    const header = find(payload().shellTree as unknown as N[], (n) => n.props?.sectionTypeKey === "site_header")!;
+    const regions = (header.props!.sectionProps as { regions: Record<string, Array<{ type: string; responsive?: { mobile?: string } }>> }).regions;
+    const items = [...regions.left, ...regions.center, ...regions.right];
+    assert.ok(items.every((i) => i.type !== "nav"), "no nav item");
+    assert.ok(items.every((i) => headerItemMobileResolved(i as never) !== "menu"), "no item folds into the burger");
+    assert.equal(headerItemMobileResolved(items.find((i) => i.type === "cta") as never), "show");
+  });
+  it("header is a flat solid bar, not a transparent gradient over the hero (TH20)", () => {
+    assert.match(JSON.stringify(payload().shellTree), /"tone":"solid"/);
   });
   it("hero: left aligned, wide, display weight 800, tokens only", () => {
     const hero = (payload().homeTree as unknown as N[])[0]!;

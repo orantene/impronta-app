@@ -27,6 +27,9 @@ describe("frame golden (TH08)", () => {
   it("W-12 gap is closed", () => {
     assert.deepEqual(COLLECTION_DESIGN_GAPS.frame, []);
   });
+  it("header is a flat solid bar (TH08), filter bar nav", () => {
+    assert.match(JSON.stringify(payload().shellTree), /"tone":"solid"/);
+  });
   it("header is the filter bar with Spanish-capable nav", () => {
     assert.match(JSON.stringify(payload().shellTree), /"navChrome":"filter_bar"/);
   });
