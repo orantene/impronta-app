@@ -18,6 +18,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { WEB_ROOT } from "@/lib/quality/supabase-unchecked-read";
+import { PAYMENT_FLAG_COPY } from "./payment-flag-copy";
 
 const read = (rel: string) => readFileSync(join(WEB_ROOT, rel), "utf8");
 
@@ -232,7 +233,7 @@ test("an abandoned command claim is a source, and it is inspect-only", () => {
   );
 });
 
-test("a flagged payment row is inspect-only and its copy exists in en, es and fr", () => {
+test("a flagged payment row is inspect-only and its copy exists in en, es and fr (server-side)", () => {
   // TUL-1283 / TUL-1284 / M2. The money is already at Stripe and owed back or
   // unexplained; a button here would be a refund executor on a screen with no
   // claim guard. A person refunds or reconciles in Stripe.
@@ -241,34 +242,28 @@ test("a flagged payment row is inspect-only and its copy exists in en, es and fr
   assert.match(classifier.slice(0, 2000), /kind: "inspect"/);
   assert.ok(!/kind: "resume"/.test(classifier.slice(0, 2000)), "a flagged payment was given a button");
 
-  const keys = [
-    "paymentFlag.label",
-    "paymentFlag.why",
-    "paymentFlag.resolve",
-    "paymentFlag.resolved",
-    "paymentFlag.resolveFailed",
-    ...["amount_mismatch", "charge_on_inactive_row", "duplicate_charge"].flatMap((r) => [
-      `paymentFlag.${r}.title`,
-      `paymentFlag.${r}.detail`,
-    ]),
-  ];
-  const lookup = (locale: string, key: string): unknown => {
-    let cur: unknown = (JSON.parse(read(`messages/${locale}.json`)) as Record<string, unknown>).dashboard;
-    for (const part of `issues.${key}`.split(".")) {
-      cur = cur && typeof cur === "object" ? (cur as Record<string, unknown>)[part] : undefined;
-    }
-    return cur;
-  };
-  for (const locale of ["en", "es", "fr"]) {
-    for (const key of keys) {
-      const value = lookup(locale, key);
-      assert.equal(typeof value, "string", `${locale}: dashboard.issues.${key} is missing`);
-      if (locale !== "en") assert.notEqual(value, lookup("en", key), `${locale}: dashboard.issues.${key} is copied from English`);
-      assert.ok(!String(value).includes("—"), `${locale}: dashboard.issues.${key} has an em dash`);
-    }
+  // The sentences live on the server (`payment-flag-copy.ts`), never in the
+  // client-bundled catalogs: the admin bundle budget is not spent on them.
+  for (const locale of ["en", "es", "fr"] as const) {
+    const c = PAYMENT_FLAG_COPY[locale];
+    const strings = [c.label, c.why, c.resolve, c.resolved, c.resolveFailed, ...Object.values(c.reasons).flatMap((r) => [r.title, r.detail])];
+    const en = PAYMENT_FLAG_COPY.en;
+    const enStrings = [en.label, en.why, en.resolve, en.resolved, en.resolveFailed, ...Object.values(en.reasons).flatMap((r) => [r.title, r.detail])];
+    assert.equal(Object.keys(c.reasons).length, 3, `${locale}: a reason has no copy`);
+    strings.forEach((value, i) => {
+      assert.ok(value.trim().length > 0, `${locale}: empty string`);
+      if (locale !== "en") assert.notEqual(value, enStrings[i], `${locale}: "${value}" is copied from English`);
+      assert.ok(!value.includes("—"), `${locale}: "${value}" has an em dash`);
+    });
   }
-  // The screen must look the keys up rather than print the model's English fallback.
-  assert.match(CLIENT_SRC, /row\.copy/);
+  for (const locale of ["en", "es", "fr"]) {
+    assert.ok(!read(`messages/${locale}.json`).includes('"paymentFlag"'), `${locale}.json: payment-flag copy belongs on the server`);
+  }
+  // The page words the rows and hands the client plain strings.
+  const page = read("src/app/(workspace)/[tenantSlug]/admin/exceptions/page.tsx");
+  assert.match(page, /localizePaymentFlagRows\(load\.rows, locale\)/);
+  assert.match(page, /flagCopy=\{paymentFlagUiCopy\(locale\)\}/);
+  assert.ok(!/payment-flag-copy/.test(CLIENT_SRC), "the client must not import the copy dictionary");
 });
 
 test("review fix 4: 'Mark resolved' is billing-gated, tenant-scoped, and moves no money", () => {

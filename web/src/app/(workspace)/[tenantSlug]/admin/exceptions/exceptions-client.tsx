@@ -102,29 +102,6 @@ function ageLabel(iso: string, t: (key: string) => string): string {
   return `${Math.floor(h / 24)}d`;
 }
 
-/**
- * A row that carries `copy` (keys under `dashboard.issues.*`) is spoken in the
- * reader's language; the model's English stays the fallback for a missing key.
- */
-function localizeRow(row: ExceptionRow, t: (key: string) => string): ExceptionRow {
-  const copy = row.copy;
-  if (!copy) return row;
-  const say = (key: string, fallback: string): string => {
-    const full = `${K}.${key}`;
-    const text = t(full);
-    return text && text !== full ? interpolate(text, copy.vars) : fallback;
-  };
-  return {
-    ...row,
-    title: say(copy.title, row.title),
-    detail: say(copy.detail, row.detail),
-    nextAction:
-      row.nextAction.kind === "inspect"
-        ? { ...row.nextAction, label: say(copy.label, row.nextAction.label), why: say(copy.why, row.nextAction.why) }
-        : { ...row.nextAction, label: say(copy.label, row.nextAction.label) },
-  };
-}
-
 type RowState = { pending: boolean; message: string | null; failed: boolean };
 
 /** A label on the left, a value on the right (MW03's facts card). */
@@ -138,16 +115,18 @@ function KV({ label, value }: { label: string; value: string }) {
 }
 
 export function ExceptionsClient({
-  rows: modelRows,
+  rows,
   summary,
   unavailable,
+  flagCopy,
 }: {
   rows: ExceptionRow[];
   summary: ExceptionSummary;
   unavailable: string[];
+  /** "Mark resolved" strings for flagged payments, already in the reader's language (server-resolved). */
+  flagCopy?: { resolve: string; resolved: string; resolveFailed: string };
 }) {
   const t = useT();
-  const rows = useMemo(() => modelRows.map((row) => localizeRow(row, t)), [modelRows, t]);
   const [state, setState] = useState<Record<string, RowState>>({});
   // MW03/MW04: on the phone a row opens as a sheet with the facts, what can
   // be done, and the result once it is done.
@@ -206,12 +185,12 @@ export function ExceptionsClient({
         ...s,
         [row.key]: {
           pending: false,
-          message: t(ok ? `${K}.paymentFlag.resolved` : `${K}.paymentFlag.resolveFailed`),
+          message: (ok ? flagCopy?.resolved : flagCopy?.resolveFailed) ?? null,
           failed: !ok,
         },
       }));
     },
-    [t],
+    [flagCopy],
   );
 
   return (
@@ -414,14 +393,14 @@ export function ExceptionsClient({
                     </Link>
                   )}
 
-                  {row.resolvable && !(rowState?.message && !rowState.failed) && (
+                  {row.resolvable && flagCopy && !(rowState?.message && !rowState.failed) && (
                     <button
                       type="button"
                       onClick={() => void markResolved(row)}
                       disabled={rowState?.pending === true}
                       className="cursor-pointer rounded-full border border-admin-border-soft bg-transparent px-[14px] py-[7px] text-[12.5px] font-semibold text-admin-ink disabled:cursor-progress"
                     >
-                      {rowState?.pending ? t(`${K}.working`) : t(`${K}.paymentFlag.resolve`)}
+                      {rowState?.pending ? t(`${K}.working`) : flagCopy?.resolve}
                     </button>
                   )}
 
@@ -500,14 +479,14 @@ export function ExceptionsClient({
                 <MobileRow title={t(`${K}.open`)} detail={t(`${K}.sheet.openDetail`)} href={openRow.href} />
               ) : null}
             </MobileCard>
-            {openRow.resolvable && !(state[openRow.key]?.message && !state[openRow.key]?.failed) ? (
+            {openRow.resolvable && flagCopy && !(state[openRow.key]?.message && !state[openRow.key]?.failed) ? (
               <button
                 type="button"
                 onClick={() => void markResolved(openRow)}
                 disabled={state[openRow.key]?.pending === true}
                 className={MOBILE_BUTTON_SECONDARY}
               >
-                {state[openRow.key]?.pending ? t(`${K}.working`) : t(`${K}.paymentFlag.resolve`)}
+                {state[openRow.key]?.pending ? t(`${K}.working`) : flagCopy?.resolve}
               </button>
             ) : null}
             {state[openRow.key]?.message ? (

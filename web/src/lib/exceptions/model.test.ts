@@ -29,6 +29,7 @@ import {
   summariseExceptions,
   type ExceptionRow,
 } from "./model";
+import { localizePaymentFlagRows, paymentFlagUiCopy } from "./payment-flag-copy";
 
 const NOW = Date.parse("2026-06-01T12:00:00.000Z");
 const minutesAgo = (n: number) => new Date(NOW - n * 60_000).toISOString();
@@ -456,6 +457,24 @@ test("each reason carries its own translated copy keys and the facts as variable
   assert.match(row.copy?.vars.charged ?? "", /MXN/);
   assert.match(row.copy?.vars.expected ?? "", /MXN/);
   assert.equal(row.copy?.vars.status, "paid");
+});
+
+test("the page words a flagged row in the reader's language and leaves other rows alone", () => {
+  const flag = classifyPaymentFlag(flagFacts(), null);
+  const other = classifyMintShortfall(
+    { orderLineId: "l1", orderId: "o1", expectedRows: 1, mintedRows: 0, missingRows: 1, orderUpdatedAt: minutesAgo(1) },
+    null,
+  );
+  const [es, untouched] = localizePaymentFlagRows([flag, other], "es");
+  assert.equal(es!.title, "Posible cobro duplicado con tarjeta");
+  assert.match(es!.detail, /MXN/);
+  assert.match(es!.detail, /pi_second/);
+  assert.ok(!/\{\w+\}/.test(es!.detail), "every placeholder is filled");
+  assert.equal(es!.nextAction.label, "Revisar el cobro en Stripe");
+  assert.equal(es!.copy, undefined, "the keys do not travel to the client");
+  assert.equal(untouched, other);
+  assert.equal(localizePaymentFlagRows([flag], "de")[0]!.title, "Possible duplicate card charge", "unknown locale reads English");
+  assert.equal(paymentFlagUiCopy("es").resolve, "Marcar como resuelto");
 });
 
 test("two flags on one row are two rows", () => {
