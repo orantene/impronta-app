@@ -452,8 +452,10 @@ async function stripeClients() {
 async function stripePreflight() {
   const { describeStripeSteps, QA20_CODE, QA20_COUPON_ID, STUDIO_LOOKUP } = await import("./lib/failed-cards-stripe.mjs");
   if (!stripeKey) {
-    console.log(`${TAG} Stripe preflight: no TEST key given; plan only:`);
-    for (const l of describeStripeSteps(args.stripe, { mxKey: Boolean(stripeMxKey) })) console.log(`  ${l}`);
+    // No key: Stripe-side existence is unknown (prices/coupons are looked up at --apply); DB-side facts are real.
+    const t1 = await q("select 1 from public.talent_subscriptions where stripe_subscription_id is not null and talent_profile_id = $1", [G6.t1]);
+    console.log(`${TAG} Stripe preflight: no TEST key given; plan only (Stripe objects are looked up first at --apply):`);
+    for (const l of describeStripeSteps(args.stripe, { studioPrice: true, t1Sub: Boolean(t1.rowCount), mxKey: Boolean(stripeMxKey) })) console.log(`  ${l}`);
     return;
   }
   const { us } = await stripeClients();
