@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     if (reqUrl.searchParams.get("format") === "md" || (request.headers.get("accept") ?? "").includes("text/markdown")) {
       const contracts = await loadAgentContracts(site);
       return new NextResponse(contractsToMarkdown(site.name, contracts), {
-        headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "private, max-age=60" },
+        headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "private, max-age=60", Vary: "Accept" },
       });
     }
     const services = await loadAgentServices(site);
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
         open_times: `${site.origin}${AGENT_SLOTS_PATH}?offering=<service_id>&days=7`,
         mcp: `${site.origin}${AGENT_MCP_PATH}${mcpQuery}`,
       },
-      { headers: { "Cache-Control": "private, max-age=60" } },
+      { headers: { "Cache-Control": "private, max-age=60", Vary: "Accept" } },
     );
   } catch (err) {
     logServerError("api.public.booking.catalog", err);

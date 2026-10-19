@@ -160,3 +160,22 @@ test("wiring: the catalog route serves markdown from the same contracts; llms lo
   const site = fs.readFileSync(path.join(WEB, "src/lib/booking/agent/agent-site.server.ts"), "utf8");
   assert.match(site, /toAgentApiServices\(offerings, site\.locale\)/);
 });
+
+test("D-10a: listings include on_request with the price withheld; the bookable API list does not", () => {
+  const list = [offering(), offering({ id: "r", visibility: "on_request", amountCents: 99900 }), offering({ id: "p", kind: "product" })];
+  const contracts = toAgentContracts(list, "en");
+  assert.deepEqual(contracts.map((c) => c.id), ["11111111-1111-4111-8111-111111111111", "r"]);
+  const onReq = contracts[1];
+  assert.equal(onReq.price.amountCents, null);
+  assert.equal(onReq.guestSellable, false);
+  const llms = buildTalentLlmsTxt(new URL("https://luna.test"), { name: "Luna", trade: null, city: null, languages: [], services: [], contracts });
+  assert.match(llms, /- Corte de cabello: .*550/);
+  assert.doesNotMatch(llms, /999/);
+  assert.match(llms, /On request/);
+  assert.deepEqual(toAgentApiServices(list, "en").map((s) => s.id), ["11111111-1111-4111-8111-111111111111"]);
+});
+
+test("the catalog route varies on Accept (JSON and markdown share a URL)", () => {
+  const route = fs.readFileSync(path.join(WEB, "src/app/api/public/booking/catalog/route.ts"), "utf8");
+  assert.equal((route.match(/Vary: "Accept"/g) ?? []).length, 2);
+});
