@@ -75,7 +75,7 @@ export function BookingRecordRoute({
   // Still reading: render nothing rather than a stub that reads as an empty booking.
   if (!agendaItem && bookingId && loaded?.id !== bookingId) return null;
 
-  // Nothing loaded: say so honestly. Never a stub record with a default status ("Agreed").
+  // Nothing loaded: say so honestly. Never a stub record with a default status.
   if (!agendaItem) {
     const status = knownStatusLabel(loaded?.status, copy.t);
     return (
