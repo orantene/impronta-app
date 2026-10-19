@@ -16,6 +16,7 @@ const BASE: EventJsonLdInput = {
   venueAddress: "Calle 1, Tulum",
   organizerName: "Casa Sol",
   organizerUrl: "https://venue.example",
+  publiclyListed: true,
   currency: "MXN",
   tiers: [{ label: "General", amountCents: 35000, onSale: true, soldOut: false }],
 };
@@ -104,4 +105,18 @@ test("picker tiers: sold out only when sold out on every night that sells it", (
     ],
   });
   assert.deepEqual(tiers.map((t) => [t.label, t.soldOut]), [["A", true], ["B", false]]);
+});
+
+test("unlisted, private or pending events get no markup", () => {
+  assert.equal(buildEventJsonLd({ ...BASE, publiclyListed: false }), null);
+});
+
+test("venue address goes to location.address; address-only venue still has a location", () => {
+  const ld = buildEventJsonLd({ ...BASE, venueName: null, venueAddress: "Calle 1, 77760 Tulum" })!;
+  assert.deepEqual(ld.location, { "@type": "Place", name: "Calle 1, 77760 Tulum", address: "Calle 1, 77760 Tulum" });
+});
+
+test("location is omitted only when there is no venue at all", () => {
+  const ld = buildEventJsonLd({ ...BASE, venueName: null, venueAddress: null })!;
+  assert.equal("location" in ld, false);
 });

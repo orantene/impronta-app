@@ -108,3 +108,4 @@ src/lib/talent/website-eligibility-facts.test.ts
 src/lib/talent/website-eligibility-offer.test.ts
 src/lib/talent/website-eligibility.test.ts
 src/lib/talent/website-flow.test.ts
+src/lib/events/venue-address.test.ts

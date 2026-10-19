@@ -47,6 +47,12 @@ export interface EventJsonLdInput {
   organizerName?: string | null;
   organizerUrl?: string | null;
   cancelled?: boolean;
+  /**
+   * The event is published AND its backing offering is guest-sellable
+   * (published, approved, public). Unlisted / private / pending events get no
+   * markup: structured data must never advertise what search should not find.
+   */
+  publiclyListed: boolean;
   currency: string;
   tiers: readonly EventJsonLdTier[];
 }
@@ -105,7 +111,7 @@ export function buildEventJsonLd(
 ): Record<string, JsonValue> | null {
   const name = input.name?.trim();
   const startDate = isoInZone(input.startsAt, input.zone);
-  if (!name || !input.url || !startDate) return null;
+  if (!input.publiclyListed || !name || !input.url || !startDate) return null;
 
   const obj: Record<string, JsonValue> = {
     "@context": "https://schema.org",
@@ -124,9 +130,13 @@ export function buildEventJsonLd(
 
   if (input.online) {
     obj.location = { "@type": "VirtualLocation", url: input.url };
-  } else if (input.venueName?.trim()) {
-    const place: Record<string, JsonValue> = { "@type": "Place", name: input.venueName.trim() };
-    if (input.venueAddress?.trim()) place.address = input.venueAddress.trim();
+  } else if (input.venueName?.trim() || input.venueAddress?.trim()) {
+    const address = input.venueAddress?.trim();
+    const place: Record<string, JsonValue> = {
+      "@type": "Place",
+      name: (input.venueName?.trim() || address) as string,
+    };
+    if (address) place.address = address;
     obj.location = place;
   }
   if (input.organizerName?.trim()) {

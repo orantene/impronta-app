@@ -10,11 +10,11 @@ const isEs = (locale: string) => locale.toLowerCase().startsWith("es");
 export function eventsListMetadata(locale: string): { title: string; description: string } {
   return isEs(locale)
     ? {
-        title: "Eventos",
-        description: "Proximos eventos, fechas, horarios y entradas. Reserva tu lugar en linea.",
+        title: "Próximos eventos",
+        description: "Próximos eventos, fechas, horarios y entradas. Reserva tu lugar en línea.",
       }
     : {
-        title: "Events",
+        title: "Upcoming events",
         description: "Upcoming events, dates, times and tickets. Book your spot online.",
       };
 }

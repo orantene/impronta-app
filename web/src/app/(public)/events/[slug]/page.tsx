@@ -208,7 +208,7 @@ export default async function PublicEventPage({ params }: Params) {
   // F4: schema.org Event for Google (pure builder in lib/seo/event-json-ld.ts).
   const requestLocale = await getRequestLocale();
   const canonicalUrl = (await eventAlternates(requestLocale, slug)).alternates?.canonical;
-  const eventLd = nextAt && canonicalUrl
+  const eventLd = nextAt && canonicalUrl && picker.ok
     ? buildEventJsonLd({
         url: String(canonicalUrl),
         name: event.title as string,
@@ -217,7 +217,10 @@ export default async function PublicEventPage({ params }: Params) {
         startsAt: nextAt,
         endsAt: (sessions.find((s) => (s.starts_at as string) === nextAt)?.ends_at as string | null) ?? null,
         zone,
+        // picker.ok === the backing offering is published + approved + public.
+        publiclyListed: picker.ok,
         venueName: ctx.venueName,
+        venueAddress: ctx.venueAddress,
         organizerName: ctx.workspaceDisplayName,
         currency: picker.ok ? picker.currency : "USD",
         tiers: picker.ok ? eventTiersForJsonLd(picker) : [],

@@ -6,8 +6,10 @@ import { eventDetailMetadataFields, eventsListMetadata } from "@/lib/seo/event-m
 test("list page has an English and a Spanish title and description", () => {
   const en = eventsListMetadata("en");
   const es = eventsListMetadata("es");
-  assert.equal(en.title, "Events");
-  assert.equal(es.title, "Eventos");
+  assert.equal(en.title, "Upcoming events");
+  assert.equal(es.title, "Próximos eventos");
+  assert.match(es.description, /Próximos/);
+  assert.match(es.description, /línea/);
   assert.ok(String(en.description).length > 20);
   assert.ok(String(es.description).length > 20);
   assert.notEqual(en.description, es.description);
