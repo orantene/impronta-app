@@ -37,6 +37,9 @@ src/lib/client-account/merge_verified_client_customers.migration.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
 src/lib/client-account/signin-apple.static.test.ts
 src/lib/client-account/signin-methods.static.test.ts
+src/lib/cms/blog-index-model.test.ts
+src/lib/cms/blog-index-wiring.static.test.ts
+src/lib/cms/blog-index.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
@@ -54,6 +57,7 @@ src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts
+src/lib/talent-site/blog-nav-item.test.ts
 src/lib/talent-site/dashboard-my-website.test.ts
 src/lib/talent-site/demo-english-plan.test.ts
 src/lib/talent-site/demos/demo-money-copy.test.ts

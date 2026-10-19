@@ -126,14 +126,20 @@ export function isPostExpired(row: Pick<PublicPostRow, "expires_at">, now: Date)
   return t !== null && t <= now.getTime();
 }
 
-function isLive(row: PublicPostRow, now: Date): boolean {
+/** The columns the listable rule reads (lets cheap existence checks skip the post body). */
+export type ListablePostFields = Pick<
+  PublicPostRow,
+  "status" | "taken_down_at" | "published_at" | "is_unlisted" | "expires_at"
+>;
+
+function isLive(row: Pick<PublicPostRow, "status" | "taken_down_at" | "published_at">, now: Date): boolean {
   if (row.status !== "published" || row.taken_down_at) return false;
   const pub = ms(row.published_at);
   return pub === null || pub <= now.getTime();
 }
 
 /** In lists / category pages / `blog_index`. */
-export function isListablePost(row: PublicPostRow, now: Date): boolean {
+export function isListablePost(row: ListablePostFields, now: Date): boolean {
   return isLive(row, now) && row.is_unlisted !== true && !isPostExpired(row, now);
 }
 
