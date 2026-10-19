@@ -65,12 +65,26 @@ function fakeAdmin(rows: Record<string, Row[]>, calls: Call[]) {
         return chain;
       };
       Object.assign(chain, {
+        // Ledger support (TUL-1267): insert-if-absent on dedupe_key, and delete.
+        insert: async (payload: Row) => {
+          call.op = "insert"; call.payload = payload;
+          const table_rows = (rows[table] ??= []);
+          if (table_rows.some((r) => r.dedupe_key === payload.dedupe_key)) return { data: null, error: { code: "23505", message: "duplicate" } };
+          table_rows.push(payload);
+          return { data: null, error: null };
+        },
+        delete: () => { call.op = "delete"; return chain; },
         select: () => chain,
         update: (payload: unknown) => { call.op = "update"; call.payload = payload; return chain; },
         eq: filter("eq"), in: filter("in"), is: filter("is"),
         order: self, limit: self,
         maybeSingle: async () => ({ data: result[0] ?? null, error: null }),
-        then: (res: (v: { data: Row[]; error: null }) => unknown) => Promise.resolve({ data: result, error: null }).then(res),
+        then: (res: (v: { data: Row[]; error: null }) => unknown) => {
+          if (call.op === "delete") {
+            rows[table] = (rows[table] ?? []).filter((r) => !result.includes(r));
+          }
+          return Promise.resolve({ data: result, error: null }).then(res);
+        },
       });
       return chain;
     },
@@ -115,6 +129,36 @@ test("delivers once per admission: the second pass claims nothing and sends noth
   const admin2 = fakeAdmin(world({ admissions: [{ ...world().admissions[0], delivery: { method: "email", sent_at: "x" } }] }), calls2);
   const second = await deliverTicketsForOrder(admin2, { tenantId: T, orderId: ORDER });
   assert.deepEqual(second, { ok: true, sent: 0, skipped: 1 });
+});
+
+test("TUL-1267: a double-submitted order never re-sends the tickets, even if its admissions look undelivered", async () => {
+  const w = world({ billing_notice_ledger: [] });
+  const first = await deliverTicketsForOrder(fakeAdmin(w, []), { tenantId: T, orderId: ORDER });
+  assert.deepEqual(first, { ok: true, sent: 1, skipped: 0 });
+  assert.deepEqual(w.billing_notice_ledger.map((r) => r.dedupe_key), [`tickets:${ORDER}`]);
+
+  // The replay: same order, admissions come back with delivery null again.
+  const replay = world({
+    billing_notice_ledger: w.billing_notice_ledger,
+    admissions: [{ ...world().admissions[0], delivery: null }],
+  });
+  const calls: Call[] = [];
+  const second = await deliverTicketsForOrder(fakeAdmin(replay, calls), { tenantId: T, orderId: ORDER });
+  assert.deepEqual(second, { ok: true, sent: 0, skipped: 1 });
+  assert.ok(!calls.some((c) => c.table === "admissions" && c.op === "update"), "no claim, no send");
+});
+
+test("TUL-1267: a failed or unsendable delivery releases the order claim so it can be retried", async () => {
+  const w = world({ billing_notice_ledger: [], admissions: [{ ...world().admissions[0], holder_email: null }] });
+  const res = await deliverTicketsForOrder(fakeAdmin(w, []), { tenantId: T, orderId: ORDER });
+  assert.equal(res.ok, false);
+  assert.equal(w.billing_notice_ledger.length, 0);
+});
+
+test("TUL-1267: a forced resend ignores the order claim", async () => {
+  const w = world({ billing_notice_ledger: [{ dedupe_key: `tickets:${ORDER}` }] });
+  const res = await deliverTicketsForOrder(fakeAdmin(w, []), { tenantId: T, orderId: ORDER, force: true });
+  assert.deepEqual(res, { ok: true, sent: 1, skipped: 0 });
 });
 
 test("force (resend) sends despite an existing delivery record", async () => {
@@ -231,13 +275,14 @@ test("locale chain (D-163): guest → customer → workspace public default → 
   assert.equal((out.envelope.attachments as Array<{ filename: string }>)[0]!.filename, "entrada-R1.pdf");
 
   // The customer's own locale beats the site default.
-  const englishCustomer = world({
+  // A fresh world per delivery: the same order is now delivered once (TUL-1267).
+  const englishCustomer = () => world({
     agency_business_identity: [{ tenant_id: T, default_locale: "es" }],
     admissions: [{ ...world().admissions[0], holder_email: null }],
     orders: [{ id: ORDER, tenant_id: T, customer_id: "c1", receipt_code: "R1" }],
     customers: [{ id: "c1", tenant_id: T, email: "cust@example.com", locale: "en-US" }],
   });
-  res = await deliverTicketsForOrder(fakeAdmin(englishCustomer, []), { tenantId: T, orderId: ORDER });
+  res = await deliverTicketsForOrder(fakeAdmin(englishCustomer(), []), { tenantId: T, orderId: ORDER });
   assert.equal(res.ok, true);
   out = outboxDelta();
   assert.match(out.html, /<html lang="en">/);
@@ -245,7 +290,7 @@ test("locale chain (D-163): guest → customer → workspace public default → 
   assert.equal((out.envelope.attachments as Array<{ filename: string }>)[0]!.filename, "ticket-R1.pdf");
 
   // An explicit GUEST locale (the page they bought on) beats both.
-  res = await deliverTicketsForOrder(fakeAdmin(englishCustomer, []), { tenantId: T, orderId: ORDER, locale: "es" });
+  res = await deliverTicketsForOrder(fakeAdmin(englishCustomer(), []), { tenantId: T, orderId: ORDER, locale: "es" });
   assert.equal(res.ok, true);
   assert.match(outboxDelta().html, /<html lang="es">/);
 });
