@@ -12,7 +12,8 @@ import {
   visibilitySchema,
   workflowStatusSchema,
 } from "@/lib/admin/validation";
-import { requireSession, requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { requireRosterScopedStaff } from "@/lib/server/roster-scoped-staff";
 import { getTenantScope } from "@/lib/saas/scope";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
@@ -91,40 +92,6 @@ const bulkTalentActionSchema = z.object({
   talentIds: z.array(z.string()),
   action: z.enum(["approve", "hide", "feature", "unfeature", "soft_delete"]),
 });
-
-/**
- * `requireStaff()` is a GLOBAL-role gate: every self-serve studio owner holds
- * app_role 'agency_staff', so on its own it admits an owner to ANOTHER
- * workspace's talent. Mutations on a talent profile must also prove the talent
- * is on the caller's active workspace roster. Platform super_admins keep
- * god-mode (they have no workspace to scope to).
- */
-async function requireRosterScopedStaff(
-  talentIds: string[],
-): Promise<Awaited<ReturnType<typeof requireStaff>>> {
-  const auth = await requireStaff();
-  if (!auth.ok) return auth;
-  if (auth.profile?.app_role === "super_admin") return auth;
-  const ids = [...new Set(talentIds.filter(Boolean))];
-  if (ids.length === 0) return { ok: false, error: "Not authorized." };
-  const scope = await getTenantScope();
-  if (!scope?.tenantId) return { ok: false, error: "Not authorized." };
-  const { data, error } = await auth.supabase
-    .from("agency_talent_roster")
-    .select("talent_profile_id")
-    .eq("tenant_id", scope.tenantId)
-    .neq("status", "removed")
-    .in("talent_profile_id", ids);
-  if (error) {
-    logServerError("admin-talent/roster-scope", error);
-    return { ok: false, error: "Not authorized." };
-  }
-  const onRoster = new Set((data ?? []).map((r) => r.talent_profile_id as string));
-  if (!ids.every((id) => onRoster.has(id))) {
-    return { ok: false, error: "That talent isn't on your roster." };
-  }
-  return auth;
-}
 
 export async function updateTalentProfile(
   _prev: TalentActionState,

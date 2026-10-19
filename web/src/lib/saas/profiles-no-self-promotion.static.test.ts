@@ -101,11 +101,11 @@ test("the migration is a held file, one transaction, number >= 20261231415000", 
 
 test("admin-talent mutations are roster-scoped, not the global requireStaff()", () => {
   const src = read("lib/server-actions/admin-talent.ts");
-  const guard = src.slice(src.indexOf("async function requireRosterScopedStaff"), src.indexOf("export async function updateTalentProfile"));
+  const guard = read("lib/server/roster-scoped-staff.ts");
   assert.match(guard, /agency_talent_roster/);
   assert.match(guard, /super_admin/);
   assert.match(guard, /getTenantScope\(\)/);
-  assert.equal((src.match(/await requireStaff\(\)/g) ?? []).length, 1, "only the guard itself may call requireStaff()");
+  assert.equal((src.match(/await requireStaff\(\)/g) ?? []).length, 0, "no global requireStaff() left in admin-talent");
   assert.ok((src.match(/await requireRosterScopedStaff\(/g) ?? []).length >= 7);
 });
 
