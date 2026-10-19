@@ -7,6 +7,8 @@ import { talentPlanGrantsSiteCapability } from "@/lib/access/talent-membership";
 import { isPlatformSubdomainLabelTaken } from "@/lib/saas/platform-subdomain-namespace.server";
 
 import { deriveAvailableSiteSlug } from "./derive-site-slug";
+import { loadTalentPlanKey, loadTalentSiteCtaMode } from "./load-max-site";
+import { mainCtaModeFromSiteMode, type MainCtaMode } from "../main-cta";
 import {
   buildDefaultShellTree,
   buildStarterHomePageTree,
@@ -162,9 +164,17 @@ export async function provisionTalentMaxSite(
     });
   }
 
-  // TUL-639: seed the mode-following main CTA ("Book an appointment" -> #services). At render it
-  // follows the talent's REAL selling mode (resolveSiteCtaMode) and lands on #book where booking is on.
-  const defaultShell: BuilderNode[] = buildDefaultShellTree({ displayName, mainCtaMode: "instant" });
+  // TUL-639: seed the talent's REAL selling mode (booking posture, plan ceiling, hours,
+  // goods-only). When it cannot be read, the safe "message" mode: never promise booking.
+  let mainCtaMode: MainCtaMode = "message";
+  try {
+    mainCtaMode = mainCtaModeFromSiteMode(
+      await loadTalentSiteCtaMode(talentProfileId, await loadTalentPlanKey(talentProfileId)),
+    );
+  } catch {
+    mainCtaMode = "message";
+  }
+  const defaultShell: BuilderNode[] = buildDefaultShellTree({ displayName, mainCtaMode });
 
   let siteId: string;
   let siteSlug: string;

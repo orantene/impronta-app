@@ -78,17 +78,24 @@ test("no theme hardcodes the old inquiry CTA wording: the Folio demo footer uses
   assert.match(src, /mainCtaLabel\(/);
 });
 
-test("a seeded main CTA points at the booking anchor source (#services), which render retargets to #book", () => {
-  const header = buildDefaultShellTree({ displayName: "A", mainCtaMode: "instant" })[0] as unknown as {
-    props: { sectionProps: { primaryCta: { href: string }; regions: { right: Array<{ type: string; href?: string }> } } };
+test("the shell seed's CTA target follows the mode: instant keeps the retargetable seed, others point where they act", () => {
+  const hrefOf = (mode?: Parameters<typeof buildDefaultShellTree>[0]["mainCtaMode"]) => {
+    const header = buildDefaultShellTree({ displayName: "A", mainCtaMode: mode })[0] as unknown as {
+      props: { sectionProps: { primaryCta: { href: string }; regions: { right: Array<{ type: string; href?: string }> } } };
+    };
+    return [header.props.sectionProps.primaryCta.href, header.props.sectionProps.regions.right.find((i) => i.type === "cta")?.href];
   };
-  assert.equal(header.props.sectionProps.primaryCta.href, "#services");
-  assert.equal(header.props.sectionProps.regions.right.find((i) => i.type === "cta")?.href, "#services");
-  const legacy = buildDefaultShellTree({ displayName: "A" })[0] as unknown as typeof header;
-  assert.equal(legacy.props.sectionProps.primaryCta.href, "/contact");
+  assert.deepEqual(hrefOf("instant"), ["#services", "#services"], "seed key: render retargets to #book while the mode is instant");
+  assert.deepEqual(hrefOf("request"), ["#book", "#book"]);
+  assert.deepEqual(hrefOf("buy"), ["#services", "#services"]);
+  assert.deepEqual(hrefOf("message"), ["/contact", "/contact"]);
+  assert.deepEqual(hrefOf(undefined), ["/contact", "/contact"]);
 });
 
-test("provisioning seeds the mode-following main CTA so the label tracks the talent's live selling mode", () => {
+test("provisioning seeds the talent's REAL selling mode, and the safe message mode when it is unknown", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/provision-max-site.ts"), "utf8");
-  assert.match(src, /buildDefaultShellTree\(\{ displayName, mainCtaMode: "instant" \}\)/);
+  assert.match(src, /loadTalentSiteCtaMode\(/);
+  assert.match(src, /mainCtaModeFromSiteMode\(/);
+  assert.match(src, /catch\s*\{[^}]*"message"/);
+  assert.doesNotMatch(src, /mainCtaMode: "instant"/);
 });
