@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import { useAdminShell } from "../../state";
@@ -129,9 +130,9 @@ function CatalogBody({ tenantId, nav }: { tenantId: string; nav: CatalogNav }) {
         <div className="flex flex-col gap-[12px]">
           <Outcome kind="refused" testId="catalog-item-provider-owned">
             {t("dashboard.catalog.itemProviderOwned")}{" "}
-            <a href="/talent/services" className="font-semibold underline">
+            <Link href="/talent/services" className="font-semibold underline">
               {t("dashboard.catalog.itemProviderOwnedLink")}
-            </a>
+            </Link>
           </Outcome>
           <CatalogList editor={editor} nav={nav} />
         </div>
