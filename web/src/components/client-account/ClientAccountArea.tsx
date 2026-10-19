@@ -43,6 +43,8 @@ type Props = {
   timeZone: string;
   data: AreaData;
   /** Agency hosts only: links to the agency's existing client pages, shown after the four tabs. */
+  /** TUL-65: this host serves the business's public /book page (talent site, agency host); hides Book again elsewhere. */
+  bookHere?: boolean;
   extraTabs?: ReadonlyArray<{ key: "quotes" | "shortlists" | "approvals"; href: string }>;
 };
 
@@ -176,7 +178,7 @@ export function ClientAccountArea(props: Props) {
             }}
           />
         ) : null}
-        {canBookAgain(v.status, v.offeringId) && v.offeringId ? (
+        {props.bookHere && canBookAgain(v.status, v.offeringId) && v.offeringId ? (
           <p style={{ marginTop: 16 }}>
             <Link href={bookAgainHref(v.offeringId)} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }} data-account-book-again="">
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
