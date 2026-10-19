@@ -33,6 +33,7 @@ export function CardBookAction({
   return (
     <a
       href={ownerBookHref}
+      rel="nofollow"
       data-owner-book-link={it.id}
       className={`inline-flex min-w-11 max-w-full items-center justify-center whitespace-normal text-center rounded-[10px] font-medium transition-opacity hover:opacity-85 ${
         compact ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-[0.8125rem]"

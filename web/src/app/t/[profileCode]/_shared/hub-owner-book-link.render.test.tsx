@@ -78,3 +78,12 @@ test("on_request hub card shows no price digits (D-10a)", () => {
   assert.doesNotMatch(priceCell, /\d/);
   assert.match(priceCell, /Bajo consulta/);
 });
+
+test("TUL-1267: the hub link-out to the owner's booking page is rel=nofollow (same tab)", () => {
+  const html = renderToStaticMarkup(
+    createElement(StorefrontBody, { visible: [offering()], locale: "en", ownerBookHrefs: { "off-1": OWNER } }),
+  );
+  const anchor = html.match(/<a [^>]*data-owner-book-link="off-1"[^>]*>/)?.[0] ?? "";
+  assert.match(anchor, /rel="nofollow"/);
+  assert.doesNotMatch(anchor, /target=/);
+});
