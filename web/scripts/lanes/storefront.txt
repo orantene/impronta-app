@@ -44,6 +44,8 @@ src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
+src/lib/offerings/business-catalog-scope.test.ts
+src/lib/offerings/business-catalog.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
@@ -51,6 +53,7 @@ src/lib/scheduling/bookings-off-wording.static.test.ts
 src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
 src/lib/seo/a6-price-hiding.test.ts
 src/lib/seo/a6-seo-pack.static.test.ts
+src/lib/seo/ai-bot-gate-catalog.test.ts
 src/lib/seo/directory-indexing.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts
 src/lib/seo/event-json-ld.test.ts
