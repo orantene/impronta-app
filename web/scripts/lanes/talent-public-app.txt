@@ -20,6 +20,7 @@ src/app/t/?profileCode?/_chat/retry-same-inquiry.test.ts
 src/app/t/?profileCode?/_chat/skin-parity.render.test.tsx
 src/app/t/?profileCode?/_chat/solo-talent-voice.static.test.ts
 src/app/t/?profileCode?/_chat/use-launcher-scroll-collapse.test.ts
+src/app/t/?profileCode?/_light/floating-chrome.static.test.ts
 src/app/t/?profileCode?/_maison/maison-ask-flow.test.ts
 src/app/t/?profileCode?/_maison/maison-derivations.test.ts
 src/app/t/?profileCode?/_maison/maison-menu.test.ts
@@ -33,6 +34,8 @@ src/app/template-preview/?key?/demo-preview-source.test.ts
 src/app/template-preview/?key?/preview-demo-guard.test.ts
 src/app/template-preview/?key?/theme-preview-gate.test.ts
 src/app/template-preview/?key?/theme-preview-source.test.ts
+src/components/talent/services/catalog-bootstrap.test.ts
 src/components/talent/services/services-bootstrap.test.ts
 src/lib/seo/json-ld-script-escape.test.ts
 src/lib/storefront/on-request-price-withheld.test.ts
+src/lib/talent/workspace-menu-defaults.test.ts

@@ -17,6 +17,7 @@ import { loadDemoContentFixture } from "./content-fixture";
 import { fixtureHeroFacts, fixtureLocation } from "./fixture-plan";
 import { applyHeroFacts, HERO_FACTS, type HeroFacts } from "./hero-facts";
 import { applyDemoLocation, DEMO_LOCATIONS, type DemoLocation } from "./location";
+import { demoContentCode } from "./registry";
 import type { DemoRegistryEntry, DemoStepId } from "./types";
 
 /** One service row of a content fixture. Shape is provisional until A3's fixture is wired. */
@@ -62,15 +63,17 @@ export interface ContentFixtureResult {
 
 /** The fixture a demo gets when none is supplied: what the codebase already knows about it. */
 export function defaultFixtureFor(entry: DemoRegistryEntry): DemoContentFixture {
+  // Content is keyed by the content code (a staging alias reads its canonical demo's facts and Location).
+  const code = demoContentCode(entry);
   if (entry.contentFixture) {
     // A demo with a content fixture takes its hero facts and Location from that fixture.
     const f = loadDemoContentFixture(entry.contentFixture);
-    const heroFacts = fixtureHeroFacts(f, HERO_FACTS[entry.profileCode]);
+    const heroFacts = fixtureHeroFacts(f, HERO_FACTS[code]);
     const location = fixtureLocation(f);
     return { ...(heroFacts ? { heroFacts } : {}), ...(location ? { location } : {}) };
   }
-  const heroFacts = HERO_FACTS[entry.profileCode];
-  const location = DEMO_LOCATIONS[entry.profileCode];
+  const heroFacts = HERO_FACTS[code];
+  const location = DEMO_LOCATIONS[code];
   return { ...(heroFacts ? { heroFacts } : {}), ...(location ? { location } : {}) };
 }
 

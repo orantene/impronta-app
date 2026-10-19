@@ -6,6 +6,7 @@ import { submitOrderToPreparation } from "@/lib/preparation/tickets";
 import { createPaymentLink } from "@/lib/payments/links";
 import { loadOpenVisitByToken } from "./qr";
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
+import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
 
 export type GuestReason =
@@ -36,16 +37,21 @@ export async function guestVisitMenu(
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
   // D-10: published AND approved AND public; tenant scoping is the .eq below.
-  const { data, error } = await scopeToGuestSellableOfferings(
-    admin.from("talent_offerings").select("id, title, amount_cents, prep_station_id, status").eq("tenant_id", input.tenantId),
-  ).limit(200);
-  if (error) {
-    logServerError("visits.guestVisitMenu", error);
+  const [{ data, error }, nonMenu] = await Promise.all([
+    scopeToGuestSellableOfferings(
+      admin.from("talent_offerings").select("id, title, amount_cents, prep_station_id, status").eq("tenant_id", input.tenantId),
+    ).limit(200),
+    loadNonMenuOfferingIds(admin, input.tenantId),
+  ]);
+  if (error || nonMenu.error) {
+    logServerError("visits.guestVisitMenu", error ?? nonMenu.error);
     return { ok: false, reason: "unavailable" };
   }
+  // TUL-1271 item 6: event-backing and reservation offerings are not menu items.
+  const menuRows = withoutNonMenuOfferings(((data ?? []) as Record<string, unknown>[]).map((r): Record<string, unknown> & { id: string } => ({ ...r, id: String(r.id) })), nonMenu.ids);
   return {
     ok: true,
-    items: ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    items: menuRows.map((row) => ({
       id: String(row.id),
       title: String(row.title ?? ""),
       amountCents: Number(row.amount_cents ?? 0),
@@ -120,6 +126,8 @@ export async function guestVisitAddLine(
   const off = offering as { id: string; status: string; moderation_state?: string; visibility?: string } | null;
   // D-10: an id guessed from another surface must not add an unapproved or hidden service.
   if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
+  // TUL-1271 item 6: an event-backing or reservation id is not a menu item either (fails closed).
+  if (await anyNonMenuOffering(admin, input.tenantId, [off.id])) return { ok: false, reason: "item_unavailable" };
 
   const draft = await guestDraft(admin, {
     tenantId: input.tenantId,

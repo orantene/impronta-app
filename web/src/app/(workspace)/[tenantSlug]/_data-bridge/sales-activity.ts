@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isMoneyOwed, type OrderListRow } from "@/lib/orders/orders-list";
 import { loadWorkspaceOrders } from "./orders";
+import { orderIdsPaidWith } from "./sales-method";
+import type { SalesMethod, SalesRange } from "@/lib/sales/period";
 import {
   distinctChannels,
   filterSalesRowsByChannel,
@@ -95,37 +97,51 @@ function mapOrder(tenantSlug: string, row: OrderListRow): SalesActivityRow {
 export async function loadWorkspaceSalesActivity(
   tenantId: string,
   tenantSlug: string,
-  opts: { kind?: SalesKindFilter; channel?: string } = {},
+  opts: { kind?: SalesKindFilter; channel?: string; range?: SalesRange; method?: SalesMethod } = {},
 ): Promise<SalesActivityLoad> {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false };
 
-  const ordersLoad = await loadWorkspaceOrders(tenantId);
+  const range = opts.range ?? { from: null, to: null };
+  const ordersLoad = await loadWorkspaceOrders(tenantId, { createdFrom: range.from, createdBefore: range.to });
   if (!ordersLoad.ok) return { ok: false };
+
+  // Payment-method filter: only orders carry a tender, so a method narrows to
+  // the orders paid that way and leaves out the bookings/visits/admissions
+  // that have no tender recorded (they are never guessed into a method).
+  const method = opts.method ?? "any";
+  const paidWith = await orderIdsPaidWith(admin, ordersLoad.rows.map((r) => r.id), method);
+  if (paidWith === undefined) return { ok: false };
+  if (paidWith) ordersLoad.rows = ordersLoad.rows.filter((r) => paidWith.has(r.id));
 
   const orderIds = new Set(ordersLoad.rows.map((row) => row.id));
   const extras: SalesActivityRow[] = [];
 
+  // The period window bounds each extras read the same way it bounds orders.
+  let bookingsQ = admin
+    .from("agency_bookings")
+    .select("id, order_id, status, payment_status, total_client_revenue, currency_code, created_at, contact_name, title")
+    .eq("tenant_id", tenantId);
+  let visitsQ = admin.from("visits").select("id, status, created_at, service_kind").eq("tenant_id", tenantId);
+  let admissionsQ = admin
+    .from("admissions")
+    .select("id, order_line_id, status, created_at, session_id")
+    .eq("tenant_id", tenantId)
+    .is("order_line_id", null);
+  if (range.from) {
+    bookingsQ = bookingsQ.gte("created_at", range.from);
+    visitsQ = visitsQ.gte("created_at", range.from);
+    admissionsQ = admissionsQ.gte("created_at", range.from);
+  }
+  if (range.to) {
+    bookingsQ = bookingsQ.lt("created_at", range.to);
+    visitsQ = visitsQ.lt("created_at", range.to);
+    admissionsQ = admissionsQ.lt("created_at", range.to);
+  }
   const [bookingsRes, visitsRes, admissionsRes, visitOrdersRes] = await Promise.all([
-    admin
-      .from("agency_bookings")
-      .select("id, order_id, status, payment_status, total_client_revenue, currency_code, created_at, contact_name, title")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(200),
-    admin
-      .from("visits")
-      .select("id, status, created_at, service_kind")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(200),
-    admin
-      .from("admissions")
-      .select("id, order_line_id, status, created_at, session_id")
-      .eq("tenant_id", tenantId)
-      .is("order_line_id", null)
-      .order("created_at", { ascending: false })
-      .limit(200),
+    bookingsQ.order("created_at", { ascending: false }).limit(200),
+    visitsQ.order("created_at", { ascending: false }).limit(200),
+    admissionsQ.order("created_at", { ascending: false }).limit(200),
     admin
       .from("orders")
       .select("visit_id")
@@ -232,7 +248,7 @@ export async function loadWorkspaceSalesActivity(
   }
 
   const orders = ordersLoad.rows.map((row) => mapOrder(tenantSlug, row));
-  let rows = [...orders, ...extras];
+  let rows = method === "any" ? [...orders, ...extras] : orders;
   const kind = opts.kind ?? "all";
   if (kind !== "all") rows = rows.filter((row) => row.kind === kind);
   // Channels available for THIS kind filter, computed before the channel

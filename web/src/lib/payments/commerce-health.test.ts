@@ -7,10 +7,12 @@ import {
   classifyEventLane,
   computeCommerceHealth,
   effectiveMxPublishableVar,
+  effectiveSecretVar,
   snapshotKeyEnv,
   type CommerceHealthInput,
   type KeyMode,
 } from "./commerce-health";
+import { resolvedStripeEnv } from "@/lib/stripe/env-keys";
 
 const NOW = new Date("2026-10-07T12:00:00Z");
 const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3_600_000).toISOString();
@@ -274,4 +276,32 @@ test("mx-lane: loader and section are wired, with en and es text", () => {
     assert.match(m, /"mxLane": \{\s+"label":/);
     assert.match(m, /"connectMissing":/);
   }
+});
+
+test("forced test mode: secret rows name the _TEST variable the app reads (TUL-186)", () => {
+  const env = {
+    STRIPE_FORCE_TEST_MODE: "1",
+    STRIPE_MX_WEBHOOK_SECRET: "whsec_live_value_ignored",
+    STRIPE_MX_WEBHOOK_SECRET_TEST: "whsec_test_value",
+  };
+  const snap = snapshotKeyEnv(resolvedStripeEnv(env));
+  assert.equal(snap.forcedTestMode, true);
+  assert.equal(snap.webhookSecretsSet.STRIPE_MX_WEBHOOK_SECRET, true);
+  const rows = computeCommerceHealth({ ...base(), ...snap });
+  const mx = byId(rows, "secret:STRIPE_MX_WEBHOOK_SECRET");
+  assert.equal(mx.data?.name, "STRIPE_MX_WEBHOOK_SECRET_TEST");
+  assert.equal(mx.data?.base, "STRIPE_MX_WEBHOOK_SECRET");
+  const us = byId(rows, "secret:STRIPE_WEBHOOK_SECRET");
+  assert.equal(us.status, "error");
+  assert.equal(us.detail, "STRIPE_WEBHOOK_SECRET_TEST: not set");
+  const json = JSON.stringify(rows);
+  for (const v of Object.values(env)) if (v.startsWith("whsec")) assert.ok(!json.includes(v), `leaked ${v}`);
+});
+
+test("forced test mode off: secret rows keep the bare name", () => {
+  const snap = snapshotKeyEnv({ STRIPE_WEBHOOK_SECRET: "whsec_x" });
+  assert.equal(snap.forcedTestMode, false);
+  const row = byId(computeCommerceHealth({ ...base(), ...snap }), "secret:STRIPE_WEBHOOK_SECRET");
+  assert.equal(row.data?.name, "STRIPE_WEBHOOK_SECRET");
+  assert.equal(effectiveSecretVar("STRIPE_MX_WEBHOOK_SECRET_CONNECT", true), "STRIPE_MX_WEBHOOK_SECRET_CONNECT_TEST");
 });

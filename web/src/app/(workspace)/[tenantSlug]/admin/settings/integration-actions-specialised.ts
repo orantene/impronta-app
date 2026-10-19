@@ -167,11 +167,18 @@ export async function saveCaptcha(
     if (!r.ok) return { ok: false, error: "That doesn't look like a valid Site key." };
   }
 
-  // Persist the PUBLIC values first.
+  // Persist the PUBLIC values first. Keys typed here are the workspace's own:
+  // drop any TUL-1017 tulala-auto markers so a detach never deletes them.
   const row = await setIntegrationConfig(
     guard.tenantId,
     CAPTCHA_INTEGRATION_KEY,
-    { provider, site_key: siteKey },
+    {
+      provider,
+      site_key: siteKey,
+      managed_by: null,
+      managed_domain: null,
+      managed_widget_name: null,
+    },
     {
       connectionMethod: "manual",
       lastError: null,

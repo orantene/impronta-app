@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stripe TEST webhook for staging (TUL-830) — manual, staging only.
+# Creates (or reuses) ONE webhook endpoint in the Stripe TEST sandbox pointing
+# at the staging host, and writes its signing secret into Vercel Preview as the
+# `_TEST` sibling (staging runs STRIPE_FORCE_TEST_MODE=1). Production env is
+# never written: the script only touches a preview-only entry and refuses any
+# entry shared with production. The secret is never printed.
+# Takes effect on the next staging build; this workflow fires no build.
+# Runbook: docs/plans/stripe-staging-webhook-runbook-2026-10-19.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Stripe staging webhook
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: "us = /api/webhooks/stripe (plan billing). mx = /api/webhooks/stripe-mx. Never both."
+        type: choice
+        options: [us, mx]
+        default: us
+      dry_run:
+        description: "yes = plan only, write nothing"
+        type: choice
+        options: ["yes", "no"]
+        default: "yes"
+      recreate:
+        description: "yes = delete THIS workflow's endpoint and make a new one (only when the Preview secret is missing)"
+        type: choice
+        options: ["no", "yes"]
+        default: "no"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-staging-webhook
+  cancel-in-progress: false
+
+jobs:
+  webhook:
+    name: Stripe TEST webhook (staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Test-mode key only. Never configure a live key for this workflow.
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT_ID: prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2
+      VERCEL_TEAM_ID: team_otRX11wclvw89c5ls7A7UsZd
+      BASE_URL: https://pay.staging.tulala.digital
+      LANE: ${{ inputs.lane }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      RECREATE: ${{ inputs.recreate }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Guard tests
+        run: node --test scripts/lib/stripe-staging-webhook.test.mjs
+      - name: Create or reuse the endpoint, write the Preview secret
+        run: node scripts/stripe-staging-webhook.mjs

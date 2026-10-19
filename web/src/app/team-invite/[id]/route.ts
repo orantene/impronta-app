@@ -5,6 +5,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { checkTeamSeatAvailability } from "@/lib/saas/team-seat-limit";
 import { logServerError } from "@/lib/server/safe-error";
+import { roleAfterRedeem } from "@/lib/team/redeem-role";
 
 /**
  * F.1 — Team-invite redemption route.
@@ -86,7 +87,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Avoid duplicate membership rows: check for existing.
     const { data: existing } = await admin
       .from("agency_memberships")
-      .select("id, status")
+      .select("id, status, role")
       .eq("tenant_id", row.tenant_id)
       .eq("profile_id", session.user.id)
       .in("status", ["active", "invited", "pending_acceptance", "suspended"])
@@ -106,10 +107,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     if (existing) {
-      // Promote to the target role if downgraded; otherwise leave as-is.
+      // TUL-1269: redemption may raise a role, never lower it, and never touches an owner.
+      const nextRole = roleAfterRedeem((existing as { role?: string | null }).role, row.target_role);
       await admin
         .from("agency_memberships")
-        .update({ role: row.target_role, status: "active", accepted_at: new Date().toISOString() })
+        .update({ role: nextRole, status: "active", accepted_at: new Date().toISOString() })
         .eq("id", (existing as { id: string }).id);
     } else {
       await admin.from("agency_memberships").insert({

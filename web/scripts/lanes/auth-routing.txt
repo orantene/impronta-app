@@ -3,6 +3,7 @@ src/app/(auth)/auth-locale-strings.static.test.ts
 src/app/(workspace)/talent/talent-not-found.test.ts
 src/app/(workspace)/talent/talent-support-alias.test.ts
 src/app/api/dev/signin/fixture-session.test.ts
+src/app/api/dev/signin/guard.test.ts
 src/app/client/client-root-loading.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
@@ -41,6 +42,7 @@ src/lib/saas/business-workspace-signup.static.test.ts
 src/lib/saas/retired-workspace-unblock.test.ts
 src/lib/saas/staging-gate.test.ts
 src/lib/saas/tiktok-domain-verification.static.test.ts
+src/lib/safe-internal-path.test.ts
 src/lib/server/safe-error-expected.test.ts
 src/lib/site-admin/server/proxy-locale-seed.test.ts
 src/lib/supabase/bounded-fetch.test.ts

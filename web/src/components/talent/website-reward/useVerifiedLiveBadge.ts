@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 
-import { loadMySiteLiveVerifiedAction } from "@/lib/talent-site/server/site-live-verified";
+import { readTalentDashboard } from "@/lib/talent/dashboard-reads";
 import { liveBadgeState, type LiveBadgeState } from "@/lib/onboarding/live-badge";
 
 /**
@@ -30,7 +30,8 @@ export function useVerifiedLiveBadge(published: boolean): LiveBadgeState {
   useEffect(() => {
     if (!published) return;
     let gone = false;
-    loadMySiteLiveVerifiedAction()
+    // TUL-1274: a GET, not a server action: an action on mount could refetch the whole tree.
+    readTalentDashboard("site-live-verified")
       .then((v) => {
         if (!gone) setVerified(v);
       })

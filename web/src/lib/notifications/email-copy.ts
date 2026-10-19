@@ -30,6 +30,7 @@ import { NOTIF_EN, NOTIF_ES } from "./email-copy/notifications";
 import { PLATFORM_EN, PLATFORM_ES } from "./email-copy/platform";
 import { REVIEWS_EN, REVIEWS_ES } from "./email-copy/reviews";
 import { SUPPORT_EN, SUPPORT_ES } from "./email-copy/support";
+import { RESERVED_EN, RESERVED_ES } from "./email-copy/reserved";
 
 export type EmailLocale = "en" | "es";
 
@@ -50,6 +51,7 @@ const en = {
   ...PLATFORM_EN,
   ...REVIEWS_EN,
   ...SUPPORT_EN,
+  ...RESERVED_EN,
 };
 
 const es = {
@@ -62,6 +64,7 @@ const es = {
   ...PLATFORM_ES,
   ...REVIEWS_ES,
   ...SUPPORT_ES,
+  ...RESERVED_ES,
 };
 
 export type EmailCopy = typeof en;

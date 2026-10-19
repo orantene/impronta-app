@@ -95,7 +95,7 @@ test("TUL-567: 'Falta precio' cue is on draft services without a price only", ()
 
 test("TUL-567: both service lists draw the cue, with EN and ES copy", () => {
   assert.match(read("src/components/talent/services/ItemStateChips.tsx"), /<NeedsPriceChip item=\{item\}/);
-  assert.equal((read("src/components/admin/shell/internal/page-modules/catalog/CatalogList.tsx").match(/<NeedsPriceChip item=\{o\}/g) ?? []).length, 2);
+  assert.equal((read("src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.tsx").match(/<NeedsPriceChip item=\{o\}/g) ?? []).length, 2);
   const en = JSON.parse(read("messages/en.json")).dashboard.catalog.list;
   const esMsg = JSON.parse(read("messages/es.json")).dashboard.catalog.list;
   assert.equal(esMsg.needsPrice, "Falta precio");

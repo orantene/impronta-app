@@ -1,6 +1,6 @@
 import "server-only";
 
-import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
+import { resolveEffectiveTalentPlanKeyWithPastDue, type TalentPastDueFact } from "@/lib/billing/effective-talent-plan";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -65,6 +65,8 @@ export type TalentSelfProfile = {
   talentTier: TalentMembershipState["tier"];
   /** Server-derived talent plan capabilities for client rendering. */
   talentCapabilities: TalentMembershipState["capabilities"];
+  /** TUL-835: set only while the talent subscription is past_due (same read as the plan). */
+  talentPastDue?: TalentPastDueFact | null;
   /** Display name of the agency they're viewing this in context of */
   agencyName: string;
   /** Public URL of the talent's "card" variant media asset, or null */
@@ -164,7 +166,7 @@ export async function loadTalentSelfProfile(
     // The roster gate is applied right after; a missing row still returns null.
     const admin = createServiceRoleClient();
     const mediaClient = admin ?? supabase;
-    const [rosterRes, headshotMap, galleryRes, blobValues, effectivePlanKey, siteSwitches] = await Promise.all([
+    const [rosterRes, headshotMap, galleryRes, blobValues, planFacts, siteSwitches] = await Promise.all([
       trusted
         .from("agency_talent_roster")
         .select("status, agencies!tenant_id ( display_name )")
@@ -185,7 +187,7 @@ export async function loadTalentSelfProfile(
         .is("deleted_at", null),
       // About writes bios to the catalog field value, not the legacy columns.
       readBlobFieldValuesFromCatalog(mediaClient, p.id),
-      resolveEffectiveTalentPlanKey(trusted, p.id, p.talent_plan_key),
+      resolveEffectiveTalentPlanKeyWithPastDue(trusted, p.id, p.talent_plan_key),
       loadTalentSiteSwitches(trusted, p.id),
     ]);
     const { data: rosterRow, error: rosterErr } = rosterRes;
@@ -217,7 +219,7 @@ export async function loadTalentSelfProfile(
           ?.locations?.display_name_i18n?.en ?? null,
       homeCityText: p.home_city_text,
     });
-    const membership = buildTalentMembershipState(effectivePlanKey);
+    const membership = buildTalentMembershipState(planFacts.planKey);
 
     return {
       id: p.id,
@@ -232,6 +234,7 @@ export async function loadTalentSelfProfile(
       talentPlanKey: membership.planKey,
       talentTier: membership.tier,
       talentCapabilities: membership.capabilities,
+      talentPastDue: planFacts.pastDue,
       agencyName: agencyRow?.display_name ?? "Agency",
       headshotUrl,
       hasBio: hasIntroFromSources({
@@ -344,7 +347,7 @@ export async function loadTalentSelfProfileByUser(
     // TUL-1240: independent of each other, so one wave instead of five serial awaits.
     // Headshot via the shared resolver (see the sibling loader above); no tenant in
     // scope on the by-user (master) loader, so null = master rank.
-    const [headshotMap, galleryRes, blobValues, effectivePlanKey, siteSwitches] = await Promise.all([
+    const [headshotMap, galleryRes, blobValues, planFacts, siteSwitches] = await Promise.all([
       resolveTalentCardThumbsForHub(trusted, [p.id], null),
       trusted
         .from("media_assets")
@@ -354,7 +357,7 @@ export async function loadTalentSelfProfileByUser(
         .is("deleted_at", null),
       // About writes bios to the catalog field value, not the legacy columns.
       readBlobFieldValuesFromCatalog(trusted, p.id),
-      resolveEffectiveTalentPlanKey(trusted, p.id, p.talent_plan_key),
+      resolveEffectiveTalentPlanKeyWithPastDue(trusted, p.id, p.talent_plan_key),
       loadTalentSiteSwitches(trusted, p.id),
     ]);
     const headshotUrl = headshotMap.get(p.id) ?? null;
@@ -376,7 +379,7 @@ export async function loadTalentSelfProfileByUser(
           ?.locations?.display_name_i18n?.en ?? null,
       homeCityText: p.home_city_text,
     });
-    const membership = buildTalentMembershipState(effectivePlanKey);
+    const membership = buildTalentMembershipState(planFacts.planKey);
 
     return {
       id: p.id,
@@ -391,6 +394,7 @@ export async function loadTalentSelfProfileByUser(
       talentPlanKey: membership.planKey,
       talentTier: membership.tier,
       talentCapabilities: membership.capabilities,
+      talentPastDue: planFacts.pastDue,
       agencyName: "Tulala",
       headshotUrl,
       hasBio: hasIntroFromSources({

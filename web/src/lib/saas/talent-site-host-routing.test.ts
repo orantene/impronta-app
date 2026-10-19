@@ -128,8 +128,15 @@ test("Posts v1: /blog/<slug>, /blog/<slug>/og and /blog/c/<category> rewrite int
     kind: "blog",
     rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog/c/tips`,
   });
-  // A bare /blog stays an ordinary page slug (a talent may have a page called blog).
-  assert.deepEqual(isTalentSiteHostPathAllowed("/blog"), { kind: "render", pageSlug: "blog" });
+  // F7: the bare /blog is the post index (it used to fall through as a page slug).
+  assert.deepEqual(isTalentSiteHostPathAllowed("/blog"), {
+    kind: "blog",
+    rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog`,
+  });
+  assert.deepEqual(isTalentSiteHostPathAllowed("/blog/"), {
+    kind: "blog",
+    rewritePath: `${TALENT_SITE_HOST_ROUTE_PREFIX}/blog`,
+  });
   for (const p of ["/blog/a/b", "/blog/c/a/b", "/blog/Bad", "/blog/a.b", "/blog/c"]) {
     const d = isTalentSiteHostPathAllowed(p);
     assert.ok(d === null || (d.kind === "blog" && d.rewritePath.endsWith("/blog/c")), p);
