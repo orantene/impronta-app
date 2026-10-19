@@ -60,7 +60,10 @@ export const CLIENT_EN = {
     serviceLabel: "Service",
     dateLabel: "Date",
     priceLabel: "Price",
-    locationLabel: "Location",
+    locationLabel: "Address",
+    durationLabel: "Duration",
+    policyLabel: "Cancellation",
+    calendarNote: "The calendar file is attached: open it to add this booking to your calendar.",
   },
   "client.payment_receipt": {
     subject: "Payment received",
@@ -172,7 +175,10 @@ export const CLIENT_ES: typeof CLIENT_EN = {
     serviceLabel: "Servicio",
     dateLabel: "Fecha",
     priceLabel: "Precio",
-    locationLabel: "Ubicación",
+    locationLabel: "Dirección",
+    durationLabel: "Duración",
+    policyLabel: "Cancelación",
+    calendarNote: "Adjuntamos el archivo de calendario: ábrelo para agregar esta reserva a tu calendario.",
   },
   "client.payment_receipt": {
     subject: "Pago recibido",
