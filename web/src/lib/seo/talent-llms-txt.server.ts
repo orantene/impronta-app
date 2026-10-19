@@ -5,10 +5,14 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadMaxSiteByProfileId, loadTalentPlanKey } from "@/lib/talent-site/server/load-max-site";
 import { loadMaxSiteSeoFacts } from "@/lib/talent-site/server/max-site-seo-facts.server";
 import { loadTalentTypeLabels } from "@/lib/talent-site/server/load-talent-trades.server";
-import { buildTalentLlmsTxt, isTalentLlmsEligible, talentServicePriceText } from "./talent-llms-txt";
+import { buildTalentLlmsTxt, isTalentLlmsEligible, talentServicePriceText, type TalentLlmsPost } from "./talent-llms-txt";
 
 /** The llms.txt body for a talent-site host, or null (404) when not public. */
-export async function loadTalentLlmsTxt(talentProfileId: string, base: URL): Promise<string | null> {
+export async function loadTalentLlmsTxt(
+  talentProfileId: string,
+  base: URL,
+  posts: TalentLlmsPost[] = [],
+): Promise<string | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   try {
@@ -49,6 +53,7 @@ export async function loadTalentLlmsTxt(talentProfileId: string, base: URL): Pro
       name,
       trade: trades[0] ?? null,
       city: facts.addressLocality,
+      posts,
       languages: ((langs.data ?? []) as { language_name: string | null }[])
         .map((l) => l.language_name?.trim() ?? "")
         .filter(Boolean),

@@ -30,13 +30,12 @@ export function shownServiceReviews(r: ServiceReviews | null | undefined): Servi
   return { average: hasAgg ? r.average : 0, count: hasAgg ? r.count : 0, reviews };
 }
 
-/** AggregateRating / Review fields to merge onto the Service node; empty for a demo talent. */
+/** Review fields to merge onto the Service node; empty for a demo talent. */
 export function serviceReviewsJsonLd(shown: ServiceReviews | null, demo: boolean): Record<string, unknown> {
   if (!shown || demo) return {};
   const out: Record<string, unknown> = {};
-  if (shown.count > 0) {
-    out.aggregateRating = { "@type": "AggregateRating", ratingValue: shown.average, reviewCount: shown.count, bestRating: 5, worstRating: 1 };
-  }
+  // No aggregateRating: self-served ratings on a Service are not eligible for rich results
+  // and read as self-review markup. Individual named reviews below stay.
   const named = shown.reviews.filter((x) => !x.demo && x.clientName);
   if (named.length) {
     out.review = named.map((x) => ({

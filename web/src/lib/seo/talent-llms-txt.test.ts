@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import assert from "node:assert/strict";
 import { TALENT_MAX_PLAN_KEY } from "@/lib/talent-site/resolve-max-site-core";
 import { test } from "node:test";
@@ -70,4 +72,27 @@ test("route decision: marketing and talent hosts only, never unknown or spoofed"
   assert.deepEqual(h("talent_site", "talent_site", null), { route: "not_found" });
   assert.deepEqual(h("talent_site", "app", "p1"), { route: "not_found" });
   for (const k of ["agency", "hub", "app", "unknown"]) assert.deepEqual(h(k, null, "p1"), { route: "not_found" });
+});
+
+test("A6: one composer lists services with prices, posts and the public booking endpoints", () => {
+  const txt = buildTalentLlmsTxt(base, {
+    name: "Jorgelina",
+    trade: null,
+    city: null,
+    languages: [],
+    services: [{ title: "Gel set", priceText: "from $900 MXN" }],
+    posts: [{ title: "Nail care", url: "https://jorge.tulala.digital/blog/nail-care", description: "Tips" }],
+  });
+  assert.ok(txt.includes("- Gel set: from $900 MXN"));
+  assert.ok(txt.includes("## Posts"));
+  assert.ok(txt.includes("- [Nail care](https://jorge.tulala.digital/blog/nail-care): Tips"));
+  assert.ok(txt.includes("https://jorge.tulala.digital/api/public/booking/catalog"));
+  assert.ok(txt.includes("https://jorge.tulala.digital/api/public/booking/slots?offering=<service_id>"));
+  assert.ok(txt.includes("https://jorge.tulala.digital/api/public/booking/mcp"));
+});
+
+test("A6: the dead booking/agent llms-txt composer is gone and the Posts route uses the one composer", () => {
+  assert.equal(existsSync(join(process.cwd(), "src/lib/booking/agent/llms-txt.ts")), false);
+  const route = readFileSync(join(process.cwd(), "src/app/llms.txt/route.ts"), "utf8");
+  assert.match(route, /loadTalentLlmsTxt/);
 });

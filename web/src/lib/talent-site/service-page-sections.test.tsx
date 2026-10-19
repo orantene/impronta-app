@@ -95,7 +95,7 @@ test("TUL-795 reviews: Service JSON-LD gains AggregateRating/Review only when sh
   // TUL-1085: the Service is the first node of an @graph that also carries the BreadcrumbList.
   const serviceNode = (jsonLd: unknown) => (jsonLd as { "@graph": Record<string, unknown>[] })["@graph"][0]!;
   const ld = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS }).jsonLd) as { aggregateRating?: { reviewCount: number }; review?: unknown[] };
-  assert.equal(ld.aggregateRating?.reviewCount, 12);
+  assert.equal(ld.aggregateRating, undefined);
   assert.equal(ld.review?.length, 1);
   const demo = serviceNode(serviceSeo(SEO, A, { talentName: "Ana", locale: "es", reviews: REVIEWS, demo: true }).jsonLd);
   assert.equal("aggregateRating" in demo, false);
