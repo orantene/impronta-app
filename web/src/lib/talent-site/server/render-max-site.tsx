@@ -140,7 +140,7 @@ export interface RenderTalentMaxSiteInput {
 export type RenderTalentMaxSiteResult =
   | { kind: "render"; node: ReactNode; seo: MaxSiteSeo; /** The locale the body rendered in (bounded to the talent languages). */ locale: string }
   | { kind: "not_found" }
-  /** TUL-1272 C1: an old service slug (slug_history / renamed custom slug); the route 301s to `slug`. */
+  /** TUL-1272 C1: an old service slug (slug_history / renamed custom slug); the route 308s (permanentRedirect) to `slug`. */
   | { kind: "redirect"; slug: string };
 
 const NOT_FOUND: RenderTalentMaxSiteResult = { kind: "not_found" };
@@ -366,7 +366,12 @@ async function renderTalentMaxSiteUnguarded(
       const serviceContent = presentationFlag ? await loadServiceContentFields(inLocale.map((o) => o.id)) : null;
       const resolvedService = resolveServiceSlugWithHistory(inLocale, input.pageSlug, serviceContent);
       if (resolvedService.kind === "missing") return NOT_FOUND;
-      if (resolvedService.kind === "redirect" && !isOwnerDraftPreview) return { kind: "redirect", slug: resolvedService.slug };
+      if (resolvedService.kind === "redirect" && !isOwnerDraftPreview) {
+        // Target = the canonical slug (primary-language row), the same path servicePath and the canonical use.
+        const primaryTarget = (inPrimary ?? inLocale).find((o) => o.id === resolvedService.offering.id) ?? resolvedService.offering;
+        const redirectTo = serviceContent?.get(primaryTarget.id)?.slug ?? serviceSlug(primaryTarget);
+        if (redirectTo !== input.pageSlug) return { kind: "redirect", slug: redirectTo };
+      }
       serviceOffering = resolvedService.offering;
       const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
       servicePath = `/${serviceContent?.get(primaryRow.id)?.slug ?? serviceSlug(primaryRow)}`;

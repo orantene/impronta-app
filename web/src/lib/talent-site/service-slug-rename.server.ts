@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * TUL-1272 C1: write `slug_history` when a service is renamed, so the old URL 301s to the new
+ * TUL-1272 C1: write `slug_history` when a service is renamed, so the old URL 308s (permanentRedirect) to the new
  * one. Code-first: the held migration 415800 adds the columns, so this reads and writes only
  * when the presentation flag is on AND the columns exist (`serviceContentColumnsAvailable`).
  * A failed read or write never blocks the save: the rename is saved either way and the old
@@ -20,12 +20,13 @@ type Res = { data: unknown; error: { code?: string; message?: string } | null };
 /** The PostgREST chain used here (structural, so tests pass a fake). */
 export type SlugRenameDb = {
   from(table: "talent_offerings"): {
-    select(columns: string): { eq(c: string, v: string): { maybeSingle(): PromiseLike<Res> } };
-    update(patch: { slug_history: string[] }): { eq(c: string, v: string): PromiseLike<Res> };
+    select(columns: string): { eq(c: string, v: string): { eq(c: string, v: string): { maybeSingle(): PromiseLike<Res> } } };
+    update(patch: { slug_history: string[] }): { eq(c: string, v: string): { eq(c: string, v: string): PromiseLike<Res> } };
   };
 };
 
-export type SlugRename = { offeringId: string; slugHistory: string[] };
+/** Always scoped to the saving talent: the service-role client bypasses RLS. */
+export type SlugRename = { offeringId: string; talentProfileId: string; slugHistory: string[] };
 
 type StoredRow = {
   id: string;
@@ -40,11 +41,11 @@ type StoredRow = {
 export async function prepareServiceSlugRename(
   /** The service-role client (typed structurally as SlugRenameDb; generated types lag the held columns). */
   client: unknown,
-  input: { offeringId: string; nextTitle: string },
+  input: { offeringId: string; talentProfileId: string; nextTitle: string },
   opts: { enabled?: boolean; columnsAvailable?: () => Promise<boolean> } = {},
 ): Promise<SlugRename | null> {
   const db = client as SlugRenameDb | null;
-  if (!db || !input.offeringId) return null;
+  if (!db || !input.offeringId || !input.talentProfileId) return null;
   if (!(opts.enabled ?? servicePresentationResolverEnabled())) return null;
   try {
     const available = opts.columnsAvailable ? await opts.columnsAvailable() : await serviceContentColumnsAvailable();
@@ -53,6 +54,7 @@ export async function prepareServiceSlugRename(
       .from("talent_offerings")
       .select("id, title, slug, slug_history, owner_kind, talent_profile_id, tenant_id")
       .eq("id", input.offeringId)
+      .eq("talent_profile_id", input.talentProfileId)
       .maybeSingle();
     if (error) {
       logServerError("service-slug-rename.read", error);
@@ -70,7 +72,7 @@ export async function prepareServiceSlugRename(
     });
     if (!plan.ok) return null;
     const same = plan.slugHistory.length === stored.length && plan.slugHistory.every((s, i) => s === stored[i]);
-    return same ? null : { offeringId: row.id, slugHistory: plan.slugHistory };
+    return same ? null : { offeringId: row.id, talentProfileId: input.talentProfileId, slugHistory: plan.slugHistory };
   } catch (e) {
     logServerError("service-slug-rename.prepare", e);
     return null;
@@ -81,7 +83,11 @@ export async function commitServiceSlugHistory(client: unknown, rename: SlugRena
   const db = client as SlugRenameDb | null;
   if (!db) return;
   try {
-    const { error } = await db.from("talent_offerings").update({ slug_history: rename.slugHistory }).eq("id", rename.offeringId);
+    const { error } = await db
+      .from("talent_offerings")
+      .update({ slug_history: rename.slugHistory })
+      .eq("id", rename.offeringId)
+      .eq("talent_profile_id", rename.talentProfileId);
     if (error) logServerError("service-slug-rename.write", error);
   } catch (e) {
     logServerError("service-slug-rename.write", e);

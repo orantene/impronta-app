@@ -27,7 +27,9 @@ describe("render-max-site wiring (static)", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
   it("resolves service slugs with history and returns a redirect result", () => {
     assert.match(src, /resolveServiceSlugWithHistory\(inLocale, input\.pageSlug, serviceContent\)/);
-    assert.match(src, /return \{ kind: "redirect", slug: resolvedService\.slug \}/);
+    // The target is the CANONICAL slug: the primary-language row's current slug, never the translated title.
+    assert.match(src, /const redirectTo = serviceContent\?\.get\(primaryTarget\.id\)\?\.slug \?\? serviceSlug\(primaryTarget\)/);
+    assert.match(src, /return \{ kind: "redirect", slug: redirectTo \}/);
   });
   it("free-plan duplicates get the main page as canonical and no Service JSON-LD", () => {
     assert.match(src, /servicePageCanonical\(\{/);

@@ -108,7 +108,7 @@ export default async function TalentMaxSiteInnerPage({
   if (result.kind !== "render" && pageSlug === LEGACY_PRIVACY_SLUG) {
     permanentRedirect(`/t/site/${encodeURIComponent(siteSlug)}/${POLICY_SLUG.privacy}`);
   }
-  // TUL-1272 C1: an old service slug 301s to the current one.
+  // TUL-1272 C1: an old service slug 308s (permanentRedirect) to the current one.
   if (result.kind === "redirect") permanentRedirect(`/t/site/${encodeURIComponent(siteSlug)}/${encodeURIComponent(result.slug)}`);
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
