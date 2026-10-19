@@ -14,8 +14,10 @@
 // unpaid invoice (`salesMoneyPresentation`, N17). Every time is on the
 // workspace's own clock.
 //
-// Controls the engine has no reader for are drawn disabled with a reason
-// (D-POS-58): the period, payment and seller filters and the scoped export.
+// The period and payment-method filters are wired (URL params `period`,
+// `method`) and a second view, "By item" (`view=items`), groups paid order
+// lines by offering with a CSV export. Controls the engine has no reader for
+// are still drawn disabled with a reason (D-POS-58): the seller filter.
 // "New sale" opens the counter when that mode is on, else says why not.
 //
 // Token-only styling (admin aesthetics ruling): every colour below is a
@@ -28,7 +30,16 @@ import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
-import { loadWorkspaceSalesActivity, type SalesActivityRow } from "../../_data-bridge/sales-activity";
+import { loadWorkspaceSalesActivity, type SalesActivityLoad, type SalesActivityRow } from "../../_data-bridge/sales-activity";
+import { loadSalesByItem } from "../../_data-bridge/sales-by-item";
+import {
+  SALES_METHODS,
+  SALES_PERIODS,
+  parseSalesMethod,
+  parseSalesPeriod,
+  parseSalesView,
+  salesPeriodRange,
+} from "@/lib/sales/period";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { enabledPosModesFromSettings } from "@/lib/pos/modes";
@@ -49,12 +60,13 @@ import {
 } from "@/lib/sales/activity-shape";
 import { ActionButton, StatePill } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { Icon } from "@/components/admin/shell/internal/primitives";
+import { SalesItemsTable } from "./items-view";
 import { SalesChipLink, SalesFilterChip, salesWhen } from "./sales-ui";
 
 export const dynamic = "force-dynamic";
 
 type PageParams = Promise<{ tenantSlug: string }>;
-type Search = Promise<{ kind?: string; channel?: string }>;
+type Search = Promise<{ kind?: string; channel?: string; period?: string; method?: string; view?: string }>;
 
 function parseKind(raw: string | undefined): SalesKindFilter {
   if (
@@ -124,11 +136,17 @@ export default async function SalesPage({
   const kind = parseKind(sp.kind);
   const channel = typeof sp.channel === "string" && sp.channel.length > 0 ? sp.channel : "all";
 
-  const [load, timeZone, counterOn] = await Promise.all([
-    loadWorkspaceSalesActivity(scope.tenantId, tenantSlug, { kind, channel }),
-    tenantTimezone(scope.tenantId),
-    counterIsOn(scope.tenantId),
-  ]);
+  const period = parseSalesPeriod(sp.period);
+  const method = parseSalesMethod(sp.method);
+  const view = parseSalesView(sp.view);
+
+  const [timeZone, counterOn] = await Promise.all([tenantTimezone(scope.tenantId), counterIsOn(scope.tenantId)]);
+  const range = salesPeriodRange(period, new Date(), timeZone);
+  const itemsLoad = view === "items" ? await loadSalesByItem(scope.tenantId, { range, method }) : null;
+  const load: SalesActivityLoad =
+    view === "items"
+      ? { ok: true, rows: [], channels: [] }
+      : await loadWorkspaceSalesActivity(scope.tenantId, tenantSlug, { kind, channel, range, method });
 
   // The board's first chip reads "All"; its accessible name stays "All kinds"
   // (the MONEY journey opens it by that name, and the short word is inside it).
@@ -147,12 +165,20 @@ export default async function SalesPage({
   const channelChips = salesChannelChips(availableChannels, channel);
 
   // ALWAYS an absolute path, never a bare query string. See `salesFilterHref`.
-  const chipHref = (next: { kind?: SalesKindFilter; channel?: string }): string =>
+  const chipHref = (next: { kind?: SalesKindFilter; channel?: string; period?: string; method?: string; view?: string }): string =>
     salesFilterHref({
       tenantSlug,
       kind: next.kind ?? kind,
       channel: next.channel ?? channel,
+      period: next.period ?? period,
+      method: next.method ?? method,
+      view: next.view ?? view,
     });
+  const filtered = kind !== "all" || channel !== "all" || period !== "all" || method !== "any";
+  const exportQs = new URLSearchParams();
+  if (period !== "all") exportQs.set("period", period);
+  if (method !== "any") exportQs.set("method", method);
+  const exportHref = `/${tenantSlug}/admin/sales/export${exportQs.toString() ? `?${exportQs.toString()}` : ""}`;
 
   const notWired = (key: string) => t(`notWired.${key}`);
   const rowCount = load.ok ? load.rows.length : 0;
@@ -165,9 +191,13 @@ export default async function SalesPage({
           <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t("pageIntro")}</p>
         </div>
         <div className="flex shrink-0 items-center gap-[8px]">
-          <ActionButton reason={notWired("export")} testId="sales-export">
+          <a
+            href={exportHref}
+            data-testid="sales-export"
+            className="inline-flex h-[34px] cursor-pointer items-center justify-center whitespace-nowrap rounded-[9px] border border-admin-border bg-admin-card px-[14px] text-admin-13 font-semibold text-admin-ink hover:border-admin-border-strong"
+          >
             {t("export")}
-          </ActionButton>
+          </a>
           {counterOn ? (
             <Link
               href={`/${tenantSlug}/admin/pos?mode=counter`}
@@ -186,21 +216,49 @@ export default async function SalesPage({
         </div>
       </div>
 
+      <nav aria-label={t("viewLabel")} className="flex flex-wrap items-center gap-[8px]">
+        <SalesChipLink href={chipHref({ view: "activity" })} active={view === "activity"}>
+          {t("view.activity")}
+        </SalesChipLink>
+        <SalesChipLink href={chipHref({ view: "items" })} active={view === "items"}>
+          {t("view.items")}
+        </SalesChipLink>
+      </nav>
+
       <div className="flex flex-wrap items-center gap-[8px]">
-        <nav aria-label={t("filterKindLabel")} className="flex flex-wrap items-center gap-[8px]">
-          {kindFilters.map((f) => (
-            <SalesChipLink key={f.id} href={chipHref({ kind: f.id })} active={f.id === kind} ariaLabel={f.ariaLabel}>
-              {f.label}
-            </SalesChipLink>
-          ))}
-        </nav>
+        {view === "activity" ? (
+          <nav aria-label={t("filterKindLabel")} className="flex flex-wrap items-center gap-[8px]">
+            {kindFilters.map((f) => (
+              <SalesChipLink key={f.id} href={chipHref({ kind: f.id })} active={f.id === kind} ariaLabel={f.ariaLabel}>
+                {f.label}
+              </SalesChipLink>
+            ))}
+          </nav>
+        ) : null}
         <span className="flex-1" />
-        <SalesFilterChip label={t("periodChip")} reason={notWired("period")} />
-        <SalesFilterChip label={t("paymentChip")} reason={notWired("payment")} />
         <SalesFilterChip label={`${t("sellerChip")}: ${scope.membership.display_name}`} reason={notWired("seller")} />
       </div>
 
-      {channelChips.length > 0 ? (
+      <div className="-mt-[10px] flex flex-wrap items-center gap-[6px]">
+        <nav aria-label={t("periodLabel")} data-testid="sales-period" className="flex flex-wrap items-center gap-[6px]">
+          <span className="mr-[2px] text-[12px] text-admin-ink-muted">{t("periodLabel")}:</span>
+          {SALES_PERIODS.map((p) => (
+            <SalesChipLink key={p} href={chipHref({ period: p })} active={p === period} small>
+              {t(`period.${p}`)}
+            </SalesChipLink>
+          ))}
+        </nav>
+        <nav aria-label={t("methodLabel")} data-testid="sales-method" className="flex flex-wrap items-center gap-[6px] pl-[10px]">
+          <span className="mr-[2px] text-[12px] text-admin-ink-muted">{t("methodLabel")}:</span>
+          {SALES_METHODS.map((m) => (
+            <SalesChipLink key={m} href={chipHref({ method: m })} active={m === method} small>
+              {t(`method.${m}`)}
+            </SalesChipLink>
+          ))}
+        </nav>
+      </div>
+
+      {view === "activity" && channelChips.length > 0 ? (
         <nav aria-label={t("filterChannelLabel")} className="-mt-[10px] flex flex-wrap items-center gap-[6px]">
           <span className="mr-[2px] text-[12px] text-admin-ink-muted">{t("filterChannelLabel")}:</span>
           <SalesChipLink href={chipHref({ channel: "all" })} active={channel === "all"} small>
@@ -214,7 +272,26 @@ export default async function SalesPage({
         </nav>
       ) : null}
 
-      {!load.ok ? (
+      {view === "items" ? (
+        !itemsLoad || !itemsLoad.ok ? (
+          <section role="alert" data-testid="sales-load-failed" className="rounded-[14px] border border-admin-border bg-admin-card p-[24px]">
+            <h2 className="m-0 text-admin-15! font-semibold text-admin-ink">{t("unavailableTitle")}</h2>
+            <p className="mt-[6px] text-admin-13 text-admin-ink-muted">{t("unavailableBody")}</p>
+            <Link href={chipHref({})} className="mt-[12px] inline-flex h-[30px] items-center rounded-[9px] border border-admin-border bg-admin-card px-[12px] text-[12px] font-semibold text-admin-ink hover:border-admin-border-strong">
+              {t("retry")}
+            </Link>
+          </section>
+        ) : itemsLoad.rows.length === 0 ? (
+          <section data-testid="sales-items-empty" className="rounded-[14px] border border-admin-border bg-admin-card p-[16px]">
+            <div className="max-w-[420px] rounded-[10px] bg-admin-surface-alt px-[12px] py-[12px]">
+              <h2 className="m-0 text-admin-13! font-semibold leading-[1.2] text-admin-ink">{t("itemsEmptyTitle")}</h2>
+              <p className="m-0 mt-[4px] text-admin-13 leading-[1.3] text-admin-ink-muted">{t("itemsEmptyBody")}</p>
+            </div>
+          </section>
+        ) : (
+          <SalesItemsTable rows={itemsLoad.rows} t={t} />
+        )
+      ) : !load.ok ? (
         <section role="alert" data-testid="sales-load-failed" className="rounded-[14px] border border-admin-border bg-admin-card p-[24px]">
           <h2 className="m-0 text-admin-15! font-semibold text-admin-ink">{t("unavailableTitle")}</h2>
           <p className="mt-[6px] text-admin-13 text-admin-ink-muted">{t("unavailableBody")}</p>
@@ -226,9 +303,9 @@ export default async function SalesPage({
         <section data-testid="sales-empty" className="rounded-[14px] border border-admin-border bg-admin-card p-[16px]">
           {/* W59: "no results" and "empty workspace" are the board's compact box, never each other. */}
           <div className="max-w-[420px] rounded-[10px] bg-admin-surface-alt px-[12px] py-[12px]">
-            <h2 className="m-0 text-admin-13! font-semibold leading-[1.2] text-admin-ink">{kind === "all" && channel === "all" ? t("emptyTitle") : t("noResultsTitle")}</h2>
-            <p className="m-0 mt-[4px] text-admin-13 leading-[1.3] text-admin-ink-muted">{kind === "all" && channel === "all" ? t("empty") : t("noResultsBody")}</p>
-            {kind !== "all" || channel !== "all" ? (
+            <h2 className="m-0 text-admin-13! font-semibold leading-[1.2] text-admin-ink">{!filtered ? t("emptyTitle") : t("noResultsTitle")}</h2>
+            <p className="m-0 mt-[4px] text-admin-13 leading-[1.3] text-admin-ink-muted">{!filtered ? t("empty") : t("noResultsBody")}</p>
+            {filtered ? (
               <Link href={salesFilterHref({ tenantSlug, kind: "all", channel: "all" })} className="mt-[10px] inline-flex h-[30px] items-center rounded-[9px] border border-admin-border bg-admin-card px-[12px] text-[12px] font-semibold text-admin-ink hover:border-admin-border-strong">
                 {t("clearFilters")}
               </Link>
@@ -312,7 +389,7 @@ export default async function SalesPage({
         </div>
       )}
 
-      <p className="m-0 text-admin-13 text-admin-ink-muted">{t("footnote")}</p>
+      <p className="m-0 text-admin-13 text-admin-ink-muted">{view === "items" ? t("itemsFootnote") : t("footnote")}</p>
     </div>
   );
 }
