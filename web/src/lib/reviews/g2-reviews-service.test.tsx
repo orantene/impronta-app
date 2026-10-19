@@ -283,7 +283,7 @@ test("wiring: both submit paths stamp the service; the cron runs the sweep once 
 });
 
 test("migration: additive, held, one automatic request per booking enforced by the database", () => {
-  const sqlPath = path.join(ROOT, "..", "supabase/migrations/_pending_pm/20261231417300_reviews_offering_link_auto_request.sql");
+  const sqlPath = path.join(ROOT, "..", "supabase/migrations/_pending_pm/20261231417500_reviews_offering_link_auto_request.sql");
   const sql = fs.readFileSync(sqlPath, "utf8");
   assert.match(sql, /ADD COLUMN IF NOT EXISTS offering_id uuid/g);
   assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS review_requests_auto_once_idx[\s\S]*WHERE source = 'auto'/);
