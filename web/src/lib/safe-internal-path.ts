@@ -9,15 +9,20 @@
  * becomes `//evil.example`.
  */
 
-// eslint-disable-next-line no-control-regex -- control characters are exactly what is rejected
-const CONTROL_OR_BACKSLASH = /[\u0000-\u001f\u007f\\]/;
+function hasControlOrBackslash(text: string): boolean {
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text.charCodeAt(i);
+    if (c <= 0x1f || c === 0x7f || c === 0x5c) return true;
+  }
+  return false;
+}
 
 /** True only for a path that stays on this origin: one leading `/`, then not `/` or `\`. */
 export function isSafeInternalPath(path: string | null | undefined): path is string {
   if (typeof path !== "string" || !path.startsWith("/")) return false;
   // Backslashes and control characters are rejected before the query: browsers normalise them.
   const beforeQuery = path.split(/[?#]/, 1)[0] ?? path;
-  if (CONTROL_OR_BACKSLASH.test(beforeQuery)) return false;
+  if (hasControlOrBackslash(beforeQuery)) return false;
   return !path.startsWith("//");
 }
 
