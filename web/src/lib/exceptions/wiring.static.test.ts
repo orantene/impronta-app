@@ -244,6 +244,9 @@ test("a flagged payment row is inspect-only and its copy exists in en, es and fr
   const keys = [
     "paymentFlag.label",
     "paymentFlag.why",
+    "paymentFlag.resolve",
+    "paymentFlag.resolved",
+    "paymentFlag.resolveFailed",
     ...["amount_mismatch", "charge_on_inactive_row", "duplicate_charge"].flatMap((r) => [
       `paymentFlag.${r}.title`,
       `paymentFlag.${r}.detail`,
@@ -266,4 +269,18 @@ test("a flagged payment row is inspect-only and its copy exists in en, es and fr
   }
   // The screen must look the keys up rather than print the model's English fallback.
   assert.match(CLIENT_SRC, /row\.copy/);
+});
+
+test("review fix 4: 'Mark resolved' is billing-gated, tenant-scoped, and moves no money", () => {
+  const action = ACTIONS_SRC.slice(ACTIONS_SRC.indexOf("export async function resolvePaymentFlagAction"));
+  assert.ok(action.length > 0 && ACTIONS_SRC.includes("export async function resolvePaymentFlagAction"));
+  const body = action.slice(0, 2400);
+  assert.match(body, /requireNotImpersonating\(\)/);
+  assert.match(body, /requireWorkspaceStaffAction\(\{ capability: "manage_billing" \}\)/, "only owners/admins with billing may resolve");
+  assert.match(body, /isPaymentReviewReason\(input\.reason\)/, "the reason is validated against the closed set");
+  assert.match(body, /tenantId: guard\.tenantId/, "the tenant comes from the session, never the caller");
+  assert.ok(!/refund|markPaid|markRefunded/i.test(body.replace(/\/\/.*$/gm, "")), "resolving a flag must never move money");
+  // The client offers it only on flag rows, outside the inspect arm, and through the action.
+  assert.match(CLIENT_SRC, /resolvePaymentFlagAction\(/);
+  assert.match(CLIENT_SRC, /row\.resolvable/);
 });

@@ -145,3 +145,34 @@ export function openPaymentReviewFlags(metadata: unknown): PaymentReviewFlag[] {
   }
   return out;
 }
+
+/**
+ * A person has dealt with one flag (refunded or reconciled it in Stripe).
+ * Stamps `resolved_at` / `resolved_by` on that flag only; it then drops out
+ * of `openPaymentReviewFlags` and the Issues inbox. The attention stamp is
+ * cleared only when it names this reason and no open flag of that reason is
+ * left; any other stamp (paid after cancellation, refund failed) is kept.
+ * `resolved: false` means there was no open flag to resolve.
+ */
+export function resolvePaymentReviewFlag(
+  metadata: unknown,
+  target: { reason: PaymentReviewReason; paymentIntentId: string | null },
+  by: { at: string; userId: string },
+): { metadata: Record<string, unknown>; resolved: boolean } {
+  const meta = asRecord(metadata);
+  const key = keyOf(target.reason, target.paymentIntentId);
+  let resolved = false;
+  const flags = storedFlags(meta).map((f) => {
+    if (resolved || strOrNull(f.resolved_at) || keyOf(String(f.reason), strOrNull(f.payment_intent_id)) !== key) return f;
+    resolved = true;
+    return { ...f, resolved_at: by.at, resolved_by: by.userId };
+  });
+  if (!resolved) return { metadata: meta, resolved: false };
+  const next: Record<string, unknown> = { ...meta, payment_flags: flags };
+  const stillOpen = openPaymentReviewFlags(next).some((f) => f.reason === target.reason);
+  if (meta.needs_attention === target.reason && !stillOpen) {
+    delete next.needs_attention;
+    delete next.needs_attention_at;
+  }
+  return { metadata: next, resolved: true };
+}

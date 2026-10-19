@@ -29,7 +29,7 @@ import { newCommandId } from "@/lib/commands/envelope";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import type { ExceptionRow, ExceptionSeverity, ExceptionSummary } from "@/lib/exceptions/model";
-import { resumeExceptionAction } from "../_exceptions-actions";
+import { resolvePaymentFlagAction, resumeExceptionAction } from "../_exceptions-actions";
 import {
   MOBILE_BUTTON_PRIMARY,
   MOBILE_BUTTON_SECONDARY,
@@ -187,6 +187,31 @@ export function ExceptionsClient({
       }));
     },
     [keys, t],
+  );
+
+  // "Mark resolved" on a flagged card charge. It moves no money (the person
+  // already refunded or reconciled in Stripe); the row leaves on the next load.
+  const markResolved = useCallback(
+    async (row: ExceptionRow) => {
+      const target = row.resolvable;
+      if (!target) return;
+      setState((s) => ({ ...s, [row.key]: { pending: true, message: null, failed: false } }));
+      let ok = false;
+      try {
+        ok = (await resolvePaymentFlagAction(target)).ok;
+      } catch {
+        ok = false;
+      }
+      setState((s) => ({
+        ...s,
+        [row.key]: {
+          pending: false,
+          message: t(ok ? `${K}.paymentFlag.resolved` : `${K}.paymentFlag.resolveFailed`),
+          failed: !ok,
+        },
+      }));
+    },
+    [t],
   );
 
   return (
@@ -389,6 +414,17 @@ export function ExceptionsClient({
                     </Link>
                   )}
 
+                  {row.resolvable && !(rowState?.message && !rowState.failed) && (
+                    <button
+                      type="button"
+                      onClick={() => void markResolved(row)}
+                      disabled={rowState?.pending === true}
+                      className="cursor-pointer rounded-full border border-admin-border-soft bg-transparent px-[14px] py-[7px] text-[12.5px] font-semibold text-admin-ink disabled:cursor-progress"
+                    >
+                      {rowState?.pending ? t(`${K}.working`) : t(`${K}.paymentFlag.resolve`)}
+                    </button>
+                  )}
+
                   {rowState?.message && (
                     <span
                       role="status"
@@ -464,6 +500,16 @@ export function ExceptionsClient({
                 <MobileRow title={t(`${K}.open`)} detail={t(`${K}.sheet.openDetail`)} href={openRow.href} />
               ) : null}
             </MobileCard>
+            {openRow.resolvable && !(state[openRow.key]?.message && !state[openRow.key]?.failed) ? (
+              <button
+                type="button"
+                onClick={() => void markResolved(openRow)}
+                disabled={state[openRow.key]?.pending === true}
+                className={MOBILE_BUTTON_SECONDARY}
+              >
+                {state[openRow.key]?.pending ? t(`${K}.working`) : t(`${K}.paymentFlag.resolve`)}
+              </button>
+            ) : null}
             {state[openRow.key]?.message ? (
               <MobileNote tone={state[openRow.key]?.failed ? "coral" : "slate"}>{state[openRow.key]?.message}</MobileNote>
             ) : null}

@@ -5809,6 +5809,9 @@
       "paymentFlag": {
         "label": "Verifier le paiement dans Stripe",
         "why": "Remboursez ou rapprochez-le dans Stripe. Rien ici ne deplace d'argent.",
+        "resolve": "Marquer comme resolu",
+        "resolved": "Marque comme resolu. Il quitte cette liste a la prochaine actualisation.",
+        "resolveFailed": "Impossible de le marquer comme resolu. Seuls les proprietaires et admins avec acces a la facturation le peuvent. Rien n'a ete modifie.",
         "amount_mismatch": {
           "title": "Le paiement par carte ne correspond pas a la reservation",
           "detail": "Stripe a debite {charged} mais la reservation est de {expected}. Elle n'a pas ete marquee payee. Rapprochez le montant ou remboursez le paiement."

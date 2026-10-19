@@ -49,10 +49,11 @@ export function extractChargedAmount(event: Stripe.Event): { amountCents: number
   return null;
 }
 
-const SETTLED_TRANSACTION_STATUSES = new Set(["paid", "payout_pending", "payout_sent"]);
+/** Money already taken on the row. `disputed` too: it was paid, then contested. */
+const SETTLED_TRANSACTION_STATUSES = new Set(["paid", "payout_pending", "payout_sent", "disputed"]);
 
-/** TUL-1284: a row that can never be paid. A charge landing on it is owed back. */
-const INACTIVE_TRANSACTION_STATUSES = new Set(["cancelled", "failed"]);
+/** TUL-1284: a row that can never be paid again. A new charge landing on it is owed back. */
+const INACTIVE_TRANSACTION_STATUSES = new Set(["cancelled", "failed", "refunded", "partially_refunded"]);
 
 /** The PaymentIntent `markPaid` recorded when it settled the row (see markPaid). */
 function paidByPaymentIntent(providerMetadata: unknown): string | null {
@@ -166,15 +167,20 @@ export async function settleCheckoutPayment(
   /**
    * The row is no longer waiting for money. Three answers, none of them a retry:
    *   settled by THIS PaymentIntent  -> a replay; acknowledged, nothing runs twice.
-   *   settled by ANOTHER one         -> M2 duplicate charge; flagged with both ids.
+   *   settled by ANOTHER one, or by
+   *   cash / by hand (no id recorded) -> M2 duplicate charge; flagged with both ids.
    *   cancelled / failed             -> TUL-1284 charge on an inactive row; flagged
    *                                     for refund. Retrying for three days would
    *                                     only hide that the money was taken.
    * Returns null when the row is still open and the ordinary path continues.
    */
   const closedRowAnswer = async (row: RowFacts): Promise<SettleCheckoutResult | null> => {
+    // Mock-mode ids are never recorded by markPaid, so they cannot be compared.
+    const incoming = action.paymentIntentId && !action.paymentIntentId.startsWith("mock_pi_") ? action.paymentIntentId : null;
     if (row.status && SETTLED_TRANSACTION_STATUSES.has(row.status)) {
-      if (action.paymentIntentId && row.paidBy && row.paidBy !== action.paymentIntentId) {
+      // A row paid by cash or by hand records no PaymentIntent (paidBy null):
+      // a card charge on it is a second payment too, not a replay.
+      if (incoming && row.paidBy !== incoming) {
         const flagged = await raise("duplicate_charge", row, row.paidBy);
         return flagged.ok ? { ok: true, outcome: "duplicate_charge" } : flagged;
       }
@@ -184,6 +190,13 @@ export async function settleCheckoutPayment(
       return { ok: true, outcome: "already_settled" };
     }
     if (row.status && INACTIVE_TRANSACTION_STATUSES.has(row.status)) {
+      // The very charge that was later refunded, delivered late: not a new charge.
+      if (incoming && row.paidBy === incoming) {
+        void improntaLog("stripe_webhook.info", {
+          message: `booking_payment replay on a closed row: transaction ${action.transactionId} (event ${event.id})`,
+        });
+        return { ok: true, outcome: "already_settled" };
+      }
       const flagged = await raise("charge_on_inactive_row", row, null);
       return flagged.ok ? { ok: true, outcome: "charge_on_inactive_row" } : flagged;
     }

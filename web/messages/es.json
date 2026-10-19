@@ -17948,6 +17948,9 @@
       "paymentFlag": {
         "label": "Revisar el cobro en Stripe",
         "why": "Reembólsalo o concílialo en Stripe. Aquí no se mueve dinero.",
+        "resolve": "Marcar como resuelto",
+        "resolved": "Marcado como resuelto. Sale de esta lista al actualizar.",
+        "resolveFailed": "No se pudo marcar como resuelto. Solo pueden hacerlo dueños y administradores con acceso a facturación. No se cambió nada.",
         "amount_mismatch": {
           "title": "El cobro con tarjeta no coincide con la reserva",
           "detail": "Stripe cobró {charged} pero la reserva es por {expected}. No se marcó como pagada. Concilia el monto o reembolsa el cobro."

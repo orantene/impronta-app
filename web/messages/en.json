@@ -17948,6 +17948,9 @@
       "paymentFlag": {
         "label": "Check the charge in Stripe",
         "why": "Refund or reconcile it in Stripe. Nothing here moves money.",
+        "resolve": "Mark resolved",
+        "resolved": "Marked resolved. It leaves this list on the next refresh.",
+        "resolveFailed": "Could not mark it resolved. Only owners and admins with billing access can. Nothing was changed.",
         "amount_mismatch": {
           "title": "Card charge does not match the booking",
           "detail": "Stripe charged {charged} but the booking is for {expected}. It was not marked paid. Reconcile the amount or refund the charge."

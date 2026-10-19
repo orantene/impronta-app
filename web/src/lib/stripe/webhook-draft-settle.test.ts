@@ -43,6 +43,8 @@ type MoneyRow = {
   platform_fee_cents: number;
   net_amount_cents: number;
   checkout_type: string;
+  /** What markPaid records: the settling PaymentIntent. */
+  provider_metadata?: { payment_intent_id: string | null };
 };
 
 function draftRow(over: Partial<MoneyRow> = {}): MoneyRow {
@@ -102,7 +104,8 @@ function fakeAdmin(w: World): SupabaseClient {
               w.order.push("advance");
               w.updates.push(patch);
               if (w.updateError) return { data: null, error: w.updateError };
-              if (w.raceTo && w.row) w.row.status = w.raceTo;
+              // The concurrent settle is the SAME payment, so markPaid recorded the same PaymentIntent.
+              if (w.raceTo && w.row) w.row = { ...w.row, status: w.raceTo, provider_metadata: { payment_intent_id: PI } };
               const match =
                 w.row !== null &&
                 filters.every(([c, v]) => (w.row as Record<string, unknown>)[c] === v);
@@ -134,14 +137,15 @@ function deps(w: World, account: StripeAccountKey = "us"): Partial<SettleDeps> {
       (w.flags ??= []).push(flag.reason);
       return { ok: true, created: true };
     },
-    markPaid: async (id) => {
+    markPaid: async (id, opts) => {
       w.order.push("markPaid");
       w.markPaidCalls += 1;
       if (!w.row || w.row.id !== id) return { ok: false, error: "Transaction not found." };
       if (!MARK_PAID_FROM.includes(w.row.status)) {
         return { ok: false, error: `Cannot transition from '${w.row.status}' to 'paid'.` };
       }
-      w.row = { ...w.row, status: "paid" };
+      // As the real markPaid: the settling PaymentIntent is recorded on the row.
+      w.row = { ...w.row, status: "paid", provider_metadata: { payment_intent_id: opts?.paymentIntentId ?? null } };
       w.paidTransitions += 1;
       return { ok: true };
     },

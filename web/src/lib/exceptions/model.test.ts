@@ -434,6 +434,11 @@ test("a flagged payment is a critical money row with no button", () => {
   assert.equal(row.firstSeenAt, minutesAgo(3));
   assert.equal(row.href, "/acme/admin/orders?q=order-9");
   assert.equal(row.key, "payment_flag:55555555-5555-4555-8555-555555555555:duplicate_charge:pi_second");
+  assert.deepEqual(row.resolvable, {
+    transactionId: "55555555-5555-4555-8555-555555555555",
+    reason: "duplicate_charge",
+    paymentIntentId: "pi_second",
+  });
 });
 
 test("each reason carries its own translated copy keys and the facts as variables", () => {

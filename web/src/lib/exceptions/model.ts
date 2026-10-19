@@ -118,6 +118,11 @@ export type ExceptionRow = {
    * `title`, `detail` and the action's `label`/`why` stay the English fallback.
    */
   copy?: ExceptionCopy;
+  /**
+   * A flagged payment a person can mark resolved once they have refunded or
+   * reconciled it in Stripe. Not a resume verb: resolving moves no money.
+   */
+  resolvable?: { transactionId: string; reason: string; paymentIntentId: string | null };
 };
 
 export type ExceptionCopy = {
@@ -672,6 +677,7 @@ export function classifyPaymentFlag(facts: PaymentFlagFacts, href: string | null
       why: "Refund or reconcile it at the provider. Nothing here moves money.",
     },
     href,
+    resolvable: { transactionId: facts.transactionId, reason: f.reason, paymentIntentId: f.paymentIntentId },
     copy: {
       title: `paymentFlag.${f.reason}.title`,
       detail: `paymentFlag.${f.reason}.detail`,

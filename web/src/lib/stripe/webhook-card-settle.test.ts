@@ -197,7 +197,7 @@ describe("settleCheckoutPayment already settled", () => {
     test(`markPaid refuses and the row is ${status}: acknowledged`, async () => {
       const h = harness({
         markPaidResult: { ok: false, error: "Cannot transition" },
-        admin: fakeAdmin({ status: { data: { status }, error: null } }),
+        admin: fakeAdmin({ status: { data: { status, provider_metadata: { payment_intent_id: PI } }, error: null } }),
       });
       const r = await settleCheckoutPayment(sessionEvent("checkout.session.completed"), ACTION, "us", h.deps);
       assert.deepEqual(r, { ok: true, outcome: "already_settled" });
@@ -218,7 +218,7 @@ describe("settleCheckoutPayment already settled", () => {
   test("async_payment_succeeded after completed (second delivery) is already_settled", async () => {
     const h = harness({
       markPaidResult: { ok: false, error: "Cannot transition from 'paid'" },
-      admin: fakeAdmin({ status: { data: { status: "paid" }, error: null } }),
+      admin: fakeAdmin({ status: { data: { status: "paid", provider_metadata: { payment_intent_id: PI } }, error: null } }),
     });
     const r = await settleCheckoutPayment(sessionEvent("checkout.session.async_payment_succeeded"), ACTION, "us", h.deps);
     assert.deepEqual(r, { ok: true, outcome: "already_settled" });
@@ -316,8 +316,51 @@ describe("TUL-1268 M2: a second, different PaymentIntent on a paid row is a dupl
     assert.equal(h.flags.length, 0);
   });
 
-  test("a paid row with no recorded PaymentIntent cannot be compared: already_settled, no flag", async () => {
+  test("review fix 1: a card charge on a row paid by cash or by hand (no PaymentIntent) is a duplicate", async () => {
+    // Acking this as already_settled made a real second payment disappear.
     const h = harness({ admin: fakeAdmin({ guard: guardRow("paid", null) }) });
+    const r = await settleCheckoutPayment(intentEvent(), ACTION, "us", h.deps);
+    assert.deepEqual(r, { ok: true, outcome: "duplicate_charge" });
+    assert.equal(h.flags.length, 1);
+    assert.equal(h.flags[0]!.flag.paymentIntentId, PI);
+    assert.equal(h.flags[0]!.flag.otherPaymentIntentId, null);
+    assert.equal(h.paidWith.length, 0);
+  });
+
+  test("review fix 1: an event with no PaymentIntent on a paid row cannot be compared: already_settled", async () => {
+    const h = harness({ admin: fakeAdmin({ guard: guardRow("paid", null) }) });
+    const r = await settleCheckoutPayment(intentEvent(), { transactionId: TXN, paymentIntentId: null }, "us", h.deps);
+    assert.deepEqual(r, { ok: true, outcome: "already_settled" });
+    assert.equal(h.flags.length, 0);
+  });
+
+  test("review fix 2: a disputed row is settled (no markPaid); a new PaymentIntent on it is a duplicate", async () => {
+    const same = harness({ admin: fakeAdmin({ guard: guardRow("disputed", PI) }) });
+    assert.deepEqual(await settleCheckoutPayment(intentEvent(), ACTION, "us", same.deps), {
+      ok: true,
+      outcome: "already_settled",
+    });
+    assert.equal(same.paidWith.length, 0, "a replay never moves disputed back to paid");
+    const other = harness({ admin: fakeAdmin({ guard: guardRow("disputed", "pi_first") }) });
+    assert.deepEqual(await settleCheckoutPayment(intentEvent(), ACTION, "us", other.deps), {
+      ok: true,
+      outcome: "duplicate_charge",
+    });
+  });
+
+  for (const status of ["refunded", "partially_refunded"]) {
+    test(`review fix 2: a charge on a ${status} row is flagged for refund, not retried`, async () => {
+      const h = harness({ admin: fakeAdmin({ guard: guardRow(status, "pi_first") }) });
+      const r = await settleCheckoutPayment(intentEvent(), ACTION, "us", h.deps);
+      assert.deepEqual(r, { ok: true, outcome: "charge_on_inactive_row" });
+      assert.equal(h.flags[0]!.flag.reason, "charge_on_inactive_row");
+      assert.equal(h.flags[0]!.flag.rowStatus, status);
+      assert.equal(h.paidWith.length, 0);
+    });
+  }
+
+  test("a late replay of the very charge that was later refunded is not a new charge", async () => {
+    const h = harness({ admin: fakeAdmin({ guard: guardRow("refunded", PI) }) });
     const r = await settleCheckoutPayment(intentEvent(), ACTION, "us", h.deps);
     assert.deepEqual(r, { ok: true, outcome: "already_settled" });
     assert.equal(h.flags.length, 0);
