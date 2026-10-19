@@ -21206,7 +21206,10 @@
       "billing": {
         "redirecting": "Redirigiendo…",
         "pastDueTitle": "Pago fallido.",
-        "pastDueGraceBody": "Tu pago no pasó. Las funciones de pago siguen activas {days} día(s) más. Actualiza tu tarjeta para conservarlas.",
+        "pastDueGraceBody": {
+          "one": "Tu pago no pasó. Las funciones de pago siguen activas {count} día más. Actualiza tu tarjeta para conservarlas.",
+          "other": "Tu pago no pasó. Las funciones de pago siguen activas {count} días más. Actualiza tu tarjeta para conservarlas."
+        },
         "pastDueExpiredBody": "Tu pago no pasó y tu plan está en pausa. Tu contenido está a salvo. Restaura tu plan para recuperar las funciones de pago.",
         "updateCard": "Actualizar tarjeta",
         "restorePlan": "Restaurar plan",

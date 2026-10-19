@@ -21206,7 +21206,10 @@
       "billing": {
         "redirecting": "Redirecting…",
         "pastDueTitle": "Payment failed.",
-        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueGraceBody": {
+          "one": "Your payment didn't go through. Paid features stay on for {count} more day. Update your card to keep them.",
+          "other": "Your payment didn't go through. Paid features stay on for {count} more days. Update your card to keep them."
+        },
         "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
         "updateCard": "Update your card",
         "restorePlan": "Restore plan",
