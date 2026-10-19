@@ -55,6 +55,9 @@ import {
 } from "@/lib/scheduling/booking-surface";
 import { logServerError } from "@/lib/server/safe-error";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
+import { HOUSE_SLOTS_SUPPORTED } from "./house-booking-reasons";
+
+export { HOUSE_SLOTS_SUPPORTED, houseNotBookableReason, type HouseNotBookableReason } from "./house-booking-reasons";
 
 /**
  * Does this offering belong to the house rather than to a person?
@@ -106,6 +109,27 @@ export function houseBookingModeFor(
   // Their rule, not a copy of it.
   if (bookingSurfaceFromHost(host.kind) === "other") return "inquire";
   return houseOfferingIsSlotBookable(offering) ? "instant" : "inquire";
+}
+
+/**
+ * How a house service is LISTED on /book today (Services Phase 0, item 6).
+ *
+ * `houseBookingModeFor` says "instant" for a service with a pool and a duration,
+ * but the slots route (`public-open-times.ts`) answers `not_bookable_here` for
+ * any offering without a provider, so an "instant" house card is a dead end.
+ * Until the provider model lands (Phase 1) a house service is NEVER listed as
+ * instant: it shows as a request, and a house service with no pool (the usual
+ * "Service (appointment)" card) now shows too instead of vanishing from /book.
+ * An unsupported host kind still lists nothing.
+ */
+export function houseListingModeFor(
+  offering: Pick<TalentOffering, "talentProfileId" | "capacityPoolId" | "durationMinutes">,
+  host: BookingSurfaceHost,
+): TalentBookingMode {
+  const mode = houseBookingModeFor(offering, host);
+  if (bookingSurfaceFromHost(host.kind) === "other") return "inquire";
+  if (mode === "instant" && !HOUSE_SLOTS_SUPPORTED) return "request";
+  return mode === "inquire" ? "request" : mode;
 }
 
 /**

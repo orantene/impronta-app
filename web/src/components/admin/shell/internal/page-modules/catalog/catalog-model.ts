@@ -46,6 +46,17 @@ export function itemAvailability(o: Pick<TalentOffering, "capacityPoolId" | "inv
   return { mode: "stock", left, soldOut: left != null && left <= 0 };
 }
 
+/**
+ * Removing a row: an item that was ever published (or is live) is ARCHIVED, never
+ * deleted, because a hard delete detaches past orders from what they bought. The
+ * server re-checks sold history; this is the part the row already tells us.
+ */
+export type RemoveMode = "delete" | "archive";
+
+export function removeModeFor(o: Pick<TalentOffering, "status" | "firstPublishedAt">): RemoveMode {
+  return o.status === "published" || Boolean(o.firstPublishedAt) ? "archive" : "delete";
+}
+
 /** The status pill: published, draft, or incomplete (a save would refuse). */
 export type CatalogStatus = "published" | "draft" | "incomplete";
 

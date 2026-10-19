@@ -23,3 +23,25 @@ export function scopeToGuestSellableOfferings<Q>(query: Q): Q {
     .eq("moderation_state", "approved")
     .eq("visibility", "public") as unknown as Q;
 }
+
+/**
+ * Which door a purchase came through. `guest` is every public and storefront
+ * surface and is the DEFAULT: a caller that forgets to say gets the strict rule.
+ * `staff` is the point of sale booking a walk-in at the desk, where a person
+ * with workspace access is the confirmation and an `agency_only` service is
+ * exactly what they sell.
+ */
+export type PurchaseChannel = "guest" | "staff";
+
+/**
+ * Checkout's form of D-10 / D-10a. A guest charge needs published + approved +
+ * public. `on_request` visibility is not `public`, so an on-request service can
+ * never take an instant charge here; it only has request / quote paths.
+ */
+export function isSellableOnChannel(
+  row: OfferingGate | null | undefined,
+  channel: PurchaseChannel | undefined,
+): boolean {
+  if (channel === "staff") return Boolean(row) && row!.status === "published";
+  return isGuestSellableOffering(row);
+}

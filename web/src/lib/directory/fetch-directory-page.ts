@@ -2,6 +2,7 @@ import type { TrustBadgeRow } from "@/lib/trust/verified-mark";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolveEffectiveTalentPlans } from "@/lib/billing/effective-talent-plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/paged";
 import {
   decodeDirectoryCursor,
   encodeDirectoryCursor,
@@ -383,6 +384,46 @@ export async function fetchDirectoryPage(
   return page;
 }
 
+/**
+ * Age filter. `date_of_birth` is NOT selectable or filterable by the anon role
+ * (talent_profiles column grants, PR 0b-3), so the age band is resolved to a
+ * set of public talent ids on the server-side client and intersected into the
+ * id list like every other facet. The caller's own client never touches the
+ * column; only ids leave this function, never dates.
+ */
+async function resolveAgeBandTalentIds(
+  fallback: SupabaseClient,
+  ageMin: number | null | undefined,
+  ageMax: number | null | undefined,
+): Promise<string[]> {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const day = today.getDate();
+  const dobMax =
+    ageMin != null ? new Date(year - ageMin, month, day).toISOString().slice(0, 10) : null;
+  const dobMin =
+    ageMax != null ? new Date(year - ageMax, month, day).toISOString().slice(0, 10) : null;
+  const rows = await fetchAllRows<{ id: string }>(
+    createServiceRoleClient() ?? fallback,
+    "talent_profiles",
+    "id",
+    {
+      applyFilters: (q) => {
+        let next = q
+          .is("deleted_at", null)
+          .eq("is_publicly_hidden", false)
+          .eq("is_publicly_listed", true)
+          .neq("profile_kind", "resource");
+        if (dobMax) next = next.lte("date_of_birth", dobMax);
+        if (dobMin) next = next.gte("date_of_birth", dobMin);
+        return next;
+      },
+    },
+  );
+  return rows.map((r) => r.id);
+}
+
 async function fetchDirectoryWindow(
   supabase: SupabaseClient,
   params: DirectoryListParams = {},
@@ -740,6 +781,16 @@ async function fetchDirectoryWindow(
     filteredTalentIds = facetOutcome.filteredTalentIds;
   }
 
+  if (params.ageMin != null || params.ageMax != null) {
+    const ageIds = new Set(await resolveAgeBandTalentIds(supabase, params.ageMin, params.ageMax));
+    filteredTalentIds = filteredTalentIds
+      ? filteredTalentIds.filter((id) => ageIds.has(id))
+      : [...ageIds];
+    if (filteredTalentIds.length === 0) {
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
+    }
+  }
+
   let totalCount: number | undefined;
   if (!skipTotalCount) {
     let countQuery = supabase
@@ -763,21 +814,6 @@ async function fetchDirectoryWindow(
     if (heightFilterActive) {
       if (heightMinApplied != null) countQuery = countQuery.gte("height_cm", heightMinApplied);
       if (heightMaxApplied != null) countQuery = countQuery.lte("height_cm", heightMaxApplied);
-    }
-
-    if (params.ageMin != null || params.ageMax != null) {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const day = today.getDate();
-      if (params.ageMin != null) {
-        const dobMax = new Date(year - params.ageMin, month, day).toISOString().slice(0, 10);
-        countQuery = countQuery.lte("date_of_birth", dobMax);
-      }
-      if (params.ageMax != null) {
-        const dobMin = new Date(year - params.ageMax, month, day).toISOString().slice(0, 10);
-        countQuery = countQuery.gte("date_of_birth", dobMin);
-      }
     }
 
     if (filteredTalentIds) {
@@ -862,24 +898,6 @@ async function fetchDirectoryWindow(
   if (heightFilterActive) {
     if (heightMinApplied != null) query = query.gte("height_cm", heightMinApplied);
     if (heightMaxApplied != null) query = query.lte("height_cm", heightMaxApplied);
-  }
-
-  // Age filter: convert age range to date_of_birth range
-  if (params.ageMin != null || params.ageMax != null) {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const day = today.getDate();
-    if (params.ageMin != null) {
-      // Min age → born on or before this date (older end)
-      const dobMax = new Date(year - params.ageMin, month, day).toISOString().slice(0, 10);
-      query = query.lte("date_of_birth", dobMax);
-    }
-    if (params.ageMax != null) {
-      // Max age → born on or after this date (younger end)
-      const dobMin = new Date(year - params.ageMax, month, day).toISOString().slice(0, 10);
-      query = query.gte("date_of_birth", dobMin);
-    }
   }
 
   if (filteredTalentIds) {

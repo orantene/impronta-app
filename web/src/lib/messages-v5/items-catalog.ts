@@ -315,7 +315,23 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promi
     return [];
   }
   type Row = { id: string; title: string | null; offering_id: string | null; event_id: string | null; starts_at: string; ends_at: string };
-  const rows = ((data ?? []) as Row[]).filter((r) => !!r.offering_id);
+  const withOffering = ((data ?? []) as Row[]).filter((r) => !!r.offering_id);
+  if (withOffering.length === 0) return [];
+  // D-10: a session is only as public as its offering. Without this an
+  // agency_only / pending / draft offering's classes and tickets surfaced here.
+  const { data: sellable, error: sellableErr } = await scopeToGuestSellableOfferings(
+    admin
+      .from("talent_offerings")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .in("id", [...new Set(withOffering.map((r) => r.offering_id as string))]),
+  );
+  if (sellableErr) {
+    logServerError("messagesV5.itemsCatalog/sessionOfferings", sellableErr);
+    return [];
+  }
+  const sellableIds = new Set(((sellable ?? []) as { id: string }[]).map((o) => o.id));
+  const rows = withOffering.filter((r) => sellableIds.has(r.offering_id as string));
   if (rows.length === 0) return [];
   const sessionIds = rows.map((r) => r.id);
   const eventIds = [...new Set(rows.map((r) => r.event_id).filter((id): id is string => !!id))];

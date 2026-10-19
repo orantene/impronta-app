@@ -239,8 +239,9 @@ DECLARE
     'public.pending_exclusivity_prompts_for_talent(uuid)',
     'public.set_tenant_context(uuid)'
   ];
+  -- engine_emit_system_event left this list on 2026-10-18: 20261231415300 revokes it from
+  -- `authenticated` (service role / cron only), so asserting that authenticated KEEPS it would fail a replay.
   v_bucket2 TEXT[] := ARRAY[
-    'public.engine_emit_system_event(uuid,text,jsonb)',
     'public.engine_load_commission_context(uuid)',
     'public.engine_persist_booking_commission_snapshot(uuid,jsonb)',
     'public.engine_workspace_base_fee_inputs(uuid)',
