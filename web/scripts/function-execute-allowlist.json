@@ -1,0 +1,4 @@
+{
+  "$comment": "Reviewed public functions that anon and/or authenticated may EXECUTE, beyond PUBLIC_SURFACE_FUNCTIONS and POLICY_HELPER_FUNCTIONS (web/src/lib/saas/public-surface-functions.ts, read automatically for both roles). Read by web/scripts/lib/function-execute-guard-cli.mjs. Add a name ONLY when the function defends itself in its body (auth.uid() ownership/tenant check, bearer key) and say how in `reason`. roles: anon and/or authenticated.",
+  "reviewed": []
+}
