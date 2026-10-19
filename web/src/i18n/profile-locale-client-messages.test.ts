@@ -6,7 +6,7 @@ import vm from "node:vm";
 
 import en from "../../messages/en.json";
 import es from "../../messages/es.json";
-import { profileLocaleMessagesScript } from "./profile-locale-client-messages";
+import { inlineCatalogScript, profileLocaleMessagesScript } from "./profile-locale-client-messages";
 import { getClientMessagesPayload } from "./messages";
 
 type Catalog = Record<string, unknown>;
@@ -69,4 +69,16 @@ test("TUL-1272/C3 part 1: offerings render on the hub profile without a services
   assert.match(layout, /storefrontOfferings\.length > 0 \? \(\s*<TalentStorefront[\s\S]*?\) : \(\s*<ServiceMenuBlock/);
   const loader = readFileSync(join(root, "lib/talent/offerings-public.ts"), "utf8");
   assert.match(loader, /\.eq\("moderation_state", "approved"\)\s*\.in\("visibility", \["public", "on_request"\]\)/);
+});
+
+test("TUL-1272/C3: hostile message text cannot end the inline script and round-trips", () => {
+  const nasty = 'a</script><script>alert(1)</script> <!-- b \u2028 c \u2029 d </SCRIPT>';
+  const script = inlineCatalogScript("es", { public: { profileCta: { inquireAbout: nasty } } });
+  assert.doesNotMatch(script, /<\/script/i);
+  assert.ok(!script.includes("<!--"));
+  assert.ok(!script.includes("\u2028") && !script.includes("\u2029"));
+  const ctx = { self: {} as Record<string, unknown> };
+  vm.runInNewContext(script, ctx);
+  const store = ctx.self.__TULALA_MSGS__ as Record<string, Catalog>;
+  assert.equal(walk(store.es, "public.profileCta.inquireAbout"), nasty);
 });

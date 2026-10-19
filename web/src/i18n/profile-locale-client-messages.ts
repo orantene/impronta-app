@@ -15,7 +15,15 @@ export function profileLocaleMessagesScript(profileLocale: string, requestLocale
   if (code === catalogLocaleKey(requestLocale) || !hasMessageCatalog(code)) return null;
   const subtrees = getClientMessagesPayload(code)[code];
   if (!subtrees) return null;
-  const json = JSON.stringify(subtrees).replace(/</g, "\\u003c");
+  return inlineCatalogScript(code, subtrees);
+}
+
+/** Inline-safe: `<` (so `</script>` and `<!--` cannot end or open anything) and U+2028/2029 are escaped. */
+export function inlineCatalogScript(code: string, subtrees: unknown): string {
+  const json = JSON.stringify(subtrees)
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
   const g = `self.${CLIENT_MESSAGES_GLOBAL}`;
   return `${g}=${g}||{};if(!${g}[${JSON.stringify(code)}])${g}[${JSON.stringify(code)}]=${json};`;
 }
