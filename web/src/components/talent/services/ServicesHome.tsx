@@ -238,6 +238,15 @@ export function ServicesHome({
     if (dest.ok) setDestinations(dest.destinations);
   };
 
+  // Defaults, extras and share destinations used to load only after Organize /
+  // Defaults / Preview, so an editor opened from a plain row showed deposit and
+  // cancel as "none", hid the extras and made Share do nothing (item 8).
+  useEffect(() => {
+    void refreshExtras();
+    // refreshExtras only closes over talentId and stable setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [talentId]);
+
   const chips: Array<{ id: Filter; label: string; count: number }> = [
     { id: "all", label: copy.t("All"), count: counts.all },
     { id: "service", label: copy.t("Services"), count: counts.service },

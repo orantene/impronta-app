@@ -40,3 +40,7 @@ test("5a: variants-only replace leaves the extras table untouched", async () => 
   assert.deepEqual(touched, ["delete:talent_offering_variants", "insert:talent_offering_variants"]);
   if (res.ok) assert.deepEqual(res.variants.map((v) => v.label), ["Large", "Small"]);
 });
+
+test("item 8: defaults, extras and share destinations load on mount, not only after Organize/Defaults", () => {
+  assert.match(home, /useEffect\(\(\) => \{\s*void refreshExtras\(\);[\s\S]{0,200}\[talentId\]\);/);
+});

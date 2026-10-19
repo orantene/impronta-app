@@ -11,7 +11,9 @@ test("item 4: a talent edit keeps an agency-tenant row on its tenant; insert sti
   // what the action builds: the talent's OWN workspace overrides the row's tenant
   const patch = offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: "talent-own-workspace" });
   assert.equal(patch.tenant_id, "talent-own-workspace");
-  assert.ok(!("tenant_id" in (patchForSave(patch, true) as object)), "update must not write tenant_id");
+  const upd = patchForSave({ ...patch, owner_kind: "talent" }, true) as object;
+  assert.ok(!("tenant_id" in upd), "update must not write tenant_id");
+  assert.ok(!("owner_kind" in upd), "update must not write owner_kind");
   assert.equal((patchForSave(patch, false) as typeof patch).tenant_id, "talent-own-workspace");
 });
 
