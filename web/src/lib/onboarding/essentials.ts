@@ -240,7 +240,7 @@ const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["massage", /massag|masaj|\bspa\b|quiropr|physio|fisioter/i],
   ["fitness", /personal train|trainer|fitness|yoga|pilates|entrenador|crossfit|gimnas/i],
   ["photography", /photograph|fot[oó]graf/i],
-  ["tutoring", /\btutor|\bteachers?\b|\bteaching\b|\bprofesor(a|es)?\b|\bmaestr[ao]s? particulares?\b|\bprivate lessons?\b|\bclases? (de|particular)/i],
+  ["tutoring", /\btutor|\bteachers?\b|\bteaching\b|\bprofesor(a|es)?\b|\bmaestr[ao]s? particular(es)?\b|\bprivate lessons?\b|\bclases? (de|particular)/i],
   ["pets", /\bdogs?\b|\bpets?\b|mascota|perr[oa]|canin|veterinar/i],
   ["tattoo", /tattoo|tatu/i],
 ];
