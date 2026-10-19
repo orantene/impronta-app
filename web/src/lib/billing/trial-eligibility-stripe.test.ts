@@ -155,7 +155,7 @@ test("P1 wiring: both checkouts guard trial sessions before create and only ADD 
     const guard = src.indexOf("await singleOpenTrialSession(stripe, customerResult.data, trialDays, idempotencyKey,");
     assert.ok(guard > 0, `${file} calls the guard with the same idempotency key`);
     assert.ok(guard < src.indexOf("stripe.checkout.sessions.create("), `${file} guards before create`);
-    assert.match(src, /\.\.\.trialMarker,/, `${file} adds the marker to session metadata`);
+    assert.match(src, /\.\.\.trialMarker \}/, `${file} adds the marker to session metadata`);
     assert.match(src, /\{ idempotencyKey \}/, `${file} create still uses the same key`);
     assert.match(src, /line_items: \[\{ price: priceId, quantity: 1 \}\]/, `${file} line items unchanged`);
     assert.match(src, /\.\.\.discount\.params,/, `${file} discount params unchanged`);
