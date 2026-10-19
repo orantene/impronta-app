@@ -64,8 +64,10 @@ export function TalentTodayPage() {
     shellCounts,
     tenantSlug,
   } = useAdminShell();
-  // TUL-835: past-due card warning, on both Today layouts.
-  const pastDueNotice = tenantSlug ? <TalentPastDueNotice tenantSlug={tenantSlug} /> : null;
+  // TUL-835: past-due card warning, on both Today layouts. Read from the shell
+  // loader's own plan read (no extra request per Today load).
+  const pastDue = bridgeTalentSelfProfile?.talentPastDue ?? null;
+  const pastDueNotice = tenantSlug && pastDue ? <TalentPastDueNotice tenantSlug={tenantSlug} pastDue={pastDue} /> : null;
   // ONE completion value (mockup rule): the website-eligibility model is the
   // single source read by Today, the header reward control and the website
   // card. Called above the agenda early return (hooks rule).

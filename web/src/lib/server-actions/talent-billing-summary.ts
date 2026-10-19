@@ -17,7 +17,7 @@ import {
   loadTalentStripeCustomerId,
   loadTalentStripeSubscriptionId,
 } from "@/lib/billing/talent-billing-reads";
-import { pickDefaultCard, talentPastDueView, type TalentPastDueView } from "@/lib/billing/talent-billing-display";
+import { pickDefaultCard } from "@/lib/billing/talent-billing-display";
 
 export type TalentBillingInvoice = {
   id: string;
@@ -141,14 +141,3 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
   };
 }
 
-/**
- * TUL-835: the past-due banner state for the signed-in talent's own
- * subscription (dashboard), or null when there is nothing to warn about.
- * Self-scoped via requireTalentSelf(); one RLS read, no Stripe call.
- */
-export async function loadTalentPastDueState(): Promise<TalentPastDueView | null> {
-  const scope = await requireTalentSelf();
-  if (!scope.ok) return null;
-  const sub = await loadTalentSubscriptionState(scope.talentProfile.id, scope.session.supabase);
-  return talentPastDueView(sub);
-}

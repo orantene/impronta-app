@@ -1,43 +1,31 @@
 "use client";
 
 /**
- * TUL-835: the past-due warning on the talent dashboard. Loads the signed-in
- * talent's own subscription state once and renders the shared PastDueBanner
- * only when it is past_due (grace days come from dunning-grace via the
- * banner). Renders nothing otherwise, while loading, or on a read failure.
+ * TUL-835: the past-due warning on the talent dashboard. The past-due fact
+ * comes from the talent shell loader (the same talent_subscriptions read that
+ * resolves the effective plan), so Today makes no extra request for it. The
+ * shared PastDueBanner applies the grace window (dunning-grace) and renders
+ * nothing when the subscription is not past_due.
  */
-import { useEffect, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import { loadTalentPastDueState } from "@/lib/server-actions/talent-billing-summary";
-import type { TalentPastDueView } from "@/lib/billing/talent-billing-display";
+import type { TalentPastDueFact } from "@/lib/billing/effective-talent-plan";
 import { PastDueBanner } from "./PastDueBanner";
 
-export function TalentPastDueNotice({ tenantSlug }: { tenantSlug: string }) {
+export function TalentPastDueNotice({
+  tenantSlug,
+  pastDue,
+}: {
+  tenantSlug: string;
+  pastDue: TalentPastDueFact;
+}) {
   const copy = useDashboardText();
-  const [state, setState] = useState<TalentPastDueView | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    loadTalentPastDueState()
-      .then((s) => {
-        if (live) setState(s);
-      })
-      .catch(() => {
-        if (live) setState(null);
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  if (!state) return null;
   return (
     <div className="mb-3" data-testid="talent-past-due-notice">
       <PastDueBanner
         scope="talent"
         tenantSlug={tenantSlug}
-        status={state.status}
-        pastDueSince={state.pastDueSince}
+        status={pastDue.status}
+        pastDueSince={pastDue.pastDueSince}
         locale={copy.isSpanish ? "es" : "en"}
       />
     </div>

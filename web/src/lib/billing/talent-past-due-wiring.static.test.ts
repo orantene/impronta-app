@@ -22,20 +22,20 @@ test("the Billing panel renders the shared PastDueBanner for a past_due talent s
   assert.match(card, /<PastDueBanner\s+scope="talent"/);
 });
 
-test("the talent dashboard renders the past-due notice on both Today layouts", () => {
+test("the talent dashboard renders the past-due notice on both Today layouts from the shell loader data", () => {
   assert.match(notice, /import \{ PastDueBanner \} from "\.\/PastDueBanner"/);
-  assert.match(notice, /loadTalentPastDueState/);
-  assert.match(today, /<TalentPastDueNotice tenantSlug=\{tenantSlug\} \/>/);
+  // No extra server action or fetch per Today load: the fact rides on the
+  // talent shell loader's existing plan read.
+  assert.doesNotMatch(notice, /server-actions|useEffect|fetch\(/);
+  assert.match(today, /bridgeTalentSelfProfile\?\.talentPastDue/);
+  assert.match(today, /<TalentPastDueNotice tenantSlug=\{tenantSlug\} pastDue=\{pastDue\} \/>/);
   const mounts = today.match(/\{pastDueNotice\}/g) ?? [];
   assert.equal(mounts.length, 2, "agenda Today and legacy Today both mount the notice");
-});
-
-test("the past-due loader is a self-scoped read listed for read-only impersonation", () => {
-  assert.match(summary, /export async function loadTalentPastDueState\(/);
-  assert.match(
-    read("lib/impersonation/readonly-actions.allow.ts"),
-    /"lib\/server-actions\/talent-billing-summary\.ts", \["loadTalentBillingSummary", "loadTalentPastDueState"\]/,
-  );
+  const bridge = read("app/(workspace)/[tenantSlug]/_data-bridge/talent.ts");
+  assert.equal((bridge.match(/resolveEffectiveTalentPlanKeyWithPastDue\(trusted, p\.id, p\.talent_plan_key\)/g) ?? []).length, 2);
+  assert.equal((bridge.match(/talentPastDue: planFacts\.pastDue,/g) ?? []).length, 2);
+  assert.doesNotMatch(summary, /loadTalentPastDueState/);
+  assert.doesNotMatch(read("lib/impersonation/readonly-actions.allow.ts"), /loadTalentPastDueState/);
 });
 
 test("card on file checks the subscription default before the customer defaults", () => {
