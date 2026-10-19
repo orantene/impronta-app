@@ -64,6 +64,7 @@ src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
