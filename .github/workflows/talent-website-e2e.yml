@@ -81,6 +81,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      # Single source for the CLI version: feeds setup-cli AND the image cache
+      # key, so the cached images can never belong to a different CLI.
+      SUPABASE_CLI_VERSION: 2.117.0
       PGHOST: 127.0.0.1
       PGPORT: "54322"
       PGUSER: postgres
@@ -100,7 +103,7 @@ jobs:
           # single migration. A version the lane does not choose is also a
           # version the lane cannot reproduce — a CLI release could change the
           # replay result with no commit here to explain it.
-          version: 2.117.0
+          version: ${{ env.SUPABASE_CLI_VERSION }}
 
       # Docker image cache for `supabase start` (see the comment above the start
       # step). Keyed on the pinned CLI version (which fixes every image tag) and
@@ -109,7 +112,7 @@ jobs:
       # (first run per key) and simply falls through to the registry pull.
       - name: Compute Supabase image cache key
         id: imgkey
-        run: echo "key=supabase-images-v1-cli2.117.0-${{ hashFiles('supabase/config.toml') }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=supabase-images-v1-cli${{ env.SUPABASE_CLI_VERSION }}-${{ hashFiles('supabase/config.toml') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore Supabase image cache
         id: imgcache
