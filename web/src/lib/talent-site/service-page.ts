@@ -13,6 +13,7 @@ import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 import { publicPriceForJsonLd, resolvePublicPrice } from "@/lib/talent/public-price";
 import { durationLabel } from "@/lib/talent/duration-label";
+import type { ServiceContentFields } from "./service-content-fields";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
 
@@ -98,6 +99,64 @@ export function resolveServiceBySlug<T extends ServicePageOffering>(
   return (
     offerings.find((o) => isServicePageEligible(o) && o.id.replace(/-/g, "").toLowerCase().startsWith(id8)) ?? null
   );
+}
+
+/** Only the slug fields the resolver reads (TUL-1272 C1 content columns, held migration). */
+type SlugContent = Pick<ServiceContentFields, "slug" | "slugHistory">;
+
+export type ServiceSlugResolution<T> =
+  | { kind: "current"; offering: T; slug: string }
+  | { kind: "redirect"; offering: T; slug: string; status: 301 }
+  | { kind: "missing" };
+
+/** The slug a service answers on: its stored custom slug, else the derived `servicio-<title>-<id8>`. */
+export function currentServiceSlug(o: { id: string; title: string }, content?: SlugContent | null): string {
+  const custom = content?.slug?.trim().toLowerCase();
+  return custom ? custom : serviceSlug(o);
+}
+
+function requestedSlug(slug: string | null | undefined): string {
+  if (!slug) return "";
+  let s = slug.trim();
+  try {
+    s = decodeURIComponent(s);
+  } catch {
+    // Malformed escape: compare the raw text, which matches nothing stored.
+  }
+  return s.replace(/^\/+|\/+$/g, "").toLowerCase();
+}
+
+/**
+ * TUL-1272 C1: resolve a requested slug with slug history. Order: a current custom slug, then a
+ * slug_history entry (301 to the current slug), then the legacy id8 grammar (301 to the custom
+ * slug when one is set, else served as today). A current slug always beats another row's history.
+ * With no content map (columns not applied yet) this is exactly `resolveServiceBySlug`.
+ */
+export function resolveServiceSlugWithHistory<T extends ServicePageOffering>(
+  offerings: readonly T[],
+  slug: string | null | undefined,
+  contentById?: ReadonlyMap<string, SlugContent> | null,
+): ServiceSlugResolution<T> {
+  const req = requestedSlug(slug);
+  if (!req) return { kind: "missing" };
+  const eligible = offerings.filter(isServicePageEligible);
+  const content = (o: T) => contentById?.get(o.id) ?? null;
+
+  const byCurrent = eligible.find((o) => content(o)?.slug?.trim().toLowerCase() === req);
+  if (byCurrent) return { kind: "current", offering: byCurrent, slug: req };
+
+  const byHistory = eligible.find((o) => content(o)?.slugHistory.some((h) => h.trim().toLowerCase() === req));
+  if (byHistory) {
+    const to = currentServiceSlug(byHistory, content(byHistory));
+    return to === req ? { kind: "current", offering: byHistory, slug: to } : { kind: "redirect", offering: byHistory, slug: to, status: 301 };
+  }
+
+  const legacy = resolveServiceBySlug(eligible, req);
+  if (!legacy) return { kind: "missing" };
+  const to = currentServiceSlug(legacy, content(legacy));
+  return content(legacy)?.slug?.trim() && to !== req
+    ? { kind: "redirect", offering: legacy, slug: to, status: 301 }
+    : { kind: "current", offering: legacy, slug: to };
 }
 
 /** Host-root paths for the sitemap; `titleOffering` supplies the primary-language title for the slug. */
