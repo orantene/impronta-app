@@ -9,7 +9,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
-import { loadAgentServices, resolveAgentSite } from "@/lib/booking/agent/agent-site.server";
+import { contractsToMarkdown } from "@/lib/offerings/contract";
+import { loadAgentContracts, loadAgentServices, resolveAgentSite } from "@/lib/booking/agent/agent-site.server";
 import { AGENT_MCP_PATH, AGENT_SLOTS_PATH } from "@/lib/seo/talent-llms-txt";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -31,8 +32,16 @@ export async function GET(request: Request) {
   try {
     const site = await resolveAgentSite(admin, request);
     if (!site) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    const reqUrl = new URL(request.url);
+    // F2: the same contracts, as markdown, for assistants that read text.
+    if (reqUrl.searchParams.get("format") === "md" || (request.headers.get("accept") ?? "").includes("text/markdown")) {
+      const contracts = await loadAgentContracts(site);
+      return new NextResponse(contractsToMarkdown(site.name, contracts), {
+        headers: { "Content-Type": "text/markdown; charset=utf-8", "Cache-Control": "private, max-age=60" },
+      });
+    }
     const services = await loadAgentServices(site);
-    const talentParam = new URL(request.url).searchParams.get("talent");
+    const talentParam = reqUrl.searchParams.get("talent");
     const mcpQuery = site.host.kind === "talent_site" || !talentParam ? "" : `?talent=${encodeURIComponent(talentParam)}`;
     return NextResponse.json(
       {

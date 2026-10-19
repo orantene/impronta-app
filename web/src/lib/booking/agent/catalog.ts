@@ -7,7 +7,8 @@
  * a person reads on the page.
  */
 
-import { offeringIsQuote, offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
+import { buildOfferingContract, contractToApiService, type OfferingContract } from "@/lib/offerings/contract";
+import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 export type AgentService = {
   id: string;
@@ -22,28 +23,23 @@ export type AgentService = {
   bookable: boolean;
 };
 
-const DESCRIPTION_MAX = 280;
 export const AGENT_SERVICES_MAX = 40;
 
-function shortDescription(raw: string | null): string | null {
-  const text = (raw ?? "").replace(/\s+/g, " ").trim();
-  if (!text) return null;
-  return text.length > DESCRIPTION_MAX ? `${text.slice(0, DESCRIPTION_MAX - 1).trimEnd()}…` : text;
-}
-
-export function toAgentServices(offerings: readonly TalentOffering[], locale: string): AgentService[] {
+/** The contracts behind the list: public, not a product, capped. */
+export function toAgentContracts(
+  offerings: readonly TalentOffering[],
+  locale: string,
+  ctx: { providerName?: string | null; pageUrl?: (o: TalentOffering) => string | null } = {},
+): OfferingContract[] {
   return offerings
     .filter((o) => o.visibility === "public" && o.kind !== "product")
     .slice(0, AGENT_SERVICES_MAX)
-    .map((o) => ({
-      id: o.id,
-      title: o.title,
-      description: shortDescription(o.description),
-      duration_minutes: typeof o.durationMinutes === "number" && o.durationMinutes > 0 ? o.durationMinutes : null,
-      price: offeringPriceLabel(o, locale),
-      // D-10a: a hidden price (quote / on request) must not leak as a raw figure either.
-      amount_cents: o.visibility === "on_request" || offeringIsQuote(o) ? null : o.amountCents,
-      currency: o.currency,
-      bookable: o.publicCtaHidden !== true,
-    }));
+    .map((o) => buildOfferingContract(o, { locale, providerName: ctx.providerName, url: ctx.pageUrl?.(o) ?? null }));
+}
+
+export function toAgentServices(offerings: readonly TalentOffering[], locale: string): AgentService[] {
+  // F2: each row is a projection of the offering contract, the same record the
+  // page, JSON-LD, markdown and llms.txt read, so the API never states a price
+  // or a description the page does not (D-10a: no figure for on request or quote).
+  return toAgentContracts(offerings, locale).map(contractToApiService);
 }

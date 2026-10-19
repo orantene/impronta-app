@@ -6,6 +6,11 @@ import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadMaxSiteByProfileId, loadTalentPlanKey } from "@/lib/talent-site/server/load-max-site";
 import { loadMaxSiteSeoFacts } from "@/lib/talent-site/server/max-site-seo-facts.server";
 import { loadTalentTypeLabels } from "@/lib/talent-site/server/load-talent-trades.server";
+import { agentCatalogScope } from "@/lib/booking/agent/handoff";
+import { toAgentContracts } from "@/lib/booking/agent/catalog";
+import { loadTalentSiteInquiryTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
+import type { OfferingContract } from "@/lib/offerings/contract";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { buildTalentLlmsTxt, isTalentLlmsEligible, talentServicePriceText, type TalentLlmsPost } from "./talent-llms-txt";
 
 /** The llms.txt body for a talent-site host, or null (404) when not public. */
@@ -51,8 +56,22 @@ export async function loadTalentLlmsTxt(
         .order("display_order", { ascending: true }),
       loadTalentSiteSwitches(admin, talentProfileId),
     ]);
+    // F2: the Services list is the offering contract, the same record the page
+    // and the public API read. Any failure falls back to the SEO facts list.
+    let contracts: OfferingContract[] = [];
+    try {
+      const tenant = await loadTalentSiteInquiryTenant(admin, talentProfileId);
+      const scope = agentCatalogScope("talent_site", tenant.ok ? tenant.tenant.tenantId : null);
+      if (scope) {
+        const offerings = await loadPublicOfferingsForProfile(talentProfileId, "en", scope.tenantId, { channel: scope.channel });
+        contracts = toAgentContracts(offerings, "en", { providerName: name });
+      }
+    } catch (err) {
+      logServerError("talentLlmsTxt.contracts", err);
+    }
     return buildTalentLlmsTxt(base, {
       name,
+      contracts,
       trade: trades[0] ?? null,
       city: facts.addressLocality,
       posts,

@@ -22,7 +22,8 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 
-import { type AgentService, toAgentServices } from "./catalog";
+import { type AgentService, toAgentContracts, toAgentServices } from "./catalog";
+import type { OfferingContract } from "@/lib/offerings/contract";
 import {
   agentBookingRefusal,
   agentCatalogScope,
@@ -119,6 +120,16 @@ async function agentHandoffTenant(
     return loaded.ok ? loaded.tenant.tenantId : null;
   }
   return (await getPlatformHubTenant())?.tenantId ?? null;
+}
+
+/** The offering contracts behind loadAgentServices (markdown view, JSON-LD). */
+export async function loadAgentContracts(site: AgentSite): Promise<OfferingContract[]> {
+  const scope = agentCatalogScope(site.host.kind, site.handoffTenantId);
+  if (!scope) return [];
+  const offerings = await loadPublicOfferingsForProfile(site.talentProfileId, site.locale, scope.tenantId, {
+    channel: scope.channel,
+  });
+  return toAgentContracts(offerings, site.locale, { providerName: site.name });
 }
 
 export async function loadAgentServices(site: AgentSite): Promise<AgentService[]> {
