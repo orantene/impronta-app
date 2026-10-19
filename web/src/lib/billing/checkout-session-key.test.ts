@@ -147,7 +147,7 @@ test("wiring: both checkouts key the session on the fingerprint of the exact par
   for (const file of ["src/lib/stripe/talent-billing.ts", "src/lib/stripe/workspace-billing.ts"]) {
     const src = read(file);
     assert.match(src, /const idempotencyKey = checkoutSessionKey\(\s*checkoutIdempotencyKey\(/, `${file} fingerprints the key`);
-    assert.match(src, /checkoutSessionKey\([\s\S]*?,\s*sessionParams\s*\)/, `${file} fingerprints sessionParams`);
+    assert.match(src, /checkoutSessionKey\([\s\S]*?,\s*sessionParams,?\s*\)/, `${file} fingerprints sessionParams`);
     assert.match(
       src,
       /stripe\.checkout\.sessions\.create\(\s*\{ \.\.\.sessionParams, metadata: \{ \.\.\.sessionParams\.metadata, \.\.\.trialGuard\.marker \} \},\s*(?:\/\/[^\n]*\s*)*\{ idempotencyKey \}/,
