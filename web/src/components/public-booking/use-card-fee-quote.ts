@@ -22,7 +22,7 @@ export function useCardFeeQuote(a: {
     setSummary(null);
     if (!enabled || !offeringId) return;
     let live = true;
-    // Lazy: the action pulls server-only modules, which must not load with the sheet (perf budget, SSR/golden renders).
+    // Lazy: the action pulls server modules, which must not load with the sheet (perf budget, SSR/golden renders).
     void import("@/lib/orders/checkout-quote.actions")
       .then((m) => m.quoteBookingCollectAction({ offeringId, variantId, addOnIds: extrasKey ? extrasKey.split(",") : [] }))
       .then((res) => { if (live && res.ok) setSummary(cardFeeSummary(res.quote)); })
