@@ -382,6 +382,19 @@ export function postSitemapEntries(
   });
 }
 
+/** Indexable posts as llms.txt links (shared by the site and talent composers). */
+export function llmsPostLinks(
+  rows: readonly PublicPostRow[],
+  urlFor: LocalizedUrl,
+  now: Date,
+): { title: string; url: string; description: string }[] {
+  return sortPostsNewestFirst(rows.filter((r) => isIndexablePost(r, now))).map((row) => ({
+    title: oneLine(row.title),
+    url: urlFor(blogPostPath(row.slug), row.locale),
+    description: oneLine(row.meta_description || row.excerpt || ""),
+  }));
+}
+
 /** The llms.txt body (https://llmstxt.org): site title, summary, then the post list. */
 export function buildLlmsTxt(input: {
   siteName: string;
@@ -395,13 +408,11 @@ export function buildLlmsTxt(input: {
   const summary = oneLine(input.summary ?? "");
   if (summary) lines.push(`> ${summary}`, "");
   lines.push(`- [Home](${input.homeUrl})`, "");
-  const posts = sortPostsNewestFirst(input.posts.filter((r) => isIndexablePost(r, input.now)));
+  const posts = llmsPostLinks(input.posts, input.urlFor, input.now);
   if (posts.length > 0) {
     lines.push("## Posts", "");
-    for (const row of posts) {
-      const desc = oneLine(row.meta_description || row.excerpt || "");
-      const url = input.urlFor(blogPostPath(row.slug), row.locale);
-      lines.push(`- [${oneLine(row.title)}](${url})${desc ? `: ${desc}` : ""}`);
+    for (const p of posts) {
+      lines.push(`- [${p.title}](${p.url})${p.description ? `: ${p.description}` : ""}`);
     }
     lines.push("");
   }

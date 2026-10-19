@@ -297,16 +297,10 @@ export const AGENCY_STOREFRONT_PREFIXES = [
 
 /**
  * Posts v1 (TUL-1009): `/blog/<slug>` and `/blog/c/<category>` on agency
- * storefronts. Matched as a strict `/blog/` PREFIX (the bare `/blog` index is
- * `AGENCY_BLOG_INDEX_PATH` below).
+ * storefronts. Matched as a strict `/blog/` PREFIX (never the bare `/blog`), so
+ * a CMS page slugged "blog" keeps its clean-URL rewrite to `/p/blog`.
  */
 export const AGENCY_BLOG_DETAIL_PREFIX = "/blog/" as const;
-
-/**
- * The bare `/blog` post index on agency storefronts (F7). The route itself
- * hands the request to a CMS page slugged "blog" when the workspace has one.
- */
-export const AGENCY_BLOG_INDEX_PATH = "/blog" as const;
 
 export const AGENCY_API_PREFIXES = [
   "/api/directory",

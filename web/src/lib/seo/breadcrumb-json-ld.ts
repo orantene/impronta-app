@@ -6,6 +6,8 @@
  * (Home > Page) today, no nested breadcrumbs to model, so this only
  * needs to support a flat list of {name, url} crumbs.
  */
+import { jsonLdScriptString } from "@/lib/seo/json-ld-script";
+
 
 type JsonValue =
   | string
@@ -43,5 +45,5 @@ export function buildBreadcrumbJsonLd(crumbs: BreadcrumbCrumb[]): Record<string,
 
 export function breadcrumbJsonLdToString(obj: Record<string, JsonValue> | null): string {
   if (!obj) return "";
-  return JSON.stringify(obj);
+  return jsonLdScriptString(obj);
 }

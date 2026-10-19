@@ -31,7 +31,7 @@ export async function workspaceHasCmsBlogPage(scope: PostScope, locale: string):
     logServerError("cms/blog-cms-page", error);
     return false;
   }
-  return (data ?? []).length > 0;
+  return Array.isArray(data) ? data.length > 0 : data != null;
 }
 
 /** Talent twin: a published personal-site page slugged "blog" keeps its URL (the index yields to it). */

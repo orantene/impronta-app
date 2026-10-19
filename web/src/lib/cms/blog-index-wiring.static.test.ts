@@ -7,7 +7,7 @@ import { test } from "node:test";
 const src = (rel: string) => readFileSync(join(process.cwd(), "src", rel), "utf8");
 
 test("both site families have a /blog index route using the shared view", () => {
-  for (const rel of ["app/%5Ftalent-site/blog/page.tsx", "app/(public)/blog/page.tsx"]) {
+  for (const rel of ["app/%5Ftalent-site/blog/page.tsx", "app/(public)/p/blog/page.tsx"]) {
     assert.ok(existsSync(join(process.cwd(), "src", rel)), rel);
     const s = src(rel);
     assert.match(s, /BlogIndexView/);
@@ -17,7 +17,7 @@ test("both site families have a /blog index route using the shared view", () => 
 });
 
 test("a CMS page / personal-site page slugged blog still wins over the index", () => {
-  assert.match(src("app/(public)/blog/page.tsx"), /workspaceHasCmsBlogPage/);
+  assert.match(src("app/(public)/p/blog/page.tsx"), /workspaceHasCmsBlogPage/);
   assert.match(src("app/%5Ftalent-site/blog/page.tsx"), /talentHasBlogPage/);
 });
 

@@ -1,7 +1,10 @@
 /**
  * Workspace site blog index: bare `/blog` (TUL-1003 / TUL-1006).
  *
- * Agency (workspace) hosts only; the tenant comes from the verified host header
+ * The proxy's clean-URL rewrite already maps `/blog` to `/p/blog` (a root slug
+ * the allow-list does not own, and `blog` is deliberately NOT a reserved slug,
+ * so existing CMS pages slugged "blog" keep working). This static `p/blog`
+ * segment wins over the `[[...slug]]` catch-all. Agency (workspace) hosts only; the tenant comes from the verified host header
  * via `resolveWorkspacePostSite`. A bare `/blog` used to be a clean-URL CMS slug
  * (`/p/blog`); a workspace that still has a CMS page slugged "blog" keeps it
  * (this route hands the request to the CMS page renderer), every other
@@ -17,7 +20,7 @@ import { BlogIndexView, buildBlogIndexMetadata, loadBlogIndex } from "@/lib/cms/
 import { parseBlogIndexPage } from "@/lib/cms/blog-index-model";
 import { workspaceHasCmsBlogPage } from "@/lib/cms/blog-cms-page";
 import { resolveWorkspacePostSite } from "@/lib/cms/posts-public-site";
-import CmsPublicPage, { generateMetadata as cmsMetadata } from "../p/[[...slug]]/page";
+import CmsPublicPage, { generateMetadata as cmsMetadata } from "../[[...slug]]/page";
 
 export const dynamic = "force-dynamic";
 

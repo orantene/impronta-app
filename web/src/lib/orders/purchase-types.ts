@@ -15,6 +15,7 @@
  */
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { CapacityRefusalReason } from "@/lib/capacity/types";
+import type { PurchaseChannel } from "@/lib/offerings/guest-sellable";
 import type { PaymentChoice } from "@/lib/orders/purchase-policy";
 import type { BookingPromoRequest } from "@/lib/orders/purchase-promo";
 
@@ -60,6 +61,12 @@ export type PurchaseInput = {
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
   sourceChannel: string;
+  /**
+   * Which door this purchase came through. Omitted = `guest`, the strict
+   * published + approved + public rule (D-10). Only the point of sale desk
+   * passes `staff`.
+   */
+  channel?: PurchaseChannel;
   sourcePage?: string | null;
   /** Capacity pools this purchase must hold, per line. */
   capacity?: Array<{

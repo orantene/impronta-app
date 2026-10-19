@@ -3,6 +3,13 @@
  * Deterministic: same input object ⇒ same string.
  */
 
+import {
+  buildOfferingsSection,
+  type AiSearchDocumentOffering,
+} from "@/lib/ai/ai-search-document-offerings";
+
+export type { AiSearchDocumentOffering };
+
 export type AiSearchDocumentTaxonomyTerm = {
   kind: string;
   slug?: string | null;
@@ -73,6 +80,11 @@ export type BuildAiSearchDocumentInput = {
    */
   searchSynonyms?: string[];
   aiVisibleFields?: AiSearchDocumentFieldLine[];
+  /**
+   * F1: the talent's offerings. Only published + approved + public rows are
+   * written (D-10); sorted by sort order and capped (see ai-search-document-offerings).
+   */
+  offerings?: AiSearchDocumentOffering[];
 };
 
 function section(label: string, body: string | null | undefined): string[] {
@@ -115,8 +127,9 @@ function formatServiceArea(area: AiSearchDocumentServiceArea): string {
  *   6. Skills
  *   7. Contexts
  *   8. Credentials / attributes
- *   9. Bio + AI-visible fields
- *  10. Search synonyms (capped at 8, deduped)
+ *   9. Services (F1: guest-sellable offerings, capped)
+ *  10. Bio + AI-visible fields
+ *  11. Search synonyms (capped at 8, deduped)
  */
 export function buildAiSearchDocument(input: BuildAiSearchDocumentInput): string {
   const lines: string[] = [];
@@ -215,6 +228,8 @@ export function buildAiSearchDocument(input: BuildAiSearchDocumentInput): string
   )) {
     lines.push(`${kind}: ${vals.join(", ")}`);
   }
+
+  lines.push(...buildOfferingsSection(input.offerings));
 
   lines.push(...section("Bio", input.shortBio));
   lines.push(...section("Bio EN", input.bioEn));

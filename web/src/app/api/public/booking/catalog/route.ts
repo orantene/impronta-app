@@ -10,7 +10,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { loadAgentServices, resolveAgentSite } from "@/lib/booking/agent/agent-site.server";
-import { AGENT_MCP_PATH, AGENT_SLOTS_PATH } from "@/lib/booking/agent/llms-txt";
+import { AGENT_MCP_PATH, AGENT_SLOTS_PATH } from "@/lib/seo/talent-llms-txt";
 import { checkBookingSlots } from "@/lib/rate-limit-kv";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { resolvePublicClientIp } from "@/lib/server/public-client-ip";
