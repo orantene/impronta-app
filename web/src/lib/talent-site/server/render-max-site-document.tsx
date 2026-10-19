@@ -76,6 +76,7 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentServicePresentation } from "@/lib/services/presentation/load-talent-presentation.server";
 import { buildCatalogQuickViewsByNode } from "@/lib/services/presentation/catalog-quick-views.server";
+import { ServiceQuickViewLayer } from "@/components/services/quick-view/ServiceQuickViewLayer";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
@@ -315,7 +316,26 @@ export async function renderMaxSiteDocument(args: {
     linkBase: pricedDataSources.talentServiceLinkBase,
     locale,
   });
-  if (Object.keys(serviceQuickViews).length > 0) Object.assign(pricedDataSources, { serviceQuickViews });
+  if (Object.keys(serviceQuickViews).length > 0) {
+    const offeringsById = new Map((pricedDataSources.talentOfferings ?? []).map((o) => [o.id, o]));
+    const rendered: Record<string, { hrefs: Record<string, string>; layer: ReactNode }> = {};
+    for (const [nodeId, qv] of Object.entries(serviceQuickViews)) {
+      rendered[nodeId] = {
+        hrefs: qv.hrefs,
+        layer: (
+          <ServiceQuickViewLayer
+            nodeId={nodeId}
+            views={qv.views}
+            targets={qv.targets}
+            offerings={Object.keys(qv.targets).flatMap((id) => offeringsById.get(id) ?? [])}
+            confirmsByHand={pricedDataSources.talentOfferingsConfirmsByHand ?? true}
+            bookingPosture={pricedDataSources.talentOfferingsBookingSettings?.bookingPosture}
+          />
+        ),
+      };
+    }
+    Object.assign(pricedDataSources, { serviceQuickViews: rendered });
+  }
 
   // Forms keep tenant captcha; booking alone follows HQ guest_captcha_enforced.
   const { formCaptchaConfig, bookingCaptchaConfig } = splitGuestCaptchaConfigs(

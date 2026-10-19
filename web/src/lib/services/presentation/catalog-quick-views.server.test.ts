@@ -76,14 +76,16 @@ describe("buildCatalogQuickViewsByNode (server-side, keeps the admin bundle lean
 
 describe("bundle wiring (static)", () => {
   const render = readFileSync(join(process.cwd(), "src/lib/site-admin/builder-node/render.tsx"), "utf8");
-  it("render.tsx (also in the admin client graph) imports no presentation logic statically", () => {
+  it("render.tsx (also in the admin client graph, at its bundle ceiling) imports nothing for quick views", () => {
     assert.doesNotMatch(render, /from "@\/lib\/services\/presentation\//);
-    assert.doesNotMatch(render, /from "@\/components\/services\/quick-view\//);
+    assert.doesNotMatch(render, /@\/components\/services\/quick-view\//);
+    assert.doesNotMatch(render, /next\/dynamic/);
     assert.match(render, /options\.dataSources\.serviceQuickViews\?\.\[node\.id\]/);
-    assert.match(render, /dynamic\(\(\) => import\("@\/components\/services\/quick-view\/ServiceQuickViewLayer"\)/);
+    assert.match(render, /\{quickViews\?\.layer \?\? null\}/);
   });
-  it("the published talent site computes them server-side", () => {
+  it("the published talent site builds the hrefs and the dialog layer server-side", () => {
     const doc = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site-document.tsx"), "utf8");
     assert.match(doc, /buildCatalogQuickViewsByNode\(\{/);
+    assert.match(doc, /<ServiceQuickViewLayer/);
   });
 });

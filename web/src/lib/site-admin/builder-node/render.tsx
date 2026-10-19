@@ -172,9 +172,6 @@ import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { servicePageHrefs } from "@/lib/talent-site/service-page";
-import dynamic from "next/dynamic";
-// TUL-1272 #3: the quick-view dialogs load lazily so they stay out of the admin client graph.
-const ServiceQuickViewLayerLazy = dynamic(() => import("@/components/services/quick-view/ServiceQuickViewLayer").then((m) => m.ServiceQuickViewLayer));
 import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
@@ -398,7 +395,8 @@ export interface BuilderNodeRenderDataSources {
    */
   talentServiceLinkBase?: string | null;
   /** TUL-1272 #3: per-widget card hrefs + quick views, computed server-side on published talent sites while the resolver flag is on. */
-  serviceQuickViews?: Record<string, import("@/lib/services/presentation/catalog-quick-views.server").CatalogQuickViews>;
+  // Pre-rendered by the server (render-max-site-document): render.tsx sits in the admin client graph, so it imports none of it.
+  serviceQuickViews?: Record<string, { hrefs: Record<string, string>; layer: ReactNode }>;
   /**
    * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
@@ -6249,16 +6247,7 @@ function renderBuilderNodeElement(
               />
             </CatalogIslandBoundary>
           )}
-          {quickViews ? (
-            <ServiceQuickViewLayerLazy
-              nodeId={node.id}
-              views={quickViews.views}
-              targets={quickViews.targets}
-              offerings={visible.filter((o) => quickViews.targets[o.id])}
-              confirmsByHand={confirmsByHand}
-              bookingPosture={options.dataSources.talentOfferingsBookingSettings?.bookingPosture}
-            />
-          ) : null}
+          {quickViews?.layer ?? null}
         </section>
       );
     }
