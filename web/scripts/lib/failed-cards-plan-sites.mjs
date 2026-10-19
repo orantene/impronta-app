@@ -18,7 +18,7 @@ export const LONG_TALENT_NAME = "Mariana Guadalupe Hernández de la Fuente Prueb
 
 const APPOINTMENTS = { enabled: true, allowTalentDirectBooking: true, terminology: "appointments", timezone: "America/Cancun" };
 
-function workspaceOps(fx, key, { slug, name, ownerUser, plan = "studio", logo = null, accent = null, at }) {
+export function workspaceOps(fx, key, { slug, name, ownerUser, plan = "studio", logo = null, accent = null, at }) {
   const ws = fcId(`workspace:${key}`);
   const now = at.toISOString();
   const branding = logo ? { logo_url: logo, accent_color: accent } : undefined;

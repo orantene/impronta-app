@@ -4,6 +4,7 @@
  */
 import { fcId } from "./failed-cards-guards.mjs";
 import { G6 } from "./failed-cards-ops.mjs";
+import { G_EVENT_SEATS, G_PROMO_CODE } from "./failed-cards-plan-g.mjs";
 import { CONCIERGE_SLUG, LONG_TALENT_NAME } from "./failed-cards-plan-sites.mjs";
 
 const CHECKS = {
@@ -59,6 +60,23 @@ const CHECKS = {
   ],
   S5: [["free-plan talent (talent_basic) with a site", "select count(*)::int n from public.talent_profiles t join public.talent_sites s on s.talent_profile_id = t.id where t.id = $1 and t.talent_plan_key = 'talent_basic'", [fcId("talent:s5-free")], 1]],
   S6: [["payout talents MX/US/CA", "select count(*)::int n from public.talent_profiles where id = any($1::uuid[]) and home_country_text in ('MX','US','CA')", [["mx", "us", "ca"].map((c) => fcId(`talent:s6-${c}`))], 3]],
+  G1: [
+    ["QR dish: published workspace product, no base price, 2 size options at different MXN prices", "select count(*)::int n from public.talent_offerings o where o.id = $1 and o.owner_kind = 'workspace' and o.status = 'published' and o.amount_cents is null and o.currency = 'MXN' and (select count(distinct v.amount_cents) from public.talent_offering_variants v where v.offering_id = o.id and v.amount_cents > 0) = 2", [fcId("offering:g1-cafe")], 1],
+  ],
+  G2: [
+    ["last-piece product: stock 1, pool of 1 unit, nothing allocated", "select count(*)::int n from public.talent_offerings o join public.capacity_pools p on p.id = o.capacity_pool_id where o.id = $1 and o.inventory_qty = 1 and p.units_total = 1 and p.is_active and not exists (select 1 from public.capacity_allocations a where a.pool_id = p.id and a.state <> 'released')", [fcId("offering:g2-pay")], 1],
+  ],
+  G3: [
+    ["second staff login: confirmed, manager membership on the studio (no refund capability), password set", "select count(*)::int n from public.agency_memberships m join auth.users u on u.id = m.profile_id where m.tenant_id = $1 and m.profile_id = $2 and m.role = 'manager' and m.status = 'active' and u.email_confirmed_at is not null and coalesce(u.encrypted_password, '') <> ''", [fcId("workspace:f3"), fcId("user:g3-manager")], 1],
+    ["studio still has exactly one owner (the F3 owner)", "select count(*)::int n from public.agency_memberships where tenant_id = $1 and role = 'owner' and status = 'active'", [fcId("workspace:f3")], 1],
+  ],
+  G4: [
+    ["event: published, one scheduled night, one visible tier with seats " + G_EVENT_SEATS, "select count(*)::int n from public.events e join public.sessions s on s.event_id = e.id and s.status = 'scheduled' join public.talent_offering_variants v on v.offering_id = e.offering_id and not v.is_hidden join public.capacity_pools p on p.subject_kind = 'session_tier' and p.subject_id = s.id and p.pool_key = v.pool_key where e.id = $1 and e.status = 'published' and p.units_total = $2 and p.is_active and s.starts_at > now()", [fcId("event:g4"), G_EVENT_SEATS], 1],
+    ["promo " + G_PROMO_CODE + ": event-scoped, 1 use, unused", "select count(*)::int n from public.tenant_promo_codes c where c.id = $1 and c.event_id = $2 and c.max_redemptions = 1 and c.is_active and not c.is_draft and not c.is_paused and not exists (select 1 from public.tenant_promo_redemptions r where r.promo_code_id = c.id)", [fcId("promo:g4-salsa"), fcId("event:g4")], 1],
+  ],
+  G5: [
+    ["free-plan workspace: owner is the studio owner, no workspace_subscriptions row", "select count(*)::int n from public.agencies a join public.agency_memberships m on m.tenant_id = a.id and m.role = 'owner' and m.status = 'active' where a.id = $1 and a.plan_tier = 'free' and m.profile_id = $2 and not exists (select 1 from public.workspace_subscriptions w where w.tenant_id = a.id)", [fcId("workspace:g5-free"), fcId("user:f3-owner")], 1],
+  ],
 };
 
 export async function readBack(q, fixtures) {
