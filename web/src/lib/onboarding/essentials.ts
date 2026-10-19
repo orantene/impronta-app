@@ -178,13 +178,71 @@ BEAUTY_PACKS.cleaning = { key: "cleaning", services: [
   { en: "Office cleaning", es: "Limpieza de oficina", durationMin: 120, mxnCents: 100000 },
 ] };
 
+/**
+ * G4: more trades, so a person outside beauty and cleaning does not land on an
+ * empty services screen. Names are unique across every pack (service-display
+ * matches a said name against all packs). Prices are MXN starting points the
+ * person must confirm (TUL-633), outside Mexico they read "quote".
+ */
+BEAUTY_PACKS.facial = { key: "facial", services: [
+  { en: "Express facial", es: "Facial exprés", durationMin: 30, mxnCents: 50000 },
+  { en: "Deep cleansing facial", es: "Limpieza facial profunda", durationMin: 60, mxnCents: 80000 },
+  { en: "Hydrating facial", es: "Facial hidratante", durationMin: 60, mxnCents: 90000 },
+  { en: "Chemical peel", es: "Peeling químico", durationMin: 45, mxnCents: 110000 },
+] };
+BEAUTY_PACKS.massage = { key: "massage", services: [
+  { en: "Relaxing massage", es: "Masaje relajante", durationMin: 60, mxnCents: 80000 },
+  { en: "Deep tissue massage", es: "Masaje de tejido profundo", durationMin: 60, mxnCents: 100000 },
+  { en: "Hot stone massage", es: "Masaje con piedras calientes", durationMin: 75, mxnCents: 110000 },
+  { en: "Couples massage", es: "Masaje en pareja", durationMin: 90, mxnCents: 180000 },
+] };
+BEAUTY_PACKS.fitness = { key: "fitness", services: [
+  { en: "Personal training session", es: "Sesión de entrenamiento personal", durationMin: 60, mxnCents: 50000 },
+  { en: "Small group class", es: "Clase en grupo pequeño", durationMin: 60, mxnCents: 25000 },
+  { en: "Private yoga session", es: "Sesión privada de yoga", durationMin: 60, mxnCents: 45000 },
+  { en: "Fitness assessment", es: "Evaluación física", durationMin: 45, mxnCents: 30000 },
+] };
+BEAUTY_PACKS.photography = { key: "photography", services: [
+  { en: "Portrait session", es: "Sesión de retrato", durationMin: 60, mxnCents: 150000 },
+  { en: "Family session", es: "Sesión familiar", durationMin: 90, mxnCents: 200000 },
+  { en: "Product photos", es: "Fotos de producto", durationMin: 90, mxnCents: 250000 },
+  { en: "Event coverage", es: "Cobertura de evento", durationMin: 120, mxnCents: 350000 },
+] };
+BEAUTY_PACKS.tutoring = { key: "tutoring", services: [
+  { en: "Private lesson", es: "Clase particular", durationMin: 60, mxnCents: 40000 },
+  { en: "Conversation class", es: "Clase de conversación", durationMin: 60, mxnCents: 35000 },
+  { en: "Exam preparation", es: "Preparación de examen", durationMin: 90, mxnCents: 50000 },
+  { en: "Trial class", es: "Clase de prueba", durationMin: 30, mxnCents: 15000 },
+] };
+BEAUTY_PACKS.pets = { key: "pets", services: [
+  { en: "Dog bath", es: "Baño para perro", durationMin: 60, mxnCents: 40000 },
+  { en: "Full dog grooming", es: "Estética canina completa", durationMin: 90, mxnCents: 60000 },
+  { en: "Dog walk", es: "Paseo de perro", durationMin: 30, mxnCents: 15000 },
+  { en: "Pet nail trim", es: "Corte de uñas para mascotas", durationMin: 20, mxnCents: 15000 },
+] };
+BEAUTY_PACKS.tattoo = { key: "tattoo", services: [
+  { en: "Tattoo consultation", es: "Consulta de tatuaje", durationMin: 30, mxnCents: 20000 },
+  { en: "Small tattoo", es: "Tatuaje pequeño", durationMin: 60, mxnCents: 150000 },
+  { en: "Tattoo touch-up", es: "Retoque de tatuaje", durationMin: 45, mxnCents: 80000 },
+  { en: "Custom tattoo session", es: "Sesión de tatuaje a medida", durationMin: 240, mxnCents: 500000 },
+] };
+
 const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["lashes", /lash|pesta/i],
   ["nails", /nail|u[ñn]a|manicur|pedicur/i],
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
+  // Facial before cleaning: "limpieza facial" is a facial, not home cleaning.
+  ["facial", /facial|esthetic|est[eé]tic|cosmetolog|dermapl|peeling|skin ?care|cuidado de la piel/i],
   ["cleaning", /clean|limpie|limpio|aseo|housekeep/i],
   ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
+  // G4: appended last so every trade matched before keeps its pack.
+  ["massage", /massag|masaj|\bspa\b|quiropr|physio|fisioter/i],
+  ["fitness", /personal train|trainer|fitness|yoga|pilates|entrenador|crossfit|gimnas/i],
+  ["photography", /photograph|fot[oó]graf/i],
+  ["tutoring", /tutor|\bteach|profesor|maestr[ao]|\blessons?\b|\bclases?\b/i],
+  ["pets", /\bdogs?\b|\bpets?\b|mascota|perr[oa]|canin|veterinar/i],
+  ["tattoo", /tattoo|tatu/i],
 ];
 
 /** Pack key for a trade slug or free-text discipline; null when no pack exists. */
