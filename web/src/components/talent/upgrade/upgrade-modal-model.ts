@@ -62,6 +62,15 @@ export function isUpgradeFeature(value: unknown): value is UpgradeFeature {
   return typeof value === "string" && (UPGRADE_FEATURES as readonly string[]).includes(value);
 }
 
+/**
+ * The plan name every talent paywall shows: the server-resolved label when the
+ * caller has one, else the one paid tier's catalog label. The modal and the
+ * inline paywall copy both read it, so they never name different plans.
+ */
+export function upgradePlanLabel(locale: UpgradeLocale, override?: string | null): string {
+  return override?.trim() || (locale === "es" ? TALENT_PAID_TIER_LABEL_ES : TALENT_PAID_TIER_LABEL);
+}
+
 /** Which plan unlocks a feature. Every talent paywall today is Web Office. */
 export function planForFeature(_feature: UpgradeFeature): PlanKey {
   return TALENT_UPGRADE_PLAN_KEY;
@@ -176,8 +185,7 @@ export function buildUpgradeOffer(input: {
   const plan = PLAN_CATALOG[planKey];
   const hasYearly = typeof plan.annualPriceCents === "number" && plan.annualPriceCents > 0;
   const interval: UpgradeInterval = input.interval === "y" && hasYearly ? "y" : "m";
-  const planLabel =
-    input.planLabel?.trim() || (locale === "es" ? TALENT_PAID_TIER_LABEL_ES : TALENT_PAID_TIER_LABEL);
+  const planLabel = upgradePlanLabel(locale, input.planLabel);
   const ui = UI_COPY[locale];
   const featureLabel = FEATURE_COPY[feature][locale];
   return {
