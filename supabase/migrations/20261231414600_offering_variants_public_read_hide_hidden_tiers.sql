@@ -14,8 +14,7 @@
 -- grid and order pricing use the service role and are unaffected. The owner
 -- policy (offering_variants_owner_read) is untouched.
 --
--- Idempotent: DROP POLICY IF EXISTS + CREATE. Not applied by the author; held in
--- _pending_pm for the normal gate (see _pending_pm/README.md).
+-- Idempotent: DROP POLICY IF EXISTS + CREATE. APPLIED to staging and production 2026-10-18 (Oran: do all DB security fixes tonight).
 
 BEGIN;
 
