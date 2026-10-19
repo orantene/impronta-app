@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSiteUrl } from "@/lib/auth-flow";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -98,14 +98,14 @@ function OnboardingFooter({ legalLine }: { legalLine: string }) {
         </p>
         <div className="flex items-center gap-5 text-[0.75rem]">
           <Link
-            href={`${getSiteUrl()}/legal/terms`}
+            href={`${resolveMarketingOrigin()}/legal/terms`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
             Terms
           </Link>
           <Link
-            href={`${getSiteUrl()}/legal/privacy`}
+            href={`${resolveMarketingOrigin()}/legal/privacy`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
@@ -117,7 +117,7 @@ function OnboardingFooter({ legalLine }: { legalLine: string }) {
               footer link 404'd on every surface. /about is the contact
               surface. */}
           <Link
-            href={`${getSiteUrl()}/about`}
+            href={`${resolveMarketingOrigin()}/about`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
