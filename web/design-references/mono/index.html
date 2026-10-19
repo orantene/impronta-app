@@ -1,0 +1,132 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Mono · Pablo Serrano (DRAFT)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;800&family=Inter:wght@400;500;600&family=Geist:wght@500;600&display=swap">
+<style>
+.site{--k-fd:'Inter Tight',system-ui,sans-serif;--k-fb:'Inter',system-ui,sans-serif;--k-fdw:800;--k-fdls:-.03em;--k-rad:6px;--k-btnrad:6px;--k-dockrad:10px}
+.mo-hdr{position:sticky;top:44px;z-index:6;display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--k-bg);border-bottom:1px solid var(--k-line)}
+.mo-hdr b{font:800 15px var(--k-fd);letter-spacing:-.01em}
+.mo-hdr .sp{flex:1}
+.mo-hdr .k-btn{height:36px;padding:0 14px;display:none}
+.mo-hero{padding:72px 20px 40px;text-align:center;display:grid;justify-items:center;gap:16px}
+.mo-hero small{font:600 12px var(--k-fb);letter-spacing:.12em;text-transform:uppercase;color:var(--k-mute)}
+.mo-hero h1{margin:0;font:800 48px/0.98 var(--k-fd);letter-spacing:-.03em;max-width:14ch}
+.mo-hero h1 em{font-style:normal;color:var(--k-accent)}
+.mo-hero p{margin:0;color:var(--k-mute);max-width:36ch;font-size:16px;line-height:1.5}
+.mo-list{padding:24px 18px 0;max-width:760px;margin:0 auto}
+.mo-list .hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.mo-list h2{margin:0;font:800 28px var(--k-fd);letter-spacing:-.02em}
+.mo-list .hd small{font:600 12px var(--k-fb);letter-spacing:.12em;text-transform:uppercase;color:var(--k-mute)}
+.mo-search{display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border:1px solid var(--k-line);border-radius:var(--k-rad);color:var(--k-mute);font-size:15px;margin-bottom:12px}
+.mo-pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:12px}
+.mo-pills button{flex:none;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--k-line);background:var(--k-bg);color:var(--k-ink);font:500 13px var(--k-fb)}
+.mo-pills button[aria-pressed=true]{background:var(--k-ink);color:var(--k-bg);border-color:var(--k-ink)}
+.mo-row{display:grid;grid-template-columns:1fr auto;gap:4px 14px;align-items:center;padding:14px 0;border-top:1px solid var(--k-line);cursor:pointer}
+.mo-row:last-child{border-bottom:1px solid var(--k-line)}
+.mo-row b{font:600 16px var(--k-fd)}
+.mo-row small{grid-column:1;color:var(--k-mute);font-size:13px}
+.mo-row .p{grid-row:1;grid-column:2;font:600 16px var(--k-fd);text-align:right}
+.mo-row .k-btn{grid-row:2;grid-column:2;height:36px;padding:0 14px}
+.mo-faq{padding:72px 18px 0;max-width:760px;margin:0 auto}
+.mo-faq h2,.mo-about h2{margin:0 0 12px;font:800 28px var(--k-fd);letter-spacing:-.02em}
+.mo-faq details{border-top:1px solid var(--k-line);padding:14px 0}
+.mo-faq details:last-child{border-bottom:1px solid var(--k-line)}
+.mo-faq summary{cursor:pointer;font:600 16px var(--k-fd)}
+.mo-faq p{margin:8px 0 0;color:var(--k-mute)}
+.mo-about{padding:72px 18px 0;max-width:760px;margin:0 auto}
+.mo-about p{margin:0;font-size:16px;line-height:1.6}
+.mo-end{margin:72px 18px 0;padding:22px 0 130px;border-top:1px solid var(--k-line);display:flex;justify-content:space-between;font:600 11px var(--k-fb);letter-spacing:.12em;text-transform:uppercase;color:var(--k-mute)}
+.mo-pills{scrollbar-width:none}.mo-pills::-webkit-scrollbar{display:none}
+@container site (min-width:900px){
+  .mo-hdr{top:0;padding:16px 40px}
+  .mo-hdr .k-btn{display:inline-flex}
+  .mo-hero{padding:120px 40px 56px}
+  .mo-hero h1{font-size:104px}
+  .mo-list h2,.mo-faq h2,.mo-about h2{font-size:36px}
+  .mo-row{grid-template-columns:1fr auto auto;gap:4px 24px;padding:18px 0}
+  .mo-row .p{grid-column:2}
+  .mo-row .k-btn{grid-row:1;grid-column:3}
+  .mo-end{margin:96px auto 0;max-width:760px}
+}
+</style>
+<script src="kit.js"></script>
+<script>
+const T={
+  id:'TH-MONO', theme:'Mono', lang:'es', domain:'pablo-entrena.tulala.digital', galleryUrl:'',
+  brief:'DRAFT for PM review (TUL-328). One statement, one list, one action; no gallery. Reference demo: Pablo Serrano, TAL-93010, personal trainer; instant session + request packages.',
+  talent:{name:'Pablo Serrano', first:'Pablo', role:'personal trainer', avatar:'mo-avatar', tagline:'Entrena una hora. Siente la diferencia en un mes.', bio:'Entrenador personal en CDMX. Fuerza y movilidad a domicilio o al aire libre; llevo el equipo. Diez años entrenando a gente que no tiene tiempo para el gimnasio.'},
+  mine:{name:'Tu Nombre', count:3},
+  palettes:{
+    def:{n:'Paper & Black', bg:'#FFFFFF', surface:'#F5F5F5', ink:'#0F0F0F', mute:'#6B6B6B', line:'#E3E3E3', accent:'#0F0F0F', on:'#FFFFFF', tint:'#EDEDED', at:'#0F0F0F'},
+    cobalt:{n:'Cobalt', bg:'#FFFFFF', surface:'#F2F4F8', ink:'#161A22', mute:'#646B78', line:'#DEE3EC', accent:'#1F4FB8', on:'#FFFFFF', tint:'#E6EBF5', at:'#1F4FB8'},
+    carbon:{n:'Carbon', bg:'#111111', surface:'#1B1B1B', ink:'#F5F5F5', mute:'#9A9A9A', line:'#333333', accent:'#F5F5F5', on:'#111111', tint:'#222222', at:'#F5F5F5'}
+  },
+  customStart:'#B3261E',
+  hero_service:'one',
+  surface:'sheet',
+  dock:[{label:'Reservar sesión', flow:'one'}],
+  starter:{services:3, faqs:3, texts:3},
+  reply:'¡Hola! ¿Qué objetivo tienes y en qué colonia entrenarías? Te paso horarios.',
+  suggestions:['¿Llevas el equipo?','¿Entrenas en parques?','¿Puedo pagar en efectivo?'],
+  services:[
+    {id:'one', cat:'Sesiones', name:'Sesión de entrenamiento', dur:'1 h', price:'$500', mode:'instant', cta:'Reservar', img:'mo-session',
+      desc:'Una hora de fuerza y movilidad a domicilio o al aire libre, con equipo incluido.',
+      includes:['Equipo incluido','Calentamiento y movilidad','Rutina para repetir sola/o'], slots:['06:00','07:00','08:00','18:00','19:00','20:00'],
+      slotNote:'Horarios en CDMX.', policy:'Cambios con 12 h de aviso.',
+      whoFields:[{k:'where',l:'¿Dónde entrenamos?',p:'Colonia o parque'}]},
+    {id:'pack', cat:'Paquetes', name:'Paquete de 10 sesiones', dur:'2 meses', price:'$4,500', mode:'request', cta:'Solicitar', img:'mo-session',
+      desc:'Diez sesiones con plan escrito y un ajuste cada dos semanas, para usar en dos meses.',
+      includes:['Plan de entrenamiento escrito','Ajuste cada dos semanas','Se usa en dos meses'],
+      flowTitle:'Solicitar paquete', flowIntro:'Es una solicitud: Pablo confirma tus horarios fijos antes de apartarlos.',
+      brief:[{k:'goal',l:'Objetivo',type:'chips',opts:['Fuerza','Bajar de peso','Movilidad','Volver a entrenar'],demo:['Fuerza']},{k:'days',l:'Días y hora',p:'Ej. lunes y miércoles 7:00',demo:'Lunes y miércoles 7:00'}]},
+    {id:'mob', cat:'Sesiones', name:'Evaluación de movilidad', dur:'45 min', price:'$350', mode:'instant', cta:'Reservar', img:'mo-mobility',
+      desc:'Revisión de postura y rango de movimiento con un plan de ejercicios para casa.',
+      includes:['Pruebas de movilidad','Plan de 3 ejercicios','Seguimiento por chat'], slots:['07:00','12:00','18:00'],
+      slotNote:'Horarios en CDMX.', policy:'Cambios con 12 h de aviso.',
+      whoFields:[{k:'where',l:'¿Dónde nos vemos?',p:'Colonia o parque'}]}
+  ],
+  renderSite(K,S){
+    const D=K.D, one=D.services.find(s=>s.id==='one')||D.services[0];
+    const cats=['Todo',...new Set(D.services.map(s=>s.cat))];
+    return `${K.status()}
+    <header class="mo-hdr" data-w="header · minimal"><b>${K.esc(D.talent.name)}</b><span class="sp"></span>${K.demo()}${K.act(one,'k-btn')}</header>
+    <section class="mo-hero" data-w="hero · centered-type"><small>Entrenador personal · CDMX</small><h1>Entrena una hora. <em>Siente la diferencia.</em></h1><p>Fuerza y movilidad a domicilio o al aire libre. Llevo el equipo.</p>${K.act(one,'k-btn')}</section>
+    <section class="mo-list" id="services" data-w="services_catalog · compact-list"><div class="hd"><h2>Precios</h2><small>Elige y reserva</small></div>
+      <div class="mo-search" data-w="services_catalog · search" aria-hidden="true">⌕ Buscar un servicio</div>
+      <div class="mo-pills" role="group" aria-label="Categorías">${cats.map((c,i)=>`<button aria-pressed="${i===0}">${K.esc(c)}</button>`).join('')}</div>
+      <div>${D.services.map(s=>`<div class="mo-row" data-k-open="${s.id}"><b>${K.esc(s.name)}</b><span class="p">${K.esc(s.priceLabel||s.price)}</span><small>${K.esc(s.dur)} · ${K.esc(s.cat)}</small>${K.act(s,'k-btn')}</div>`).join('')}</div></section>
+    <section class="mo-faq" id="contact" data-w="contact · faq"><h2>Bueno saberlo</h2>
+      <details><summary>¿Llevas el equipo?</summary><p>Sí: ligas, mancuernas ajustables y tapete.</p></details>
+      <details><summary>¿Dónde entrenamos?</summary><p>En tu casa, edificio o un parque cercano, en CDMX.</p></details>
+      <details><summary>¿Cómo pago?</summary><p>En persona, en efectivo o transferencia, al final de la sesión.</p></details></section>
+    <section class="mo-about" id="about" data-w="about · start"><h2>Sobre mí</h2><p>${K.esc(D.talent.bio)}</p></section>
+    <footer class="mo-end"><span>${K.esc(T.domain)}</span><span>Hecho con Tulala</span></footer>`;
+  },
+  notes:{
+    summary:'DRAFT (PM review, TUL-328). Mono is the fast theme: one bold statement, the full price list directly under it with search and category pills, a three-question FAQ, and About last. No gallery and no photos on the page; a client who already knows what they want books in two taps.',
+    distinct:['Type-only hero (800 weight, tight tracking); the only finished-bar theme with no hero image.','Price list straight after the hero, with search.','No gallery block at all.','About sits at the bottom, after the FAQ.'],
+    neighbours:[['Gridline','Gridline is a trades utility page with tap-to-call and a comparison matrix. Mono is a plain price list for any personal service.'],['Solace','Solace is slow and photo-led. Mono has no photos and gets to the list immediately.']],
+    type:['Inter Tight 800 for the statement and names (proposal; code uses the talent type system with fontWeight 800, size display).','Inter for body.'],
+    colour:['Paper & Black (default), Cobalt, Carbon (gallery-meta palettes; Signal Red is the custom start).','The accent marks the second half of the statement and the buttons.'],
+    shape:['6 px corners, pill category filters, solid buttons.','No motion beyond sheet transitions.'],
+    map:[['Header','Header shell (default)','minimal','Name, CTA','Existing widget','Gap: no-nav header style (COLLECTION_DESIGN_GAPS)'],
+      ['Hero','heroCentered (chips off, accent on, display 800)','centered-type','Eyebrow, statement, line, CTA','Existing widget',''],
+      ['Price list','services_catalog · compact_list, pills, search, no photos, solid CTA','compact-list','Order, categories, search','Existing widget','Gap: inline 3-tap slot picker (app)'],
+      ['FAQ','contactSection + FAQ','faq','Questions','Existing widget',''],
+      ['About','aboutBlock (align start)','start','Bio','Existing widget',''],
+      ['Booking surface','Booking sheet','bottom sheet / side panel','Brief per service','Existing widget','Instant session and assessment · request package'],
+      ['Chat','Guest chat dock','panel + service browser','Greeting','Existing widget',''],
+      ['Dock','Selection dock','chat + one action','Action label','Existing widget','']],
+    images:[['mo-session','Trainer at work (stock)','Sheet only','','Session, package'],['mo-mobility','Hands-on mobility (stock)','Sheet only','','Mobility assessment'],['mo-avatar','Portrait (stock)','Avatar','','Chat avatar']],
+    imgNote:'Mono shows no photos on the page; these only appear in the booking sheet and chat. Draft uses repo stock photos, not Pablo.',
+    needed:[['Pablo training a client outdoors','3:2','1','Booking sheet header'],['Headshot','1:1','1','Chat avatar']],
+    suits:['Barber (planned): Carbon palette','Lash artist (planned): Paper & Black','Tutor (planned): Cobalt'],
+    sameContent:'Pablo in Solace would open on a calm photo with one service column; in Frame on a photo grid. Mono is the only one where the price list is the second thing on the page.',
+    matrix:['Nav: minimal bar (no links)','Hero: centered statement, no image','Services: compact list with search and pills','Portfolio: none','Booking surface: bottom sheet','Type: Inter Tight 800 + Inter','Motion: none'],
+    deviation:'Draft authored by the developer from buildMonoPayload + gallery-meta (PM decision on TUL-328, 2026-10-09). Sessions and package from Pablo Serrano\'s live services (TAL-93010); the mobility assessment is a draft third row so the pills have two categories.',
+    questions:['Is a header with no nav links acceptable on phones (the gap above)?','Should search hide when the list has fewer than 6 services?']
+  }
+};
+KIT(T);
+</script>
+</body></html>

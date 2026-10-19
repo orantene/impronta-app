@@ -3155,7 +3155,8 @@ export async function cancelBookingAction(
       // booking.cancelled notifications (spec §6.4) — client + talent +
       // coordinator, email + in-app. Needs the inquiry for contact/schedule +
       // roster, so it only fires when the booking came from an inquiry.
-      notifyBookingCancelled({ tenantId, inquiryId: cancelInquiryId, bookingId });
+      // No paid/refund amounts here: the refund line is dropped, and the copy says staff cancelled.
+      notifyBookingCancelled({ tenantId, inquiryId: cancelInquiryId, bookingId, extra: { cancelledBy: "staff" } });
     }
 
     revalidatePath(`/${tenantSlug}`, "layout");
