@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
 import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { eventsListMetadata } from "@/lib/seo/event-metadata";
 
 /**
  * `/events` — the tenant's public list of what is on.
@@ -27,9 +29,9 @@ import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Events",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return eventsListMetadata(await getRequestLocale());
+}
 
 type Row = {
   id: string;

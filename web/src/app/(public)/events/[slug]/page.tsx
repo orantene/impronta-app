@@ -16,6 +16,9 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { resolveLinkedBuilderPage } from "@/lib/events/event-page-link";
 import { eventPathWithoutLocale } from "@/lib/events/event-page-paths";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { eventDetailMetadataFields } from "@/lib/seo/event-metadata";
+import { buildEventJsonLd, eventTiersForJsonLd } from "@/lib/seo/event-json-ld";
+import { jsonLdScriptString } from "@/lib/cms/posts-public-model";
 import { EventPageView, type Locale } from "./event-page-view";
 
 /**
@@ -75,7 +78,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const scope = await getPublicTenantScope();
   const supabase = scope ? await createClient() : null;
   const { data } = supabase
-    ? await supabase.from("events").select("title, page_id").eq("tenant_id", scope!.tenantId).eq("status", "published").eq("slug", slug).maybeSingle()
+    ? await supabase.from("events").select("title, description, page_id, cover_media_id").eq("tenant_id", scope!.tenantId).eq("status", "published").eq("slug", slug).maybeSingle()
     : { data: null };
   if (!data) return { title: slug.replace(/-/g, " ") };
   const locale = await getRequestLocale();
@@ -87,7 +90,22 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     const pageMeta = await cmsPageMetadata({ params: Promise.resolve({ slug: page.slug.split("/") }) });
     return { ...pageMeta, alternates: undefined, ...(await eventAlternates(locale, slug, page.publishedLocales)) };
   }
-  return { title: data.title as string, ...(await eventAlternates(locale, slug)) };
+  const alternates = await eventAlternates(locale, slug);
+  const { data: cover } = data.cover_media_id && supabase
+    ? await supabase.from("media_assets").select("public_url, alt").eq("id", data.cover_media_id as string).maybeSingle()
+    : { data: null };
+  return {
+    title: data.title as string,
+    ...eventDetailMetadataFields({
+      title: data.title as string,
+      description: data.description as string | null,
+      imageUrl: (cover?.public_url as string | null) ?? null,
+      imageAlt: (cover?.alt as string | null) ?? null,
+      canonical: (alternates.alternates?.canonical as string | undefined) ?? null,
+      locale,
+    }),
+    ...alternates,
+  };
 }
 
 export default async function PublicEventPage({ params }: Params) {
@@ -187,8 +205,28 @@ export default async function PublicEventPage({ params }: Params) {
         }
       : null;
 
+  // F4: schema.org Event for Google (pure builder in lib/seo/event-json-ld.ts).
+  const requestLocale = await getRequestLocale();
+  const canonicalUrl = (await eventAlternates(requestLocale, slug)).alternates?.canonical;
+  const eventLd = nextAt && canonicalUrl
+    ? buildEventJsonLd({
+        url: String(canonicalUrl),
+        name: event.title as string,
+        description: ((event.description as string | null) ?? "").trim() || null,
+        imageUrl: (cover?.public_url as string | null) ?? null,
+        startsAt: nextAt,
+        endsAt: (sessions.find((s) => (s.starts_at as string) === nextAt)?.ends_at as string | null) ?? null,
+        zone,
+        venueName: ctx.venueName,
+        organizerName: ctx.workspaceDisplayName,
+        currency: picker.ok ? picker.currency : "USD",
+        tiers: picker.ok ? eventTiersForJsonLd(picker) : [],
+      })
+    : null;
+
   return (
     <>
+      {eventLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScriptString(eventLd) }} /> : null}
       <PublicHeader />
       <EventPageView
         tenantId={scope.tenantId}

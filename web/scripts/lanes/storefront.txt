@@ -43,6 +43,9 @@ src/lib/saas/talent-site-host-routing.test.ts
 src/lib/scheduling/bookings-off-wording.static.test.ts
 src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts
+src/lib/seo/event-json-ld.test.ts
+src/lib/seo/event-metadata.test.ts
+src/lib/seo/event-sitemap-entries.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
