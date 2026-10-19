@@ -253,7 +253,7 @@ describe("E1: hosted Checkout bookings end paid", () => {
     const w = world();
     w.updateError = { message: "connection reset" };
     const r = await deliver(sessionEvent("checkout.session.completed"), w);
-    assert.equal(r.ok, false);
+    assert.ok("ok" in r && r.ok === false, "retryable settle error");
     assert.equal(w.markPaidCalls, 0);
     assert.equal(w.row?.status, "draft");
   });
@@ -270,7 +270,7 @@ describe("E1: hosted Checkout bookings end paid", () => {
   test("a cancelled row is never advanced or paid by a late settlement", async () => {
     const w = world(draftRow({ status: "cancelled" }));
     const r = await deliver(sessionEvent("checkout.session.completed"), w);
-    assert.equal(r.ok, false);
+    assert.ok("ok" in r && r.ok === false, "retryable settle error");
     assert.equal(w.row?.status, "cancelled");
     assert.equal(w.paidTransitions, 0);
   });
@@ -278,7 +278,7 @@ describe("E1: hosted Checkout bookings end paid", () => {
   test("webhook before the row exists: retryable, nothing written", async () => {
     const w = world(null);
     const r = await deliver(sessionEvent("checkout.session.completed"), w);
-    assert.equal(r.ok, false);
+    assert.ok("ok" in r && r.ok === false, "retryable settle error");
     assert.equal(w.paidTransitions, 0);
   });
 });
