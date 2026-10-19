@@ -65,6 +65,8 @@ type World = {
   markPaidCalls: number;
   paidTransitions: number;
   order: string[];
+  /** Reasons the settle path flagged for a person (TUL-1283 / TUL-1284 / M2). */
+  flags?: string[];
   updateError?: { message: string } | null;
   /** Simulate a concurrent writer moving the row between the guard read and the advance. */
   raceTo?: string;
@@ -128,6 +130,10 @@ function deps(w: World, account: StripeAccountKey = "us"): Partial<SettleDeps> {
       return true;
     },
     loadChargePlatformForTransaction: async () => account,
+    flagPayment: async (_id, flag) => {
+      (w.flags ??= []).push(flag.reason);
+      return { ok: true, created: true };
+    },
     markPaid: async (id) => {
       w.order.push("markPaid");
       w.markPaidCalls += 1;
@@ -247,6 +253,7 @@ describe("E1: hosted Checkout bookings end paid", () => {
     assert.equal(w.updates.length, 0);
     assert.equal(w.markPaidCalls, 0);
     assert.equal(w.row?.status, "draft");
+    assert.deepEqual(w.flags, ["amount_mismatch"], "TUL-1283: the mismatch leaves one reconciliation flag");
   });
 
   test("advance write error: the delivery is retried and markPaid never runs", async () => {
@@ -268,11 +275,16 @@ describe("E1: hosted Checkout bookings end paid", () => {
   });
 
   test("a cancelled row is never advanced or paid by a late settlement", async () => {
+    // TUL-1284: this used to be a retryable error, so Stripe replayed it for
+    // three days and nothing recorded that the money was taken. It is now
+    // acknowledged with a refund flag; the row is still never advanced or paid.
     const w = world(draftRow({ status: "cancelled" }));
     const r = await deliver(sessionEvent("checkout.session.completed"), w);
-    assert.ok("ok" in r && r.ok === false, "retryable settle error");
+    assert.deepEqual(r, { ok: true, outcome: "charge_on_inactive_row" });
+    assert.deepEqual(w.flags, ["charge_on_inactive_row"]);
     assert.equal(w.row?.status, "cancelled");
     assert.equal(w.paidTransitions, 0);
+    assert.equal(w.markPaidCalls, 0);
   });
 
   test("webhook before the row exists: retryable, nothing written", async () => {

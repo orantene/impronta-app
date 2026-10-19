@@ -41,6 +41,9 @@
  * database makes impossible to test.
  */
 
+import { formatFailedRefundMoney } from "@/lib/payments/failed-refund-attention-note";
+import type { PaymentReviewFlag } from "@/lib/payments/payment-review-flags-model";
+
 export const EXCEPTION_SOURCES = [
   /** A paid ticket line whose refund has not landed. */
   "refund_intent",
@@ -54,6 +57,8 @@ export const EXCEPTION_SOURCES = [
   "outbox_dead",
   /** A command that took an idempotency claim and never came back for it. */
   "stale_command_claim",
+  /** A card charge the settle path flagged: wrong amount, closed row, or a duplicate. */
+  "payment_flag",
 ] as const;
 
 export type ExceptionSource = (typeof EXCEPTION_SOURCES)[number];
@@ -107,6 +112,20 @@ export type ExceptionRow = {
   nextAction: NextAction;
   /** Where the underlying object lives, when there is one. */
   href: string | null;
+  /**
+   * Translated sentences, as keys under `dashboard.issues.*` plus their
+   * variables. When present the screen speaks these in the reader's language;
+   * `title`, `detail` and the action's `label`/`why` stay the English fallback.
+   */
+  copy?: ExceptionCopy;
+};
+
+export type ExceptionCopy = {
+  title: string;
+  detail: string;
+  label: string;
+  why: string;
+  vars: Record<string, string>;
 };
 
 const SEVERITY_RANK: Record<ExceptionSeverity, number> = {
@@ -587,5 +606,84 @@ export function classifyStaleCommandClaim(
       why: "Nobody can say whether the handler finished.",
     },
     href,
+  };
+}
+
+export type PaymentFlagFacts = {
+  transactionId: string;
+  orderId: string | null;
+  flag: PaymentReviewFlag;
+};
+
+function flagMoney(amountCents: number | null, currency: string | null): string {
+  if (amountCents == null || !currency) return "?";
+  return formatFailedRefundMoney(amountCents, currency);
+}
+
+/**
+ * A charge Stripe took that the settle path could not book (TUL-1283,
+ * TUL-1284, TUL-1268 M2). Always critical, always the money desk, never a
+ * button.
+ *
+ * CRITICAL WITH NO AGE THRESHOLD. Every one of these is money at the provider
+ * that our books do not explain: a charge for the wrong amount, a charge on a
+ * booking that was already cancelled, or a second charge for a booking already
+ * paid. The customer is out of pocket from the moment the flag exists.
+ *
+ * NO BUTTON. The fix is a refund or a reconciliation at the provider, decided
+ * by a person who has looked at both charges. A refund button here would be a
+ * second refund executor on a screen with no claim guard, which is the one
+ * thing this inbox refuses to grow.
+ *
+ * THE SENTENCES ARE KEYS. `copy` names `dashboard.issues.paymentFlag.*` so the
+ * screen speaks the reader's language; `title`/`detail` stay as the English
+ * fallback for any reader that does not look the keys up.
+ */
+export function classifyPaymentFlag(facts: PaymentFlagFacts, href: string | null): ExceptionRow {
+  const f = facts.flag;
+  const charged = flagMoney(f.chargedAmountCents, f.chargedCurrency);
+  const expected = flagMoney(f.expectedAmountCents, f.expectedCurrency);
+  const title =
+    f.reason === "amount_mismatch"
+      ? "Card charge does not match the booking"
+      : f.reason === "charge_on_inactive_row"
+        ? "Card charge on a cancelled booking"
+        : "Possible duplicate card charge";
+  const detail =
+    f.reason === "amount_mismatch"
+      ? `Stripe charged ${charged} but the booking is for ${expected}. It was not marked paid.`
+      : f.reason === "charge_on_inactive_row"
+        ? `Stripe charged ${charged} after this booking was ${f.rowStatus ?? "closed"}. The money is owed back.`
+        : `Stripe charged ${charged} again (${f.paymentIntentId ?? "?"}) after the booking was already paid by ${f.otherPaymentIntentId ?? "?"}.`;
+  return {
+    key: `payment_flag:${facts.transactionId}:${f.reason}:${f.paymentIntentId ?? "none"}`,
+    source: "payment_flag",
+    severity: "critical",
+    owner: "money",
+    sourceId: facts.transactionId,
+    title,
+    detail,
+    attempts: 0,
+    firstSeenAt: f.flaggedAt,
+    lastAttemptAt: null,
+    nextAction: {
+      kind: "inspect",
+      label: "Check the charge in Stripe",
+      why: "Refund or reconcile it at the provider. Nothing here moves money.",
+    },
+    href,
+    copy: {
+      title: `paymentFlag.${f.reason}.title`,
+      detail: `paymentFlag.${f.reason}.detail`,
+      label: "paymentFlag.label",
+      why: "paymentFlag.why",
+      vars: {
+        charged,
+        expected,
+        status: f.rowStatus ?? "",
+        paymentIntent: f.paymentIntentId ?? "?",
+        otherPaymentIntent: f.otherPaymentIntentId ?? "?",
+      },
+    },
   };
 }

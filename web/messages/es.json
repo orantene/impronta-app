@@ -17945,6 +17945,22 @@
       "result": {
         "seatLostAfterPayment": "Este lugar se perdio después de que la persona pago, así que no se puede emitir ninguna entrada. Ahora se le debe un reembolso, y ya está esperando en esta lista como su propia fila."
       },
+      "paymentFlag": {
+        "label": "Revisar el cobro en Stripe",
+        "why": "Reembólsalo o concílialo en Stripe. Aquí no se mueve dinero.",
+        "amount_mismatch": {
+          "title": "El cobro con tarjeta no coincide con la reserva",
+          "detail": "Stripe cobró {charged} pero la reserva es por {expected}. No se marcó como pagada. Concilia el monto o reembolsa el cobro."
+        },
+        "charge_on_inactive_row": {
+          "title": "Cobro con tarjeta en una reserva cancelada",
+          "detail": "Stripe cobró {charged} después de que esta reserva se canceló o su pago falló. Se le debe devolver el dinero al cliente."
+        },
+        "duplicate_charge": {
+          "title": "Posible cobro duplicado con tarjeta",
+          "detail": "Stripe cobró {charged} otra vez ({paymentIntent}) cuando esta reserva ya estaba pagada con {otherPaymentIntent}. Reembolsa el cobro extra si es un duplicado."
+        }
+      },
       "sheet": {
         "age": "Desde",
         "attempts": "Intentos",

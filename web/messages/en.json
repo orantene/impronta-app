@@ -17945,6 +17945,22 @@
       "result": {
         "seatLostAfterPayment": "This seat was lost after the buyer paid, so no ticket can be issued for it. A refund is owed instead, and it is now waiting in this list as its own row."
       },
+      "paymentFlag": {
+        "label": "Check the charge in Stripe",
+        "why": "Refund or reconcile it in Stripe. Nothing here moves money.",
+        "amount_mismatch": {
+          "title": "Card charge does not match the booking",
+          "detail": "Stripe charged {charged} but the booking is for {expected}. It was not marked paid. Reconcile the amount or refund the charge."
+        },
+        "charge_on_inactive_row": {
+          "title": "Card charge on a cancelled booking",
+          "detail": "Stripe charged {charged} after this booking was cancelled or its payment had failed. The money is owed back to the customer."
+        },
+        "duplicate_charge": {
+          "title": "Possible duplicate card charge",
+          "detail": "Stripe charged {charged} again ({paymentIntent}) after this booking was already paid by {otherPaymentIntent}. Refund the extra charge if it is a duplicate."
+        }
+      },
       "sheet": {
         "age": "Since",
         "attempts": "Attempts",

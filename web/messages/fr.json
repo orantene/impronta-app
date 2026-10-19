@@ -5806,6 +5806,22 @@
       "result": {
         "seatLostAfterPayment": "Cette place a ete perdue apres le paiement, aucun billet ne peut donc etre emis. Un remboursement est du a la place, et il attend deja dans cette liste sur sa propre ligne."
       },
+      "paymentFlag": {
+        "label": "Verifier le paiement dans Stripe",
+        "why": "Remboursez ou rapprochez-le dans Stripe. Rien ici ne deplace d'argent.",
+        "amount_mismatch": {
+          "title": "Le paiement par carte ne correspond pas a la reservation",
+          "detail": "Stripe a debite {charged} mais la reservation est de {expected}. Elle n'a pas ete marquee payee. Rapprochez le montant ou remboursez le paiement."
+        },
+        "charge_on_inactive_row": {
+          "title": "Paiement par carte sur une reservation annulee",
+          "detail": "Stripe a debite {charged} apres l'annulation de cette reservation ou l'echec de son paiement. L'argent doit etre rendu au client."
+        },
+        "duplicate_charge": {
+          "title": "Possible double paiement par carte",
+          "detail": "Stripe a debite {charged} une seconde fois ({paymentIntent}) alors que cette reservation etait deja payee par {otherPaymentIntent}. Remboursez le paiement en trop s'il s'agit d'un doublon."
+        }
+      },
       "sheet": {
         "age": "Depuis",
         "attempts": "Tentatives",

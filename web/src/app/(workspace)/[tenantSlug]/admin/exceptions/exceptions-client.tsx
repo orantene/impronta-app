@@ -102,6 +102,29 @@ function ageLabel(iso: string, t: (key: string) => string): string {
   return `${Math.floor(h / 24)}d`;
 }
 
+/**
+ * A row that carries `copy` (keys under `dashboard.issues.*`) is spoken in the
+ * reader's language; the model's English stays the fallback for a missing key.
+ */
+function localizeRow(row: ExceptionRow, t: (key: string) => string): ExceptionRow {
+  const copy = row.copy;
+  if (!copy) return row;
+  const say = (key: string, fallback: string): string => {
+    const full = `${K}.${key}`;
+    const text = t(full);
+    return text && text !== full ? interpolate(text, copy.vars) : fallback;
+  };
+  return {
+    ...row,
+    title: say(copy.title, row.title),
+    detail: say(copy.detail, row.detail),
+    nextAction:
+      row.nextAction.kind === "inspect"
+        ? { ...row.nextAction, label: say(copy.label, row.nextAction.label), why: say(copy.why, row.nextAction.why) }
+        : { ...row.nextAction, label: say(copy.label, row.nextAction.label) },
+  };
+}
+
 type RowState = { pending: boolean; message: string | null; failed: boolean };
 
 /** A label on the left, a value on the right (MW03's facts card). */
@@ -115,7 +138,7 @@ function KV({ label, value }: { label: string; value: string }) {
 }
 
 export function ExceptionsClient({
-  rows,
+  rows: modelRows,
   summary,
   unavailable,
 }: {
@@ -124,6 +147,7 @@ export function ExceptionsClient({
   unavailable: string[];
 }) {
   const t = useT();
+  const rows = useMemo(() => modelRows.map((row) => localizeRow(row, t)), [modelRows, t]);
   const [state, setState] = useState<Record<string, RowState>>({});
   // MW03/MW04: on the phone a row opens as a sheet with the facts, what can
   // be done, and the result once it is done.
