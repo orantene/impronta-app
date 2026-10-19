@@ -27,7 +27,8 @@ test("TUL-888: card badge, availability and name no longer hard-truncate", () =>
   const parts = read("components/talent-cards/talent-card-parts.tsx");
   assert.doesNotMatch(parts, /max-w-full items-center truncate/);
   const card = read("components/talent-cards/TalentCard.tsx");
-  assert.match(card, /line-clamp-2 break-words/);
+  // The name wraps to two lines; a `select-none` class now sits between the two utilities.
+  assert.match(card, /line-clamp-2[^"`]*break-words/);
   assert.doesNotMatch(card, /<span className="truncate">\{data\.availabilityLabel\}/);
   assert.match(read("components/marketing/directory/directory-copy.ts"), /Disp\. \$\{days\} de 30 días/);
 });
@@ -57,4 +58,23 @@ test("TUL-886: hit areas reach 44px (visual size stays small)", () => {
   assert.match(read("components/marketing/marketing-language-toggle.tsx"), /before:-inset-y-\[13px\]/);
   // Hero dots: whole button is 44x44 around a 6px dot.
   assert.match(read("components/marketing/hero-section.tsx"), /min-h-11 min-w-11 items-center justify-center/);
+});
+
+test("TUL-1174: parked directory launcher leaves the Filtros trigger uncovered at phone width", () => {
+  const shell = read("components/marketing/directory/MarketingDirectoryShell.tsx");
+  assert.match(shell, /@media \(max-width: 639px\)\{\[data-guest-chat-launcher\]\{left:16px!important/);
+  assert.match(shell, /\[data-directory-toolbar-lead\]\{padding-left:calc\(54px/);
+  assert.match(read("components/marketing/directory/DirectoryToolbar.tsx"), /data-directory-toolbar-lead=""/);
+});
+
+test("TUL-594: hero intro tightens at <=480px so it wraps to at most 3 lines", () => {
+  const hero = read("components/marketing/hero-section.tsx");
+  assert.match(hero, /max-\[480px\]:text-\[0\.9rem\]/);
+  assert.match(hero, /max-\[480px\]:leading-\[1\.5\]/);
+  assert.match(hero, /max-\[480px\]:max-w-none/);
+  // Copy stays the approved text (no truncation of meaning).
+  const copy = read("lib/marketing/copy.ts");
+  assert.match(copy, /Everything works together\./);
+  assert.match(copy, /Todo conectado\./);
+  assert.doesNotMatch(hero, /line-clamp/);
 });

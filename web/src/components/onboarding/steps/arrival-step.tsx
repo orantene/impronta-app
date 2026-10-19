@@ -7,7 +7,7 @@
  */
 
 import { planIntentLabel, upgradeHrefFromToday, workspaceUpgradeHref, type PlanIntent } from "@/lib/onboarding/plan-intent";
-import { draftReasonKey, type ArrivalPayload } from "@/lib/onboarding/arrival";
+import { draftReasonKey, draftSawKey, draftSupportLine, type ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-frame";
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
@@ -250,6 +250,8 @@ function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string;
       sub={sub}
       reason={arrival.draftReason ? t(draftReasonKey(arrival)) : undefined}
       reasonCode={arrival.draftReason}
+      saw={arrival.draftReason ? (() => { const k = draftSawKey(arrival); return t(k.key).replace("{status}", String(k.status ?? "")); })() : undefined}
+      supportLine={draftSupportLine(arrival)}
       retryLabel={published ? t("public.onboarding.arrival.checkAgain") : undefined}
       onRetry={onRetry}
       busy={busy}
@@ -264,15 +266,16 @@ function DraftSaved({ t, arrival, onRetry, busy }: { t: (key: string) => string;
  * The honest state: nothing is claimed live. TUL-819: one plain reason line,
  * ONE primary (retry), then quiet text links (editor, dashboard).
  */
-function DraftBody({ t, title, sub, reason, reasonCode, retryLabel, message, onRetry, busy, editorHref, panelHref, variant }: { t: (key: string) => string; title?: string; sub: string; reason?: string; reasonCode?: string; retryLabel?: string; message?: string; onRetry?: () => void; busy: boolean; editorHref?: string; panelHref?: string; variant: string }) {
+function DraftBody({ t, title, sub, reason, reasonCode, saw, supportLine, retryLabel, message, onRetry, busy, editorHref, panelHref, variant }: { t: (key: string) => string; title?: string; sub: string; reason?: string; reasonCode?: string; saw?: string; supportLine?: string; retryLabel?: string; message?: string; onRetry?: () => void; busy: boolean; editorHref?: string; panelHref?: string; variant: string }) {
   return (
     <div data-testid="onb-arrival-failed" data-variant={variant} data-reason={reasonCode}>
       <Title>{title ?? t("public.onboarding.arrival.draftTitle")}</Title>
       <Sub>{sub}</Sub>
       <p className="mt-3 text-[0.9375rem] leading-[1.5]" style={{ color: "var(--tl-ink)" }} data-testid="onb-arrival-reason">{reason ?? t("public.onboarding.arrival.draftReason")}</p>
+      {saw ? <p className="mt-2 text-[0.875rem] leading-[1.5]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-arrival-saw">{saw}</p> : null}
       <details className="mt-2 text-[0.8125rem]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-arrival-details">
         <summary className="cursor-pointer font-semibold">{t("public.onboarding.arrival.draftDetails")}</summary>
-        <p className="mt-1 break-words">{message ? `${message} (${variant})` : variant}</p>
+        <p className="mt-1 break-words" data-testid="onb-arrival-support">{message ? `${message} (${variant})` : (supportLine || variant)}</p>
       </details>
       <div className="mt-6 flex flex-col gap-2">
         {onRetry ? <PrimaryButton onClick={onRetry} disabled={busy} testId="onb-arrival-retry">{retryLabel ?? t("public.onboarding.arrival.retry")}</PrimaryButton> : null}

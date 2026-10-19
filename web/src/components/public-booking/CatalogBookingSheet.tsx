@@ -392,7 +392,7 @@ export function CatalogBookingSheet({
     if (detail) return;
     resetConfirmGuards();
   }, [detail, resetConfirmGuards]);
-  const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es) : null; // TUL-1022
+  const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es, mode === "live" ? livePlaceCity : null) : null; // TUL-1022
   // TUL-1035: the confirmation outlives a remount / refresh / same-service re-open.
   const { doneSlot } = useCatalogDoneSnapshot({
     step, detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts: doneFacts,
@@ -616,7 +616,7 @@ export function CatalogBookingSheet({
                         <span>
                           {a.label}
                           {typeof a.durationMinutes === "number" && a.durationMinutes > 0
-                            ? ` · +${a.durationMinutes} min`
+                            ? ` · +${durationLabel(a.durationMinutes)}`
                             : ""}
                         </span>
                         <b>+ {money(a.amountCents, detail.currency)}</b>

@@ -13,6 +13,7 @@ import type { LinkCheck } from "@/lib/server-actions/onboarding-module";
 
 import { promisedHost, type DesignLookKey } from "@/lib/onboarding/finish-url";
 import type { ReviewLine } from "@/lib/onboarding/review-setup-lines";
+import { timezoneChoices, timezoneDisplayName } from "@/lib/onboarding/setup";
 import { DesignPick } from "./design-pick";
 import { GhostLink, Notice, PrimaryButton, Sub, Title } from "../ui";
 
@@ -31,6 +32,8 @@ export function ReadyStep({
   onConfirmAge18,
   ageRequiredNotice = false,
   setupLines = [],
+  onChangeTimezone,
+  locale = "en",
 }: {
   t: (key: string) => string;
   understanding: Understanding;
@@ -50,6 +53,9 @@ export function ReadyStep({
   ageRequiredNotice?: boolean;
   /** TUL-806: services, hours and place from step 3. */
   setupLines?: ReviewLine[];
+  /** TUL-815: makes the time zone row a select; the parent saves the new zone. */
+  onChangeTimezone?: (zoneId: string) => void;
+  locale?: "en" | "es";
 }) {
   const talentOnly = path === "talent";
   const needsAge = path !== "business" && !!onConfirmAge18;
@@ -122,7 +128,21 @@ export function ReadyStep({
         {setupLines.map((l) => (
           <li key={`setup-${l.id}`} className="flex flex-col gap-0.5 sm:flex-row sm:gap-2" data-testid={`onb-ready-setup-${l.id}`}>
             <span className="shrink-0 text-[0.75rem] sm:w-32 font-semibold uppercase tracking-[0.06em] leading-[1.6]" style={{ color: "var(--tl-muted)" }}>{l.label}</span>
-            <span className="min-w-0 break-words" style={{ color: "var(--tl-ink)" }}>{l.value}</span>
+            {l.id === "timezone" && l.raw && onChangeTimezone ? (
+              // TUL-815: the zone is editable right here, no trip back to step 3.
+              <select
+                value={l.raw}
+                onChange={(ev) => onChangeTimezone(ev.target.value)}
+                aria-label={l.label}
+                data-testid="onb-ready-timezone"
+                className="h-9 min-w-0 rounded-[10px] px-2 text-[0.9375rem]"
+                style={{ background: "var(--tl-bone)", border: "1px solid var(--tl-hairline-strong)", color: "var(--tl-ink)" }}
+              >
+                {timezoneChoices(l.raw).map((z) => <option key={z.id} value={z.id}>{timezoneDisplayName(z.id, locale)}</option>)}
+              </select>
+            ) : (
+              <span className="min-w-0 break-words" style={{ color: "var(--tl-ink)" }}>{l.value}</span>
+            )}
           </li>
         ))}
       </ul>

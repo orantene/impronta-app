@@ -26,6 +26,7 @@ import { AgendaHoldFlows } from "./AgendaHoldFlows";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { readAgendaNowClient } from "@/lib/talent-agenda/agenda-now";
 import { useRouter } from "next/navigation";
+import { catalogBookingRef } from "@/components/public-booking/catalog-booking-confirm";
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -291,7 +292,8 @@ export function AgendaBookingRecord({
           <div className="min-w-0">
             <h1 className="text-[20px] font-semibold text-[var(--tc-primary)]">{item.title}</h1>
             <p className="mt-0.5 text-[12.5px] text-[var(--tc-muted)]">
-              {[item.id ? `#${item.id.slice(0, 8).toUpperCase()}` : "", whenFull].filter(Boolean).join(" · ")}
+              {/* TUL-434: the same reference the client holds ("TUL-" + 8 of the booking id), not a bare "#" + the row id. */}
+              {[catalogBookingRef(bookingId ?? item.id) ?? "", whenFull].filter(Boolean).join(" · ")}
             </p>
             <button
               type="button"

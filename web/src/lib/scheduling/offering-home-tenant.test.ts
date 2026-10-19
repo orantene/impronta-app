@@ -50,7 +50,7 @@ test("refusals follow the page's language (Spanish page, Spanish words) and keep
   const en = "This one is booked by request. Send a message to ask for a time.";
   assert.match(localizedBookingRefusal("request_only", "es", en)!, /^Este servicio se reserva por solicitud/);
   assert.equal(localizedBookingRefusal("request_only", "en", "x"), en);
-  assert.match(localizedBookingRefusal("not_accepting_bookings", "es", "x")!, /reservas nuevas/);
+  assert.match(localizedBookingRefusal("not_accepting_bookings", "es", "x")!, /nuevas reservas/);
   assert.match(localizedBookingRefusal("slot_taken", "es", "x")!, /ocuparse/);
   assert.equal(localizedBookingRefusal("sold_out", "es", "Sold out"), "Sold out");
 });

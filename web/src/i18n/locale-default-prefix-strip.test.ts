@@ -34,3 +34,15 @@ test("syncLocaleCookieForPath leaves a non-redirect /en path alone", () => {
   syncLocaleCookieForPath(res, "/en/login", S);
   assert.equal(res.cookies.get("locale")?.value === "en" && res.cookies.get("locale_auto")?.value === "", false);
 });
+
+test("TUL-1261: /en/ in front of a dashboard path never stamps a deliberate locale=en", () => {
+  for (const path of ["/en/admin/calendar", "/en/acme/admin/calendar", "/en/talent", "/en/client/inbox"]) {
+    const res = NextResponse.redirect("https://x.test/x", 308);
+    syncLocaleCookieForDefaultPrefixStrip(res, path, S);
+    assert.equal(res.cookies.get("locale"), undefined, path);
+  }
+  // the retired register stubs still record the explicit choice
+  const res = NextResponse.redirect("https://x.test/register", 308);
+  syncLocaleCookieForDefaultPrefixStrip(res, "/en/talent/register", S);
+  assert.equal(res.cookies.get("locale")?.value, "en");
+});

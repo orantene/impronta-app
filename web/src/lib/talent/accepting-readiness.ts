@@ -164,6 +164,25 @@ export function servicesCatalogChannel(input: { explicitTalentProfileId?: string
 }
 
 /**
+ * TUL-964: the first targeted talent (in order) whose switch refuses a NEW
+ * contact of this kind, or null when all accept. Used by the one-shot inquiry
+ * submit so the signed-in path honours the switches like the guest chat does.
+ */
+export function firstTalentNotAccepting(
+  talentProfileIds: readonly string[],
+  switchesById: ReadonlyMap<string, AcceptingSwitches>,
+  kind: "booking_request" | "inquiry",
+): { talentProfileId: string; reason: AcceptingRefusalCode } | null {
+  for (const id of talentProfileIds) {
+    // Unknown switches fail open, like the loader.
+    const s = switchesById.get(id) ?? { acceptingBookings: true, acceptingInquiries: true };
+    const res = assertAcceptingNewContact(s, kind);
+    if (!res.ok) return { talentProfileId: id, reason: res.reason };
+  }
+  return null;
+}
+
+/**
  * A NEW conversation opened on a direct channel. A booking request (a time
  * or a reserve intent is attached) is a new booking; anything else is a new
  * inquiry. Replies to existing threads never come through here.

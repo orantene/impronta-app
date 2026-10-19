@@ -25,6 +25,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getPublicHostContext, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
+import { firstTalentNotAccepting, isDirectTalentChannel } from "@/lib/talent/accepting-readiness";
+import { loadTalentSiteSwitchesMany } from "@/lib/talent/site-switches-server";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
   type InquiryIntent,
@@ -285,6 +288,27 @@ export async function submitInquiryNowAction(
     }
   }
 
+  // TUL-964 / WSF-C (§7): a NEW inquiry on a talent's DIRECT channel (own site
+  // or the Tulala profile) respects "not taking new inquiries", signed in or
+  // not, exactly like the guest chat start. Agency-routed hosts are never gated.
+  const hostCtx = await getPublicHostContext();
+  if (
+    requestedTalentIds.length > 0 &&
+    isDirectTalentChannel({ hostKind: hostCtx.kind, hostTenantId: hostCtx.tenantId, tenantId: ctx.tenantId })
+  ) {
+    const switches = await loadTalentSiteSwitchesMany(ctx.writeClient, requestedTalentIds);
+    const refused = firstTalentNotAccepting(requestedTalentIds, switches, "inquiry");
+    if (refused) {
+      const es = (await getRequestLocale()) === "es";
+      return {
+        kind: "error",
+        message: es
+          ? "Ahora no recibe mensajes nuevos. Si tienes una reserva, usa el enlace de tu email de confirmación."
+          : "This talent isn't taking new messages. If you have a booking, use the link in your confirmation email.",
+      };
+    }
+  }
+
   // For logged-in clients the intent.requester.user_id should be the
   // actor's user_id.
   if (ctx.actorUserId && !intent.requester.user_id) {
@@ -309,7 +333,7 @@ export async function submitInquiryNowAction(
     guestActivation = provisioned.status;
   }
 
-  const host = await getPublicHostContext();
+  const host = hostCtx;
   const result = await createInquiryFromIntent(ctx.writeClient, intent, {
     tenant_id: ctx.tenantId,
     actor_user_id: ctx.actorUserId,

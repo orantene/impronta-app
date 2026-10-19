@@ -11,6 +11,7 @@ import { useAdminShell, type TalentPage } from "@/components/admin/shell/interna
 import { openWorkingHoursPanel } from "@/components/admin/shell/internal/talent/agenda/WorkingHoursPanel";
 import { openGuideHome } from "@/lib/guide/open-guide";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { profileLeftCount } from "@/lib/talent/profile-left-count";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 
 type Row = { label: string; detail: string; page?: TalentPage; run?: () => void };
@@ -23,9 +24,17 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
   const [signingOut, setSigningOut] = useState(false);
   const name = bridgeTalentSelfProfile?.displayName?.trim() || copy.t("Not available");
   const city = bridgeTalentSelfProfile?.homeCity?.trim() || "";
-  const profileLeft = bridgeTalentCompletion
-    ? `${bridgeTalentCompletion.missing.length} ${copy.t("things left")}`
-    : copy.t("Not available");
+  const leftCount = profileLeftCount({
+    slices: eligibility.slices,
+    percent: eligibility.percent,
+    completionMissing: bridgeTalentCompletion ? bridgeTalentCompletion.missing.length : null,
+  });
+  const profileLeft =
+    leftCount == null
+      ? copy.t("Not available")
+      : leftCount === 0
+        ? copy.t("Complete")
+        : `${leftCount} ${copy.t("things left")}`;
   const bookable =
     eligibility.bookableCount == null
       ? copy.t("Not available")
@@ -59,6 +68,9 @@ export function TalentMoreScreen({ onClose }: { onClose: () => void }) {
         { label: "Profile", detail: profileLeft, page: "profile" },
         { label: "Photos of my work", detail: photosDetail, page: "profile" },
         { label: "Reviews", detail: copy.t("Open"), page: "reviews" },
+        // TUL-1003: the phone rail has no Posts tab. Visible to every talent: drafting is free,
+        // only Publicar needs Web Office (enforced server-side; the list shows the lock hint).
+        { label: "Posts", detail: copy.t("Open"), page: "posts" },
       ],
     },
     {

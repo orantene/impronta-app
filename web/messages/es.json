@@ -535,7 +535,7 @@
       },
       "inquiry": {
         "saveThisTalent": "Guardar este talento",
-        "savedToInquiryCart": "Guardado en tu lista",
+        "savedToInquiryCart": "Añadido a tu solicitud",
         "contactAboutTalent": "Contactar sobre este talento",
         "openInquiry": "Abrir consulta",
         "flashCouldNotUpdateSaved": "No se pudo actualizar la lista guardada",
@@ -691,7 +691,7 @@
           "viewFullProfile": "Ver perfil completo",
           "close": "Cerrar",
           "saveThisTalent": "Guardar este talento",
-          "savedToCart": "Guardado en tu lista",
+          "savedToCart": "Añadido a tu solicitud",
           "imageAlt": "{name}, vista previa",
           "dialogAria": "{name}, vista rápida"
         },
@@ -925,6 +925,8 @@
       "threadLogAria": "Conversación",
       "systemClusterMore": "{count} actualizaciones más",
       "systemClusterCollapse": "Ocultar",
+      "systemLineupCount": "Selección · {count} talentos",
+      "systemLineupRecommend": "Que la agencia recomiende",
       "messageRemoved": "Mensaje eliminado",
       "openFullToView": "Abre la conversación completa para ver esta actualización.",
       "notSent": "No enviado. Se restauró al cuadro.",
@@ -1348,6 +1350,7 @@
       "dockTrayRemove": "Quitar",
       "dockTrayOpenLineup": "Abrir Artículos",
       "dockTrayOpen": "Revisar",
+      "dockTraySend": "Enviar solicitud",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
       "catalogSearchPlaceholder": "Buscar en esta lista",
       "catalogSortLabel": "Ordenar",
@@ -1743,7 +1746,7 @@
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
-        "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
+        "notAccepting": "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
       },
@@ -2194,6 +2197,15 @@
           "notReachable": "Motivo: tu página no respondió cuando la abrimos. Toca Intentar de nuevo.",
           "oldContent": "Motivo: tu dirección todavía muestra contenido anterior. Toca Intentar de nuevo en unos segundos.",
           "notCreated": "Motivo: no pudimos crear tu dirección. Abre el editor para terminarla."
+        },
+        "draftSaw": {
+          "status": "Lo que vimos: tu dirección respondió con el error {status} en lugar de tu página.",
+          "statusUnknown": "Lo que vimos: tu dirección respondió con un error en lugar de tu página.",
+          "network": "Lo que vimos: tu dirección no respondió.",
+          "nameMissing": "Lo que vimos: tu dirección abrió, pero tu nombre todavía no aparece en la página.",
+          "noName": "Lo que vimos: tu página no tiene un nombre para comprobar. Abre el editor y agrega uno.",
+          "noUrl": "Lo que vimos: tu página todavía no tiene dirección.",
+          "protected": "Lo que vimos: tu dirección está detrás de un inicio de sesión, así que no pudimos verla."
         },
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",

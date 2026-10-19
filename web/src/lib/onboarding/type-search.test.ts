@@ -37,6 +37,42 @@ test("other trades are unaffected", () => {
   assert.equal(first("manicure"), "Manicurista");
   assert.equal(first("higienista"), "Higienista dental");
 });
+// TUL-1127 / TUL-1161: everyday words find the talent trade (the /start talent picker), not only the business catalogue.
+const TRADES: TalentTypeTerm[] = [
+  t("11", "hair-stylist", "Hair Stylist", "Estilista"),
+  t("12", "lash-artist", "Lash Artist", "Lashista"),
+  t("13", "dentist", "Dentist", "Dentista"),
+  t("14", "nail-artist", "Nail Artist", "Manicurista"),
+  t("15", "barber", "Barber", "Barbero"),
+  t("16", "cleaner", "Cleaner", "Limpiador"),
+];
+const firstSlug = (q: string) => rankTalentTypeOptions(TRADES, q, "es")[0]?.slug;
+for (const [word, slug] of [
+  ["corte de pelo", "hair-stylist"],
+  ["Corte de cabello", "hair-stylist"],
+  ["haircut", "hair-stylist"],
+  ["peluquera", "hair-stylist"],
+  ["lashes", "lash-artist"],
+  ["pestañas", "lash-artist"],
+  ["dentista", "dentist"],
+  ["clínica dental", "dentist"],
+  ["uñas", "nail-artist"],
+  ["casa", "cleaner"],
+  ["cleaning", "cleaner"],
+  ["house", "cleaner"],
+] as const) {
+  test(`everyday word "${word}" finds ${slug}`, () => {
+    assert.ok(slugsOf(word).includes(slug), `expected ${slug} in [${slugsOf(word).join(", ")}]`);
+  });
+}
+function slugsOf(q: string): string[] {
+  return rankTalentTypeOptions(TRADES, q, "es").map((o) => o.slug);
+}
+test("a long everyday phrase falls back to its significant words instead of zero hits", () => {
+  assert.ok(slugsOf("necesito un haircut para mañana").includes("hair-stylist"));
+  assert.ok(firstSlug("necesito un haircut para mañana"));
+  assert.deepEqual(rankTalentTypeOptions(TRADES, "zzzz qqqq", "es"), []);
+});
 test("empty text lists the default list", () => {
   assert.equal(rankTalentTypeOptions(TERMS, "", "es").length, TERMS.length);
 });

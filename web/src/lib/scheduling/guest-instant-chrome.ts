@@ -1,6 +1,8 @@
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import { isGuestCaptchaEnforced } from "@/lib/platform/guest-captcha-enforcement";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadSessionIsClient } from "@/lib/scheduling/instant-book-session-identity";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 
 /** Prefill for the booking / request form when a real session is present (TUL-62). */
@@ -39,6 +41,18 @@ export async function loadGuestInstantChrome(
     : CAPTCHA_OFF;
 
   if (!user || !supabase) {
+    return { signedIn: false, captcha: captchaConfig, client: null };
+  }
+
+  // TUL-1015 split: only a plain CLIENT session books as itself with the form
+  // fields hidden. A workspace owner / talent / staff session left signed in
+  // (the cookie spans *.tulala.digital) is not attached as the booking's client
+  // by the server, so hiding the name and email fields left it with no identity
+  // and 'Add your name and email to book.' with nothing to fill. Show the guest
+  // fields for those sessions. Unknown or unreadable = not a client (fails closed).
+  const admin = createServiceRoleClient();
+  const isClient = admin ? await loadSessionIsClient(admin, user.id) : false;
+  if (!isClient) {
     return { signedIn: false, captcha: captchaConfig, client: null };
   }
 

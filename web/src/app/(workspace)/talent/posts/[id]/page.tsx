@@ -7,6 +7,7 @@ import {
   listTalentOfferings,
   loadPostForWriter,
 } from "@/lib/cms/posts-writer-read";
+import { loadOwnAiCrawlersAllowed } from "@/lib/cms/posts-ai-toggle";
 import { resolveTalentPostContext } from "@/lib/cms/talent-post-context";
 import { getRequestLocale } from "@/i18n/request-locale";
 
@@ -31,9 +32,10 @@ export default async function PlatformTalentPostWriterPage({
   const ui = await getRequestLocale();
   const locale: "es" | "en" = ui === "es" ? "es" : "en";
   const postLocale = isPostLocale(post.locale) ? post.locale : "es";
-  const [categories, offerings] = await Promise.all([
+  const [categories, offerings, aiCrawlersAllowed] = await Promise.all([
     listPostCategories(ctx.supabase, ctx.scope, postLocale),
     listTalentOfferings(ctx.supabase, ctx.talentProfileId, postLocale),
+    loadOwnAiCrawlersAllowed({ kind: "talent", talentProfileId: ctx.talentProfileId }),
   ]);
 
   // A fresh draft is stored as "Sin título"; the writer starts it with an empty title field.
@@ -48,6 +50,7 @@ export default async function PlatformTalentPostWriterPage({
       backHref="/talent/posts"
       upgradeHref="/talent/plan"
       lapsed={!ctx.canPublish}
+      aiCrawlersAllowed={aiCrawlersAllowed}
       mediaTenantId={ctx.scope.kind === "tenant" ? ctx.scope.tenantId : ""}
       mediaTalentProfileId={ctx.talentProfileId}
     />

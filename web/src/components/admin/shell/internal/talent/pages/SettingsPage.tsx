@@ -331,7 +331,7 @@ export function SettingsPage() {
       key: "hide",
       label: tx("Hide a public page"),
       sub: tx("One page stops being public. Bookings, payments and messages are untouched. Reversible in a tap."),
-      // TUL-728: unfold the listings (each with its own Hide) in place. It used to
+      // TUL-728 / TUL-1114: unfold the listings (each with its own Hide) in place. It used to
       // jump to Presence, which left Settings and had no hide control for the row.
       panel: <TalentSiteAppearancesPanel locale={copy.isSpanish ? "es" : "en"} />,
     },

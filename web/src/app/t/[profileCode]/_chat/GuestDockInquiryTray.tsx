@@ -16,8 +16,10 @@ import type { GuestDockView } from "./guest-dock-view";
 type Palette = ReturnType<typeof paletteFor>;
 
 export function GuestDockInquiryTray({
-  activeView, enabled, t, C, accent, accentInk, onOpen, onRemoveCartTalent,
+  activeView, enabled, t, C, accent, accentInk, onOpen, onRemoveCartTalent, onSend,
 }: {
+  /** TUL-1066: the one primary step from the tray, sending what is in it (jumps to the chat that carries the draft). */
+  onSend?: () => void;
   activeView: GuestDockView;
   enabled: boolean;
   t: (key: string) => string;
@@ -47,6 +49,16 @@ export function GuestDockInquiryTray({
       </button>
     </div>
     {open ? <GuestInquiryTrayList t={t} C={C} onRemoveCartTalent={onRemoveCartTalent} /> : null}
+    {open && onSend ? (
+      <button
+        type="button"
+        data-guest-inquiry-tray-send=""
+        onClick={onSend}
+        style={{ margin: "4px 14px", border: 0, borderRadius: 999, padding: "9px 16px", background: accent, color: accentInk, font: "600 13px inherit", cursor: "pointer" }}
+      >
+        {t("public.guestChat.dockTraySend")}
+      </button>
+    ) : null}
     {open ? (
       <button type="button" onClick={onOpen} style={{ border: 0, background: "transparent", color: accent, font: "600 12.5px inherit", padding: "6px 14px", cursor: "pointer", textAlign: "left" }}>
         {t("public.guestChat.dockTrayOpenLineup")}

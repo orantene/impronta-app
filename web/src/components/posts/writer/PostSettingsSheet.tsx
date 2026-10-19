@@ -29,6 +29,7 @@ import {
 } from "@/lib/cms/post-seo-dot";
 import { isValidPostSlug } from "@/lib/cms/posts-shared";
 import type { PostSettingsPatch } from "@/lib/cms/posts-writer";
+import { AiCrawlerToggle, type AiCrawlerToggleSave } from "@/components/posts/AiCrawlerToggle";
 import { PostImageField } from "./PostImageField";
 import { ServicePicker, type PostBlockMedia } from "./PostBlockEditor";
 import type { PostsT } from "./posts-t";
@@ -65,6 +66,12 @@ export type PostSettingsSheetProps = {
   siteHost?: string | null;
   disabled: boolean;
   t: PostsT;
+  /**
+   * The same "AI can read my site" switch as the Posts list pages (TUL-1010).
+   * It is a site-level setting, not per post; shown here so the SEO section is
+   * where an owner looks for it. Omitted when the host page has no save action.
+   */
+  aiCrawlers?: { initialAllowed: boolean; locale: "es" | "en"; onSave: AiCrawlerToggleSave };
   onSave: (patch: PostSettingsPatch, next: PostSettingsValues) => Promise<PostSettingsSaveResult>;
 };
 
@@ -133,6 +140,7 @@ function SheetBody({
   siteHost,
   disabled,
   t,
+  aiCrawlers,
   onSave,
 }: PostSettingsSheetProps) {
   const initialUi = derivePostUiStatus({
@@ -451,6 +459,13 @@ function SheetBody({
                     onChange={(e) => setNoindex(e.target.checked)}
                   />
                 </label>
+                {aiCrawlers ? (
+                  <AiCrawlerToggle
+                    initialAllowed={aiCrawlers.initialAllowed}
+                    locale={aiCrawlers.locale}
+                    onSave={aiCrawlers.onSave}
+                  />
+                ) : null}
 
                 <div className="flex flex-col gap-[6px]">
                   <span className={LABEL}>{t("dashboard.talentPosts.previewGoogle")}</span>

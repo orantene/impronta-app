@@ -48,6 +48,27 @@ export function resolveBookingAssistantReplyLocale(
   return detectGuestMessageLocale(guestMessage) ?? normalizeBookingAssistantLocale(pageLocale);
 }
 
+/** The explicit language line sent to the model (TUL-1154): a Spanish catalog must not pull an English guest into Spanish. */
+export function replyLanguageDirective(locale: BookingAssistantLocale): string {
+  return locale === "es"
+    ? "REPLY_LANGUAGE=Spanish (the guest wrote in Spanish). Write the whole reply in Spanish."
+    : "REPLY_LANGUAGE=English (the guest wrote in English, even though the catalog below may be in Spanish). Write the whole reply in English and translate catalog titles if needed.";
+}
+
+/**
+ * TUL-1154: true when the guest's message is clearly in one language and the
+ * model's reply is clearly in the other. The caller sends the handoff copy in
+ * the guest's language instead of a reply they cannot read.
+ */
+export function replyLanguageMismatch(
+  guestMessage: string | null | undefined,
+  replyText: string | null | undefined,
+): boolean {
+  const guest = detectGuestMessageLocale(guestMessage);
+  const reply = detectGuestMessageLocale(replyText);
+  return guest !== null && reply !== null && guest !== reply;
+}
+
 const HANDOFF: Record<BookingAssistantLocale, string> = {
   en: "A person on the team will take it from here and reply in this chat.",
   es: "Una persona del equipo lo toma desde aqui y te responde en este chat.",
