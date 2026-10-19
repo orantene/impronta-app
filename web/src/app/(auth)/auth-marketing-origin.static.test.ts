@@ -74,3 +74,12 @@ test("server parents resolve the origin and pass it down", () => {
     assert.match(code(p), passes, p);
   }
 });
+
+// Every render of a component that requires `marketingOrigin` must pass it,
+// including component tests under web/test (tsc covers them in CI).
+test("component tests render TalentRegisterModal with marketingOrigin", () => {
+  const src = readFileSync(join(root, "..", "test/components/marketing/talent-register-modal.test.tsx"), "utf8");
+  const tags = src.match(/<TalentRegisterModal\b[^>]*>/g) ?? [];
+  assert.ok(tags.length > 0);
+  for (const tag of tags) assert.match(tag, /marketingOrigin=/, tag);
+});
