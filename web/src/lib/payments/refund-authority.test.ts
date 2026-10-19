@@ -1,0 +1,282 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+import type { EnforceRoleLimitResult } from "@/lib/approvals/enforce";
+import {
+  REFUND_AUTHORITY_CODES,
+  authorizeRefund,
+  checkRefundAmount,
+  planOwnBookingRefund,
+  refundAuthorityMessage,
+  talentMayRefundOwnBooking,
+  talentRequestedCents,
+  talentRefundCurrency,
+} from "./refund-authority";
+
+/**
+ * TUL-1268 M6: one guard in front of every refund. These are the cases the
+ * PR body lists; each row is (capable, requested, refundable, role limit) and
+ * the verdict the guard must reach.
+ */
+
+function limitSpy(result: EnforceRoleLimitResult = { ok: true }) {
+  const calls: number[] = [];
+  return {
+    calls,
+    enforceLimit: async (amountCents: number) => {
+      calls.push(amountCents);
+      return result;
+    },
+  };
+}
+
+test("not capable: refused before the amount is even read, limit never consulted", async () => {
+  const spy = limitSpy();
+  const out = await authorizeRefund({
+    capable: false,
+    requestedCents: 1000,
+    refundableCents: 5000,
+    allowFullRemainder: true,
+    enforceLimit: spy.enforceLimit,
+  });
+  assert.deepEqual(out.ok, false);
+  if (out.ok) return;
+  assert.equal(out.code, "not_allowed");
+  assert.equal(spy.calls.length, 0);
+});
+
+const amountCases: Array<{
+  name: string;
+  requested: number | null;
+  refundable: number;
+  allowFull: boolean;
+  expect: { ok: true; amountCents: number } | { ok: false; code: string };
+}> = [
+  { name: "partial inside the remainder", requested: 2500, refundable: 5000, allowFull: true, expect: { ok: true, amountCents: 2500 } },
+  { name: "exactly the remainder", requested: 5000, refundable: 5000, allowFull: true, expect: { ok: true, amountCents: 5000 } },
+  { name: "one cent over the remainder", requested: 5001, refundable: 5000, allowFull: true, expect: { ok: false, code: "over_remainder" } },
+  { name: "zero", requested: 0, refundable: 5000, allowFull: true, expect: { ok: false, code: "invalid_amount" } },
+  { name: "negative", requested: -100, refundable: 5000, allowFull: true, expect: { ok: false, code: "invalid_amount" } },
+  { name: "fractional cents", requested: 10.5, refundable: 5000, allowFull: true, expect: { ok: false, code: "invalid_amount" } },
+  { name: "NaN", requested: Number.NaN, refundable: 5000, allowFull: true, expect: { ok: false, code: "invalid_amount" } },
+  { name: "blank on a full-refund surface = the remainder", requested: null, refundable: 5000, allowFull: true, expect: { ok: true, amountCents: 5000 } },
+  { name: "blank where full is not allowed (talent)", requested: null, refundable: 5000, allowFull: false, expect: { ok: false, code: "invalid_amount" } },
+  { name: "nothing left to refund", requested: 100, refundable: 0, allowFull: true, expect: { ok: false, code: "nothing_left" } },
+  { name: "blank with nothing left", requested: null, refundable: 0, allowFull: true, expect: { ok: false, code: "nothing_left" } },
+];
+
+for (const c of amountCases) {
+  test(`amount: ${c.name}`, () => {
+    const out = checkRefundAmount({
+      requestedCents: c.requested,
+      refundableCents: c.refundable,
+      allowFullRemainder: c.allowFull,
+    });
+    if (c.expect.ok) {
+      assert.deepEqual(out, { ok: true, amountCents: c.expect.amountCents });
+    } else {
+      assert.equal(out.ok, false);
+      if (!out.ok) assert.equal(out.code, c.expect.code);
+    }
+  });
+}
+
+test("the role limit is judged on the AUTHORIZED amount (blank = remainder), not on null", async () => {
+  const spy = limitSpy();
+  const out = await authorizeRefund({
+    capable: true,
+    requestedCents: null,
+    refundableCents: 4200,
+    allowFullRemainder: true,
+    enforceLimit: spy.enforceLimit,
+  });
+  assert.deepEqual(out, { ok: true, amountCents: 4200 });
+  assert.deepEqual(spy.calls, [4200]);
+});
+
+test("over the role limit: refused with over_limit and the filed request id", async () => {
+  const spy = limitSpy({ ok: false, reason: "over_limit", requestId: "req-1" });
+  const out = await authorizeRefund({
+    capable: true,
+    requestedCents: 9000,
+    refundableCents: 10000,
+    allowFullRemainder: true,
+    enforceLimit: spy.enforceLimit,
+  });
+  assert.equal(out.ok, false);
+  if (out.ok) return;
+  assert.equal(out.code, "over_limit");
+  assert.equal(out.requestId, "req-1");
+});
+
+test("limit check unavailable: refused as unavailable, nothing moves", async () => {
+  const out = await authorizeRefund({
+    capable: true,
+    requestedCents: 100,
+    refundableCents: 1000,
+    allowFullRemainder: true,
+    enforceLimit: async () => ({ ok: false, reason: "unavailable" }),
+  });
+  assert.equal(out.ok, false);
+  if (!out.ok) assert.equal(out.code, "unavailable");
+});
+
+test("an over-remainder ask never reaches the role limit (no approval filed for an impossible refund)", async () => {
+  const spy = limitSpy();
+  await authorizeRefund({
+    capable: true,
+    requestedCents: 999999,
+    refundableCents: 1000,
+    allowFullRemainder: true,
+    enforceLimit: spy.enforceLimit,
+  });
+  assert.equal(spy.calls.length, 0);
+});
+
+test("a throwing limit check is a refusal, never a raw throw", async () => {
+  const out = await authorizeRefund({
+    capable: true,
+    requestedCents: 100,
+    refundableCents: 1000,
+    allowFullRemainder: true,
+    enforceLimit: async () => {
+      throw new Error("db down");
+    },
+  });
+  assert.equal(out.ok, false);
+  if (!out.ok) assert.equal(out.code, "unavailable");
+});
+
+test("every refusal has an English and a Spanish sentence, no em dash, no raw code", () => {
+  for (const code of REFUND_AUTHORITY_CODES) {
+    for (const locale of ["en", "es"] as const) {
+      const s = refundAuthorityMessage(code, locale);
+      assert.ok(s.length > 10, `${code}/${locale} too short`);
+      assert.doesNotMatch(s, /—/);
+      assert.notEqual(s, code);
+    }
+    assert.notEqual(refundAuthorityMessage(code, "en"), refundAuthorityMessage(code, "es"));
+  }
+  // Any other locale falls back to English rather than printing a key.
+  assert.equal(refundAuthorityMessage("over_limit", "fr"), refundAuthorityMessage("over_limit", "en"));
+  assert.equal(refundAuthorityMessage("over_limit", "es-MX"), refundAuthorityMessage("over_limit", "es"));
+});
+
+// ─── talent: own booking ────────────────────────────────────────────────────
+
+test("talent may refund only a cancelled (work off), direct booking", () => {
+  assert.equal(talentMayRefundOwnBooking({ status: "cancelled", sourceType: "direct" }), true);
+  assert.equal(talentMayRefundOwnBooking({ status: "expired", sourceType: null }), true);
+  assert.equal(talentMayRefundOwnBooking({ status: "confirmed", sourceType: "direct" }), false);
+  assert.equal(talentMayRefundOwnBooking({ status: "completed", sourceType: "direct" }), false);
+  assert.equal(talentMayRefundOwnBooking({ status: "cancelled", sourceType: "agency" }), false);
+  assert.equal(talentMayRefundOwnBooking({ status: "cancelled", sourceType: "AGENCY" }), false);
+  assert.equal(talentMayRefundOwnBooking({ status: null, sourceType: "direct" }), false);
+});
+
+test("own-booking plan: the requested amount is spread oldest first, each leg capped at its charge's remainder", () => {
+  const plan = planOwnBookingRefund(3000, [
+    { transactionId: "t1", remainingCents: 2000 },
+    { transactionId: "t2", remainingCents: 5000 },
+  ]);
+  assert.deepEqual(plan, [
+    { transactionId: "t1", amountCents: 2000 },
+    { transactionId: "t2", amountCents: 1000 },
+  ]);
+});
+
+test("own-booking plan: never more than asked, charges with nothing left are skipped", () => {
+  const plan = planOwnBookingRefund(500, [
+    { transactionId: "t0", remainingCents: 0 },
+    { transactionId: "t1", remainingCents: 2000 },
+    { transactionId: "t2", remainingCents: 5000 },
+  ]);
+  assert.deepEqual(plan, [{ transactionId: "t1", amountCents: 500 }]);
+  const total = plan.reduce((s, l) => s + l.amountCents, 0);
+  assert.equal(total, 500);
+});
+
+// ─── review condition 1: the Money row sends gross paid, not the remainder ──
+
+test("talent: a row already partly refunded refunds exactly the remainder (paid 5000, 2000 refunded)", async () => {
+  // The Money row carries paidCents (5000). 2000 is already back with the client.
+  const charges = [{ transactionId: "t1", remainingCents: 3000 }];
+  const refundable = charges.reduce((s, c) => s + c.remainingCents, 0);
+  const requested = talentRequestedCents(5000, refundable);
+  assert.equal(requested, 3000);
+  const out = await authorizeRefund({
+    capable: true,
+    requestedCents: requested,
+    refundableCents: refundable,
+    allowFullRemainder: false,
+    enforceLimit: async () => ({ ok: true }),
+  });
+  assert.deepEqual(out, { ok: true, amountCents: 3000 });
+  if (!out.ok) return;
+  assert.deepEqual(planOwnBookingRefund(out.amountCents, charges), [{ transactionId: "t1", amountCents: 3000 }]);
+});
+
+test("talent: an ask inside the remainder is untouched; bad asks pass through for the guard to refuse", () => {
+  assert.equal(talentRequestedCents(1200, 3000), 1200);
+  assert.equal(talentRequestedCents(3000, 3000), 3000);
+  assert.equal(talentRequestedCents(0, 3000), 0);
+  assert.equal(talentRequestedCents(-5, 3000), -5);
+  assert.equal(talentRequestedCents(10.5, 3000), 10.5);
+  // Nothing left: the ask is kept so the guard answers nothing_left, not invalid_amount.
+  assert.equal(talentRequestedCents(5000, 0), 5000);
+});
+
+// ─── currency comes from the refunded charge, never a USD default ───────────
+
+test("talent refund currency: the charge's own currency, normalised", () => {
+  assert.deepEqual(
+    talentRefundCurrency([{ currency: " mxn ", remainingCents: 3000 }]),
+    { ok: true, currency: "MXN" },
+  );
+});
+
+test("talent refund currency: a charge with money left but no currency fails closed", () => {
+  assert.deepEqual(talentRefundCurrency([{ currency: null, remainingCents: 3000 }]), { ok: false });
+  assert.deepEqual(talentRefundCurrency([{ currency: "  ", remainingCents: 3000 }]), { ok: false });
+  assert.deepEqual(
+    talentRefundCurrency([
+      { currency: "MXN", remainingCents: 1000 },
+      { currency: null, remainingCents: 500 },
+    ]),
+    { ok: false },
+  );
+});
+
+test("talent refund currency: charges in two currencies fail closed (never summed)", () => {
+  assert.deepEqual(
+    talentRefundCurrency([
+      { currency: "MXN", remainingCents: 1000 },
+      { currency: "USD", remainingCents: 500 },
+    ]),
+    { ok: false },
+  );
+});
+
+test("talent refund currency: a spent charge's missing currency does not block; nothing left reports what is known", () => {
+  assert.deepEqual(
+    talentRefundCurrency([
+      { currency: null, remainingCents: 0 },
+      { currency: "MXN", remainingCents: 1000 },
+    ]),
+    { ok: true, currency: "MXN" },
+  );
+  assert.deepEqual(talentRefundCurrency([{ currency: null, remainingCents: 0 }]), { ok: true, currency: null });
+  assert.deepEqual(talentRefundCurrency([]), { ok: true, currency: null });
+});
+
+test("currency_unknown refusal has its own en + es sentence", () => {
+  assert.match(refundAuthorityMessage("currency_unknown", "en"), /currency/i);
+  assert.match(refundAuthorityMessage("currency_unknown", "es"), /moneda/i);
+});
+
+// ─── review condition 3: over_limit copy ────────────────────────────────────
+
+test("over_limit says a manager with a higher limit has to make the refund (en + es)", () => {
+  assert.equal(refundAuthorityMessage("over_limit", "en"), "A manager with a higher limit has to make this refund.");
+  assert.equal(refundAuthorityMessage("over_limit", "es"), "Un gerente con un límite mayor tiene que hacer este reembolso.");
+});
