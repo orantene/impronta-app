@@ -19,14 +19,14 @@ describe("ageTermsLinks (TUL-614)", () => {
   });
   it("the checkbox uses the helper, not a hardcoded legal path", () => {
     const src = readFileSync("src/components/auth/age-terms-checkbox.tsx", "utf8");
-    assert.match(src, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
+    assert.match(src, /ageTermsLinks\(marketingOrigin, locale\)/);
     assert.doesNotMatch(src, /\/legal\/terms`/);
   });
   it("TUL-678: the auth footer links follow the page language", () => {
     const chrome = readFileSync("src/app/(auth)/auth-shell-chrome.tsx", "utf8");
-    assert.match(chrome, /authLegalHref\(getSiteUrl\(\), "terms", locale\)/);
-    assert.match(chrome, /authLegalHref\(getSiteUrl\(\), "privacy", locale\)/);
-    assert.doesNotMatch(chrome, /getSiteUrl\(\)\}\/legal\//);
+    assert.match(chrome, /authLegalHref\(resolveMarketingOrigin\(\), "terms", locale\)/);
+    assert.match(chrome, /authLegalHref\(resolveMarketingOrigin\(\), "privacy", locale\)/);
+    assert.doesNotMatch(chrome, /getSiteUrl/);
     const layout = readFileSync("src/app/(auth)/layout.tsx", "utf8");
     assert.match(layout, /<AuthFooter[\s\S]*?locale=\{locale\}/);
   });
@@ -37,7 +37,7 @@ describe("ageTermsLinks (TUL-614)", () => {
   });
   it("the /start save step links follow the page language too", () => {
     const src = readFileSync("src/components/onboarding/steps/save-step.tsx", "utf8");
-    assert.match(src, /ageTermsLinks\(getSiteUrl\(\), locale\)/);
+    assert.match(src, /ageTermsLinks\(marketingOrigin, locale\)/);
     assert.doesNotMatch(src, /\/legal\/(terms|privacy)`/);
   });
 });

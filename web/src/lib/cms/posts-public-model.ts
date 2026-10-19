@@ -20,6 +20,7 @@
  * JSON-LD / robots / llms.txt builders live here too, for the same reason.
  */
 
+import { AI_CRAWLER_USER_AGENTS as SHARED_AI_AGENTS } from "@/lib/seo/robots-rules";
 import type { MetadataRoute } from "next";
 
 import { parsePostBlocks, type PostBlock } from "@/lib/cms/post-blocks";
@@ -425,8 +426,8 @@ function oneLine(value: string): string {
 
 // ---- robots (AI crawler toggle) ---------------------------------------------
 
-/** Training / answer-engine crawlers blocked when "IA puede leer mi sitio" is OFF. */
-export const AI_CRAWLER_USER_AGENTS = ["GPTBot", "ClaudeBot", "Google-Extended", "PerplexityBot", "CCBot"] as const;
+/** The one shared AI bot list (training + answer agents) blocked when "IA puede leer mi sitio" is OFF. */
+export { AI_CRAWLER_USER_AGENTS } from "@/lib/seo/robots-rules";
 
 type RobotsGroup = Extract<MetadataRoute.Robots["rules"], unknown[]>[number];
 
@@ -437,7 +438,7 @@ type RobotsGroup = Extract<MetadataRoute.Robots["rules"], unknown[]>[number];
  */
 export function applyAiCrawlerToggle(robots: MetadataRoute.Robots, aiCrawlersAllowed: boolean): MetadataRoute.Robots {
   if (aiCrawlersAllowed) return robots;
-  const blocked = new Set<string>(AI_CRAWLER_USER_AGENTS);
+  const blocked = new Set<string>(SHARED_AI_AGENTS);
   const rules = (Array.isArray(robots.rules) ? robots.rules : [robots.rules]).flatMap((rule): RobotsGroup[] => {
     const agents = Array.isArray(rule.userAgent) ? rule.userAgent : rule.userAgent ? [rule.userAgent] : [];
     // A group with no user agent applies to every crawler, which is "*".
@@ -446,6 +447,6 @@ export function applyAiCrawlerToggle(robots: MetadataRoute.Robots, aiCrawlersAll
     if (kept.length === agents.length) return [{ ...rule, userAgent: agents }];
     return kept.length > 0 ? [{ ...rule, userAgent: kept }] : [];
   });
-  rules.push({ userAgent: [...AI_CRAWLER_USER_AGENTS], disallow: "/" });
+  rules.push({ userAgent: [...SHARED_AI_AGENTS], disallow: "/" });
   return { ...robots, rules };
 }

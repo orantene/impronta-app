@@ -1,6 +1,5 @@
 "use client";
 
-import { getSiteUrl } from "@/lib/auth-flow";
 import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 import Link from "next/link";
@@ -15,9 +14,16 @@ import { createTranslator } from "@/i18n/messages";
  * form. Posts `age_terms=on`; the server action re-checks it, so the
  * `required` attribute is only a convenience.
  */
-export function AgeTermsCheckbox({ locale = "en" }: { locale?: string }) {
+export function AgeTermsCheckbox({
+  locale = "en",
+  marketingOrigin,
+}: {
+  locale?: string;
+  /** Server-resolved marketing origin for the Terms/Privacy links (TUL-750). */
+  marketingOrigin: string;
+}) {
   const t = createTranslator(locale);
-  const links = ageTermsLinks(getSiteUrl(), locale);
+  const links = ageTermsLinks(marketingOrigin, locale);
   // TUL-1235: controlled + draft-backed. An uncontrolled box was reset to
   // unchecked by the form action after any server error (invalid email).
   const [checked, setChecked] = useState(() => readAuthConsentDraft());

@@ -53,6 +53,7 @@ export function StorefrontFilter({
   confirmsByHand = false,
   usdRates = null,
   serviceHrefs,
+  ownerBookHrefs,
 }: {
   visible: TalentOffering[];
   locale: string;
@@ -62,6 +63,7 @@ export function StorefrontFilter({
   confirmsByHand?: boolean;
   usdRates?: UsdRates | null;
   serviceHrefs?: Record<string, string>;
+  ownerBookHrefs?: Record<string, string | null>;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const allLabel = pickLocale(locale, { en: "All", es: "Todos" });
@@ -75,7 +77,7 @@ export function StorefrontFilter({
           <FilterPill key={c} label={categoryLabels?.[c] ?? c} active={active === c} onClick={() => setActive(c)} />
         ))}
       </div>
-      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} />
+      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} ownerBookHrefs={ownerBookHrefs} />
     </>
   );
 }
