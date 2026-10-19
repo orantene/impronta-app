@@ -76,6 +76,7 @@ import { createApplyFailure } from "./mini-chat-panel-apply-failure";
 import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
 import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
 import type { GuestDockView } from "./guest-dock-view";
+import { focusIntoDock } from "./use-dock-focus-return";
 import {
   normalizeDockView,
   persistDockView,
@@ -472,10 +473,11 @@ export function MiniChatPanel({
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
-    const focusTimer = phone ? undefined : setTimeout(() => textareaRef.current?.focus(), 60);
+    // TUL-1082: focus always moves INTO the dock on open, so the first Tab lands inside it.
+    const focusTimer = setTimeout(() => focusIntoDock(phone, textareaRef.current), 60);
     return () => {
       window.removeEventListener("keydown", onKey);
-      if (focusTimer) clearTimeout(focusTimer);
+      clearTimeout(focusTimer);
     };
   }, [open, onClose]);
 
@@ -788,8 +790,9 @@ export function MiniChatPanel({
       role="dialog"
       aria-modal="false"
       data-guest-chat-panel=""
+      tabIndex={-1}
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
-      style={miniPanelContainerStyle(P, compactSheet, keyboardInsetPx)}
+      style={{ ...miniPanelContainerStyle(P, compactSheet, keyboardInsetPx), outline: "none" }}
     >
       <MiniChatPanelColumn {...columnProps} />
     </div>

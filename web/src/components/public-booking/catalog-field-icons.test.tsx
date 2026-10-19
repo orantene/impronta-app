@@ -38,3 +38,11 @@ test("the service address label carries a map pin and keeps its text and `for` b
 test("address and access-note labels share the field-label style with the other fields", () => {
   assert.match(CATALOG_BOOKING_CSS, /\.jb-field span,\.jb-field>label\{font-size:\.875rem;font-weight:600/);
 });
+
+test("TUL-1022: the summary Hora row never dangles a zone label without a time", () => {
+  const day = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+  const none = renderToStaticMarkup(<CatalogWhoSummary es service="Corte" day={day} time={null} tz="America/Cancun" total="$500" />);
+  assert.doesNotMatch(none, /· Hora de/);
+  const withTime = renderToStaticMarkup(<CatalogWhoSummary es service="Corte" day={day} time="10:00" tz="America/Cancun" total="$500" />);
+  assert.match(withTime, /10:00 · Hora de Cancún/);
+});

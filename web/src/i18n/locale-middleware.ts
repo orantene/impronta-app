@@ -397,6 +397,10 @@ export function syncLocaleCookieForDefaultPrefixStrip(
 ): void {
   const seg = firstSegment(originalPathname);
   if (!seg || seg !== settings.defaultLocale) return;
+  // TUL-1261: inside a dashboard (workspace admin, talent, client) the UI language is the person's
+  // stored `locale` cookie, never the URL. A stray `/en/<slug>/admin` link must not stamp a DELIBERATE
+  // locale=en over their saved language (the seed never overwrites a deliberate cookie), so skip it.
+  if (isDashboardInnerPathForLocalePrefix(originalPathname.replace(new RegExp(`^/${seg}(?=/|$)`), "") || "/")) return;
   res.cookies.set(LOCALE_COOKIE, seg, localeCookieOptions);
   clearLocaleCookieAutoMarker(res);
 }

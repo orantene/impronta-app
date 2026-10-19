@@ -1,6 +1,7 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
 scripts/e2e-web-server-command.test.ts
+src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
 src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
@@ -43,8 +44,10 @@ src/components/talent/get-found/get-found-text-contrast.static.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/i18n/client-payload-dedupe.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
+src/lib/events/zone-time-label.test.ts
 src/lib/field-engine/public-surface-visibility.test.ts
 src/lib/guide/guide-search.test.ts
 src/lib/i18n/place-names-es.test.ts
@@ -54,12 +57,15 @@ src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/onboarding/type-search.test.ts
+src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
 src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
+src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts
 src/lib/talent-agenda/booking-reminder-due.test.ts
@@ -73,7 +79,9 @@ src/lib/talent/clients-initial.test.ts
 src/lib/talent/format-count.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/offerings-load-parallel.static.test.ts
+src/lib/talent/profile-left-count.test.ts
 src/lib/talent/profile-quality-mode.test.ts
+src/lib/talent/signed-in-inquiry-accepting-gate.static.test.ts
 src/lib/talent/website-published-truth.test.ts
 src/lib/words/business-types-everyday-words.test.ts
 src/lib/words/no-voseo.static.test.ts

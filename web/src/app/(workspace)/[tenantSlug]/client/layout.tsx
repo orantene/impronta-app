@@ -67,7 +67,7 @@ const C = {
   surface:    "#FAFAF7",
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.72)",
-  inkDim:     "rgba(11,11,13,0.38)",
+  inkDim:     "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.06)",
   accent:     "#1D4ED8",
   accentSoft: "rgba(29,78,216,0.08)",
@@ -116,6 +116,8 @@ export default async function ClientLayout({
     cookieLocale: (await cookies()).get(LOCALE_COOKIE)?.value,
     // A failed read only loses the saved-language fallback; the cookie and URL still apply.
     savedLocale: clientLocaleError ? null : (clientLocaleRow as { preferred_locale?: string | null } | null)?.preferred_locale,
+    // TUL-968: the cookie is per host; a client who chose Spanish elsewhere still sends Accept-Language: es.
+    acceptLanguage: reqHeaders.get("accept-language"),
   });
   const t = createTranslator(locale);
   const keyboardLabels: KeyboardShortcutLabels = {

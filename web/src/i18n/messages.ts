@@ -18,7 +18,7 @@ import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 import fr from "../../messages/fr.json";
 
-import { pickClientSubtrees } from "./client-subtrees";
+import { missingFrom, pickClientSubtrees } from "./client-subtrees";
 import { defaultLocale } from "./config";
 
 type Catalog = Record<string, unknown>;
@@ -134,11 +134,29 @@ export function getMessageStringArray(locale: string, key: string): string[] {
  * The client-safe subtrees of every catalog, for the root layout to inline as
  * the browser translator's store (see `client-subtrees.ts`).
  */
+const clientPayloadCache = new Map<string, Record<string, Catalog>>();
+
 export function getClientMessagesPayload(locale: string): Record<string, Catalog> {
+  const cached = clientPayloadCache.get(locale);
+  if (cached) return cached;
+  const built = buildClientMessagesPayload(locale);
+  if (clientPayloadCache.size < 32) clientPayloadCache.set(locale, built);
+  return built;
+}
+
+function buildClientMessagesPayload(locale: string): Record<string, Catalog> {
   const out: Record<string, Catalog> = {};
-  // The page's own locale plus the same fallback chain the translator walks.
+  // The page's own locale in full, then each fallback in the chain as ONLY the keys the
+  // locales before it lack (TUL-1156: a complete `es` never reaches `en`, so shipping `en`
+  // whole doubled the inline payload). The translator's per-key chain is unchanged.
+  const answered: Catalog[] = [];
   for (const code of new Set([locale, defaultLocale, ROOT_FALLBACK_LOCALE])) {
-    if (hasMessageCatalog(code)) out[code] = pickClientSubtrees(CATALOG_REGISTRY[code]);
+    if (!hasMessageCatalog(code)) continue;
+    const full: Catalog = pickClientSubtrees(CATALOG_REGISTRY[code]);
+    let subtrees: Catalog = full;
+    for (const base of answered) subtrees = missingFrom(base, subtrees);
+    answered.push(full);
+    out[code] = subtrees;
   }
   return out;
 }

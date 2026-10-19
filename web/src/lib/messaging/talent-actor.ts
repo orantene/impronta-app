@@ -162,19 +162,17 @@ export async function listTalentInquiryIds(
   admin: SupabaseClient,
   profileId: string,
 ): Promise<{ ok: true; ids: string[] } | { ok: false; reason: MessagingRefusal }> {
-  const { data, error } = await admin
-    .from("inquiry_participants")
-    .select("inquiry_id")
-    .eq("talent_profile_id", profileId)
-    .eq("role", "talent")
-    .neq("status", "removed")
-    .order("created_at", { ascending: false })
-    .limit(TALENT_INBOX_SCAN_LIMIT);
-  if (error) return fail("unavailable");
-  const participantIds = new Set(
-    ((data ?? []) as { inquiry_id: string }[]).map((row) => row.inquiry_id).filter(Boolean),
-  );
-  const [bySource, byLineup] = await Promise.all([
+  // TUL-625: the three scans are independent, so run them side by side (the
+  // participants read used to finish before the two "contains" reads started).
+  const [participantsRes, bySource, byLineup] = await Promise.all([
+    admin
+      .from("inquiry_participants")
+      .select("inquiry_id")
+      .eq("talent_profile_id", profileId)
+      .eq("role", "talent")
+      .neq("status", "removed")
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
     admin
       .from("inquiries")
       .select("id, status, source_context, interpreted_query")
@@ -188,6 +186,11 @@ export async function listTalentInquiryIds(
       .order("created_at", { ascending: false })
       .limit(TALENT_INBOX_SCAN_LIMIT),
   ]);
+  const { data, error } = participantsRes;
+  if (error) return fail("unavailable");
+  const participantIds = new Set(
+    ((data ?? []) as { inquiry_id: string }[]).map((row) => row.inquiry_id).filter(Boolean),
+  );
   const namedRows = [
     ...((bySource.error ? [] : bySource.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
     ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),

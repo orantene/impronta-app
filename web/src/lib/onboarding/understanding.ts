@@ -218,7 +218,10 @@ export function essentialsFor(
     line(brief, "whatsapp", "presence.whatsapp", { kind: "question", questionId: "two_quick_things" }, { locale }),
     line(brief, "logo", "brand.logo_url", { kind: "none" }, { later: true, locale }),
   ];
-  if (path === "talent") return talent;
+  // TUL-810: a solo pro's optional business name rides on the talent path, so the
+  // review step and the essentials prefill see it. Only when it was given.
+  const soloBusiness = line(brief, "businessName", "business.name", { kind: "inline" }, { locale });
+  if (path === "talent") return soloBusiness.value ? [...talent, soloBusiness] : talent;
   if (path === "business") return business;
   // both: the business card, plus the person's own name and discipline
   // (services is already there as "offer": same fact, one line)

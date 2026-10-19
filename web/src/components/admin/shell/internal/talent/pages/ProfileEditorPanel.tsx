@@ -13,6 +13,7 @@ import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { useWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { useWebsiteFlow } from "@/components/talent/website-reward/useWebsiteFlow";
+import { useVerifiedLiveBadge } from "@/components/talent/website-reward/useVerifiedLiveBadge";
 import { useDashboardText } from "../../dashboard-i18n";
 import { profileQualityMode } from "@/lib/talent/profile-quality-mode";
 import {
@@ -57,9 +58,13 @@ export function ProfileReadyCard({ openSection }: { openSection: (section: strin
   const sum = summarizeEligibility(eligibility);
   const pct = sum.percent;
   const mode = profileQualityMode({ published: flow.state === "published", unlocked: eligibility.unlocked, percent: pct });
+  // TUL-818: same verified answer as the top pill.
+  const liveBadge = useVerifiedLiveBadge(flow.state === "published");
   const line =
     mode === "live"
-      ? copy.t("Your website is live")
+      ? liveBadge === "checking"
+        ? copy.t("Checking your website")
+        : copy.t("Your website is live")
       : mode === "unlocked"
         ? t("dashboard.talentMyProfile.editor.qualityUnlocked")
         : mode === "unknown"

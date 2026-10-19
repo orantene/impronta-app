@@ -68,3 +68,23 @@ test("the receipt does not claim somebody replied", () => {
   assert.match(block, /MessageReceived/, "confirm entry is not using the receipt template");
   assert.doesNotMatch(block, /AgentReply/, "confirm entry still renders a reply template");
 });
+
+// TUL-601: the receipt email carries the ticket number, but the page the
+// person is looking at right after submit did not. QA on staging: "Got it"
+// with no id and no time. The on-screen confirmation must show both.
+test("the guest contact form returns the ticket number and shows it with a reply time", () => {
+  const body = actionBody("submitMarketingContactAction");
+  assert.match(body, /ticketNumber: result\.data\.ticket\.ticketNumber,\n\s*\};/, "action drops the ticket number");
+  const form = readFileSync(
+    join(process.cwd(), "src", "components", "marketing", "support", "MarketingContactForm.tsx"),
+    "utf8",
+  );
+  assert.match(form, /copy\.successTicket/, "confirmation never shows the ticket number");
+  assert.match(form, /copy\.successEta/, "confirmation never shows the reply time");
+  const copy = readFileSync(
+    join(process.cwd(), "src", "lib", "marketing", "support-copy.ts"),
+    "utf8",
+  );
+  assert.equal((copy.match(/successTicket:/g) ?? []).length, 2, "EN and ES both need successTicket");
+  assert.equal((copy.match(/successEta:/g) ?? []).length, 2, "EN and ES both need successEta");
+});

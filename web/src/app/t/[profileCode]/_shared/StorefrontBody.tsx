@@ -14,6 +14,7 @@ import Image from "next/image";
 import type { TalentOffering, OfferingKind } from "@/lib/talent/offerings-types";
 import { offeringIsQuote, offeringPriceLabel } from "@/lib/talent/offerings-types";
 import { OfferingCta } from "./OfferingCta";
+import { durationLabel } from "@/lib/talent/duration-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { pauseBannerCopy } from "@/lib/talent/accepting-readiness";
@@ -62,10 +63,7 @@ function DetailLink({ href, locale }: { href?: string; locale: string }) {
 }
 
 function DurationChip({ minutes, locale }: { minutes: number; locale: string }) {
-  const label =
-    minutes >= 60 && minutes % 60 === 0
-      ? `${minutes / 60} h`
-      : `${minutes} min`;
+  const label = durationLabel(minutes, locale);
   return (
     <span
       className="plt-mono inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] uppercase tracking-[0.1em]"

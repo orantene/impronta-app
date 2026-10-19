@@ -62,6 +62,15 @@ export function timezoneLabel(id: string): string {
   return TIMEZONE_OPTIONS.find((z) => z.id === id)?.label ?? (id.split("/").pop() ?? id).replace(/_/g, " ");
 }
 
+/**
+ * TUL-815: how a zone reads on the review step: "Hora de Cancún" / "Cancún time".
+ * The list label minus its "(EST)" style suffix, so the person reads a place, not an abbreviation.
+ */
+export function timezoneDisplayName(id: string, locale: "en" | "es"): string {
+  const place = timezoneLabel(id).replace(/\s*\([^)]*\)\s*$/, "").trim();
+  return locale === "es" ? `Hora de ${place}` : `${place} time`;
+}
+
 /** TUL-808: trades that go to the client never offer "at my studio". Beauty keeps all three. */
 const MOBILE_TRADES: ReadonlySet<string> = new Set(["cleaning"]);
 

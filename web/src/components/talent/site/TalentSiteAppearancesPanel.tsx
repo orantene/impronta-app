@@ -24,6 +24,7 @@ import {
 } from "@/lib/talent/presence-placements";
 import type { TalentSiteLocale } from "@/lib/talent-site/talent-site-i18n";
 import { PlacementShareTools } from "@/components/talent/studio/PlacementShareTools";
+import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import { resolveTalentOwnPageState } from "@/lib/talent/public-profile-href";
 
@@ -58,13 +59,13 @@ const TONE_CLASS: Record<StatusTone, string> = {
   idle: "bg-admin-surface-alt text-admin-ink-muted",
 };
 
-function StatusChip({ status }: { status: PlacementStatus }) {
+function StatusChip({ status, kind }: { status: PlacementStatus; kind?: PlacementKind }) {
   const { t } = usePresenceText();
   return (
     <span
       className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${TONE_CLASS[placementTone(status)]}`}
     >
-      {t(placementLabel(status))}
+      {t(placementLabel(status, kind))}
     </span>
   );
 }
@@ -106,6 +107,24 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
       // TUL-90: live only when published; a draft profile 404s at /t/<code>.
       url: ownPage?.href ?? null,
       status: globalHidden ? "hidden_everywhere" : ownPage?.live ? "live" : "not_published",
+      isPrimary: false,
+    });
+  }
+  // TUL-579: the talent's own website is its own row, so a live site is never
+  // contradicted by the (separate) Tulala directory row above it.
+  const siteLoad = useTalentSiteDashboardInitialLoad();
+  const websiteUrl =
+    siteLoad?.ok && typeof siteLoad.state.publicSiteUrl === "string" && siteLoad.state.publicSiteUrl.trim()
+      ? siteLoad.state.publicSiteUrl.trim()
+      : null;
+  if (websiteUrl) {
+    placements.push({
+      id: "website",
+      kind: "website",
+      name: t("My website"),
+      detail: t("Your own website · managed by you"),
+      url: websiteUrl,
+      status: "live",
       isPrimary: false,
     });
   }
@@ -156,7 +175,7 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
           <div className="min-w-0 flex-1 basis-[220px]">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[14px] font-semibold text-admin-ink">{p.name}</span>
-              <StatusChip status={p.status} />
+              <StatusChip status={p.status} kind={p.kind} />
               {p.isPrimary && (
                 <span className="rounded-full bg-admin-surface-alt px-2 py-0.5 text-[11px] font-semibold text-admin-ink-muted">
                   {t("Primary")}
@@ -168,7 +187,9 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
               {p.url && p.status !== "not_published" ? displayUrl(p.url) : t("No public address")}
             </p>
             <p className="mt-1 text-[12px] text-admin-ink-dim">
-              {p.status === "not_published"
+              {p.status === "not_published" && p.kind === "tulala"
+                ? t("Your Tulala directory profile is not published yet. Your own website is separate and is not affected.")
+                : p.status === "not_published"
                 ? t("No public page, so there is nothing to link to and no views to show. That is not a zero.")
                 : t("Views and enquiries for this place are not available yet.")}
             </p>

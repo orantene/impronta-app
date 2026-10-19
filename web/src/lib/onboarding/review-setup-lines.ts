@@ -4,11 +4,11 @@
 
 import type { DayKey, Essentials, HourRange } from "./essentials";
 import type { FlowLocale } from "./flow";
-import { DAY_LABELS, DAY_ORDER, timezoneLabel } from "./setup";
+import { DAY_LABELS, DAY_ORDER, timezoneDisplayName } from "./setup";
 import { SETUP_COPY } from "./setup-copy";
 import { timeSlotLabel } from "./time-slots";
 
-export type ReviewLine = { id: "services" | "hours" | "place" | "timezone"; label: string; value: string };
+export type ReviewLine = { id: "services" | "hours" | "place" | "timezone"; label: string; value: string; /** The raw value behind an editable row (the IANA zone id). */ raw?: string };
 
 const LABELS: Record<FlowLocale, { services: string; hours: string; place: string; timezone: string; closed: string }> = {
   en: { services: "Services", hours: "Hours", place: "Where", timezone: "Time zone", closed: "Closed" },
@@ -52,6 +52,6 @@ export function reviewSetupLines(e: Essentials | null, locale: FlowLocale): Revi
     const mode = SETUP_COPY[locale].placeModes[e.place.mode];
     out.push({ id: "place", label: l.place, value: e.place.area?.trim() ? `${mode}, ${e.place.area.trim()}` : mode });
   }
-  if (e.timezone?.trim()) out.push({ id: "timezone", label: l.timezone, value: timezoneLabel(e.timezone.trim()) });
+  if (e.timezone?.trim()) out.push({ id: "timezone", label: l.timezone, value: timezoneDisplayName(e.timezone.trim(), locale), raw: e.timezone.trim() });
   return out;
 }

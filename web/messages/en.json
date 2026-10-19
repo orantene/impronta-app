@@ -535,7 +535,7 @@
       },
       "inquiry": {
         "saveThisTalent": "Save This Talent",
-        "savedToInquiryCart": "Saved to your lineup",
+        "savedToInquiryCart": "Added to your inquiry",
         "contactAboutTalent": "Contact About Talent",
         "openInquiry": "Open inquiry",
         "flashCouldNotUpdateSaved": "Could not update saved list",
@@ -691,7 +691,7 @@
           "viewFullProfile": "View full profile",
           "close": "Close",
           "saveThisTalent": "Save This Talent",
-          "savedToCart": "Saved to your lineup",
+          "savedToCart": "Added to your inquiry",
           "imageAlt": "{name}, preview",
           "dialogAria": "{name}, quick preview"
         },
@@ -925,6 +925,8 @@
       "threadLogAria": "Conversation",
       "systemClusterMore": "{count} more updates",
       "systemClusterCollapse": "Hide",
+      "systemLineupCount": "Selection · {count} talent",
+      "systemLineupRecommend": "Let the agency recommend",
       "messageRemoved": "Message removed",
       "openFullToView": "Open the full conversation to view this update.",
       "notSent": "Not sent. Restored to the box.",
@@ -1348,6 +1350,7 @@
       "dockTrayRemove": "Remove",
       "dockTrayOpenLineup": "Open the Items tab",
       "dockTrayOpen": "Review",
+      "dockTraySend": "Send inquiry",
       "catalogAddInvalid": "This one cannot be added to an inquiry (it may be in a different currency). Ask about it in the chat.",
       "catalogSearchPlaceholder": "Search this list",
       "catalogSortLabel": "Sort",
@@ -1743,7 +1746,7 @@
       "signInToBook": "Sign in to book",
       "refusal": {
         "requestOnly": "This one is booked by request. Send a message to ask for a time.",
-        "notAccepting": "Not taking new bookings right now. Send an inquiry instead.",
+        "notAccepting": "Not taking new bookings right now. You can still send an inquiry.",
         "tooSoon": "That time is too soon. Pick a later start.",
         "slotTaken": "That time was just taken. Pick another time."
       },
@@ -2194,6 +2197,15 @@
           "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
           "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
           "notCreated": "Why: we could not create your address. Open the editor to finish it."
+        },
+        "draftSaw": {
+          "status": "What we saw: your address answered with error {status} instead of your page.",
+          "statusUnknown": "What we saw: your address answered with an error instead of your page.",
+          "network": "What we saw: your address did not answer at all.",
+          "nameMissing": "What we saw: your address opened, but your name is not on the page yet.",
+          "noName": "What we saw: your page has no name to check against. Open the editor and add one.",
+          "noUrl": "What we saw: your page has no address yet.",
+          "protected": "What we saw: your address is behind a sign-in wall, so we could not look at it."
         },
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",

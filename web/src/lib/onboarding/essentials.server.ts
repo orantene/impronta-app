@@ -65,7 +65,15 @@ export function createEssentialsStore(admin: SupabaseClient): EssentialsStore {
     },
 
     async updateOffering(id, patch) {
-      must("updateOffering", await admin.from("talent_offerings").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id));
+      let next: Record<string, unknown> = { ...patch };
+      if (patch.attributes) {
+        // TUL-531: merge, never replace: an AI draft may already carry a matrix or intake.
+        const cur = must("updateOfferingAttrs", await admin.from("talent_offerings").select("attributes").eq("id", id).maybeSingle());
+        const have = (cur.data as { attributes?: unknown } | null)?.attributes;
+        const base = have && typeof have === "object" && !Array.isArray(have) ? (have as Record<string, unknown>) : {};
+        next = { ...next, attributes: { ...base, ...patch.attributes } };
+      }
+      must("updateOffering", await admin.from("talent_offerings").update({ ...next, updated_at: new Date().toISOString() }).eq("id", id));
     },
 
     async upsertTalentHours({ talentProfileId, tenantId, weekly, timezone }) {

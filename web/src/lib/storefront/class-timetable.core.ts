@@ -12,6 +12,7 @@
 import type { PurchaseInput, PurchaseResult } from "@/lib/orders/purchase-types";
 import type { CheckoutSessionInput, CheckoutSessionResult } from "@/lib/payments/stripe-checkout";
 import type { AcceptWaitlistResult } from "@/lib/scheduling/session-waitlist";
+import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import type { JoinWaitlistResult } from "@/lib/scheduling/waitlist-desk";
 import { DEFAULT_TIER_KEY, tierReserveRequest } from "@/lib/sessions/tier-pools";
 
@@ -114,7 +115,7 @@ export async function readClassTimetableCore(
     if (offeringIds.length > 0) {
       const { data: offRows, error: offErr } = await deps.admin
         .from("talent_offerings")
-        .select("id, status, amount_cents, currency, visibility")
+        .select("id, status, moderation_state, visibility, amount_cents, currency")
         .eq("tenant_id", tenantId)
         .in("id", offeringIds);
       if (offErr) return { ok: false, reason: "unavailable" };
@@ -123,7 +124,7 @@ export async function readClassTimetableCore(
           // D-10a: on_request withholds the price (display only).
           amountCents: o.amount_cents == null || o.visibility === "on_request" ? null : Number(o.amount_cents),
           currency: String(o.currency ?? "USD"),
-          published: o.status === "published",
+          published: isGuestSellableOffering(o), // D-10: published AND approved AND public
         });
       }
     }

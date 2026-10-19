@@ -91,6 +91,7 @@ function freeHubTalent(opts: {
         duration_minutes: 60,
         kind: "service",
         status: "published",
+        moderation_state: "approved",
         visibility: "public",
       },
     ],

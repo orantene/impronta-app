@@ -143,6 +143,8 @@ export function EmailCodeForm({
 
   // "Use a different email" pins the form back to step 1 until the next send.
   const [backToEmail, setBackToEmail] = useState(false);
+  // TUL-1234: controlled, so a failed verify (form action reset) keeps what was typed.
+  const [code, setCode] = useState("");
   const [showPassword, setShowPassword] = useState(startWithPassword);
   // TUL-558: warn before send when the visitor types a +tag alias.
   const [emailDraft, setEmailDraft] = useState(() => {
@@ -264,6 +266,8 @@ export function EmailCodeForm({
             <input
               id="otp-code"
               name="code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D+/g, "").slice(0, OTP_CODE_MAX_LENGTH))}
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"

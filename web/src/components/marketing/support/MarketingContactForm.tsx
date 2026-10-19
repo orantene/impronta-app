@@ -24,12 +24,22 @@ export function MarketingContactForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [ticketNumber, setTicketNumber] = useState<number | null>(null);
 
   if (done) {
     return (
       <div className="mt-10 rounded-2xl bg-[var(--plt-bg-raised)] px-5 py-6">
         <h2 className="text-lg font-semibold">{copy.successTitle}</h2>
-        <p className="mt-2 text-[var(--plt-ink-soft)]">{copy.successBody}</p>
+        {ticketNumber != null ? (
+          <>
+            <p className="mt-2 font-medium">
+              {copy.successTicket.replace("{number}", String(ticketNumber))}
+            </p>
+            <p className="mt-1 text-[var(--plt-ink-soft)]">{copy.successEta}</p>
+          </>
+        ) : (
+          <p className="mt-2 text-[var(--plt-ink-soft)]">{copy.successBody}</p>
+        )}
       </div>
     );
   }
@@ -60,6 +70,7 @@ export function MarketingContactForm({
             return;
           }
           trackProductEvent(PRODUCT_ANALYTICS_EVENTS.marketing_contact_form_submitted, { locale });
+          setTicketNumber(typeof result.ticketNumber === "number" ? result.ticketNumber : null);
           setDone(true);
         })();
       }}

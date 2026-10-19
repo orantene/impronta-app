@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   applySwitchesToMode,
   assertAcceptingNewContact,
+  firstTalentNotAccepting,
   isDirectTalentChannel,
   pauseBannerCopy,
   servicesCatalogChannel,
@@ -272,4 +273,16 @@ test("correction 3: both off is an honest unavailable state, never Consultar", (
   // Consultar only when inquiries are on.
   const paused = withPublicAvailability(offering, {}, { payoutsReady: true, hasWorkingHours: true, switches: BOOK_OFF });
   assert.equal(deriveOfferingCta({ offering: paused as never }).cta, "request");
+});
+
+test("TUL-964: signed-in one-shot submit refuses a talent whose inquiries switch is off", () => {
+  const m = new Map([
+    ["a", ON],
+    ["b", INQ_OFF],
+  ]);
+  assert.deepEqual(firstTalentNotAccepting(["a", "b"], m, "inquiry"), { talentProfileId: "b", reason: "not_accepting_inquiries" });
+  assert.equal(firstTalentNotAccepting(["a"], m, "inquiry"), null);
+  // the bookings switch is a separate refusal, and unknown talents fail open
+  assert.equal(firstTalentNotAccepting(["b"], m, "booking_request"), null);
+  assert.equal(firstTalentNotAccepting(["zzz"], m, "inquiry"), null);
 });
