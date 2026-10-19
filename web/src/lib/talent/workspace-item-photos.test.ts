@@ -58,3 +58,13 @@ test("alt text: an action writes it for this workspace's asset and the field edi
   assert.match(field, /compressImage/);
   assert.match(src("./offering-images.server.ts"), /alt/);
 });
+
+test("setWorkspaceItemPhotos: event guard, images only, and insert-then-remove (a failed write never leaves zero photos)", () => {
+  const actions = src("./menu-offerings-actions.ts");
+  const body = actions.slice(actions.indexOf("export async function setWorkspaceItemPhotos"), actions.indexOf("export async function setWorkspacePhotoAlt"));
+  assert.match(body, /isEventOfferingId\(admin, tenantId, offeringId\)/);
+  assert.match(body, /startsWith\("image\/"\)/);
+  const upsert = body.indexOf(".upsert(");
+  const del = body.indexOf(".delete()");
+  assert.ok(upsert > -1 && del > upsert, "write the new rows before removing the stale ones");
+});

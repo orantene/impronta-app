@@ -556,11 +556,16 @@ export async function setWorkspaceItemPhotos(
       .maybeSingle();
     if (!own) return { ok: false, error: "Not found." };
 
+    // An event's backing row belongs to Events; same guard as every other workspace write.
+    if (await isEventOfferingId(admin, tenantId, offeringId)) {
+      return { ok: false, error: "This item belongs to an event. Edit it under Events." };
+    }
+
     const wanted = nextPhotoIds(mediaAssetIds, {}).slice(0, MAX_ITEM_PHOTOS);
     if (wanted.length > 0) {
       const { data: mine, error: ownErr } = await admin
         .from("media_assets")
-        .select("id")
+        .select("id, mime_type")
         .in("id", wanted)
         .eq("tenant_id", tenantId)
         .is("deleted_at", null);
@@ -568,22 +573,32 @@ export async function setWorkspaceItemPhotos(
         logServerError("menu.offerings.photoOwner", ownErr);
         return { ok: false, error: "Failed to update photos." };
       }
-      const owned = new Set(((mine ?? []) as { id: string }[]).map((m) => m.id));
+      const owned = new Map(((mine ?? []) as unknown as { id: string; mime_type: string | null }[]).map((m) => [m.id, m.mime_type]));
       if (wanted.some((id) => !owned.has(id))) return { ok: false, error: "One of those photos is not in your library." };
+      // Photos only: a document or video id must not become a picture.
+      if (wanted.some((id) => { const mt = owned.get(id); return typeof mt === "string" && mt !== "" && !mt.startsWith("image/"); })) {
+        return { ok: false, error: "Only images can be item photos." };
+      }
     }
 
+    // Insert-then-remove (never remove-then-insert): a failed write leaves the OLD photos in place
+    // instead of none. The upsert also rewrites sort_order for photos that stay.
     const media = admin.from("talent_offering_media");
-    const { error: delErr } = await media.delete().eq("offering_id", offeringId);
+    if (wanted.length > 0) {
+      const { error: upErr } = await media.upsert(
+        wanted.map((mid, i) => ({ offering_id: offeringId, media_asset_id: mid, sort_order: i })),
+        { onConflict: "offering_id,media_asset_id" },
+      );
+      if (upErr) {
+        logServerError("menu.offerings.photoSet", upErr);
+        return { ok: false, error: "Failed to update photos." };
+      }
+    }
+    const stale = admin.from("talent_offering_media").delete().eq("offering_id", offeringId);
+    const { error: delErr } = wanted.length > 0 ? await stale.not("media_asset_id", "in", `(${wanted.join(",")})`) : await stale;
     if (delErr) {
       logServerError("menu.offerings.photoClear", delErr);
       return { ok: false, error: "Failed to update photos." };
-    }
-    if (wanted.length > 0) {
-      const { error: insErr } = await media.insert(wanted.map((mid, i) => ({ offering_id: offeringId, media_asset_id: mid, sort_order: i })));
-      if (insErr) {
-        logServerError("menu.offerings.photoSet", insErr);
-        return { ok: false, error: "Failed to update photos." };
-      }
     }
     revalidatePath("/admin/menu");
     const assets = (await loadOfferingImageAssets(admin as unknown as SupabaseClient, [offeringId])).get(offeringId) ?? [];
