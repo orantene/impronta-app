@@ -63,7 +63,7 @@ import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
-import { restoreAfterChargeFullyRefunded } from "@/lib/orders/refund-restore";
+import { restoreInventoryAfterFullRefund, runRestoreInventory, type RestoreInventory } from "@/lib/payments/refund-restore-step";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -94,8 +94,8 @@ export type RefundDeps = {
   notifyBookingPayoutReversal?: typeof notifyBookingPayoutReversalReal;
   /** Notify the client of a partial refund. Defaults to the real notifier. */
   notifyClientPartialRefund?: typeof notifyClientPartialRefundReal;
-  /** Put back tickets, seats and promo after a FULL refund. Defaults to {@link restoreInventoryAfterFullRefund}. */
-  restoreInventory?: (sb: SupabaseClient, transactionId: string) => Promise<void>;
+  /** Put back tickets, seats and promo after a FULL refund (TUL-1268 M5). Defaults to the real step. */
+  restoreInventory?: RestoreInventory;
 };
 
 /** Resolve the injected deps, defaulting every slot to its real implementation. */
@@ -105,7 +105,7 @@ function resolveRefundDeps(deps: RefundDeps): {
   markDisputed: typeof markDisputedReal;
   notifyBookingPayoutReversal: typeof notifyBookingPayoutReversalReal;
   notifyClientPartialRefund: typeof notifyClientPartialRefundReal;
-  restoreInventory: (sb: SupabaseClient, transactionId: string) => Promise<void>;
+  restoreInventory: RestoreInventory;
 } {
   return {
     // A test passes `supabase` once and reuses it for every internal read/write;
@@ -117,67 +117,6 @@ function resolveRefundDeps(deps: RefundDeps): {
     notifyClientPartialRefund: deps.notifyClientPartialRefund ?? notifyClientPartialRefundReal,
     restoreInventory: deps.restoreInventory ?? restoreInventoryAfterFullRefund,
   };
-}
-
-/**
- * Run the restore at a webhook call site. The money is already booked, so a
- * restore failure is logged and swallowed: a throw would 500 the webhook and
- * make Stripe retry a refund that is already recorded.
- */
-async function runRestoreInventory(
-  restore: (sb: SupabaseClient, transactionId: string) => Promise<void>,
-  sb: SupabaseClient | null,
-  transactionId: string,
-): Promise<void> {
-  if (!sb) return;
-  try {
-    await restore(sb, transactionId);
-  } catch (err) {
-    logServerError(`refunds.restoreInventory[txn=${transactionId}]`, err);
-  }
-}
-
-/**
- * TUL-1268 M5: a FULL refund (charge.refunded with the whole charge back, or a
- * lost dispute) puts back what the order took: tickets refunded, seats and
- * stock released, promo redemption voided. The SAME step the Orders desk runs
- * (`restoreRefundedLines`), so every refund route restores, and restores once:
- * each write is idempotent by identity, so a desk refund followed by its own
- * webhook, or a re-delivered event, changes nothing the second time. Partial
- * refunds never call this (a Stripe refund names an amount, not units).
- */
-export async function restoreInventoryAfterFullRefund(sb: SupabaseClient, transactionId: string): Promise<void> {
-  try {
-    await restoreInventoryAfterFullRefundInner(sb, transactionId);
-  } catch (err) {
-    logServerError(`refunds.restoreInventory[txn=${transactionId}]`, err);
-  }
-}
-
-async function restoreInventoryAfterFullRefundInner(sb: SupabaseClient, transactionId: string): Promise<void> {
-  const outcome = await restoreAfterChargeFullyRefunded(sb, { transactionId });
-  if (!outcome.restored) {
-    if (outcome.reason !== "no_order") {
-      void improntaLog("stripe_webhook.info", {
-        message: `[refund.restore] txn=${transactionId} inventory not restored: ${outcome.reason}`,
-      });
-    }
-    return;
-  }
-  const r = outcome.result;
-  if (r.stampedAdmissionIds.length > 0) {
-    // Messages v5 / S2: ticket chips follow the stamp, like the desk path.
-    const { data } = await sb.from("orders").select("tenant_id").eq("id", outcome.orderId).maybeSingle();
-    const tenantId = (data as { tenant_id?: string | null } | null)?.tenant_id ?? null;
-    if (tenantId) {
-      for (const admissionId of r.stampedAdmissionIds) {
-        await syncConversationRecord(sb, { tenantId, kind: "tickets", recordId: admissionId });
-      }
-    }
-  }
-  void improntaLog("stripe_webhook.info", {
-    message: `[refund.restore] txn=${transactionId} order=${outcome.orderId} tickets=${r.admissionsStamped} allocations=${r.allocationsReleased} promoVoided=${r.releasedPromoRedemption}${r.admissionsIncomplete ? " INCOMPLETE" : ""}`,
-  });
 }
 
 /**
@@ -677,7 +616,6 @@ export async function handleBookingRefund(
     }
   }
 
-  // TUL-1268 M5: the charge is fully refunded, so the order gives back its tickets, seats and promo.
   await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
   return true;
 }
@@ -780,7 +718,6 @@ export async function handleBookingDispute(
       }
     }
 
-    // TUL-1268 M5: a lost dispute is a full refund; the order gives back its tickets, seats and promo.
     await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
     logServerError(
       `stripe-webhook.dispute.lost[txn=${ref.transactionId}]`,
