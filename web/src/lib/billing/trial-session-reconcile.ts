@@ -7,7 +7,9 @@
  * customer's open trial sessions (marked by TRIAL_SESSION_MARKER) and sorts
  * them deterministically (created asc, then id asc). The OLDEST wins:
  *   - this session is the winner: expire every other open trial session;
- *   - otherwise: expire this session and hand back the winner's URL.
+ *   - otherwise: expire this session and hand back the winner's URL when the
+ *     winner is the SAME plan (metadata.plan_key); a different plan's Checkout
+ *     is never substituted: the buyer gets a retryable error instead.
  *
  * Why at most one survives: take any two trial sessions S and T. Each creator
  * lists AFTER its own create, so whichever of the two was committed later is
@@ -82,7 +84,7 @@ export async function reconcileTrialSession(
   stripe: ReconcileStripe | null,
   customerId: string,
   own: { id: string; url: string },
-  opts: { otherTrialKnownOpen: boolean; onError: OnError },
+  opts: { otherTrialKnownOpen: boolean; requestedPlanKey?: string | null; onError: OnError },
 ): Promise<{ url: string } | { error: string }> {
   if (!stripe) return { url: own.url };
 
@@ -105,5 +107,8 @@ export async function reconcileTrialSession(
   }
   // Not the winner (or already expired, e.g. a replayed idempotency key).
   if (open.some((s) => s.id === own.id)) await expireWithRetry(stripe, own.id, opts.onError);
-  return winner?.url ? { url: winner.url } : { error: TRIAL_RACE_RETRY_ERROR };
+  if (!winner?.url) return { error: TRIAL_RACE_RETRY_ERROR };
+  const winnerPlan = winner.metadata?.plan_key ?? null;
+  if (opts.requestedPlanKey && winnerPlan !== opts.requestedPlanKey) return { error: TRIAL_RACE_RETRY_ERROR };
+  return { url: winner.url };
 }

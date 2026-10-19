@@ -3,7 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { TRIAL_SESSION_MARKER, prepareTrialSession } from "./trial-checkout-session";
+import { TRIAL_SESSION_MARKER, sweepTrialSessions } from "./trial-checkout-session";
+import { checkoutSessionKey, stableParamsJson } from "./checkout-session-key";
+import { reopenIfExpired } from "./checkout-session-reopen";
 import {
   TRIAL_RACE_RETRY_ERROR,
   pickTrialWinner,
@@ -213,7 +215,7 @@ test("winner without a URL: retryable error, own still expired", async () => {
   assert.equal(b.status, "expired");
 });
 
-test("prepareTrialSession reports another trial session it could not expire", async () => {
+test("sweepTrialSessions reports another trial session it could not expire", async () => {
   const fake = {
     checkout: {
       sessions: {
@@ -224,9 +226,13 @@ test("prepareTrialSession reports another trial session it could not expire", as
       },
     },
   };
-  const r = await prepareTrialSession(fake, "cus_test_1", 14, "k", noLog);
-  assert.deepEqual(r, { marker: { [TRIAL_SESSION_MARKER]: "k" }, otherTrialKnownOpen: true });
-  assert.deepEqual(await prepareTrialSession(fake, "cus_test_1", null, "k", noLog), { marker: {}, otherTrialKnownOpen: false });
+  const r = await sweepTrialSessions(fake, "cus_test_1", 14, "k", noLog);
+  assert.deepEqual(r, { marker: { [TRIAL_SESSION_MARKER]: "k" }, expiredIds: new Set(), otherTrialKnownOpen: true });
+  assert.deepEqual(await sweepTrialSessions(fake, "cus_test_1", null, "k", noLog), {
+    marker: {},
+    expiredIds: new Set(),
+    otherTrialKnownOpen: false,
+  });
 });
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
@@ -241,6 +247,95 @@ test("wiring: both checkouts reconcile AFTER create, only for trial sessions, cr
     assert.match(src, /\{ idempotencyKey \}/, `${file} keeps its idempotency key`);
     assert.match(src, /line_items: \[\{ price: priceId, quantity: 1 \}\]/);
     assert.match(src, /\.\.\.discount\.params,/);
-    assert.match(src, /metadata: \{ \.\.\.sessionParams\.metadata, \.\.\.trialGuard\.marker \}/);
+    assert.match(src, /metadata: \{ \.\.\.sessionParams\.metadata, \.\.\.trialSweep\.marker \}/);
+    assert.match(src, /requestedPlanKey: opts\.planKey/, `${file} passes the requested plan`);
+    assert.ok(src.indexOf("await reopenIfExpired(") < src.indexOf("await reconcileTrialSession("), `${file} re-opens before reconciling`);
+  }
+});
+
+test("loser whose winner is a DIFFERENT plan gets the retry error, never the other plan's Checkout", async () => {
+  const st = store();
+  const a = st.create("cs_a", 100);
+  a.metadata = { ...a.metadata!, plan_key: "talent_portfolio" };
+  const b = st.create("cs_b", 101);
+  b.metadata = { ...b.metadata!, plan_key: "talent_pro" };
+  const r = await reconcileTrialSession(st.stripe, "cus_test_1", { id: b.id, url: b.url! }, {
+    otherTrialKnownOpen: false,
+    requestedPlanKey: "talent_pro",
+    onError: noLog,
+  });
+  assert.deepEqual(r, { error: TRIAL_RACE_RETRY_ERROR });
+  assert.equal(b.status, "expired");
+  assert.equal(a.status, "open", "the winner survives");
+  const same = await reconcileTrialSession(st.stripe, "cus_test_1", { id: b.id, url: b.url! }, {
+    otherTrialKnownOpen: false,
+    requestedPlanKey: "talent_portfolio",
+    onError: noLog,
+  });
+  assert.deepEqual(same, { url: a.url }, "same plan: the winner's Checkout");
+});
+
+/** Full flow fake: list/expire/create (idempotent replay, reuse-with-other-params throws)/retrieve. */
+function flowStripe() {
+  type S = { id: string; created: number; status: "open" | "expired"; url: string; metadata: Record<string, string> };
+  const sessions: S[] = [];
+  const byKey = new Map<string, { json: string; snap: S }>();
+  let n = 0;
+  const stripe = {
+    checkout: {
+      sessions: {
+        list: async () => ({ data: sessions.filter((s) => s.status === "open").map((s) => ({ ...s })), has_more: false }),
+        expire: async (id: string) => {
+          const s = sessions.find((x) => x.id === id);
+          if (s) s.status = "expired";
+          return {};
+        },
+        create: async (params: { metadata: Record<string, string> }, o: { idempotencyKey: string }) => {
+          const json = stableParamsJson(params);
+          const hit = byKey.get(o.idempotencyKey);
+          if (hit) {
+            if (hit.json !== json) throw new Error("Keys for idempotent requests can only be used with the same parameters");
+            return { ...hit.snap };
+          }
+          n += 1;
+          const s: S = { id: `cs_test_${String(n).padStart(8, "0")}`, created: 1000 + n, status: "open", url: `https://checkout.stripe.test/${n}`, metadata: params.metadata };
+          sessions.push(s);
+          byKey.set(o.idempotencyKey, { json, snap: { ...s } });
+          return { ...s };
+        },
+        retrieve: async (id: string) => ({ ...sessions.find((x) => x.id === id)! }),
+      },
+    },
+  };
+  return { stripe, sessions };
+}
+
+async function flowClick(f: ReturnType<typeof flowStripe>, plan: string) {
+  const sessionParams = { metadata: { plan_key: plan }, line_items: [{ price: `price_${plan}`, quantity: 1 }] };
+  const key = checkoutSessionKey(`cs_talent_p1_${plan}`, sessionParams);
+  const sweep = await sweepTrialSessions(f.stripe, "cus_test_1", 14, key, noLog);
+  const createParams = { ...sessionParams, metadata: { ...sessionParams.metadata, ...sweep.marker } };
+  const created = await f.stripe.checkout.sessions.create(createParams, { idempotencyKey: key });
+  const session = await reopenIfExpired(f.stripe, created, createParams, key, sweep.expiredIds);
+  return reconcileTrialSession(f.stripe, "cus_test_1", { id: session.id, url: session.url }, {
+    otherTrialKnownOpen: sweep.otherTrialKnownOpen,
+    requestedPlanKey: plan,
+    onError: noLog,
+  });
+}
+
+test("A -> B -> A through sweep, re-open and reconcile: an OPEN session of the requested plan, twice over", async () => {
+  const f = flowStripe();
+  for (let cycle = 0; cycle < 2; cycle += 1) {
+    const a = await flowClick(f, "talent_pro");
+    const b = await flowClick(f, "talent_portfolio");
+    const again = await flowClick(f, "talent_pro");
+    for (const [r, plan] of [[a, "talent_pro"], [b, "talent_portfolio"], [again, "talent_pro"]] as const) {
+      assert.ok("url" in r, `cycle ${cycle} ${plan}: ${JSON.stringify(r)}`);
+    }
+    const open = f.sessions.filter((s) => s.status === "open");
+    assert.equal(open.length, 1);
+    assert.equal(open[0].metadata.plan_key, "talent_pro");
+    assert.equal((again as { url: string }).url, open[0].url, "the URL handed back is the open session");
   }
 });

@@ -33,7 +33,8 @@ import { loadTrialOffer } from "@/lib/plan-trials/offers";
 import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { trialParams } from "@/lib/billing/trial-eligibility";
 import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
-import { prepareTrialSession } from "@/lib/billing/trial-checkout-session";
+import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
+import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
@@ -251,25 +252,33 @@ export async function createTalentCheckoutSession(opts: {
     checkoutIdempotencyKey({ prefix: "cs_talent", subjectId: opts.talentProfileId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }),
     sessionParams,
   );
-  // TUL-1280: at most one open trial session per customer (pre-create sweep + post-create reconcile).
-  const trialGuard = await prepareTrialSession(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
+  const trialSweep = await sweepTrialSessions(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
+  const createParams: Stripe.Checkout.SessionCreateParams = { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialSweep.marker } };
 
   try {
-    const session = await stripe.checkout.sessions.create(
-      { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialGuard.marker } },
+    const created = await stripe.checkout.sessions.create(
+      createParams,
       // Idempotency: a double submit must not mint a SECOND Checkout session.
       // One subscription per talent profile per plan; a second session risks a second sub.
       { idempotencyKey },
     );
+    // TUL-1280 review P1: a replayed session the sweep already expired is re-keyed, never handed back dead.
+    const session =
+      trialDays != null
+        ? await reopenIfExpired(stripe, created, createParams, idempotencyKey, trialSweep.expiredIds)
+        : created;
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
     }
 
-    // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL.
+    // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
+    // only when the winner is the same plan, else a retryable error.
     const settled =
       trialDays != null
-        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialGuard.otherTrialKnownOpen, onError: logServerError })
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPlanKey: opts.planKey, onError: logServerError })
         : { url: session.url };
     if ("error" in settled) return { ok: false, error: settled.error };
     return { ok: true, data: { url: settled.url } };
