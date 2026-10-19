@@ -28,6 +28,7 @@ src/lib/billing/commission.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
+src/lib/billing/receipt-notice.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts

@@ -69,6 +69,8 @@ import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
 import { sendPaymentFailedNotice } from "@/lib/billing/dunning-notice";
 import { defaultDunningNoticeDeps } from "@/lib/billing/dunning-notice-deps";
+import { sendPaymentReceiptNotice } from "@/lib/billing/receipt-notice";
+import { defaultReceiptNoticeDeps } from "@/lib/billing/receipt-notice-deps";
 import { detectCancelTransition, sendCancelStateNotice } from "@/lib/billing/cancel-state-notice";
 import { defaultCancelNoticeDeps } from "@/lib/billing/cancel-state-notice-deps";
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
@@ -720,6 +722,20 @@ export async function processStripeEvent(
           throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
         }
         await syncSubscriptionByType(subscription, event.id);
+        // TUL-1232: one receipt per paid invoice (ledger keyed on the Stripe
+        // invoice id, so a replayed event sends nothing). Zero-amount and
+        // unpaid invoices are skipped inside the notice.
+        const receipt = await sendPaymentReceiptNotice(
+          {
+            invoice: event.data.object as Stripe.Invoice,
+            scope: isTalentSubscription(subscription.metadata) ? "talent" : "workspace",
+            subscriptionId: subscription.id,
+          },
+          defaultReceiptNoticeDeps(),
+        );
+        if (receipt === "failed") {
+          throw new TransientWebhookError(`payment receipt email send failed for event ${event.id}`);
+        }
       }
       return;
     }
