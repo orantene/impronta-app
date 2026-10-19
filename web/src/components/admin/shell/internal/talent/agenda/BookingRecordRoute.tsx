@@ -10,6 +10,9 @@ import { useAgendaCopy } from "./use-agenda-copy";
 import { AgendaBookingRecord } from "./AgendaBookingRecord";
 import { buildAgendaListItemFromAgendaItem } from "./view-model";
 
+/** Longest the record waits for its own read before showing what it has. */
+const RECORD_LOAD_TIMEOUT_MS = 8000;
+
 /**
  * /talent/bookings/<id>. F60: a booking saved a moment ago is not in the
  * layout's agenda snapshot yet, so the record reads that one item itself
@@ -32,14 +35,23 @@ export function BookingRecordRoute({
   useEffect(() => {
     if (fromSnapshot || !bookingId) return;
     let cancelled = false;
+    // Bounded: a slow or failing read must end in the summary stub, never an empty page.
+    const timer = setTimeout(() => {
+      if (!cancelled) setLoaded((cur) => (cur?.id === bookingId ? cur : { id: bookingId, item: null }));
+    }, RECORD_LOAD_TIMEOUT_MS);
     void (async () => {
-      const item = await loadTalentAgendaRecordItem(bookingId);
-      // No time yet: read the service from the booking / order line.
-      const stub = item ? null : await loadTalentTimelessBookingStub(bookingId).catch(() => null);
-      if (!cancelled) setLoaded({ id: bookingId, item, service: stub?.service ?? null, clientName: stub?.clientName ?? null });
+      try {
+        const item = await loadTalentAgendaRecordItem(bookingId);
+        // No time yet: read the service from the booking / order line.
+        const stub = item ? null : await loadTalentTimelessBookingStub(bookingId).catch(() => null);
+        if (!cancelled) setLoaded({ id: bookingId, item, service: stub?.service ?? null, clientName: stub?.clientName ?? null });
+      } catch {
+        if (!cancelled) setLoaded({ id: bookingId, item: null });
+      }
     })();
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [bookingId, fromSnapshot]);
 
