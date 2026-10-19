@@ -1,3 +1,5 @@
+scripts/lib/stripe-staging-config.test.mjs
+scripts/lib/stripe-staging-webhook.test.mjs
 src/app/(workspace)/?tenantSlug?/_data-bridge/overview-board-setup-wave.static.test.ts
 src/app/(workspace)/?tenantSlug?/_data-bridge/sales-by-item.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/_projects/projects-mode-model.test.ts

@@ -2,16 +2,17 @@
  * Pure guards and planning for scripts/stripe-staging-webhook.mjs (TUL-830).
  * No I/O here, so every refusal is unit-tested (stripe-staging-webhook.test.mjs).
  *
- * The runner registers ONE Stripe TEST webhook endpoint for staging and writes
- * its signing secret into the Vercel Preview scope. Staging runs with
- * STRIPE_FORCE_TEST_MODE=1, so the app reads the `_TEST` sibling of the
+ * The runner registers Stripe TEST webhook endpoints for staging (one per lane)
+ * and writes each signing secret into the Vercel Preview scope. Staging runs
+ * with STRIPE_FORCE_TEST_MODE=1, so the app reads the `_TEST` sibling of the
  * webhook secret (lib/stripe/env-keys.ts), never the bare name.
  *
  * Lane: plan billing (talent + workspace checkout, plan change, dunning) runs on
  * `getStripe()`, the US lane, so the default endpoint is /api/webhooks/stripe
- * and the secret is STRIPE_WEBHOOK_SECRET_TEST. The MX lane is selectable but
- * never both: one account delivering to both URLs would settle every event
- * twice under two idempotency lanes.
+ * and the secret is STRIPE_WEBHOOK_SECRET_TEST. MX lanes run with the MX TEST
+ * key (a separate account). One account never delivers to both URLs: every
+ * event would settle twice under two idempotency lanes. Each account lane has
+ * a `-connect` twin (Connect endpoint, same route, `_CONNECT` secret).
  */
 
 export const MANAGED_BY = "tulala-staging-webhook-workflow";
@@ -27,10 +28,55 @@ export const STRIPE_API_VERSION = "2026-04-22.dahlia";
 /** Connect-only events (need a Connect endpoint); everything else the router handles goes on this one. */
 export const CONNECT_ONLY_EVENTS = ["account.updated", "capability.updated"];
 
+/**
+ * Events the CONNECT endpoint subscribes to: the Connect-only events plus every
+ * routed event whose handler reads `event.account` (a connected account's own
+ * payouts, which never reach the account-level endpoint). A test parses
+ * webhook-routing.ts and fails when this drifts.
+ */
+export const CONNECT_EVENTS = [
+  "account.updated",
+  "capability.updated",
+  "payout.created",
+  "payout.paid",
+  "payout.failed",
+  "payout.canceled",
+];
+
+/**
+ * Endpoint lanes. An account-level endpoint and a Connect endpoint on the same
+ * account share ONE route: handleStripeWebhook (lib/stripe/webhook-http.ts)
+ * tries both secrets (STRIPE_WEBHOOK_SECRET + _CONNECT, or the MX pair).
+ * `account` names which Stripe key the lane runs with (us = STRIPE_TEST_SECRET_KEY,
+ * mx = STRIPE_MX_TEST_SECRET_KEY).
+ */
 export const LANES = {
-  us: { path: "/api/webhooks/stripe", secretVar: "STRIPE_WEBHOOK_SECRET_TEST" },
-  mx: { path: "/api/webhooks/stripe-mx", secretVar: "STRIPE_MX_WEBHOOK_SECRET_TEST" },
+  us: { path: "/api/webhooks/stripe", secretVar: "STRIPE_WEBHOOK_SECRET_TEST", kind: "account", account: "us" },
+  "us-connect": {
+    path: "/api/webhooks/stripe",
+    secretVar: "STRIPE_WEBHOOK_SECRET_CONNECT_TEST",
+    kind: "connect",
+    account: "us",
+  },
+  mx: { path: "/api/webhooks/stripe-mx", secretVar: "STRIPE_MX_WEBHOOK_SECRET_TEST", kind: "account", account: "mx" },
+  "mx-connect": {
+    path: "/api/webhooks/stripe-mx",
+    secretVar: "STRIPE_MX_WEBHOOK_SECRET_CONNECT_TEST",
+    kind: "connect",
+    account: "mx",
+  },
 };
+
+/**
+ * "connect" when Stripe ties the endpoint to a Connect application (Connect
+ * endpoints carry the platform's `application` id) or when our own lane
+ * metadata says so; otherwise "account".
+ */
+export function endpointKind(e) {
+  if (e?.application) return "connect";
+  if (typeof e?.metadata?.lane === "string" && e.metadata.lane.endsWith("-connect")) return "connect";
+  return "account";
+}
 
 /**
  * Every account-level (non-Connect) event the platform handler routes
@@ -108,11 +154,20 @@ export function checkTargetUrl(url) {
 
 export function laneConfig(lane, baseUrl = DEFAULT_BASE_URL) {
   const cfg = LANES[lane];
-  if (!cfg) return { ok: false, reason: `unknown lane ${lane}; use us or mx` };
-  const url = `${baseUrl.replace(/\/+$/, "")}${cfg.path}`;
+  if (!cfg) return { ok: false, reason: `unknown lane ${lane}; use us, us-connect, mx or mx-connect` };
+  const base = baseUrl.replace(/\/+$/, "");
+  const url = `${base}${cfg.path}`;
   const urlOk = checkTargetUrl(url);
   if (!urlOk.ok) return urlOk;
-  return { ok: true, url, secretVar: cfg.secretVar, otherUrl: `${baseUrl.replace(/\/+$/, "")}${LANES[lane === "us" ? "mx" : "us"].path}` };
+  return {
+    ok: true,
+    url,
+    secretVar: cfg.secretVar,
+    kind: cfg.kind,
+    account: cfg.account,
+    events: cfg.kind === "connect" ? CONNECT_EVENTS : ENABLED_EVENTS,
+    otherUrl: `${base}${LANES[cfg.account === "us" ? "mx" : "us"].path}`,
+  };
 }
 
 /**
@@ -148,9 +203,11 @@ export function pickVercelEntry(envs, key) {
  *   refuse      : anything ambiguous
  * Stripe returns an endpoint's secret only at creation, so an existing endpoint
  * with no stored secret cannot be "adopted".
+ * `kind` ("account" default | "connect") limits every check to endpoints of that
+ * kind: an account endpoint and a Connect endpoint legitimately share one URL.
  */
-export function planEndpoint({ endpoints, url, otherUrl, varExists, recreate }) {
-  const all = endpoints ?? [];
+export function planEndpoint({ endpoints, url, otherUrl, varExists, recreate, kind = "account" }) {
+  const all = (endpoints ?? []).filter((e) => endpointKind(e) === kind);
   const other = all.filter((e) => e.url === otherUrl && e.status !== "disabled");
   if (other.length) {
     return { action: "refuse", reason: `an endpoint already targets the other lane (${otherUrl}); one account must not deliver to both` };

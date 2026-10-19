@@ -1,10 +1,20 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Stripe TEST webhook for staging (TUL-830) — manual, staging only.
-# Creates (or reuses) ONE webhook endpoint in the Stripe TEST sandbox pointing
-# at the staging host, and writes its signing secret into Vercel Preview as the
-# `_TEST` sibling (staging runs STRIPE_FORCE_TEST_MODE=1). Production env is
-# never written: the script only touches a preview-only entry and refuses any
-# entry shared with production. The secret is never printed.
+# Stripe TEST config for staging (TUL-830) — manual, staging only.
+# Creates (or reuses) Stripe TEST sandbox objects for the staging host and
+# writes each `_TEST` sibling the app reads under STRIPE_FORCE_TEST_MODE=1 into
+# Vercel Preview:
+#   us               account webhook  -> STRIPE_WEBHOOK_SECRET_TEST
+#   connect          Connect webhook  -> STRIPE_WEBHOOK_SECRET_CONNECT_TEST
+#   mx               MX account + Connect webhooks (MX key)
+#                                     -> STRIPE_MX_WEBHOOK_SECRET_TEST, STRIPE_MX_WEBHOOK_SECRET_CONNECT_TEST
+#   portal           billing portal config per account
+#                                     -> STRIPE_PORTAL_CONFIGURATION_ID_TEST, STRIPE_MX_PORTAL_CONFIGURATION_ID_TEST
+#   client-pro-price Client Pro monthly TEST price -> STRIPE_CLIENT_PRO_PRICE_ID_TEST
+#   all              every lane above; without STRIPE_MX_TEST_SECRET_KEY the MX
+#                    steps print "skipped" and the rest still run
+# Production env is never written: the script only touches preview-only
+# entries and refuses any entry shared with production. Values are never
+# printed. A dry run (default) reads only and prints the plan.
 # Takes effect on the next staging build; this workflow fires no build.
 # Runbook: docs/plans/stripe-staging-webhook-runbook-2026-10-19.md
 # ─────────────────────────────────────────────────────────────────────────────
@@ -15,9 +25,9 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: "us = /api/webhooks/stripe (plan billing). mx = /api/webhooks/stripe-mx. Never both."
+        description: "us | connect | mx | portal | client-pro-price | all"
         type: choice
-        options: [us, mx]
+        options: [us, connect, mx, portal, client-pro-price, all]
         default: us
       dry_run:
         description: "yes = plan only, write nothing"
@@ -29,6 +39,11 @@ on:
         type: choice
         options: ["no", "yes"]
         default: "no"
+      client_pro_amount_cents:
+        description: "Client Pro monthly USD amount in cents (e.g. 4900). Required only to CREATE the price; not in code."
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -39,15 +54,17 @@ concurrency:
 
 jobs:
   webhook:
-    name: Stripe TEST webhook (staging)
+    name: Stripe TEST config (staging)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: web
     env:
-      # Test-mode key only. Never configure a live key for this workflow.
+      # Test-mode keys only. Never configure a live key for this workflow.
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      # MX TEST key. Optional: absent = MX steps skipped (lane=mx refuses).
+      STRIPE_MX_TEST_SECRET_KEY: ${{ secrets.STRIPE_MX_TEST_SECRET_KEY }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_PROJECT_ID: prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2
       VERCEL_TEAM_ID: team_otRX11wclvw89c5ls7A7UsZd
@@ -55,12 +72,21 @@ jobs:
       LANE: ${{ inputs.lane }}
       DRY_RUN: ${{ inputs.dry_run }}
       RECREATE: ${{ inputs.recreate }}
+      CLIENT_PRO_AMOUNT_CENTS: ${{ inputs.client_pro_amount_cents }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Guard tests
-        run: node --test scripts/lib/stripe-staging-webhook.test.mjs
-      - name: Create or reuse the endpoint, write the Preview secret
+        run: node --test scripts/lib/stripe-staging-webhook.test.mjs scripts/lib/stripe-staging-config.test.mjs
+      - name: MX key present?
+        if: ${{ env.STRIPE_MX_TEST_SECRET_KEY == '' }}
+        run: |
+          if [ "$LANE" = "mx" ]; then
+            echo "::error::STRIPE_MX_TEST_SECRET_KEY is not set. Add the MX TEST secret key (sk_test_) as a GitHub Actions secret, then re-run lane=mx."
+            exit 2
+          fi
+          echo "::notice::skipped: STRIPE_MX_TEST_SECRET_KEY not set (MX webhook + MX portal steps skip; the other steps run)."
+      - name: Plan, then create or reuse and write Preview vars
         run: node scripts/stripe-staging-webhook.mjs
