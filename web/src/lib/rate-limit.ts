@@ -2,28 +2,60 @@ import { NextResponse } from "next/server";
 
 type Bucket = { count: number; resetAt: number };
 
-const buckets = new Map<string, Bucket>();
-
 /**
- * H3: hard cap on distinct keys held in memory. A spray of spoofed IPs used to
- * add one bucket per request forever; at the cap, expired buckets are swept and,
- * if the table is still full, the oldest keys are dropped (insertion order).
+ * H3: two capped tables, so a spray on a public endpoint can never evict or
+ * reset a sensitive counter.
+ *
+ * - STRICT keys (sign-in, OTP, password, ticket lookup, staging gate, join):
+ *   their own table. When it is full, expired buckets are swept (at most once a
+ *   second, so an insert is not an O(n) scan); if it is still full a NEW key is
+ *   DENIED (fail closed). An existing key keeps its counter: nothing is evicted.
+ * - Everything else: oldest-first eviction in batches (10% at a time, amortised
+ *   O(1) per insert), which is fine for low-stakes public limits.
+ *
+ * This table is per instance and in memory. Sensitive limits should use
+ * `rate-limit-kv.ts` (shared store); this is only the last line of defence.
  */
 export const RATE_LIMIT_MAX_BUCKETS = 5000;
+
+const STRICT_PREFIXES = ["auth-", "staging-gate", "ticket-lookup", "ticket-refund", "verifyIp", "join-studio", "acct-"];
+
+const buckets = new Map<string, Bucket>();
+const strictBuckets = new Map<string, Bucket>();
+let lastStrictSweep = 0;
+
+function isStrictKey(key: string): boolean {
+  return STRICT_PREFIXES.some((p) => key.startsWith(p));
+}
 
 export function rateLimitBucketCount(): number {
   return buckets.size;
 }
 
-function makeRoom(now: number): void {
+export function rateLimitStrictBucketCount(): number {
+  return strictBuckets.size;
+}
+
+/** Public table: drop the oldest 10% in one batch when full. */
+function evictOldestBatch(): void {
   if (buckets.size < RATE_LIMIT_MAX_BUCKETS) return;
-  for (const [k, b] of buckets) {
-    if (now >= b.resetAt) buckets.delete(k);
-  }
+  let drop = Math.ceil(RATE_LIMIT_MAX_BUCKETS / 10);
   for (const k of buckets.keys()) {
-    if (buckets.size < RATE_LIMIT_MAX_BUCKETS) break;
+    if (drop-- <= 0) break;
     buckets.delete(k);
   }
+}
+
+/** Strict table: sweep expired (rate limited); true when there is room for a new key. */
+function strictHasRoom(now: number): boolean {
+  if (strictBuckets.size < RATE_LIMIT_MAX_BUCKETS) return true;
+  if (now - lastStrictSweep >= 1000) {
+    lastStrictSweep = now;
+    for (const [k, b] of strictBuckets) {
+      if (now >= b.resetAt) strictBuckets.delete(k);
+    }
+  }
+  return strictBuckets.size < RATE_LIMIT_MAX_BUCKETS;
 }
 
 /**
@@ -48,11 +80,18 @@ export function tryConsumeRateLimit(
   windowMs: number,
 ): boolean {
   const now = Date.now();
-  let bucket = buckets.get(key);
+  const strict = isStrictKey(key);
+  const table = strict ? strictBuckets : buckets;
+  let bucket = table.get(key);
   if (!bucket || now >= bucket.resetAt) {
-    makeRoom(now);
+    if (strict) {
+      // A new window for a key that already has a bucket needs no room; a brand-new key does.
+      if (!bucket && !strictHasRoom(now)) return false; // fail closed
+    } else {
+      evictOldestBatch();
+    }
     bucket = { count: 0, resetAt: now + windowMs };
-    buckets.set(key, bucket);
+    table.set(key, bucket);
   }
   if (bucket.count >= limit) {
     return false;
