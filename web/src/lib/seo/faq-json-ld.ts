@@ -7,6 +7,8 @@
  * AI answer engines) only credit FAQPage markup that matches visible
  * content; this generator has no path to invent a question.
  */
+import { jsonLdScriptString } from "@/lib/seo/json-ld-script";
+
 
 type JsonValue =
   | string
@@ -68,5 +70,5 @@ export function buildFaqPageJsonLd(input: FaqJsonLdInput): Record<string, JsonVa
  *  coupling. */
 export function faqJsonLdToString(obj: Record<string, JsonValue> | null): string {
   if (!obj) return "";
-  return JSON.stringify(obj);
+  return jsonLdScriptString(obj);
 }

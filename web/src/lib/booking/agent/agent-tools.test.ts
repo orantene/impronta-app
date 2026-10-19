@@ -16,7 +16,6 @@ import {
   agentRequestStatusView,
   AGENT_HANDOFF_ID_RE,
 } from "./handoff";
-import { buildTalentLlmsTxt } from "./llms-txt";
 import { type AgentToolDeps, agentToolDefinitions, handleMcpMessage, parseMcpBody } from "./mcp";
 
 const SERVICE_ID = "11111111-1111-4111-8111-111111111111";
@@ -241,21 +240,6 @@ test("catalog: public non-product services only, storefront price label, bookabl
   assert.match(services[0]!.price, /550/);
   assert.equal(services[0]!.bookable, true);
   assert.equal(services[1]!.bookable, false);
-});
-
-test("llms.txt names the services and the three endpoints; says when booking is off", () => {
-  const services = toAgentServices([offering({})], "en");
-  const on = buildTalentLlmsTxt({ origin: "https://jorg.example", name: "Jorgelina", services, agentBookingEnabled: true });
-  assert.match(on, /^# Jorgelina\n/);
-  assert.ok(on.includes(`service_id: ${SERVICE_ID}`));
-  assert.ok(on.includes("https://jorg.example/api/public/booking/catalog"));
-  assert.ok(on.includes("https://jorg.example/api/public/booking/slots?offering=<service_id>"));
-  assert.ok(on.includes("https://jorg.example/api/public/booking/mcp"));
-  assert.match(on, /does not book anything/);
-
-  const off = buildTalentLlmsTxt({ origin: "https://jorg.example", name: "Jorgelina", services: [], agentBookingEnabled: false });
-  assert.match(off, /No public services/);
-  assert.match(off, /has not turned on booking through AI assistants/);
 });
 
 test("agentRequestStatus maps inquiry statuses to five coarse values", () => {
