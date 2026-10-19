@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
 import { withLocaleHref } from "@/i18n/pathnames";
+import { useMenuKeyboard } from "@/hooks/use-menu-keyboard";
 import { HeaderPopover } from "./marketing-header-popover";
 
 /** A tenant the signed-in user belongs to, with a direct link to its dashboard. */
@@ -131,6 +132,7 @@ export function DesktopAccount({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  useMenuKeyboard(ref, open, () => setOpen(false));
 
   const showWorkspaceList = showTabs ? tab === "workspaces" : hasWorkspaces;
   const showTalentList = showTabs ? tab === "pages" : hasTalent && !hasWorkspaces;
@@ -193,6 +195,7 @@ export function DesktopAccount({
 
             {showTabs ? (
               <div
+                data-menu-nav
                 className="mb-1 flex gap-1 rounded-[11px] p-1"
                 style={{ background: "var(--plt-bg-raised)" }}
               >

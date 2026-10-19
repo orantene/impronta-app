@@ -1,12 +1,13 @@
 "use client";
 
 import { signOutEverywhere } from "@/lib/auth/sign-out-client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 const START_WORKSPACE_EVENT = "tulala:open-start-workspace-dialog";
 import { DASHBOARD_LOCALES } from "../talent/pages/DashboardLanguagePanel";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import { useMenuKeyboard } from "@/hooks/use-menu-keyboard";
 import { CreateMyTalentProfileDialog } from "@/components/talent/create-my-talent-profile-dialog";
 import { StartFreeWorkspaceDialog } from "@/components/talent/start-free-workspace-dialog";
 import { WorkspaceLifecycleDialog } from "@/components/admin/workspace-lifecycle-dialog";
@@ -511,6 +512,7 @@ function AccountMenuTrigger({
   const [lifecycleDialogOpen, setLifecycleDialogOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const menuRootRef = useRef<HTMLDivElement>(null);
 
   // Talent surface entry-point to spin up their own workspace. The dialog
   // itself is mounted at the TulalaIdentityBar level (so the "Your agencies"
@@ -545,8 +547,11 @@ function AccountMenuTrigger({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  useMenuKeyboard(menuRootRef, open, () => setOpen(false));
+
   return (
     <div
+      ref={menuRootRef}
       data-tulala-account-menu-root
       className="relative"
       onBlur={(e) => {
@@ -680,11 +685,13 @@ function AccountMenuTrigger({
               <div className="text-admin-ink text-admin-13 font-medium">{copy.t("Language")}</div>
               <div className="mt-px text-[11.5px] text-admin-ink-muted">{copy.t("Dashboard display language")}</div>
             </div>
-            <DashboardLocaleToggle
-              variant="prototype"
-              supportedLocales={talentLocales ? DASHBOARD_LOCALES : supportedLocales}
-              defaultLocale={talentLocales?.primary ?? tenantDefaultLocale}
-            />
+            <span role="none" data-menu-nav className="contents">
+              <DashboardLocaleToggle
+                variant="prototype"
+                supportedLocales={talentLocales ? DASHBOARD_LOCALES : supportedLocales}
+                defaultLocale={talentLocales?.primary ?? tenantDefaultLocale}
+              />
+            </span>
           </div>
           <AccountMenuItem
             label="Help & guides"

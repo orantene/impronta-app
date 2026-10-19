@@ -146,7 +146,7 @@ export default async function PosPage({
           <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>
             {tr("dashboard.pos.counterOffTitle")}
           </h1>
-          <p style={{ color: "rgba(11,11,13,0.55)", marginTop: 10, lineHeight: 1.6 }}>
+          <p style={{ color: "rgba(11,11,13,0.6)", marginTop: 10, lineHeight: 1.6 }}>
             {tr("dashboard.pos.counterOffBody")}
           </p>
         </main>
@@ -553,6 +553,18 @@ export default async function PosPage({
   }
 
   const { items, sessionsByOffering } = catalog;
+  if (catalog.readFailed && mode === "counter") {
+    // A failed catalog read is not an empty shop: say so instead of drawing a blank counter.
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <main role="alert" className="mx-auto flex min-h-[60vh] w-full max-w-[560px] flex-col justify-center gap-3 px-7 py-16">
+          <h1 className="m-0 text-[22px] font-semibold text-admin-ink">{tr("dashboard.pos.counterCatalogErrorTitle")}</h1>
+          <p className="m-0 text-[14px] leading-relaxed text-admin-ink-muted">{tr("dashboard.pos.counterCatalogErrorBody")}</p>
+        </main>
+      </>
+    );
+  }
 
   // The variant labels and live holds behind the sale's lines (counter-catalog.ts).
   const lineFacts = await loadCounterLineFacts(admin, {

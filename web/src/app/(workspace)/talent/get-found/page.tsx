@@ -8,12 +8,20 @@ import { GoogleBusinessGuide } from "@/components/talent/get-found/GoogleBusines
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { loadTalentGoogleSiteVerification } from "@/lib/talent-site/server/load-google-site-verification.server";
 import { buildGbpGuide } from "@/lib/talent/google-business-profile-guide";
 import { buildSeoScore } from "@/lib/talent/seo-score";
 import { buildGscGuide } from "@/lib/talent/search-console-guide";
 import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * TUL-1226: this standalone page used bare Tailwind greys and never set a text colour or font, so its
+ * headings and values took whatever the dashboard shell around it handed down (QA saw them very pale).
+ * The sibling talent pages (Discover, Trust) declare ink and font themselves; this does the same.
+ */
+const GET_FOUND_TEXT = { color: "var(--color-admin-ink)", fontFamily: '"Inter", system-ui, sans-serif' } as const;
 
 /** TUL-584: Google Business Profile setup guide, pre-filled from the talent's own data. */
 export default async function PlatformTalentGetFoundPage() {
@@ -36,6 +44,7 @@ export default async function PlatformTalentGetFoundPage() {
   );
 
   const gscGuide = buildGscGuide({ siteUrl }, lang);
+  const gscToken = await loadTalentGoogleSiteVerification(profile.id);
 
   // TUL-581: three cheap reads (one row each / head counts), service role like the profile loader.
   const admin = createServiceRoleClient();
@@ -80,15 +89,15 @@ export default async function PlatformTalentGetFoundPage() {
   );
 
   return (
-    <>
+    <div style={GET_FOUND_TEXT}>
       <SeoScoreCard seo={seo} lang={lang} />
       <GoogleBusinessGuide guide={guide} lang={lang} />
-      <SearchConsoleGuide guide={gscGuide} lang={lang} />
+      <SearchConsoleGuide guide={gscGuide} lang={lang} initialToken={gscToken} />
       <div className="mx-auto max-w-2xl px-6 pb-6 text-sm">
         <Link href="/talent/site" className="text-neutral-500 underline">
           {lang === "es" ? "Volver a Mi presencia" : "Back to My presence"}
         </Link>
       </div>
-    </>
+    </div>
   );
 }

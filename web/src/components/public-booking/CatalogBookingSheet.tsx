@@ -19,6 +19,7 @@ import {
 } from "@/lib/talent/who-step-payment-copy";
 
 import type { CatalogBookFn } from "./catalog-booking-confirm";
+import { requestInfoHref } from "./catalog-request-info-href";
 import { PolicyLinkSheet } from "./PolicyLinkSheet";
 import {
   openCatalogBookingChat,
@@ -67,6 +68,7 @@ import { localizeOptionLabels } from "./catalog-option-locale";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
+import { useCardFeeQuote } from "./use-card-fee-quote";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
 import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
@@ -84,7 +86,7 @@ import { useCatalogBookingConfirm } from "./use-catalog-booking-confirm";
 import { useBookingSheetFocusTrap } from "./use-booking-sheet-focus";
 import { CatalogDonePanel, CatalogSheetHeader } from "./catalog-done-panel";
 import { CatalogSheetFooter } from "./catalog-sheet-footer";
-import { isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
+import { clearCatalogDone, isCatalogDoneEcho, useCatalogDoneSnapshot, type CatalogDoneFacts } from "./catalog-done-snapshot";
 
 type Step = "choose" | "when" | "who" | "done";
 export type CatalogBookingDetail = OfferingRequestDetail & {
@@ -252,6 +254,7 @@ export function CatalogBookingSheet({
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
   const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
+  const cardFee = useCardFeeQuote({ enabled: step === "who" && mode === "live" && detail?.priceDisplay !== "quote", offeringId: detail?.offeringId ?? null, variantId, addOnIds });
 
   useEffect(() => {
     if (!detail || step === "done" || (needsVariant && !variant)) return;
@@ -391,7 +394,7 @@ export function CatalogBookingSheet({
     if (detail) return;
     resetConfirmGuards();
   }, [detail, resetConfirmGuards]);
-  const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es) : null; // TUL-1022
+  const slotLabel = time != null ? catalogBookingWhenLabel(day, time, mode === "live" ? liveTz : null, es, mode === "live" ? livePlaceCity : null) : null; // TUL-1022
   // TUL-1035: the confirmation outlives a remount / refresh / same-service re-open.
   const { doneSlot } = useCatalogDoneSnapshot({
     step, detail, variantId, addOnIds, slotLabel, wrote, doneHref, facts: doneFacts,
@@ -489,9 +492,19 @@ export function CatalogBookingSheet({
     else openCatalogBookingChat(handoff);
   };
   const emptyConsultButton = (
-    <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
-      {es ? "Consultar disponibilidad" : "Check availability"}
-    </button>
+    <>
+      <button type="button" className="jb-ask" data-catalog-empty-ask="" onClick={() => askAvailability()}>
+        {es ? "Consultar disponibilidad" : "Check availability"}
+      </button>
+      {/* TUL-861: a form path that does not open the chat. */}
+      <a
+        className="jb-back-link"
+        data-catalog-empty-request=""
+        href={requestInfoHref(typeof window !== "undefined" ? window.location.pathname : "/", locale)}
+      >
+        {es ? "Pedir información" : "Request information"}
+      </a>
+    </>
   );
 
   return (
@@ -510,7 +523,7 @@ export function CatalogBookingSheet({
       <div className="jb-sheet">
         <CatalogSheetHeader
           kicker={step === "done" ? doneStatus.headline : es ? "Tu reserva" : "Your booking"}
-          title={detail.title} closeLabel={es ? "Cerrar" : "Close"} onClose={() => setDetail(null)}
+          title={detail.title} closeLabel={es ? "Cerrar" : "Close"} onClose={() => { clearCatalogDone(); setDetail(null); }}
         />
 
         <div className="jb-body">
@@ -605,7 +618,7 @@ export function CatalogBookingSheet({
                         <span>
                           {a.label}
                           {typeof a.durationMinutes === "number" && a.durationMinutes > 0
-                            ? ` · +${a.durationMinutes} min`
+                            ? ` · +${durationLabel(a.durationMinutes)}`
                             : ""}
                         </span>
                         <b>+ {money(a.amountCents, detail.currency)}</b>
@@ -696,11 +709,13 @@ export function CatalogBookingSheet({
                 placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
+                cardFee={cardFee ? { feeLabel: money(cardFee.feeCents, cardFee.currency), payNowLabel: money(cardFee.payNowCents, cardFee.currency) } : null}
               />
               <CatalogWhoContact
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
                 touched={touched} nameValid={nameValid} phoneValid={phoneValid}
                 emailValid={emailValid} askAttempted={askAttempted} chatPhoneValid={chatPhoneValid}
+                note={detail.task ? null : (detail.note ?? "")} setNote={(note) => setDetail({ ...detail, note })}
               />
               {addr.rule === "required" ? <ServiceAddressField value={addr.fields.address} note={addr.fields.note} onChange={addr.setFields} error={addr.error} locale={locale} /> : null}
               <p className="jb-fixture" data-catalog-who-pay="">
@@ -752,6 +767,7 @@ export function CatalogBookingSheet({
         <CatalogSheetFooter
           step={step}
           es={es}
+          paymentLine={paymentFixture}
           totalLabel={
             <b data-catalog-price={isQuote ? "quote" : "money"}>
               {footerTotal.from && !isQuote ? (es ? "Desde " : "From ") : ""}
@@ -763,7 +779,7 @@ export function CatalogBookingSheet({
           onContinueChoose={() => setStep("when")}
           whenReady={selectedTime}
           onContinueWhen={() => { if (catalogCanContinueWhen(time)) setStep("who"); }}
-          onDone={() => setDetail(null)}
+          onDone={() => { clearCatalogDone(); setDetail(null); }} // TUL-1253: forget synchronously, a refresh remount must not bring it back
           whoCta={
             <button
               type="button"

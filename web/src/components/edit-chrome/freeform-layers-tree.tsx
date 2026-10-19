@@ -131,8 +131,11 @@ function rawChildKindsForKind(kind: BuilderNodeKind): ReadonlyArray<BuilderNodeK
  */
 function rowLabel(node: BuilderNode, locale: EditorLocale): string {
   const name = resolveLayerDisplayName(node, sectionEmbedTypeLabel);
-  // Design kits name their sections in English ("Ticker and recent work").
-  return locale === "es" ? (sectionNameForLabel(name, "es") ?? name) : name;
+  if (locale !== "es") return name;
+  // Design kits name their sections in English ("Ticker and recent work") via
+  // `layerLabel`; talent-named layers and text-derived names stay as typed.
+  const kitLabel = (node.props as { layerLabel?: string }).layerLabel;
+  return (kitLabel ? sectionNameForLabel(kitLabel, "es") : null) ?? name;
 }
 
 /** Section type key for Structure search aliases (TUL-80). */
@@ -778,7 +781,7 @@ export function FreeformLayersTree({
           role="status"
           aria-live="polite"
         >
-          No layers match &ldquo;{search.trim()}&rdquo;.
+          {editorText("No layers match “{query}”.").replace("{query}", search.trim())}
           {onClearSearch ? (
             <>
               {" "}
@@ -788,7 +791,7 @@ export function FreeformLayersTree({
                 className="cursor-pointer border-none bg-transparent p-0 text-[11.5px] font-semibold underline"
                 style={{ color: CHROME.accent }}
               >
-                Clear search
+                {editorText("Clear search")}
               </button>
             </>
           ) : null}
@@ -817,8 +820,8 @@ export function FreeformLayersTree({
           <HeaderAddButton
             label={
               selectedContainerRow
-                ? `Add block inside ${headerLabel}`
-                : "Add block to page"
+                ? editorText("Add block inside {label}").replace("{label}", headerLabel)
+                : editorText("Add block to page")
             }
             active={insertTarget?.key === "header"}
             disabled={pending}
@@ -1080,7 +1083,7 @@ export function FreeformLayersTree({
               {/* Locked nodes: hide structural actions (add/move/remove). */}
               {!structureLocked && !row.locked && canAddChild ? (
                 <LayerActionButton
-                  label={`Add block inside ${row.label}`}
+                  label={editorText("Add block inside {label}").replace("{label}", row.label)}
                   disabled={pending}
                   onClick={(e) => {
                     e.stopPropagation();

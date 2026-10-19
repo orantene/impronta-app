@@ -96,6 +96,7 @@ export function resolveLegacyFlowLang(input: {
   if (input.urlLang === "es" || input.urlLang === "en") return input.urlLang;
   // One resolver for every auth/onboarding page (see resolveAuthPageLocale).
   return resolveAuthPageLocale({
+    honorSeededAutoCookie: false,
     cookieLocale: input.cookieLocale === "es" || input.cookieLocale === "en" ? input.cookieLocale : null,
     cookieIsAuto: input.cookieIsAuto === true,
     acceptLanguage: input.acceptLanguage,

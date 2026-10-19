@@ -11,24 +11,23 @@ import TalentJoinDeclined from "../../../emails/talent/JoinDeclined";
 import RosterJoinRequest from "../../../emails/workspace/RosterJoinRequest";
 import WorkspaceTeamInvite from "../../../emails/workspace/TeamInvite";
 import WorkspaceWelcome from "../../../emails/workspace/Welcome";
-import BookingCanceled from "../../../emails/workspace/BookingCanceled";
 import DayOfReminder from "../../../emails/notifications/DayOfReminder";
 import SeatLimitReached from "../../../emails/workspace/SeatLimitReached";
 import type { CatalogEntry, NotificationEvent } from "./types";
 import { bookingNoun } from "./booking-noun";
 import {
-  allRosterTalent,
-  assignedCoordinator,
   clientOrGuest,
   emailInvitee,
   eventUser,
-  loadInquiryView,
   platformAdmins,
   str,
   workspaceAdmins,
   workspaceManagersPlus,
 } from "./catalog-audiences";
 import { formatAppointmentLabel, formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
+import { bookingConfirmedClient, bookingTalentAudience, loadBookingConfirmedView } from "./catalog-audiences-booking";
+import { BOOKING_CANCELLED_CATALOG_ENTRIES } from "./catalog-entries-booking-cancelled";
+import { BOOKING_RESERVED_CATALOG_ENTRIES } from "./catalog-entries-booking-reserved";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
 import { TALENT_DOMAIN_CATALOG_ENTRIES } from "./catalog-entries-talent-domain";
@@ -429,124 +428,6 @@ const ROSTER_JOIN_REJECTED: CatalogEntry = {
   },
 };
 
-/**
- * booking.cancelled → the client (or guest). Surface-scoped to `client` so the
- * in-app bell lands on the client dashboard; the link points at the client's
- * own inquiry view.
- */
-const BOOKING_CANCELLED_CLIENT: CatalogEntry = {
-  id: "booking.cancelled.client",
-  category: "bookings",
-  defaultChannels: ["email", "in_app"],
-  required: false,
-  triggers: ["booking.cancelled"],
-  hydrate: loadInquiryView,
-  resolveAudience: clientOrGuest,
-  in_app: {
-    kind: "booking",
-    surface: "client",
-    title: () => "Your booking was cancelled",
-    body: (event) => {
-      const date = str(event.payload.eventDate);
-      return date
-        ? `The booking for ${date} has been cancelled.`
-        : "Your booking has been cancelled.";
-    },
-  },
-  email: {
-    templateId: "client.booking_cancelled",
-    subject: () => "Your booking was cancelled",
-    render: ({ event, recipient, brand, unsubscribeUrl }) =>
-      React.createElement(BookingCanceled, {
-        recipientName: recipient.displayName ?? str(event.payload.contactName),
-        contactName: str(event.payload.contactName),
-        eventDate: str(event.payload.eventDate),
-        inquiryUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
-        brand,
-        unsubscribeUrl,
-        categoryLabel: "booking",
-      }),
-  },
-};
-
-/**
- * booking.cancelled → every talent on the booking. Surface-scoped to `talent`;
- * the link points at the talent inquiry view.
- */
-const BOOKING_CANCELLED_TALENT: CatalogEntry = {
-  id: "booking.cancelled.talent",
-  category: "bookings",
-  defaultChannels: ["email", "in_app"],
-  required: false,
-  triggers: ["booking.cancelled"],
-  hydrate: loadInquiryView,
-  resolveAudience: allRosterTalent,
-  in_app: {
-    kind: "booking",
-    surface: "talent",
-    title: () => "A booking was cancelled",
-    body: (event) => {
-      const contact = str(event.payload.contactName);
-      const date = str(event.payload.eventDate);
-      const who = contact ? `${contact}'s booking` : "A booking";
-      return date ? `${who} on ${date} has been cancelled.` : `${who} has been cancelled.`;
-    },
-  },
-  email: {
-    templateId: "talent.booking_cancelled",
-    subject: () => "A booking was cancelled",
-    render: ({ event, recipient, brand, unsubscribeUrl }) =>
-      React.createElement(BookingCanceled, {
-        recipientName: recipient.displayName ?? str(event.payload.contactName),
-        contactName: str(event.payload.contactName),
-        eventDate: str(event.payload.eventDate),
-        inquiryUrl: pageUrl(brand, inquiryPathForRole("talent", event.inquiryId)),
-        brand,
-        unsubscribeUrl,
-        categoryLabel: "booking",
-      }),
-  },
-};
-
-/**
- * booking.cancelled → the assigned coordinator. Surface-scoped to `workspace`;
- * the link points at the admin work queue.
- */
-const BOOKING_CANCELLED_COORDINATOR: CatalogEntry = {
-  id: "booking.cancelled.coordinator",
-  category: "bookings",
-  defaultChannels: ["email", "in_app"],
-  required: false,
-  triggers: ["booking.cancelled"],
-  hydrate: loadInquiryView,
-  resolveAudience: assignedCoordinator,
-  in_app: {
-    kind: "booking",
-    surface: "workspace",
-    title: () => "A booking was cancelled",
-    body: (event) => {
-      const contact = str(event.payload.contactName);
-      const date = str(event.payload.eventDate);
-      const who = contact ? `${contact}'s booking` : "A booking";
-      return date ? `${who} on ${date} has been cancelled.` : `${who} has been cancelled.`;
-    },
-  },
-  email: {
-    templateId: "workspace.booking_cancelled",
-    subject: () => "A booking was cancelled",
-    render: ({ event, recipient, brand, unsubscribeUrl }) =>
-      React.createElement(BookingCanceled, {
-        recipientName: recipient.displayName ?? str(event.payload.contactName),
-        contactName: str(event.payload.contactName),
-        eventDate: str(event.payload.eventDate),
-        inquiryUrl: pageUrl(brand, `/admin/work/${event.inquiryId}`),
-        brand,
-        unsubscribeUrl,
-        categoryLabel: "booking",
-      }),
-  },
-};
-
 // ─── Day-of booking reminder (spec §6.4, Slice 15.6, direct dispatch) ─────────
 //
 // The `booking-reminders` cron (24h before `event_date`) dispatches
@@ -571,6 +452,26 @@ function appointmentWhen(event: NotificationEvent, locale: string | null | undef
   return when && what ? `${when} · ${what}` : when;
 }
 
+/**
+ * G1: when the reminder says the booking happens. A talent-site appointment keeps
+ * its own label; a booking whose start is known reads the already formatted
+ * "mié 14 oct, 13:30 - 14:30" (loadBookingConfirmedView); a bare date is formatted.
+ */
+function reminderWhen(event: NotificationEvent, locale: string | null | undefined): string | undefined {
+  const appt = appointmentWhen(event, locale);
+  if (appt) return appt;
+  const date = str(event.payload.eventDate);
+  if (str(event.payload.startsAt)) return date ?? undefined;
+  return formatDateLabel(date) ?? undefined;
+}
+
+/** G1: the client's link, with or without a source inquiry (a direct booking has none). */
+function reminderClientPath(event: NotificationEvent): string {
+  if (event.inquiryId) return `/client/inquiries/${event.inquiryId}`;
+  const bookingId = str(event.payload.bookingId) ?? event.bookingId;
+  return bookingId ? `/client/bookings/${bookingId}` : "/client";
+}
+
 /** TUL-136: appointment wording for talent-site bookings, event wording otherwise. */
 function dayOfWord(event: NotificationEvent, appointment: string, eventText: string): string {
   return bookingNoun(event.payload) === "appointment" ? appointment : eventText;
@@ -587,8 +488,10 @@ const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.day_of_reminder"],
-  hydrate: loadInquiryView,
-  resolveAudience: clientOrGuest,
+  hydrate: loadBookingConfirmedView,
+  // With an inquiry the long-standing audience; a booking with none (direct
+  // booking, G1) is reminded at the contact typed on the booking itself.
+  resolveAudience: (event, ctx) => (event.inquiryId ? clientOrGuest(event, ctx) : bookingConfirmedClient(event, ctx)),
   in_app: {
     kind: "booking",
     surface: "client",
@@ -605,9 +508,13 @@ const BOOKING_DAY_OF_REMINDER_CLIENT: CatalogEntry = {
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(DayOfReminder, {
         recipientName: recipient.displayName ?? str(event.payload.contactName),
-        eventDate: appointmentWhen(event, brand.locale) ?? formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventDate: reminderWhen(event, brand.locale) ?? null,
         eventLocation: str(event.payload.eventLocation) ?? str(event.payload.appointmentLocation),
-        inquiryUrl: pageUrl(brand, `/client/inquiries/${event.inquiryId}`),
+        serviceName: str(event.payload.serviceName),
+        durationLabel: str(event.payload.durationLabel),
+        timeZoneLabel: str(event.payload.timeZoneName),
+        policyLabel: str(event.payload.policyLabel),
+        inquiryUrl: pageUrl(brand, reminderClientPath(event)),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
@@ -626,8 +533,8 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
   defaultChannels: ["email", "in_app"],
   required: false,
   triggers: ["booking.day_of_reminder"],
-  hydrate: loadInquiryView,
-  resolveAudience: allRosterTalent,
+  hydrate: loadBookingConfirmedView,
+  resolveAudience: bookingTalentAudience,
   in_app: {
     kind: "booking",
     surface: "talent",
@@ -644,9 +551,12 @@ const BOOKING_DAY_OF_REMINDER_TALENT: CatalogEntry = {
     render: ({ event, recipient, brand, unsubscribeUrl }) =>
       React.createElement(DayOfReminder, {
         recipientName: recipient.displayName,
-        eventDate: appointmentWhen(event, brand.locale) ?? formatDateLabel(str(event.payload.eventDate)) ?? null,
+        eventDate: reminderWhen(event, brand.locale) ?? null,
         eventLocation: str(event.payload.eventLocation) ?? str(event.payload.appointmentLocation),
-        inquiryUrl: pageUrl(brand, inquiryPathForRole("talent", event.inquiryId)),
+        serviceName: str(event.payload.serviceName),
+        durationLabel: str(event.payload.durationLabel),
+        timeZoneLabel: str(event.payload.timeZoneName),
+        inquiryUrl: pageUrl(brand, event.inquiryId ? inquiryPathForRole("talent", event.inquiryId) : "/talent/inbox"),
         brand,
         unsubscribeUrl,
         categoryLabel: "booking",
@@ -774,9 +684,8 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ROSTER_JOIN_REQUESTED,
   ROSTER_JOIN_APPROVED,
   ROSTER_JOIN_REJECTED,
-  BOOKING_CANCELLED_CLIENT,
-  BOOKING_CANCELLED_TALENT,
-  BOOKING_CANCELLED_COORDINATOR,
+  ...BOOKING_CANCELLED_CATALOG_ENTRIES,
+  ...BOOKING_RESERVED_CATALOG_ENTRIES,
   BOOKING_DAY_OF_REMINDER_CLIENT,
   BOOKING_DAY_OF_REMINDER_TALENT,
   WORKSPACE_OVER_SEAT_LIMIT,

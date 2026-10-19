@@ -62,9 +62,15 @@ on:
 permissions:
   contents: read
 
+# A `labeled` event for any label other than `full-ci` does not change what this
+# workflow runs (the migrations job's `if` below skips it), so it gets its own
+# throwaway group: otherwise adding e.g. a "ready" label would cancel a 20 minute
+# in-flight run and replace it with a skipped one. Runs on main/production refs
+# are never cancelled (this workflow does not trigger on push, but the guard
+# keeps that true if a push trigger is ever added).
 concurrency:
-  group: talent-website-e2e-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: talent-website-e2e-${{ (github.event.action == 'labeled' && github.event.label.name != 'full-ci') && format('label-noop-{0}', github.run_id) || (github.event.pull_request.number || github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   migrations:
@@ -75,6 +81,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
+      # Single source for the CLI version: feeds setup-cli AND the image cache
+      # key, so the cached images can never belong to a different CLI.
+      SUPABASE_CLI_VERSION: 2.117.0
       PGHOST: 127.0.0.1
       PGPORT: "54322"
       PGUSER: postgres
@@ -94,7 +103,34 @@ jobs:
           # single migration. A version the lane does not choose is also a
           # version the lane cannot reproduce — a CLI release could change the
           # replay result with no commit here to explain it.
-          version: 2.117.0
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      # Docker image cache for `supabase start` (see the comment above the start
+      # step). Keyed on the pinned CLI version (which fixes every image tag) and
+      # on config.toml (postgres major_version). Restored BEFORE the override
+      # step below so the hashed config is the committed one. A miss is normal
+      # (first run per key) and simply falls through to the registry pull.
+      - name: Compute Supabase image cache key
+        id: imgkey
+        run: echo "key=supabase-images-v1-cli${{ env.SUPABASE_CLI_VERSION }}-${{ hashFiles('supabase/config.toml') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Supabase image cache
+        id: imgcache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.imgkey.outputs.key }}
+
+      - name: Load cached Supabase images
+        if: steps.imgcache.outputs.cache-hit == 'true'
+        run: |
+          start=$(date +%s)
+          ls -lh "$RUNNER_TEMP/supabase-images"
+          # A corrupt or partial cache must never fail the lane: fall through to
+          # the normal pull (and the retry loop) instead.
+          docker load -i "$RUNNER_TEMP/supabase-images/images.tar" || echo "::warning title=image cache::docker load failed, falling back to registry pull"
+          echo "docker load took $(( $(date +%s) - start ))s"
+          docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}'
 
       - name: CI-only config overrides (seed off, CLI migrations off)
         run: |
@@ -129,16 +165,31 @@ jobs:
       # spans six minutes of refills. A run that dies here measures the RUNNER,
       # not our fixtures, so it is worth spending minutes to avoid producing a
       # misleading number.
+      #
+      # IMAGE CACHE (since 2026-10-19): the images are cached across runs with
+      # actions/cache (restore + load above, docker save + save below), so a hit
+      # makes `supabase start` find every image locally and pull nothing, which
+      # removes the registry bucket from the critical path. Only images that were
+      # not already on the runner before `supabase start` are saved, i.e. exactly
+      # the ones the CLI pulled for the services started with the -x list below
+      # (db, auth, rest, storage, kong, mailpit, etc.; the heavy excluded ones
+      # such as studio, edge-runtime, logflare, vector and imgproxy are never
+      # pulled, so never cached). Size is a few GB, under the 10 GB repo limit.
       - name: Start local Supabase
+        id: start
         run: |
           set -o pipefail
           supabase --version
+          docker images --format '{{.Repository}}:{{.Tag}}' | sort -u > "$RUNNER_TEMP/images-before.txt"
+          pull_start=$(date +%s)
           # Retry the pull-heavy start: even authenticated, a transient registry
           # failure should cost 30 seconds, not the whole run.
           for attempt in 1 2 3 4 5; do
             if supabase start \
                  -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,postgres-meta,realtime; then
               echo "supabase start succeeded on attempt $attempt"
+              echo "supabase start took $(( $(date +%s) - pull_start ))s (image cache hit: ${{ steps.imgcache.outputs.cache-hit || 'false' }})"
+              echo "- supabase start: $(( $(date +%s) - pull_start ))s, attempt $attempt, image cache hit: ${{ steps.imgcache.outputs.cache-hit || 'false' }}" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             if [ "$attempt" -lt 5 ]; then
@@ -149,6 +200,30 @@ jobs:
           done
           echo "::error title=supabase start::failed 5 times over ~6 minutes. If the log shows toomanyrequests this is the shared ghcr bucket, NOT our code — the run proves nothing about the fixtures."
           exit 1
+
+      - name: Save Supabase images for the cache
+        id: save_images
+        # Right after a successful start (not at job end) so a later red test
+        # step cannot lose the cache. Skipped on a hit: keys are immutable.
+        if: steps.start.outcome == 'success' && steps.imgcache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/supabase-images"
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>' | sort -u > "$RUNNER_TEMP/images-after.txt"
+          comm -13 "$RUNNER_TEMP/images-before.txt" "$RUNNER_TEMP/images-after.txt" > "$RUNNER_TEMP/images-new.txt"
+          echo "Caching $(wc -l < "$RUNNER_TEMP/images-new.txt") images:"; cat "$RUNNER_TEMP/images-new.txt"
+          if [ ! -s "$RUNNER_TEMP/images-new.txt" ]; then echo "nothing to cache"; rm -rf "$RUNNER_TEMP/supabase-images"; exit 0; fi
+          docker save -o "$RUNNER_TEMP/supabase-images/images.tar" $(cat "$RUNNER_TEMP/images-new.txt")
+          ls -lh "$RUNNER_TEMP/supabase-images"
+          echo "saved=true" >> "$GITHUB_OUTPUT"
+
+      - name: Store Supabase image cache
+        if: steps.start.outcome == 'success' && steps.imgcache.outputs.cache-hit != 'true' && steps.save_images.outputs.saved == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/supabase-images
+          key: ${{ steps.imgkey.outputs.key }}
 
       - name: psql client
         run: |
@@ -227,6 +302,14 @@ jobs:
           node-version: 22.x
           cache: npm
           cache-dependency-path: web/package-lock.json
+
+      # TUL-1269 #6 (I2): a NEW public function executable by anon or
+      # authenticated must be on a reviewed list. Reads this job's local
+      # Postgres via PG* env; no deps, no token. WARN-ONLY (exit 0) until the
+      # printed baseline is committed and FUNCTION_EXECUTE_GUARD_ENFORCE flips.
+      - name: Guard — new function EXECUTE grants (anon/authenticated)
+        if: steps.schema.outcome == 'success'
+        run: node web/scripts/check-anon-function-grants.mjs --local-pg
 
       - name: Install dependencies (npm ci)
         working-directory: web
@@ -376,6 +459,8 @@ jobs:
       # step has NO continue-on-error: a session that survives Log out on any
       # subdomain fails the job. Local Supabase only, never production.
       - name: S1 sign-out regression (every subdomain signed out)
+        # TUL-1036/1160: bounded so a hang ends as a failure (see the isolated step below).
+        timeout-minutes: 12
         working-directory: web
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
@@ -395,7 +480,49 @@ jobs:
           # 27-minute journeys, whose dev server can crash (ECONNRESET) and
           # leave a cache that 404s /api/dev/signin for the next server.
           rm -rf .next
-          npx playwright test --project=talent-website e2e/talent-website/j9-sign-out-everywhere.spec.ts
+          # The "visible Log out control, first click" spec runs in its own step below: when the
+          # control renders, that spec lost the whole runner (job cancelled, no trace, runs on
+          # 8 branches), taking specs 1-10 and every artifact with it.
+          npx playwright test --project=talent-website --workers=1 --global-timeout=540000 \
+            --grep-invert "visible Log out control" e2e/talent-website/j9-sign-out-everywhere.spec.ts
+
+      # TUL-1036/1160 (QA Findings card 3fd2c5ee9743): spec 11 alone, so a runner loss costs only
+      # this step. Fresh dev server, ONE worker, capped Node heap, trace on from the first action
+      # (a lost runner leaves no retain-on-failure trace), and Playwright stops itself at 9 min.
+      # Non-gating (continue-on-error) until it is proven stable: specs 1-10 above still gate.
+      # No larger runner label exists in this repo's workflows (all ubuntu-latest); if one is
+      # added, switch this job's `runs-on` and drop the heap cap.
+      - name: S1 spec 11 isolated (visible Log out control, first click)
+        id: s1_spec11
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PORT: "3000"
+          TALENT_THEME_GALLERY_ENABLED: "true"
+          TALENT_FREE_WEBSITE_ENABLED: "true"
+          TALENT_SITE_SUBDOMAINS_ENABLED: "true"
+          TALENT_MAISON_THEME_ENABLED: "true"
+          TALENT_SITE_E2E_FIXTURE_READY: "1"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SERVICE_ROLE_KEY }}
+          NODE_ENV: development
+          NODE_OPTIONS: --max-old-space-size=3072
+        run: |
+          set -o pipefail
+          rm -rf .next
+          npx playwright test --project=talent-website --workers=1 --trace=on --global-timeout=540000 --output=test-results-spec11 \
+            --grep "visible Log out control" e2e/talent-website/j9-sign-out-everywhere.spec.ts
+
+      - name: Note the isolated spec result
+        if: always()
+        run: |
+          echo "S1 spec 11 (isolated, non-gating) outcome: ${{ steps.s1_spec11.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.s1_spec11.outcome }}" != "success" ]; then
+            echo "::warning title=S1 spec 11 isolated::outcome ${{ steps.s1_spec11.outcome }} (TUL-1036/1160). Trace is in the Playwright report artifact."
+          fi
 
       # Playwright auto-starts `npm run dev` because the base URL is loopback,
       # waits for it, runs `talent-website-setup` (one dev-signin per fixture),
@@ -485,6 +612,7 @@ jobs:
           path: |
             web/playwright-report
             web/test-results
+            web/test-results-spec11
           if-no-files-found: ignore
 
       # On failure, show the ERRORS rather than the tail. The tail is dominated

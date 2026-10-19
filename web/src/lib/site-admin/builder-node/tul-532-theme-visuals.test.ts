@@ -66,3 +66,32 @@ test("GRK-083: cards/grid/editorial stay 1 column through 899px with wrapping CT
     /data-layout="cards"\][^{]*\.site-builder-node--services-catalog-cta[\s\S]*?white-space:normal/,
   );
 });
+
+// TUL-550: remaining theme-core pieces (phone gutter heal, face-forward hero crops).
+const heroSpecSrc = readFileSync(
+  path.join(__dirname, "../../talent-site/theme-catalog/section-kit-hero-spec.ts"),
+  "utf8",
+);
+const sectionKitSrc = readFileSync(
+  path.join(__dirname, "../../talent-site/theme-catalog/section-kit.ts"),
+  "utf8",
+);
+const utilityTypeSystemSrc = readFileSync(
+  path.join(__dirname, "../../talent-site/theme-catalog/collection/design-type-system-utility.ts"),
+  "utf8",
+);
+
+test("TUL-550 GRK-073: utility type system heals published paddingX:none to a 16px phone gutter", () => {
+  assert.match(utilityTypeSystemSrc, /@media \(max-width:899px\)[^`]*padding-inline:max\(16px,/);
+});
+
+test("TUL-550 GRK-073: split hero copy column has a phone paddingX", () => {
+  assert.match(sectionKitSrc, /responsive: \{ mobile: \{ paddingX: "l" \} \}/);
+});
+
+test("TUL-550 GRK-076: heroSplit, heroCover and hero-spec who-card crop face-forward", () => {
+  assert.match(sectionKitSrc, /objectPosition: "center 18%"/);
+  assert.match(sectionKitSrc, /backgroundPosition: "center 18%"/);
+  assert.match(heroSpecSrc, /objectPosition: "center 18%"/);
+  assert.doesNotMatch(heroSpecSrc, /objectPosition: "50% 20%"/);
+});

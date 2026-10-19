@@ -166,6 +166,7 @@ export async function resolveTalentBooking(
     duration_minutes: number | null;
     kind: string | null;
     status: string | null;
+    moderation_state: string | null;
     visibility: string | null;
   } | null = null;
 
@@ -173,7 +174,7 @@ export async function resolveTalentBooking(
     const { data } = await admin
       .from("talent_offerings")
       .select(
-        "tenant_id, booking_mode, reserve_mode, duration_minutes, kind, status, visibility",
+        "tenant_id, booking_mode, reserve_mode, duration_minutes, kind, status, moderation_state, visibility",
       )
       .eq("id", input.offeringId)
       .eq("talent_profile_id", talent.id)
@@ -182,6 +183,7 @@ export async function resolveTalentBooking(
     if (
       !offering ||
       offering.status !== "published" ||
+      offering.moderation_state !== "approved" || // D-10
       (offering.visibility !== "public" && offering.visibility !== "on_request") ||
       offering.kind === "product"
     ) {

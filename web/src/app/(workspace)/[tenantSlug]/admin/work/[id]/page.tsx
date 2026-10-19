@@ -12,9 +12,9 @@ import {
 } from "@/lib/bookings/transactions";
 import {
   calculateTransactionAmountsForBasisPoints,
-  feePercent,
   formatCents,
 } from "@/lib/bookings/commission";
+import { effectiveFeeLabel } from "@/lib/bookings/fee-display";
 import { loadCommissionContext, loadInquiryActivity, type InquiryActivityItem } from "../../../_data-bridge";
 import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine";
 import {
@@ -97,16 +97,16 @@ function InquiryStatusChip({ status, t }: { status: string; t: (k: string) => st
     approved:      { bg: C.accentSoft,           color: C.accent,  labelKey: "admin.work.detail.inquiryStatus.approved" },
     booked:        { bg: "rgba(26,115,72,0.10)", color: "#1A7348", labelKey: "admin.work.detail.inquiryStatus.booked" },
     converted:     { bg: "rgba(26,115,72,0.10)", color: "#1A7348", labelKey: "admin.work.detail.inquiryStatus.booked" },
-    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.rejected" },
-    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.expired" },
-    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.45)", labelKey: "admin.work.detail.inquiryStatus.draft" },
+    rejected:      { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.6)", labelKey: "admin.work.detail.inquiryStatus.rejected" },
+    expired:       { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.6)", labelKey: "admin.work.detail.inquiryStatus.expired" },
+    draft:         { bg: "rgba(11,11,13,0.05)",  color: "rgba(11,11,13,0.6)", labelKey: "admin.work.detail.inquiryStatus.draft" },
   };
   const entry = map[status];
   const s = entry
     ? { bg: entry.bg, color: entry.color, label: t(entry.labelKey) }
     : {
         bg: "rgba(11,11,13,0.05)",
-        color: "rgba(11,11,13,0.45)",
+        color: "rgba(11,11,13,0.6)",
         label: status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       };
   return (
@@ -304,7 +304,13 @@ export default async function WorkspaceWorkDetailPage({
         grossCents: transaction.grossAmountCents,
         feeCents: transaction.platformFeeCents,
         netCents: transaction.netAmountCents,
-        feeLabel: feePercent(transaction.platformFeeBasisPoints),
+        // TUL-1176: no commission snapshot on this path (a snapshot wins below): the rate of what was
+        // CHARGED (fee / gross); the stored bps is 0 on pass-through rows by design.
+        feeLabel: effectiveFeeLabel({
+          platformFeeCents: transaction.platformFeeCents,
+          grossAmountCents: transaction.grossAmountCents,
+          storedBasisPoints: transaction.platformFeeBasisPoints,
+        }),
         currency: transaction.currency,
       }
     : preview
@@ -334,10 +340,13 @@ export default async function WorkspaceWorkDetailPage({
         grossCents: snapGrossChargedCents,
         feeCents: snapPlatformCents, // the REAL platform fee, not a flat plan %
         netCents: snapWorkspaceCents, // the workspace's actual net (agency margin)
-        feeLabel:
-          snapGrossChargedCents > 0
-            ? `${Math.round((snapPlatformCents / snapGrossChargedCents) * 100)}%`
-            : "0%",
+        // Snapshot exists: keep showing the snapshot rate (same output as before, TUL-1176).
+        feeLabel: effectiveFeeLabel({
+          platformFeeCents: snapPlatformCents,
+          grossAmountCents: snapGrossChargedCents,
+          storedBasisPoints: 0,
+          snapshot: { platformFeeCents: snapPlatformCents, grossChargedCents: snapGrossChargedCents },
+        }),
         currency: commissionSnapshots[0].currency_code,
       }
     : null;

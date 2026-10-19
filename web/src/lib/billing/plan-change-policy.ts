@@ -149,7 +149,17 @@ export function buildScheduleUpdateParams(input: {
   toPriceId: string;
   toPlan: string;
   toInterval: BillingInterval;
+  /**
+   * The subscription's trial end (unix seconds) while it is trialing, else null.
+   * A schedule update REPLACES the phases: without `trial_end` on the current
+   * phase Stripe ends the trial on the spot and invoices the full price, while
+   * the confirm step promised "nothing is charged today" (TUL-831, found on
+   * localhost 2026-10-19: a trialing yearly plan was billed $150 on a
+   * period-end downgrade).
+   */
+  trialEnd?: number | null;
 }) {
+  const keepTrial = input.trialEnd != null && input.trialEnd > input.currentPhaseStart;
   return {
     end_behavior: "release" as const,
     proration_behavior: "none" as const,
@@ -158,6 +168,7 @@ export function buildScheduleUpdateParams(input: {
         items: [{ price: input.currentPriceId, quantity: 1 }],
         start_date: input.currentPhaseStart,
         end_date: input.currentPeriodEnd,
+        ...(keepTrial ? { trial_end: input.trialEnd as number } : {}),
       },
       {
         items: [{ price: input.toPriceId, quantity: 1 }],

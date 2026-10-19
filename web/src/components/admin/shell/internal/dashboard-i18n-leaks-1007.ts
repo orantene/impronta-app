@@ -33,9 +33,16 @@ export const LEAKS_1007_ES_TEXT: Record<string, string> = {
   "a bio": "una biografía",
   "1 language": "1 idioma",
   // Profile performance, Pro-gated
-  "Page analytics are part of Pro": "El análisis de la página es parte de Pro",
-  "Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.":
-    "Las visitas a tu perfil y la conversión de consultas se están registrando ahora mismo. Mejora a Pro o Portfolio para verlas.",
+  "No prior week to compare": "Sin semana previa para comparar",
+  "Unique viewers · 7d": "Visitantes únicos · 7 d",
+  "in the last 30 days": "en los últimos 30 días",
+  "Views → inquiries · 30d": "Visitas → consultas · 30 d",
+  "Needs profile views to measure": "Necesita visitas al perfil para medirse",
+  "views": "visitas",
+  // {plan} = upgradePlanLabel() (upgrade-modal-model.ts): the same plan the upgrade modal sells.
+  "Page analytics are part of {plan}": "El análisis de la página es parte de {plan}",
+  "Your profile views and inquiry conversion are being recorded right now. Upgrade to {plan} to see them.":
+    "Las visitas a tu perfil y la conversión de consultas se están registrando ahora mismo. Mejora a {plan} para verlas.",
   // Talent field + skills server messages (Services drawer save banner)
   "Couldn't read the current services.": "No se pudieron leer los servicios actuales.",
   "Couldn't remove services.": "No se pudieron quitar los servicios.",

@@ -67,6 +67,14 @@ import { letsAnonWrite } from "./anon-write-policy-shape.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
+// CI mode (TUL-1269 #6, I2): the CI job's LOCAL Postgres after the migration
+// replay, anon AND authenticated, PUBLIC SCHEMA ONLY, against a committed
+// baseline and a signature-keyed reviewed allow-list. No token.
+if (process.argv.includes("--local-pg")) {
+  const { runLocalGuard } = await import("./lib/function-execute-guard-cli.mjs");
+  process.exit(await runLocalGuard(process.argv.slice(2)));
+}
+
 /**
  * Read the allow-list from its TypeScript module rather than restating it.
  * A second copy of a security boundary is a second boundary, and the two drift
@@ -87,6 +95,13 @@ function loadAllowList() {
     process.exit(1);
   }
   const names = [...block[1].matchAll(/"([a-z0-9_]+)"/gi)].map((m) => m[1]);
+  // TUL-1013: RLS policy helpers anon must keep (evidence lives in the module).
+  const helpers = src.match(/export const POLICY_HELPER_FUNCTIONS[^=]*=\s*\[([\s\S]*?)\]/);
+  if (!helpers) {
+    console.error("[check-anon-grants] could not parse POLICY_HELPER_FUNCTIONS. Refusing to run.");
+    process.exit(1);
+  }
+  names.push(...[...helpers[1].matchAll(/"([a-z0-9_]+)"/gi)].map((m) => m[1]));
   if (names.length === 0) {
     console.error("[check-anon-grants] allow-list parsed but EMPTY. Refusing to run.");
     process.exit(1);

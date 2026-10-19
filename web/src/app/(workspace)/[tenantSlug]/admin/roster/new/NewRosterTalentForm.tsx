@@ -9,7 +9,7 @@ import { createTranslator } from "@/i18n/messages";
 const C = {
   ink:         "#0B0B0D",
   inkMuted:    "rgba(11,11,13,0.62)",
-  inkDim:      "rgba(11,11,13,0.38)",
+  inkDim:      "rgba(11,11,13,0.6)",
   border:      "rgba(24,24,27,0.10)",
   borderFocus: "rgba(15,79,62,0.45)",
   surface:     "#FAFAF7",

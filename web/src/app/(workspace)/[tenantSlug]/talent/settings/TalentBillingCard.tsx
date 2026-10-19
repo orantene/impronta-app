@@ -10,6 +10,8 @@
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useEffect, useState, useTransition } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { PastDueBanner } from "@/components/billing/PastDueBanner";
+import { talentBillingPlanLabel, talentPastDueView } from "@/lib/billing/talent-billing-display";
 import {
   loadTalentBillingSummary,
   type TalentBillingSummary,
@@ -59,15 +61,27 @@ export function TalentBillingCard({ tenantSlug }: { tenantSlug: string }) {
   if (!data) return <p className="text-xs text-neutral-500">{copy.t("Loading billing…")}</p>;
 
   const sub = data.subscription;
+  // TUL-835: the plan name in the dashboard's own words ("Oficina Web" in ES).
+  const planName = talentBillingPlanLabel(data.planKey) ?? data.planLabel;
+  const pastDue = talentPastDueView(sub);
   const day = (iso: string) =>
     new Date(iso).toLocaleDateString(loc, { year: "numeric", month: "short", day: "numeric" });
   const money = (cents: number, currency: string) => formatDashboardMoneyCents(cents, currency, loc);
 
   return (
     <div className="flex flex-col gap-4 text-sm">
+      {pastDue && (
+        <PastDueBanner
+          scope="talent"
+          tenantSlug={tenantSlug}
+          status={pastDue.status}
+          pastDueSince={pastDue.pastDueSince}
+          locale={copy.isSpanish ? "es" : "en"}
+        />
+      )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2">
         <dt className="text-neutral-500">{copy.t("Current plan")}</dt>
-        <dd>{copy.t(data.planLabel)}</dd>
+        <dd>{copy.t(planName)}</dd>
         {sub?.nextChargeAt && (
           <>
             <dt className="text-neutral-500">{copy.t(sub.cancelAtPeriodEnd ? "Cancels on" : "Next charge")}</dt>

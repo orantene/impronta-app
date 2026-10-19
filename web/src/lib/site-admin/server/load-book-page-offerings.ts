@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSlotEligibleOffering } from "@/components/public-booking/pick-bookable-offering";
 import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { houseBookingModeFor } from "@/lib/booking/house-booking";
+import { houseListingModeFor } from "@/lib/booking/house-booking";
 import {
   rowToOffering,
   type TalentOffering,
@@ -69,7 +69,8 @@ export async function loadPublicBookableOfferings(args: {
       // so this is one rule with two entry points. `booking-surface.ts` stays
       // person-shaped and untouched.
       if (!offering.talentProfileId) {
-        const houseMode = houseBookingModeFor(offering, host);
+        // Never "instant": the slots route refuses house rows (item 6).
+        const houseMode = houseListingModeFor(offering, host);
         if (houseMode !== "inquire") kept.push({ ...offering, bookingMode: houseMode, seatsLabel: null });
         continue;
       }

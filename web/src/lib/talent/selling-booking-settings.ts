@@ -99,7 +99,7 @@ export function whoPrimaryCtaLabel(kind: WhoPrimaryCta, locale: string): string 
       return es ? "Consultar disponibilidad" : "Check availability";
     case "confirm_now":
     default:
-      return es ? "Confirmar cita" : "Confirm now";
+      return es ? "Confirmar cita" : "Confirm appointment";
   }
 }
 

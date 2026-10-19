@@ -15,11 +15,18 @@ test("TUL-1082: Esc closes the dock", () => {
   assert.match(panel, /e\.key === "Escape" && onClose\(\)/);
 });
 
-test("TUL-1082: focus moves into the dock on open (desktop composer)", () => {
-  assert.match(panel, /textareaRef\.current\?\.focus\(\)/);
+const hook = readFileSync(join(__dirname, "use-dock-focus-return.ts"), "utf8");
+
+test("TUL-1082: focus moves into the dock on open (desktop composer, else the dialog itself)", () => {
+  assert.match(panel, /focusIntoDock\(phone, textareaRef\.current\)/);
+  assert.match(hook, /if \(!phone\) composer\?\.focus\(\)/);
+  assert.match(hook, /panel\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(panel, /data-guest-chat-panel=""\s*\n\s*tabIndex=\{-1\}/);
 });
 
-test("TUL-1082: focus returns to the launcher after close", () => {
-  assert.match(launcher, /wasOpenRef\.current && !open/);
-  assert.match(launcher, /pillRef\.current\?\.focus\(\)/);
+test("TUL-1082: focus returns to the control that opened the dock, the launcher, or a visible chat opener", () => {
+  assert.match(launcher, /useDockFocusReturn\(open, pillRef\)/);
+  assert.match(hook, /wasOpenRef\.current && !open/);
+  assert.match(hook, /\[openerRef\.current, pillRef\.current, \.\.\.Array\.from\(document\.querySelectorAll<HTMLElement>\(CHAT_OPENER_SELECTOR\)\)\]/);
+  assert.match(hook, /document\.addEventListener\("focusin", onFocusIn\)/);
 });

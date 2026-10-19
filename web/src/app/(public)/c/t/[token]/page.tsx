@@ -26,7 +26,7 @@ export default async function PublicConversationPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string; from?: string }>;
+  searchParams: Promise<{ board?: string; kit?: string; screen?: string; lang?: string; from?: string; focus?: string }>;
 }) {
   const { token } = await params;
   const query = await searchParams;
@@ -68,6 +68,7 @@ export default async function PublicConversationPage({
       payCode={payCode}
       threadTokenExpiresAt={new Date(verified.expiresAtMs).toISOString()}
       fromEmail={fromEmail}
+      focusOffer={(query.focus || "").toLowerCase() === "offer"}
     />
   );
 }

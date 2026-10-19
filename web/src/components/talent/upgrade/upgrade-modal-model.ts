@@ -14,12 +14,14 @@
  * prices talent plans in USD only, so the modal shows USD and no converted
  * MXN figure: a converted price would be price math nobody bills against.
  *
- * CHECKOUT IS NOT HERE. `buildUpgradeCheckoutHref` is the mock entry point
- * (`/pricing?plan=&interval=&from=`) until TUL-830 ships a real talent
- * checkout; `start-upgrade-checkout.ts` is the one adapter it will swap.
+ * CHECKOUT IS NOT HERE. `buildUpgradeCheckoutHref` points at `/talent/plan`
+ * (`?plan=&interval=month|year&from=`), the app route that starts checkout or
+ * opens the plan-change confirm; `start-upgrade-checkout.ts` is the one
+ * adapter every caller goes through.
  */
 
 import { PLAN_CATALOG, type PlanKey } from "@/lib/access/plan-catalog";
+import { formatPrice } from "@/lib/money/format-price";
 import {
   TALENT_PAID_TIER_LABEL,
   TALENT_PAID_TIER_LABEL_ES,
@@ -38,6 +40,7 @@ export const UPGRADE_FEATURES = [
   "press-band",
   "media-kit",
   "seo-controls",
+  "page-analytics",
   "generic",
 ] as const;
 export type UpgradeFeature = (typeof UPGRADE_FEATURES)[number];
@@ -59,6 +62,15 @@ export function isUpgradeFeature(value: unknown): value is UpgradeFeature {
   return typeof value === "string" && (UPGRADE_FEATURES as readonly string[]).includes(value);
 }
 
+/**
+ * The plan name every talent paywall shows: the server-resolved label when the
+ * caller has one, else the one paid tier's catalog label. The modal and the
+ * inline paywall copy both read it, so they never name different plans.
+ */
+export function upgradePlanLabel(locale: UpgradeLocale, override?: string | null): string {
+  return override?.trim() || (locale === "es" ? TALENT_PAID_TIER_LABEL_ES : TALENT_PAID_TIER_LABEL);
+}
+
 /** Which plan unlocks a feature. Every talent paywall today is Web Office. */
 export function planForFeature(_feature: UpgradeFeature): PlanKey {
   return TALENT_UPGRADE_PLAN_KEY;
@@ -73,6 +85,7 @@ const FEATURE_COPY: Record<UpgradeFeature, Record<UpgradeLocale, string>> = {
   "press-band": { es: "Banda de prensa", en: "Press band" },
   "media-kit": { es: "Media kit con tu marca", en: "Branded media kit" },
   "seo-controls": { es: "Controles de SEO", en: "SEO controls" },
+  "page-analytics": { es: "El análisis de la página", en: "Page analytics" },
   generic: { es: "Todo Oficina Web", en: "All of Web Office" },
 };
 
@@ -157,14 +170,7 @@ export function formatCatalogPrice(
   locale: UpgradeLocale,
 ): string | null {
   if (typeof cents !== "number" || !Number.isFinite(cents) || cents <= 0) return null;
-  const whole = cents % 100 === 0;
-  return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency,
-    currencyDisplay: "symbol",
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  }).format(cents / 100);
+  return formatPrice({ amountCents: cents, currency, locale }).primary;
 }
 
 export function buildUpgradeOffer(input: {
@@ -179,8 +185,7 @@ export function buildUpgradeOffer(input: {
   const plan = PLAN_CATALOG[planKey];
   const hasYearly = typeof plan.annualPriceCents === "number" && plan.annualPriceCents > 0;
   const interval: UpgradeInterval = input.interval === "y" && hasYearly ? "y" : "m";
-  const planLabel =
-    input.planLabel?.trim() || (locale === "es" ? TALENT_PAID_TIER_LABEL_ES : TALENT_PAID_TIER_LABEL);
+  const planLabel = upgradePlanLabel(locale, input.planLabel);
   const ui = UI_COPY[locale];
   const featureLabel = FEATURE_COPY[feature][locale];
   return {
@@ -208,9 +213,17 @@ export function buildUpgradeOffer(input: {
   };
 }
 
+/** Modal interval to the `month | year` the plan route and plan-intent read. */
+export function upgradeIntervalParam(interval: UpgradeInterval): "month" | "year" {
+  return interval === "y" ? "year" : "month";
+}
+
 /**
- * The mock checkout entry point until TUL-830: the pricing page, carrying the
- * plan, interval and paywall that sent the talent there.
+ * Where the modal's primary button goes (BILL-B, TUL-829): `/talent/plan`, the
+ * app route that resolves the talent's workspace and starts checkout (or the
+ * in-app plan-change confirm for a subscriber). It reads `plan` and
+ * `interval=month|year`; the old `/pricing?plan=&interval=m|y` target ignored
+ * both, so the chosen plan and the yearly toggle were lost.
  */
 export function buildUpgradeCheckoutHref(input: {
   planKey: PlanKey;
@@ -219,8 +232,8 @@ export function buildUpgradeCheckoutHref(input: {
 }): string {
   const params = new URLSearchParams({
     plan: input.planKey,
-    interval: input.interval,
+    interval: upgradeIntervalParam(input.interval),
     from: input.from || "unknown",
   });
-  return `/pricing?${params.toString()}`;
+  return `/talent/plan?${params.toString()}`;
 }

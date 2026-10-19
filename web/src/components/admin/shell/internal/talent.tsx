@@ -72,7 +72,7 @@ export function TalentSurface() {
     <div
       data-tulala-workspace-grid
       // Talent Studio primaries are the brand fill, not the workspace slate.
-      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_1fr] bg-[var(--tc-canvas)] [--tulala-primary-fill:var(--tc-action)] [--tulala-primary-fill-deep:var(--tc-action-hover)]"
+      className="grid min-h-[calc(100vh-56px-50px)] grid-cols-[240px_minmax(0,1fr)] bg-[var(--tc-canvas)] [--tulala-primary-fill:var(--tc-action)] [--tulala-primary-fill-deep:var(--tc-action-hover)]"
     >
       {/* The column carries the rail background so it runs the full page
           height; the sticky aside inside only pins the nav. */}
@@ -83,7 +83,7 @@ export function TalentSurface() {
         id="tulala-talent-content"
         tabIndex={-1}
         data-tulala-surface-main
-        className="mx-auto w-full max-w-[1240px] px-[28px] pb-[96px] pt-[28px] outline-none"
+        className="mx-auto w-full min-w-0 max-w-[1240px] px-[28px] pb-[96px] pt-[28px] outline-none"
       >
         <TalentRouter />
       </main>
@@ -291,7 +291,9 @@ function TalentSidebar() {
         {previewHref && (
           <a
             data-tulala-talent-preview-link
-            href={previewHref}
+            // No production href before the browser origin is known (see MyProfilePage).
+            href={origin ? previewHref : undefined}
+            aria-disabled={origin ? undefined : true}
             target="_blank"
             rel="noreferrer"
             className="flex w-full items-center gap-[8px] rounded-[8px] px-[10px] py-[8px] font-admin-body text-[12.5px] font-medium text-admin-ink-muted no-underline hover:bg-[rgba(11,11,13,0.04)] hover:text-admin-ink [transition:background_var(--transition-admin-micro),color_var(--transition-admin-micro)]"
@@ -575,13 +577,15 @@ function TalentRouterFallback({ talentPage }: { talentPage: string }) {
   const copy = useDashboardText();
   return (
     <>
+      {/* TUL-702: the internal page id ("calendar") is not copy; it stays a data attribute for debugging. */}
+      <span hidden data-talent-page={talentPage} />
       <PageHeader
         title={copy.t("Loading")}
         subtitle={copy.t("One moment — preparing your talent surface.")}
       />
       <EmptyState
         title={copy.t("Almost there")}
-        body={`${copy.t("We're loading this view:")} "${talentPage}". ${copy.t("If this card stays up, refresh the page or pick another section from the top nav.")}`}
+        body={copy.t("If this card stays up, refresh the page or pick another section from the top nav.")}
       />
     </>
   );

@@ -337,7 +337,7 @@ function namespaceLabel(ns: string, t?: (key: string) => string): string {
 const T = {
   ink: "#0B0B0D",
   inkMuted: "#5A5A60",
-  inkDim: "rgba(11,11,13,0.38)",
+  inkDim: "rgba(11,11,13,0.6)",
   surface: "#FFFFFF",
   surfaceAlt: "#F2F2EE",
   border: "rgba(24,24,27,0.10)",

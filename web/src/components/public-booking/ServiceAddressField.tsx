@@ -9,6 +9,7 @@
  * Length is validated, not truncated by maxLength, so a long paste gets an
  * explanation instead of silently losing its tail.
  */
+import { CatalogPinIcon } from "./catalog-field-icons";
 import { useId, type CSSProperties } from "react";
 
 import type { ServiceAddressErrorCode } from "@/lib/scheduling/service-address";
@@ -39,7 +40,7 @@ export function ServiceAddressField({
   const noteError = error === "note_too_long" ? copy.errors.note_too_long : null;
   return (
     <div className="jb-field" data-service-address-field>
-      <label htmlFor={addressId}>{copy.addressLabel}</label>
+      <label htmlFor={addressId}><CatalogPinIcon />{copy.addressLabel}</label>
       {/* TUL-933: a textarea wraps, so a long address can be read in full at 390px before confirming. */}
       <textarea
         id={addressId}

@@ -1,0 +1,152 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Solace · Valeria Ortiz (DRAFT)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Inter:wght@400;500;600&family=Geist:wght@500;600&display=swap">
+<style>
+.site{--k-fd:'Cormorant Garamond',Georgia,serif;--k-fb:'Inter',system-ui,sans-serif;--k-fdw:300;--k-fdls:-.01em;--k-rad:18px;--k-btnrad:999px;--k-dockrad:999px}
+.so-cover{position:relative;min-height:600px;display:grid;align-items:end;overflow:hidden;background:var(--k-tint)}
+.so-cover>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.so-cover>img.wide{display:none}
+.so-cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,.42) 100%)}
+.so-nav{position:absolute;top:44px;left:0;right:0;z-index:2;display:flex;align-items:center;gap:10px;padding:14px 18px;color:#fff}
+.so-nav b{font:400 22px var(--k-fd);letter-spacing:.01em}
+.so-nav nav{display:none;gap:26px;font:500 13px var(--k-fb)}
+.so-nav nav a{color:#fff;text-decoration:none;cursor:pointer;opacity:.9}
+.so-nav .sp{flex:1}
+.so-in{position:relative;z-index:1;padding:0 18px 104px;color:#fff;display:grid;gap:14px}
+.so-in small{font:500 12px var(--k-fb);letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+.so-in h1{margin:0;font:300 52px/1 var(--k-fd);letter-spacing:-.01em;max-width:11ch}
+.so-in .row{display:flex;gap:8px;flex-wrap:wrap}
+.so-in .k-btn.ghost{color:#fff;border-color:rgba(255,255,255,.7)}
+.so-about{padding:72px 22px 0;text-align:center;display:grid;justify-items:center;gap:14px}
+.so-about small,.so-svc small.ey,.so-space small,.so-end small{font:500 12px var(--k-fb);letter-spacing:.14em;text-transform:uppercase;color:var(--k-mute)}
+.so-about p{margin:0;max-width:30ch;font:300 26px/1.35 var(--k-fd)}
+.so-svc{padding:80px 22px 0;display:grid;gap:8px}
+.so-svc h2,.so-space h2,.so-end h2{margin:0;font:300 40px/1.05 var(--k-fd)}
+.so-row{display:grid;grid-template-columns:76px 1fr;gap:16px;align-items:center;padding:20px 0;border-top:1px solid var(--k-line);cursor:pointer}
+.so-row:last-child{border-bottom:1px solid var(--k-line)}
+.so-row img{width:76px;height:76px;border-radius:50%;object-fit:cover}
+.so-row b{display:block;font:400 24px/1.15 var(--k-fd)}
+.so-row p{margin:4px 0 10px;color:var(--k-mute);font-size:14px;line-height:1.5}
+.so-row .f{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.so-row .p{font:500 14px var(--k-fb)}
+.so-space{padding:80px 22px 0;display:grid;gap:14px}
+.so-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.so-pair img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:var(--k-rad)}
+.so-end{margin-top:80px;padding:56px 22px 130px;background:var(--k-surface);text-align:center;display:grid;justify-items:center;gap:14px}
+.so-end p{margin:0;color:var(--k-mute);max-width:34ch}
+.so-faq{width:100%;max-width:560px;text-align:left;margin-top:18px}
+.so-faq details{border-top:1px solid var(--k-line);padding:14px 0}
+.so-faq details:last-child{border-bottom:1px solid var(--k-line)}
+.so-faq summary{cursor:pointer;font:400 20px var(--k-fd);list-style:none}
+.so-faq p{margin:8px 0 0;max-width:none}
+.so-end .fine{margin-top:26px;font:500 11px var(--k-fb);letter-spacing:.12em;text-transform:uppercase;color:var(--k-mute)}
+@container site (min-width:900px){
+  .so-nav{top:0;padding:22px 48px}
+  .so-nav nav{display:flex}
+  .so-in{padding:0 48px 64px}
+  .so-cover{min-height:720px}
+  .so-cover>img.wide{display:block}
+  .so-cover>img.tall{display:none}
+  .so-in h1{font-size:96px}
+  .so-about{padding:120px 48px 0}
+  .so-about p{font-size:38px}
+  .so-svc{padding:120px 48px 0;max-width:820px;margin:0 auto}
+  .so-svc h2,.so-space h2,.so-end h2{font-size:56px}
+  .so-row{grid-template-columns:110px 1fr;gap:28px;padding:28px 0}
+  .so-row img{width:110px;height:110px}
+  .so-row b{font-size:30px}
+  .so-space{padding:120px 48px 0}
+  .so-pair{gap:18px}
+  .so-pair img{aspect-ratio:4/5}
+  .so-end{margin-top:120px;padding:96px 48px 140px}
+}
+</style>
+<script src="kit.js"></script>
+<script>
+const T={
+  id:'TH-SOLACE', theme:'Solace', lang:'es', domain:'valeria-baila.tulala.digital', galleryUrl:'',
+  brief:'DRAFT for PM review (TUL-328). Calm, spacious, one unhurried column. Reference demo: Valeria Ortiz, TAL-93001, dance instructor; instant private class + request packages.',
+  talent:{name:'Valeria Ortiz', first:'Valeria', role:'dance instructor', avatar:'so-portrait', tagline:'Salsa y bachata, a tu ritmo.', bio:'Doy clases privadas de salsa y bachata en Mérida, para una persona o pareja. Sin prisa: cada clase empieza donde te quedaste.'},
+  mine:{name:'Tu Nombre', count:3},
+  palettes:{
+    def:{n:'Linen & Clay', bg:'#FFFFFF', surface:'#F6F2EC', ink:'#2B2620', mute:'#7A7065', line:'#E6DED2', accent:'#8A5A3C', on:'#FFFFFF', tint:'#EFE7DC', at:'#8A5A3C'},
+    euca:{n:'Eucalyptus', bg:'#FFFFFF', surface:'#EEF3F0', ink:'#1D2622', mute:'#66726C', line:'#D9E3DD', accent:'#3F6B5A', on:'#FFFFFF', tint:'#E2EBE6', at:'#3F6B5A'},
+    dusk:{n:'Dusk', bg:'#1A1917', surface:'#24221F', ink:'#F2EEE8', mute:'#A9A196', line:'#3A3732', accent:'#D9B48C', on:'#1A1917', tint:'#2E2B27', at:'#D9B48C'}
+  },
+  customStart:'#8A5A3C',
+  hero_service:'priv',
+  surface:'sheet',
+  dock:[{label:'Reservar clase', flow:'priv'}],
+  starter:{services:4, faqs:3, texts:4},
+  reply:'¡Hola! Con gusto. ¿Es para ti o en pareja, y en qué zona de Mérida? Te paso horarios hoy.',
+  suggestions:['¿Puedo empezar sin experiencia?','¿Das clase en mi casa?','¿Cuánto tarda una coreografía de boda?'],
+  services:[
+    {id:'priv', cat:'Clases', name:'Clase privada de salsa o bachata', dur:'1 h', price:'$700', mode:'instant', cta:'Ver horarios', img:'so-private',
+      desc:'Una hora, para una persona o pareja, en tu casa o en estudio.',
+      includes:['Calentamiento y técnica básica','Una figura nueva por clase','Música para practicar en casa'], slots:['09:00','10:30','17:00','18:30','20:00'],
+      slotNote:'Horarios en Mérida.', policy:'Si necesitas cambiar, avísame 12 h antes.',
+      whoFields:[{k:'where',l:'¿Dónde tomamos la clase?',p:'Tu casa o estudio'}]},
+    {id:'pack', cat:'Clases', name:'Paquete de 4 clases', dur:'4 × 1 h', price:'$2,500', mode:'request', cta:'Solicitar', img:'so-pack',
+      desc:'Cuatro clases privadas de una hora para avanzar de forma constante.',
+      includes:['Cuatro clases en un mes','Plan según tu nivel','Video de repaso tras cada clase'],
+      flowTitle:'Solicitar paquete', flowIntro:'Es una solicitud: Valeria confirma los días antes de apartarlos.',
+      brief:[{k:'level',l:'Tu nivel',type:'chips',opts:['Desde cero','Algo de base','Intermedio'],demo:['Desde cero']},{k:'days',l:'Días que te acomodan',p:'Ej. martes y jueves por la tarde',demo:'Martes y jueves por la tarde'}]},
+    {id:'wed', cat:'Bodas', name:'Coreografía de primer baile', dur:'3 ensayos', price:'$4,500', mode:'request', cta:'Solicitar', img:'so-wedding',
+      desc:'Tres ensayos para crear y practicar su baile de boda.',
+      includes:['Coreografía sobre su canción','Tres ensayos de una hora','Video final para repasar'],
+      flowTitle:'Solicitar coreografía', flowIntro:'Es una solicitud: Valeria confirma las fechas antes de apartarlas.',
+      brief:[{k:'date',l:'Fecha de la boda',p:'Ej. 14 de diciembre',demo:'14 de diciembre'},{k:'song',l:'Canción',p:'Título y artista',demo:'Vivir mi vida, Marc Anthony'}]},
+    {id:'show', cat:'Shows', name:'Show para eventos', dur:'45 min', price:'Cotización', mode:'inquiry', cta:'Consultar', img:'so-show',
+      desc:'Presentación de salsa y bachata con pareja de baile para bodas y fiestas.',
+      includes:['Show de 45 min con pareja','Momento para sacar a bailar a los invitados','Viáticos fuera de Mérida aparte'],
+      flowTitle:'Consultar show', flowIntro:'Cuéntame del evento y te respondo con disponibilidad y tarifa.', submit:'Enviar consulta',
+      brief:[{k:'event',l:'Evento',p:'Ej. boda en hacienda',demo:'Boda en hacienda'},{k:'date',l:'Fecha',p:'Ej. 30 de noviembre',demo:'30 de noviembre'},{k:'guests',l:'Invitados',p:'Ej. 120',im:'numeric',demo:'120'}]}
+  ],
+  renderSite(K,S){
+    const D=K.D, priv=D.services.find(s=>s.id==='priv')||D.services[0];
+    return `${K.status()}
+    <section class="so-cover" data-w="hero · cover-overlay">
+      <img class="wide" src="${K.img('so-cover')}" alt="${K.esc(D.talent.name)} bailando"><img class="tall" src="${K.img('so-portrait')}" alt="${K.esc(D.talent.name)}">
+      <header class="so-nav" data-w="header · overlay"><b>${K.esc(D.talent.name)}</b><span class="sp"></span><nav><a data-k-go="about">Sobre mí</a><a data-k-go="services">Clases</a><a data-k-go="gallery">Espacio</a><a data-k-go="contact">Contacto</a></nav>${K.demo()}</header>
+      <div class="so-in"><small>Clases de baile · Mérida</small><h1>${K.esc(D.talent.tagline)}</h1>
+        <div class="row">${K.act(priv,'k-btn')}<button class="k-btn ghost" data-k-go="services">Ver clases</button></div></div>
+    </section>
+    <section class="so-about" id="about" data-w="about · centered"><small>Sobre mí</small><p>${K.esc(D.talent.bio)}</p></section>
+    <section class="so-svc" id="services" data-w="services_catalog · editorial-single"><small class="ey">Clases</small><h2>Tómate tu tiempo</h2>
+      <div>${D.services.map(s=>`<div class="so-row" data-k-open="${s.id}"><img src="${K.img(s.img)}" alt="" loading="lazy"><div><b>${K.esc(s.name)}</b><p>${K.esc(s.desc)}</p><div class="f"><span class="p">${K.esc(s.priceLabel||s.price)} · ${K.esc(s.dur)}</span>${K.act(s,'k-btn ghost')}</div></div></div>`).join('')}</div></section>
+    ${K.mine?'<section class="so-space" id="gallery"><small>Espacio</small><h2>Tus fotos van aquí</h2></section>':`<section class="so-space" id="gallery" data-w="portfolio · grid-2"><small>Espacio</small><h2>Donde bailamos</h2>
+      <div class="so-pair"><img src="${K.img('so-space-a')}" alt="Estudio con telas" loading="lazy"><img src="${K.img('so-show')}" alt="Valeria en el estudio" loading="lazy"></div></section>`}
+    <footer class="so-end" id="contact" data-w="contact · centered-faq"><small>Contacto</small><h2>Cuando estés lista</h2><p>Escríbeme por el chat o reserva tu primera clase. Respondo el mismo día.</p>${K.act(priv,'k-btn')}
+      <div class="so-faq" data-w="faq · accordion"><details><summary>¿Necesito experiencia?</summary><p>No. La primera clase empieza desde los pasos básicos.</p></details><details><summary>¿Qué llevo?</summary><p>Ropa cómoda y zapatos que giren bien. Yo llevo la música.</p></details><details><summary>¿Y si no tengo pareja?</summary><p>Bailas conmigo; en el paquete puedes alternar.</p></details></div>
+      <div class="fine">${K.esc(T.domain)} · Hecho con Tulala</div></footer>`;
+  },
+  notes:{
+    summary:'DRAFT (PM review, TUL-328). Solace is the calm theme: one full-bleed cover with the nav laid over it, a short centered intro, then services in a single unhurried column with round photos and outline buttons, a two-photo pair for the space, and a centered contact with a short FAQ. Nothing competes for attention; the page breathes.',
+    distinct:['Nav sits over the cover photo (overlay chrome); no other finished theme does this.','Services are one editorial column, never cards or a grid.','Light-weight serif headings (300) and pill buttons.','Only two gallery photos: the space, not a portfolio.'],
+    neighbours:[['Maison v2','Maison leads with recent work and an image menu. Solace leads with one photo and one sentence.'],['Mono','Mono is a fast price list with no photos. Solace is slow, photo-led and spacious.']],
+    type:['Cormorant Garamond 300 for headings and service names (proposal; code uses the talent type system with fontWeight 300).','Inter for body and labels.'],
+    colour:['Linen & Clay (default), Eucalyptus, Dusk (gallery-meta palettes).','Accent colours buttons and the chat; photos carry the warmth.'],
+    shape:['Round service photos, 18 px image corners, pill buttons.','No motion beyond sheet transitions.'],
+    map:[['Header','Header shell · navChrome overlay','overlay nav','Name, links','Existing widget',''],
+      ['Cover','Hero · heroCover (accent off, weight 300)','cover-overlay','Image, eyebrow, line, CTAs','Existing widget','Gap: W-10 rotating word (COLLECTION_DESIGN_GAPS)'],
+      ['About','aboutBlock (align center)','centered','Bio','Existing widget',''],
+      ['Services','services_catalog · editorial, 1 col, round photos, outline CTA','editorial-single','Order, photo, CTA per mode','Existing widget',''],
+      ['Space','portfolioBlock · grid, 2 columns','grid-2','Two photos','Existing widget','Gap: studio/villa hero toggle (app)'],
+      ['Contact','contactSection · centered + FAQ','centered-faq','Heading, FAQ','Existing widget',''],
+      ['Booking surface','Booking sheet','bottom sheet / side panel','Brief per service','Existing widget','Instant private class · request package and wedding · inquiry show'],
+      ['Chat','Guest chat dock','panel + service browser','Greeting','Existing widget',''],
+      ['Dock','Selection dock','chat + one action','Action label','Existing widget','']],
+    images:[['so-cover','Dancer, warm clay backdrop','Wide, cover','','Cover'],['so-private','Dance pose, clay backdrop','Square crop','','Private class'],['so-pack','Dance pose, clay backdrop','Square crop','','Package'],['so-wedding','Couple pose, clay backdrop','Square crop','','Wedding'],['so-show','Pose, clay backdrop','3:4','','Show, space'],['so-space-a','Aerial silks studio','3:4','','Space'],['so-portrait','Portrait, warm light','Avatar','','Chat avatar']],
+    imgNote:'Draft photos are the repo stock set (public/talent-templates/demo/impronta-2026, marketing/photos), not Valeria. The live demo uses its own photos.',
+    needed:[['Valeria teaching a couple','3:2','1','Cover, natural light'],['Studio space','3:4','2','Empty studio, then a class'],['Service crops','1:1','4','One per service']],
+    suits:['Yoga instructor (planned): Eucalyptus palette','Massage therapist (planned): Linen & Clay','Local guide (Mariana Pech, TAL-93008)'],
+    sameContent:'Valeria in Frame would open on a dense photo grid; in Mono on a price list with no photos. Solace is the only one that opens on a single calm photo and one sentence.',
+    matrix:['Nav: overlay on the cover','Hero: full-bleed cover, light serif line','Services: one editorial column, round photos','Portfolio: two-photo pair (space)','Booking surface: bottom sheet','Type: light serif + Inter','Motion: none'],
+    deviation:'Draft authored by the developer from buildSolacePayload + gallery-meta (PM decision on TUL-328, 2026-10-09). Content uses Valeria Ortiz\'s live services (TAL-93001).',
+    questions:['Keep the overlay nav on phones, or switch to a solid bar after scroll?','Should the space pair become a 3-photo strip when the talent has a studio?']
+  }
+};
+KIT(T);
+</script>
+</body></html>

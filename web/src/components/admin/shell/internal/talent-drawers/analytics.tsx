@@ -20,6 +20,7 @@ import {
   SecondaryButton,
 } from "../primitives";
 import { useDashboardText } from "../dashboard-i18n";
+import { upgradePlanLabel } from "@/components/talent/upgrade/upgrade-modal-model";
 
 /**
  * Analytics drawers below run on DEMO fixtures (CAREER_STATS / AGENCY_STATS).
@@ -248,7 +249,7 @@ export function TalentCareerAnalyticsDrawer() {
           <TalentPageAnalyticsPanel analytics={a} />
         ) : (
           <AnalyticsNotAvailableYet
-            body={copy.t("Page analytics — profile views and inquiry conversion — are part of Pro and Portfolio. Your views are being recorded now; upgrade to read them. Your earnings and pipeline are live on the Money page today.")}
+            body={copy.t("Page analytics — profile views and inquiry conversion — are part of {plan}. Your views are being recorded now; upgrade to read them. Your earnings and pipeline are live on the Money page today.").replace("{plan}", upgradePlanLabel(copy.isSpanish ? "es" : "en"))}
           />
         )}
       </DrawerShell>

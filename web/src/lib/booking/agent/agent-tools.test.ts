@@ -12,8 +12,10 @@ import {
   agentCatalogScope,
   agentHandoffUrl,
   agentOpenTimesView,
+  agentRequestStatus,
+  agentRequestStatusView,
+  AGENT_HANDOFF_ID_RE,
 } from "./handoff";
-import { buildTalentLlmsTxt } from "./llms-txt";
 import { type AgentToolDeps, agentToolDefinitions, handleMcpMessage, parseMcpBody } from "./mcp";
 
 const SERVICE_ID = "11111111-1111-4111-8111-111111111111";
@@ -34,6 +36,10 @@ function deps(overrides: Partial<AgentToolDeps> = {}): AgentToolDeps & { calls: 
     requestBooking: async (args) => {
       calls.push(`request:${args.service_id}:${args.starts_at ?? ""}`);
       return { ok: true, data: { confirm_url: "https://x/?service=t" } };
+    },
+    getRequestStatus: async (args) => {
+      calls.push(`status:${args.handoff_id}`);
+      return { ok: true, data: { status: "sent" } };
     },
     ...overrides,
   };
@@ -66,12 +72,12 @@ test("a notification gets no reply; a bad envelope is an Invalid Request", async
   assert.equal(parsed.ok, false);
 });
 
-test("tools/list: three tools with JSON-schema inputs; ids required, extras rejected", async () => {
+test("tools/list: four tools with JSON-schema inputs; ids required, extras rejected", async () => {
   const res = await handleMcpMessage(rpc("tools/list"), deps());
   const tools = (res as { result: { tools: ReturnType<typeof agentToolDefinitions> } }).result.tools;
   assert.deepEqual(
     tools.map((t) => t.name),
-    ["list_services", "find_open_times", "request_booking"],
+    ["list_services", "find_open_times", "request_booking", "get_request_status"],
   );
   for (const t of tools) {
     assert.equal(t.inputSchema.type, "object");
@@ -236,17 +242,42 @@ test("catalog: public non-product services only, storefront price label, bookabl
   assert.equal(services[1]!.bookable, false);
 });
 
-test("llms.txt names the services and the three endpoints; says when booking is off", () => {
-  const services = toAgentServices([offering({})], "en");
-  const on = buildTalentLlmsTxt({ origin: "https://jorg.example", name: "Jorgelina", services, agentBookingEnabled: true });
-  assert.match(on, /^# Jorgelina\n/);
-  assert.ok(on.includes(`service_id: ${SERVICE_ID}`));
-  assert.ok(on.includes("https://jorg.example/api/public/booking/catalog"));
-  assert.ok(on.includes("https://jorg.example/api/public/booking/slots?offering=<service_id>"));
-  assert.ok(on.includes("https://jorg.example/api/public/booking/mcp"));
-  assert.match(on, /does not book anything/);
+test("agentRequestStatus maps inquiry statuses to five coarse values", () => {
+  assert.equal(agentRequestStatus(null), "link_not_used");
+  for (const s of ["new", "submitted", "coordination", "offer_pending", "in_progress"]) assert.equal(agentRequestStatus(s), "sent");
+  for (const s of ["approved", "booked", "converted"]) assert.equal(agentRequestStatus(s), "accepted");
+  assert.equal(agentRequestStatus("rejected"), "declined");
+  for (const s of ["expired", "closed", "archived"]) assert.equal(agentRequestStatus(s), "expired");
+});
 
-  const off = buildTalentLlmsTxt({ origin: "https://jorg.example", name: "Jorgelina", services: [], agentBookingEnabled: false });
-  assert.match(off, /No public services/);
-  assert.match(off, /has not turned on booking through AI assistants/);
+test("an unused link reads as expired after the intent lifetime", () => {
+  assert.deepEqual(agentRequestStatusView("link_not_used", 1000, 500), { status: "link_not_used" });
+  assert.deepEqual(agentRequestStatusView("link_not_used", 1000, 1500), { status: "expired" });
+  assert.deepEqual(agentRequestStatusView("sent", 1000, 1500), { status: "sent" });
+});
+
+test("status response has only a status key (no personal data)", () => {
+  const view = agentRequestStatusView(agentRequestStatus("booked"), null, 0);
+  assert.deepEqual(Object.keys(view), ["status"]);
+});
+
+test("get_request_status validates the handoff id and routes to the loader", async () => {
+  const d = deps();
+  const id = "22222222-2222-4222-8222-222222222222";
+  const ok = await handleMcpMessage(rpc("tools/call", { name: "get_request_status", arguments: { handoff_id: id } }), d);
+  assert.ok(ok && "result" in ok);
+  assert.deepEqual(d.calls, [`status:${id}`]);
+  const bad = await handleMcpMessage(rpc("tools/call", { name: "get_request_status", arguments: { handoff_id: "nope" } }), d);
+  assert.equal((bad as { result: { isError?: boolean } }).result.isError, true);
+  assert.equal(d.calls.length, 1);
+});
+
+test("the signed intent carries the handoff id, and the id matches the uuid shape", () => {
+  process.env.GUEST_COOKIE_SECRET = process.env.GUEST_COOKIE_SECRET || "test-secret";
+  const id = "33333333-3333-4333-8333-333333333333";
+  assert.match(id, AGENT_HANDOFF_ID_RE);
+  const token = signTalentOfferingIntent({ profileId: "p", offeringId: SERVICE_ID, intent: "reserve", handoffId: id });
+  assert.ok(token);
+  const v = verifyTalentOfferingIntent(token);
+  assert.ok(v.ok && v.payload.h === id);
 });

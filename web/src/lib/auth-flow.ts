@@ -4,6 +4,7 @@ import {
 } from "@/i18n/pathnames";
 import { pickLocale, type LocaleEntries } from "@/lib/i18n/pick-locale";
 import { isWorkspaceOnboardingPath } from "@/lib/saas/workspace-signup";
+import { isSafeInternalPath } from "@/lib/safe-internal-path";
 
 export type AccessProfile = {
   account_status: string | null;
@@ -23,14 +24,30 @@ export type AccessProfile = {
   home_surface_preference?: string | null;
 };
 
+const LOCALE_THEN_PROTOCOL_RELATIVE = /^(?:\/[a-z]{2}(?:-[a-zA-Z]{2,4})?)+(?:\/{2,}|\/?\\)/;
+
 export function normalizeNextPath(
   nextPath: string | null | undefined,
   fallback = "/",
 ): string {
   if (!nextPath) return fallback;
-  return nextPath.startsWith("/") && !nextPath.startsWith("//")
-    ? nextPath
-    : fallback;
+  // The raw value and its percent-decoded forms (a server or a later hop may decode once or twice):
+  // `/%2F%2Fevil`, `/%5Cevil`, `/%09/evil` and `/en/%2F%2Fevil` all become protocol-relative.
+  let candidate = nextPath;
+  for (let i = 0; i < 3; i += 1) {
+    if (!isSafeInternalPath(candidate)) return fallback;
+    // `/en//evil.example` is only protocol-relative once the locale prefix is gone, so test that too.
+    if (LOCALE_THEN_PROTOCOL_RELATIVE.test(candidate.split(/[?#]/, 1)[0] ?? candidate)) return fallback;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(candidate.split(/[?#]/, 1)[0] ?? candidate);
+    } catch {
+      return fallback;
+    }
+    if (decoded === (candidate.split(/[?#]/, 1)[0] ?? candidate)) break;
+    candidate = decoded;
+  }
+  return nextPath;
 }
 
 /**
@@ -72,12 +89,36 @@ function postAuthPathnameOnly(normalizedNext: string): string {
 }
 
 /**
+ * TUL-1255: facts the pure rule cannot know. `memberSlugs` are workspace slugs the
+ * signed-in user is a real member of. A workspace owner who is also talent keeps
+ * `app_role='talent'` (provisioning never overwrites a role), so without this their
+ * `next=/<slug>/admin` was dropped and they landed on /talent/today.
+ */
+export type PostAuthContext = { memberSlugs?: ReadonlySet<string> };
+
+/**
+ * The workspace slug of a tenant-scoped admin `next` (`/<slug>/admin...`), or null.
+ * Callers use it to decide whether a membership lookup is worth making at all.
+ */
+export function tenantAdminSlugFromNext(next: string | null | undefined): string | null {
+  const normalized = normalizeNextPath(next);
+  if (normalized === "/") return null;
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(postAuthPathnameOnly(normalized));
+  const segments = pathnameWithoutLocale.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+  const [slug, surface] = segments;
+  if (!slug || TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(slug)) return null;
+  return surface === "admin" ? slug : null;
+}
+
+/**
  * After sign-in, active users may only be sent to their dashboard tree, selected
  * public marketing/directory routes, or auth entry pages — not another role's area.
  */
 export function isPostAuthNextAllowedForActiveUser(
   normalizedNext: string,
   appRole: string | null | undefined,
+  ctx?: PostAuthContext,
 ): boolean {
   const { pathnameWithoutLocale } = stripLocaleFromPathname(
     postAuthPathnameOnly(normalizedNext),
@@ -146,6 +187,19 @@ export function isPostAuthNextAllowedForActiveUser(
   }
   if (appRole === "client" && tenantScopedSurface === "client") {
     return true;
+  }
+  // TUL-1255 (decided, A5): the tenant-scoped client surface (`/<slug>/client...`, which includes
+  // the hub's `/hub/client`) is open to every active role. A talent or workspace owner can also be
+  // a client; that layout gates on the client profile and shows a soft landing for anyone else,
+  // so honoring the path never exposes anything and never loops (it is not a middleware-gated
+  // dashboard root).
+  if (tenantScopedSurface === "client") {
+    return true;
+  }
+  // TUL-1255: a real member of THIS workspace may land on its admin, whatever app_role they hold.
+  if (tenantScopedSurface === "admin") {
+    const slug = segments[0] ?? "";
+    if (slug && ctx?.memberSlugs?.has(slug)) return true;
   }
   // G11: the host client area (/account) is a client home too.
   if (appRole === "client" && (path === "/account" || path.startsWith("/account/"))) {
@@ -348,6 +402,7 @@ export function resolveAuthenticatedDestination(
 export function resolvePostAuthDestination(
   profile: AccessProfile | null | undefined,
   nextPath: string | null | undefined,
+  ctx?: PostAuthContext,
 ): string {
   const safeNext = normalizeNextPath(nextPath);
 
@@ -411,7 +466,7 @@ export function resolvePostAuthDestination(
     if (safeNext === "/") {
       return destination;
     }
-    if (isPostAuthNextAllowedForActiveUser(safeNext, profile.app_role)) {
+    if (isPostAuthNextAllowedForActiveUser(safeNext, profile.app_role, ctx)) {
       return stripDefaultLocalePrefixFromPath(safeNext);
     }
     return destination;

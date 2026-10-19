@@ -20,9 +20,11 @@ import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator } from "@/i18n/messages";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { headers } from "next/headers";
 import type { Locale } from "@/i18n/config";
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
+import { applyDirectoryIndexing } from "@/lib/seo/directory-indexing";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { DirectoryComponent } from "@/lib/site-admin/sections/directory/Component";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
@@ -30,9 +32,13 @@ import { publicLocaleHref } from "@/i18n/client-directory-href";
 import { localeUrlSettings } from "@/i18n/pathnames";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const locale = await getRequestLocale();
-  return buildPublicPageMetadata("directory", locale);
+  return applyDirectoryIndexing(await buildPublicPageMetadata("directory", locale), await searchParams);
 }
 
 /**
@@ -108,8 +114,12 @@ export default async function DirectoryPage() {
         localeSettings.defaultLocale,
         localeSettings.supportedLocales,
       );
+      // TUL-711: pass the BROWSER pathname (`/w/<slug>/directory`), not a literal
+      // "/directory", so the workspace path prefix survives; otherwise a /w/ site
+      // bounced to the platform's own /book.
+      const browserPath = (await headers()).get(ORIGINAL_PATHNAME_HEADER) ?? "/directory";
       redirect(
-        publicLocaleHref("/directory", directoryOrBookHref(false), locale, pathSettings),
+        publicLocaleHref(browserPath, directoryOrBookHref(false), locale, pathSettings),
       );
     }
   }

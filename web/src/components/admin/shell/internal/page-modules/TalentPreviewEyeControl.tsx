@@ -78,7 +78,9 @@ export function TalentPreviewEyeControl({
     return (
       <a
         data-testid="talent-preview-eye"
-        href={defaultHref}
+        // No production href before the browser origin is known (see MyProfilePage).
+        href={origin ? defaultHref : undefined}
+        aria-disabled={origin ? undefined : true}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={copy.t("Preview site")}
@@ -116,7 +118,8 @@ export function TalentPreviewEyeControl({
             <a
               key={dest.kind}
               role="menuitem"
-              href={dest.href}
+              href={origin ? dest.href : undefined}
+              aria-disabled={origin ? undefined : true}
               target="_blank"
               rel="noopener noreferrer"
               data-testid={`talent-preview-${dest.kind}`}

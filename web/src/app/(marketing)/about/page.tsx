@@ -358,7 +358,7 @@ export default async function AboutPage() {
             {audienceLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={withLocaleHref(link.href, locale)}
                 className="group flex flex-col rounded-[22px] p-6 transition-colors duration-200 sm:p-7"
                 style={{
                   background: "var(--plt-bg-elevated)",

@@ -21,6 +21,7 @@
  */
 
 import type { RegisterIntent } from "./register-intent";
+import { normalizeNextPath } from "@/lib/auth-flow";
 
 /* ─────────────────────────── code normalization ─────────────────────────── */
 
@@ -237,7 +238,7 @@ export function authEmailLinkNext(redirectTo: string | undefined | null): string
     return null;
   }
   const inner = url.searchParams.get("next");
-  if (inner && inner.startsWith("/") && !inner.startsWith("//")) {
+  if (inner && normalizeNextPath(inner, "") !== "") {
     return inner;
   }
   const path = url.pathname;

@@ -38,7 +38,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
+  inkDim: "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.08)",
   cardBg: "#ffffff",
   surface: "rgba(29,78,216,0.03)",

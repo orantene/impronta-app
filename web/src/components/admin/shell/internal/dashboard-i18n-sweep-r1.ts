@@ -40,7 +40,7 @@ export const SWEEP_R1_ES_TEXT: Record<string, string> = {
   // Selling patterns rows
   "Consultation then book": "Consulta y luego reserva",
   "Request to book on the service form.": "Solicitud de reserva en el formulario del servicio.",
-  "Goods the client takes away": "Productos que se lleva la clienta",
+  "Goods the client takes away": "Productos que se lleva la cliente",
   "Product with stock on the product form.": "Producto con existencias en el formulario de producto.",
   "Several services in one visit": "Varios servicios en una visita",
   "Packages only. No per-item pattern field.": "Solo paquetes. No hay campo de forma de venta por artículo.",
@@ -58,8 +58,8 @@ export const SWEEP_R1_ES_TEXT: Record<string, string> = {
   "Overtime": "Tiempo extra",
   "Revised project quote": "Cotización de proyecto revisada",
   "v1 superseded, v2 awaiting on quote versions.": "La v1 fue reemplazada y la v2 está en espera en las versiones de cotización.",
-  "Second client on a held time": "Segunda clienta en un horario apartado",
-  "No double book. Agency client stays private.": "Sin doble reserva. La clienta de la agencia sigue privada.",
+  "Second client on a held time": "Segunda cliente en un horario apartado",
+  "No double book. Agency client stays private.": "Sin doble reserva. La cliente de la agencia sigue privada.",
 
   // Settings
   "A copy of the information Tulala holds about you, as a file.":

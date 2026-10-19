@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { formatTalentPlanPrice } from "@/lib/billing/talent-plan-price";
-import { useDashboardText } from "../dashboard-i18n";
+import { translateDashboardText, useDashboardText } from "../dashboard-i18n";
 import { personalPageLabel } from "./personal-page-label";
 import { interpolate } from "@/i18n/interpolate";
 import {
@@ -47,6 +47,7 @@ import {
 } from "../primitives";
 import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { PromoCodeInput } from "@/components/billing/promo-code-input";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 import { DomainSetupDrawerBody } from "@/components/talent/site/DomainSetupDrawer";
@@ -85,7 +86,9 @@ const TIER_GROUP_KEYS: Record<TalentTierGroup, string> = {
 /** Lock badge shown next to a feature card when the talent's tier doesn't unlock it. */
 function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier }) {
   const t = useT();
-  const meta = TALENT_TIER_META[requiredTier];
+  const copy = useDashboardText();
+  // TUL-1059: the plan name follows the dashboard language ("Oficina Web"), never raw English.
+  const meta = { ...TALENT_TIER_META[requiredTier], label: copy.t(TALENT_TIER_META[requiredTier].label) };
   return (
     <span
       style={{
@@ -229,7 +232,7 @@ export function TalentTierCompareDrawer() {
                     cursor: "pointer",
                   }}
                 >
-                  {interpolate(t("dashboard.talentDrawers.premiumPages.switchTo"), { tier: meta.label })}
+                  {interpolate(t("dashboard.talentDrawers.premiumPages.switchTo"), { tier: copy.t(meta.label) })}
                 </button>
               )}
             </div>
@@ -317,6 +320,13 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   const t = useT();
   const [pending, setPending] = useState<TalentSubscriptionTier | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // TUL-1275: code applied in the "Have a code?" box; the ?promo= value from
+  // the URL pre-fills the box and stays the fallback when nothing is applied.
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [urlPromo, setUrlPromo] = useState<string | null>(null);
+  useEffect(() => {
+    setUrlPromo(readPromoCodeFromUrl());
+  }, []);
 
   // Pro fold (2026-09-23): the only upgrade path left is to Web Office.
   const upgradeable = (["max"] as const).filter((tier) => tier !== current);
@@ -328,7 +338,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       setPending(tier);
       setError(null);
       try {
-        const result = await startTalentUpgrade(planKey, tenantSlug, readPromoCodeFromUrl());
+        const result = await startTalentUpgrade(planKey, tenantSlug, appliedCode ?? urlPromo);
         if (result.ok) {
           window.location.assign(result.redirectUrl);
           return;
@@ -340,17 +350,30 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
         setPending(null);
       }
     },
-    [tenantSlug, t],
+    [tenantSlug, t, appliedCode, urlPromo],
   );
 
   if (!tenantSlug || upgradeable.length === 0) return null;
 
+  const promoPlan = TIER_PLAN_KEY[upgradeable[0]];
+
   return (
     <div className="mt-4">
+      {promoPlan ? (
+        <div className="mb-3 max-w-full" data-testid="talent-upgrade-promo-code">
+          <PromoCodeInput
+            key={urlPromo ?? "no-url-promo"}
+            plan={promoPlan}
+            interval="month"
+            defaultCode={urlPromo}
+            onApplied={(code) => setAppliedCode(code)}
+          />
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-[10px]">
         {upgradeable.map((tier) => {
           const price = tierMonthlyPrice(tier, locale);
-          const label = TALENT_TIER_META[tier].label;
+          const label = translateDashboardText(TALENT_TIER_META[tier].label, locale);
           return (
             <PrimaryButton
               key={tier}

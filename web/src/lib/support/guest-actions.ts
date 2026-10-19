@@ -423,7 +423,7 @@ export async function submitMarketingContactAction(input: {
   source?: string | null;
   host?: string | null;
   code?: string | null;
-}): Promise<GuestSupportOk<{ ticketId: string }> | GuestSupportFail> {
+}): Promise<GuestSupportOk<{ ticketId: string; ticketNumber: number }> | GuestSupportFail> {
   await requireNotImpersonating();
   const ident = await requireSignedGuest();
   if (!ident.ok) return ident;
@@ -515,7 +515,11 @@ export async function submitMarketingContactAction(input: {
     },
   });
 
-  return { ok: true, ticketId: result.data.ticket.id };
+  return {
+    ok: true,
+    ticketId: result.data.ticket.id,
+    ticketNumber: result.data.ticket.ticketNumber,
+  };
 }
 
 async function ticketHadAiError(

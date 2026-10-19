@@ -55,6 +55,8 @@ export type ArrivalPayload = {
   ownerBookable?: boolean;
   /** TUL-818 · draft_saved only: why the check failed (drives the plain-language reason). */
   draftReason?: DraftReason;
+  /** TUL-819 · draft_saved only: the HTTP status the address check saw, when it got one. */
+  draftStatus?: number;
   /** TUL-818 · draft_saved only: the site row IS published (same truth the dashboard reads); only the address check failed. */
   published?: boolean;
   /** TUL-818 · draft_saved only: what the arrival becomes once a retry check passes. */
@@ -95,7 +97,7 @@ type ArrivalInput = {
   /** Talent page URL and the Today deep link, when a profile exists. */
   talent: { publicUrl: string | null; todayUrl: string; /** The talent page builder: the "open the editor" door when no workspace exists (TUL-990). */ editorUrl?: string; /** Published own-site URL (TUL-32), when live. */ siteUrl?: string | null } | null;
   /** 1D: server-side check of the finish URL. Omitted = unchecked (legacy callers). */
-  liveCheck?: { ok: boolean; reason?: string } | null;
+  liveCheck?: { ok: boolean; reason?: string; status?: number } | null;
   /** TUL-818: the publish write succeeded (talent_sites / agency site is published). */
   published?: boolean;
   urlDiffers?: boolean;
@@ -117,6 +119,7 @@ export function arrivalFromStamp(input: ArrivalInput): ArrivalPayload {
     return {
       ...base, ...common, variant: "draft_saved", siteLive: false, verified: false, fallbackReason: "failed",
       draftReason: toDraftReason(input.liveCheck.reason),
+      ...(typeof input.liveCheck.status === "number" ? { draftStatus: input.liveCheck.status } : {}),
       published: input.published === true,
       liveVariant: base.variant,
       ...(base.siteLive ? { liveSiteLive: true } : {}),
@@ -222,15 +225,20 @@ function baseArrival(input: ArrivalInput): ArrivalPayload {
  * draft. A passing check promotes the draft to the arrival it would have been;
  * a failing one keeps the draft with the fresh reason. Pure.
  */
-export function applyRetryCheck(arrival: ArrivalPayload, check: { ok: boolean; reason?: string }): ArrivalPayload {
+export function applyRetryCheck(arrival: ArrivalPayload, check: { ok: boolean; reason?: string; status?: number }): ArrivalPayload {
   if (arrival.variant !== "draft_saved") return arrival;
-  if (!check.ok) return { ...arrival, draftReason: toDraftReason(check.reason) };
+  if (!check.ok) {
+    const { draftStatus: _old, ...rest } = arrival;
+    void _old;
+    return { ...rest, draftReason: toDraftReason(check.reason), ...(typeof check.status === "number" ? { draftStatus: check.status } : {}) };
+  }
   // Drafts stored before TUL-818 carry no liveVariant: infer it from the stored primary.
   const talentSite = arrival.primary.label === "open_my_site";
   const variant: ArrivalVariant = arrival.liveVariant ?? (talentSite || arrival.businessName === null ? "talent" : "business");
   const siteLive = arrival.liveVariant ? arrival.liveSiteLive === true : talentSite;
   const next: ArrivalPayload = { ...arrival, variant, verified: true, siteLive: siteLive ? true : undefined };
   delete next.draftReason;
+  delete next.draftStatus;
   delete next.published;
   delete next.liveVariant;
   delete next.liveSiteLive;
@@ -245,4 +253,25 @@ export function draftReasonKey(arrival: Pick<ArrivalPayload, "draftReason" | "pu
   if (arrival.published) return `${base}.publishedNotReachable`;
   if (arrival.draftReason === "name_missing") return `${base}.oldContent`;
   return `${base}.notReachable`;
+}
+
+/**
+ * TUL-819: the concrete thing the address check saw, as a message key plus its
+ * values, so the draft screen names the missing piece instead of "temporary".
+ */
+export function draftSawKey(arrival: Pick<ArrivalPayload, "draftReason" | "draftStatus">): { key: string; status?: number } {
+  const base = "public.onboarding.arrival.draftSaw";
+  switch (arrival.draftReason) {
+    case "no_url": return { key: `${base}.noUrl` };
+    case "no_name": return { key: `${base}.noName` };
+    case "name_missing": return { key: `${base}.nameMissing` };
+    case "protected": return { key: `${base}.protected` };
+    case "status": return typeof arrival.draftStatus === "number" ? { key: `${base}.status`, status: arrival.draftStatus } : { key: `${base}.statusUnknown` };
+    default: return { key: `${base}.network` };
+  }
+}
+
+/** TUL-819: the one-line technical detail for support: reason code plus HTTP status when known. */
+export function draftSupportLine(arrival: Pick<ArrivalPayload, "draftReason" | "draftStatus" | "variant">): string {
+  return [arrival.variant, arrival.draftReason, typeof arrival.draftStatus === "number" ? `HTTP ${arrival.draftStatus}` : null].filter(Boolean).join(" · ");
 }

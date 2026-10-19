@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Stripe TEST price seed (TUL-817) — manual, staging only.
+# Creates (or finds, by lookup key) the plan catalog's prices in the Stripe TEST
+# sandbox and uploads ONLY their ids as an artifact. It has no database access
+# and no DB secrets. The artifact is then used on the Mac:
+#   node scripts/seed-product-prices-from-stripe-test.mjs --ids-file <json>
+# Runbook: docs/plans/stripe-test-seed-runbook-2026-10-18.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Stripe test seed
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stripe-test-seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    name: Stripe TEST prices (staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Test-mode key only. Never configure a live key for this workflow.
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Refuse non-test Stripe keys
+        run: |
+          case "${STRIPE_SECRET_KEY:-}" in
+            "") echo "GitHub secret STRIPE_TEST_SECRET_KEY invalid"; exit 1 ;;
+            sk_test_*|rk_test_*) ;;
+            *) echo "Non-test Stripe key configured; refusing."; exit 1 ;;
+          esac
+      - name: Confirm Stripe account is in test mode
+        run: |
+          set -o pipefail
+          # --fail without a body: an error response can quote part of the key, so it is never shown.
+          if ! body="$(curl -sS --fail -H "Authorization: Bearer ${STRIPE_SECRET_KEY}" https://api.stripe.com/v1/account 2>/dev/null)"; then
+            echo "Stripe /v1/account request failed"; exit 1
+          fi
+          live="$(printf '%s' "$body" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).livemode===false?"false":"not-false")}catch{console.log("unreadable")}})')"
+          if [ "$live" != "false" ]; then
+            echo "Stripe account livemode is not false; refusing."; exit 1
+          fi
+          echo "livemode=false"
+      - name: Create or find the TEST prices
+        run: node scripts/seed-stripe-test-prices.mjs --static-catalog --out "$RUNNER_TEMP/stripe-test-price-ids.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stripe-test-price-ids
+          path: ${{ runner.temp }}/stripe-test-price-ids.json
+          retention-days: 3
+          if-no-files-found: error

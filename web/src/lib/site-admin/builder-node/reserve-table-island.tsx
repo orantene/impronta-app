@@ -23,6 +23,7 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
+import { formatPrice } from "@/lib/money/format-price";
 import type { ReserveAvailability, ReserveSlot } from "@/app/(public)/_reserve/reserve-actions";
 
 /**
@@ -162,10 +163,7 @@ const UI: Record<Locale, Record<string, string>> = {
  * becomes a sentence.
  */
 export function depositLine(locale: Locale, cents: number): string {
-  const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
+  const amount = formatPrice({ amountCents: cents, currency: "USD", locale }).primary;
   return locale === "es"
     ? `Se requiere un depósito de ${amount}; te enviamos el enlace.`
     : `A deposit of ${amount} is due; we have sent you the link.`;
@@ -193,7 +191,7 @@ export function dayLabel(ymd: string, timeZone: string, locale: Locale, isToday:
 const C = {
   ink: "#0B0B0D",
   muted: "rgba(11,11,13,0.55)",
-  dim: "rgba(11,11,13,0.35)",
+  dim: "rgba(11,11,13,0.6)",
   line: "rgba(24,24,27,0.12)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",

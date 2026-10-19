@@ -12,7 +12,8 @@ import {
   visibilitySchema,
   workflowStatusSchema,
 } from "@/lib/admin/validation";
-import { requireSession, requireStaff } from "@/lib/server/action-guards";
+import { requireSession } from "@/lib/server/action-guards";
+import { requireRosterScopedStaff } from "@/lib/server/roster-scoped-staff";
 import { getTenantScope } from "@/lib/saas/scope";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
@@ -97,7 +98,7 @@ export async function updateTalentProfile(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
 
@@ -343,7 +344,7 @@ export async function updateTalentWorkflowVisibilityInline(input: {
   visibility: string;
 }): Promise<WorkflowVisibilityInlineResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([String(input?.talent_id ?? "").trim()]);
   if (!auth.ok) return { error: auth.error };
   const parsed = talentWorkflowVisibilityInlineSchema.safeParse(input);
   if (!parsed.success) {
@@ -411,7 +412,7 @@ export async function assignTaxonomyTerm(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_profile_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -438,7 +439,7 @@ export async function removeTaxonomyTerm(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_profile_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -465,7 +466,7 @@ export async function softDeleteTalentProfile(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 
@@ -508,7 +509,9 @@ export async function adminBulkTalentAction(
   input: BulkTalentActionInput,
 ): Promise<{ error?: string; ok?: boolean; updated?: number }> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff(
+    Array.isArray(input?.talentIds) ? input.talentIds.map((id) => String(id).trim()) : [],
+  );
   if (!auth.ok) return { error: auth.error };
   const { supabase, user } = auth;
 
@@ -624,7 +627,7 @@ export async function restoreTalentProfile(
   formData: FormData,
 ): Promise<TalentActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requireRosterScopedStaff([trimmedString(formData, "talent_id")]);
   if (!auth.ok) return { error: auth.error };
   const { supabase } = auth;
 

@@ -76,14 +76,14 @@ export function PitchOriginCard({
         </div>
         {pitchTagline && !compact && (
           <div style={{
-            fontSize: 12, color: "rgba(11,11,13,0.55)",
+            fontSize: 12, color: "rgba(11,11,13,0.6)",
             marginTop: 4, lineHeight: 1.5,
           }}>
             {pitchTagline}
           </div>
         )}
         <div style={{
-          fontSize: 11, color: "rgba(11,11,13,0.45)", marginTop: 6,
+          fontSize: 11, color: "rgba(11,11,13,0.6)", marginTop: 6,
           display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
         }}>
           {pitchAuthor && <span>by {pitchAuthor}</span>}

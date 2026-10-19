@@ -4,6 +4,7 @@ import { loadTalentActor } from "@/lib/messaging/talent-actor";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { loadTalentAgenda } from "./load";
+import { resolveRecordTarget, type RecordTargetDb } from "./resolve-record-target";
 import { agendaItemFromSnapshot, agendaWindowAround } from "./record-item";
 import type { TalentAgendaItem } from "./types";
 
@@ -17,20 +18,20 @@ export async function loadTalentAgendaRecordItem(bookingId: string): Promise<Tal
   if (!/^[0-9a-f-]{36}$/i.test(bookingId)) return null;
   const actor = await loadTalentActor();
   if (!actor.ok) return null;
-  const { data, error } = await actor.supabase
-    .from("talent_bookings")
-    .select("starts_at")
-    .eq("id", bookingId)
-    .eq("talent_profile_id", actor.talentProfileId)
-    .maybeSingle();
-  if (error) {
+  // TUL-1244: talent_bookings, then agency bookings she is on, then an accepted offer's order id.
+  const target = await resolveRecordTarget(
+    { supabase: actor.supabase as unknown as RecordTargetDb, admin: actor.admin as unknown as RecordTargetDb },
+    actor.talentProfileId,
+    bookingId,
+  ).catch((error: unknown) => {
     logServerError("talent-agenda.recordItem", error);
     return null;
-  }
-  const window = agendaWindowAround((data as { starts_at?: string } | null)?.starts_at ?? "");
+  });
+  if (!target) return null;
+  const window = agendaWindowAround(target.startsAt);
   if (!window) return null;
   const agenda = await loadTalentAgenda(actor.talentProfileId, window);
-  return agendaItemFromSnapshot(agenda.items, bookingId);
+  return agendaItemFromSnapshot(agenda.items, target.bookingId);
 }
 
 /**

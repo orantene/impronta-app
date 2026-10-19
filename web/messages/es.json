@@ -46,7 +46,11 @@
       "shell": {
         "clientHeading": "Reserva y gestiona todo en un solo lugar.",
         "clientLead": "Crea una cuenta de cliente gratis para seguir tus reservas, mensajes y pagos.",
-        "clientPoints": {"book": "Sigue cada reserva y cada pago", "thread": "Escribe al talento o al equipo en un solo hilo", "secure": "Entra con un código o una contraseña"},
+        "clientPoints": {
+          "book": "Sigue cada reserva y cada pago",
+          "thread": "Escribe al talento o al equipo en un solo hilo",
+          "secure": "Entra con un código o una contraseña"
+        },
         "back": "Volver a {site}",
         "tenantHeading": "Tu trabajo y tus reservas, en un solo lugar.",
         "tenantLead": "Gestiona tu perfil, tus reservas y tus mensajes con {brand}.",
@@ -535,7 +539,7 @@
       },
       "inquiry": {
         "saveThisTalent": "Guardar este talento",
-        "savedToInquiryCart": "Guardado en tu lista",
+        "savedToInquiryCart": "Añadido a tu solicitud",
         "contactAboutTalent": "Contactar sobre este talento",
         "openInquiry": "Abrir consulta",
         "flashCouldNotUpdateSaved": "No se pudo actualizar la lista guardada",
@@ -691,7 +695,7 @@
           "viewFullProfile": "Ver perfil completo",
           "close": "Cerrar",
           "saveThisTalent": "Guardar este talento",
-          "savedToCart": "Guardado en tu lista",
+          "savedToCart": "Añadido a tu solicitud",
           "imageAlt": "{name}, vista previa",
           "dialogAria": "{name}, vista rápida"
         },
@@ -925,6 +929,8 @@
       "threadLogAria": "Conversación",
       "systemClusterMore": "{count} actualizaciones más",
       "systemClusterCollapse": "Ocultar",
+      "systemLineupCount": "Selección · {count} talentos",
+      "systemLineupRecommend": "Que la agencia recomiende",
       "messageRemoved": "Mensaje eliminado",
       "openFullToView": "Abre la conversación completa para ver esta actualización.",
       "notSent": "No enviado. Se restauró al cuadro.",
@@ -1348,6 +1354,7 @@
       "dockTrayRemove": "Quitar",
       "dockTrayOpenLineup": "Abrir Artículos",
       "dockTrayOpen": "Revisar",
+      "dockTraySend": "Enviar solicitud",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
       "catalogSearchPlaceholder": "Buscar en esta lista",
       "catalogSortLabel": "Ordenar",
@@ -1599,7 +1606,7 @@
       "dateStartTimeLabel": "Hora de inicio (opcional)",
       "dateDurationLabel": "Duración (opcional)",
       "dateDurationPlaceholder": "p. ej. 2-4 horas · día completo",
-      "talentTitle": "Talent",
+      "talentTitle": "Talento",
       "talentSubtitle": "Elige talento específico, o deja que la agencia lo recomiende.",
       "talentModeRecommend": "Que la agencia recomiende",
       "talentModeIKnow": "Ya sé a quién quiero",
@@ -1607,6 +1614,14 @@
       "talentFallbackName": "Talento",
       "talentRemoveAria": "Quitar a {name}",
       "talentAddLabel": "Añadir talento",
+      "talentSearchPlaceholder": "Buscar talento por nombre",
+      "talentSearchAddAria": "Añadir a {name} a tu solicitud",
+      "talentSearchAdd": "Añadir",
+      "talentSearchEmpty": "Ningún talento coincide con ese nombre. Prueba otro, o deja que la agencia recomiende.",
+      "mapTitle": "Mapa: {place}",
+      "mapAria": "Vista previa de Google Maps para {place}",
+      "mapView": "Ver en el mapa",
+      "mapDirections": "Cómo llegar",
       "talentCountLabel": "Cuántos talentos (opcional)",
       "talentCountPlaceholder": "p. ej. 3",
       "talentTypeLabel": "Tipo de talento",
@@ -1676,7 +1691,7 @@
       "reviewClientCompany": "Cliente / empresa",
       "reviewLocation": "Ubicación",
       "reviewDate": "Fecha",
-      "reviewTalent": "Talent",
+      "reviewTalent": "Talento",
       "reviewTalentRecommend": "La agencia recomendará",
       "reviewTalentSelected": "{count} seleccionados",
       "reviewTalentNeeded": "{count} necesarios",
@@ -1735,7 +1750,7 @@
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
-        "notAccepting": "Por ahora no se aceptan reservas nuevas. Envía una consulta.",
+        "notAccepting": "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
       },
@@ -1743,7 +1758,7 @@
     },
     "bookPage": {
       "title": "Reserva un horario",
-      "lead": "Elige un servicio y un horario. Confirmamos enseguida.",
+      "lead": "Elige un servicio y un horario. La línea bajo el precio dice si pagas ahora o en la cita.",
       "bookCta": "Agendar",
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
@@ -2102,11 +2117,11 @@
       "code": {
         "title": "Escribe el código",
         "sub": "Enviamos un código de 8 dígitos a {email}. Es la misma pantalla para todos, así que revisa tu bandeja y el spam.",
-        "plusSub": "Enviamos un código a {email}. Muchas bandejas no entregan correo a direcciones con +. Si no llega en un minuto, cambia a un correo sin +.",
+        "plusSub": "Enviamos un código a {email}. Puede tardar un minuto. Si no llega, pide un código nuevo o prueba con tu dirección principal.",
         "resend": "Enviar un código nuevo",
         "resendIn": "Enviar un código nuevo en {s}s",
         "resent": "Un código nuevo va en camino.",
-        "plusResent": "Código nuevo enviado. Si sigue sin llegar, cambia a una dirección sin +.",
+        "plusResent": "Código nuevo enviado. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "changeEmail": "Cambiar correo",
         "verifying": "Comprobando…"
       },
@@ -2186,6 +2201,15 @@
           "notReachable": "Motivo: tu página no respondió cuando la abrimos. Toca Intentar de nuevo.",
           "oldContent": "Motivo: tu dirección todavía muestra contenido anterior. Toca Intentar de nuevo en unos segundos.",
           "notCreated": "Motivo: no pudimos crear tu dirección. Abre el editor para terminarla."
+        },
+        "draftSaw": {
+          "status": "Lo que vimos: tu dirección respondió con el error {status} en lugar de tu página.",
+          "statusUnknown": "Lo que vimos: tu dirección respondió con un error en lugar de tu página.",
+          "network": "Lo que vimos: tu dirección no respondió.",
+          "nameMissing": "Lo que vimos: tu dirección abrió, pero tu nombre todavía no aparece en la página.",
+          "noName": "Lo que vimos: tu página no tiene un nombre para comprobar. Abre el editor y agrega uno.",
+          "noUrl": "Lo que vimos: tu página todavía no tiene dirección.",
+          "protected": "Lo que vimos: tu dirección está detrás de un inicio de sesión, así que no pudimos verla."
         },
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",
@@ -2286,6 +2310,17 @@
       "tabMessages": "Mensajes",
       "tabPayments": "Pagos",
       "tabSettings": "Ajustes",
+      "tabHelp": "Ayuda",
+      "helpTitle": "¿En qué podemos ayudarte?",
+      "helpPayQ": "¿Cómo pago un saldo pendiente?",
+      "helpPayA": "Abre Pagos y elige Pagar ahora junto a la reserva.",
+      "helpChangeQ": "¿Cómo cambio o cancelo una visita?",
+      "helpChangeA": "Abre la visita en Visitas para ver qué puedes cambiar, o envía un mensaje y el negocio lo resuelve contigo.",
+      "helpReceiptQ": "¿Dónde está mi recibo?",
+      "helpReceiptA": "Los recibos aparecen en Pagos una vez que pagas.",
+      "helpAskQ": "¿A quién le hago una pregunta?",
+      "helpAskA": "Envía un mensaje en Mensajes. El negocio te responde ahí.",
+      "helpOpenMessages": "Ir a Mensajes",
       "tabQuotes": "Cotizaciones",
       "tabShortlists": "Listas de selección",
       "tabApprovals": "Aprobaciones",
@@ -2364,7 +2399,7 @@
       "saved": "Guardado.",
       "phoneInvalid": "Revisa el número de teléfono.",
       "logOut": "Cerrar sesión",
-      "langEn": "Inglés",
+      "langEn": "English",
       "langEs": "Español",
       "fieldEmail": "Correo",
       "namePromptTitle": "Agrega tu nombre",
@@ -2374,6 +2409,7 @@
     },
     "clientAccount": {
       "signIn": "Iniciar sesión",
+      "createAccount": "Crear cuenta",
       "account": "Cuenta",
       "openLabel": "Abrir menú de cuenta",
       "closeLabel": "Cerrar",
@@ -2432,18 +2468,11 @@
       "perMonth": "al mes",
       "billedYearly": "{amount} al año",
       "billedMonthly": "Facturado cada mes",
-      "popular": "Más elegido"
+      "popular": "Más elegido",
+      "approxNote": "al mes, se cobra en USD"
     }
   },
   "dashboard": {
-    "promoCode": {
-      "toggle": "¿Tienes un código?",
-      "label": "Código promocional",
-      "placeholder": "Ingresa el código",
-      "apply": "Aplicar",
-      "checking": "Verificando...",
-      "remove": "Quitar"
-    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",
@@ -2585,16 +2614,6 @@
     "switchWorkspace": "Cambiar espacio",
     "workspaceTalentQa": "Usuario QA talento",
     "workspaceClientQa": "Usuario QA cliente",
-    "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
-    "workspaceQaReason": {
-      "not_configured": "El cambio QA no está configurado: falta el id del usuario QA o el secreto de suplantación en este entorno.",
-      "no_profile": "El usuario QA configurado no tiene perfil en esta base de datos.",
-      "inactive": "El usuario QA existe pero su cuenta no está activa (sigue en onboarding o suspendida). Actívala y vuelve a intentarlo.",
-      "wrong_role": "El usuario QA configurado no tiene el rol que necesita este cambio.",
-      "not_allowlisted": "El id del usuario QA no está en la lista permitida de este entorno.",
-      "not_authorized": "Solo un super admin puede usar el cambio QA.",
-      "no_relationship": "El cliente QA no tiene una relación activa con una agencia, así que no hay espacio de cliente que abrir."
-    },
     "workspaceSwitcherHint": "Vista previa QA, solo lectura",
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",
@@ -2678,6 +2697,7 @@
         "qualityLeftMany": "Faltan {count} cosas para tu sitio gratis",
         "qualityUnlocked": "Tu sitio gratis ya tiene todo lo que necesita",
         "qualityUnknown": "Aún no pudimos cargar todas las revisiones",
+        "qualityChecking": "Revisando tu perfil…",
         "finish": "Completar lo siguiente",
         "sectionsTitle": "Editar tu perfil",
         "sectionsHint": "Cada campo aparece en tu página. No hay un segundo lugar donde editarlo.",
@@ -2687,7 +2707,7 @@
         "stateUnknown": "Sin cargar",
         "stateOptional": "Opcional",
         "nameTradeTitle": "Nombre y qué haces",
-        "nameTradeBody": "El nombre que ven tus clientas y tu oficio. Se muestra en todas partes.",
+        "nameTradeBody": "El nombre que ven tus clientes y tu oficio. Se muestra en todas partes.",
         "introTitle": "Tu presentación",
         "introBody": "Unas líneas con tu propia voz. Si Tulala la escribió, cámbiala aquí.",
         "whereTitle": "Dónde trabajas",
@@ -2701,10 +2721,10 @@
         "photosCount": "{count} fotos",
         "photosReorder": "Reordenar",
         "languagesTitle": "Idiomas",
-        "languagesBody": "Los idiomas que puedes usar con tus clientas.",
+        "languagesBody": "Los idiomas que puedes usar con tus clientes.",
         "contactTitle": "Contacto",
-        "contactBody": "Tu correo y teléfono. Las clientas te contactan por Tulala, nunca directo.",
-        "previewAside": "Tu página, como la ven tus clientas",
+        "contactBody": "Tu correo y teléfono. Los clientes te contactan por Tulala, nunca directo.",
+        "previewAside": "Tu página, como la ven tus clientes",
         "previewUnavailable": "Tu enlace público aparece cuando tu perfil tenga uno."
       }
     },
@@ -2773,7 +2793,7 @@
         "sendRequest": "Enviar solicitud",
         "pickFromBookings": "Elegir de mis reservas",
         "inviteByEmail": "Invitar por correo",
-        "pickClient": "Elige una clienta con la que trabajaste",
+        "pickClient": "Elige una cliente con la que trabajaste",
         "otherEmail": "¿Otra persona? Escribe su correo",
         "sendError": "No se pudo enviar la solicitud."
       },
@@ -2789,7 +2809,7 @@
       "rulesTitle": "Qué puedes y qué no",
       "ruleReply": "Responder una vez, en público",
       "ruleFlag": "Reportar una reseña para que la revisemos",
-      "ruleAsk": "Pedirle a una clienta que deje una",
+      "ruleAsk": "Pedirle a una cliente que deje una",
       "ruleEdit": "Editar lo que alguien escribió",
       "ruleDelete": "Borrar una reseña que no te gusta",
       "ruleHide": "Ocultar tu calificación y dejar la página",
@@ -3555,7 +3575,7 @@
         "upgradeTo": "Cambiar a {tier}, {price} al mes",
         "upgradeStarting": "Abriendo el pago...",
         "upgradeFailed": "No se pudo abrir el pago. Inténtalo de nuevo.",
-        "upgradeNote": "Cancela cuando quieras. Sigues en todos los rosters en los que estás ahora.",
+        "upgradeNote": "Cancela cuando quieras. Sigues en todas las agencias en las que estás ahora.",
         "unlockedAt": "Se desbloquea en {tier}",
         "personalTitle": "Secciones del sitio personal",
         "personalDesc": "Hero y el CTA de contacto son obligatorios. Tu sitio Max puede crecer a partir de estas secciones de marca personal.",
@@ -3761,7 +3781,7 @@
         "agencyDesc": "Cómo aparece este Talent en tu roster y en Tulala.",
         "talentDesc": "Cada lugar donde está listado tu Profile, con la visibilidad real.",
         "showEverywhere": "Mostrar mi Profile en todas partes",
-        "showEverywhereHint": "Desactiva para ocultarte en todos los rosters y en el Directory.",
+        "showEverywhereHint": "Desactiva para ocultarte en todas las agencias y en el Directorio.",
         "visibilityUpdatedToast": "Visibilidad actualizada",
         "directoryLagNote": "La búsqueda del Directory se actualiza en unos 15 minutos tras los cambios.",
         "noEntries": "Todavía no hay entradas de representación.",
@@ -4549,7 +4569,7 @@
         "openingFile": "Abriendo {name}",
         "openFilesTab": "Abrir pestana Archivos",
         "viewAllFiles": "Ver los {count} archivos",
-        "lastActivity": "Ultima actividad",
+        "lastActivity": "Última actividad",
         "eventCountOne": "{count} evento",
         "eventCountMany": "{count} eventos",
         "earlierEventsOne": "+ {count} evento anterior",
@@ -4602,7 +4622,7 @@
         "payMeTo": "Pagarme a",
         "bankTransfer": "Transferencia bancaria · ES•••• 4421",
         "bankDefault": "Predeterminada · anadida en marzo de 2024",
-        "changeMethod": "Cambiar metodo de pago",
+        "changeMethod": "Cambiar método de pago",
         "change": "Cambiar",
         "receipt": "Recibo",
         "receiptToast": "La descarga del recibo llegara con la fase de Dinero (PDF emitido por Stripe). Próximamente.",
@@ -14019,7 +14039,69 @@
       "lineCountOne": "artículo",
       "lineCountOther": "artículos",
       "refundAmount": "Monto a reembolsar",
-      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial."
+      "refundAmountHint": "Por defecto es el restante completo ({max}). Bájalo para un reembolso parcial.",
+      "door": {
+        "newBadge": "Nuevo",
+        "mockBanner": "Mockup de la puerta del pedido en el escritorio real de Pedidos. Lo punteado y Nuevo marca solo lo que agrega este corte; las columnas y el reembolso siguen como hoy.",
+        "mockPreview": "Contenido mock: los siguientes cortes llenan cada sección con datos reales y abren nombres en cajones apilados.",
+        "copyCode": "Copiar código del pedido",
+        "codeCopied": "Copiado",
+        "back": "Volver a la lista",
+        "moreMenu": "Más acciones",
+        "primary": {
+          "sendPayLink": "Enviar enlace de pago",
+          "collectPos": "Cobrar en mostrador",
+          "sendReceipt": "Enviar recibo",
+          "viewRefund": "Ver reembolso"
+        },
+        "sections": {
+          "summary": {
+            "title": "Resumen",
+            "preview": "Línea de tiempo y dinero",
+            "body": "Mock de línea de tiempo: creado, oferta, pagado, cumplido. Las líneas de dinero (total, pagado, pendiente, comisión, neto) llegan en el siguiente corte."
+          },
+          "client": {
+            "title": "Cliente",
+            "preview": "Nombre y contacto",
+            "body": "Mock del cajón del cliente: pedidos anteriores, Mensaje, WhatsApp, Copiar correo. El nombre abrirá un cajón lateral sin salir de Pedidos."
+          },
+          "items": {
+            "title": "Artículos",
+            "preview": "Líneas de este pedido",
+            "body": "Cada línea mostrará servicio, cantidad, precio, persona y espacio. El reembolso por línea se mueve aquí desde la celda de la tabla."
+          },
+          "appointment": {
+            "title": "Cita y fechas",
+            "preview": "Cuándo y dónde",
+            "body": "Fecha, inicio a fin, zona horaria y ubicación. Necesita el campo de ubicación de TUL-426 antes de que esta sección sea real."
+          },
+          "payments": {
+            "title": "Pagos",
+            "preview": "Transacciones y enlaces",
+            "body": "Cada transacción abre el cajón de pago. Reembolsar líneas sigue disponible abajo mientras dure este mock."
+          },
+          "conversation": {
+            "title": "Conversación",
+            "preview": "Sin hilo todavía",
+            "body": "Origen y vista previa del último mensaje. Abre el cajón de conversación; nunca te saca de la página."
+          },
+          "origin": {
+            "title": "Origen y dispositivo",
+            "preview": "Canal y dispositivo",
+            "body": "Canal de venta, página o terminal de origen, y familia de dispositivo de forma general. Sin IP ni ubicación precisa."
+          },
+          "activity": {
+            "title": "Actividad",
+            "preview": "Quién y cuándo",
+            "body": "Cambios de estado, mensajes enviados, reembolsos y notas. El nombre de cada actor abre el cajón de persona."
+          },
+          "notes": {
+            "title": "Notas internas",
+            "preview": "Sin notas todavía",
+            "body": "Notas del equipo sobre el pedido. Agregar una nota en línea llega en un corte posterior."
+          }
+        }
+      }
     },
     "sales": {
       "pageTitle": "Ventas",
@@ -14034,10 +14116,8 @@
       "noCustomer": "Sin nombre registrado",
       "unavailableTitle": "No pudimos cargar tus ventas",
       "unavailableBody": "Es un problema nuestro, no tuyo. Actualiza en un momento.",
-      "export": "Exportar (con filtros)",
+      "export": "Exportar CSV",
       "newSale": "Nueva venta",
-      "periodChip": "Todo el tiempo",
-      "paymentChip": "Pago: cualquiera",
       "sellerChip": "Vendedor",
       "colType": "Tipo",
       "colRef": "Ref",
@@ -14078,12 +14158,34 @@
         "void": "Anulado"
       },
       "notWired": {
-        "export": "Una exportación necesita un filtro de periodo y de vendedor, que todavía no están modelados.",
         "newSale": "Activa el modo Mostrador en Ajustes › POS para abrir una venta.",
-        "period": "Las ventas todavía no se filtran por periodo; esta lista son las 200 más recientes de cada tipo.",
-        "payment": "Las ventas todavía no se filtran por estado de pago; la etiqueta de cada fila lo dice.",
         "seller": "Este espacio de trabajo es el único vendedor; el filtro por profesional todavía no está modelado."
       },
+      "viewLabel": "Vista",
+      "viewActivity": "Actividad",
+      "viewItems": "Por artículo",
+      "periodLabel": "Período",
+      "period": { "all": "Todo el tiempo", "today": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días", "month": "Este mes" },
+      "methodLabel": "Método de pago",
+      "method": { "any": "Cualquiera", "cash": "Efectivo", "card": "Tarjeta en mostrador", "online": "En línea", "other": "Otro" },
+      "colItem": "Artículo",
+      "colQuantity": "Cant.",
+      "colGross": "Bruto",
+      "colRefunded": "Reembolsado",
+      "colNet": "Neto",
+      "colOrders": "Pedidos",
+      "itemUnnamed": "Artículo sin nombre",
+      "itemCustom": "(línea personalizada)",
+      "itemsEmptyTitle": "No hay ventas pagadas en este período",
+      "itemsEmptyBody": "Aquí verás los pedidos pagados de este período y método de pago, agrupados por artículo.",
+      "itemsFootnote": "Solo pedidos pagados. Los importes son los de las líneas de pedido guardadas, una moneda por fila, nunca sumadas entre monedas. Los reembolsos se descuentan del neto.",
+      "csvItem": "Artículo",
+      "csvQuantity": "Cantidad",
+      "csvGross": "Bruto",
+      "csvRefunded": "Reembolsado",
+      "csvNet": "Neto",
+      "csvOrders": "Pedidos",
+      "csvCurrency": "Moneda",
       "filterAll": "Todo"
     },
     "payments": {
@@ -15000,6 +15102,8 @@
           "recording": "Registrando…"
         }
       },
+      "counterCatalogErrorTitle": "No se pudo cargar el catálogo",
+      "counterCatalogErrorBody": "Algo salió mal al leer los artículos de este espacio de trabajo, por eso el mostrador no los muestra. Recarga la página. Si sigue pasando, contacta a soporte.",
       "counterOffTitle": "El mostrador está desactivado",
       "counterOffBody": "Este espacio de trabajo desactivó el mostrador en Configuración, dentro de Punto de venta. Actívalo de nuevo ahí y esta caja volverá a abrirse.",
       "projects": {
@@ -16917,7 +17021,7 @@
       "noTime": "Sin hora acordada todavía",
       "empty": {
         "title": "No hay nada reservado en este periodo",
-        "body": "Aquí aparecen las citas de la ultima semana y de los próximos noventa días, con quien atiende y en que sala."
+        "body": "Aquí aparecen las citas de la última semana y de los próximos noventa días, con quién atiende y en qué sala."
       },
       "action": {
         "reschedule": "Moverla",
@@ -17053,7 +17157,7 @@
           "sessionsOther": "{count} sesiones"
         },
         "subtitle": {
-          "list": "Hoy y lo que viene, con quien atiende y la sala",
+          "list": "Hoy y lo que viene, con quién atiende y la sala",
           "sessions": "Sesiones con fecha de cada serie y cada noche suelta, en el reloj del lugar",
           "series": "Una serie es una clase con cadencia; el barrido nocturno crea las sesiones con fecha que el POS vende y registra",
           "waitlist": "Quien espera una plaza en una clase llena, en el orden en que se anoto"
@@ -17326,6 +17430,7 @@
     "projects": {
       "pageTitle": "Proyectos",
       "pageIntro": "Trabajo por encargo, de la consulta al cierre",
+      "listLoading": "Cargando proyectos",
       "unavailable": "No pudimos cargar tus proyectos. No se cambio nada. Intenta de nuevo en un momento.",
       "empty": "Todavía no hay proyectos por encargo.",
       "emptyHint": "Un proyecto aparece aquí cuando un cliente acepta una oferta en una consulta. Las ventas del mostrador siguen en Pedidos.",
@@ -17705,11 +17810,6 @@
       "filesNone": "Todavía no hay ningún archivo adjunto a un hito.",
       "kpiCollectedNoteOne": "1 registro pagado"
     },
-    "adminNotFound": {
-      "title": "Página no encontrada",
-      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
-      "back": "Volver al resumen"
-    },
     "clientRecord": {
       "title": "Cliente",
       "unavailable": "No pudimos cargar este cliente. No se cambio nada. Intenta de nuevo en un momento.",
@@ -17725,7 +17825,7 @@
       "locale": "Idioma",
       "visits": "Visitas",
       "noShows": "Ausencias",
-      "lastSeen": "Ultima vez",
+      "lastSeen": "Última vez",
       "tags": "Etiquetas",
       "whichClient": "Esta página lee la ficha de cliente, que es de la que cuelga el dinero. La ficha de relación antigua y la cuenta de empresa son cosas distintas y no se muestran aquí.",
       "balances": "Saldos",
@@ -17999,6 +18099,7 @@
       "dash": "—",
       "untitled": "(sin título)",
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
+      "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
       "type": {
         "product": "Producto",
         "service": "Servicio",
@@ -18099,7 +18200,8 @@
         "location": "Ubicación",
         "locationReason": "Un catálogo por espacio: los artículos aún no se registran por ubicación.",
         "channel": "Canal",
-        "incompleteOnly": "Solo incompletos"
+        "incompleteOnly": "Solo incompletos",
+        "archived": "Archivados"
       },
       "col": {
         "item": "Artículo",
@@ -18118,7 +18220,24 @@
         "duplicate": "Duplicar",
         "moveUp": "Subir",
         "moveDown": "Bajar",
-        "delete": "Eliminar"
+        "delete": "Eliminar",
+        "archive": "Archivar",
+        "providerOwnedReason": "Este es uno de tus propios servicios. Cámbialo en Servicios."
+      },
+      "confirm": {
+        "deleteTitle": "¿Eliminar este artículo?",
+        "deleteBody": "{name} se eliminará para siempre. No se puede deshacer.",
+        "archiveTitle": "¿Archivarlo en su lugar?",
+        "archiveBody": "{name} ya se publicó o se vendió, así que no se puede eliminar. Al archivarlo sale de tu sitio y de tu mostrador, y los pedidos anteriores se conservan. Puedes restaurarlo cuando quieras.",
+        "delete": "Eliminar",
+        "archive": "Archivar",
+        "cancel": "Cancelar"
+      },
+      "archived": {
+        "title": "Artículos archivados",
+        "empty": "No hay nada archivado.",
+        "restore": "Restaurar",
+        "restoreNote": "Al restaurar, el artículo vuelve como borrador."
       },
       "create": {
         "title": "¿Qué vendes?",
@@ -18180,7 +18299,9 @@
         "saveDraft": "Guardar borrador",
         "publish": "Publicar",
         "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde.",
-        "save": "Guardar"
+        "save": "Guardar",
+        "notBookableNoProvider": "No se puede reservar en línea todavía: la reserva en línea necesita una persona con horario, y un servicio del negocio no la tiene. Tus clientes pueden enviar una solicitud. Para que elijan una hora, crea el servicio en Servicios para un miembro del equipo.",
+        "notBookableNoDuration": "No se puede reservar en línea todavía: agrega cuánto dura para poder ofrecer horarios."
       },
       "tab": {
         "label": "Secciones del artículo",
@@ -18200,6 +18321,11 @@
         "depositPct": "Pon el depósito entre 1 y 99 por ciento.",
         "identityReason": "Di por qué se necesita el nombre del comprador.",
         "currency": "Elige una moneda."
+      },
+      "warning": {
+        "photo": "Aún sin foto: se verá sin imagen en el mostrador y en el menú.",
+        "category": "Aún sin categoría: quedará en Todos los artículos.",
+        "channel": "Precio a solicitud: se muestra sin precio en tu sitio. El personal aún puede venderlo en el mostrador."
       },
       "details": {
         "title": "Detalles",
@@ -19699,7 +19825,7 @@
         "comingBody": "Esta acción la construye una fase posterior del programa Mensajes v5. No se cambió nada.",
         "comingOk": "Entendido",
         "noThreadTitle": "Aquí se abre la conversación",
-        "noThreadBody": "Elige una clienta a la izquierda para leer sus mensajes, responder o enviar una cotización.",
+        "noThreadBody": "Elige una cliente a la izquierda para leer sus mensajes, responder o enviar una cotización.",
         "loadingThread": "Cargando la conversación",
         "threadFailed": "La conversación no cargó. Tus datos están a salvo.",
         "tryAgain": "Reintentar",
@@ -19799,6 +19925,10 @@
           "header": {
             "handling": "{name} atiende tu solicitud",
             "handlingTeam": "El equipo atiende tu solicitud"
+          },
+          "offerBanner": {
+            "hint": "Tienes una oferta por revisar",
+            "cta": "Ver oferta"
           },
           "stream": {
             "you": "Tú",
@@ -20317,6 +20447,29 @@
       "walletBody3": "Vincula solo una dirección que sea tuya. Revísala bien antes de guardar.",
       "checking": "Verificando si puedes cobrar en USDC..."
     },
+    "promoCode": {
+      "toggle": "¿Tienes un código?",
+      "label": "Código promocional",
+      "placeholder": "Ingresa el código",
+      "apply": "Aplicar",
+      "checking": "Verificando...",
+      "remove": "Quitar"
+    },
+    "workspaceQaUnavailable": "Esta cuenta QA aún no está configurada aquí. Revisa la configuración del usuario QA.",
+    "workspaceQaReason": {
+      "not_configured": "El cambio QA no está configurado: falta el id del usuario QA o el secreto de suplantación en este entorno.",
+      "no_profile": "El usuario QA configurado no tiene perfil en esta base de datos.",
+      "inactive": "El usuario QA existe pero su cuenta no está activa (sigue en onboarding o suspendida). Actívala y vuelve a intentarlo.",
+      "wrong_role": "El usuario QA configurado no tiene el rol que necesita este cambio.",
+      "not_allowlisted": "El id del usuario QA no está en la lista permitida de este entorno.",
+      "not_authorized": "Solo un super admin puede usar el cambio QA.",
+      "no_relationship": "El cliente QA no tiene una relación activa con una agencia, así que no hay espacio de cliente que abrir."
+    },
+    "adminNotFound": {
+      "title": "Página no encontrada",
+      "body": "Esta página no existe o pudo haberse movido. Revisa la dirección o vuelve a tu resumen.",
+      "back": "Volver al resumen"
+    },
     "platformPosts": {
       "nav": "Posts"
     },
@@ -20339,7 +20492,7 @@
       "emptyTitle": "Aún no tienes posts",
       "emptyBody": "Escribe tu primer post. Ayuda a que te encuentren en Google.",
       "emptyFilter": "No hay posts en esta vista.",
-      "lockHint": "Publicar = Web Office (borradores gratis)",
+      "lockHint": "Publicar = Oficina Web (borradores gratis)",
       "loadError": "No pudimos cargar tus posts.",
       "retry": "Reintentar",
       "loading": "Cargando posts...",
@@ -20404,8 +20557,8 @@
       "takenDown": "Oculto por Tulala: {reason}",
       "lapsedBanner": "Tu plan ya no incluye posts. Los publicados siguen en línea, pero no se pueden editar hasta renovar.",
       "renew": "Renovar plan",
-      "upgradeTitle": "Publica con Web Office",
-      "upgradeBody": "Tu borrador está guardado. Con Web Office tus posts salen en tu sitio y en Google.",
+      "upgradeTitle": "Publica con Oficina Web",
+      "upgradeBody": "Tu borrador está guardado. Con Oficina Web tus posts salen en tu sitio y en Google.",
       "upgradeBodyWorkspace": "Tu borrador está guardado. Publicar posts requiere el plan Website o superior.",
       "upgradeCta": "Ver planes",
       "upgradeLater": "Seguir editando",
@@ -21058,7 +21211,10 @@
       "billing": {
         "redirecting": "Redirigiendo…",
         "pastDueTitle": "Pago fallido.",
-        "pastDueGraceBody": "Tu pago no pasó. Las funciones de pago siguen activas {days} día(s) más. Actualiza tu tarjeta para conservarlas.",
+        "pastDueGraceBody": {
+          "one": "Tu pago no pasó. Las funciones de pago siguen activas {count} día más. Actualiza tu tarjeta para conservarlas.",
+          "other": "Tu pago no pasó. Las funciones de pago siguen activas {count} días más. Actualiza tu tarjeta para conservarlas."
+        },
         "pastDueExpiredBody": "Tu pago no pasó y tu plan está en pausa. Tu contenido está a salvo. Restaura tu plan para recuperar las funciones de pago.",
         "updateCard": "Actualizar tarjeta",
         "restorePlan": "Restaurar plan",
@@ -22482,6 +22638,44 @@
         "label": "Producto y consejos",
         "description": "Novedades del producto y consejos ocasionales de buenas prácticas."
       }
+    }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirma los datos de tu negocio",
+      "description": "Nombre, servicios y horario confirmados para que tus clientes sepan qué ofreces."
+    },
+    "services": {
+      "title": "Agrega tus servicios",
+      "description": "Enumera lo que ofreces con duración y precio o cotización."
+    },
+    "hours": {
+      "title": "Define tu horario",
+      "description": "Elige los días y horas en que tus clientes pueden reservar."
+    },
+    "location": {
+      "title": "Indica dónde trabajas",
+      "description": "Agrega tu zona para que tus clientes te encuentren."
+    },
+    "photos": {
+      "title": "Agrega fotos",
+      "description": "Muestra tu trabajo con al menos una foto."
+    },
+    "team": {
+      "title": "Invita a tu equipo",
+      "description": "Suma a las personas que atienden clientes contigo. Puedes hacerlo después."
+    },
+    "payments": {
+      "title": "Conecta los pagos",
+      "description": "Conecta tu cuenta de cobro para que tus clientes puedan pagarte."
+    },
+    "preview": {
+      "title": "Vista previa de tu página",
+      "description": "Mira tu página como la verán tus clientes."
+    },
+    "publish": {
+      "title": "Publica tu sitio web",
+      "description": "Pon tu sitio en línea y comparte el enlace."
     }
   }
 }

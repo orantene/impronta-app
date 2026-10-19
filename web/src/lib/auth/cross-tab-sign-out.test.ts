@@ -44,9 +44,9 @@ test("TUL-788: every mounted listener (root layout and /account shell) shares th
   assert.equal(SIGNED_OUT_MESSAGE, "signed-out");
   const root = read("src/components/auth/CrossTabSignOutListener.tsx");
   assert.match(root, /new BroadcastChannel\(SESSION_CHANNEL\)/);
-  assert.match(root, /SIGNED_OUT_MESSAGE[\s\S]{0,40}location\.reload\(\)/);
+  assert.match(root, /shouldReloadOnSignOut\(event\.data\)[\s\S]{0,40}location\.reload\(\)/);
   const account = read("src/components/client-account/AccountClientIslands.tsx");
   assert.match(account, /const SESSION_CHANNEL = "tulala-session"/);
-  assert.match(account, /"signed-out"[\s\S]{0,60}location\.reload\(\)/);
+  assert.match(account, /shouldReloadOnSignOut\(e\.data\)[\s\S]{0,40}location\.reload\(\)/);
   assert.match(read("src/lib/auth/sign-out-client.ts"), /announceSignOut\(\)/);
 });

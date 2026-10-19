@@ -78,6 +78,8 @@ export type SweepExpiredOrdersResult = {
   scanned: number;
   cancelled: number;
   failed: number;
+  /** TUL-1218: expiring orders left alone because their booking already has a payment. */
+  keptForPayment: number;
   /** TUL-706: unpaid confirmed bookings released because their order is cancelled. */
   bookingsReleased: number;
 };
@@ -96,6 +98,29 @@ type SweepClient = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
 };
+
+/**
+ * TUL-1218: which of these orders have a booking that is already paid or part
+ * paid (`payment_status` other than 'unpaid')? `null` means the read failed, and
+ * the caller then cancels nothing.
+ */
+export async function orderIdsWithPaidBooking(
+  admin: SweepClient,
+  orderIds: readonly string[],
+): Promise<Set<string> | null> {
+  if (orderIds.length === 0) return new Set();
+  const { data, error } = await admin
+    .from("agency_bookings")
+    .select("order_id")
+    .not("payment_status", "eq", "unpaid")
+    .in("order_id", [...orderIds]);
+  if (error) return null;
+  const found = new Set<string>();
+  for (const row of (data ?? []) as Array<{ order_id?: string | null }>) {
+    if (row.order_id) found.add(row.order_id);
+  }
+  return found;
+}
 
 /** Move expired draft / pending_payment orders to cancelled. */
 export async function sweepExpiredOrders(
@@ -121,8 +146,23 @@ export async function sweepExpiredOrders(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
-  const cancelIds = idsToCancel(rows, now);
-  const result: SweepExpiredOrdersResult = { scanned: rows.length, cancelled: 0, failed: 0, bookingsReleased: 0 };
+  const expiring = idsToCancel(rows, now);
+  const result: SweepExpiredOrdersResult = {
+    scanned: rows.length,
+    cancelled: 0,
+    failed: 0,
+    bookingsReleased: 0,
+    keptForPayment: 0,
+  };
+  // TUL-1218: an order whose booking already has a payment is never swept. Cash
+  // recorded from the Money page lands on the booking (booking_transactions with
+  // order_id NULL), so the order can still read `draft` after the sale is fully
+  // paid; cancelling it leaves a paid booking on a cancelled order. Fails CLOSED:
+  // if the payment check cannot be read, nothing is cancelled this run.
+  const paid = await orderIdsWithPaidBooking(admin, expiring);
+  if (paid === null) return releaseOrphanBookings(admin, result);
+  const cancelIds = expiring.filter((id) => !paid.has(id));
+  result.keptForPayment = expiring.length - cancelIds.length;
   if (cancelIds.length === 0) return releaseOrphanBookings(admin, result);
 
   const { error: updErr } = await admin

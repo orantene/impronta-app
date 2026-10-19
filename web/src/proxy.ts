@@ -9,6 +9,7 @@ import {
   stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
 } from "@/i18n/locale-middleware";
+import { loadDashboardLocaleSeed, finishProxyPassThrough } from "@/lib/site-admin/server/proxy-locale-seed-apply";
 import { langFromLocalePrefixedPath } from "@/lib/onboarding/legacy-signup-redirect";
 import { LOCALE_HEADER, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
@@ -47,6 +48,7 @@ import { withStagingGate } from "@/lib/saas/staging-gate";
 import { unsupportedLocaleRedirectTarget } from "@/lib/saas/unsupported-locale-redirect";
 import { isTenantHostContext, resolveProxyLocaleContext } from "@/lib/saas/proxy-locale-context";
 import { clientIp, stripInboundHostContextHeaders } from "@/lib/saas/proxy-inbound-sanitize";
+import { allowDevSurfacesFor } from "@/lib/saas/dev-surfaces";
 import {
   PREVIEW_COOKIE_OPTIONS,
   PREVIEW_QUERY_PARAM,
@@ -57,7 +59,7 @@ import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/exp
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
-import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect";
+import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect"; import { hubSearchRedirect } from "@/lib/saas/hub-search-redirect";
 import { marketingSpanishAliasRedirect } from "@/lib/marketing/spanish-path-alias";
 import { langQueryForStartAfterDefaultLocaleStrip } from "@/lib/onboarding/flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
@@ -69,18 +71,12 @@ async function proxyInner(request: NextRequest) {
   // up front. The proxy is the only writer of these; resetting them here means even the
   // short-circuit's `NextResponse.next()` forwards a request the client could not have forged.
   const sanitizedInboundHeaders = stripInboundHostContextHeaders(request);
-  // Compile-time flag (next.config) covers `next dev` where Edge inlines
-  // NODE_ENV=production. Runtime NODE_ENV / VERCEL_ENV cover admin-boot's
-  // `VERCEL_ENV=preview npx next start` after a production compile. Host
-  // is never a gate. Route handlers still 403 outside dev/preview.
-  const allowDevSurfaces =
-    process.env.TULALA_ALLOW_DEV_SURFACES === "1" ||
-    process.env.NODE_ENV === "development" ||
-    process.env.VERCEL_ENV === "preview" ||
-    // Isolated harness hosts survive Edge HMR of this file, which re-reads an
-    // empty process.env and would otherwise 404 /api/dev/signin (D-022). The
-    // route handler still 403s outside development / Vercel preview.
-    (request.headers.get("host") ?? "").split(":")[0].toLowerCase().endsWith(".local");
+  // Dev surfaces: the rule is in dev-surfaces.ts (Host only counts off Vercel, TUL-1269). Every env var is
+  // read by its LITERAL name here so Edge can inline it (next.config injects TULALA_ALLOW_DEV_SURFACES).
+  const allowDevSurfaces = allowDevSurfacesFor(
+    { TULALA_ALLOW_DEV_SURFACES: process.env.TULALA_ALLOW_DEV_SURFACES, NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, VERCEL: process.env.VERCEL },
+    request.headers.get("host"),
+  );
 
   // ── Shared-API short-circuit (audit C2) ──────────────────────────────────
   // Stripe webhook + cron + analytics-events must reach their route handlers
@@ -195,8 +191,9 @@ async function proxyInner(request: NextRequest) {
   });
   if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
 
-  const demoSlugHop = marketingDemoSlugRedirect({ pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind });
-  if (demoSlugHop) return NextResponse.redirect(demoSlugHop, 308);
+  const hopInput = { pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind };
+  const demoSlugHop = marketingDemoSlugRedirect(hopInput) ?? hubSearchRedirect(hopInput); // TUL-978: a hub's /search is its directory search
+  if (demoSlugHop) return NextResponse.redirect(new URL(demoSlugHop, request.url), 308);
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
   // flag is on, still restrict to the desk surface (not a full app host).
@@ -743,6 +740,8 @@ async function proxyInner(request: NextRequest) {
     return sessionRes;
   }
 
+  const dashboardSeed = await timed("proxy.dashboardLocaleSeed", () => loadDashboardLocaleSeed(request, originalPathname, forwardedRequestHeaders, effectiveHostContext));
+
   if (
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
@@ -756,7 +755,7 @@ async function proxyInner(request: NextRequest) {
     // Forward updateSession's headers (with `x-impronta-guest`), NOT the
     // pre-session `requestHeaders` which lacks it — see the destructure above.
     const res = NextResponse.rewrite(rewriteUrl, {
-      request: { headers: forwardedRequestHeaders },
+      request: { headers: dashboardSeed ? dashboardSeed.headers(forwardedRequestHeaders) : forwardedRequestHeaders },
     });
 
     for (const cookie of sessionRes.cookies.getAll()) {
@@ -770,13 +769,12 @@ async function proxyInner(request: NextRequest) {
     });
 
     syncLocaleCookieForPath(res, originalPathname, effectiveLangSettings, request);
+    dashboardSeed?.apply(res);
     ensureExperimentVisitorCookie(request, res);
     return res;
   }
 
-  syncLocaleCookieForPath(sessionRes, originalPathname, effectiveLangSettings, request);
-  ensureExperimentVisitorCookie(request, sessionRes);
-  return sessionRes;
+  return finishProxyPassThrough(sessionRes, dashboardSeed, forwardedRequestHeaders, request, originalPathname, effectiveLangSettings);
 }
 export const proxy = withStagingGate(withAuthScopeSweep(proxyInner)); // TUL-621 sweep; TUL-827 staging gate (outermost)
 export const config = {

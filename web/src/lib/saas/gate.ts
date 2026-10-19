@@ -42,8 +42,11 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, CANONICAL_EVENTS_PREFIX)) return kind === "agency" || kind === "hub";
   if (hasPrefix(pathname, CANONICAL_EVENTS_ES_PREFIX)) return kind === "agency" || kind === "hub";
   if (hasPrefix(pathname, CANONICAL_RECEIPT_PREFIX)) return kind === "agency" || kind === "hub";
-  if (hasPrefix(pathname, CANONICAL_PAY_PREFIX)) return kind === "agency" || kind === "hub";
-  if (hasPrefix(pathname, CANONICAL_PAY_LINK_PREFIX)) return kind === "agency" || kind === "hub";
+  // TUL-1252: the pay page is looked up by code alone (the code is the
+  // credential), so the platform app host serves it too. The client account
+  // lives on app.<domain>; its "Pagar ahora" links are relative and 404'd there.
+  if (hasPrefix(pathname, CANONICAL_PAY_PREFIX)) return kind === "agency" || kind === "hub" || kind === "app";
+  if (hasPrefix(pathname, CANONICAL_PAY_LINK_PREFIX)) return kind === "agency" || kind === "hub" || kind === "app";
   if (hasPrefix(pathname, CANONICAL_MANAGE_PREFIX)) return kind === "agency" || kind === "hub";
 
   if (kind === "agency") {

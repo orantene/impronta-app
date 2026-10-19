@@ -95,9 +95,11 @@ function isTradeSafe(p: Pick<StockLike, "businessType" | "family">, q: StockHero
  * than the query's (a chef plating, a makeup brush) never serves, even from a
  * "neutral" pack. Photos that name no trade stay neutral and may serve.
  */
-function namesOtherTrade(p: Pick<StockLike, "alt" | "tags">, q: StockHeroQuery): boolean {
+function namesOtherTrade(p: Pick<StockLike, "alt" | "tags"> & { businessType?: string | null }, q: StockHeroQuery): boolean {
   if (!q.trade) return false;
-  const words = `${p.alt.en} ${p.alt.es} ${Object.values(p.tags ?? {}).join(" ")}`;
+  // TUL-846 (Batch 11 recurrence): a photo filed under another trade's catalogue type ("personal-chef",
+  // "hair-salon") counts as naming that trade even when its alt text is neutral ("a plated dish").
+  const words = `${p.alt.en} ${p.alt.es} ${Object.values(p.tags ?? {}).join(" ")} ${(p.businessType ?? "").replace(/-/g, " ")}`;
   const named = classifyTrade(words);
   return named !== null && named !== q.trade;
 }
@@ -106,7 +108,7 @@ function namesOtherTrade(p: Pick<StockLike, "alt" | "tags">, q: StockHeroQuery):
  * TUL-846: the composer's stock pool without photos that name another trade
  * than the site's. A tenant's own images and photos naming no trade stay.
  */
-export function dropOtherTradeStock<T extends Pick<StockLike, "alt" | "tags" | "originTenantId">>(photos: ReadonlyArray<T>, trade: TradeKey | null | undefined, tenantId: string): T[] {
+export function dropOtherTradeStock<T extends Pick<StockLike, "alt" | "tags" | "originTenantId"> & { businessType?: string | null }>(photos: ReadonlyArray<T>, trade: TradeKey | null | undefined, tenantId: string): T[] {
   if (!trade) return [...photos];
   const q: StockHeroQuery = { businessType: null, family: "custom", trade };
   return photos.filter((p) => p.originTenantId === tenantId || !namesOtherTrade(p, q));

@@ -94,6 +94,7 @@ export function clampTaskBrief(b: OfferingTaskBrief | null | undefined): Offerin
  * and the intake answers (G13) are independent: a service with questions sends
  * its answers even when the sheet was not opened from the task picker.
  * `keepNote` is false where the note went into a message box instead.
+ * TUL-1236: a note typed in the sheet's own Notes box rides without a task too.
  */
 export function briefFromDetail(
   d:
@@ -109,5 +110,5 @@ export function briefFromDetail(
 ): OfferingTaskBrief | null {
   if (!d) return null;
   const intake = intakeAnswerRecords(d.intake, d.answers);
-  return taskBriefFrom(d.task ?? null, d.task && keepNote ? d.note : null, intake);
+  return taskBriefFrom(d.task ?? null, keepNote ? d.note : null, intake);
 }

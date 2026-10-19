@@ -325,7 +325,7 @@ const LABEL_PROPS = [
  * The talent header (`site_header` section) carries its nav and CTA labels in
  * `sectionProps`, not on node props: localise those seeded labels too.
  */
-const ROW_ARRAY_PROPS = ["links", "items", "contents"] as const;
+const ROW_ARRAY_PROPS = ["links", "items", "contents", "rows"] as const;
 
 function localiseHeaderProps(
   sectionProps: unknown,

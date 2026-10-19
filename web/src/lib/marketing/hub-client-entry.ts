@@ -8,7 +8,7 @@
 export type HubClientEntry = { signInHref: string; createHref: string };
 
 /** Default locale is served unprefixed; any other page locale sits under `/<code>`. */
-function localizeNext(nextUrl: string, locale: string): string {
+export function localizeNext(nextUrl: string, locale: string): string {
   if (locale === "en") return nextUrl;
   try {
     const u = new URL(nextUrl);

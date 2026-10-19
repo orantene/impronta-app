@@ -71,6 +71,7 @@ import {
   type PostSettingsSaveResult,
   type PostSettingsValues,
 } from "./PostSettingsSheet";
+import type { AiCrawlerToggleSave } from "@/components/posts/AiCrawlerToggle";
 import { PostUpgradeSheet } from "./PostUpgradeSheet";
 import { postsTranslator } from "./posts-t";
 
@@ -97,6 +98,8 @@ export type PostWriterProps = {
   homePath?: string;
   /** Public host for the SEO previews. */
   siteHost?: string | null;
+  /** "AI can read my site" switch shown in the SEO section (TUL-1010). */
+  aiCrawlers?: { initialAllowed: boolean; onSave: AiCrawlerToggleSave };
 };
 
 type Lock = { kind: "takenDown" | "lapsed"; text: string } | null;
@@ -159,6 +162,7 @@ export function PostWriter({
   mediaTalentProfileId = null,
   homePath = "/",
   siteHost = null,
+  aiCrawlers,
 }: PostWriterProps) {
   const t = useMemo(() => postsTranslator(locale), [locale]);
   const media = useMemo(
@@ -621,6 +625,7 @@ export function PostWriter({
         siteHost={siteHost}
         disabled={readOnly}
         t={t}
+        aiCrawlers={aiCrawlers ? { ...aiCrawlers, locale } : undefined}
         onSave={saveSettings}
       />
       <PostUpgradeSheet

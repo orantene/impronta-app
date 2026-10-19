@@ -356,7 +356,7 @@ test("who-step ask CTA refuses without WhatsApp and shows the ask link", () => {
   // Nombre + WhatsApp required — no handoff, sheet stays open.
   assert.equal(handoffs.length, 0);
   assert.ok(host.querySelector("[data-catalog-ask]"));
-  assert.match(host.textContent ?? "", /WhatsApp hace falta para chatear/);
+  assert.match(host.textContent ?? "", /teléfono o WhatsApp para chatear/);
   assert.equal(book.calls.length, 0);
   act(() => root.unmount());
   host.remove();
@@ -429,6 +429,15 @@ function goToWho(host: Element, d: OfferingRequestDetail) {
   const when = host.querySelector<HTMLButtonElement>('[data-catalog-continue="when"]');
   if (when && !when.disabled) act(() => when.click());
 }
+
+test("TUL-976: the choose-step footer states how payment works, not only the total", () => {
+  const { host, unmount } = mount("demo", mockBook());
+  open(detail({ addOns: [], reserveMode: "deposit", depositPct: 40, allowPayInPerson: false }));
+  const line = host.querySelector(".jb-total [data-catalog-pay-line]");
+  assert.ok(line, "payment line under the total on the choose step");
+  assert.match(line.textContent ?? "", /40%/);
+  unmount();
+});
 
 test("who-step pay copy matches free studio vs deposit (no studio lie)", () => {
   const book = mockBook();

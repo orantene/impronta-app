@@ -2789,6 +2789,8 @@
           "recording": "Enregistrement…"
         }
       },
+      "counterCatalogErrorTitle": "Le catalogue n'a pas pu être chargé",
+      "counterCatalogErrorBody": "Une erreur est survenue à la lecture des articles de cet espace de travail, le comptoir ne les affiche donc pas. Rechargez la page. Si le problème persiste, contactez le support.",
       "counterOffTitle": "Le comptoir est désactivé",
       "counterOffBody": "Cet espace de travail a désactivé le comptoir dans les Réglages, sous Point de vente. Réactivez-le là-bas et cette caisse rouvrira.",
       "projects": {
@@ -5581,10 +5583,8 @@
       "stillOwed": "encore dû",
       "unavailableTitle": "Impossible de charger vos ventes",
       "unavailableBody": "C'est un problème de notre côté, pas du vôtre. Actualisez dans un instant.",
-      "export": "Exporter (filtré)",
+      "export": "Exporter en CSV",
       "newSale": "Nouvelle vente",
-      "periodChip": "Toute la période",
-      "paymentChip": "Paiement : tous",
       "sellerChip": "Vendeur",
       "colType": "Type",
       "colRef": "Réf",
@@ -5625,12 +5625,34 @@
         "void": "Annulé"
       },
       "notWired": {
-        "export": "Un export a besoin d'un filtre de période et de vendeur, qui ne sont pas encore modélisés.",
         "newSale": "Activez le mode Comptoir sous Réglages › POS pour ouvrir une vente.",
-        "period": "Les ventes ne sont pas encore filtrées par période ; cette liste est constituée des 200 plus récentes de chaque type.",
-        "payment": "Les ventes ne sont pas encore filtrées par état de paiement ; la pastille de chaque ligne le dit.",
         "seller": "Cet espace de travail est le seul vendeur ; le filtre par professionnel n'est pas encore modélisé."
       },
+      "viewLabel": "Vue",
+      "viewActivity": "Activité",
+      "viewItems": "Par article",
+      "periodLabel": "Période",
+      "period": { "all": "Toute la période", "today": "Aujourd'hui", "7d": "7 derniers jours", "30d": "30 derniers jours", "month": "Ce mois-ci" },
+      "methodLabel": "Mode de paiement",
+      "method": { "any": "Tous", "cash": "Espèces", "card": "Carte au comptoir", "online": "En ligne", "other": "Autre" },
+      "colItem": "Article",
+      "colQuantity": "Qté",
+      "colGross": "Brut",
+      "colRefunded": "Remboursé",
+      "colNet": "Net",
+      "colOrders": "Commandes",
+      "itemUnnamed": "Article sans nom",
+      "itemCustom": "(ligne personnalisée)",
+      "itemsEmptyTitle": "Aucune vente payée sur cette période",
+      "itemsEmptyBody": "Les commandes payées de cette période et de ce mode de paiement seront regroupées par article ici.",
+      "itemsFootnote": "Commandes payées uniquement. Les montants sont ceux des lignes de commande enregistrées, une devise par ligne, jamais additionnées entre devises. Les remboursements sont déduits du net.",
+      "csvItem": "Article",
+      "csvQuantity": "Quantité",
+      "csvGross": "Brut",
+      "csvRefunded": "Remboursé",
+      "csvNet": "Net",
+      "csvOrders": "Commandes",
+      "csvCurrency": "Devise",
       "filterAll": "Tout"
     },
     "payments": {
@@ -6012,6 +6034,7 @@
       "dash": "—",
       "untitled": "(sans titre)",
       "itemMissing": "Cet article n'est plus dans ce catalogue. La liste ci-dessous est à jour.",
+      "itemProviderOwned": "Ce service appartient à votre profil de prestataire. Modifiez-le dans Services.",
       "type": {
         "product": "Produit",
         "service": "Service",
@@ -8072,6 +8095,10 @@
           "header": {
             "handling": "{name} s'occupe de votre demande",
             "handlingTeam": "L'équipe s'occupe de votre demande"
+          },
+          "offerBanner": {
+            "hint": "Vous avez une offre à examiner",
+            "cta": "Voir l'offre"
           },
           "stream": {
             "you": "Vous",

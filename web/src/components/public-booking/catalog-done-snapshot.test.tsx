@@ -21,6 +21,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { CatalogBookingSheet } from "./CatalogBookingSheet";
 import {
   CATALOG_DONE_REOPEN_GUARD_MS,
+  CATALOG_DONE_MOUNT_RESTORE_MS,
   CATALOG_DONE_TTL_MS,
   clearCatalogDone,
   isCatalogDoneEcho,
@@ -208,4 +209,16 @@ test("TUL-1022: EN confirmation keeps the picker date format and the venue zone 
   act(() => m.root.unmount());
   m.host.remove();
   clearCatalogDone();
+});
+
+test("TUL-1253: a mount long after the confirmation does not resurrect it", async () => {
+  clearCatalogDone();
+  const at = Date.now() - CATALOG_DONE_MOUNT_RESTORE_MS - 5000;
+  saveCatalogDone({ detail: DETAIL, variantId: null, addOnIds: [], slotLabel: "x", wrote: true, doneHref: null, at });
+  const m = mount();
+  await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+  assert.equal(m.host.querySelector(".jb-done"), null, "no stale confirmation on a late mount");
+  assert.equal(loadCatalogDone(), null, "stale snapshot dropped");
+  act(() => m.root.unmount());
+  m.host.remove();
 });

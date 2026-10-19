@@ -1,7 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
+import {
+  ACTOR_APP_ROLE_HEADER,
+  ACTOR_EMAIL_HEADER,
+  ACTOR_HOME_PREF_HEADER,
+  ACTOR_ID_HEADER,
+  ACTOR_ONBOARDED_HEADER,
+  ACTOR_STATUS_HEADER,
+} from "@/lib/saas/actor-headers";
+import { ACTOR_SIG_HEADER, actorSecret, signActorFields } from "@/lib/saas/actor-signature";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
-import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
 import { isSignOutPath } from "@/lib/auth/sign-out-paths";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
@@ -68,14 +77,6 @@ export function applyRefreshCacheHeaders(res: NextResponse, h: Record<string, st
  * the RPC. Anything that needs the full Supabase `User` object (email,
  * metadata) still falls through to the uncached path.
  */
-const ACTOR_ID_HEADER = "x-impronta-actor-id";
-const ACTOR_EMAIL_HEADER = "x-impronta-actor-email";
-const ACTOR_APP_ROLE_HEADER = "x-impronta-actor-app-role";
-const ACTOR_STATUS_HEADER = "x-impronta-actor-status";
-const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
-/** Hybrid accounts' chosen home, so the fast path routes like middleware does. */
-const ACTOR_HOME_PREF_HEADER = "x-impronta-actor-home-pref";
-
 const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_ID_HEADER,
   ACTOR_EMAIL_HEADER,
@@ -295,12 +296,7 @@ export async function updateSession(
         );
         supabaseResponse = attachGuestCookie(nextPreservingUrl());
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, {
-            ...options,
-            ...(authCookieDomain && isSupabaseAuthCookie(name)
-              ? { domain: authCookieDomain }
-              : {}),
-          }),
+          supabaseResponse.cookies.set(name, value, scopeAuthCookieOptions(name, options, authCookieDomain)),
         );
       },
     },
@@ -481,6 +477,21 @@ export async function updateSession(
       forwardedHeaders.set(
         ACTOR_HOME_PREF_HEADER,
         sessionProfile.home_surface_preference,
+      );
+    }
+    // TUL-1269: sign the set so the reader can tell it from a copy forged on a path the proxy skips.
+    const actorKey = actorSecret(process.env);
+    if (actorKey) {
+      forwardedHeaders.set(
+        ACTOR_SIG_HEADER,
+        await signActorFields(actorKey, {
+          id: user.id,
+          email: user.email ?? null,
+          appRole: sessionProfile?.app_role ?? null,
+          status: sessionProfile?.account_status ?? null,
+          onboarded: sessionProfile?.onboarding_completed_at ? "1" : "0",
+          homePref: sessionProfile?.home_surface_preference ?? null,
+        }),
       );
     }
 

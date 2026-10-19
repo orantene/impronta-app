@@ -46,7 +46,11 @@
       "shell": {
         "clientHeading": "Book and manage everything in one place.",
         "clientLead": "Create a free client account to follow your bookings, messages and payments.",
-        "clientPoints": {"book": "Follow every booking and payment", "thread": "Message the talent or team in one thread", "secure": "Sign in with a code or a password"},
+        "clientPoints": {
+          "book": "Follow every booking and payment",
+          "thread": "Message the talent or team in one thread",
+          "secure": "Sign in with a code or a password"
+        },
         "back": "Back to {site}",
         "tenantHeading": "Your work and your bookings, in one place.",
         "tenantLead": "Manage your profile, your bookings, and your messages with {brand}.",
@@ -535,7 +539,7 @@
       },
       "inquiry": {
         "saveThisTalent": "Save This Talent",
-        "savedToInquiryCart": "Saved to your lineup",
+        "savedToInquiryCart": "Added to your inquiry",
         "contactAboutTalent": "Contact About Talent",
         "openInquiry": "Open inquiry",
         "flashCouldNotUpdateSaved": "Could not update saved list",
@@ -691,7 +695,7 @@
           "viewFullProfile": "View full profile",
           "close": "Close",
           "saveThisTalent": "Save This Talent",
-          "savedToCart": "Saved to your lineup",
+          "savedToCart": "Added to your inquiry",
           "imageAlt": "{name}, preview",
           "dialogAria": "{name}, quick preview"
         },
@@ -925,6 +929,8 @@
       "threadLogAria": "Conversation",
       "systemClusterMore": "{count} more updates",
       "systemClusterCollapse": "Hide",
+      "systemLineupCount": "Selection · {count} talent",
+      "systemLineupRecommend": "Let the agency recommend",
       "messageRemoved": "Message removed",
       "openFullToView": "Open the full conversation to view this update.",
       "notSent": "Not sent. Restored to the box.",
@@ -1348,6 +1354,7 @@
       "dockTrayRemove": "Remove",
       "dockTrayOpenLineup": "Open the Items tab",
       "dockTrayOpen": "Review",
+      "dockTraySend": "Send inquiry",
       "catalogAddInvalid": "This one cannot be added to an inquiry (it may be in a different currency). Ask about it in the chat.",
       "catalogSearchPlaceholder": "Search this list",
       "catalogSortLabel": "Sort",
@@ -1607,6 +1614,14 @@
       "talentFallbackName": "Talent",
       "talentRemoveAria": "Remove {name}",
       "talentAddLabel": "Add talent",
+      "talentSearchPlaceholder": "Search talent by name",
+      "talentSearchAddAria": "Add {name} to your inquiry",
+      "talentSearchAdd": "Add",
+      "talentSearchEmpty": "No talent match that name. Try another, or let the agency recommend.",
+      "mapTitle": "Map: {place}",
+      "mapAria": "Google Maps preview for {place}",
+      "mapView": "View on map",
+      "mapDirections": "Get directions",
       "talentCountLabel": "How many talent (optional)",
       "talentCountPlaceholder": "e.g. 3",
       "talentTypeLabel": "Type of talent",
@@ -1735,7 +1750,7 @@
       "signInToBook": "Sign in to book",
       "refusal": {
         "requestOnly": "This one is booked by request. Send a message to ask for a time.",
-        "notAccepting": "Not taking new bookings right now. Send an inquiry instead.",
+        "notAccepting": "Not taking new bookings right now. You can still send an inquiry.",
         "tooSoon": "That time is too soon. Pick a later start.",
         "slotTaken": "That time was just taken. Pick another time."
       },
@@ -1743,7 +1758,7 @@
     },
     "bookPage": {
       "title": "Reserve a time",
-      "lead": "Pick a service and a time. We will confirm shortly.",
+      "lead": "Pick a service and a time. The line under the price says whether you pay now or at the appointment.",
       "bookCta": "Book",
       "chooseService": "Service",
       "studioFallback": "the studio",
@@ -2102,11 +2117,11 @@
       "code": {
         "title": "Enter the code",
         "sub": "We sent an 8-digit code to {email}. It's the same screen for everyone, so check your inbox and spam.",
-        "plusSub": "We sent a code to {email}. Inboxes often never deliver mail to + tags. If nothing arrives in a minute, change email to one without +.",
+        "plusSub": "We sent a code to {email}. It can take a minute. If it doesn't arrive, send a new code or try your main address.",
         "resend": "Send a new code",
         "resendIn": "Send a new code in {s}s",
         "resent": "A new code is on its way.",
-        "plusResent": "New code sent. If it still does not arrive, change to an address without a + tag.",
+        "plusResent": "New code sent. If it still doesn't arrive, try your main address (without the + tag).",
         "changeEmail": "Change email",
         "verifying": "Checking…"
       },
@@ -2186,6 +2201,15 @@
           "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",
           "oldContent": "Why: your address still shows older content. Tap Try again in a few seconds.",
           "notCreated": "Why: we could not create your address. Open the editor to finish it."
+        },
+        "draftSaw": {
+          "status": "What we saw: your address answered with error {status} instead of your page.",
+          "statusUnknown": "What we saw: your address answered with an error instead of your page.",
+          "network": "What we saw: your address did not answer at all.",
+          "nameMissing": "What we saw: your address opened, but your name is not on the page yet.",
+          "noName": "What we saw: your page has no name to check against. Open the editor and add one.",
+          "noUrl": "What we saw: your page has no address yet.",
+          "protected": "What we saw: your address is behind a sign-in wall, so we could not look at it."
         },
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
@@ -2286,6 +2310,17 @@
       "tabMessages": "Messages",
       "tabPayments": "Payments",
       "tabSettings": "Settings",
+      "tabHelp": "Help",
+      "helpTitle": "How can we help?",
+      "helpPayQ": "How do I pay a balance?",
+      "helpPayA": "Open Payments and choose Pay now next to the booking.",
+      "helpChangeQ": "How do I change or cancel a visit?",
+      "helpChangeA": "Open the visit under Visits to see what you can change, or send a message and the business will sort it out with you.",
+      "helpReceiptQ": "Where is my receipt?",
+      "helpReceiptA": "Receipts are listed under Payments once you have paid.",
+      "helpAskQ": "Who do I ask a question?",
+      "helpAskA": "Send a message under Messages. The business replies there.",
+      "helpOpenMessages": "Go to Messages",
       "tabQuotes": "Quotes",
       "tabShortlists": "Shortlists",
       "tabApprovals": "Approvals",
@@ -2365,7 +2400,7 @@
       "phoneInvalid": "Check the phone number.",
       "logOut": "Log out",
       "langEn": "English",
-      "langEs": "Spanish",
+      "langEs": "Español",
       "fieldEmail": "Email",
       "namePromptTitle": "Add your name",
       "namePromptBody": "Your name is showing as part of your email. Add your real name so bookings and messages feel personal.",
@@ -2374,6 +2409,7 @@
     },
     "clientAccount": {
       "signIn": "Sign in",
+      "createAccount": "Create account",
       "account": "Account",
       "openLabel": "Open account menu",
       "closeLabel": "Close",
@@ -2432,18 +2468,11 @@
       "perMonth": "per month",
       "billedYearly": "{amount} billed yearly",
       "billedMonthly": "Billed monthly",
-      "popular": "Most popular"
+      "popular": "Most popular",
+      "approxNote": "per month, charged in USD"
     }
   },
   "dashboard": {
-    "promoCode": {
-      "toggle": "Have a code?",
-      "label": "Promo code",
-      "placeholder": "Enter code",
-      "apply": "Apply",
-      "checking": "Checking...",
-      "remove": "Remove"
-    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -2585,16 +2614,6 @@
     "switchWorkspace": "Switch workspace",
     "workspaceTalentQa": "Talent QA user",
     "workspaceClientQa": "Client QA user",
-    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
-    "workspaceQaReason": {
-      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
-      "no_profile": "The configured QA user has no profile in this database.",
-      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
-      "wrong_role": "The configured QA user does not have the role this switch needs.",
-      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
-      "not_authorized": "Only a super admin can use the QA switch.",
-      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
-    },
     "workspaceSwitcherHint": "QA preview, read-only",
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",
@@ -2678,6 +2697,7 @@
         "qualityLeftMany": "{count} things left before your free website",
         "qualityUnlocked": "Everything your free website needs is here",
         "qualityUnknown": "We could not load every check yet",
+        "qualityChecking": "Checking your profile…",
         "finish": "Finish the next one",
         "sectionsTitle": "Edit your profile",
         "sectionsHint": "Every field shows up on your page. There is no second place to edit it.",
@@ -14019,7 +14039,69 @@
       "lineCountOne": "item",
       "lineCountOther": "items",
       "refundAmount": "Amount to refund",
-      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund."
+      "refundAmountHint": "Default is the full remaining ({max}). Lower it for a partial refund.",
+      "door": {
+        "newBadge": "New",
+        "mockBanner": "Order door mockup on the live Pedidos desk. Dashed and New mark only what this slice adds; the columns and refund path stay as they are today.",
+        "mockPreview": "Mock content: later slices fill each section with real data and open names in stacked drawers.",
+        "copyCode": "Copy order code",
+        "codeCopied": "Copied",
+        "back": "Back to list",
+        "moreMenu": "More actions",
+        "primary": {
+          "sendPayLink": "Send payment link",
+          "collectPos": "Collect at counter",
+          "sendReceipt": "Send receipt",
+          "viewRefund": "View refund"
+        },
+        "sections": {
+          "summary": {
+            "title": "Summary",
+            "preview": "Timeline and money",
+            "body": "Timeline mock: created, offer, paid, fulfilled. Money lines (total, paid, pending, fee, net) land in the next slice."
+          },
+          "client": {
+            "title": "Client",
+            "preview": "Name and contact",
+            "body": "Client drawer mock: past orders, Message, WhatsApp, Copy email. Name will open a side drawer without leaving Pedidos."
+          },
+          "items": {
+            "title": "Items",
+            "preview": "Lines on this order",
+            "body": "Each line will show service, qty, price, person and space. Per-line refund moves here from the table cell."
+          },
+          "appointment": {
+            "title": "Appointment and dates",
+            "preview": "When and where",
+            "body": "Date, start to end, timezone and location. Needs the location field from TUL-426 before this section is real."
+          },
+          "payments": {
+            "title": "Payments",
+            "preview": "Transactions and links",
+            "body": "Each transaction opens the payment drawer. Refund lines stay available below while this mock is up."
+          },
+          "conversation": {
+            "title": "Conversation",
+            "preview": "No thread yet",
+            "body": "Origin and last message preview. Opens the conversation drawer; it never navigates away."
+          },
+          "origin": {
+            "title": "Origin and device",
+            "preview": "Channel and device",
+            "body": "Sales channel, source page or terminal, and coarse device family. No IP or precise location."
+          },
+          "activity": {
+            "title": "Activity",
+            "preview": "Who and when",
+            "body": "Status changes, messages sent, refunds and notes. Actor names open the person drawer."
+          },
+          "notes": {
+            "title": "Internal notes",
+            "preview": "No notes yet",
+            "body": "Team notes on the order. Add a note inline in a later slice."
+          }
+        }
+      }
     },
     "sales": {
       "pageTitle": "Sales",
@@ -14034,10 +14116,8 @@
       "noCustomer": "No name on file",
       "unavailableTitle": "We could not load your sales",
       "unavailableBody": "This is on our side, not yours. Please refresh in a moment.",
-      "export": "Export (scoped)",
+      "export": "Export CSV",
       "newSale": "New sale",
-      "periodChip": "All time",
-      "paymentChip": "Payment: any",
       "sellerChip": "Seller",
       "colType": "Type",
       "colRef": "Ref",
@@ -14078,12 +14158,34 @@
         "void": "Void"
       },
       "notWired": {
-        "export": "An export needs a period and a seller filter, which are not modelled yet.",
         "newSale": "Turn the Counter mode on under Settings › POS to open a sale.",
-        "period": "Sales are not filtered by period yet; this list is the most recent 200 of each kind.",
-        "payment": "Sales are not filtered by payment state yet; the pill on each row says it.",
         "seller": "This workspace is the only seller; per-professional filtering is not modelled yet."
       },
+      "viewLabel": "View",
+      "viewActivity": "Activity",
+      "viewItems": "By item",
+      "periodLabel": "Period",
+      "period": { "all": "All time", "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days", "month": "This month" },
+      "methodLabel": "Payment method",
+      "method": { "any": "Any", "cash": "Cash", "card": "Card at the counter", "online": "Online", "other": "Other" },
+      "colItem": "Item",
+      "colQuantity": "Qty",
+      "colGross": "Gross",
+      "colRefunded": "Refunded",
+      "colNet": "Net",
+      "colOrders": "Orders",
+      "itemUnnamed": "Unnamed item",
+      "itemCustom": "(custom line)",
+      "itemsEmptyTitle": "No paid sales in this period",
+      "itemsEmptyBody": "Paid orders for this period and payment method will be grouped by item here.",
+      "itemsFootnote": "Paid orders only. Amounts are the stored order line amounts, one currency per row, never added across currencies. Refunds are taken off the net.",
+      "csvItem": "Item",
+      "csvQuantity": "Quantity",
+      "csvGross": "Gross",
+      "csvRefunded": "Refunded",
+      "csvNet": "Net",
+      "csvOrders": "Orders",
+      "csvCurrency": "Currency",
       "filterAll": "All"
     },
     "payments": {
@@ -15000,6 +15102,8 @@
           "recording": "Recording…"
         }
       },
+      "counterCatalogErrorTitle": "The catalog could not be loaded",
+      "counterCatalogErrorBody": "Something went wrong reading this workspace's items, so the counter is not showing them. Reload the page. If it keeps happening, contact support.",
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "projects": {
@@ -17326,6 +17430,7 @@
     "projects": {
       "pageTitle": "Projects",
       "pageIntro": "Commissioned work from inquiry to closure",
+      "listLoading": "Loading projects",
       "unavailable": "We could not load your projects. Nothing was changed. Try again in a moment.",
       "empty": "No commissioned projects yet.",
       "emptyHint": "A project appears here when a client accepts an offer on an inquiry. Sales taken at the counter stay on Orders.",
@@ -17705,11 +17810,6 @@
       "filesNone": "No file is attached to a milestone yet.",
       "kpiCollectedNoteOne": "1 record paid"
     },
-    "adminNotFound": {
-      "title": "Page not found",
-      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
-      "back": "Back to Overview"
-    },
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",
@@ -17999,6 +18099,7 @@
       "dash": "—",
       "untitled": "(untitled)",
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
+      "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
       "type": {
         "product": "Product",
         "service": "Service",
@@ -18099,7 +18200,8 @@
         "location": "Location",
         "locationReason": "One catalog per workspace: items are not recorded per location yet.",
         "channel": "Channel",
-        "incompleteOnly": "Incomplete only"
+        "incompleteOnly": "Incomplete only",
+        "archived": "Archived"
       },
       "col": {
         "item": "Item",
@@ -18118,7 +18220,24 @@
         "duplicate": "Duplicate",
         "moveUp": "Move up",
         "moveDown": "Move down",
-        "delete": "Delete"
+        "delete": "Delete",
+        "archive": "Archive",
+        "providerOwnedReason": "This is one of your own services. Change it under Services."
+      },
+      "confirm": {
+        "deleteTitle": "Delete this item?",
+        "deleteBody": "{name} will be removed for good. This cannot be undone.",
+        "archiveTitle": "Archive it instead?",
+        "archiveBody": "{name} was published or sold, so it cannot be deleted. Archiving takes it off your site and counter and keeps past orders intact. You can restore it any time.",
+        "delete": "Delete",
+        "archive": "Archive",
+        "cancel": "Cancel"
+      },
+      "archived": {
+        "title": "Archived items",
+        "empty": "Nothing is archived.",
+        "restore": "Restore",
+        "restoreNote": "Restoring brings an item back as a draft."
       },
       "create": {
         "title": "What are you selling?",
@@ -18180,7 +18299,9 @@
         "saveDraft": "Save draft",
         "publish": "Publish",
         "draftHint": "Nothing is written until you save the draft or publish; a reload loses it.",
-        "save": "Save"
+        "save": "Save",
+        "notBookableNoProvider": "Cannot be booked online yet: online booking needs a person with working hours, and a workspace service has none. Clients can send a request instead. To let them pick a time, create the service under Services for a team member.",
+        "notBookableNoDuration": "Cannot be booked online yet: add how long it takes so times can be offered."
       },
       "tab": {
         "label": "Item sections",
@@ -18200,6 +18321,11 @@
         "depositPct": "Set the deposit between 1 and 99 percent.",
         "identityReason": "Say why the buyer's name is needed.",
         "currency": "Pick a currency."
+      },
+      "warning": {
+        "photo": "No photo yet: it will show without a picture on the counter and the menu.",
+        "category": "No category yet: it will sit under All items.",
+        "channel": "Price on request: it shows on your site without a price. Staff can still sell it at the counter."
       },
       "details": {
         "title": "Details",
@@ -19800,6 +19926,10 @@
             "handling": "{name} is handling your request",
             "handlingTeam": "The team is handling your request"
           },
+          "offerBanner": {
+            "hint": "You have an offer to review",
+            "cta": "View offer"
+          },
           "stream": {
             "you": "You",
             "today": "Today",
@@ -20316,6 +20446,29 @@
       "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
+    },
+    "promoCode": {
+      "toggle": "Have a code?",
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "checking": "Checking...",
+      "remove": "Remove"
+    },
+    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
+    "workspaceQaReason": {
+      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
+      "no_profile": "The configured QA user has no profile in this database.",
+      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
+      "wrong_role": "The configured QA user does not have the role this switch needs.",
+      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
+      "not_authorized": "Only a super admin can use the QA switch.",
+      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
+    },
+    "adminNotFound": {
+      "title": "Page not found",
+      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
+      "back": "Back to Overview"
     },
     "platformPosts": {
       "nav": "Posts"
@@ -21058,7 +21211,10 @@
       "billing": {
         "redirecting": "Redirecting…",
         "pastDueTitle": "Payment failed.",
-        "pastDueGraceBody": "Your payment didn't go through. Paid features stay on for {days} more day(s). Update your card to keep them.",
+        "pastDueGraceBody": {
+          "one": "Your payment didn't go through. Paid features stay on for {count} more day. Update your card to keep them.",
+          "other": "Your payment didn't go through. Paid features stay on for {count} more days. Update your card to keep them."
+        },
         "pastDueExpiredBody": "Your payment didn't go through and your plan is paused. Your content is safe. Restore your plan to get paid features back.",
         "updateCard": "Update your card",
         "restorePlan": "Restore plan",
@@ -22482,6 +22638,44 @@
         "label": "Product & tips",
         "description": "Occasional product updates and best-practice tips."
       }
+    }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirm your business basics",
+      "description": "Name, services and hours confirmed so clients know what you offer."
+    },
+    "services": {
+      "title": "Add your services",
+      "description": "List what you offer with a duration and a price or a quote."
+    },
+    "hours": {
+      "title": "Set your hours",
+      "description": "Choose the days and times clients can book you."
+    },
+    "location": {
+      "title": "Say where you work",
+      "description": "Add your area so clients know where to find you."
+    },
+    "photos": {
+      "title": "Add photos",
+      "description": "Show your work with at least one photo."
+    },
+    "team": {
+      "title": "Invite your team",
+      "description": "Add the people who take clients with you. You can do this later."
+    },
+    "payments": {
+      "title": "Connect payments",
+      "description": "Connect your payout account so clients can pay you."
+    },
+    "preview": {
+      "title": "Preview your page",
+      "description": "See your page the way clients will see it."
+    },
+    "publish": {
+      "title": "Publish your website",
+      "description": "Put your site live and share the link."
     }
   }
 }

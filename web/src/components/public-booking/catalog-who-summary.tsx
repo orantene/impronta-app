@@ -4,9 +4,12 @@ import { useEffect } from "react";
 
 import { clearBookingDraft, saveBookingDraft } from "./booking-draft-store";
 import { preloadGuestCaptchaScript } from "./GuestCaptchaField";
+import { CatalogCalendarIcon, CatalogClockIcon } from "./catalog-field-icons";
+import { cardFeeCopy } from "@/lib/orders/checkout-quote-display";
 import { catalogDayKey, catalogSelectedDateLabel, catalogTimezoneLabel } from "./catalog-booking-logic";
 
 const ROW = { display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0" } as const;
+const LABEL = { display: "inline-flex", alignItems: "center", gap: 6 } as const;
 
 /** TUL-59: confirm-step recap above "Confirmar cita": service, date, time, total, address note. */
 export function CatalogWhoSummary({
@@ -19,6 +22,7 @@ export function CatalogWhoSummary({
   total,
   /** GRK-065: client-place bookings collect the address below; hide the studio "we send location" note. */
   addressNote = "studio",
+  cardFee = null,
 }: {
   es: boolean;
   service: string;
@@ -28,7 +32,10 @@ export function CatalogWhoSummary({
   placeCity?: string | null;
   total: string;
   addressNote?: "studio" | "client" | "none";
+  /** TUL-1268 item 5: the pass-through card fee and what is charged now, shown before Stripe. */
+  cardFee?: { feeLabel: string; payNowLabel: string } | null;
 }) {
+  const feeCopy = cardFeeCopy(es);
   const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const val = { textAlign: "right" } as const;
   return (
@@ -38,17 +45,29 @@ export function CatalogWhoSummary({
         <b style={val}>{service}</b>
       </div>
       <div style={ROW}>
-        <span>{es ? "Fecha" : "Date"}</span>
+        <span style={LABEL}><CatalogCalendarIcon />{es ? "Fecha" : "Date"}</span>
         <b style={val}>{catalogSelectedDateLabel(day, es)}</b>
       </div>
       <div style={ROW}>
-        <span>{es ? "Hora" : "Time"}</span>
-        <b style={val}>{zone ? `${time ?? ""} · ${zone}` : time}</b>
+        <span style={LABEL}><CatalogClockIcon />{es ? "Hora" : "Time"}</span>
+        <b style={val}>{time && zone ? `${time} · ${zone}` : (time ?? "")}</b>
       </div>
       <div style={ROW}>
         <span>Total</span>
         <b style={val}>{total}</b>
       </div>
+      {cardFee ? (
+        <>
+          <div style={ROW} data-catalog-card-fee="">
+            <span>{feeCopy.fee}</span>
+            <b style={val}>+ {cardFee.feeLabel}</b>
+          </div>
+          <div style={ROW} data-catalog-pay-now="">
+            <span>{feeCopy.payNow}</span>
+            <b style={val}>{cardFee.payNowLabel}</b>
+          </div>
+        </>
+      ) : null}
       {addressNote === "studio" ? (
         <p className="jb-fixture" data-catalog-address-note="studio">
           {es ? "Te enviamos la ubicación exacta al confirmar" : "We'll send the exact address when you confirm"}

@@ -58,6 +58,7 @@ import { meetsCredibilityFloor } from "@/lib/reviews/craft-standing";
 import { ReviewsAnchorLink } from "../_shared/ReviewsAnchorLink";
 import { TestimonialsSection } from "@/components/reviews/TestimonialsSection";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import { LAUNCHER_LIFT_CSS } from "./floating-chrome";
 
 // ─── WatermarkPreset (mirrors the type from PortfolioGalleryLightbox) ────────
 type WatermarkPreset = {
@@ -365,6 +366,7 @@ export function LightProfileLayout({
       data-profile-shell
       data-profile-theme="light"
     >
+      <style dangerouslySetInnerHTML={{ __html: LAUNCHER_LIFT_CSS }} />
       {/* Smooth-scroll for the hero rating chip → #reviews anchor. */}
       {heroRating ? (
         <style dangerouslySetInnerHTML={{ __html: "html{scroll-behavior:smooth}" }} />
@@ -533,6 +535,7 @@ export function LightProfileLayout({
             {storefrontOfferings.length > 0 ? (
               <TalentStorefront
                 offerings={storefrontOfferings}
+                siteUrl={maxSiteUrl}
                 locale={locale}
                 heading={pickLocale(locale, { en: "Services & pricing", es: "Servicios y precios" })}
               />

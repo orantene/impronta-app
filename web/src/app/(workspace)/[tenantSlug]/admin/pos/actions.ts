@@ -20,6 +20,7 @@ import { readCustomAmountLimitCents } from "@/lib/pos/approval-settings";
 import { mintAndDeliverForPaidOrder } from "@/lib/events/mint-and-deliver";
 import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
+import { anyNonMenuOffering, saleHoldsNonMenuOffering } from "@/lib/offerings/non-menu-offerings";
 import { scanTarget } from "@/lib/pos/scan-code";
 import { posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -82,6 +83,8 @@ export async function posAddLine(input: {
   if (!parsed.success) return { ok: false as const, error: "invalid" };
   const g = await posStaffOrInquiryManager(parsed.data.inquiryId);
   if (!g.ok) return g;
+  // TUL-1271 item 6: not a counter item (fail closed); Messages quotes (inquiryId) keep their rules.
+  if (!parsed.data.inquiryId && (await anyNonMenuOffering(g.admin, g.tenantId, [parsed.data.offeringId]))) return { ok: false as const, reason: "invalid" as const, error: "That item is not for sale here." };
   return addLine(g.admin, {
     tenantId: g.tenantId,
     orderId: parsed.data.orderId,
@@ -211,6 +214,7 @@ export async function posStartCollection(input: {
     expectedVersion: z.number().int().positive().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
+  if (await saleHoldsNonMenuOffering(g.admin, g.tenantId, parsed.data.orderId)) return { ok: false as const, reason: "invalid" as const, error: "This sale has an item that is not for sale here." };
   const hdrs = await headers();
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
   const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";

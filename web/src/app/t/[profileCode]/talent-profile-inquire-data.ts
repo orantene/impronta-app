@@ -10,6 +10,7 @@
  * Step 10 of the inquiry-funnel sprint (2026-05-13).
  */
 
+import { defaultClientName } from "@/lib/inquiry/default-client-name";
 import { getPublicSettings } from "@/lib/public-settings";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
@@ -72,11 +73,15 @@ export async function getTalentProfileInquireData(): Promise<TalentProfileInquir
   );
 
   const defaultEmail = user?.email ?? undefined;
-  const defaultName =
-    actor.profile?.display_name ??
-    (user?.user_metadata?.full_name as string | undefined) ??
-    (user?.user_metadata?.name as string | undefined) ??
-    undefined;
+  // TUL-965: a signed-in client with no stored name gets a neutral label, not an empty field.
+  const defaultName = user
+    ? defaultClientName(
+        actor.profile?.display_name ??
+          (user.user_metadata?.full_name as string | undefined) ??
+          (user.user_metadata?.name as string | undefined),
+        user.email,
+      )
+    : undefined;
 
   return {
     pov: user ? "client" : "guest",

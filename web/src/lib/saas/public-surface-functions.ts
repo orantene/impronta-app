@@ -51,4 +51,52 @@ export const PUBLIC_SURFACE_FUNCTIONS: readonly string[] = [
   // is a 404. Listed so a future anon REVOKE fails a test instead of silently
   // blanking every receipt on a night — the direction that guard exists for.
   "receipt_for_code",
+  // Edge host resolution (proxy.ts -> host-context.ts) runs with the ANON key, so
+  // a logged-out visitor on a talent custom domain or <slug>.tulala.digital can
+  // be routed at all. Both are read-only SECURITY DEFINER lookups that defend
+  // themselves in their own body: they return a row ONLY for an active domain /
+  // published site of a publicly visible talent with a current Web Office, and
+  // only public facts (profile id, site slug, demo flag, the talent's own ACTIVE
+  // primary custom domain). Neither writes. Listed so an anon REVOKE fails a
+  // test instead of blanking every talent site, and so the live grant check
+  // (check-anon-function-grants.mjs) stops treating the grants as exposure.
+  "talent_site_domain_lookup",
+  "talent_site_subdomain_lookup",
+];
+
+/**
+ * RLS policy helpers that anon legitimately keeps EXECUTE on (TUL-1013 re-audit,
+ * 2026-10-18). These are NOT called by the app with an anon client. They are
+ * called by Postgres while it evaluates a row policy that applies to the anon
+ * role (`TO public` or `TO anon`) on a table anon can read; without EXECUTE the
+ * whole query for a logged-out visitor fails with "permission denied for
+ * function". Evidence is the staging `pg_policy` read (fxlank, read-only,
+ * 2026-10-18): count of policies applying to anon that call the function.
+ *
+ *   is_active_staff_of_tenant       20  cms_pages, cms_page_sections, cms_sections, ...
+ *   is_agency_staff                 81  profiles, staff_permissions, taxonomy_terms, locations, ...
+ *   is_platform_admin               39  platform_commission_config, plan_trial_offers, ...
+ *   is_staff_of_tenant             131  agencies, agency_branding, agency_memberships, ...
+ *   is_talent_profile_owner         17  talent_sites, talent_site_domains, talent_press_items, ...
+ *   talent_has_public_roster         1  talent_profiles
+ *   talent_is_site_visible_anywhere  1  talent_profile_field_values (+ directory_facet_scalar_base_ids)
+ *   talent_profile_has_max           3  talent_site_domains (+ talent_site_domain_lookup)
+ *   talent_profile_has_pro_or_max    8  talent_press_items, talent_profile_embeds, ...
+ *
+ * All nine are read-only STABLE boolean checks keyed on auth.uid() or a row id;
+ * they return nothing but a boolean. ADDING A NAME HERE needs the same evidence
+ * (a policy that applies to anon and calls it); otherwise it belongs in a
+ * REVOKE migration, not on this list. `check-anon-function-grants.mjs` accepts
+ * these in addition to PUBLIC_SURFACE_FUNCTIONS.
+ */
+export const POLICY_HELPER_FUNCTIONS: readonly string[] = [
+  "is_active_staff_of_tenant",
+  "is_agency_staff",
+  "is_platform_admin",
+  "is_staff_of_tenant",
+  "is_talent_profile_owner",
+  "talent_has_public_roster",
+  "talent_is_site_visible_anywhere",
+  "talent_profile_has_max",
+  "talent_profile_has_pro_or_max",
 ];

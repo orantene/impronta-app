@@ -12,6 +12,7 @@ import { useEffect } from "react";
 
 import { useDashboardText } from "./dashboard-i18n";
 import { dashboardTabTitle } from "./dashboard-tab-title";
+import { browserTitleObserverFactory, watchDocumentTitle } from "./dashboard-tab-title-guard";
 import {
   PAGE_META,
   TALENT_PAGE_META,
@@ -38,8 +39,11 @@ export function TabTitleBridge() {
       const meta = PAGE_META[state.page];
       pageLabel = meta ? copy.t(meta.label) : "";
     }
-    document.title = dashboardTabTitle({ pageLabel, unread });
+    // TUL-1274: an RSC refresh re-applies the layout's generic <title>; the
+    // guard writes ours back on every reset instead of only on dep changes.
+    const stop = watchDocumentTitle(document, dashboardTabTitle({ pageLabel, unread }), browserTitleObserverFactory());
     return () => {
+      stop();
       document.title = "Tulala";
     };
   }, [
