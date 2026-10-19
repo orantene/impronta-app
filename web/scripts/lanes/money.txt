@@ -26,6 +26,7 @@ src/lib/billing/commission.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
+src/lib/billing/refunded-charge-net.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
 src/lib/bookings/booking-payment-sync.test.ts

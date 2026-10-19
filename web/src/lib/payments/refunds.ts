@@ -604,10 +604,10 @@ export async function handleBookingRefund(
 
   if (ref.bookingId) {
     const sb = d.resolveSupabase();
-    const outcomes = await reverseRefundedChargePayouts({ ...ref, bookingId: ref.bookingId }, { reference: `refund ${input.chargeId}`, anchor: input.chargeId }, { sb, stripe });
+    const { outcomes, shareOnly } = await reverseRefundedChargePayouts({ ...ref, bookingId: ref.bookingId }, { reference: `refund ${input.chargeId}`, anchor: input.chargeId }, { sb, stripe });
     if (sb) {
-      await markBookingRefunded(sb, ref.bookingId);
-      await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
+      if (!shareOnly) await markBookingRefunded(sb, ref.bookingId); // E5: another charge is still paid
+      if (!shareOnly) await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
       await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
     }
   }
@@ -700,14 +700,14 @@ export async function handleBookingDispute(
     }
     if (ref.bookingId) {
       const sb = d.resolveSupabase();
-      const outcomes = await reverseRefundedChargePayouts(
+      const { outcomes, shareOnly } = await reverseRefundedChargePayouts(
         { ...ref, bookingId: ref.bookingId },
         { reference: `dispute_lost ${input.disputeId}`, anchor: input.disputeId },
         { sb, stripe },
       );
       if (sb) {
-        await markBookingRefunded(sb, ref.bookingId);
-        await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
+        if (!shareOnly) await markBookingRefunded(sb, ref.bookingId); // E5: another charge is still paid
+        if (!shareOnly) await stampLinkedOrderRefunded(sb, { bookingId: ref.bookingId, transactionId: ref.transactionId });
         await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
       }
     }
