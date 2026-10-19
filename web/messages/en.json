@@ -14497,7 +14497,8 @@
           "amount": "That cash amount is not valid.",
           "already_closed": "That shift is already closed.",
           "not_allowed": "You do not have permission to do this.",
-          "no_customer": "Attach a customer to this sale first."
+          "no_customer": "Attach a customer to this sale first.",
+          "item_unavailable": "This item is no longer available."
         }
       },
       "newSale": "New sale",

@@ -2183,7 +2183,8 @@
           "amount": "Ce montant en especes n'est pas valable.",
           "already_closed": "Ce service est deja cloture.",
           "not_allowed": "Vous n'avez pas la permission de faire cela.",
-          "no_customer": "Associez d'abord un client à cette vente."
+          "no_customer": "Associez d'abord un client à cette vente.",
+          "item_unavailable": "Cet article n'est plus disponible."
         }
       },
       "newSale": "Nouvelle vente",

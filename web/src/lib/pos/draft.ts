@@ -640,7 +640,7 @@ export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
       ok: false;
-      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict" | "over_limit";
+      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict" | "over_limit" | "item_unavailable";
       error: string;
     };
 
@@ -685,13 +685,18 @@ export async function repriceAndValidate(
     if (!phase.ok) return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     const { data: offering, error } = await admin
       .from("talent_offerings")
-      .select("id, amount_cents, title")
+      .select("id, amount_cents, title, status")
       .eq("id", line.offering_id)
       .eq("tenant_id", input.tenantId)
       .maybeSingle();
     if (error) {
       logServerError("pos.reprice.offering", error);
       return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
+    }
+    // TUL-1349: an item unpublished or archived after it went into the cart
+    // must not complete checkout. Fail closed, refuse only; no price is touched.
+    if (offering && (offering as { status?: string | null }).status !== "published") {
+      return { ok: false, reason: "item_unavailable", error: "This item is no longer available." };
     }
     if (!offering && phase.priceCents == null) continue;
     let unitCents = Math.max(0, Math.trunc(num((offering as { amount_cents: number | null } | null)?.amount_cents)));

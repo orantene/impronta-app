@@ -14497,7 +14497,8 @@
           "amount": "Ese monto en efectivo no es valido.",
           "already_closed": "Ese turno ya está cerrado.",
           "not_allowed": "No tienes permiso para hacer esto.",
-          "no_customer": "Primero asigna un cliente a esta venta."
+          "no_customer": "Primero asigna un cliente a esta venta.",
+          "item_unavailable": "Este artículo ya no está disponible."
         }
       },
       "newSale": "Nueva venta",

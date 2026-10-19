@@ -216,6 +216,7 @@ src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
 src/lib/pos/recover-collections.test.ts
 src/lib/pos/refusal-reason.test.ts
+src/lib/pos/reprice-item-availability.test.ts
 src/lib/pos/scan-code.test.ts
 src/lib/pos/shift-movements.test.ts
 src/lib/pos/shift.test.ts
