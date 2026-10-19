@@ -24,6 +24,10 @@ export function sdhId(key) {
 }
 
 /**
+ * Staging-only codes (PM GO 2026-10-19 via the consultant): the canonical production codes
+ * TAL-93011 / TAL-93020 / TAL-93103 are taken on staging by unrelated QA talents, so Mateo,
+ * Alba and Linh use TAL-97001 / TAL-97002 / TAL-97003 here (checked unused on fxlank).
+ *
  * The demo hosts the cards list. `seed` rows are written by --apply; `held` rows are only
  * reported (their canonical profile code is taken on staging by an unrelated QA talent, so
  * a code has to be chosen by the PM before they can be seeded).
@@ -40,19 +44,16 @@ export const DEMO_HOSTS = [
     display: "Saúl Tapia Ortega", tagline: "Carpintería a la medida en Morelia", theme: "gridline", card: "TUL-890", status: "seed",
   },
   {
-    key: "mateo-ferrer", labels: ["mateo-ferrer-demo", "folio-demo"], baseSlug: "mateo-ferrer", code: "TAL-93011",
-    display: "Mateo Ferrer", tagline: "Modelo de moda editorial y pasarela en CDMX", theme: "folio", card: "TUL-890", status: "held",
-    heldReason: "profile code TAL-93011 is used on staging by an unrelated non-demo QA talent",
+    key: "mateo-ferrer", labels: ["mateo-ferrer-demo", "folio-demo"], baseSlug: "mateo-ferrer", code: "TAL-97001",
+    display: "Mateo Ferrer", tagline: "Modelo de moda editorial y pasarela en CDMX", theme: "folio", card: "TUL-890", status: "seed",
   },
   {
-    key: "alba-nail-artist", labels: ["alba-demo", "maison-v2-demo"], baseSlug: "alba-nail-artist", code: "TAL-93020",
-    display: "Alba", tagline: "Uñas en Mérida", theme: "maison-v2", card: "TUL-537 GRK-089", status: "held",
-    heldReason: "profile code TAL-93020 is used on staging by an unrelated non-demo QA talent",
+    key: "alba-nail-artist", labels: ["alba-demo", "maison-v2-demo"], baseSlug: "alba-nail-artist", code: "TAL-97002",
+    display: "Alba", tagline: "Uñas en Mérida", theme: "maison-v2", card: "TUL-537 GRK-089", status: "seed",
   },
   {
-    key: "linh-tran", labels: ["linh-demo"], baseSlug: "linh-tran", code: "TAL-93103",
-    display: "Linh Tran", tagline: "Uñas y manicura", theme: "maison-v2", card: "TUL-537 GRK-089", status: "held",
-    heldReason: "profile code TAL-93103 is used on staging by an unrelated non-demo QA talent",
+    key: "linh-tran", labels: ["linh-demo"], baseSlug: "linh-tran", code: "TAL-97003",
+    display: "Linh Tran", tagline: "Uñas y manicura", theme: "maison-v2", card: "TUL-537 GRK-089", status: "seed",
   },
 ];
 
