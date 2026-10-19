@@ -3,8 +3,8 @@
  *
  * Every card is a REAL link: crawlers and no-JS visitors follow the href, and
  * the href never carries a query string (no indexable parameter URLs). A quick
- * view lives at `<list>#<quickViewId>`: the fragment opens the popup (share
- * link), and the facts are already in the list page's HTML.
+ * view lives at `#<quickViewId>` on the page holding the widget: the fragment
+ * opens the popup (share link), and the facts are already in that page's HTML.
  *
  * Pure: no DB, no React, so the widget, the business site and tests share it.
  */
@@ -28,9 +28,14 @@ export type ServiceCardTarget = {
   quickViewId: string | null;
 };
 
-/** Stable fragment id of a service's quick view: the same `servicio-<title>-<id8>` slug its page uses. */
-export function serviceQuickViewId(o: { id: string; title: string }): string {
-  return serviceSlug(o);
+/**
+ * Stable fragment id of a service's quick view: the `servicio-<title>-<id8>` slug its page
+ * uses, plus a short key of the widget node so two services widgets on one page never share
+ * a dialog id.
+ */
+export function serviceQuickViewId(o: { id: string; title: string }, nodeKey?: string | null): string {
+  const key = (nodeKey ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(-8);
+  return key ? `${serviceSlug(o)}-${key}` : serviceSlug(o);
 }
 
 /** The widget setting forces one mode; `auto` keeps the service's resolved mode. */
@@ -41,24 +46,18 @@ export function wantedModeForTap(tap: ServiceTapAction, resolved: PresentationMo
   return resolved;
 }
 
-function listFragmentHref(listPath: string, id: string): string {
-  const base = listPath.replace(/\/+$/, "");
-  return base ? `${base}#${id}` : `/#${id}`;
-}
-
 export function serviceCardTarget(input: {
   mode: PresentationMode;
   /** The plan allows own pages (presentation entitlements). */
   pageAllowed: boolean;
   /** The service's page URL on this site, or null where none exists (builder, preview). */
   pageHref: string | null;
-  /** Locale path of the page holding the list ("" / "/" / "/en"). */
-  listPath: string;
   quickViewId: string;
 }): ServiceCardTarget {
   const page = input.pageAllowed && input.pageHref ? input.pageHref : null;
   const quick: ServiceCardTarget = {
-    href: listFragmentHref(input.listPath, input.quickViewId),
+    // Same-page fragment: valid on whatever page holds the widget (home, /servicios, ...).
+    href: `#${input.quickViewId}`,
     opens: "quick_view",
     quickViewId: input.quickViewId,
   };

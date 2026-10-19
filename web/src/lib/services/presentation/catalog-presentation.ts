@@ -42,6 +42,8 @@ export type ServiceCatalogPresentation = {
 };
 
 export function serviceCatalogPresentation(input: {
+  /** The widget node: keeps dialog ids unique when a page has two services widgets. */
+  nodeId: string;
   offerings: readonly QuickViewOffering[];
   source: ServicePresentationSource | null | undefined;
   /** Locale path of the published site ("" / "/en"); null in the builder and previews. */
@@ -66,18 +68,19 @@ export function serviceCatalogPresentation(input: {
       entitlements: { allowedModes: source.allowedModes },
     }).mode;
     const pageHref = input.pageHrefs[o.id] ?? null;
+    const quickViewId = serviceQuickViewId(o, input.nodeId);
     const target = serviceCardTarget({
       mode: wantedModeForTap(tap, resolved),
       pageAllowed,
       pageHref,
-      listPath: input.linkBase,
-      quickViewId: serviceQuickViewId(o),
+      quickViewId,
     });
     out.hrefs[o.id] = target.href;
     out.targets[o.id] = target;
     if (target.quickViewId) {
       out.quickViews.push(
         buildServiceQuickView(o, {
+          quickViewId,
           locale: input.locale,
           homePath,
           pageHref: pageAllowed ? pageHref : null,

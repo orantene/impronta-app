@@ -49,7 +49,8 @@ describe("ServiceQuickViewLayer", () => {
     assert.match(html, /Excelente/);
     assert.match(html, /href="\/\?book=1a2b3c4d-0000-4000-8000-000000000000#book"[^>]*data-sqv-book="1a2b3c4d-0000-4000-8000-000000000000"/);
     assert.match(html, /href="\/servicio-clase-de-cocina-1a2b3c4d"[^>]*>Ver página completa</);
-    assert.match(html, /aria-label="Cerrar"/);
+    assert.match(html, /<button type="button" class="sqv-close" aria-label="Cerrar" data-sqv-close="">/);
+    assert.match(html, /<noscript><a href="#" class="sqv-close sqv-close-nojs"/);
   });
 
   it("no page, no CTA: neither link is rendered; on_request shows no amount", () => {

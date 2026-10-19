@@ -37,13 +37,30 @@ export type TalentPresentationDeps = {
   loadRating: (talentProfileId: string) => Promise<{ average: number; count: number }>;
 };
 
+/**
+ * Call ONLY for a published talent site (the caller skips drafts, previews and the
+ * builder), so those renders run none of these reads.
+ */
 export async function loadTalentServicePresentation(
   talentProfileId: string,
   locale: string,
-  planKey: string | null | undefined,
   deps: TalentPresentationDeps,
 ): Promise<ServicePresentationSource | undefined> {
   if (!(deps.enabled ?? servicePresentationResolverEnabled())) return undefined;
+  const planRead = async (): Promise<string | null> => {
+    if (!deps.db) return null;
+    try {
+      const { data, error } = await deps.db.from("talent_profiles").select("talent_plan_key").eq("id", talentProfileId).maybeSingle();
+      if (error) {
+        logServerError("services-presentation/plan", error);
+        return null;
+      }
+      return (data as { talent_plan_key?: string | null } | null)?.talent_plan_key ?? null;
+    } catch (error) {
+      logServerError("services-presentation/plan", error);
+      return null;
+    }
+  };
   const tradeRead = async (): Promise<string | null> => {
     if (!deps.db) return null;
     try {
@@ -62,7 +79,8 @@ export async function loadTalentServicePresentation(
       return null;
     }
   };
-  const [tradeSlug, talentFaq, reviewRows, rating] = await Promise.all([
+  const [planKey, tradeSlug, talentFaq, reviewRows, rating] = await Promise.all([
+    planRead(),
     tradeRead(),
     deps.loadFaq(talentProfileId, locale).catch(() => []),
     deps.loadReviews(talentProfileId).catch(() => ({ talentReviews: [] })),

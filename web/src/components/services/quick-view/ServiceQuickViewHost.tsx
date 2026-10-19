@@ -40,7 +40,14 @@ export function ServiceQuickViewHost({
       byHref.set(new URL(target.href, window.location.href).href, { offeringId, target });
     }
     const byId = new Map(offerings.map((o) => [o.id, o]));
-    const dialogFor = (id: string) => (id ? root.querySelector<HTMLDialogElement>(`dialog#${cssEscape(id)}`) : null);
+    const dialogFor = (id: string): HTMLDialogElement | null => {
+      if (!id) return null;
+      try {
+        return root.querySelector<HTMLDialogElement>(`dialog#${cssEscape(id)}`);
+      } catch {
+        return null;
+      }
+    };
     const clearHash = (id: string) => {
       if (window.location.hash === `#${id}`) {
         window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
@@ -51,10 +58,12 @@ export function ServiceQuickViewHost({
       if (!d || d.open) return;
       if (typeof d.showModal === "function") d.showModal();
       else d.setAttribute("open", "");
+      d.setAttribute("aria-modal", "true");
       if (window.location.hash !== `#${id}`) window.history.replaceState(window.history.state, "", `#${id}`);
     };
     const close = (d: HTMLDialogElement | null) => {
       if (!d) return;
+      d.removeAttribute("aria-modal");
       if (typeof d.close === "function") d.close();
       else {
         d.removeAttribute("open");
@@ -74,14 +83,15 @@ export function ServiceQuickViewHost({
         close(el);
         return;
       }
+      const closer = el?.closest?.("[data-sqv-close]") as HTMLElement | null;
+      if (closer && root.contains(closer)) {
+        e.preventDefault();
+        close(closer.closest("dialog.sqv") as HTMLDialogElement | null);
+        return;
+      }
       const a = el?.closest?.("a[href]") as HTMLAnchorElement | null;
       if (!a || !root.contains(a)) return;
       const dialog = a.closest("dialog.sqv") as HTMLDialogElement | null;
-      if (a.hasAttribute("data-sqv-close")) {
-        e.preventDefault();
-        close(dialog);
-        return;
-      }
       const bookId = a.getAttribute("data-sqv-book");
       if (bookId) {
         if (book(bookId)) {
@@ -102,7 +112,16 @@ export function ServiceQuickViewHost({
     const dialogs = Array.from(root.querySelectorAll<HTMLDialogElement>("dialog.sqv"));
     const onClose = (e: Event) => clearHash((e.currentTarget as HTMLDialogElement).id);
     for (const d of dialogs) d.addEventListener("close", onClose);
-    const fromHash = () => open(decodeURIComponent(window.location.hash.slice(1)));
+    const fromHash = () => {
+      // A crafted or truncated fragment (`#%E0%A4%A`) must never crash the page.
+      let id: string;
+      try {
+        id = decodeURIComponent(window.location.hash.slice(1));
+      } catch {
+        return;
+      }
+      open(id);
+    };
     root.addEventListener("click", onClick);
     window.addEventListener("hashchange", fromHash);
     fromHash();

@@ -51,10 +51,10 @@ function setup(opens: "quick_view" | "book") {
   const doc = dom.window.document;
   doc.body.innerHTML = `
     <section data-builder-node-id="n1">
-      <a id="card" href="/en#${QV}">Clase</a>
+      <a id="card" href="#${QV}">Clase</a>
       <a id="other" href="/en/contact">Contact</a>
       <dialog class="sqv" id="${QV}">
-        <a id="close" href="#" data-sqv-close="">x</a>
+        <button id="close" type="button" data-sqv-close="">x</button>
         <a id="book" href="/en?book=${OFFERING.id}#book" data-sqv-book="${OFFERING.id}">Book</a>
       </dialog>
     </section>
@@ -64,7 +64,7 @@ function setup(opens: "quick_view" | "book") {
     root.render(
       <ServiceQuickViewHost
         nodeId="n1"
-        targets={{ [OFFERING.id]: { href: `/en#${QV}`, opens, quickViewId: QV } }}
+        targets={{ [OFFERING.id]: { href: `#${QV}`, opens, quickViewId: QV } }}
         offerings={[OFFERING]}
         confirmsByHand
       />,
@@ -86,8 +86,10 @@ test("a quick-view card opens its dialog and sets the share fragment; close clea
   assert.equal(e.defaultPrevented, true);
   assert.equal(dialog.hasAttribute("open"), true);
   assert.equal(dom.window.location.hash, `#${QV}`);
+  assert.equal(dialog.getAttribute("aria-modal"), "true");
   click(doc.getElementById("close")!);
   assert.equal(dialog.hasAttribute("open"), false);
+  assert.equal(dialog.hasAttribute("aria-modal"), false);
   act(() => root.unmount());
 });
 
@@ -113,6 +115,14 @@ test("a shared #servicio link opens the quick view on load", () => {
   dom.window.history.replaceState(null, "", `/en#${QV}`);
   const { root, dialog } = setup("quick_view");
   assert.equal(dialog.hasAttribute("open"), true);
+  act(() => root.unmount());
+  dom.window.history.replaceState(null, "", "/en");
+});
+
+test("a malformed share fragment never throws (crafted link)", () => {
+  dom.window.history.replaceState(null, "", "/en#%E0%A4%A");
+  const { root, dialog } = setup("quick_view");
+  assert.equal(dialog.hasAttribute("open"), false);
   act(() => root.unmount());
   dom.window.history.replaceState(null, "", "/en");
 });

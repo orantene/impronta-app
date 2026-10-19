@@ -25,9 +25,15 @@ function QuickViewDialog({ v }: { v: ServiceQuickView }) {
     <dialog id={v.id} className="sqv" aria-labelledby={titleId} data-service-quick-view={v.offeringId}>
       <div className="sqv-head">
         <h2 id={titleId} className="sqv-title">{v.title}</h2>
-        <a href="#" className="sqv-close" aria-label={c.close} data-sqv-close="">
+        <button type="button" className="sqv-close" aria-label={c.close} data-sqv-close="">
           <span aria-hidden>×</span>
-        </a>
+        </button>
+        {/* No JS: the dialog shows through :target; this link clears the fragment to close it. */}
+        <noscript>
+          <a href="#" className="sqv-close sqv-close-nojs" aria-label={c.close}>
+            <span aria-hidden>×</span>
+          </a>
+        </noscript>
       </div>
       <div className="sqv-scroll">
         {facts ? <p className="sqv-facts">{facts}</p> : null}

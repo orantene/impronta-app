@@ -23,6 +23,7 @@ export function servicesCatalogQuickViews(input: {
   bookingPosture?: TalentBookingPosture;
 }): { hrefs: Record<string, string>; layer: ReactNode } {
   const out = serviceCatalogPresentation({
+    nodeId: input.nodeId,
     offerings: input.offerings,
     source: input.source,
     linkBase: input.linkBase,

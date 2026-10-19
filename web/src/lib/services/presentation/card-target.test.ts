@@ -18,6 +18,12 @@ describe("serviceQuickViewId", () => {
     assert.equal(QV, "servicio-corte-barba-1a2b3c4d");
     assert.match(QV, /^[a-z0-9-]+$/);
   });
+  it("is unique per widget when a node key is given (two services widgets on one page)", () => {
+    const a = serviceQuickViewId({ id: ID, title: "Corte & barba" }, "node_ABC-123xyz");
+    const b = serviceQuickViewId({ id: ID, title: "Corte & barba" }, "node_DEF-456");
+    assert.notEqual(a, b);
+    assert.match(a, /^servicio-corte-barba-1a2b3c4d-[a-z0-9]{1,8}$/);
+  });
 });
 
 describe("wantedModeForTap (widget 'Al tocar' setting)", () => {
@@ -37,7 +43,7 @@ describe("wantedModeForTap (widget 'Al tocar' setting)", () => {
 });
 
 describe("serviceCardTarget: every card is a real link", () => {
-  const base = { quickViewId: QV, listPath: "/en", pageAllowed: true, pageHref: "/en/servicio-corte-barba-1a2b3c4d" };
+  const base = { quickViewId: QV, pageAllowed: true, pageHref: "/en/servicio-corte-barba-1a2b3c4d" };
 
   it("own page: links to the page", () => {
     assert.deepEqual(serviceCardTarget({ ...base, mode: "own_page" }), {
@@ -49,7 +55,7 @@ describe("serviceCardTarget: every card is a real link", () => {
 
   it("own page on a plan without pages degrades to the quick view on the list (fragment, no query string)", () => {
     const t = serviceCardTarget({ ...base, mode: "own_page", pageAllowed: false });
-    assert.deepEqual(t, { href: `/en#${QV}`, opens: "quick_view", quickViewId: QV });
+    assert.deepEqual(t, { href: `#${QV}`, opens: "quick_view", quickViewId: QV });
     assert.equal(t.href.includes("?"), false);
   });
 
@@ -59,13 +65,12 @@ describe("serviceCardTarget: every card is a real link", () => {
 
   it("quick view and expand open the popup; href is the list + fragment", () => {
     for (const mode of ["quick_view", "expand"] as const) {
-      assert.deepEqual(serviceCardTarget({ ...base, mode }), { href: `/en#${QV}`, opens: "quick_view", quickViewId: QV });
+      assert.deepEqual(serviceCardTarget({ ...base, mode }), { href: `#${QV}`, opens: "quick_view", quickViewId: QV });
     }
   });
 
-  it("root list path makes '/#id', never '//#id'", () => {
-    assert.equal(serviceCardTarget({ ...base, listPath: "", mode: "quick_view" }).href, `/#${QV}`);
-    assert.equal(serviceCardTarget({ ...base, listPath: "/", mode: "quick_view" }).href, `/#${QV}`);
+  it("the quick view href is a same-page fragment, so it works on any page holding the widget", () => {
+    assert.equal(serviceCardTarget({ ...base, mode: "quick_view" }).href, `#${QV}`);
   });
 
   it("book direct keeps a crawlable href (the page when allowed, else the quick view) and opens booking", () => {
@@ -75,7 +80,7 @@ describe("serviceCardTarget: every card is a real link", () => {
       quickViewId: null,
     });
     assert.deepEqual(serviceCardTarget({ ...base, mode: "book_direct", pageAllowed: false }), {
-      href: `/en#${QV}`,
+      href: `#${QV}`,
       opens: "book",
       quickViewId: QV,
     });

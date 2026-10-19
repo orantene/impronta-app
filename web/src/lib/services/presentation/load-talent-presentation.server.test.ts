@@ -5,11 +5,12 @@ import { join } from "node:path";
 
 import { loadTalentServicePresentation, primaryTalentTypeSlug, type TalentPresentationDeps } from "./load-talent-presentation.server";
 
-function fakeDb(rows: unknown, error: unknown = null) {
+function fakeDb(rows: unknown, error: unknown = null, plan: string | null = "talent_basic") {
   const calls: string[] = [];
   const q = {
     select: (s: string) => (calls.push(`select ${s}`), q),
     eq: (c: string, v: unknown) => (calls.push(`eq ${c}=${String(v)}`), q),
+    maybeSingle: async () => ({ data: { talent_plan_key: plan }, error: null }),
     then: (res: (v: { data: unknown; error: unknown }) => unknown) => Promise.resolve({ data: rows, error }).then(res),
   };
   return { db: { from: (t: string) => (calls.push(`from ${t}`), q) } as unknown as TalentPresentationDeps["db"], calls };
@@ -26,13 +27,13 @@ const deps = (db: TalentPresentationDeps["db"], enabled = true): TalentPresentat
 describe("loadTalentServicePresentation", () => {
   it("flag off: undefined and no read at all (legacy widget)", async () => {
     const { db, calls } = fakeDb([]);
-    assert.equal(await loadTalentServicePresentation("p1", "es", "talent_pro", deps(db, false)), undefined);
+    assert.equal(await loadTalentServicePresentation("p1", "es", deps(db, false)), undefined);
     assert.deepEqual(calls, []);
   });
 
   it("flag on: trade from the primary talent type, plan entitlements, FAQ and reviews", async () => {
     const { db, calls } = fakeDb([{ taxonomy_terms: { slug: "Chef", kind: "talent_type" } }]);
-    const out = await loadTalentServicePresentation("p1", "es", "talent_basic", deps(db));
+    const out = await loadTalentServicePresentation("p1", "es", deps(db));
     assert.ok(out);
     assert.equal(out.tradeSlug, "chef");
     assert.equal(out.allowedModes.includes("own_page"), false);
@@ -42,8 +43,8 @@ describe("loadTalentServicePresentation", () => {
   });
 
   it("a failed trade read degrades to no trade (never throws)", async () => {
-    const { db } = fakeDb(null, { message: "boom" });
-    const out = await loadTalentServicePresentation("p1", "en", "talent_pro", deps(db));
+    const { db } = fakeDb(null, { message: "boom" }, "talent_pro");
+    const out = await loadTalentServicePresentation("p1", "en", deps(db));
     assert.equal(out?.tradeSlug, null);
     assert.equal(out?.allowedModes.includes("own_page"), true);
   });
@@ -56,10 +57,11 @@ describe("loadTalentServicePresentation", () => {
 });
 
 describe("wiring", () => {
-  it("loadServicesCatalogSources passes servicePresentation to the widget", () => {
-    const src = readFileSync(join(process.cwd(), "src/components/home/homepage-cms-data-sources.ts"), "utf8");
-    assert.match(src, /loadTalentServicePresentation\(/);
-    assert.match(src, /servicePresentation/);
+  it("only the published talent site loads it (no reads in the builder, previews or drafts)", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site-document.tsx"), "utf8");
+    assert.match(src, /!draftPreview && pageNeedsServicesCatalog\s*\?\s*timed\("maxSite\.servicePresentation"/);
+    const ds = readFileSync(join(process.cwd(), "src/components/home/homepage-cms-data-sources.ts"), "utf8");
+    assert.doesNotMatch(ds, /loadTalentServicePresentation/);
   });
 
   it("the services_catalog block builds its links through serviceCatalogPresentation and mounts the quick views", () => {

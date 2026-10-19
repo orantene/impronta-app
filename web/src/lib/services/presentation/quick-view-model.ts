@@ -97,6 +97,8 @@ function policyLines(o: QuickViewOffering, c: ServiceQuickViewCopy): string[] {
 export function buildServiceQuickView(
   o: QuickViewOffering,
   opts: {
+    /** Fragment id (unique per widget); defaults to the service slug. */
+    quickViewId?: string;
     locale: string;
     /** Locale home path ("/" or "/en"): the booking deep link hangs off it. */
     homePath: string;
@@ -115,7 +117,7 @@ export function buildServiceQuickView(
     SERVICE_PHOTO_MAX_QUICK_VIEW,
   );
   return {
-    id: serviceQuickViewId(o),
+    id: opts.quickViewId ?? serviceQuickViewId(o),
     offeringId: o.id,
     title: o.title.trim(),
     categoryLabel: o.categoryLabel ?? o.category ?? null,

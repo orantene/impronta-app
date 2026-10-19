@@ -74,6 +74,10 @@ import {
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { loadTalentServicePresentation } from "@/lib/services/presentation/load-talent-presentation.server";
+import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
+import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
 import { DEFAULT_TALENT_LIVE_STATUS, loadTalentLiveStatus } from "@/lib/talent/live-status";
 import { LIVE_STATUS_CSS, liveStatusRootAttrs, toLiveStatusRenderContext } from "@/lib/talent/live-status-render";
 import { LiveStatusExpiry } from "@/components/talent-site/LiveStatusExpiry";
@@ -191,6 +195,19 @@ export async function renderMaxSiteDocument(args: {
   // Published vanity with a booking tenant always resolves captcha for catalog.
   const resolveCaptcha = Boolean(bookingTenantId) && (pageNeedsCaptcha || !draftPreview);
 
+  // TUL-1272 #3: per-card presentation (quick view / own page). Published sites only, so
+  // drafts, previews and the builder run none of its reads; undefined while the flag is off.
+  const servicePresentationPromise =
+    !draftPreview && pageNeedsServicesCatalog
+      ? timed("maxSite.servicePresentation", () =>
+          loadTalentServicePresentation(talentProfileId, locale, {
+            db: createServiceRoleClient(),
+            loadFaq: (id, l) => loadPublishedFaqForProfile(id, l),
+            loadReviews: (id) => loadReviewsSources(id, 5),
+            loadRating: loadTalentRatingSummary,
+          }).catch(() => undefined),
+        )
+      : Promise.resolve(undefined);
   const [dataSources, components, platformDefault, experimentContext, pageCaptcha, captchaEnforced, talentOfferings, liveStatusRow, askVisible, promoWidgets] =
     await Promise.all([
       timed("maxSite.dataSources", () =>
@@ -269,6 +286,7 @@ export async function renderMaxSiteDocument(args: {
   // the empty state on solo talent sites.
   // The shell (header / footer) draws promo blocks from the same one read as the page body.
   const promoShell = promoWidgets ? { promoWidgets } : {};
+  const servicePresentation = await servicePresentationPromise;
   const pricedDataSources = {
     ...dataSources,
     talentOfferings:
@@ -281,6 +299,7 @@ export async function renderMaxSiteDocument(args: {
     tenantId: dataSources.tenantId ?? bookingTenantId ?? undefined,
     catalogBookingLive,
     // TUL-792: published sites link each home service card to its service page.
+    ...(servicePresentation ? { servicePresentation } : {}),
     talentServiceLinkBase: draftPreview
       ? null
       : talentSiteLocalePath("/", locale, args.localeCtx.settings.defaultLocale, args.localeCtx.settings.supportedLocales).replace(/\/+$/, ""),
