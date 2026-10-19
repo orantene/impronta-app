@@ -60,10 +60,9 @@ test("heading rotatingWords are localizable list items", () => {
 });
 
 test("renderer: marker heading renders the stack; ES overlay words apply", () => {
-  const node = heading({
-    rotatingWords: [{ text: "let go" }, { text: "breathe" }],
-    i18n: { es: { text: `Una hora para ${ROTATE_MARKER}`, "rotatingWords.0.text": "soltar", "rotatingWords.1.text": "respirar" } },
-  });
+  const overlay = { es: { text: `Una hora para ${ROTATE_MARKER}`, "rotatingWords.0.text": "soltar", "rotatingWords.1.text": "respirar" } };
+  // The renderer reads the mirrored node-level overlay for `text` (the seed mirrors props.i18n there at apply).
+  const node = { ...heading({ rotatingWords: [{ text: "let go" }, { text: "breathe" }], i18n: overlay }), i18n: overlay } as BuilderNode;
   const es = renderToStaticMarkup(<>{renderBuilderNodes([node], { ...BASE, contentLocale: { locale: "es", defaultLocale: "en", chain: ["es", "en"] } } as never)}</>);
   assert.match(es, /Una hora para/);
   assert.match(es, />soltar</);
