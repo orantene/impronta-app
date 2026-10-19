@@ -50,9 +50,9 @@ function html(over: Partial<Parameters<typeof buildSocketModel>[0]> = {}, hint?:
   return renderToStaticMarkup(<TalentSiteSocket model={model(over)} hint={hint} />);
 }
 
-test("the catalog under test covers 5 builtins + Maison + 6 collection designs", () => {
-  assert.equal(DESIGNS.length, 12);
-  assert.equal(new Set(DESIGNS.map((d) => d.slug)).size, 12);
+test("the catalog under test covers 5 builtins + Maison + 11 collection designs", () => {
+  assert.equal(DESIGNS.length, 17);
+  assert.equal(new Set(DESIGNS.map((d) => d.slug)).size, 17);
 });
 
 for (const d of DESIGNS) {

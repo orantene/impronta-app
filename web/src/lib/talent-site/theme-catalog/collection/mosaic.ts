@@ -58,6 +58,7 @@ export function buildMosaicPayload(): DesignPayload {
     shellTree: shell(id, { navChrome: "side_rail", navLinks: [{ label: "Work", href: "#gallery" }, { label: "Services", href: "#services" }, { label: "About", href: "#about" }, { label: "Contact", href: "#contact" }] }),
     homeTree: [
       hero,
+      portfolioBlock(id, { layout: "masonry", columns: 3, heading: "One {i}portfolio{/i}", showCaptions: true, tagFilter: true }),
       servicesSection(id, {
         label: "Services",
         eyebrow: "Services",
@@ -71,7 +72,6 @@ export function buildMosaicPayload(): DesignPayload {
         showPhoto: true,
         columns: 2,
       }),
-      portfolioBlock(id, { layout: "masonry", columns: 3, heading: "One {i}portfolio{/i}", showCaptions: true, tagFilter: true }),
       aboutBlock(id, { layout: "split", align: "start", accent: true }),
       contactSection(id, { heading: "Photos, site, or both.", faqHeading: "Good to know" }),
     ],

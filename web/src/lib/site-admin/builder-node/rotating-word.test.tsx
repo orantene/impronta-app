@@ -64,7 +64,7 @@ test("renderer: marker heading renders the stack; ES overlay words apply", () =>
     rotatingWords: [{ text: "let go" }, { text: "breathe" }],
     i18n: { es: { text: `Una hora para ${ROTATE_MARKER}`, "rotatingWords.0.text": "soltar", "rotatingWords.1.text": "respirar" } },
   });
-  const es = renderToStaticMarkup(<>{renderBuilderNodes([node], { ...BASE, visitorLocale: "es" } as never)}</>);
+  const es = renderToStaticMarkup(<>{renderBuilderNodes([node], { ...BASE, contentLocale: { locale: "es", defaultLocale: "en", chain: ["es", "en"] } } as never)}</>);
   assert.match(es, /Una hora para/);
   assert.match(es, />soltar</);
   assert.match(es, />respirar</);

@@ -78,8 +78,8 @@ export function buildPrismPayload(): DesignPayload {
         contentWidth: "full",
       }),
       portfolioBlock(id, { layout: "grid", columns: 3, heading: "One portfolio, all disciplines.", showCaptions: true, tagFilter: true }),
-      aboutBlock(id, { layout: "split", align: "start", accent: false }),
       contactSection(id, { heading: "Have a project in mind?", faqHeading: "Before we start" }),
+      aboutBlock(id, { layout: "split", align: "start", accent: false }),
     ],
   };
 }

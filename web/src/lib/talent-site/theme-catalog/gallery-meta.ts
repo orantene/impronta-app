@@ -374,7 +374,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     styleTags: ["Minimal", "Bold"],
     featureTags: ["Service list", "Booking-ready", "Text-first", "Packages"],
     palettes: [
-      pal("paper", "Paper & Teal", "Papel y verde azulado", ["#FFFFFF", "#F4F4F2", "#E3E3E0", "#0F0F0F", "#0E6B6B", "#FFFFFF"], { muted: "#5F5F5B" }),
+      pal("paper", "Paper & Teal", "Papel y verde azulado", ["#FFFFFF", "#F4F4F2", "#E3E3E0", "#0F0F0F", "#0E6B6B", "#FFFFFF"], { muted: "#5F5F5B", highContrast: true }),
       pal("cobalt", "Cobalt", "Cobalto", ["#FFFFFF", "#F2F4F8", "#DEE3EC", "#161A22", "#1F4FB8", "#FFFFFF"]),
       pal("signal", "Signal Red", "Rojo señal", ["#FFFFFF", "#F7F3F2", "#E8E0DE", "#1A1414", "#B3261E", "#FFFFFF"]),
       pal("carbon", "Carbon", "Carbón", ["#111111", "#1B1B1B", "#333333", "#F5F5F5", "#F5F5F5", "#111111"], { dark: true }),
@@ -439,10 +439,12 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
   design({
     ...collection("table"),
     fonts: { heading: TABLE_HEADING_FONT, body: TABLE_BODY_FONT },
-    styleTags: ["Editorial", "Dark", "Warm"],
-    featureTags: ["Service menu", "Portfolio", "Quote requests", "Personal story"],
+    styleTags: ["Editorial", "Warm"],
+    featureTags: ["Service menu", "Quote requests", "Personal story"],
     palettes: [
       pal("table", "Candlelight", "Luz de vela", [TABLE_PALETTE.page, TABLE_PALETTE.surface, TABLE_PALETTE.line, TABLE_PALETTE.ink, TABLE_PALETTE.accent, TABLE_PALETTE.onAccent], { muted: TABLE_PALETTE.muted, dark: true }),
+      pal("ivory", "Ivory & Brass", "Marfil y latón", ["#F6F1E7", "#FFFFFF", "#E2D9C6", "#241D14", "#8A5A14", "#FFFFFF"], { highContrast: true }),
+      pal("ember", "Ember", "Brasa", ["#1A0F0D", "#241613", "#3D2723", "#F3E6DF", "#E08A5A", "#1A0F0D"], { dark: true }),
     ],
     demos: [
       planned("private-chef", { en: "Private Chef", es: "Chef privado" }, ["chef"], "table"),
@@ -453,9 +455,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ...collection("ribbon"),
     fonts: { heading: RIBBON_HEADING_FONT, body: RIBBON_BODY_FONT },
     styleTags: ["Editorial", "Warm", "Minimal"],
-    featureTags: ["Packages", "Portfolio", "Quote requests", "Personal story"],
+    featureTags: ["Packages", "Quote requests", "Personal story"],
     palettes: [
       pal("cream", "Cream & Green", "Crema y verde", [RIBBON_PALETTE.page, RIBBON_PALETTE.surface, RIBBON_PALETTE.line, RIBBON_PALETTE.ink, RIBBON_PALETTE.accent, RIBBON_PALETTE.onAccent], { muted: RIBBON_PALETTE.muted }),
+      pal("blush", "Blush & Wine", "Rubor y vino", ["#FBF3F0", "#FFFFFF", "#EBD9D2", "#2B2323", "#9A4A55", "#FFFFFF"], { highContrast: true }),
+      pal("night", "Night Garden", "Jardín nocturno", ["#1F211F", "#2A2D2A", "#444944", "#F0EEE6", "#C9D4C2", "#1F211F"], { dark: true }),
     ],
     demos: [
       planned("bridal", { en: "Bridal Hair & Makeup", es: "Peinado y maquillaje de novia" }, ["bridal_makeup", "hair"], "cream"),
@@ -469,6 +473,8 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     featureTags: ["Service list", "Booking-ready", "Quote requests", "Text-first"],
     palettes: [
       pal("teal", "Clinic Teal", "Verde clínica", [CLARITY_PALETTE.page, CLARITY_PALETTE.surface, CLARITY_PALETTE.line, CLARITY_PALETTE.ink, CLARITY_PALETTE.accent, CLARITY_PALETTE.onAccent], { muted: CLARITY_PALETTE.muted }),
+      pal("slate", "Slate & Blue", "Pizarra y azul", ["#F4F5F7", "#FFFFFF", "#DDE1E6", "#16202A", "#2B4A7A", "#FFFFFF"], { highContrast: true }),
+      pal("night", "Night Clinic", "Clínica nocturna", ["#0F1A1C", "#16282B", "#2B4448", "#E8F2F2", "#5FC4C4", "#0F1A1C"], { dark: true }),
     ],
     demos: [
       planned("massage", { en: "Massage Therapist", es: "Masajista" }, ["massage"], "teal"),
@@ -479,9 +485,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ...collection("mosaic"),
     fonts: { heading: MOSAIC_HEADING_FONT, body: MOSAIC_BODY_FONT },
     styleTags: ["Bold", "Image-led"],
-    featureTags: ["Portfolio", "Service menu", "Video & media", "Bento tiles"],
+    featureTags: ["Service menu", "Video & media", "Bento tiles"],
     palettes: [
       pal("raspberry", "Raspberry", "Frambuesa", [MOSAIC_PALETTE.page, MOSAIC_PALETTE.surface, MOSAIC_PALETTE.line, MOSAIC_PALETTE.ink, MOSAIC_PALETTE.accent, MOSAIC_PALETTE.onAccent], { muted: MOSAIC_PALETTE.muted }),
+      pal("lime", "Ink & Moss", "Tinta y musgo", ["#F5F3EE", "#FFFFFF", "#E4E0D8", "#16151A", "#2F6B2F", "#FFFFFF"], { highContrast: true }),
+      pal("night", "Night Studio", "Estudio nocturno", ["#141318", "#1D1C22", "#34323B", "#F3F1EC", "#FF7A9C", "#141318"], { dark: true }),
     ],
     demos: [
       planned("photographer", { en: "Photographer", es: "Fotógrafo" }, ["photographer"], "raspberry"),
@@ -492,9 +500,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     ...collection("prism"),
     fonts: { heading: PRISM_HEADING_FONT, body: PRISM_BODY_FONT },
     styleTags: ["Bold", "Minimal"],
-    featureTags: ["Packages", "Portfolio", "Quote requests", "Multi-talent"],
+    featureTags: ["Packages", "Quote requests", "Multi-talent"],
     palettes: [
       pal("mint", "Mint & Ink", "Menta y tinta", [PRISM_PALETTE.page, PRISM_PALETTE.surface, PRISM_PALETTE.line, PRISM_PALETTE.ink, PRISM_PALETTE.accent, PRISM_PALETTE.onAccent], { muted: PRISM_PALETTE.muted }),
+      pal("cobalt", "Cobalt", "Cobalto", ["#F6F6F4", "#FFFFFF", "#E1E1DD", "#0E1111", "#1F4FB8", "#FFFFFF"], { highContrast: true }),
+      pal("carbon", "Carbon", "Carbón", ["#0E1111", "#171B1B", "#2E3434", "#F0F2F1", "#34D399", "#0E1111"], { dark: true }),
     ],
     demos: [
       planned("computer_tech", { en: "Computer Technician", es: "Técnico de computadoras" }, ["computer_tech"], "mint"),

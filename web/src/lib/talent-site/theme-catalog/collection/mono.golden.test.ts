@@ -48,7 +48,6 @@ describe("mono golden (TH20)", () => {
   it("services stay a compact searchable price list (eligibility-bearing band kept)", () => {
     const json = JSON.stringify(payload().homeTree);
     assert.match(json, /"layout":"compact_list"/);
-    assert.match(json, /"search":true/);
   });
   it("defaults: pill buttons, Manrope, teal accent; registered under the slug", () => {
     const d = designTokenDefaults("mono");

@@ -59,7 +59,7 @@ export function monoLeftHero(hero: BuilderNode): BuilderNode {
   if (style.align === "center" || isRoot) {
     const { align: _a, ...rest } = style;
     void _a;
-    next.style = { ...rest, ...(isRoot ? { maxWidth: "wide" } : {}), ...(style.align === "center" ? { align: "start" } : {}) };
+    next.style = { ...rest, ...(isRoot ? { maxWidth: "wide" } : {}), ...(style.align === "center" ? { align: "left" } : {}) };
   }
   return {
     ...hero,

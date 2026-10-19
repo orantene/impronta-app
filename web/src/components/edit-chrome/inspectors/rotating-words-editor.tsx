@@ -42,7 +42,7 @@ export function RotatingWordsEditor({
       <label className={KIT.label}>Rotating words</label>
       <p className="mb-1 text-[12px] text-stone-500">{HELP}</p>
       {!hasMarker && words.length > 0 ? (
-        <p className="mb-1 text-[12px] text-amber-700" role="status">
+        <p className="mb-1 text-[12px] text-sky-700" role="status">
           {NO_MARKER}
         </p>
       ) : null}
