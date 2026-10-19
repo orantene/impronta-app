@@ -89,6 +89,7 @@ const ALLOWED: Record<string, number> = {
   "lib/storefront/portal-entry.core.ts": 1, // read of a persisted offering
   "lib/storefront/service-collection.core.ts": 1, // read of a persisted offering
   "lib/stripe/talent-domain-billing.ts": 1, // domain purchase is USD
+  "lib/stripe/talent-domain-renewal.ts": 1, // renewal is registrar-cost USD; a missing Stripe currency fails closed unless it is usd
   "lib/stripe/webhook-handler.ts": 1, // log text of a Stripe dispute code
   "lib/stripe/webhook-routing.ts": 6, // Stripe event codes recorded as received
   "lib/talent-agenda/refund-actions.ts": 1, // result shape; real currency comes from executeBookingRefund

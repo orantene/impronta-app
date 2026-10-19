@@ -27,6 +27,7 @@ import {
   type TermShape,
 } from "@/lib/taxonomy/engine";
 import { readAiSearchDocFields } from "@/lib/field-engine/read-source-ai-search-doc";
+import { loadAiSearchDocumentOfferings } from "@/lib/ai/load-ai-search-document-offerings";
 
 export async function rebuildAiSearchDocument(
   supabase: SupabaseClient,
@@ -227,6 +228,9 @@ export async function rebuildAiSearchDocument(
       logServerError("rebuildAiSearchDocument/field_values", fieldErr);
     }
 
+    // F1: guest-sellable offerings (D-10). Errors log and yield [] inside the loader.
+    const offerings = await loadAiSearchDocumentOfferings(supabase, talentProfileId);
+
     const genderForDoc =
       genderAiVisible && typeof p.gender === "string" && p.gender.trim() ? p.gender.trim() : null;
 
@@ -251,6 +255,7 @@ export async function rebuildAiSearchDocument(
       credentialsAndAttributes,
       searchSynonyms,
       aiVisibleFields,
+      offerings,
     });
 
     const { error: upErr } = await supabase
