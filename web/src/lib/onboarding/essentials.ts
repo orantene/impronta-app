@@ -233,17 +233,25 @@ const TRADE_PATTERNS: Array<[string, RegExp]> = [
   ["brows", /brow|ceja/i],
   ["makeup", /make-?up|maquill|\bmua\b/i],
   // Facial before cleaning: "limpieza facial" is a facial, not home cleaning.
-  ["facial", /facial|esthetic|est[eé]tic|cosmetolog|dermapl|peeling|skin ?care|cuidado de la piel/i],
+  ["facial", /facial|\besthetic(ian)?s?\b|\best[eé]tic[ao]s?\b|cosmetolog|dermapl|peeling|skin ?care|cuidado de la piel/i],
   ["cleaning", /clean|limpie|limpio|aseo|housekeep/i],
   ["hair", /hair|cabello|peluq|barber|stylist|estilista|colorist/i],
   // G4: appended last so every trade matched before keeps its pack.
   ["massage", /massag|masaj|\bspa\b|quiropr|physio|fisioter/i],
   ["fitness", /personal train|trainer|fitness|yoga|pilates|entrenador|crossfit|gimnas/i],
   ["photography", /photograph|fot[oó]graf/i],
-  ["tutoring", /tutor|\bteach|profesor|maestr[ao]|\blessons?\b|\bclases?\b/i],
+  ["tutoring", /\btutor|\bteachers?\b|\bteaching\b|\bprofesor(a|es)?\b|\bmaestr[ao]s? particulares?\b|\bprivate lessons?\b|\bclases? (de|particular)/i],
   ["pets", /\bdogs?\b|\bpets?\b|mascota|perr[oa]|canin|veterinar/i],
   ["tattoo", /tattoo|tatu/i],
 ];
+
+/**
+ * G4: packs whose starter prices are only SUGGESTIONS. Their rows arrive with
+ * `priceSuggested`, so `offeringRowFor` (via service-price-choice) holds them as
+ * drafts without a price until the person confirms it; nothing goes live on a
+ * number the person never saw.
+ */
+export const SUGGESTED_PRICE_PACKS: ReadonlySet<string> = new Set(["facial", "massage", "fitness", "photography", "tutoring", "pets", "tattoo"]);
 
 /** Pack key for a trade slug or free-text discipline; null when no pack exists. */
 export function packKeyForTrade(...candidates: Array<string | null | undefined>): string | null {
@@ -274,6 +282,8 @@ export function suggestedServices(ctx: PackContext): EssentialService[] {
     durationMin: s.durationMin,
     priceCents: mx ? s.mxnCents : null,
     quote: !mx,
+    // G4: a starter price in a new pack is a suggestion the person must confirm.
+    ...(mx && SUGGESTED_PRICE_PACKS.has(key) ? { priceSuggested: true } : {}),
     currency,
     packKey: key,
     nameI18n: { en: s.en, es: s.es },

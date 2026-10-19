@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { BEAUTY_PACKS, packKeyForTrade, suggestedServices } from "./essentials";
+import { BEAUTY_PACKS, SUGGESTED_PRICE_PACKS, offeringRowFor, packKeyForTrade, planOfferingWrites, suggestedServices } from "./essentials";
 import { buildArrivalNextSteps, servicesHrefFor } from "./arrival-next-steps";
 
 const WEB = path.resolve(__dirname, "../../..");
@@ -113,4 +113,46 @@ test("the arrival step renders the row as a link and both languages have the wor
   assert.equal(en.public.onboarding.arrival.nextServices, "Review your services");
   assert.equal(es.public.onboarding.arrival.nextServices, "Revisa tus servicios");
   assert.doesNotMatch(es.public.onboarding.arrival.nextServices, /—/);
+});
+
+// ─── starter prices stay unpublished until confirmed ──────────────────────────
+
+test("new packs: every Mexico starter price is a suggestion, so nothing goes live on it", () => {
+  for (const [key] of NEW_TRADES) {
+    assert.ok(SUGGESTED_PRICE_PACKS.has(key), key);
+    const services = suggestedServices({ trade: key === "massage" ? "massage therapist" : key, country: "MX", locale: "es" });
+    assert.ok(services.length >= 3, key);
+    for (const s of services) {
+      assert.equal(s.priceSuggested, true, `${key}/${s.name}`);
+      const [row] = planOfferingWrites([], [s]).insert;
+      assert.ok(row, `${key}/${s.name}: no row planned`);
+      assert.equal(row.status, "draft", `${key}/${s.name} must stay a draft`);
+      assert.equal(row.amount_cents, null);
+      assert.equal(row.booking_mode, "request");
+    }
+  }
+});
+
+test("once the person confirms the price, the same service goes live priced", () => {
+  const [s] = suggestedServices({ trade: "photographer", country: "MX", locale: "en" });
+  const live = offeringRowFor({ ...s, priceSuggested: false }, 0);
+  assert.equal(live.status, "published");
+  assert.equal(live.amount_cents, s.priceCents);
+});
+
+test("outside Mexico there is no starter price at all (quote), so nothing is suggested", () => {
+  const [s] = suggestedServices({ trade: "tutor", country: "US", locale: "en" });
+  assert.equal(s.priceCents, null);
+  assert.equal(s.priceSuggested, undefined);
+});
+
+test("trade words that only look similar do not pick a pack", () => {
+  for (const said of ["maestro de obra", "aesthetics designer", "maestro albañil", "teachable moments blog", "professional chef"]) {
+    assert.notEqual(packKeyForTrade(said), "tutoring", said);
+    assert.notEqual(packKeyForTrade(said), "facial", said);
+  }
+  assert.equal(packKeyForTrade("maestro particular de inglés"), "tutoring");
+  assert.equal(packKeyForTrade("esthetician"), "facial");
+  assert.equal(packKeyForTrade("estética facial"), "facial");
+  assert.equal(packKeyForTrade("English teacher"), "tutoring");
 });
