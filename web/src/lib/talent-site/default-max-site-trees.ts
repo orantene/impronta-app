@@ -59,7 +59,7 @@ export function buildDefaultShellTree(
     navItems: [{ label: "Home", href: homeHref }],
     // Seed English "Inquire"; SiteHeader localises the platform default for
     // the visitor locale at render (AUD-027) so Spanish sites never show INQUIRE.
-    primaryCta: { label: input.mainCtaMode ? mainCtaLabel(input.mainCtaMode, "en") : "Inquire", href: "/contact" },
+    primaryCta: { label: input.mainCtaMode ? mainCtaLabel(input.mainCtaMode, "en") : "Inquire", href: input.mainCtaMode ? "#services" : "/contact" },
     sticky: true,
     tone: "transparent",
     scrollTone: "solid",
@@ -85,7 +85,7 @@ export function buildDefaultShellTree(
         { type: "phone", responsive: { desktop: "label", mobile: "menu" } },
         { type: "saved", responsive: { mobile: "menu" } },
         { type: "inquiry", showCount: true },
-        { type: "cta", label: input.mainCtaMode ? mainCtaLabel(input.mainCtaMode, "en") : "Inquire", href: "/contact", responsive: { mobile: "menu" } },
+        { type: "cta", label: input.mainCtaMode ? mainCtaLabel(input.mainCtaMode, "en") : "Inquire", href: input.mainCtaMode ? "#services" : "/contact", responsive: { mobile: "menu" } },
       ],
     },
   };

@@ -162,7 +162,9 @@ export async function provisionTalentMaxSite(
     });
   }
 
-  const defaultShell: BuilderNode[] = buildDefaultShellTree({ displayName });
+  // TUL-639: seed the mode-following main CTA ("Book an appointment" -> #services). At render it
+  // follows the talent's REAL selling mode (resolveSiteCtaMode) and lands on #book where booking is on.
+  const defaultShell: BuilderNode[] = buildDefaultShellTree({ displayName, mainCtaMode: "instant" });
 
   let siteId: string;
   let siteSlug: string;

@@ -66,3 +66,18 @@ test("no theme hardcodes the old inquiry CTA wording: the Folio demo footer uses
   assert.doesNotMatch(src, /cta: lang === "es" \? "Consultar" : "Inquire"/);
   assert.match(src, /mainCtaLabel\(/);
 });
+
+test("a seeded main CTA points at the booking anchor source (#services), which render retargets to #book", () => {
+  const header = buildDefaultShellTree({ displayName: "A", mainCtaMode: "instant" })[0] as unknown as {
+    props: { sectionProps: { primaryCta: { href: string }; regions: { right: Array<{ type: string; href?: string }> } } };
+  };
+  assert.equal(header.props.sectionProps.primaryCta.href, "#services");
+  assert.equal(header.props.sectionProps.regions.right.find((i) => i.type === "cta")?.href, "#services");
+  const legacy = buildDefaultShellTree({ displayName: "A" })[0] as unknown as typeof header;
+  assert.equal(legacy.props.sectionProps.primaryCta.href, "/contact");
+});
+
+test("provisioning seeds the mode-following main CTA so the label tracks the talent's live selling mode", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/talent-site/server/provision-max-site.ts"), "utf8");
+  assert.match(src, /buildDefaultShellTree\(\{ displayName, mainCtaMode: "instant" \}\)/);
+});
