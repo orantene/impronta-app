@@ -6,6 +6,7 @@
  * Server component — CTAs/hubs are passed as RSC slots. --plt tokens only.
  */
 
+import { SHARE_GUTTER_CLASS } from "./floating-chrome";
 import { proficiencyLabel, yearsLabel } from "./section-labels";
 import Image from "next/image";
 import Link from "next/link";
@@ -257,7 +258,7 @@ export function ProfileHeader({
         </div>
 
         {/* Share row */}
-        <div className="mt-5 flex items-center gap-3">{shareMenu}</div>
+        <div className={`mt-5 flex items-center gap-3 ${SHARE_GUTTER_CLASS}`}>{shareMenu}</div>
 
         {/* Hairline divider */}
         <div className="mt-8 border-t" style={{ borderColor: "var(--plt-hairline)" }} />

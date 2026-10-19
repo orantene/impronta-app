@@ -22,6 +22,7 @@ src/lib/billing/commission-processing-client-pays.test.ts
 src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
+src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts

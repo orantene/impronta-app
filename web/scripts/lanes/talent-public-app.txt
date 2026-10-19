@@ -20,6 +20,7 @@ src/app/t/?profileCode?/_chat/retry-same-inquiry.test.ts
 src/app/t/?profileCode?/_chat/skin-parity.render.test.tsx
 src/app/t/?profileCode?/_chat/solo-talent-voice.static.test.ts
 src/app/t/?profileCode?/_chat/use-launcher-scroll-collapse.test.ts
+src/app/t/?profileCode?/_light/floating-chrome.static.test.ts
 src/app/t/?profileCode?/_maison/maison-ask-flow.test.ts
 src/app/t/?profileCode?/_maison/maison-derivations.test.ts
 src/app/t/?profileCode?/_maison/maison-menu.test.ts
