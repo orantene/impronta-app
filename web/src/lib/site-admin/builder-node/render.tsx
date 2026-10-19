@@ -172,6 +172,7 @@ import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
 import { servicePageHrefs } from "@/lib/talent-site/service-page";
+import { servicesCatalogQuickViews } from "@/components/services/quick-view/catalog-quick-views";
 import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
@@ -394,6 +395,8 @@ export interface BuilderNodeRenderDataSources {
    * eligible home service card links to its own service page. Unset (builder, hub, previews): no links.
    */
   talentServiceLinkBase?: string | null;
+  /** TUL-1272 #3: per-card presentation (quick view / own page). Set by the server only while the resolver flag is on. */
+  servicePresentation?: import("@/lib/services/presentation/catalog-presentation").ServicePresentationSource;
   /**
    * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
@@ -6027,7 +6030,13 @@ function renderBuilderNodeElement(
             : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
-      const serviceHrefs = servicePageHrefs(visible, options.dataSources.talentServiceLinkBase);
+      const quickViews = servicesCatalogQuickViews({
+        offerings: visible, nodeId: node.id, locale, linkBase: options.dataSources.talentServiceLinkBase,
+        pageHrefs: servicePageHrefs(visible, options.dataSources.talentServiceLinkBase),
+        source: options.dataSources.servicePresentation, confirmsByHand,
+        bookingPosture: options.dataSources.talentOfferingsBookingSettings?.bookingPosture,
+      });
+      const serviceHrefs = quickViews.hrefs;
       const layout = p.layout ?? "rows";
       const useWebsiteTheme = p.useWebsiteTheme !== false;
       // Live band ground: when useWebsiteTheme skips custom Style overrides,
@@ -6243,6 +6252,7 @@ function renderBuilderNodeElement(
               />
             </CatalogIslandBoundary>
           )}
+          {quickViews.layer}
         </section>
       );
     }

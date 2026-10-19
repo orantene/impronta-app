@@ -47,6 +47,8 @@ import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/nativ
 import { loadPortfolioAltContext } from "@/lib/site-admin/builder-node/portfolio-alt-context";
 import { loadPortfolioSources } from "@/lib/site-admin/builder-node/portfolio-sources";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
+import { loadTalentServicePresentation } from "@/lib/services/presentation/load-talent-presentation.server";
+import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
 import { loadPostsFeedSources } from "@/lib/site-admin/builder-node/posts-feed-sources";
 import type { NativePostsFeedNeed } from "@/lib/site-admin/builder-node/native-data-block-needs";
 import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
@@ -475,10 +477,12 @@ export async function loadServicesCatalogSources(
     | "talentOfferingsCategoryNotes"
     | "onlineCollectReady"
     | "talentSitePause"
+    | "servicePresentation"
   >
 > {
   const offerings = await loadPublicOfferingsForProfile(talentProfileId, locale, null, { channel });
   let confirmsByHand = true;
+  let planKey: string | null = null;
   let categoryOrder: string[] = [];
   let categoryNotes: Record<string, string> | undefined;
   let bookingSettings:
@@ -492,9 +496,8 @@ export async function loadServicesCatalogSources(
       .eq("id", talentProfileId)
       .maybeSingle();
     if (!error) {
-      confirmsByHand = !talentOffersInstantBooking(
-        (data as { talent_plan_key?: string | null } | null)?.talent_plan_key,
-      );
+      planKey = (data as { talent_plan_key?: string | null } | null)?.talent_plan_key ?? null;
+      confirmsByHand = !talentOffersInstantBooking(planKey);
       const raw = (data as { category_order?: string[] | null } | null)?.category_order;
       if (Array.isArray(raw)) categoryOrder = raw.filter((name): name is string => typeof name === "string");
       const defaults = (data as { selling_defaults?: { categoryNotes?: unknown } | null } | null)?.selling_defaults;
@@ -529,10 +532,18 @@ export async function loadServicesCatalogSources(
     channel === "direct"
       ? catalogPromoPrices(offerings, priceContext(await loadPublicPromosForTalent(talentProfileId), locale))
       : {};
+  // TUL-1272 #3: quick view / own page per card. Undefined while the resolver flag is off.
+  const servicePresentation = await loadTalentServicePresentation(talentProfileId, locale, planKey, {
+    db: admin,
+    loadFaq: (id, l) => loadPublishedFaqForProfile(id, l),
+    loadReviews: (id) => loadReviewsSources(id, 5),
+    loadRating: loadTalentRatingSummary,
+  });
   return {
     talentOfferings: offerings,
     talentOfferingsConfirmsByHand: confirmsByHand,
     onlineCollectReady,
+    ...(servicePresentation ? { servicePresentation } : {}),
     ...(Object.keys(promoPrices).length ? { talentOfferingsPromoPrices: promoPrices } : {}),
     ...(bookingSettings ? { talentOfferingsBookingSettings: bookingSettings } : {}),
     ...(usdRates ? { talentOfferingsUsdRates: usdRates } : {}),
