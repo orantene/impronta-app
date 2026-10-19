@@ -8,8 +8,10 @@
  * it only answers "offered days" or "no trial".
  *
  * Sources of truth, in order:
- *   1. our own subscription row(s) (talent_subscriptions / workspace_subscriptions)
- *   2. the Stripe customer's subscription list (status "all")
+ *   1. our own subscription rows: one trial per USER across talent and every
+ *      workspace they joined (see trial-eligibility-readers.ts)
+ *   2. the Stripe customer's subscription list (status "all"; checkout only,
+ *      one retry); display surfaces pass no Stripe reader
  * Fail CLOSED: a read that errors grants NO trial (checkout still proceeds,
  * the buyer simply pays from day one). Pure apart from the injected readers.
  */
@@ -102,7 +104,9 @@ export async function decideCheckoutTrialDays(
   if (dbShowsPriorSubscription(db.data)) return null;
 
   if (deps.readStripeHistory) {
-    const stripe = await safeRead(deps.readStripeHistory);
+    // One retry on a transient Stripe error before failing closed.
+    let stripe = await safeRead(deps.readStripeHistory);
+    if (stripe.error) stripe = await safeRead(deps.readStripeHistory);
     if (stripe.error) {
       deps.onError("billing.trialEligibility.stripe", stripe.error);
       return null;

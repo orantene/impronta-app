@@ -214,7 +214,7 @@ export async function createWorkspaceCheckoutSession(opts: {
   // "14-day free trial" charged on day zero.
   const trialOffer = await loadTrialOffer("workspace", opts.planKey);
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
-  const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId }, customerResult.data, trialOffer);
+  const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId, buyerUserId: opts.buyerUserId }, customerResult.data, trialOffer);
 
   try {
     const session = await stripe.checkout.sessions.create({

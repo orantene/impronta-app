@@ -95,6 +95,7 @@ test("Stripe read fails on a clean DB: fail closed, no trial, error logged", asy
   const { d, calls } = deps({ stripe: new Error("ECONNRESET") });
   assert.equal(await decideCheckoutTrialDays(OFFER, d), null);
   assert.deepEqual(calls.errors, ["billing.trialEligibility.stripe"]);
+  assert.equal(calls.stripe, 2, "one retry before failing closed");
 });
 
 test("both reads fail: no trial, logged, and the decision still resolves (checkout proceeds)", async () => {
@@ -142,11 +143,13 @@ function fakeDb(result: { data: unknown; error: unknown }) {
   const seen: string[] = [];
   type Chain = Promise<{ data: unknown; error: unknown }> & {
     eq: (c: string, v: string) => Chain;
+    in: (c: string, v: readonly string[]) => Chain;
     or: (f: string) => Chain;
     limit: (n: number) => Chain;
   };
   const chain: Chain = Object.assign(Promise.resolve(result), {
     eq: (c: string, v: string) => (seen.push(`eq:${c}=${v}`), chain),
+    in: (c: string, v: readonly string[]) => (seen.push(`in:${c}=${v.join("|")}`), chain),
     or: (f: string) => (seen.push(`or:${f}`), chain),
     limit: (n: number) => (seen.push(`limit:${n}`), chain),
   });
