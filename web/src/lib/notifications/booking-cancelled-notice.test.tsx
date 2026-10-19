@@ -116,16 +116,17 @@ test("in-app title and body name the service and date, in EN and ES", () => {
 test("refund line covers refund, kept, nothing paid and unknown, in both languages, with no em dash", () => {
   const f = (paid: number | null, refund: number | null, locale: string, audience: "client" | "workspace" | "talent" = "client") =>
     bookingRefundLine({ audience, locale, paidCents: paid, refundCents: refund, currency: "MXN" });
-  assert.match(f(5000, 5000, "en"), /^Refund: .*50.*cancellation policy/);
-  assert.match(f(5000, 0, "en"), /Refund: none/);
-  assert.match(f(0, 0, "en"), /nothing to refund/);
+  const g = (...a: Parameters<typeof f>) => f(...a) ?? "";
+  assert.match(g(5000, 5000, "en"), /^Refund: .*50.*cancellation policy/);
+  assert.match(g(5000, 0, "en"), /Refund: none/);
+  assert.match(g(0, 0, "en"), /nothing to refund/);
   assert.equal(f(null, null, "en"), null, "unknown paid amount drops the line");
   assert.equal(f(null, null, "es"), null);
   assert.equal(f(5000, 5000, "en", "talent"), null, "the talent never sees the client's refund");
-  assert.match(f(5000, 5000, "es"), /^Reembolso: /);
-  assert.match(f(5000, 0, "es"), /Reembolso: ninguno/);
-  assert.match(f(0, 0, "es"), /nada que reembolsar/);
-  assert.match(f(5000, 2500, "en", "workspace"), /^Refund to the client/);
+  assert.match(g(5000, 5000, "es"), /^Reembolso: /);
+  assert.match(g(5000, 0, "es"), /Reembolso: ninguno/);
+  assert.match(g(0, 0, "es"), /nada que reembolsar/);
+  assert.match(g(5000, 2500, "en", "workspace"), /^Refund to the client/);
   for (const l of ["en", "es"]) for (const [p, r] of [[5000, 5000], [5000, 0], [0, 0], [null, null]] as const) {
     assert.doesNotMatch(f(p, r, l) ?? "", /—/);
   }
