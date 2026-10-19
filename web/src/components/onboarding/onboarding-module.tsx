@@ -41,6 +41,7 @@ import {
 import { choiceToPath, type OnboardingChoice, type OnboardingPath } from "@/lib/onboarding/module-state";
 import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
 
+import { runResumeLookup } from "./resume-lookup";
 import { OnboardingStepSkeleton } from "./step-skeleton";
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
@@ -117,17 +118,15 @@ export function OnboardingModule({
   const [savedSetup, setSavedSetup] = useState<Essentials | null>(null);
 
   // Resume: what this owner already had. Opening creates nothing.
-  useEffect(() => {
-    let cancelled = false;
-    void loadOnboardingResume().then((snapshot) => {
-      if (cancelled) return;
-      setResumeChecked(true);
-      dispatch({ type: "resumeLoaded", snapshot });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  useEffect(
+    () =>
+      runResumeLookup({
+        load: loadOnboardingResume,
+        onChecked: () => setResumeChecked(true),
+        onLoaded: (snapshot) => dispatch({ type: "resumeLoaded", snapshot }),
+      }),
+    [],
+  );
 
   const close = useCallback(() => {
     // Progress past entry is already on the server; the host's toast says so.
@@ -468,7 +467,10 @@ export function OnboardingModule({
     : state.step === "confirmWords" || state.step === "tooLittle" || state.step === "entry" || state.step === "essentials" || state.step === "setup" || state.step === "style" || state.step === "readyToBuild" || state.step === "save";
 
   let body: React.ReactNode;
-  if (state.resume) {
+  // GRK-109: wait for the resume lookup so a late "Bienvenido de nuevo" card cannot replace the first Continuar.
+  if (!resumeChecked) {
+    body = <div aria-busy className="py-16 text-center text-[0.875rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-resume-loading">…</div>;
+  } else if (state.resume) {
     body = (
       <ResumeCard
         t={t}

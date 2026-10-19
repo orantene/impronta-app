@@ -127,6 +127,49 @@ export function publishBlockers(o: TalentOffering): PublishBlocker[] {
   return out;
 }
 
+/**
+ * TUL-1271 #9 — what a "Save draft" writes on top of the item. A blank item is
+ * instant by default, and an instant item needs one exact price, so a draft
+ * with no price yet would be refused. A priceless draft is saved as
+ * request-to-book instead; the owner picks Direct booking again once priced.
+ */
+export function draftSeedFor(o: Pick<TalentOffering, "amountCents" | "bookingMode">): Partial<TalentOffering> {
+  const seed: Partial<TalentOffering> = { status: "draft" };
+  if (o.bookingMode === "instant" && o.amountCents == null) seed.bookingMode = "request";
+  return seed;
+}
+
+/**
+ * TUL-1271 #8 — "Save draft" on a saved, live item would write status=draft and
+ * unlist it everywhere. Edits on a saved item already write on blur, so the
+ * button is offered only for an item that is not live yet (or a brand-new one).
+ */
+export function canSaveDraftInPlace(o: Pick<TalentOffering, "status">, isNew: boolean): boolean {
+  return isNew || o.status !== "published";
+}
+
+/**
+ * TUL-1271 #7 — the deeper "Before publish" checks, said as warnings: they do
+ * not stop a Publish (an owner may sell without a photo), but they name what
+ * the shop will look like. `channel` flags a price-on-request item: it is public
+ * (D-10a), shown without a price on the site, and still sellable at the counter.
+ */
+export type PublishWarning = "photo" | "category" | "channel";
+
+export function publishWarnings(o: Pick<TalentOffering, "imageUrls" | "category" | "visibility">): PublishWarning[] {
+  const out: PublishWarning[] = [];
+  if (!o.imageUrls || o.imageUrls.length === 0) out.push("photo");
+  if (!o.category?.trim()) out.push("category");
+  if (o.visibility === "on_request") out.push("channel");
+  return out;
+}
+
+export const PUBLISH_WARNING_KEY: Record<PublishWarning, string> = {
+  photo: "dashboard.catalog.warning.photo",
+  category: "dashboard.catalog.warning.category",
+  channel: "dashboard.catalog.warning.channel",
+};
+
 export const PUBLISH_BLOCKER_KEY: Record<PublishBlocker, string> = {
   title: "dashboard.catalog.blocker.title",
   price: "dashboard.catalog.blocker.price",
