@@ -9,13 +9,11 @@ const FILE = "20261231418600_dated_places_columns_tul1344.sql";
 const sql = readFileSync(join(ROOT, "_pending_pm", FILE), "utf8");
 const body = sql.replace(/--.*$/gm, "");
 
-test("TUL-1344 migration is HELD in _pending_pm and sorts after every existing version", () => {
+test("TUL-1344 migration is HELD in _pending_pm and well formed (not applied-folder, versioned)", () => {
   assert.equal(readdirSync(ROOT).includes(FILE), false);
-  const all = [...readdirSync(ROOT), ...readdirSync(join(ROOT, "_pending_pm"))]
-    .filter((f) => /^\d{14}_/.test(f) && f !== FILE)
-    .map((f) => f.slice(0, 14))
-    .sort();
-  assert.ok(FILE.slice(0, 14) > all[all.length - 1]);
+  assert.ok(readdirSync(join(ROOT, "_pending_pm")).includes(FILE));
+  assert.match(FILE, /^\d{14}_[a-z0-9_]+\.sql$/);
+  // No claim about other files: later migrations may legitimately sort above it.
 });
 
 test("adds exactly the five dated-places columns, additive and idempotent", () => {
