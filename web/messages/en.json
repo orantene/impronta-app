@@ -22604,5 +22604,43 @@
         "description": "Occasional product updates and best-practice tips."
       }
     }
+  },
+  "businessOnboarding": {
+    "basics": {
+      "title": "Confirm your business basics",
+      "description": "Name, services and hours confirmed so clients know what you offer."
+    },
+    "services": {
+      "title": "Add your services",
+      "description": "List what you offer with a duration and a price or a quote."
+    },
+    "hours": {
+      "title": "Set your hours",
+      "description": "Choose the days and times clients can book you."
+    },
+    "location": {
+      "title": "Say where you work",
+      "description": "Add your area so clients know where to find you."
+    },
+    "photos": {
+      "title": "Add photos",
+      "description": "Show your work with at least one photo."
+    },
+    "team": {
+      "title": "Invite your team",
+      "description": "Add the people who take clients with you. You can do this later."
+    },
+    "payments": {
+      "title": "Connect payments",
+      "description": "Connect your payout account so clients can pay you."
+    },
+    "preview": {
+      "title": "Preview your page",
+      "description": "See your page the way clients will see it."
+    },
+    "publish": {
+      "title": "Publish your website",
+      "description": "Put your site live and share the link."
+    }
   }
 }
