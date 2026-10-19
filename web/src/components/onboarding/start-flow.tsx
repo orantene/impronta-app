@@ -12,7 +12,18 @@ import type { PlanIntent } from "@/lib/onboarding/plan-intent";
 
 import { OnboardingModule } from "./onboarding-module";
 
-export function StartFlow({ initialLocale, startChoice, planIntent = null }: { initialLocale: FlowLocale; startChoice: OnboardingChoice | null; planIntent?: PlanIntent | null }) {
+export function StartFlow({
+  initialLocale,
+  startChoice,
+  planIntent = null,
+  marketingOrigin,
+}: {
+  initialLocale: FlowLocale;
+  startChoice: OnboardingChoice | null;
+  planIntent?: PlanIntent | null;
+  /** Server-resolved marketing origin for legal links (TUL-750). */
+  marketingOrigin: string;
+}) {
   const [locale, setLocale] = useState<FlowLocale>(initialLocale);
   const onLocaleChange = useCallback((next: FlowLocale) => {
     setLocale(next);
@@ -47,6 +58,7 @@ export function StartFlow({ initialLocale, startChoice, planIntent = null }: { i
       intent="unknown"
       startChoice={startChoice}
       planIntent={planIntent}
+      marketingOrigin={marketingOrigin}
       onLocaleChange={onLocaleChange}
       onClose={() => {
         if (window.history.length > 1) window.history.back();
