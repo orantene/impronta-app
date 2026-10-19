@@ -105,7 +105,7 @@ export function SlotPicker({
       if (cancelled) return;
       if (!r.ok) {
         // Friendly, not an error: the guest can still send a request (B2/D3).
-        setError(t("public.slotPicker.noOnlineTimes"));
+        setError(t("public.bookPage.noTimesRequest"));
       } else {
         setSlots(r.slots);
         setEmptyReason(r.reason);

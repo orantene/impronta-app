@@ -4,7 +4,7 @@
  * Opens InquiryDrawer (request) or confirms via instant-book-action (instant).
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -59,7 +59,7 @@ export function BookableComposer({
   captcha = null,
   locale: localeProp,
   contactHref = null,
-  emptyAction = null,
+  requestLabel = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -76,8 +76,8 @@ export function BookableComposer({
   locale?: string | null;
   /** Empty-slot escape hatch for the inline picker (TUL-698). */
   contactHref?: string | null;
-  /** Request action the inline picker shows when it has no times (B2/D3). */
-  emptyAction?: ReactNode;
+  /** B2/D3: label of a request button (opens the drawer without a slot); also shown when the picker has no times. */
+  requestLabel?: string | null;
 }) {
   const cookieT = usePublicT();
   const dashboardLocale = useDashboardLocale();
@@ -232,8 +232,19 @@ export function BookableComposer({
     }
   }
 
+  const requestButton = requestLabel ? (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="rounded-full bg-[#0B0B0D] px-5 py-2.5 text-sm font-medium text-white"
+    >
+      {requestLabel}
+    </button>
+  ) : null;
+
   return (
     <div>
+      {showInlinePicker ? null : requestButton}
       {showInlinePicker ? (
         <SlotPicker
           offeringId={active.offeringId}
@@ -241,7 +252,7 @@ export function BookableComposer({
           timezone={active.timezone}
           locale={pageLocale}
           contactHref={contactHref}
-          emptyAction={emptyAction}
+          emptyAction={requestButton}
           value={slot}
           onChange={(next) => {
             setSlot(next);

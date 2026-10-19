@@ -107,9 +107,10 @@ test("page locale scope wins over the cookie locale, es and en", async () => {
 // Catches: services beyond the probe limit showing an empty picker with no request button.
 test("unprobed service: the picker empty state carries the request action", () => {
   const client = readFileSync(join(__dirname, "BookPageClient.tsx"), "utf8");
-  assert.match(client, /emptyAction=\{\s*<BookNoTimesRequest\s+bare/);
+  assert.match(client, /requestLabel=\{t\("public\.bookPage\.requestCta"\)\}/);
   const comp = readFileSync(join(__dirname, "../../../components/public-booking/BookableComposer.tsx"), "utf8");
-  assert.match(comp, /emptyAction=\{emptyAction\}/);
+  assert.match(comp, /emptyAction=\{requestButton\}/);
+  assert.match(comp, /onClick=\{\(\) => setOpen\(true\)\}/);
   const picker = readFileSync(join(__dirname, "../../../components/public-booking/SlotPicker.tsx"), "utf8");
   assert.match(picker, /\{emptyAction\}/);
   // used by both the empty and the failed-load branches

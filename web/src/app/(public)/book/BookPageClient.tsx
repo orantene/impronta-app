@@ -15,7 +15,6 @@ import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
 import { isRequestOnlyService, resolveSelectedOfferingId } from "./book-availability";
 import { BookLocaleScope } from "./BookLocaleScope";
-import { BookNoTimesRequest } from "./BookNoTimesRequest";
 
 export function BookPageClient({
   tenantSlug,
@@ -135,18 +134,12 @@ export function BookPageClient({
       {selected.seatsLabel ? (
         <p className="text-sm font-medium">{selected.seatsLabel}</p>
       ) : null}
-      {noTimes ? (
-        <BookNoTimesRequest
-          offeringId={selected.id}
-          offering={bookable}
-          tenantSlug={tenantSlug}
-          agencyName={agencyName}
-          signedIn={signedIn}
-          client={client}
-          contactHref={contactHref}
-          t={t}
-        />
-      ) : (
+      <div className="flex flex-col items-start gap-3" data-book-no-times={noTimes ? selected.id : undefined}>
+        {noTimes ? (
+          <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
+            {t("public.bookPage.noTimesRequest")}
+          </p>
+        ) : null}
         <BookableComposer
           tenantSlug={tenantSlug}
           tenantId={tenantId}
@@ -158,21 +151,15 @@ export function BookPageClient({
           captcha={captcha}
           locale={pageLocale}
           contactHref={contactHref}
-          emptyAction={
-            <BookNoTimesRequest
-              bare
-              offeringId={selected.id}
-              offering={bookable}
-              tenantSlug={tenantSlug}
-              agencyName={agencyName}
-              signedIn={signedIn}
-              client={client}
-              contactHref={null}
-              t={t}
-            />
-          }
+          showInlinePicker={!noTimes}
+          requestLabel={t("public.bookPage.requestCta")}
         />
-      )}
+        {noTimes && contactHref ? (
+          <Link href={contactHref} className="text-sm underline">
+            {t("public.bookPage.contactCta")}
+          </Link>
+        ) : null}
+      </div>
     </div>
     </BookLocaleScope>
   );
