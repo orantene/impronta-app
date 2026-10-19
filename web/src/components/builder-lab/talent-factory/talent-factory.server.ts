@@ -22,6 +22,7 @@ import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 
 import { buildStudioChecklist, buildTokenPreview, studioFlagOn } from "./studio-checklist";
+import { renderStudioPanel } from "./studio-panel";
 import {
   codeVersionOf,
   deriveFactoryStatus,
@@ -154,12 +155,14 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
       canRebuild: demoCount > 0,
       referenceDemoCode,
       mockupRun,
-      studio: studioOn ? studioChecklistFor(slug, { referenceDemoCode, galleryVisible, mockupRun }) : undefined,
-      studioTokens: studioOn
-        ? buildTokenPreview({
-            fonts: getGalleryDesign(slug)?.fonts ?? null,
-            palettes: (getGalleryDesign(slug)?.palettes ?? []).map((p) => ({ key: p.key, name: p.name.en, page: p.page, section: p.section, text: p.text, accent: p.accent })),
-          })
+      studioHtml: studioOn
+        ? renderStudioPanel(
+            studioChecklistFor(slug, { referenceDemoCode, galleryVisible, mockupRun }),
+            buildTokenPreview({
+              fonts: getGalleryDesign(slug)?.fonts ?? null,
+              palettes: (getGalleryDesign(slug)?.palettes ?? []).map((p) => ({ key: p.key, name: p.name.en, page: p.page, section: p.section, text: p.text, accent: p.accent })),
+            }),
+          )
         : undefined,
       codeSeedReview: factoryNeedsCodeSeedReview({
         slug,

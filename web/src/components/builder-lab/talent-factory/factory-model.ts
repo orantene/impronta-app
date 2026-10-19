@@ -5,8 +5,6 @@
  * business starters are a different product and never appear here.
  */
 
-import type { StudioChecklist, StudioTokenPreview } from "./studio-checklist";
-
 export type FactoryStatus = "up_to_date" | "code_ahead" | "not_synced" | "authored_pending" | "authored_hidden";
 
 /** The newest local mockup-parity run for one design (summary.json subset). */
@@ -51,10 +49,8 @@ export interface FactoryDesignRow {
    * git yet — offer "Review code seed in Builder Lab" (TUL-366).
    */
   codeSeedReview?: boolean;
-  /** Theme Studio finished checklist (TUL-20); present only when TALENT_THEME_STUDIO=1. */
-  studio?: StudioChecklist;
-  /** Theme Studio read-only token preview; present only when TALENT_THEME_STUDIO=1. */
-  studioTokens?: StudioTokenPreview;
+  /** Theme Studio panel, server-rendered HTML (EN+ES); present only when TALENT_THEME_STUDIO=1. */
+  studioHtml?: string;
 }
 
 export interface FactoryOverview {

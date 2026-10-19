@@ -33,8 +33,6 @@ const btn =
   "rounded border border-white/30 px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40";
 const link = "text-white/80 underline underline-offset-4 hover:text-white";
 
-import { STUDIO_COPY } from "./studio-checklist-copy";
-
 export function TalentFactoryTab({
   locale,
   initial,
@@ -373,40 +371,12 @@ function DesignCard({
         </div>
       </div>
 
-      {row.studio ? (
-        <div className="mt-4 border-t border-white/10 pt-3" data-studio-checklist={row.studio.ready ? "ready" : "blocked"}>
-          <p className="text-xs uppercase tracking-wider text-white/40">
-            {STUDIO_COPY[lang].title}: {row.studio.ready ? STUDIO_COPY[lang].ready : STUDIO_COPY[lang].notReady}
-          </p>
-          <ul className="mt-1 space-y-0.5 text-sm text-white/70">
-            {row.studio.rows.map((r) => (
-              <li key={r.key} data-studio-row={r.key} data-ok={r.ok ? "1" : "0"}>
-                {r.ok ? STUDIO_COPY[lang].ok : STUDIO_COPY[lang].blocked}: {STUDIO_COPY[lang].rows[r.key]}
-                {r.detail ? ` (${r.detail})` : r.key === "parity" && !r.ok ? ` (${STUDIO_COPY[lang].noRun})` : ""}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {row.studioTokens ? (
-        <div className="mt-3" data-studio-tokens>
-          <p className="text-xs uppercase tracking-wider text-white/40">{STUDIO_COPY[lang].tokens}</p>
-          {row.studioTokens.heading ? (
-            <p className="mt-1 text-lg" style={{ fontFamily: row.studioTokens.heading }} data-studio-type-sample>
-              Aa {row.studioTokens.heading.split(",")[0]}
-            </p>
-          ) : null}
-          {row.studioTokens.palettes.map((p) => (
-            <div key={p.key} className="mt-1 flex items-center gap-1" data-studio-palette={p.key}>
-              {p.swatches.map((s) => (
-                <span key={s.role} title={`${s.role} ${s.hex}`} className="inline-block h-4 w-4 rounded border border-white/20" style={{ background: s.hex }} />
-              ))}
-              <span className="ml-1 text-xs text-white/60">{p.name}</span>
-            </div>
-          ))}
-          <p className="mt-1 text-xs text-white/50">{STUDIO_COPY[lang].editHint}</p>
-        </div>
+      {row.studioHtml ? (
+        <div
+          className={`mt-4 border-t border-white/10 pt-3 text-sm text-white/70 ${lang === "en" ? "[&_[data-l=es]]:hidden" : "[&_[data-l=en]]:hidden"}`}
+          data-studio
+          dangerouslySetInnerHTML={{ __html: row.studioHtml }}
+        />
       ) : null}
 
       {row.canRebuild ? <DemoRebuildPanel design={row.slug} lang={lang} /> : null}

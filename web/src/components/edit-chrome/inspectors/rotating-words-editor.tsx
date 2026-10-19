@@ -7,14 +7,12 @@
  * `{rotate}` marker where the word goes.
  */
 import type { BuilderHeadingNode } from "@/lib/site-admin/builder-node/types";
-import { ROTATE_MARKER, ROTATE_MAX_CHARS, ROTATE_MAX_WORDS } from "@/lib/site-admin/builder-node/rotating-word-logic";
+import { ROTATE_MAX_CHARS, ROTATE_MAX_WORDS } from "@/lib/site-admin/builder-node/rotating-word-logic";
 
 import { KIT } from "./kit/tokens";
 import type { LocalizableTextFieldComponent } from "./builder-2027-node-content";
 
-const HELP =
-  "Put {rotate} in the heading where the word goes. The words take turns, in italics. Visitors who prefer reduced motion see the first word only.";
-const NO_MARKER = "Add {rotate} to the heading text, or these words will not show.";
+const HELP = "Put {rotate} in the heading where the word goes. Words take turns, in italics.";
 
 type CommitPatch = (patch: Record<string, unknown>) => void;
 
@@ -30,7 +28,6 @@ export function RotatingWordsEditor({
   LocalizableTextField: LocalizableTextFieldComponent;
 }) {
   const words = node.props.rotatingWords ?? [];
-  const hasMarker = node.props.text.includes(ROTATE_MARKER);
 
   const setWord = (i: number, text: string) =>
     commitPatch({ rotatingWords: words.map((w, j) => (j === i ? { text: text.slice(0, ROTATE_MAX_CHARS) } : w)) });
@@ -41,11 +38,6 @@ export function RotatingWordsEditor({
     <div className={KIT.field} data-rotating-words-editor>
       <label className={KIT.label}>Rotating words</label>
       <p className="mb-1 text-[12px] text-stone-500">{HELP}</p>
-      {!hasMarker && words.length > 0 ? (
-        <p className="mb-1 text-[12px] text-sky-700" role="status">
-          {NO_MARKER}
-        </p>
-      ) : null}
       {words.map((w, i) => (
         <div key={i} className="mb-1 flex items-center gap-2">
           <div className="min-w-0 flex-1">
@@ -70,24 +62,6 @@ export function RotatingWordsEditor({
         <button type="button" className="text-[13px] text-stone-800 underline" onClick={add}>
           Add a word
         </button>
-      ) : null}
-      {words.length > 0 ? (
-        <div className="mt-2">
-          <label className={KIT.label}>Seconds per word</label>
-          <input
-            type="number"
-            min={1.5}
-            max={8}
-            step={0.5}
-            className={KIT.input}
-            defaultValue={(node.props.rotateMs ?? 3200) / 1000}
-            aria-label="Seconds per word"
-            onBlur={(e) => {
-              const s = Number.parseFloat(e.currentTarget.value);
-              if (Number.isFinite(s)) commitPatch({ rotateMs: Math.min(Math.max(Math.round(s * 1000), 1500), 8000) });
-            }}
-          />
-        </div>
       ) : null}
     </div>
   );

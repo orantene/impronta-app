@@ -274,7 +274,7 @@ export function PortfolioContentInspector({
           <span>
             Tag filter
             <span className="mt-0.5 block text-[12px] text-stone-500">
-              Chips above the photos (All, Headshots, Family...). Visitors tap a chip to show only that tag. Tag a photo in your media library.
+              Chips above the photos; visitors tap one to see only that tag.
             </span>
           </span>
         </label>

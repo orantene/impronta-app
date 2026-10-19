@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import type { FactoryOverview } from "./factory-model";
+import { renderStudioPanel } from "./studio-panel";
 import { TalentFactoryTab } from "./talent-factory-tab";
 
 const row = (slug: string, title: string, over: Partial<FactoryOverview["rows"][number]> = {}) => ({
@@ -106,29 +107,24 @@ describe("TalentFactoryTab render", () => {
   it("authored_pending shows the pull command", () => {
     assert.match(html, /npm run theme:pull-authored -- --design pending/);
   });
-  it("renders the Studio checklist only when a row carries one (flag off = absent)", () => {
-    assert.doesNotMatch(html, /data-studio-checklist/);
-    const studio = {
-      ready: false,
-      rows: [
-        { key: "pack" as const, ok: false, detail: "kit.js" },
-        { key: "gaps" as const, ok: false, detail: "W-12 contact sheet tag filter and loupe" },
-        { key: "gallery" as const, ok: true },
-      ],
-    };
-    const studioTokens = { heading: "Manrope, sans-serif", body: "Inter", palettes: [{ key: "paper", name: "Paper & Teal", swatches: [{ role: "page", hex: "#FFFFFF" }, { role: "accent", hex: "#0E6B6B" }] }] };
-    const withStudio: FactoryOverview = { ...DATA, rows: [row("frame", "Frame", { studio, studioTokens })] };
+  it("injects the server-rendered Studio panel only when a row carries one, one language visible", () => {
+    assert.doesNotMatch(html, /data-studio/);
+    const studioHtml = renderStudioPanel(
+      { ready: false, rows: [{ key: "pack", ok: false, detail: "kit.js" }, { key: "gallery", ok: true }] },
+      { heading: "Manrope, sans-serif", body: "Inter", palettes: [{ key: "paper", name: "Paper & Teal", swatches: [{ role: "page", hex: "#FFFFFF" }] }] },
+    );
+    const withStudio: FactoryOverview = { ...DATA, rows: [row("frame", "Frame", { studioHtml })] };
     const en = renderToStaticMarkup(<TalentFactoryTab initial={withStudio} />);
+    assert.match(en, /data-studio/);
     assert.match(en, /data-studio-checklist="blocked"/);
     assert.match(en, /Not ready/);
-    assert.match(en, /W-12 contact sheet/);
-    assert.match(en, /data-studio-tokens/);
     assert.match(en, /Paper &amp; Teal/);
-    assert.match(en, /save a draft release/);
+    assert.match(en, /\[&amp;_\[data-l=es\]\]:hidden|\[&_\[data-l=es\]\]:hidden/);
     const es = renderToStaticMarkup(<TalentFactoryTab locale="es" initial={withStudio} />);
     assert.match(es, /Lista de verificación/);
     assert.match(es, /Bloqueado/);
     assert.match(es, /borrador de lanzamiento/);
+    assert.match(es, /data-l=en\]\]:hidden|data-l=en\]:hidden/);
     assert.doesNotMatch(es, /—/);
   });
 });

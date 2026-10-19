@@ -355,13 +355,10 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
   "Not shown on your site": "No se muestra en tu sitio",
   // W-10 rotating words + W-12 tag filter
   "Tag filter": "Filtro por etiqueta",
-  "Chips above the photos (All, Headshots, Family...). Visitors tap a chip to show only that tag. Tag a photo in your media library.":
-    "Botones sobre las fotos (Todo, Retratos, Familia...). Quien visita toca uno para ver solo esa etiqueta. Etiqueta una foto en tu biblioteca de medios.",
+  "Chips above the photos; visitors tap one to see only that tag.":
+    "Botones sobre las fotos; quien visita toca uno para ver solo esa etiqueta.",
   "Rotating words": "Palabras rotativas",
-  "Put {rotate} in the heading where the word goes. The words take turns, in italics. Visitors who prefer reduced motion see the first word only.":
-    "Pon {rotate} en el título donde va la palabra. Las palabras se turnan, en cursiva. Quien prefiere menos movimiento ve solo la primera palabra.",
-  "Add {rotate} to the heading text, or these words will not show.":
-    "Agrega {rotate} al texto del título, o estas palabras no se mostrarán.",
+  "Put {rotate} in the heading where the word goes. Words take turns, in italics.":
+    "Pon {rotate} en el título donde va la palabra. Las palabras se turnan, en cursiva.",
   "Add a word": "Agregar una palabra",
-  "Seconds per word": "Segundos por palabra",
 };

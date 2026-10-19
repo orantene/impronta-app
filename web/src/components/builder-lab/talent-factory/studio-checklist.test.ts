@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { renderStudioPanel } from "./studio-panel";
 import { STUDIO_COPY } from "./studio-checklist-copy";
 import { buildStudioChecklist, buildTokenPreview, studioFlagOn, type StudioFacts } from "./studio-checklist";
 
@@ -87,5 +88,25 @@ describe("STUDIO_COPY tokens", () => {
     assert.ok(STUDIO_COPY.en.tokens.length > 0 && STUDIO_COPY.es.tokens.length > 0);
     assert.notEqual(STUDIO_COPY.en.tokens, STUDIO_COPY.es.tokens);
     assert.ok(STUDIO_COPY.en.editHint.length > 0 && STUDIO_COPY.es.editHint.length > 0);
+  });
+});
+
+describe("renderStudioPanel", () => {
+  const checklist = buildStudioChecklist({ ...FULL, gaps: ["W-12 <b>x</b>"], openDeltas: null });
+  const html = renderStudioPanel(checklist, undefined);
+  it("renders every row in both languages and escapes interpolated text", () => {
+    for (const k of ["pack", "demo", "parity", "gaps", "overlay", "gallery"]) assert.match(html, new RegExp(`data-studio-row="${k}"`));
+    assert.match(html, /data-l="en"/);
+    assert.match(html, /data-l="es"/);
+    assert.doesNotMatch(html, /<b>x<\/b>/);
+    assert.match(html, /W-12 &lt;b&gt;x&lt;\/b&gt;/);
+    assert.match(html, /sin ejecución/);
+    assert.doesNotMatch(html, /—/);
+  });
+  it("token preview adds swatches, a type sample and the edit hint", () => {
+    const withTokens = renderStudioPanel(checklist, { heading: "Manrope, sans-serif", body: "", palettes: [{ key: "p", name: "Paper", swatches: [{ role: "accent", hex: "#0E6B6B" }] }] });
+    assert.match(withTokens, /data-studio-tokens/);
+    assert.match(withTokens, /background:#0E6B6B/);
+    assert.match(withTokens, /Aa Manrope/);
   });
 });
