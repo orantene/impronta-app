@@ -12,6 +12,7 @@ import test from "node:test";
 import {
   billingDateLabel,
   isCancellationPending,
+  resumeSubscriptionParams,
   subscriptionCancelMirror,
 } from "./pending-cancellation";
 import { BILLING_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-billing";
@@ -66,9 +67,33 @@ test("both sync lanes write the mirror through the shared helper", () => {
   }
 });
 
-test("resume clears cancel_at at Stripe in both lanes (undo sets the mirror back to false)", () => {
+test("resume params: portal-style sub sends only cancel_at: ''", () => {
+  const p = resumeSubscriptionParams({ cancel_at_period_end: false, cancel_at: FUTURE });
+  assert.deepEqual(p, { cancel_at: "" });
+});
+
+test("resume params: app-style sub (flag true, Stripe also reports cancel_at) sends only the flag", () => {
+  assert.deepEqual(resumeSubscriptionParams({ cancel_at_period_end: true, cancel_at: FUTURE }), {
+    cancel_at_period_end: false,
+  });
+  assert.deepEqual(resumeSubscriptionParams({ cancel_at_period_end: true, cancel_at: null }), {
+    cancel_at_period_end: false,
+  });
+});
+
+test("resume params never contain both keys", () => {
+  for (const c of CASES) {
+    const keys = Object.keys(resumeSubscriptionParams(c.sub));
+    assert.equal(keys.length, 1, `${c.name}: ${keys.join(",")}`);
+  }
+});
+
+test("both resume paths read the subscription and use resumeSubscriptionParams", () => {
   for (const file of ["lib/stripe/talent-billing.ts", "lib/stripe/workspace-billing.ts"]) {
-    assert.match(read(file), /cancel_at_period_end:\s*false,\s*cancel_at:\s*""/, `${file} resume must send cancel_at: ""`);
+    const src = read(file);
+    assert.match(src, /resumeSubscriptionParams\(/, `${file} must use resumeSubscriptionParams`);
+    assert.match(src, /subscriptions\.retrieve\(/, `${file} must read the live subscription`);
+    assert.doesNotMatch(src, /cancel_at_period_end:\s*false,\s*cancel_at:/, `${file} must never send both keys`);
   }
 });
 

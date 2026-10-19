@@ -11,7 +11,7 @@
  * talent_profiles.talent_plan_key is synced by syncTalentSubscriptionToDb().
  */
 
-import { subscriptionCancelMirror } from "@/lib/billing/pending-cancellation";
+import { resumeSubscriptionParams, subscriptionCancelMirror } from "@/lib/billing/pending-cancellation";
 import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
@@ -611,9 +611,10 @@ export async function resumeTalentSubscription(opts: {
     return { ok: false, error: "Billing is not available right now. Nothing was changed." };
   }
   try {
+    const live = await stripe.subscriptions.retrieve(row.stripe_subscription_id);
     const updated = await stripe.subscriptions.update(
       row.stripe_subscription_id,
-      { cancel_at_period_end: false, cancel_at: "" },
+      resumeSubscriptionParams(live),
       { idempotencyKey: talentCancelIdempotencyKey("resume", row.stripe_subscription_id, Date.now()) },
     );
     const end = updated.items?.data?.[0]?.current_period_end ?? null;

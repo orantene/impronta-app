@@ -37,6 +37,20 @@ export function subscriptionCancelMirror(
   return { cancel_at_period_end: isCancellationPending(sub, now) };
 }
 
+/**
+ * The ONE param Stripe accepts to undo a pending cancellation. Stripe rejects
+ * a request carrying both `cancel_at_period_end` and `cancel_at`. An app-style
+ * cancel sets the flag (Stripe then also reports `cancel_at`), so the flag
+ * wins; a portal-style cancel leaves the flag false and only `cancel_at`
+ * is set, which is cleared with an empty string.
+ */
+export function resumeSubscriptionParams(
+  sub: CancelFields,
+): { cancel_at_period_end: false } | { cancel_at: "" } {
+  if (sub.cancel_at_period_end !== true && sub.cancel_at != null) return { cancel_at: "" };
+  return { cancel_at_period_end: false };
+}
+
 /** English source label for the date row in the Billing panel (ES in dashboard-i18n-billing). */
 export function billingDateLabel(cancellationPending: boolean): "Ends on" | "Next charge" {
   return cancellationPending ? "Ends on" : "Next charge";
