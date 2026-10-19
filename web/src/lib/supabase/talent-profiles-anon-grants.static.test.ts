@@ -37,18 +37,11 @@ const PRIVATE_COLUMNS = [
   "invitation_email",
   "stripe_account_id",
   "gp_recipient_account_id",
-  "user_id",
   "ai_search_document",
 ] as const;
 
 /** Anon-key readers that legitimately name a private column, with the reason. */
 const ANON_FILE_ALLOWLIST: Record<string, string> = {
-  // Owner-only draft preview: `.eq("user_id", user.id)` runs after
-  // `auth.getUser()` succeeded, i.e. as `authenticated`, never as anon.
-  "src/app/t/[profileCode]/profile-view.tsx": "owner preview, authenticated session only",
-  // Reads user_id through createServiceRoleClient() (`svc`) after auth.getUser();
-  // the file also builds an anon client for unrelated public reads.
-  "src/lib/reviews/load-reviews.ts": "ownership check on the service-role client",
 };
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -205,12 +198,12 @@ test("the scanner can refuse (self-check)", () => {
     "fixture.ts",
     'const a = sb.from("talent_profiles").select("id, phone_e164");\n' +
       'const b = sb.from("talent_profiles").select("*");\n' +
-      'const c = sb.from("orders").select("id, talent_profiles!tp ( display_name, user_id )");',
+      'const c = sb.from("orders").select("id, talent_profiles!tp ( display_name, legal_name )");',
   );
   assert.equal(bad.length, 3);
   assert.ok(bad[0].cols.includes("phone_e164"));
   assert.ok(bad[1].star);
-  assert.ok(bad[2].cols.includes("user_id"));
+  assert.ok(bad[2].cols.includes("legal_name"));
 });
 
 test("directory age filter never reads date_of_birth through the caller's client", () => {

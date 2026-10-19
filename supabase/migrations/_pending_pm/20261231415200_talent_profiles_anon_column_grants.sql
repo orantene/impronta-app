@@ -16,6 +16,7 @@
 -- are non-null; has_column_privilege('anon', ..., 'SELECT') is TRUE for phone,
 -- phone_e164, date_of_birth, legal_name, invitation_email, stripe_account_id,
 -- gp_recipient_account_id, user_id, ai_search_document.
+-- (user_id stays granted in THIS file, see RESIDUAL below.)
 --
 -- ─── THE FIX ─────────────────────────────────────────────────────────────────
 -- Same pattern as 20261126000000 (agency_domains) and 20261110070000
@@ -23,11 +24,19 @@
 -- every column EXCEPT the private set. The grant list is built from
 -- information_schema at apply time (not hand-typed) so a column the types file
 -- does not know about yet (e.g. processing_fee_payer) is still granted, and the
--- only columns that change are the nine named below.
+-- only columns that change are the eight named below.
 --
 -- PRIVATE SET (anon loses these, nothing else):
 --   phone, phone_e164, date_of_birth, legal_name, invitation_email,
---   stripe_account_id, gp_recipient_account_id, user_id, ai_search_document
+--   stripe_account_id, gp_recipient_account_id, ai_search_document
+--
+-- RESIDUAL (deliberate): `user_id` is NOT revoked here. A rolled-back staging test
+-- that revoked it made 52 anon-readable tables (inquiries, media_assets,
+-- talent_offerings, talent_profile_taxonomy, talent_profile_field_values, ...)
+-- fail with 42501 because their RLS policies subquery talent_profiles.user_id =
+-- auth.uid() and policy expressions run with the caller's privileges. Closing
+-- user_id needs those policies rewritten onto a SECURITY DEFINER owner helper
+-- first; that is a separate PR.
 --
 -- `authenticated` keeps its table-wide grant (documented residual: the public
 -- policy has no role clause, so a logged-in user can still read these on public
@@ -75,7 +84,6 @@ BEGIN
        'invitation_email',
        'stripe_account_id',
        'gp_recipient_account_id',
-       'user_id',
        'ai_search_document'
      );
 
@@ -95,7 +103,7 @@ DECLARE
   c text;
   private_cols text[] := ARRAY[
     'phone', 'phone_e164', 'date_of_birth', 'legal_name', 'invitation_email',
-    'stripe_account_id', 'gp_recipient_account_id', 'user_id', 'ai_search_document'
+    'stripe_account_id', 'gp_recipient_account_id', 'ai_search_document'
   ];
   public_cols text[] := ARRAY[
     'id', 'profile_code', 'display_name', 'first_name', 'last_name', 'short_bio',
