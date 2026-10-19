@@ -1,5 +1,7 @@
 import "server-only";
 
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+
 /**
  * Storefront mount for the Tenant Registration Engine.
  *
@@ -88,6 +90,7 @@ export async function TenantRegisterMount() {
   return (
     <TenantRegisterModalHost
       locale={await getRequestLocale()}
+      marketingOrigin={resolveMarketingOrigin()}
       tenant={{
         slug,
         displayName,
