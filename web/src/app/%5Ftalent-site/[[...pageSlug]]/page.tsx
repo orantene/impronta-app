@@ -114,6 +114,11 @@ async function originalLocalePrefix(locale: string): Promise<string | null> {
   }
 }
 
+/** `/en/<slug>` when the request carried a locale prefix, else `/<slug>`. */
+function serviceRedirectPath(localePrefix: string | null, slug: string): string {
+  return `${localePrefix ? `/${localePrefix}` : ""}/${encodeURIComponent(slug)}`;
+}
+
 function firstSegment(pageSlug: string[] | undefined): string | null {
   if (!pageSlug || pageSlug.length === 0) return null;
   // The proxy only ever rewrites a single page segment here, but guard anyway:
@@ -261,6 +266,8 @@ async function TalentSiteBody({
   // `/privacy` is the English word talents and footers guess; it used to 404
   // unless authored. The policy page lives at `/privacidad`.
   if (result.kind !== "render" && seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
+  // TUL-1272 C1: an old service slug 301s to the current one, keeping the locale prefix.
+  if (result.kind === "redirect") permanentRedirect(serviceRedirectPath(await originalLocalePrefix(locale), result.slug));
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (
