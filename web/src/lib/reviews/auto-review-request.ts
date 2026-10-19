@@ -28,6 +28,14 @@ import { tenantReviewsEnabled } from "./reviews-entitlement";
  */
 
 const BOOKING_LIMIT = 500;
+/** `.in()` filters travel in the URL: keep each id list small. */
+const ID_CHUNK = 100;
+
+function chunk<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 const PG_UNIQUE_VIOLATION = "23505";
 
 export type AutoReviewRunSummary = {
@@ -37,6 +45,8 @@ export type AutoReviewRunSummary = {
   alreadyRequested: number;
   skippedNotEntitled: number;
   failed: number;
+  /** Rows removed because the invite failed to send; the next run recreates them. */
+  retryNextRun: number;
 };
 
 export async function runAutoReviewRequests(now: Date = new Date()): Promise<AutoReviewRunSummary> {
@@ -47,6 +57,7 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
     alreadyRequested: 0,
     skippedNotEntitled: 0,
     failed: 0,
+    retryNextRun: 0,
   };
   const svc = createServiceRoleClient();
   if (!svc) return summary;
@@ -76,22 +87,34 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
     if (bookings.length === 0) return summary;
     const ids = bookings.map((b) => b.id);
 
-    const [{ data: reqRows, error: reqErr }, { data: btRows, error: btErr }] = await Promise.all([
-      svc.from("review_requests").select("booking_id").in("booking_id", ids),
-      svc.from("booking_talent").select("booking_id, talent_profile_id").in("booking_id", ids),
-    ]);
-    if (reqErr || btErr) {
+    // Batches of 100 ids, so the filter never outgrows the request URL.
+    const reqRows: Array<{ booking_id: string | null }> = [];
+    const btRows: Array<{ booking_id: string; talent_profile_id: string }> = [];
+    let lookupErr: unknown = null;
+    for (const part of chunk(ids, ID_CHUNK)) {
+      const [r, t] = await Promise.all([
+        svc.from("review_requests").select("booking_id").in("booking_id", part),
+        svc.from("booking_talent").select("booking_id, talent_profile_id").in("booking_id", part),
+      ]);
+      if (r.error || t.error) {
+        lookupErr = r.error ?? t.error;
+        break;
+      }
+      reqRows.push(...((r.data ?? []) as typeof reqRows));
+      btRows.push(...((t.data ?? []) as typeof btRows));
+    }
+    if (lookupErr) {
       // Without both answers "already asked" and "one talent" cannot be judged:
       // refuse the run rather than guess. The next daily run retries.
-      logServerError("reviews/auto/lookup", reqErr ?? btErr);
+      logServerError("reviews/auto/lookup", lookupErr);
       summary.failed += 1;
       return summary;
     }
     const requestedBookingIds = new Set(
-      ((reqRows ?? []) as Array<{ booking_id: string | null }>).map((r) => r.booking_id).filter((v): v is string => !!v),
+      reqRows.map((r) => r.booking_id).filter((v): v is string => !!v),
     );
     const talentsByBooking = new Map<string, string[]>();
-    for (const r of (btRows ?? []) as Array<{ booking_id: string; talent_profile_id: string }>) {
+    for (const r of btRows) {
       const list = talentsByBooking.get(r.booking_id) ?? [];
       list.push(r.talent_profile_id);
       talentsByBooking.set(r.booking_id, list);
@@ -103,6 +126,9 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
     const entitled = new Map<string, boolean>();
     for (const d of decision.due) {
       const b = d.booking;
+      // Set once the row exists, cleared once the invite is out: whatever throws in
+      // between, the row is removed so the next run creates it and tries again.
+      let uninvitedRowId: string | null = null;
       try {
         if (!entitled.has(b.tenant_id)) entitled.set(b.tenant_id, await tenantReviewsEnabled(b.tenant_id));
         if (!entitled.get(b.tenant_id)) {
@@ -136,6 +162,7 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
         }
         if (!created?.id) continue;
         summary.created += 1;
+        uninvitedRowId = created.id;
 
         const { data: talent } = await svc
           .from("talent_profiles")
@@ -147,25 +174,50 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
         const reviewUrl = created.invite_token
           ? `${getAppUrl()}/review/${encodeURIComponent(created.invite_token)}`
           : `${getAppUrl()}/`;
-        const sent = await dispatchEventNotifications({
-          type: "review.request_created",
-          tenantId: b.tenant_id,
-          eventId: `review-invite:${created.id}`,
-          payload: {
-            clientUserId: d.clientUserId,
-            invitedEmail: d.invitedEmail,
-            locale,
-            talentName: talent?.display_name ?? null,
-            // The service is what the review is about; the booking title is the fallback.
-            eventTitle: serviceName ?? b.title,
-            eventDate: b.event_date ?? b.starts_at,
-            reviewUrl,
-          },
-        });
-        if (sent.dispatched > 0) summary.invited += 1;
+        let sent: Awaited<ReturnType<typeof dispatchEventNotifications>>;
+        try {
+          sent = await dispatchEventNotifications({
+            type: "review.request_created",
+            tenantId: b.tenant_id,
+            eventId: `review-invite:${created.id}`,
+            payload: {
+              clientUserId: d.clientUserId,
+              invitedEmail: d.invitedEmail,
+              locale,
+              talentName: talent?.display_name ?? null,
+              // The service is what the review is about; the booking title is the fallback.
+              eventTitle: serviceName ?? b.title,
+              eventDate: b.event_date ?? b.starts_at,
+              reviewUrl,
+            },
+
+          });
+        } catch (err) {
+          logServerError("reviews/auto/dispatch", err);
+          sent = { dispatched: 0, suppressed: 0, failed: 1, queued: 0 };
+        }
+        if (sent.dispatched > 0) {
+          summary.invited += 1;
+          uninvitedRowId = null;
+        } else if (sent.failed === 0) {
+          // Suppressed, skipped or queued on purpose (opt-out, no provider key): nothing to retry.
+          uninvitedRowId = null;
+        }
       } catch (err) {
         logServerError("reviews/auto/booking", err);
         summary.failed += 1;
+      }
+      if (uninvitedRowId) {
+        // The invite never went out. Remove the row so the next daily run creates
+        // it and tries again: a request is never silently lost.
+        const { error: delErr } = await svc
+          .from("review_requests")
+          .delete()
+          .eq("id", uninvitedRowId)
+          .eq("source", "auto")
+          .eq("status", "pending");
+        if (delErr) logServerError("reviews/auto/rollback", delErr);
+        else summary.retryNextRun += 1;
       }
     }
   } catch (err) {

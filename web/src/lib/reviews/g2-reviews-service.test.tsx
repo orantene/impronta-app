@@ -290,3 +290,26 @@ test("migration: additive, held, one automatic request per booking enforced by t
   assert.match(sql, /GRANT SELECT \(offering_id\) ON public\.talent_reviews TO anon, authenticated/);
   assert.doesNotMatch(sql, /^\s*DROP\s+(TABLE|COLUMN)/im);
 });
+
+test("review fix: id lookups go in batches of 100 or fewer", () => {
+  const producer = read("src/lib/reviews/auto-review-request.ts");
+  assert.match(producer, /const ID_CHUNK = 100;/);
+  assert.match(producer, /for \(const part of chunk\(ids, ID_CHUNK\)\)/);
+  // no unbatched .in("booking_id", ids)
+  assert.doesNotMatch(producer, /\.in\("booking_id", ids\)/);
+  assert.equal((producer.match(/\.in\("booking_id", part\)/g) ?? []).length, 2);
+});
+
+test("review fix: a request whose invite never went out is removed so the next run retries it", () => {
+  const producer = read("src/lib/reviews/auto-review-request.ts");
+  // the row is tracked from insert until the invite is out (or deliberately not sent)
+  assert.match(producer, /let uninvitedRowId: string \| null = null;/);
+  assert.match(producer, /uninvitedRowId = created\.id;/);
+  assert.match(producer, /sent\.dispatched > 0\) \{\s*summary\.invited \+= 1;\s*uninvitedRowId = null;/);
+  // a thrown dispatch counts as failed
+  assert.match(producer, /sent = \{ dispatched: 0, suppressed: 0, failed: 1, queued: 0 \};/);
+  // the rollback only touches an automatic, still-pending row
+  assert.match(producer, /\.delete\(\)\s*\.eq\("id", uninvitedRowId\)\s*\.eq\("source", "auto"\)\s*\.eq\("status", "pending"\)/);
+  // opt-outs and skips are not retried
+  assert.match(producer, /sent\.failed === 0\) \{[\s\S]*?uninvitedRowId = null;/);
+});
