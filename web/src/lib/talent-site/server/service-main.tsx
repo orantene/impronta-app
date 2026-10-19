@@ -23,7 +23,7 @@ import {
   type ServicePageOffering,
 } from "@/lib/talent-site/service-page";
 
-import { serviceReviewsCopy, serviceReviewsJsonLd, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
+import { serviceReviewsCopy, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import { buildServiceFaqJsonLd, serviceFaqCopy, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
 import { buildServiceBreadcrumbNode } from "@/lib/talent-site/service-page-breadcrumb";
 
@@ -263,7 +263,6 @@ function serviceJsonLd(
 ): Record<string, unknown> {
   const service = {
     ...buildServicePageJsonLd({ offering: o, canonicalUrl: canonical, talentName: ctx.talentName, inLanguage: ctx.locale }),
-    ...serviceReviewsJsonLd(ctx.reviews ?? null, ctx.demo === true),
   };
   const faq = buildServiceFaqJsonLd(ctx.faq ?? [], canonical);
   const breadcrumb = buildServiceBreadcrumbNode({ canonicalUrl: canonical, title: o.title, locale: ctx.locale });

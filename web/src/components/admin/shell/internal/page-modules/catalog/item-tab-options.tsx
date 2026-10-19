@@ -56,8 +56,10 @@ export function OptionsTab({ item, editor, tenantId, isDraft, saving }: TabProps
     setRefusal(null);
     try {
       const res = await setWorkspaceMenuItemOptions(tenantId, item.id, {
-        variants: nextVariants.map((v) => ({ label: v.label, amountCents: v.amountCents })),
-        addOns: nextAddOns.map((a) => ({ label: a.label, amountCents: a.amountCents })),
+        // Replace-all: every field the rows carry must ride along or it is erased
+        // (translations and the minutes an extra adds; Services Phase 0 item 5d/5e).
+        variants: nextVariants.map((v) => ({ label: v.label, amountCents: v.amountCents, labelI18n: v.labelI18n })),
+        addOns: nextAddOns.map((a) => ({ label: a.label, amountCents: a.amountCents, labelI18n: a.labelI18n, durationMinutes: a.durationMinutes ?? null })),
       });
       if (!res.ok) {
         setRefusal(res.error);

@@ -19,6 +19,7 @@ src/components/support/support-send-error.test.ts
 src/components/support/support-send-throw.test.ts
 src/i18n/locale-default-prefix-strip.test.ts
 src/lib/ai/ai-model-costs.test.ts
+src/lib/ai/ai-search-document-offerings-wiring.static.test.ts
 src/lib/ai/booking-assistant/catalog-tenant.test.ts
 src/lib/ai/booking-assistant/credits.test.ts
 src/lib/ai/booking-assistant/decide.test.ts
@@ -30,6 +31,7 @@ src/lib/ai/booking-assistant/schedule.static.test.ts
 src/lib/ai/booking-assistant/spend.test.ts
 src/lib/ai/booking-assistant/usage-format.test.ts
 src/lib/ai/booking-assistant/usage-wiring.static.test.ts
+src/lib/ai/build-ai-search-document-offerings.test.ts
 src/lib/ai/deterministic-gender-taxonomy.test.ts
 src/lib/ai/inquiry-draft-guardrails.test.ts
 src/lib/ai/interpret-taxonomy-synonyms.test.ts

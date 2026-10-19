@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { publishedCmsPagePath } from "@/lib/cms/clean-urls";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 import { createClient } from "@/lib/supabase/server";
 import { businessFixedSitemapPaths } from "@/lib/seo/business-workspace-seo";
 import { loadIsEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-emptiness";
@@ -50,6 +52,7 @@ import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { localeAlternateUrl } from "@/i18n/alternates";
 import { listPublishedPostRows } from "@/lib/cms/posts-public";
 import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
+import { loadEventSitemapEntries } from "@/lib/seo/event-sitemap-entries";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -268,6 +271,8 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     }),
   ), ...postEntries];
 }
+
+const agencyPathAllowed = (path: string) => isPathAllowedForHostKind("agency", path);
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries = await buildSitemap();
@@ -579,7 +584,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       const locales = localesBySlug.get(row.slug) ?? [row.locale];
       const alt = buildLocaleAlternates({
         origin: base,
-        pathnameWithoutLocale: `${pathPrefix}/${row.slug}`,
+        pathnameWithoutLocale: pathPrefix === "/p" ? publishedCmsPagePath(row.slug, agencyPathAllowed) : `${pathPrefix}/${row.slug}`,
         currentLocale: row.locale,
         defaultLocale: localeSettings.defaultLocale,
         supportedLocales: locales,
@@ -639,6 +644,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     localeSettings.supportedLocales,
   ).catch(() => []);
   const postEntries: MetadataRoute.Sitemap = postSitemapEntries(postRows, postUrl, new Date());
+  postEntries.push(...(await loadEventSitemapEntries({ supabase, tenantId: publicScope.tenantId, origin: base, defaultLocale: localeSettings.defaultLocale, supportedLocales: localeSettings.supportedLocales }))); // F4: public events (logic in lib/seo/event-sitemap-entries.ts)
 
   // Phase G PR 1 — include the agency's published roster in the sitemap.
   // Without this, talent profile pages (`/t/<profileCode>`) are crawlable

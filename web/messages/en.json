@@ -46,7 +46,11 @@
       "shell": {
         "clientHeading": "Book and manage everything in one place.",
         "clientLead": "Create a free client account to follow your bookings, messages and payments.",
-        "clientPoints": {"book": "Follow every booking and payment", "thread": "Message the talent or team in one thread", "secure": "Sign in with a code or a password"},
+        "clientPoints": {
+          "book": "Follow every booking and payment",
+          "thread": "Message the talent or team in one thread",
+          "secure": "Sign in with a code or a password"
+        },
         "back": "Back to {site}",
         "tenantHeading": "Your work and your bookings, in one place.",
         "tenantLead": "Manage your profile, your bookings, and your messages with {brand}.",
@@ -2469,14 +2473,6 @@
     }
   },
   "dashboard": {
-    "promoCode": {
-      "toggle": "Have a code?",
-      "label": "Promo code",
-      "placeholder": "Enter code",
-      "apply": "Apply",
-      "checking": "Checking...",
-      "remove": "Remove"
-    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -2618,16 +2614,6 @@
     "switchWorkspace": "Switch workspace",
     "workspaceTalentQa": "Talent QA user",
     "workspaceClientQa": "Client QA user",
-    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
-    "workspaceQaReason": {
-      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
-      "no_profile": "The configured QA user has no profile in this database.",
-      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
-      "wrong_role": "The configured QA user does not have the role this switch needs.",
-      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
-      "not_authorized": "Only a super admin can use the QA switch.",
-      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
-    },
     "workspaceSwitcherHint": "QA preview, read-only",
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",
@@ -15114,6 +15100,8 @@
           "recording": "Recording…"
         }
       },
+      "counterCatalogErrorTitle": "The catalog could not be loaded",
+      "counterCatalogErrorBody": "Something went wrong reading this workspace's items, so the counter is not showing them. Reload the page. If it keeps happening, contact support.",
       "counterOffTitle": "The counter is switched off",
       "counterOffBody": "This workspace has turned the counter off in Settings, under Point of sale. Switch it back on there and this register will open again.",
       "projects": {
@@ -17820,11 +17808,6 @@
       "filesNone": "No file is attached to a milestone yet.",
       "kpiCollectedNoteOne": "1 record paid"
     },
-    "adminNotFound": {
-      "title": "Page not found",
-      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
-      "back": "Back to Overview"
-    },
     "clientRecord": {
       "title": "Client",
       "unavailable": "We could not load this client. Nothing was changed. Try again in a moment.",
@@ -18215,7 +18198,8 @@
         "location": "Location",
         "locationReason": "One catalog per workspace: items are not recorded per location yet.",
         "channel": "Channel",
-        "incompleteOnly": "Incomplete only"
+        "incompleteOnly": "Incomplete only",
+        "archived": "Archived"
       },
       "col": {
         "item": "Item",
@@ -18234,7 +18218,24 @@
         "duplicate": "Duplicate",
         "moveUp": "Move up",
         "moveDown": "Move down",
-        "delete": "Delete"
+        "delete": "Delete",
+        "archive": "Archive",
+        "providerOwnedReason": "This is one of your own services. Change it under Services."
+      },
+      "confirm": {
+        "deleteTitle": "Delete this item?",
+        "deleteBody": "{name} will be removed for good. This cannot be undone.",
+        "archiveTitle": "Archive it instead?",
+        "archiveBody": "{name} was published or sold, so it cannot be deleted. Archiving takes it off your site and counter and keeps past orders intact. You can restore it any time.",
+        "delete": "Delete",
+        "archive": "Archive",
+        "cancel": "Cancel"
+      },
+      "archived": {
+        "title": "Archived items",
+        "empty": "Nothing is archived.",
+        "restore": "Restore",
+        "restoreNote": "Restoring brings an item back as a draft."
       },
       "create": {
         "title": "What are you selling?",
@@ -18296,7 +18297,9 @@
         "saveDraft": "Save draft",
         "publish": "Publish",
         "draftHint": "Nothing is written until you save the draft or publish; a reload loses it.",
-        "save": "Save"
+        "save": "Save",
+        "notBookableNoProvider": "Cannot be booked online yet: online booking needs a person with working hours, and a workspace service has none. Clients can send a request instead. To let them pick a time, create the service under Services for a team member.",
+        "notBookableNoDuration": "Cannot be booked online yet: add how long it takes so times can be offered."
       },
       "tab": {
         "label": "Item sections",
@@ -20436,6 +20439,29 @@
       "walletBody2": "To spend it locally, you can convert your USDC to pesos or your local currency whenever you like, using any service that supports it in your country.",
       "walletBody3": "Only link a wallet address you own. Double-check it before saving.",
       "checking": "Checking if USDC payouts are available for you..."
+    },
+    "promoCode": {
+      "toggle": "Have a code?",
+      "label": "Promo code",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "checking": "Checking...",
+      "remove": "Remove"
+    },
+    "workspaceQaUnavailable": "This QA account isn't set up here yet. Check the QA user setting.",
+    "workspaceQaReason": {
+      "not_configured": "QA switch is not configured: the QA user id or the impersonation secret is missing in this environment.",
+      "no_profile": "The configured QA user has no profile in this database.",
+      "inactive": "The QA user exists but its account is not active (still onboarding or suspended). Activate it, then try again.",
+      "wrong_role": "The configured QA user does not have the role this switch needs.",
+      "not_allowlisted": "The QA user id is not on the allow-list for this environment.",
+      "not_authorized": "Only a super admin can use the QA switch.",
+      "no_relationship": "The QA client has no active agency relationship, so there is no client workspace to open."
+    },
+    "adminNotFound": {
+      "title": "Page not found",
+      "body": "This page does not exist or may have moved. Check the address or head back to your overview.",
+      "back": "Back to Overview"
     },
     "platformPosts": {
       "nav": "Posts"

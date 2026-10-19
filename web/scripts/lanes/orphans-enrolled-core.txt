@@ -47,6 +47,7 @@ src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
+src/i18n/profile-locale-client-messages.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
 src/lib/events/zone-time-label.test.ts
@@ -59,6 +60,7 @@ src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
