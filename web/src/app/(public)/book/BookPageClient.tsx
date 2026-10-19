@@ -13,6 +13,8 @@ import { bookPagePaymentLine } from "@/lib/talent/who-step-payment-copy";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
+import { isRequestOnlyService, pickInitialOfferingId } from "./book-availability";
+import { BookNoTimesRequest } from "./BookNoTimesRequest";
 
 export function BookPageClient({
   tenantSlug,
@@ -28,7 +30,7 @@ export function BookPageClient({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
-  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null }>;
+  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null; hasOpenTimes?: boolean | null }>;
   signedIn?: boolean;
   client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
@@ -43,11 +45,12 @@ export function BookPageClient({
     () => (localeProp?.trim() ? translatorFor(pageLocale) : cookieT),
     [localeProp, pageLocale, cookieT],
   );
-  const [offeringId, setOfferingId] = useState(offerings[0]?.id ?? "");
+  const [offeringId, setOfferingId] = useState(() => pickInitialOfferingId(offerings));
   const selected = useMemo(
     () => offerings.find((o) => o.id === offeringId) ?? offerings[0] ?? null,
     [offerings, offeringId],
   );
+  const noTimes = selected ? isRequestOnlyService(selected) : false;
   const bookable = selected
     ? pickBookableOffering([selected], { locationLabel: null })
     : null;
@@ -90,6 +93,7 @@ export function BookPageClient({
     <div
       className="mt-8 flex flex-col gap-6"
       data-book-page-client=""
+      data-book-selected={selected.id}
       style={{ color: "var(--token-color-ink, #0B0B0D)" }}
     >
       <div className="flex items-baseline justify-between gap-3">
@@ -126,18 +130,31 @@ export function BookPageClient({
       {selected.seatsLabel ? (
         <p className="text-sm font-medium">{selected.seatsLabel}</p>
       ) : null}
-      <BookableComposer
-        tenantSlug={tenantSlug}
-        tenantId={tenantId}
-        agencyName={agencyName}
-        offering={bookable}
-        bookingMode={requestOnly ? "request" : selected.bookingMode === "instant" ? "instant" : "request"}
-        signedIn={signedIn}
-        client={client}
-        captcha={captcha}
-        locale={pageLocale}
-        contactHref={contactHref}
-      />
+      {noTimes ? (
+        <BookNoTimesRequest
+          offeringId={selected.id}
+          offering={bookable}
+          tenantSlug={tenantSlug}
+          agencyName={agencyName}
+          signedIn={signedIn}
+          client={client}
+          contactHref={contactHref}
+          t={t}
+        />
+      ) : (
+        <BookableComposer
+          tenantSlug={tenantSlug}
+          tenantId={tenantId}
+          agencyName={agencyName}
+          offering={bookable}
+          bookingMode={requestOnly ? "request" : selected.bookingMode === "instant" ? "instant" : "request"}
+          signedIn={signedIn}
+          client={client}
+          captcha={captcha}
+          locale={pageLocale}
+          contactHref={contactHref}
+        />
+      )}
     </div>
   );
 }

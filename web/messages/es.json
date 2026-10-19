@@ -1730,6 +1730,7 @@
       "loading": "Cargando horarios…",
       "empty": "No hay horarios libres en las próximas dos semanas. Intenta más tarde.",
       "unavailable": "Los horarios no están disponibles ahora.",
+      "noOnlineTimes": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
       "confirmInstant": "Confirmar este horario",
       "confirming": "Confirmando…",
       "requestInstead": "Pedir este horario en su lugar",
@@ -1759,7 +1760,9 @@
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
       "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
-      "contactCta": "Enviar un mensaje"
+      "contactCta": "Enviar un mensaje",
+      "noTimesRequest": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
+      "requestCta": "Enviar una solicitud"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",

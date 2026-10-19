@@ -1,3 +1,5 @@
+src/app/(public)/book/book-availability.test.ts
+src/app/(public)/book/book-no-times.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
@@ -51,6 +53,7 @@ src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
+src/lib/site-admin/server/annotate-open-times.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts

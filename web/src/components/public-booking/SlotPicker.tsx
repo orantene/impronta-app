@@ -101,7 +101,8 @@ export function SlotPicker({
     void loadPublicSlots(publicSlotsUrl(params)).then((r) => {
       if (cancelled) return;
       if (!r.ok) {
-        setError(t("public.slotPicker.unavailable"));
+        // Friendly, not an error: the guest can still send a request (B2/D3).
+        setError(t("public.slotPicker.noOnlineTimes"));
       } else {
         setSlots(r.slots);
         setEmptyReason(r.reason);
@@ -151,7 +152,9 @@ export function SlotPicker({
         </div>
       ) : error ? (
         <div className="mt-3">
-          <p className="text-xs text-[#dc2626]">{error}</p>
+          <p className="text-xs" style={{ color: MUTED }} data-testid="slot-picker-unavailable">
+            {error}
+          </p>
           {contactLink}
         </div>
       ) : slots.length === 0 ? (
