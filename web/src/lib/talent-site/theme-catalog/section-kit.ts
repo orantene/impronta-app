@@ -54,6 +54,8 @@ export const TALENT_KIT_SECTIONS = {
   area: { slotKey: "area", originRole: "talent.area" },
   emergency: { slotKey: "emergency", originRole: "talent.emergency" },
   tasks: { slotKey: "tasks", originRole: "talent.tasks" },
+  /** Posts v1 (PO1): the live `posts_feed` widget band. */
+  posts: { slotKey: "posts", originRole: "talent.posts" },
 } as const;
 
 /** Shell landmarks (header / footer) a Design's shell tree may contain. */
@@ -298,6 +300,8 @@ export function heroSplit(
         radius: "lg",
         aspectRatio: opts.inset ? "3:4" : "4:3",
         objectFit: "cover",
+        // TUL-532 / GRK-076: prefer faces; default center crop often clips the head.
+        objectPosition: "center 18%",
         width: "100%",
       },
     },
@@ -362,6 +366,8 @@ export function heroSplit(
         paddingX: "m",
         alignItems: "center",
         minHeight: opts.minHeight ?? "70vh",
+        // TUL-532 / GRK-073: keep the name clear of the viewport edge on phone.
+        responsive: { mobile: { paddingX: "l" } },
       },
     }),
     children: [copy, image],
@@ -453,7 +459,8 @@ export function heroCover(
         justifyContent: "flex-end",
         backgroundImage: `${COVER_SCRIM}, url({{headshotUrl}})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        // TUL-532 / GRK-076: face-forward crop (cover was clipping mid-forehead at center).
+        backgroundPosition: "center 18%",
         textColor: KIT_COLOR.background,
       },
     }),
@@ -668,7 +675,7 @@ export function servicesBlock(
  * W-12 / W-14 / Visit / FAQ live-bound bands live in `section-kit-bands.ts`.
  */
 export {
-  portfolioBlock, portfolioChaptersBlock, reviewsBlock, visitBlock, faqBlock, contentsBlock,
+  portfolioBlock, portfolioChaptersBlock, reviewsBlock, postsBlock, visitBlock, faqBlock, contentsBlock,
   heroMasthead, statementFooterBlock, compCardBlock, measureStripBlock,
 } from "./section-kit-bands";
 export { galleryBlock } from "./section-kit-gallery";

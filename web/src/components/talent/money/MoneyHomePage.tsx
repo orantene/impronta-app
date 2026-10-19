@@ -8,13 +8,12 @@
  */
 
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
-import { loadTalentClients } from "@/lib/talent/clients-actions";
 import type { TalentClientRow } from "@/lib/talent/clients-merge";
 import { isPartPaidRow } from "@/lib/talent/booking-owed";
 import { EMPTY_TALENT_EARNINGS, type TalentEarnings } from "@/lib/talent/earnings-types";
@@ -35,7 +34,11 @@ import { AgendaPayRequest } from "@/components/admin/shell/internal/talent/agend
 
 import { AgendaMoneyLine } from "./AgendaMoneyLine";
 import { FeePayerCard } from "./FeePayerCard";
+import { PayoutBreakdownCard } from "./PayoutBreakdownCard";
+import { MoneySentOffers } from "./MoneySentOffers";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
+import { ledgerClientsForSummary } from "./ledger-clients-state";
+import { useTalentLedgerClients } from "./use-talent-ledger-clients";
 
 type Tab = "payments" | "outstanding" | "payouts";
 type OutFilter = "all" | "today" | "later";
@@ -103,6 +106,9 @@ function SummaryCard(props: {
 function MoneyHomePane(props: {
   earnings: TalentEarnings;
   clients: TalentClientRow[] | null;
+  /** TUL-1242: the ledger read failed or stalled; say so instead of loading for ever. */
+  clientsFailed: boolean;
+  onRetryClients: () => void;
   agenda: { owed: MoneyAgendaRow[]; waiting: MoneyAgendaRow[]; refundPending: MoneyAgendaRow[] };
   payout: PayoutLine;
   onManagePayouts: () => void;
@@ -110,6 +116,8 @@ function MoneyHomePane(props: {
   onRefund: (row: MoneyAgendaRow) => void;
   refundBusyId: string | null;
   refundStatus: string | null;
+  /** ISO-2 payout country, drives the arrival text on the breakdown card. */
+  payoutCountry: string | null;
 }) {
   const copy = useDashboardText();
   const t = copy.t;
@@ -138,6 +146,8 @@ function MoneyHomePane(props: {
   );
   const methodCount = (m: MoneyMethodBucket) => sourced.filter((p) => methodBucket(p.paymentMethod) === m).length;
   const payments = method === "all" ? sourced : sourced.filter((p) => methodBucket(p.paymentMethod) === method);
+  // Only card payments pass through Tulala, so only they have a Tulala payout breakdown.
+  const cardRows = sourced.filter((p) => methodBucket(p.paymentMethod) === "card" && !isPartPaidRow(p));
 
   // Owed = the client ledger, or the agenda's balances when those are larger (booked work
   // the ledger has not caught up with). Requests waiting are shown apart: not owed yet.
@@ -229,12 +239,14 @@ function MoneyHomePane(props: {
           title={t("Owed to you")}
           scope={t("any month")}
           value={
-            props.clients == null
+            props.clientsFailed
+              ? t("Could not load what you are owed.")
+              : props.clients == null
               ? t("Loading")
               : [money(owedCents, cur), ...owedSummary.others.map((o) => money(o.cents, o.currency))].join(" + ")
           }
           tone={owedCents > 0 ? "warn" : undefined}
-          lines={props.clients == null ? "" : [
+          lines={props.clients == null ? (props.clientsFailed ? t("Retry") : "") : [
             outstandingCount > 0
               ? `${outstandingCount} ${t(outstandingCount === 1 ? "balance" : "balances")}${
                   view.overdueCents > 0 ? ` · ${money(view.overdueCents, cur)} ${t("overdue")}` : ""
@@ -370,6 +382,12 @@ function MoneyHomePane(props: {
               ))}
             </div>
           )}
+          <PayoutBreakdownCard
+            currency={cur}
+            payoutCountry={props.payoutCountry}
+            grossCents={cardRows.reduce((n, p) => n + p.grossCents, 0)}
+            netCents={cardRows.reduce((n, p) => n + p.netCents, 0)}
+          />
           <p className="font-admin-body text-[12.5px] text-admin-ink-muted">
             {t("Cash and transfers never pass through Tulala, so they show as collected and never as a payout.")}
           </p>
@@ -398,7 +416,14 @@ function MoneyHomePane(props: {
               </button>
             ))}
           </div>
-        {props.clients == null ? (
+        {props.clients == null && props.clientsFailed ? (
+          <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">
+            {t("Could not load what you are owed.")}{" "}
+            <button type="button" className="underline" onClick={props.onRetryClients}>
+              {t("Retry")}
+            </button>
+          </p>
+        ) : props.clients == null ? (
           <p className="px-1 py-4 font-admin-body text-[13px] text-admin-ink-muted">{t("Loading")}</p>
         ) : owedList.length === 0 && agendaOwedList.length === 0 ? (
           <p className="px-1 py-4 font-admin-body text-[13.5px] text-admin-ink-muted">
@@ -587,22 +612,12 @@ export function MoneyHomePage() {
       router.refresh();
     });
   };
-  const pickRows = [...agenda.owed, ...agenda.waiting];
+  const pickRows = [...agenda.owed, ...agenda.waiting.filter((r) => r.kind !== "offer")];
   const { byCurrency, defaultCurrency, loadError } = useResolvedTalentEarningsByCurrency();
   const talentId = bridgeTalentSelfProfile?.id ?? null;
-  const [clients, setClients] = useState<TalentClientRow[] | null>(null);
   const [currency, setCurrency] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!talentId) return;
-    let cancelled = false;
-    void loadTalentClients(talentId).then((res) => {
-      if (!cancelled) setClients(res.ok ? res.items : []);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [talentId]);
+  const { state: clientsState, retry: retryClients } = useTalentLedgerClients(talentId, "talent-money");
+  const clients = ledgerClientsForSummary(clientsState);
 
   const fallbackCurrency = (defaultCurrency || "MXN").toUpperCase();
   const bundles: TalentEarnings[] = byCurrency.length
@@ -632,6 +647,7 @@ export function MoneyHomePage() {
         }
       />
       <FeePayerCard currency={fallbackCurrency} showTip={false} />
+      <MoneySentOffers />
       {loadError ? (
         <p className="rounded-[12px] border border-admin-border-soft bg-admin-critical-soft px-4 py-3 font-admin-body text-[13.5px] text-admin-critical">
           {t("Could not load Money.")} {t("Refresh the page and try again.")}
@@ -658,6 +674,8 @@ export function MoneyHomePage() {
             key={active.totals.currency}
             earnings={active}
             clients={clients}
+            clientsFailed={clientsState.status === "error"}
+            onRetryClients={retryClients}
             agenda={agenda}
             payout={payout}
             onManagePayouts={() => openDrawer("talent-payouts")}
@@ -665,6 +683,7 @@ export function MoneyHomePage() {
             onRefund={refund}
             refundBusyId={refundBusyId}
             refundStatus={refundStatus}
+            payoutCountry={bridgeTalentPayoutSnapshot?.ok === true ? (bridgeTalentPayoutSnapshot.data.payoutCountry ?? null) : null}
           />
         </>
       )}
@@ -705,7 +724,7 @@ export function MoneyHomePage() {
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-admin-body text-[14px] font-semibold text-admin-ink">
-                        {r.name}
+                        {r.name || t("Client")}
                       </span>
                       <span className="block text-[12.5px] text-admin-ink-muted">
                         {[r.kind === "deposit" ? t("Deposit requested") : t("Balance due"), day(r.startsAt, copy.locale)]
@@ -739,7 +758,7 @@ export function MoneyHomePage() {
         <AgendaPayRequest
           orderId={linkFor.orderId}
           defaultCents={linkFor.amountCents}
-          clientName={linkFor.name}
+          clientName={linkFor.name || undefined}
           onClose={() => setLinkFor(null)}
         />
       ) : null}

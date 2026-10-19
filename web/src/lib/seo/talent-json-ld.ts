@@ -21,6 +21,10 @@
  *    than nulls).
  */
 
+import { jsonLdScriptString } from "@/lib/seo/json-ld-script";
+import type { OfferingVariant } from "@/lib/talent/offerings-types";
+import { publicPriceForJsonLd } from "@/lib/talent/public-price";
+
 export interface TalentJsonLdInput {
   /** Canonical absolute URL for the profile (tulala.digital/t/...) */
   canonicalUrl: string;
@@ -53,6 +57,43 @@ export interface TalentJsonLdInput {
    * Offer -> Service per entry, provider = this Person. Real data only.
    */
   services?: TalentJsonLdService[] | null;
+  /**
+   * TUL-585: real, published reviews of this talent. Emits `Person.aggregateRating`
+   * + `Person.review`. Pass ONLY what the public page shows; omitted entirely when
+   * the count is zero. Callers must not pass it for a demo talent.
+   */
+  reviews?: TalentJsonLdReviews | null;
+}
+
+export interface TalentJsonLdReviews {
+  /** Published average (1-5) and count, as shown on the page. */
+  average: number;
+  count: number;
+  items: {
+    rating: number;
+    body?: string | null;
+    authorName?: string | null;
+    createdAt?: string | null;
+  }[];
+}
+
+const MAX_JSON_LD_REVIEWS = 10;
+
+/** Adapt the page's already-loaded published summary + reviews. */
+export function toJsonLdReviews(
+  summary: { average: number; count: number },
+  rows: readonly { rating: number; body: string | null; clientName: string | null; createdAt: string }[],
+): TalentJsonLdReviews {
+  return {
+    average: summary.average,
+    count: summary.count,
+    items: rows.map((r) => ({
+      rating: r.rating,
+      body: r.body,
+      authorName: r.clientName,
+      createdAt: r.createdAt,
+    })),
+  };
 }
 
 /** The catalog fields JSON-LD may state. Nothing here is derived or invented. */
@@ -80,6 +121,10 @@ export interface JsonLdOfferingSource {
   currency: string;
   durationMinutes: number | null;
   visibility?: string;
+  /** TUL-791: optional ladder fields so the stated price is the cheapest option. */
+  priceType?: string | null;
+  variants?: OfferingVariant[];
+  attributes?: Record<string, unknown>;
 }
 
 /** Catalog offerings -> JSON-LD services: services/packages only (a product is
@@ -89,14 +134,18 @@ export function offeringsToJsonLdServices(
 ): TalentJsonLdService[] {
   return offerings
     .filter((o) => (o.kind === "service" || o.kind === "package") && o.visibility !== "agency_only")
-    .map((o) => ({
-      name: o.title,
-      description: o.description,
-      amountCents: o.amountCents,
-      currency: o.currency,
-      priceDisplay: o.priceDisplay,
-      durationMinutes: o.durationMinutes,
-    }));
+    .map((o) => {
+      // TUL-791: the same resolver the home card and service page use.
+      const price = publicPriceForJsonLd(o);
+      return {
+        name: o.title,
+        description: o.description,
+        amountCents: price.amountCents,
+        currency: o.currency,
+        priceDisplay: price.priceDisplay,
+        durationMinutes: o.durationMinutes,
+      };
+    });
 }
 
 type JsonValue =
@@ -120,9 +169,44 @@ function compact<T extends Record<string, JsonValue | undefined>>(o: T): Record<
   return out;
 }
 
+/** AggregateRating + Review nodes, or null when there is nothing real to state. */
+export function buildReviewJsonLd(
+  reviews: TalentJsonLdReviews | null | undefined,
+): { aggregateRating: JsonValue; review: JsonValue[] } | null {
+  if (!reviews) return null;
+  const { average, count } = reviews;
+  if (!Number.isFinite(average) || !Number.isFinite(count)) return null;
+  if (count < 1 || average < 1 || average > 5) return null;
+  const items: JsonValue[] = [];
+  for (const r of reviews.items) {
+    if (items.length >= MAX_JSON_LD_REVIEWS) break;
+    if (!Number.isFinite(r.rating) || r.rating < 1 || r.rating > 5) continue;
+    items.push(
+      compact({
+        "@type": "Review",
+        reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+        author: { "@type": "Person", name: r.authorName?.trim() || "Verified client" },
+        reviewBody: r.body?.trim() ?? null,
+        datePublished: r.createdAt ?? null,
+      }),
+    );
+  }
+  return {
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: Math.round(average * 10) / 10,
+      reviewCount: Math.floor(count),
+      bestRating: 5,
+      worstRating: 1,
+    },
+    review: items,
+  };
+}
+
 export function buildServiceOffers(
   services: TalentJsonLdService[] | null | undefined,
   personId: string,
+  locale = "en",
 ): JsonValue[] {
   const out: JsonValue[] = [];
   for (const svc of services ?? []) {
@@ -137,6 +221,13 @@ export function buildServiceOffers(
     const exact = hasAmount && svc.priceDisplay === "exact";
     const from = hasAmount && svc.priceDisplay === "from";
     const mins = svc.durationMinutes;
+    // TUL-794: a quote-only service still gets a valid Offer (no price, no
+    // priceSpecification) that says so, instead of an Offer with nothing in it.
+    const quote =
+      svc.priceDisplay === "quote" ||
+      typeof cents !== "number" ||
+      !Number.isFinite(cents) ||
+      cents <= 0;
     out.push(
       compact({
         "@type": "Offer",
@@ -146,6 +237,11 @@ export function buildServiceOffers(
           description: svc.description?.trim() ?? null,
           provider: { "@id": personId },
         }),
+        description: quote
+          ? locale.toLowerCase().startsWith("es")
+            ? "Cotización a pedido"
+            : "Quote on request"
+          : null,
         price: exact ? price : null,
         priceCurrency: exact ? currency : null,
         priceSpecification: from
@@ -177,6 +273,7 @@ export function buildTalentProfileJsonLd(input: TalentJsonLdInput): Record<strin
 
   const personId = `${input.canonicalUrl}#person`;
   const offers = buildServiceOffers(input.services, personId);
+  const reviewLd = buildReviewJsonLd(input.reviews);
 
   const person: Record<string, JsonValue> = compact({
     "@type": "Person",
@@ -189,6 +286,8 @@ export function buildTalentProfileJsonLd(input: TalentJsonLdInput): Record<strin
     address: hasAddress ? addressObj : null,
     sameAs: input.sameAs && input.sameAs.length > 0 ? input.sameAs : null,
     makesOffer: offers.length > 0 ? offers : null,
+    aggregateRating: reviewLd?.aggregateRating ?? null,
+    review: reviewLd && reviewLd.review.length > 0 ? reviewLd.review : null,
     affiliation: input.affiliationName
       ? compact({
           "@type": "Organization",
@@ -251,5 +350,5 @@ export function buildRosterItemListJsonLd(
  *  output helps cache + diff). */
 export function jsonLdToString(obj: Record<string, JsonValue> | null): string {
   if (!obj) return "";
-  return JSON.stringify(obj);
+  return jsonLdScriptString(obj);
 }

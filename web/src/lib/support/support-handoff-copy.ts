@@ -22,3 +22,16 @@ export async function requestSupportLocale(): Promise<string> {
     return "en";
   }
 }
+
+/**
+ * The ticket's own language (stamped at creation) wins over the dashboard
+ * cookie, which goes stale once the requester has visited /es once (TUL-602:
+ * EN ticket previews stayed Spanish).
+ */
+export function ticketHandoffLocale(
+  metadata: Record<string, unknown> | null | undefined,
+  cookieLocale: string,
+): string {
+  const own = metadata?.locale;
+  return own === "en" || own === "es" ? own : cookieLocale;
+}

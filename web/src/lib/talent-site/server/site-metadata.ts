@@ -1,5 +1,7 @@
 import "server-only";
 
+import { jsonLdScriptString } from "@/lib/seo/json-ld-script";
+import { sanitizeStoredVerificationToken } from "@/lib/talent/google-site-verification";
 import type { Metadata } from "next";
 
 import type { Locale } from "@/i18n/config";
@@ -31,9 +33,9 @@ export function ogLocaleTags(
  * that turns the SEO envelope into `openGraph` + `alternates` + `robots`.
  *
  * - `openGraph` carries og:title/og:description/og:image (with the page-level
- *   override falling back to title/description). The route-level
- *   `opengraph-image.tsx` ALSO contributes an `og:image` via the file
- *   convention; an explicit `ogImageUrl` here is an additional/override image.
+ *   override falling back to title/description). `buildMaxSiteSeo` always
+ *   supplies `ogImageUrl` (column → logo → generated `/opengraph-image` card)
+ *   so share previews never ship without a picture (TUL-554 / GRK-091).
  * - `alternates` reuse the SHARED platform locale-alternates builder (canonical
  *   + hreflang) when an English-relative `localePathWithoutLocale` is supplied
  *   (the `/t/site/...` routes, which are served from the platform apex and so
@@ -74,6 +76,10 @@ export function maxSiteSeoToMetadata(
     ...(seo.noindex ? { robots: { index: false, follow: false } } : {}),
     // DS-18: the business's own tab icon replaces the platform icon from the root layout.
     ...(seo.faviconUrl ? { icons: { icon: [{ url: seo.faviconUrl }] } } : {}),
+    // Per-talent Search Console ownership tag (subdomain and custom domain).
+    ...(sanitizeStoredVerificationToken(seo.googleSiteVerification)
+      ? { verification: { google: sanitizeStoredVerificationToken(seo.googleSiteVerification) as string } }
+      : {}),
     openGraph: {
       type: "website",
       title: seo.ogTitle ?? seo.title,
@@ -120,7 +126,7 @@ export function maxSiteSeoToMetadata(
 export function maxSiteJsonLdString(seo: MaxSiteSeo): string {
   if (!seo.jsonLd) return "";
   try {
-    return JSON.stringify(seo.jsonLd);
+    return jsonLdScriptString(seo.jsonLd);
   } catch {
     return "";
   }

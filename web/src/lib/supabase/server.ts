@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { createBoundedFetch } from "@/lib/supabase/bounded-fetch";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { cookieDomainForHost, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
 
 /** Returns `null` when env is missing — callers should handle (UI + actions). */
 export async function createClient(): Promise<SupabaseClient | null> {
@@ -45,12 +45,7 @@ export async function createClient(): Promise<SupabaseClient | null> {
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, {
-              ...options,
-              ...(authCookieDomain && isSupabaseAuthCookie(name)
-                ? { domain: authCookieDomain }
-                : {}),
-            }),
+            cookieStore.set(name, value, scopeAuthCookieOptions(name, options, authCookieDomain)),
           );
         } catch {
           /* ignore when called from Server Component */

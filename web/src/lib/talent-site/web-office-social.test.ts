@@ -12,10 +12,10 @@ import {
   withSourceWhatsapp,
 } from "./web-office-social";
 
-test("plan gate: only the paid Web Office plan", () => {
+test("plan gate: paid plans only (Pro and Web Office, TUL-839)", () => {
   assert.equal(webOfficeSocialEnabled("talent_portfolio"), true);
   assert.equal(webOfficeSocialEnabled("talent_basic"), false);
-  assert.equal(webOfficeSocialEnabled("talent_pro"), false);
+  assert.equal(webOfficeSocialEnabled("talent_pro"), true);
   assert.equal(webOfficeSocialEnabled(null), false);
 });
 

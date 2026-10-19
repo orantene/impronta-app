@@ -9,7 +9,7 @@ describe("484: the Messages offer sheet asks for a currency instead of dead-endi
 
   it("the refused state offers MXN / USD for offer_currency_unresolved and drops the useless Try again", () => {
     assert.match(sheet, /refusalCode === "offer_currency_unresolved" && props\.onPickCurrency/);
-    assert.match(sheet, /\["MXN", "USD"\] as const/);
+    assert.match(sheet, /TALENT_CHARGEABLE_CURRENCY_OPTIONS\.map/);
     assert.match(sheet, /refusalCode !== "offer_currency_unresolved" \? \{ label: copy\.shell\.tryAgain/);
   });
 

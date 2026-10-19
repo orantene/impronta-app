@@ -107,7 +107,8 @@ test("CH-2 the chips fill the composer with the translated question and never se
   assert.equal(chips.length, 3);
   act(() => chips[0]!.click());
   assert.deepEqual(picked, [es("public.guestChat.askQuickWhen")]);
-  assert.match(chips[2]!.textContent ?? "", /¿|cambiar/i);
+  assert.match(chips[2]!.textContent ?? "", /cuesta|cost/i);
+  assert.doesNotMatch(chips[2]!.textContent ?? "", /diseño|design/i);
   unmount();
 });
 
@@ -194,7 +195,7 @@ test("CH-4 the in-chat list shows each service with Add and Ask, and a way back"
   );
   const rows = host.querySelectorAll("[data-card-chat-service]");
   assert.equal(rows.length, 2);
-  assert.match(rows[0]!.textContent ?? "", /75 min/);
+  assert.match(rows[0]!.textContent ?? "", /1 h 15 min/); // TUL-551: one duration format everywhere
   assert.match(rows[1]!.textContent ?? "", /A cotizar/, "a quote never paints as $0");
   act(() => rows[0]!.querySelector<HTMLButtonElement>("[data-card-chat-add]")!.click());
   act(() => rows[1]!.querySelector<HTMLButtonElement>("[data-card-chat-ask]")!.click());
@@ -218,7 +219,7 @@ test("CH-4 the list uses the menu's own price line: per unit, from, quote", asyn
   );
   const row = host.querySelector("[data-card-chat-service]")!.textContent ?? "";
   assert.match(row, /Desde \$120 por uña/);
-  assert.doesNotMatch(row, /75 min/);
+  assert.doesNotMatch(row, /1 h 15 min/);
   unmount();
 });
 
@@ -323,6 +324,10 @@ test("ONE dock: the round launcher is hidden by CSS whenever the dock carries a 
   const css = launcher.slice(launcher.indexOf("export const GUEST_CHAT_FAB_CSS"));
   // Pill capsule (cb-bar-chat) and selection dock both own a chat button.
   assert.match(css, /body:has\(\.cb-bar\[data-show="true"\] \.cb-bar-chat,\.cb-dock\[data-show="true"\]\) \.tl-fab\{visibility:hidden;pointer-events:none\}/);
+  // Open panel: launcher wrapper must not steal the ✕ (Gridline desktop W4-5).
+  assert.match(launcher, /pointerEvents:\s*open\s*\?\s*"none"/);
+  assert.match(src("GuestAskAboutCard.tsx"), /askQuickPrice/);
+  assert.doesNotMatch(src("GuestAskAboutCard.tsx"), /askQuickChange/);
   // The same markup the rule keys on really exists in the dock.
   const root = join(here, "../../../..");
   const bar = readFileSync(join(root, "lib/site-admin/builder-node/services-catalog-filter.tsx"), "utf8");

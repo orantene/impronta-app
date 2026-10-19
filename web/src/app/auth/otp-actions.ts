@@ -28,6 +28,8 @@
  * is a talent signup path, promote client→talent before redirect.
  */
 
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { activateSelfSignedClient } from "@/lib/client-account/guest-activate.server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -39,6 +41,7 @@ import {
   resolvePostAuthDestination,
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 import { createTranslator } from "@/i18n/messages";
 import { logServerError } from "@/lib/server/safe-error";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
@@ -60,6 +63,7 @@ import {
   checkAuthOtpSendByIp,
   checkAuthOtpVerifyByEmail,
 } from "@/lib/rate-limit-kv";
+import { pickClientIp } from "@/lib/auth/client-ip";
 import {
   scheduleWorkspaceAudit,
   type WorkspaceAuditActorKind,
@@ -70,19 +74,17 @@ import {
   isValidAuthEmail,
   normalizeAuthEmail,
   normalizeOtpCode,
+  OTP_CODE_LENGTH,
   otpSendErrorKey,
   otpVerifyErrorKey,
 } from "@/lib/auth/otp-flow";
 import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { sendEmailCodeCore } from "@/lib/auth/send-email-code-core";
+import type { EmailCodeState } from "@/lib/auth/send-email-code-core";
 
-/** `sent` drives the form's step; `email` is echoed back into the code screen. */
-export type EmailCodeState =
-  | { step: "sent"; email: string; resent: boolean; notice: string }
-  | { step: "email"; error: string; email?: string }
-  | { step: "code"; error: string; email: string }
-  | undefined;
 
 function otpT(formData: FormData) {
   const locale = String(formData.get("locale") ?? "en");
@@ -121,11 +123,9 @@ function auditActorKind(appRole: string | null | undefined): WorkspaceAuditActor
 
 async function requestIp(): Promise<string> {
   try {
-    const h = await headers();
-    const forwarded = h.get("x-forwarded-for") ?? "";
-    return forwarded.split(",")[0]?.trim() || "unknown";
+    return pickClientIp(await headers());
   } catch {
-    return "unknown";
+    return pickClientIp({ get: () => null });
   }
 }
 
@@ -181,78 +181,46 @@ export async function requestEmailCode(
       : { step: "email", error: t("public.auth.actions.ageTermsRequired"), email };
   }
 
-  const ip = await requestIp();
-  const tooMany = () =>
-    resent
-      ? ({ step: "code", error: t("public.auth.passwordless.errors.tooMany"), email } as const)
-      : ({ step: "email", error: t("public.auth.passwordless.errors.tooMany"), email } as const);
-
-  // Layer 2 — free in-process floor first, so a hot loop never even reaches the
-  // network hop.
-  if (
-    !tryConsumeRateLimit(`auth-otp-send:${email}`, SEND_PER_EMAIL, SEND_WINDOW_MS) ||
-    !tryConsumeRateLimit(`auth-otp-send-ip:${ip}`, SEND_PER_IP, SEND_WINDOW_MS)
-  ) {
-    return tooMany();
-  }
-
-  // Layer 1 — durable cross-instance ceiling. Checked BEFORE signInWithOtp so a
-  // blocked caller costs no outbound email. Fails open on Upstash trouble.
-  const [sendByEmail, sendByIp] = await Promise.all([
-    checkAuthOtpSendByEmail(authOtpSendEmailKey(email)),
-    checkAuthOtpSendByIp(authOtpSendIpKey(ip)),
-  ]);
-  if (!sendByEmail.ok || !sendByIp.ok) {
-    return tooMany();
-  }
-
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return { step: "email", error: SUPABASE_ENV_HELP, email };
-  }
-
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   // `create=0` is the LOGIN path: an unknown address must not silently become a
   // brand-new empty account just because someone typed it into the sign-in box.
+  // The core (lib/auth/send-email-code-core.ts) also answers an unknown address
+  // exactly like a known one on this path (no account enumeration).
   const shouldCreateUser = String(formData.get("create") ?? "1") !== "0";
+  const ip = await requestIp();
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      shouldCreateUser,
+  return sendEmailCodeCore(
+    { email, ip, resent, shouldCreateUser, fullName: String(formData.get("full_name") ?? "") },
+    {
+      t,
+      // Layer 2: free in-process floor first, so a hot loop never even
+      // reaches the network hop.
+      consumeFloor: (key) =>
+        tryConsumeRateLimit(
+          key,
+          key.startsWith("auth-otp-send-ip:") ? SEND_PER_IP : SEND_PER_EMAIL,
+          SEND_WINDOW_MS,
+        ),
+      // Layer 1: durable cross-instance ceiling, checked BEFORE signInWithOtp
+      // so a blocked caller costs no outbound email. Fails open on Upstash.
+      checkDurable: async () => {
+        const [byEmail, byIp] = await Promise.all([
+          checkAuthOtpSendByEmail(authOtpSendEmailKey(email)),
+          checkAuthOtpSendByIp(authOtpSendIpKey(ip)),
+        ]);
+        return byEmail.ok && byIp.ok;
+      },
+      getClient: () => getCachedServerSupabase(),
+      envHelp: SUPABASE_ENV_HELP,
       emailRedirectTo: buildOtpEmailRedirect({
         origin: getAppUrl(),
         nextPath,
         lang: otpLang(formData),
       }),
+      newUserData: { lang: otpLang(formData) },
+      logError: logServerError,
     },
-  });
-
-  if (error) {
-    logServerError("auth/requestEmailCode", error);
-    const key = otpSendErrorKey(error);
-    // Account enumeration: on the LOGIN path a "no such user" (otp_disabled)
-    // answer would confirm which addresses exist. Same treatment as
-    // requestPasswordReset — advance to the code screen either way and let the
-    // (absent) code fail there, with a create-account link in reach. Real
-    // problems the visitor can act on (bad address, rate limit) still surface.
-    const enumerationSafe =
-      !shouldCreateUser && key === "public.auth.actions.signupDisabled";
-    if (!enumerationSafe) {
-      return resent
-        ? { step: "code", error: t(key), email }
-        : { step: "email", error: t(key), email };
-    }
-  }
-
-  return {
-    step: "sent",
-    email,
-    resent,
-    notice: resent
-      ? t("public.auth.passwordless.resentNotice")
-      : t("public.auth.passwordless.sentNotice"),
-  };
+  );
 }
 
 export async function submitEmailCode(
@@ -271,6 +239,16 @@ export async function submitEmailCode(
     return {
       step: "code",
       error: t("public.auth.passwordless.errors.codeRequired"),
+      email,
+    };
+  }
+
+  // TUL-909: a code shorter than the project's emailed length can never be right; say how many
+  // digits to expect instead of the generic "that code did not work" (and skip the verify call).
+  if (code.length < OTP_CODE_LENGTH) {
+    return {
+      step: "code",
+      error: t("public.auth.passwordless.errors.codeTooShort").replace("{n}", String(OTP_CODE_LENGTH)),
       email,
     };
   }
@@ -332,6 +310,13 @@ export async function submitEmailCode(
     if (isTalentSignupNext(nextPath)) {
       await promoteFreshProfileToTalent(user.id);
     }
+    // TUL-771: an explicit client sign-up is a client; skip the role screen.
+    if (String(formData.get("signup_intent") ?? "") === "client") {
+      const admin = createServiceRoleClient();
+      if (admin) await activateSelfSignedClient(admin, { userId: user.id, signupIntent: "client" });
+    }
+    // G3: the code proved the email. Claim + activate before routing.
+    await claimAndActivateVerifiedClient({ userId: user.id, email: user.email ?? email, emailProven: true });
   }
 
   const profileData = user ? await loadAccessProfile(supabase, user.id) : null;
@@ -357,10 +342,11 @@ export async function submitEmailCode(
   // the hub, where this form is also served. A relative redirect there is a 404.
   // On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
+  const postAuthCtx = user ? await postAuthContextForNext(supabase, user.id, nextPath) : {};
   redirect(
     await hostSafeRedirectDestination(
       supportDeskPostAuthDestination(
-        resolvePostAuthDestination(profileData, nextPath),
+        resolvePostAuthDestination(profileData, nextPath, postAuthCtx),
         deskHost,
       ),
     ),

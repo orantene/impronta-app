@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { formatUsdEquivalent, needsUsdRates, usdEquivalentCents, usdEquivalentLabel, type UsdRates } from "./usd-equivalent";
+import { formatUsdEquivalent, needsUsdRates, showsUsdEquivalent, usdEquivalentCents, usdEquivalentLabel, type UsdRates } from "./usd-equivalent";
 
 const FX: UsdRates = { rateDate: "2026-09-23", perUsd: { MXN: 18.5, EUR: 0.9 } };
 
@@ -36,12 +36,22 @@ test("a page only needs rates when something is priced outside USD", () => {
   assert.equal(needsUsdRates([{ currency: "USD", amountCents: 100 }, { currency: "MXN", amountCents: 95000 }]), true);
 });
 
-test("a talent prices in pesos or dollars, nothing else", async () => {
+test("Spanish public pages print no ≈ US$ line (TUL-551 / GRK-063)", () => {
+  assert.equal(showsUsdEquivalent("es"), false);
+  assert.equal(showsUsdEquivalent("es-MX"), false);
+  assert.equal(showsUsdEquivalent(" ES "), false);
+  assert.equal(showsUsdEquivalent("en"), true);
+  assert.equal(showsUsdEquivalent("en-US"), true);
+  assert.equal(showsUsdEquivalent(null), true);
+});
+
+test("a talent prices in pesos or dollars by default (TUL-654 option a)", async () => {
   const { isTalentCurrency, TALENT_CURRENCY_OPTIONS } = await import("../billing/currencies");
   assert.deepEqual([...TALENT_CURRENCY_OPTIONS], ["MXN", "USD"]);
   assert.equal(isTalentCurrency("MXN"), true);
   assert.equal(isTalentCurrency(" usd "), true);
   assert.equal(isTalentCurrency("EUR"), false);
+  assert.equal(isTalentCurrency("AUD"), false);
   assert.equal(isTalentCurrency(""), false);
   assert.equal(isTalentCurrency(null), false);
 });

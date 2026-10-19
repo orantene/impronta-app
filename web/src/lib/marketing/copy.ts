@@ -72,6 +72,7 @@ const en = {
     stories: "Stories",
     joinAsTalent: "Join as talent",
     signIn: "Sign in",
+    createAccount: "Create account",
     startFree: "Get started",
     freeBadge: "free",
     dashboard: "Dashboard",
@@ -112,7 +113,7 @@ const en = {
   /** Logo lockup descriptor: header (desktop) + footer (always). Category
    *  message only; never the hero headline. See PR-BRAND §0. */
   brand: {
-    descriptor: "Sell what you do, not what you ship",
+    descriptor: "Sell what you do",
   },
 
   hero: {
@@ -122,14 +123,14 @@ const en = {
     // in the title tag where nobody reads it. Three different positioning
     // statements were live at once and visitors assembled their own idea of
     // what we are. This is the one claim everything else now ladders from.
-    eyebrow: "For people who sell time, skill and craft",
-    titleLine1: "Sell what you do,",
-    titleLine2: "not what you ship.",
+    eyebrow: "Built for professionals and service businesses",
+    titleLine1: "Your business.",
+    titleLine2: "All in one place.",
     subhead:
-      "Store builders were made for boxes. You sell haircuts, dinners, shoots and clean houses. Open a free page, take real bookings and get paid, all in one place built for the way you actually work.",
-    ctaTalent: "Sell your work · free",
-    ctaBusiness: "Start a business",
-    trust: ["Free forever", "No code", "Bookings & payments built in"],
+      "Create your website, showcase your services, take bookings, send quotes, collect payments and manage your clients. Everything works together.",
+    ctaTalent: "Start free",
+    ctaBusiness: "See how it works",
+    trust: ["Website", "Services", "Bookings", "Chat & Quotes", "Payments", "Clients & Team"],
     /** Hero carousel dot; `{n}` is the 1-based slide index. */
     showSlide: "Show slide {n}",
   },
@@ -472,6 +473,7 @@ const es: MarketingCopy = {
     stories: "Historias",
     joinAsTalent: "Únete como talento",
     signIn: "Entrar",
+    createAccount: "Crear cuenta",
     startFree: "Comenzar",
     freeBadge: "gratis",
     dashboard: "Tu panel",
@@ -505,21 +507,18 @@ const es: MarketingCopy = {
   },
 
   brand: {
-    descriptor: "Vende lo que haces, no lo que envías",
+    descriptor: "Vende lo que haces",
   },
 
   hero: {
-    // Same claim, written natively rather than translated. "no lo que envías"
-    // is the existing Spanish tagline from `brand.descriptor`, so the H1 and
-    // the logo lockup now say the same thing in both languages.
-    eyebrow: "Para quienes venden tiempo, talento y oficio",
-    titleLine1: "Vende lo que haces,",
-    titleLine2: "no lo que envías.",
+    eyebrow: "Para profesionales y negocios de servicios",
+    titleLine1: "Todo tu negocio.",
+    titleLine2: "En un solo lugar.",
     subhead:
-      "Las tiendas en línea se hicieron para cajas. Tú vendes cortes, cenas, sesiones y casas limpias. Abre una página gratis, recibe reservas de verdad y cobra, todo en un solo lugar hecho para como trabajas.",
-    ctaTalent: "Vende tu trabajo · gratis",
-    ctaBusiness: "Abre tu negocio",
-    trust: ["Gratis para siempre", "Sin código", "Reservas y pagos incluidos"],
+      "Crea tu página web, muestra tus servicios, recibe citas, envía cotizaciones, cobra y administra a tus clientes. Todo conectado.",
+    ctaTalent: "Empieza gratis",
+    ctaBusiness: "Descubre cómo funciona",
+    trust: ["Página web", "Servicios", "Citas", "Chat y cotizaciones", "Cobros", "Clientes y equipo"],
     showSlide: "Mostrar diapositiva {n}",
   },
 
@@ -636,7 +635,7 @@ const es: MarketingCopy = {
 
   network: {
     eyebrow: "La red",
-    titleLine1: "No estás solo con un enlace.",
+    titleLine1: "Hay más que un enlace.",
     titleLine2: "Estás en una red.",
     paragraph:
       "El talento encuentra agencias y hubs para postularse, los clientes descubren a las personas indicadas, y los negocios crecen más allá de su propio sitio. Es un feed de oportunidades, no una lista estática.",
@@ -647,7 +646,7 @@ const es: MarketingCopy = {
       },
       {
         title: "Los negocios conservan su marca",
-        body: "Cada workspace mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
+        body: "Cada espacio de trabajo mantiene su sitio, su catálogo y sus reservas, y aun así lo encuentran en el descubrimiento compartido.",
       },
       {
         title: "Tus datos son tuyos",
@@ -663,7 +662,7 @@ const es: MarketingCopy = {
 
   pricing: {
     eyebrow: "Precios",
-    title: "Empieza gratis. Crece cuando estés listo.",
+    title: "Empieza gratis. Crece cuando quieras.",
     subtitle:
       "Todos los planes te llevan de la solicitud a reservado y pagado, gratis. Los planes de pago suman tamaño de catálogo, marca y canales conforme creces.",
     footnote:
@@ -736,7 +735,7 @@ const es: MarketingCopy = {
     titleLine1: "Convierte tu trabajo en dinero.",
     titleLine2: "Lleva un negocio de verdad.",
     subhead:
-      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando estés listo, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
+      "Abre una página gratis y empieza a recibir solicitudes hoy. Cuando quieras, lanza tu propio sitio, recibe tus solicitudes y lleva todo el negocio.",
     ctaTalent: "Vende tu trabajo · gratis",
     ctaBusiness: "Abre tu negocio",
     trust: [

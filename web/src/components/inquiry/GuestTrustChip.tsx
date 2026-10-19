@@ -113,7 +113,7 @@ function SignalTick({
           : isPresent
             ? "1px solid rgba(176,125,42,0.14)"
             : "1px solid rgba(11,11,13,0.08)",
-        color: isVerified ? "#1A5E3C" : isPresent ? "#7A5010" : "rgba(11,11,13,0.38)",
+        color: isVerified ? "#1A5E3C" : isPresent ? "#7A5010" : "rgba(11,11,13,0.6)",
         userSelect: "none",
       }}
     >
@@ -297,7 +297,9 @@ export function GuestTrustChip({
             <span aria-hidden style={{ fontSize: 9 }}>
               &#9733;
             </span>
-            {completedBookings} booking{completedBookings === 1 ? "" : "s"}
+            {completedBookings === 1
+              ? copy.t("1 booking")
+              : copy.t("{n} bookings").replace("{n}", String(completedBookings))}
           </span>
         )}
       </div>
@@ -307,7 +309,7 @@ export function GuestTrustChip({
         style={{
           margin: 0,
           fontSize: 11,
-          color: "rgba(11,11,13,0.50)",
+          color: "rgba(11,11,13,0.6)",
           lineHeight: 1.4,
         }}
       >
@@ -365,7 +367,7 @@ export function GuestTrustChip({
                   cursor: reportState === "pending" ? "default" : "pointer",
                   fontSize: 11,
                   fontWeight: 500,
-                  color: "rgba(11,11,13,0.55)",
+                  color: "rgba(11,11,13,0.6)",
                   fontFamily: '"Inter", system-ui, sans-serif',
                   opacity: reportState === "pending" ? 0.6 : 1,
                 }}

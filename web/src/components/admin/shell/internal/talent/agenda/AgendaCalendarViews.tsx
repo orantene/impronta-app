@@ -8,7 +8,9 @@ import {
 } from "@/lib/talent-agenda/derive";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
-import { windowsForDate } from "@/lib/scheduling/hours-types";
+import { dayWindows, gridBounds, hm, hourRailMarks, localYmd, minutesOfDay as minutesOf, sameDay } from "./calendar-bounds";
+
+export { dayWindows, gridBounds, localYmd, sameDay };
 import type { TradeCalendarRule } from "@/lib/talent-agenda/trade-calendar";
 import { overnightLabel } from "@/lib/talent-agenda/overnight";
 import { AgendaRow } from "./primitives";
@@ -31,8 +33,6 @@ import {
 import { useAgendaCopy } from "./use-agenda-copy";
 
 const PX_PER_MIN = 1.1;
-const DEFAULT_OPEN = 10 * 60;
-const DEFAULT_CLOSE = 19 * 60;
 
 const MUTED = "text-[rgba(11,11,13,0.62)]";
 const NOW_LINE = "rgba(196,53,45,1)";
@@ -47,54 +47,6 @@ export const SHELL_FAB_RIGHT_PX = 16;
 export const SHELL_FAB_SIZE_PX = 52;
 export const SHELL_FAB_GAP_PX = 12;
 export const SHELL_FAB_CLEARANCE_PX = SHELL_FAB_RIGHT_PX + SHELL_FAB_SIZE_PX + SHELL_FAB_GAP_PX;
-
-export function localYmd(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-export function sameDay(a: Date, b: Date): boolean {
-  return localYmd(a) === localYmd(b);
-}
-
-function minutesOf(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes();
-}
-
-function hm(min: number): string {
-  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-}
-
-export function dayWindows(hours: BookingHours | null | undefined, day: Date) {
-  if (!hours) return [{ startMin: DEFAULT_OPEN, endMin: DEFAULT_CLOSE }];
-  return windowsForDate(hours, localYmd(day), day.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6);
-}
-
-/**
- * Visible hour range: working hours plus one hour of outside-hours band on
- * each side (mockup tc_cal), stretched so the now-line is always on screen
- * when today is in view.
- */
-export function gridBounds(hours: BookingHours | null | undefined, days: Date[], clock?: Date) {
-  let start = DEFAULT_OPEN;
-  let end = DEFAULT_CLOSE;
-  for (const day of days) {
-    for (const win of dayWindows(hours, day)) {
-      start = Math.min(start, win.startMin);
-      end = Math.max(end, win.endMin);
-    }
-  }
-  start = Math.max(0, Math.floor((start - 60) / 60) * 60);
-  end = Math.min(24 * 60, Math.ceil((end + 60) / 60) * 60);
-  if (clock && days.some((day) => sameDay(day, clock))) {
-    const now = minutesOf(clock);
-    start = Math.min(start, Math.max(0, Math.floor((now - 30) / 60) * 60));
-    end = Math.max(end, Math.min(24 * 60, Math.ceil((now + 30) / 60) * 60));
-  }
-  return { startMin: start, endMin: Math.max(end, start + 60) };
-}
 
 /** Word + icon for a chip. Colour is never the only signal. */
 function ChipTag({ item }: { item: TalentAgendaItem }) {
@@ -241,7 +193,7 @@ function TimeColumn({
           key={gap.startsAt.toISOString()}
           type="button"
           onClick={() => onGap(day, gap.startsAt)}
-          aria-label={`${copy.t("Free")} ${timeRange(gap.startsAt, gap.endsAt)}`}
+          aria-label={`${copy.isSpanish ? "Libre" : "Free"} ${timeRange(gap.startsAt, gap.endsAt)}`}
           className="absolute inset-x-1 top-[var(--agenda-top)] z-[5] h-[var(--agenda-span)] rounded text-[10px] text-[var(--tc-accent)] opacity-0 transition-opacity hover:bg-[rgba(59,76,202,0.05)] hover:opacity-100 focus-visible:opacity-100"
           style={{
             "--agenda-top": `${(minutesOf(gap.startsAt) - bounds.startMin) * PX_PER_MIN}px`,
@@ -286,18 +238,15 @@ function HourRail({
           {hm(nowMin)}
         </div>
       ) : null}
-      {Array.from({ length: Math.ceil((bounds.endMin - bounds.startMin) / 60) + 1 }, (_, i) => {
-        const min = bounds.startMin + i * 60;
-        return (
-          <div
-            key={min}
-            className={`absolute left-0 right-0 top-[var(--agenda-top)] border-t border-[rgba(11,11,13,0.08)] text-[10px] tabular-nums ${MUTED}`}
-            style={{ "--agenda-top": `${(min - bounds.startMin) * PX_PER_MIN}px` }}
-          >
-            {hm(min)}
-          </div>
-        );
-      })}
+      {hourRailMarks(bounds).map((min) => (
+        <div
+          key={min}
+          className={`absolute left-0 right-0 top-[var(--agenda-top)] border-t border-[rgba(11,11,13,0.08)] text-[10px] tabular-nums ${MUTED}`}
+          style={{ "--agenda-top": `${(min - bounds.startMin) * PX_PER_MIN}px` }}
+        >
+          {hm(min)}
+        </div>
+      ))}
     </div>
   );
 }
@@ -567,7 +516,7 @@ export function PhoneDayAgenda({
               className="flex min-h-[44px] items-center gap-2 rounded-xl border border-dashed border-[rgba(59,76,202,0.3)] px-3 text-[13px]"
             >
               <span className="flex-1 text-[var(--tc-accent)]">
-                {`${copy.t("Free")} ${timeRange(row.startsAt, row.endsAt)} · ${durationText(
+                {`${copy.isSpanish ? "Libre" : "Free"} ${timeRange(row.startsAt, row.endsAt)} · ${durationText(
                   minutesOf(row.endsAt) - minutesOf(row.startsAt),
                 )}`}
               </span>
@@ -658,7 +607,7 @@ export function MonthGrid({
             onClick={() => onPick(day)}
             aria-current={today ? "date" : undefined}
             className={`min-h-[96px] rounded-lg border border-[rgba(11,11,13,0.08)] p-1.5 text-left text-[12px] ${
-              inMonth ? "bg-white" : "bg-[rgba(11,11,13,0.03)] text-[rgba(11,11,13,0.45)]"
+              inMonth ? "bg-white" : "bg-[rgba(11,11,13,0.03)] text-[rgba(11,11,13,0.6)]"
             }`}
           >
             <span

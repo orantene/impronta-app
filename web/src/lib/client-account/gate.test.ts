@@ -126,9 +126,16 @@ test("every render path is behind the gate", () => {
     /resolveClientAccountMount\(flagKind\)\.dock/,
   );
   assert.match(src("src/lib/talent-site/server/render-max-site-demo.tsx"), /resolveClientAccountMount\("talent"\)\.headerItem/);
+  assert.match(src("src/lib/client-account/published-shell-account-chrome.ts"), /resolveClientAccountMount\("app"\)\.headerItem/);
   const header = src("src/lib/site-admin/sections/site_header/Component.tsx");
-  assert.match(header, /case "account":[\s\S]{0,200}props\.siteChrome\?\.account \?/);
-  assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ error: "not_found" \}, 404\)/);
+  // The account item renders only through accountPreviewMode(siteChrome): on a
+  // live site (siteChrome present) a flag-off account is "off" and renders null.
+  assert.match(header, /case "account":[\s\S]{0,200}accountPreviewMode\(props\.siteChrome/);
+  const preview = src("src/lib/client-account/account-preview.ts");
+  assert.match(preview, /return siteChrome\.account \? "live" : "off"/);
+  assert.match(src("src/lib/site-admin/sections/site_header/HeaderAccountPreview.tsx"), /if \(mode === "off"\) return null/);
+  // Flag off: a guest-shaped 200 (no session read), not a 404 that spams the booking sheet console.
+  assert.match(src("src/app/api/client/account/route.ts"), /accountSurfaceEnabledForRequest\(\)\)\) return reply\(\{ signedIn: false \}\)/);
   assert.match(src("src/lib/client-account/actions.ts"), /!\(await accountSurfaceEnabledForRequest\(\)\)\) return \{ ok: false/);
 });
 

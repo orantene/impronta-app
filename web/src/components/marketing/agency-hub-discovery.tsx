@@ -6,6 +6,11 @@ import { loadDirectoryWorkspaces } from "@/lib/marketing/directory-workspaces";
 import { MARKETING_PHOTOS, type MarketingPhotoKey } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { OpenTalentModalButton } from "./open-talent-modal-button";
+import {
+  discoveryDescription,
+  discoveryLabel,
+  discoveryPlace,
+} from "./agency-hub-discovery-copy";
 
 type DiscoveryCard = {
   id: string;
@@ -70,7 +75,9 @@ const DISCOVERY_CARDS: DiscoveryCard[] = [
       { label: "Focus", value: "Image" },
     ],
     photoKey: "heroServices",
-    href: "https://improntamodels.com",
+    // GRK-056: stay on Tulala so View profile can inquire/contact in-product.
+    // External custom domains leave the platform with no Tulala contact path.
+    href: "/w/impronta",
   },
   {
     id: "tulala-service-hub",
@@ -349,24 +356,28 @@ export async function AgencyHubDiscovery({
                 name="kind"
                 value={kind}
                 values={KIND_OPTIONS}
+                locale={locale}
               />
               <FilterSelect
                 label={pickLocale(locale, { en: "Category", es: "Categoría" })}
                 name="category"
                 value={category}
                 values={CATEGORIES}
+                locale={locale}
               />
               <FilterSelect
                 label={pickLocale(locale, { en: "Location", es: "Ubicación" })}
                 name="location"
                 value={location}
                 values={LOCATIONS}
+                locale={locale}
               />
               <FilterSelect
                 label={pickLocale(locale, { en: "Apply", es: "Cómo aplicar" })}
                 name="join"
                 value={join}
                 values={JOIN_OPTIONS}
+                locale={locale}
               />
               <button
                 type="submit"
@@ -516,11 +527,13 @@ function FilterSelect({
   name,
   value,
   values,
+  locale,
 }: {
   label: string;
   name: string;
   value: string;
   values: readonly string[];
+  locale: string;
 }) {
   return (
     <label
@@ -541,7 +554,7 @@ function FilterSelect({
       >
         {values.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {discoveryLabel(option, locale)}
           </option>
         ))}
       </select>
@@ -588,7 +601,7 @@ function DiscoveryResultCard({
               color: card.kind === "Hub" ? "var(--plt-forest-on)" : "var(--plt-ink)",
             }}
           >
-            {card.kind}
+            {discoveryLabel(card.kind, locale)}
           </span>
           <span
             className="rounded-full px-3 py-1 text-[0.6875rem] font-semibold uppercase"
@@ -597,12 +610,12 @@ function DiscoveryResultCard({
               color: "var(--plt-on-inverse)",
             }}
           >
-            {card.joinMode}
+            {discoveryLabel(card.joinMode, locale)}
           </span>
         </div>
         <div className="absolute inset-x-4 bottom-4">
           <p className="plt-mono text-[0.6875rem] font-medium uppercase" style={{ color: "rgba(241,237,227,0.72)" }}>
-            {card.city} · {card.region}
+            {discoveryPlace(card.city, locale)} · {discoveryPlace(card.region, locale)}
           </p>
           <h2
             className="plt-display mt-1 text-[1.75rem] font-semibold leading-[1.08]"
@@ -625,12 +638,12 @@ function DiscoveryResultCard({
                 border: "1px solid var(--plt-hairline)",
               }}
             >
-              {tag}
+              {discoveryLabel(tag, locale)}
             </span>
           ))}
         </div>
         <p className="mt-5 text-[0.9375rem] leading-[1.6]" style={{ color: "var(--plt-muted)" }}>
-          {card.description}
+          {discoveryDescription(card.id, card.description, locale)}
         </p>
         <dl className="mt-5 grid grid-cols-2 gap-3">
           {card.stats.map((stat) => (
@@ -643,10 +656,10 @@ function DiscoveryResultCard({
               }}
             >
               <dt className="plt-mono text-[0.625rem] uppercase" style={{ color: "var(--plt-muted)" }}>
-                {stat.label}
+                {discoveryLabel(stat.label, locale)}
               </dt>
               <dd className="mt-1 text-[1rem] font-semibold" style={{ color: "var(--plt-ink)" }}>
-                {stat.value}
+                {discoveryLabel(stat.value, locale)}
               </dd>
             </div>
           ))}

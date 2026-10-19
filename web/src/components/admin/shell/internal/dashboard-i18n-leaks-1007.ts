@@ -12,7 +12,6 @@ export const LEAKS_1007_ES_TEXT: Record<string, string> = {
   "Which currency tab opens first on Money when multiple are present. Display only, no FX conversion.":
     "Qué moneda se abre primero en Dinero cuando hay varias. Solo de visualización, sin conversión de divisas.",
   // Product orders queue
-  "Loading orders…": "Cargando pedidos…",
   "Product orders": "Pedidos de productos",
   "Mark an order shipped to release its payout. The money was collected at purchase and is held until you ship.":
     "Marca un pedido como enviado para liberar su pago. El dinero se cobró al comprar y se retiene hasta que lo envíes.",
@@ -34,6 +33,12 @@ export const LEAKS_1007_ES_TEXT: Record<string, string> = {
   "a bio": "una biografía",
   "1 language": "1 idioma",
   // Profile performance, Pro-gated
+  "No prior week to compare": "Sin semana previa para comparar",
+  "Unique viewers · 7d": "Visitantes únicos · 7 d",
+  "in the last 30 days": "en los últimos 30 días",
+  "Views → inquiries · 30d": "Visitas → consultas · 30 d",
+  "Needs profile views to measure": "Necesita visitas al perfil para medirse",
+  "views": "visitas",
   "Page analytics are part of Pro": "El análisis de la página es parte de Pro",
   "Your profile views and inquiry conversion are being recorded right now. Upgrade to Pro or Portfolio to see them.":
     "Las visitas a tu perfil y la conversión de consultas se están registrando ahora mismo. Mejora a Pro o Portfolio para verlas.",

@@ -9,6 +9,7 @@
 
 import type { DerivedTask, Essentials, IdentityLevel, RecordChip } from "@/lib/messaging/types";
 import { formatRecordMoney } from "@/lib/messages-v5/record-money";
+import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 
 import type { KitCopy } from "@/components/messages-v5/kit/copy";
@@ -103,9 +104,9 @@ export function moneySummary(input: MoneySummaryInput): MoneySummary {
 }
 
 /** The SummaryBlock "Amount" line: "$3,800 MXN · $0 MXN paid" (board D01). */
-export function summaryAmountLabel(money: MoneySummary | null): string {
+export function summaryAmountLabel(money: MoneySummary | null, paidWord = "paid"): string {
   if (!money || !money.hasTotal) return "";
-  return `${money.totalLabel} · ${money.paidLabel} paid`;
+  return `${money.totalLabel} · ${money.paidLabel} ${paidWord}`;
 }
 
 /* ---------------------------------------------------------- summary block ---------------------------------------------------------- */
@@ -144,13 +145,15 @@ export function summaryFor(input: {
   const primary = tasks.find((t) => t.primary) ?? tasks[0] ?? null;
   const main = mainRecordChip(chips);
   return {
-    name: essentials.name || copy.state.noIdentity,
+    name: localiseInquiryName(essentials.name, copy.inbox.visitor) || copy.state.noIdentity,
     isVisitor,
     identityLabel: (copy.identity as Record<IdentityLevel, string>)[essentials.customer.identityLevel] ?? copy.identity.none,
     phone: essentials.customer.phone,
     next: primary ? primary.title : copy.next.nothing,
-    main: main ? main.label : "",
-    amount: money ? summaryAmountLabel(money) : "",
+    // TUL-1245: a chip whose label is still the raw record kind ("order") is shown
+    // through the kit copy, the same rule StateTags uses; "paid" comes from the kit too.
+    main: main ? (main.label === main.kind ? copy.record[main.kind] : main.label) : "",
+    amount: money ? summaryAmountLabel(money, copy.panel.money.paid.toLowerCase()) : "",
   };
 }
 

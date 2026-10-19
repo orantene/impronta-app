@@ -125,6 +125,8 @@ export type TalentSiteDashboardState = {
     publicUrl: string | null;
     adminHref: string;
     tenantId: string;
+    /** At least one published cms_pages row. Draft-only is not "live". */
+    isPublished: boolean;
   } | null;
   /** Owns a business workspace site AND has a personal talent_sites row. */
   isDualSiteOwner: boolean;

@@ -30,7 +30,10 @@ import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
+import { ensureNav } from "./nav-seed";
 import { buildCriticPrompt, checkHeadlineBank, CRITIC_JSON_SCHEMA, parseCriticReply, retryInstruction, type CriticVerdict } from "./copy-critic";
+import { dropOtherTradeStock } from "@/lib/onboarding/stock-hero";
+import { classifyTrade } from "@/lib/onboarding/trade-label";
 import { queryLifestyleStockForType } from "@/lib/media/platform-stock";
 import { logServerError } from "@/lib/server/safe-error";
 import { publishHomepage, saveHomepageDraftComposition } from "@/lib/site-admin/server/homepage";
@@ -40,7 +43,8 @@ import { validateThemePatch } from "@/lib/site-admin/tokens/registry";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 import { confirmedFacts, listFact, numberFact, redactFactsForPrompt, stringFact, type Brief } from "@/lib/tulala/brief-store";
-import { BUSINESS_TYPES, businessTypeById, searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
+import { businessTypeFromIndustry } from "./industry-type";
+import { BUSINESS_TYPES, businessTypeById, type BusinessFamilyId } from "@/lib/words/business-types";
 
 import { buildComponentsForType } from "./business-components";
 import { siteBasePath, withSiteBasePath, type SiteDomainRow } from "./site-base-path";
@@ -220,16 +224,7 @@ function pageHrefsFor(family: BusinessFamilyId): Record<SitePageRole, string> {
  * the whole phrase, then its words longest-first, so the live El Paisa brief
  * resolves to `restaurant` instead of falling through to the tenant default.
  */
-export function businessTypeFromIndustry(industry: string): { id: string; family: BusinessFamilyId } | null {
-  const whole = searchBusinessTypes(industry)[0];
-  if (whole) return { id: whole.id, family: whole.family };
-  const words = industry.split(/[^\p{L}]+/u).filter((w) => w.length >= 4).sort((a, b) => b.length - a.length);
-  for (const w of words) {
-    const hit = searchBusinessTypes(w)[0];
-    if (hit) return { id: hit.id, family: hit.family };
-  }
-  return null;
-}
+export { businessTypeFromIndustry };
 
 /** First non-empty string; an empty identity column is "missing", not a value. */
 function pick(...values: Array<string | null | undefined>): string | null {
@@ -337,12 +332,6 @@ async function upsertFreeformPage(
     .single<{ id: string }>();
   if (error || !page) return { ok: false, error: error?.message ?? "insert failed" };
   return { ok: true, pageId: page.id, action: "created" };
-}
-
-async function ensureNav(admin: SupabaseClient, input: { tenantId: string; locale: string; items: Array<{ label: string; href: string }> }): Promise<void> {
-  const { data: existing, error } = await admin.from("cms_navigation_items").select("id").eq("tenant_id", input.tenantId).eq("zone", "header").limit(1);
-  if (error || (existing && existing.length > 0)) return;
-  await admin.from("cms_navigation_items").insert(input.items.map((it, i) => ({ tenant_id: input.tenantId, locale: input.locale, zone: "header", label: it.label, href: it.href, sort_order: i, visible: true })));
 }
 
 async function writeStamp(admin: SupabaseClient, tenantId: string, stamp: SiteComposeStamp): Promise<void> {
@@ -503,7 +492,9 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   };
   const stockFacts = stockFactsFromBrief(brief, family);
   const briefTags = Object.fromEntries(Object.entries(stockFacts).filter(([, v]) => typeof v === "string")) as Record<string, string>;
-  const [owner, stock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family, forTenantId: input.tenantId })]);
+  const [owner, rawStock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family, forTenantId: input.tenantId })]);
+  // TUL-846: a photo whose own words name another trade never lands on this site.
+  const stock = dropOtherTradeStock(rawStock, classifyTrade(`${typeId.replace(/-/g, " ")} ${typeRow?.label.en ?? ""} ${industry ?? ""}`), input.tenantId);
   const { resolve: images, picks } = buildImageResolver(
     [
       ...owner.map((o) => ({ ...o, level: "owner" as const })),
@@ -726,10 +717,13 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const shell = await writeFreeformSiteShell(admin, { tenantId: input.tenantId, locale: writeLocale, actorProfileId: input.actorProfileId ?? null, businessName, header: site.shell.header, footer: site.shell.footer, publish: !!input.publish, overwrite: !!input.overwrite });
   if (!shell.ok) notes.push(`shell: ${shell.error}`);
 
+  const navRoles = ["catalogue", "transaction", "about", "gallery", "contact"] as const;
   await ensureNav(admin, {
     tenantId: input.tenantId,
-    locale,
-    items: (["catalogue", "transaction", "about", "gallery", "contact"] as const).map((r) => ({ label: titles[r][locale], href: linkHrefs[r] })),
+    itemsByLocale: {
+      es: navRoles.map((r) => ({ label: titles[r].es, href: linkHrefs[r] })),
+      en: navRoles.map((r) => ({ label: titles[r].en, href: linkHrefs[r] })),
+    },
   });
 
   // 11. Cost for this compose (success and failure rows both carry the id).

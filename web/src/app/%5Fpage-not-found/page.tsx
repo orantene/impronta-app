@@ -2,28 +2,80 @@
  * Branded "page not found" 404.
  *
  * Rendered by the middleware (proxy.ts) when a request hits a KNOWN host
- * (marketing / app / agency / hub) on a path that isn't served there — a
- * mistyped or stale URL. The middleware rewrites here with a 404 status
- * instead of returning bare "Not found" text, so a wrong URL lands on branded
- * chrome with a clear way home, never a dead end.
+ * (marketing / app / agency / hub / talent_site) on a path that isn't served
+ * there — a mistyped or stale URL. The middleware rewrites here with a 404
+ * status instead of returning bare "Not found" text, so a wrong URL lands on
+ * branded chrome with a clear way home, never a dead end.
+ *
+ * GRK-028 / TUL-547: on a talent_site host it renders the talent 404 (site
+ * name, site language, back to the site's home), the same card as the
+ * `/_talent-site` not-found boundary. Other hosts keep the absolute marketing /
+ * app links.
  *
  * Lives outside every tenant-aware route group so it renders safely without a
  * host context (mirrors `/_host-unregistered`). Whitelisted in the proxy
- * short-circuit so the rewrite doesn't recurse. Links are absolute (the
- * homepage lives on the marketing host, sign-in on the app host) so they work
- * regardless of which host produced the 404.
+ * short-circuit so the rewrite doesn't recurse.
  */
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { notFoundLocale } from "@/lib/i18n/not-found-locale";
+
 import { getAppUrl, getSiteUrl } from "@/lib/auth-flow";
+import { LOCALE_HEADER } from "@/i18n/request-locale";
+import { TalentSiteNotFoundCard } from "@/components/talent-site/talent-site-not-found-card";
+import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
 
-export const metadata: Metadata = {
-  title: "Page not found — Tulala",
-  robots: { index: false, follow: false },
-};
+async function requestLang(): Promise<"en" | "es"> {
+  const h = await headers();
+  const jar = await cookies();
+  // TUL-877/1079: an unprefixed miss (/w/<unknown>) has no chosen language, so the browser's decides.
+  const locale = notFoundLocale({
+    locale: h.get(LOCALE_HEADER) ?? "en",
+    acceptLanguage: h.get("accept-language"),
+    cookieLocale: jar.get(LOCALE_COOKIE)?.value,
+    pathname: h.get("x-impronta-original-pathname"),
+    search: h.get("x-impronta-original-search"),
+  });
+  return locale.toLowerCase().startsWith("es") ? "es" : "en";
+}
 
-export default function PageNotFound() {
+export async function generateMetadata(): Promise<Metadata> {
+  const talent = await loadTalentNotFoundCopy();
+  return {
+    title: { absolute: talent ? talent.documentTitle : COPY[await requestLang()].title },
+    robots: { index: false, follow: false },
+  };
+}
+
+const COPY = {
+  en: {
+    title: "Page not found · Tulala",
+    eyebrow: "Tulala",
+    heading: "Page not found",
+    body: "The page you're looking for doesn't exist or may have moved. Head back to the homepage, or sign in to your workspace.",
+    home: "Go to homepage",
+    signIn: "Sign in",
+  },
+  es: {
+    title: "Página no encontrada · Tulala",
+    eyebrow: "Tulala",
+    heading: "Página no encontrada",
+    body: "La página que buscas no existe o se movió. Vuelve al inicio, o inicia sesión en tu espacio de trabajo.",
+    home: "Ir al inicio",
+    signIn: "Iniciar sesión",
+  },
+} as const;
+
+export default async function PageNotFound() {
+  const talent = await loadTalentNotFoundCopy();
+  if (talent) return <TalentSiteNotFoundCard copy={talent} />;
+
+  const t = COPY[await requestLang()];
+
   const site = getSiteUrl();
   const app = getAppUrl();
+
   return (
     <div
       style={{
@@ -50,13 +102,13 @@ export default function PageNotFound() {
             fontFamily: '"Inter", system-ui, sans-serif',
             fontSize: 11,
             fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
+            color: "rgba(11,11,13,0.6)",
             letterSpacing: 0.8,
             textTransform: "uppercase",
             margin: 0,
           }}
         >
-          Tulala
+          {t.eyebrow}
         </p>
         <h1
           style={{
@@ -69,7 +121,7 @@ export default function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          Page not found
+          {t.heading}
         </h1>
         <p
           style={{
@@ -81,8 +133,7 @@ export default function PageNotFound() {
             marginBottom: 0,
           }}
         >
-          The page you&apos;re looking for doesn&apos;t exist or may have moved.
-          Head back to the homepage, or sign in to your workspace.
+          {t.body}
         </p>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 24 }}>
@@ -101,7 +152,7 @@ export default function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            Go to homepage
+            {t.home}
           </a>
           <a
             href={`${app}/login`}
@@ -119,7 +170,7 @@ export default function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            Sign in
+            {t.signIn}
           </a>
         </div>
       </div>

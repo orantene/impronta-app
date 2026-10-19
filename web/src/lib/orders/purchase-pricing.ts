@@ -54,6 +54,8 @@ export type PricedAddon = {
   offeringId: string;
   label: string;
   amountCents: number;
+  /** A shared extra (addon group) is valid on every offering it is attached to. */
+  offeringIds?: ReadonlySet<string>;
 };
 
 export type PricingRequestLine = {
@@ -220,7 +222,7 @@ export function pricePurchase(
     let addonCents = 0;
     for (const addonId of req.addonIds ?? []) {
       const addon = catalog.addons.get(addonId);
-      if (!addon || addon.offeringId !== req.offeringId) {
+      if (!addon || (addon.offeringId !== req.offeringId && !addon.offeringIds?.has(req.offeringId))) {
         return {
           ok: false,
           reason: "addon_not_on_offering",

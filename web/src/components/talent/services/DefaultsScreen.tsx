@@ -1,11 +1,14 @@
 "use client";
 
+import { modeWord } from "@/lib/talent/site-booking-mode";
 import type { ReactNode } from "react";
 import { type SellingDefaults } from "@/lib/talent/services-settings-actions";
 import { whoPrimaryCtaLabel } from "@/lib/talent/selling-booking-settings";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { WEBSITE_SETTINGS_ES_TEXT } from "@/components/admin/shell/internal/dashboard-i18n-website-settings";
 import type { LocationSettings } from "@/lib/talent/location-settings";
 import { LocationSettingsCard } from "./LocationSettingsCard";
+import { whereChoicesForPlace, type ServiceWhere } from "@/lib/onboarding/service-where";
 
 // PDF p15 "Defaults · the rules every item starts with". Four cards in a
 // 2x2 grid (one column on phone), the arithmetic worked out under each rule.
@@ -131,6 +134,8 @@ export function DefaultsScreen({
   onOpenWebsiteSettings?: () => void;
 }) {
   const copy = useDashboardText();
+  // These sentences live in the lazy website-settings dictionary only.
+  const tw = (v: string) => (copy.isSpanish ? (WEBSITE_SETTINGS_ES_TEXT[v] ?? copy.t(v)) : v);
   const patch = (partial: Partial<SellingDefaults>) => onChange({ ...defaults, ...partial });
 
   const pct = defaults.depositPct ?? 0;
@@ -250,8 +255,7 @@ export function DefaultsScreen({
               format={freeUntil}
             />
             <p className="mt-1.5 text-[12.5px] text-admin-ink-dim">
-              {copy
-                .t("Inside {hours} hours the deposit is kept. The client is refunded in full before that.")
+              {tw("Inside {hours} hours the deposit is kept. The client is refunded in full before that.")
                 .replace("{hours}", String(cancelH))}
             </p>
           </div>
@@ -264,8 +268,7 @@ export function DefaultsScreen({
               format={freeUntil}
             />
             <p className="mt-1.5 text-[12.5px] text-admin-ink-dim">
-              {copy
-                .t("The deposit moves to the new date. Inside {hours} hours it is kept and a new one is asked for.")
+              {tw("The deposit moves to the new date. Inside {hours} hours it is kept and a new one is asked for.")
                 .replace("{hours}", String(reschedH))}
             </p>
           </div>
@@ -274,7 +277,7 @@ export function DefaultsScreen({
         {/* Where you work */}
         <Card title={copy.t("Where you work")} hint={copy.t("Used to offer and to block time")}>
           <div className="flex flex-wrap gap-2">
-            {WHERE_OPTIONS.map((o) => {
+            {WHERE_OPTIONS.filter((o) => whereChoicesForPlace(defaults.placeMode, defaults.where as ServiceWhere[]).includes(o.id)).map((o) => {
               const on = defaults.where.includes(o.id);
               return (
                 <button
@@ -375,9 +378,14 @@ export function DefaultsScreen({
         {/* How clients finish the booking sheet */}
         <Card title={copy.t("How clients book")} hint={copy.t("Sheet button and path")}>
           <div>
-            <span className={fieldLabel}>{copy.t("Default booking mode")}</span>
+            <span className={fieldLabel}>{copy.t("On your site, clients book")}</span>
             <p className="mt-0.5 text-[13px] text-admin-ink-dim">
-              {copy.t("Services that use your default follow this. A service with its own mode keeps it.")}
+              {copy.t("This is your site setting. Each service follows it unless it has its own mode, which is flagged in your Services list.")}
+            </p>
+            <p data-testid="site-booking-current" className="mt-0.5 text-[13px] font-medium text-admin-ink">
+              {copy
+                .t(defaults.bookingPostureSource === "platform" ? "Right now: {mode} (Tulala default, you have not chosen yet)" : "Right now: {mode}")
+                .replace("{mode}", modeWord(defaults.bookingPosture, copy.locale))}
             </p>
             <div className="mt-1.5 flex flex-wrap gap-2">
               {(
@@ -392,7 +400,7 @@ export function DefaultsScreen({
                   <button
                     key={m.id}
                     type="button"
-                    onClick={() => patch({ bookingPosture: m.id })}
+                    onClick={() => patch({ bookingPosture: m.id, bookingPostureSource: "talent" })}
                     className={`rounded-lg border px-3 py-2 text-[13px] font-medium ${
                       on
                         ? "border-[var(--tc-action)] bg-[var(--tc-soft)] font-semibold text-[var(--tc-ink)]"

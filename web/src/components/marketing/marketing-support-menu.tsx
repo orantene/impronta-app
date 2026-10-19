@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MarketingCopy } from "@/lib/marketing/copy";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { openMarketingSupport } from "@/lib/marketing/support-copy";
+import { useMenuKeyboard } from "@/hooks/use-menu-keyboard";
 import { HeaderPopover } from "./marketing-header-popover";
 
 // Support contact, deliberately NOT re-exported from here. A "use client"
@@ -46,9 +47,12 @@ export function DesktopSupport({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  useMenuKeyboard(ref, open, () => setOpen(false));
 
+  // TUL-1162: below 400px the signed-in cluster (favourites, cart, language, support, account, menu)
+  // is wider than the bar, so Support yields there; the footer keeps Help.
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative max-[399px]:hidden">
       <button
         type="button"
         aria-label={copy.support}

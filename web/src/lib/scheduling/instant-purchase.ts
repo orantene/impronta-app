@@ -50,6 +50,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveOfferingHomeTenant } from "@/lib/scheduling/offering-home-tenant";
 import { loadLatestPolicyVersionId } from "@/lib/talent-policies/public";
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
+import type { BookingPromoRequest } from "@/lib/orders/purchase-promo";
 
 export type InstantPurchaseInput = {
   tenantId: string;
@@ -89,6 +90,8 @@ export type InstantPurchaseInput = {
    * Omitted = a direct channel (own website / Tulala profile): enforced.
    */
   agencyRouted?: boolean;
+  /** Promos v1: price with live promos and hold them before payment (purchase-promo.ts). */
+  bookingPromo?: BookingPromoRequest | null;
 };
 
 export type InstantPurchaseResult =
@@ -449,6 +452,8 @@ export async function placeInstantPurchase(
     // A deposit offering used to send "full" and charge the whole total.
     paymentChoice: instantBookPaymentChoice(input.payInPerson, effective.reserveMode),
     sourceChannel: input.sourceChannel,
+    // The desk is the one staff channel; everything else is a guest (D-10).
+    channel: staffDesk ? "staff" : "guest",
     sourcePage: input.sourcePage,
     capacity: capacity.length > 0 ? capacity : undefined,
     // The calendar slot, when this purchase takes someone's time. Capacity
@@ -485,6 +490,9 @@ export async function placeInstantPurchase(
     brief: input.brief ?? null,
     locale: input.locale ?? null,
     eventLocation: input.eventLocation ?? null,
+    bookingPromo: input.bookingPromo
+      ? { ...input.bookingPromo, appointmentStart: input.bookingPromo.appointmentStart ?? reservation?.startsAt ?? null }
+      : null,
     // Snapshot: the talent's published policy the buyer saw at checkout.
     policyVersionId: await loadLatestPolicyVersionId(admin, input.talentProfileId),
   });

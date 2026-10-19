@@ -31,6 +31,7 @@ import {
 import { formatAppointmentLabel, formatDateLabel, pageUrl, redeemHref, inquiryPathForRole } from "./catalog-render";
 import { INQUIRY_CATALOG_ENTRIES } from "./catalog-entries-inquiry";
 import { BILLING_CATALOG_ENTRIES } from "./catalog-entries-billing";
+import { TALENT_DOMAIN_CATALOG_ENTRIES } from "./catalog-entries-talent-domain";
 import { FORMS_CATALOG_ENTRIES } from "./catalog-entries-forms";
 import { REVIEWS_CATALOG_ENTRIES } from "./catalog-entries-reviews";
 import { SUPPORT_CATALOG_ENTRIES } from "./catalog-entries-support";
@@ -39,6 +40,7 @@ import { TABLE_RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-table-reser
 import { SESSION_CATALOG_ENTRIES } from "./catalog-entries-sessions";
 import { ACCOUNT_CATALOG_ENTRIES } from "./catalog-entries-accounts";
 import { PREP_CATALOG_ENTRIES } from "./catalog-entries-prep";
+import { UNCLAIMED_CATALOG_ENTRIES } from "./catalog-entries-unclaimed";
 
 /**
  * The notification catalog — a code-driven registry, one entry per
@@ -752,6 +754,7 @@ const SELF_TEST: CatalogEntry = {
 export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...INQUIRY_CATALOG_ENTRIES,
   ...BILLING_CATALOG_ENTRIES,
+  ...TALENT_DOMAIN_CATALOG_ENTRIES,
   ...FORMS_CATALOG_ENTRIES,
   ...REVIEWS_CATALOG_ENTRIES,
   ...SUPPORT_CATALOG_ENTRIES,
@@ -760,6 +763,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...SESSION_CATALOG_ENTRIES,
   ...ACCOUNT_CATALOG_ENTRIES,
   ...PREP_CATALOG_ENTRIES,
+  ...UNCLAIMED_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,
   PLATFORM_SIGNUP_FAILED,

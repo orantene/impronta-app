@@ -45,6 +45,7 @@ import {
 import { siblingDropGapToMoveIndex } from "@/lib/site-admin/builder-node/sibling-drop-gap";
 import {
   overlayHasProp,
+  overlayWriteLocale,
   setOverlayProp,
 } from "@/lib/site-admin/builder-node/i18n-overlay";
 import { stripLockedKeysFromPatch } from "@/lib/site-admin/builder-node/prop-lock";
@@ -87,11 +88,13 @@ import { GenericContent } from "./generic-content";
 import { ServicesCatalogContentInspector } from "./services-catalog-inspector";
 import { PortfolioContentInspector } from "./portfolio-inspector";
 import { ReviewsContentInspector } from "./reviews-inspector";
+import { PostsFeedContentInspector } from "./posts-feed-inspector";
 import { VisitContentInspector } from "./visit-inspector";
 import { ContentsContentInspector } from "./contents-inspector";
 import { MastheadContentInspector } from "./masthead-inspector";
 import { StatementFooterContentInspector } from "./statement-footer-inspector";
 import { NextFreeChipContentInspector } from "./next-free-chip-inspector";
+import { PromoContentInspector } from "./promo-inspector";
 import { LiveTextToggle } from "./live-text-toggle";
 import { CompCardContentInspector } from "./comp-card-inspector";
 import { SpecTableContentInspector } from "./spec-table-inspector";
@@ -1599,13 +1602,30 @@ function BuilderNodeContentInspectorBody({
   }
 
   if (node.kind === "services_catalog") {
-    return <ServicesCatalogContentInspector node={node} commitPatch={commitPatch} />;
+    return (
+      <ServicesCatalogContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
   }
   if (node.kind === "portfolio") {
-    return <PortfolioContentInspector node={node} commitPatch={commitPatch} />;
+    return (
+      <PortfolioContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
   }
   if (node.kind === "reviews") {
     return <ReviewsContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "posts_feed") {
+    return <PostsFeedContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "visit") {
     return <VisitContentInspector node={node} commitPatch={commitPatch} />;
@@ -1657,10 +1677,20 @@ function BuilderNodeContentInspectorBody({
     return <SpecTableContentInspector node={node} commitPatch={commitPatch} />;
   }
   if (node.kind === "comp_card") {
-    return <CompCardContentInspector node={node} commitPatch={commitPatch} />;
+    return (
+      <CompCardContentInspector
+        node={node}
+        commitPatch={commitPatch}
+        tenantId={tenantId}
+        LocalizableTextField={BuilderNodeLocalizableTextField}
+      />
+    );
   }
   if (node.kind === "next_free_chip") {
     return <NextFreeChipContentInspector node={node} commitPatch={commitPatch} />;
+  }
+  if (node.kind === "promo") {
+    return <PromoContentInspector node={node} commitPatch={commitPatch} />;
   }
 
   // ── menu_board (workspace-owned orderable menu) ───────────────────────────
@@ -5414,6 +5444,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Portfolio · your live media";
     case "reviews":
       return "Reviews · your client quotes";
+    case "posts_feed":
+      return "Posts · your published posts";
     case "visit":
       return node.props.layout === "location"
         ? "Location · zone, hours, how to arrive"
@@ -5436,6 +5468,8 @@ function childSecondaryLabel(node: BuilderNode): string {
       return "Comp card · measure strip";
     case "next_free_chip":
       return "Next free · live slot chip";
+    case "promo":
+      return "Promo · banner, cards, pop-up and more";
     case "reserve_table":
       return "Reserve · books a real table";
     case "session_picker":
@@ -5574,27 +5608,32 @@ export function BuilderNodeLocalizableTextField({
   const { availableLocales, defaultLocale } = useEditContext();
   const talentAi = useTalentAiTranslateEnabled();
   const { locale: activeContentLocale } = useActiveContentLocale();
+  const overlay = node.i18n;
+  // The text the canvas shows in the default locale: an `i18n[default]` entry
+  // shadows the base prop (seeded themes ship one).
+  const primaryValue = overlayWriteLocale(overlay, defaultLocale, defaultLocale, prop)
+    ? (overlay?.[defaultLocale]?.[prop] ?? baseValue)
+    : baseValue;
   // PR 7: a secondary tab ghosts the primary text (native placeholder, never a
   // pre-filled value), and talent surfaces get the AI translate button.
-  const ghost = (isDefault: boolean) => (isDefault ? placeholder : baseValue.trim() || placeholder);
+  const ghost = (isDefault: boolean) => (isDefault ? placeholder : primaryValue.trim() || placeholder);
   const aiOn = talentAi && (fieldKind === "input" || fieldKind === "textarea");
 
-  const overlay = node.i18n;
   const supported = inspectorLocales(availableLocales, defaultLocale, activeContentLocale);
 
-  // Value for a given locale: default → base prop; secondary → overlay entry.
+  // Value for a given locale: default → what the canvas shows; secondary → overlay entry.
   const valueForLocale = (locale: string): string => {
-    if (locale === defaultLocale) return baseValue;
+    if (locale === defaultLocale) return primaryValue;
     return overlay?.[locale]?.[prop] ?? "";
   };
   const hasValueForLocale = (locale: string): boolean => {
-    if (locale === defaultLocale) return baseValue.trim().length > 0;
+    if (locale === defaultLocale) return primaryValue.trim().length > 0;
     return overlayHasProp(overlay, locale, prop);
   };
 
-  // Commit for a given locale: default → onCommitBase; secondary → patch overlay.
+  // Commit for a given locale: base prop, or the overlay entry the canvas reads.
   const commitForLocale = (locale: string) => async (next: string) => {
-    if (locale === defaultLocale) {
+    if (overlayWriteLocale(overlay, locale, defaultLocale, prop) === null) {
       await onCommitBase(next);
       return;
     }
@@ -5652,7 +5691,7 @@ export function BuilderNodeLocalizableTextField({
       hasValueForLocale={hasValueForLocale}
       renderField={renderField}
       ariaLabel={`${ariaLabel} language`}
-      ai={aiOn ? { sourceText: baseValue, valueFor: valueForLocale, commit: (l, v) => commitForLocale(l)(v) } : undefined}
+      ai={aiOn ? { sourceText: primaryValue, valueFor: valueForLocale, commit: (l, v) => commitForLocale(l)(v) } : undefined}
     />
   );
 }

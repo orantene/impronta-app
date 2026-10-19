@@ -19,6 +19,7 @@ import { PanelSkeleton, ghostBtn, primaryBtn } from "./machinery-13";
 import type { Offer } from "./machinery-9";
 import { OfferDraftLineItem } from "./offer-draft-line-item";
 import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
+import { TALENT_CHARGEABLE_CURRENCY_OPTIONS } from "@/lib/billing/currencies";
 
 
 /**
@@ -593,7 +594,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
           danger banner (with human reason + Retry) while a save is failing. */}
       <OfferSaveBanner state={saveState} onRetry={save} />
       {/* Column headings — see offer-money-split.tsx for why. */}
-      <OfferColumnHeaders t={t} />
+      <OfferColumnHeaders t={t} solo={solo} />
       <div className="flex flex-col gap-1.5">
         {snapshot.lineItems.map((li) => (
           <OfferDraftLineItem
@@ -604,6 +605,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
             rosterOptions={rosterOptions}
             coordTalentIds={coordTalentIds}
             labelTouched={labelTouched.has(li.id)}
+            solo={solo}
             t={t}
             toast={toast}
             updateLine={updateLine}
@@ -714,8 +716,10 @@ export function CreateOfferButton({
     else {
       setChooseCurrency(false);
       toast(t("dashboard.adminTabs.lineup.offerCreated"));
+      // Hydrate the talent Oferta tab immediately; do not keep "Starting…"
+      // pending on a full RSC refresh (that was ~20s of Iniciando on the stack).
       await onCreated?.();
-      router.refresh();
+      void router.refresh();
     }
   });
   return (
@@ -724,7 +728,7 @@ export function CreateOfferButton({
         <div role="group" aria-label={t("dashboard.adminTabs.lineup.offerCurrencyChoose")} data-offer-currency-chooser>
           <div className="text-[12.5px] mb-1.5">{t("dashboard.adminTabs.lineup.offerCurrencyChoose")}</div>
           <div className="flex gap-2">
-            {["MXN", "USD"].map((code) => (
+            {TALENT_CHARGEABLE_CURRENCY_OPTIONS.map((code) => (
               <button key={code} type="button" disabled={pending} onClick={() => start(code)} style={primaryBtn(COLORS.accent)}>
                 {pending ? t("dashboard.adminTabs.lineup.starting") : code}
               </button>

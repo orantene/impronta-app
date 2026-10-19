@@ -49,7 +49,7 @@ import type {
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.40)",
+  inkDim: "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.08)",
   border: "rgba(24,24,27,0.16)",
   cardBg: "#ffffff",

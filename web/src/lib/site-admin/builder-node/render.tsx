@@ -34,10 +34,15 @@ import { FeaturedTalentCard } from "@/lib/site-admin/sections/featured_talent/Fe
 import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
+import { publicPriceLine } from "@/lib/talent/public-price-line";
 import {
   isSafeRichTextHref,
   renderInlineRich,
 } from "@/lib/site-admin/sections/shared/rich-text";
+import {
+  TALENT_BOOKING_POLICY_PATH,
+  talentPolicyPageHref,
+} from "@/lib/talent-site/footer-socket";
 
 import {
   BACKGROUND_MEDIA_CSS,
@@ -78,6 +83,7 @@ import {
   collectPresentContainerQueryBreakpoints,
 } from "./renderer-css-scope";
 import { anchorIdAttrs } from "./anchor-id";
+import { humanImageAlt } from "./portfolio-i18n";
 import {
   groupMenuByCategory,
   shouldShowCategoryNav,
@@ -137,7 +143,7 @@ import {
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import { localizeBlockNode } from "./block-i18n";
-import { categoryLabelFor } from "./catalog-category-label";
+import { mergeCategoriesByLabel } from "./catalog-category-label";
 import type {
   BuilderNavLink,
   BuilderNode,
@@ -159,11 +165,14 @@ import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
 import { menuBoardCopy } from "./menu-board-copy";
-import { type TalentOffering } from "@/lib/talent/offerings-types";
+import { offeringIsQuote, type TalentOffering } from "@/lib/talent/offerings-types";
 import { CatalogIslandBoundary } from "@/components/public-booking/catalog-island-boundary";
+import { effectiveCatalogColumns } from "./services-catalog-columns";
 import { resolveServicesCatalogSheetAccent } from "./services-catalog-defaults";
 import { renderStatsSpecBlock } from "./stats-spec-block";
 import { ServicesCatalogFilter } from "./services-catalog-filter";
+import { servicePageHrefs } from "@/lib/talent-site/service-page";
+import type { CatalogPromoPrices } from "@/lib/promos/catalog-promo-prices";
 import { SERVICES_CATALOG_ROW_CARD_CSS } from "./services-catalog-row-card-css";
 import { filterOfferingsForCatalog } from "./services-catalog-selection";
 import { ServicesCatalogLoadingSkeleton } from "./services-catalog-loading";
@@ -171,6 +180,8 @@ import { ServicesCatalogStaticFallback } from "./services-catalog-static-fallbac
 import { orderCategoryNames, renderItalicMarkedTitle } from "./services-catalog-title";
 import { renderPortfolioBlock } from "./portfolio-block";
 import { ReviewsBlockView } from "./reviews-block";
+import { PostsFeedBlockView } from "./posts-feed-block";
+import { postsFeedHref } from "./posts-feed-href";
 import { renderVisitBlock } from "./visit-block";
 import { renderContentsBlock } from "./contents-block";
 import { renderMastheadBlock } from "./masthead-block";
@@ -182,6 +193,11 @@ import { renderAlertBandBlock } from "./alert-band-block";
 import { renderTaskPickerBlock } from "./task-picker-block";
 import { renderNailDesignerBlock } from "./nail-designer-block";
 import { NextFreeChipView } from "./next-free-chip";
+import {
+  renderPromoBlockFallback,
+  type BuilderPromoBlockRenderer,
+} from "./promo-block-fallback";
+import { headerLogoDeclarations } from "../header-logo-limits";
 import type { LiveStatusRenderContext } from "@/lib/talent/live-status-render";
 
 export interface BuilderNodeRenderDataSources {
@@ -339,12 +355,25 @@ export interface BuilderNodeRenderDataSources {
    */
   talentReviews?: ReadonlyArray<import("./reviews-types").TalentSiteReview>;
   /**
+   * Posts v1 (PO1) — each `posts_feed` node's cards, keyed by node id, resolved
+   * by the SERVER caller for the rendering site's scope. The renderer never
+   * queries and never invents posts: a demo account's example posts arrive here
+   * already resolved (`PostsFeedNodeData.demo`), and the builder canvas fetches
+   * its own through a small island (TUL-1164).
+   */
+  postsFeedByNodeId?: Readonly<Record<string, import("./posts-feed-model").PostsFeedNodeData>>;
+  /**
    * Visit facts — service areas / languages / hours for `visit` nodes.
    * Resolved by the SERVER caller; the renderer never invents facts.
    */
   talentVisitFacts?: ReadonlyArray<import("./visit-types").TalentVisitFact>;
   /** G4 public `tel:` link for the utility bar; absent/empty = no call button. */
   callHref?: string;
+  /**
+   * The talent site's own languages (primary first) and, per code, THIS page in
+   * that language: the utility bar's language switch. Fewer than two = no switch.
+   */
+  siteLocales?: { locales: readonly string[]; hrefs?: Readonly<Record<string, string>> };
   /** Public-safe location (exact address present only in "public" mode). */
   talentLocation?: import("@/lib/talent/location-settings").TalentLocationPublic | null;
   /**
@@ -361,6 +390,11 @@ export interface BuilderNodeRenderDataSources {
   /** Plan-tier rule for this talent — mirrors `TalentStorefront`'s own DB read, precomputed here so the (sync) render dispatcher never needs one. */
   talentOfferingsConfirmsByHand?: boolean;
   /**
+   * TUL-792: locale-aware path prefix of a published talent site ("" or "/en"). When set, each
+   * eligible home service card links to its own service page. Unset (builder, hub, previews): no links.
+   */
+  talentServiceLinkBase?: string | null;
+  /**
    * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
    * in the slots route — not needed on the catalog island.
@@ -373,6 +407,14 @@ export interface BuilderNodeRenderDataSources {
   };
   /** Present only when at least one visible offering needs a "≈ US$" line; a failed/skipped fetch omits the field rather than guessing. */
   talentOfferingsUsdRates?: UsdRates;
+  /**
+   * Promo widgets (TUL-1051 part B): the talent's LIVE, non-personal promos,
+   * resolved by the SERVER caller (`loadPromoWidgetData`). Absent = every
+   * `promo` block renders hidden. `preview` is set only by the editor preview.
+   */
+  promoWidgets?: import("@/lib/promos/widgets/types").PromoWidgetData;
+  /** Promos v1: live-promo card prices by offering id (see catalogPromoPrices). Omitted = list prices. */
+  talentOfferingsPromoPrices?: CatalogPromoPrices;
   /** Saved `category_order` from the talent profile. Missing names append after. */
   talentOfferingsCategoryOrder?: string[];
   /** Optional inclusion line per category name. Omitted when the talent has none. */
@@ -524,6 +566,15 @@ export interface BuilderNodeRenderOptions {
    * tenant-less preview, or in a test.
    */
   renderNativeLiveBlock?: BuilderNativeLiveBlockRenderer | null;
+  /**
+   * TUL-1178 step 2: the real promo renderer (`renderPromoBlock` in `promo-block.tsx`), injected
+   * by a SERVER caller that holds promo data (the live site and the My content preview). It is
+   * injected, not imported here, so the builder canvas (browser) does not bundle the promo
+   * picker, its copy, its CSS and the client island, none of which the canvas can use because
+   * it gets no promo data. Absent: the editor canvas shows a static hint, every other caller
+   * renders the hidden marker the real block renders with no data.
+   */
+  renderPromoBlock?: BuilderPromoBlockRenderer | null;
   // Server-resolved captcha for this tenant (`resolveTenantCaptcha`). The
   // `form` node MUST render the widget whenever the tenant has an active
   // provider, because /api/cms/forms/submit enforces captcha at TENANT level:
@@ -644,6 +695,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
     | "currentPath"
     | "availableLocales"
     | "renderNativeLiveBlock"
+    | "renderPromoBlock"
   >
 > & {
   currentPath?: string;
@@ -654,6 +706,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
   // BUILDER 2027 · P2A — null when no server caller injected a live engine;
   // the three delegating kinds then render their self-contained native markup.
   renderNativeLiveBlock: BuilderNativeLiveBlockRenderer | null;
+  renderPromoBlock: BuilderPromoBlockRenderer | null;
   // ABTEST-1 — undefined/null seed → control always renders, no tracking.
   experimentSeed: string | null | undefined;
   experimentTenantId: string | null | undefined;
@@ -1021,7 +1074,7 @@ const BUILDER_NODE_CAROUSEL_HERO_CSS = `
 .site-bn-hero__sub{margin-top:26px;font-size:clamp(1rem,1.4vw,1.2rem);max-width:46ch;color:rgba(255,255,255,0.84);font-weight:300;line-height:1.55}
 .site-bn-hero__cta{margin-top:40px;display:flex;gap:14px;flex-wrap:wrap}
 .site-bn-hero__btn{display:inline-flex;align-items:center;justify-content:center;padding:0.95rem 1.8rem;border-radius:var(--site-radius-base,2px);font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;font-weight:500;text-decoration:none;transition:transform .4s var(--bn-ease),filter .4s var(--bn-ease)}
-.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408}
+.site-bn-hero__btn--primary{background:linear-gradient(135deg,color-mix(in srgb,var(--token-color-primary,#c6a14e) 80%,#fff),var(--token-color-primary,#c6a14e) 55%,color-mix(in srgb,var(--token-color-primary,#c6a14e) 72%,#000));color:#1a1408;color:oklch(from var(--token-color-primary,#c6a14e) clamp(0,(.6 - l)*1000,1) 0 0)}
 .site-bn-hero__btn--secondary{border:1px solid color-mix(in srgb,var(--token-color-primary,#c6a14e) 60%,transparent);color:#fff}
 .site-bn-hero__btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
 .site-bn-hero__meta{position:absolute;z-index:6;right:clamp(20px,5vw,88px);bottom:clamp(74px,11vh,134px);display:flex;flex-direction:column;gap:14px;align-items:flex-end}
@@ -1363,8 +1416,20 @@ export const BUILDER_NODE_RENDERER_CSS = `
    paddingX/paddingLeft/Right are inline styles and the mobile lane is
    !important. Full-bleed and background-media blocks are untouched. */
 [data-talent-max-site-main] [data-cms-block]>.site-builder-node--container:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem}
+/* Same gutter for the kit-shell header bar: trees seeded before the shell
+   carried paddingX:"m" put the wordmark and CTA at x=0 (tomas, valeria).
+   Row only, so the utility_bar stack wrapper keeps its own padding and colour.
+   The bar sits outside the talent main, so without an ink colour its nav
+   inherited the body's light foreground; inline textColor/contrast still wins.
+   The nav shrinks to its links so brand · nav · CTA share one row on desktop. */
+[data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]:not([data-builder-full-bleed]):not([data-bn-bg-media]){padding-inline:1.5rem;color:var(--token-color-ink)}
+[data-talent-max-site-header]>.site-builder-node--container[data-builder-layout="row"]>.site-builder-node--nav{width:auto;margin:0}
 .site-builder-node--container[data-builder-layout="row"]{flex-direction:row;flex-wrap:wrap}
+/* TUL-532: a kit-shell header logo is a plain image node (inline width:100% + cover), so a
+   wordmark was cropped or blown up. Same platform limits as .site-header__brand-mark. */
+[data-talent-max-site-header] .site-builder-node--container[data-builder-layout="row"]>:is(.site-builder-node--image,.site-builder-node--image-link>.site-builder-node--image){${headerLogoDeclarations(true)};flex:0 0 auto}
 .site-builder-node--container[data-builder-layout="grid"],.site-builder-node--container[data-builder-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-columns,2),minmax(0,1fr))}
+@media (min-width:641px){.site-builder-node--container[data-bn-odd-tail]{grid-template-columns:repeat(4,minmax(0,1fr))}.site-builder-node--container[data-bn-odd-tail]>*{grid-column:span 2}.site-builder-node--container[data-bn-odd-tail]>:last-child{grid-column:2/span 2}}
 .site-builder-node--container[data-builder-display="slider"]{display:flex;flex-direction:row;flex-wrap:nowrap;gap:var(--bn-slider-gap,var(--bn-gap,16px));overflow-x:auto;scroll-snap-type:x mandatory}
 .site-builder-node--container[data-builder-display="slider"] > *{flex:0 0 calc((100% - (var(--bn-items-per-view,3) - 1) * var(--bn-slider-gap,var(--bn-gap,16px))) / var(--bn-items-per-view,3));min-width:0;scroll-snap-align:start}
 .site-builder-node--split{width:100%;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:var(--bn-split-left,1fr) var(--bn-split-right,1fr);gap:var(--bn-gap,1.25rem);align-items:center}
@@ -1431,7 +1496,11 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--p2a-empty{margin:0;width:100%;padding:1.5rem;text-align:center;color:color-mix(in oklab,currentColor 58%,transparent);border:1px dashed color-mix(in oklab,currentColor 22%,transparent)}
 .site-builder-node--p2a-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .site-builder-node--p2a-ratio{aspect-ratio:var(--bn-p2a-ratio,16/9)}
-.site-builder-node--marquee{display:block;width:100%;overflow:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
+/* OnbDev-folio-scroll / TUL-532: max-content track must never widen the
+   document. overflow-x:clip (not hidden) matches the band invariant — no
+   scroll container, sticky chrome stays free; max-width + min-width:0 stop
+   flex/grid ancestors from growing with the track (~20px phone H-scroll). */
+.site-builder-node--marquee{display:block;width:100%;max-width:100%;min-width:0;overflow-x:clip;overflow-y:hidden;padding:clamp(0.9rem,2vw,1.4rem) 0;box-sizing:border-box}
 .site-builder-node--marquee-track{display:flex;width:max-content;animation:bn-marquee var(--bn-marquee-duration,32s) linear infinite}
 .site-builder-node--marquee[data-bn-marquee-speed="slow"]{--bn-marquee-duration:52s}
 .site-builder-node--marquee[data-bn-marquee-speed="fast"]{--bn-marquee-duration:18s}
@@ -1833,6 +1902,7 @@ ${extraResponsiveLaneRules("tablet")}${hoverV2ViewportRules("tablet")}
 ${extraResponsiveLaneRules("mobile")}${hoverV2ViewportRules("mobile")}
   .site-builder-node--container{align-items:stretch}
   .site-builder-node--container[data-builder-mobile-layout="stack"],.site-builder-node--container:not([data-builder-mobile-layout]){display:flex;flex-direction:column}
+  [data-talent-max-site-header]>[data-builder-layout=row]:not([data-builder-mobile-layout]){flex-direction:row;flex-wrap:nowrap;justify-content:space-between;align-items:center;gap:.75rem;padding-inline:1.5rem}
   .site-builder-node--container[data-builder-mobile-layout="row"]{display:flex;flex-direction:row;flex-wrap:wrap}
   .site-builder-node--container[data-builder-mobile-layout="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,1),minmax(0,1fr))}
   .site-builder-node--container[data-builder-mobile-display="grid"]{display:grid;grid-template-columns:repeat(var(--bn-mobile-columns,var(--bn-columns,1)),minmax(0,1fr));overflow-x:visible}
@@ -3179,10 +3249,10 @@ function clampFreeWidthForMobile(value: string): string {
 
 /**
  * Muted tone: inside a band that sets its own ink (`--bn-ink`), fine print is
- * that ink at 60%; elsewhere the theme's muted token (unchanged).
+ * that ink at ~60–72%; elsewhere the AA-guaranteed muted-text token (GRK-077).
  */
 const MUTED_TONE_COLOR =
-  "var(--bn-ink-muted, var(--token-color-muted, rgba(18, 18, 18, 0.62)))";
+  "var(--bn-ink-muted, var(--token-color-muted-text, var(--token-color-muted, rgba(18, 18, 18, 0.62))))";
 
 export function inlineNodeStyle(
   style: BuilderNodeStyle | undefined,
@@ -3213,16 +3283,27 @@ export function sharedNodeStyle(style: BuilderNodeStyle | undefined): CSSPropert
   if (style.radius) out.borderRadius = NODE_RADIUS[style.radius];
   if (style.background === "surface") out.background = "var(--token-color-surface-raised, rgba(246, 241, 232, 0.92))";
   if (style.background === "contrast") {
+    // Pair ink fill with the page paper as text (not hardcoded white) so dark
+    // Looks keep readable chrome. Publish band ink so child `tone: muted`
+    // copyright/© lines use soft paper, not page muted-on-ink (GRK-077/100).
+    const contrastInk = "var(--token-color-background,#fff)";
     out.background = "var(--token-color-ink,#111)";
-    out.color = "#fff";
+    out.color = contrastInk;
+    (out as Record<string, string>)["--bn-ink"] = contrastInk;
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${contrastInk} 72%, transparent)`;
   }
   // AIQ-13 — theme-paired band roles. Each emits a background AND its guaranteed
   // paired foreground (like "contrast" does), so a tenant's own brand color paints
   // the band and the text stays readable on every theme. Kept AFTER surface/
   // contrast and BEFORE tone so an explicit tone/textColor still wins.
   if (style.background === "accent") {
+    const accentInk = "var(--token-color-surface-raised, #fff)";
     out.background = "var(--token-color-primary, var(--token-color-ink, #111))";
-    out.color = "var(--token-color-surface-raised, #fff)";
+    out.color = accentInk;
+    (out as Record<string, string>)["--bn-ink"] = accentInk;
+    (out as Record<string, string>)["--bn-ink-muted"] =
+      `color-mix(in oklab, ${accentInk} 72%, transparent)`;
   }
   if (style.background === "muted") {
     out.background =
@@ -4015,6 +4096,22 @@ function customTierLayoutAttrs(
   return out;
 }
 
+/**
+ * A two-column photo grid with an odd count centres its last photo instead of
+ * leaving it alone under the left column. Only plain stored image children
+ * qualify (no data binding, linked instance, moving background, tablet or
+ * custom-tier override), so every other container keeps identical markup.
+ */
+export function containerOddTailAttrs(node: Extract<BuilderNode, { kind: "container" }>): { "data-bn-odd-tail"?: "" } {
+  const p = node.props;
+  if (p.layout !== "grid" || p.display === "slider" || (p.columns ?? 2) !== 2) return {};
+  if (p.dataBinding || p.instanceOf || p.backgroundMedia) return {};
+  if (p.responsive && Object.keys(p.responsive).some((tier) => tier !== "mobile")) return {};
+  const kids = node.children ?? [];
+  if (kids.length < 3 || kids.length % 2 === 0 || !kids.every((k) => k.kind === "image")) return {};
+  return { "data-bn-odd-tail": "" };
+}
+
 function containerStyle(node: Extract<BuilderNode, { kind: "container" }>): CSSProperties {
   return inlineNodeStyle(node.props.style, builderNodeStyleVars({
     "--bn-gap": GAP_BY_SIZE[node.props.gap ?? "m"],
@@ -4434,11 +4531,14 @@ const SERVICES_CATALOG_CSS = `
 /* No page-ground paint here — non-Maison catalogs must keep authored/parent bg.
    Maison soft blush: Design services container OR an authored style.backgroundColor
    on the catalog node (live binding; see useWebsiteTheme band exception). */
-.site-builder-node--services-catalog{color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
+.site-builder-node--services-catalog{align-self:stretch;color:var(--token-color-ink);font:inherit;--plt-ink:var(--token-color-ink);--plt-bg:var(--token-color-surface-raised, #fff);--plt-bg-raised:var(--token-color-surface-raised, #fff);--plt-muted:var(--token-color-muted);--plt-hairline-strong:var(--token-color-line)}
 /* AUD-026: a catalog dropped straight on the page (no padded container parent)
    gets the same side gutter a paddingX:"m" container has. Inline authored
    padding still wins; nested catalogs keep their parent's padding. */
 [data-cms-block]>.site-builder-node--services-catalog{padding-inline:1.5rem}
+/* A catalog has no intrinsic width (the matrix table shrinks to ~200px), so a
+   stack container aligned start/center must still give it the full row. */
+.site-builder-node--container:not([data-builder-layout="row"]):not([data-builder-layout="grid"]):not([data-builder-display="grid"])>.site-builder-node--services-catalog{align-self:stretch;min-width:0}
 .site-builder-node--services-catalog-header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:1.25rem;margin-bottom:1.5rem}
 .site-builder-node--services-catalog-eyebrow{margin:0 0 .35rem;font-size:.6875rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--token-color-primary,var(--token-color-ink))}
 .site-builder-node--services-catalog-title{margin:0;font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;line-height:1.1;font-family:var(--token-font-display,inherit)}
@@ -4498,18 +4598,20 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,3),minmax(0,1fr));gap:.85rem}
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{display:grid;grid-template-columns:repeat(var(--svc-columns,2),minmax(0,1fr));gap:1.75rem}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-row,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:hidden;background:var(--token-color-surface-raised,#fff)}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:hidden;background:transparent}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.75rem;padding:0;border:1px solid var(--token-color-line);border-radius:12px;overflow:visible;background:var(--token-color-surface-raised,#fff)}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-row{display:flex;flex-direction:column;align-items:stretch;gap:.5rem;padding:0;border:0;border-radius:0;overflow:visible;background:transparent}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-photo,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:4/3;overflow:hidden;border-radius:12px 12px 0 0}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-photo{width:100%;height:auto;aspect-ratio:1/1;overflow:hidden}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-copy{padding:0 1rem}
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-copy{padding:0}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-buy,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:auto;justify-content:flex-start;gap:.75rem}
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;justify-content:flex-start;gap:.5rem}
+.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-buy{margin:0 1rem 1rem;flex:0 0 auto;min-width:0;width:100%;max-width:100%;box-sizing:border-box;justify-content:flex-start;align-items:stretch;gap:.75rem;flex-wrap:wrap}
+.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-buy{margin:.25rem 0 0;flex:0 0 auto;min-width:0;width:100%;justify-content:flex-start;gap:.5rem;flex-wrap:wrap}
+/* TUL-532 / GRK-083: never clip "Solicitar cita" to "Soli" on phone cards. */
+.site-builder-node--services-catalog:is([data-layout="cards"],[data-layout="grid"],[data-layout="editorial"]) .site-builder-node--services-catalog-cta{flex:1 1 auto;min-width:0;max-width:100%;white-space:normal;text-wrap:balance;overflow-wrap:anywhere}
 .site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-price,
 .site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-price{align-items:flex-start;text-align:left}
@@ -4568,15 +4670,14 @@ const SERVICES_CATALOG_CSS = `
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="true"] .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%;min-width:0;justify-content:space-between;gap:10px}
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row[data-has-photo="false"] .site-builder-node--services-catalog-buy{flex:1 0 100%}
-.site-builder-node--services-catalog[data-layout="cards"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="grid"] .site-builder-node--services-catalog-list,
-.site-builder-node--services-catalog[data-layout="editorial"] .site-builder-node--services-catalog-list{grid-template-columns:1fr}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:first-child{grid-template-columns:1fr}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child){display:grid;grid-template-columns:64px minmax(0,1fr);grid-template-areas:"photo copy" "photo buy";gap:8px 12px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-photo{grid-area:photo;width:64px;height:64px}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-copy{grid-area:copy}
 .site-builder-node--services-catalog[data-layout="featured"] .site-builder-node--services-catalog-row:not(:first-child) .site-builder-node--services-catalog-buy{grid-area:buy;flex:none;width:100%}
 }
+/* TUL-532 / GRK-083: phone + tablet stay one column so CTA labels never clip. */
+@media (max-width:899px){.site-builder-node--services-catalog:is([data-layout="cards"],[data-layout="grid"],[data-layout="editorial"]) .site-builder-node--services-catalog-list{grid-template-columns:1fr}}
 @media (min-width:561px){
 .site-builder-node--services-catalog[data-layout="rows"] .site-builder-node--services-catalog-row,
 .site-builder-node--services-catalog:not([data-layout]) .site-builder-node--services-catalog-row{display:flex;flex-wrap:nowrap;align-items:center;gap:1.25rem 1.75rem;padding:1.15rem 0}
@@ -4732,6 +4833,7 @@ function renderBuilderNodeElement(
           data-builder-data-source={node.props.dataBinding?.sourceKey}
           data-builder-data-mode={node.props.dataBinding?.mode}
           data-builder-data-max-items={node.props.dataBinding?.maxItems}
+          {...containerOddTailAttrs(node)}
           className="site-builder-node site-builder-node--container"
           style={containerStyle(node)}
         >
@@ -5197,6 +5299,7 @@ function renderBuilderNodeElement(
             <BuilderNodeCarouselTrack
               nodeId={node.id}
               variant="hero"
+              locale={options.visitorLocale ?? options.contentLocale?.locale}
               slideCount={heroSlides.length}
               autoplayMs={node.props.autoplayMs}
               loop={node.props.loop}
@@ -5294,6 +5397,7 @@ function renderBuilderNodeElement(
           <BuilderNodeCarouselTrack
             nodeId={node.id}
             variant="rail"
+            locale={options.visitorLocale ?? options.contentLocale?.locale}
             showArrows={node.props.showArrows}
             showDots={node.props.showDots}
             autoplayMs={node.props.autoplayMs}
@@ -5484,9 +5588,11 @@ function renderBuilderNodeElement(
             )
           : null;
       const baseSrc = mediaAsset?.publicUrl ?? node.props.src ?? "";
-      const baseAlt = node.props.alt?.trim()
+      // GRK-101: skip asset-key alts (`f-hero`) so empty falls through cleanly.
+      const rawAlt = node.props.alt?.trim()
         ? node.props.alt
         : (mediaAsset?.alt ?? "");
+      const baseAlt = humanImageAlt(rawAlt) ?? "";
       const src = renderImageSrc(
         resolveNodeStringProp(node, "src", baseSrc, options.repeatItem),
       );
@@ -5921,6 +6027,7 @@ function renderBuilderNodeElement(
             : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
+      const serviceHrefs = servicePageHrefs(visible, options.dataSources.talentServiceLinkBase);
       const layout = p.layout ?? "rows";
       const useWebsiteTheme = p.useWebsiteTheme !== false;
       // Live band ground: when useWebsiteTheme skips custom Style overrides,
@@ -5932,9 +6039,10 @@ function renderBuilderNodeElement(
         useWebsiteTheme && p.style?.backgroundColor
           ? { backgroundColor: styleToken(p.style.backgroundColor) }
           : undefined;
-      const columns =
-        p.columns ??
-        (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1);
+      const columns = effectiveCatalogColumns(
+        p.columns ?? (layout === "grid" ? 3 : layout === "cards" || layout === "editorial" ? 2 : 1),
+        visible.length,
+      );
 
       // Categories: saved `category_order` first, then first-seen leftovers.
       const seen: string[] = [];
@@ -5942,7 +6050,10 @@ function renderBuilderNodeElement(
         const c = o.category?.trim();
         if (c && !seen.includes(c)) seen.push(c);
       }
-      const categories = orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder);
+      const categories = mergeCategoriesByLabel(
+        visible,
+        orderCategoryNames(seen, options.dataSources.talentOfferingsCategoryOrder),
+      );
       const showCategoryNav = p.categoryNav !== "none" && categories.length >= 2;
       const categoryNav = p.categoryNav ?? "pills";
       const filterNav =
@@ -5957,10 +6068,10 @@ function renderBuilderNodeElement(
       const groups: Array<{ name: string | null; label?: string; items: TalentOffering[]; note?: string | null }> = groupByCategory
         ? [
             ...categories.map((c) => ({
-              name: c,
-              ...(categoryLabelFor(visible, c) ? { label: categoryLabelFor(visible, c) } : {}),
-              note: notes?.[c] ?? null,
-              items: visible.filter((o) => o.category?.trim() === c),
+              name: c.name,
+              ...(c.label ? { label: c.label } : {}),
+              note: notes?.[c.name] ?? null,
+              items: visible.filter((o) => c.keys.includes(o.category?.trim() ?? "")),
             })),
             ...(visible.some((o) => !o.category?.trim())
               ? [{ name: null, items: visible.filter((o) => !o.category?.trim()) }]
@@ -6086,6 +6197,7 @@ function renderBuilderNodeElement(
               }
             >
               <ServicesCatalogFilter
+                serviceHrefs={serviceHrefs}
                 groups={groups}
                 locale={locale}
                 nav={navMode}
@@ -6123,6 +6235,11 @@ function renderBuilderNodeElement(
                 onlineCollectReady={options.dataSources.onlineCollectReady}
                 matrix={layout === "matrix"}
                 liveStatus={options.dataSources.liveStatus ?? null}
+                promoPrices={options.dataSources.talentOfferingsPromoPrices}
+                signedIn={
+                  options.dataSources.headerWidgets?.account?.signedIn === true ||
+                  options.visibilityContext?.signedIn === true
+                }
               />
             </CatalogIslandBoundary>
           )}
@@ -6152,13 +6269,46 @@ function renderBuilderNodeElement(
         />
       );
     }
+    case "posts_feed": {
+      const editorPreview = options.contentLocale?.editorPreview === true;
+      const locale = options.contentLocale?.locale ?? options.visitorLocale ?? "en";
+      return (
+        <PostsFeedBlockView
+          node={localizeBlockNode(node, options.contentLocale)}
+          data={options.dataSources?.postsFeedByNodeId?.[node.id]}
+          locale={locale}
+          hrefFor={(path) =>
+            postsFeedHref(path, {
+              locale,
+              defaultLocale: options.contentLocale?.defaultLocale ?? locale,
+              pathPrefix: options.publicPathPrefix ?? "",
+            })
+          }
+          styleAttr={sharedNodeStyle(node.props.style)}
+          editorPreview={editorPreview}
+        />
+      );
+    }
     case "visit": {
+      // GRK-029: location "Payments, changes…" must keep /en on EN visits
+      // (footer socket already used talentPolicyPageHref; this path did not).
+      const visitLocale = options.visitorLocale ?? options.contentLocale?.locale ?? "en";
+      const visitPrimary = options.contentLocale?.defaultLocale ?? visitLocale;
+      const visitSupported = options.contentLocale
+        ? [options.contentLocale.defaultLocale, ...options.contentLocale.chain]
+        : [visitPrimary];
       return renderVisitBlock({
         node: localizeBlockNode(node, options.contentLocale),
         facts: options.dataSources?.talentVisitFacts ?? [],
         location: options.dataSources?.talentLocation,
-        locale: options.visitorLocale ?? options.contentLocale?.locale,
-        policyHref: `${(options.publicPathPrefix ?? "").replace(/\/+$/, "")}/politicas`,
+        locale: visitLocale,
+        policyHref: talentPolicyPageHref({
+          path: TALENT_BOOKING_POLICY_PATH,
+          locale: visitLocale,
+          primaryLocale: visitPrimary,
+          supportedLocales: visitSupported,
+          publicPathPrefix: options.publicPathPrefix,
+        }),
         styleAttr: sharedNodeStyle(node.props.style),
       });
     }
@@ -6190,6 +6340,8 @@ function renderBuilderNodeElement(
         node: localizeBlockNode(node, options.contentLocale),
         liveStatus: options.dataSources?.liveStatus,
         callHref: options.dataSources?.callHref,
+        siteLocales: options.dataSources?.siteLocales,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
         publicPathPrefix: options.publicPathPrefix,
         styleAttr: sharedNodeStyle(node.props.style),
       });
@@ -6246,6 +6398,21 @@ function renderBuilderNodeElement(
         />
       );
     }
+    case "promo": {
+      const promoArgs = {
+        node: localizeBlockNode(node, options.contentLocale),
+        data: options.dataSources?.promoWidgets,
+        locale: options.visitorLocale ?? options.contentLocale?.locale,
+        signedIn: options.visibilityContext?.signedIn,
+        styleAttr: sharedNodeStyle(node.props.style),
+      };
+      return options.renderPromoBlock
+        ? options.renderPromoBlock(promoArgs)
+        : renderPromoBlockFallback({
+            ...promoArgs,
+            editorPreview: options.contentLocale?.editorPreview === true,
+          });
+    }
     case "menu_board": {
       const p = node.props;
       const offerings = options.dataSources.menuOfferings ?? [];
@@ -6283,20 +6450,26 @@ function renderBuilderNodeElement(
         currency: string;
         priceType: string;
         priceDisplay: string;
+        visibility?: string | null;
       }): string => {
-        if (
-          item.amountCents == null ||
-          item.priceDisplay === "quote" ||
-          item.priceType === "custom"
-        ) {
+        // D-10a: an on_request service stays listed, its price is withheld.
+        if (item.visibility === "on_request") {
+          return (options.contentLocale?.locale ?? "en").toLowerCase().startsWith("es") ? "Bajo consulta" : "On request";
+        }
+        // `amountCents == null` is already a quote per offeringIsQuote; the
+        // explicit check also narrows the type for formatMoney below.
+        if (item.amountCents == null || offeringIsQuote(item)) {
           return "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";
         const es = locale.toLowerCase().startsWith("es");
-        const formatted = formatMoney(item.amountCents, item.currency, locale);
-        if (item.priceDisplay === "from") return es ? `desde ${formatted}` : `from ${formatted}`;
-        return formatted;
+        // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
+        if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
+        return (
+          publicPriceLine({ ...item, priceDisplay: item.priceDisplay === "from" ? "from" : "exact" }, locale) ??
+          formatMoney(item.amountCents, item.currency, locale)
+        );
       };
       const usdLine = (item: {
         amountCents: number | null;
@@ -6313,8 +6486,9 @@ function renderBuilderNodeElement(
         currency: string;
         priceType: string;
         priceDisplay: string;
+        visibility?: string | null;
       }) => {
-        const usd = usdLine(item);
+        const usd = item.visibility === "on_request" ? null : usdLine(item);
         return (
           <span className="site-builder-node--menu-board-item-price">
             {formatPriceLabel(item)}
@@ -9142,6 +9316,7 @@ function normalizeBuilderNodeRenderOptions(
     visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     renderNativeLiveBlock: options.renderNativeLiveBlock ?? null,
+    renderPromoBlock: options.renderPromoBlock ?? null,
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},
     contentLocale: options.contentLocale,

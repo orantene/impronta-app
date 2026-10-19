@@ -1,7 +1,6 @@
 /**
- * Grokbot P-4/P-6: the sticky "Reservar cita" bar opens booking instead of only scrolling.
- * The old tap ran `runSlotTap`, which scrolled whenever no next-free slot was known (and always
- * when the menu was in view); nothing else could open the sheet from the bar.
+ * Grokbot P-4/P-6 + TUL-516 W3-4: sticky bar opens booking/services, never chat,
+ * never a next-free slot (step 2 with a service preselected).
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -15,14 +14,14 @@ import type { OpenIntent } from "./open-intent-queue";
 const detail = { offeringId: "0b9f0c3e-5d2a-4f6e-8a1b-3c4d5e6f7a8b" } as unknown as OfferingRequestDetail;
 const sheet: BookEntry = { kind: "sheet", offeringId: detail.offeringId, eventName: "tulala:offering-instant", detail };
 
-test("count to action", () => {
+test("count to action: only a single bookable service opens the sheet", () => {
   assert.equal(stickyBarAction(0), "scroll");
   assert.equal(stickyBarAction(1), "open-sheet");
-  assert.equal(stickyBarAction(2), "open-sheet");
-  assert.equal(stickyBarAction(9), "open-sheet");
+  assert.equal(stickyBarAction(2), "scroll");
+  assert.equal(stickyBarAction(9), "scroll");
 });
 
-test("intents: sheet event for one or more services, none otherwise", () => {
+test("intents: sheet event for one service, none otherwise", () => {
   assert.deepEqual(stickyBarIntent("open-sheet", sheet), {
     channel: "sheet",
     eventName: "tulala:offering-instant",
@@ -39,8 +38,6 @@ function run(over: Partial<Parameters<typeof runStickyBarTap>[0]>) {
     menuInView: false,
     bookableCount: 1,
     entry: sheet,
-    slot: null,
-    openAtSlot: () => false,
     request: (i) => requested.push(i),
     scroll: () => {
       scrolled += 1;
@@ -50,7 +47,7 @@ function run(over: Partial<Parameters<typeof runStickyBarTap>[0]>) {
   return { result, requested, scrolled };
 }
 
-test("one bookable service and no known slot: opens the sheet, does NOT scroll (old behaviour scrolled)", () => {
+test("one bookable service: opens the sheet, does NOT scroll", () => {
   const r = run({});
   assert.equal(r.result, "open-sheet");
   assert.equal(r.scrolled, 0);
@@ -58,29 +55,27 @@ test("one bookable service and no known slot: opens the sheet, does NOT scroll (
   assert.equal(r.requested[0]?.channel, "sheet");
 });
 
-test("several bookable services: opens the preferred sheet (not the dock)", () => {
+test("several bookable services: scrolls to the menu (Elige tu servicio), never chat", () => {
   const r = run({ bookableCount: 3, entry: sheet });
-  assert.equal(r.result, "open-sheet");
-  assert.equal(r.requested.length, 1);
-  assert.equal(r.requested[0]?.channel, "sheet");
-  assert.equal(r.scrolled, 0);
+  assert.equal(r.result, "scroll");
+  assert.equal(r.scrolled, 1);
+  assert.equal(r.requested.length, 0);
 });
 
-test("no bookable service: keeps the scroll fallback", () => {
+test("no bookable service: scrolls (never opens chat)", () => {
   const r = run({ bookableCount: 0, entry: { kind: "inquire" } });
   assert.equal(r.result, "scroll");
   assert.equal(r.scrolled, 1);
   assert.equal(r.requested.length, 0);
 });
 
-test("a known next free slot still wins; menu in view still scrolls", () => {
-  const slot = { offeringId: detail.offeringId, slotStart: "2026-10-09T15:00:00.000Z" };
-  const a = run({ slot, openAtSlot: () => true });
-  assert.equal(a.result, "open-at-slot");
-  assert.equal(a.requested.length + a.scrolled, 0);
+test("menu in view always scrolls; never opens a next-free slot path", () => {
   const b = run({ menuInView: true });
   assert.equal(b.result, "scroll");
   assert.equal(b.scrolled, 1);
+  assert.equal(b.requested.length, 0);
+  const bar = readFileSync("src/lib/talent-site/sticky-bar-tap.ts", "utf8");
+  assert.doesNotMatch(bar, /openAtSlot|open-at-slot|NextSlot/);
 });
 
 test("wiring: both bar styles use the shared tap through the open-intent queue", () => {

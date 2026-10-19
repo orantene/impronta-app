@@ -346,7 +346,9 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     styleTags: ["Minimal", "Warm"],
     featureTags: ["Service list", "Booking-ready", "Classes", "Personal story"],
     palettes: [
-      pal("linen", "Linen & Clay", "Lino y barro", ["#FFFFFF", "#F6F2EC", "#E6DED2", "#2B2620", "#8A5A3C", "#FFFFFF"]),
+      pal("linen", "Linen & Clay", "Lino y barro", ["#FFFFFF", "#F6F2EC", "#E6DED2", "#2B2620", "#8A5A3C", "#FFFFFF"], {
+        muted: "#6B6258",
+      }),
       pal("eucalyptus", "Eucalyptus", "Eucalipto", ["#FFFFFF", "#EEF3F0", "#D9E3DD", "#1D2622", "#3F6B5A", "#FFFFFF"]),
       pal("stone", "Stone & Charcoal", "Piedra y carbón", ["#FFFFFF", "#F3F3F1", "#E0E0DC", "#121212", "#121212", "#FFFFFF"], { highContrast: true }),
       pal("dusk", "Dusk", "Atardecer", ["#1A1917", "#24221F", "#3A3732", "#F2EEE8", "#D9B48C", "#1A1917"], { dark: true }),
@@ -448,9 +450,21 @@ export function galleryExtraDesignsEnabled(): boolean {
   );
 }
 
-/** Designs the gallery shows: the finished set, or all with the flag on. */
+/**
+ * TUL-747: finished-in-code designs whose catalog row exists but is NOT published (e.g. Folio while it is
+ * still a draft with no release). Their preview 404s by design, so the picker must not offer them. Set once
+ * per page by the client host from the server bootstrap; the server never calls the setter, so the
+ * server-side module state stays empty.
+ */
+let unavailableGallerySlugs: ReadonlySet<string> = new Set();
+export function setGalleryUnavailableSlugs(slugs: readonly string[] | null | undefined): void {
+  unavailableGallerySlugs = new Set((slugs ?? []).map((s) => s.trim().toLowerCase()));
+}
+
+/** Designs the gallery shows: the finished set, or all with the flag on; never an unreleased (unpublished) one. */
 export function visibleGalleryDesigns(showExtra: boolean = galleryExtraDesignsEnabled()): readonly GalleryDesign[] {
-  return showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
+  const base = showExtra ? GALLERY_DESIGNS : GALLERY_DESIGNS.filter((d) => FINISHED_GALLERY_SLUGS.includes(d.slug));
+  return unavailableGallerySlugs.size ? base.filter((d) => !unavailableGallerySlugs.has(d.slug)) : base;
 }
 
 export function getGalleryDesign(slug: string): GalleryDesign | undefined {

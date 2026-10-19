@@ -6,12 +6,14 @@ import {
   loadTalentStablecoinEligibility,
 } from "./actions";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { PayoutComingSoonList } from "./PayoutComingSoonList";
 import { interpolate } from "@/i18n/interpolate";
 
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.4)",
+  inkDim: "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.08)",
   border: "rgba(24,24,27,0.12)",
   surface: "#ffffff",
@@ -60,8 +62,9 @@ const primaryBtn = (busy: boolean): CSSProperties => ({
  */
 export function StablecoinPayoutCard({ position = "default" }: { position?: "top" | "default" }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const [state, setState] = useState<
-    { status: "loading" } | { status: "hidden" } | { status: "ready"; recommended: boolean; countryLabel: string | null }
+    { status: "loading" } | { status: "hidden" } | { status: "soon" } | { status: "ready"; recommended: boolean; countryLabel: string | null }
   >({ status: "loading" });
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +75,10 @@ export function StablecoinPayoutCard({ position = "default" }: { position?: "top
       .then((r) => {
         if (cancelled) return;
         // Unresolvable eligibility: stay silent rather than show a half-broken card.
-        if (!r.ok || !r.eligible) return setState({ status: "hidden" });
+        if (!r.ok) return setState({ status: "hidden" });
+        // TUL-1052: USDC switch off (private preview): coming soon + waitlist.
+        if (!r.usdcEnabled) return setState({ status: "soon" });
+        if (!r.eligible) return setState({ status: "hidden" });
         setState({ status: "ready", recommended: r.recommended, countryLabel: r.countryLabel });
       })
       .catch(() => {
@@ -97,6 +103,13 @@ export function StablecoinPayoutCard({ position = "default" }: { position?: "top
   };
 
   if (state.status === "hidden") return null;
+  if (state.status === "soon") {
+    return position === "default" ? (
+      <div data-testid="talent-stablecoin-soon" style={{ marginTop: 12 }}>
+        <PayoutComingSoonList rows={[{ iso2: "USDC", label: "USDC", flag: "$" }]} isSpanish={locale.startsWith("es")} />
+      </div>
+    ) : null;
+  }
   if (state.status === "loading") {
     return position === "default" ? (
       <div style={{ marginTop: 12, fontSize: 12, color: C.inkDim, padding: "2px" }}>{t("dashboard.talentUsdc.checking")}</div>

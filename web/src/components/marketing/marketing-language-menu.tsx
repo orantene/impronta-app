@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { withLocalePath } from "@/i18n/pathnames";
 import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { cn } from "@/lib/utils";
+import { useMenuKeyboard } from "@/hooks/use-menu-keyboard";
 import { HeaderPopover } from "./marketing-header-popover";
 
 /**
@@ -80,6 +81,7 @@ export function MarketingLanguageMenu({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+  useMenuKeyboard(ref, open, () => setOpen(false));
 
   const locales = availableLocales ?? FALLBACK_LANGUAGE_SETTINGS.publicLocales;
   if (locales.length <= 1) return null;
@@ -94,7 +96,8 @@ export function MarketingLanguageMenu({
     <div ref={ref} className={cn("relative", className)}>
       <button
         type="button"
-        aria-label={label}
+        // The visible text is the active locale code, so the name starts with it (WCAG 2.5.3, TUL-1084).
+        aria-label={`${activeLocale.toUpperCase()} ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -106,7 +109,7 @@ export function MarketingLanguageMenu({
         {/* The active locale stays visible so the current language is legible
             without opening the menu. Uppercase, quiet, never a second CTA. */}
         <span className="text-[0.6875rem] font-semibold uppercase leading-none tracking-[0.06em]">
-          {activeLocale}
+          {activeLocale.toUpperCase()}
         </span>
       </button>
 

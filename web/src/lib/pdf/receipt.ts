@@ -154,6 +154,7 @@ export async function generateReceiptPdf(
     builder.footer(
       (showFeeNote ? "Fees are non-refundable. " : "") +
         "This receipt confirms the amount paid for the booking above. " +
+        "It is not a tax invoice (no CFDI is issued here). " +
         "Keep it for your records. Issued by Tulala on behalf of " +
         `${brand}.`,
     );

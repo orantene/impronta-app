@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { defaultWhere, isPlaceMode, type PlaceMode } from "@/lib/onboarding/service-where";
 import { parseInPersonMethods, type InPersonMethod } from "@/lib/talent-policies/facts";
 import {
   parseBookingPosture,
@@ -19,6 +20,8 @@ export type SellingDefaults = {
   cancelHours: number | null;
   rescheduleHours: number | null;
   where: string[];
+  /** TUL-808 · display only, never saved: where the person said they work in onboarding. */
+  placeMode?: PlaceMode | null;
   /** Accepted ways to pay at the visit (descriptive; the per-service switch stays the gate). */
   inPersonMethods?: InPersonMethod[];
   travelRadiusKm: number | null;
@@ -29,6 +32,8 @@ export type SellingDefaults = {
   minNoticeMin: number | null;
   /** Default booking mode for services that inherit: instant / request / inquiry. */
   bookingPosture: TalentBookingPosture;
+  /** TUL-685: "platform" = never chosen, the Tulala default (instant) applies. Display only, never saved. */
+  bookingPostureSource?: "talent" | "platform";
   /** Who-step primary CTA vocabulary. */
   whoPrimaryCta: WhoPrimaryCta;
 };
@@ -56,7 +61,7 @@ async function requireOwner(talentProfileId: string) {
   if (!admin) return { ok: false as const, error: "Server configuration error." };
   const { data, error } = await admin
     .from("talent_profiles")
-    .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code")
+    .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code, booking_terms")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (error) {
@@ -74,13 +79,18 @@ export async function loadSellingDefaults(
   if (!auth.ok) return auth;
   const raw = (auth.profile.selling_defaults ?? {}) as Record<string, unknown>;
   const booking = parseSellingBookingSettings(raw);
+  const terms = (auth.profile as { booking_terms?: unknown }).booking_terms;
+  const placeRaw = terms && typeof terms === "object" && !Array.isArray(terms) ? (terms as { place?: { mode?: unknown } }).place?.mode : null;
+  const placeMode: PlaceMode | null = isPlaceMode(placeRaw) ? placeRaw : null;
   return {
     ok: true,
     defaults: {
       depositPct: typeof raw.depositPct === "number" ? raw.depositPct : null,
       cancelHours: typeof raw.cancelHours === "number" ? raw.cancelHours : 24,
       rescheduleHours: typeof raw.rescheduleHours === "number" ? raw.rescheduleHours : 24,
-      where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : ["studio"],
+      // TUL-808: with no saved default, the place the person chose in onboarding decides (a cleaner goes to the client).
+      where: Array.isArray(raw.where) ? raw.where.filter((v): v is string => typeof v === "string") : defaultWhere(null, placeMode),
+      placeMode,
       inPersonMethods: parseInPersonMethods(raw.inPersonMethods),
       travelRadiusKm: typeof raw.travelRadiusKm === "number" ? raw.travelRadiusKm : null,
       travelFeeCents: typeof raw.travelFeeCents === "number" ? raw.travelFeeCents : null,
@@ -88,6 +98,7 @@ export async function loadSellingDefaults(
       bufferAfterMin: typeof raw.bufferAfterMin === "number" ? raw.bufferAfterMin : null,
       minNoticeMin: typeof raw.minNoticeMin === "number" ? raw.minNoticeMin : null,
       bookingPosture: booking.bookingPosture,
+      bookingPostureSource: parseBookingPosture(raw.bookingPosture) ? "talent" : "platform",
       whoPrimaryCta: booking.whoPrimaryCta,
     },
   };
@@ -109,9 +120,13 @@ export async function saveSellingDefaults(
       : {};
   // Merge so non-form keys (e.g. categoryNotes) survive a Defaults save.
   // Writers write the new three values only (legacy on_demand reads as request).
+  const { placeMode: _place, ...withoutPlace } = defaults;
+  void _place;
+  const { bookingPostureSource: _display, ...storable } = withoutPlace;
+  void _display;
   const selling_defaults = {
     ...prev,
-    ...defaults,
+    ...storable,
     inPersonMethods: parseInPersonMethods(defaults.inPersonMethods ?? prev.inPersonMethods),
     bookingPosture: parseBookingPosture(defaults.bookingPosture) ?? PLATFORM_DEFAULT_BOOKING_POSTURE,
   };

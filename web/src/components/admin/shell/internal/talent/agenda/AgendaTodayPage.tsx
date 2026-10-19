@@ -1,13 +1,14 @@
 "use client";
 
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { resolveGreetingName } from "@/lib/dashboard/greeting-name";
 import Link from "next/link";
+import { useVerifiedLiveBadge } from "@/components/talent/website-reward/useVerifiedLiveBadge";
+import { LiveWebsiteTitle } from "@/components/talent/website-reward/LiveWebsiteTitle";
 import { todayReplyState } from "@/lib/messages-v5/inbox-view";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { todayTotals } from "@/lib/talent-agenda/derive";
-import { loadTalentClients } from "@/lib/talent/clients-actions";
-import type { TalentClientRow } from "@/lib/talent/clients-merge";
-import { agendaMoneyRows, talentOwedSummary } from "@/lib/talent/money-home";
+import { agendaMoneyRows, awaitingOfferSummary, talentOwedSummary } from "@/lib/talent/money-home";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 import {
   pinMoneyLanding,
@@ -27,6 +28,7 @@ import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from 
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
 import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
+import { HoursSetupNudgeButton } from "./HoursSetupNudgeButton";
 import {
   bookedLabel,
   durationMinutes,
@@ -41,8 +43,11 @@ import {
 } from "@/lib/talent-agenda/today-view";
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { useAdminShell } from "../../state";
+import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
-import { settleServerAction } from "@/lib/client/settle-server-action";
+import { ledgerClientsForSummary, owedAmountText } from "@/components/talent/money/ledger-clients-state";
+import { useTalentLedgerClients } from "@/components/talent/money/use-talent-ledger-clients";
 
 const SLICE_LABEL: Record<WebsiteSliceKey, string> = {
   who: "Your name and what you do",
@@ -131,6 +136,7 @@ export function AgendaTodayPage({
   onSendQuote,
   primaryAction = "booking",
   onOpenRecord,
+  onOpenAvailability,
   onOpenSite,
   onOpenProfile,
   onOpenMoney,
@@ -181,7 +187,7 @@ export function AgendaTodayPage({
   monthCollected?: TodayMonthCollected | null;
   payoutsEnabled?: boolean | null;
 }) {
-  const copy = useAgendaCopy();
+  const copy = useAgendaCopy(), { talentTier } = useAdminShell().state;
   const locale = copy.isSpanish ? "es-MX" : "en-GB";
   const clock = now ?? new Date();
   const [attentionLimit, setAttentionLimit] = useState(3);
@@ -228,30 +234,19 @@ export function AgendaTodayPage({
   );
   // F69: same source as /talent/money. The client ledger (agency_bookings
   // balances) plus the agenda's balances, via the one shared summary.
-  const [ledgerClients, setLedgerClients] = useState<TalentClientRow[] | null>(null);
   const profileId = profile?.id ?? null;
-  useEffect(() => {
-    if (!profileId) return;
-    let cancelled = false;
-    void settleServerAction(() => loadTalentClients(profileId), { label: "loadTalentClients", area: "talent-today" })
-      .then((res) => {
-        if (!cancelled) setLedgerClients(res.ok ? res.items : []);
-      })
-      .catch(() => {
-        if (!cancelled) setLedgerClients([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [profileId]);
-  const owed = talentOwedSummary({
-    clients: ledgerClients,
-    agendaOwed: agendaMoneyRows(items, clock).owed,
-    currency: monthCollected?.currency ?? null,
-  });
+  const { state: ledgerState } = useTalentLedgerClients(profileId, "talent-today");
+  const ledgerClients = ledgerClientsForSummary(ledgerState);
+  // TUL-1242: until the ledger is really known (loading or failed) the card shows a dash,
+  // never an agenda-only figure that is later replaced by the real one.
+  const owedKnown = ledgerState.status === "ready";
+  const agendaMoney = agendaMoneyRows(items, clock);
+  const owed = talentOwedSummary({ clients: ledgerClients, agendaOwed: agendaMoney.owed, currency: monthCollected?.currency ?? null });
+  const awaiting = awaitingOfferSummary(agendaMoney.waiting, owed.currency ?? monthCollected?.currency ?? null);
   const idea = ideaDismissed ? null : rebookHint(items, clock);
 
-  const firstName = profile?.displayName?.split(" ")[0] ?? "";
+  // TUL-525: greet by person name — never the account handle.
+  const firstName = resolveGreetingName({ personName: profile?.displayName }) ?? "";
   const city = profile?.homeCity ?? "";
   const greeting = copy.t(greetingFor(clock));
   const title = firstName ? `${greeting}, ${firstName}` : copy.t("Today");
@@ -275,6 +270,8 @@ export function AgendaTodayPage({
   });
   const percent = eligibility?.percent ?? null;
   const qualityMode = resolveQualityCardMode({ percent, sitePublished });
+  // TUL-818: the same verified answer as the top pill, so this card never says "live" while the pill says "checking".
+  const liveBadge = useVerifiedLiveBadge(sitePublished);
   const requiredSlices = (eligibility?.slices ?? []).filter((s) => s.required);
   const openSlice = useOpenWebsiteSlice();
   const leftCount = requiredSlices.filter((s) => s.done === false).length;
@@ -286,6 +283,8 @@ export function AgendaTodayPage({
   // pill and My presence (useWebsiteFlow). It replaced the Maison resume card,
   // which read setup_choices and named a palette the talent never picked.
   const resumeCard = profile ? <WebsiteTodayHero canBook={hasBookingHoursWindows(hours)} /> : null;
+
+  const hoursNudge = profile ? <HoursSetupNudgeButton es={copy.isSpanish} hours={hours} loadError={loadError} onOpen={onOpenAvailability} /> : null;
 
   if (loadError) {
     return (
@@ -308,13 +307,14 @@ export function AgendaTodayPage({
   }
 
   if (mode === "loading") {
-    // Facts still in flight: a neutral header, no greeting and no body, so a
-    // new account never flashes the established Today before "Welcome".
+    // Facts still in flight: shell + skeleton (TUL-525), never a blank blue plane.
     return (
-      <div style={TALENT_AGENDA_VARS} className="space-y-4" aria-busy="true">
+      <div style={TALENT_AGENDA_VARS} className="min-h-[70vh] space-y-4" aria-busy="true" data-testid="today-loading-skeleton">
         <PageHeader title={copy.t("Today")} subtitle={subtitle} />
-        <div className="h-28 animate-pulse rounded-2xl bg-black/[0.05]" />
-        <div className="h-44 animate-pulse rounded-2xl bg-black/[0.05]" />
+        <div className="h-28 animate-pulse rounded-2xl bg-black/[0.07]" />
+        <div className="h-44 animate-pulse rounded-2xl bg-black/[0.07]" />
+        <div className="h-36 animate-pulse rounded-2xl bg-black/[0.06]" />
+        <div className="h-24 animate-pulse rounded-2xl bg-black/[0.05]" />
       </div>
     );
   }
@@ -333,6 +333,7 @@ export function AgendaTodayPage({
             </SecondaryButton>
           }
         />
+        {hoursNudge}
         <WebsiteSetupToday canBook={hasBookingHoursWindows(hours)} />
       </div>
     );
@@ -396,12 +397,12 @@ export function AgendaTodayPage({
             {initialsOf(item)}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
+            <div className="line-clamp-2 break-words text-[14px] font-semibold text-[var(--tc-primary)]">
               {copy.t(item.client?.name ?? item.managedBy?.name ?? item.title)}
             </div>
             <div className="truncate text-[12.5px] text-black/70">{serviceLabel(item) ?? copy.t("No service set")}</div>
             {placeLabelFor(item.where) ? (
-              <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{placeLabelFor(item.where)}</div>
+              <div className={`mt-0.5 text-[11.5px] ${MUTED}`}>{copy.t(placeLabelFor(item.where) ?? "")}</div>
             ) : null}
           </div>
         </button>
@@ -456,10 +457,16 @@ export function AgendaTodayPage({
             <div
               className={`text-[22px] font-semibold tabular-nums ${owed.cents > 0 ? "text-amber-700" : "text-[var(--tc-primary)]"}`}
             >
-              {owed.currency ? formatMoney(owed.cents, owed.currency, locale) : formatMoney(0, currency ?? "USD", locale)}
+              {owedAmountText(
+                ledgerState,
+                owed.currency ? owed : { cents: 0, currency: null },
+                (cents, cur) => formatMoney(cents, cur, locale),
+                currency ?? "MXN",
+              )}
             </div>
             <div className={`text-[11.5px] ${MUTED}`}>
-              {owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : copy.t("Nothing owed")}
+              {!owedKnown ? "" : owed.count > 0 ? `${owed.count} ${copy.t("balances")}` : awaiting.count === 0 ? copy.t("Nothing owed") : ""}
+              {awaiting.count > 0 && awaiting.currency ? `${owed.count > 0 ? " · " : ""}${formatMoney(awaiting.cents, awaiting.currency, locale)} ${copy.t("pending payment")}` : ""}
             </div>
           </button>
         </div>
@@ -483,10 +490,7 @@ export function AgendaTodayPage({
   if (qualityMode === "live") {
     qualityCard = (
       <section className={`${CARD} p-4`}>
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[var(--tc-ok)]" aria-hidden />
-          <span className="text-[13.5px] font-semibold text-[var(--tc-ok)]">{copy.t("Your website is live")}</span>
-        </div>
+        <LiveWebsiteTitle badge={liveBadge} />
         {siteHost ? (
           <div className="mt-1.5 break-all text-[17px] font-semibold text-[var(--tc-primary)]">{siteHost}</div>
         ) : null}
@@ -516,8 +520,7 @@ export function AgendaTodayPage({
           <div className="flex-1">
             <div className="text-[13.5px] font-semibold text-[var(--tc-primary)]">{copy.t("Profile quality")}</div>
             <div className={`text-[12px] ${MUTED}`}>
-              {leftCount}{" "}
-              {copy.t(leftCount === 1 ? "thing left before your free website" : "things left before your free website")}
+              {dashboardStatusCopy({ plan: dashboardPlanKind(talentTier), publish: "draft", es: copy.isSpanish }).leftLine(leftCount)}
             </div>
           </div>
         </div>
@@ -592,6 +595,7 @@ export function AgendaTodayPage({
         }
       />
 
+      {hoursNudge}
       {resumeCard}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_352px]">
@@ -627,7 +631,7 @@ export function AgendaTodayPage({
                   href="/talent/inbox?filter=needs-reply"
                   className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left"
                 >
-                  <div className="text-[14px] font-semibold text-[var(--tc-primary)]">
+                  <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">
                     {awaitingReply === 1
                       ? copy.t("1 client waiting for a reply")
                       : copy.t("{n} clients waiting for a reply").replace("{n}", String(awaitingReply))}
@@ -665,7 +669,7 @@ export function AgendaTodayPage({
                       {index + 1}
                     </span>
                     <button type="button" onClick={open(item.id)} className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left">
-                      <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{attentionTitle(item)}</div>
+                      <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">{attentionTitle(item)}</div>
                       <div className="mt-px text-[12.5px] text-black/70">{attentionSub(item)}</div>
                     </button>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 max-[1100px]:basis-full max-[1100px]:justify-start max-[1100px]:pl-[42px]">
@@ -699,7 +703,7 @@ export function AgendaTodayPage({
                       onClick={open(item.id)}
                       className="min-w-[min(100%,14rem)] flex-1 basis-[14rem] text-left"
                     >
-                      <div className="text-[14px] font-semibold text-[var(--tc-primary)]">{who}</div>
+                      <div className="truncate text-[14px] font-semibold text-[var(--tc-primary)]">{who}</div>
                       <div className="mt-px text-[12.5px] text-black/70">
                         {[item.title !== who ? item.title : "", copy.t("No time assigned")]
                           .filter(Boolean)

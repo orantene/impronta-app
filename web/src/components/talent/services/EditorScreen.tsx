@@ -1,5 +1,6 @@
 "use client";
 
+import { PriceModeField } from "./PriceModeField";
 import { BOOKING_MODE_CHOICES, BOOKING_MODE_LABELS } from "@/lib/talent/booking-mode-labels";
 import { useEffect, useState, type ChangeEvent, type ReactNode } from "react";
 import { useBeforeUnloadGuard } from "@/components/locale-field/use-before-unload-guard";
@@ -19,7 +20,7 @@ import { publicationWord } from "@/lib/talent/publication-state";
 import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 import { CurrencyField } from "./CurrencyField";
-import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
+import { formatDashboardMoney, formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { usdEquivalentLabel } from "@/lib/pricing/usd-equivalent";
 import { useOfferingsEditor } from "./use-offerings-editor";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -28,12 +29,13 @@ import { MatrixFields } from "./MatrixFields";
 import { IntakeFields } from "./IntakeFields";
 import { ProductEditorCard } from "./ProductEditorCard";
 import { categoryNearMatch } from "@/lib/talent/publication-state";
+import { SiteModeOverrideNotice } from "./SiteModeOverrideNotice";
 import { localizeOfferingSaveError } from "./offering-editor-save";
-import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { canLeaveEditor } from "./offering-editor-leave";
+import { defaultWhere, whereChoicesForPlace } from "@/lib/onboarding/service-where";
 
 type Photo = { id: string; url: string };
 type Where = "studio" | "client" | "remote" | "agreed";
-const WHERE: Where[] = ["studio", "client", "remote", "agreed"];
 
 const LABEL = "font-admin-body text-[12px] font-medium tracking-[0.1px] text-admin-ink"; // DS-36: one label style, sentence case
 const NO_SPINNER = "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"; // DS-36: no spinner arrows
@@ -123,9 +125,9 @@ export function EditorScreen({
   const kindWord =
     kind === "package" ? copy.t("Package") : kind === "product" ? copy.t("Product") : copy.t("Service");
   const patch = (partial: Partial<TalentOffering>) => setItem({ ...item, ...partial });
-  // Unsaved edits survive a language-switch reload only with a prompt (PR 7).
   const [baseline, setBaseline] = useState(() => JSON.stringify(item));
-  useBeforeUnloadGuard(JSON.stringify(item) !== baseline);
+  const dirty = JSON.stringify(item) !== baseline;
+  useBeforeUnloadGuard(dirty);
   const patchAttr = (key: string, value: unknown) =>
     setItem({ ...item, attributes: { ...(item.attributes ?? {}), [key]: value } });
 
@@ -149,7 +151,9 @@ export function EditorScreen({
   const cancelOwn = item.cancellationHours != null;
   const depositCents =
     depositPct && item.amountCents ? Math.round((item.amountCents * depositPct) / 100) : null;
-  const where = attr<Where[]>(item, "where", (defaults?.where as Where[] | undefined)?.length ? (defaults!.where as Where[]) : ["studio"]);
+  const where = attr<Where[]>(item, "where", defaultWhere(defaults?.where, defaults?.placeMode));
+  // TUL-808: a person who goes to the client is not offered "At my studio" (unless this item already has it).
+  const whereChoices = whereChoicesForPlace(defaults?.placeMode, where);
   const bufferAfter = attr<number | null>(item, "bufferAfterMin", defaults?.bufferAfterMin ?? null);
   const bufferBefore = attr<number | null>(item, "bufferBeforeMin", defaults?.bufferBeforeMin ?? null);
 
@@ -180,7 +184,9 @@ export function EditorScreen({
     setError(null);
     try {
       const pending = isNew ? photos.filter((p) => !p.id.startsWith("url-")).map((p) => p.id) : undefined;
-      await onSave(item, publish, pending);
+      // TUL-841: the shown "where" is the saved one, so a cleaner's service saves "client" and the booking sheet asks for the address.
+      const toSave = kind !== "product" && item.attributes?.where === undefined ? { ...item, attributes: { ...(item.attributes ?? {}), where } } : item;
+      await onSave(toSave, publish, pending);
       setBaseline(JSON.stringify(item));
     } catch (err) {
       // Prefer server/validation text; localize ES (Codex P2) — no raw English.
@@ -225,7 +231,7 @@ export function EditorScreen({
     <div className="font-admin-body">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <button type="button" onClick={onBack} className="mb-1 text-[13px] text-admin-ink-muted">
+          <button type="button" onClick={() => canLeaveEditor(dirty, es, (m) => window.confirm(m)) && onBack()} className="mb-1 text-[13px] text-admin-ink-muted">
             ← {copy.t("Services")}
           </button>
           <h1 className="font-admin-body text-[24px] font-semibold leading-tight tracking-normal text-admin-ink">
@@ -303,17 +309,7 @@ export function EditorScreen({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block">
-                <span className={LABEL}>{copy.t("How the price works")}</span>
-                <select className={INPUT} value={item.priceDisplay} onChange={(e) => {
-                  const v = e.target.value as TalentOffering["priceDisplay"];
-                  patch(v === "quote" ? { priceDisplay: v, bookingMode: "request" } : { priceDisplay: v });
-                }}>
-                  <option value="exact">{copy.t("Fixed price")}</option>
-                  <option value="from">{copy.t("Starting at")}</option>
-                  <option value="quote">{copy.t("Quote each time")}</option>
-                </select>
-              </label>
+              <PriceModeField item={item} patch={patch} labelClass={LABEL} />
               <label className="block">
                 <span className={LABEL}>{copy.t("Category")}</span>
                 <div className="relative">
@@ -381,7 +377,7 @@ export function EditorScreen({
                 return (
                   <button key={m.id} type="button" aria-pressed={on} onClick={() => {
                     if (m.id === "quote") patch({ priceDisplay: "quote", bookingMode: "request" });
-                    else patch({ bookingMode: m.id, priceDisplay: quote ? "exact" : item.priceDisplay });
+                    else patch({ bookingMode: m.id, priceDisplay: quote ? "exact" : item.priceDisplay, ...(quote && item.priceType === "custom" ? { priceType: "flat_package" as const } : {}) });
                   }} className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-left ${on ? "border-emerald-900/60 bg-emerald-900/[0.06]" : "border-admin-border-soft bg-white"}`}>
                     <span aria-hidden className={`mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border ${on ? "border-emerald-900" : "border-admin-ink-dim/50"}`}>
                       {on && <span className="h-2.5 w-2.5 rounded-full bg-emerald-900" />}
@@ -409,7 +405,7 @@ export function EditorScreen({
                 ) : null}
               </p>
             ) : null}
-
+            {!quote && <SiteModeOverrideNotice own={item.bookingMode} site={defaultMode} locale={locale} />}
             {activeMode === "instant" && needsWorkingHours && onOpenWorkingHours ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
                 {copy.t(
@@ -429,7 +425,7 @@ export function EditorScreen({
               <div>
                 <p className={LABEL}>{copy.t("Where it happens")}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {WHERE.map((w) => {
+                  {whereChoices.map((w) => {
                     const on = where.includes(w);
                     return (
                       <button key={w} type="button" aria-pressed={on} onClick={() => {

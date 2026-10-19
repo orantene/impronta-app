@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isOwnCanonical } from "@/lib/talent-site/canonical-own-host";
+import { seoDescriptionFallback } from "@/lib/talent-site/seo-description-fallback";
 import { seoTitleFallback } from "@/lib/talent-site/seo-title-fallback";
 import { buildLocaleAlternates } from "@/i18n/alternates";
 import { buildTalentProfileJsonLd, type TalentJsonLdService } from "@/lib/seo/talent-json-ld";
@@ -14,6 +15,7 @@ import {
 
 import { buildTalentLocalBusinessJsonLd, withLocalBusiness } from "@/lib/talent-site/talent-local-business-json-ld";
 
+import { deriveSiteDescription } from "@/lib/talent-site/site-meta-description";
 import { siteFaviconFor } from "@/lib/talent-site/site-favicon";
 import type { TalentSiteIdentity } from "./load-max-site";
 
@@ -48,6 +50,8 @@ export interface MaxSiteSeo {
   alternates?: { canonical: string; languages: Record<string, string> };
   /** DS-18: the business's own tab icon (logo, avatar or generated initials). */
   faviconUrl?: string;
+  /** Per-talent Google Search Console HTML-tag token (already sanitized). */
+  googleSiteVerification?: string;
 }
 
 /**
@@ -93,6 +97,10 @@ export function buildMaxSiteSeo(args: {
    * hreflang at all (`buildLocaleAlternates` rule 2).
    */
   locales?: { primary: string; urlDefault: string; supported: readonly string[] };
+  /** TUL-411: locale-resolved bio when page meta description is empty/scrubbed. */
+  bio?: string | null;
+  /** TUL-411: primary talent-type label in the visitor locale. */
+  talentType?: string | null;
 }): MaxSiteSeo {
   const { site, page, identity, locale, noindex } = args;
 
@@ -111,7 +119,23 @@ export function buildMaxSiteSeo(args: {
       name: identity?.name,
       city: args.addressLocality,
     }) ?? storedTitle;
-  const description = resolveMaxSiteDescription(page, locale);
+  // TUL-798: no description written for this language -> derive one from name, city and services (home only, when she has published services).
+  // TUL-411: otherwise fall back to her locale bio / structured copy so root PLATFORM_BRAND English is never inherited.
+  const written = resolveMaxSiteDescription(page, locale);
+  const description =
+    written ||
+    ((args.canonicalPath?.trim() || "/") === "/" && (args.services?.length ?? 0) > 0
+      ? deriveSiteDescription({ name: identity?.name, city: args.addressLocality, serviceNames: args.services?.map((x) => x.name), locale })
+      : undefined) ||
+    seoDescriptionFallback({
+      locale,
+      stored: written,
+      bio: args.bio,
+      name: identity?.name,
+      talentType: args.talentType,
+      city: args.addressLocality,
+    }) ||
+    undefined;
 
   // Canonical — explicit column wins; else origin + path. Never the profile.
   const origin = (args.canonicalOrigin?.trim() || publicSiteMetadataBase().origin)
@@ -176,6 +200,18 @@ export function buildMaxSiteSeo(args: {
 
   const faviconUrl = siteFaviconFor({ logoUrl: site.logoUrl, displayName: identity?.name || pageTitle });
 
+  // TUL-554 / GRK-091: always emit og:image. Page column → logo → generated card
+  // on the platform `/t/site/<slug>/opengraph-image` (fetchable; vanity
+  // `/opengraph-image` is wired separately). Without this, demos ship no picture.
+  const ogImageUrl =
+    page.ogImageUrl?.trim() ||
+    site.logoUrl?.trim() ||
+    (site.siteSlug
+      ? `${publicSiteMetadataBase().origin.replace(/\/$/, "")}/t/site/${encodeURIComponent(site.siteSlug)}/opengraph-image`
+      : origin
+        ? `${origin}/opengraph-image`
+        : null);
+
   return {
     title,
     ...(faviconUrl ? { faviconUrl } : {}),
@@ -189,7 +225,7 @@ export function buildMaxSiteSeo(args: {
     ...(page.ogDescription?.trim()
       ? { ogDescription: page.ogDescription.trim() }
       : {}),
-    ...(page.ogImageUrl?.trim() ? { ogImageUrl: page.ogImageUrl.trim() } : {}),
+    ...(ogImageUrl ? { ogImageUrl } : {}),
     ...(canonical ? { canonical } : {}),
     ...(alt?.languages ? { alternates: { canonical, languages: alt.languages } } : {}),
     ...(jsonLd ? { jsonLd } : {}),

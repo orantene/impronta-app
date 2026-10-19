@@ -10,6 +10,7 @@ import { readUserId, type EffectiveReadContext } from "@/lib/impersonation/effec
 
 import { majorToMinorForDisplay } from "@/lib/inquiry/offer-minor-units";
 import { fail } from "./refusals";
+import { pickSaleOrder } from "./sale-order-pick";
 import { inquiryIsHers, talentIdsOnInquiry, talentIsSeller, type TalentOrderLine } from "./talent-pov";
 
 export type TalentSaleLine = TalentOrderLine & {
@@ -24,6 +25,8 @@ export type TalentActor = {
   talentProfileId: string;
   /** Demo/fixture talents keep journey threads in Messages; live talents hide them. */
   isDemo: boolean;
+  /** Profile display name; QA accounts ("QA ...") keep their fixture threads. */
+  displayName?: string | null;
   admin: SupabaseClient;
   supabase: SupabaseClient;
 };
@@ -58,15 +61,16 @@ export async function loadTalentActor(
   const admin = deps.adminClient();
   if (!admin) return fail("unavailable");
   const subjectId = readUserId(user.id, ctx);
-  const { data, error } = await admin.from("talent_profiles").select("id, is_demo").eq("user_id", subjectId).maybeSingle();
+  const { data, error } = await admin.from("talent_profiles").select("id, is_demo, display_name").eq("user_id", subjectId).maybeSingle();
   if (error) return fail("unavailable");
   if (!data) return fail("not_allowed");
-  const row = data as { id: string; is_demo?: boolean | null };
+  const row = data as { id: string; is_demo?: boolean | null; display_name?: string | null };
   return {
     ok: true,
     userId: subjectId,
     talentProfileId: row.id,
     isDemo: row.is_demo === true,
+    displayName: row.display_name ?? null,
     admin,
     supabase,
   };
@@ -114,13 +118,14 @@ export async function loadOwnedTalentInquiry(
   if (partErr) return fail("unavailable");
   const { data: inquiry, error } = await admin
     .from("inquiries")
-    .select("id, tenant_id, version, source_context, interpreted_query")
+    .select("id, tenant_id, version, status, source_context, interpreted_query")
     .eq("id", inquiryId)
     .maybeSingle();
   if (error) return fail("unavailable");
   const row = inquiry as {
     tenant_id?: string;
     version?: number;
+    status?: string | null;
     source_context?: unknown;
     interpreted_query?: unknown;
   } | null;
@@ -130,6 +135,7 @@ export async function loadOwnedTalentInquiry(
     profileId: talentProfileId,
     participant: Boolean(part),
     talentIds: talentIdsOnInquiry(row?.source_context, row?.interpreted_query),
+    status: row?.status ?? null,
   });
   if (!hers) return fail("not_found");
   const hub = await getPlatformHubTenant();
@@ -144,34 +150,50 @@ export async function loadOwnedTalentInquiry(
   };
 }
 
+/**
+ * Hard cap per source query. The badge, Hoy and the inbox all read through
+ * `loadTalentInboxForActor`, so they share this one bounded set and their
+ * counts cannot drift (TUL-625). Newest first, so the cap drops the oldest.
+ */
+export const TALENT_INBOX_SCAN_LIMIT = 500;
+
 /** Her conversations across tenants. A guest chat that names only her counts. */
 export async function listTalentInquiryIds(
   admin: SupabaseClient,
   profileId: string,
 ): Promise<{ ok: true; ids: string[] } | { ok: false; reason: MessagingRefusal }> {
-  const { data, error } = await admin
-    .from("inquiry_participants")
-    .select("inquiry_id")
-    .eq("talent_profile_id", profileId)
-    .eq("role", "talent")
-    .neq("status", "removed");
+  // TUL-625: the three scans are independent, so run them side by side (the
+  // participants read used to finish before the two "contains" reads started).
+  const [participantsRes, bySource, byLineup] = await Promise.all([
+    admin
+      .from("inquiry_participants")
+      .select("inquiry_id")
+      .eq("talent_profile_id", profileId)
+      .eq("role", "talent")
+      .neq("status", "removed")
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
+    admin
+      .from("inquiries")
+      .select("id, status, source_context, interpreted_query")
+      .contains("source_context", { talent_ids: [profileId] })
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
+    admin
+      .from("inquiries")
+      .select("id, status, source_context, interpreted_query")
+      .contains("interpreted_query", { talent: { selected_ids: [profileId] } })
+      .order("created_at", { ascending: false })
+      .limit(TALENT_INBOX_SCAN_LIMIT),
+  ]);
+  const { data, error } = participantsRes;
   if (error) return fail("unavailable");
   const participantIds = new Set(
     ((data ?? []) as { inquiry_id: string }[]).map((row) => row.inquiry_id).filter(Boolean),
   );
-  const [bySource, byLineup] = await Promise.all([
-    admin
-      .from("inquiries")
-      .select("id, source_context, interpreted_query")
-      .contains("source_context", { talent_ids: [profileId] }),
-    admin
-      .from("inquiries")
-      .select("id, source_context, interpreted_query")
-      .contains("interpreted_query", { talent: { selected_ids: [profileId] } }),
-  ]);
   const namedRows = [
-    ...((bySource.error ? [] : bySource.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),
-    ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; source_context: unknown; interpreted_query: unknown }[]),
+    ...((bySource.error ? [] : bySource.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
+    ...((byLineup.error ? [] : byLineup.data ?? []) as { id: string; status: string | null; source_context: unknown; interpreted_query: unknown }[]),
   ];
   const ids = [
     ...new Set([
@@ -182,6 +204,7 @@ export async function listTalentInquiryIds(
             profileId,
             participant: participantIds.has(row.id),
             talentIds: talentIdsOnInquiry(row.source_context, row.interpreted_query),
+            status: row.status,
           }),
         )
         .map((row) => row.id),
@@ -200,22 +223,24 @@ export async function loadTalentSale(
   | { ok: true; empty: true }
   | { ok: false; reason: MessagingRefusal }
 > {
-  const { data: order, error: orderErr } = await admin
+  const { data: orderRows, error: orderErr } = await admin
     .from("orders")
-    .select("id, status, currency, total_cents, tenant_id")
+    .select("id, status, currency, total_cents, tenant_id, source_channel, created_at")
     .eq("inquiry_id", inquiryId)
-    .eq("source_channel", "messages")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
   if (orderErr) return fail("unavailable");
-  const sale = order as {
-    id: string;
-    status: string;
-    currency: string | null;
-    total_cents: number | string | null;
-    tenant_id: string;
-  } | null;
+  const sale = pickSaleOrder(
+    (orderRows ?? []) as Array<{
+      id: string;
+      status: string;
+      currency: string | null;
+      total_cents: number | string | null;
+      tenant_id: string;
+      source_channel: string | null;
+      created_at: string;
+    }>,
+  );
   if (!sale || sale.tenant_id !== tenantId) return { ok: true, empty: true };
   const { data: rows, error: lineErr } = await admin
     .from("order_lines")

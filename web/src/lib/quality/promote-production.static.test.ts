@@ -45,12 +45,19 @@ test("promote: target requires a successful structural gate run", () => {
   assert.doesNotMatch(YAML, /\|\| echo ""/, "an API failure must not be read as a verdict");
 });
 
-test("promote: falls back to the newest green commit on any gate conclusion", () => {
-  assert.match(YAML, /types: \[completed\]/);
-  assert.doesNotMatch(YAML, /conclusion == 'success'/, "must not skip on a red or cancelled head");
+test("promote: manual only, no automatic triggers (TUL-827)", () => {
+  assert.doesNotMatch(YAML, /\n\s+workflow_run:/);
+  assert.doesNotMatch(YAML, /\n\s+schedule:/);
+  assert.doesNotMatch(YAML, /\n\s+push:/);
+  assert.match(YAML, /\n  workflow_dispatch:/);
+  assert.match(YAML, /\n      release_note:\n(?:\s+[^\n]+\n)*?\s+required: true/);
+  assert.match(YAML, /\n      sha:/);
+});
+
+test("promote: blank sha scans for the newest green commit ahead of production", () => {
+  assert.doesNotMatch(YAML, /conclusion == 'success'/);
   assert.doesNotMatch(YAML, /\n    if: /, "no job-level skip condition");
   assert.match(YAML, /git rev-list --first-parent[^\n]*\$RANGE/);
-  assert.match(YAML, /\n  schedule:/);
 });
 
 test("promote: own concurrency group that cancels superseded queued runs (TUL-412)", () => {

@@ -1,10 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { clearLocaleAutoMarkerLine, localeCookieLine } from "@/i18n/locale-cookies";
-import { LOCALE_SUGGESTION_DISMISSED_COOKIE } from "@/i18n/locale-suggestion";
+import {
+  clearLocaleAutoMarkerLine,
+  localeCookieLine,
+  LOCALE_SUGGESTION_DISMISSED_COOKIE,
+} from "@/i18n/locale-cookies";
 import { cn } from "@/lib/utils";
+
+/** Session backup: a cookie reset or blocked cookies must not bring "No thanks" back on the next view (live2b-05, #3367). */
+const DISMISS_SESSION_KEY = "tulala_locale_suggest_dismissed";
+
+function readDismissedInSession(): boolean {
+  try {
+    return Boolean(window.sessionStorage.getItem(DISMISS_SESSION_KEY));
+  } catch {
+    return false;
+  }
+}
+
+function writeDismissedInSession(): void {
+  try {
+    window.sessionStorage.setItem(DISMISS_SESSION_KEY, "1");
+  } catch {
+    /* storage blocked: the cookie is the only memory */
+  }
+}
 
 /**
  * The visible half of the language suggestion banner.
@@ -15,16 +37,19 @@ import { cn } from "@/lib/utils";
  * Spanish speaker reads Spanish, not an English sentence asking whether they
  * would like Spanish.
  *
- * Layout contract (TUL-394): a thin row IN DOCUMENT FLOW at the very top of
- * the page (mounted as the first child of `<body>`, which is a flex column).
- * It is never a fixed overlay, so it can never sit over a primary action: the
- * /start "Continuar" footer, the booking dock and the sticky booking bar all
- * live at the bottom and keep their space. It is rendered in the SSR HTML (not
- * mounted by an effect), so it is in the first paint and shifts nothing after
- * it; dismissing it removes the row and the content moves up once.
- *
- * Booking CSS still hides `[data-locale-suggestion]` while the dock/bar is up
- * (see `catalog-booking-styles.ts`); harmless for a top row, kept for parity.
+ * Layout contract (TUL-560, replaces the TUL-394 top row): a small toast fixed
+ * in the bottom-left corner. Nothing ever sits above the site header, and the
+ * toast takes no layout space, so showing or dismissing it shifts nothing.
+ * It floats above `--floating-chrome-bottom` (booking bar, phone chat
+ * launcher) and above the demo badge, and yields entirely while the consent
+ * card, a modal, the guest chat panel, or the booking dock/bar is up (see
+ * `floating-chrome-stack.ts`), so it never sits over a primary action. On
+ * short desktop windows it collapses to a one-row pill (the two buttons; the
+ * question stays for screen readers) so it clears the hero buttons.
+ * It is not in the SSR paint: it appears `LOCALE_SUGGESTION_SETTLE_MS` after
+ * the window `load` event, so it never flashes over the hero while the page
+ * is still arriving. Colors, radius and font come from the site's theme
+ * tokens, falling back to the app palette off a talent site.
  *
  * Accept is a real `<a href>`, not a router push: the locale switch is a full
  * navigation to a different URL, exactly like `PublicLanguageToggle`. The
@@ -32,6 +57,8 @@ import { cn } from "@/lib/utils";
  * normally afterwards — so it still works with JS disabled, minus the cookie
  * (the proxy's own locale sync then covers it on arrival).
  */
+export const LOCALE_SUGGESTION_SETTLE_MS = 1500;
+
 export function LocaleSuggestionBannerClient({
   href,
   locale,
@@ -53,7 +80,26 @@ export function LocaleSuggestionBannerClient({
   regionLabel: string;
 }) {
   const [hidden, setHidden] = useState(false);
-  if (hidden) return null;
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    if (readDismissedInSession()) {
+      setHidden(true);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      timer = setTimeout(() => setSettled(true), LOCALE_SUGGESTION_SETTLE_MS);
+    };
+    if (document.readyState === "complete") arm();
+    else window.addEventListener("load", arm, { once: true });
+    return () => {
+      window.removeEventListener("load", arm);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  if (hidden || !settled) return null;
 
   const writeCookie = (name: string, value: string) => {
     document.cookie = localeCookieLine(name, value, { secure: secureCookies });
@@ -77,20 +123,25 @@ export function LocaleSuggestionBannerClient({
 
   return (
     <div
-      // In flow, top of the page: never overlays content or a bottom CTA.
-      className="relative flex shrink-0 justify-center px-3 py-2 print:hidden"
+      className="fixed left-3 z-[96] w-[calc(100%-24px)] max-w-[340px] print:hidden"
       role="region"
       aria-label={regionLabel}
       data-locale-suggestion={locale}
     >
       <div
+        data-locale-suggestion-card=""
         className={cn(
-          "flex w-full max-w-lg flex-wrap items-center gap-x-3 gap-y-2",
-          "rounded-lg border border-border/60 bg-background/95 px-3 py-2 shadow-sm",
-          "text-sm text-foreground",
+          "flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 shadow-md",
+          "rounded-[var(--token-shape-radius-card,min(var(--site-radius-lg,0.75rem),1.25rem))] border",
+          "border-[var(--token-color-line,var(--border))]",
+          "bg-[var(--token-color-surface-raised,var(--token-color-background,var(--background)))]",
+          "text-[13px] text-[var(--token-color-ink,var(--foreground))]",
+          "[font-family:var(--site-body-font,inherit)]",
         )}
       >
-        <p className="min-w-0 flex-1 leading-snug">{prompt}</p>
+        <p data-locale-suggestion-prompt="" className="min-w-0 flex-1 leading-snug">
+          {prompt}
+        </p>
         <div className="flex shrink-0 items-center gap-1.5">
           <a
             href={href}
@@ -98,8 +149,10 @@ export function LocaleSuggestionBannerClient({
             lang={locale}
             onClick={acceptSuggestion}
             className={cn(
-              "inline-flex items-center rounded-md bg-foreground px-2.5 py-1 text-xs font-medium",
-              "text-background no-underline transition-opacity hover:opacity-90",
+              "inline-flex items-center rounded-[var(--token-button-radius,0.375rem)] px-2.5 py-1 text-xs font-medium",
+              "bg-[var(--token-color-primary,var(--foreground))]",
+              "text-[var(--token-color-primary-on,var(--background))]",
+              "no-underline transition-opacity hover:opacity-90",
             )}
           >
             {acceptLabel}
@@ -108,11 +161,12 @@ export function LocaleSuggestionBannerClient({
             type="button"
             onClick={() => {
               writeCookie(LOCALE_SUGGESTION_DISMISSED_COOKIE, "1");
+              writeDismissedInSession();
               setHidden(true);
             }}
             className={cn(
-              "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium",
-              "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "inline-flex items-center rounded-[var(--token-button-radius,0.375rem)] px-2.5 py-1 text-xs font-medium",
+              "text-[var(--token-color-muted,var(--muted-foreground))] transition-opacity hover:opacity-80",
             )}
           >
             {dismissLabel}

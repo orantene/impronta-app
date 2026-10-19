@@ -18,6 +18,7 @@ import {
   loadMaxSitePages,
 } from "@/lib/talent-site/server/load-max-site";
 import type { DemoTalentPreviewSource } from "./demo-preview-source";
+import { previewMayRenderDemoTalent } from "./demo-preview-gate.server";
 
 /**
  * P4 — render a gallery-meta demo talent's content read-only in the theme
@@ -37,18 +38,15 @@ export async function resolveDemoPreviewHydration(
   }
   const admin = createServiceRoleClient();
   if (!admin) return null;
-  const { data, error } = await admin
-    .from("talent_profiles")
-    .select("id")
-    .eq("profile_code", source.profileCode)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (error) {
-    logServerError("template-preview.demo.lookup", error);
+  // TUL-1246: the code is on the allow-list, but the ROW must still be a real
+  // seeded demo (registry + is_demo + demo account). Anything else renders the
+  // public persona instead of someone's stored content.
+  const gate = await previewMayRenderDemoTalent(admin, source.profileCode);
+  if (!gate.ok) {
+    logServerError("template-preview.demo.refused", `${source.profileCode}: ${gate.reason}`);
     return null;
   }
-  const id = (data as { id?: string } | null)?.id;
-  if (!id) return null;
+  const id = gate.talentProfileId;
   const profile = await loadTalentStarterProfileData(id);
   if (!profile) return null;
   const media = await loadTalentStarterMedia(id, profile.displayName);

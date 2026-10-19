@@ -1,0 +1,19 @@
+{
+  "authoredVersion": 24,
+  "codeHash": "502158175800978bc008b90bd2f470f708e7309ddd7514256a40f77885ce3e6d",
+  "payloadHash": "1w7da8kuzll",
+  "tokenDefaults": {},
+  "props": {
+    "homeTree:hero": [
+      {
+        "path": "props.style.paddingTop",
+        "from": "56px",
+        "to": "57px"
+      }
+    ]
+  },
+  "removed": [],
+  "added": [],
+  "order": {},
+  "labelsEs": {}
+}

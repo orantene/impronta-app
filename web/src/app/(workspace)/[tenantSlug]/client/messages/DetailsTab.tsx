@@ -29,7 +29,7 @@ const FONT_DISPLAY =
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(24,24,27,0.10)",
   borderSoft: "rgba(24,24,27,0.06)",
   card: "#FFFFFF",
@@ -267,7 +267,7 @@ export function DetailsTab({
           ) : (
             <>
               <KV label={t("client.messages.detailsDate")} value={formatDate(details.schedule.event_date)} fallback={t("client.messages.detailsNotSet")} />
-              <KV label={t("client.messages.detailsTime")} value={details.schedule.start_time} fallback="—" />
+              <KV label={t("client.messages.detailsTime")} value={details.schedule.when ? `${details.schedule.when.time} ${details.schedule.when.tzLabel}` : details.schedule.start_time} fallback="—" />
               <KV label={t("client.messages.detailsDuration")} value={details.schedule.duration} fallback="—" />
               <KV
                 label={t("client.messages.detailsStatus")}

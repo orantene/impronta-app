@@ -37,7 +37,7 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
     "utf8",
   );
   const maxSite = readFileSync(
-    join(SRC, "lib/talent-site/server/render-max-site.tsx"),
+    join(SRC, "lib/talent-site/server/render-max-site-document.tsx"),
     "utf8",
   );
   assert.ok(contact.includes("GuestCaptchaField"));
@@ -55,6 +55,38 @@ test("guest instant confirm surfaces render GuestCaptchaField", () => {
     maxSite.includes('n.kind === "services_catalog"') || maxSite.includes("services_catalog"),
     "vanity Max site must resolve captcha for services_catalog, not only form nodes",
   );
+});
+
+test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDrawer", () => {
+  const chrome = readFileSync(join(SRC, "lib/scheduling/guest-instant-chrome.ts"), "utf8");
+  const composer = readFileSync(join(SRC, "components/public-booking/BookableComposer.tsx"), "utf8");
+  const slotChrome = readFileSync(
+    join(SRC, "app/t/[profileCode]/_shared/ProfileSlotPickerChrome.tsx"),
+    "utf8",
+  );
+  const catalogRender = readFileSync(join(SRC, "lib/site-admin/builder-node/render.tsx"), "utf8");
+  const catalogFilter = readFileSync(
+    join(SRC, "lib/site-admin/builder-node/services-catalog-filter.tsx"),
+    "utf8",
+  );
+  assert.match(chrome, /client:\s*GuestInstantClient\s*\|\s*null/);
+  assert.match(chrome, /client_profiles/);
+  assert.match(composer, /client\?:/);
+  assert.match(composer, /trust_level:\s*"verified"/);
+  assert.doesNotMatch(composer, /client=\{null\}/);
+  assert.match(slotChrome, /client=\{chrome\.client\}/);
+  // Normalized options expose headerWidgets on dataSources, not options root.
+  assert.match(
+    catalogRender,
+    /dataSources\.headerWidgets\?\.account\?\.signedIn/,
+    "services_catalog signedIn must read dataSources.headerWidgets (NormalizedBuilderNodeRenderOptions)",
+  );
+  assert.doesNotMatch(
+    catalogRender,
+    /options\.headerWidgets\?\.account/,
+    "options.headerWidgets is not on NormalizedBuilderNodeRenderOptions",
+  );
+  assert.match(catalogFilter, /signedIn=\{signedIn\}/);
 });
 
 /** TUL-452: studio Live booking band must not inherit English cookie / light-on-white. */

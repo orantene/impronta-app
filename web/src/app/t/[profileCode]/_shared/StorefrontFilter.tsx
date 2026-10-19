@@ -49,14 +49,19 @@ export function StorefrontFilter({
   visible,
   locale,
   categories,
+  categoryLabels,
   confirmsByHand = false,
   usdRates = null,
+  serviceHrefs,
 }: {
   visible: TalentOffering[];
   locale: string;
   categories: string[];
+  /** Visitor-language text per primary category key (TUL-684); key shown when absent. */
+  categoryLabels?: Record<string, string>;
   confirmsByHand?: boolean;
   usdRates?: UsdRates | null;
+  serviceHrefs?: Record<string, string>;
 }) {
   const [active, setActive] = useState<string | null>(null);
   const allLabel = pickLocale(locale, { en: "All", es: "Todos" });
@@ -67,10 +72,10 @@ export function StorefrontFilter({
       <div className="mb-4 flex flex-wrap gap-2">
         <FilterPill label={allLabel} active={active === null} onClick={() => setActive(null)} />
         {categories.map((c) => (
-          <FilterPill key={c} label={c} active={active === c} onClick={() => setActive(c)} />
+          <FilterPill key={c} label={categoryLabels?.[c] ?? c} active={active === c} onClick={() => setActive(c)} />
         ))}
       </div>
-      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+      <StorefrontBody visible={filtered} locale={locale} showFeatured={active === null} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} />
     </>
   );
 }

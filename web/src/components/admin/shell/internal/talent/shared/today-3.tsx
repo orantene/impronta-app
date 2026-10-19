@@ -53,7 +53,7 @@ export function HeroStat({
   label: string;
   value: string;
   caption?: string;
-  /** Caption tint — `success` for positive deltas, default ink-dim. */
+  /** Caption tint — `success` for positive deltas, default ink-muted (ink-dim is 2.5:1, TUL-1109). */
   captionTone?: "success" | "indigo" | "coral" | "default";
   tone: "success" | "indigo" | "ink";
   onClick?: () => void;
@@ -66,8 +66,8 @@ export function HeroStat({
       : captionTone === "indigo"
         ? COLORS.indigo
         : captionTone === "coral"
-          ? COLORS.coral
-          : COLORS.inkDim;
+          ? COLORS.coralDeep
+          : COLORS.inkMuted;
   const inner = (
     <>
       <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600 }} className="text-admin-ink-muted">
@@ -244,7 +244,8 @@ function ConversationReplyRow({
   const ageLbl = ageHrs < 24
     ? (copy.isSpanish ? `hace ${ageHrs} h` : `${ageHrs}h ago`)
     : (copy.isSpanish ? `hace ${Math.floor(ageHrs / 24)} d` : `${Math.floor(ageHrs / 24)}d ago`);
-  const ageColor = ageHrs >= 24 ? COLORS.coralDeep : ageHrs >= 12 ? COLORS.coral : COLORS.inkDim;
+  // TUL-1109: raw coral (3.9:1) and ink-dim (2.5:1) fail AA at this size; weight still carries the urgency.
+  const ageColor = ageHrs >= 12 ? COLORS.coralDeep : COLORS.inkMuted;
   const ageWeight = ageHrs >= 24 ? 700 : ageHrs >= 12 ? 500 : 400;
   return (
     <button
@@ -357,12 +358,7 @@ function RequestRow({
     request.ageHrs < 24
       ? (copy.isSpanish ? `hace ${request.ageHrs} h` : `${request.ageHrs}h ago`)
       : (copy.isSpanish ? `hace ${Math.floor(request.ageHrs / 24)} d` : `${Math.floor(request.ageHrs / 24)}d ago`);
-  const ageColor =
-    request.ageHrs >= 24
-      ? COLORS.coralDeep
-      : request.ageHrs >= 12
-        ? COLORS.coral
-        : COLORS.inkDim;
+  const ageColor = request.ageHrs >= 12 ? COLORS.coralDeep : COLORS.inkMuted;
   const ageWeight = request.ageHrs >= 24 ? 700 : request.ageHrs >= 12 ? 500 : 400;
   return (
     <button

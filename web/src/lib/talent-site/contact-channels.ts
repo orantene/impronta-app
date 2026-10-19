@@ -3,6 +3,7 @@
  * WhatsApp and email are separate layers so she can show, hide, or reorder
  * each one. Empty WhatsApp and email links are dropped at hydrate time.
  */
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { callHrefFromSocialLinks } from "@/lib/talent-site/public-call-number";
 import {
@@ -34,6 +35,8 @@ export const CONTACT_LAYER = {
 export const CONTACT_COPY = {
   confirmByHand: "She confirms by hand.",
   bookInstant: "You can book a time on this page.",
+  /** GRK-068: accepting_bookings off — never promise a bookable slot. */
+  bookingsPaused: "Not taking new bookings right now. You can still send an inquiry.",
 } as const;
 
 const PRUNED_LAYERS = new Set<string>([CONTACT_LAYER.whatsapp, CONTACT_LAYER.email]);
@@ -156,7 +159,7 @@ export function pruneEmptyContactChannels(tree: BuilderNode[]): BuilderNode[] {
 export function appointmentsTierForTalentPlan(
   planKey: string | null | undefined,
 ): "free" | "website" {
-  return planKey?.trim() === "talent_portfolio" ? "website" : "free";
+  return hasEntitlement(planKey, "booking.instant") ? "website" : "free";
 }
 
 export function talentOffersInstantBooking(planKey: string | null | undefined): boolean {
@@ -164,7 +167,12 @@ export function talentOffersInstantBooking(planKey: string | null | undefined): 
   return appointmentModeRank(policy.maxMode) >= appointmentModeRank("instant");
 }
 
-export function contactCopyForPlan(planKey: string | null | undefined): string {
+export function contactCopyForPlan(
+  planKey: string | null | undefined,
+  /** When false, never promise booking (GRK-068). undefined = not asked. */
+  acceptingBookings?: boolean,
+): string {
+  if (acceptingBookings === false) return CONTACT_COPY.bookingsPaused;
   return talentOffersInstantBooking(planKey)
     ? CONTACT_COPY.bookInstant
     : CONTACT_COPY.confirmByHand;

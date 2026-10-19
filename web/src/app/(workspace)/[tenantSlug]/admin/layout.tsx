@@ -9,6 +9,7 @@
 // /admin/messages start on the correct surface without a flash.
 
 import { dashboardMetadata } from "@/i18n/dashboard-metadata";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { notFound, redirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import { getTenantScopeBySlug, getTenantPortalScopeBySlug } from "@/lib/saas/scope";
@@ -32,12 +33,14 @@ import { loadClientFieldSource } from "@/lib/field-engine/client-field-source";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import {
   WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE,
-  isWorkspaceSeedablePath,
+  workspaceLocaleSeedHopPossible,
   workspaceLocaleSeedHref,
   workspaceLocaleSeedMayApply,
   workspaceLocaleSeedPlan,
 } from "@/lib/site-admin/server/workspace-locale-seed";
 import { loadWorkspaceSeedPrimary } from "@/lib/site-admin/server/workspace-locale-seed.server";
+import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
+import AdminLoading from "./loading";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { LOCALE_AUTO_COOKIE, LOCALE_OWNER_COOKIE } from "@/i18n/locale-cookies";
 import { ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
@@ -53,7 +56,10 @@ import { clampWorkspacePage, normalizeWorkspaceType } from "@/lib/saas/workspace
 import { resolveWorkspaceAdminPage } from "./workspace-page-routing";
 import { RealIdentityBanner } from "./_real-identity-banner";
 import { loadTenantIdentity, loadProfileDisplayName } from "../_layout-identity";
+import { resolveHybridSessionDisplayName } from "@/lib/saas/session-display-name";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 
 export const dynamic = "force-dynamic";
@@ -103,12 +109,16 @@ export default async function WorkspaceAdminLayout({
   const adminPrefix = brandedHost ? "/admin" : `${slugPrefix}/admin`;
 
   // ── Auth ───────────────────────────────────────────────────────────────────
-  const session = await timed("layout.session", () => getCachedActorSession());
+  // TUL-536: the tenant lookup does not depend on the session, so both run in
+  // one wave (a serial pair was a full extra round trip before first byte).
+  const [session, scope] = await Promise.all([
+    timed("layout.session", () => getCachedActorSession()),
+    timed("layout.scope", () => getTenantScopeBySlug(tenantSlug)),
+  ]);
   if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect(`/login?next=${adminPrefix}`);
+  if (!session.user) redirect(loginUrlKeepingSupport(adminPrefix, hdrs));
 
   // ── Tenant ─────────────────────────────────────────────────────────────────
-  const scope = await timed("layout.scope", () => getTenantScopeBySlug(tenantSlug));
   if (!scope) {
     // Phase 3 — Pure Talent state: if the user has no workspace membership
     // but IS rostered as a talent in this tenant, show the "Workspace not
@@ -165,15 +175,27 @@ export default async function WorkspaceAdminLayout({
     userId: session.user.id,
   };
   if (
-    !jar.get(WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE)?.value &&
-    hdrs.get("x-impronta-original-pathname") &&
-    isWorkspaceSeedablePath(pathname, tenantSlug) &&
+    workspaceLocaleSeedHopPossible({
+      attemptCookie: jar.get(WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE)?.value,
+      originalPathnameHeader: hdrs.get("x-impronta-original-pathname"),
+      pathname,
+      tenantSlug,
+    }) &&
     workspaceLocaleSeedMayApply(seedCookies)
   ) {
     const primary = await timed("layout.loadWorkspaceSeedPrimary", () => loadWorkspaceSeedPrimary(scope.tenantId));
     const seedPlan = workspaceLocaleSeedPlan({ ...seedCookies, primary });
     if (seedPlan.locale || seedPlan.stamp) {
-      redirect(workspaceLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`, tenantSlug));
+      // TUL-1182: a HARD navigation, not redirect(): redirect() to a Route Handler
+      // inside the post-sign-in soft navigation loops in the client router.
+      return (
+        <LocaleSeedHardRedirect
+          attemptCookie={WORKSPACE_LOCALE_SEED_ATTEMPT_COOKIE}
+          href={workspaceLocaleSeedHref(`${pathname}${hdrs.get(ORIGINAL_SEARCH_HEADER) ?? ""}`, tenantSlug)}
+        >
+          <AdminLoading />
+        </LocaleSeedHardRedirect>
+      );
     }
   }
   perfMark("layout.before-fanout", t0);
@@ -259,7 +281,7 @@ export default async function WorkspaceAdminLayout({
   // `await Promise.all([unread, prefs])`, which added a needless round-trip
   // to every navigation. Pure-workspace users skip these entirely.
   const isHybrid = talentSelfProfile != null;
-  const [talentInquiries, talentUnread, userPrefs, talentPageAnalytics] = isHybrid
+  const [talentInquiries, talentUnread, userPrefs, talentPageAnalytics, talentEarningsRaw, operatingCurrency] = isHybrid
     ? await Promise.all([
         loadTalentInquiries(talentSelfProfile!.id, tenantId),
         loadTalentUnreadCount(talentSelfProfile!.id, tenantId),
@@ -268,13 +290,23 @@ export default async function WorkspaceAdminLayout({
         // profile. Scoped by the SESSION user id — the profile id is a
         // cross-check only — and tier-gated inside the loader (null for Free).
         loadTalentPageAnalytics(session.user.id, talentSelfProfile!.id),
+        // Same earnings + currency collapse as the talent layout, so Admin's
+        // "Pagado este mes" matches Hoy instead of reading empty (live2b-02).
+        loadTalentEarningsByCurrency(talentSelfProfile!.id),
+        loadPlatformOperatingCurrency(),
       ])
     : [
         null as Awaited<ReturnType<typeof loadTalentInquiries>> | null,
         undefined as number | undefined,
         null as UserPrefs | null,
         null as Awaited<ReturnType<typeof loadTalentPageAnalytics>>,
+        null,
+        null,
       ];
+  const talentEarnings =
+    talentEarningsRaw && operatingCurrency
+      ? applyOperatingCurrencyToEarnings(talentEarningsRaw, operatingCurrency)
+      : null;
   perfMark("layout.render-start", t0);
 
   // ── Direct-URL clamp, layer 1 (SPA) ───────────────────────────────────────
@@ -301,7 +333,12 @@ export default async function WorkspaceAdminLayout({
     canManageDomains,
     email: session.user.email ?? "",
     role: scope.membership.role,
-    displayName: profileDisplayName,
+    // onb1-22: hybrid owners greet with the talent profile name, not the
+    // email-local `profiles.display_name` leftover from signup.
+    displayName: resolveHybridSessionDisplayName({
+      profileDisplayName,
+      talentDisplayName: talentSelfProfile?.displayName,
+    }),
     // Platform admins get a "Platform" entry point in the workspace
     // switcher — the HQ console isn't a tenant, so it can't surface
     // through agency_memberships like ordinary workspaces.
@@ -354,6 +391,7 @@ export default async function WorkspaceAdminLayout({
           talentSelfProfile,
           talentPageAnalytics,
           talentInquiries,
+          talentEarnings,
           isHybrid,
           // Phase 5 — cross-mode unread + user prefs
           talentUnread: talentUnread ?? 0,

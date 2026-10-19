@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   decideOrderExpiry,
   idsToCancel,
+  orderIdsWithPaidBooking,
+  sweepExpiredOrders,
   IDLE_DRAFT_TTL_HOURS,
   type ExpiringOrder,
 } from "@/lib/orders/expire-orders";
@@ -105,4 +107,115 @@ test("the sweeper cancels only the rows the decision says to cancel", () => {
     NOW,
   );
   assert.deepEqual(ids, ["hold"]);
+});
+
+test("sweep cancels the unpaid confirmed booking of a cancelled order, so the slot returns", async () => {
+  const writes: Array<{ table: string; payload: Record<string, unknown> }> = [];
+  const orderRows = [{ id: "o1", status: "pending_payment", hold_expires_at: ago(1_000), created_at: ago(9e5), updated_at: null }];
+  const admin = {
+    from(table: string) {
+      return {
+        select() {
+          const st = { in: false, limit: false, notNull: false };
+          const chain = {
+            eq: () => chain,
+            not: () => {
+              st.notNull = true;
+              return chain;
+            },
+            limit: () => Promise.resolve({ data: [{ id: "ab1", order_id: "o1" }], error: null }),
+            in: () => {
+              st.in = true;
+              const data =
+                table === "orders" && orderRows.length && !st.notNull
+                  ? [{ id: "o1", status: "pending_payment", hold_expires_at: ago(1_000), created_at: ago(9e5), updated_at: null }]
+                  : table === "agency_bookings"
+                    ? [{ id: "ab1", source_inquiry_id: "inq1" }]
+                    : [];
+              return Promise.resolve({ data, error: null });
+            },
+          };
+          return chain;
+        },
+        update(payload: Record<string, unknown>) {
+          writes.push({ table, payload });
+          const done = { error: null, then: (f: (v: { error: null }) => unknown) => Promise.resolve({ error: null }).then(f) };
+          const chain = { eq: () => chain, in: () => ({ ...done, in: () => Promise.resolve({ error: null }) }) };
+          return chain;
+        },
+      };
+    },
+  } as unknown as Parameters<typeof sweepExpiredOrders>[0];
+  const res = await sweepExpiredOrders(admin, NOW);
+  assert.equal(res.cancelled, 1);
+  assert.equal(res.bookingsReleased, 1);
+  assert.ok(writes.some((w) => w.table === "talent_bookings" && w.payload.status === "cancelled"));
+  assert.ok(writes.some((w) => w.table === "agency_bookings" && w.payload.status === "cancelled"));
+});
+
+// TUL-1218: cash recorded from the Money page pays the BOOKING and leaves its order a draft;
+// the 72 h idle-draft sweep then cancelled a paid sale's order (booking 9e8a3836 on prod).
+const IDLE_MS = (IDLE_DRAFT_TTL_HOURS + 8) * 3_600_000;
+
+function guardedSweepAdmin(opts: { paidOrderIds: string[]; paidReadError?: boolean }) {
+  const cancelledIds: string[][] = [];
+  const draft = (id: string) => ({ id, status: "draft", hold_expires_at: null, created_at: ago(IDLE_MS), updated_at: ago(IDLE_MS) });
+  const orderRows = [draft("o_paid"), draft("o_unpaid")];
+  const bookings = {
+    select() {
+      const chain = {
+        eq: () => chain,
+        not: () => chain,
+        // the release-orphans read: nothing to release
+        limit: () => Promise.resolve({ data: [], error: null }),
+        // the paid-booking guard read
+        in: () =>
+          Promise.resolve(
+            opts.paidReadError
+              ? { data: null, error: { message: "boom" } }
+              : { data: opts.paidOrderIds.map((order_id) => ({ order_id })), error: null },
+          ),
+      };
+      return chain;
+    },
+  };
+  const orders = {
+    select: () => ({ in: () => Promise.resolve({ data: orderRows, error: null }) }),
+    update: () => ({
+      in: (_col: string, ids: string[]) => {
+        cancelledIds.push(ids);
+        return { in: () => Promise.resolve({ error: null }) };
+      },
+    }),
+  };
+  const admin = {
+    from: (table: string) => (table === "orders" ? orders : bookings),
+  } as unknown as Parameters<typeof sweepExpiredOrders>[0];
+  return { admin, cancelledIds };
+}
+
+test("TUL-1218: an idle draft whose booking is already paid is kept; an unpaid one is still cancelled", async () => {
+  const { admin, cancelledIds } = guardedSweepAdmin({ paidOrderIds: ["o_paid"] });
+  const res = await sweepExpiredOrders(admin, NOW);
+  assert.deepEqual(cancelledIds, [["o_unpaid"]]);
+  assert.equal(res.cancelled, 1);
+  assert.equal(res.keptForPayment, 1);
+});
+
+test("TUL-1218: if the paid-booking read fails, nothing is cancelled (fail closed)", async () => {
+  const { admin, cancelledIds } = guardedSweepAdmin({ paidOrderIds: [], paidReadError: true });
+  const res = await sweepExpiredOrders(admin, NOW);
+  assert.deepEqual(cancelledIds, []);
+  assert.equal(res.cancelled, 0);
+});
+
+test("TUL-1218: orderIdsWithPaidBooking returns the paid ones, null on a read error, empty without a read for no ids", async () => {
+  const ok = guardedSweepAdmin({ paidOrderIds: ["a", "b"] }).admin;
+  assert.deepEqual([...(await orderIdsWithPaidBooking(ok, ["a", "b", "c"]))!].sort(), ["a", "b"]);
+  const bad = guardedSweepAdmin({ paidOrderIds: [], paidReadError: true }).admin;
+  assert.equal(await orderIdsWithPaidBooking(bad, ["a"]), null);
+  const never = { from: () => { throw new Error("must not read"); } } as unknown as Parameters<typeof sweepExpiredOrders>[0];
+  const empty = await orderIdsWithPaidBooking(never, []);
+  assert.ok(empty);
+  assert.equal(empty.size, 0);
 });

@@ -52,8 +52,14 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   const { bridgeTalentSelfProfile } = useAdminShell();
   const [tab, setTab] = useState<PresenceTab>("site");
   // PR 7: "Manage languages" / "Change in Website settings" deep-link here.
-  const [intent] = useState<WebsiteSettingsIntentView | null>(() => takeWebsiteSettingsIntent());
-  const [settingsOpen, setSettingsOpen] = useState(intent !== null);
+  // Card 36: Mi sitio Settings opens Chat & inquiries (Booking assistant AI).
+  const [mountIntent] = useState<WebsiteSettingsIntentView | null>(() =>
+    takeWebsiteSettingsIntent(),
+  );
+  const [settingsView, setSettingsView] = useState<WebsiteSettingsIntentView | undefined>(
+    mountIntent ?? undefined,
+  );
+  const [settingsOpen, setSettingsOpen] = useState(mountIntent !== null);
   const [faqOpen, setFaqOpen] = useState(false);
   // Dark launch (TALENT_WEBSITE_SETTINGS_ENABLED): flag off → no entry row, no screen.
   const [settingsEnabled, setSettingsEnabled] = useState(false);
@@ -86,7 +92,10 @@ export function PublicPageEditor({ locale = "en" }: Props) {
   }, [settingsOpen]);
   const talentId = settingsEnabled ? (bridgeTalentSelfProfile?.id ?? null) : null;
   const openWebsiteSettings = () => {
-    if (talentId) setSettingsOpen(true);
+    if (!talentId) return;
+    // Card 36: land on Chat & inquiries so Booking assistant (AI) is visible.
+    setSettingsView("chat");
+    setSettingsOpen(true);
   };
   const settingsSheet =
     settingsOpen && talentId ? (
@@ -109,7 +118,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
           <div className="flex-1 overflow-auto px-4 py-3">
             <WebsiteSettingsScreen
               talentId={talentId}
-              initialView={intent ?? undefined}
+              initialView={settingsView}
               onRegisterClose={registerSettingsClose}
               onClose={() => setSettingsOpen(false)}
             />
@@ -121,7 +130,7 @@ export function PublicPageEditor({ locale = "en" }: Props) {
     <div className="mb-5 overflow-hidden rounded-xl border border-admin-border-soft bg-white">
       <NavRow
         title={copy.t("Website settings")}
-        summary={copy.t("Address, logo, pages, booking, payments and cancelling")}
+        summary={copy.t("Address, logo, pages, booking, chat, payments and cancelling")}
         onOpen={openWebsiteSettings}
       />
     </div>
@@ -233,11 +242,14 @@ export function PublicPageEditor({ locale = "en" }: Props) {
 }
 
 function LegacyPresence({ locale }: { locale: "en" | "es" }) {
+  const copy = useDashboardText();
   return (
     <>
       <SectionLabel
-        eyebrow="Your multi-page website"
-        hint="A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell."
+        eyebrow={copy.t("Your multi-page website")}
+        hint={copy.t(
+          "A full website with its own link, header, logo and footer, separate from your discovery profile. The starter gallery below sets up its home page and shell.",
+        )}
       />
       <TalentMaxSiteManager locale={locale} />
       <div className="mt-4" />
@@ -245,8 +257,10 @@ function LegacyPresence({ locale }: { locale: "en" | "es" }) {
 
       <div className="mt-8" />
       <SectionLabel
-        eyebrow="Your discovery profile"
-        hint="The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above."
+        eyebrow={copy.t("Your discovery profile")}
+        hint={copy.t(
+          "The single page clients land on from Discover, at /t/<your code>. The template here restyles that profile — it does not change your multi-page website above.",
+        )}
       />
       <TalentSiteDashboardPanel locale={locale} />
 

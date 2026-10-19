@@ -2,6 +2,7 @@
  * Directory discovery — API contract for infinite scroll + SSR first page.
  */
 
+import type { TalentPromoBadge } from "@/lib/promos/talent-promo-badge";
 import type { VerifiedLine } from "@/lib/trust/verified-mark";
 
 export const DIRECTORY_PAGE_SIZE_DEFAULT = 24;
@@ -126,6 +127,11 @@ export type DirectoryCardDTO = {
   priceFromUnit?: string | null;
   /** True when this tenant has a timed request/instant offering for them. */
   bookable?: boolean;
+  /**
+   * The talent's OWN live public auto promo ("-20%" + one line). Set only when
+   * the surface allows it: always on the hub, agency hosts only on opt-in.
+   */
+  promoBadge?: TalentPromoBadge | null;
 };
 
 /**
@@ -194,6 +200,12 @@ export type DirectoryListParams = {
   locale?: string;
   /** When true, skip COUNT(*) (used for cursor / infinite-scroll pages). */
   skipTotalCount?: boolean;
+  /**
+   * Keep empty (presentability tier 0) cards instead of dropping them. Only
+   * for callers that ask "is this talent in the visible window", not for
+   * anything a visitor sees.
+   */
+  keepEmptyCards?: boolean;
   /**
    * SaaS tenant scope for storefront (agency) requests. When set, the result
    * set is gated to the tenant's `agency_talent_roster` (status=active,

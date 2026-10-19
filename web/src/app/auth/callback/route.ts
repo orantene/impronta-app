@@ -22,6 +22,7 @@ import {
   cookieDomainForHost,
   expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
+  scopeAuthCookieOptions,
 } from "@/lib/supabase/cookie-domain";
 import { choiceFromNext, freshAppRoleForChoice } from "@/lib/onboarding/choice";
 import { NextResponse } from "next/server";
@@ -31,6 +32,14 @@ import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import { claimTulalaBriefOnAuth } from "@/lib/tulala/brief-claim-auth";
 import { isFreshOAuthSignup } from "@/lib/legal/acceptances.core";
 import { hasSignupAcceptance } from "@/lib/legal/acceptances";
+import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-return";
+import {
+  isRegisteredReturnHost,
+  needsSsoHandoffHost,
+} from "@/lib/auth/registered-return-host.server";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -70,10 +79,7 @@ export async function GET(request: Request) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            const scoped =
-              authCookieDomain && isSupabaseAuthCookie(name)
-                ? { ...options, domain: authCookieDomain }
-                : options;
+            const scoped = scopeAuthCookieOptions(name, options, authCookieDomain);
             cookieStore.set(name, value, scoped);
             response.cookies.set(name, value, scoped);
           });
@@ -124,6 +130,16 @@ export async function GET(request: Request) {
         }
       }
 
+      // G9: Google/OAuth from /login and /register claims and activates too.
+      // After the role promotion above, so a talent/studio sign-up is skipped.
+      if (user) {
+        await claimAndActivateVerifiedClient({
+          userId: user.id,
+          email: user.email,
+          emailProven: isAuthEmailConfirmedForClaim(user),
+        });
+      }
+
       const ensuredProfile = user
         ? await loadAccessProfile(supabase, user.id)
         : null;
@@ -144,8 +160,13 @@ export async function GET(request: Request) {
         });
       }
 
+      let termsGate = false;
       let destination = supportDeskPostAuthDestination(
-        resolvePostAuthDestination(ensuredProfile, next),
+        resolvePostAuthDestination(
+          ensuredProfile,
+          next,
+          user ? await postAuthContextForNext(supabase, user.id, next) : {},
+        ),
         requestHost,
       );
       // Legal 2.2: a brand-new Google account has not ticked the 18+ and
@@ -157,6 +178,7 @@ export async function GET(request: Request) {
         (await hasSignupAcceptance(user.id)) === false
       ) {
         destination = `/register/accept-terms?next=${encodeURIComponent(destination)}`;
+        termsGate = true;
       }
       // Leave the marketing apex for workspace paths, but stay on the Desk
       // host when OAuth completed there — forcing getAppUrl() dropped
@@ -170,7 +192,19 @@ export async function GET(request: Request) {
               ? destination
               : await hostSafeRedirectDestination(destination),
           })
-        : NextResponse.redirect(`${redirectBase}${destination}`);
+        : NextResponse.redirect(
+            onDeskHost || termsGate
+              ? `${redirectBase}${destination}`
+              : // TUL-691 E1: return to the site sign-in started on (allow-listed).
+                await resolvePostAuthRedirect({
+                  rawNext: searchParams.get("next"),
+                  requestOrigin: origin,
+                  appUrl,
+                  destination,
+                  isRegisteredHost: isRegisteredReturnHost,
+                  needsSessionHandoff: needsSsoHandoffHost,
+                }),
+          );
       response.cookies.getAll().forEach((cookie) => {
         successResponse.cookies.set(cookie);
       });

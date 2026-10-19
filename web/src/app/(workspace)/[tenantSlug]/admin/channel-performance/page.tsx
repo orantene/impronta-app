@@ -19,6 +19,7 @@ import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadChannelPerformance } from "@/lib/discover/channel-performance";
+import { formatPrice } from "@/lib/money/format-price";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug: string }>;
@@ -27,7 +28,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(24,24,27,0.08)",
   borderSoft: "rgba(24,24,27,0.06)",
   cardBg: "#ffffff",
@@ -36,11 +37,7 @@ const C = {
 } as const;
 
 function formatMoney(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(cents / 100);
+  return formatPrice({ amountCents: cents, currency: "USD", locale: "en", audience: "talent" }).primary;
 }
 
 function convRate(leads: number, conversions: number): string {

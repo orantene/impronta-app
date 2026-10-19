@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { dayLabel, depositLine } from "./reserve-table-island";
+import { dayLabel, depositLine, reserveHeading, reserveLocale } from "./reserve-table-island";
 
 // ── The date chip names the VENUE's day, not the reader's ───────────────────
 //
@@ -49,9 +49,29 @@ test("a chip refuses rather than inventing a day", () => {
 test("a deposit is stated in the reader's language and currency format", () => {
   const en = depositLine("en", 2500);
   const es = depositLine("es", 2500);
-  assert.match(en, /25\.00/);
-  assert.match(es, /25\.00/);
+  assert.match(en, /\$25 USD/);
+  assert.match(es, /\$25 USD/);
   assert.notEqual(en, es, "the two locales must not render the same sentence");
   // Integer cents in, no floating point out.
   assert.match(depositLine("en", 1), /0\.01/);
+});
+
+// ── TUL-974: the heading speaks one language ────────────────────────────────
+
+test("TUL-974: a verb that names the table is not followed by a second noun", () => {
+  assert.equal(reserveHeading("Reservar mesa", "en"), "Reservar mesa");
+  assert.equal(reserveHeading("Book a table", "es"), "Book a table");
+});
+
+test("TUL-974: the noun follows the locale, and a Spanish verb never gets an English noun", () => {
+  assert.equal(reserveHeading("Reserve", "en"), "Reserve a table");
+  assert.equal(reserveHeading("Reservar", "es"), "Reservar una mesa");
+  assert.equal(reserveHeading("Reservar", "en"), "Reservar una mesa");
+});
+
+test("TUL-974: a regional Spanish tag reads as Spanish", () => {
+  assert.equal(reserveLocale("es-MX"), "es");
+  assert.equal(reserveLocale("ES"), "es");
+  assert.equal(reserveLocale("en-US"), "en");
+  assert.equal(reserveLocale(null), "en");
 });

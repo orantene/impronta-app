@@ -97,15 +97,19 @@ test("request offering never confirms even with confirm_now", () => {
 
 test("labels match product vocabulary", () => {
   assert.equal(whoPrimaryCtaLabel("confirm_now", "es"), "Confirmar cita");
-  assert.equal(whoPrimaryCtaLabel("confirm_now", "en"), "Confirm now");
+  assert.equal(whoPrimaryCtaLabel("confirm_now", "en"), "Confirm appointment");
   assert.equal(whoPrimaryCtaLabel("contact", "en"), "Contact");
   assert.equal(whoPrimaryCtaLabel("check_availability", "es"), "Consultar disponibilidad");
 });
 
-test("who-step chat under confirm_now keeps Chat now label", () => {
+test("who-step chat under confirm_now uses Send inquiry label (GRK-057)", () => {
   assert.equal(
     whoStepPrimaryLabel({ action: "chat", whoPrimaryCta: "confirm_now", locale: "es" }),
-    "Chatea ahora",
+    "Enviar consulta",
+  );
+  assert.equal(
+    whoStepPrimaryLabel({ action: "chat", whoPrimaryCta: "confirm_now", locale: "en" }),
+    "Send inquiry",
   );
   assert.equal(
     whoStepPrimaryLabel({ action: "chat", whoPrimaryCta: "contact", locale: "en" }),

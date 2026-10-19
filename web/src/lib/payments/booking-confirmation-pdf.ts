@@ -16,6 +16,7 @@
 
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 
+import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "./fee-lines-payload";
 
@@ -87,7 +88,7 @@ function fmtMoneyExact(cents: number, currency: string): string {
 const PDF_FEE_LABELS: Record<string, string> = {
   service_subtotal: "Service",
   base_reservation_fee: "Reservation fee",
-  platform_fee: "Platform fee (1.5%)",
+  platform_fee: `Platform fee (${clientServiceFeePercentLabel()})`,
   processing_fee: "Card processing",
 };
 
@@ -258,6 +259,8 @@ export async function generateBookingConfirmationPdf(
     `This confirms payment for the booking above, arranged through ${brand}. Keep this document for your records.`,
     { size: 8, color: muted },
   );
+  cursor += 12;
+  text("This is a payment confirmation, not a tax invoice (no CFDI is issued here).", { size: 8, color: muted });
 
   return await pdf.save();
 }

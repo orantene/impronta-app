@@ -23,6 +23,8 @@ export type TalentOfferingIntentPayload = {
   variant: string | null;
   addons: string[];
   intent: TalentOfferingIntentKind;
+  /** Random id an outside AI assistant polls with (TUL-21). Not a secret; not an auth token. */
+  h?: string;
   iat: number;
   exp: number;
 };
@@ -43,6 +45,7 @@ export function signTalentOfferingIntent(
     variantId?: string | null;
     addonIds?: readonly string[];
     intent: TalentOfferingIntentKind;
+    handoffId?: string | null;
   },
   nowMs = Date.now(),
 ): string | null {
@@ -55,6 +58,7 @@ export function signTalentOfferingIntent(
     variant: input.variantId ?? null,
     addons: [...new Set((input.addonIds ?? []).filter((id) => typeof id === "string" && id.length > 0))],
     intent: input.intent,
+    ...(input.handoffId ? { h: input.handoffId } : {}),
     iat: nowMs,
     exp: nowMs + TTL_MS,
   };
@@ -81,6 +85,7 @@ export function verifyTalentOfferingIntent(token: string, nowMs = Date.now()): V
     if (payload.p !== PURPOSE || !payload.profile || !payload.offering) return { ok: false, reason: "malformed" };
     if (payload.intent !== "ask" && payload.intent !== "reserve") return { ok: false, reason: "malformed" };
     if (!Array.isArray(payload.addons)) return { ok: false, reason: "malformed" };
+    if (payload.h !== undefined && typeof payload.h !== "string") return { ok: false, reason: "malformed" };
     if (nowMs > payload.exp) return { ok: false, reason: "expired" };
     return { ok: true, payload };
   } catch {

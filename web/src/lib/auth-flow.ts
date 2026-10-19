@@ -72,12 +72,36 @@ function postAuthPathnameOnly(normalizedNext: string): string {
 }
 
 /**
+ * TUL-1255: facts the pure rule cannot know. `memberSlugs` are workspace slugs the
+ * signed-in user is a real member of. A workspace owner who is also talent keeps
+ * `app_role='talent'` (provisioning never overwrites a role), so without this their
+ * `next=/<slug>/admin` was dropped and they landed on /talent/today.
+ */
+export type PostAuthContext = { memberSlugs?: ReadonlySet<string> };
+
+/**
+ * The workspace slug of a tenant-scoped admin `next` (`/<slug>/admin...`), or null.
+ * Callers use it to decide whether a membership lookup is worth making at all.
+ */
+export function tenantAdminSlugFromNext(next: string | null | undefined): string | null {
+  const normalized = normalizeNextPath(next);
+  if (normalized === "/") return null;
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(postAuthPathnameOnly(normalized));
+  const segments = pathnameWithoutLocale.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+  const [slug, surface] = segments;
+  if (!slug || TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(slug)) return null;
+  return surface === "admin" ? slug : null;
+}
+
+/**
  * After sign-in, active users may only be sent to their dashboard tree, selected
  * public marketing/directory routes, or auth entry pages — not another role's area.
  */
 export function isPostAuthNextAllowedForActiveUser(
   normalizedNext: string,
   appRole: string | null | undefined,
+  ctx?: PostAuthContext,
 ): boolean {
   const { pathnameWithoutLocale } = stripLocaleFromPathname(
     postAuthPathnameOnly(normalizedNext),
@@ -145,6 +169,23 @@ export function isPostAuthNextAllowedForActiveUser(
     return true;
   }
   if (appRole === "client" && tenantScopedSurface === "client") {
+    return true;
+  }
+  // TUL-1255 (decided, A5): the tenant-scoped client surface (`/<slug>/client...`, which includes
+  // the hub's `/hub/client`) is open to every active role. A talent or workspace owner can also be
+  // a client; that layout gates on the client profile and shows a soft landing for anyone else,
+  // so honoring the path never exposes anything and never loops (it is not a middleware-gated
+  // dashboard root).
+  if (tenantScopedSurface === "client") {
+    return true;
+  }
+  // TUL-1255: a real member of THIS workspace may land on its admin, whatever app_role they hold.
+  if (tenantScopedSurface === "admin") {
+    const slug = segments[0] ?? "";
+    if (slug && ctx?.memberSlugs?.has(slug)) return true;
+  }
+  // G11: the host client area (/account) is a client home too.
+  if (appRole === "client" && (path === "/account" || path.startsWith("/account/"))) {
     return true;
   }
 
@@ -332,9 +373,19 @@ export function resolveAuthenticatedDestination(
   return dashboardPathForRole(profile.app_role);
 }
 
+/**
+ * Where a signed-in visitor lands after auth. CLIENT rule (TUL-782, PM 2026-10-15), one rule:
+ *   - a safe same-origin `next` that is the client's own home (`/account...`, `/client...`,
+ *     `/<slug>/client...`) is honored;
+ *   - anything else (no `next`, an absolute or protocol-relative URL, another role's area)
+ *     goes to `/client`.
+ * That is why two clients can land differently: one arrived with `next=/account`, the other
+ * with no `next`. Pinned by `auth-flow-client-landing.test.ts`.
+ */
 export function resolvePostAuthDestination(
   profile: AccessProfile | null | undefined,
   nextPath: string | null | undefined,
+  ctx?: PostAuthContext,
 ): string {
   const safeNext = normalizeNextPath(nextPath);
 
@@ -398,7 +449,7 @@ export function resolvePostAuthDestination(
     if (safeNext === "/") {
       return destination;
     }
-    if (isPostAuthNextAllowedForActiveUser(safeNext, profile.app_role)) {
+    if (isPostAuthNextAllowedForActiveUser(safeNext, profile.app_role, ctx)) {
       return stripDefaultLocalePrefixFromPath(safeNext);
     }
     return destination;

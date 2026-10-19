@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
-import { cookieDomainForHost, isSupabaseAuthCookie } from "@/lib/supabase/cookie-domain";
+import { cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
+import { isSignOutPath } from "@/lib/auth/sign-out-paths";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
   buildAuthDebugHeaders,
@@ -13,6 +14,7 @@ import {
   DESK_AUTH_RESCOPE_COOKIE,
   shouldAttemptDeskAuthRescope,
 } from "@/lib/support/desk/desk-access";
+import { nextPathKeepingSupport } from "@/lib/support/login-next-support";
 import { isSupportDeskHost } from "@/lib/support/desk-hosts";
 import {
   ACCESS_PROFILE_REFRESH_COOKIE,
@@ -261,6 +263,11 @@ export async function updateSession(
     return { response: supabaseResponse, requestHeaders: forwardedHeaders };
   }
 
+  // S1: never refresh (re-mint) a session on the sign-out request itself.
+  if (isSignOutPath(pathnameForAuth)) {
+    return { response: supabaseResponse, requestHeaders: forwardedHeaders };
+  }
+
   // Scope auth cookies to the shared parent domain (".tulala.digital") so a
   // session rotated/created on any first-party subdomain is visible across all
   // of them. `undefined` for hosts we don't share across → host-only as before.
@@ -288,12 +295,7 @@ export async function updateSession(
         );
         supabaseResponse = attachGuestCookie(nextPreservingUrl());
         cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, {
-            ...options,
-            ...(authCookieDomain && isSupabaseAuthCookie(name)
-              ? { domain: authCookieDomain }
-              : {}),
-          }),
+          supabaseResponse.cookies.set(name, value, scopeAuthCookieOptions(name, options, authCookieDomain)),
         );
       },
     },
@@ -587,7 +589,7 @@ export async function updateSession(
       incoming.forEach((value, key) => redirectUrl.searchParams.set(key, value));
     }
     if (decision.loginNext) {
-      redirectUrl.searchParams.set("next", decision.loginNext);
+      redirectUrl.searchParams.set("next", nextPathKeepingSupport(decision.loginNext, request.nextUrl.search));
       // Distinguish a DROPPED/expired session (an auth cookie was present but
       // produced no user — e.g. a refresh-token rotation race) from a plain
       // never-logged-in visit, so /login can explain the forced re-login

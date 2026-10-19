@@ -214,17 +214,23 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
     <div data-tulala-talent-account-menu role="none">
       {/* Signed-in header — headshot avatar instead of the generic text-only
           header, since a talent is proud to see their own photo here. */}
-      <div
-        role="none"
-        className="mb-[4px] flex items-center gap-[10px] border-b border-admin-border-soft px-[12px] pt-[10px] pb-[12px]"
-      >
-        <Avatar initials={initials} size={40} tone="ink" hashSeed={name} photoUrl={photoUrl} />
-        <div className="min-w-0">
-          <div className="text-admin-13 font-semibold text-admin-ink">{name}</div>
-          <div className="mt-px text-admin-11h text-admin-ink-muted">
-            {bridgeTalentSelfProfile?.profileCode || copy.t("Talent")}
+      {/* TUL-1110: the name row is a real link to Perfil, like every other row here
+          (it was a plain div, so clicking your own name did nothing). */}
+      <div role="none" className="mb-[4px] border-b border-admin-border-soft pb-[4px]">
+        <RowShell
+          testId="name"
+          ariaLabel={`${name} · ${copy.isSpanish ? "Abrir mi perfil" : "Open my profile"}`}
+          href="/talent/profile"
+          onClick={onNavigate}
+        >
+          <Avatar initials={initials} size={40} tone="ink" hashSeed={name} photoUrl={photoUrl} />
+          <div className="min-w-0">
+            <div className="text-admin-13 font-semibold text-admin-ink">{name}</div>
+            <div className="mt-px text-admin-11h text-admin-ink-muted">
+              {bridgeTalentSelfProfile?.profileCode || copy.t("Talent")}
+            </div>
           </div>
-        </div>
+        </RowShell>
       </div>
 
       {/* My website — TUL-180: dual owners open the business workspace URL;
@@ -237,7 +243,7 @@ export function TalentAccountMenuSection({ onNavigate }: { onNavigate: () => voi
         onClick={() => {
           onNavigate();
           if (!hasWebsiteLink) {
-            window.location.assign(myWebsite?.editHref ?? "/talent/public-page");
+            window.location.assign(myWebsite?.editHref ?? "/talent/site");
           }
         }}
       >

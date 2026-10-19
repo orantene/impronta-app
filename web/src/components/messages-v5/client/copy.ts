@@ -18,6 +18,10 @@ export function buildClientCopy(t: Translator) {
       handling: t("dashboard.messagesV5.client.link.header.handling"),
       handlingTeam: t("dashboard.messagesV5.client.link.header.handlingTeam"),
     },
+    offerBanner: {
+      hint: t("dashboard.messagesV5.client.link.offerBanner.hint"),
+      cta: t("dashboard.messagesV5.client.link.offerBanner.cta"),
+    },
     stream: {
       you: t("dashboard.messagesV5.client.link.stream.you"),
       today: t("dashboard.messagesV5.client.link.stream.today"),
@@ -96,6 +100,8 @@ export function buildClientCopy(t: Translator) {
       accepted: t("dashboard.messagesV5.client.link.offer.accepted"),
       acceptedPayNext: t("dashboard.messagesV5.client.link.offer.acceptedPayNext"),
       acceptedPayLater: t("dashboard.messagesV5.client.link.offer.acceptedPayLater"),
+      acceptedPaid: t("dashboard.messagesV5.client.link.offer.acceptedPaid"),
+      acceptedRefunded: t("dashboard.messagesV5.client.link.offer.acceptedRefunded"),
       declined: t("dashboard.messagesV5.client.link.offer.declined"),
       expired: t("dashboard.messagesV5.client.link.offer.expired"),
       superseded: t("dashboard.messagesV5.client.link.offer.superseded"),

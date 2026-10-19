@@ -180,3 +180,20 @@ test("no em dash in Ramon English chrome", () => {
   const en = f.translations!.en!;
   assert.ok(!/—|–/.test(JSON.stringify(en)));
 });
+
+test("TUL-574: the area note is written per language on the area visit node and resolves on /en", async () => {
+  const { localizeBlockNode } = await import("@/lib/site-admin/builder-node/block-i18n");
+  for (const { f, out } of [applyAlex(), applyRamon()]) {
+    let area: Node | undefined;
+    walk([...(out.shell as Node[]), ...(out.home as Node[])], (n) => {
+      if (!area && n.kind === "visit" && n.props?.layout === "area") area = n;
+    });
+    assert.ok(area, `${f.profileCode} area node`);
+    assert.equal(area!.props!.arrivalNote, f.location!.arrivalNote);
+    assert.equal(enBag(area).arrivalNote, f.translations!.en!.arrivalNote);
+    const en = localizeBlockNode(area as never, { locale: "en", defaultLocale: "es", chain: ["es"] }) as Node;
+    assert.equal(en.props!.arrivalNote, "Outside this area, travel is added to the quote.");
+    const es = localizeBlockNode(area as never, { locale: "es", defaultLocale: "es", chain: [] }) as Node;
+    assert.equal(es.props!.arrivalNote, f.location!.arrivalNote);
+  }
+});

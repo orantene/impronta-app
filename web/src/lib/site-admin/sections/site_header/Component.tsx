@@ -1,4 +1,4 @@
-import { HeaderDemoPill, HeaderSiteLocales, headerItemAttrs, headerItemMobileDefault } from "./header-site-chrome";
+import { HeaderSiteLocales, headerItemAttrs, headerItemMobileResolved } from "./header-site-chrome";
 import { SectionSwitcher } from "./SectionSwitcher";
 import { switcherLinksFrom, withSwitcherHome } from "./section-switcher-logic";
 import type { CSSProperties } from "react";
@@ -12,7 +12,9 @@ import { HeaderScrollObserver } from "./HeaderScrollObserver";
 import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrollSpy";
 import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
-import { HeaderAccountItem } from "./HeaderAccountItem";
+import { primaryNavAriaLabel } from "@/i18n/primary-nav-label";
+import { accountPreviewMode } from "@/lib/client-account/account-preview";
+import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { resolveLinkLike } from "@/lib/site-admin/links/resolve-link-ref";
 import { resolveShellBrandLogoUrl } from "@/lib/site-admin/server/shell-brand-logo";
@@ -394,7 +396,6 @@ export async function SiteHeaderComponent({
   // the existing resolved config (brand / navLinks / social / contacts /
   // primaryCta), so there is no duplicate content store.
   const regions = props.regions;
-  const demoPill = <HeaderDemoPill show={props.siteChrome?.demo} />; // demo talents' only marker
   const siteLocales = props.siteChrome?.locales ?? []; // talent site languages, links to this page per locale
   if (regions) {
     const renderItem = (item: HeaderItem, idx: number) => {
@@ -417,7 +418,7 @@ export async function SiteHeaderComponent({
           ) : null;
         case "nav":
           return navLinks.length > 0 ? (
-            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label="Primary">
+            <nav key={key} {...attrs} className="site-header__ritem site-header__nav" aria-label={primaryNavAriaLabel(locale)}>
               <ul className="site-header__nav-list">
                 {navLinks.map((l, i) => (
                   <li key={i} className="site-header__nav-item">
@@ -495,7 +496,7 @@ export async function SiteHeaderComponent({
             </div>
           ) : null;
         case "account":
-          return props.siteChrome?.account ? <HeaderAccountItem key={key} attrs={attrs} locale={locale} /> : null;
+          return renderAccountItem(accountPreviewMode(props.siteChrome, item.previewAs), key, attrs, locale);
         case "section_switcher": {
           // H-4: phone section switcher over the in-page links of the Navigation list.
           const own = switcherLinksFrom(navLinks);
@@ -512,7 +513,7 @@ export async function SiteHeaderComponent({
     };
     const allItems = [...regions.left, ...regions.center, ...regions.right];
     // Burger + panel only when an item actually folds into it on the phone.
-    const hasMobileMenu = allItems.some((i) => (i.responsive?.mobile ?? headerItemMobileDefault(i)) === "menu");
+    const hasMobileMenu = allItems.some((i) => headerItemMobileResolved(i) === "menu");
     return (
       <header
         className="site-header"
@@ -536,7 +537,7 @@ export async function SiteHeaderComponent({
         <div className="site-header__inner site-header__inner--freeform">
           <div className="site-header__region" data-region="left">{regions.left.map(renderItem)}</div>
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
-          <div className="site-header__region" data-region="right">{demoPill}{regions.right.map(renderItem)}</div>
+          <div className="site-header__region" data-region="right">{regions.right.map(renderItem)}</div>
           {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
           {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
         </div>
@@ -668,7 +669,7 @@ export async function SiteHeaderComponent({
           ) : null}
         </a>
         {navLinks.length > 0 ? (
-          <nav className="site-header__nav" aria-label="Primary">
+          <nav className="site-header__nav" aria-label={primaryNavAriaLabel(locale)}>
             <ul className="site-header__nav-list">
               {navLinks.map((item, i) => (
                 <li key={i} className="site-header__nav-item">
@@ -689,7 +690,7 @@ export async function SiteHeaderComponent({
             standard / minimal / split / editorial keep their exact prior
             flat layout; editorial-split promotes it to a real flex zone
             so the brand stays optically centred. */}
-        <div className="site-header__actions">{demoPill}
+        <div className="site-header__actions">
           {/* The v11 prototype's top bar has NO inline CTA — "Start an
               Inquiry" lives in the hero + the ☰ drawer, keeping the
               wordmark dead-centre with air around it. So for

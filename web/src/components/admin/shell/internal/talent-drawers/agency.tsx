@@ -10,12 +10,12 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { TRUST_TIER_KEYS } from "../primitives/trust-tier-copy-keys";
 import { talentPublicProfileHref, talentPublicProfileLabel } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 import { interpolate } from "@/i18n/interpolate";
 import {
   CLIENT_TRUST_LEVELS,
-  CLIENT_TRUST_META,
   COLORS,
   DEFAULT_CONTACT_POLICY,
   FONTS,
@@ -349,7 +349,7 @@ export function TalentLeaveAgencyDrawer() {
 // ─── Privacy ────────────────────────────────────────────────────
 
 export function TalentPrivacyDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-privacy";
   const talentProfileId = bridgeTalentSelfProfile?.id ?? null;
@@ -396,8 +396,9 @@ export function TalentPrivacyDrawer() {
       {saveError && <SaveErrorBanner error={saveError} onDismiss={() => setSaveError(null)} />}
       <div className="flex flex-col gap-2">
         <ToggleRow label={t("dashboard.talentDrawers.agency.privacyHub")} hint={t("dashboard.talentDrawers.agency.privacyHubHint")} defaultOn={hubVisible} onChange={setHubVisible} />
-        <ToggleRow label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: "Acme Models" })} defaultOn={true} />
-        <ToggleRow label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: "Praline London" })} defaultOn={true} />
+        {(bridgeTalentAgencies ?? []).map((a) => (
+          <ToggleRow key={a.id} label={interpolate(t("dashboard.talentDrawers.agency.privacyRoster"), { agency: a.agencyName })} defaultOn={true} />
+        ))}
         <ToggleRow
           label={t("dashboard.talentDrawers.agency.privacySearch")}
           hint={t("dashboard.talentDrawers.agency.privacySearchHint")}
@@ -424,9 +425,11 @@ export function TalentPrivacyDrawer() {
 // never frames it as "pay to message". See project_client_trust_badges.md.
 
 export function TalentContactPreferencesDrawer() {
-  const { state, closeDrawer, bridgeTalentSelfProfile } = useAdminShell();
+  const { state, closeDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies } = useAdminShell();
   const t = useT();
   const open = state.drawer.drawerId === "talent-contact-preferences";
+  // Independent talent has no agency: drop every agency reference from the copy.
+  const solo = (bridgeTalentAgencies ?? []).length === 0;
   const defaultPolicy = bridgeTalentSelfProfile?.contactPolicy ?? MY_TALENT_PROFILE.contactPolicy;
   const [policy, setPolicy] = useState<TalentContactPolicy>(defaultPolicy as TalentContactPolicy);
   const [saving, setSaving] = useState(false);
@@ -462,7 +465,7 @@ export function TalentContactPreferencesDrawer() {
       open={open}
       onClose={closeDrawer}
       title={t("dashboard.talentDrawers.agency.contactPreferences")}
-      description={t("dashboard.talentDrawers.agency.contactPreferencesDesc")}
+      description={t(solo ? "dashboard.talentDrawers.agency.contactPreferencesDescSolo" : "dashboard.talentDrawers.agency.contactPreferencesDesc")}
       width={560}
       footer={
         <>
@@ -491,7 +494,7 @@ export function TalentContactPreferencesDrawer() {
       >
         <CapsLabel>{t("dashboard.talentDrawers.agency.howThisWorks")}</CapsLabel>
         <div style={{ fontFamily: FONTS.body, fontSize: 13, marginTop: 6, lineHeight: 1.55 }} className="text-admin-ink">
-          {t("dashboard.talentDrawers.agency.howThisWorksBody")}
+          {t(solo ? "dashboard.talentDrawers.agency.howThisWorksBodySolo" : "dashboard.talentDrawers.agency.howThisWorksBody")}
         </div>
       </div>
 
@@ -512,7 +515,6 @@ export function TalentContactPreferencesDrawer() {
       {/* Per-tier toggles — the actual control surface. */}
       <div className="flex flex-col gap-2">
         {CLIENT_TRUST_LEVELS.map((tier) => {
-          const meta = CLIENT_TRUST_META[tier];
           return (
             <div
               key={tier}
@@ -529,10 +531,10 @@ export function TalentContactPreferencesDrawer() {
               <div className="flex-1 min-w-0">
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500 }} className="text-admin-ink">
                   <ClientTrustChip level={tier} compact withDot={false} />
-                  {interpolate(t("dashboard.talentDrawers.agency.allowInquiriesFrom"), { tier: meta.label })}
+                  {interpolate(t("dashboard.talentDrawers.agency.allowInquiriesFrom"), { tier: t(TRUST_TIER_KEYS[tier].label) })}
                 </div>
                 <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 4, lineHeight: 1.5 }} className="text-admin-ink-muted">
-                  {meta.rationale}
+                  {t(TRUST_TIER_KEYS[tier].rationale)}
                 </div>
               </div>
               <Toggle
@@ -547,7 +549,7 @@ export function TalentContactPreferencesDrawer() {
       {/* What changes — a soft note about the consequence of selectivity. */}
       {!allOn && (
         <div style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink-muted">
-          {t("dashboard.talentDrawers.agency.selectivityNote")}
+          {t(solo ? "dashboard.talentDrawers.agency.selectivityNoteSolo" : "dashboard.talentDrawers.agency.selectivityNote")}
         </div>
       )}
     </DrawerShell>

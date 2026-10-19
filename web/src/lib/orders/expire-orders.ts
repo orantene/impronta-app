@@ -20,6 +20,8 @@
 export const HELD_ORDER_GRACE_MINUTES = 0;
 export const IDLE_DRAFT_TTL_HOURS = 72;
 
+import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
+
 export type ExpiringOrder = {
   id: string;
   status: string;
@@ -76,6 +78,10 @@ export type SweepExpiredOrdersResult = {
   scanned: number;
   cancelled: number;
   failed: number;
+  /** TUL-1218: expiring orders left alone because their booking already has a payment. */
+  keptForPayment: number;
+  /** TUL-706: unpaid confirmed bookings released because their order is cancelled. */
+  bookingsReleased: number;
 };
 
 export function idsToCancel(
@@ -92,6 +98,29 @@ type SweepClient = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
 };
+
+/**
+ * TUL-1218: which of these orders have a booking that is already paid or part
+ * paid (`payment_status` other than 'unpaid')? `null` means the read failed, and
+ * the caller then cancels nothing.
+ */
+export async function orderIdsWithPaidBooking(
+  admin: SweepClient,
+  orderIds: readonly string[],
+): Promise<Set<string> | null> {
+  if (orderIds.length === 0) return new Set();
+  const { data, error } = await admin
+    .from("agency_bookings")
+    .select("order_id")
+    .not("payment_status", "eq", "unpaid")
+    .in("order_id", [...orderIds]);
+  if (error) return null;
+  const found = new Set<string>();
+  for (const row of (data ?? []) as Array<{ order_id?: string | null }>) {
+    if (row.order_id) found.add(row.order_id);
+  }
+  return found;
+}
 
 /** Move expired draft / pending_payment orders to cancelled. */
 export async function sweepExpiredOrders(
@@ -117,9 +146,24 @@ export async function sweepExpiredOrders(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));
-  const cancelIds = idsToCancel(rows, now);
-  const result: SweepExpiredOrdersResult = { scanned: rows.length, cancelled: 0, failed: 0 };
-  if (cancelIds.length === 0) return result;
+  const expiring = idsToCancel(rows, now);
+  const result: SweepExpiredOrdersResult = {
+    scanned: rows.length,
+    cancelled: 0,
+    failed: 0,
+    bookingsReleased: 0,
+    keptForPayment: 0,
+  };
+  // TUL-1218: an order whose booking already has a payment is never swept. Cash
+  // recorded from the Money page lands on the booking (booking_transactions with
+  // order_id NULL), so the order can still read `draft` after the sale is fully
+  // paid; cancelling it leaves a paid booking on a cancelled order. Fails CLOSED:
+  // if the payment check cannot be read, nothing is cancelled this run.
+  const paid = await orderIdsWithPaidBooking(admin, expiring);
+  if (paid === null) return releaseOrphanBookings(admin, result);
+  const cancelIds = expiring.filter((id) => !paid.has(id));
+  result.keptForPayment = expiring.length - cancelIds.length;
+  if (cancelIds.length === 0) return releaseOrphanBookings(admin, result);
 
   const { error: updErr } = await admin
     .from("orders")
@@ -131,5 +175,38 @@ export async function sweepExpiredOrders(
     return result;
   }
   result.cancelled = cancelIds.length;
+  return releaseOrphanBookings(admin, result);
+}
+
+/**
+ * TUL-706: an unpaid, confirmed booking whose order is cancelled can never be
+ * paid, yet its calendar row keeps the slot busy. Catches the orders this sweep
+ * just cancelled AND earlier ones (unwind before TUL-714/706 left them). Guarded
+ * on unpaid inside `cancelUnpaidBookings`; best-effort, never fails the sweep.
+ */
+async function releaseOrphanBookings(
+  admin: SweepClient,
+  result: SweepExpiredOrdersResult,
+): Promise<SweepExpiredOrdersResult> {
+  const { data: bookings, error } = await admin
+    .from("agency_bookings")
+    .select("id, order_id")
+    .eq("payment_status", "unpaid")
+    .eq("status", "confirmed")
+    .not("order_id", "is", null)
+    .limit(500);
+  if (error) return result;
+  const rows = (bookings ?? []) as Array<{ id: string; order_id: string }>;
+  if (rows.length === 0) return result;
+  const { data: dead, error: deadErr } = await admin
+    .from("orders")
+    .select("id")
+    .eq("status", "cancelled")
+    .in("id", rows.map((r) => r.order_id));
+  if (deadErr) return result;
+  const deadIds = new Set(((dead ?? []) as Array<{ id: string }>).map((o) => o.id));
+  const ids = rows.filter((r) => deadIds.has(r.order_id)).map((r) => r.id);
+  const out = await cancelUnpaidBookings(admin as never, ids);
+  result.bookingsReleased = out.cancelled;
   return result;
 }

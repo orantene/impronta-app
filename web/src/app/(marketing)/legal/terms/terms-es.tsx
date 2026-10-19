@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LegalPage } from "@/components/marketing/legal-page";
+import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { withLocaleHref } from "@/i18n/pathnames";
 
@@ -80,16 +81,16 @@ export function TermsEs() {
           heading: "Pagos",
           body: (
             <>
-              {/* LEGAL_REVIEW_PENDING: talent is merchant of record (owner decision 2026-10-01) */}
+              {/* LEGAL_REVIEW_PENDING: collect-and-pay-out model (TUL-43 option A, Oran 2026-10-16); counsel review pending */}
               <p>
-                El talento es el comerciante registrado de cada pago con tarjeta que recibe, mediante su cuenta de Stripe Connect. Los contracargos, las disputas perdidas y la facturación fiscal (por ejemplo, el CFDI en México) corresponden al talento.
+                El talento o espacio de trabajo es el vendedor del servicio. En los pagos con tarjeta, Tulala cobra el pago del cliente mediante su procesador de pagos, Stripe, y después paga la parte del vendedor a su cuenta de cobro. El vendedor es responsable de la facturación fiscal del servicio (por ejemplo, el CFDI en México). Tulala es responsable de facturar sus propias tarifas y planes.
               </p>
               <p>
-                El talento o espacio de trabajo es el vendedor. {PLATFORM_BRAND.name} ofrece la
-                plataforma y las herramientas de procesamiento de pagos, mediante Stripe
-                Connect. Los datos de la tarjeta se ingresan en Stripe y nunca pasan por{" "}
-                {PLATFORM_BRAND.name}. Los fondos van al talento o espacio de trabajo una vez
-                que completa el registro para recibir pagos.
+                {PLATFORM_BRAND.name} ofrece la plataforma y las herramientas de pago, mediante
+                Stripe. Los datos de la tarjeta se ingresan en Stripe y nunca pasan por{" "}
+                {PLATFORM_BRAND.name}. La parte del vendedor se paga una vez que el talento o
+                espacio de trabajo completa el registro para recibir pagos, después de
+                reembolsos y comisiones de procesamiento.
               </p>
               <p className="text-xs opacity-70">Pendiente de revisión legal</p>
               <p>
@@ -103,10 +104,12 @@ export function TermsEs() {
                 >
                   Política de reembolsos
                 </Link>
-                . Si un cliente disputa un cargo con su banco, los contracargos y las disputas
-                son responsabilidad del talento. Si se pierde una disputa,{" "}
-                {PLATFORM_BRAND.name} puede descontar el monto disputado y cualquier comisión de
-                disputa de los pagos futuros del talento.
+                . Si un cliente disputa un cargo con su banco, la disputa se presenta
+                contra la cuenta de pagos de {PLATFORM_BRAND.name}, y {PLATFORM_BRAND.name} la
+                gestiona ante la red de tarjetas, con la ayuda del talento para las pruebas. Si
+                se pierde una disputa, {PLATFORM_BRAND.name} puede revertir el pago de esa
+                transacción y puede recuperar la comisión de disputa de los pagos futuros del
+                vendedor.
               </p>
               <p>
                 Comisiones de procesamiento de tarjeta: cada pago con tarjeta lleva una comisión
@@ -124,9 +127,10 @@ export function TermsEs() {
               </p>
               <p>
                 Tarifa de servicio: los clientes pagan una tarifa de servicio de{" "}
-                {PLATFORM_BRAND.name} de 1.5% sobre el precio de la reservación. Se muestra al
+                {PLATFORM_BRAND.name} de {clientServiceFeePercentLabel()} sobre el precio de la reservación. Se muestra al
                 pagar, antes de que el cliente confirme, y es independiente de la comisión de
-                procesamiento de tarjeta descrita arriba. Las comisiones y tarifas para talentos
+                procesamiento de tarjeta descrita arriba, y no se reembolsa cuando se reembolsa
+                una reservación. Las comisiones y tarifas para talentos
                 se indican en los planes.
               </p>
             </>

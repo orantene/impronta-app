@@ -18,6 +18,7 @@ import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 import fr from "../../messages/fr.json";
 
+import { missingFrom, pickClientSubtrees } from "./client-subtrees";
 import { defaultLocale } from "./config";
 
 type Catalog = Record<string, unknown>;
@@ -47,13 +48,25 @@ export function hasMessageCatalog(locale: string): boolean {
 }
 
 /**
+ * Catalog key for a BCP-47 tag: language subtag, lowercased.
+ * "ES" / "es-MX" → "es". Without this, createTranslator("ES") missed the
+ * registry (keys are lowercase) and fell through to English — guest chat
+ * chips stayed EN while the selection dock (startsWith("es")) said Consultar.
+ */
+export function catalogLocaleKey(locale: string): string {
+  const raw = (locale ?? "").trim().toLowerCase();
+  if (!raw) return ROOT_FALLBACK_LOCALE;
+  return raw.split("-")[0] || ROOT_FALLBACK_LOCALE;
+}
+
+/**
  * Ordered, de-duplicated fallback chain for a locale:
- *   requested → platform default → en
+ *   requested language → platform default → en
  * Only codes with a registered catalog are kept.
  */
 function catalogChain(locale: string): Catalog[] {
   const order: string[] = [];
-  for (const code of [locale, defaultLocale, ROOT_FALLBACK_LOCALE]) {
+  for (const code of [catalogLocaleKey(locale), defaultLocale, ROOT_FALLBACK_LOCALE]) {
     if (code && !order.includes(code) && hasMessageCatalog(code)) order.push(code);
   }
   // Guarantee at least one catalog so callers never see an empty map.
@@ -116,3 +129,40 @@ export function getMessageStringArray(locale: string, key: string): string[] {
   }
   return [];
 }
+
+/**
+ * The client-safe subtrees of every catalog, for the root layout to inline as
+ * the browser translator's store (see `client-subtrees.ts`).
+ */
+const clientPayloadCache = new Map<string, Record<string, Catalog>>();
+
+export function getClientMessagesPayload(locale: string): Record<string, Catalog> {
+  const cached = clientPayloadCache.get(locale);
+  if (cached) return cached;
+  const built = buildClientMessagesPayload(locale);
+  if (clientPayloadCache.size < 32) clientPayloadCache.set(locale, built);
+  return built;
+}
+
+function buildClientMessagesPayload(locale: string): Record<string, Catalog> {
+  const out: Record<string, Catalog> = {};
+  // The page's own locale in full, then each fallback in the chain as ONLY the keys the
+  // locales before it lack (TUL-1156: a complete `es` never reaches `en`, so shipping `en`
+  // whole doubled the inline payload). The translator's per-key chain is unchanged.
+  const answered: Catalog[] = [];
+  for (const code of new Set([locale, defaultLocale, ROOT_FALLBACK_LOCALE])) {
+    if (!hasMessageCatalog(code)) continue;
+    const full: Catalog = pickClientSubtrees(CATALOG_REGISTRY[code]);
+    let subtrees: Catalog = full;
+    for (const base of answered) subtrees = missingFrom(base, subtrees);
+    answered.push(full);
+    out[code] = subtrees;
+  }
+  return out;
+}
+
+/**
+ * Server no-op twin of the browser `registerFullCatalogs`: the server build
+ * already holds every catalog.
+ */
+export function registerFullCatalogs(_catalogs: Record<string, Catalog>): void {}

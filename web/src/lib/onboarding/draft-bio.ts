@@ -11,6 +11,8 @@ export type BioFacts = {
   discipline: string | null;
   /** The taxonomy term's Spanish name for the trade, when one matched; the Spanish draft prefers it to the typed words. */
   disciplineEs?: string | null;
+  /** The taxonomy term's English name; the English draft prefers it so a Spanish-typed trade never leaks into English copy (TUL-858). */
+  disciplineEn?: string | null;
   city: string | null;
   services: string[];
   yearsExperience: number | null;
@@ -31,7 +33,8 @@ export function draftBio(facts: BioFacts, locale: "en" | "es"): string {
     if (facts.yearsExperience && facts.yearsExperience > 0) parts.push(`Llevo ${facts.yearsExperience} años haciéndolo.`);
     parts.push("Escríbeme y vemos qué necesitas.");
   } else {
-    parts.push(what ? (facts.name ? `I'm ${facts.name}, ${article(what)} ${jobTitle(what)}` : `${cap(what)}`) : facts.name ? `I'm ${facts.name}` : "I work independently");
+    const whatEn = facts.disciplineEn?.trim() || what;
+    parts.push(whatEn ? (facts.name ? `I'm ${facts.name}, ${article(whatEn)} ${jobTitle(whatEn)}` : `${cap(whatEn)}`) : facts.name ? `I'm ${facts.name}` : "I work independently");
     if (facts.city) parts[0] += ` in ${facts.city}`;
     parts[0] += ".";
     if (services.length) parts.push(`I offer ${joinEn(services.map(lower))}.`);

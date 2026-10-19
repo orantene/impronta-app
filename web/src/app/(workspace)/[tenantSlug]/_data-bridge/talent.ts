@@ -1,5 +1,6 @@
 import "server-only";
 
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -25,6 +26,7 @@ import {
   homeCityFromSources,
 } from "@/lib/talent/website-eligibility-facts";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
+import { primaryRoleLabelsFromTaxonomy } from "@/lib/talent/self-profile-trade-label";
 
 /**
  * _data-bridge/talent.ts — talent-side dashboard loaders.
@@ -42,8 +44,10 @@ export type TalentSelfProfile = {
   /** talent_profiles.id */
   id: string;
   displayName: string;
-  /** Primary talent type label (e.g. "Fashion Model") */
+  /** Primary talent type label in English (stable key for trade matching). */
   primaryTypeLabel: string | null;
+  /** Spanish primary trade label when taxonomy_terms.name_i18n.es is set. */
+  primaryTypeLabelEs?: string | null;
   /** Home city display name */
   homeCity: string | null;
   /** workflow_status: draft | published | invited */
@@ -154,34 +158,40 @@ export async function loadTalentSelfProfile(
 
     const p = profileRow as unknown as ProfileRaw;
 
-    // Step 2: Verify the talent is rostered in this tenant
-    const { data: rosterRow, error: rosterErr } = await trusted
-      .from("agency_talent_roster")
-      .select("status, agencies!tenant_id ( display_name )")
-      .eq("talent_profile_id", p.id)
-      .eq("tenant_id", tenantId)
-      .neq("status", "removed")
-      .maybeSingle();
-
-    if (rosterErr || !rosterRow) return null;
-
-    // Step 3: the talent's headshot — via the shared resolver so the dashboard
-    // shows the SAME media-public crop every other surface does (card > hero >
-    // public_watermarked > gallery > original). Fixes the prior inline list
-    // that missed the valid `hero` variant + carried a non-existent `portfolio`.
+    // Step 2 (+ the reads that only need `p`): TUL-1240 -- these six reads used to
+    // run as six serial awaits on every /talent/* request (the layout calls this
+    // loader on each render). None depends on another, so they ride in one wave.
+    // The roster gate is applied right after; a missing row still returns null.
     const admin = createServiceRoleClient();
     const mediaClient = admin ?? supabase;
-    const headshotUrl =
-      (await resolveTalentCardThumbsForHub(mediaClient, [p.id], tenantId)).get(p.id) ?? null;
-
-    // Portfolio photo count — same definition the workspace roster uses
-    // (non-deleted `gallery` variants), so both surfaces agree on progress.
-    const { count: galleryCount } = await mediaClient
-      .from("media_assets")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_talent_profile_id", p.id)
-      .eq("variant_kind", "gallery")
-      .is("deleted_at", null);
+    const [rosterRes, headshotMap, galleryRes, blobValues, effectivePlanKey, siteSwitches] = await Promise.all([
+      trusted
+        .from("agency_talent_roster")
+        .select("status, agencies!tenant_id ( display_name )")
+        .eq("talent_profile_id", p.id)
+        .eq("tenant_id", tenantId)
+        .neq("status", "removed")
+        .maybeSingle(),
+      // Headshot via the shared resolver so the dashboard shows the SAME media-public
+      // crop every other surface does (card > hero > public_watermarked > gallery > original).
+      resolveTalentCardThumbsForHub(mediaClient, [p.id], tenantId),
+      // Portfolio photo count: same definition the workspace roster uses
+      // (non-deleted `gallery` variants), so both surfaces agree on progress.
+      mediaClient
+        .from("media_assets")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_talent_profile_id", p.id)
+        .eq("variant_kind", "gallery")
+        .is("deleted_at", null),
+      // About writes bios to the catalog field value, not the legacy columns.
+      readBlobFieldValuesFromCatalog(mediaClient, p.id),
+      resolveEffectiveTalentPlanKey(trusted, p.id, p.talent_plan_key),
+      loadTalentSiteSwitches(trusted, p.id),
+    ]);
+    const { data: rosterRow, error: rosterErr } = rosterRes;
+    if (rosterErr || !rosterRow) return null;
+    const headshotUrl = headshotMap.get(p.id) ?? null;
+    const galleryCount = galleryRes.count;
 
     type RosterRaw = {
       status: string;
@@ -196,10 +206,9 @@ export async function loadTalentSelfProfile(
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
       "Unnamed";
 
-    const primaryTypeLabel =
-      (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+    const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
+    const primaryTypeLabel = primaryTrade.en;
+    const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -208,15 +217,13 @@ export async function loadTalentSelfProfile(
           ?.locations?.display_name_i18n?.en ?? null,
       homeCityText: p.home_city_text,
     });
-    // About writes bios to the catalog field value, not the legacy columns.
-    const blobValues = await readBlobFieldValuesFromCatalog(mediaClient, p.id);
-    const membership = buildTalentMembershipState(p.talent_plan_key);
-    const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
+    const membership = buildTalentMembershipState(effectivePlanKey);
 
     return {
       id: p.id,
       displayName,
       primaryTypeLabel,
+      primaryTypeLabelEs,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
       isPubliclyHidden: p.is_publicly_hidden ?? false,
@@ -334,29 +341,33 @@ export async function loadTalentSelfProfileByUser(
 
     const p = profileRow as unknown as ProfileRaw;
 
-    // Headshot via the shared resolver (card > hero > … — see the sibling
-    // loader above), so this surface matches every other and picks up `hero`.
-    // No tenant in scope on the by-user (master) loader — null = master rank.
-    const headshotUrl =
-      (await resolveTalentCardThumbsForHub(trusted, [p.id], null)).get(p.id) ?? null;
-
-    // Portfolio photo count — see the sibling loader above.
-    const { count: galleryCount } = await trusted
-      .from("media_assets")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_talent_profile_id", p.id)
-      .eq("variant_kind", "gallery")
-      .is("deleted_at", null);
+    // TUL-1240: independent of each other, so one wave instead of five serial awaits.
+    // Headshot via the shared resolver (see the sibling loader above); no tenant in
+    // scope on the by-user (master) loader, so null = master rank.
+    const [headshotMap, galleryRes, blobValues, effectivePlanKey, siteSwitches] = await Promise.all([
+      resolveTalentCardThumbsForHub(trusted, [p.id], null),
+      trusted
+        .from("media_assets")
+        .select("id", { count: "exact", head: true })
+        .eq("owner_talent_profile_id", p.id)
+        .eq("variant_kind", "gallery")
+        .is("deleted_at", null),
+      // About writes bios to the catalog field value, not the legacy columns.
+      readBlobFieldValuesFromCatalog(trusted, p.id),
+      resolveEffectiveTalentPlanKey(trusted, p.id, p.talent_plan_key),
+      loadTalentSiteSwitches(trusted, p.id),
+    ]);
+    const headshotUrl = headshotMap.get(p.id) ?? null;
+    const galleryCount = galleryRes.count;
 
     const displayName =
       p.display_name?.trim() ||
       `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
       "Unnamed";
 
-    const primaryTypeLabel =
-      (p.talent_profile_taxonomy ?? [])
-        .find((t) => t.relationship_type === "primary_role")
-        ?.taxonomy_terms?.name_i18n?.en ?? null;
+    const primaryTrade = primaryRoleLabelsFromTaxonomy(p.talent_profile_taxonomy);
+    const primaryTypeLabel = primaryTrade.en;
+    const primaryTypeLabelEs = primaryTrade.es;
 
     const homeCity = homeCityFromSources({
       serviceAreaHomeCity:
@@ -365,15 +376,13 @@ export async function loadTalentSelfProfileByUser(
           ?.locations?.display_name_i18n?.en ?? null,
       homeCityText: p.home_city_text,
     });
-    // About writes bios to the catalog field value, not the legacy columns.
-    const blobValues = await readBlobFieldValuesFromCatalog(trusted, p.id);
-    const membership = buildTalentMembershipState(p.talent_plan_key);
-    const siteSwitches = await loadTalentSiteSwitches(trusted, p.id);
+    const membership = buildTalentMembershipState(effectivePlanKey);
 
     return {
       id: p.id,
       displayName,
       primaryTypeLabel,
+      primaryTypeLabelEs,
       homeCity,
       workflowStatus: p.workflow_status ?? "draft",
       isPubliclyHidden: p.is_publicly_hidden ?? false,

@@ -1,9 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
+import { previewHostContext } from "./preview-host";
 import type { NextRequest } from "next/server";
 
 import { createBoundedFetch, SUPABASE_EDGE_LOOKUP_TIMEOUT_MS } from "@/lib/supabase/bounded-fetch";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { splitTalentSiteHost } from "@/lib/talent-site/site-public-url";
+import { talentSiteCanonicalFieldsFromLookup } from "@/lib/saas/talent-site-canonical-redirect";
 
 /**
  * SaaS unified host resolver — THE single source of truth for
@@ -78,6 +80,15 @@ export type HostContext =
       isDemo: boolean;
       /** Canonical `talent_sites.site_slug` (unsuffixed), when the RPC returns it. */
       siteSlug: string | null;
+      /**
+       * D1 — agency-shaped primary-host fields for
+       * `resolveCanonicalCustomDomainRedirectHost`. Populated only when an
+       * ACTIVE primary custom domain exists; otherwise isPrimary stays true
+       * and canonicalHost is null so the proxy never redirects on a break.
+       */
+      isPrimary: boolean;
+      canonicalHost: string | null;
+      canonicalHostKind: "subdomain" | "custom" | null;
     }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
@@ -193,6 +204,11 @@ export async function resolveTenantContext(
   if (!hostname) {
     return { kind: "not_found", tenantId: null, hostname: "" };
   }
+
+  // Vercel preview deploys of this project act as the app host, in preview
+  // only (see preview-host.ts for the security reasoning).
+  const preview = previewHostContext(hostname, process.env.VERCEL_ENV);
+  if (preview) return preview;
 
   const cached = cacheGet(hostname);
   if (cached) return cached;
@@ -393,6 +409,46 @@ export async function isProfileCodeOnTenantRoster(
   }
 }
 
+/**
+ * Does this /t/<code> segment name ANY talent profile (live code or retired
+ * alias)? Platform hosts (app, marketing, hub) serve every talent, so an
+ * unknown code is the only case the edge can 404 there; hidden or unpublished
+ * profiles are left to the page. Same `loading.tsx` reason as the roster gate
+ * above: a page-level notFound() lands on a 200 already on the wire.
+ *
+ * Cached on the same 60s TTL. `resolve_talent_profile_code` is SECURITY
+ * DEFINER and matches the code exactly, so the key keeps its case. Fails OPEN.
+ */
+export async function talentProfileCodeExists(
+  request: NextRequest,
+  profileCode: string,
+): Promise<boolean> {
+  const key = `_code/${profileCode}`;
+  const cached = cacheGet(key);
+  if (cached) return cached.kind !== "not_found";
+
+  const supabase = buildEdgeSupabase(request);
+  if (!supabase) return true; // no client — fail open, never hide a real page
+
+  try {
+    const { data, error } = await supabase.rpc("resolve_talent_profile_code", {
+      p_code: profileCode,
+    });
+    if (error) return true; // fail open
+    const row = Array.isArray(data) ? data[0] : data;
+    const exists = Boolean(row?.profile_id);
+    cacheSet(
+      key,
+      exists
+        ? { kind: "app", tenantId: null, hostname: key }
+        : { kind: "not_found", tenantId: null, hostname: key },
+    );
+    return exists;
+  } catch {
+    return true; // fail open
+  }
+}
+
 export type TalentSiteEdgeClient = {
   rpc: (
     fn: "talent_site_domain_lookup" | "talent_site_subdomain_lookup",
@@ -403,11 +459,17 @@ export type TalentSiteEdgeClient = {
           talent_profile_id?: string | null;
           site_slug?: string | null;
           is_demo?: boolean | null;
+          is_primary?: boolean | null;
+          primary_domain?: string | null;
+          primary_custom_domain?: string | null;
         }>
       | {
           talent_profile_id?: string | null;
           site_slug?: string | null;
           is_demo?: boolean | null;
+          is_primary?: boolean | null;
+          primary_domain?: string | null;
+          primary_custom_domain?: string | null;
         }
       | null;
     error: unknown;
@@ -437,6 +499,12 @@ export async function resolveTalentSiteContext(
     const row = Array.isArray(data) ? data[0] : data;
     const talentProfileId = row?.talent_profile_id;
     if (!talentProfileId || typeof talentProfileId !== "string") return null;
+    const canonical = talentSiteCanonicalFieldsFromLookup({
+      hostname,
+      hostKind: "custom",
+      isPrimary: row?.is_primary,
+      primaryDomain: typeof row?.primary_domain === "string" ? row.primary_domain : null,
+    });
     return {
       kind: "talent_site",
       tenantId: null,
@@ -445,6 +513,7 @@ export async function resolveTalentSiteContext(
       hostKind: "custom",
       isDemo: false,
       siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
+      ...canonical,
     };
   } catch {
     return null;
@@ -482,6 +551,12 @@ export async function resolveTalentSubdomainContext(
     const row = Array.isArray(data) ? data[0] : data;
     const talentProfileId = row?.talent_profile_id;
     if (!talentProfileId || typeof talentProfileId !== "string") return null;
+    const canonical = talentSiteCanonicalFieldsFromLookup({
+      hostname,
+      hostKind: "subdomain",
+      primaryCustomDomain:
+        typeof row?.primary_custom_domain === "string" ? row.primary_custom_domain : null,
+    });
     return {
       kind: "talent_site",
       tenantId: null,
@@ -490,6 +565,7 @@ export async function resolveTalentSubdomainContext(
       hostKind: "subdomain",
       isDemo: row?.is_demo === true,
       siteSlug: typeof row?.site_slug === "string" ? row.site_slug : null,
+      ...canonical,
     };
   } catch {
     return null;

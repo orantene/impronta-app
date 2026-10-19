@@ -79,9 +79,9 @@ test("renderTalentMaxSite reads the actor session ONLY under previewDraft", () =
 });
 
 test("renderTalentMaxSite loads USD rates on the vanity path (D-MSG-421)", () => {
-  const source = src("src/lib/talent-site/server/render-max-site.tsx");
+  const source = src("src/lib/talent-site/server/render-max-site-document.tsx");
   assert.match(source, /loadUsdRatesForSitePrices/);
-  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null\)/);
+  assert.match(source, /loadPublicOfferingsForProfile\(talentProfileId, locale, null[,)]/);
 });
 
 test("proxy rebinds talent headers on /_talent-site rewrite re-entry (D-MSG-431)", () => {
@@ -180,4 +180,32 @@ test("the render-time href and form-action neutralizers are still in force", () 
     /neutralizeFormAction\(action\)/,
     "contact_form must keep neutralizing its action",
   );
+});
+
+// Promos PR4: `/p/<slug>` is a static sibling of the catch-all, so it must keep
+// the same anonymous, header-gated contract and be a valid, non-colliding route.
+const PROMO_HOST_ROUTE = "src/app/%5Ftalent-site/p/[slug]/page.tsx";
+
+test("the promo host route is anonymous and header-gated, like the catch-all", () => {
+  const source = src(PROMO_HOST_ROUTE);
+  for (const forbidden of ["getCachedActorSession", "createServerClient", "getCachedServerSupabase", "auth.getUser", "getSession"]) {
+    assert.equal(source.includes(forbidden), false, `${PROMO_HOST_ROUTE} must not reach for ${forbidden}`);
+  }
+  assert.match(source, /resolveGatedTalentProfileId\(/);
+  assert.match(source, /HOST_CONTEXT_HEADER/);
+  assert.match(source, /HOST_TALENT_PROFILE_HEADER/);
+  // Never takes the talent from the URL or query string.
+  assert.equal(/searchParams[^;]*profile/i.test(source), false);
+});
+
+test("`p` stays a reserved page slug so no site page can shadow the promo route", () => {
+  assert.match(src("src/lib/saas/talent-site-host-routing.ts"), /"p",/);
+});
+
+test("TUL-554: async docks stream in their own Suspense so the site node paints first", () => {
+  const page = src("src/app/%5Ftalent-site/[[...pageSlug]]/page.tsx");
+  assert.match(page, /<Suspense fallback=\{null\}>\s*<TalentSiteMessagesDock/);
+  assert.match(page, /<Suspense fallback=\{null\}>\s*<ClientAccountDock/);
+  // The site node itself must not be wrapped in a null-fallback boundary.
+  assert.match(page, /<Suspense fallback=\{<TalentSitePaintSkeleton/);
 });

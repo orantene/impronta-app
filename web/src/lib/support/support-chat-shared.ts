@@ -119,3 +119,11 @@ export function supportChatFailOpenBody(locale: string | null | undefined, guest
   if (guest) return es ? SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY_ES : SUPPORT_CHAT_GUEST_FAIL_OPEN_BODY;
   return es ? SUPPORT_CHAT_FAIL_OPEN_BODY_ES : SUPPORT_CHAT_FAIL_OPEN_BODY;
 }
+
+/** Stored body of the "offer a human" card, in the requester's language. */
+export function supportChatOfferHumanBody(locale: string | null | undefined): string {
+  const es = (locale ?? "").toLowerCase().startsWith("es");
+  return es
+    ? `¿Quieres que ${SUPPORT_AGENT.name} le eche un vistazo?`
+    : `Want ${SUPPORT_AGENT.name} to take a look?`;
+}

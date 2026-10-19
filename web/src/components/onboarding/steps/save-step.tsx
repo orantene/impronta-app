@@ -1,6 +1,7 @@
 "use client";
 
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 /**
  * Step 3 · Save it. Google, or an email that gets an 8-digit code. The
@@ -19,25 +20,35 @@ import { Notice, PrimaryButton, Sub, Title } from "../ui";
 export function SaveStep({
   t,
   path,
+  locale = "en",
   choice = null,
+  ageConfirmed = false,
   busy,
   error,
+  initialAgeTerms = false,
   onEmail,
   onGoogleSuccess,
 }: {
   t: (key: string) => string;
   path: OnboardingPath;
+  /** Page language: the legal links open the matching Terms/Privacy pages (TUL-614). */
+  locale?: "en" | "es";
   /** The screen-1 choice rides the Google `next` URL so it survives the redirect (TUL-82). */
   choice?: OnboardingChoice | null;
+  /** 18+ was already confirmed on the ready step: ask only for the Terms here. */
+  ageConfirmed?: boolean;
   busy: boolean;
   error: string | null;
+  /** The tick already given (kept across "change email" and back). */
+  initialAgeTerms?: boolean;
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
+  const legal = ageTermsLinks(getSiteUrl(), locale);
   const [email, setEmail] = useState("");
   // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
   // server action re-checks it; `disabled` here is only a convenience.
-  const [ageTerms, setAgeTerms] = useState(false);
+  const [ageTerms, setAgeTerms] = useState(initialAgeTerms);
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
   const base = path === "business" ? "/" : "/talent/profile/fields";
@@ -56,13 +67,37 @@ export function SaveStep({
       <Title>{path === "talent" ? t("public.onboarding.save.title") : t("public.onboarding.save.titleBusiness")}</Title>
       <Sub>{t("public.onboarding.save.sub")}</Sub>
 
-      <div className="mt-5" data-testid="onb-google">
+      {/* One consent for both ways in (TUL-809): the checkbox gates Google and the email code. */}
+      <label className="mt-5 flex items-start gap-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }}>
+        <input
+          type="checkbox"
+          checked={ageTerms}
+          onChange={(e) => setAgeTerms(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0"
+          data-testid="onb-age-terms"
+        />
+        <span>
+          {ageConfirmed ? t("public.onboarding.save.termsPrefix") : t("public.auth.register.ageTermsPrefix")}{" "}
+          <a href={legal.terms} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
+          {t("public.auth.register.ageTermsAnd")}{" "}
+          <a href={legal.privacy} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
+        </span>
+      </label>
+      {/* Why Google and the email button are held: read out with their disabled state. */}
+      {!ageTerms ? (
+        <p id="onb-consent-hint" className="mt-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }} data-testid="onb-consent-hint">
+          {t("public.onboarding.save.consentHint")}
+        </p>
+      ) : null}
+      <div className="mt-3" data-testid="onb-google">
         <AuthGoogleButtonSurface
           pending={google.pending}
           label={t("public.onboarding.save.google")}
           pendingLabel={t("public.onboarding.save.googleOpening")}
           error={googleError}
           onClick={google.open}
+          disabled={!ageTerms}
+          describedBy={!ageTerms ? "onb-consent-hint" : undefined}
         />
       </div>
 
@@ -93,40 +128,18 @@ export function SaveStep({
           className="mt-1 h-12 w-full rounded-[14px] px-3 text-[1rem] outline-none placeholder:text-[var(--tl-muted-soft)]"
           style={{ background: "var(--tl-surface-raised)", border: "1px solid var(--tl-hairline)", color: "var(--tl-ink)" }}
         />
-        <label className="mt-3 flex items-start gap-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }}>
-          <input
-            type="checkbox"
-            checked={ageTerms}
-            onChange={(e) => setAgeTerms(e.target.checked)}
-            className="mt-0.5 size-4 shrink-0"
-            data-testid="onb-age-terms"
-          />
-          <span>
-            {t("public.auth.register.ageTermsPrefix")}{" "}
-            <a href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsTerms")}</a>{" "}
-            {t("public.auth.register.ageTermsAnd")}{" "}
-            <a href={`${getSiteUrl()}/legal/privacy`} target="_blank" rel="noreferrer" className="underline">{t("public.auth.register.ageTermsPrivacy")}</a>
-          </span>
-        </label>
+        {email.includes("+") && email.includes("@") ? (
+          <p className="mt-2 text-[0.8125rem] leading-snug" style={{ color: "var(--tl-muted)" }} data-testid="onb-plus-email-hint">
+            {t("public.onboarding.save.plusEmailHint")}
+          </p>
+        ) : null}
         {error ? <Notice tone="error" testId="onb-error">{error}</Notice> : null}
         <div className="mt-4">
-          <PrimaryButton type="submit" disabled={busy || !email.trim() || !ageTerms} testId="onb-email-cta">
+          <PrimaryButton type="submit" disabled={busy || !email.trim() || !ageTerms} testId="onb-email-cta" describedBy={!ageTerms ? "onb-consent-hint" : undefined}>
             {busy ? t("public.onboarding.save.emailPending") : t("public.onboarding.save.emailCta")}
           </PrimaryButton>
         </div>
       </form>
-
-      <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }}>
-        {t("public.onboarding.save.terms").split(/(Terms|Términos|Privacy Policy|Política de privacidad)/).map((part, i) =>
-          part === "Terms" || part === "Términos" ? (
-            <a key={i} href={`${getSiteUrl()}/legal/terms`} target="_blank" rel="noreferrer" className="underline">{part}</a>
-          ) : part === "Privacy Policy" || part === "Política de privacidad" ? (
-            <a key={i} href={`${getSiteUrl()}/legal/privacy`} target="_blank" rel="noreferrer" className="underline">{part}</a>
-          ) : (
-            <span key={i}>{part}</span>
-          ),
-        )}
-      </p>
     </div>
   );
 }

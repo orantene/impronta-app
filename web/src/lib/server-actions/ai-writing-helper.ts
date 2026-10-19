@@ -12,8 +12,10 @@ import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { BIO_MAX_CHARS, buildWritingPrompt, screenWrittenText, WRITING_OPS, WRITING_TONES, type WritingFacts, type WritingOp, type WritingTone } from "@/lib/ai/writing-helper";
+import { resolveOwnTradeWords, restoreOwnTradeWords } from "@/lib/ai/writing-helper-trade-words";
 import { logServerError } from "@/lib/server/safe-error";
 import { selfFacts, underDailyCap, writeMyBio } from "@/lib/talent/bio-helper.server";
+import { afterResponse } from "@/lib/server/after-response";
 
 export type BioHelperState = { ok: true; text: string; facts: WritingFacts; tenantId: string | null } | { ok: false; code: "not_authenticated" | "no_profile" | "failed" };
 
@@ -44,7 +46,7 @@ export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | 
   const prompt = buildWritingPrompt({ surface: "bio", op: input.op, tone: input.tone ?? null, text: input.text.slice(0, 1200), locale: input.locale, facts: self.facts });
   const t0 = Date.now();
   const result = await adapter.chatCompletion({ ...prompt, maxTokens: 400, temperature: input.op === "write" ? 0.7 : 0.5, model });
-  void recordAiGenerationUsage({
+  afterResponse(() => recordAiGenerationUsage({
     provider: adapter.id,
     model: result.ok ? (result.model ?? model ?? "auto") : (model ?? "auto"),
     usage: result.ok ? result.usage : undefined,
@@ -54,11 +56,14 @@ export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | 
     latencyMs: Date.now() - t0,
     tenantId,
     context: { surface: "bio", op: input.op, tone: input.tone ?? null, talent_profile_id: self.id },
-  }).catch((err) => logServerError("writingHelper.usage", err));
+  }).catch((err) => logServerError("writingHelper.usage", err)));
   if (!result.ok) return { ok: false, code: "failed", message: result.message };
   const screened = screenWrittenText(result.text);
   if (!screened.ok) return { ok: false, code: "unusable", message: screened.reason };
-  return { ok: true, text: screened.text };
+  // TUL-993: the model may echo the catalogue title; restore the person's own gender/number.
+  const label = self.facts.discipline;
+  const text = label ? restoreOwnTradeWords(screened.text, label, resolveOwnTradeWords(label, input.text)) : screened.text;
+  return { ok: true, text };
 }
 
 export async function saveMyBio(input: { text: string; locale: Locale }): Promise<{ ok: true } | { ok: false; code: "no_profile" | "invalid" | "failed" }> {

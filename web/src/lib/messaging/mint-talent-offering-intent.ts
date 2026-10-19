@@ -3,6 +3,7 @@
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { z } from "zod";
 
+import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { signTalentOfferingIntent, type TalentOfferingIntentKind } from "@/lib/messaging/talent-offering-intent";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -37,12 +38,18 @@ export async function mintTalentOfferingIntent(input: {
 
   const { data: offering, error: offeringErr } = await admin
     .from("talent_offerings")
-    .select("id, talent_profile_id, status")
+    .select("id, talent_profile_id, status, moderation_state, visibility")
     .eq("id", parsed.data.offeringId)
     .maybeSingle();
   if (offeringErr) return { ok: false, error: "That service is not available." };
-  const off = offering as { talent_profile_id?: string | null; status?: string | null } | null;
-  if (!off || off.talent_profile_id !== parsed.data.talentProfileId || off.status !== "published") {
+  const off = offering as {
+    talent_profile_id?: string | null;
+    status?: string | null;
+    moderation_state?: string | null;
+    visibility?: string | null;
+  } | null;
+  // D-10: a guest is only handed a choice for a published + approved + public service.
+  if (!off || off.talent_profile_id !== parsed.data.talentProfileId || !isGuestSellableOffering(off)) {
     return { ok: false, error: "That service is not available." };
   }
 

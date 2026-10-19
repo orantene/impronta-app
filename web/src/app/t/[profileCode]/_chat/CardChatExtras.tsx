@@ -21,6 +21,7 @@ import type { BookingResumeSnapshot } from "@/components/public-booking/booking-
 import { ASK_QUICK_KEYS } from "./GuestAskAboutCard";
 import type { ChatOffering } from "./OfferingQuickPicker";
 import a11y from "./mini-chat-a11y.module.css";
+import { durationLabel } from "@/lib/talent/duration-label";
 
 /** A-10: the panel rises in .25 s; reduced motion shows it instantly. */
 export const CARD_CHAT_CSS = `@keyframes cc-up{from{transform:translateY(40px);opacity:.4}}
@@ -66,7 +67,12 @@ export function CardChatChips({ t, onPick, service = null }: { t: Translator; on
     ? ["public.guestChat.cardChipWhenFor", "public.guestChat.cardChipDurationFor", ASK_QUICK_KEYS[2]]
     : ASK_QUICK_KEYS;
   return (
-    <div role="group" aria-label={t("public.guestChat.askQuickLabel")} data-card-chat-chips="" style={{ display: "flex", flexWrap: "nowrap", gap: 8, overflowX: "auto", scrollbarWidth: "none", maskImage: "linear-gradient(to right, black calc(100% - 28px), transparent)", WebkitMaskImage: "linear-gradient(to right, black calc(100% - 28px), transparent)", paddingRight: 28 }}>
+    <div
+      role="group"
+      aria-label={t("public.guestChat.askQuickLabel")}
+      data-card-chat-chips=""
+      style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+    >
       {keys.map((k) => {
         const q = short ? interpolate(t(k), { service: short }) : t(k);
         return (
@@ -181,7 +187,7 @@ export function CardChatBackToBooking({
 function priceLine(o: ChatOffering, locale: string, t: Translator): string {
   // The menu's own price line when the page supplied it; the plain fallback otherwise.
   const price = o.priceLabel ?? (o.amountCents == null ? t("public.guestChat.cardBrowseQuote") : formatMoney(o.amountCents, o.currency, locale));
-  return o.durationMinutes && !o.priceIsPerUnit ? `${o.durationMinutes} min · ${price}` : price;
+  return o.durationMinutes && !o.priceIsPerUnit ? `${durationLabel(o.durationMinutes)} · ${price}` : price;
 }
 
 /** CH-4: the service list that swaps with the thread (the header list button toggles it). */

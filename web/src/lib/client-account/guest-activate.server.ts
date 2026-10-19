@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import { shouldActivateGuestBooker } from "./guest-activate";
+import { shouldActivateGuestBooker, shouldActivateSelfSignedClient } from "./guest-activate";
 
 /**
  * Marks a verified guest booker's account active. Best-effort: a failure is
@@ -25,15 +25,20 @@ export async function activateGuestBookerIfEligible(
     return false;
   }
   if (profile?.app_role !== "client" || profile.account_status !== "onboarding") return false;
-  const { count, error: countErr } = await admin
-    .from("inquiries")
-    .select("id", { count: "exact", head: true })
-    .eq("client_user_id", input.userId);
-  if (countErr) {
-    logServerError("clientAccount/guestActivate/bookings", countErr);
+  const hasBooking = await hasClientHistory(admin, input.userId);
+  if (hasBooking === null) return false;
+  if (!shouldActivateGuestBooker({ emailProven: true, appRole: profile.app_role, accountStatus: profile.account_status, hasBooking })) return false;
+  // TUL-669: ensure_profile_for_current_user recomputes account_status on
+  // every request and keeps a client 'active' only while a client_profiles row
+  // exists. Create it first, or the next page load puts them back to
+  // 'onboarding'. ignoreDuplicates keeps any settings the client already saved.
+  const { error: cpErr } = await admin
+    .from("client_profiles")
+    .upsert({ user_id: input.userId }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (cpErr) {
+    logServerError("clientAccount/guestActivate/clientProfile", cpErr);
     return false;
   }
-  if (!shouldActivateGuestBooker({ emailProven: true, appRole: profile.app_role, accountStatus: profile.account_status, hasBooking: (count ?? 0) > 0 })) return false;
   const now = new Date().toISOString();
   const { error: updErr } = await admin
     .from("profiles")
@@ -42,6 +47,84 @@ export async function activateGuestBookerIfEligible(
     .eq("account_status", "onboarding");
   if (updErr) {
     logServerError("clientAccount/guestActivate/update", updErr);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * G2 (TUL-465): any guest-era record the claim attached counts as history:
+ * an inquiry, a booking, a payment, or an order through an owned customer.
+ * Run AFTER claimEverythingForVerifiedEmail. Null when a read failed.
+ */
+async function hasClientHistory(admin: SupabaseClient, userId: string): Promise<boolean | null> {
+  const owned: Array<[string, string]> = [
+    ["inquiries", "client_user_id"],
+    ["agency_bookings", "client_user_id"],
+    ["booking_transactions", "payer_user_id"],
+  ];
+  for (const [table, col] of owned) {
+    const { count, error } = await admin.from(table).select("id", { count: "exact", head: true }).eq(col, userId);
+    if (error) {
+      logServerError(`clientAccount/guestActivate/${table}`, error);
+      return null;
+    }
+    if ((count ?? 0) > 0) return true;
+  }
+  const { data: customers, error: custErr } = await admin.from("customers").select("id").eq("user_id", userId);
+  if (custErr) {
+    logServerError("clientAccount/guestActivate/customers", custErr);
+    return null;
+  }
+  const customerIds = ((customers ?? []) as Array<{ id: string }>).map((c) => c.id);
+  if (!customerIds.length) return false;
+  const { count, error: ordErr } = await admin
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .in("customer_id", customerIds);
+  if (ordErr) {
+    logServerError("clientAccount/guestActivate/orders", ordErr);
+    return null;
+  }
+  return (count ?? 0) > 0;
+}
+
+/**
+ * TUL-771: a verified `/register?as=client` sign-up becomes an active client right away (no role
+ * screen). Mirrors the guest-booker activation: client_profiles row first (account_status is
+ * recomputed per request from it), then the profile flip. Best-effort; never blocks sign-in.
+ */
+export async function activateSelfSignedClient(
+  admin: SupabaseClient,
+  input: { userId: string; signupIntent: string | null | undefined },
+): Promise<boolean> {
+  const { data: profile, error: profErr } = await admin
+    .from("profiles")
+    .select("app_role, account_status")
+    .eq("id", input.userId)
+    .maybeSingle<{ app_role: string | null; account_status: string | null }>();
+  if (profErr) {
+    logServerError("clientAccount/selfSignedActivate/profile", profErr);
+    return false;
+  }
+  if (!shouldActivateSelfSignedClient({ signupIntent: input.signupIntent, appRole: profile?.app_role, accountStatus: profile?.account_status })) {
+    return false;
+  }
+  const { error: cpErr } = await admin
+    .from("client_profiles")
+    .upsert({ user_id: input.userId }, { onConflict: "user_id", ignoreDuplicates: true });
+  if (cpErr) {
+    logServerError("clientAccount/selfSignedActivate/clientProfile", cpErr);
+    return false;
+  }
+  const now = new Date().toISOString();
+  const { error: updErr } = await admin
+    .from("profiles")
+    .update({ account_status: "active", onboarding_completed_at: now, updated_at: now })
+    .eq("id", input.userId)
+    .eq("account_status", "onboarding");
+  if (updErr) {
+    logServerError("clientAccount/selfSignedActivate/update", updErr);
     return false;
   }
   return true;

@@ -19,6 +19,8 @@ export const FEES_ES_TEXT: Record<string, string> = {
     "El cliente también paga una comisión de servicio de Tulala de {pct} ({fee}) sobre tu precio, que se muestra como línea aparte al pagar. \"Yo la pago\" solo decide quién cubre la comisión de la tarjeta, así que el total del cliente es mayor que tu precio.",
   "This is an estimate. Fees are non-refundable.":
     "Es un estimado. Las comisiones no son reembolsables.",
+  "Loading fee estimate…": "Cargando estimación de comisiones…",
+  "Fee estimate unavailable right now.": "La estimación de comisiones no está disponible por ahora.",
   "Could not save. Try again.": "No se pudo guardar. Inténtalo de nuevo.",
   "Want to keep 100% of your price? Let clients cover the card fee":
     "¿Quieres quedarte con el 100% de tu precio? Deja que tus clientes cubran la comisión de tarjeta",
@@ -40,4 +42,15 @@ export const FEES_ES_TEXT: Record<string, string> = {
   "Choose how you hear about new messages": "Elige cómo te enteras de mensajes nuevos",
   Open: "Abrir",
   Close: "Cerrar",
+  "What you get": "Lo que recibes",
+  "Your price": "Tu precio",
+  "Tulala commission": "Comisión de Tulala",
+  "Workspace commission and card fees": "Comisión del negocio y comisiones de tarjeta",
+  "Your payout": "Tu depósito",
+  "Funds reach your bank {n} business days after the client pays; your very first payout can take up to {min} to {max} days while Stripe verifies your account.":
+    "Los fondos llegan a tu banco {n} días hábiles después de que el cliente paga; tu primer depósito puede tardar de {min} a {max} días mientras Stripe verifica tu cuenta.",
+  "Funds reach your bank on Stripe's standard schedule for your country; your very first payout can take up to {min} to {max} days while Stripe verifies your account.":
+    "Los fondos llegan a tu banco según el calendario estándar de Stripe para tu país; tu primer depósito puede tardar de {min} a {max} días mientras Stripe verifica tu cuenta.",
+  "Your client pays Tulala's service fee on top of your price. It is never taken from you.":
+    "Tu cliente paga el cargo por servicio de Tulala encima de tu precio. Nunca se descuenta de lo tuyo.",
 };

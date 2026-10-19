@@ -7,6 +7,7 @@ import {
   MAX_ESSENTIAL_SERVICES,
   defaultWeeklyHours,
   hoursHaveAnyOpenDay,
+  currencyForCountry,
   isMexico,
   type DayKey,
   type EssentialService,
@@ -15,6 +16,8 @@ import {
   type WeeklyEssentialHours,
 } from "./essentials";
 import type { OnboardingChoice } from "./choice";
+import { isValidIanaTimeZone } from "@/lib/scheduling/tz";
+import { hasUnconfirmedPrice } from "./service-price-choice";
 
 /** Monday first for people, Sunday = "0" for the data. */
 export const DAY_ORDER: readonly DayKey[] = ["1", "2", "3", "4", "5", "6", "0"];
@@ -26,6 +29,8 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
 
 /** Zones offered when the person is not in Mexico. The list is short on purpose; the rest is "Other". */
 export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
+  { id: "America/Mexico_City", label: "Ciudad de México (CT)" },
+  { id: "America/Cancun", label: "Cancún (EST)" },
   { id: "America/New_York", label: "New York (ET)" },
   { id: "America/Chicago", label: "Chicago (CT)" },
   { id: "America/Denver", label: "Denver (MT)" },
@@ -35,6 +40,48 @@ export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "Europe/Madrid", label: "Madrid" },
   { id: "Europe/London", label: "London" },
 ];
+
+/** The short list, plus the current zone when it is not on it (the browser's zone, a saved one). */
+export function timezoneChoices(current: string | null | undefined): ReadonlyArray<{ id: string; label: string }> {
+  const id = current?.trim();
+  if (!id || TIMEZONE_OPTIONS.some((z) => z.id === id)) return TIMEZONE_OPTIONS;
+  const label = (id.split("/").pop() ?? id).replace(/_/g, " ");
+  return [{ id, label }, ...TIMEZONE_OPTIONS];
+}
+
+/** TUL-815: the zone the browser reports fills a missing one silently, in every country. A saved or city-derived zone wins. */
+export function timezoneWithBrowserFallback(saved: string | null | undefined, browser: string | null | undefined): string | null {
+  const own = saved?.trim();
+  if (own) return own;
+  const b = browser?.trim();
+  return b && isValidIanaTimeZone(b) ? b : null;
+}
+
+/** Short readable name for a zone id (the list label when known). */
+export function timezoneLabel(id: string): string {
+  return TIMEZONE_OPTIONS.find((z) => z.id === id)?.label ?? (id.split("/").pop() ?? id).replace(/_/g, " ");
+}
+
+/**
+ * TUL-815: how a zone reads on the review step: "Hora de Cancún" / "Cancún time".
+ * The list label minus its "(EST)" style suffix, so the person reads a place, not an abbreviation.
+ */
+export function timezoneDisplayName(id: string, locale: "en" | "es"): string {
+  const place = timezoneLabel(id).replace(/\s*\([^)]*\)\s*$/, "").trim();
+  return locale === "es" ? `Hora de ${place}` : `${place} time`;
+}
+
+/** TUL-808: trades that go to the client never offer "at my studio". Beauty keeps all three. */
+const MOBILE_TRADES: ReadonlySet<string> = new Set(["cleaning"]);
+
+export function placeModesForTrade(tradeKey: string | null | undefined): ReadonlyArray<"studio" | "home" | "client"> {
+  return tradeKey && MOBILE_TRADES.has(tradeKey) ? ["client"] : ["studio", "home", "client"];
+}
+
+/** A mobile trade opens with "I go to the client" already chosen; others open with no choice. */
+export function defaultPlaceForTrade(tradeKey: string | null | undefined): { mode: "client"; area: null } | null {
+  return tradeKey && MOBILE_TRADES.has(tradeKey) ? { mode: "client", area: null } : null;
+}
 
 /** Only outside Mexico: inside, the zone comes from the country and is never asked. */
 export function needsTimezoneQuestion(country: string | null | undefined): boolean {
@@ -95,18 +142,34 @@ export function blankService(currency: string): EssentialService {
   return { name: "", durationMin: 60, priceCents: null, quote: false, currency, packKey: null };
 }
 
+/**
+ * TUL-16 b: the currency the services step prices in. The person's own pick
+ * wins; otherwise the country decides (Mexico: pesos). With no country yet, a
+ * Spanish flow starts in pesos instead of a silent USD. MXN and USD only.
+ */
+export function setupCurrency(input: { chosen: string | null; country: string | null | undefined; locale: string }): string {
+  if (input.chosen === "MXN" || input.chosen === "USD") return input.chosen;
+  if (input.country && input.country.trim()) return currencyForCountry(input.country);
+  return input.locale === "es" ? "MXN" : "USD";
+}
+
+/** One currency for every service line (a menu does not mix them). */
+export function applyServiceCurrency(services: EssentialService[], currency: string): EssentialService[] {
+  return services.map((s) => (s.currency === currency ? s : { ...s, currency }));
+}
+
 /** Drop empty rows; a row without a number is a quote; cap the list. */
 export function cleanServices(services: EssentialService[]): EssentialService[] {
   return services
     .map((s) => ({ ...s, name: s.name.trim() }))
     .filter((s) => s.name.length > 0)
-    .map((s) => ({ ...s, quote: s.quote || s.priceCents === null, priceCents: s.quote ? null : s.priceCents }))
+    .map((s) => ({ ...s, quote: s.quote || s.priceCents === null, priceCents: s.quote ? null : s.priceCents, quoteChosen: s.quoteChosen === true && (s.quote || s.priceCents === null) }))
     .slice(0, MAX_ESSENTIAL_SERVICES);
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export type SetupIssue = "services" | "hours" | "place" | "timezone" | "providerEmail";
+export type SetupIssue = "services" | "confirmPrices" | "hours" | "place" | "timezone" | "providerEmail";
 
 /** What blocks "Continue". Studio may add the first provider later; an invalid typed email still blocks. */
 export function setupIssues(input: {
@@ -118,6 +181,7 @@ export function setupIssues(input: {
   const { choice, essentials: e } = input;
   const issues: SetupIssue[] = [];
   if (cleanServices(e.services).length === 0) issues.push("services");
+  if (hasUnconfirmedPrice(e.services)) issues.push("confirmPrices");
   if (!hoursHaveAnyOpenDay(e.hours)) issues.push("hours");
   if (!e.place) issues.push("place");
   if (needsTimezoneQuestion(input.country) && !e.timezone) issues.push("timezone");

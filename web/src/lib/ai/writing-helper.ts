@@ -5,6 +5,8 @@
  * the server action.
  */
 
+import { resolveOwnTradeWords } from "./writing-helper-trade-words";
+
 export const WRITING_OPS = ["write", "rewrite", "expand", "shorten", "tone"] as const;
 export type WritingOp = (typeof WRITING_OPS)[number];
 export const WRITING_TONES = ["warm", "professional", "fun"] as const;
@@ -35,11 +37,13 @@ export const BIO_MIN_CHARS = 30;
 export const WRITING_HELPER_DAILY_CAP = 30;
 
 export function buildWritingPrompt(req: WritingRequest): { systemPrompt: string; userMessage: string } {
-  const f = req.facts;
+  // TUL-993: the fact is the catalogue title; give the model the person's own gender/number.
+  const f = { ...req.facts, discipline: req.facts.discipline ? resolveOwnTradeWords(req.facts.discipline, req.text) : null };
   const langName = req.locale === "es" ? "Spanish (Mexico)" : "English";
   const system = [
     `You help a self-employed person write the short bio on their own page. Write in ${langName}, first person, plain words a client would use when searching.`,
     "HARD RULES. Use only the facts given and the person's own text. Never invent services, places, prices, years of experience, numbers of clients, awards, certifications, reviews or quotes. Do not add a phone, email or address.",
+    "Their trade: keep the person's own words for what they do exactly as written, including grammatical gender and lowercase (\"fotógrafa de retratos\" stays \"fotógrafa de retratos\", never \"Fotógrafo de Retrato\"). Do not swap in a catalogue title or change the number or gender.",
     "Search: say what they do and their city naturally in the first sentence (that is what people search), once each; no keyword lists, no slogans.",
     "Style: two to four sentences, no exclamation marks, no em dashes or en dashes (use a comma or a period), no hashtags, no emojis.",
     `Length: between ${BIO_MIN_CHARS} and ${BIO_MAX_CHARS} characters.`,

@@ -12,7 +12,7 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Bank transfer": "Transferencia",
   "Card on your terminal": "Tarjeta con tu terminal",
   "Cancelling, deposit and what your clients read before they book":
-    "Cancelación, anticipo y lo que leen tus clientas antes de reservar",
+    "Cancelación, anticipo y lo que leen tus clientes antes de reservar",
   "Website settings": "Ajustes del sitio",
   "How clients book, timing, payments and cancelling": "Cómo reservan tus clientes, horarios, pagos y cancelaciones",
   // TUL-180 Option A
@@ -119,11 +119,14 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "'Consultar' will open an inquiry form so inquiry-only services still reach you.":
     "'Consultar' abrirá un formulario de consulta para que los servicios solo por consulta te sigan llegando.",
   "Accept new inquiries": "Aceptar nuevas consultas",
-  "Off hides Ask and Consultar. Clients with a booking can still message you.":
+  "Off hides Ask and Inquire. Clients with a booking can still message you.":
     "Apagado oculta Preguntar y Consultar. Los clientes con una reserva aún pueden escribirte.",
   "Booking assistant (AI)": "Asistente de reservas (IA)",
   "Off keeps today's scripted chat. On lets the assistant answer from your public services and hand off to you when unsure. It does not book or send pay links yet. Starts off.":
     "Apagado deja el chat con guion de hoy. Encendido deja que el asistente responda con tus servicios públicos y te pase la conversación cuando no esté seguro. Todavía no reserva ni envía enlaces de pago. Empieza apagado.",
+  "Let AI assistants book me": "Dejar que asistentes de IA me reserven",
+  "Assistants like ChatGPT or Claude can send a client a link to request one of your services. The client confirms it in your chat. Starts off.":
+    "Asistentes como ChatGPT o Claude pueden enviarle a un cliente un enlace para pedir uno de tus servicios. El cliente lo confirma en tu chat. Empieza apagado.",
   "AI on": "IA activa",
   "AI off": "IA apagada",
   "This service will show as unavailable: {services}": "Este servicio se mostrará como no disponible: {services}",
@@ -138,6 +141,9 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
   "Taking inquiries": "Recibiendo consultas",
   "Inquiries paused": "Consultas en pausa",
   "Taking new bookings": "Recibiendo nuevas reservas",
+  "Client account on your site": "Cuenta de cliente en tu sitio",
+  "A small account icon in your site header. Clients sign in to see their bookings, messages and receipts. Starts on while you take bookings.":
+    "Un pequeño icono de cuenta en el encabezado de tu sitio. Tus clientes inician sesión para ver sus reservas, mensajes y recibos. Empieza activo mientras recibes reservas.",
   "New bookings paused": "Nuevas reservas en pausa",
   "Instant booking is not available on this plan": "La reserva inmediata no está disponible en este plan",
   "Add working hours to turn on instant booking": "Agrega tu horario de trabajo para activar la reserva inmediata",
@@ -145,9 +151,9 @@ export const WEBSITE_SETTINGS_ES_TEXT: Record<string, string> = {
     "Agrega una duración a este servicio para activar la reserva inmediata",
   // PAY-2 Option B — platform Checkout readiness, not Connect.
   "Turn on online payments to take deposits": "Activa el pago en línea para cobrar señas",
-  // LEGAL_REVIEW_PENDING: merchant of record + 18+ (owner decision 2026-10-01)
-  "You are the merchant of record for card payments from your clients, through your own Stripe Connect account. Chargebacks and tax invoicing (CFDI in Mexico) are yours. You and your paying clients must be 18 or older.":
-    "Tú eres el comerciante registrado de los pagos con tarjeta de tus clientes, a través de tu propia cuenta de Stripe Connect. Los contracargos y la facturación fiscal (CFDI en México) son tuyos. Tú y tus clientes que pagan deben tener 18 años o más.",
+  // LEGAL_REVIEW_PENDING: seller / collect-and-pay-out + 18+ (owner decision 2026-10-01)
+  "You are the seller. Tulala collects your clients' card payments and pays out your share. Tax invoicing for your services (CFDI in Mexico) is yours. You and your paying clients must be 18 or older.":
+    "Tú eres el vendedor. Tulala cobra los pagos con tarjeta de tus clientes y te paga tu parte. La facturación fiscal de tus servicios (CFDI en México) es tuya. Tú y tus clientes que pagan deben tener 18 años o más.",
   // G3a / G4 — emergencies today + public call number.
   "Taking emergencies today": "Atiendo emergencias hoy",
   "Shows on your website right away and turns itself off at the end of your day.":

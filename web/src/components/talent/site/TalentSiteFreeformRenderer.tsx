@@ -10,6 +10,7 @@ import {
 } from "@/lib/site-admin/builder-node";
 import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instances";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { renderPromoBlock } from "@/lib/site-admin/builder-node/promo-block";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
@@ -181,6 +182,8 @@ export async function TalentSiteFreeformRenderer({
       contentLocale: { locale, defaultLocale: "en", chain: [locale, "en"] },
       ...experimentContext,
       renderSectionEmbed,
+      // TUL-1178: the real promo renderer is injected here (the My content preview holds promo data).
+      renderPromoBlock,
     });
   // Landmarks render through their section Component; the rest in runs so the
   // shared renderer still sees whole sibling groups.
@@ -220,6 +223,7 @@ export async function TalentSiteFreeformRenderer({
           : {
               ...(cssVars as React.CSSProperties),
               backgroundColor: "var(--token-color-background, #ffffff)",
+              color: "var(--token-color-ink, inherit)",
               minHeight: "100vh",
             }
       }

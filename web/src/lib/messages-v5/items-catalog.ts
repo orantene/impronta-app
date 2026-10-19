@@ -27,6 +27,8 @@ import "server-only";
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { scopeToGuestVisibleRoster } from "@/lib/saas/talent-roster";
+import { scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import type { CatalogOption, CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
@@ -70,7 +72,17 @@ function dayWindow(date: string, timezone: string): { from: Date; to: Date } | n
   return { from, to };
 }
 
-export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; now?: Date }): Promise<ItemsCatalog> {
+/**
+ * P0 tenant/talent scope: a page that belongs to ONE talent (`forcedTalentId`, resolved
+ * server-side from the page) always lists only that talent. Otherwise a talent-owned
+ * conversation with exactly one talent does. Never widens: both inputs only narrow.
+ */
+export function pickScopedTalentId(input: { forcedTalentId: string | null | undefined; talentOwned: boolean; contextTalentIds: readonly string[] }): string | null {
+  if (input.forcedTalentId) return input.forcedTalentId;
+  return input.talentOwned && input.contextTalentIds.length === 1 ? input.contextTalentIds[0] : null;
+}
+
+export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date }): Promise<ItemsCatalog> {
   const now = input.now ?? new Date();
   const [inqRes, tenantRes, tz] = await Promise.all([
     admin.from("inquiries").select("event_date, event_timezone, source_context").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
@@ -94,37 +106,73 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
     tenantId: input.tenantId,
     hubTenantId: hub?.tenantId ?? null,
   });
-  const talentProfileId = talentOwned && context.talentIds.length === 1 ? context.talentIds[0] : null;
+  const talentProfileId = pickScopedTalentId({ forcedTalentId: input.talentProfileId, talentOwned, contextTalentIds: context.talentIds });
 
+  const rows = await loadCatalogRowsForScope(admin, {
+    tenantId: input.tenantId,
+    talentProfileId,
+    forcedTalent: Boolean(input.talentProfileId),
+    window,
+    now,
+    date,
+    reservations: Boolean(preset.features.reservations),
+  });
+
+  return { rows, date, timezone, preset: presetRaw };
+}
+
+/**
+ * P0 TUL-1070: every row source of the dock catalog, scoped in one place.
+ *
+ * - No talent: the tenant's own roster + offerings + sessions (+ tables).
+ * - Talent from a talent-owned conversation: that talent's offerings under the tenant, plus tenant sessions.
+ * - FORCED talent (the dock belongs to one talent's page/site): ONLY that talent's own public
+ *   offerings (no tenant filter, because a hub-hosted talent's rows live on their own tenant), no
+ *   roster, and no tenant-wide sessions or tables, which on a hub are other people's events.
+ */
+export async function loadCatalogRowsForScope(
+  admin: Admin,
+  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean },
+): Promise<CatalogRow[]> {
+  const { tenantId, talentProfileId, forcedTalent, window, now, date, reservations } = input;
+  if (forcedTalent && talentProfileId) {
+    return loadTalentProfileOfferingRows(admin, null, talentProfileId);
+  }
   const [talent, offerings, sessions, tables] = await Promise.all([
     // A solo talent sells only their own services: the hub roster lists other
     // talents, so the Talent tab is not offered at all.
-    talentProfileId ? Promise.resolve([] as CatalogRow[]) : loadTalentRows(admin, input.tenantId, window, now),
-    talentProfileId ? loadTalentProfileOfferingRows(admin, input.tenantId, talentProfileId) : loadOfferingRows(admin, input.tenantId),
-    loadSessionRows(admin, input.tenantId, now),
-    date && preset.features.reservations ? loadTableRows(input.tenantId, date) : Promise.resolve([] as CatalogRow[]),
+    talentProfileId ? Promise.resolve([] as CatalogRow[]) : loadTalentRows(admin, tenantId, window, now),
+    talentProfileId ? loadTalentProfileOfferingRows(admin, tenantId, talentProfileId) : loadOfferingRows(admin, tenantId),
+    loadSessionRows(admin, tenantId, now),
+    date && reservations ? loadTableRows(tenantId, date) : Promise.resolve([] as CatalogRow[]),
   ]);
-
-  return { rows: [...talent, ...offerings, ...sessions, ...tables], date, timezone, preset: presetRaw };
+  return [...talent, ...offerings, ...sessions, ...tables];
 }
 
-async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
-  const { data, error } = await admin
-    .from("agency_talent_roster")
-    .select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name )")
-    .eq("tenant_id", tenantId)
-    .neq("status", "removed")
+/** Talent that may surface to a guest (mirrors `default-storefront-roster` PUBLISHED_STATUSES). */
+const GUEST_VISIBLE_WORKFLOW = new Set(["approved", "published"]);
+
+export async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Date; to: Date } | null, now: Date): Promise<CatalogRow[]> {
+  // A guest sees only people who are active AND shown on this tenant's site: the one
+  // shared roster scope (`neq removed` also listed pending / inactive / archived / hidden members).
+  const { data, error } = await scopeToGuestVisibleRoster(
+    admin.from("agency_talent_roster").select("talent_profile_id, talent_profiles!talent_profile_id ( id, profile_code, display_name, workflow_status )"),
+    tenantId,
+  )
     .order("created_at", { ascending: true })
     .limit(TALENT_CAP);
   if (error) {
     logServerError("messagesV5.itemsCatalog/roster", error);
     return [];
   }
-  type Raw = { talent_profile_id: string; talent_profiles: { id: string; profile_code: string | null; display_name: string | null } | { id: string; profile_code: string | null; display_name: string | null }[] | null };
+  type Prof = { id: string; profile_code: string | null; display_name: string | null; workflow_status?: string | null };
+  type Raw = { talent_profile_id: string; talent_profiles: Prof | Prof[] | null };
   const people: { id: string; name: string }[] = [];
   for (const raw of (data ?? []) as unknown as Raw[]) {
     const profile = Array.isArray(raw.talent_profiles) ? raw.talent_profiles[0] : raw.talent_profiles;
     if (!profile) continue;
+    // Same publish filter as the storefront roster and the talent picker.
+    if (!GUEST_VISIBLE_WORKFLOW.has(profile.workflow_status ?? "")) continue;
     people.push({ id: profile.id, name: profile.display_name?.trim() || profile.profile_code || "Talent" });
   }
   const busyById = new Map<string, boolean>();
@@ -153,20 +201,33 @@ async function loadTalentRows(admin: Admin, tenantId: string, window: { from: Da
   }));
 }
 
-async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
-  const { data, error } = await admin
-    .from("talent_offerings")
-    .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes")
-    .eq("tenant_id", tenantId)
-    .eq("status", "published")
+export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
+  // D-10: published AND approved AND public (was status only), tenant-scoped.
+  const { data, error } = await scopeToGuestSellableOfferings(
+    admin
+      .from("talent_offerings")
+      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
+      .eq("tenant_id", tenantId),
+  )
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {
     logServerError("messagesV5.itemsCatalog/offerings", error);
     return [];
   }
-  type Row = { id: string; title: string | null; amount_cents: number | null; kind: string; inventory_qty: number | null; capacity_pool_id: string | null; duration_minutes: number | null };
-  return ((data ?? []) as Row[]).map((row) => {
+  type Row = { id: string; title: string | null; amount_cents: number | null; kind: string; inventory_qty: number | null; capacity_pool_id: string | null; duration_minutes: number | null; talent_profile_id: string | null };
+  const offerRows = (data ?? []) as Row[];
+  const ownerIds = [...new Set(offerRows.map((r) => r.talent_profile_id).filter((v): v is string => Boolean(v)))];
+  const owners = new Map<string, string>();
+  if (ownerIds.length > 0) {
+    const { data: people, error: peopleError } = await admin.from("talent_profiles").select("id, display_name, profile_code").in("id", ownerIds);
+    if (peopleError) logServerError("messagesV5.itemsCatalog/offeringOwners", peopleError);
+    for (const p of (people ?? []) as Array<{ id: string; display_name: string | null; profile_code: string | null }>) {
+      const name = p.display_name?.trim() || p.profile_code?.trim() || "";
+      if (name) owners.set(p.id, name);
+    }
+  }
+  return offerRows.map((row) => {
     const counted = !!row.capacity_pool_id && typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty);
     const soldOut = counted && Math.round(row.inventory_qty as number) <= 0;
     const category = row.kind === "package" ? "package" : row.kind === "service" ? "service" : "menu";
@@ -179,20 +240,21 @@ async function loadOfferingRows(admin: Admin, tenantId: string): Promise<Catalog
       availability: soldOut ? { kind: "busy", reason: "sold_out" } : { kind: "free" },
       offeringId: row.id,
       durationMinutes: row.duration_minutes,
+      ownerName: row.talent_profile_id ? owners.get(row.talent_profile_id) ?? null : null,
     } satisfies CatalogRow;
   });
 }
 
 /** Her published services, with the option as a variant and extras as add-ons. */
-async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string, talentProfileId: string): Promise<CatalogRow[]> {
-  const { data, error } = await admin
+export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string | null, talentProfileId: string): Promise<CatalogRow[]> {
+  let query = admin
     .from("talent_offerings")
-    .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes")
-    .eq("tenant_id", tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
+    .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes");
+  // null tenant = the talent's own site/hub page: only THIS talent's rows, whichever tenant row they sit on.
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  query = query.eq("talent_profile_id", talentProfileId);
+  // D-10: the dock lists only published + approved + public (it also listed on_request).
+  const { data, error } = await scopeToGuestSellableOfferings(query)
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {
@@ -252,7 +314,23 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promi
     return [];
   }
   type Row = { id: string; title: string | null; offering_id: string | null; event_id: string | null; starts_at: string; ends_at: string };
-  const rows = ((data ?? []) as Row[]).filter((r) => !!r.offering_id);
+  const withOffering = ((data ?? []) as Row[]).filter((r) => !!r.offering_id);
+  if (withOffering.length === 0) return [];
+  // D-10: a session is only as public as its offering. Without this an
+  // agency_only / pending / draft offering's classes and tickets surfaced here.
+  const { data: sellable, error: sellableErr } = await scopeToGuestSellableOfferings(
+    admin
+      .from("talent_offerings")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .in("id", [...new Set(withOffering.map((r) => r.offering_id as string))]),
+  );
+  if (sellableErr) {
+    logServerError("messagesV5.itemsCatalog/sessionOfferings", sellableErr);
+    return [];
+  }
+  const sellableIds = new Set(((sellable ?? []) as { id: string }[]).map((o) => o.id));
+  const rows = withOffering.filter((r) => sellableIds.has(r.offering_id as string));
   if (rows.length === 0) return [];
   const sessionIds = rows.map((r) => r.id);
   const eventIds = [...new Set(rows.map((r) => r.event_id).filter((id): id is string => !!id))];

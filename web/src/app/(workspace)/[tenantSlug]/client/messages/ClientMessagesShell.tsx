@@ -50,7 +50,7 @@ import type { WorkspaceMessage } from "../../_data-bridge/inquiries-messages";
 import type { ClientInquiryDetails } from "../../_data-bridge/client-inquiry-details";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { ThreadShell } from "@/components/shared/ThreadShell";
-import { clientInquiryMatchesFilter, toClientThreadItems } from "./client-thread-adapter";
+import { clientInquiryMatchesFilter, clientInquiryTitle, isOwnClientMessage, toClientThreadItems } from "./client-thread-adapter";
 import { DetailsTab } from "./DetailsTab";
 import { OfferTab } from "./OfferTab";
 import { TabLoadingSkeleton } from "./TabLoadingSkeleton";
@@ -72,7 +72,7 @@ const FONT_DISPLAY = 'var(--font-geist-sans), "Inter", -apple-system, system-ui,
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.35)",
+  inkDim:     "rgba(11,11,13,0.6)",
   border:     "rgba(24,24,27,0.10)",
   borderSoft: "rgba(24,24,27,0.06)",
   surface:    "#FAFAF7",
@@ -148,6 +148,8 @@ type Props = {
   prefilledTalentId?: string;
   /** Inquiry id from ?just_submitted=1 — pin its thread + show toast. */
   justSubmittedInquiryId?: string;
+  /** Effective client user id (impersonation subject under staff view-as). */
+  viewerUserId: string | null;
 };
 
 export function ClientMessagesShell({
@@ -164,6 +166,7 @@ export function ClientMessagesShell({
   autoOpenDrawer = false,
   prefilledTalentId,
   justSubmittedInquiryId,
+  viewerUserId,
 }: Props) {
   const router = useRouter();
   const t = useT();
@@ -308,18 +311,12 @@ export function ClientMessagesShell({
     return () => { cancelled = true; };
   }, [activeId, initialActiveId]);
 
-  // Viewer user ID — fetched once for is_mine determination in realtime events.
-  // Mirrored into state so child panes (typing presence) can read a stable id.
-  const viewerUserIdRef = useRef<string | null>(null);
-  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  // Viewer user ID — the EFFECTIVE client, resolved on the server (TUL-610).
+  // Never the browser session user: under staff view-as that is the staff actor.
+  const viewerUserIdRef = useRef<string | null>(viewerUserId);
   useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
-    supabase.auth.getUser().then(({ data }) => {
-      viewerUserIdRef.current = data.user?.id ?? null;
-      setViewerUserId(data.user?.id ?? null);
-    });
-  }, []);
+    viewerUserIdRef.current = viewerUserId;
+  }, [viewerUserId]);
 
   // Realtime — push incoming messages into state as they arrive on the
   // active inquiry's private thread. Channel is torn down and recreated
@@ -344,7 +341,7 @@ export function ClientMessagesShell({
           let appended = false;
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
-            const isMine = viewerUserIdRef.current != null && row.sender_user_id === viewerUserIdRef.current;
+            const isMine = isOwnClientMessage(row.sender_user_id, viewerUserIdRef.current);
             if (isMine) return prev;
             const knownName = prev.find((m) => m.sender_user_id === row.sender_user_id)?.sender_name;
             appended = true;
@@ -664,8 +661,8 @@ type RowChip = {
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
   const t = useT();
   const stage = stageStyle(inq.status, t);
-  const company = inq.company || t("dashboard.clientMessages.unnamedInquiry");
-  const dateLabel = inq.event_date ? formatDate(inq.event_date) : null;
+  const company = clientInquiryTitle(inq, t("dashboard.clientMessages.unnamedInquiry"));
+  const dateLabel = inq.visitWhen ? `${inq.visitWhen.date} · ${inq.visitWhen.time} ${inq.visitWhen.tzLabel}` : inq.event_date ? formatDate(inq.event_date) : null;
   const location = inq.event_location;
   const needsMe = inq.next_action_by === "client";
   const unread = inq.unreadCount > 0;
@@ -950,7 +947,7 @@ function ThreadPaneWithTabs({
           <style dangerouslySetInnerHTML={{ __html: "@media (max-width:720px){.thread-back-btn{display:inline-flex!important;}}" }} />
           <div className="flex-1 min-w-0">
             <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {inq.company || details?.job.title || t("dashboard.clientMessages.inquiryFallback")}
+              {inq.company || details?.job.title || clientInquiryTitle(inq, t("dashboard.clientMessages.inquiryFallback"))}
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, display: "flex", gap: 6, alignItems: "center", marginTop: 2 }}>
               <button
@@ -972,7 +969,7 @@ function ThreadPaneWithTabs({
               >
                 {stage.label}
               </button>
-              {inq.event_date && <span>· {formatDate(inq.event_date)}</span>}
+              {(inq.visitWhen || inq.event_date) && <span>· {inq.visitWhen ? `${inq.visitWhen.date} · ${inq.visitWhen.time} ${inq.visitWhen.tzLabel}` : formatDate(inq.event_date as string)}</span>}
               {inq.event_location && <span>· {inq.event_location}</span>}
             </div>
           </div>

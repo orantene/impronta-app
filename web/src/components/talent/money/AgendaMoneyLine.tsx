@@ -39,8 +39,10 @@ export function AgendaMoneyLine({
   const kindLabel =
     row.kind === "refund_pending"
       ? t("Refund pending")
-      : row.kind === "deposit"
-        ? t("Deposit requested")
+      : row.kind === "offer"
+        ? t("Pending payment")
+        : row.kind === "deposit"
+          ? t("Deposit requested")
         : row.overdue
           ? t("Overdue")
           : t("Balance due");
@@ -49,7 +51,7 @@ export function AgendaMoneyLine({
       className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center ${first ? "" : "border-t border-admin-border-soft"}`}
     >
       <div className="min-w-0 flex-1">
-        <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name}</div>
+        <div className="font-admin-body text-[15px] font-bold text-admin-ink">{row.name || t("Client")}</div>
         <div className={`text-[13px] ${warn ? "font-semibold text-admin-critical" : "text-admin-ink-muted"}`}>
           {[kindLabel, row.service, day(row.startsAt, copy.locale)].filter(Boolean).join(" · ")}
         </div>
@@ -61,21 +63,21 @@ export function AgendaMoneyLine({
       >
         {row.amountCents != null ? money(row.amountCents, row.currency) : t("Amount not set")}
       </span>
-      <div className="flex gap-2">
-        <button type="button" className={`${btnSec} flex-1`} onClick={() => router.push(row.bookingHref)}>
-          {t("Open booking")}
+      <div className="flex flex-wrap gap-2 sm:shrink-0 sm:flex-nowrap">
+        <button type="button" className={`${btnSec} flex-1 whitespace-nowrap sm:flex-none`} onClick={() => router.push(row.bookingHref)}>
+          {row.kind === "offer" ? t("Open conversation") : t("Open booking")}
         </button>
         {row.kind === "refund_pending" ? (
           <button
             type="button"
-            className={`${btnPri} flex-1`}
+            className={`${btnPri} flex-1 whitespace-nowrap sm:flex-none`}
             disabled={refundBusy}
             onClick={() => onRefund?.(row)}
           >
             {refundBusy ? t("Refunding…") : t("Refund")}
           </button>
-        ) : (
-          <button type="button" className={`${btnSec} flex-1`} onClick={() => onRequest(row)}>
+        ) : row.kind === "offer" ? null : (
+          <button type="button" className={`${btnSec} flex-1 whitespace-nowrap sm:flex-none`} onClick={() => onRequest(row)}>
             {t("Send a payment link")}
           </button>
         )}

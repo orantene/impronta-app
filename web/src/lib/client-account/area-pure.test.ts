@@ -74,7 +74,7 @@ test("formatZonedWhen shows the talent's zone and names it", () => {
   const w = formatZonedWhen("2026-10-20T16:00:00Z", "America/Mexico_City", "en");
   assert.ok(w);
   assert.match(w.time, /10:00/);
-  assert.match(w.tzLabel, /America\/Mexico_City/);
+  assert.equal(w.tzLabel, "Mexico City time"); // TUL-1147: same city line as the booking confirmation
   assert.match(w.date, /October 20, 2026/);
   const es = formatZonedWhen("2026-10-20T16:00:00Z", "America/Mexico_City", "es");
   assert.match(es!.date, /octubre/);

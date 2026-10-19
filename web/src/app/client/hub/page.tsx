@@ -8,9 +8,12 @@
 // whitelabel) dashboard would leak one agency's client relationships into
 // another's branded surface.
 
+import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
+import { effectiveReadContext } from "@/lib/impersonation/effective-read";
 import { loadClientPrimaryTenantSlug } from "@/lib/saas/role-tenant-resolver";
 import { loadClientSubscription } from "@/lib/discover/client-subscription";
 import { loadClientHubData, type HubBooking, type HubInquiry } from "@/lib/client-hub/load-hub";
@@ -27,7 +30,7 @@ const C = {
   card: "#ffffff",
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(24,24,27,0.08)",
   accent: "#1D4ED8",
   accentSoft: "rgba(29,78,216,0.08)",
@@ -36,11 +39,7 @@ const C = {
 } as const;
 
 function fmtMoney(cents: number, currency: string, locale: string) {
-  return new Intl.NumberFormat(locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "en-US", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
+  return formatDashboardMoneyCents(cents, currency, locale);
 }
 
 function fmtDate(iso: string | null, fallback: string) {
@@ -67,16 +66,24 @@ export default async function ClientHubPage({
     return v === key ? fallback : v;
   };
 
+  // TUL-611: read the EFFECTIVE client (the impersonation subject), never the
+  // staff actor. Context comes only from the verified helper.
+  const readCtx = effectiveReadContext(
+    session.user.id,
+    await resolveDashboardIdentity().catch(() => null),
+  );
+  const subjectUserId = readCtx.userId;
+
   const [subscription, primarySlug] = await Promise.all([
-    loadClientSubscription(session.user.id),
-    loadClientPrimaryTenantSlug(session.user.id).catch(() => null),
+    loadClientSubscription(subjectUserId),
+    loadClientPrimaryTenantSlug(subjectUserId).catch(() => null),
   ]);
 
   const hubOpen = hubIsOpen(clientAccountEnabledFor("app"), subscription.tier);
   const backHref = primarySlug ? `/${primarySlug}/client/today` : "/client";
   const upgradeHref = primarySlug ? `/${primarySlug}/client/subscription` : "/client";
 
-  const hub = hubOpen ? await loadClientHubData(session.user.id, { focus }) : null;
+  const hub = hubOpen ? await loadClientHubData(subjectUserId, { focus }) : null;
 
   return (
     <div style={{ minHeight: "100dvh", background: C.surface, fontFamily: FONT }}>

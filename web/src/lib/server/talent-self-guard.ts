@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import {
   talentPlanGrantsAccessCapability,
   talentPlanGrantsCapability,
@@ -46,9 +48,17 @@ export type TalentSelfDeps = {
   loadProfileByUser: typeof loadTalentSelfProfileByUser;
 };
 
+/**
+ * PERF-SITE: one request fans several guarded loaders out in parallel (the
+ * `/talent/site` bootstrap runs four `gate()` calls at once). Each used to run
+ * the full self-profile read (embeds + media); per-request `cache()` makes the
+ * concurrent callers share one read. Keyed by user id; never crosses requests.
+ */
+const loadProfileByUserOncePerRequest = cache(loadTalentSelfProfileByUser);
+
 const DEFAULT_SELF_DEPS: TalentSelfDeps = {
   requireSession,
-  loadProfileByUser: loadTalentSelfProfileByUser,
+  loadProfileByUser: loadProfileByUserOncePerRequest,
 };
 
 /**

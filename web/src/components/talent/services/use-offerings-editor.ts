@@ -32,6 +32,8 @@ import {
   reorderWorkspaceMenuItems,
 } from "@/lib/talent/menu-offerings-actions";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
+import { settleServerAction } from "@/lib/client/settle-server-action";
+import { takeServicesSeed } from "./services-bootstrap";
 import { loadTalentServicePerformance, type ServicePerformanceStat } from "@/lib/talent/services-menu-actions";
 import {
   blankOffering,
@@ -122,9 +124,23 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
 
   useEffect(() => {
     let cancelled = false;
+    // Services fires several actions on mount and they run one at a time, so
+    // the list read gets a longer budget than the 4 s default.
+    const settle = { area: "talent-services", budgetMs: 10_000 };
+    // TUL-824: the first load comes from the server route's seed (no queued
+    // server action); reloads and a missing/stale seed call the action.
+    const seeded = isWorkspace || loadTick > 0 ? null : takeServicesSeed(talentId);
     const load = isWorkspace
-      ? loadWorkspaceMenuForEditor(workspaceTenantId)
-      : loadTalentOfferingsForEditor(talentId);
+      ? settleServerAction(() => loadWorkspaceMenuForEditor(workspaceTenantId), {
+          ...settle,
+          label: "loadWorkspaceMenuForEditor",
+        })
+      : seeded
+        ? Promise.resolve(seeded)
+        : settleServerAction(() => loadTalentOfferingsForEditor(talentId), {
+            ...settle,
+            label: "loadTalentOfferingsForEditor",
+          });
     load
       .then((res) => {
         if (cancelled) return;
@@ -151,8 +167,9 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     };
   }, [isWorkspace, talentId, workspaceTenantId, loadTick]);
 
+  // TUL-824: server actions run one at a time, so the stats read waits for the list.
   useEffect(() => {
-    if (isWorkspace) return;
+    if (isWorkspace || loading) return;
     let cancelled = false;
     loadTalentServicePerformance(talentId)
       .then((res) => {
@@ -162,7 +179,7 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     return () => {
       cancelled = true;
     };
-  }, [isWorkspace, talentId]);
+  }, [isWorkspace, talentId, loading]);
 
   const flashSaved = useCallback(() => {
     setSavedOk(true);

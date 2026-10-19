@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import type { OnboardingIntent } from "@/lib/onboarding/module-state";
 import { TALENT_MODAL_EVENT } from "@/components/marketing/talent-register-modal";

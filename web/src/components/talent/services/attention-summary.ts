@@ -25,11 +25,22 @@ export function attentionSummary(c: AttentionCounts, locale: string): string {
   }
   const overlap = c.noPhoto + c.noPrice + c.soldOut > c.total;
   const head = es
-    ? `${c.total} ${c.total === 1 ? "elemento necesita" : "elementos necesitan"} atención`
+    ? `${c.total} ${c.total === 1 ? "artículo necesita" : "artículos necesitan"} atención`
     : `${c.total} ${c.total === 1 ? "item needs" : "items need"} attention`;
   const detail = parts.length > 0 ? `: ${parts.join(", ")}.` : ".";
   const note = overlap && parts.length > 1
     ? es ? " Algunos tienen más de uno." : " Some have more than one of these."
     : "";
   return `${head}${detail}${note}`;
+}
+
+/**
+ * TUL-825: when the only gap is missing photos (the normal state of a brand-new
+ * account) say it as a friendly optional tip, not as "needs attention".
+ */
+export function photoOnlyTip(c: AttentionCounts, locale: string): string | null {
+  if (c.noPhoto <= 0 || c.noPrice > 0 || c.soldOut > 0) return null;
+  return locale.toLowerCase().startsWith("es")
+    ? "Tip opcional: agrega fotos para que tus servicios se vean mejor."
+    : "Optional tip: add photos so your services look their best.";
 }

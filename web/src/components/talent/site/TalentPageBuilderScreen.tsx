@@ -45,6 +45,8 @@ type Props = {
   talentDisplayName: string | null;
   /** Profile photo for the top bar identity menu (initials when null). */
   talentHeadshotUrl?: string | null;
+  /** Her site's public address (`loadTalentSiteAddress`); the publish drawer names it. */
+  talentSiteUrl?: string | null;
   locale?: string;
   /** Server-assembled in-editor canvas render data (data sources + islands). */
   canvasRenderData?: InEditorCanvasRenderData | null;
@@ -61,7 +63,7 @@ type Props = {
 
 const UPSELL_HEADING = {
   en: "The Page Builder is a Web Office feature",
-  es: "El editor de páginas es una función de Web Office",
+  es: "El editor de páginas es una función de Oficina Web",
 } as const;
 
 const UPSELL_SEE_PLANS = {
@@ -82,6 +84,7 @@ export function TalentPageBuilderScreen({
   siteCapabilities,
   talentDisplayName,
   talentHeadshotUrl = null,
+  talentSiteUrl = null,
   locale,
   canvasRenderData = null,
   initialComposition = null,
@@ -147,7 +150,7 @@ export function TalentPageBuilderScreen({
               marginBottom: 16,
             }}
           >
-            WEB OFFICE
+            {isEs ? "OFICINA WEB" : "WEB OFFICE"}
           </div>
           <h1
             style={{
@@ -194,7 +197,7 @@ export function TalentPageBuilderScreen({
               {isEs ? UPSELL_SEE_PLANS.es : UPSELL_SEE_PLANS.en}
             </Link>
             <Link
-              href="/talent/public-page"
+              href="/talent/site"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -219,7 +222,7 @@ export function TalentPageBuilderScreen({
 
   return (
     <DashboardLocaleProvider locale={locale ?? ""}>
-    <TalentBuilderIdentityProvider value={{ displayName: talentDisplayName, headshotUrl: talentHeadshotUrl }}>
+    <TalentBuilderIdentityProvider value={{ displayName: talentDisplayName, headshotUrl: talentHeadshotUrl, siteUrl: talentSiteUrl }}>
     <div
       data-talent-page-builder-screen=""
       // Light "desk" behind the editor canvas (modern 2026 builder). The canvas

@@ -14,10 +14,16 @@ import {
   HOST_TALENT_PROFILE_HEADER,
   HOST_TENANT_SLUG_HEADER,
 } from "@/lib/saas/host-context";
-import { applyTalentSiteAnonCacheHeaders } from "@/lib/saas/talent-site-anon-cache";
+import {
+  applyTalentSiteAnonCacheHeaders,
+  talentSitePrivateCacheKeyUrl,
+  talentSiteShouldRememberLocale,
+} from "@/lib/saas/talent-site-anon-cache";
 import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-identity";
+import { resolveTalentSiteCanonicalRedirectHost } from "@/lib/saas/talent-site-canonical-redirect";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
 import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-routing";
@@ -34,6 +40,10 @@ import { decideTalentSiteLocale } from "@/lib/talent-site/talent-site-locale-rou
  * Language (PR 4, 2026-09-29): the talent's OWN languages and URL grammar,
  * decided by `decideTalentSiteLocale` (prefix > `?locale=` 302 >
  * primary; the cookie never overrides the URL). An explicit choice is remembered in the `locale` cookie.
+ *
+ * D1 — when the talent has an ACTIVE primary custom domain, this path 308s
+ * `<slug>.tulala.digital/*` and non-primary custom hosts (apex ↔ www) to that
+ * primary via the same helper agencies use (`resolveCanonicalCustomDomainRedirectHost`).
  */
 export async function talentSiteHostResponse(
   request: NextRequest,
@@ -45,8 +55,34 @@ export async function talentSiteHostResponse(
     hostKind?: "subdomain" | "custom";
     isDemo?: boolean;
     siteSlug?: string | null;
+    isPrimary?: boolean;
+    canonicalHost?: string | null;
+    canonicalHostKind?: "subdomain" | "custom" | null;
   },
 ): Promise<NextResponse> {
+  // Primary custom-domain redirect (subdomain → custom, apex ↔ www). Same
+  // helper as the agency branch in proxy.ts. Path, query, and locale prefixes
+  // (`/en/...`) are preserved via nextUrl.clone().
+  if (
+    (request.method === "GET" || request.method === "HEAD") &&
+    hostContext.hostKind
+  ) {
+    const canonicalHost = resolveTalentSiteCanonicalRedirectHost({
+      hostname: hostContext.hostname,
+      hostKind: hostContext.hostKind,
+      // Undefined (legacy callers) → treat as primary so we never bounce dark.
+      isPrimary: hostContext.isPrimary ?? true,
+      canonicalHost: hostContext.canonicalHost ?? null,
+      canonicalHostKind: hostContext.canonicalHostKind ?? null,
+    });
+    if (canonicalHost) {
+      const target = request.nextUrl.clone();
+      target.hostname = canonicalHost;
+      target.protocol = "https:";
+      return NextResponse.redirect(target, 308);
+    }
+  }
+
   // Demo convention: any demo subdomain that is not already
   // `{site_slug}-demo.<apex>` 308s to that canonical host (bare cutover and
   // design vanity aliases like folio-demo → mateo-ferrer-demo). Custom domains
@@ -83,17 +119,64 @@ export async function talentSiteHostResponse(
   });
   const localeStripped = talentLocale.innerPath;
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
-  if (!decision) {
-    return NextResponse.rewrite(
-      new URL("/_page-not-found", request.url),
-      { status: 404 },
-    );
+  // GRK-028: /agendar|/servicios|/contacto (and EN twins) are guest guesses,
+  // not page slugs — send them to the home anchors before the allow-list 404s.
+  {
+    const guestSeg = localeStripped.replace(/^\/+/, "").split("/")[0] ?? "";
+    const localePrefix =
+      talentLocale.locale !== talentLocales.defaultLocale ? talentLocale.locale : null;
+    const serviceAlias = talentGuestServiceAlias(localeStripped, { localePrefix });
+    const isRead = request.method === "GET" || request.method === "HEAD";
+    if (serviceAlias?.kind === "redirect" && isRead) {
+      const target = new URL(serviceAlias.path, request.nextUrl.origin);
+      target.search = request.nextUrl.search;
+      const res = NextResponse.redirect(target, 308);
+      if (talentLocale.explicit) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
+      return res;
+    }
+    // A second segment that is not a service slug is a miss, not the home anchor.
+    const guestTarget = serviceAlias ? null : talentGuestAliasTarget(guestSeg, { localePrefix });
+    if (guestTarget && (request.method === "GET" || request.method === "HEAD")) {
+      const target = new URL(guestTarget, request.nextUrl.origin);
+      const res = NextResponse.redirect(target, 302);
+      if (talentLocale.explicit) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
+      return res;
+    }
   }
-  const rememberChoice = (res: NextResponse): NextResponse => {
+
+  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  // Posts v1: legacy `/posts/<slug>` → 301 `/blog/<slug>`, keeping the locale prefix.
+  if (decision?.kind === "redirect" && (request.method === "GET" || request.method === "HEAD")) {
+    const target = request.nextUrl.clone();
+    target.pathname = request.nextUrl.pathname.slice(0, request.nextUrl.pathname.length - localeStripped.length) + decision.location;
+    return NextResponse.redirect(target, decision.status);
+  }
+  if (!decision || decision.kind === "redirect") {
+    // Keep talent host + locale on the branded 404 so Spanish sites never see
+    // the English Tulala chrome (GRK-028).
+    const missHeaders = new Headers(sanitizedInboundHeaders);
+    missHeaders.set(LOCALE_HEADER, talentLocale.locale);
+    missHeaders.set(HOST_CONTEXT_HEADER, "talent_site");
+    missHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+    missHeaders.set(HOST_TALENT_PROFILE_HEADER, hostContext.talentProfileId);
+    missHeaders.delete(TENANT_HEADER_NAME);
+    return NextResponse.rewrite(new URL("/_page-not-found", request.url), {
+      status: 404,
+      request: { headers: missHeaders },
+    });
+  }
+  const rememberChoice = (res: NextResponse, redirect = false): NextResponse => {
     if (talentLocale.explicit) {
-      res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
-      clearLocaleCookieAutoMarker(res);
+      if (talentSiteShouldRememberLocale(request, talentLocale.locale, { redirect })) {
+        res.cookies.set(LOCALE_COOKIE, talentLocale.locale, localeCookieOptions);
+        clearLocaleCookieAutoMarker(res);
+      }
     } else if (request.cookies.get(LOCALE_COOKIE)?.value) {
       // Returning visitor with a locale cookie — keep sync bookkeeping.
       // TUL-445: do NOT auto-stamp locale on a fresh cookieless GET; that
@@ -106,7 +189,7 @@ export async function talentSiteHostResponse(
     const target = request.nextUrl.clone();
     target.pathname = talentLocale.redirectPath;
     target.searchParams.delete("locale");
-    return rememberChoice(NextResponse.redirect(target, 302));
+    return rememberChoice(NextResponse.redirect(target, 302), true);
   }
 
   const talentHeaders = new Headers(sanitizedInboundHeaders);
@@ -123,17 +206,27 @@ export async function talentSiteHostResponse(
   const attachGuestCookie = attachTalentSiteGuestIdentity(request, talentHeaders);
   const finish = (res: NextResponse): NextResponse =>
     applyTalentSiteAnonCacheHeaders(rememberChoice(attachGuestCookie(res)), request);
+  // TUL-755: cookie-bearing requests are served under a private cache key (see
+  // talentSitePrivateCacheKeyUrl); a rewrite to it is the only key change the CDN sees.
+  const serve = (url: URL): NextResponse =>
+    finish(
+      NextResponse.rewrite(talentSitePrivateCacheKeyUrl(request, url) ?? url, {
+        request: { headers: talentHeaders },
+      }),
+    );
   if (decision.kind === "passthrough") {
     if (localeStripped === pathname) {
+      const privateKey = talentSitePrivateCacheKeyUrl(request, request.nextUrl);
+      if (privateKey) return serve(privateKey);
       return finish(NextResponse.next({ request: { headers: talentHeaders } }));
     }
     // `/en/c/<id>`: serve the unprefixed route under the chosen language.
     const inner = request.nextUrl.clone();
     inner.pathname = localeStripped;
-    return finish(NextResponse.rewrite(inner, { request: { headers: talentHeaders } }));
+    return serve(inner);
   }
 
   const rewriteUrl = request.nextUrl.clone();
-  rewriteUrl.pathname = talentSiteHostRewritePath(decision.pageSlug);
-  return finish(NextResponse.rewrite(rewriteUrl, { request: { headers: talentHeaders } }));
+  rewriteUrl.pathname = decision.kind === "blog" ? decision.rewritePath : talentSiteHostRewritePath(decision.pageSlug);
+  return serve(rewriteUrl);
 }

@@ -28,7 +28,7 @@ import { ensureHubRosterRow } from "@/lib/saas/ensure-hub-roster.server";
 import { syncTalentTypeTaxonomyFromShellSlugs } from "@/lib/talent/profile-shell-taxonomy-sync";
 import { buildTalentLanguageRpcRows } from "@/lib/talent/talent-profile-shell-persistence";
 import { syncBlobFieldValuesToCatalog } from "@/lib/talent/blob-field-values-catalog";
-import { blankOffering, offeringToRowPatch, validateOffering } from "@/lib/talent/offerings-types";
+import { buildDraftOfferingRows } from "./draft-offering-rows";
 import type { Brief } from "@/lib/tulala/brief-store";
 import { listFact, numberFact, stringFact } from "@/lib/tulala/brief-store";
 
@@ -39,6 +39,7 @@ import { resolveTradeType } from "./trade-label";
 import { fillTalentPreferredLocale } from "./talent-preferred-locale";
 import { enableSecondaryLocalesFromBios } from "./talent-secondary-locales-from-bio";
 import { loadTalentTypeTerms } from "./type-chip.server";
+import { countryForStorage } from "@/lib/geo/country-code";
 
 export type TalentWriteOutcome = "written" | "skipped" | "failed";
 
@@ -122,13 +123,13 @@ export async function writeTalentProfileFromBrief(input: {
   const typeTerms = input.typeSlug || discipline ? await loadTalentTypeTerms() : [];
   const typeProposal = !input.typeSlug && discipline ? proposeTalentType(discipline, typeTerms) : null;
   const bioTerm = input.typeSlug ? typeTerms.find((t) => t.slug === input.typeSlug) : typeProposal?.proposed ? typeTerms.find((t) => t.slug === typeProposal.proposed?.slug) : undefined;
-  const bioFacts = { name: displayName || null, discipline, disciplineEs: bioTerm?.name.es ?? null, city, services, yearsExperience: numberFact(brief, "work.years_experience") };
+  const bioFacts = { name: displayName || null, discipline, disciplineEs: bioTerm?.name.es ?? null, disciplineEn: bioTerm?.name.en ?? null, city, services, yearsExperience: numberFact(brief, "work.years_experience") };
   // E-02/E-14: both languages; the base text (`short_bio`) is the flow language.
   const bioPlan = planBios(bioFacts, input.locale);
 
   const patch: Record<string, unknown> = {};
   if (city) patch.home_city_text = city;
-  if (country) patch.home_country_text = country;
+  if (country) patch.home_country_text = countryForStorage(country);
   if (bioPlan.base) patch.short_bio = bioPlan.base.text;
   if (input.email) patch.invitation_email = input.email;
   if (Object.keys(patch).length) {
@@ -185,10 +186,7 @@ export async function writeTalentProfileFromBrief(input: {
       result.wrote.offerings = "failed";
     } else {
       const known = new Set((have ?? []).map((r) => String(r.title).trim().toLowerCase()));
-      const rows = services
-        .map((title, i) => ({ ...blankOffering({ kind: "talent", talentProfileId: id! }, "USD", i), tenantId, title: title.trim(), priceDisplay: "quote" as const, priceType: "custom" as const, status: "draft" as const }))
-        .filter((o) => !known.has(o.title.toLowerCase()) && validateOffering(o).length === 0)
-        .map((o) => ({ ...offeringToRowPatch(o), talent_profile_id: id }));
+      const rows = buildDraftOfferingRows({ talentProfileId: id!, tenantId, services, known });
       if (rows.length) {
         const { error } = await admin.from("talent_offerings").insert(rows);
         result.wrote.offerings = error ? "failed" : "written";

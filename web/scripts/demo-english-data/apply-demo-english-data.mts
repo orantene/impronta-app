@@ -21,12 +21,18 @@
  * separate mode that leaves the English seed above untouched:
  *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --content-fixes
  *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --content-fixes --apply --yes
+ *
+ * English labels for Alex Trevino's service OPTIONS and EXTRAS (TUL-876: Casa/Departamento/Local
+ * comercial stay Spanish on /en/book), another separate mode, one allow-listed demo (TAL-93030):
+ *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --option-labels
+ *   npx tsx --env-file=.env.local scripts/demo-english-data/apply-demo-english-data.mts --option-labels --apply --yes
  */
 import { createClient } from "@supabase/supabase-js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runOptionLabels, type ChildRow, type OptionLabelIo } from "./option-labels";
 import { runContentFixes, type ContentFixIo, type FaqFullRow, type FaqInsert } from "./content-fixes";
 import { run, type FaqRow, type Io, type OfferingRow, type ProfileRow } from "./plan";
 
@@ -123,6 +129,43 @@ const contentFixIo: ContentFixIo = {
   },
 };
 
+const optionLabelIo: OptionLabelIo = {
+  findProfile: io.findProfile,
+  findSiteSlug: io.findSiteSlug,
+  async listChildren(profileId) {
+    const { data: offs, error: offErr } = await admin.from("talent_offerings").select("id").eq("talent_profile_id", profileId).limit(1000);
+    if (offErr) throw new Error(`offerings read failed: ${offErr.message}`);
+    const ids = ((offs ?? []) as Array<{ id: string }>).map((o) => o.id);
+    if (ids.length === 0) return { variants: [], addons: [] };
+    const read = async (table: "talent_offering_variants" | "talent_offering_addons") => {
+      const { data, error } = await admin.from(table).select("id, offering_id, label, label_i18n").in("offering_id", ids).limit(2000);
+      if (error) throw new Error(`${table} read failed: ${error.message}`);
+      return (data ?? []) as ChildRow[];
+    };
+    return { variants: await read("talent_offering_variants"), addons: await read("talent_offering_addons") };
+  },
+  async updateChildLabel({ table, profileId, id, label_i18n }) {
+    // Only label_i18n, and only for a row whose offering belongs to this profile.
+    const { data: offs, error: offErr } = await admin.from("talent_offerings").select("id").eq("talent_profile_id", profileId).limit(1000);
+    if (offErr) return { ok: false, error: offErr.message };
+    const ids = ((offs ?? []) as Array<{ id: string }>).map((o) => o.id);
+    const { data, error } = await admin.from(table).update({ label_i18n }).eq("id", id).in("offering_id", ids).select("id");
+    if (error) return { ok: false, error: error.message };
+    if (!data || data.length !== 1) return { ok: false, error: "row not updated (no match)" };
+    return { ok: true };
+  },
+  writeBackup(label, data) {
+    mkdirSync(BACKUP_DIR, { recursive: true });
+    const file = join(BACKUP_DIR, `${label}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+    writeFileSync(file, JSON.stringify(data, null, 2));
+    return file;
+  },
+};
+
 const argv = process.argv.slice(2);
-const result = argv.includes("--content-fixes") ? await runContentFixes(argv, contentFixIo) : await run(argv, io);
+const result = argv.includes("--option-labels")
+  ? await runOptionLabels(argv, optionLabelIo)
+  : argv.includes("--content-fixes")
+    ? await runContentFixes(argv, contentFixIo)
+    : await run(argv, io);
 process.exit(result.exitCode);

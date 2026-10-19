@@ -6,6 +6,7 @@ import {
   clampWords,
   localiseBakedLanguagesLine,
 } from "./talent-locale-swaps";
+import { accentHeadline, seedHeadlineFor } from "./hero-headline";
 
 const en = "I studied engineering for three years, until I understood that what I really loved was working with my hands and making people feel beautiful every single day, from the first coffee of the morning until the last client of the night.";
 const es = "Estudié ingeniería tres años, hasta que entendí que lo que amaba era trabajar con mis manos y hacer que la gente se sienta bella cada día.";
@@ -47,6 +48,17 @@ test("missing translation falls back to English (no swap)", () => {
   assert.ok(!(en in m));
   assert.ok(!("DJ" in m));
   assert.equal(m[en.slice(0, 160).trim()], clampWords(en));
+});
+
+test("GRK-075: ES-only mid-word bio slice maps to clampWords (Valeria coreogra…)", () => {
+  const longEs =
+    "Bailarina y coreógrafa. Enseño en tu casa o en estudio, y preparo coreografías a medida para eventos, bodas y presentaciones con ensayo guiado paso a paso hasta el día.";
+  const mid = longEs.slice(0, 160);
+  assert.ok(mid.endsWith("coreogra") || mid.includes("coreogra"), "fixture still mid-cuts");
+  const m = buildTalentLocaleSwaps({ bioI18n: { es: longEs }, typeNames: [], homeCity: null }, "es");
+  assert.equal(m[mid.trim()], clampWords(longEs));
+  assert.ok(m[mid.trim()]!.includes("coreografías") || m[mid.trim()]!.endsWith("…"));
+  assert.ok(!m[mid.trim()]!.includes("coreogra…") || m[mid.trim()]!.includes("coreografías"));
 });
 
 test("the marquee's baked English service titles swap to the locale's title (platform)", () => {
@@ -96,6 +108,22 @@ test("an ASCII-folded baked city swaps to its accented form, alone and in the ey
   assert.equal(en["Cancun"], "Cancún");
 });
 
+test("TUL-858: a Spanish-baked tree reads English on /en (headline, bio, trade), never the reverse leak", () => {
+  const src = {
+    bioI18n: { en, es },
+    typeNames: [{ en: "Nail Artist", es: "Manicurista" }],
+    homeCity: { en: "Playa del Carmen" },
+    seedKey: "TAL-1",
+  };
+  const seed = seedHeadlineFor("Nail Artist", "TAL-1")!;
+  const m = buildTalentLocaleSwaps(src, "en");
+  assert.equal(m[accentHeadline(seed.es)], accentHeadline(seed.en));
+  assert.ok(m[es]?.startsWith("I studied engineering"));
+  assert.equal(m["Manicurista"], "Nail Artist");
+  // Spanish visitors still go the other way.
+  assert.equal(buildTalentLocaleSwaps(src, "es")[accentHeadline(seed.en)], accentHeadline(seed.es));
+});
+
 test("ES swaps the baked About languages line (TUL-121 design polish)", () => {
   const src = {
     bioI18n: null,
@@ -128,4 +156,33 @@ test("localiseBakedLanguagesLine translates any Languages seed without current p
   assert.equal(localiseBakedLanguagesLine("Languages: English", "en"), null);
   assert.equal(localiseBakedLanguagesLine("I speak English", "es"), null);
   assert.equal(localiseBakedLanguagesLine("Idiomas: Inglés", "es"), null);
+});
+
+test("TUL-516: Mexico City becomes Ciudad de México on Spanish (based-in + uppercase)", () => {
+  const src = {
+    bioI18n: null,
+    typeNames: [{ en: "Fashion Model", es: "Modelo de moda" }],
+    homeCity: { en: "Mexico City" },
+  };
+  const es = buildTalentLocaleSwaps(src, "es");
+  assert.equal(es["Mexico City"], "Ciudad de México");
+  assert.equal(es["Based in Mexico City"], "Con base en Ciudad de México");
+  assert.equal(es["BASED IN MEXICO CITY"], "CON BASE EN CIUDAD DE MÉXICO");
+  assert.equal(es["Fashion Model · Mexico City"], "Modelo de moda · Ciudad de México");
+});
+
+test("TUL-516 C: stale Bailarín Latino swaps to live Baile latino (mig 358000)", () => {
+  const m = buildTalentLocaleSwaps(
+    {
+      bioI18n: null,
+      typeNames: [{ en: "Latin Dancer", es: "Baile latino" }],
+      homeCity: { en: "Mexico City", es: "Ciudad de México" },
+      cityAliases: ["Mexico City"],
+    },
+    "es",
+  );
+  assert.equal(m["Bailarín Latino"], "Baile latino");
+  assert.equal(m["Latin Dancer"], "Baile latino");
+  assert.equal(m["Bailarín Latino · Mexico City"], "Baile latino · Ciudad de México");
+  assert.equal(m["Latin Dancer · Mexico City"], "Baile latino · Ciudad de México");
 });

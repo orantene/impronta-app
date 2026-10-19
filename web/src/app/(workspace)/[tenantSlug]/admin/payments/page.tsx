@@ -29,7 +29,7 @@ import { userHasCapability } from "@/lib/access";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
-import { formatOrderMoney } from "@/lib/orders/money-format";
+import { formatDashboardMoneyCents as formatOrderMoney } from "@/lib/money/dashboard-money-format";
 import { ActionButton } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { loadPaymentsBoard } from "../../_data-bridge/payments-board";
@@ -74,12 +74,12 @@ export default async function PaymentsPage({ params, searchParams }: { params: P
 
   return (
     <div data-tulala-payments-board className="flex w-full flex-col gap-[16px] font-admin-body">
-      <div className="flex items-start justify-between gap-[12px]">
-        <div className="min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-[12px]">
+        <div className="min-w-[200px] flex-1">
           <h1 className="m-0 text-[26px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{t("pageTitle")}</h1>
           <p className="m-0 mt-[4px] text-admin-13 text-admin-ink-muted">{t("pageIntro")}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-[8px]">
+        <div className="flex shrink-0 flex-wrap items-center gap-[8px]">
           <ActionButton reason={tr("dashboard.payments.notWired.import")} testId="payments-import">{t("importTerminal")}</ActionButton>
           <ActionButton reason={tr("dashboard.payments.notWired.export")} testId="payments-export">{t("export")}</ActionButton>
         </div>

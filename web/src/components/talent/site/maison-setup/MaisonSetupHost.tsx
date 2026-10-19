@@ -30,7 +30,9 @@ import {
 } from "./maison-choices";
 import { takeOr } from "../public-page-bootstrap";
 import { loadMaisonSetupBootstrapAction } from "./maison-setup-bootstrap";
+import { setGalleryUnavailableSlugs } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
+import { reviewUndoDestination } from "./review-flow-state";
 import { MaisonUndoToast } from "./MaisonUndoToast";
 import { MaisonSetupOverlay } from "./MaisonSetupOverlay";
 
@@ -117,6 +119,7 @@ export function MaisonSetupHost({
         reportEnabled(false);
         return;
       }
+      setGalleryUnavailableSlugs(boot.unavailableDesignSlugs);
       setEnabled(true);
       reportEnabled(true);
       setTalentProfileId(boot.talentProfileId);
@@ -261,6 +264,15 @@ export function MaisonSetupHost({
           choices={choices}
           onChange={patch}
           onBackToDetail={() => patch({ screen: "detail", phoneSheet: null })}
+          onUndone={() => {
+            // TUL-658: on a live site Undo goes back to the site page she came from.
+            if (reviewUndoDestination({ siteLive }) === "site") {
+              patch({ screen: "gallery", status: "Choices saved", phoneSheet: null });
+              closeToSite();
+              return;
+            }
+            patch({ screen: "detail", phoneSheet: null });
+          }}
           onPublished={() => {
             patch({ status: "Live", screen: "gallery" });
             setExplicitOpen(false);

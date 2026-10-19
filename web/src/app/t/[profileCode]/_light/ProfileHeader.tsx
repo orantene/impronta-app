@@ -6,10 +6,12 @@
  * Server component — CTAs/hubs are passed as RSC slots. --plt tokens only.
  */
 
+import { proficiencyLabel, yearsLabel } from "./section-labels";
 import Image from "next/image";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
 import { DisciplineChips } from "./DisciplineChips";
+import { lightProfileLabels } from "./profile-labels";
 import type { ResolvedSkill } from "@/lib/server-actions/admin-talent-skills.types";
 
 type ProfileHeaderProps = {
@@ -39,22 +41,17 @@ type ProfileHeaderProps = {
    * "Visit my site" CTA.
    */
   maxSiteUrl?: string | null;
+  /** Request locale for the badge and CTA (defaults to English). */
+  locale?: string;
 };
 
-function experienceLine(skill: ResolvedSkill): string | null {
+function experienceLine(skill: ResolvedSkill, locale: string): string | null {
   const parts: string[] = [];
   if (skill.years_experience !== null && skill.years_experience > 0) {
-    parts.push(`${skill.years_experience} yr${skill.years_experience === 1 ? "" : "s"}`);
+    parts.push(yearsLabel(skill.years_experience, locale));
   }
   if (skill.proficiency_level) {
-    const LABELS: Record<string, string> = {
-      beginner: "Beginner",
-      intermediate: "Intermediate",
-      advanced: "Advanced",
-      expert: "Expert",
-      master: "Master",
-    };
-    parts.push(LABELS[skill.proficiency_level] ?? skill.proficiency_level);
+    parts.push(proficiencyLabel(skill.proficiency_level, locale));
   }
   return parts.length > 0 ? parts.join(" · ") : null;
 }
@@ -76,8 +73,10 @@ export function ProfileHeader({
   hubsIndicator,
   isFeatured,
   maxSiteUrl,
+  locale = "en",
 }: ProfileHeaderProps) {
-  const expLine = primarySkill ? experienceLine(primarySkill) : null;
+  const labels = lightProfileLabels(locale);
+  const expLine = primarySkill ? experienceLine(primarySkill, locale) : null;
   const compactLangLine =
     languages.length > 0
       ? languages
@@ -187,7 +186,7 @@ export function ProfileHeader({
                     color: "#3D2800",
                   }}
                 >
-                  ♔ PORTFOLIO
+                  ♔ {labels.portfolioBadge}
                 </span>
                 {/* "Visit my site" — dark premium button, gold border and text */}
                 <Link
@@ -205,7 +204,7 @@ export function ProfileHeader({
                       : undefined
                   }
                 >
-                  Visit my site →
+                  {labels.visitSite} →
                 </Link>
               </div>
             ) : null}

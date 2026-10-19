@@ -28,7 +28,7 @@ import type { RosterVisibility } from "@/lib/saas/registration-settings";
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.35)",
+  inkDim: "rgba(11,11,13,0.6)",
   border: "rgba(24,24,27,0.12)",
   borderSoft: "rgba(24,24,27,0.07)",
   cardBg: "#ffffff",
@@ -66,6 +66,16 @@ export function RegistrationSettingsClient({
   };
 }) {
   const t = useT();
+  // The plan arrives as its English tier name; show it in the page language.
+  const tierName = (label: string) => {
+    switch (label.trim().toLowerCase()) {
+      case "free": return t("dashboard.adminWorkspace.registration.tier.free");
+      case "studio": return t("dashboard.adminWorkspace.registration.tier.studio");
+      case "agency": return t("dashboard.adminWorkspace.registration.tier.agency");
+      case "network": return t("dashboard.adminWorkspace.registration.tier.network");
+      default: return label;
+    }
+  };
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -137,7 +147,7 @@ export function RegistrationSettingsClient({
             {t("dashboard.adminWorkspace.registration.masterDesc")}{" "}
             <span style={{ color: C.inkDim }}>
               {interpolate(t("dashboard.adminWorkspace.registration.planLine"), {
-                plan: planLabel,
+                plan: tierName(planLabel),
               })}
             </span>
           </span>

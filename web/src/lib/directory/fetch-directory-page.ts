@@ -1,5 +1,8 @@
 import type { TrustBadgeRow } from "@/lib/trust/verified-mark";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveEffectiveTalentPlans } from "@/lib/billing/effective-talent-plan";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { fetchAllRows } from "@/lib/supabase/paged";
 import {
   decodeDirectoryCursor,
   encodeDirectoryCursor,
@@ -17,6 +20,7 @@ import { mapApiDirectoryRpcRowToDirectoryCardDTO } from "@/lib/directory/talent-
 import type { ApiDirectoryCardRpcRow } from "@/lib/directory/talent-card-dto";
 import { resolveTalentCardThumbsForHub } from "@/lib/media/talent-media-for-hub";
 import { fetchLegacyDirectorySearchTalentIds } from "@/lib/directory/directory-search-legacy";
+import { filterToPubliclyListedIds } from "@/lib/directory/public-listing-predicate";
 import { fetchDirectoryCardValues } from "@/lib/field-engine/read-source-directory-card-values";
 import { extractPrimaryRoleTerm, type ProfileTaxonomyRow } from "@/lib/taxonomy/engine";
 import {
@@ -46,8 +50,12 @@ import {
   getDemandScores,
 } from "@/lib/directory/demand-score";
 import { applyPortfolioPlacementBoost } from "@/lib/directory/portfolio-boost";
-import { applyPresentabilityOrdering } from "@/lib/directory/presentability-order";
-import { isTalentPortfolioTier } from "@/lib/access/talent-membership";
+import {
+  applyPresentabilityOrdering,
+  presentabilityTier,
+} from "@/lib/directory/presentability-order";
+import { attachTalentPromoBadges } from "@/lib/promos/talent-promo-badges.server";
+import { hasEntitlement } from "@/lib/access/talent-entitlements";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -341,10 +349,85 @@ function applySort<T extends { order: (column: string, options?: { ascending?: b
     .order("id", { ascending: false });
 }
 
+/**
+ * A window made only of empty cards would render as a blank page with a
+ * "Load more" button, so the next windows are fetched instead, at most this
+ * many times per request.
+ */
+const MAX_EMPTY_WINDOW_HOPS = 3;
+
 export async function fetchDirectoryPage(
   supabase: SupabaseClient,
   params: DirectoryListParams = {},
 ): Promise<DirectoryPageResponse> {
+  const first = await fetchDirectoryWindow(supabase, params);
+  let { hiddenCount = 0, ...page } = first;
+  let hops = 0;
+  while (page.items.length === 0 && page.nextCursor && hops < MAX_EMPTY_WINDOW_HOPS) {
+    hops += 1;
+    const { hiddenCount: nextHidden = 0, ...next } = await fetchDirectoryWindow(supabase, {
+      ...params,
+      cursor: page.nextCursor,
+      skipTotalCount: true,
+    });
+    hiddenCount += nextHidden;
+    page = {
+      ...next,
+      ...(first.totalCount !== undefined ? { totalCount: first.totalCount } : {}),
+    };
+  }
+  // Exact once every window is loaded; otherwise it only discounts the empty
+  // cards seen so far, so the header never counts a card that was dropped here.
+  if (page.totalCount !== undefined && hiddenCount > 0) {
+    page.totalCount = Math.max(page.totalCount - hiddenCount, page.items.length);
+  }
+  return page;
+}
+
+/**
+ * Age filter. `date_of_birth` is NOT selectable or filterable by the anon role
+ * (talent_profiles column grants, PR 0b-3), so the age band is resolved to a
+ * set of public talent ids on the server-side client and intersected into the
+ * id list like every other facet. The caller's own client never touches the
+ * column; only ids leave this function, never dates.
+ */
+async function resolveAgeBandTalentIds(
+  fallback: SupabaseClient,
+  ageMin: number | null | undefined,
+  ageMax: number | null | undefined,
+): Promise<string[]> {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const day = today.getDate();
+  const dobMax =
+    ageMin != null ? new Date(year - ageMin, month, day).toISOString().slice(0, 10) : null;
+  const dobMin =
+    ageMax != null ? new Date(year - ageMax, month, day).toISOString().slice(0, 10) : null;
+  const rows = await fetchAllRows<{ id: string }>(
+    createServiceRoleClient() ?? fallback,
+    "talent_profiles",
+    "id",
+    {
+      applyFilters: (q) => {
+        let next = q
+          .is("deleted_at", null)
+          .eq("is_publicly_hidden", false)
+          .eq("is_publicly_listed", true)
+          .neq("profile_kind", "resource");
+        if (dobMax) next = next.lte("date_of_birth", dobMax);
+        if (dobMin) next = next.gte("date_of_birth", dobMin);
+        return next;
+      },
+    },
+  );
+  return rows.map((r) => r.id);
+}
+
+async function fetchDirectoryWindow(
+  supabase: SupabaseClient,
+  params: DirectoryListParams = {},
+): Promise<DirectoryPageResponse & { hiddenCount?: number }> {
   const audit = isDirectoryApiAudit();
   const timings: Record<string, number> = {};
   const wallStart = performance.now();
@@ -660,6 +743,9 @@ export async function fetchDirectoryPage(
       }
     }
 
+    // Search legs (RPC, taxonomy, field values) are not all gated at source:
+    // drop any id that is not publicly listed (TUL-862).
+    searchIds = await filterToPubliclyListedIds(supabase, searchIds);
     const searchSet = new Set(searchIds);
     filteredTalentIds = filteredTalentIds
       ? filteredTalentIds.filter((id) => searchSet.has(id))
@@ -695,6 +781,16 @@ export async function fetchDirectoryPage(
     filteredTalentIds = facetOutcome.filteredTalentIds;
   }
 
+  if (params.ageMin != null || params.ageMax != null) {
+    const ageIds = new Set(await resolveAgeBandTalentIds(supabase, params.ageMin, params.ageMax));
+    filteredTalentIds = filteredTalentIds
+      ? filteredTalentIds.filter((id) => ageIds.has(id))
+      : [...ageIds];
+    if (filteredTalentIds.length === 0) {
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds, reviewsEnabled: reviewsStandingEnabled };
+    }
+  }
+
   let totalCount: number | undefined;
   if (!skipTotalCount) {
     let countQuery = supabase
@@ -718,21 +814,6 @@ export async function fetchDirectoryPage(
     if (heightFilterActive) {
       if (heightMinApplied != null) countQuery = countQuery.gte("height_cm", heightMinApplied);
       if (heightMaxApplied != null) countQuery = countQuery.lte("height_cm", heightMaxApplied);
-    }
-
-    if (params.ageMin != null || params.ageMax != null) {
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      const day = today.getDate();
-      if (params.ageMin != null) {
-        const dobMax = new Date(year - params.ageMin, month, day).toISOString().slice(0, 10);
-        countQuery = countQuery.lte("date_of_birth", dobMax);
-      }
-      if (params.ageMax != null) {
-        const dobMin = new Date(year - params.ageMax, month, day).toISOString().slice(0, 10);
-        countQuery = countQuery.gte("date_of_birth", dobMin);
-      }
     }
 
     if (filteredTalentIds) {
@@ -819,24 +900,6 @@ export async function fetchDirectoryPage(
     if (heightMaxApplied != null) query = query.lte("height_cm", heightMaxApplied);
   }
 
-  // Age filter: convert age range to date_of_birth range
-  if (params.ageMin != null || params.ageMax != null) {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const day = today.getDate();
-    if (params.ageMin != null) {
-      // Min age → born on or before this date (older end)
-      const dobMax = new Date(year - params.ageMin, month, day).toISOString().slice(0, 10);
-      query = query.lte("date_of_birth", dobMax);
-    }
-    if (params.ageMax != null) {
-      // Max age → born on or after this date (younger end)
-      const dobMin = new Date(year - params.ageMax, month, day).toISOString().slice(0, 10);
-      query = query.gte("date_of_birth", dobMin);
-    }
-  }
-
   if (filteredTalentIds) {
     query = query.in("id", filteredTalentIds);
   }
@@ -870,9 +933,15 @@ export async function fetchDirectoryPage(
   const profileIds = profiles.map((row) => row.id);
   // Portfolio (Max) talents on THIS page — feeds the priority-placement
   // tie-break applied to the loaded page below (see portfolio-boost.ts).
+  const effectivePlans = await resolveEffectiveTalentPlans(
+    createServiceRoleClient() ?? supabase,
+    profiles,
+  );
   const portfolioProfileIds = new Set(
     profiles
-      .filter((row) => isTalentPortfolioTier(row.talent_plan_key))
+      .filter((row) =>
+        hasEntitlement(effectivePlans.get(row.id) ?? row.talent_plan_key, "discover.priority"),
+      )
       .map((row) => row.id),
   );
 
@@ -1372,6 +1441,9 @@ export async function fetchDirectoryPage(
   const items = rows.map((row) =>
     mapApiDirectoryRpcRowToDirectoryCardDTO(supabase, row, locale),
   );
+  // Talent promo badge (TUL-1051): one batched read for the page; hub always,
+  // agency hosts only when their Card Design opts in. Never throws.
+  await attachTalentPromoBadges(items, { tenantScopeId, locale });
   // Patch thumbnail URLs from the shared resolver (thumb_bucket_id/storage_path
   // were set to null above so mapApiDirectoryRpcRowToDirectoryCardDTO produces
   // null; we fill in the canonical URL here). This is the only URL source.
@@ -1431,13 +1503,21 @@ export async function fetchDirectoryPage(
   // Presentability is the OUTERMOST key of "recommended", so it runs last.
   // 78 profiles are publicly listed and one meets the publish floor; without
   // this a client's first screen can be mostly grey boxes. Featured and
-  // manually-arranged slots are untouched, nobody is hidden, and the window
-  // and cursor are unchanged — it is a permutation of this page. Deliberately
-  // after the Portfolio boost: a paying tier buys placement among comparable
-  // cards, not the right to lead with an empty one.
+  // manually-arranged slots are untouched and the window and cursor are
+  // unchanged — it is a permutation of this page. Deliberately after the
+  // Portfolio boost: a paying tier buys placement among comparable cards, not
+  // the right to lead with an empty one.
   if (sort === "recommended") {
     applyPresentabilityOrdering(items);
   }
+
+  // Empty cards (no photo AND no trait, fit or price line) are not listed at
+  // all, in every sort (Oran, 2026-10-10, GRK-053). Partly filled profiles stay
+  // and only rank lower. `nextCursor` below is computed from the raw row count,
+  // so dropping cards here never skips or repeats a page.
+  const visibleItems = params.keepEmptyCards
+    ? items
+    : items.filter((card) => presentabilityTier(card) > 0);
 
   if (audit) {
     timings.mapProfilesToDtoMs = performance.now() - mapStart;
@@ -1460,17 +1540,18 @@ export async function fetchDirectoryPage(
         hasQuery: queryText.length > 0,
         hasLocationSlug: locationSlug.length > 0,
         taxonomyTermIdsCount: taxonomyTermIds.length,
-        itemCount: items.length,
+        itemCount: visibleItems.length,
       }),
     });
   }
 
   return {
-    items,
+    items: visibleItems,
     nextCursor,
     ...(totalCount !== undefined ? { totalCount } : {}),
     taxonomyTermIds,
     reviewsEnabled: reviewsStandingEnabled,
+    hiddenCount: items.length - visibleItems.length,
   };
 }
 

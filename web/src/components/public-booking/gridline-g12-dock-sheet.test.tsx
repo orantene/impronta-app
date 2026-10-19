@@ -34,7 +34,7 @@ const html = (locale: string, liveStatus?: typeof ON | typeof OFF | null) =>
 
 // TUL-344: re-pinned on purpose (sticky bar hides at the top and reserves --cb-bar-h for every theme).
 test("existing designs: the base booking stylesheet is byte-pinned", () => {
-  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "80ae0da7ed57720ae24137f45ad83b9247adc8b3d4d674f621cf74f38f84feb3"); // re-pinned: TUL-528 --cb-bar-h island reserve on tip after #3125
+  assert.equal(createHash("sha256").update(CATALOG_BOOKING_CSS).digest("hex"), "bbd362564139a74bca042d3e7e26468deb80bce681d1b9dba9a7ea9ded84e0f1"); // re-pinned: TUL-924 Fecha/Hora icons, address pin, matching field labels (was TUL-930/896/899/928/931/932/807)
 });
 
 test("existing designs: dock markup is identical with no status, null or off", () => {
@@ -74,7 +74,7 @@ test("the booking CSS ships through the type-system sheet", () => {
 
 test("Gridline off state reads See times / Ver horarios by CSS only; markup and ON label unchanged", () => {
   for (const [loc, label, region] of [["en", "See times", "Your selection"], ["es", "Ver horarios", "Tu selección"]] as const) {
-    assert.ok(UTILITY_BOOKING_CSS.includes(`.cb-dock[aria-label="${region}"] .cb-dock-go:not(:has(.cb-dock-lbl-on))::before{content:"${label}"`));
+    assert.ok(UTILITY_BOOKING_CSS.includes(`.cb-dock[aria-label="${region}"] .cb-dock-go:not([data-ask-only]):not(:has(.cb-dock-lbl-on))::before{content:"${label}"`));
     assert.ok(html(loc, OFF).includes(`aria-label="${region}"`), "selector key present in markup");
     assert.ok(html(loc, OFF).includes(loc === "es" ? "Continuar" : "Continue"), "markup text untouched");
   }

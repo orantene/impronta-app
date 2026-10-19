@@ -18,7 +18,7 @@ import { U, displayType, labelType } from "./design-type-system-utility";
 // (the dock copy's own locale string), so every other design keeps byte-identical markup.
 const SEE_TIMES = { en: "See times", es: "Ver horarios" } as const;
 const seeTimes = (loc: "en" | "es") =>
-  `${U} .cb-dock[aria-label="${selectionDockCopy(loc).region}"] .cb-dock-go:not(:has(.cb-dock-lbl-on))`;
+  `${U} .cb-dock[aria-label="${selectionDockCopy(loc).region}"] .cb-dock-go:not([data-ask-only]):not(:has(.cb-dock-lbl-on))`;
 
 const INK = "var(--token-color-ink)";
 const LINE = "color-mix(in srgb,var(--token-color-ink) 22%,transparent)";

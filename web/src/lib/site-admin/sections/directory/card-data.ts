@@ -8,6 +8,7 @@
  * Live exports here MUST stay pure / framework-free.
  */
 
+import type { TalentPromoBadge } from "@/lib/promos/talent-promo-badge";
 import type { VerifiedLine } from "@/lib/trust/verified-mark";
 
 /** One localized fit chip (taxonomy / discipline overlap label). */
@@ -74,6 +75,8 @@ export type DirectoryCardData = {
   priceFromUnitLabel?: string | null;
   /** Timed request/instant offering on this tenant. Drives the card badge/CTA. */
   bookable?: boolean;
+  /** The talent's own live public promo (TUL-1051); absent = no badge. */
+  promoBadge?: TalentPromoBadge | null;
   /**
    * Public "Verified" mark — same rule as `DirectoryCardDTO.verified`, so the
    * canonical card can render the mark beside the name. Absent/false = hide.

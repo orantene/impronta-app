@@ -4,9 +4,11 @@ import { useEffect } from "react";
 
 import { clearBookingDraft, saveBookingDraft } from "./booking-draft-store";
 import { preloadGuestCaptchaScript } from "./GuestCaptchaField";
+import { CatalogCalendarIcon, CatalogClockIcon } from "./catalog-field-icons";
 import { catalogDayKey, catalogSelectedDateLabel, catalogTimezoneLabel } from "./catalog-booking-logic";
 
 const ROW = { display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0" } as const;
+const LABEL = { display: "inline-flex", alignItems: "center", gap: 6 } as const;
 
 /** TUL-59: confirm-step recap above "Confirmar cita": service, date, time, total, address note. */
 export function CatalogWhoSummary({
@@ -15,16 +17,21 @@ export function CatalogWhoSummary({
   day,
   time,
   tz,
+  placeCity,
   total,
+  /** GRK-065: client-place bookings collect the address below; hide the studio "we send location" note. */
+  addressNote = "studio",
 }: {
   es: boolean;
   service: string;
   day: Date;
   time: string | null;
   tz: string | null;
+  placeCity?: string | null;
   total: string;
+  addressNote?: "studio" | "client" | "none";
 }) {
-  const zone = tz ? catalogTimezoneLabel(tz, es) : "";
+  const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
   const val = { textAlign: "right" } as const;
   return (
     <div className="jb-recap" data-catalog-who-summary="">
@@ -33,20 +40,26 @@ export function CatalogWhoSummary({
         <b style={val}>{service}</b>
       </div>
       <div style={ROW}>
-        <span>{es ? "Fecha" : "Date"}</span>
+        <span style={LABEL}><CatalogCalendarIcon />{es ? "Fecha" : "Date"}</span>
         <b style={val}>{catalogSelectedDateLabel(day, es)}</b>
       </div>
       <div style={ROW}>
-        <span>{es ? "Hora" : "Time"}</span>
-        <b style={val}>{zone ? `${time ?? ""} · ${zone}` : time}</b>
+        <span style={LABEL}><CatalogClockIcon />{es ? "Hora" : "Time"}</span>
+        <b style={val}>{time && zone ? `${time} · ${zone}` : (time ?? "")}</b>
       </div>
       <div style={ROW}>
         <span>Total</span>
         <b style={val}>{total}</b>
       </div>
-      <p className="jb-fixture" data-catalog-address-note="">
-        {es ? "Te enviamos la ubicación exacta al confirmar" : "We'll send the exact address when you confirm"}
-      </p>
+      {addressNote === "studio" ? (
+        <p className="jb-fixture" data-catalog-address-note="studio">
+          {es ? "Te enviamos la ubicación exacta al confirmar" : "We'll send the exact address when you confirm"}
+        </p>
+      ) : addressNote === "client" ? (
+        <p className="jb-fixture" data-catalog-address-note="client">
+          {es ? "Indica abajo la dirección donde será el servicio" : "Enter the address where the service will happen below"}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
+import { hostFromHeaders } from "@/lib/captcha/platform-hosts";
 import { contactFormSchemaV1 } from "@/lib/site-admin/sections/contact_form/schema";
 import { decideFormRouting } from "@/lib/site-admin/sections/contact_form/inquiry-routing";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
@@ -39,6 +40,7 @@ import {
   storeContactAttachments,
 } from "@/lib/site-admin/sections/contact_form/attachments-store";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { afterResponse } from "@/lib/server/after-response";
 
 /**
  * FORMS-1 — hard cap for file-size metadata enforcement.
@@ -312,7 +314,11 @@ export async function POST(req: Request) {
   // platform provider from env. When the tenant owns the captcha we ONLY honor
   // their chosen provider — the other provider's secret is nulled so an
   // attacker can't pass by solving the platform's other widget.
-  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id);
+  // Same per-host rule as the rendered widget: on a custom domain without the
+  // workspace's own keys the platform widget cannot render, so captcha is off.
+  const tenantCaptcha = await resolveTenantCaptcha(section.tenant_id, {
+    host: hostFromHeaders(req.headers),
+  });
 
   const captchaRejection = respondFormError(
     req,
@@ -590,7 +596,7 @@ export async function POST(req: Request) {
         .map(([k, v]) => ({ label: k, value: String(v).slice(0, 500) }));
 
       const submittedAt = new Date().toISOString();
-      void dispatchEventNotifications({
+      afterResponse(() => dispatchEventNotifications({
         type: "cms_form.submitted",
         tenantId: section.tenant_id,
         eventId: submissionId, // stable idempotency anchor = the row id
@@ -604,7 +610,7 @@ export async function POST(req: Request) {
           tenantSlug,
           payloadFields,
         },
-      });
+      }));
     } catch (err) {
       // Notification dispatch is best-effort; never block the response.
       logServerError("cms-forms/notify", err);

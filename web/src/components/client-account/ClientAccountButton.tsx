@@ -13,6 +13,8 @@
  * behind a link. No redirects off the talent host.
  */
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
+import { CLIENT_SIGN_OUT_PATH } from "@/lib/auth/sign-out-paths";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestEmailCode } from "@/app/auth/otp-actions";
@@ -21,19 +23,25 @@ import { AuthGoogleGlyph } from "@/components/auth/auth-google-glyph";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { getSiteUrl } from "@/lib/auth-flow";
+import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
 import {
   finalizeClientAccountAppleSession,
   finalizeClientAccountGoogleSession,
   saveClientMarketingConsent,
   signInClientAccountPassword,
-  signOutClientAccount,
   verifyClientAccountCode,
 } from "@/lib/client-account/actions";
+import { ACCOUNT_DOCK_Z_INDEX, DOCK_NARROW_SIDE_CSS, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
+import { accountQuickLinks } from "@/lib/client-account/quick-links";
 import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
+import { formatPrice } from "@/lib/money/format-price";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
 type Step = "email" | "code" | "password" | "consent";
+
+/** Dispatch on `window` to open the sign-in popover from a trigger that lives elsewhere (hub header "Entrar"). */
+export const CLIENT_ACCOUNT_OPEN_EVENT = "tulala:open-client-account" as const;
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-surface-raised, var(--token-color-background, #fff))";
@@ -49,12 +57,9 @@ function PersonIcon() {
   );
 }
 
+/** Lane 4 (A6): prices print through the one formatter ("$900 MXN"), never an ad-hoc Intl call. */
 function money(cents: number, currency: string, locale: string): string {
-  try {
-    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency }).format(cents / 100);
-  } catch {
-    return `${(cents / 100).toFixed(2)} ${currency}`;
-  }
+  return formatPrice({ amountCents: cents, currency, locale }).primary;
 }
 
 export function ClientAccountButton({
@@ -62,6 +67,7 @@ export function ClientAccountButton({
   locale,
   accountHref = "/account",
   appleSignInEnabled = false,
+  hideTrigger = false,
 }: {
   variant: "dock" | "header";
   locale: string;
@@ -69,10 +75,16 @@ export function ClientAccountButton({
   accountHref?: string;
   /** Server-resolved `AUTH_APPLE_PROVIDER_ENABLED` — never trust the client. */
   appleSignInEnabled?: boolean;
+  /** Render only the popover; the caller supplies the trigger and fires CLIENT_ACCOUNT_OPEN_EVENT. */
+  hideTrigger?: boolean;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
   const [open, setOpen] = useState(false);
+  const [hubHost, setHubHost] = useState(false);
+  useEffect(() => {
+    setHubHost(/^hub\./i.test(window.location.hostname));
+  }, []);
   const [me, setMe] = useState<Me>({ signedIn: false });
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -112,6 +124,12 @@ export function ClientAccountButton({
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -351,9 +369,11 @@ export function ClientAccountButton({
     close();
   }
 
-  async function logOut() {
+  function logOut() {
     setBusy(true);
-    await signOutClientAccount();
+    // S1 / TUL-708: one top-level POST (also served on talent hosts) revokes
+    // the session and expires every scope + chunk; see sign-out-client.ts.
+    signOutEverywhere(CLIENT_SIGN_OUT_PATH);
     setBusy(false);
     setMe({ signedIn: false });
     setStep("email");
@@ -391,7 +411,7 @@ export function ClientAccountButton({
         cursor: "pointer",
         boxShadow: variant === "dock" ? "0 4px 14px rgba(0,0,0,.18)" : "none",
         ...(variant === "dock"
-          ? { position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "var(--client-account-dock-bottom, 194px)", zIndex: 95 }
+          ? { position: "fixed", right: "max(16px, env(safe-area-inset-right))", bottom: "var(--client-account-dock-bottom, 194px)", zIndex: ACCOUNT_DOCK_Z_INDEX }
           : {}),
       }}
     >
@@ -429,21 +449,39 @@ export function ClientAccountButton({
       />
       <span>
         {t("public.auth.register.ageTermsPrefix")}{" "}
-        <a href={`${site}/legal/terms`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+        <a href={ageTermsLinks(site, loc).terms} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
           {t("public.auth.register.ageTermsTerms")}
         </a>{" "}
         {t("public.auth.register.ageTermsAnd")}{" "}
-        <a href={`${site}/legal/privacy`} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
+        <a href={ageTermsLinks(site, loc).privacy} target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>
           {t("public.auth.register.ageTermsPrivacy")}
         </a>
       </span>
     </label>
   );
 
+  if (shouldHideAccountDock(variant, me)) return null;
+
   return (
     <>
-      <style>{`[data-client-account-dock]{--client-account-dock-bottom:194px}@media (max-width:480px){[data-client-account-dock]{--client-account-dock-bottom:calc(88px + env(safe-area-inset-bottom))}}[data-client-account-sheet]{position:fixed;z-index:120;background:${BG};color:${INK};border:1px solid ${LINE};box-shadow:0 12px 40px rgba(0,0,0,.25);padding:20px;display:flex;flex-direction:column;gap:12px;font-family:var(--site-body-font,inherit)}@media (min-width:640px){[data-client-account-sheet]{width:340px;border-radius:14px;right:16px;${variant === "dock" ? "bottom:250px" : "top:64px"}}}@media (max-width:639px){[data-client-account-sheet]{left:0;right:0;bottom:0;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}}`}</style>
-      <span data-client-account-dock={variant === "dock" ? "" : undefined}>{trigger}</span>
+      <style>{`[data-client-account-dock]{--client-account-dock-bottom:194px}@media (max-width:480px){[data-client-account-dock]{--client-account-dock-bottom:calc(88px + env(safe-area-inset-bottom))}${DOCK_NARROW_SIDE_CSS}}[data-client-account-sheet]{position:fixed;z-index:120;background:${BG};color:${INK};border:1px solid ${LINE};box-shadow:0 12px 40px rgba(0,0,0,.25);padding:20px;display:flex;flex-direction:column;gap:12px;font-family:var(--site-body-font,inherit)}@media (min-width:640px){[data-client-account-sheet]{width:340px;border-radius:14px;right:16px;${variant === "dock" ? "bottom:250px" : "top:64px"}}}@media (max-width:639px){[data-client-account-sheet]{left:0;right:0;bottom:0;border-radius:16px 16px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:85vh;overflow:auto}}`}</style>
+      {hideTrigger ? null : <span data-client-account-dock={variant === "dock" ? "" : undefined}>{trigger}</span>}
+      {/* TUL-863: on the hub host the header shows words, not only the person icon. */}
+      {!hideTrigger && variant === "header" && hubHost && !me.signedIn ? (
+        <span data-client-account-text-links="" style={{ display: "inline-flex", gap: 6, marginInlineStart: 6 }}>
+          {([["signIn", "client-account-text-signin"], ["createAccount", "client-account-text-create"]] as const).map(([key, testId]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setOpen(true)}
+              data-testid={testId}
+              style={{ minHeight: 44, padding: "0 10px", border: 0, background: "transparent", color: INK, fontSize: 14, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              {t(`public.clientAccount.${key}`)}
+            </button>
+          ))}
+        </span>
+      ) : null}
       {open ? (
         <>
           <div onClick={close} aria-hidden style={{ position: "fixed", inset: 0, zIndex: 119, background: "rgba(0,0,0,.25)" }} />
@@ -478,9 +516,17 @@ export function ClientAccountButton({
                     </div>
                   ) : null}
                 </dl>
-                <a href={accountHref} style={{ ...primary, textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>
-                  {t("public.clientAccount.myAccount")}
-                </a>
+                <nav aria-label={t("public.clientAccount.account")} style={{ display: "grid", gap: 4 }}>
+                  {accountQuickLinks(t, accountHref).map((l) => (
+                    <a
+                      key={l.key}
+                      href={l.href}
+                      style={{ display: "flex", alignItems: "center", minHeight: 44, color: INK, textDecoration: "none", fontSize: 15, borderBottom: `1px solid ${LINE}` }}
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </nav>
                 <button type="button" onClick={logOut} disabled={busy} style={linkBtn}>
                   {t("public.clientAccount.logOut")}
                 </button>

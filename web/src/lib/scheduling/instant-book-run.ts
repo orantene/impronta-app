@@ -42,6 +42,8 @@ export type InstantBookRunResult =
       needsAuth?: boolean;
       upgrade?: boolean;
       slotTaken?: boolean;
+      /** Promos v1: the promo shown ran out before payment; nothing was charged. */
+      promoGone?: boolean;
     };
 
 export type InstantEngineResult =
@@ -77,7 +79,7 @@ export function mapEngineFail(res: Extract<InstantEngineResult, { ok: false }>):
                 : res.reason === "too_soon"
                   ? res.error ?? "That time is too soon. Pick a later start."
                   : res.reason === "not_accepting_bookings"
-                    ? res.error ?? "Not taking new bookings right now. Send an inquiry instead."
+                    ? res.error ?? "Not taking new bookings right now. You can still send an inquiry."
                   : res.reason === "inquiry_only" || res.reason === "request_only"
                     ? res.error ?? "This one is booked by request. Send a message to ask for a time."
                     : res.reason === "bad_duration"
@@ -93,6 +95,7 @@ export function mapEngineFail(res: Extract<InstantEngineResult, { ok: false }>):
     needsAuth: res.reason === "not_authenticated",
     upgrade: res.reason === "plan_lacks_capability",
     slotTaken: res.reason === "slot_taken",
+    ...(res.reason === "promo_gone" ? { promoGone: true } : {}),
   };
 }
 

@@ -67,6 +67,35 @@ test("Spanish descriptions derive too", () => {
   assert.equal(pickSignupPreset({ businessDescription: "Clínica dental" }), "clinic");
   assert.equal(pickSignupPreset({ businessDescription: "Taquería" }), "restaurant");
   assert.equal(pickSignupPreset({ businessDescription: "Renta de bicis" }), "rentals");
+  // TUL-525: an accented "Salón de belleza" fell through to custom and kept POS.
+  assert.equal(pickSignupPreset({ businessDescription: "Salón de belleza" }), "salon_barber");
+  assert.equal(pickSignupPreset({ businessDescription: "Uñas y pestañas en Cancún" }), "salon_barber");
+  assert.equal(pickSignupPreset({ businessDescription: "Salón de eventos" }), "custom");
+});
+
+test("TUL-568: home-service businesses derive home_services, not custom or a gym", () => {
+  for (const businessDescription of [
+    "Cleaning service", "House cleaning in Cancún", "Limpieza de casas", "Estudio de limpieza",
+    "Servicio a domicilio", "Handyman", "Plomería y electricista",
+  ]) {
+    assert.equal(pickSignupPreset({ businessDescription }), "home_services", businessDescription);
+  }
+  assert.equal(pickSignupPreset({ businessDescription: "Dry cleaning" }), "dropoff_service");
+});
+
+test("TUL-612: cafeteria, coffee shop and bakery signups derive restaurant", () => {
+  for (const businessDescription of [
+    "Cafetería", "Cafeteria La Esquina", "Coffee shop", "Mi coffee shop en Tulum",
+    "Panadería", "Panaderia artesanal", "Bakery", "Café",
+  ]) {
+    assert.equal(pickSignupPreset({ businessDescription }), "restaurant", businessDescription);
+  }
+  // The city "Playa del Carmen" is not a beach club; a beach cabaña still is.
+  assert.equal(pickSignupPreset({ businessDescription: "Cafetería en Playa del Carmen" }), "restaurant");
+  assert.equal(pickSignupPreset({ businessDescription: "Cabaña frente a la playa" }), "beach_club");
+  // Ordering: a bar still wins over the diner row, a barber shop is still a salon.
+  assert.equal(pickSignupPreset({ businessDescription: "Cocktail bar" }), "bar_club");
+  assert.equal(pickSignupPreset({ businessDescription: "Barber shop" }), "salon_barber");
 });
 
 test("an agency says what it is by choosing the word", () => {
@@ -135,4 +164,24 @@ test("portfolio actually carries the editorial design", () => {
   assert.equal(words.preset.designId, "editorial");
   assert.equal(words.preset.representsPeople, true);
   assert.equal(words.headerVerbLabel(), "Get in touch");
+});
+
+test("pet grooming wins over the salon row it shares words with", () => {
+  for (const businessDescription of ["Pet grooming in Cancun", "Peluquería canina", "Dog groomer", "Estética canina"]) {
+    assert.equal(pickSignupPreset({ audience: "business", businessDescription }), "pet_grooming", businessDescription);
+  }
+  assert.equal(pickSignupPreset({ audience: "business", businessDescription: "Hair salon" }), "salon_barber");
+});
+
+test("TUL-1248: a hair studio is a salon, not a gym (the word studio must not win)", () => {
+  for (const businessDescription of [
+    "Hair studio in Cancún, cuts and color",
+    "Estudio de cabello en Cancún",
+    "Beauty and hair studio, Cancún",
+    "I am a hairdresser with my own studio",
+  ]) {
+    assert.equal(pickSignupPreset({ audience: "business", businessDescription }), "salon_barber", businessDescription);
+  }
+  // The gym row still works for a real gym.
+  assert.equal(pickSignupPreset({ audience: "business", businessDescription: "Pilates studio" }), "studio_gym");
 });

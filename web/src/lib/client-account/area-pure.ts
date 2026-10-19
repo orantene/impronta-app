@@ -5,6 +5,7 @@
 
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
+import { zoneTimeLabel } from "@/lib/events/zone-time-label";
 import { shapeMeData, type MeRow } from "@/lib/me/shape-me";
 
 import { isClientAccountEligible } from "./pure";
@@ -15,8 +16,8 @@ export type AccountView =
   | { kind: "thread"; id: string }
   | { kind: "receipt"; code: string };
 
-export type AccountTab = "visits" | "messages" | "payments" | "settings";
-export const ACCOUNT_TABS: readonly AccountTab[] = ["visits", "messages", "payments", "settings"];
+export type AccountTab = "visits" | "messages" | "payments" | "settings" | "help";
+export const ACCOUNT_TABS: readonly AccountTab[] = ["visits", "messages", "payments", "settings", "help"];
 
 export function parseAccountTab(raw: string | null | undefined): AccountTab {
   return ACCOUNT_TABS.find((t) => t === raw) ?? "visits";
@@ -42,7 +43,39 @@ export function groupVisits(rows: readonly MeRow[], nowMs: number) {
   return { upcoming: m.upcoming, waiting: m.waitingOnYou, past: m.past };
 }
 
-const CLOSED = new Set(["cancelled", "completed", "archived", "declined", "expired", "closed"]);
+export const CLOSED_BOOKING_STATUSES = ["cancelled", "completed", "archived", "declined", "expired", "closed"] as const;
+const CLOSED = new Set<string>(CLOSED_BOOKING_STATUSES);
+
+/**
+ * What the client still owes on one booking, in cents: the booking price less
+ * money the ledger holds as paid. 0 for a closed or already-paid booking, or one
+ * with no price: there is nothing to put on a pay link.
+ */
+export function owedCents(input: {
+  bookingStatus: string | null;
+  paymentStatus: string | null;
+  amountCents: number | null;
+  paidCents: number;
+}): number {
+  if (CLOSED.has((input.bookingStatus ?? "").toLowerCase())) return 0;
+  if (input.paymentStatus !== "unpaid" && input.paymentStatus !== "partial") return 0;
+  if (input.amountCents == null || !Number.isFinite(input.amountCents)) return 0;
+  return Math.max(0, Math.round(input.amountCents) - Math.max(0, Math.round(input.paidCents)));
+}
+
+/**
+ * The booking a visit page shows, from every booking on the inquiry (newest
+ * first): the client's own open booking, then the client's own closed one,
+ * then the newest. A re-quote can leave an older draft without a client on the
+ * inquiry; it must not hide the booking the client actually owns.
+ */
+export function pickClientBooking<T extends { client_user_id: string | null; status: string | null }>(
+  rows: readonly T[],
+  userId: string,
+): T | null {
+  const mine = rows.filter((r) => r.client_user_id === userId);
+  return mine.find((r) => !CLOSED.has((r.status ?? "").toLowerCase())) ?? mine[0] ?? rows[0] ?? null;
+}
 
 export type ManageBookingFacts = {
   bookingTenantId: string | null;
@@ -85,18 +118,22 @@ export function canManageBooking(input: {
 
 export type ZonedWhen = { date: string; time: string; tzLabel: string };
 
-/** Date and time in the TALENT's zone, with the zone named (short offset plus the IANA id). */
+/** Date and time in the TALENT's zone, with the zone named by city (the same line the booking confirmation uses). */
 export function formatZonedWhen(iso: string | null | undefined, timeZone: string, locale: string): ZonedWhen | null {
   const ms = iso ? Date.parse(iso) : NaN;
   if (!Number.isFinite(ms)) return null;
   const loc = locale === "es" ? "es-MX" : "en-US";
+  // A bare `YYYY-MM-DD` is a calendar day with no time: no zone shift, no clock.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso ?? "")) {
+    const date = new Intl.DateTimeFormat(loc, { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(ms);
+    return { date, time: "", tzLabel: "" };
+  }
   const run = (zone: string) => {
     const date = new Intl.DateTimeFormat(loc, { timeZone: zone, weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(ms);
     const time = new Intl.DateTimeFormat(loc, { timeZone: zone, hour: "numeric", minute: "2-digit" }).format(ms);
-    const short = new Intl.DateTimeFormat(loc, { timeZone: zone, timeZoneName: "short" })
-      .formatToParts(ms)
-      .find((p) => p.type === "timeZoneName")?.value;
-    return { date, time, tzLabel: short ? `${short} (${zone})` : zone };
+    // TUL-1147: the zone is named exactly as the booking sheet and its confirmation name it
+    // ("Hora de Cancún" / "Cancún time"), not as "GMT-5 (America/Cancun)".
+    return { date, time, tzLabel: zoneTimeLabel(zone, locale === "es") || zone };
   };
   try {
     return run(timeZone);
@@ -142,4 +179,12 @@ export function normalizeAccountSettings(raw: Partial<AccountSettingsInput>): Ac
   const locale = raw.locale === "es" ? "es" : raw.locale === "en" ? "en" : null;
   if (!locale) return null;
   return { name, phone, locale, marketingOptIn: raw.marketingOptIn === true };
+}
+
+/** TUL-777: true when the display name is empty or just the email local part. */
+export function needsRealName(name: string, email: string | null): boolean {
+  const n = name.trim().toLowerCase();
+  if (!n) return true;
+  const local = (email ?? "").split("@")[0].trim().toLowerCase();
+  return local !== "" && n === local;
 }

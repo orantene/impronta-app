@@ -9,14 +9,21 @@
  * status to 404 — this page component renders the HTML body.
  */
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+import { hostUnregisteredCopy } from "@/lib/saas/host-unregistered-copy";
 
-export const metadata: Metadata = {
-  title: "Domain not connected — Tulala",
-  robots: { index: false, follow: false },
-};
+async function copyForRequest() {
+  const h = await headers();
+  return hostUnregisteredCopy(h.get("accept-language"), h.get("x-vercel-ip-country"));
+}
 
-export default function HostUnregisteredPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await copyForRequest()).tabTitle, robots: { index: false, follow: false } };
+}
+
+export default async function HostUnregisteredPage() {
+  const copy = await copyForRequest();
   return (
     <div
       style={{
@@ -43,7 +50,7 @@ export default function HostUnregisteredPage() {
             fontFamily: '"Inter", system-ui, sans-serif',
             fontSize: 11,
             fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
+            color: "rgba(11,11,13,0.6)",
             letterSpacing: 0.8,
             textTransform: "uppercase",
             margin: 0,
@@ -62,7 +69,7 @@ export default function HostUnregisteredPage() {
             marginBottom: 0,
           }}
         >
-          This domain isn&apos;t connected yet
+          {copy.heading}
         </h1>
         <p
           style={{
@@ -74,8 +81,7 @@ export default function HostUnregisteredPage() {
             marginBottom: 0,
           }}
         >
-          If you&apos;re looking for a talent or business page, it may have moved. Try
-          searching on{" "}
+          {copy.bodyBefore}
           <a
             href={resolveMarketingOrigin()}
             style={{
@@ -112,7 +118,7 @@ export default function HostUnregisteredPage() {
               textDecoration: "none",
             }}
           >
-            Go to tulala.digital
+            {copy.cta}
           </a>
         </div>
       </div>

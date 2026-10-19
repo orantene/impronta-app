@@ -8,6 +8,14 @@ import {
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { relinkFirstConfirmedClaim } from "@/lib/auth/guest-claim-relink";
+import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-return";
+import {
+  isRegisteredReturnHost,
+  needsSsoHandoffHost,
+} from "@/lib/auth/registered-return-host.server";
+import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
+import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
+import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 import { NextResponse } from "next/server";
 
 /**
@@ -66,13 +74,32 @@ export async function GET(request: Request) {
     // the passwordless code path). Runs BEFORE the redirect.
     if (user) {
       await relinkFirstConfirmedClaim(user.id);
+      // G3: claim every guest record for this proven email and activate a
+      // guest booker, so the destination below reads the active profile.
+      await claimAndActivateVerifiedClient({
+        userId: user.id,
+        email: user.email,
+        emailProven: isAuthEmailConfirmedForClaim(user),
+      });
     }
     const ensuredProfile = user
       ? await loadAccessProfile(supabase, user.id)
       : null;
-    const destination = resolvePostAuthDestination(ensuredProfile, next);
-    const appUrl = getAppUrl();
-    const successResponse = NextResponse.redirect(`${appUrl}${destination}`);
+    const destination = resolvePostAuthDestination(
+      ensuredProfile,
+      next,
+      user ? await postAuthContextForNext(supabase, user.id, next) : {},
+    );
+    // TUL-691 E1: return to the site the claim started on (allow-listed).
+    const target = await resolvePostAuthRedirect({
+      rawNext: searchParams.get("next"),
+      requestOrigin: origin,
+      appUrl: getAppUrl(),
+      destination,
+      isRegisteredHost: isRegisteredReturnHost,
+      needsSessionHandoff: needsSsoHandoffHost,
+    });
+    const successResponse = NextResponse.redirect(target);
     response.cookies.getAll().forEach((cookie) => {
       successResponse.cookies.set(cookie);
     });

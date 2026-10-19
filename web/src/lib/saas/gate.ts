@@ -6,7 +6,7 @@
  */
 
 import type { HostKind } from "./host-kinds";
-import { HUB_API_PREFIXES, AGENCY_API_PREFIXES, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_EVENTS_ES_PREFIX, CANONICAL_EVENTS_PREFIX, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_MANAGE_PREFIX, CANONICAL_PAY_LINK_PREFIX, CANONICAL_PAY_PREFIX, CANONICAL_RECEIPT_PREFIX, CANONICAL_TALENT_PREFIX, CANONICAL_TICKET_API_PREFIX, CANONICAL_TICKET_PREFIX, CANONICAL_VISIT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
+import { HUB_API_EXACT_PATHS, HUB_API_PREFIXES, AGENCY_API_PREFIXES, AGENCY_BLOG_DETAIL_PREFIX, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_EVENTS_ES_PREFIX, CANONICAL_EVENTS_PREFIX, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_MANAGE_PREFIX, CANONICAL_PAY_LINK_PREFIX, CANONICAL_PAY_PREFIX, CANONICAL_RECEIPT_PREFIX, CANONICAL_TALENT_PREFIX, CANONICAL_TICKET_API_PREFIX, CANONICAL_TICKET_PREFIX, CANONICAL_VISIT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
 import { anyExact, anyPrefix, hasPrefix } from "./path-utils";
 import { isWorkspaceSlugPath } from "./reserved-slugs";
 
@@ -42,8 +42,11 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, CANONICAL_EVENTS_PREFIX)) return kind === "agency" || kind === "hub";
   if (hasPrefix(pathname, CANONICAL_EVENTS_ES_PREFIX)) return kind === "agency" || kind === "hub";
   if (hasPrefix(pathname, CANONICAL_RECEIPT_PREFIX)) return kind === "agency" || kind === "hub";
-  if (hasPrefix(pathname, CANONICAL_PAY_PREFIX)) return kind === "agency" || kind === "hub";
-  if (hasPrefix(pathname, CANONICAL_PAY_LINK_PREFIX)) return kind === "agency" || kind === "hub";
+  // TUL-1252: the pay page is looked up by code alone (the code is the
+  // credential), so the platform app host serves it too. The client account
+  // lives on app.<domain>; its "Pagar ahora" links are relative and 404'd there.
+  if (hasPrefix(pathname, CANONICAL_PAY_PREFIX)) return kind === "agency" || kind === "hub" || kind === "app";
+  if (hasPrefix(pathname, CANONICAL_PAY_LINK_PREFIX)) return kind === "agency" || kind === "hub" || kind === "app";
   if (hasPrefix(pathname, CANONICAL_MANAGE_PREFIX)) return kind === "agency" || kind === "hub";
 
   if (kind === "agency") {
@@ -57,6 +60,7 @@ export function isPathAllowedForHostKind(
     return (
       hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, AGENCY_STOREFRONT_PREFIXES) ||
+      (pathname.startsWith(AGENCY_BLOG_DETAIL_PREFIX) && pathname.length > AGENCY_BLOG_DETAIL_PREFIX.length) ||
       anyPrefix(pathname, AGENCY_API_PREFIXES) ||
       anyPrefix(pathname, APP_WORKSPACE_PREFIXES) ||
       anyPrefix(pathname, APP_API_PREFIXES) ||
@@ -102,6 +106,7 @@ export function isPathAllowedForHostKind(
     return (
       hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
       anyPrefix(pathname, HUB_API_PREFIXES) ||
+      anyExact(pathname, HUB_API_EXACT_PATHS) ||
       anyPrefix(pathname, AUTH_PREFIXES) ||
       hasPrefix(pathname, CANONICAL_TALENT_PREFIX) ||
       isWorkspaceSlugPath(pathname)

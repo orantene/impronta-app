@@ -4,6 +4,7 @@
  */
 import { DRAWER_HELP, type HelpEntry } from "@/components/admin/shell/internal/help-registry";
 import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry-scheduling";
+import { TALENT_HELP } from "@/components/admin/shell/internal/help-registry-talent";
 
 /**
  * What the in-product assistant is allowed to know.
@@ -16,6 +17,7 @@ import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry
 export const SUPPORT_HELP_REGISTRY: Partial<Record<string, HelpEntry>> = {
   ...DRAWER_HELP,
   ...SCHEDULING_HELP,
+  ...TALENT_HELP,
 };
 
 export type HelpCorpusEntry = {
@@ -61,7 +63,135 @@ const STOP = new Set([
   "be",
   "not",
   "if",
+  // Spanish function words: retrieval is substring-based, so these would
+  // otherwise match almost every entry.
+  "de",
+  "la",
+  "el",
+  "los",
+  "las",
+  "un",
+  "una",
+  "uno",
+  "en",
+  "es",
+  "mi",
+  "mis",
+  "tu",
+  "tus",
+  "como",
+  "que",
+  "por",
+  "para",
+  "con",
+  "al",
+  "del",
+  "se",
+  "lo",
+  "le",
+  "me",
+  "soy",
+  "hola",
+  "gracias",
+  "puedo",
+  "quiero",
+  "donde",
+  "cuando",
+  "cual",
+  "hago",
+  "hacer",
+  "necesito",
+  "tengo",
+  "esta",
+  "este",
+  "si",
+  "no",
+  "ya",
+  "mas",
+  "hay",
+  "pero",
+  "sus",
+  "su",
+  "nos",
+  "les",
+  "muy",
+  "puede",
+  "pueden",
+  "entre",
 ]);
+
+/**
+ * The in-app corpus is written in English, so a Spanish word in a question also
+ * searches for its English equivalent. The original word is kept for the
+ * Spanish guest corpus.
+ */
+const ES_TO_EN: Record<string, string> = {
+  precio: "price",
+  precios: "price",
+  servicio: "service",
+  servicios: "service",
+  cambiar: "change",
+  cambio: "change",
+  foto: "photo",
+  fotos: "photo",
+  publicar: "publish",
+  borrador: "draft",
+  reserva: "booking",
+  reservas: "booking",
+  reservar: "book",
+  cotizacion: "quote",
+  cotizar: "quote",
+  pago: "payment",
+  pagos: "payment",
+  cobrar: "payment",
+  cliente: "client",
+  clientes: "client",
+  clienta: "client",
+  clientas: "client",
+  sitio: "site",
+  pagina: "page",
+  dominio: "domain",
+  horario: "hours",
+  horarios: "hours",
+  mensaje: "message",
+  mensajes: "message",
+  factura: "invoice",
+  cancelar: "cancel",
+  perfil: "profile",
+  enlace: "link",
+  ocultar: "hide",
+  minutos: "minutes",
+  duracion: "minutes",
+  ingles: "english",
+  anticipo: "deposit",
+  anticipos: "deposit",
+  deposito: "deposit",
+  depositar: "deposit",
+  cobro: "charge",
+  cobros: "payout",
+  disponibilidad: "availability",
+  agregar: "add",
+  agrego: "add",
+  agrega: "add",
+  anadir: "add",
+  resena: "review",
+  resenas: "review",
+  cancelacion: "cancel",
+  reprogramar: "reschedule",
+  reprogramo: "reschedule",
+  cancelo: "cancel",
+  banco: "bank",
+  bancaria: "bank",
+  ganancias: "earnings",
+  publico: "public",
+  retener: "held",
+  retenido: "held",
+  margen: "gap",
+  diseno: "design",
+  tema: "theme",
+  cita: "booking",
+  citas: "booking",
+};
 
 export function flattenHelpCorpus(
   registry: Partial<Record<string, HelpEntry>> = SUPPORT_HELP_REGISTRY,
@@ -92,16 +222,24 @@ export const SUPPORT_CATEGORIES: string[] = [
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .split(/[^a-z0-9]+/i)
     .map((t) => t.trim())
-    .filter((t) => t.length >= 2 && !STOP.has(t));
+    .filter((t) => t.length >= 2 && !STOP.has(t))
+    .flatMap((t) => (ES_TO_EN[t] ? [t, ES_TO_EN[t]] : [t]));
+}
+
+/** Same accent folding as tokenize(), so a Spanish label in an entry ("Anticipo", "Disponibilidad") matches the accent-free tokens. */
+function foldAccents(text: string): string {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function entryText(entry: HelpCorpusEntry): string {
   const faqBits = entry.faqs.flatMap((f) => [f.q, f.a]);
-  return [entry.slug, entry.purpose, ...entry.youCanHere, ...faqBits, entry.category, entry.ticketCategory ?? ""]
-    .join(" ")
-    .toLowerCase();
+  return foldAccents(
+    [entry.slug, entry.purpose, ...entry.youCanHere, ...faqBits, entry.category, entry.ticketCategory ?? ""].join(" "),
+  );
 }
 
 export function insightRowsToCorpus(
@@ -140,9 +278,14 @@ export function retrieveHelpEntries(
 
   const scored = corpus.map((entry) => {
     const hay = entryText(entry);
+    // A word that appears in one of the entry's own FAQ questions is worth
+    // more than the same word buried in a long answer: "add a service" must
+    // land on the entry that has that exact question.
+    const faqQs = foldAccents(entry.faqs.map((f) => f.q).join(" "));
     let score = 0;
     for (const tok of qSet) {
       if (hay.includes(tok)) score += 1;
+      if (faqQs.includes(tok)) score += 2;
     }
     if (opts.originSlug && entry.slug === opts.originSlug) score += 8;
     if (

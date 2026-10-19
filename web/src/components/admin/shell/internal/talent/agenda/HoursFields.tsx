@@ -10,7 +10,7 @@ import {
   usesTwentyFourHour,
 } from "@/lib/talent-agenda/hours-display-format";
 
-const FIELD = "rounded-xl border border-black/10 bg-white px-2 py-2 text-[14px]";
+const FIELD = "rounded-xl border border-black/10 bg-white py-2 pl-2 pr-0.5 text-[14px]";
 
 /**
  * A clock-time field for the Working hours editor. The value is always "HH:MM".
@@ -38,7 +38,7 @@ export function HoursTimeField({
       <input
         type="time"
         aria-label={label}
-        className={`${FIELD} w-full min-w-0`}
+        className="w-full min-w-[7.5rem] rounded-xl border border-black/10 bg-white px-1.5 py-2 text-[14px]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -50,10 +50,10 @@ export function HoursTimeField({
   const set = (nh: number, nm: number) =>
     onChange(`${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`);
   return (
-    <span role="group" aria-label={label} className="flex items-center gap-1">
+    <span role="group" aria-label={label} className="flex min-w-[6.75rem] items-center gap-1">
       <select
         aria-label={`${label}: ${hourLabel}`}
-        className={`${FIELD} min-w-0 flex-1`}
+        className={`${FIELD} min-w-[2.9rem] flex-1`}
         value={h}
         onChange={(e) => set(Number(e.target.value), min)}
       >
@@ -66,7 +66,7 @@ export function HoursTimeField({
       <span aria-hidden className="text-[13px] text-black/60">:</span>
       <select
         aria-label={`${label}: ${minuteLabel}`}
-        className={`${FIELD} min-w-0 flex-1`}
+        className={`${FIELD} min-w-[2.9rem] flex-1`}
         value={min}
         onChange={(e) => set(h, Number(e.target.value))}
       >

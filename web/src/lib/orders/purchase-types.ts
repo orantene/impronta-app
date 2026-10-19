@@ -15,7 +15,9 @@
  */
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { CapacityRefusalReason } from "@/lib/capacity/types";
+import type { PurchaseChannel } from "@/lib/offerings/guest-sellable";
 import type { PaymentChoice } from "@/lib/orders/purchase-policy";
+import type { BookingPromoRequest } from "@/lib/orders/purchase-promo";
 
 export type { PaymentChoice };
 
@@ -59,6 +61,12 @@ export type PurchaseInput = {
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
   sourceChannel: string;
+  /**
+   * Which door this purchase came through. Omitted = `guest`, the strict
+   * published + approved + public rule (D-10). Only the point of sale desk
+   * passes `staff`.
+   */
+  channel?: PurchaseChannel;
   sourcePage?: string | null;
   /** Capacity pools this purchase must hold, per line. */
   capacity?: Array<{
@@ -76,6 +84,12 @@ export type PurchaseInput = {
    * was charged full price has been overcharged by silence.
    */
   promoCode?: string | null;
+  /**
+   * Promos v1: price this booking with the live promos (auto, link cookie,
+   * typed code) and HOLD them against the order before any payment exists.
+   * Never set together with `promoCode`. See `purchase-promo.ts`.
+   */
+  bookingPromo?: BookingPromoRequest | null;
   locale?: string | null;
   /** TUL-426: where the service happens, from the booking sheet; cleaned before it is stored. */
   eventLocation?: string | null;

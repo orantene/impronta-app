@@ -9,20 +9,27 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
+import { redirect } from "next/navigation";
 import { getPublicTenantScope } from "@/lib/saas/scope";
-import { assertRosterWorkspace } from "@/lib/saas/assert-roster-workspace";
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
+import { rosterEnabled } from "@/lib/saas/workspace-type";
+import { directoryOrBookHref } from "@/lib/site-admin/sections/site_header/directory-nav-href";
 import { loadPageForRender } from "@/lib/site-admin/server/page-reads";
 import { resolveDirectorySlug } from "@/lib/site-admin/server/page-roles";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator } from "@/i18n/messages";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
+import { headers } from "next/headers";
 import type { Locale } from "@/i18n/config";
 import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
 import { AgencyChatLauncherMount } from "@/app/(public)/_chat/AgencyChatLauncherMount";
 import { DirectoryComponent } from "@/lib/site-admin/sections/directory/Component";
 import { fashionDirectoryPreset } from "@/lib/site-admin/sections/directory/presets";
+import { publicLocaleHref } from "@/i18n/client-directory-href";
+import { localeUrlSettings } from "@/i18n/pathnames";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -65,7 +72,11 @@ export default async function DirectoryPage() {
     );
   }
 
-  const publicSettings = await getPublicSettings();
+  const [publicSettings, initialSavedIds, publicScope] = await Promise.all([
+    getPublicSettings(),
+    getSavedTalentIds(),
+    getPublicTenantScope(),
+  ]);
   if (!publicSettings.directoryPublic) {
     return (
       <>
@@ -81,22 +92,32 @@ export default async function DirectoryPage() {
     );
   }
 
-  const initialSavedIds = await getSavedTalentIds();
 
   // Phase 3 Step 2 — try the seeded `__directory__` builder page; fall
   // back to the direct component when absent (zero-regression until the
   // seed lands).
-  const publicScope = await getPublicTenantScope();
   const tenantId = publicScope?.tenantId ?? "";
-  // WORKSPACE SHAPE. `/directory` is the talent directory. A business workspace
-  // (a restaurant, a clinic) represents nobody, so this route does not exist
-  // for it — and until this guard landed it was the ONE public roster surface
-  // with no `workspace_type` check at all, which is where a business
-  // workspace's own seeded CTAs used to land its visitors. Same predicate the
-  // roster's server routes use; it fails OPEN on a missing tenant or a failed
-  // read (empty tenantId resolves to "talent"), so the platform hub's own
-  // /directory and every agency host are untouched.
-  await assertRosterWorkspace(tenantId);
+  // TUL-505: business / studio / both have no roster — `/directory` used to
+  // hard-404. Seeded/legacy CTAs still point here, so soft-redirect to `/book`
+  // (same as directoryOrBookHref(false)) instead of 404. Admin roster routes
+  // keep the hard gate. Empty tenantId → talent (platform hub untouched).
+  if (tenantId) {
+    const type = await resolveWorkspaceType(tenantId);
+    if (!rosterEnabled(type)) {
+      const localeSettings = await loadTenantLocaleSettings(tenantId);
+      const pathSettings = localeUrlSettings(
+        localeSettings.defaultLocale,
+        localeSettings.supportedLocales,
+      );
+      // TUL-711: pass the BROWSER pathname (`/w/<slug>/directory`), not a literal
+      // "/directory", so the workspace path prefix survives; otherwise a /w/ site
+      // bounced to the platform's own /book.
+      const browserPath = (await headers()).get(ORIGINAL_PATHNAME_HEADER) ?? "/directory";
+      redirect(
+        publicLocaleHref(browserPath, directoryOrBookHref(false), locale, pathSettings),
+      );
+    }
+  }
   // PAGE ROLES — an ASSIGNED directory page (a real, published page) is served
   // through the full storefront renderer (CmsPublicPage), exactly like the home
   // role. This is required because assigned pages are freeform (cms_pages.blocks)

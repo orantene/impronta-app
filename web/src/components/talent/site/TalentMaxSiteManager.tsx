@@ -17,6 +17,7 @@
  * owner-gated server actions; RLS independently backs them.
  */
 
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -61,11 +62,13 @@ import {
 import type { MaxSiteManagerState } from "@/lib/talent-site/server/site-management-types";
 import { isThemeApplyBusy, useThemeApplyBusy } from "@/lib/talent-site/history/apply-busy";
 import { CustomDomainRow } from "@/components/talent/site/CustomDomainRow";
+import { FreeTierAppsEntry } from "@/components/talent/site/FreeTierAppsEntry";
 import { useTalentSiteDashboardInitialLoad } from "@/components/talent/site/TalentSiteDashboardProvider";
 import {
   PERSONAL_SITE_BUILDER_HREF,
   resolveTalentDashboardMyWebsite,
 } from "@/lib/talent-site/dashboard-my-website";
+import { talentLeaveForWorkspaceAdminHref } from "@/lib/talent-site/hard-nav-workspace-admin";
 
 type Props = { locale?: "en" | "es" };
 
@@ -77,6 +80,8 @@ type ManagerProps = Props & {
   /** When true, CustomDomainRow is omitted (Wave 3 Domain tile owns it). */
   hideDomainRow?: boolean;
 };
+
+const MANAGER_LOAD_TIMEOUT_MS = 20_000;
 
 export function TalentMaxSiteManager({
   locale = "en",
@@ -97,7 +102,14 @@ export function TalentMaxSiteManager({
   // Never hang on "Loading your website…": a thrown action lands in `error`.
   const reload = useCallback(async () => {
     try {
-      const res = await takeOr("manager", "manager", loadMaxSiteManagerAction);
+      // TUL-728: server actions queue one at a time; a stuck one left this card
+      // on "Loading your website…" forever. Time out into the retry state.
+      const res = await Promise.race([
+        takeOr("manager", "manager", loadMaxSiteManagerAction),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("manager-load-timeout")), MANAGER_LOAD_TIMEOUT_MS);
+        }),
+      ]);
       if (!res.ok) {
         setError(res.error);
         setState(null);
@@ -145,6 +157,7 @@ export function TalentMaxSiteManager({
         <WorkspacePrimaryWebsiteCard
           publicUrl={myWebsite.publicUrl}
           editHref={myWebsite.editHref}
+          designHref={myWebsite.designHref}
         />
         {isDual ? (
           <SecondaryPersonalWebsiteCard personalPublicUrl={personalUrl} />
@@ -170,7 +183,18 @@ export function TalentMaxSiteManager({
   }
 
   if (!state.canManage) {
-    return <UpsellCard />;
+    // TUL-39: free / flags-off still browses Apps (Nail Designer + Web Office
+    // badge + Upgrade). Upsell alone left the pack with no Apps entry.
+    return (
+      <div
+        style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        data-talent-max-site-manager
+        data-testid="talent-site-free-upsell"
+      >
+        <UpsellCard />
+        <FreeTierAppsEntry locale={locale === "es" ? "es" : "en"} />
+      </div>
+    );
   }
 
   if (!state.siteExists) {
@@ -195,9 +219,11 @@ export function TalentMaxSiteManager({
 function WorkspacePrimaryWebsiteCard({
   publicUrl,
   editHref,
+  designHref,
 }: {
   publicUrl: string | null;
   editHref: string;
+  designHref: string | null;
 }) {
   const copy = useDashboardText();
   const host = publicUrl ? publicUrl.replace(/^https?:\/\//, "") : null;
@@ -221,13 +247,41 @@ function WorkspacePrimaryWebsiteCard({
         {copy.t("This is your business site. Edit pages, design and domain here.")}
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-        <Link
-          href={editHref}
-          data-testid="workspace-primary-edit-site"
-          className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
-        >
-          {copy.t("Edit site")}
-        </Link>
+        {/* live4-01: hard nav into workspace admin — soft Link leaves Hoy stuck. */}
+        {talentLeaveForWorkspaceAdminHref(editHref) ? (
+          <a
+            href={editHref}
+            data-testid="workspace-primary-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+          >
+            {copy.t("Edit site")}
+          </a>
+        ) : (
+          <Link
+            href={editHref}
+            data-testid="workspace-primary-edit-site"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[var(--tulala-primary-fill,#3B8277)] bg-[var(--tulala-primary-fill,#3B8277)] px-5 text-[14px] font-semibold text-white no-underline hover:border-[var(--tulala-primary-fill-deep,#326F66)] hover:bg-[var(--tulala-primary-fill-deep,#326F66)]"
+          >
+            {copy.t("Edit site")}
+          </Link>
+        )}
+        {designHref && talentLeaveForWorkspaceAdminHref(designHref) ? (
+          <a
+            href={designHref}
+            data-testid="maison-change-design"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Change design")}
+          </a>
+        ) : designHref ? (
+          <Link
+            href={designHref}
+            data-testid="maison-change-design"
+            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-admin-border-soft bg-white px-5 text-[14px] font-semibold text-admin-ink no-underline"
+          >
+            {copy.t("Change design")}
+          </Link>
+        ) : null}
         {publicUrl ? (
           <Link
             href={publicUrl}
@@ -303,18 +357,19 @@ function SecondaryPersonalWebsiteCard({
 
 function UpsellCard() {
   const { openDrawer } = useAdminShell();
+  const copy = useDashboardText();
   return (
     <Card>
-      <Badge>PORTFOLIO FEATURE</Badge>
+      <Badge>{copy.t("PORTFOLIO FEATURE")}</Badge>
       <h3 style={{ margin: "10px 0 6px", fontFamily: FONTS.display, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>
-        Your own website
+        {copy.t("Your own website")}
       </h3>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55, maxWidth: 560 }}>
-        Upgrade to Portfolio to build a full multi-page website with your own header, logo,
-        footer, and a custom address — published at its own link, separate from your
-        discovery profile.
+        {copy.t(
+          "Upgrade to Portfolio to build a full multi-page website with your own header, logo, footer, and a custom address — published at its own link, separate from your discovery profile.",
+        )}
       </p>
-      <PrimaryButton onClick={() => openDrawer("talent-tier-compare")}>See plans</PrimaryButton>
+      <PrimaryButton onClick={() => openDrawer("talent-tier-compare")}>{copy.t("See plans")}</PrimaryButton>
     </Card>
   );
 }
@@ -357,7 +412,7 @@ function ManagerBody({
   const handleOpenDomain = useCallback(() => {
     const trialOn = bridgeTalentPlanTrial?.active === true;
     if (!state.capabilities.personalSiteCustomDomain || trialOn) {
-      openDrawer("talent-tier-compare");
+      openUpgrade({ feature: "custom-domain", from: "talent-site-domain" });
       return;
     }
     if (onOpenDomain) {
@@ -480,6 +535,22 @@ function ManagerBody({
             onOpenReview={() => openSetup("review")}
             hasReviewHost={maisonSetupEnabled}
           />
+          {/* TUL-559: Cambiar diseño must be reachable before publish too
+              (live card is the only place that had it). */}
+          <div className="flex flex-wrap gap-2" data-testid="maison-site-secondary-actions">
+            <button
+              type="button"
+              data-testid="maison-change-design"
+              onClick={() => {
+                setMaisonForceReason("restored");
+                setMaisonForceScreen("gallery");
+                openSetup("gallery");
+              }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-admin-border-soft bg-white px-3 text-[13px] font-semibold text-admin-ink hover:bg-admin-surface-alt focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--tc-action,#3B8277)]"
+            >
+              {locale === "es" ? "Cambiar diseño" : "Change design"}
+            </button>
+          </div>
           {/* Pre-publish: Domain / Questions / Settings / Apps stay reachable
               when MyWebsiteCard (live-only) is not mounted. */}
           {hideDomainRow || onOpenQuestions || onOpenSettings || onOpenApps ? (

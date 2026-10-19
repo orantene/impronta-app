@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { BILLING_ES_TEXT } from "./dashboard-i18n-billing";
 import { LEFTOVERS_ES_TEXT } from "./dashboard-i18n-leftovers";
+import { PASSKEY_ES_TEXT } from "./dashboard-i18n-passkey";
 import { NOTIFICATIONS_ES_TEXT } from "./dashboard-i18n-notifications";
 import { QA_FORMATS_ES_TEXT } from "./dashboard-i18n-qa-formats";
 import { QUOTE_ES_TEXT } from "./dashboard-i18n-quote";
@@ -15,7 +16,7 @@ function isSpanish(locale: string): boolean {
 }
 
 const ES_TEXT: Record<string, string> = {
-  ...RAIL_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
+  ...RAIL_ES_TEXT, ...PASSKEY_ES_TEXT, ...BILLING_ES_TEXT, ...LEFTOVERS_ES_TEXT, ...QUOTE_ES_TEXT, ...QA_FORMATS_ES_TEXT,
   // Global chrome / nav
   "Prototype control bar": "Barra de control del prototipo",
   "Workspace sections": "Secciones del espacio de trabajo",
@@ -290,7 +291,7 @@ const ES_TEXT: Record<string, string> = {
   "Deposit percentage": "Porcentaje de anticipo",
   "Cancelling hours": "Horas para cancelar",
   "Rescheduling hours": "Horas para reprogramar",
-  "Buffer after": "Buffer después",
+  "Buffer after": "Margen después",
   "Shortest notice (minutes)": "Aviso mínimo (minutos)",
   "with a photo": "con foto",
   "Rename": "Renombrar",
@@ -306,8 +307,9 @@ const ES_TEXT: Record<string, string> = {
   "From portfolio": "Del portafolio",
   "How the price works": "Cómo funciona el precio",
   "Fixed price": "Precio fijo",
-  "Starting at": "Desde",
-  "Quote each time": "Cotizar cada vez",
+  "Get a quote": "Pedir cotización",
+  "Show as starting at": "Mostrar como desde",
+  "Clients see Request a quote. Add a price to take bookings.": "Tus clientes ven Pedir cotización. Agrega un precio para recibir reservas.",
   "Category": "Categoría",
   "How long it takes": "Cuánto dura",
   "How many do you have?": "¿Cuántos tienes?",
@@ -416,10 +418,10 @@ const ES_TEXT: Record<string, string> = {
   "Coming soon. Checkout does not charge a shipping fee yet, so this stays off.": "Pronto. El cobro todavía no incluye el envío, así que esto queda apagado.",
   "Mexico only · 120 MXN · 3–5 days": "Solo México · 120 MXN · 3–5 días",
   "Hand over at their appointment": "Entrega en su cita",
-  "Only for clients with a booking": "Solo para clientas con reserva",
+  "Only for clients with a booking": "Solo para clientes con reserva",
   "Payment is taken in full when they buy. It shows in Money as collected the moment it sells and never touches your calendar.": "El pago se cobra completo al comprar. Aparece en Dinero como cobrado al venderse y no toca tu calendario.",
   "New extra": "Extra nuevo",
-  "Adds price or time to a service the client is already booking": "Suma precio o tiempo a un servicio que la clienta ya está reservando",
+  "Adds price or time to a service the client is already booking": "Suma precio o tiempo a un servicio que la cliente ya está reservando",
   "Save extra": "Guardar extra",
   "What is the extra?": "¿Qué es el extra?",
   "Adds to the price": "Suma al precio",
@@ -427,12 +429,12 @@ const ES_TEXT: Record<string, string> = {
   "One photo is enough here; it shows as a small square next to the checkbox. Change": "Una foto alcanza; se ve como un cuadrado chico junto al checkbox. Cambiar",
   "Which services can it be added to?": "¿A qué servicios se puede agregar?",
   "other categories are not shown because the extra is for": "otras categorías no se muestran porque el extra es para",
-  "Where the client meets it": "Dónde lo ve la clienta",
+  "Where the client meets it": "Dónde lo ve la cliente",
   "Create an extra": "Crear un extra",
   "copied from": "copiado de",
   "a moment ago": "hace un momento",
   "Discard the copy": "Descartar la copia",
-  "This is a new draft. Nobody can see it and it is not yet in your catalogue as a second live item. Rename it before you publish, or your clients will see two services with the same name.": "Este es un borrador nuevo. Nadie lo ve y todavía no es un segundo ítem en vivo. Cámbiale el nombre antes de publicar, o tus clientas verán dos servicios con el mismo nombre.",
+  "This is a new draft. Nobody can see it and it is not yet in your catalogue as a second live item. Rename it before you publish, or your clients will see two services with the same name.": "Este es un borrador nuevo. Nadie lo ve y todavía no es un segundo ítem en vivo. Cámbiale el nombre antes de publicar, o tus clientes verán dos servicios con el mismo nombre.",
   "What came across": "Qué se copió",
   "marked as a copy until you rename it": "marcado como copia hasta que lo renombres",
   "photos, the same files, still tagged to both services": "fotos, los mismos archivos, todavía en ambos servicios",
@@ -716,7 +718,7 @@ const ES_TEXT: Record<string, string> = {
   "inquiries": "consultas",
   "open": "abiertas",
   "pending approvals": "aprobaciones pendientes",
-  "items need attention": "elementos necesitan atención",
+  "items need attention": "artículos necesitan atención",
   "pending": "pendiente",
   // Workspace page descriptions
   "Today's snapshot: unread, pending actions, recent activity": "Resumen de hoy: no leídos, pendientes y actividad reciente",
@@ -726,7 +728,7 @@ const ES_TEXT: Record<string, string> = {
   "Client accounts, trust tiers, and booking history": "Cuentas de cliente, niveles de confianza e historial de reservas",
   "Analytics, queues, SLAs, automations, and team workload": "Analítica, colas, SLA, automatizaciones y carga del equipo",
   "Casting, crew bookings, call sheets, rights, and safety": "Casting, equipo, call sheets, derechos y seguridad",
-  "Pages, posts, redirects, custom code, tracking, SEO, domain": "Páginas, posts, redirecciones, código personalizado, tracking, SEO y dominio",
+  "Pages, posts, redirects, custom code, tracking, SEO, domain": "Páginas, publicaciones, redirecciones, código personalizado, seguimiento de visitas, posicionamiento en buscadores y dominio",
   "Workspace photo library, watermark control, and usage tracking": "Biblioteca de fotos, marca de agua y seguimiento de uso",
   "Curated talent suggestions sent to clients": "Sugerencias curadas de talento enviadas a clientes",
   "Account, plan, branding, integrations, team, and danger zone": "Cuenta, plan, marca, integraciones, equipo y zona crítica",
@@ -932,7 +934,6 @@ const ES_TEXT: Record<string, string> = {
   "Other": "Otro",
   // Services / skills
   "Category fields (live)": "Campos por categoría (en vivo)",
-  "DB-resolved field catalog for this talent's types": "Catálogo de campos resuelto desde la DB para los tipos de este talento",
   "One primary category · up to two secondary categories · max 9 skills total": "Una categoría principal · hasta dos categorías secundarias · máximo 9 habilidades en total",
   "Primary category": "Categoría principal",
   "Secondary category": "Categoría secundaria",
@@ -1431,7 +1432,7 @@ const ES_TEXT: Record<string, string> = {
   "Unread": "Sin leer",
   "Needs action": "Requiere acción",
   "Nothing here": "Nada aquí",
-  "No items need your attention right now.": "Ningún elemento necesita tu atención ahora mismo.",
+  "No items need your attention right now.": "Ningún artículo necesita tu atención ahora mismo.",
   "Switch to a different filter to see other notifications.": "Cambia de filtro para ver otras notificaciones.",
   "Message": "Mensaje",
   "Offer": "Oferta",

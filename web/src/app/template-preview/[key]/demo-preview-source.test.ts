@@ -80,5 +80,11 @@ test("theme preview wires the allow-list before loading a demo profile", async (
   assert.match(preview, /resolveMaisonSeedPreviewBundle/);
   const hydration = readFileSync(join(dir, "demo-preview-hydration.ts"), "utf8");
   assert.match(hydration, /requireTalentSelf/);
-  assert.match(hydration, /eq\("profile_code", source\.profileCode\)/);
+  // TUL-1246: the allow-listed code is looked up only through the demo gate
+  // (registry + is_demo + demo account), which still keys on the profile code.
+  assert.match(hydration, /previewMayRenderDemoTalent\(admin, source\.profileCode\)/);
+  const gate = readFileSync(join(dir, "demo-preview-gate.server.ts"), "utf8");
+  assert.match(gate, /assertDemoTarget\(admin, profileCode\)/);
+  const guard = readFileSync(join(process.cwd(), "src/lib/talent-site/demos/guard.server.ts"), "utf8");
+  assert.match(guard, /eq\("profile_code", profileCode\)/);
 });

@@ -291,6 +291,9 @@ test("one bar: the in-dock toast rule and the consent/locale-banner yield rules 
   assert.match(css, /body:has\(\.cb-dock\[data-show="true"\]\) \[data-locale-suggestion\]/);
   // TUL-344: the bar only displaces the banners once it has shown (not while hidden at the top).
   assert.match(css, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-locale-suggestion\]/);
+  // TUL-561: scrolling the pill in lifts the cookie card above it instead of hiding it.
+  assert.match(css, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-consent-banner\]\{bottom:calc\(var\(--cb-bar-h\) \+ 8px\)\}/);
+  assert.doesNotMatch(css, /body:has\(\.cb-bar\[data-show="true"\]:not\(\[data-top="true"\]\)\) \[data-consent-banner\],/);
   const banner = readFileSync(join(here, "../analytics/analytics-consent-banner.tsx"), "utf8");
   assert.match(banner, /data-consent-banner/);
   const localeBanner = readFileSync(join(here, "../locale-suggestion-banner-client.tsx"), "utf8");
@@ -306,4 +309,48 @@ test("ES: the dock renders no English UI chrome", () => {
   const labels = [...host.querySelectorAll("[aria-label]")].map((e) => e.getAttribute("aria-label") ?? "").join(" | ");
   assert.doesNotMatch(labels, /\b(Continue|Remove|Ask|Chat with|Close|Your booking)\b/);
   unmount();
+});
+
+// E6-tab-count — Continuar must receive focus when the dock first appears
+test("E6-tab-count: Continuar is focused when the dock becomes shown", () => {
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const root = createRoot(host);
+  act(() =>
+    root.render(
+      <SelectionDock
+        items={[]}
+        show
+        locale="es"
+        formatPrice={(c) => `$${c / 100}`}
+        onRemoveFront={() => undefined}
+        onAsk={() => undefined}
+        onContinue={() => undefined}
+        toast={null}
+        onUndo={() => undefined}
+      />,
+    ),
+  );
+  assert.notEqual(dom.window.document.activeElement?.classList.contains("cb-dock-go"), true);
+  act(() =>
+    root.render(
+      <SelectionDock
+        items={[ITEM]}
+        show
+        locale="es"
+        formatPrice={(c) => `$${c / 100}`}
+        onRemoveFront={() => undefined}
+        onAsk={() => undefined}
+        onContinue={() => undefined}
+        toast={null}
+        onUndo={() => undefined}
+      />,
+    ),
+  );
+  assert.ok(
+    dom.window.document.activeElement?.classList.contains("cb-dock-go"),
+    "Continuar focused on dock show so Tab need not walk the catalog",
+  );
+  act(() => root.unmount());
+  host.remove();
 });

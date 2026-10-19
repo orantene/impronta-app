@@ -71,6 +71,7 @@ export function formatHeroProofLine(input: HeroProofInput, locale: ProofLocale =
   const years = typeof input.years === "number" && Number.isFinite(input.years) ? Math.floor(input.years) : 0;
   if (years >= 1) parts.push(yearsPart(years, locale));
   const seen = new Set<string>();
+  const langStart = parts.length;
   for (const raw of input.languages ?? []) {
     const name = languageEndonym(raw, locale);
     if (name && !seen.has(name.toLowerCase())) {
@@ -84,6 +85,9 @@ export function formatHeroProofLine(input: HeroProofInput, locale: ProofLocale =
     parts.push(`★ ${(Math.round(rating * 10) / 10).toFixed(1)}`);
     parts.push(reviewsPart(count, input.demo === true, locale));
   }
+  // TUL-850: one language on its own ("Español") is a stray label, not proof. It stays
+  // beside other proof, and two or more languages stand alone as a real line.
+  if (parts.length === langStart + 1 && langStart === 0) return "";
   return parts.join(" · ");
 }
 

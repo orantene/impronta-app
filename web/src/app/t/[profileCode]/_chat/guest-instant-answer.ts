@@ -13,6 +13,7 @@ import type { GuestChatOffering } from "@/lib/inquiry/guest-chat-contract";
 import type { Translator } from "@/i18n/interpolate";
 import { interpolate } from "@/i18n/interpolate";
 import { guestDockServicePriceLabel } from "./guest-dock-service-price";
+import { durationLabel } from "@/lib/talent/duration-label";
 
 type Intent = { price: boolean; duration: boolean };
 
@@ -69,11 +70,7 @@ export function matchOfferings(text: string, offerings: readonly GuestChatOfferi
 }
 
 export function formatDuration(minutes: number): string {
-  const m = Math.round(minutes);
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  const rest = m % 60;
-  return rest === 0 ? `${h} h` : `${h} h ${rest} min`;
+  return durationLabel(Math.round(minutes));
 }
 
 function priceOf(o: GuestChatOffering, locale: string): string | null {

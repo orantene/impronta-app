@@ -23,10 +23,15 @@ import { offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-
 import { listLocales } from "@/lib/talent/offering-missing-translation";
 import { useAdminShell } from "../../state";
 import { MissingTranslationChip } from "./MissingTranslationChip";
+import { NeedsPriceChip } from "./NeedsPriceChip";
 import { useTalentFieldLocales } from "@/components/locale-field/use-talent-field-locales";
 import type { OfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { ActionButton, FilterChip, Outcome, StatePill, ToggleChip, UsedIn, type PillTone } from "../appointments-classes-ui";
 import { MenuImportPanel } from "../MenuImportPanel";
+import {
+  loadWorkspaceArchivedMenu,
+  setWorkspaceMenuItemArchived,
+} from "@/lib/talent/menu-offerings-actions";
 import type { CatalogNav } from "./CatalogPage";
 import {
   DEFAULT_FILTERS,
@@ -35,6 +40,7 @@ import {
   itemChannels,
   itemStatus,
   itemType,
+  removeModeFor,
   type CatalogItemType,
   type CatalogStatus,
   type CatalogView,
@@ -71,6 +77,34 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
   const [filters, setFilters] = useState<ListFilters>(DEFAULT_FILTERS);
   const [importOpen, setImportOpen] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // Delete asks first; an item that was ever published offers Archive instead.
+  const [confirmFor, setConfirmFor] = useState<TalentOffering | null>(null);
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  const [archived, setArchived] = useState<TalentOffering[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const archive = async (id: string) => {
+    setBusy(true);
+    const res = await setWorkspaceMenuItemArchived(editor.workspaceTenantId, id, true);
+    setBusy(false);
+    setConfirmFor(null);
+    if (!res.ok) editor.setError(res.error ?? "Failed to archive.");
+    else editor.reload();
+  };
+  const restore = async (id: string) => {
+    setBusy(true);
+    const res = await setWorkspaceMenuItemArchived(editor.workspaceTenantId, id, false);
+    setBusy(false);
+    if (!res.ok) editor.setError(res.error ?? "Failed to restore.");
+    else editor.reload();
+  };
+  const toggleArchived = async (on: boolean) => {
+    setArchivedOpen(on);
+    if (!on) return;
+    const res = await loadWorkspaceArchivedMenu(editor.workspaceTenantId);
+    if (res.ok) setArchived(res.items);
+    else editor.setError(res.error);
+  };
 
   const packagesView = nav.view === "packages";
   const scoped = packagesView ? editor.items.filter((o) => o.kind === "package") : editor.items;
@@ -145,6 +179,7 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
           on={filters.incompleteOnly}
           onChange={(on) => setFilters((f) => ({ ...f, incompleteOnly: on }))}
         />
+        <ToggleChip label={t("dashboard.catalog.filter.archived")} on={archivedOpen} onChange={(on) => void toggleArchived(on)} />
         </div>
       </div>
       {/* MW21: full editing lives on the desktop; the phone changes availability, price and essentials. */}
@@ -156,6 +191,58 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
         <Outcome kind="refused" testId="catalog-refusal">
           {editor.error}
         </Outcome>
+      ) : null}
+
+      {confirmFor ? (
+        <div role="alertdialog" aria-modal="false" aria-label={t("dashboard.catalog.confirm.deleteTitle")} className={`${CARD} flex flex-col gap-[8px] p-[14px]`} data-testid="catalog-remove-confirm">
+          {removeModeFor(confirmFor) === "archive" ? (
+            <>
+              <p className="m-0 font-admin-body text-admin-13 font-semibold text-admin-ink">{t("dashboard.catalog.confirm.archiveTitle")}</p>
+              <p className="m-0 font-admin-body text-admin-13 text-admin-ink-muted">
+                {t("dashboard.catalog.confirm.archiveBody").replace("{name}", confirmFor.title || t("dashboard.catalog.untitled"))}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="m-0 font-admin-body text-admin-13 font-semibold text-admin-ink">{t("dashboard.catalog.confirm.deleteTitle")}</p>
+              <p className="m-0 font-admin-body text-admin-13 text-admin-ink-muted">
+                {t("dashboard.catalog.confirm.deleteBody").replace("{name}", confirmFor.title || t("dashboard.catalog.untitled"))}
+              </p>
+            </>
+          )}
+          <div className="flex gap-[8px]">
+            {removeModeFor(confirmFor) === "archive" ? (
+              <ActionButton tone="primary" disabled={busy} onClick={() => void archive(confirmFor.id)} testId="catalog-confirm-archive">
+                {t("dashboard.catalog.confirm.archive")}
+              </ActionButton>
+            ) : (
+              <ActionButton tone="primary" disabled={busy} onClick={() => { editor.removeItem(confirmFor.id); setConfirmFor(null); }} testId="catalog-confirm-delete">
+                {t("dashboard.catalog.confirm.delete")}
+              </ActionButton>
+            )}
+            <ActionButton onClick={() => setConfirmFor(null)} testId="catalog-confirm-cancel">
+              {t("dashboard.catalog.confirm.cancel")}
+            </ActionButton>
+          </div>
+        </div>
+      ) : null}
+
+      {archivedOpen ? (
+        <div className={`${CARD} flex flex-col gap-[6px] p-[14px]`} data-testid="catalog-archived">
+          <p className="m-0 font-admin-body text-admin-13 font-semibold text-admin-ink">{t("dashboard.catalog.archived.title")}</p>
+          {archived && archived.length === 0 ? (
+            <p className="m-0 font-admin-body text-admin-13 text-admin-ink-muted">{t("dashboard.catalog.archived.empty")}</p>
+          ) : null}
+          {(archived ?? []).map((a) => (
+            <div key={a.id} className="flex items-center justify-between gap-[10px] border-t border-admin-border-soft py-[6px]">
+              <span className="min-w-0 truncate font-admin-body text-admin-13 text-admin-ink">{a.title || t("dashboard.catalog.untitled")}</span>
+              <ActionButton disabled={busy} onClick={() => void restore(a.id)} testId="catalog-restore">
+                {t("dashboard.catalog.archived.restore")}
+              </ActionButton>
+            </div>
+          ))}
+          <p className="m-0 font-admin-body text-[11.5px] text-admin-ink-dim">{t("dashboard.catalog.archived.restoreNote")}</p>
+        </div>
       ) : null}
 
       <div className={`${CARD} overflow-visible`}>
@@ -188,6 +275,8 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
               menuOpen={menuFor === o.id}
               onMenu={() => setMenuFor((cur) => (cur === o.id ? null : o.id))}
               onMenuClose={() => setMenuFor(null)}
+              onRemove={() => setConfirmFor(o)}
+              onArchive={() => void archive(o.id)}
             />
           ))
         )}
@@ -223,6 +312,8 @@ function CatalogRow({
   menuOpen,
   onMenu,
   onMenuClose,
+  onRemove,
+  onArchive,
 }: {
   item: TalentOffering;
   index: number;
@@ -235,8 +326,13 @@ function CatalogRow({
   menuOpen: boolean;
   onMenu: () => void;
   onMenuClose: () => void;
+  onRemove: () => void;
+  onArchive: () => void;
 }) {
   const t = useT();
+  // The owner's own provider services are listed here but are not workspace
+  // rows: the workspace delete matches nothing for them. Edit them under Services.
+  const providerOwned = o.ownerKind === "talent";
   const type = itemType(o);
   const channels = itemChannels(o);
   const avail = itemAvailability(o);
@@ -267,6 +363,7 @@ function CatalogRow({
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
+        <NeedsPriceChip item={o} t={t} className="mt-[3px] block" />
         <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} className="mt-[3px] block" />
       </span>
       <StatePill tone={STATUS_TONE[status]} state={status}>
@@ -278,6 +375,7 @@ function CatalogRow({
         <Link href={nav.href({ item: o.id })} prefetch={false} className="min-w-0 truncate font-semibold text-admin-ink no-underline hover:underline" data-testid="catalog-row-title">
           {o.title || t("dashboard.catalog.untitled")}
         </Link>
+        <NeedsPriceChip item={o} t={t} />
         <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} />
       </span>
       <BlockPill tone="slate">{t(TYPE_KEY[type])}</BlockPill>
@@ -313,7 +411,19 @@ function CatalogRow({
             <MenuItem disabled={index >= count - 1} onClick={() => { editor.move(o.id, 1); onMenuClose(); }}>
               {t("dashboard.catalog.rowMenu.moveDown")}
             </MenuItem>
-            <MenuItem danger onClick={() => { editor.removeItem(o.id); onMenuClose(); }}>
+            <MenuItem
+              disabled={providerOwned}
+              title={providerOwned ? t("dashboard.catalog.rowMenu.providerOwnedReason") : undefined}
+              onClick={() => { onArchive(); onMenuClose(); }}
+            >
+              {t("dashboard.catalog.rowMenu.archive")}
+            </MenuItem>
+            <MenuItem
+              danger
+              disabled={providerOwned}
+              title={providerOwned ? t("dashboard.catalog.rowMenu.providerOwnedReason") : undefined}
+              onClick={() => { onRemove(); onMenuClose(); }}
+            >
               {t("dashboard.catalog.rowMenu.delete")}
             </MenuItem>
           </div>
@@ -329,16 +439,19 @@ function MenuItem({
   onClick,
   disabled,
   danger,
+  title,
 }: {
   children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       role="menuitem"
+      title={title}
       disabled={disabled}
       onClick={onClick}
       className={`rounded-[7px] px-[10px] py-[7px] text-left font-admin-body text-[12.5px] hover:bg-admin-surface-alt disabled:cursor-not-allowed disabled:opacity-40 ${

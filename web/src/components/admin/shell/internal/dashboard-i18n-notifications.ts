@@ -5,6 +5,11 @@
  */
 export const NOTIFICATIONS_ES_TEXT: Record<string, string> = {
   "You have an offer to review": "Tienes una oferta por revisar",
+  "Your offer was sent": "Tu oferta fue enviada",
+  "Your offer was sent to the client. Waiting on the client's approval.": "Tu oferta fue enviada al cliente. Esperando su aprobación.",
+  "Offer pending approval": "Oferta pendiente de aprobación",
+  "An offer with your rate is ready. Open the Offer tab to review and approve.": "Una oferta con tu tarifa está lista. Abre la pestaña Oferta para revisarla y aprobarla.",
+  "An offer was sent and is waiting on approvals.": "Se envió una oferta y está esperando aprobaciones.",
   "New booking confirmed": "Nueva cita confirmada",
   "A client booked a time with you.": "Un cliente reservó un horario contigo.",
   "A payment was disputed": "Se disputó un pago",
@@ -24,6 +29,15 @@ export const NOTIFICATIONS_ES_TEXT: Record<string, string> = {
   "A guest time is confirmed.": "El horario de un invitado quedó confirmado.",
   "A held time is about to lapse.": "Un horario apartado está por vencer.",
   "A workspace asked for help.": "Un espacio de trabajo pidió ayuda.",
+  // TUL-391: support-ticket bells are stored in English too.
+  "Rate how it went if you have a moment.": "Cuéntanos cómo te fue si tienes un momento.",
+  "Reply in the next two days or this ticket will close on its own.": "Responde en los próximos dos días o este ticket se cerrará solo.",
+  "The change was not approved in time and was cancelled.": "El cambio no se aprobó a tiempo y se canceló.",
+  "The issue you reported is fixed": "El problema que reportaste ya está resuelto",
+  "A fix shipped for your ticket.": "Se publicó una corrección para tu ticket.",
+  "Weekly support digest": "Resumen semanal de soporte",
+  "This week's support summary is ready.": "El resumen de soporte de esta semana está listo.",
+  "Someone asked to talk to a human.": "Alguien pidió hablar con una persona.",
   // TUL-390 — popover chrome (category tabs + See all)
   "Attention": "Atención",
   "See all notifications": "Ver todas las notificaciones",

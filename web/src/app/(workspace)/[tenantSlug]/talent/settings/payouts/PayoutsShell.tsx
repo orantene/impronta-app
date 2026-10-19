@@ -15,7 +15,9 @@ import { ConnectEmbeddedOnboarding } from "@/components/payments/ConnectEmbedded
 // carry its OWN copy of the country set that predated Stripe's recipient
 // service agreement, so a Mexican talent was told "payouts aren't available in
 // Mexico yet" even though account creation works. Never re-inline this list.
-import { PAYOUT_COUNTRIES, isConnectPayoutCountry } from "@/lib/payments/payout-countries";
+import { isConnectPayoutCountry, payoutPickerRows } from "@/lib/payments/payout-countries";
+import { PayoutComingSoonList } from "./PayoutComingSoonList";
+import { payoutSetupErrorText } from "@/lib/payments/connect-account-setup";
 import { PayoutAttentionPanel } from "@/components/payments/PayoutAttentionPanel";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
@@ -27,7 +29,7 @@ import type { TalentPayoutAttention } from "@/lib/payments/talent-payout-attenti
 const C = {
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.55)",
-  inkDim: "rgba(11,11,13,0.4)",
+  inkDim: "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.08)",
   border: "rgba(24,24,27,0.12)",
   surface: "#ffffff",
@@ -120,6 +122,7 @@ export function PayoutsShell({
   // per-talent behavior is restored exactly. Resolved on mount below.
   const [system, setSystem] = useState<ActivePayoutSystem>("connect");
 
+  const pickerRows = payoutPickerRows(copy.isSpanish ? "es" : "en");
   const status = snapshot?.status ?? "none";
   const isEnabled = status === "enabled";
 
@@ -303,15 +306,14 @@ export function PayoutsShell({
                 style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: `1px solid ${C.border}`, fontFamily: FONT, fontSize: 13, color: C.ink, background: "#fff", marginBottom: 12 }}
               >
                 <option value="">{copy.t("Select your country…")}</option>
-                {PAYOUT_COUNTRIES.filter(
-                  (c) => system !== "connect" || isConnectPayoutCountry(c.iso2),
-                ).map((c) => (
+                {pickerRows.selectable.map((c) => (
                   <option key={c.iso2} value={c.iso2}>
                     {c.flag} {c.label}
                   </option>
                 ))}
               </select>
-              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
+              <PayoutComingSoonList rows={pickerRows.comingSoon} isSpanish={copy.isSpanish} />
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{payoutSetupErrorText(error, copy.isSpanish)}</div>}
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
                   {pending ? copy.t("Setting up…") : copy.t("Continue")}
@@ -336,7 +338,7 @@ export function PayoutsShell({
                   </div>
                 </div>
               </div>
-              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{error}</div>}
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginTop: 12 }}>{payoutSetupErrorText(error, copy.isSpanish)}</div>}
               <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={{ ...ghostBtn, marginTop: 14 }}>
                 {pending ? copy.t("Opening…") : copy.t("Update bank or payout details")}
               </button>
@@ -349,7 +351,7 @@ export function PayoutsShell({
                   "Connect your bank to receive booking payouts. It takes a few minutes, and Stripe verifies your identity and bank securely.",
                 )}
               </p>
-              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{error}</div>}
+              {error && <div role="alert" style={{ fontSize: 12, color: C.coral, marginBottom: 10 }}>{payoutSetupErrorText(error, copy.isSpanish)}</div>}
               <button type="button" data-testid="talent-connect-cta" onClick={onConnect} disabled={pending} style={primaryBtn(pending)}>
                 {pending ? copy.t("Opening…") : copy.t("Set up payouts")}
               </button>

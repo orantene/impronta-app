@@ -10,6 +10,7 @@ import { CurrencyPicker } from "@/components/marketing/currency-picker";
 import { PricingLaddersSection } from "@/components/marketing/pricing-ladders-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
 import { PlanFeatureCompareTable } from "@/components/marketing/plan-feature-compare-table";
+import { parseBillingInterval } from "@/lib/pricing/pricing-cta-href";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
 import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -48,16 +49,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ currency?: string }>;
+  searchParams: Promise<{ currency?: string; interval?: string }>;
 }) {
   const resolved = await searchParams;
-  const { currency, source } = await resolveCurrency(resolved);
+  const locale = await getRequestLocale();
+  const { currency, source } = await resolveCurrency(resolved, locale);
   // The displayed fee reads from platform_commission_config. A typed 0.06
   // shipped on this page once; the standing rule is that no displayed price or
   // fee is a literal, because every hardcoded one in this codebase has
   // eventually drifted from what the card is actually charged.
   const ticketRate = (await loadPlatformTakeBps(null)) / 10_000;
-  const locale = await getRequestLocale();
   const c = pickLocale(locale, {
     en: {
       heroEyebrow: "Pricing",
@@ -135,7 +136,10 @@ export default async function PricingPage({
         catalog row is inactive (today: `website`) is simply absent and the
         ladder closes up around it.
       */}
-      <PricingLaddersSection currency={currency} />
+      <PricingLaddersSection
+        currency={currency}
+        interval={parseBillingInterval(resolved.interval)}
+      />
 
       <MarketingSection
         className="relative"

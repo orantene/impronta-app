@@ -13,10 +13,11 @@
 // trigger it by dispatching a `client:open-help` CustomEvent that the
 // shortcuts component listens for; no shared state needed.
 
+import { signOutEverywhere } from "@/lib/auth/sign-out-client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { signOut } from "@/app/auth/actions";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import { useMenuKeyboard } from "@/hooks/use-menu-keyboard";
 import type { Locale } from "@/i18n/config";
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -107,6 +108,8 @@ export function ClientAccountMenu({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  useMenuKeyboard(rootRef, open, () => setOpen(false));
 
   return (
     <div
@@ -276,10 +279,12 @@ export function ClientAccountMenu({
                 {labels.languageSub}
               </div>
             </div>
-            <DashboardLocaleToggle
-              supportedLocales={supportedLocales}
-              defaultLocale={defaultLocale}
-            />
+            <span role="none" data-menu-nav style={{ display: "contents" }}>
+              <DashboardLocaleToggle
+                supportedLocales={supportedLocales}
+                defaultLocale={defaultLocale}
+              />
+            </span>
           </div>
 
           <MenuButton
@@ -303,11 +308,11 @@ export function ClientAccountMenu({
               sub=""
               tone="coral"
               disabled={signingOut}
-              onClick={async () => {
+              onClick={() => {
                 if (signingOut) return;
                 setSigningOut(true);
                 setOpen(false);
-                await signOut();
+                signOutEverywhere();
               }}
             />
           </div>

@@ -35,7 +35,7 @@
 //
 // Exit code: 0 = all checks pass, 1 = at least one failure.
 
-import { judgeGetStartedRedirect, cronSecretPlan } from "./lib/smoke-decisions.mjs";
+import { judgeGetStartedRedirect, cronSecretPlan, judgeTalentSiteCacheHeaders } from "./lib/smoke-decisions.mjs";
 import { checkPublicTalentHosts } from "./lib/public-talent-hosts.mjs";
 
 const args = process.argv.slice(2);
@@ -129,6 +129,23 @@ async function check_services_band_renders() {
     else fail("services band", `${SERVICES_DEMO_HOST} has no id="services": catalog pruned or offerings stripped`);
   } catch (e) {
     fail("services band", e.message);
+  }
+}
+
+// TUL-1131 (guards TUL-445 / TUL-755): two GETs to the same talent-site URL. Anonymous must be
+// cacheable; the same URL with a guest/auth cookie must NOT come from the shared CDN copy.
+// Read-only; the cookie is a throwaway probe value, never a real session.
+async function check_talent_site_cache_headers() {
+  console.log("\nTalent site cache headers (anonymous vs cookie)");
+  try {
+    const url = SERVICES_DEMO_HOST + "/";
+    const anon = await get(url);
+    const withCookie = await get(url, { headers: { cookie: "impronta_guest=smoke-cache-probe" } });
+    const verdict = judgeTalentSiteCacheHeaders(anon, withCookie);
+    if (verdict.ok) pass(`${SERVICES_DEMO_HOST} cache headers`, verdict.detail);
+    else fail("talent-site cache headers", verdict.reason);
+  } catch (e) {
+    fail("talent-site cache headers", e.message);
   }
 }
 
@@ -780,6 +797,7 @@ console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
 for (const check of [
   check_root_reachable,
   check_services_band_renders,
+  check_talent_site_cache_headers,
   () => checkPublicTalentHosts({ get, pass, fail, warn, env: process.env, fetchJson: async (u, t) => (await fetch(u, { headers: { Authorization: `Bearer ${t}` } })).json() }),
   check_csp,
   check_image_optimizer,

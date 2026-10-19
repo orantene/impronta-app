@@ -6,6 +6,7 @@ import {
   cookieDomainForHost,
   expireParentDomainAuthCookies,
   isSupabaseAuthCookie,
+  scopeAuthCookieOptions,
 } from "./cookie-domain";
 
 test("shared parent for marketing / app / tenant subdomains", () => {
@@ -59,12 +60,30 @@ test("expireParentDomainAuthCookies clears shared parents for auth names only", 
 
 test("authCookieExpiryHeaders expires host-only and parent scope on shared hosts", () => {
   const h = authCookieExpiryHeaders(["sb-x-auth-token", "sb-x-auth-token.0", "other"], "tulala.digital");
-  assert.equal(h.length, 4);
+  // TUL-708: every chunk (.0-.4) of the base name, at both scopes.
+  assert.equal(h.length, 12);
   assert.ok(h.includes("sb-x-auth-token=; Path=/; Max-Age=0"));
   assert.ok(h.includes("sb-x-auth-token.0=; Path=/; Max-Age=0; Domain=.tulala.digital"));
   assert.ok(!h.some((x) => x.startsWith("other=")));
 });
 
 test("authCookieExpiryHeaders is host-only on localhost", () => {
-  assert.deepEqual(authCookieExpiryHeaders(["sb-x-auth-token"], "localhost:3000"), ["sb-x-auth-token=; Path=/; Max-Age=0"]);
+  const h = authCookieExpiryHeaders(["sb-x-auth-token"], "localhost:3000");
+  assert.ok(h.includes("sb-x-auth-token=; Path=/; Max-Age=0"));
+  assert.ok(h.every((x) => !x.includes("Domain=")));
+});
+
+test("TUL-757: scopeAuthCookieOptions is the one shared-Domain decision", async () => {
+  assert.deepEqual(scopeAuthCookieOptions("sb-x-auth-token", { path: "/" }, ".tulala.digital"), { path: "/", domain: ".tulala.digital" });
+  assert.deepEqual(scopeAuthCookieOptions("sb-x-auth-token", { path: "/" }, undefined), { path: "/" });
+  assert.deepEqual(scopeAuthCookieOptions("guest", { path: "/" }, ".tulala.digital"), { path: "/" });
+  assert.deepEqual(scopeAuthCookieOptions("sb-x-auth-token", undefined, ".tulala.digital"), { domain: ".tulala.digital" });
+  // No server-side writer repeats the ternary any more.
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  for (const rel of ["src/lib/supabase/server.ts", "src/lib/supabase/middleware.ts", "src/app/auth/callback/route.ts", "src/app/auth/google/route.ts", "src/app/auth/apple/route.ts"]) {
+    const src = readFileSync(join(process.cwd(), rel), "utf8");
+    assert.match(src, /scopeAuthCookieOptions\(/, rel);
+    assert.doesNotMatch(src, /authCookieDomain && isSupabaseAuthCookie/, rel);
+  }
 });

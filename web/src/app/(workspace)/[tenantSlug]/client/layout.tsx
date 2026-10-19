@@ -16,6 +16,8 @@
 // AND have at least one inquiry to this tenantId (establishes a relationship).
 
 import { notFound, redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
+import { loginUrlKeepingSupport } from "@/lib/support/login-next-support";
 import { Toaster } from "sonner";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
@@ -47,12 +49,16 @@ import { ClientNotificationBell } from "./_components/ClientNotificationBell";
 import { SupportLauncherMount } from "@/components/support/SupportLauncherMount";
 import { GlobalSearch } from "./_components/GlobalSearch";
 import { ClientKeyboardShortcuts, type KeyboardShortcutLabels } from "./_keyboard-shortcuts";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
+import { pickClientLayoutLocale, urlNamesLocale } from "@/lib/client-account/client-layout-locale";
 import { createTranslator } from "@/i18n/messages";
 import { DashboardLocaleProvider } from "@/i18n/use-dashboard-locale";
 import { loadMyNotifications } from "@/lib/notifications/self";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { loadTenantWhitelabel } from "@/lib/brand/tenant-whitelabel";
+import { clientLoginNext } from "@/lib/client-account/agency-area-pure";
+import { readAccountHost } from "@/lib/client-account/area-site.server";
 import { TULALA_BRAND } from "@/lib/brand/tulala";
 
 type LayoutParams = Promise<{ tenantSlug: string }>;
@@ -61,7 +67,7 @@ const C = {
   surface:    "#FAFAF7",
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.72)",
-  inkDim:     "rgba(11,11,13,0.38)",
+  inkDim:     "rgba(11,11,13,0.6)",
   borderSoft: "rgba(24,24,27,0.06)",
   accent:     "#1D4ED8",
   accentSoft: "rgba(29,78,216,0.08)",
@@ -90,7 +96,29 @@ export default async function ClientLayout({
   params: LayoutParams;
 }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  // ── Auth ────────────────────────────────────────────────────────────────────
+  const session = await getCachedActorSession();
+  if (!session.supabase) redirect("/login?error=config");
+  const loginNext = clientLoginNext((await readAccountHost()).hostContext, tenantSlug);
+  if (!session.user) redirect(loginUrlKeepingSupport(loginNext, await headers()));
+
+  // TUL-968: an unprefixed client URL resolves to English through the
+  // path-derived locale header; follow the visitor's cookie or saved language.
+  const reqHeaders = await headers();
+  const { data: clientLocaleRow, error: clientLocaleError } = await session.supabase
+    .from("client_profiles")
+    .select("preferred_locale")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  const locale = pickClientLayoutLocale({
+    requestLocale: await getRequestLocale(),
+    urlNamesLocale: urlNamesLocale(reqHeaders.get(ORIGINAL_PATHNAME_HEADER), reqHeaders.get(ORIGINAL_SEARCH_HEADER)),
+    cookieLocale: (await cookies()).get(LOCALE_COOKIE)?.value,
+    // A failed read only loses the saved-language fallback; the cookie and URL still apply.
+    savedLocale: clientLocaleError ? null : (clientLocaleRow as { preferred_locale?: string | null } | null)?.preferred_locale,
+    // TUL-968: the cookie is per host; a client who chose Spanish elsewhere still sends Accept-Language: es.
+    acceptLanguage: reqHeaders.get("accept-language"),
+  });
   const t = createTranslator(locale);
   const keyboardLabels: KeyboardShortcutLabels = {
     title: t("public.keyboard.title"),
@@ -110,10 +138,6 @@ export default async function ClientLayout({
     },
   };
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
-  const session = await getCachedActorSession();
-  if (!session.supabase) redirect("/login?error=config");
-  if (!session.user) redirect(`/login?next=/${tenantSlug}/client`);
 
   // ── Tenant resolution ────────────────────────────────────────────────────────
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
@@ -179,7 +203,7 @@ export default async function ClientLayout({
             }}>
               Open admin dashboard
             </a>
-            <a href={`/login?next=/${tenantSlug}/client`} style={{
+            <a href={`/login?next=${loginNext}`} style={{
               display: "block", padding: "11px 20px", borderRadius: 10,
               border: "1px solid rgba(24,24,27,0.10)", background: "transparent",
               color: "#0B0B0D", fontWeight: 600, fontSize: 14, textDecoration: "none",

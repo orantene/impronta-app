@@ -18,6 +18,7 @@ import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
 import { authorizeForTalent, loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -27,6 +28,7 @@ import {
   type TalentOffering,
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
+import { patchForSave } from "@/lib/talent/offering-save-patch";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
@@ -103,6 +105,9 @@ type LoadResult =
     }
   | { ok: false; error: string };
 
+/** TUL-824: a cold rate feed (4 s timeout) must not hold the services list; no rate, no "≈ US$" line. */
+const USD_RATES_BUDGET_MS = 800;
+
 /** Editor load: ALL statuses (drafts included), hero-first images resolved. */
 export async function loadTalentOfferingsForEditor(talentProfileId: string): Promise<LoadResult> {
   try {
@@ -120,7 +125,10 @@ export async function loadTalentOfferingsForEditor(talentProfileId: string): Pro
     if (!auth.ok) return { ok: false, error: auth.error };
     // Started now, awaited last: the rate feed is cached for hours and never
     // blocks the list, and a failure only removes the "≈ US$" preview.
-    const usdRatesPending = loadUsdRates().catch(() => null);
+    const usdRatesPending = Promise.race([
+      loadUsdRates().catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), USD_RATES_BUDGET_MS)),
+    ]);
 
     const { data, error } = listRes;
     if (error) {
@@ -196,7 +204,7 @@ export async function upsertTalentOffering(
     let saved: TalentOfferingRow | null = null;
     if (offering.id) {
       const { data, error } = await offeringsTable(admin)
-        .update(patch)
+        .update(patchForSave(patch, true))
         .eq("id", offering.id)
         .eq("talent_profile_id", talentProfileId)
         .select("*")
@@ -214,7 +222,7 @@ export async function upsertTalentOffering(
         .select("id", { count: "exact", head: true })
         .eq("talent_profile_id", talentProfileId);
 
-      const { data, error } = await offeringsTable(admin).insert(patch).select("*").maybeSingle();
+      const { data, error } = await offeringsTable(admin).insert(patchForSave(patch, false)).select("*").maybeSingle();
       if (error) {
         logServerError("talent.offerings.insert", error);
         return { ok: false, error: "Failed to save." };
@@ -269,6 +277,9 @@ export async function upsertTalentOffering(
     }
 
     revalidatePath("/talent/services");
+    // Public Max-site offerings/seoFacts sit behind unstable_cache — bust so
+    // the storefront shows the save without waiting for the 120 s TTL.
+    bustTalentSiteCache(talentProfileId, null);
     return {
       ok: true,
       item: rowToOffering(saved, auth.primaryLocale, offering.imageUrls ?? [], [auth.primaryLocale]),
@@ -299,6 +310,7 @@ export async function deleteTalentOffering(
     return { ok: false, error: "Failed to delete." };
   }
   revalidatePath("/talent/services");
+  bustTalentSiteCache(talentProfileId, null);
   return { ok: true };
 }
 
@@ -392,6 +404,7 @@ export async function reorderTalentOfferings(
     }
   }
   revalidatePath("/talent/services");
+  bustTalentSiteCache(talentProfileId, null);
   return { ok: true };
 }
 
@@ -457,6 +470,7 @@ export async function setOfferingImages(
     }
   }
   revalidatePath("/talent/services");
+  bustTalentSiteCache(talentProfileId, null);
   return { ok: true };
 }
 
@@ -545,13 +559,13 @@ export async function setOfferingOptions(
   offeringId: string,
   input: {
     variants: { label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+    addOns: { label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
   },
 ): Promise<
   | {
       ok: true;
       variants: { id: string; label: string; amountCents: number | null; labelI18n?: LocalizedMap }[];
-      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap }[];
+      addOns: { id: string; label: string; amountCents: number; labelI18n?: LocalizedMap; durationMinutes?: number | null }[];
     }
   | { ok: false; error: string }
 > {
@@ -574,6 +588,7 @@ export async function setOfferingOptions(
     const saved = await replaceOfferingChildren(admin, offeringId, input, "talent.offerings", auth.primaryLocale);
     if (!saved.ok) return saved;
     revalidatePath("/talent/services");
+    bustTalentSiteCache(talentProfileId, null);
     return saved;
   } catch (err) {
     logServerError("talent.offerings.setOptions", err);

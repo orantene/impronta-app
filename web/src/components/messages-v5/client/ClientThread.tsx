@@ -19,10 +19,11 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
 import { GuestOfferSignIn } from "@/app/t/[profileCode]/_chat/GuestOfferSignIn";
-import { translatorFor } from "@/i18n/use-t";
+import { translatorFor } from "@/i18n/translator-for";
 import type { MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
-import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
+import { offerCardState, type ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { payLinkTarget } from "@/lib/payments/pay-link-target";
 import {
   messagingClientAcceptOffer,
@@ -36,6 +37,7 @@ import {
 import { resolvePayLinkPublicUrl } from "@/lib/server-actions/pay-link-public-url";
 
 import { buildKitCopy } from "../kit/copy";
+import { ClientOfferBanner } from "./ClientOfferBanner";
 import { ClientThreadView, type CardActivity, type ComposerPhase, type SaveEmailPhase } from "./ClientThreadView";
 import { buildClientCopy } from "./copy";
 import { useClientThreadPaidRefresh } from "./use-client-thread-paid-refresh";
@@ -50,6 +52,8 @@ export type ClientThreadProps = {
   readonly threadTokenExpiresAt?: string | null;
   /** True when the visitor opened this page from the save-to-email link (`?from=email`). */
   readonly fromEmail?: boolean;
+  /** True when the email link carried `?focus=offer` (TUL-954): scroll to the live offer on arrival. */
+  readonly focusOffer?: boolean;
 };
 
 export function ClientThread(props: ClientThreadProps) {
@@ -291,7 +295,11 @@ export function ClientThread(props: ClientThreadProps) {
     }
   }, [props.token, saveEmail]);
 
+  const pendingOffer = props.offers.some((o) => offerCardState(o, now) === "sent");
+
   return (
+    <>
+    <ClientOfferBanner pending={pendingOffer} focusOnArrival={props.focusOffer === true} hint={copy.offerBanner.hint} cta={copy.offerBanner.cta} />
     <ClientThreadView
       copy={copy}
       kit={kit}
@@ -323,6 +331,8 @@ export function ClientThread(props: ClientThreadProps) {
       offerAcceptLabel={requireSignInToAccept ? signInToAcceptLabel : undefined}
       offerSignInOfferId={signInOffer?.id ?? null}
       offerSignInPanel={offerSignInPanel}
+      saveBookingsSlot={<SaveBookingsBlock locale={props.locale} signedIn={clientSignedIn} />}
     />
+    </>
   );
 }

@@ -377,3 +377,14 @@ test("a locale is never prefixed twice", () => {
   const once = buildRegisterHref("talent", {}, "es");
   assert.equal(once.match(/\/es\//g)?.length ?? 0, 1, once);
 });
+
+import { isClientIntentSearch } from "./register-intent";
+
+test("TUL-761: the auth shell detects a client sign-up from the original query", () => {
+  assert.equal(isClientIntentSearch("?as=client"), true);
+  assert.equal(isClientIntentSearch("as=client&next=%2Faccount"), true);
+  assert.equal(isClientIntentSearch("?role=client"), true);
+  assert.equal(isClientIntentSearch("?as=talent"), false);
+  assert.equal(isClientIntentSearch(""), false);
+  assert.equal(isClientIntentSearch(null), false);
+});

@@ -5,12 +5,16 @@ export const CATALOG_BOOKING_CSS = `
    Continuar/Confirmar made white labels unreadable (BJ-01). Soft fills are a
    mix of the solid primary, not the blush token. Ink sheet accent stays ink
    when the operator picks it (data-sheet-accent); default is primary. */
-.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
+.jb-back,.cb-island{--cb-ink:var(--token-color-ink,var(--plt-ink,#242126));--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-muted:var(--token-color-muted,#66616B);--cb-line:var(--token-color-line,#ECE8EB);--cb-edge:var(--token-color-line,#DAD4D9);--cb-surface:var(--token-color-surface-raised,#fff);--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface));--cb-selected:var(--token-color-primary,var(--plt-accent,#A82458));--cb-on-selected:var(--token-color-on-primary,#fff)}
 .cb-island[data-sheet-accent="ink"]{--cb-primary:var(--token-color-ink,var(--plt-ink,#242126));--cb-blush:color-mix(in srgb,var(--cb-primary) 8%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface))}
 .cb-island[data-sheet-accent="primary"]{--cb-primary:var(--token-color-primary,var(--plt-accent,#A82458));--cb-blush:color-mix(in srgb,var(--cb-primary) 14%,var(--cb-surface));--cb-soft:color-mix(in srgb,var(--cb-primary) 22%,var(--cb-surface))}
 .jb-back{position:fixed;inset:0;z-index:120;background:rgba(36,33,38,.42);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:jb-fade 200ms cubic-bezier(.22,1,.36,1)}
 @keyframes jb-fade{from{opacity:0}to{opacity:1}}
 .jb-sheet{width:100%;max-width:560px;max-height:92vh;display:flex;flex-direction:column;background:var(--cb-surface);color:var(--cb-ink);border-radius:22px 22px 0 0;font-family:var(--token-font-body,var(--font-inter-body),Inter,system-ui,sans-serif);box-shadow:0 -24px 60px -28px rgba(36,33,38,.45);animation:jb-rise 300ms cubic-bezier(.22,1,.36,1)}
+/* TUL-807: vh counts the area under the phone's URL bar / keyboard, so the footer sat over the last fields.
+   dvh tracks the visible viewport; focused fields scroll clear of the footer edge. */
+.jb-sheet{max-height:92dvh}
+.jb-body{scroll-padding-bottom:24px;padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
 @keyframes jb-rise{from{transform:translateY(28px);opacity:.5}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){.jb-sheet,.jb-back{animation:none}}
 /* Busy ring (A-14): hidden everywhere except a soft-chrome site (motion-css.ts turns it on). */
@@ -21,7 +25,11 @@ export const CATALOG_BOOKING_CSS = `
 .jb-head h2{margin:5px 0 0;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.5rem;letter-spacing:-.02em;line-height:1.1}
 .jb-kicker{margin:0;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--cb-primary)}
 .jb-x{appearance:none;border:0;background:color-mix(in srgb,var(--cb-ink) 6%,var(--cb-surface));width:40px;height:40px;border-radius:99px;font-size:1rem;cursor:pointer;color:var(--cb-ink);flex:0 0 auto}
-.jb-body{padding:18px 20px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* TUL-931: header, policy line and footer never shrink; only the body scrolls. Flex items default to
+   flex-shrink:1, so a tall body squeezed them and their content spilled over (Políticas on Total/Confirmar). */
+.jb-head,.jb-policy,.jb-foot{flex:0 0 auto}
+.jb-policy{text-align:center;padding:6px 0;border-top:1px solid var(--cb-line);background:var(--cb-surface)}
+.jb-body{flex:1 1 auto;min-height:0;padding:18px 20px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .jb-summary{background:var(--cb-blush);border-radius:14px;padding:14px 16px;margin-bottom:20px}
 .jb-summary>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .jb-summary span{font-size:.8125rem;color:var(--cb-muted)}
@@ -43,29 +51,43 @@ export const CATALOG_BOOKING_CSS = `
 .jb-lines{border-top:1px solid var(--cb-line);padding-top:14px;display:grid;gap:8px}
 .jb-lines>div{display:flex;justify-content:space-between;gap:16px;font-size:.9375rem;color:var(--cb-muted)}
 .jb-lines>div span:last-child{font-variant-numeric:tabular-nums;color:var(--cb-ink)}
-.jb-back-link{appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px}
+.jb-back-link{display:block;appearance:none;border:0;background:none;padding:0 0 16px;cursor:pointer;font-family:inherit;font-size:.875rem;color:var(--cb-primary);font-weight:600;min-height:40px;text-align:left}
 .jb-recap{margin:0 0 18px;font-size:.9375rem;color:var(--cb-muted)}
-.jb-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
-.jb-day{flex:0 0 auto;width:64px;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
-/* TUL-498: ink fill + white text fails on dark looks (sofia ink ≈ surface). Use surface ink-on. */
-.jb-day[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
+/* TUL-899: seven days per view at any width (was a fixed 64px day, five at 390); the week nav pages. */
+.jb-days{position:relative;display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scroll-behavior:smooth;scroll-snap-type:x mandatory}
+.jb-day{flex:0 0 calc((100% - 36px) / 7);min-width:0;max-width:72px;scroll-snap-align:start;min-height:76px;border-radius:12px;cursor:pointer;background:var(--cb-surface);border:1px solid var(--cb-edge);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit;color:var(--cb-ink)}
+/* GRK-072 / TUL-498: ink↔surface swap fails when tokens collapse (sofia dark:
+   selected day/slot white-on-near-white). Brand primary stays distinct even when
+   sheet-accent remaps --cb-primary to ink. */
+.jb-day[data-on="true"]{background:var(--cb-selected);border-color:var(--cb-selected);color:var(--cb-on-selected)}
+.jb-week-nav{display:flex;justify-content:space-between;gap:8px;margin:-2px 0 6px}
+/* TUL-930: at phone width the day strip is swiped (no scrollbar, no arrows); Empezar de nuevo shares the row with the back link. */
+@media (max-width:719px){.jb-days{scrollbar-width:none}.jb-days::-webkit-scrollbar{display:none}.jb-week-nav{display:none}}
+.jb-back-link[data-catalog-start-over]{float:right;margin-left:12px}
+.jb-back-link[data-catalog-start-over]+:not(.jb-back-link){clear:both}
+.jb-week-nav button{appearance:none;border:0;background:none;padding:6px 2px;min-height:36px;cursor:pointer;font:inherit;font-size:.8125rem;font-weight:600;color:var(--cb-primary)}
 .jb-day:disabled{opacity:.32;cursor:not-allowed}
 .jb-day span{font-size:.625rem;text-transform:uppercase;letter-spacing:.08em;opacity:.7}
 .jb-day b{font-size:1.125rem}
 .jb-day small{font-size:.625rem;opacity:.7}
 .jb-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;margin-top:16px}
 .jb-time{min-height:48px;border-radius:10px;background:var(--cb-surface);border:1px solid var(--cb-edge);cursor:pointer;font-family:inherit;font-size:.9375rem;color:var(--cb-ink)}
-.jb-time[data-on="true"]{background:var(--cb-ink);border-color:var(--cb-ink);color:var(--cb-surface)}
+.jb-time[data-on="true"]{background:var(--cb-selected);border-color:var(--cb-selected);color:var(--cb-on-selected)}
 .jb-empty{margin-top:18px;border:1px dashed var(--cb-edge);border-radius:14px;padding:22px;text-align:center}
 .jb-empty strong{display:block;margin-bottom:6px;font-size:.9375rem}
 .jb-empty p{margin:0;font-size:.875rem;color:var(--cb-muted);line-height:1.55}
 .jb-empty .jb-ask{display:inline-block;margin-top:14px;padding:10px 4px;text-align:center;text-decoration:underline;text-underline-offset:3px}
 .jb-field{display:grid;gap:6px;margin-bottom:16px}
-.jb-field span{font-size:.875rem;font-weight:600;display:flex;align-items:center;gap:8px}
+.jb-field span,.jb-field>label{font-size:.875rem;font-weight:600;display:flex;align-items:center;gap:8px}
 .jb-field span i{font-style:normal;font-size:.6875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--cb-muted);background:var(--cb-soft);border-radius:99px;padding:3px 8px}
 .jb-field input{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
 .jb-field textarea{min-height:64px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:12px 14px;font-family:inherit;font-size:1rem;color:var(--cb-ink);resize:vertical}
 .jb-field select{min-height:52px;border-radius:10px;border:1px solid var(--cb-edge);background:var(--cb-surface);padding:0 12px;font-family:inherit;font-size:1rem;color:var(--cb-ink)}
+/* TUL-928: grid/flex children default to min-width:auto, so an input's intrinsic width pushed the row past 390. */
+.jb-field,.jb-field input,.jb-field select{min-width:0;max-width:100%}
+.jb-phone{display:flex;gap:8px;min-width:0}
+.jb-phone select{flex:0 0 104px;width:104px;min-width:0;text-overflow:ellipsis}
+.jb-phone input{flex:1 1 auto;min-width:0;width:100%}
 .jb-chips{display:flex;flex-wrap:wrap;gap:8px}
 .jb-chip{min-height:40px;padding:0 14px;border-radius:99px;border:1px solid var(--cb-edge);background:var(--cb-surface);color:var(--cb-ink);font:inherit;font-size:.875rem;cursor:pointer}
 .jb-chip[aria-pressed="true"]{border-color:var(--cb-primary);background:var(--cb-blush)}
@@ -75,11 +97,18 @@ export const CATALOG_BOOKING_CSS = `
 .jb-taken{margin-top:14px;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-surface)}
 .jb-taken p{margin:0;font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
 .jb-taken .jb-times{margin-top:10px}
-.jb-error{margin:0 0 12px;font-size:.875rem;color:var(--cb-primary)}
+.jb-error{margin:12px 0;padding:12px 14px;border-radius:12px;border:1px solid var(--cb-primary);background:var(--cb-blush);font-size:.875rem;line-height:1.5;color:var(--cb-ink)}
 .jb-done{text-align:center;padding:8px 0 4px}
 .jb-check{width:60px;height:60px;border-radius:99px;background:var(--cb-soft);color:var(--cb-primary);display:grid;place-items:center;font-size:1.5rem;margin:0 auto 16px}
 .jb-done h3{margin:0 0 8px;font-family:var(--token-font-display,var(--font-fraunces),Georgia,serif);font-weight:400;font-size:1.375rem;letter-spacing:-.02em}
 .jb-done>p{margin:0 0 8px;font-size:.9375rem;color:var(--cb-muted)}
+.jb-done-facts{margin:4px auto 12px;padding:12px 14px;max-width:420px;display:grid;gap:8px;text-align:left;border:1px solid var(--cb-line);border-radius:12px}
+.jb-done-facts>div{display:flex;justify-content:space-between;gap:12px;font-size:.875rem}
+.jb-done-facts dt{color:var(--cb-muted)}
+.jb-done-facts dd{margin:0;min-width:0;text-align:right;overflow-wrap:anywhere;font-weight:600;font-variant-numeric:tabular-nums}
+.jb-done-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin-top:6px;padding:0 18px;border-radius:10px;border:1.5px solid var(--cb-primary);color:var(--cb-primary);background:var(--cb-surface);font-size:.9375rem;font-weight:600;text-decoration:none}
+.jb-done-link:hover{background:var(--cb-blush)}
+.jb-done-link:focus-visible{outline:2px solid var(--cb-primary);outline-offset:2px}
 .jb-demo{margin:16px 0 0;font-size:.8125rem;line-height:1.5;color:var(--cb-muted);background:var(--cb-blush);border-radius:12px;padding:12px 14px}
 .jb-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 20px calc(14px + env(safe-area-inset-bottom));border-top:1px solid var(--cb-line);background:var(--cb-surface)}
 .jb-total{display:grid}
@@ -91,11 +120,11 @@ export const CATALOG_BOOKING_CSS = `
 .jb-ask{appearance:none;border:0;background:none;padding:14px 0 0;cursor:pointer;font-family:inherit;font-size:.875rem;font-weight:700;color:var(--cb-ink);text-align:left;min-height:44px}
 /* AUD-005 — long CTA labels overflow a single footer row at 360. */
 @media (max-width:400px){.jb-foot{flex-direction:column;align-items:stretch;gap:10px}.jb-total{width:100%}.jb-cta{width:100%}}
-@media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh}.jb-foot{border-radius:0 0 20px 20px}}
-.cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -12px 32px -20px rgba(36,33,38,.4)}
+@media (min-width:720px){.jb-back{align-items:center}.jb-sheet{border-radius:20px;max-height:86vh;max-height:86dvh}.jb-foot{border-radius:0 0 20px 20px}}
+.cb-bar{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:var(--cb-surface);color:var(--cb-ink);border-top:1px solid var(--cb-line);box-shadow:0 -8px 20px -18px rgba(36,33,38,.18)}
 .cb-bar[data-show="true"]{display:flex}
 .cb-bar-text{min-width:0;display:grid;gap:2px}
-.cb-bar[data-bar-style="pill"]{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));gap:8px;padding:6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--cb-line) 80%,transparent);background:color-mix(in srgb,var(--cb-surface) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--cb-ink) 45%,transparent)}
+.cb-bar[data-bar-style="pill"]{left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));gap:8px;padding:6px;border-radius:999px;border:1px solid color-mix(in srgb,var(--cb-line) 80%,transparent);background:color-mix(in srgb,var(--cb-surface) 82%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);box-shadow:0 12px 28px -20px color-mix(in srgb,var(--cb-ink) 22%,transparent)}
 .cb-bar[data-bar-style="pill"] .cb-bar-chat{width:48px;height:48px;min-height:48px;padding:0;border-radius:50%;display:grid;place-items:center;background:var(--cb-blush,color-mix(in srgb,var(--cb-primary) 12%,var(--cb-surface)));color:var(--cb-primary)}
 .cb-bar[data-bar-style="pill"] .cb-bar-go{flex:1;height:48px;border-radius:999px;font-size:15px}
 @media (min-width:720px){.cb-bar[data-bar-style="pill"][data-show="true"]{display:flex!important;left:50%;right:auto;bottom:22px;transform:translateX(-50%)}.cb-bar[data-bar-style="pill"] .cb-bar-go{flex:0 0 auto;padding:0 22px}}
@@ -147,8 +176,11 @@ export const CATALOG_BOOKING_CSS = `
 /* One bar at the bottom: consent + language suggestion step aside while the
    booking dock or "See services" pill is up. Without this the locale banner
    (z-50) sits behind the dock (z-80+) and its Switch / No thanks controls
-   cannot be reached — the prompt looks "stuck". */
-body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner],body:has(.cb-dock[data-show="true"]) [data-locale-suggestion],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-locale-suggestion]{display:none}
+   cannot be reached — the prompt looks "stuck".
+   TUL-561: the cookie card no longer vanishes when the "See services" pill
+   slides in on scroll; it rides above the pill and only yields to the dock. */
+body:has(.cb-dock[data-show="true"]) [data-consent-banner],body:has(.cb-dock[data-show="true"]) [data-locale-suggestion],body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-locale-suggestion]{display:none}
+body:has(.cb-bar[data-show="true"]:not([data-top="true"])) [data-consent-banner]{bottom:calc(var(--cb-bar-h) + 8px)}
 .cb-dock-toast button{appearance:none;background:color-mix(in srgb,var(--cb-surface) 14%,transparent);color:var(--cb-surface);border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .cb-dock-th-icon{display:grid;place-items:center;background:var(--cb-blush);color:var(--cb-primary)}
 .cb-dock-unread{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--cb-primary);box-shadow:0 0 0 2px var(--cb-surface)}

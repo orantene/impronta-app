@@ -76,6 +76,7 @@ import { createApplyFailure } from "./mini-chat-panel-apply-failure";
 import { useDetailHandlers } from "./use-mini-chat-detail-handlers";
 import { useRegisterRemoveTalentRunner } from "./use-register-remove-talent-runner";
 import type { GuestDockView } from "./guest-dock-view";
+import { focusIntoDock } from "./use-dock-focus-return";
 import {
   normalizeDockView,
   persistDockView,
@@ -127,6 +128,7 @@ export function MiniChatPanel({
   onRegisterRemoveTalent,
   onInquiryIdChange,
   onScanConversation = null,
+  onReportToSupport = null,
   onStartFresh = null,
 }: MiniChatPanelLocalProps) {
   const accent = brand.accentColor ?? DEFAULT_ACCENT;
@@ -471,10 +473,11 @@ export function MiniChatPanel({
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     const phone = typeof window.matchMedia === "function" && (window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 900);
-    const focusTimer = phone ? undefined : setTimeout(() => textareaRef.current?.focus(), 60);
+    // TUL-1082: focus always moves INTO the dock on open, so the first Tab lands inside it.
+    const focusTimer = setTimeout(() => focusIntoDock(phone, textareaRef.current), 60);
     return () => {
       window.removeEventListener("keydown", onKey);
-      if (focusTimer) clearTimeout(focusTimer);
+      clearTimeout(focusTimer);
     };
   }, [open, onClose]);
 
@@ -639,13 +642,22 @@ export function MiniChatPanel({
     // through the same ensure path the chips use; the full load then brings
     // the token and the queued add runs.
     onEnsureInquiryForItems: onEnsureInquiry
-      ? async () => {
-          if (inquiryId) return inquiryId;
-          const res = await onEnsureInquiry({ tenantSlug, talentProfileId, sourcePage });
-          if (!res.ok) return null;
-          setInquiryId(res.inquiryId);
-          return res.inquiryId;
-        }
+      ? Object.assign(
+          async () => {
+            if (inquiryId) return inquiryId;
+            const res = await onEnsureInquiry({ tenantSlug, talentProfileId, sourcePage });
+            if (!res.ok) return null;
+            setInquiryId(res.inquiryId);
+            return res.inquiryId;
+          },
+          {
+            // TUL-1066: the catalog discarded the empty draft it just made; forget it.
+            onDiscarded: (gone: string) => {
+              setInquiryId((cur) => (cur === gone ? null : cur));
+              setThreadMeta((m) => ({ ...m, v5: null }));
+            },
+          },
+        )
       : null,
     emailedTo,
     seenAtByInquiry,
@@ -746,6 +758,7 @@ export function MiniChatPanel({
     // DOCK v2: the AI scan (Add-details sheet) + the signed-in client dashboard
     // link for the Home hub's Account card.
     onScanConversation,
+    onReportToSupport,
     onStartFresh,
     dashboardHref: `/${tenantSlug}/client/messages`,
   };
@@ -777,8 +790,9 @@ export function MiniChatPanel({
       role="dialog"
       aria-modal="false"
       data-guest-chat-panel=""
+      tabIndex={-1}
       aria-label={interpolate(t("public.guestChat.messageBrandAria"), { brand: brand.agencyName })}
-      style={miniPanelContainerStyle(P, compactSheet, keyboardInsetPx)}
+      style={{ ...miniPanelContainerStyle(P, compactSheet, keyboardInsetPx), outline: "none" }}
     >
       <MiniChatPanelColumn {...columnProps} />
     </div>

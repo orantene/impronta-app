@@ -63,7 +63,7 @@
       },
       {
         "label": "Revisión",
-        "value": "$550"
+        "value": "Desde $500"
       }
     ],
     "badges": [
@@ -86,7 +86,7 @@
         },
         {
           "label": "Inspection",
-          "value": "$550"
+          "value": "From $500"
         }
       ]
     }
@@ -561,7 +561,7 @@
       },
       {
         "q": "¿Cobras por ir a ver?",
-        "a": "La revisión cuesta $550 y la pagas en la visita. Si decides reparar, te doy el precio antes."
+        "a": "La revisión cuesta desde $500 y la pagas en la visita. Si decides reparar, te doy el precio antes."
       },
       {
         "q": "¿Tú compras el material?",
@@ -784,7 +784,7 @@
         },
         {
           "q": "Do you charge to come look?",
-          "a": "The inspection is $550 and you pay on the visit. If you hire the repair, I quote the price first."
+          "a": "The inspection is from $500 and you pay on the visit. If you hire the repair, I quote the price first."
         },
         {
           "q": "Do you buy materials?",
@@ -794,7 +794,16 @@
           "q": "Do you take commercial jobs?",
           "a": "Yes, up to 120 m² on the standard inspection. Larger spaces are quoted."
         }
-      ]
+      ],
+      "portfolio": [
+        { "title": "Panel upgrade", "caption": "WO-0412 · San Pedro · 1 day" },
+        { "title": "Pendant light", "caption": "WO-0398 · Centro · 1 h" },
+        { "title": "New breakers", "caption": "WO-0391 · Cumbres · 3 h" },
+        { "title": "Load check", "caption": "WO-0385 · Shop, Santa Catarina" },
+        { "title": "Service entrance", "caption": "WO-0377 · Guadalupe · 4 h" },
+        { "title": "6 light fixtures", "caption": "WO-0370 · Restaurant, Obispado" }
+      ],
+      "arrivalNote": "Outside this area, travel is added to the quote."
     }
   }
 }

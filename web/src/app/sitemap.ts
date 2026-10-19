@@ -1,6 +1,11 @@
 import type { MetadataRoute } from "next";
 
+import { publishedCmsPagePath } from "@/lib/cms/clean-urls";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 import { createClient } from "@/lib/supabase/server";
+import { businessFixedSitemapPaths } from "@/lib/seo/business-workspace-seo";
+import { loadIsEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-emptiness";
+import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { withLocalePath } from "@/i18n/pathnames";
 import { SPANISH_NAMED_MARKETING_PATHS } from "@/lib/seo/spanish-named-routes";
@@ -24,6 +29,8 @@ import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-langua
 import { talentProfileSitemapEntries } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { headers } from "next/headers";
+import { PUBLIC_PATH_PREFIX_HEADER } from "@/lib/saas/scope";
+import { prefixPathWorkspaceSitemap } from "@/lib/seo/path-workspace-sitemap";
 import {
   HOST_CONTEXT_HEADER,
   HOST_TALENT_PROFILE_HEADER,
@@ -39,7 +46,12 @@ import {
   scopeMaxSitePagesToPlan,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { talentHostSitemapPaths } from "@/lib/talent-site/talent-site-sitemap";
+import { serviceSitemapPaths } from "@/lib/talent-site/service-page";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
+import { localeAlternateUrl } from "@/i18n/alternates";
+import { listPublishedPostRows } from "@/lib/cms/posts-public";
+import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
 
@@ -182,10 +194,11 @@ async function loadPlatformTalentSitemapEntries(): Promise<MetadataRoute.Sitemap
 
 /**
  * Sitemap for a talent site HOST (`<name>.<apex>` / talent custom domain): the
- * site's own published pages at the host's origin. Gated the same way the page
- * route is (published site + plan gate + plan page scoping), AND on the
- * talent's public-listing predicates used for the platform sitemap, so a
- * hidden / unlisted / deleted talent advertises nothing.
+ * site's own published pages at the host's origin. Gated like the page route
+ * (alive profile + published site + plan gate + plan page scoping). Directory
+ * listing flags (`is_publicly_listed` / `visibility`) belong only on the
+ * platform `/t/<code>` sitemap — a live unlisted QA host (e.g. jorg-beauty-qa)
+ * still serves pages and must advertise them (TUL-534 / GRK-096).
  */
 async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRoute.Sitemap> {
   const admin = createServiceRoleClient();
@@ -208,8 +221,6 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     .eq("id", talentProfileId)
     .is("deleted_at", null)
     .eq("is_publicly_hidden", false)
-    .eq("is_publicly_listed", true)
-    .eq("visibility", "public")
     .neq("profile_kind", "resource")
     .maybeSingle();
   if (profileError || !profile) return [];
@@ -240,7 +251,16 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
     platform.publicLocales,
     platform.defaultLocale,
   );
-  return paths.flatMap((path) =>
+  // TUL-586: one URL per published service (slug title in the primary language, as the page canonicalises).
+  const offerings = await loadPublicOfferingsForProfile(talentProfileId, pair.primary, null).catch(() => []);
+  const allPaths = [...paths, ...serviceSitemapPaths(offerings)];
+  // Posts v1 (TUL-1010): indexable talent posts (scoped by talent_profile_id).
+  const talentLocales = [pair.primary, ...pair.secondary];
+  const postUrl: LocalizedUrl = (path, locale) =>
+    localeAlternateUrl({ origin: base.origin, pathnameWithoutLocale: path, defaultLocale: pair.primary, supportedLocales: talentLocales }, locale);
+  const postRows = await listPublishedPostRows({ kind: "talent", talentProfileId }, talentLocales).catch(() => []);
+  const postEntries = postSitemapEntries(postRows, postUrl, new Date());
+  return [...allPaths.flatMap((path) =>
     talentProfileSitemapEntries({
       origin: base.origin,
       path,
@@ -248,10 +268,19 @@ async function loadTalentSiteHostSitemapEntries(base: URL): Promise<MetadataRout
       locales: [pair.primary, ...pair.secondary],
       lastModified,
     }),
-  );
+  ), ...postEntries];
 }
 
+const agencyPathAllowed = (path: string) => isPathAllowedForHostKind("agency", path);
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const entries = await buildSitemap();
+  // A `/w/<slug>` workspace shares the hub origin: move each URL under its prefix (TUL-591).
+  const prefix = (await headers()).get(PUBLIC_PATH_PREFIX_HEADER);
+  return prefix ? prefixPathWorkspaceSitemap(entries, prefix) : entries;
+}
+
+async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createClient();
 
   // Each host-kind advertises only the routes its surface-allow-list permits,
@@ -407,6 +436,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // advertised a URL that only ever serves fallback content, and annotating it
   // as a Spanish alternate would have been a false statement to every crawler.
   const localeSettings = await loadTenantLocaleSettings(hostContext.tenantId);
+  // TUL-591: an empty business workspace is noindexed on its homepage; list nothing for it.
+  if (await loadIsEmptyBusinessWorkspace(hostContext.tenantId)) return [];
 
   /**
    * One sitemap entry per locale a path exists in, each carrying the full
@@ -439,7 +470,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // is conditional — included only when the operator has not flagged the
   // homepage row noindex=true. The other paths are framework-owned and
   // always indexable.
-  const fixedStaticPaths = ["/contact", "/directory", "/models"];
+  // TUL-591: a business workspace has no roster, so /directory and /models only redirect to /book;
+  // list /book instead of advertising redirects.
+  const fixedStaticPaths = businessFixedSitemapPaths(await resolveWorkspaceType(hostContext.tenantId));
 
   // These routes are framework-rendered from live tenant data (roster, contact
   // details), and no single row owns them, so there is no truthful timestamp to
@@ -550,7 +583,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const locales = localesBySlug.get(row.slug) ?? [row.locale];
       const alt = buildLocaleAlternates({
         origin: base,
-        pathnameWithoutLocale: `${pathPrefix}/${row.slug}`,
+        pathnameWithoutLocale: pathPrefix === "/p" ? publishedCmsPagePath(row.slug, agencyPathAllowed) : `${pathPrefix}/${row.slug}`,
         currentLocale: row.locale,
         defaultLocale: localeSettings.defaultLocale,
         supportedLocales: locales,
@@ -592,14 +625,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // version; that URL 404s.
   const cmsEntries: MetadataRoute.Sitemap = cmsRowEntries(pages, "/p");
 
-  const { data: postsRaw } = await supabase
-    .rpc("cms_public_posts_for_tenant", { p_tenant_id: publicScope.tenantId })
-    .select("slug,locale,updated_at")
-    .eq("include_in_sitemap", true)
-    .eq("noindex", false);
-  const posts = (postsRaw ?? []) as unknown as CmsSitemapRow[];
-
-  const postEntries: MetadataRoute.Sitemap = cmsRowEntries(posts, "/posts");
+  // Posts v1 (TUL-1010): `/blog/<slug>`, indexable posts only (no unlisted,
+  // expired, taken-down or noindex rows; see posts-public-model.ts), with
+  // hreflang from translation_of.
+  const postUrl: LocalizedUrl = (path, locale) =>
+    localeAlternateUrl(
+      {
+        origin: base,
+        pathnameWithoutLocale: path,
+        defaultLocale: localeSettings.defaultLocale,
+        supportedLocales: localeSettings.supportedLocales,
+      },
+      locale,
+    );
+  const postRows = await listPublishedPostRows(
+    { kind: "tenant", tenantId: publicScope.tenantId },
+    localeSettings.supportedLocales,
+  ).catch(() => []);
+  const postEntries: MetadataRoute.Sitemap = postSitemapEntries(postRows, postUrl, new Date());
 
   // Phase G PR 1 — include the agency's published roster in the sitemap.
   // Without this, talent profile pages (`/t/<profileCode>`) are crawlable

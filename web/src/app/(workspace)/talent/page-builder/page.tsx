@@ -55,6 +55,7 @@ import { resolveWorkspaceSiteEditorUrl } from "@/lib/talent-site/workspace-site-
 import { siteScaffoldComplete } from "@/lib/talent-site/server/site-scaffold-complete";
 import { PageBuilderCreateSite } from "@/components/talent/site/PageBuilderCreateSite";
 import { loadSiteRev } from "@/lib/talent-site/history/history.server";
+import { loadTalentSiteAddress } from "@/lib/talent-site/server/load-max-site-link";
 import type { MaxSiteManagerPage } from "@/lib/talent-site/server/site-management-types";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { TalentPageBuilderScreen } from "@/components/talent/site/TalentPageBuilderScreen";
@@ -122,7 +123,7 @@ async function resolveSiteExists(input: { profileId: string; canEdit: boolean })
   const [siteRes, pagesRes] = await Promise.all([
     admin
       .from("talent_sites")
-      .select("site_slug, shell_tree")
+      .select("site_slug, shell_head:shell_tree->0")
       .eq("talent_profile_id", input.profileId)
       .maybeSingle(),
     admin.from("talent_pages").select("is_home").eq("talent_profile_id", input.profileId),
@@ -235,13 +236,36 @@ export default async function TalentPageBuilderRoute({
     redirect(talentLocaleSeedHref(`/talent/page-builder${query ? `?${query}` : ""}`));
   }
 
-  const [locale, talentLocale, tenantId, siteExists] = await Promise.all([
+  // TUL-748: the pages / editor-row / revision reads do not depend on the
+  // site probe (they are filtered by this talent's own id and discarded unless
+  // the probe passes), so they START now and overlap it instead of waiting for
+  // it. A no-site talent wastes three cheap reads; everyone else saves one
+  // full round trip off the builder's server time.
+  const admin = canEdit ? createServiceRoleClient() : null;
+  const specPromise = admin
+    ? Promise.all([
+        admin
+          .from("talent_pages")
+          .select(PAGE_COLUMNS)
+          .eq("talent_profile_id", profile.id)
+          .order("sort_order", { ascending: true }),
+        shellMode
+          ? Promise.resolve(null)
+          : loadEditorRow(admin, profile.id, requestedPage ? { slug: requestedPage } : { home: true }),
+        shellMode ? Promise.resolve(null) : loadSiteRev(admin, profile.id),
+      ])
+    : null;
+  // Handled branch so an early return (no site) never leaves a floating rejection.
+  specPromise?.catch(() => undefined);
+
+  const [locale, talentLocale, tenantId, siteExists, siteUrl] = await Promise.all([
     getRequestLocale(),
     // PR 7: the builder's content-locale pill + inspector tabs follow the
     // talent's own languages (primary first), not the managing agency's.
     loadTalentLocaleSettings(profile.id),
     resolveBuilderTenantId(profile.id),
     resolveSiteExists({ profileId: profile.id, canEdit }),
+    canEdit ? loadTalentSiteAddress(profile.id) : Promise.resolve(null),
   ]);
 
   // Phase 1 gate: edit capability + an existing site. No site yet: show the
@@ -259,20 +283,9 @@ export default async function TalentPageBuilderRoute({
   let sitePages: MaxSiteManagerPage[] = [];
   let editorRow: TalentPageRow | null = null;
   let siteRev: Awaited<ReturnType<typeof loadSiteRev>> | null = null;
-  const admin = hasBuilderAccess ? createServiceRoleClient() : null;
   let speculativeRow: TalentPageRow | null = null;
-  if (admin) {
-    const [pagesRes, row, rev] = await Promise.all([
-      admin
-        .from("talent_pages")
-        .select(PAGE_COLUMNS)
-        .eq("talent_profile_id", profile.id)
-        .order("sort_order", { ascending: true }),
-      shellMode
-        ? Promise.resolve(null)
-        : loadEditorRow(admin, profile.id, requestedPage ? { slug: requestedPage } : { home: true }),
-      shellMode ? Promise.resolve(null) : loadSiteRev(admin, profile.id),
-    ]);
+  if (admin && specPromise && hasBuilderAccess) {
+    const [pagesRes, row, rev] = await specPromise;
     sitePages = ((pagesRes.data ?? []) as Array<Record<string, unknown>>).map(mapPage);
     speculativeRow = row;
     siteRev = rev;
@@ -340,6 +353,7 @@ export default async function TalentPageBuilderRoute({
       siteCapabilities={siteCapabilities}
       talentDisplayName={profile.displayName}
       talentHeadshotUrl={profile.headshotUrl}
+      talentSiteUrl={siteUrl}
       locale={locale}
       canvasRenderData={canvasRenderData}
       initialComposition={initialComposition}

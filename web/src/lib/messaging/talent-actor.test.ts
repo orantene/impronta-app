@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fakeAdmin, uuid } from "@/lib/storefront/__fixtures__/fake-admin";
 
-import { loadTalentSale } from "./talent-actor";
+import { TALENT_INBOX_SCAN_LIMIT, listTalentInquiryIds, loadTalentSale } from "./talent-actor";
 
 const HER = uuid(1);
 const INQUIRY = uuid(2);
@@ -99,4 +99,33 @@ test("no messages order is an empty sale", async () => {
   const { admin } = fakeAdmin({ orders: [] });
   const result = await loadTalentSale(admin as unknown as SupabaseClient, HER, INQUIRY, TENANT);
   assert.deepEqual(result, { ok: true, empty: true });
+});
+
+test("TUL-625: every talent inbox scan query is ordered and limited", async () => {
+  const calls: { table: string; limit: number | null; ordered: boolean }[] = [];
+  const admin = {
+    from(table: string) {
+      const rec = { table, limit: null as number | null, ordered: false };
+      calls.push(rec);
+      const q: Record<string, unknown> = {};
+      for (const m of ["select", "eq", "neq", "contains"]) q[m] = () => q;
+      q.order = () => {
+        rec.ordered = true;
+        return q;
+      };
+      q.limit = (n: number) => {
+        rec.limit = n;
+        return q;
+      };
+      q.then = (resolve: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(resolve);
+      return q;
+    },
+  } as unknown as SupabaseClient;
+  const result = await listTalentInquiryIds(admin, HER);
+  assert.deepEqual(result, { ok: true, ids: [] });
+  assert.equal(calls.length, 3);
+  for (const call of calls) {
+    assert.equal(call.limit, TALENT_INBOX_SCAN_LIMIT, call.table);
+    assert.ok(call.ordered, call.table);
+  }
 });

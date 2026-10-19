@@ -16,9 +16,13 @@
 
 import { Briefcase, Calendar, MessageCircle } from "lucide-react";
 
+import type { KeyboardEvent } from "react";
+
 import type { Translator } from "@/i18n/interpolate";
 
+import { dockTabDisplayLabel } from "./guest-dock-nav-label";
 import type { GuestDockView } from "./guest-dock-view";
+import { nextDockTabIndex } from "./guest-dock-nav-keys";
 import { FONT, readableOn, type Palette } from "./mini-chat-styles";
 
 export type GuestDockNavProps = {
@@ -73,10 +77,23 @@ export function GuestDockNav({
     return t(labelKey);
   };
 
+  // TUL-1082: arrows/Home/End move focus and selection between tabs.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const current = tabs.findIndex((tab) => tab.view === active || (active === "home" && tab.view === "chat"));
+    const next = nextDockTabIndex(e.key, current, tabs.length);
+    if (next === null) return;
+    e.preventDefault();
+    const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+    buttons[next]?.focus();
+    const view = tabs[next]?.view;
+    if (view && view !== active) onChange(view);
+  };
+
   return (
     <div
       role="tablist"
       aria-label={t("public.guestChat.dockNavAria")}
+      onKeyDown={onKeyDown}
       style={{
         display: "flex",
         alignItems: "center",
@@ -102,7 +119,9 @@ export function GuestDockNav({
             type="button"
             role="tab"
             aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
             aria-label={labelFor(view, labelKey)}
+            title={labelFor(view, labelKey)}
             onClick={() => {
               if (active === "home" && view === "chat") {
                 onChange("chat");
@@ -115,11 +134,11 @@ export function GuestDockNav({
               flex: 1,
               minWidth: 0,
               display: "inline-flex",
-              flexDirection: "row",
+              flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
-              padding: "7px 10px",
+              gap: 3,
+              padding: "6px 4px",
               border: "none",
               borderRadius: 999,
               // DoR active = transparent fill + inset accent outline (not white pill).
@@ -165,14 +184,15 @@ export function GuestDockNav({
                 fontSize: 10.5,
                 fontWeight: isActive ? 700 : 500,
                 letterSpacing: 0.1,
-                lineHeight: 1,
+                lineHeight: 1.15,
+                textAlign: "center",
                 maxWidth: "100%",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
             >
-              {labelFor(view, labelKey)}
+              {dockTabDisplayLabel(labelFor(view, labelKey))}
             </span>
           </button>
         );

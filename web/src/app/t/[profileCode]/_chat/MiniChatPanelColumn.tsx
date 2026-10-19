@@ -2,6 +2,7 @@
 
 /** MiniChatPanelColumn — vertical thread column for MiniChatPanel (Lane C / F4). */
 
+import { GuestDockInquiryTray } from "./GuestDockInquiryTray";
 import { useState, type RefObject } from "react";
 
 import type {
@@ -20,6 +21,7 @@ import type {
   ListGuestTenantRosterCallback,
   MiniChatBrand,
   ScanGuestConversationCallback,
+  ReportGuestChatCallback,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { UnifiedSyncState } from "./use-unified-inquiry";
 import type { InquiryIntent } from "@/lib/inquiry/inquiry-intent";
@@ -88,7 +90,7 @@ export type MiniChatPanelColumnProps = {
   /** L13: v5 extras + full-load bump + early-row ensure for catalog adds. */
   v5?: GuestThreadV5Extras | null;
   onRefreshThread?: () => void;
-  onEnsureInquiryForItems?: (() => Promise<string | null>) | null;
+  onEnsureInquiryForItems?: import("./guest-catalog-add-flow").EnsureInquiryForItems | null;
   emailedTo: string | null;
   seenAtByInquiry: Record<string, string>;
   pulseActive: boolean;
@@ -259,6 +261,7 @@ export type MiniChatPanelColumnProps = {
   onRemoveCartTalent?: (talentProfileId: string) => void;
   /** DOCK v2 — the AI conversation scan for the Add-details sheet. */
   onScanConversation?: ScanGuestConversationCallback | null;
+  onReportToSupport?: ReportGuestChatCallback | null;
   /** DOCK v2: remount-with-fresh-draft (active thread already sent). */
   onStartFresh?: (() => void) | null;
   /** DOCK v2 — signed-in client dashboard link for the Home Account card. */
@@ -355,6 +358,7 @@ export function MiniChatPanelColumn({
   sourcePage = "",
   onRemoveCartTalent,
   onScanConversation = null,
+  onReportToSupport = null,
   onStartFresh = null,
   dashboardHref = null,
   card = null,
@@ -479,6 +483,8 @@ export function MiniChatPanelColumn({
         card={card}
       />
 
+      <GuestDockInquiryTray onRemoveCartTalent={onRemoveCartTalent} activeView={activeDockView} enabled={dockEnabled} t={t} C={C} accent={accent} accentInk={accentInk} onOpen={() => onDockViewChange?.("lineup")} onSend={card ? undefined : startInquiryInChat} />
+
       <GuestThreadSwitcherDrawer
         open={switcherOpen}
         onClose={() => setSwitcherOpen(false)}
@@ -589,7 +595,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           C={C}
-          locale={brand.locale ?? "es"}
+          locale={brand.locale ?? "en"}
           businessName={brand.agencyName}
           presenceName={talentFirst}
         />
@@ -711,6 +717,7 @@ export function MiniChatPanelColumn({
           onBriefChange={onBriefChange}
           onContactChange={onContactChange}
           onScanConversation={onScanConversation}
+          onReportToSupport={onReportToSupport}
           composerDraft={draft}
           inquiryId={inquiryId}
           openToSection={railOpenToSection}
@@ -764,9 +771,9 @@ export function MiniChatPanelColumn({
           textareaRef={textareaRef}
           lookPreviewUrl={lookPreviewUrl}
           onClearLookPreview={onClearLookPreview}
-          sendLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Enviar mensaje" : "Send message"}
-          lookPreviewLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Tu diseño" : "Your look"}
-          lookPreviewRemoveLabel={(brand.locale ?? "en").toLowerCase().startsWith("es") ? "Quitar diseño" : "Remove look"}
+          sendLabel={t("public.guestChat.gateSend")}
+          lookPreviewLabel={t("public.guestChat.lookPreviewLabel")}
+          lookPreviewRemoveLabel={t("public.guestChat.lookPreviewRemoveLabel")}
         />
       )}
 
@@ -775,7 +782,7 @@ export function MiniChatPanelColumn({
           accent={accent}
           accentInk={accentInk}
           t={t}
-          isHub={isHub || Boolean(brand.omitPlatformBrand)}
+          isHub={isHub || Boolean(brand.omitPlatformBrand)} solo={Boolean(brand.soloTalent)}
           brandName={brand.agencyName}
           surfaceMode={surfaceMode}
           disabled={sending || inCooldown}

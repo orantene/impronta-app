@@ -66,6 +66,15 @@ export function usdEquivalentLabel(
   return cents == null ? null : formatUsdEquivalent(cents, locale);
 }
 
+/**
+ * Whether a public page in this locale prints the "≈ US$" line at all. Spanish
+ * visitors read the local price only (TUL-551 / GRK-063); the dollar line is for
+ * English-reading visitors. Talent-facing editors do not go through this gate.
+ */
+export function showsUsdEquivalent(locale: string | null | undefined): boolean {
+  return !(locale ?? "").trim().toLowerCase().startsWith("es");
+}
+
 /** Whether any item is priced outside USD, so a page only loads rates when it needs them. */
 export function needsUsdRates(items: ReadonlyArray<{ currency?: string | null; amountCents?: number | null }>): boolean {
   return items.some((i) => (i.amountCents ?? 0) > 0 && (i.currency ?? "USD").trim().toUpperCase() !== "USD");

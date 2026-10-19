@@ -87,6 +87,13 @@ function loadAllowList() {
     process.exit(1);
   }
   const names = [...block[1].matchAll(/"([a-z0-9_]+)"/gi)].map((m) => m[1]);
+  // TUL-1013: RLS policy helpers anon must keep (evidence lives in the module).
+  const helpers = src.match(/export const POLICY_HELPER_FUNCTIONS[^=]*=\s*\[([\s\S]*?)\]/);
+  if (!helpers) {
+    console.error("[check-anon-grants] could not parse POLICY_HELPER_FUNCTIONS. Refusing to run.");
+    process.exit(1);
+  }
+  names.push(...[...helpers[1].matchAll(/"([a-z0-9_]+)"/gi)].map((m) => m[1]));
   if (names.length === 0) {
     console.error("[check-anon-grants] allow-list parsed but EMPTY. Refusing to run.");
     process.exit(1);

@@ -23,6 +23,7 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
+import { formatPrice } from "@/lib/money/format-price";
 import type { ReserveAvailability, ReserveSlot } from "@/app/(public)/_reserve/reserve-actions";
 
 /**
@@ -162,10 +163,7 @@ const UI: Record<Locale, Record<string, string>> = {
  * becomes a sentence.
  */
 export function depositLine(locale: Locale, cents: number): string {
-  const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
+  const amount = formatPrice({ amountCents: cents, currency: "USD", locale }).primary;
   return locale === "es"
     ? `Se requiere un depósito de ${amount}; te enviamos el enlace.`
     : `A deposit of ${amount} is due; we have sent you the link.`;
@@ -193,7 +191,7 @@ export function dayLabel(ymd: string, timeZone: string, locale: Locale, isToday:
 const C = {
   ink: "#0B0B0D",
   muted: "rgba(11,11,13,0.55)",
-  dim: "rgba(11,11,13,0.35)",
+  dim: "rgba(11,11,13,0.6)",
   line: "rgba(24,24,27,0.12)",
   accent: "#0F4F3E",
   accentSoft: "rgba(15,79,62,0.08)",
@@ -212,6 +210,24 @@ const chip = (on: boolean): React.CSSProperties => ({
   textAlign: "center",
 });
 
+/** BCP-47 tag to the block's two locales: "es-MX" is Spanish too (TUL-974). */
+export function reserveLocale(raw: string | null | undefined): Locale {
+  return (raw ?? "").trim().toLowerCase().startsWith("es") ? "es" : "en";
+}
+
+/**
+ * TUL-974: the heading is the tenant's verb plus the block's noun, in ONE
+ * language. A verb that already names the table ("Reservar mesa", "Book a
+ * table") keeps its own noun, and the noun follows the verb's language when
+ * the verb is plainly Spanish, so "Reservar mesa a table" cannot be composed.
+ */
+export function reserveHeading(ctaVerb: string, locale: Locale): string {
+  const verb = ctaVerb.trim();
+  if (/\b(mesas?|tables?)\b/i.test(verb)) return verb;
+  const nounLocale: Locale = /^reserv(ar|a)\b/i.test(verb) ? "es" : locale;
+  return `${verb} ${UI[nounLocale].heading}`.trim();
+}
+
 export function ReserveTableIsland({
   tenantId,
   venueName,
@@ -223,7 +239,7 @@ export function ReserveTableIsland({
   locale: localeProp,
   onAskFirst,
 }: Props) {
-  const locale: Locale = localeProp === "es" ? "es" : "en";
+  const locale: Locale = reserveLocale(localeProp);
   const t = UI[locale];
 
   const [party, setParty] = useState(Math.min(2, partyMax));
@@ -326,7 +342,7 @@ export function ReserveTableIsland({
         {venueName}
       </p>
       <h2 style={{ fontSize: 26, fontWeight: 500, margin: "0 0 18px", color: C.ink }}>
-        {ctaVerb} {t.heading}
+        {reserveHeading(ctaVerb, locale)}
       </h2>
 
       <div

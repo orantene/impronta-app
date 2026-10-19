@@ -1,4 +1,5 @@
 "use client";
+import { redactSecretPath } from "@/lib/analytics/redact-secret-path";
 import * as Sentry from "@sentry/nextjs";
 
 import { logServerError } from "@/lib/server/safe-error";
@@ -80,11 +81,12 @@ export default function GlobalError({
     try {
       Sentry.withScope((scope) => {
         scope.setTag("context", "app/error-boundary");
-        scope.setTag("route", typeof window !== "undefined" ? window.location.pathname : "unknown");
+        scope.setTag("route", typeof window !== "undefined" ? redactSecretPath(window.location.pathname) : "unknown");
         scope.setTag("host", typeof window !== "undefined" ? window.location.hostname : "unknown");
         scope.setTag("stale_client_shape", String(isStaleClientError(error)));
         scope.setExtra("digest", error?.digest ?? null);
-        scope.setExtra("href", typeof window !== "undefined" ? window.location.href : null);
+        // Origin + path only: the query string can hold auth codes or tokens.
+        scope.setExtra("href", typeof window !== "undefined" ? window.location.origin + window.location.pathname : null);
         Sentry.captureException(error);
       });
     } catch {
@@ -168,7 +170,7 @@ export default function GlobalError({
             fontFamily: '"Inter", system-ui, sans-serif',
             fontSize: 11,
             fontWeight: 600,
-            color: "rgba(11,11,13,0.38)",
+            color: "rgba(11,11,13,0.6)",
             letterSpacing: 0.8,
             textTransform: "uppercase" as const,
             margin: 0,
@@ -206,7 +208,7 @@ export default function GlobalError({
             style={{
               fontFamily: "monospace",
               fontSize: 11,
-              color: "rgba(11,11,13,0.35)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 8,
               marginBottom: 0,
             }}
@@ -271,7 +273,7 @@ export default function GlobalError({
             style={{
               fontFamily: '"Inter", system-ui, sans-serif',
               fontSize: 11.5,
-              color: "rgba(11,11,13,0.42)",
+              color: "rgba(11,11,13,0.6)",
               marginTop: 24,
               marginBottom: 0,
             }}
