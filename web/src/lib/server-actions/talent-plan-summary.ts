@@ -25,6 +25,7 @@ import {
   talentGrantToInput,
 } from "@/lib/plan-trials/talent-grants";
 import { loadTrialOffers } from "@/lib/plan-trials/offers";
+import { displayTrialDays } from "@/lib/billing/trial-eligibility.server";
 import { loadTalentSubscriptionState } from "@/lib/stripe/talent-billing";
 import {
   deriveTrialView,
@@ -145,6 +146,11 @@ export async function loadTalentPlanSummary(): Promise<TalentPlanSummaryResult> 
       ? offers.find((o) => o.planKey === targetKey) ?? null
       : null;
 
+    // TUL-1280: never promise a trial this person already had (DB only).
+    const offerTrialDays = offer
+      ? await displayTrialDays({ kind: "talent", talentProfileId: talentProfile.id, userId: session.user.id }, offer)
+      : 0;
+
     return {
       ok: true,
       summary: {
@@ -190,7 +196,7 @@ export async function loadTalentPlanSummary(): Promise<TalentPlanSummaryResult> 
               planKey: offer.planKey,
               planLabel: planLabelOf(offer.planKey),
               trialDays: offer.trialDays,
-              isTrialEnabled: offer.isEnabled,
+              isTrialEnabled: offerTrialDays > 0,
               ctaHeadline: offer.ctaHeadline,
               ctaSubtext: offer.ctaSubtext,
             }
