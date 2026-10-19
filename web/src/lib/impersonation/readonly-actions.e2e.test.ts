@@ -92,7 +92,7 @@ const ACTIONS: Array<[string, () => Promise<unknown>]> = [
   ["setPreferredSurface", () => setPreferredSurface("talent")],
   ["setNotificationPrefs", () => setNotificationPrefs({})],
   ["markToggleTipSeen", () => markToggleTipSeen()],
-  ["refundOwnBookingPayment", () => refundOwnBookingPayment({ bookingId: "b" })],
+  ["refundOwnBookingPayment", () => refundOwnBookingPayment({ bookingId: "b", amountCents: 100 })],
   ["route POST /api/discover/favorites/[talentId]", () => favoritePost(new Request("http://x/api/discover/favorites/t", { method: "POST" }), { params: Promise.resolve({ talentId: "t" }) })],
   ["route DELETE /api/discover/favorites/[talentId]", () => favoriteDelete(new Request("http://x/api/discover/favorites/t", { method: "DELETE" }), { params: Promise.resolve({ talentId: "t" }) })],
   ["route POST /api/discover/shortlists", () => shortlistPost(new Request("http://x/api/discover/shortlists", { method: "POST", body: "{}" }))],
