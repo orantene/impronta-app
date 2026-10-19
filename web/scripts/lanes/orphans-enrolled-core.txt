@@ -1,5 +1,6 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
+scripts/dev/test-in-worktree-lock.test.ts
 scripts/e2e-web-server-command.test.ts
 scripts/lib/failed-cards-fixtures.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
@@ -47,6 +48,7 @@ src/components/onboarding/resume-lookup.test.ts
 src/components/onboarding/steps/onb1-13-entry.static.test.ts
 src/components/onboarding/steps/save-step-consent.static.test.ts
 src/components/onboarding/steps/setup-hours-layout.static.test.ts
+src/components/onboarding/steps/start-steps-copy.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/public-booking/catalog-who-contact-1236.test.tsx
 src/components/support/support-qa1054.static.test.ts
@@ -73,6 +75,7 @@ src/lib/notifications/talent-site-source-line.test.ts
 src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
+src/lib/quality/admin-bundle-bookpage-graph.static.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
@@ -83,6 +86,7 @@ src/lib/saas/host-unregistered-copy.test.ts
 src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts
+src/lib/support/support-engine-waiting-on.static.test.ts
 src/lib/talent-agenda/booking-reminder-due.test.ts
 src/lib/talent-agenda/hours-display-format.test.ts
 src/lib/talent-agenda/today-payouts-setup.static.test.ts
