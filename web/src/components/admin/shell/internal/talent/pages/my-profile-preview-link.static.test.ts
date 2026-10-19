@@ -18,3 +18,15 @@ test("preview link has no href until the origin is read", () => {
   assert.match(SRC, /href=\{origin \? previewHref : undefined\}/);
   assert.doesNotMatch(SRC, /href=\{previewHref\}/);
 });
+
+const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
+
+test("sidebar preview link and the top-bar eye also wait for the origin", () => {
+  const sidebar = read("src/components/admin/shell/internal/talent.tsx");
+  assert.match(sidebar, /href=\{origin \? previewHref : undefined\}/);
+  assert.doesNotMatch(sidebar, /href=\{previewHref\}/);
+  const eye = read("src/components/admin/shell/internal/page-modules/TalentPreviewEyeControl.tsx");
+  assert.match(eye, /href=\{origin \? defaultHref : undefined\}/);
+  assert.match(eye, /href=\{origin \? dest\.href : undefined\}/);
+  assert.doesNotMatch(eye, /href=\{defaultHref\}|href=\{dest\.href\}/);
+});
