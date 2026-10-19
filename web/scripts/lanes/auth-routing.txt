@@ -1,5 +1,6 @@
 # test:auth-routing: one test path (or * / ? pattern) per line. Run by scripts/lane-test.cjs. TUL-609
 src/app/(auth)/auth-locale-strings.static.test.ts
+src/app/(auth)/auth-marketing-origin.static.test.ts
 src/app/(workspace)/talent/talent-not-found.test.ts
 src/app/(workspace)/talent/talent-support-alias.test.ts
 src/app/api/dev/signin/fixture-session.test.ts
@@ -36,6 +37,7 @@ src/lib/client-account/dock-visibility.test.ts
 src/lib/impersonation/client-portal-effective-user.static.test.ts
 src/lib/inquiry/claim-return-url.test.ts
 src/lib/onboarding/legacy-signup-redirect.test.ts
+src/lib/rate-limit-bounded.test.ts
 src/lib/rate-limit-fail-open.test.ts
 src/lib/rate-limit-kv-auth.test.ts
 src/lib/saas/business-workspace-signup.static.test.ts

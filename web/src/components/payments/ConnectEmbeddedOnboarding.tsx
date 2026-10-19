@@ -52,7 +52,6 @@ export function ConnectEmbeddedOnboarding({
   fetchClientSecret: AccountSessionFetch;
   onExit?: () => void;
 }) {
-  const defaultPublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
   const [connectInstance, setConnectInstance] =
     useState<StripeConnectInstance | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
@@ -80,11 +79,10 @@ export function ConnectEmbeddedOnboarding({
           setInitError(first.error);
           return;
         }
-        // The account's own platform key (MX accounts need the MX key). Only an
-        // ABSENT field falls back to the US key; an explicit null (MX key not
-        // set) refuses rather than opening an MX session with the US key.
-        const publishableKey =
-          first.publishableKey === undefined ? defaultPublishableKey : first.publishableKey;
+        // The server-resolved key of the account's own platform (MX accounts
+        // need the MX key; forced test mode yields the _TEST key). Absent or
+        // null refuses; the browser never falls back to a build-inlined key.
+        const publishableKey = first.publishableKey ?? null;
         if (!publishableKey) {
           setInitError("Payouts are not available right now.");
           return;
@@ -114,7 +112,7 @@ export function ConnectEmbeddedOnboarding({
     return () => {
       cancelled = true;
     };
-  }, [defaultPublishableKey, dashboardLocale]);
+  }, [dashboardLocale]);
 
   if (initError) {
     return (

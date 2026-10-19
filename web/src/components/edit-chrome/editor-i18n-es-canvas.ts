@@ -596,4 +596,7 @@ export const ES_CANVAS_CHROME_TEXT: Record<string, string> = {
     "Todos los pasos listos. Tu página está lista.",
   "{done} of {total} steps done": "{done} de {total} pasos listos",
   "Dismiss launch checklist": "Cerrar la lista de lanzamiento",
+  // Structure panel layers tree (freeform-layers-tree.tsx).
+  "Add block to page": "Agregar bloque a la página",
+  "No layers match “{query}”.": "Ninguna capa coincide con “{query}”.",
 };

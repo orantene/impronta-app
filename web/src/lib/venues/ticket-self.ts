@@ -133,7 +133,14 @@ export async function ticketLookup(
   const email = input.email.trim().toLowerCase();
   const last4 = input.last4OfReceipt.replace(/\D/g, "");
   if (!email.includes("@") || last4.length !== 4) return { ok: false, reason: "invalid" };
-  if (!tryConsumeRateLimit(`ticket-lookup:${input.tenantId}:${email}`, 8, 60_000)) {
+  // H2 (TUL-1269 #12): email + 4 digits is guessable, so three budgets: per email per minute, per
+  // email per hour, and one for the whole tenant (a spray of different emails). Per instance and in
+  // memory (strict table, fails closed); a shared store is the real fix.
+  if (
+    !tryConsumeRateLimit(`ticket-lookup:${input.tenantId}:${email}`, 8, 60_000) ||
+    !tryConsumeRateLimit(`ticket-lookup-hour:${input.tenantId}:${email}`, 40, 3_600_000) ||
+    !tryConsumeRateLimit(`ticket-lookup-tenant:${input.tenantId}`, 300, 60_000)
+  ) {
     return { ok: false, reason: "too_many_attempts" };
   }
   if (typeof admin.from !== "function") return { ok: false, reason: "unavailable" };
@@ -141,7 +148,10 @@ export async function ticketLookup(
     .from("orders")
     .select("id, receipt_code")
     .eq("tenant_id", input.tenantId)
-    .not("receipt_code", "is", null);
+    .not("receipt_code", "is", null)
+    // The tail is matched in SQL, not by loading every receipt of the tenant.
+    .like("receipt_code", `%${last4}`)
+    .limit(500);
   if (orderErr) {
     logServerError("venues.ticketLookup.orders", orderErr);
     return { ok: false, reason: "unavailable" };
