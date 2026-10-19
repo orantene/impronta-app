@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { toAgentContracts, toAgentServices } from "@/lib/booking/agent/catalog";
+import { toAgentApiServices, toAgentContracts } from "@/lib/booking/agent/agent-contracts";
 import { buildTalentLlmsTxt } from "@/lib/seo/talent-llms-txt";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
@@ -126,7 +126,7 @@ test("summary is capped at 280 characters with an ellipsis; full text is kept", 
 });
 
 test("the public API list is built from the contract and keeps its filters", () => {
-  const list = toAgentServices(
+  const list = toAgentApiServices(
     [offering(), offering({ id: "p", kind: "product" }), offering({ id: "r", visibility: "on_request" })],
     "en",
   );
@@ -157,4 +157,6 @@ test("wiring: the catalog route serves markdown from the same contracts; llms lo
   assert.match(route, /text\/markdown/);
   const loader = fs.readFileSync(path.join(WEB, "src/lib/seo/talent-llms-txt.server.ts"), "utf8");
   assert.match(loader, /toAgentContracts\(offerings, "en"/);
+  const site = fs.readFileSync(path.join(WEB, "src/lib/booking/agent/agent-site.server.ts"), "utf8");
+  assert.match(site, /toAgentApiServices\(offerings, site\.locale\)/);
 });

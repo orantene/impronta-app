@@ -22,7 +22,8 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadTalentPublicSiteByProfileCode } from "@/lib/talent-site/server/public-load";
 
-import { type AgentService, toAgentContracts, toAgentServices } from "./catalog";
+import { toAgentApiServices, toAgentContracts } from "./agent-contracts";
+import type { AgentService } from "./catalog";
 import type { OfferingContract } from "@/lib/offerings/contract";
 import {
   agentBookingRefusal,
@@ -138,7 +139,7 @@ export async function loadAgentServices(site: AgentSite): Promise<AgentService[]
   const offerings = await loadPublicOfferingsForProfile(site.talentProfileId, site.locale, scope.tenantId, {
     channel: scope.channel,
   });
-  return toAgentServices(offerings, site.locale);
+  return toAgentApiServices(offerings, site.locale);
 }
 
 const fail = (error: string, message: string): AgentToolResult => ({ ok: false, error, message });

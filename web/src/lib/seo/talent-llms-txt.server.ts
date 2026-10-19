@@ -7,7 +7,7 @@ import { loadMaxSiteByProfileId, loadTalentPlanKey } from "@/lib/talent-site/ser
 import { loadMaxSiteSeoFacts } from "@/lib/talent-site/server/max-site-seo-facts.server";
 import { loadTalentTypeLabels } from "@/lib/talent-site/server/load-talent-trades.server";
 import { agentCatalogScope } from "@/lib/booking/agent/handoff";
-import { toAgentContracts } from "@/lib/booking/agent/catalog";
+import { toAgentContracts } from "@/lib/booking/agent/agent-contracts";
 import { loadTalentSiteInquiryTenant } from "@/lib/messaging/talent-inquiry-tenant.server";
 import type { OfferingContract } from "@/lib/offerings/contract";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
