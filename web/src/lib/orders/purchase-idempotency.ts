@@ -116,6 +116,10 @@ const NOT_YOURS: PurchaseResult = {
   error: "This order could not be placed. Please start again.",
 };
 
+/** A 3-letter ISO code, upper-cased, or null. */
+const cleanCurrency = (v: string | null | undefined): string | null =>
+  typeof v === "string" && /^[A-Za-z]{3}$/.test(v.trim()) ? v.trim().toUpperCase() : null;
+
 const norm = (v: string | null | undefined) => (typeof v === "string" && v.trim() ? v.trim().toLowerCase() : null);
 
 /** Does the caller look like the first order's buyer? An unreadable buyer refuses. */
@@ -185,13 +189,13 @@ export async function replayKeyedPurchase(
 
   const { data: txns, error: txnErr } = await admin
     .from("booking_transactions")
-    .select("id, booking_id, status, gross_amount_cents, created_at, payer_email")
+    .select("id, booking_id, status, gross_amount_cents, created_at, payer_email, currency")
     .eq("order_id", order.id);
   if (txnErr) {
     logServerError("orders.replayKeyedPurchase/txn", txnErr);
     return { ok: false, reason: "engine_error", error: "Could not place the order." };
   }
-  type TxnRow = { id: string; booking_id: string | null; status: string; gross_amount_cents: number | null; created_at?: string | null; payer_email?: string | null };
+  type TxnRow = { id: string; booking_id: string | null; status: string; gross_amount_cents: number | null; created_at?: string | null; payer_email?: string | null; currency?: string | null };
   const allTxns = (txns ?? []) as TxnRow[];
   const txn = allTxns
     .filter((t) => t.status !== "failed" && t.status !== "cancelled")
@@ -231,6 +235,15 @@ export async function replayKeyedPurchase(
     allocationIds = ((allocs ?? []) as Array<{ id: string }>).map((a) => a.id);
   }
 
+  // The currency the first order was made in: the order row, else its payment
+  // row. Never guessed. A caller charges `collectCents` in this currency, and a
+  // guessed one is how 950 MXN became US$950. Unknown means refuse.
+  const currency = cleanCurrency(order.currency) ?? cleanCurrency(txn?.currency) ?? cleanCurrency(allTxns.find((t) => cleanCurrency(t.currency))?.currency);
+  if (!currency) {
+    logServerError("orders.replayKeyedPurchase/currency", `order ${order.id} has no currency on the order or its payment rows`);
+    return { ok: false, reason: "engine_error", error: "Could not place the order." };
+  }
+
   const collectCents = Math.max(0, Number(txn?.gross_amount_cents ?? 0) || 0);
   return {
     ok: true,
@@ -239,7 +252,7 @@ export async function replayKeyedPurchase(
     customerId: order.customer_id ?? null,
     totalCents: Number(order.subtotal_cents ?? 0) || 0,
     collectCents,
-    currency: order.currency ?? "USD",
+    currency,
     payInPerson: order.status === "pending_payment" && !txn,
     allocationIds,
     // Only a payment still open is handed back. A settled one returns null so

@@ -360,6 +360,26 @@ test("same key with a DIFFERENT email gets no order and no Checkout back", async
   assert.equal(db.tables.booking_transactions.length, 1);
 });
 
+test("a replay whose order and payment rows carry no currency REFUSES instead of guessing one", async () => {
+  const db = fakeDb({ stock: 5 });
+  const first = await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:no-ccy" }));
+  assert.equal(first.ok, true);
+  db.tables.orders[0].currency = null;
+  for (const t of db.tables.booking_transactions) t.currency = null;
+  const again = await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:no-ccy" }));
+  assert.equal(again.ok, false, `charging in a guessed currency is the US$950 bug, got ${JSON.stringify(again)}`);
+  assert.equal(!again.ok && again.reason, "engine_error");
+  assert.equal(liveOrders(db.tables).length, 1, "and no second order");
+});
+
+test("a replay takes the currency from the payment row when the order has none", async () => {
+  const db = fakeDb({ stock: 5 });
+  await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:txn-ccy" }));
+  db.tables.orders[0].currency = null;
+  const again = await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:txn-ccy" }));
+  assert.equal(again.ok && again.currency, "MXN");
+});
+
 test("same key with the SAME email (any case) gets the first order back", async () => {
   const db = fakeDb({ stock: 5 });
   const first = await createPurchase(db.admin, menuOrder({ clientOrderKey: "menu:same-buyer" }));
