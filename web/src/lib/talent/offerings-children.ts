@@ -144,7 +144,14 @@ export async function replaceOfferingChildren(
   input: OfferingChildrenInput,
   logScope: string,
   primaryLocale = "en",
+  /**
+   * `variants`: replace ONLY the options and leave the extras untouched. A
+   * caller that holds an item whose `addOns` were merged with shared extra
+   * groups (the talent editor) must not write those back as its own rows.
+   */
+  opts: { only?: "variants" } = {},
 ): Promise<OfferingChildrenSaved> {
+  const variantsOnly = opts.only === "variants";
   // PR 7: the plain label is the primary language; `label_i18n` keeps every
   // language (replace-all used to drop the translations on every save).
   const pair = (map: LocalizedMap | undefined, label: string) => {
@@ -184,7 +191,9 @@ export async function replaceOfferingChildren(
     .slice(0, MAX_OPTIONS_PER_OFFERING);
 
   const { error: delV } = await db.from("talent_offering_variants").delete().eq("offering_id", offeringId);
-  const { error: delA } = await db.from("talent_offering_addons").delete().eq("offering_id", offeringId);
+  const { error: delA } = variantsOnly
+    ? { error: null }
+    : await db.from("talent_offering_addons").delete().eq("offering_id", offeringId);
   if (delV || delA) {
     logServerError(`${logScope}.optionsClear`, delV ?? delA);
     return { ok: false, error: "Failed to save options." };
@@ -215,7 +224,7 @@ export async function replaceOfferingChildren(
     }
     savedVariants = (data ?? []) as typeof savedVariants;
   }
-  if (addOns.length > 0) {
+  if (!variantsOnly && addOns.length > 0) {
     const { data, error } = await insertRows(
       "talent_offering_addons",
       addOns.map((a, i) => ({ offering_id: offeringId, label: a.label, label_i18n: a.label_i18n, amount_cents: a.amount_cents, duration_minutes: a.duration_minutes, sort_order: i })),

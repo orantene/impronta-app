@@ -7,6 +7,7 @@ import {
   duplicateTalentOffering,
   setOfferingImages,
   setOfferingPublication,
+  setOfferingVariants,
   upsertTalentOffering,
 } from "@/lib/talent/offerings-actions";
 import {
@@ -403,6 +404,17 @@ export function ServicesHome({
           if (!res.ok) throw new Error(res.error);
           if (pendingImageIds?.length) {
             await setOfferingImages(talentId, res.item.id, pendingImageIds);
+          }
+          // The product editor's sizes/versions live on the draft until here;
+          // upsert never writes child rows. [] clears them, undefined (a new
+          // item that never opened the list) writes nothing.
+          if (next.variants !== undefined) {
+            const v = await setOfferingVariants(
+              talentId,
+              res.item.id,
+              next.variants.map((row) => ({ label: row.label, amountCents: row.amountCents, labelI18n: row.labelI18n })),
+            );
+            if (!v.ok) throw new Error(v.error);
           }
           editor.reload();
           if (publicationWord(res.item) === "live") setBannerId(res.item.id);
