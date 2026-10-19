@@ -86,6 +86,7 @@ src/lib/ops/cron-heartbeat.test.ts
 src/lib/orders/age-gate.test.ts
 src/lib/orders/capacity-lost-compensation.test.ts
 src/lib/orders/checkout-quote-display.test.ts
+src/lib/orders/checkout-quote-gate.test.ts
 src/lib/orders/checkout-quote-invariance.test.ts
 src/lib/orders/checkout-quote.test.ts
 src/lib/orders/complete-order.test.ts

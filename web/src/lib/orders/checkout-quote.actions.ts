@@ -5,6 +5,7 @@ import { pricePurchase } from "@/lib/orders/purchase-pricing";
 import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
 import { instantBookPaymentChoice } from "@/lib/scheduling/instant-book-payment-choice";
+import { offeringIsQuotable, sanitizeQuoteAddOnIds } from "@/lib/orders/checkout-quote-gate";
 import { quoteCheckoutCollect } from "@/lib/orders/checkout-quote";
 import type { CheckoutQuote } from "@/lib/orders/checkout-quote-display";
 import { logServerError } from "@/lib/server/safe-error";
@@ -23,12 +24,16 @@ export async function quoteBookingCollectAction(input: {
   try {
     const admin = createServiceRoleClient();
     if (!admin || !input.offeringId) return { ok: false };
+    // Public + service role: quote only what a guest may already see and buy (D-10), before anything else.
+    if (!(await offeringIsQuotable(admin, input.offeringId))) return { ok: false };
+    const addOnIds = sanitizeQuoteAddOnIds(input.addOnIds);
+    if (!addOnIds) return { ok: false };
     const catalog = await loadCatalog(admin, [input.offeringId]);
     if (!catalog.ok) return { ok: false };
     const offeringPolicy = catalog.policies.get(input.offeringId);
     const offering = catalog.offerings.get(input.offeringId);
     if (!offeringPolicy?.tenantId || !offering) return { ok: false };
-    const line = { offeringId: input.offeringId, units: 1, variantId: input.variantId ?? null, addonIds: input.addOnIds ?? [] };
+    const line = { offeringId: input.offeringId, units: 1, variantId: input.variantId ?? null, addonIds: addOnIds };
     const priced = pricePurchase([line], { offerings: catalog.offerings, variants: catalog.variants, addons: catalog.addons });
     if (!priced.ok) return { ok: false };
     const ccy = resolveOrderCurrency([offering.currency ?? null]);
