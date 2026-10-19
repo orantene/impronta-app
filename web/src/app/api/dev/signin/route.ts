@@ -6,9 +6,9 @@
  * Signs in with email + password using the anon key, sets Supabase SSR cookies
  * on the response, then redirects to `next`. Allowed in:
  *   - NODE_ENV=development (local `npm run dev`)
- *   - VERCEL_ENV=preview (Vercel preview deploys — already SSO-gated behind
- *     the Vercel team-auth wall, so the relaxation doesn't expose anything
- *     to anonymous internet visitors)
+ *   - VERCEL_ENV=preview (Vercel preview deploys), ONLY with the
+ *     `x-dev-signin-token` header matching DEV_SIGNIN_TOKEN (TUL-1269: the
+ *     SSO wall alone is not enough; staging hosts are bypass-token reachable)
  * Blocked in production (NODE_ENV=production AND VERCEL_ENV=production) — the
  * handler returns HTTP 403 in that path (see the !isDev && !isPreview guard).
  *
@@ -21,14 +21,22 @@ import { createServerClient } from "@supabase/ssr";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { mintFixtureSession } from "./fixture-session";
+import { DEV_SIGNIN_TOKEN_HEADER, isDevSigninAllowed } from "./guard";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const isDev = process.env.NODE_ENV === "development";
-  const isPreview = process.env.VERCEL_ENV === "preview";
-  if (!isDev && !isPreview) {
-    return new NextResponse("Not available in production.", { status: 403 });
+  // TUL-1269: development / preview only, and a preview (or any server with DEV_SIGNIN_TOKEN set,
+  // as CI does) additionally requires the `x-dev-signin-token` header. See ./guard.ts.
+  if (
+    !isDevSigninAllowed({
+      nodeEnv: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      configuredToken: process.env.DEV_SIGNIN_TOKEN,
+      presentedToken: request.headers.get(DEV_SIGNIN_TOKEN_HEADER),
+    })
+  ) {
+    return new NextResponse("Not available.", { status: 403 });
   }
 
   const { searchParams } = request.nextUrl;

@@ -18,6 +18,7 @@
  * (`app_role='client'`, `account_status='onboarding'`) on tulala.digital was
  * bounced to `/onboarding/role` and got a hard 404.
  */
+import { isSafeInternalPath } from "@/lib/safe-internal-path";
 import { getAppUrl } from "@/lib/auth-flow";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import {
@@ -38,9 +39,9 @@ export function hostSafeDestination(
   hostKind: string | null | undefined,
 ): string {
   // Absolute URLs are already explicit about their host.
-  if (!destination.startsWith("/") || destination.startsWith("//")) {
-    return destination;
-  }
+  if (!destination.startsWith("/")) return destination;
+  // `//host` and `/\host` are protocol-relative to a browser: an open redirect, never a path.
+  if (!isSafeInternalPath(destination)) return "/";
   if (!hostKind || !isSurfaceHostKind(hostKind)) return destination;
 
   const [path] = destination.split("?", 1);

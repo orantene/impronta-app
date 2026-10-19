@@ -76,6 +76,7 @@ src/lib/marketing/pricing-tier-localize.test.ts
 src/lib/marketing/spanish-path-alias.test.ts
 src/lib/marketing/ticket-fee-comparison.test.ts
 src/lib/marketing/ticket-fee-qualifier.static.test.ts
+src/lib/media/talent-storage-path.test.ts
 src/lib/onboarding/start-door-redirect.test.ts
 src/lib/payments/provider-status.test.ts
 src/lib/people/display-name.test.ts
@@ -112,6 +113,7 @@ src/lib/saas/off-roster-hard-404.static.test.ts
 src/lib/saas/plan-seat-caps.test.ts
 src/lib/saas/posts-tenant-isolation.static.test.ts
 src/lib/saas/preview-host.test.ts
+src/lib/saas/proxy-inbound-sanitize.test.ts
 src/lib/saas/public-booking-surface.static.test.ts
 src/lib/saas/public-hrefs.test.ts
 src/lib/saas/public-profile-override-tenant.test.ts
@@ -190,6 +192,7 @@ src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
+src/lib/team/redeem-role.test.ts
 src/lib/workspace/destinations.test.ts
 src/lib/workspace/mobile-more-actions.test.ts
 src/lib/workspace/nav-context.test.ts

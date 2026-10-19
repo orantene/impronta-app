@@ -8,6 +8,7 @@
 import type { NextRequest } from "next/server";
 
 import { GUEST_HEADER_NAME } from "@/lib/guest-cookie";
+import { ACTOR_HEADERS } from "@/lib/saas/actor-headers";
 import {
   HOST_CONTEXT_HEADER,
   HOST_NAME_HEADER,
@@ -25,6 +26,10 @@ export const HOST_CONTEXT_HEADERS_TO_STRIP = [
   TENANT_HEADER_NAME,
   PUBLIC_PATH_PREFIX_HEADER,
   GUEST_HEADER_NAME,
+  // Verified-actor fast-path headers: only `updateSession` may write them. Every branch that
+  // forwards the request without running it (talent-site host, re-entry, dev surfaces) would
+  // otherwise pass a client-forged identity to `getCachedActorSession` (TUL-1269).
+  ...ACTOR_HEADERS,
 ];
 
 export function stripInboundHostContextHeaders(request: NextRequest): Headers {

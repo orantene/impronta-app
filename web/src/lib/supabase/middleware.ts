@@ -1,4 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
+import {
+  ACTOR_APP_ROLE_HEADER,
+  ACTOR_EMAIL_HEADER,
+  ACTOR_HOME_PREF_HEADER,
+  ACTOR_ID_HEADER,
+  ACTOR_ONBOARDED_HEADER,
+  ACTOR_STATUS_HEADER,
+} from "@/lib/saas/actor-headers";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
 import { cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
@@ -68,14 +76,6 @@ export function applyRefreshCacheHeaders(res: NextResponse, h: Record<string, st
  * the RPC. Anything that needs the full Supabase `User` object (email,
  * metadata) still falls through to the uncached path.
  */
-const ACTOR_ID_HEADER = "x-impronta-actor-id";
-const ACTOR_EMAIL_HEADER = "x-impronta-actor-email";
-const ACTOR_APP_ROLE_HEADER = "x-impronta-actor-app-role";
-const ACTOR_STATUS_HEADER = "x-impronta-actor-status";
-const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
-/** Hybrid accounts' chosen home, so the fast path routes like middleware does. */
-const ACTOR_HOME_PREF_HEADER = "x-impronta-actor-home-pref";
-
 const ACTOR_HEADERS_TO_STRIP = [
   ACTOR_ID_HEADER,
   ACTOR_EMAIL_HEADER,

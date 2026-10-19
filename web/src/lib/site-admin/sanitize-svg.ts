@@ -90,6 +90,66 @@ const ALLOWED_ATTRS = new Set([
   "maskcontentunits",
 ]);
 
+/** One start tag: `<name` then attribute text (quoted values may hold `>`), up to `>`. */
+const START_TAG_RE = /<\s*([a-zA-Z][a-zA-Z0-9:-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
+
+type ParsedAttr = { name: string; value: string | null };
+
+/** Tokenise attribute text. `ok: false` when anything is left that is not whitespace or `/`. */
+function parseAttributes(text: string): { ok: true; attrs: ParsedAttr[] } | { ok: false } {
+  const attrs: ParsedAttr[] = [];
+  const re = /[\s/]*([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/y;
+  let i = 0;
+  while (i < text.length) {
+    if (/^[\s/]*$/.test(text.slice(i))) break;
+    re.lastIndex = i;
+    const m = re.exec(text);
+    if (!m) return { ok: false };
+    if (m[4] !== undefined) return { ok: false }; // unquoted value
+    attrs.push({ name: m[1], value: m[2] ?? m[3] ?? null });
+    i = re.lastIndex;
+  }
+  return { ok: true, attrs };
+}
+
+function checkAttribute(rawAttr: string, value: string | null, errors: string[]): void {
+  const attr = rawAttr.toLowerCase();
+  if (attr.startsWith("on")) {
+    errors.push(`Disallowed event-handler attribute ${rawAttr}.`);
+    return;
+  }
+  if (attr.startsWith("data-")) {
+    errors.push(`Disallowed attribute ${rawAttr} (data-* attributes not allowed).`);
+    return;
+  }
+  if (attr === "xlink:href" || attr === "href") {
+    if (value === null || !value.startsWith("#")) {
+      errors.push(`Disallowed href ${JSON.stringify(value)}; only same-document fragments (#id) are allowed.`);
+    }
+    return;
+  }
+  if (attr.startsWith("xlink:")) {
+    errors.push(`Disallowed attribute ${rawAttr}.`);
+    return;
+  }
+  if (attr === "xmlns" || attr.startsWith("xmlns:")) return;
+  if (!ALLOWED_ATTRS.has(attr)) {
+    errors.push(`Disallowed attribute ${rawAttr}.`);
+    return;
+  }
+  if (value === null) return;
+  if (value.includes("&")) {
+    errors.push(`Attribute ${rawAttr} contains an entity or "&"; write the character directly.`);
+  }
+  if (/^\s*(?:javascript|data|vbscript)\s*:/i.test(value)) {
+    errors.push(`Attribute ${rawAttr} holds a script or data URL.`);
+  }
+  // paint / mask / clip references may point only inside the document: url(#id).
+  for (const u of value.matchAll(/url\(\s*(["']?)\s*([^)"']*)/gi)) {
+    if (!u[2].startsWith("#")) errors.push(`Attribute ${rawAttr} references an external url(); use url(#id).`);
+  }
+}
+
 export interface SanitizeResult {
   ok: boolean;
   svg?: string;
@@ -149,17 +209,6 @@ export function sanitizeBrandMarkSvg(
     errors.push('Inline "style=" attributes are not allowed — use presentation attributes (fill, stroke) instead.');
   }
 
-  // External resource references: href/xlink:href must be same-document
-  // fragments only (#id). Anything else (data:, http:, file:, etc) is
-  // rejected.
-  const hrefRe = /\b(xlink:href|href)\s*=\s*(["'])([^"']*)\2/gi;
-  for (const m of trimmed.matchAll(hrefRe)) {
-    const val = m[3];
-    if (!val.startsWith("#")) {
-      errors.push(`Disallowed href ${JSON.stringify(val)} — only same-document fragments (#id) are allowed.`);
-    }
-  }
-
   // Must start with <svg>, end with </svg>, no content before/after.
   if (!/^<svg\b/i.test(trimmed)) {
     errors.push("SVG must start with a single <svg> root element.");
@@ -177,33 +226,19 @@ export function sanitizeBrandMarkSvg(
     }
   }
 
-  // Attribute allowlist — scan every `attr=` within a tag. We accept the
-  // usual attribute name characters; anything outside the allowlist is
-  // rejected. Case-insensitive by lower-casing the key.
-  const attrRe = /\s([a-zA-Z_:][a-zA-Z0-9_:.-]*)\s*=/g;
-  for (const m of trimmed.matchAll(attrRe)) {
-    const rawAttr = m[1];
-    const attr = rawAttr.toLowerCase();
-    // xlink: attributes other than xlink:href are not currently used.
-    if (attr.startsWith("xlink:") && attr !== "xlink:href") {
-      errors.push(`Disallowed attribute ${rawAttr}.`);
+  // Attribute allowlist, on a real tokenisation of every start tag. The HTML parser accepts `/` and
+  // a missing space as attribute separators (`<svg/onload=x>`, `<path d="x"onclick="y">`), so a
+  // regex that needs `\s` before the name misses them (TUL-1269). Every attribute must parse,
+  // be quoted, carry no entity, and use only same-document references.
+  for (const m of trimmed.matchAll(START_TAG_RE)) {
+    const attrText = m[2] ?? "";
+    const parsed = parseAttributes(attrText);
+    if (!parsed.ok) {
+      errors.push(`Malformed attributes in <${m[1]}>.`);
       continue;
     }
-    if (attr.startsWith("xmlns:") || attr === "xmlns") continue;
-    if (attr.startsWith("data-")) {
-      errors.push(`Disallowed attribute ${rawAttr} (data-* attributes not allowed).`);
-      continue;
-    }
-    if (attr.startsWith("aria-") && !ALLOWED_ATTRS.has(attr)) {
-      errors.push(`Disallowed attribute ${rawAttr}.`);
-      continue;
-    }
-    if (attr.startsWith("on")) {
-      errors.push(`Disallowed event-handler attribute ${rawAttr}.`);
-      continue;
-    }
-    if (!ALLOWED_ATTRS.has(attr)) {
-      errors.push(`Disallowed attribute ${rawAttr}.`);
+    for (const { name: rawAttr, value } of parsed.attrs) {
+      checkAttribute(rawAttr, value, errors);
     }
   }
 

@@ -4,6 +4,7 @@ import {
 } from "@/i18n/pathnames";
 import { pickLocale, type LocaleEntries } from "@/lib/i18n/pick-locale";
 import { isWorkspaceOnboardingPath } from "@/lib/saas/workspace-signup";
+import { isSafeInternalPath } from "@/lib/safe-internal-path";
 
 export type AccessProfile = {
   account_status: string | null;
@@ -23,14 +24,17 @@ export type AccessProfile = {
   home_surface_preference?: string | null;
 };
 
+const LOCALE_THEN_PROTOCOL_RELATIVE = /^(?:\/[a-z]{2}(?:-[a-zA-Z]{2,4})?)+(?:\/{2,}|\/?\\)/;
+
 export function normalizeNextPath(
   nextPath: string | null | undefined,
   fallback = "/",
 ): string {
   if (!nextPath) return fallback;
-  return nextPath.startsWith("/") && !nextPath.startsWith("//")
-    ? nextPath
-    : fallback;
+  if (!isSafeInternalPath(nextPath)) return fallback;
+  // `/en//evil.example` is only protocol-relative once the locale prefix is gone, so test that too.
+  if (LOCALE_THEN_PROTOCOL_RELATIVE.test(nextPath.split(/[?#]/, 1)[0] ?? nextPath)) return fallback;
+  return nextPath;
 }
 
 /**
