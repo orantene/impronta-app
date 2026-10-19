@@ -5,6 +5,8 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -78,4 +80,39 @@ test("es copy present for header, lead and payment line", () => {
   const html = render([offering("a", "Cut", { hasOpenTimes: true, bookingMode: "instant" })], "es");
   assert.match(html, /No se cobra nada ahora\. El pago se realiza en el estudio\./);
   assert.doesNotMatch(html, /Reserve a time|Pick a service|Nothing is charged now|Times are not available/);
+});
+
+// Catches: the drawer (usePublicT, cookie locale) speaking English on a Spanish
+// workspace. Under the scope the page locale wins in both directions, whatever
+// the cookie says.
+test("page locale scope wins over the cookie locale, es and en", async () => {
+  const { BookLocaleScope } = await import("./BookLocaleScope");
+  const { usePublicT } = await import("@/i18n/use-public-t");
+  function Probe() {
+    return createElement("span", null, usePublicT()("public.bookPage.requestCta"));
+  }
+  const html = (locale: "en" | "es") =>
+    renderToStaticMarkup(createElement(BookLocaleScope, { locale }, createElement(Probe)));
+  assert.match(html("es"), /Enviar una solicitud/);
+  assert.match(html("en"), /Send a request/);
+  const client = readFileSync(join(__dirname, "BookPageClient.tsx"), "utf8");
+  assert.match(client, /<BookLocaleScope locale=\{pageLocale\}>/);
+});
+
+// Catches: services beyond the probe limit showing an empty picker with no request button.
+test("unprobed service: the picker empty state carries the request action", () => {
+  const client = readFileSync(join(__dirname, "BookPageClient.tsx"), "utf8");
+  assert.match(client, /emptyAction=\{\s*<BookNoTimesRequest\s+bare/);
+  const comp = readFileSync(join(__dirname, "../../../components/public-booking/BookableComposer.tsx"), "utf8");
+  assert.match(comp, /emptyAction=\{emptyAction\}/);
+  const picker = readFileSync(join(__dirname, "../../../components/public-booking/SlotPicker.tsx"), "utf8");
+  assert.match(picker, /\{emptyAction\}/);
+  // used by both the empty and the failed-load branches
+  assert.equal((picker.match(/\{contactLink\}/g) ?? []).length, 2);
+});
+
+// Evidence for house-owned services: the slots loader never returns times for them.
+test("house-owned services never had times (no regression from false)", () => {
+  const src = readFileSync(join(__dirname, "../../../lib/scheduling/public-open-times.ts"), "utf8");
+  assert.match(src, /!offering\.talent_profile_id\) return \{ ok: true, slots: \[\], reason: "not_bookable_here" \}/);
 });

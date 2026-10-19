@@ -4,7 +4,7 @@
  * Opens InquiryDrawer (request) or confirms via instant-book-action (instant).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { InquiryDrawer } from "@/components/inquiry/InquiryDrawer";
 import { SlotPicker, type SlotPickerValue } from "@/components/public-booking/SlotPicker";
 import {
@@ -59,6 +59,7 @@ export function BookableComposer({
   captcha = null,
   locale: localeProp,
   contactHref = null,
+  emptyAction = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -75,6 +76,8 @@ export function BookableComposer({
   locale?: string | null;
   /** Empty-slot escape hatch for the inline picker (TUL-698). */
   contactHref?: string | null;
+  /** Request action the inline picker shows when it has no times (B2/D3). */
+  emptyAction?: ReactNode;
 }) {
   const cookieT = usePublicT();
   const dashboardLocale = useDashboardLocale();
@@ -238,6 +241,7 @@ export function BookableComposer({
           timezone={active.timezone}
           locale={pageLocale}
           contactHref={contactHref}
+          emptyAction={emptyAction}
           value={slot}
           onChange={(next) => {
             setSlot(next);

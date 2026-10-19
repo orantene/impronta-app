@@ -14,6 +14,7 @@ import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptch
 import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
 import { isRequestOnlyService, pickInitialOfferingId } from "./book-availability";
+import { BookLocaleScope } from "./BookLocaleScope";
 import { BookNoTimesRequest } from "./BookNoTimesRequest";
 
 export function BookPageClient({
@@ -90,6 +91,7 @@ export function BookPageClient({
   }
 
   return (
+    <BookLocaleScope locale={pageLocale}>
     <div
       className="mt-8 flex flex-col gap-6"
       data-book-page-client=""
@@ -153,8 +155,22 @@ export function BookPageClient({
           captcha={captcha}
           locale={pageLocale}
           contactHref={contactHref}
+          emptyAction={
+            <BookNoTimesRequest
+              bare
+              offeringId={selected.id}
+              offering={bookable}
+              tenantSlug={tenantSlug}
+              agencyName={agencyName}
+              signedIn={signedIn}
+              client={client}
+              contactHref={null}
+              t={t}
+            />
+          }
         />
       )}
     </div>
+    </BookLocaleScope>
   );
 }

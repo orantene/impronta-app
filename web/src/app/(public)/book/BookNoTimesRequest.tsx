@@ -37,6 +37,7 @@ export function BookNoTimesRequest({
   client,
   contactHref,
   t,
+  bare = false,
 }: {
   offeringId: string;
   offering: BookableOffering;
@@ -46,13 +47,17 @@ export function BookNoTimesRequest({
   client: BookableComposerClient | null;
   contactHref: string | null;
   t: Translate;
+  /** Button + drawer only: the picker above already explains why (B2/D3). */
+  bare?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col items-start gap-3" data-book-no-times={offeringId}>
-      <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
-        {t("public.bookPage.noTimesRequest")}
-      </p>
+      {bare ? null : (
+        <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
+          {t("public.bookPage.noTimesRequest")}
+        </p>
+      )}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -60,7 +65,7 @@ export function BookNoTimesRequest({
       >
         {t("public.bookPage.requestCta")}
       </button>
-      {contactHref ? (
+      {contactHref && !bare ? (
         <Link href={contactHref} className="text-sm underline">
           {t("public.bookPage.contactCta")}
         </Link>
