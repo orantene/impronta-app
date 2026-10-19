@@ -20,6 +20,7 @@ import { DEFAULT_LOOK_BY_FAMILY } from "./look-defaults";
 import { buildImageResolver, type CandidateImage } from "./image-resolver";
 import { getLook, LOOKS } from "./looks";
 import { composePagelessHome } from "./pageless-home";
+import { siteWriteLocale } from "./site-write-locale";
 import { resolveTenantBusinessType } from "./tenant-business-type";
 import type { SiteLocale } from "./types";
 
@@ -28,14 +29,25 @@ export async function resolveLookFallbackHomeTree(
   input: { tenantId: string; businessName: string | null; tagline?: string | null; city?: string | null; locale?: SiteLocale },
 ): Promise<BuilderNodeTree | null> {
   try {
-    const { data: agency, error } = await supabase.from("agencies").select("settings, display_name").eq("id", input.tenantId).maybeSingle<{ settings: unknown; display_name: string | null }>();
+    const { data: agency, error } = await supabase.from("agencies").select("settings, display_name, supported_locales").eq("id", input.tenantId).maybeSingle<{ settings: unknown; display_name: string | null; supported_locales: string[] | null }>();
     if (error) {
       logServerError("pageless-fallback.settings", error);
       return null;
     }
     const type = resolveTenantBusinessType(agency?.settings ?? null);
     const look = getLook(DEFAULT_LOOK_BY_FAMILY[type.family]) ?? LOOKS[0];
-    const locale = input.locale ?? "es";
+    // TUL-973: the tree's BASE text is written in this locale and the renderer
+    // lets the base win for the tenant's default locale, so it MUST be the
+    // tenant's own default (same rule as the composer, TUL-506). A hardcoded
+    // "es" base on an English-default workspace rendered Spanish section copy
+    // next to English-only blocks.
+    let tenantDefault: string | null = null;
+    if (!input.locale) {
+      const { data: ident, error: identErr } = await supabase.from("agency_business_identity").select("default_locale").eq("tenant_id", input.tenantId).maybeSingle<{ default_locale: string | null }>();
+      if (identErr) logServerError("pageless-fallback.identity", identErr);
+      tenantDefault = ident?.default_locale ?? agency?.supported_locales?.[0] ?? null;
+    }
+    const locale: SiteLocale = siteWriteLocale({ tenantDefault, explicit: input.locale });
     const stock = await queryLifestyleStockForType(supabase, { businessType: type.typeId, family: type.family });
     const { resolve } = buildImageResolver(stock.map<CandidateImage>((s) => ({ src: s.url, width: s.width, height: s.height, alt: s.alt, role: s.role, owner: false })));
     const identity = { businessName: input.businessName?.trim() || agency?.display_name?.trim() || "", tagline: input.tagline ?? null, city: input.city ?? null };
