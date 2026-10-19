@@ -149,8 +149,7 @@ export async function createPurchase(
     // D-10 / D-10a: guest charges need published + approved + public.
     const sellable = refuseUnsellableOfferings(catalog, offeringIds, input.channel);
     if (!sellable.ok) return sellable;
-    // D1: a hidden / comp tier is sold only by link (ticket picker) or at the staff desk.
-    const tierGate = refuseHiddenVariants(catalog, input.lines, input.channel, input.unlockedVariantIds);
+    const tierGate = refuseHiddenVariants(catalog, input.lines, input.channel, input.unlockedVariantIds); // D1: hidden tiers by link or desk only
     if (!tierGate.ok) return tierGate;
 
     const seller = await refuseUnclaimedSellers(admin, catalog);
