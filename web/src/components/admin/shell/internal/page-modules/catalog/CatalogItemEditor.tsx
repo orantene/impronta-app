@@ -25,6 +25,7 @@ import type { CatalogNav } from "./CatalogPage";
 import { houseNotBookableReason } from "@/lib/booking/house-booking-reasons";
 import { ITEM_TABS, PUBLISH_BLOCKER_KEY, itemType, publishBlockers, type ItemTab } from "./catalog-model";
 import { TabStrip } from "./catalog-ui";
+import { usedInChannels } from "./catalog-used-in";
 import { DetailsTab } from "./item-tab-details";
 import { PricingTab, PricingSide } from "./item-tab-pricing";
 import { OptionsTab, OptionsSide } from "./item-tab-options";
@@ -86,6 +87,7 @@ export function CatalogItemEditor({
 
   const blockers = publishBlockers(item).map((code) => t(PUBLISH_BLOCKER_KEY[code]));
   const canPublish = blockers.length === 0;
+  const usedIn = usedInChannels(item);
   // A workspace (house) service has no provider calendar, so the public slots
   // route has no times for it. Say so, with the fix (Services Phase 0 item 6).
   const notBookable = item.ownerKind === "workspace" ? houseNotBookableReason(item) : null;
@@ -207,14 +209,17 @@ export function CatalogItemEditor({
               {t(notBookable === "no_duration" ? "dashboard.catalog.editor.notBookableNoDuration" : "dashboard.catalog.editor.notBookableNoProvider")}
             </Outcome>
           ) : null}
-          <UsedIn
-            count={2}
-            label={t("dashboard.catalog.usedIn.label")}
-            parts={[
-              { where: t("dashboard.catalog.usedIn.pos"), what: t("dashboard.catalog.usedIn.itemPos") },
-              { where: t("dashboard.catalog.usedIn.web"), what: t("dashboard.catalog.usedIn.itemWeb") },
-            ]}
-          />
+          {usedIn.length > 0 ? (
+            <UsedIn
+              count={usedIn.length}
+              label={t("dashboard.catalog.usedIn.label")}
+              parts={usedIn.map((c) =>
+                c === "pos"
+                  ? { where: t("dashboard.catalog.usedIn.pos"), what: t("dashboard.catalog.usedIn.itemPos") }
+                  : { where: t("dashboard.catalog.usedIn.web"), what: t("dashboard.catalog.usedIn.itemWeb") },
+              )}
+            />
+          ) : null}
           <TabStrip label={t("dashboard.catalog.tab.label")} tabs={tabs} />
         </div>
         <div className="flex flex-col gap-[16px] px-[28px] pb-[18px] pt-[22px] max-[720px]:gap-[12px] max-[720px]:px-[14px] max-[720px]:py-[12px]">{body}</div>

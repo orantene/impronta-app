@@ -128,13 +128,6 @@ export function CatalogList({ editor, nav }: { editor: OfferingsEditor; nav: Cat
           onChange={(id) => setFilters((f) => ({ ...f, type: id as ListFilters["type"] }))}
         />
         <FilterChip
-          label={t("dashboard.catalog.filter.location")}
-          value="all"
-          reason={t("dashboard.catalog.filter.locationReason")}
-          options={[{ id: "all", label: t("dashboard.catalog.filter.all") }]}
-          onChange={() => undefined}
-        />
-        <FilterChip
           label={t("dashboard.catalog.filter.channel")}
           value={filters.channel}
           options={[
