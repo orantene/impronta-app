@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { quoteBookingCollectAction } from "@/lib/orders/checkout-quote.actions";
 import { cardFeeSummary } from "@/lib/orders/checkout-quote-display";
 
 /**
@@ -23,7 +22,9 @@ export function useCardFeeQuote(a: {
     setSummary(null);
     if (!enabled || !offeringId) return;
     let live = true;
-    void quoteBookingCollectAction({ offeringId, variantId, addOnIds: extrasKey ? extrasKey.split(",") : [] })
+    // Lazy: the action pulls server-only modules, which must not load with the sheet (perf budget, SSR/golden renders).
+    void import("@/lib/orders/checkout-quote.actions")
+      .then((m) => m.quoteBookingCollectAction({ offeringId, variantId, addOnIds: extrasKey ? extrasKey.split(",") : [] }))
       .then((res) => { if (live && res.ok) setSummary(cardFeeSummary(res.quote)); })
       .catch(() => { if (live) setSummary(null); });
     return () => { live = false; };

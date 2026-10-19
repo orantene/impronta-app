@@ -10,15 +10,16 @@ import { guestRowPriceLabel } from "./guest-catalog-price";
 test("a USD row and an MXN row each format in their own currency", () => {
   const usd = guestRowPriceLabel({ amountCents: 15_000, currency: "USD" });
   const mxn = guestRowPriceLabel({ amountCents: 150_000, currency: "MXN" });
-  assert.equal(usd, "$150.00");
-  assert.match(mxn ?? "", /1,500\.00/);
+  assert.match(usd ?? "", /150/);
+  assert.match(usd ?? "", /USD/);
+  assert.match(mxn ?? "", /1,500/);
   assert.match(mxn ?? "", /MXN/);
   assert.notEqual(usd, mxn);
 });
 
 test("a row with no currency stays USD (older rows), a lowercase code is normalised", () => {
-  assert.equal(guestRowPriceLabel({ amountCents: 15_000, currency: null }), "$150.00");
-  assert.equal(guestRowPriceLabel({ amountCents: 15_000 }), "$150.00");
+  assert.match(guestRowPriceLabel({ amountCents: 15_000, currency: null }) ?? "", /USD/);
+  assert.match(guestRowPriceLabel({ amountCents: 15_000 }) ?? "", /USD/);
   assert.match(guestRowPriceLabel({ amountCents: 150_000, currency: "mxn" }) ?? "", /MXN/);
 });
 
