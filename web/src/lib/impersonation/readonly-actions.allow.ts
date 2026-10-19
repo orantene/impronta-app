@@ -56,7 +56,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/talent-site/server/theme-actions.ts", ["previewSiteDesignSwitchAction"], READ],
   ["lib/talent/apply-actions.ts", ["listOwnApplications"], READ],
   ["lib/talent/clients-actions.ts", ["loadTalentClients"], READ],
-  ["lib/talent/menu-offerings-actions.ts", ["loadWorkspaceMenuForEditor"], READ],
+  ["lib/talent/menu-offerings-actions.ts", ["loadWorkspaceMenuForEditor", "loadWorkspaceArchivedMenu"], READ],
   ["lib/talent/offerings-actions.ts", ["loadTalentOfferingsForEditor", "listTalentPortfolioPhotos"], READ],
   ["lib/talent/services-menu-actions.ts", ["loadTalentServicesMenu", "loadTalentServicePerformance"], READ],
   ["lib/talent/talent-booking-terms-actions.ts", ["loadTalentBookingTerms"], READ],

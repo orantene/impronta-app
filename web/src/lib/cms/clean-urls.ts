@@ -144,3 +144,24 @@ export function resolveLegacyCmsRedirectPath(params: {
 
   return `/${[...prefix, ...slugParts].join("/")}`;
 }
+
+/**
+ * The URL a CMS page is PUBLISHED at: the clean `/<slug>` when that is what the
+ * proxy serves, else the legacy `/p/<slug>` (a grandfathered slug that collides
+ * with a platform route, or one that is not a plain page slug).
+ *
+ * Canonicals and sitemap entries must use this. They used `/p/<slug>`, which the
+ * proxy 308s to the clean URL and next.config marks noindex, so search engines
+ * were told to index a URL that redirects and is excluded (Services Phase 0
+ * item 9). Pure; `isPathAllowed` is the surface allow-list.
+ */
+export function publishedCmsPagePath(slug: string, isPathAllowed: (path: string) => boolean): string {
+  return (
+    resolveLegacyCmsRedirectPath({
+      hostKind: "agency",
+      pathname: `/${CMS_PATH_SEGMENT}/${slug}`,
+      languageSettings: { publicLocales: [] },
+      isPathAllowed,
+    }) ?? `/${CMS_PATH_SEGMENT}/${slug}`
+  );
+}

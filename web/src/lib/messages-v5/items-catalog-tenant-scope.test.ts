@@ -234,3 +234,24 @@ test("the dock receives its talent from the server, never only from the URL", ()
   assert.match(model, /profileCode: input\.brand\.dockTalentProfileCode/);
   assert.match(dock, /p\.profileCode \?\? /);
 });
+
+// D-10 (Services Phase 0): a session is only as public as its offering.
+test("classes and tickets of an agency_only / pending offering never reach the picker", async () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const later = new Date(Date.now() + 90_000_000).toISOString();
+  const tables = {
+    talent_offerings: [
+      offering("o-pub", "tenant-a", "talent-a1", "Public class"),
+      { ...offering("o-priv", "tenant-a", "talent-a1", "Private class"), visibility: "agency_only" },
+      { ...offering("o-pend", "tenant-a", "talent-a1", "Pending class"), moderation_state: "pending" },
+    ],
+    sessions: [
+      { id: "s-pub", tenant_id: "tenant-a", offering_id: "o-pub", status: "scheduled", title: "Public class", starts_at: future, ends_at: later },
+      { id: "s-priv", tenant_id: "tenant-a", offering_id: "o-priv", status: "scheduled", title: "Private class", starts_at: future, ends_at: later },
+      { id: "s-pend", tenant_id: "tenant-a", offering_id: "o-pend", status: "scheduled", title: "Pending class", starts_at: future, ends_at: later },
+    ],
+  };
+  const rows = await loadCatalogRowsForScope(fakeAdmin(tables), { tenantId: "tenant-a", talentProfileId: null, forcedTalent: false, window: null, now: new Date(), date: null, reservations: false });
+  const classes = rows.filter((r) => r.category === "class").map((r) => r.sessionId);
+  assert.deepEqual(classes, ["s-pub"]);
+});
