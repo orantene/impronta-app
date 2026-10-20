@@ -13,7 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyCollectiveOwnerShares, applySharesToLines, parseOwnerShareRow } from "./collective-split";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const line = (talentProfileId: string | null, totalCents: number, talentCostCents = totalCents) => ({ talentProfileId, totalCents, talentCostCents, ownerTenantId: null });
+const line = (talentProfileId: string | null, totalCents: number, talentCostCents = totalCents) => ({ talentProfileId, totalCents, talentCostCents, ownerTenantId: null, label: "Gel manicure" });
 
 describe("share rows", () => {
   test("percent and fixed rows parse; bad or half-filled rows are null", () => {
@@ -47,6 +47,19 @@ describe("applying shares to order lines", () => {
     const r = applySharesToLines([line("a", 10_000), line(null, 500, 0)], new Map(), "MXN");
     assert.equal(r.ok && r.lines[0].talentCostCents, 10_000);
     assert.equal(r.ok && r.lines[1].talentCostCents, 0);
+  });
+  test("the member's name is printed with her price on the line (checkout, pay page and receipt all show the label)", () => {
+    const names = new Map([["a", "Ana"]]);
+    const r = applySharesToLines([line("a", 10_000), line(null, 500, 0)], new Map(), "MXN", names);
+    assert.equal(r.ok && r.lines[0].label, "Gel manicure · Ana");
+    assert.equal(r.ok && r.lines[1].label, "Gel manicure");
+    // never twice, never an empty name, never past the column width
+    const again = applySharesToLines(r.ok ? r.lines : [], new Map(), "MXN", names);
+    assert.equal(again.ok && again.lines[0].label, "Gel manicure · Ana");
+    const blank = applySharesToLines([line("a", 100)], new Map(), "MXN", new Map([["a", "  "]]));
+    assert.equal(blank.ok && blank.lines[0].label, "Gel manicure");
+    const long = applySharesToLines([{ ...line("a", 100), label: "x".repeat(299) }], new Map(), "MXN", names);
+    assert.equal(long.ok && long.lines[0].label.length <= 300, true);
   });
   test("never mutates the input lines", () => {
     const input = [line("a", 10_000)];
@@ -89,12 +102,14 @@ describe("loading the workspace's model and shares (fails closed)", () => {
       fakeAdmin({
         agencies: { data: { work_model: "friends_collective" }, error: null },
         agency_talent_roster: { data: [{ talent_profile_id: "a", owner_share_kind: "percent", owner_share_bps: 2500 }], error: null },
+        talent_profiles: { data: [{ id: "a", display_name: "Ana" }], error: null },
       }),
       "t1",
       "MXN",
       lines(),
     );
     assert.equal(r.ok && r.lines[0].talentCostCents, 7500);
+    assert.equal(r.ok && r.lines[0].label, "Gel manicure · Ana");
   });
   test("any other read failure REFUSES the order (never prices a collective sale without its split)", async () => {
     const down = await applyCollectiveOwnerShares(fakeAdmin({ agencies: { data: null, error: { code: "XX000", message: "db down" } } }), "t1", "MXN", lines());

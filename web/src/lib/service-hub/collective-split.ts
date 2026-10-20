@@ -32,7 +32,9 @@ export function parseOwnerShareRow(row: ShareRow): OwnerShare | null {
   return share && validateOwnerShare(share).ok ? share : null;
 }
 
-type SplitLine = { talentProfileId: string | null; totalCents: number; talentCostCents: number };
+type SplitLine = { talentProfileId: string | null; totalCents: number; talentCostCents: number; label: string };
+
+const LABEL_MAX = 300;
 
 /**
  * New lines with each member's cost set to her line minus the owner's take. A
@@ -43,20 +45,29 @@ export function applySharesToLines<L extends SplitLine>(
   lines: readonly L[],
   shares: ReadonlyMap<string, OwnerShare>,
   orderCurrency: string,
+  names: ReadonlyMap<string, string> = new Map(),
 ): { ok: true; lines: L[] } | { ok: false; error: "share_currency_mismatch" } {
   const out: L[] = [];
   for (const l of lines) {
+    const next: L = { ...l, label: withMemberName(l.label, l.talentProfileId ? names.get(l.talentProfileId) : undefined) };
     const share = l.talentProfileId ? shares.get(l.talentProfileId) : undefined;
-    if (!share) {
-      out.push({ ...l });
-      continue;
+    if (share) {
+      if (share.kind === "fixed" && share.currency !== orderCurrency.trim().toUpperCase()) {
+        return { ok: false, error: "share_currency_mismatch" };
+      }
+      next.talentCostCents = memberNetCents(l.totalCents, share);
     }
-    if (share.kind === "fixed" && share.currency !== orderCurrency.trim().toUpperCase()) {
-      return { ok: false, error: "share_currency_mismatch" };
-    }
-    out.push({ ...l, talentCostCents: memberNetCents(l.totalCents, share) });
+    out.push(next);
   }
   return { ok: true, lines: out };
+}
+
+/** "Gel manicure · Ana": the member's price is always shown with her name. Never twice, never blank. */
+function withMemberName(label: string, name: string | undefined): string {
+  const n = name?.trim();
+  if (!n || label.endsWith(` · ${n}`)) return label;
+  const suffix = ` · ${n}`;
+  return `${label.slice(0, Math.max(0, LABEL_MAX - suffix.length))}${suffix}`;
 }
 
 const UNDEFINED_COLUMN = "42703";
@@ -97,10 +108,19 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
         if (s) shares.set(r.talent_profile_id, s);
       }
     }
-    const applied = applySharesToLines(lines, shares, orderCurrency);
+    const names = new Map<string, string>();
+    if (talentIds.length > 0) {
+      const { data: profiles, error: nErr } = await admin.from("talent_profiles").select("id, display_name").in("id", talentIds);
+      if (nErr) return refuse(nErr);
+      for (const p of (profiles ?? []) as Array<{ id: string; display_name: string | null }>) {
+        if (p.display_name?.trim()) names.set(p.id, p.display_name.trim());
+      }
+    }
+    const applied = applySharesToLines(lines, shares, orderCurrency, names);
     if (!applied.ok) return refuse(applied.error);
     applied.lines.forEach((l, i) => {
       lines[i].talentCostCents = l.talentCostCents;
+      lines[i].label = l.label;
     });
     return { ok: true, lines };
   } catch (err) {
