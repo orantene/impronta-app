@@ -37,6 +37,10 @@ test("you get: refuses what it cannot compute (null), never a guessed number", (
   assert.equal(youGetCents(1000, { model: "fixed", fixedCents: -5 }), null);
 });
 
+test("you get: per-hour, rent and other custom shapes are unknown (null), not guessed", () => {
+  assert.equal(youGetCents(10000, { model: "custom" }), null);
+});
+
 test("channel key is stable per channel", () => {
   assert.equal(channelKey({ kind: "my_site" }), "my_site");
   assert.equal(channelKey({ kind: "hub" }), "hub");

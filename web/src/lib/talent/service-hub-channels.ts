@@ -22,7 +22,9 @@ export function channelKey(c: Channel): string {
 export type ChannelTerms =
   | { model: "percent"; percentBps: number }
   | { model: "fixed"; fixedCents: number }
-  | { model: "none" };
+  | { model: "none" }
+  /** Per-hour, rent and other shapes with no single sale price: "you get" is unknown, never guessed. */
+  | { model: "custom" };
 
 const isCents = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0;
 
@@ -40,6 +42,8 @@ export function youGetCents(priceCents: number, terms: ChannelTerms): number | n
       if (!isCents(terms.fixedCents)) return null;
       return Math.max(0, priceCents - terms.fixedCents);
     }
+    case "custom":
+      return null;
     default:
       return null;
   }
@@ -54,6 +58,10 @@ export type SoldListing = {
   terms: ChannelTerms;
   /** The talent's optional "lowest price I accept" for this workspace. */
   minAcceptCents: number | null;
+  /** A listing the workspace offered and the talent has not accepted yet. Absent = accepted. */
+  status?: "offered" | "accepted";
+  /** The listing row (workspaces only), so the lowest price can be edited. */
+  listingId?: string;
 };
 
 export type WhereSoldRow = SoldListing & { youGetCents: number | null; belowMinimum: boolean };
@@ -210,6 +218,12 @@ export type ChannelCopy = {
   earningsByChannel: string;
   youKeep: string;
   other: string;
+  save: string;
+  saved: string;
+  saveFailed: string;
+  notReady: string;
+  offered: string;
+  pending: string;
 };
 
 export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
@@ -227,6 +241,12 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     earningsByChannel: "Earnings by channel",
     youKeep: "You keep",
     other: "Other",
+    save: "Save",
+    saved: "Saved.",
+    saveFailed: "Could not save. Try again in a moment.",
+    notReady: "This is not available yet.",
+    offered: "Waiting for your answer",
+    pending: "Waiting for your answer",
   },
   es: {
     whereSold: "Dónde se vende",
@@ -242,6 +262,12 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     earningsByChannel: "Ganancias por canal",
     youKeep: "Te quedas con",
     other: "Otros",
+    save: "Guardar",
+    saved: "Guardado.",
+    saveFailed: "No se pudo guardar. Inténtalo de nuevo en un momento.",
+    notReady: "Esto aún no está disponible.",
+    offered: "Esperando tu respuesta",
+    pending: "Esperando tu respuesta",
   },
 };
 
