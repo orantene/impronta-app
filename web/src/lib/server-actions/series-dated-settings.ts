@@ -57,6 +57,8 @@ export async function loadSeriesDatedSettingsAction(input: {
     return { ok: false, reason: "unavailable" };
   }
   if (!base) return { ok: false, reason: "not_found" };
+  // The loosely typed select returns `{}`: say what the one selected column is.
+  const baseOfferingId = (base as { offering_id?: string | null }).offering_id ?? null;
 
   // Held-migration columns: ONLY a missing column (42703, migration not applied) reads as
   // "not set". Any other error must not show an empty form: saving it would wipe the settings.
@@ -76,11 +78,11 @@ export async function loadSeriesDatedSettingsAction(input: {
   }
 
   const tiers: SeriesDatedSettings["tiers"] = [];
-  if (base.offering_id) {
+  if (baseOfferingId) {
     // Variants have no tenant column of their own: read them through the tenant's offering.
     const { data: offering, error: vErr } = await tenantScopedQuery(g.admin, "talent_offerings", g.tenantId)
       .select("id, talent_offering_variants(label, pool_key, sort_order)")
-      .eq("id", String(base.offering_id))
+      .eq("id", baseOfferingId)
       .maybeSingle();
     if (vErr) logServerError("series.datedSettings.tiers", vErr);
     const variants = (

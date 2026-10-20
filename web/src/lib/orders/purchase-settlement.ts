@@ -48,6 +48,12 @@ export async function settleOrHoldOrder(
     readonly totalCents: number;
     readonly heldAllocationIds: readonly string[];
     readonly holdTtlSeconds: number;
+    /**
+     * D5: a pay-in-person order whose only legs are offering stock keeps its
+     * units until the visit (committed now, no deadline); see
+     * `keepsStockUntilVisit` in purchase-stock.ts. The status is unchanged.
+     */
+    readonly keepUntilVisit?: boolean;
   },
 ): Promise<SettlementResult> {
   const settled = settlesOnCreation({
@@ -56,7 +62,8 @@ export async function settleOrHoldOrder(
     totalCents: input.totalCents,
   });
 
-  if (settled && input.heldAllocationIds.length > 0) {
+  const commitNow = settled || input.keepUntilVisit === true;
+  if (commitNow && input.heldAllocationIds.length > 0) {
     // `null` order line on purpose: the allocations were reserved against
     // their lines already, and `commit_capacity` treats the argument as a line
     // to STAMP, not an actor.
@@ -84,7 +91,7 @@ export async function settleOrHoldOrder(
       // a hold it no longer has. A settled order has no deadline at all —
       // there is nothing it is waiting for.
       hold_expires_at:
-        !settled && input.heldAllocationIds.length > 0
+        !commitNow && input.heldAllocationIds.length > 0
           ? new Date(Date.now() + input.holdTtlSeconds * 1000).toISOString()
           : null,
     },

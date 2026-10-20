@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { verifyReelStat, verifyStoredObjectType } from "@/lib/server/verify-stored-object-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
 import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
@@ -1269,13 +1270,16 @@ export async function actionFinalizeDocumentUpload(
     return { ok: false, error: "File must be under 50 MB." };
   }
 
+  const typed = await verifyStoredObjectType(admin, "media-originals", storagePath, meta.mimetype || "application/octet-stream");
+  if (!typed.ok) return { ok: false, error: typed.error };
+
   return {
     ok: true,
     data: {
       storagePath,
       bucketId: "media-originals",
       sizeBytes: meta.size,
-      mimeType: meta.mimetype || "application/octet-stream",
+      mimeType: typed.mime,
     },
   };
 }
@@ -2169,15 +2173,11 @@ export async function actionRegisterUploadedAsset(
   // Reel videos skip the sharp re-verify: there's nothing to resize, and
   // downloading a 100-200 MB video into the Function just to measure it
   // defeats the point of the signed pipeline. Stat the object instead.
-  let verified: {
-    width: number | null;
-    height: number | null;
-    byteSize: number;
-    mimeType: string;
-  } | null;
+  let verified: { width: number | null; height: number | null; byteSize: number; mimeType: string } | null;
   if (variantKind === "reel") {
-    const stat = await statStoredObject(admin, storagePath);
-    verified = stat ? { width: null, height: null, ...stat } : null;
+    const reel = await verifyReelStat(admin, storagePath, await statStoredObject(admin, storagePath));
+    if (!reel.ok) return { ok: false, error: reel.error };
+    verified = reel.verified;
   } else {
     verified = await reverifyStoredObject(admin, storagePath, variantKind);
   }

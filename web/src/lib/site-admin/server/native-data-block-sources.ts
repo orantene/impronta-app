@@ -26,6 +26,7 @@
  * `dataSources`. A builder node holds no tenant id and issues no query, so a
  * cross-tenant leak is not reachable from the render path at all.
  */
+import { loadOfferingChildren } from "@/lib/talent/offerings-children-read";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -300,6 +301,13 @@ export type WorkspaceMenuOffering = {
    * that as "one ungrouped list", never as a category literally named "null".
    */
   category: string | null;
+  /**
+   * TUL-1332: the dish's options (pick one: size, filling) and extras (pick any), with the
+   * catalog's own prices. Ids only matter: the order carries ids and the server prices them.
+   * Absent on a row that has none.
+   */
+  options?: Array<{ id: string; label: string; amountCents: number | null }>;
+  extras?: Array<{ id: string; label: string; amountCents: number | null }>;
 };
 
 /**
@@ -434,13 +442,30 @@ export async function fetchWorkspaceMenuOfferings(
       logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
       return [];
     }
-    return deriveWorkspaceMenuOfferings(
+    const derived = deriveWorkspaceMenuOfferings(
       (data ?? []) as TalentOfferingRow[],
       tenantId,
       locale,
       await fetchEventOfferingIds(tenantId),
       memberIds,
     );
+    // TUL-1332: attach each dish's options and extras (one read for the whole menu). A failed read
+    // leaves the dish without pickers; the server still refuses an option-less order for a dish
+    // that needs one, so this can never produce a wrong price.
+    const children = await loadOfferingChildren(createServiceRoleClient() ?? supabase, derived.map((o) => o.id), {
+      locale,
+      chain: [locale, "en"],
+    }).catch(() => null);
+    if (!children) return derived;
+    return derived.map((o) => {
+      const options = (children.variants.get(o.id) ?? []).map((v) => ({ id: v.id, label: v.label, amountCents: v.amountCents }));
+      const extras = (children.addOns.get(o.id) ?? []).map((a) => ({ id: a.id, label: a.label, amountCents: a.amountCents }));
+      return {
+        ...o,
+        ...(options.length > 0 ? { options } : {}),
+        ...(extras.length > 0 ? { extras } : {}),
+      };
+    });
   } catch (error) {
     logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
     return [];
