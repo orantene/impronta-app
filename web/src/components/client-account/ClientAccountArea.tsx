@@ -7,6 +7,8 @@ import { visitZone } from "@/lib/client-account/visit-zone";
 import { ACCOUNT_TABS, formatZonedWhen, needsRealName, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
 import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail } from "@/lib/client-account/area-data.server";
 import type { MeItem } from "@/lib/me/shape-me";
+import type { SavedTalent } from "@/lib/client-account/saved-talent";
+import type { MyReviews } from "@/lib/client-account/my-reviews";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
@@ -31,6 +33,10 @@ export type AreaData = {
   payLinks?: Array<{ title: string; code: string | null; bookingId: string }>;
   receipts?: ReceiptRow[];
   receipt?: ReceiptDetail | null;
+  /** TUL-1317: the client's saved talent (Saved tab). */
+  saved?: SavedTalent[];
+  /** TUL-1317: reviews written here and review requests waiting (My reviews tab). */
+  reviews?: MyReviews;
   profile?: { name: string; phone: string; locale: string; marketingOptIn: boolean };
 };
 
@@ -262,7 +268,7 @@ export function ClientAccountArea(props: Props) {
   // ── Home: tabs ──────────────────────────────────────────────────────────
   const tab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
   const tabLabel: Record<AccountTab, string> = {
-    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), settings: a("tabSettings"), help: a("tabHelp"),
+    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), saved: a("tabSaved"), reviews: a("tabReviews"), settings: a("tabSettings"), help: a("tabHelp"),
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
@@ -331,6 +337,56 @@ export function ClientAccountArea(props: Props) {
         {group(a("waiting"), g.waiting)}
         {group(a("upcoming"), g.upcoming)}
         {group(a("past"), g.past, true)}
+      </>
+    );
+  } else if (tab === "saved") {
+    const list = props.data.saved ?? [];
+    body = list.length === 0 ? <p>{a("noSaved")}</p> : (
+      <ul data-testid="client-saved" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+        {list.map((s) => (
+          <li key={s.href} style={{ listStyle: "none" }}>
+            <a href={s.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+              <strong>{s.displayName}</strong>
+              {s.city ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{s.city}</span> : null}
+              <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{a("viewProfile")}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    );
+  } else if (tab === "reviews") {
+    const r = props.data.reviews ?? { written: [], toWrite: [] };
+    body = r.written.length + r.toWrite.length === 0 ? <p>{a("noReviews")}</p> : (
+      <>
+        {r.toWrite.length > 0 ? (
+          <section style={{ marginBottom: 24 }}>
+            <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("reviewsToLeave")}</h2>
+            <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+              {r.toWrite.map((q) => (
+                <li key={q.href} style={{ listStyle: "none" }}>
+                  <Link href={q.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+                    <strong>{a("leaveReview")}</strong>
+                    {q.who ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{q.who}</span> : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {r.written.length > 0 ? (
+          <section>
+            <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("reviewsWritten")}</h2>
+            <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+              {r.written.map((w) => (
+                <li key={w.id} style={{ ...card, listStyle: "none" }}>
+                  <strong>{w.who ?? a("service")}</strong>
+                  <span style={{ display: "block", color: MUTED, fontSize: 14 }} aria-label={`${w.rating}/5`}>{"★".repeat(w.rating)}{"☆".repeat(5 - w.rating)}</span>
+                  {w.body ? <p style={{ margin: "6px 0 0" }}>{w.body}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </>
     );
   } else if (tab === "messages") {
