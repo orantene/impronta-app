@@ -77,6 +77,7 @@ src/lib/support/guest-resume-path.test.ts
 src/lib/support/guest-resume-race.test.ts
 src/lib/support/guest-retention.test.ts
 src/lib/support/guest-submit-critical-path.static.test.ts
+src/lib/support/help-articles.test.ts
 src/lib/support/help-corpus.test.ts
 src/lib/support/investigation/bundle.test.ts
 src/lib/support/login-next-support.test.ts
