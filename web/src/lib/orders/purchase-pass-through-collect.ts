@@ -247,13 +247,14 @@ async function inflateOnePayee(
   input: {
     payee: PurchaseSellerForCollect;
     currencyCode: string;
-    passThroughTakeBps: number;
-    planTierBps?: Record<string, number> | null;
+    platformBps: number;
+    planFeeBps?: Record<string, number> | null;
+    frozenByParty?: Record<string, number> | null;
     processorFeeRates: ProcessorFeeRates;
   },
-): Promise<number> {
+): Promise<{ cents: number; bps: number }> {
   const base = input.payee.baseCollectCents;
-  if (!(base > 0)) return 0;
+  if (!(base > 0)) return { cents: 0, bps: input.platformBps };
 
   const partyType = input.payee.sellerOfRecord === "talent" ? "talent" : "workspace";
   let processingFeePayer: ProcessingFeePayer = "seller";
@@ -271,24 +272,25 @@ async function inflateOnePayee(
     processingFeePayer = "client";
   }
 
-  return passThroughCollectCents({
+  // TUL-1366: the fee of the seller's CURRENT plan (Platform Admin sets it per
+  // plan), or the fee frozen on the order when it already carries a snapshot;
+  // resolved exactly as the commission engine does.
+  const bps = await loadSellerPassThroughBps(admin as Parameters<typeof loadSellerPassThroughBps>[0], {
+    platformBps: input.platformBps,
+    planFeeBps: input.planFeeBps ?? null,
+    frozenByParty: input.frozenByParty ?? null,
+    seller: { kind: partyType, partyId: input.payee.partyId },
+  });
+  const cents = passThroughCollectCents({
     baseCollectCents: base,
     currencyCode: input.currencyCode,
     sellerOfRecord: input.payee.sellerOfRecord,
     talentCostCents: input.payee.talentCostCents,
     processingFeePayer,
-    // TUL-1366: per plan / workspace rate, resolved exactly as the commission
-    // engine does (workspace payees only; a rpc-only caller keeps the platform rate).
-    passThroughTakeBps:
-      admin.from && input.payee.sellerOfRecord !== "talent"
-        ? await loadSellerPassThroughBps(admin as Pick<SupabaseClient, "from">, {
-            platformBps: input.passThroughTakeBps,
-            planTierBps: input.planTierBps ?? null,
-            tenantId: input.payee.partyId,
-          })
-        : input.passThroughTakeBps,
+    passThroughTakeBps: bps,
     processorFeeRates: input.processorFeeRates,
   });
+  return { cents, bps };
 }
 
 /**
@@ -303,19 +305,38 @@ export async function resolvePassThroughCollectCents(
     currencyCode: string;
     /** Resolved payees (one or more). Empty → bare collect. */
     sellers: readonly PurchaseSellerForCollect[];
+    /** The order's frozen fee snapshot, when it already carries one. */
+    frozenByParty?: Record<string, number> | null;
   },
 ): Promise<number> {
+  return (await resolvePassThroughCollect(admin, input)).cents;
+}
+
+/**
+ * The same, also returning the fee (bps) applied per seller party, so the order
+ * can freeze it (`orders.service_fee_by_party`) when it is priced.
+ */
+export async function resolvePassThroughCollect(
+  admin: PassThroughCollectRpc & Partial<Pick<SupabaseClient, "from">>,
+  input: {
+    baseCollectCents: number;
+    currencyCode: string;
+    sellers: readonly PurchaseSellerForCollect[];
+    frozenByParty?: Record<string, number> | null;
+  },
+): Promise<{ cents: number; feeBpsByParty: Record<string, number> }> {
   const base = input.baseCollectCents;
-  if (!(base > 0) || input.sellers.length === 0) return base;
-  if (!passThroughArmed()) return base;
+  const bare = { cents: base, feeBpsByParty: {} as Record<string, number> };
+  if (!(base > 0) || input.sellers.length === 0) return bare;
+  if (!passThroughArmed()) return bare;
 
   try {
     const modeRow = await readPlatformProcessingMode(admin);
     if (!modeRow) {
       logServerError("orders.passThroughCollect/mode", "engine_platform_processing_mode empty");
-      return base;
+      return bare;
     }
-    if (modeRow.processing_mode !== "pass_through") return base;
+    if (modeRow.processing_mode !== "pass_through") return bare;
 
     const processorFeeRates = processorFeeRatesFromTable(
       modeRow.processor_fee_rates,
@@ -326,24 +347,28 @@ export async function resolvePassThroughCollectCents(
         "orders.passThroughCollect/rates",
         `no processor_fee_rates for ${String(input.currencyCode ?? "").toLowerCase()}`,
       );
-      return base;
+      return bare;
     }
 
-    const passThroughTakeBps = resolvePassThroughTakeBps(modeRow);
+    const platformBps = resolvePassThroughTakeBps(modeRow);
 
     let total = 0;
+    const feeBpsByParty: Record<string, number> = {};
     for (const payee of input.sellers) {
-      total += await inflateOnePayee(admin, {
+      const one = await inflateOnePayee(admin, {
         payee,
         currencyCode: input.currencyCode,
-        passThroughTakeBps,
-        planTierBps: modeRow.plan_tier_pass_through_bps ?? null,
+        platformBps,
+        planFeeBps: modeRow.plan_service_fee_bps ?? null,
+        frozenByParty: input.frozenByParty ?? null,
         processorFeeRates,
       });
+      total += one.cents;
+      feeBpsByParty[payee.partyId] = one.bps;
     }
-    return total > 0 ? total : base;
+    return total > 0 ? { cents: total, feeBpsByParty } : bare;
   } catch (err) {
     logServerError("orders.passThroughCollect", err);
-    return base;
+    return bare;
   }
 }

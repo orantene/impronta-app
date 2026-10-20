@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import {
   passThroughCollectCents,
   purchaseSellerForCollect,
+  resolvePassThroughCollect,
   resolvePassThroughCollectCents,
   sellerOfRecordFromOwningParty,
 } from "./purchase-pass-through-collect";
@@ -219,32 +220,46 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
     });
   });
 
-  it("TUL-1366: a workspace seller's own rate (300 bps) and its plan rate drive the charge", async () => {
+  it("TUL-1366: the fee of the seller's CURRENT plan drives the charge and is returned for the order snapshot", async () => {
     const wsSellers = [{ sellerOfRecord: "workspace" as const, partyId: "ws-1", baseCollectCents: 10_000, talentCostCents: 6_000 }];
-    const fromFor = (override: number | null, plan: string | null) => (table: string) => {
-      const row = table === "workspace_commission_overrides" ? { pass_through_take_bps: override } : { plan_tier: plan };
-      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: row, error: null }) };
+    const fromFor = (plan: string | null) => () => {
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { plan_tier: plan }, error: null }) };
       return q;
     };
     await withEnv(undefined, async () => {
-      const base = await resolvePassThroughCollectCents({ rpc: rpcFor(modeRow()) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers });
-      assert.equal(base, 10_150);
-      const tenant = await resolvePassThroughCollectCents(
-        { rpc: rpcFor(modeRow()), from: fromFor(300, null) as never },
+      // No plan fee configured: the platform rate (1.5%).
+      const base = await resolvePassThroughCollect({ rpc: rpcFor(modeRow()) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers });
+      assert.equal(base.cents, 10_150);
+      assert.deepEqual(base.feeBpsByParty, { "ws-1": 150 });
+      // Agency plan set to 3% by Platform Admin.
+      const plan = await resolvePassThroughCollect(
+        { rpc: rpcFor(modeRow({ plan_service_fee_bps: { agency: 300, studio: 200 } })), from: fromFor("agency") as never },
         { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers },
       );
-      assert.equal(tenant, 10_300);
-      const plan = await resolvePassThroughCollectCents(
-        { rpc: rpcFor(modeRow({ plan_tier_pass_through_bps: { agency: 250 } })), from: fromFor(null, "agency") as never },
+      assert.equal(plan.cents, 10_300);
+      assert.deepEqual(plan.feeBpsByParty, { "ws-1": 300 });
+      // An out-of-range value in the map is ignored, never applied.
+      const bad = await resolvePassThroughCollect(
+        { rpc: rpcFor(modeRow({ plan_service_fee_bps: { agency: 99_999 } })), from: fromFor("agency") as never },
         { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers },
       );
-      assert.equal(plan, 10_250);
-      // A bad override is ignored, never applied.
-      const bad = await resolvePassThroughCollectCents(
-        { rpc: rpcFor(modeRow()), from: fromFor(99_999, null) as never },
-        { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers },
+      assert.equal(bad.cents, 10_150);
+    });
+  });
+
+  it("TUL-1366: an order that carries its frozen fee ignores a later plan change", async () => {
+    const wsSellers = [{ sellerOfRecord: "workspace" as const, partyId: "ws-1", baseCollectCents: 10_000, talentCostCents: 6_000 }];
+    const from = () => {
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: { plan_tier: "agency" }, error: null }) };
+      return q;
+    };
+    await withEnv(undefined, async () => {
+      const r = await resolvePassThroughCollect(
+        { rpc: rpcFor(modeRow({ plan_service_fee_bps: { agency: 500 } })), from: from as never },
+        { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers, frozenByParty: { "ws-1": 150 } },
       );
-      assert.equal(bad, 10_150);
+      assert.equal(r.cents, 10_150, "quoted at 1.5%, plan since raised to 5%: still 1.5%");
+      assert.deepEqual(r.feeBpsByParty, { "ws-1": 150 });
     });
   });
 

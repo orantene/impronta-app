@@ -188,7 +188,7 @@ export async function persistBookingCommissionSnapshot(
   // sequence) is byte-identical. Non-fatal and fail-safe: an absent RPC
   // (migration not applied) or any error leaves the mode 'included'.
   // TUL-1366: ON by default (env "0" is the kill switch); see passThroughArmed.
-  let passThroughPlanBps: Record<string, number> | null = null;
+  let planServiceFeeBps: Record<string, number> | null = null;
   if (passThroughArmed()) {
    try {
     const modeRow = await readPlatformProcessingMode(
@@ -204,7 +204,7 @@ export async function persistBookingCommissionSnapshot(
             : null,
         processor_fee_rates: modeRow.processor_fee_rates ?? null,
       };
-      passThroughPlanBps = modeRow.plan_tier_pass_through_bps ?? null;
+      planServiceFeeBps = modeRow.plan_service_fee_bps ?? null;
     }
    } catch {
     /* 'included' default applies */
@@ -236,6 +236,23 @@ export async function persistBookingCommissionSnapshot(
     return { ok: false, reason: "context_load_failed", detail: bkError.message };
   }
   const orderBackedCollect = Boolean((orderBacking as { order_id?: string | null } | null)?.order_id);
+  // TUL-1366: the fee frozen on the order when it was priced (null = none yet).
+  let frozenFees: Record<string, number> | null | undefined;
+  const frozenFeesForBooking = async (): Promise<Record<string, number> | null> => {
+    if (frozenFees !== undefined) return frozenFees;
+    frozenFees = null;
+    const orderId = (orderBacking as { order_id?: string | null } | null)?.order_id;
+    if (orderId) {
+      try {
+        const { data } = await supabase.from("orders").select("service_fee_by_party").eq("id", orderId).maybeSingle();
+        const v = (data as { service_fee_by_party?: unknown } | null)?.service_fee_by_party;
+        if (v && typeof v === "object" && !Array.isArray(v)) frozenFees = v as Record<string, number>;
+      } catch {
+        /* no snapshot readable: the seller's current plan applies */
+      }
+    }
+    return frozenFees;
+  };
 
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
@@ -325,15 +342,20 @@ export async function persistBookingCommissionSnapshot(
           platformConfig.processor_fee_rates,
           String(ctx.currency_code ?? ""),
         );
-        // TUL-1366: the rate is per plan and per workspace (default 1.5%); the
-        // checkout collect resolves the same way, so quote, snapshot and charge agree.
+        // TUL-1366: the fee is set per plan by Platform Admin. An order-backed
+        // booking uses the fee frozen on its order at quote time; otherwise the
+        // seller's current plan. The checkout collect resolves the same way, so
+        // quote, snapshot and charge agree and a later change never moves a past order.
         platformConfig = {
           ...platformConfig,
           pass_through_take_bps: await loadSellerPassThroughBps(supabase, {
             platformBps: platformConfig.pass_through_take_bps,
-            planTierBps: passThroughPlanBps,
-            tenantId: p.owning_party_type === "talent" ? null : p.tenant_id,
-            plan: p.workspace_plan,
+            planFeeBps: planServiceFeeBps,
+            frozenByParty: await frozenFeesForBooking(),
+            seller:
+              p.owning_party_type === "talent" || !p.tenant_id
+                ? { kind: "talent", partyId: p.owning_party_id }
+                : { kind: "workspace", partyId: p.tenant_id, plan: p.workspace_plan },
           }),
         };
       }

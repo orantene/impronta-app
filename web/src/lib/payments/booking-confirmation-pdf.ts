@@ -16,7 +16,6 @@
 
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 
-import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "./fee-lines-payload";
 
@@ -88,7 +87,7 @@ function fmtMoneyExact(cents: number, currency: string): string {
 const PDF_FEE_LABELS: Record<string, string> = {
   service_subtotal: "Service",
   base_reservation_fee: "Reservation fee",
-  platform_fee: `Tulala service fee (${clientServiceFeePercentLabel()})`,
+  platform_fee: "Tulala service fee",
   processing_fee: "Card processing",
 };
 

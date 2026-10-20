@@ -141,8 +141,9 @@ export default async function TermsPage() {
                 being estimated.
               </p>
               <p>
-                Service fee: customers pay a {PLATFORM_BRAND.name} service fee of {clientServiceFeePercentLabel()} on top of
-                the booking price. It is shown at checkout before the customer pays and is
+                Service fee: customers pay a {PLATFORM_BRAND.name} service fee on top of
+                the booking price ({clientServiceFeePercentLabel()} by default; the rate for the
+                seller&rsquo;s plan). It is shown at checkout before the customer pays and is
                 separate from the card processing fee described above. It is returned in full
                 when the seller cancels a booking and kept when the client cancels. Commission and fees for
                 talents are disclosed in the plans.

@@ -127,7 +127,7 @@ export function TermsEs() {
               </p>
               <p>
                 Tarifa de servicio: los clientes pagan una tarifa de servicio de{" "}
-                {PLATFORM_BRAND.name} de {clientServiceFeePercentLabel()} sobre el precio de la reservación. Se muestra al
+                {PLATFORM_BRAND.name} sobre el precio de la reservación ({clientServiceFeePercentLabel()} por defecto; la tarifa depende del plan de quien vende). Se muestra al
                 pagar, antes de que el cliente confirme, y es independiente de la comisión de
                 procesamiento de tarjeta descrita arriba. Se devuelve completa cuando quien
                 vende cancela la reservación y se conserva cuando cancela el cliente. Las comisiones y tarifas para talentos
