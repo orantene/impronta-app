@@ -36,6 +36,7 @@ src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
+src/lib/billing/trial-session-reconcile.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
@@ -178,6 +179,7 @@ src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts
+src/lib/payments/refunds-restore-inventory.test.ts
 src/lib/payments/refunds.test.ts
 src/lib/payments/retry-fee-unknown-payouts.test.ts
 src/lib/payments/seller-currency-guard.test.ts
