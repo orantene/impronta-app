@@ -11,6 +11,8 @@
 import type { BusinessCatalogService } from "@/lib/offerings/business-catalog";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
+import type { CatalogRow } from "@/lib/messages-v5/items-picker";
+
 import type { RosterServiceItem } from "./roster-services";
 
 export type RosterCatalogService = BusinessCatalogService & {
@@ -47,4 +49,23 @@ export function rosterServicesToCatalog(items: readonly RosterServiceItem[], loc
 export function mergeRosterIntoCatalog<T extends { id: string }>(own: readonly T[], roster: readonly RosterCatalogService[]): Array<T | RosterCatalogService> {
   const seen = new Set(own.map((s) => s.id));
   return [...own, ...roster.filter((r) => !seen.has(r.id))];
+}
+
+/**
+ * Roster entries as guest-dock catalog rows (the front-door chat). REQUEST-ONLY: no offering id
+ * (so no add-to-inquiry line, no /book link) and no talent id (so no lineup cart); the talent name
+ * is the owner chip only when the entry shows it.
+ */
+export function rosterItemsToCatalogRows(items: readonly RosterServiceItem[]): CatalogRow[] {
+  return items.map((i) => ({
+    id: `roster:${i.listingId}`,
+    category: "service" as const,
+    title: i.title.trim(),
+    sub: null,
+    amountCents: i.priceCents,
+    currency: i.currency,
+    availability: { kind: "free" as const },
+    ownerName: i.talentName,
+    requestOnly: true,
+  }));
 }

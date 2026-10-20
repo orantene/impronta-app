@@ -42,6 +42,8 @@ export type GuestCatalogRow = {
   durationMinutes: number | null;
   /** Who offers it, on multi-owner (agency/hub) catalogs. */
   ownerName: string | null;
+  /** TUL-1372: a roster service. Request-only: the dock shows Ask, never Add or Buy. */
+  requestOnly?: boolean;
 };
 
 export type GuestCatalogGroup = { category: ItemCategory; rows: GuestCatalogRow[] };
@@ -92,7 +94,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
       pageTalentId = await publicProfileIdByCode(admin, parsed.data.profileCode);
       if (!pageTalentId) return { ok: true, groups: [] };
     }
-    const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000", talentProfileId: pageTalentId });
+    const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000", talentProfileId: pageTalentId, includeRoster: true });
     const codes = await profileCodes(admin, catalog.rows.map((r) => r.talentProfileId).filter((v): v is string => Boolean(v)));
     // The shared reader lists the whole roster for staff. A visitor sees only
     // what the public directory shows (D-MSG-222): a person the directory
@@ -123,6 +125,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
           partySize: r.partySize ?? null,
           durationMinutes: r.durationMinutes ?? null,
           ownerName: r.ownerName ?? null,
+          requestOnly: r.requestOnly === true,
         })),
       })),
     };

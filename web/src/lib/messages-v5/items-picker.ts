@@ -82,6 +82,11 @@ export type CatalogRow = {
   /** Talent services: extras stack. */
   readonly addOns?: readonly CatalogOption[];
   readonly durationMinutes?: number | null;
+  /**
+   * TUL-1372: a roster service (accepted listing link). REQUEST-ONLY: it has no offering id, so it
+   * can never be added as an inquiry line or bought; the guest's action is "Ask".
+   */
+  readonly requestOnly?: boolean;
 };
 
 export type CatalogGroup = { readonly category: ItemCategory; readonly rows: readonly CatalogRow[] };
