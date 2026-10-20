@@ -46,6 +46,12 @@ export async function cancelHybridComponents(
     lineIds: readonly string[];
     actorUserId?: string | null;
     note?: string | null;
+    /**
+     * TUL-1268 M6: the amount the cashier asked for, in minor units, already
+     * authorized (and capped at the remainder) by `authorizeRefund`. Omitted /
+     * null = the full remainder of the picked lines, as before.
+     */
+    amountCents?: number | null;
   },
   deps: {
     refundLines?: typeof refundOrderLines;
@@ -106,6 +112,7 @@ export async function cancelHybridComponents(
     reason: refundReasonForEffect("refund_hybrid_component"),
     actorUserId: input.actorUserId,
     note: input.note ?? "hybrid_component",
+    amountCents: input.amountCents ?? null,
   });
   if (!money.ok && money.movedCents === 0) {
     return { ok: false, reason: "unavailable", error: money.reason };

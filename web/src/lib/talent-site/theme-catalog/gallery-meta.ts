@@ -21,8 +21,11 @@
  * gallery UI and never used as a featured / preview demo (TUL-327 / G7).
  */
 import { authoredPaletteOverrides } from "./collection/authored";
-import { COLLECTION_DESIGNS, COLLECTION_DESIGN_SUMMARY_ES } from "./collection/designs";
+import { collectionDesignCard } from "./collection/design-cards";
+import { COLLECTION_DESIGN_SUMMARY_ES } from "./collection/design-summaries-es";
 import { GRIDLINE_PALETTES } from "./collection/gridline-looks";
+import { FRAME_BODY_FONT, FRAME_HEADING_FONT } from "./collection/frame-defaults";
+import { MONO_BODY_FONT, MONO_HEADING_FONT } from "./collection/mono-defaults";
 import { GRIDLINE_BODY_FONT, GRIDLINE_HEADING_FONT } from "./collection/gridline-defaults";
 import { themeDemosFor, type ThemeDemoDesign } from "./theme-demos";
 import { countUsableDemos } from "./usable-demos";
@@ -254,7 +257,7 @@ const MAISON_V2_FONTS: GalleryFonts = {
 // ── Designs ─────────────────────────────────────────────────────────────────
 
 function collection(slug: string) {
-  const d = COLLECTION_DESIGNS.find((x) => x.slug === slug);
+  const d = collectionDesignCard(slug);
   if (!d) throw new Error(`gallery-meta: collection design ${slug} missing`);
   return { slug: d.slug, name: d.title, description: { en: d.summary, es: COLLECTION_DESIGN_SUMMARY_ES[slug] ?? d.summary } };
 }
@@ -346,7 +349,7 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
     styleTags: ["Minimal", "Warm"],
     featureTags: ["Service list", "Booking-ready", "Classes", "Personal story"],
     palettes: [
-      pal("linen", "Linen & Clay", "Lino y barro", ["#FFFFFF", "#F6F2EC", "#E6DED2", "#2B2620", "#8A5A3C", "#FFFFFF"], {
+      pal("linen", "Linen & Moss", "Lino y musgo", ["#EDE9E1", "#F6F3EC", "#D9D3C7", "#2B2620", "#3E4A3A", "#FFFFFF"], {
         muted: "#6B6258",
       }),
       pal("eucalyptus", "Eucalyptus", "Eucalipto", ["#FFFFFF", "#EEF3F0", "#D9E3DD", "#1D2622", "#3F6B5A", "#FFFFFF"]),
@@ -363,10 +366,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
   }),
   design({
     ...collection("mono"),
+    fonts: { heading: MONO_HEADING_FONT, body: MONO_BODY_FONT },
     styleTags: ["Minimal", "Bold"],
     featureTags: ["Service list", "Booking-ready", "Text-first", "Packages"],
     palettes: [
-      pal("paper", "Paper & Black", "Papel y negro", ["#FFFFFF", "#F5F5F5", "#E3E3E3", "#0F0F0F", "#0F0F0F", "#FFFFFF"], { highContrast: true }),
+      pal("paper", "Paper & Teal", "Papel y verde azulado", ["#FFFFFF", "#F4F4F2", "#E3E3E0", "#0F0F0F", "#0E6B6B", "#FFFFFF"], { muted: "#5F5F5B", highContrast: true }),
       pal("cobalt", "Cobalt", "Cobalto", ["#FFFFFF", "#F2F4F8", "#DEE3EC", "#161A22", "#1F4FB8", "#FFFFFF"]),
       pal("signal", "Signal Red", "Rojo señal", ["#FFFFFF", "#F7F3F2", "#E8E0DE", "#1A1414", "#B3261E", "#FFFFFF"]),
       pal("carbon", "Carbon", "Carbón", ["#111111", "#1B1B1B", "#333333", "#F5F5F5", "#F5F5F5", "#111111"], { dark: true }),
@@ -380,10 +384,11 @@ export const GALLERY_DESIGNS: readonly GalleryDesign[] = [
   }),
   design({
     ...collection("frame"),
+    fonts: { heading: FRAME_HEADING_FONT, body: FRAME_BODY_FONT },
     styleTags: ["Image-led", "Bold"],
     featureTags: ["Portfolio", "Service menu", "Quote requests", "Video & media"],
     palettes: [
-      pal("gallery", "Gallery White", "Blanco galería", ["#FFFFFF", "#F4F4F4", "#E1E1E1", "#111111", "#111111", "#FFFFFF"], { highContrast: true }),
+      pal("gallery", "Contact sheet", "Hoja de contactos", ["#E6E6E1", "#F5F5F2", "#CFCFC8", "#121212", "#D4351C", "#FFFFFF"], { muted: "#5C5C57", highContrast: true }),
       pal("darkroom", "Darkroom", "Cuarto oscuro", ["#0E0E0E", "#191919", "#2E2E2E", "#F2F2F2", "#E0B04A", "#0E0E0E"], { dark: true }),
       pal("film", "Film & Amber", "Película y ámbar", ["#FFFFFF", "#F7F2EA", "#E8DFD0", "#221D16", "#8C5A14", "#FFFFFF"]),
     ],

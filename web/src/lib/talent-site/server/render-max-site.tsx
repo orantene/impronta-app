@@ -52,7 +52,10 @@ import { localiseSeededDesignLabel } from "../design-label-locale";
 import { loadTalentPolicyModel, policyMainNode, policySeo } from "./policy-main";
 import { policyDocForSlug } from "@/lib/talent-policies/public";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
-import { parseServiceSlug, resolveServiceBySlug, serviceSlug } from "@/lib/talent-site/service-page";
+import { parseServiceSlug, resolveServiceSlugWithHistory, serviceSlug } from "@/lib/talent-site/service-page";
+import { loadServiceContentFields } from "@/lib/talent-site/service-content-columns.server";
+import { servicePageCanonical } from "@/lib/talent-site/service-page-canonical";
+import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { serviceFaqItems, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { SERVICE_REVIEWS_MAX, shownServiceReviews, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
@@ -136,7 +139,9 @@ export interface RenderTalentMaxSiteInput {
 
 export type RenderTalentMaxSiteResult =
   | { kind: "render"; node: ReactNode; seo: MaxSiteSeo; /** The locale the body rendered in (bounded to the talent languages). */ locale: string }
-  | { kind: "not_found" };
+  | { kind: "not_found" }
+  /** TUL-1272 C1: an old service slug (slug_history / renamed custom slug); the route 308s (permanentRedirect) to `slug`. */
+  | { kind: "redirect"; slug: string };
 
 const NOT_FOUND: RenderTalentMaxSiteResult = { kind: "not_found" };
 
@@ -342,6 +347,7 @@ async function renderTalentMaxSiteUnguarded(
     let serviceFaq: ServiceFaqItem[] = [];
     let serviceReviews: ServiceReviews | null = null;
     let servicePromo: ReturnType<typeof priceContext> | null = null;
+    const presentationFlag = servicePresentationResolverEnabled();
     if (isServiceSlug) {
       const primary = localeCtx.settings.defaultLocale;
       const [inLocale, inPrimary, talentFaq, reviewRows, rating, livePromos] = await Promise.all([
@@ -356,10 +362,19 @@ async function renderTalentMaxSiteUnguarded(
         isOwnerDraftPreview ? null : loadPublicPromosForTalent(talentProfileId),
       ]);
       servicePromo = livePromos ? priceContext(livePromos, locale) : null;
-      serviceOffering = resolveServiceBySlug(inLocale, input.pageSlug);
-      if (!serviceOffering) return NOT_FOUND;
+      // TUL-1272 C1: slug history (flag + held columns). No content map = exactly resolveServiceBySlug.
+      const serviceContent = presentationFlag ? await loadServiceContentFields(inLocale.map((o) => o.id)) : null;
+      const resolvedService = resolveServiceSlugWithHistory(inLocale, input.pageSlug, serviceContent);
+      if (resolvedService.kind === "missing") return NOT_FOUND;
+      if (resolvedService.kind === "redirect" && !isOwnerDraftPreview) {
+        // Target = the canonical slug (primary-language row), the same path servicePath and the canonical use.
+        const primaryTarget = (inPrimary ?? inLocale).find((o) => o.id === resolvedService.offering.id) ?? resolvedService.offering;
+        const redirectTo = serviceContent?.get(primaryTarget.id)?.slug ?? serviceSlug(primaryTarget);
+        if (redirectTo !== input.pageSlug) return { kind: "redirect", slug: redirectTo };
+      }
+      serviceOffering = resolvedService.offering;
       const primaryRow = (inPrimary ?? inLocale).find((o) => o.id === serviceOffering!.id) ?? serviceOffering;
-      servicePath = `/${serviceSlug(primaryRow)}`;
+      servicePath = `/${serviceContent?.get(primaryRow.id)?.slug ?? serviceSlug(primaryRow)}`;
       serviceFaq = serviceFaqItems(serviceOffering, talentFaq, locale);
       serviceReviews = shownServiceReviews({ ...rating, reviews: reviewRows.talentReviews });
       serviceRelated = serviceRelatedLinks(inLocale, inPrimary, serviceOffering.id, locale, (p) =>
@@ -367,6 +382,7 @@ async function renderTalentMaxSiteUnguarded(
         servicePromo,
       );
     }
+    const serviceCanonical = servicePath ? servicePageCanonical({ flagOn: presentationFlag, planKey, servicePath }) : null;
     // Resolved here: the document callback below is not async. pSeoFacts never throws.
     const serviceCity = serviceOffering ? ((await pSeoFacts).addressLocality ?? null) : null;
     const node = await timed("maxSite.document", () =>
@@ -438,18 +454,20 @@ async function renderTalentMaxSiteUnguarded(
       locale,
       noindex: isOwnerDraftPreview,
       canonicalOrigin: input.canonicalOrigin,
-      canonicalPath: servicePath ?? input.canonicalPath,
+      canonicalPath: serviceCanonical ? serviceCanonical.path : servicePath ?? input.canonicalPath,
       ignoreExplicitCanonical: Boolean(policyDoc) || isServiceSlug || Boolean(externalMain),
       locales: { primary: localeCtx.settings.defaultLocale, urlDefault: localeCtx.grammar.defaultLocale, supported: localeCtx.settings.supportedLocales },
     });
 
     if (googleSiteVerification) seo.googleSiteVerification = googleSiteVerification;
     perfMark("maxSite.total", t0);
+    const serviced = serviceOffering
+      ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq, reviews: serviceReviews, demo: isDemo })
+      : seo;
+    // Free plan + flag: the page still renders (shared links work), canonical = the main page, no Service JSON-LD.
     const finalSeo = policyModel
       ? policySeo(seo, policyModel)
-      : serviceOffering
-        ? serviceSeo(seo, serviceOffering, { talentName: identity?.name ?? null, locale, city: seoFacts.addressLocality ?? null, faq: serviceFaq, reviews: serviceReviews, demo: isDemo })
-        : seo;
+      : serviceCanonical?.duplicate ? { ...serviced, jsonLd: undefined } : serviced;
     return { kind: "render", node, seo: finalSeo, locale };
   } catch {
     // Degrade safe — any unexpected failure becomes a 404, never a throw.
