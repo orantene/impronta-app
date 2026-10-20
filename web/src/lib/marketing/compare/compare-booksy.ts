@@ -5,7 +5,7 @@ import type { Comparison } from "./types";
  *
  * The honest core of this page: Booksy's subscription scales per staff member
  * and their Boost marketplace takes 30% of a new client's first visit. Ours is
- * a flat 6% on booked work with no per-seat fee. That is a real difference and
+ * a flat Tulala service fee on booked work with no per-seat fee. That is a real difference and
  * it does not need exaggerating.
  *
  * What they genuinely do better is stated on the page: Boost is a marketplace
@@ -44,12 +44,12 @@ export const BOOKSY_COMPARISON: Comparison = {
       },
       {
         label: "Cut of a new client",
-        tulala: "Six percent of the booking. The same for a new client and a regular.",
+        tulala: "A Tulala service fee on the booking. The same for a new client and a regular.",
         them: "Boost takes 30% of a new client's first visit, minimum $10, capped at $100. One time per client.",
       },
       {
         label: "Card processing",
-        tulala: "Included in the six percent.",
+        tulala: "Covered by the Tulala service fee.",
         them: "Roughly 2.49% to 2.69% plus a per transaction fee, on top.",
       },
       {
@@ -59,7 +59,7 @@ export const BOOKSY_COMPARISON: Comparison = {
       },
       {
         label: "Does the rate change by plan",
-        tulala: "No. Six percent on every plan, including free.",
+        tulala: "No per seat fee. The Tulala service fee is set per plan, including free.",
         them: "Subscription tier changes what you pay monthly.",
       },
     ],
@@ -103,12 +103,12 @@ export const BOOKSY_COMPARISON: Comparison = {
       },
       {
         label: "Parte de un cliente nuevo",
-        tulala: "Seis por ciento de la reserva. Igual para un cliente nuevo que para uno de siempre.",
+        tulala: "Una tarifa de servicio de Tulala sobre la reserva. Igual para un cliente nuevo que para uno de siempre.",
         them: "Boost se lleva 30% de la primera visita de un cliente nuevo, mínimo $10 y máximo $100. Una sola vez por cliente.",
       },
       {
         label: "Procesamiento de tarjeta",
-        tulala: "Incluido en el seis por ciento.",
+        tulala: "Cubierto por la tarifa de servicio de Tulala.",
         them: "Aproximadamente 2.49% a 2.69% más una tarifa por transacción, aparte.",
       },
       {
@@ -118,7 +118,7 @@ export const BOOKSY_COMPARISON: Comparison = {
       },
       {
         label: "¿Cambia la tarifa según el plan?",
-        tulala: "No. Seis por ciento en todos los planes, incluido el gratis.",
+        tulala: "Sin cargo por asiento. La tarifa de servicio de Tulala se define por plan, incluido el gratis.",
         them: "El plan cambia lo que pagas al mes.",
       },
     ],

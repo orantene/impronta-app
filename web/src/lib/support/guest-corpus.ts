@@ -47,15 +47,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-booking-cut",
         purpose:
-          "Tulala cobra 6% sobre una reserva pagada, igual en todos los planes. Tres por ciento es un recargo al cliente y tres por ciento sale del vendedor. Ejemplo: una reserva de $1,000, el cliente paga $1,030, Tulala se queda con $60. No se cobra nada hasta que una reserva se paga.",
+          "Tulala cobra una tarifa de servicio sobre una reserva pagada. Se suma por encima del precio para el cliente, se define por plan y se muestra en el checkout antes de pagar. No se cobra nada hasta que una reserva se paga.",
         youCanHere: [
-          "Ver el 6% en /pricing",
-          "El mismo 6% desde el hub o desde el sitio de la agencia",
+          "Ver la tarifa de servicio de Tulala en /pricing",
+          "La misma tarifa desde el hub o desde el sitio de la agencia",
         ],
         faqs: [
           {
             q: "¿Cuánto se queda Tulala de cada reserva?",
-            a: "6% sobre una reserva pagada. En el ejemplo de $1,000, Tulala se queda con $60.",
+            a: "Tulala cobra una tarifa de servicio sobre una reserva pagada, que se suma por encima del precio para el cliente. Se muestra en el checkout antes de pagar.",
           },
         ],
         category: "pricing",
@@ -183,15 +183,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
     {
       slug: "sales-booking-cut",
       purpose:
-        "Tulala takes 6% on a paid booking, the same on every plan. Three percent is a client surcharge and three percent comes off the seller. Example: a $1,000 booking, the client pays $1,030, Tulala keeps $60. Nothing is charged until a booking is paid.",
+        "Tulala charges a service fee on a paid booking. It is added on top of the price for the client, set per plan, and shown at checkout before they pay. Nothing is charged until a booking is paid.",
       youCanHere: [
-        "See the 6% on /pricing",
-        "Same 6% from the hub or the agency's own site",
+        "See the Tulala service fee on /pricing",
+        "The same fee from the hub or the agency's own site",
       ],
       faqs: [
         {
           q: "What is Tulala's cut on a booking?",
-          a: "6% on a paid booking. On a $1,000 booking example, Tulala keeps $60.",
+          a: "A Tulala service fee on a paid booking, added on top of the price for the client and shown at checkout before they pay.",
         },
       ],
       category: "pricing",

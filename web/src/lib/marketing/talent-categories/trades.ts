@@ -63,7 +63,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking or order the fee is six percent, three from the customer and three from you, with card processing included in that. The same on every plan.",
+          a: "The page is free. On a paid booking or order, a Tulala service fee applies, added on top for the customer and set per plan.",
         },
         {
           q: "I run a pizza place out of my home kitchen. Is that too small?",
@@ -107,7 +107,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una reserva o pedido pagado la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En una reserva o pedido pagado se aplica una tarifa de servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
         {
           q: "Hago pizzas desde la cocina de mi casa. ¿Es muy chico?",
@@ -161,7 +161,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking the fee is six percent, three from the customer and three from you, with card processing included.",
+          a: "The page is free. On a paid booking, a Tulala service fee applies, added on top for the customer and set per plan.",
         },
       ],
     },
@@ -205,7 +205,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una reserva pagada la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido.",
+          a: "La página es gratis. En una reserva pagada se aplica una tarifa de servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
       ],
     },

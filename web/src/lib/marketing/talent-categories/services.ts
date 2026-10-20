@@ -59,7 +59,7 @@ export const SERVICE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. When you take a paid booking the fee is six percent, three from the client and three from you, with card processing included in that. It does not change by plan.",
+          a: "The page is free. When you take a paid booking, a Tulala service fee applies, added on top for the client and set per plan.",
         },
         {
           q: "I work with two other cleaners. Does that work?",
@@ -103,7 +103,7 @@ export const SERVICE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. Cuando recibes una reserva pagada la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento de tarjeta incluido en ese número. No cambia según el plan.",
+          a: "La página es gratis. Cuando recibes una reserva pagada se aplica una tarifa de servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
         {
           q: "Trabajo con otras dos personas. ¿Sirve igual?",
@@ -157,7 +157,7 @@ export const SERVICE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking the fee is six percent, three from the client and three from you, with card processing included. The same on every plan.",
+          a: "The page is free. On a paid booking, a Tulala service fee applies, added on top for the client and set per plan.",
         },
       ],
     },
@@ -201,7 +201,7 @@ export const SERVICE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una reserva pagada la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En una reserva pagada se aplica una tarifa de servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
       ],
     },

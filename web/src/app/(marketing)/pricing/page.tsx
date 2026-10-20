@@ -32,8 +32,8 @@ export async function generateMetadata(): Promise<Metadata> {
       es: "Precios: página web con reservas gratis, planes simples",
     }),
     description: pickLocale(locale, {
-      en: "Two ladders, one question: are you a person or a business? Start free on either, and pay the same 6% on a paid booking whatever plan you are on.",
-      es: "¿Eres una persona o un negocio? Empieza gratis en cualquiera de los dos y paga el mismo 6% sobre cada reserva pagada, sea cual sea tu plan.",
+      en: "Two ladders, one question: are you a person or a business? Start free on either. A paid booking carries a Tulala service fee, added on top for the client.",
+      es: "¿Eres una persona o un negocio? Empieza gratis en cualquiera de los dos. Una reserva pagada lleva una tarifa de servicio de Tulala, que se suma por encima para el cliente.",
     }),
     ...buildMarketingLocaleAlternates(locale, "/pricing"),
   };
@@ -80,7 +80,7 @@ export default async function PricingPage({
       heroTitleA: "Two ladders.",
       heroTitleB: "One question.",
       heroSubtitle:
-        "Are you a person, or a business? Pick the column, then pick small, medium or large. Both columns start free, and a paid booking costs the same 6% on every plan.",
+        "Are you a person, or a business? Pick the column, then pick small, medium or large. Both columns start free, and a paid booking carries a Tulala service fee, added on top for the client.",
       heroPrimary: "Start free",
       heroSecondary: "See the walkthrough",
       compareEyebrow: "Business plan comparison",
@@ -96,7 +96,7 @@ export default async function PricingPage({
       heroTitleA: "Dos columnas.",
       heroTitleB: "Una pregunta.",
       heroSubtitle:
-        "\u00bfEres una persona o un negocio? Elige la columna y luego elige chico, mediano o grande. Las dos empiezan gratis, y una reserva pagada cuesta el mismo 6% en todos los planes.",
+        "\u00bfEres una persona o un negocio? Elige la columna y luego elige chico, mediano o grande. Las dos empiezan gratis, y una reserva pagada lleva una tarifa de servicio de Tulala, que se suma por encima para el cliente.",
       heroPrimary: "Empieza gratis",
       heroSecondary: "Ver el recorrido",
       compareEyebrow: "Comparaci\u00f3n de planes de negocio",
@@ -146,7 +146,7 @@ export default async function PricingPage({
       </div>
 
       {/*
-        The two ratified 2026 ladders (person / business) + the 6% fee card.
+        The two ratified 2026 ladders (person / business) + the service fee card.
         Tier names + prices are read from the `product_*` catalog; a tier whose
         catalog row is inactive (today: `website`) is simply absent and the
         ladder closes up around it.

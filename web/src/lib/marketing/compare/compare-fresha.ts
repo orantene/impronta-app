@@ -5,7 +5,7 @@ import type { Comparison } from "./types";
  *
  * Fresha markets itself as free and is not, which is the honest hook for this
  * page: a subscription per bookable team member, 20% of a new marketplace
- * client's first booking, and processing on top. Ours is 6% with processing
+ * client's first booking, and processing on top. Ours is the Tulala service fee with processing
  * inside it.
  *
  * As with Booksy, what they do better is on the page. Their marketplace has
@@ -43,12 +43,12 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Cut of a new client",
-        tulala: "Six percent of the booking, the same for everyone.",
+        tulala: "A Tulala service fee on the booking, the same for everyone.",
         them: "20% of a new marketplace client's first booking, minimum $6, one time per client.",
       },
       {
         label: "Card processing",
-        tulala: "Included in the six percent.",
+        tulala: "Covered by the Tulala service fee.",
         them: "Roughly 2.19% to 3.30% plus about $0.20 per transaction, on top.",
       },
       {
@@ -58,7 +58,7 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "What you pay on your OWN client",
-        tulala: "Six percent, and nothing else.",
+        tulala: "The Tulala service fee, and nothing else.",
         them: "No marketplace cut on your own clients, but the subscription and processing still apply.",
       },
     ],
@@ -102,12 +102,12 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Parte de un cliente nuevo",
-        tulala: "Seis por ciento de la reserva, igual para todos.",
+        tulala: "Una tarifa de servicio de Tulala sobre la reserva, igual para todos.",
         them: "20% de la primera reserva de un cliente nuevo del marketplace, mínimo $6, una sola vez por cliente.",
       },
       {
         label: "Procesamiento de tarjeta",
-        tulala: "Incluido en el seis por ciento.",
+        tulala: "Cubierto por la tarifa de servicio de Tulala.",
         them: "Aproximadamente 2.19% a 3.30% más unos $0.20 por transacción, aparte.",
       },
       {
@@ -117,7 +117,7 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Qué pagas por TU propio cliente",
-        tulala: "Seis por ciento, y nada más.",
+        tulala: "La tarifa de servicio de Tulala, y nada más.",
         them: "No hay comisión de marketplace por tus propios clientes, pero la suscripción y el procesamiento siguen aplicando.",
       },
     ],
