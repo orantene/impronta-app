@@ -78,7 +78,8 @@ test("booking CTA targets the existing deep link for that service", () => {
 
 test("wiring: renderer resolves service slugs and the host sitemap lists them", () => {
   const render = readFileSync(join(process.cwd(), "src/lib/talent-site/server/render-max-site.tsx"), "utf8");
-  assert.match(render, /resolveServiceBySlug\(/);
+  // TUL-1272 C1: history-aware; with no content map it IS resolveServiceBySlug (service-page-slug-history.test.ts).
+  assert.match(render, /resolveServiceSlugWithHistory\(/);
   assert.match(render, /serviceSeo\(/);
   assert.match(render, /city: seoFacts\.addressLocality/);
   // The route's generateMetadata consumes result.seo (description + alternates) via the shared mapper.

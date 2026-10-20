@@ -1,0 +1,112 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { renderStudioPanel } from "./studio-panel";
+import { STUDIO_COPY } from "./studio-checklist-copy";
+import { buildStudioChecklist, buildTokenPreview, studioFlagOn, type StudioFacts } from "./studio-checklist";
+
+const FULL: StudioFacts = {
+  packFiles: ["index.html", "kit.js", "parity-map.json", "content.json", "README.md"],
+  readmeDraft: false,
+  referenceDemoCode: "TAL-93011",
+  openDeltas: 0,
+  gaps: [],
+  overlayPresent: true,
+  galleryVisible: true,
+};
+
+describe("buildStudioChecklist", () => {
+  it("is ready when every row passes", () => {
+    const c = buildStudioChecklist(FULL);
+    assert.equal(c.ready, true);
+    assert.deepEqual(c.rows.map((r) => r.key), ["pack", "demo", "parity", "gaps", "overlay", "gallery"]);
+    assert.ok(c.rows.every((r) => r.ok));
+  });
+  it("a pack with missing files is not complete", () => {
+    const c = buildStudioChecklist({ ...FULL, packFiles: ["index.html", "kit.js"] });
+    const row = c.rows.find((r) => r.key === "pack")!;
+    assert.equal(row.ok, false);
+    assert.match(row.detail ?? "", /parity-map\.json/);
+    assert.equal(c.ready, false);
+  });
+  it("a README that still says DRAFT blocks the pack row", () => {
+    assert.equal(buildStudioChecklist({ ...FULL, readmeDraft: true }).rows[0]!.ok, false);
+  });
+  it("unknown parity (no local run) is not ok, open deltas are not ok", () => {
+    assert.equal(buildStudioChecklist({ ...FULL, openDeltas: null }).rows.find((r) => r.key === "parity")!.ok, false);
+    assert.equal(buildStudioChecklist({ ...FULL, openDeltas: 2 }).rows.find((r) => r.key === "parity")!.ok, false);
+  });
+  it("an open capability gap blocks and is named in the detail", () => {
+    const c = buildStudioChecklist({ ...FULL, gaps: ["W-12 contact sheet tag filter and loupe"] });
+    const row = c.rows.find((r) => r.key === "gaps")!;
+    assert.equal(row.ok, false);
+    assert.match(row.detail ?? "", /W-12/);
+  });
+  it("missing reference demo, overlay, or gallery decision each block", () => {
+    assert.equal(buildStudioChecklist({ ...FULL, referenceDemoCode: null }).ready, false);
+    assert.equal(buildStudioChecklist({ ...FULL, overlayPresent: false }).ready, false);
+    assert.equal(buildStudioChecklist({ ...FULL, galleryVisible: false }).ready, false);
+  });
+});
+
+describe("studioFlagOn", () => {
+  it("is off unless TALENT_THEME_STUDIO is exactly 1", () => {
+    assert.equal(studioFlagOn({}), false);
+    assert.equal(studioFlagOn({ TALENT_THEME_STUDIO: "0" }), false);
+    assert.equal(studioFlagOn({ TALENT_THEME_STUDIO: "1" }), true);
+  });
+});
+
+describe("STUDIO_COPY", () => {
+  it("has EN and ES for every row key, no em dashes", () => {
+    for (const lang of ["en", "es"] as const) {
+      for (const k of ["pack", "demo", "parity", "gaps", "overlay", "gallery"] as const) {
+        assert.ok(STUDIO_COPY[lang].rows[k].length > 0);
+      }
+      assert.ok(!JSON.stringify(STUDIO_COPY[lang]).includes("—"));
+    }
+    assert.notEqual(STUDIO_COPY.en.title, STUDIO_COPY.es.title);
+  });
+});
+
+describe("buildTokenPreview", () => {
+  it("keeps fonts and valid hex swatches only, per palette", () => {
+    const out = buildTokenPreview({
+      fonts: { heading: "Manrope, sans-serif", body: "Inter" },
+      palettes: [{ key: "paper", name: "Paper", page: "#FFFFFF", section: "var(--x)", text: "#0F0F0F", accent: "#0E6B6B" }],
+    });
+    assert.equal(out.heading, "Manrope, sans-serif");
+    assert.deepEqual(out.palettes[0]!.swatches.map((s) => s.role), ["page", "text", "accent"]);
+  });
+  it("no fonts = empty strings (platform default pair)", () => {
+    assert.equal(buildTokenPreview({ palettes: [] }).heading, "");
+  });
+});
+
+describe("STUDIO_COPY tokens", () => {
+  it("has EN and ES token-preview labels", () => {
+    assert.ok(STUDIO_COPY.en.tokens.length > 0 && STUDIO_COPY.es.tokens.length > 0);
+    assert.notEqual(STUDIO_COPY.en.tokens, STUDIO_COPY.es.tokens);
+    assert.ok(STUDIO_COPY.en.editHint.length > 0 && STUDIO_COPY.es.editHint.length > 0);
+  });
+});
+
+describe("renderStudioPanel", () => {
+  const checklist = buildStudioChecklist({ ...FULL, gaps: ["W-12 <b>x</b>"], openDeltas: null });
+  const html = renderStudioPanel(checklist, undefined);
+  it("renders every row in both languages and escapes interpolated text", () => {
+    for (const k of ["pack", "demo", "parity", "gaps", "overlay", "gallery"]) assert.match(html, new RegExp(`data-studio-row="${k}"`));
+    assert.match(html, /data-l="en"/);
+    assert.match(html, /data-l="es"/);
+    assert.doesNotMatch(html, /<b>x<\/b>/);
+    assert.match(html, /W-12 &lt;b&gt;x&lt;\/b&gt;/);
+    assert.match(html, /sin ejecución/);
+    assert.doesNotMatch(html, /—/);
+  });
+  it("token preview adds swatches, a type sample and the edit hint", () => {
+    const withTokens = renderStudioPanel(checklist, { heading: "Manrope, sans-serif", body: "", palettes: [{ key: "p", name: "Paper", swatches: [{ role: "accent", hex: "#0E6B6B" }] }] });
+    assert.match(withTokens, /data-studio-tokens/);
+    assert.match(withTokens, /background:#0E6B6B/);
+    assert.match(withTokens, /Aa Manrope/);
+  });
+});

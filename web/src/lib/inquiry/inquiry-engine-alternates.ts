@@ -3,6 +3,7 @@ import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { lookupTalentUserId, staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import type { EngineResult } from "./inquiry-engine.types";
 import type { InquiryAlternate } from "./alternates-types";
 import {
@@ -296,11 +297,9 @@ export async function promoteAlternate(
       resolvedGroupId = (defaultGroup?.id as string | undefined) ?? null;
     }
 
-    const { data: tp } = await supabase
-      .from("talent_profiles")
-      .select("user_id")
-      .eq("id", alt.talent_profile_id)
-      .maybeSingle();
+    // TUL-1359: service client, keyed by the alternate the action authorized.
+    const tp = await lookupTalentUserId(await staffTalentClient(supabase), alt.talent_profile_id);
+    if (!tp.found) return { success: false, error: "talent_not_found" };
 
     const { data: maxSort } = await supabase
       .from("inquiry_participants")
@@ -319,7 +318,7 @@ export async function promoteAlternate(
     const { error: insErr } = await write.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
       tenant_id: ctx.tenantId,
-      user_id: tp?.user_id ?? null,
+      user_id: tp.userId,
       talent_profile_id: alt.talent_profile_id,
       role: "talent",
       status: "invited",
@@ -356,8 +355,8 @@ export async function promoteAlternate(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { talentProfileId: alt.talent_profile_id, promotedFromWaitlist: true },
-      notifications: tp?.user_id
-        ? [{ userId: tp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+      notifications: tp.userId
+        ? [{ userId: tp.userId, title: "Inquiry invitation", body: "You were added to an inquiry." }]
         : [],
     });
 
