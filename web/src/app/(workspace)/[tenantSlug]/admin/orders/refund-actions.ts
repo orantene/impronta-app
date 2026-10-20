@@ -16,6 +16,7 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { nonRefundableFeeCents } from "@/lib/billing/commission";
 import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
 import { txnRefundableCents, type PaidTransaction } from "@/lib/orders/refund-plan";
+import { authorizeRefund, type RefundAuthorityCode } from "@/lib/payments/refund-authority";
 
 /**
  * EVERY ANSWER FROM THIS FILE IS A CODE, NEVER A SENTENCE.
@@ -238,6 +239,24 @@ export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesR
   };
 }
 
+/** The guard's refusal, said in the desk's own (translated) outcome words. */
+function deskOutcomeForAuthority(code: RefundAuthorityCode): RefundDeskOutcome {
+  switch (code) {
+    case "not_allowed":
+      return "not_allowed";
+    case "invalid_amount":
+      return "invalid";
+    case "nothing_left":
+      return "nothing_to_refund";
+    case "over_remainder":
+      return "exceeds_captured";
+    case "over_limit":
+      return "over_limit";
+    default:
+      return "unavailable";
+  }
+}
+
 const schema = z.object({
   orderId: z.string().uuid(),
   lineIds: z.array(z.string().uuid()).min(1),
@@ -287,29 +306,39 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
   if (captureLeft == null) return { ok: false, outcome: "unavailable" };
   // Ceiling is the lesser of line remainder and capture left (TUL-469).
   const remainingCents = Math.min(lineRemainingCents, captureLeft);
-  const asked = parsed.data.amountCents ?? remainingCents;
-  if (asked > remainingCents) return { ok: false, outcome: "exceeds_captured" };
-  const refundCents = asked;
   const membership = await findTenantMembership(guard.tenantId);
-  const limited = await enforceRoleLimit(admin, {
-    tenantId: guard.tenantId,
-    role: membership?.role ?? null,
-    action: "refund",
-    amountCents: refundCents,
-    subjectId: parsed.data.orderId,
-    requestedBy: guard.user.id,
-    operationKey: `refund:${parsed.data.orderId}:${[...parsed.data.lineIds].sort().join(",").slice(0, 60)}:${refundCents}`,
-    reason: `Refund at the desk (${refundCents} cents, ${parsed.data.effect})`,
+  // TUL-1268 M6: the one refund guard (capability, amount, remainder, role
+  // limit). `allowed` is already proven above; it is passed so the guard's
+  // rule list is the same at every door.
+  const authorized = await authorizeRefund({
+    capable: allowed,
+    requestedCents: parsed.data.amountCents ?? null,
+    refundableCents: remainingCents,
+    allowFullRemainder: true,
+    enforceLimit: (refundCents) =>
+      enforceRoleLimit(admin, {
+        tenantId: guard.tenantId,
+        role: membership?.role ?? null,
+        action: "refund",
+        amountCents: refundCents,
+        subjectId: parsed.data.orderId,
+        requestedBy: guard.user.id,
+        operationKey: `refund:${parsed.data.orderId}:${[...parsed.data.lineIds].sort().join(",").slice(0, 60)}:${refundCents}`,
+        reason: `Refund at the desk (${refundCents} cents, ${parsed.data.effect})`,
+      }),
   });
-  if (!limited.ok) return { ok: false, outcome: limited.reason === "over_limit" ? "over_limit" : "unavailable" };
+  if (!authorized.ok) return { ok: false, outcome: deskOutcomeForAuthority(authorized.code) };
 
   if (parsed.data.effect === "refund_hybrid_component") {
+    // The requested amount, never the whole remainder (TUL-1268 M6). Blank
+    // still means the remainder, exactly as the line refund below reads it.
     const hybrid = await cancelHybridComponents(admin, {
       tenantId: guard.tenantId,
       orderId: parsed.data.orderId,
       lineIds: parsed.data.lineIds,
       actorUserId: guard.user.id,
       note: `desk:${parsed.data.effect}`,
+      amountCents: parsed.data.amountCents ?? null,
     });
     if (!hybrid.ok) return { ok: false, outcome: refundDeskOutcome(hybrid.reason) };
     return { ok: true, outcome: "refunded", refundedCents: hybrid.refundedCents };

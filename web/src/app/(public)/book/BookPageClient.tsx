@@ -24,6 +24,7 @@ export function BookPageClient({
   captcha = null,
   locale: localeProp,
   contactHref = null,
+  initialServiceId = "",
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -36,7 +37,11 @@ export function BookPageClient({
   locale?: string | null;
   /** Where a visitor with nothing to book can write to the studio (TUL-698). */
   contactHref?: string | null;
+  /** TUL-65 Book again: opens on this service, bypassing the default picker. Ignored when not in `offerings`. */
+  initialServiceId?: string;
 }) {
+  const [userPicked, setUserPicked] = useState(false);
+  const pinnedId = offerings.some((o) => o.id === initialServiceId) ? initialServiceId : "";
   const cookieT = usePublicT();
   const pageLocale = (localeProp?.trim() || "en").startsWith("es") ? "es" : "en";
   const t = useMemo(
@@ -45,8 +50,8 @@ export function BookPageClient({
   );
   const [offeringId, setOfferingId] = useState(offerings[0]?.id ?? "");
   const selected = useMemo(
-    () => offerings.find((o) => o.id === offeringId) ?? offerings[0] ?? null,
-    [offerings, offeringId],
+    () => offerings.find((o) => o.id === (pinnedId && !userPicked ? pinnedId : offeringId)) ?? offerings[0] ?? null,
+    [offerings, offeringId, pinnedId, userPicked],
   );
   const bookable = selected
     ? pickBookableOffering([selected], { locationLabel: null })
@@ -108,7 +113,10 @@ export function BookPageClient({
           <span className="font-medium">{t("public.bookPage.chooseService")}</span>
           <select
             value={selected.id}
-            onChange={(e) => setOfferingId(e.target.value)}
+            onChange={(e) => {
+              setUserPicked(true);
+              setOfferingId(e.target.value);
+            }}
             className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2 text-[var(--token-color-ink,#0B0B0D)]"
           >
             {offerings.map((o) => (

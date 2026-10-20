@@ -42,7 +42,6 @@ const ROUTED = [
   "src/components/talent/money/MoneyHomePage.tsx",
   "src/components/talent/money/MoneyRecordPaymentPanel.tsx",
   "src/components/talent/services/ExtraScreen.tsx",
-  "src/components/talent/services/TalentOfferingsManager.tsx",
   "src/lib/talent/services-list-price.ts",
 ];
 

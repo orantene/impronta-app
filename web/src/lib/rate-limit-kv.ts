@@ -43,6 +43,7 @@
  *   BEFORE the engine sendMessage; return code 'rate_limited' on failure.
  */
 
+import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { runLimiter } from "@/lib/rate-limit-run";
 import type { GuestChatErrorCode } from "@/lib/inquiry/guest-chat-contract";
 
@@ -255,6 +256,8 @@ interface KvLimiter {
   checkSupportMessageSend(key: string): Promise<KvRateLimitResult>;
   /** Public booking slots: 60 / 60 s / IP. */
   checkBookingSlots(key: string): Promise<KvRateLimitResult>;
+  /** F3: public business catalog API: 30 / 60 s / IP, its own bucket (slot lookups cannot starve it, nor it them). */
+  checkPublicCatalog(key: string): Promise<KvRateLimitResult>;
 }
 
 /** No-op fallback used when Upstash env vars are absent. */
@@ -301,10 +304,32 @@ const noopLimiter: KvLimiter = {
   async checkSupportMessageSend() {
     return { ok: true };
   },
-  async checkBookingSlots() {
-    return { ok: true };
+  // TUL-1342: the two PUBLIC read endpoints keep a per-instance floor when
+  // Upstash env is missing, instead of becoming unlimited. The key already
+  // carries the trusted client IP; the table is the bounded H3 one.
+  async checkBookingSlots(key: string) {
+    return inMemoryPublicLimit("checkBookingSlots", key, 60);
+  },
+  async checkPublicCatalog(key: string) {
+    return inMemoryPublicLimit("checkPublicCatalog", key, 30);
   },
 };
+
+const PUBLIC_WINDOW_MS = 60_000;
+const _warnedInMemory = new Set<string>();
+
+function inMemoryPublicLimit(name: string, key: string, max: number): KvRateLimitResult {
+  if (!_warnedInMemory.has(name)) {
+    _warnedInMemory.add(name);
+    // eslint-disable-next-line no-console
+    console.error(
+      `[rate-limit-kv] ${name}: Upstash env is UNSET, using the per-instance in-memory limiter ` +
+        `(${max}/min/IP, not shared across instances). Provision UPSTASH_REDIS_REST_URL/TOKEN.`,
+    );
+  }
+  if (tryConsumeRateLimit(key, max, PUBLIC_WINDOW_MS)) return { ok: true };
+  return { ok: false, code: "rate_limited", retryAfterMs: PUBLIC_WINDOW_MS };
+}
 
 /**
  * One-time loud warning when the limiter falls back to noop in production. The
@@ -499,6 +524,13 @@ async function getLimiter(): Promise<KvLimiter> {
       analytics: false,
     });
 
+    const publicCatalogLimiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(30, "1 m"),
+      prefix: "rl:public_catalog",
+      analytics: false,
+    });
+
     _limiter = {
       async checkInquiryCreate(key: string): Promise<KvRateLimitResult> {
         return runLimiter("checkInquiryCreate", inquiryCreateLimiter, key);
@@ -558,6 +590,10 @@ async function getLimiter(): Promise<KvLimiter> {
 
       async checkBookingSlots(key: string): Promise<KvRateLimitResult> {
         return runLimiter("checkBookingSlots", bookingSlotsLimiter, key);
+      },
+
+      async checkPublicCatalog(key: string): Promise<KvRateLimitResult> {
+        return runLimiter("checkPublicCatalog", publicCatalogLimiter, key);
       },
     };
   } catch {
@@ -700,6 +736,13 @@ export async function checkBookingSlots(ip: string): Promise<KvRateLimitResult> 
   const limiter = await getLimiter();
   const key = (ip.trim() || "x").toLowerCase();
   return limiter.checkBookingSlots(`booking_slots:${key}`);
+}
+
+/** F3: public business catalog API: 30 requests per minute per trusted client IP, separate from slots. */
+export async function checkPublicCatalog(ip: string): Promise<KvRateLimitResult> {
+  const limiter = await getLimiter();
+  const key = (ip.trim() || "x").toLowerCase();
+  return limiter.checkPublicCatalog(`public_catalog:${key}`);
 }
 
 /**

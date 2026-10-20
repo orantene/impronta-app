@@ -26,6 +26,7 @@ import { LightSectionLabel } from "../_light/section-label";
 import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import { servicePageHrefs } from "@/lib/talent-site/service-page";
+import { loadHubOwnerBookHrefs } from "@/lib/talent/hub-owner-book.server";
 
 export async function TalentStorefront({
   offerings,
@@ -81,6 +82,8 @@ export async function TalentStorefront({
   // Only an absolute site address (custom domain or subdomain) hosts service
   // pages at its root; the in-platform fallback path does not.
   const serviceHrefs = siteUrl && /^https?:\/\//i.test(siteUrl) ? servicePageHrefs(visible, siteUrl) : undefined;
+  // TUL-1272 money guard: on a hub host, another workspace's row books on that workspace's page.
+  const ownerBookHrefs = await loadHubOwnerBookHrefs(visible);
 
   return (
     <section aria-labelledby="storefront-heading" data-profile-section="storefront">
@@ -88,9 +91,9 @@ export async function TalentStorefront({
 
       <div className="mt-5">
         {showFilter ? (
-          <StorefrontFilter visible={visible} locale={locale} categories={categories} categoryLabels={categoryLabels} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} />
+          <StorefrontFilter visible={visible} locale={locale} categories={categories} categoryLabels={categoryLabels} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} ownerBookHrefs={ownerBookHrefs} />
         ) : (
-          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} />
+          <StorefrontBody visible={visible} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} serviceHrefs={serviceHrefs} ownerBookHrefs={ownerBookHrefs} />
         )}
       </div>
     </section>

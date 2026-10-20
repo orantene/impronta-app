@@ -45,6 +45,44 @@ describe("detectCancelTransition", () => {
   });
 });
 
+function portalEvt(cancelAt: number | null, prevCancelAt: number | null, id = "evt_portal"): Stripe.Event {
+  return {
+    id,
+    type: "customer.subscription.updated",
+    created: 1_790_000_000,
+    data: {
+      object: { id: "sub_1", status: "active", cancel_at_period_end: false, cancel_at: cancelAt, items: { data: [{ current_period_end: END }] } },
+      previous_attributes: { cancel_at: prevCancelAt },
+    },
+  } as unknown as Stripe.Event;
+}
+
+describe("detectCancelTransition: portal cancel via cancel_at (API 2026-04-22.dahlia)", () => {
+  test("cancel_at null -> future with the flag still false is a cancel", () => {
+    const t = detectCancelTransition(portalEvt(END, null));
+    assert.equal(t?.cancelAtPeriodEnd, true);
+    assert.equal(t?.periodEnd, new Date(END * 1000).toISOString());
+  });
+  test("cancel_at future -> null is a resume", () => {
+    const t = detectCancelTransition(portalEvt(null, END));
+    assert.equal(t?.cancelAtPeriodEnd, false);
+  });
+  test("cancel_at moved between two future dates is not a transition", () => {
+    assert.equal(detectCancelTransition(portalEvt(END + 86_400, END)), null);
+  });
+  test("a replay yields the same key, so the ledger sends exactly one notice", async () => {
+    const a = detectCancelTransition(portalEvt(END, null, "evt_a"));
+    const b = detectCancelTransition(portalEvt(END, null, "evt_b"));
+    assert.ok(a && b);
+    assert.equal(cancelNoticeKey(a), cancelNoticeKey(b));
+    const { deps, sent } = fakeDeps();
+    const input = { scope: "talent" as const, to: "pat@example.com", locale: "es" as const, actionUrl: "https://app.test/" };
+    assert.equal(await sendCancelStateNotice({ ...input, transition: a }, deps), "sent");
+    assert.equal(await sendCancelStateNotice({ ...input, transition: b }, deps), "duplicate");
+    assert.equal(sent.length, 1);
+  });
+});
+
 describe("idempotency key", () => {
   test("differs by flag and period end, stable for replays", () => {
     const a = { subscriptionId: "sub_1", cancelAtPeriodEnd: true, periodEnd: "2027-01-15T00:00:00.000Z" };

@@ -353,4 +353,12 @@ export const ES_INSPECTOR_TEXT_3: Record<string, string> = {
     "Este bloque no puede ir ahí. Selecciona primero una sección y agrégalo dentro.",
   // TUL-124: empty testimonials slot / live-dropped block badge
   "Not shown on your site": "No se muestra en tu sitio",
+  // W-10 rotating words + W-12 tag filter
+  "Tag filter": "Filtro por etiqueta",
+  "Chips above the photos; visitors tap one to see only that tag.":
+    "Botones sobre las fotos; quien visita toca uno para ver solo esa etiqueta.",
+  "Rotating words": "Palabras rotativas",
+  "Put {rotate} in the heading where the word goes. Words take turns, in italics.":
+    "Pon {rotate} en el título donde va la palabra. Las palabras se turnan, en cursiva.",
+  "Add a word": "Agregar una palabra",
 };

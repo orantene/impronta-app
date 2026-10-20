@@ -135,6 +135,7 @@ import { FreeformHubBook } from "./freeform-hub-book";
 import { HubProfileBookingChrome } from "./hub-profile-booking-chrome";
 import type { HubProfileCtaSlot } from "@/lib/talent-site/hub-profile-book-cta";
 import { hubProfileBookEntry } from "@/lib/talent-site/hub-profile-book-entry";
+import { loadHubInPlaceOfferings } from "@/lib/talent/hub-owner-book.server";
 import { loadInstantBookEligibility } from "@/lib/scheduling/instant-book-eligibility";
 import { servicesMenuForPublicHost } from "@/lib/talent/services-menu-for-host";
 import { loadPlatformOperatingCurrency } from "@/lib/platform/operating-currency";
@@ -1956,7 +1957,8 @@ export async function TalentProfileView({
     legacyEligible: instantBook.eligible && instantBook.fixedRateDollars != null,
   });
   const showSlotPicker = profileCtas.showSlotPicker;
-  const hubBookEntry = hubProfileBookEntry(storefrontOfferings, profile.talent_plan_key);
+  const hubInPlaceOfferings = await loadHubInPlaceOfferings(storefrontOfferings); // TUL-1272: hub rails never open another workspace's row
+  const hubBookEntry = hubProfileBookEntry(hubInPlaceOfferings, profile.talent_plan_key);
   const slotTenantSlug = booking.tenantSlug ?? chatTenantSlug;
   const slotTenantId = booking.tenantId ?? chatTenantId;
   const chatBrandName =
@@ -2473,7 +2475,7 @@ export async function TalentProfileView({
         slotPicker={
           showSlotPicker ? (
             <ProfileSlotPickerChrome
-              offerings={storefrontOfferings}
+              offerings={hubInPlaceOfferings}
               tenantSlug={slotTenantSlug}
               tenantId={slotTenantId}
               agencyName={tenantBrand ?? "the studio"}
