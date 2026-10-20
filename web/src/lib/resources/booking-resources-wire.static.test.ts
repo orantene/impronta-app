@@ -13,7 +13,7 @@ const code = (p: string) => blankComments(readFileSync(join(web, p), "utf8"));
 
 test("order pipeline (public /book, instant book, appointment picker, POS desk, reservations, carts) adds linked resources to its one atomic batch", () => {
   const src = code("src/lib/orders/purchase.ts");
-  const add = src.indexOf("purchaseNeedsWithLinkedResources(admin, input)");
+  const add = src.indexOf("purchaseNeedsWithLinkedResources(admin, { ...input, capacity: stockNeeds })");
   const reserve = src.indexOf("reserveResourceSet(admin, {");
   assert.ok(add > 0 && reserve > add, "linked needs must be added before the single reserve call");
   assert.match(src, /if \(!linkedNeeds\.ok\) \{ await unwind\(/);
