@@ -10,6 +10,8 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { RecordNotFoundDrawer } from "./record-not-found";
+import { commissionDisplay } from "./commission-display";
 import { TRUST_TIER_KEYS } from "../primitives/trust-tier-copy-keys";
 import { talentPublicProfileHref, talentPublicProfileLabel } from "@/lib/talent/public-profile-href";
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
@@ -140,18 +142,23 @@ export function TalentAgencyRelationshipDrawer() {
   }
 
   // Resolve display data — prefer bridge, fall back to mock fixture.
-  const mockAgency = MY_AGENCIES.find((x) => x.id === payloadAgencyId) ?? MY_AGENCIES[0];
-  const name       = bridgeAgency?.agencyName ?? mockAgency.name;
-  const status     = bridgeAgency?.rosterStatus ?? mockAgency.status;
-  const joinedAt   = bridgeAgency?.addedAt ?? mockAgency.joinedAt;
-  const isPrimary  = bridgeAgency?.isPrimary ?? mockAgency.isPrimary;
-  const planTier   = (bridgeAgency?.plan ?? mockAgency.planTier) as "free" | "studio" | "agency";
-  const commissionRate = mockAgency.commissionRate; // bridge doesn't carry this yet
+  const mockAgency = MY_AGENCIES.find((x) => x.id === payloadAgencyId);
+  // Neither a real roster row nor a prototype row for this id: say so, never show another agency.
+  if (!bridgeAgency && !mockAgency) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
+  const name       = bridgeAgency?.agencyName ?? mockAgency!.name;
+  const status     = bridgeAgency?.rosterStatus ?? mockAgency!.status;
+  const joinedAt   = bridgeAgency?.addedAt ?? mockAgency!.joinedAt;
+  const isPrimary  = bridgeAgency?.isPrimary ?? mockAgency!.isPrimary;
+  const planTier   = (bridgeAgency?.plan ?? mockAgency!.planTier) as "free" | "studio" | "agency";
+  // The bridge does not carry a rate yet: unknown (null) for a real agency, never 0%.
+  const commission = commissionDisplay(mockAgency?.commissionRate ?? null);
 
   const planLabel = planTier === "free" ? t("dashboard.talentDrawers.agency.planFree") : planTier === "studio" ? t("dashboard.talentDrawers.agency.planStudio") : t("dashboard.talentDrawers.agency.planAgency");
-  const commissionLabel = commissionRate === 0
-    ? t("dashboard.talentDrawers.agency.commissionNone")
-    : interpolate(t("dashboard.talentDrawers.agency.commissionOnBookings"), { pct: Math.round(commissionRate * 100), name });
+  const commissionLabel = commission.kind === "unknown"
+    ? null
+    : commission.kind === "none"
+      ? t("dashboard.talentDrawers.agency.commissionNone")
+      : interpolate(t("dashboard.talentDrawers.agency.commissionOnBookings"), { pct: commission.pct, name });
 
   return (
     <DrawerShell
@@ -190,7 +197,7 @@ export function TalentAgencyRelationshipDrawer() {
         >
           <Icon name="info" size={12} stroke={1.7} color={COLORS.inkMuted} />
           <span style={{ fontWeight: 500 }} className="text-admin-ink">
-            {planLabel} · {commissionLabel}
+            {commissionLabel ? `${planLabel} · ${commissionLabel}` : planLabel}
           </span>
         </div>
 
@@ -214,7 +221,7 @@ export function TalentAgencyRelationshipDrawer() {
               </span>
             </div>
             <div style={{ fontSize: 12.5, lineHeight: 1.5, marginBottom: 10 }} className="text-admin-ink">
-              {interpolate(t("dashboard.talentDrawers.agency.exclusivityPrompt"), { name, commission: commissionRate > 0 ? `${Math.round(commissionRate * 100)}%` : t("dashboard.talentDrawers.agency.exclusivityCommissionFallback") })}
+              {interpolate(t("dashboard.talentDrawers.agency.exclusivityPrompt"), { name, commission: commission.kind === "rate" ? `${commission.pct}%` : t("dashboard.talentDrawers.agency.exclusivityCommissionFallback") })}
             </div>
             <div className="flex gap-2">
               <button
@@ -263,7 +270,9 @@ export function TalentAgencyRelationshipDrawer() {
           <KvRow label={t("dashboard.talentDrawers.agency.statusLabel")} value={status} />
           <KvRow label={t("dashboard.talentDrawers.agency.joinedLabel")} value={joinedAt} />
           <KvRow label={t("dashboard.talentDrawers.agency.primaryLabel")} value={isPrimary ? t("dashboard.talentDrawers.agency.yes") : t("dashboard.talentDrawers.agency.no")} />
-          <KvRow label={t("dashboard.talentDrawers.agency.takeRateLabel")} value={commissionRate === 0 ? "—" : `${Math.round(commissionRate * 100)}%`} />
+          {commission.kind !== "unknown" && (
+            <KvRow label={t("dashboard.talentDrawers.agency.takeRateLabel")} value={commission.kind === "none" ? "0%" : `${commission.pct}%`} />
+          )}
         </div>
 
         {!isPrimary && (
@@ -299,8 +308,8 @@ export function TalentAgencyRelationshipDrawer() {
           <li>{t("dashboard.talentDrawers.agency.canDoBullet2")}</li>
           <li>{t("dashboard.talentDrawers.agency.canDoBullet3")}</li>
           <li>{t("dashboard.talentDrawers.agency.canDoBullet4")}</li>
-          {commissionRate > 0 && (
-            <li>{interpolate(t("dashboard.talentDrawers.agency.canDoBullet5"), { pct: Math.round(commissionRate * 100) })}</li>
+          {commission.kind === "rate" && (
+            <li>{interpolate(t("dashboard.talentDrawers.agency.canDoBullet5"), { pct: commission.pct })}</li>
           )}
         </ul>
       </div>

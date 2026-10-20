@@ -13,7 +13,7 @@ import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry"
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
-import { loadCatalog, mapCapacityRefusal, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
+import { loadCatalog, mapCapacityRefusal, refuseHiddenVariants, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
 import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemption/order-redemptions";
@@ -157,6 +157,8 @@ export async function createPurchase(
     // D-10 / D-10a: guest charges need published + approved + public.
     const sellable = refuseUnsellableOfferings(catalog, offeringIds, input.channel);
     if (!sellable.ok) return sellable;
+    const tierGate = refuseHiddenVariants(catalog, input.lines, input.channel, input.unlockedVariantIds); // D1: hidden tiers by link or desk only
+    if (!tierGate.ok) return tierGate;
 
     const seller = await refuseUnclaimedSellers(admin, catalog);
     if (!seller.ok) {
@@ -421,8 +423,7 @@ export async function createPurchase(
       return { ok: false, reason: "engine_error", error: "Could not price the order." };
     }
 
-    // ── 7. Hold capacity: the caller's pools plus every line's offering stock
-    //       pool (purchase-stock.ts; menu and cart declare none).
+    // ── 7. Hold capacity: the caller's pools plus each line's offering stock (purchase-stock.ts).
     const lineIdByOffering = new Map<string, string>();
     for (const row of insertedLines as Array<{ id: string; offering_id: string | null }>) {
       if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);

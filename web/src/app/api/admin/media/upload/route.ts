@@ -38,6 +38,8 @@ import {
   MEDIA_VIDEO_MAX_BYTES,
 } from "@/lib/site-admin/media/validation";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { checkDeclaredLength, guardImageBlob } from "@/lib/media/upload-guards";
+import { uploadGuardError } from "@/lib/media/guarded-upload.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -131,6 +133,12 @@ export async function POST(req: Request) {
     );
   }
 
+  // H1: refuse by declared length before formData() buffers the body. The
+  // kind is inside the form, so the ceiling is the largest kind's cap.
+  const bodyCap = Math.max(MAX_BYTES_IMAGE, MAX_BYTES_DOCUMENT, MAX_BYTES_VIDEO) + 64 * 1024;
+  if (!checkDeclaredLength(req.headers.get("content-length"), bodyCap).ok) {
+    return NextResponse.json({ ok: false, error: "File is too large." }, { status: 413 });
+  }
   let form: FormData;
   try {
     form = await req.formData();
@@ -171,7 +179,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const mime = (file.type || "").toLowerCase();
+  // H1: for images the bytes decide the type, never the client's File.type.
+  const sniffed = kind === "image" ? await guardImageBlob(file) : null;
+  if (sniffed && !sniffed.ok) {
+    return NextResponse.json({ ok: false, error: await uploadGuardError(sniffed.reason) }, { status: sniffed.status });
+  }
+  const mime = sniffed?.ok ? sniffed.mime : (file.type || "").toLowerCase();
   const imageValidation =
     kind === "image"
       ? validateImageUpload({

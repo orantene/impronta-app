@@ -16,6 +16,7 @@ import "server-only";
  * provisioning-side caller.
  */
 
+import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -49,20 +50,18 @@ export async function importMenuFromBrief(input: {
   const url = typeof input.sourceUrl === "string" ? input.sourceUrl.trim() : "";
   if (!url) return { kind: "no_menu_source" };
 
-  let text: string;
-  try {
-    const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) return { kind: "fetch_failed", status: res.status };
-    const body = await res.text();
-    // Truncating would produce invalid JSON and read as "not a menu", which is
-    // a different and misleading answer, so an oversized body is a fetch
-    // failure with no status rather than a parse attempt.
-    if (body.length > MAX_BYTES) return { kind: "fetch_failed", status: null };
-    text = body;
-  } catch (error) {
-    logServerError("menuImport.fromBrief.fetch", error);
-    return { kind: "fetch_failed", status: null };
+  // H1: the brief's website_url is typed by whoever signed up. safeFetch
+  // refuses private/metadata addresses, pins the vetted IP, re-checks every
+  // redirect hop, and refuses an oversized body while streaming. Truncating
+  // would produce invalid JSON and read as "not a menu", which is a different
+  // and misleading answer, so an oversized body is a fetch failure.
+  const res = await safeFetch(url, { maxBytes: MAX_BYTES, timeoutMs: 15_000 });
+  if (!res.ok) {
+    logServerError("menuImport.fromBrief.fetch", new Error(`refused: ${res.reason}`));
+    return { kind: "fetch_failed", status: res.status ?? null };
   }
+  if (res.status < 200 || res.status >= 300) return { kind: "fetch_failed", status: res.status };
+  const text = decodeBody(res.body);
 
   let doc: unknown;
   try {

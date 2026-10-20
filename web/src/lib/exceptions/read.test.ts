@@ -45,6 +45,7 @@ function fakeAdmin(responders: Responder[]) {
           return api;
         },
         eq: () => api,
+        not: () => api,
         in: () => api,
         or: () => api,
         order: () => api,
@@ -64,6 +65,11 @@ function fakeAdmin(responders: Responder[]) {
 }
 
 const LONG_AGO = new Date(Date.now() - 90 * 60_000).toISOString();
+
+/** The unresolved-collection enrichment read (provider request id). */
+const ENRICHMENT_COLUMNS = "id, metadata";
+/** The payment-flag read (TUL-1283 / TUL-1284 / M2). */
+const PAYMENT_FLAG_COLUMNS = "id, order_id, metadata, updated_at";
 
 const UNRESOLVED: Row = {
   id: "txn-1",
@@ -85,7 +91,7 @@ test("THE REGRESSION: a database with no metadata column still shows the stalled
   const { admin } = fakeAdmin([
     {
       table: "booking_transactions",
-      when: (c) => c.includes("metadata"),
+      when: (c) => c === ENRICHMENT_COLUMNS,
       reply: { data: null, error: { message: 'column booking_transactions.metadata does not exist' } },
     },
     { table: "booking_transactions", reply: { data: [UNRESOLVED], error: null } },
@@ -111,7 +117,7 @@ test("with the column present the row can be asked about", async () => {
   const { admin } = fakeAdmin([
     {
       table: "booking_transactions",
-      when: (c) => c.includes("metadata"),
+      when: (c) => c === ENRICHMENT_COLUMNS,
       reply: {
         data: [{ id: "txn-1", metadata: { collection_payment_request_id: "cs_live_1" } }],
         error: null,
@@ -152,6 +158,8 @@ test("a failed read of the transactions themselves IS a failed section", async (
   const { admin } = fakeAdmin([
     {
       table: "booking_transactions",
+      // The collections read only; the payment-flag read is its own section.
+      when: (c) => c !== PAYMENT_FLAG_COLUMNS,
       reply: { data: null, error: { message: "connection reset" } },
     },
   ]);
@@ -162,7 +170,7 @@ test("a failed read of the transactions themselves IS a failed section", async (
 
 test("the recovery history is read once, for the transactions already found", async () => {
   const { admin, selects } = fakeAdmin([
-    { table: "booking_transactions", when: (c) => c.includes("metadata"), reply: EMPTY },
+    { table: "booking_transactions", when: (c) => c === ENRICHMENT_COLUMNS, reply: EMPTY },
     { table: "booking_transactions", reply: { data: [UNRESOLVED], error: null } },
     { table: "pos_collection_recoveries", reply: EMPTY },
   ]);
@@ -178,7 +186,7 @@ test("no unresolved collections means neither enrichment is read at all", async 
 
   await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
   assert.equal(
-    selects.filter((s) => s.table === "booking_transactions").length,
+    selects.filter((s) => s.table === "booking_transactions" && s.columns !== PAYMENT_FLAG_COLUMNS).length,
     1,
     "an empty queue must not pay for two extra reads",
   );
@@ -238,4 +246,67 @@ test("a failed intents read hides nothing", async () => {
   ]);
   const load = await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
   assert.equal(load.rows.filter((r) => r.source === "mint_shortfall").length, 1);
+});
+
+// ── Payments flagged by the settle path (TUL-1283 / TUL-1284 / M2) ──────
+
+test("a flagged payment shows up as a money row, one per open flag", async () => {
+  const { admin, selects } = fakeAdmin([
+    {
+      table: "booking_transactions",
+      when: (c) => c === PAYMENT_FLAG_COLUMNS,
+      reply: {
+        data: [
+          {
+            id: "txn-flag",
+            order_id: "ord-flag",
+            updated_at: LONG_AGO,
+            metadata: {
+              payment_flags: [
+                {
+                  reason: "charge_on_inactive_row",
+                  payment_intent_id: "pi_late",
+                  other_payment_intent_id: null,
+                  expected_amount_cents: 1800,
+                  expected_currency: "USD",
+                  charged_amount_cents: 1800,
+                  charged_currency: "usd",
+                  row_status: "cancelled",
+                  stripe_event_id: "evt_1",
+                  flagged_at: LONG_AGO,
+                },
+                {
+                  reason: "amount_mismatch",
+                  payment_intent_id: "pi_old",
+                  flagged_at: LONG_AGO,
+                  resolved_at: LONG_AGO,
+                },
+              ],
+            },
+          },
+        ],
+        error: null,
+      },
+    },
+  ]);
+  const load = await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
+  assert.deepEqual(load.unavailable, []);
+  const rows = load.rows.filter((r) => r.source === "payment_flag");
+  assert.equal(rows.length, 1, "the resolved flag is not listed");
+  assert.equal(rows[0]!.severity, "critical");
+  assert.equal(rows[0]!.nextAction.kind, "inspect");
+  assert.equal(rows[0]!.href, "/acme/admin/orders?q=ord-flag");
+  assert.equal(selects.filter((s) => s.columns === PAYMENT_FLAG_COLUMNS).length, 1);
+});
+
+test("a failed payment-flag read is a named section, never an empty one", async () => {
+  const { admin } = fakeAdmin([
+    {
+      table: "booking_transactions",
+      when: (c) => c === PAYMENT_FLAG_COLUMNS,
+      reply: { data: null, error: { message: "connection reset" } },
+    },
+  ]);
+  const load = await loadExceptions(admin, { tenantId: "ten-1", tenantSlug: "acme" });
+  assert.deepEqual(load.unavailable, ["Flagged payments"]);
 });

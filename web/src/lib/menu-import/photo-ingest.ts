@@ -24,8 +24,10 @@
  * 3. THE URLS ARE UNTRUSTED INPUT. They arrive inside a file an operator
  *    pasted. Fetching one server-side with our credentials is exactly the SSRF
  *    shape — `http://169.254.169.254/...` in a menu export would have us fetch
- *    cloud metadata and store the result. Every URL goes through
- *    `assertPublicHttpUrl` first.
+ *    cloud metadata and store the result. Every URL goes through `safeFetch`
+ *    (H1): range-checked, IP-pinned, redirects re-validated, body streamed
+ *    under the byte cap. Stored bytes are re-encoded without EXIF/XMP, so a
+ *    dish photo taken on a phone does not publish where it was taken.
  *
  * 4. A CONTENT-TYPE IS A CLAIM, NOT A FACT. The remote server picks it. We
  *    verify the leading bytes against the raster magic numbers before storing,
@@ -35,7 +37,8 @@
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { assertPublicHttpUrl } from "@/lib/ssrf-guard";
+import { safeFetch } from "@/lib/security/safe-fetch";
+import { stripImageMetadata } from "@/lib/media/image-sanitize.server";
 import { matchesRasterMagic } from "@/lib/media/raster-magic";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -181,35 +184,31 @@ export async function loadIngestedPhotos(
   return bySource;
 }
 
+/** safeFetch refusals that mean "this URL points somewhere we must not go". */
+const UNSAFE_URL_REASONS = new Set(["malformed", "scheme", "credentials", "blocked_host", "private_address", "bad_redirect"]);
+
 /**
  * Fetch one remote photo into memory, refusing rather than throwing.
  *
- * Reads through a cap instead of trusting `content-length`: a hostile or broken
- * server can under-report it, and streaming until the socket closes is how a
- * "photo" becomes an OOM.
+ * Reads through a STREAMING cap (safeFetch), not `arrayBuffer()` then a length
+ * check: a hostile or broken server can under-report `content-length`, and
+ * buffering until the socket closes is how a "photo" becomes an OOM.
  */
 async function fetchPhoto(
   url: string,
-  deps: { fetchImpl: typeof fetch },
+  deps: { fetcher: typeof safeFetch },
 ): Promise<{ ok: true; bytes: Buffer; ext: string; mime: string } | { ok: false; refusal: PhotoRefusal }> {
-  const safe = await assertPublicHttpUrl(url);
-  if (!safe.ok) {
-    return {
-      ok: false,
-      refusal: { sourceUrl: url, reason: "unsafe_url", detail: safe.reason },
-    };
-  }
-
-  let res: Response;
-  try {
-    res = await deps.fetchImpl(url, { redirect: "manual" });
-  } catch (error) {
-    return {
-      ok: false,
-      refusal: { sourceUrl: url, reason: "fetch_failed", detail: String(error) },
-    };
-  }
+  const res = await deps.fetcher(url, { maxBytes: MAX_PHOTO_BYTES, timeoutMs: 15_000 });
   if (!res.ok) {
+    const reason: PhotoRefusalReason = UNSAFE_URL_REASONS.has(res.reason)
+      ? "unsafe_url"
+      : res.reason === "too_large"
+        ? "too_large"
+        : "fetch_failed";
+    const detail = reason === "too_large" ? "exceeds the 8 MB cap" : res.reason;
+    return { ok: false, refusal: { sourceUrl: url, reason, detail } };
+  }
+  if (res.status < 200 || res.status >= 300) {
     return {
       ok: false,
       refusal: { sourceUrl: url, reason: "fetch_failed", detail: `HTTP ${res.status}` },
@@ -228,13 +227,7 @@ async function fetchPhoto(
     };
   }
 
-  let bytes: Buffer;
-  try {
-    const buf = await res.arrayBuffer();
-    bytes = Buffer.from(buf);
-  } catch (error) {
-    return { ok: false, refusal: { sourceUrl: url, reason: "fetch_failed", detail: String(error) } };
-  }
+  const bytes = Buffer.from(res.body);
   if (bytes.length === 0) {
     return { ok: false, refusal: { sourceUrl: url, reason: "empty", detail: "zero bytes" } };
   }
@@ -259,7 +252,15 @@ async function fetchPhoto(
       },
     };
   }
-  return { ok: true, bytes, ext: kind.ext, mime: kind.mime };
+  // H1: re-encode without EXIF/XMP (GPS) and under the pixel cap. A file
+  // sharp cannot read, or one over 100 MP, is refused rather than stored raw.
+  let clean: Buffer;
+  try {
+    clean = await stripImageMetadata(bytes);
+  } catch (error) {
+    return { ok: false, refusal: { sourceUrl: url, reason: "not_an_image", detail: String(error) } };
+  }
+  return { ok: true, bytes: clean, ext: kind.ext, mime: kind.mime };
 }
 
 /**
@@ -272,9 +273,9 @@ export async function ingestMenuPhotos(
   admin: SupabaseClient,
   tenantId: string,
   sourceUrls: ReadonlyArray<string>,
-  opts: { userId?: string | null; fetchImpl?: typeof fetch } = {},
+  opts: { userId?: string | null; fetcher?: typeof safeFetch } = {},
 ): Promise<PhotoIngestResult> {
-  const fetchImpl = opts.fetchImpl ?? fetch;
+  const fetcher = opts.fetcher ?? safeFetch;
   const existing = await loadIngestedPhotos(admin, tenantId);
   const { toFetch, reused } = planPhotoFetches(sourceUrls, existing);
 
@@ -283,7 +284,7 @@ export async function ingestMenuPhotos(
   let fetched = 0;
 
   for (const url of toFetch) {
-    const got = await fetchPhoto(url, { fetchImpl });
+    const got = await fetchPhoto(url, { fetcher });
     if (!got.ok) {
       refused.push(got.refusal);
       continue;

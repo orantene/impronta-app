@@ -3,6 +3,7 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildTickerServiceWords } from "../ticker-services";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 /**
  * Her published, approved, public services as ticker words in the visitor's
@@ -17,13 +18,10 @@ export async function loadTalentTickerWords(
   const admin = createServiceRoleClient();
   if (!admin || !talentProfileId) return [];
   try {
-    const { data, error } = await admin
-      .from("talent_offerings")
-      .select("title, title_i18n")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .in("visibility", ["public", "on_request"])
+    const { data, error } = await scopeToSellableOfferings(
+      admin.from("talent_offerings").select("title, title_i18n").eq("talent_profile_id", talentProfileId),
+      "guest_request",
+    )
       .order("sort_order", { ascending: true })
       .limit(24);
     if (error) {

@@ -6,6 +6,8 @@
  * typed themselves is never rewritten.
  */
 
+import { mainCtaLabel } from "./main-cta";
+
 const SEEDED_CTA_LABEL = "inquire";
 
 const CTA_LABEL_BY_LOCALE: Record<string, string> = {
@@ -27,9 +29,11 @@ export function talentHeaderCtaLabel(locale: string | null | undefined): string 
 
 function localiseLabel(label: unknown, locale: string): unknown {
   if (typeof label !== "string") return label;
-  return label.trim().toLowerCase() === SEEDED_CTA_LABEL
-    ? talentHeaderCtaLabel(locale)
-    : label;
+  if (label.trim().toLowerCase() === SEEDED_CTA_LABEL) return talentHeaderCtaLabel(locale);
+  // TUL-639: ONLY the seeded default ("Book an appointment") localises here. The mode
+  // wordings (Request an appointment, Message me, Buy...) are outputs of the render-time
+  // mode pass, never seeds, so a label the talent typed by hand is never rewritten.
+  return label.trim() === "Book an appointment" ? mainCtaLabel("instant", locale) : label;
 }
 
 /**

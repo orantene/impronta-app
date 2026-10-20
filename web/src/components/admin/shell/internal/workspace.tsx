@@ -22,6 +22,7 @@
  *   - talent  → sees ONLY the group thread + their own line item + booking
  */
 
+import { RecordNotFoundDrawer } from "./talent-drawers/record-not-found";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
@@ -46,7 +47,6 @@ import {
   RADIUS,
   TRANSITION,
   REQUIREMENT_ROLE_META,
-  RICH_INQUIRIES,
   ROSTER_AGENCY,
   describeSource,
   getPaymentSummary,
@@ -86,7 +86,8 @@ export function InquiryWorkspaceDrawer() {
   const inquiryId = (state.drawer.payload?.inquiryId as string) ?? "RI-201";
   const povRaw = state.drawer.payload?.pov as InquiryWorkspacePov | undefined;
   const pov: InquiryWorkspacePov = povRaw ?? povFromSurface(state.surface);
-  const inquiry = getRichInquiry(inquiryId) ?? RICH_INQUIRIES[0];
+  const inquiry = getRichInquiry(inquiryId);
+  if (!inquiry) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
 
   return (
     <DrawerShell

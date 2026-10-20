@@ -12,6 +12,7 @@ import { insertTenantImageAsset } from "@/lib/site-admin/media/assets";
 import { resizeUploadForStorage } from "@/lib/server/media-resize";
 import { MEDIA_PUBLIC_BUCKET } from "@/lib/site-admin/media/validation";
 import { logServerError } from "@/lib/server/safe-error";
+import { GENERATED_IMAGE_MAX_BYTES, readResponseCapped } from "@/lib/media/upload-guards";
 import { fileAssetInSystemFolder, LIFESTYLE_FOLDER } from "@/lib/media/system-folders";
 import {
   estimateImageCostUsd,
@@ -168,7 +169,10 @@ export async function generateStockImage(input: {
   else if (first?.url) {
     const img = await fetch(first.url);
     if (!img.ok) throw new ImageProviderError("provider_error", "Failed to download generated image.");
-    bytes = Buffer.from(await img.arrayBuffer());
+    // H1: Content-Length pre-check + streaming cap, never an unbounded buffer.
+    const read = await readResponseCapped(img, GENERATED_IMAGE_MAX_BYTES);
+    if (!read.ok) throw new ImageProviderError("provider_error", "Generated image exceeds the size cap.");
+    bytes = Buffer.from(read.bytes);
   }
   if (!bytes) throw new ImageProviderError("provider_error", "OpenAI returned no image.");
   return { bytes, model: settings.model, size: input.size, quality, usage: json.usage ?? null, costUsd: imageCostFromUsage(json.usage, settings.prices), latencyMs: Date.now() - started };

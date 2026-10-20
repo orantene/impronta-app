@@ -20,6 +20,8 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { BUSINESS_FAMILIES, BUSINESS_TYPES, type BusinessFamilyId } from "@/lib/words/business-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { readGuardedImage } from "@/lib/media/guarded-upload.server";
+import { PHOTO_RASTER_MIMES } from "@/lib/media/upload-guards";
 
 const PATH = "/platform/admin/stock";
 
@@ -76,9 +78,10 @@ export async function actionUploadStockImage(fd: FormData): Promise<Result<{ id:
   if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
   const file = fd.get("file");
   if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose an image file." };
-  if (!file.type.startsWith("image/")) return { ok: false, error: "Images only." };
-  if (file.size > 25 * 1024 * 1024) return { ok: false, error: "That file is over 25 MB." };
-  const bytes = Buffer.from(await file.arrayBuffer());
+  // H1: raster only, from the bytes (startsWith("image/") let SVG through), pixel cap, GPS stripped.
+  const guarded = await readGuardedImage(file, { maxBytes: 25 * 1024 * 1024, allowed: PHOTO_RASTER_MIMES });
+  if (!guarded.ok) return { ok: false, error: guarded.error };
+  const bytes = guarded.bytes;
   const stored = await storeStockImage(admin, { bytes, manifest: parsed.data, createdBy: g.userId });
   if (!stored.ok) return stored;
   revalidatePath(PATH);

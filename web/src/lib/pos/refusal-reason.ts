@@ -116,6 +116,8 @@ export const SALE_REFUSALS: Readonly<Record<PosSaleRefusalReason, PosRefusalReas
   pin_invalid: "notAllowed",
   not_manager: "notAllowed",
   already_approved: "itemRefused",
+  // TUL-1349: the item was unpublished, hidden or switched off after it was added.
+  item_unavailable: "itemUnavailable",
 };
 
 export const SHIFT_REFUSALS: Readonly<Record<PosShiftRefusalReason, PosRefusalReason>> = {
