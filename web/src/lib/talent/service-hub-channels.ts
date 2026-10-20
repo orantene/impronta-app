@@ -224,6 +224,7 @@ export type ChannelCopy = {
   notReady: string;
   offered: string;
   pending: string;
+  feeNote: string;
 };
 
 export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
@@ -247,6 +248,7 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     notReady: "This is not available yet.",
     offered: "Waiting for your answer",
     pending: "Waiting for your answer",
+    feeNote: "Tulala's fee is added on top for the client.",
   },
   es: {
     whereSold: "Dónde se vende",
@@ -268,6 +270,7 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     notReady: "Esto aún no está disponible.",
     offered: "Esperando tu respuesta",
     pending: "Esperando tu respuesta",
+    feeNote: "La comisión de Tulala se suma encima para el cliente.",
   },
 };
 

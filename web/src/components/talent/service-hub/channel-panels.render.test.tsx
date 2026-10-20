@@ -33,6 +33,14 @@ describe("channel panels", () => {
     assert.equal((html.match(/data-testid="lowest-/g) ?? []).length, 1);
   });
 
+  it("an (i) note says Tulala's fee is added on top for the client, in both languages", () => {
+    const en = renderToStaticMarkup(<WhereItsSoldPanel data={data} locale="en" />);
+    assert.match(en, /title="Tulala&#x27;s fee is added on top for the client\."/);
+    assert.match(en, /data-testid="fee-note"/);
+    const es = renderToStaticMarkup(<WhereItsSoldPanel data={data} locale="es" />);
+    assert.match(es, /La comisión de Tulala se suma encima para el cliente\./);
+  });
+
   it("Spanish heading and labels", () => {
     const html = renderToStaticMarkup(<WhereItsSoldPanel data={data} locale="es" />);
     assert.match(html, /Dónde se vende/);

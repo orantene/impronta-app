@@ -37,7 +37,10 @@ export function WhereItsSoldPanel(props: { data: ServiceChannels; locale: string
               <span className="font-medium">{channelName(r, c)}</span>
               <span className="text-sm">
                 {money(r.listPriceCents, service.currency, props.locale)} · {c.youGet}{" "}
-                {r.youGetCents == null ? UNKNOWN : money(r.youGetCents, service.currency, props.locale)}
+                {r.youGetCents == null ? UNKNOWN : money(r.youGetCents, service.currency, props.locale)}{" "}
+                <span role="img" tabIndex={0} title={c.feeNote} aria-label={c.feeNote} data-testid="fee-note" className="cursor-help">
+                  ⓘ
+                </span>
               </span>
             </div>
             {r.status === "offered" ? <span className="text-sm">{c.offered}</span> : null}
