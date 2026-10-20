@@ -47,6 +47,8 @@ import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -252,6 +254,9 @@ export async function createWorkspaceCheckoutSession(opts: {
       ...trialParams(trialDays),
     },
     ...discount.params,
+    // TUL-1229: explicit recurring-charge agreement (required checkbox + renewal text) before Subscribe.
+    // Part of sessionParams, so the idempotency key (checkoutSessionKey) hashes it: a re-click still dedupes.
+    ...recurringConsentParams({ locale: opts.locale, interval: price.interval, trialDays, marketingOrigin: resolveMarketingOrigin() }),
     // Adaptive Pricing: Stripe converts the USD price to the customer's local
     // currency (subscription mode cannot force `currency` off the Price's USD).
     adaptive_pricing: { enabled: true },

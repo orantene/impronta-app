@@ -12,6 +12,7 @@ import { useT } from "@/i18n/use-t";
 import type { OfferingKind } from "@/lib/talent/offerings-types";
 import type { TabProps } from "./CatalogItemEditor";
 import { Field, INPUT, SectionHead, SELECT, SelectShell } from "./catalog-ui";
+import { ItemPhotosField } from "./item-photos-field";
 import { PackageComposition } from "./item-tab-package";
 
 export function DetailsTab(props: TabProps) {
@@ -93,9 +94,7 @@ export function DetailsTab(props: TabProps) {
             className={INPUT}
           />
         </Field>
-        <Field label={t("dashboard.catalog.details.photos")} reason={t("dashboard.catalog.details.photosReason")}>
-          <input type="file" disabled className={`${INPUT} py-[6px]`} data-testid="catalog-field-photos" />
-        </Field>
+        <ItemPhotosField item={item} editor={props.editor} tenantId={props.tenantId} isDraft={isDraft} />
       </div>
       {isDraft ? (
         <p className="m-0 font-admin-body text-[12px] text-admin-ink-muted">{t("dashboard.catalog.editor.draftHint")}</p>

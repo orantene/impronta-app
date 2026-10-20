@@ -47,6 +47,8 @@ export type PricedVariant = {
   minPerOrder?: number;
   /** Purchase ceiling. Null means no ceiling beyond the cart's own limits. */
   maxPerOrder?: number | null;
+  /** `talent_offering_variants.is_hidden`: a by-link / comp tier (D1). */
+  isHidden?: boolean;
 };
 
 export type PricedAddon = {

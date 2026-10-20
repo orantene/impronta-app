@@ -20,16 +20,14 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { readGuardedImage } from "@/lib/media/guarded-upload.server";
 
-/** Accepted image mime types + the byte cap (15 MB). */
-const ALLOWED_MIME = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/heic",
-  "image/heif",
-]);
+/**
+ * Accepted rasters (from the BYTES, H1) + the byte cap. HEIC is not accepted:
+ * sharp cannot decode it here, so its EXIF/GPS could not be stripped before it
+ * lands in the public bucket (browsers convert HEIC to JPEG on upload anyway).
+ */
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"] as const;
 const MAX_BYTES = 15 * 1024 * 1024;
 /** Cap on photos per review, enforced app-side. */
 const MAX_PER_REVIEW = 6;
@@ -61,10 +59,10 @@ export async function uploadReviewMediaAction(
     if (file.size > MAX_BYTES) {
       return { ok: false, error: "Each photo must be under 15 MB." };
     }
-    const mime = file.type || "";
-    if (!ALLOWED_MIME.has(mime)) {
-      return { ok: false, error: "Please upload a JP, PNG, WEBP or GIF image." };
-    }
+    // H1: type from the bytes, pixel cap, EXIF/GPS stripped (public bucket).
+    const guarded = await readGuardedImage(file, { maxBytes: MAX_BYTES, allowed: ALLOWED_MIME });
+    if (!guarded.ok) return { ok: false, error: guarded.error };
+    const mime = guarded.mime;
 
     const supabase = await createSupabaseServerClient();
     if (!supabase) return { ok: false, error: "Database unavailable." };
@@ -110,8 +108,8 @@ export async function uploadReviewMediaAction(
 
     const { error: uploadErr } = await admin.storage
       .from("media-public")
-      .upload(storagePath, file, {
-        contentType: mime || "application/octet-stream",
+      .upload(storagePath, guarded.bytes, {
+        contentType: mime,
         upsert: false,
       });
     if (uploadErr) {
@@ -129,8 +127,8 @@ export async function uploadReviewMediaAction(
         uploader_user_id: user.id,
         bucket_id: "media-public",
         storage_path: storagePath,
-        mime_type: mime || null,
-        byte_size: file.size,
+        mime_type: mime,
+        byte_size: guarded.byteSize,
         sort_order: count ?? 0,
       })
       .select("id")
