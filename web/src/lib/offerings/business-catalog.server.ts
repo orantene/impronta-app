@@ -102,7 +102,7 @@ export async function loadBusinessCatalogOfferings(
     const testScope = await loadTestServiceScope(admin, rows);
     rows = rows.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
     if (rows.length === 0) return { kind: "ok", offerings: [], talentCode, talentProfileId: onlyTalentId };
-    const children = await loadOfferingChildren(admin, rows.map((r) => r.id), { locale: input.locale });
+    const children = await loadOfferingChildren(admin, rows.map((r) => r.id), { locale: input.locale, publicOnly: true });
     return {
       kind: "ok",
       talentCode,

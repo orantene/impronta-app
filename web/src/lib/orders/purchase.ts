@@ -35,13 +35,9 @@ import type {
   PurchaseResult,
 } from "@/lib/orders/purchase-types";
 
-export type {
-  PurchaseInput,
-  PurchaseLineInput,
-  PurchaseRefusalReason,
-  PurchaseResult,
-};
+export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
+import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
 import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
 
 /**
@@ -171,7 +167,7 @@ export async function createPurchase(
         clientOrderKey: input.clientOrderKey,
         tenantId: input.tenantId,
         actorUserId: input.actorUserId,
-        paymentChoice: input.paymentChoice,
+        paymentChoice: input.paymentChoice, tableDeposit: !!input.tableDeposit,
         lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.units })),
       },
       catalog.policies,
@@ -209,9 +205,10 @@ export async function createPurchase(
     // A cart mixing currencies is REFUSED rather than picked between: summing
     // ARS and USD under one symbol is the mixed-total bug the desk already had,
     // and an order is a worse place for it because someone is charged.
-    const ccy = resolveOrderCurrency(
-      input.lines.map((l) => catalog.offerings.get(l.offeringId)?.currency ?? null),
-    );
+    const lineCurrencies = input.lines.map((l) => catalog.offerings.get(l.offeringId)?.currency ?? null);
+    const depositRefusal = tableDepositRefusal(input.tableDeposit, lineCurrencies); // purchase-table-deposit.ts
+    if (depositRefusal) return depositRefusal;
+    const ccy = resolveOrderCurrency(input.tableDeposit ? [input.tableDeposit.currency] : lineCurrencies);
     if (!ccy.ok) {
       return {
         ok: false,
@@ -221,11 +218,11 @@ export async function createPurchase(
     }
     const orderCurrency = ccy.currency;
 
-    const priced = pricePurchase(input.lines, {
+    const priced = withTableDeposit(pricePurchase(input.lines, {
       offerings: catalog.offerings,
       variants: catalog.variants,
       addons: catalog.addons,
-    });
+    }), input.tableDeposit);
     // Refuses rather than stamping session ids onto the wrong lines.
     if (priced.ok && priced.lines.length !== input.lines.length) {
       logServerError("orders.createPurchase/lineAlignment", `${priced.lines.length}/${input.lines.length}`);

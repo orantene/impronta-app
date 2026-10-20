@@ -25,11 +25,14 @@ function cleanLabel(v: unknown): string | null {
  * `opts.locale` (optional): labels read through `readI18n(label_i18n, label,
  * locale, chain)`. Without it the plain labels come back as before. Either way
  * the map rides along as `labelI18n` when the column exists.
+ *
+ * `opts.publicOnly`: every guest-facing caller sets it. A hidden / comp ticket tier is unlocked by
+ * its variant id, so that id must never reach a public payload; the owner editors leave it unset.
  */
 export async function loadOfferingChildren(
   db: SupabaseClient,
   offeringIds: string[],
-  opts: { locale?: string; chain?: readonly string[] } = {},
+  opts: { locale?: string; chain?: readonly string[]; publicOnly?: boolean } = {},
 ): Promise<{ variants: Map<string, OfferingVariant[]>; addOns: Map<string, OfferingAddOn[]> }> {
   const variants = new Map<string, OfferingVariant[]>();
   const addOns = new Map<string, OfferingAddOn[]>();
@@ -38,13 +41,13 @@ export async function loadOfferingChildren(
   try {
     // label_i18n is read on a graceful path until migration 20261231299520 lands.
     const [{ data: vRows, error: vErr }, { data: aRows, error: aErr }] = await Promise.all([
-      selectWithI18nFallback((withI18n) =>
-        db
+      selectWithI18nFallback((withI18n) => {
+        const q = db
           .from("talent_offering_variants")
           .select(withI18n ? "id, offering_id, label, amount_cents, sort_order, label_i18n" : "id, offering_id, label, amount_cents, sort_order")
-          .in("offering_id", offeringIds)
-          .order("sort_order", { ascending: true }),
-      ),
+          .in("offering_id", offeringIds);
+        return (opts.publicOnly ? q.neq("is_hidden", true) : q).order("sort_order", { ascending: true });
+      }),
       selectWithI18nFallback((withI18n) =>
         db
           .from("talent_offering_addons")
