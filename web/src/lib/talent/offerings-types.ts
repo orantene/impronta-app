@@ -181,13 +181,15 @@ export type TalentOffering = {
   visibility: OfferingVisibility;
   moderationState: OfferingModerationState;
   isFeatured: boolean;
+  /** Sold at the counter (separate from status). undefined = the column is not applied yet. */
+  posEnabled?: boolean;
   sortOrder: number;
   /** Long-tail sink (variations/add-ons sub-shapes, compliance, quote vars). */
   attributes: Record<string, unknown>;
   /** Resolved gallery, hero first (media_assets.public_url). */
   imageUrls: string[];
   /** Editor-only: gallery with asset ids (drives upload/remove). Public loads omit it. */
-  imageAssets?: { id: string; url: string }[];
+  imageAssets?: { id: string; url: string; alt?: string | null }[];
   /** Selectable options (client picks one). Loaded from talent_offering_variants. */
   variants?: OfferingVariant[];
   /** Stackable extras (client picks any). Loaded from talent_offering_addons. */
@@ -221,6 +223,8 @@ export type TalentOfferingRow = {
   /** Per-locale category label; absent before migration 20261231299520. */
   category_i18n?: Record<string, string> | null;
   inventory_qty: number | null;
+  /** POS switch, separate from status; absent before the held pos_enabled migration. */
+  pos_enabled?: boolean | null;
   capacity_pool_id?: string | null;
   consumes_units?: number | null;
   status: string;
@@ -377,6 +381,7 @@ export function rowToOffering(
       ? row.moderation_state
       : "approved",
     isFeatured: row.is_featured === true,
+    ...(typeof row.pos_enabled === "boolean" ? { posEnabled: row.pos_enabled } : {}),
     sortOrder: typeof row.sort_order === "number" && Number.isFinite(row.sort_order) ? row.sort_order : 0,
     attributes: row.attributes && typeof row.attributes === "object" ? row.attributes : {},
     imageUrls,
@@ -429,6 +434,7 @@ export function offeringToRowPatch(
     visibility: o.visibility,
     moderation_state: o.moderationState,
     is_featured: o.isFeatured === true,
+    ...(typeof o.posEnabled === "boolean" ? { pos_enabled: o.posEnabled } : {}),
     sort_order: o.sortOrder,
     attributes: o.attributes ?? {},
     title_i18n: nullIfEmpty(i18nPair(o.titleI18n, title, primaryLocale)),

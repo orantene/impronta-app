@@ -20,23 +20,25 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import { submitReviewViaTokenAction } from "@/lib/reviews/review-token-actions";
 import { ReviewPhotoUploader } from "@/app/(workspace)/[tenantSlug]/client/_components/ReviewPhotoUploader";
+import {
+  REVIEW_TRAITS,
+  fillCopy,
+  localizeReviewError,
+  type ReviewPageCopy,
+} from "@/lib/reviews/review-page-copy";
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-/** Fixed trait set — same options as the workspace LeaveReviewCard. */
-const TRAIT_OPTIONS = [
-  "On time",
-  "Great communication",
-  "Well prepared",
-  "Delivered the brief",
-  "Easy to work with",
-] as const;
-
+/**
+ * Fixed trait set — same options as the workspace LeaveReviewCard. The stored
+ * value stays the canonical English text (REVIEW_TRAITS.value); only the label
+ * on screen is localized.
+ */
 const ATTRIBUTES = [
-  { key: "professionalism", label: "Professionalism" },
-  { key: "skill", label: "Skill" },
-  { key: "communication", label: "Communication" },
-  { key: "reliability", label: "Reliability" },
+  { key: "professionalism" },
+  { key: "skill" },
+  { key: "communication" },
+  { key: "reliability" },
 ] as const;
 
 type AttrKey = (typeof ATTRIBUTES)[number]["key"];
@@ -85,7 +87,13 @@ export function ReviewTokenForm({
    */
   bookingId,
   talentProfileId,
+  t,
+  serviceName = null,
 }: {
+  /** G2 (TUL-1272 #11): the page copy in the page language. */
+  t: ReviewPageCopy;
+  /** The service the review is about, when the booking has one. */
+  serviceName?: string | null;
   token: string;
   talentName: string;
   talentProfileCode: string | null;
@@ -122,9 +130,9 @@ export function ReviewTokenForm({
   const display = hover || rating;
   const loginHref = `/login?next=${encodeURIComponent(`/review/${token}`)}`;
 
-  function toggleTrait(t: string) {
+  function toggleTrait(value: string) {
     setTraits((prev) =>
-      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t],
+      prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value],
     );
   }
   function setAttr(key: AttrKey, value: number) {
@@ -149,7 +157,7 @@ export function ReviewTokenForm({
 
   async function handleSubmit() {
     if (rating < 1 || rating > 5) {
-      setError("Please pick a star rating (1 to 5).");
+      setError(t.pickStars);
       setState("error");
       return;
     }
@@ -182,10 +190,7 @@ export function ReviewTokenForm({
       setState("error");
       return;
     }
-    setError(
-      ("error" in res && res.error) ||
-        "Could not save your review. Please try again.",
-    );
+    setError(localizeReviewError("error" in res ? res.error : null, t));
     setState("error");
   }
 
@@ -221,10 +226,10 @@ export function ReviewTokenForm({
           </svg>
         </div>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.greenDeep, letterSpacing: -0.2 }}>
-          Thank you for reviewing {talentName}.
+          {fillCopy(t.thanks, { name: talentName })}
         </div>
         <div style={{ fontSize: 13, color: "rgba(26,115,72,0.8)", marginTop: 6, lineHeight: 1.5 }}>
-          Your {rating}-star review is now published on their page.
+          {fillCopy(t.published, { n: rating })}
         </div>
         {!guestMode && bookingId && (
           <div style={{ textAlign: "left", marginTop: 14 }}>
@@ -247,7 +252,7 @@ export function ReviewTokenForm({
               fontFamily: FONT,
             }}
           >
-            View {talentName}&rsquo;s page
+            {fillCopy(t.viewPage, { name: talentName })}
           </Link>
         )}
       </div>
@@ -268,17 +273,17 @@ export function ReviewTokenForm({
       }}
     >
       <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2, marginBottom: 4 }}>
-        Rate {talentName}
+        {serviceName ? fillCopy(t.rateService, { service: serviceName }) : fillCopy(t.rate, { name: talentName })}
       </div>
       <div style={{ fontSize: 12.5, color: C.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
-        Your honest experience helps other clients decide. It takes a minute.
+        {t.rateIntro}
       </div>
 
       {/* Guest mode — name + honest "invited review" note */}
       {guestMode && (
         <div style={{ marginBottom: 16 }}>
           <label htmlFor={`${groupId}-guest-name`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
-            Your name
+            {t.guestName}
           </label>
           <input
             id={`${groupId}-guest-name`}
@@ -287,7 +292,7 @@ export function ReviewTokenForm({
             disabled={saving}
             maxLength={120}
             onChange={(e) => setGuestName(e.target.value)}
-            placeholder="How your name appears on the review"
+            placeholder={t.guestNamePlaceholder}
             style={{
               width: "100%",
               padding: "10px 12px",
@@ -302,11 +307,10 @@ export function ReviewTokenForm({
             }}
           />
           <div style={{ fontSize: 11.5, color: C.inkMuted, lineHeight: 1.5, marginTop: 8 }}>
-            You&rsquo;re reviewing as a guest, so this publishes as an{" "}
-            <strong style={{ color: C.ink }}>invited review</strong> (not
-            payment-verified).{" "}
+            {t.guestNote}{" "}
+            <strong style={{ color: C.ink }}>{t.guestNoteStrong}</strong> {t.guestNoteTail}{" "}
             <Link href={loginHref} style={{ color: C.accent, fontWeight: 600, textDecoration: "none" }}>
-              Sign in for a verified review
+              {t.guestSignIn}
             </Link>
             .
           </div>
@@ -316,7 +320,7 @@ export function ReviewTokenForm({
       {/* Star picker — required */}
       <div
         role="radiogroup"
-        aria-label={`Star rating for ${talentName}`}
+        aria-label={fillCopy(t.starsFor, { name: talentName })}
         tabIndex={0}
         onKeyDown={onStarKeyDown}
         onBlur={() => setHover(0)}
@@ -330,7 +334,7 @@ export function ReviewTokenForm({
               type="button"
               role="radio"
               aria-checked={rating === n}
-              aria-label={`${n} star${n > 1 ? "s" : ""}`}
+              aria-label={n === 1 ? t.starsOne : fillCopy(t.starsN, { n })}
               id={`${groupId}-star-${n}`}
               disabled={saving}
               onClick={() => setRating(n)}
@@ -363,13 +367,13 @@ export function ReviewTokenForm({
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {rating > 0 ? `${rating}/5` : "Tap to rate"}
+          {rating > 0 ? `${rating}/5` : t.tapToRate}
         </span>
       </div>
 
       {/* Optional note */}
       <label htmlFor={`${groupId}-body`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
-        Add a note (optional)
+        {t.noteLabel}
       </label>
       <textarea
         id={`${groupId}-body`}
@@ -377,7 +381,7 @@ export function ReviewTokenForm({
         disabled={saving}
         maxLength={MAX_BODY}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={`What stood out about working with ${talentName}?`}
+        placeholder={fillCopy(t.notePlaceholder, { name: talentName })}
         rows={3}
         style={{
           width: "100%",
@@ -401,16 +405,16 @@ export function ReviewTokenForm({
         </span>
       </div>
 
-      {/* Would you book them again? */}
+      {/* Re-booking question */}
       <div style={{ marginTop: 16 }}>
-        <div role="group" aria-label={`Would you book ${talentName} again?`} style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 7, letterSpacing: 0.1 }}>
-          Would you book them again?
+        <div role="group" aria-label={fillCopy(t.bookAgainFor, { name: talentName })} style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 7, letterSpacing: 0.1 }}>
+          {t.bookAgain}
         </div>
         <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
           {([
-            { label: "Yes", value: true },
-            { label: "Not sure", value: null },
-            { label: "No", value: false },
+            { label: t.yes, value: true },
+            { label: t.notSure, value: null },
+            { label: t.no, value: false },
           ] as const).map((opt) => {
             const selected = wouldBookAgain === opt.value;
             return (
@@ -443,15 +447,16 @@ export function ReviewTokenForm({
       {/* Attribute star-rows */}
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 8, letterSpacing: 0.1 }}>
-          Rate specific qualities (optional)
+          {t.qualities}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {ATTRIBUTES.map(({ key, label }) => {
+          {ATTRIBUTES.map(({ key }) => {
+            const label = t[key];
             const value = attrs[key];
             const hoverV = attrHover[key];
             const shown = hoverV || value;
             return (
-              <div key={key} role="radiogroup" aria-label={`${label} rating`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div key={key} role="radiogroup" aria-label={fillCopy(t.qualityRating, { label })} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <span style={{ fontSize: 12.5, color: C.ink }}>{label}</span>
                 <span style={{ display: "inline-flex", gap: 2 }} onMouseLeave={() => setAttrHover((p) => ({ ...p, [key]: 0 }))}>
                   {[1, 2, 3, 4, 5].map((n) => {
@@ -462,7 +467,7 @@ export function ReviewTokenForm({
                         type="button"
                         role="radio"
                         aria-checked={value === n}
-                        aria-label={`${label}: ${n} star${n > 1 ? "s" : ""}`}
+                        aria-label={fillCopy(t.attrStars, { label, stars: n === 1 ? t.starsOne : fillCopy(t.starsN, { n }) })}
                         disabled={saving}
                         onClick={() => setAttr(key, n)}
                         onMouseEnter={() => setAttrHover((p) => ({ ...p, [key]: n }))}
@@ -492,18 +497,18 @@ export function ReviewTokenForm({
       {/* Trait chips */}
       <div style={{ marginTop: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 8, letterSpacing: 0.1 }}>
-          What stood out? (optional)
+          {t.traitsLabel}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-          {TRAIT_OPTIONS.map((t) => {
-            const selected = traits.includes(t);
+          {REVIEW_TRAITS.map((trait) => {
+            const selected = traits.includes(trait.value);
             return (
               <button
-                key={t}
+                key={trait.value}
                 type="button"
                 aria-pressed={selected}
                 disabled={saving}
-                onClick={() => toggleTrait(t)}
+                onClick={() => toggleTrait(trait.value)}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -525,7 +530,7 @@ export function ReviewTokenForm({
                     <path d="M20 6 9 17l-5-5" />
                   </svg>
                 )}
-                {t}
+                {t[trait.key]}
               </button>
             );
           })}
@@ -535,7 +540,7 @@ export function ReviewTokenForm({
       {/* Private note — talent-only */}
       <div style={{ marginTop: 18 }}>
         <label htmlFor={`${groupId}-private`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
-          Private note. Only {talentName} sees this, to help them improve.
+          {fillCopy(t.privateNote, { name: talentName })}
         </label>
         <textarea
           id={`${groupId}-private`}
@@ -543,7 +548,7 @@ export function ReviewTokenForm({
           disabled={saving}
           maxLength={MAX_PRIVATE_NOTE}
           onChange={(e) => setPrivateNote(e.target.value)}
-          placeholder="Anything you'd share privately to help them grow?"
+          placeholder={t.privatePlaceholder}
           rows={2}
           style={{
             width: "100%",
@@ -579,7 +584,7 @@ export function ReviewTokenForm({
           style={{ width: 16, height: 16, marginTop: 1, accentColor: C.accent, cursor: saving ? "default" : "pointer", flexShrink: 0 }}
         />
         <span style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.4 }}>
-          Post anonymously (show as {verifiable ? "Verified client" : "a client"})
+          {fillCopy(t.anon, { as: verifiable ? t.anonVerified : t.anonPlain })}
         </span>
       </label>
 
@@ -599,10 +604,10 @@ export function ReviewTokenForm({
           }}
         >
           <div style={{ fontWeight: 600, marginBottom: 6, color: C.ink }}>
-            Please sign in to publish your review.
+            {t.signInToPublish}
           </div>
           <div style={{ color: C.inkMuted, marginBottom: 10 }}>
-            To keep reviews honest, we confirm it&rsquo;s really you before publishing. Sign in with the account this invite was sent to.
+            {t.signInWhy}
           </div>
           <Link
             href={loginHref}
@@ -618,7 +623,7 @@ export function ReviewTokenForm({
               fontFamily: FONT,
             }}
           >
-            Sign in and continue
+            {t.signInContinue}
           </Link>
         </div>
       )}
@@ -670,7 +675,7 @@ export function ReviewTokenForm({
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           )}
-          {saving ? "Publishing…" : "Publish review"}
+          {saving ? t.publishing : t.publish}
         </button>
       </div>
 
