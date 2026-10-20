@@ -50,7 +50,9 @@ export function WhereItsSoldPanel(props: { data: ServiceChannels; locale: string
               <LowestPriceField
                 listingId={r.listingId}
                 initialCents={r.minAcceptCents}
-                copy={{ label: c.lowestPrice, save: c.save, saved: c.saved, failed: c.saveFailed, notReady: c.notReady }}
+                currency={service.currency}
+                locale={props.locale}
+                copy={{ label: c.lowestPrice, save: c.save, saved: c.saved, failed: c.saveFailed, notReady: c.notReady, aboveListing: c.aboveListing }}
               />
             ) : null}
           </li>
@@ -98,7 +100,10 @@ export function EarningsByChannelCard(props: { items: readonly ChannelEarnings[]
             <span className="font-medium">{e.kind === "my_site" ? c.mySite : e.kind === "hub" ? c.hub : e.kind === "other" ? c.other : e.name}</span>
             <span className="text-sm">
               {money(e.netCents, props.currency, props.locale)}
-              {e.youKeepBps == null ? "" : ` · ${c.youKeep} ${pct(e.youKeepBps)}`}
+              {e.youKeepBps == null ? "" : ` · ${c.youKeep} ${pct(e.youKeepBps)}`}{" "}
+              <span role="img" tabIndex={0} title={c.feeNote} aria-label={c.feeNote} data-testid="fee-note" className="cursor-help">
+                ⓘ
+              </span>
             </span>
           </li>
         ))}
@@ -128,13 +133,15 @@ export function CalendarByChannelPanel(props: { result: { ok: true; rows: readon
       ) : (
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
           {props.result.rows.map((r) => (
-            <li key={`${r.kind}-${r.id}`} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" data-channel={r.channelKey}>
+            <li key={`${r.kind}-${r.id}`} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2" data-channel={r.channelType}>
               <span className="flex flex-col">
-                <span className="font-medium">{r.title}</span>
+                <span className="font-medium">
+                  {r.channelType === "mine" ? r.title : c.bookedVia.replace("{name}", r.channelName ?? c.anotherWorkspace)}
+                </span>
                 <span className="text-sm">{when(r.startsAt, props.timeZone, props.locale)}</span>
               </span>
               <span className="text-right text-sm">
-                {r.channelName ?? c.mySiteHub}
+                {r.channelType === "mine" ? c.mySiteHub : (r.channelName ?? c.anotherWorkspace)}
                 <br />
                 {r.kind === "hold" ? `${c.hold}${r.holdStrength ? ` · ${r.holdStrength === "firm" ? c.firm : c.soft}` : ""}` : c.booking}
               </span>

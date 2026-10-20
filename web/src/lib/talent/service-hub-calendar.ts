@@ -25,11 +25,14 @@ export type CalendarEntry = {
 export type ChannelCalendarRow = {
   id: string;
   kind: "hold" | "booking";
-  title: string;
+  /** The talent's own and hub entries keep their title; another workspace's are NEVER shown (null). */
+  title: string | null;
   startsAt: string;
   endsAt: string;
   channelKey: string;
-  /** The workspace's name; null for "My site / hub" (the UI words it). */
+  /** "mine" = the talent's own workspace or the hub; "workspace" = another workspace's booking. */
+  channelType: "mine" | "workspace";
+  /** The workspace's name when it could be read; null for "mine" and for an unreadable name ("Another workspace"). */
   channelName: string | null;
   holdStrength: "soft" | "firm" | null;
 };
@@ -57,11 +60,13 @@ export function calendarByChannel(input: {
     rows.push({
       id: en.id,
       kind: en.kind,
-      title: en.title,
+      // Another workspace's booking title can carry its client's name: show time and workspace only.
+      title: mine ? en.title : null,
       startsAt: en.startsAt,
       endsAt: en.endsAt,
       channelKey: mine ? "my_site_hub" : `ws:${en.tenantId}`,
-      channelName: mine ? null : (input.tenantNames.get(en.tenantId) ?? en.tenantId),
+      channelType: mine ? "mine" : "workspace",
+      channelName: mine ? null : (input.tenantNames.get(en.tenantId) ?? null),
       holdStrength: en.holdStrength,
     });
   }

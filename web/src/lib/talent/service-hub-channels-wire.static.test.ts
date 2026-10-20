@@ -20,6 +20,7 @@ test("the lowest-price action is a guarded server action that calls the database
   assert.match(src, /^"use server";/);
   assert.match(src, /await requireNotImpersonating\(\)/);
   assert.match(src, /rpc\("set_workspace_service_listing_lowest"/);
+  assert.match(src, /classifyLowestError\(error\)/);
   assert.doesNotMatch(src, /\.update\(/);
   assert.match(src, /not_ready/);
 });

@@ -233,6 +233,9 @@ export type ChannelCopy = {
   soft: string;
   noUpcoming: string;
   calendarFailed: string;
+  bookedVia: string;
+  anotherWorkspace: string;
+  aboveListing: string;
 };
 
 export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
@@ -265,6 +268,9 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     soft: "soft",
     noUpcoming: "Nothing coming up.",
     calendarFailed: "Could not load your calendar. Try again in a moment.",
+    bookedVia: "Booked via {name}",
+    anotherWorkspace: "Another workspace",
+    aboveListing: "That minimum is above what this workspace charges (floor {floor}). Choose a lower minimum, or ask the workspace to raise its price.",
   },
   es: {
     whereSold: "Dónde se vende",
@@ -295,6 +301,9 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     soft: "provisional",
     noUpcoming: "Nada próximo.",
     calendarFailed: "No se pudo cargar tu calendario. Inténtalo de nuevo en un momento.",
+    bookedVia: "Reservado vía {name}",
+    anotherWorkspace: "Otro espacio de trabajo",
+    aboveListing: "Ese mínimo es mayor que lo que cobra este espacio de trabajo (piso {floor}). Elige un mínimo menor o pide al espacio de trabajo que suba su precio.",
   },
 };
 

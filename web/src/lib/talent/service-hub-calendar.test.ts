@@ -27,17 +27,32 @@ test("each entry is labelled by its placing workspace; own and hub tenants read 
       e({ id: "3", tenantId: "hub", startsAt: "2026-11-13T10:00:00Z", endsAt: "2026-11-13T11:00:00Z" }),
     ],
   });
-  assert.deepEqual(out.map((r) => [r.id, r.channelKey, r.channelName]), [
-    ["2", "my_site_hub", null],
-    ["1", "ws:ws-1", "Blue Oar"],
-    ["3", "my_site_hub", null],
+  assert.deepEqual(out.map((r) => [r.id, r.channelKey, r.channelType, r.channelName]), [
+    ["2", "my_site_hub", "mine", null],
+    ["1", "ws:ws-1", "workspace", "Blue Oar"],
+    ["3", "my_site_hub", "mine", null],
   ]);
 });
 
-test("a workspace with no known name still shows (its id), never as 'My site / hub'", () => {
+test("a workspace with no readable name is 'another workspace': name null, never the raw id, never 'mine'", () => {
   const out = calendarByChannel({ ...base, entries: [e({ tenantId: "ws-9" })] });
-  assert.equal(out[0].channelKey, "ws:ws-9");
-  assert.equal(out[0].channelName, "ws-9");
+  assert.equal(out[0].channelType, "workspace");
+  assert.equal(out[0].channelName, null);
+  assert.ok(!JSON.stringify(out[0]).includes("ws-9") || out[0].channelKey === "ws:ws-9");
+  assert.equal(Object.values(out[0]).filter((v) => v === "ws-9").length, 0);
+});
+
+test("another workspace's booking title (it can carry the client's name) is never exposed; own and hub titles are", () => {
+  const out = calendarByChannel({
+    ...base,
+    entries: [
+      e({ id: "x", tenantId: "ws-1", title: "Boda de Maria Lopez" }),
+      e({ id: "y", tenantId: "own", title: "My own session", startsAt: "2026-11-11T10:00:00Z", endsAt: "2026-11-11T11:00:00Z" }),
+    ],
+  });
+  assert.equal(out.find((r) => r.id === "x")!.title, null);
+  assert.ok(!JSON.stringify(out.find((r) => r.id === "x")).includes("Maria"));
+  assert.equal(out.find((r) => r.id === "y")!.title, "My own session");
 });
 
 test("sorted by start; past, cancelled and expired entries are dropped; bad windows dropped", () => {

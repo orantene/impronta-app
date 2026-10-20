@@ -3,9 +3,10 @@
 --
 -- Why a function and not a write policy: workspace_service_listings has no write policies on
 -- purpose (every write goes through a function). This one touches ONE column, for the talent
--- who owns the row, and nothing else. The BEFORE UPDATE guard trigger of 419300 then
--- recomputes the client-price floor and stamps floor_breached_at if the new minimum puts the
--- listing under it, exactly as for any other edit.
+-- who owns the row, and nothing else. The BEFORE UPDATE guard trigger of 419300 then runs as
+-- for any other edit: if the new minimum puts the listing's client price under its floor it
+-- RAISES below_floor (SQLSTATE 23514, DETAIL = the floor in cents) and the update is rolled
+-- back. It does not stamp floor_breached_at. The app maps that error to a distinct reason.
 --
 -- Additive and idempotent (CREATE OR REPLACE). No data change, no backfill.
 --

@@ -88,13 +88,14 @@ describe("channel panels", () => {
 
 describe("calendar by channel", () => {
   const rows = [
-    { id: "1", kind: "booking" as const, title: "Paddle", startsAt: "2026-11-10T15:00:00Z", endsAt: "2026-11-10T17:00:00Z", channelKey: "ws:t-1", channelName: "Blue Oar", holdStrength: null },
-    { id: "2", kind: "hold" as const, title: "Sunrise", startsAt: "2026-11-11T15:00:00Z", endsAt: "2026-11-11T17:00:00Z", channelKey: "my_site_hub", channelName: null, holdStrength: "firm" as const },
+    { id: "1", kind: "booking" as const, title: null, startsAt: "2026-11-10T15:00:00Z", endsAt: "2026-11-10T17:00:00Z", channelKey: "ws:t-1", channelType: "workspace" as const, channelName: "Blue Oar", holdStrength: null },
+    { id: "2", kind: "hold" as const, title: "Sunrise", startsAt: "2026-11-11T15:00:00Z", endsAt: "2026-11-11T17:00:00Z", channelKey: "my_site_hub", channelType: "mine" as const, channelName: null, holdStrength: "firm" as const },
   ];
   it("labels each entry with its channel; my site / hub for own and hub", () => {
     const html = renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows }} locale="en" timeZone="UTC" />);
     assert.match(html, /Calendar by channel/);
-    assert.match(html, /Blue Oar/);
+    assert.match(html, /Booked via Blue Oar/);
+    assert.match(html, /Sunrise/);
     assert.match(html, /My site \/ hub/);
     assert.match(html, /Hold · firm/);
     assert.match(html, />Booking</);
@@ -103,5 +104,23 @@ describe("calendar by channel", () => {
     assert.match(renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows }} locale="es" />), /Calendario por canal[\s\S]*Mi sitio \/ hub/);
     assert.match(renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows: [] }} locale="en" />), /Nothing coming up\./);
     assert.match(renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: false }} locale="en" />), /role="alert"[^>]*>Could not load your calendar/);
+  });
+  it("another workspace's booking shows only 'Booked via <name>' and the time; an unreadable name reads 'Another workspace', never an id", () => {
+    const unknown = [{ ...rows[0], id: "9", channelKey: "ws:ws-9", channelName: null }];
+    const html = renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows: unknown }} locale="en" timeZone="UTC" />);
+    assert.match(html, /Booked via Another workspace/);
+    assert.doesNotMatch(html, /ws-9"|>ws-9</);
+    const es = renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows: unknown }} locale="es" timeZone="UTC" />);
+    assert.match(es, /Reservado vía Otro espacio de trabajo/);
+  });
+});
+
+describe("fee note on earnings", () => {
+  it("Earnings by channel carries the same (i) note, in both languages", () => {
+    const items = [{ key: "hub", kind: "hub" as const, name: null, grossCents: 5000, netCents: 5000, count: 1, youKeepBps: 10000 }];
+    const en = renderToStaticMarkup(<EarningsByChannelCard items={items} currency="USD" locale="en" />);
+    assert.match(en, /data-testid="fee-note"/);
+    assert.match(en, /Tulala&#x27;s fee is added on top for the client\./);
+    assert.match(renderToStaticMarkup(<EarningsByChannelCard items={items} currency="USD" locale="es" />), /La comisión de Tulala se suma encima para el cliente\./);
   });
 });

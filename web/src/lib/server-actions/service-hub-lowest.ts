@@ -12,8 +12,12 @@ import { z } from "zod";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { logServerError } from "@/lib/server/safe-error";
+import { classifyLowestError } from "@/lib/talent/service-hub-lowest-errors";
 
-export type SetLowestResult = { ok: true } | { ok: false; reason: "invalid" | "not_allowed" | "not_ready" | "unavailable" };
+export type SetLowestResult =
+  | { ok: true }
+  | { ok: false; reason: "invalid" | "not_allowed" | "not_ready" | "unavailable" }
+  | { ok: false; reason: "below_floor"; floorCents: number | null };
 
 const schema = z.object({
   listingId: z.string().uuid(),
@@ -32,10 +36,7 @@ export async function setListingLowestPriceAction(input: unknown): Promise<SetLo
     p_talent_lowest_cents: parsed.data.lowestCents,
   });
   if (!error) return { ok: true };
-  if (error.code === "42501") return { ok: false, reason: "not_allowed" };
-  // Function or table missing (migrations held): honest, not a fake success.
-  if (error.code === "PGRST202" || error.code === "42883" || error.code === "55000") return { ok: false, reason: "not_ready" };
-  if (error.code === "22023" || error.code === "23514") return { ok: false, reason: "invalid" };
-  logServerError("serviceHub.setLowest", error);
-  return { ok: false, reason: "unavailable" };
+  const failure = classifyLowestError(error);
+  if (failure.reason === "unavailable") logServerError("serviceHub.setLowest", error);
+  return { ok: false, ...failure };
 }
