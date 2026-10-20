@@ -160,7 +160,7 @@ async function proxyInner(request: NextRequest) {
     });
   }
 
-  const docsHop = docsHostResponse(hostHeader, request.method);
+  const docsHop = docsHostResponse(hostHeader, request.method, request.nextUrl);
   if (docsHop) return docsHop;
 
   const hostContext = await timed("proxy.resolveTenantContext", resolveTenantContext(request, hostHeader));
