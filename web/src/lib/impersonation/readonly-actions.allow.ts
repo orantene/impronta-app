@@ -261,6 +261,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/search/global-search.ts", ["globalSearch"], READ],
   ["lib/sessions/roster-actions.ts", ["loadSessionParticipants"], READ],
   ["lib/server-actions/dated-details.ts", ["loadDatedDetailsAction"], READ],
+  ["lib/sessions/date-roster-actions.ts", ["loadDateRoster"], READ],
   ["lib/sessions/schedule-actions.ts", ["loadSchedule", "loadSchedulableEvents"], READ],
   ["lib/support/guest-actions.ts", ["getGuestSupportThreadAction", "listGuestSupportThreadsAction"], READ],
   ["lib/support/hq-actions.ts", ["hqLoadTicketDetailAction", "hqSearchTicketsAction"], READ],
