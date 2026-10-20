@@ -14,6 +14,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadBookingCallSheet } from "@/lib/call-sheet/actions";
+import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { CallSheetEditor } from "./_editor";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,9 @@ export default async function BookingCallSheetPage({ params }: { params: PagePar
   type RosterRow = { id: string; display_name: string | null; first_name: string | null; last_name: string | null };
   let rosterTalents: Array<{ profileId: string; displayName: string }> = [];
   if (supabase) {
-    const { data } = await supabase
+    // TUL-1382: service client AFTER the tenant scope + call-sheet access checks above; still
+    // filtered to this agency's own talents, so removed, unpublished ones stay in the dropdown.
+    const { data } = await (await staffTalentClient(supabase))
       .from("talent_profiles")
       .select("id, display_name, first_name, last_name")
       .eq("created_by_agency_id", scope.tenantId)

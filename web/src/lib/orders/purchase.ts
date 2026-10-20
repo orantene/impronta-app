@@ -13,7 +13,7 @@ import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry"
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
 import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
-import { loadCatalog, mapCapacityRefusal, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
+import { loadCatalog, mapCapacityRefusal, refuseHiddenVariants, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
 import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemption/order-redemptions";
@@ -27,6 +27,8 @@ import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
 import { expandEventSeriesLines } from "@/lib/venues/event-series";
+import { keepsStockUntilVisit, withOfferingStockNeeds } from "@/lib/orders/purchase-stock";
+import { findKeyedOrder, isClientKeyConflict, replayKeyedPurchase } from "@/lib/orders/purchase-idempotency";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -34,13 +36,9 @@ import type {
   PurchaseResult,
 } from "@/lib/orders/purchase-types";
 
-export type {
-  PurchaseInput,
-  PurchaseLineInput,
-  PurchaseRefusalReason,
-  PurchaseResult,
-};
+export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
+import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
 import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
 
 /**
@@ -133,6 +131,12 @@ export async function createPurchase(
   };
 
   try {
+    // ── 0. A repeated clientOrderKey replays the first order (purchase-idempotency.ts).
+    const keyed = input.clientOrderKey ? await findKeyedOrder(admin, input.tenantId, input.clientOrderKey) : null;
+    if (keyed && !keyed.ok) return { ok: false, reason: "engine_error", error: "Could not place the order." };
+    const replay = keyed?.order ? await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, input.contact, keyed.order) : null;
+    if (replay) return replay;
+
     // ── 1. Load the catalog. Policy AND price come from these rows, never
     //       from the request.
     const series = await expandEventSeriesLines(admin, { tenantId: input.tenantId, lines: input.lines });
@@ -150,6 +154,8 @@ export async function createPurchase(
     // D-10 / D-10a: guest charges need published + approved + public.
     const sellable = refuseUnsellableOfferings(catalog, offeringIds, input.channel);
     if (!sellable.ok) return sellable;
+    const tierGate = refuseHiddenVariants(catalog, input.lines, input.channel, input.unlockedVariantIds); // D1: hidden tiers by link or desk only
+    if (!tierGate.ok) return tierGate;
 
     const seller = await refuseUnclaimedSellers(admin, catalog);
     if (!seller.ok) {
@@ -162,7 +168,7 @@ export async function createPurchase(
         clientOrderKey: input.clientOrderKey,
         tenantId: input.tenantId,
         actorUserId: input.actorUserId,
-        paymentChoice: input.paymentChoice,
+        paymentChoice: input.paymentChoice, tableDeposit: !!input.tableDeposit,
         lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.units })),
       },
       catalog.policies,
@@ -200,9 +206,10 @@ export async function createPurchase(
     // A cart mixing currencies is REFUSED rather than picked between: summing
     // ARS and USD under one symbol is the mixed-total bug the desk already had,
     // and an order is a worse place for it because someone is charged.
-    const ccy = resolveOrderCurrency(
-      input.lines.map((l) => catalog.offerings.get(l.offeringId)?.currency ?? null),
-    );
+    const lineCurrencies = input.lines.map((l) => catalog.offerings.get(l.offeringId)?.currency ?? null);
+    const depositRefusal = tableDepositRefusal(input.tableDeposit, lineCurrencies); // purchase-table-deposit.ts
+    if (depositRefusal) return depositRefusal;
+    const ccy = resolveOrderCurrency(input.tableDeposit ? [input.tableDeposit.currency] : lineCurrencies);
     if (!ccy.ok) {
       return {
         ok: false,
@@ -212,11 +219,11 @@ export async function createPurchase(
     }
     const orderCurrency = ccy.currency;
 
-    const priced = pricePurchase(input.lines, {
+    const priced = withTableDeposit(pricePurchase(input.lines, {
       offerings: catalog.offerings,
       variants: catalog.variants,
       addons: catalog.addons,
-    });
+    }), input.tableDeposit);
     // Refuses rather than stamping session ids onto the wrong lines.
     if (priced.ok && priced.lines.length !== input.lines.length) {
       logServerError("orders.createPurchase/lineAlignment", `${priced.lines.length}/${input.lines.length}`);
@@ -343,10 +350,16 @@ export async function createPurchase(
         // refuses a half-filled triple, and writing them as three expressions
         // here is how they came apart.
         ...ageGateStamp(ageVerdict, new Date().toISOString()),
+        ...(keyed?.ok && keyed.keyColumn ? { client_order_key: input.clientOrderKey } : {}),
       })
       .select("id")
       .single();
 
+    // Lost the race for this key: the unique index refused us, so the winner's order is the answer.
+    if (orderErr && isClientKeyConflict(orderErr)) {
+      const winner = await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, input.contact);
+      if (winner) return winner;
+    }
     if (orderErr || !orderRow) {
       logServerError("orders.createPurchase/order", orderErr);
       return { ok: false, reason: "engine_error", error: "Could not start the order." };
@@ -408,30 +421,23 @@ export async function createPurchase(
       return { ok: false, reason: "engine_error", error: "Could not price the order." };
     }
 
-    // ── 7. Hold capacity: ONE atomic batch for the whole cart (see below).
+    // ── 7. Hold capacity: the caller's pools plus each line's offering stock (purchase-stock.ts).
     const lineIdByOffering = new Map<string, string>();
     for (const row of insertedLines as Array<{ id: string; offering_id: string | null }>) {
       if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);
     }
 
     let shortestTtlSeconds: number | null = null;
-    const linkedNeeds = await purchaseNeedsWithLinkedResources(admin, input); // TUL-1375: + linked chair/room/station
+    // Stock first (it skips lines the CALLER already pooled), then TUL-1375 linked chair/room/station.
+    const stockNeeds = withOfferingStockNeeds(input.capacity ?? [], input.lines, catalog.stockPools);
+    const linkedNeeds = await purchaseNeedsWithLinkedResources(admin, { ...input, capacity: stockNeeds });
     if (!linkedNeeds.ok) { await unwind("linked resources unreadable"); return { ok: false, reason: "capacity_unavailable", error: linkedNeeds.error }; }
     const needs = linkedNeeds.needs;
-    const slotHolds = [
-      ...(input.holds ?? []),
-      ...(input.reservation ? [input.reservation] : []),
-    ];
+    const slotHolds = [...(input.holds ?? []), ...(input.reservation ? [input.reservation] : [])];
 
     if (needs.length > 0 || slotHolds.length > 0) {
-      // ONE atomic batch for the whole cart.
-      //
-      // This used to be a loop, one batch per line, because
-      // `reserveCapacityBatch` took a single `orderLineId` for a whole batch and
-      // a per-line loop was the only way to attribute each allocation to its
-      // line. Capacity made `orderLineId` per-request (0.11) after I flagged it,
-      // so the loop is gone: a refused leg now writes ZERO rows again and the
-      // compensation below no longer has to cover a partially-held cart.
+      // ONE atomic batch for the whole cart (`orderLineId` is per request since
+      // Capacity 0.11), so a refused leg writes ZERO rows.
       //
       // Attribution is not cosmetic — `capacity_allocations.order_line_id` is
       // what refund-by-line reads to decide which units to free, so a wrong
@@ -666,6 +672,7 @@ export async function createPurchase(
       totalCents,
       heldAllocationIds,
       holdTtlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
+      keepUntilVisit: keepsStockUntilVisit({ payInPerson: policy.payInPerson, declared: input.capacity ?? [], needs, slotHolds: slotHolds.length, lines: input.lines }),
     });
     if (!settlement.ok) {
       await unwind(settlement.note);

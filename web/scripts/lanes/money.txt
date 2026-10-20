@@ -26,11 +26,14 @@ src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
 src/lib/billing/fee-reader-rpc-guards.static.test.ts
+src/lib/billing/invoice-display.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
+src/lib/billing/receipt-notice.test.ts
+src/lib/billing/refunded-charge-net.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
@@ -62,6 +65,8 @@ src/lib/catalog/tax.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
 src/lib/events/cancel-cascade.static.test.ts
+src/lib/events/hidden-tier-payloads.test.ts
+src/lib/events/hidden-tier-reach.test.ts
 src/lib/events/ticket-payment-guard.test.ts
 src/lib/fulfilment/pipelines.test.ts
 src/lib/inquiry/counter-offer-currency.test.ts
@@ -90,6 +95,7 @@ src/lib/menu-import/photo-ingest.test.ts
 src/lib/menu-import/plan-import.test.ts
 src/lib/messages-v5/record-money.test.ts
 src/lib/messaging/accept-offer-order-adopt.test.ts
+src/lib/messaging/release-order-lines-capacity.test.ts
 src/lib/messaging/repair-duplicate-offer-orders.test.ts
 src/lib/messaging/sheets-offer-currency.test.ts
 src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
@@ -99,6 +105,8 @@ src/lib/money/money-spine.static.test.ts
 src/lib/money/september-ledger-fixture.test.ts
 src/lib/money/today-money-tiles.test.ts
 src/lib/offerings/non-menu-offerings.test.ts
+src/lib/offerings/sellable-one-rule.static.test.ts
+src/lib/offerings/sellable.test.ts
 src/lib/offerings/services-safety.static.test.ts
 src/lib/ops/balance-reconcile.test.ts
 src/lib/ops/cron-heartbeat.test.ts
@@ -129,6 +137,8 @@ src/lib/orders/purchase-policy.test.ts
 src/lib/orders/purchase-pricing.test.ts
 src/lib/orders/purchase-refusal.test.ts
 src/lib/orders/purchase-seller.test.ts
+src/lib/orders/purchase-stock-idempotency.test.ts
+src/lib/orders/purchase-table-deposit.test.ts
 src/lib/orders/refund-admissions.test.ts
 src/lib/orders/refund-desk-copy.test.ts
 src/lib/orders/refund-effects.test.ts
@@ -137,6 +147,7 @@ src/lib/orders/refund-record-lines.test.ts
 src/lib/orders/refund-resume-effects.test.ts
 src/lib/orders/settle-at-door.test.ts
 src/lib/orders/settles-on-creation.test.ts
+src/lib/orders/travel-fee.test.ts
 src/lib/orders/unwind-failed-checkout.test.ts
 src/lib/payments/activity-shape.test.ts
 src/lib/payments/balance-transactions.test.ts
@@ -181,11 +192,14 @@ src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
 src/lib/payments/refund-authority-wire.static.test.ts
 src/lib/payments/refund-authority.test.ts
+src/lib/payments/refund-charge-share-fail-closed.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts
+src/lib/payments/refunds-charge-share.test.ts
+src/lib/payments/refunds-restore-gate.test.ts
 src/lib/payments/refunds-restore-inventory.test.ts
 src/lib/payments/refunds.test.ts
 src/lib/payments/retry-fee-unknown-payouts.test.ts
@@ -233,6 +247,8 @@ src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
 src/lib/projects/project-record.test.ts
+src/lib/reservations/deposit-currency.test.ts
+src/lib/reservations/reserve-table-deposit.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
 src/lib/sales/by-item.test.ts

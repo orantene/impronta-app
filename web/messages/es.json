@@ -1763,7 +1763,9 @@
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
       "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
-      "contactCta": "Enviar un mensaje"
+      "contactCta": "Enviar un mensaje",
+      "noTimesRequest": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
+      "requestCta": "Enviar una solicitud"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
@@ -1793,6 +1795,8 @@
       "phone": "Teléfono",
       "quoteOnRequest": "Precio a consultar",
       "selectAtLeastOne": "Elige {nounPlural}",
+      "chooseOption": "Elige una opción",
+      "extrasLabel": "Extras",
       "selectQuantities": "Selecciona las cantidades",
       "sending": "Enviando",
       "sent": "Pedido enviado.",
@@ -3300,6 +3304,8 @@
       "saving": "Guardando…",
       "done": "Listo",
       "gotIt": "Entendido",
+      "recordNotFoundTitle": "No pudimos cargar este registro",
+      "recordNotFoundBody": "No se cambió nada. Cierra esto y ábrelo de nuevo desde la lista.",
       "copy": "Copiar",
       "open": "Abrir",
       "comingSoon": "Muy pronto",
@@ -16350,6 +16356,7 @@
           "refusal": {
             "timeNotOffered": "Esa hora no se ofrece para este grupo. Elige otra.",
             "noOfferingConfigured": "Las reservas aún no se pueden tomar: no hay una oferta de reserva configurada.",
+            "offeringNotPublished": "Publica el artículo de reservas para aceptar reservas.",
             "noContact": "Hace falta un correo o un teléfono para localizar al cliente.",
             "closed": "El local cierra ese día.",
             "tooLateToday": "Es tarde para reservar esta noche."
@@ -16878,6 +16885,8 @@
         "askBill": "Pedir la cuenta",
         "empty": "Aún no hay nada que pedir en esta visita.",
         "add": "Añadir",
+        "soldOut": "Agotado",
+        "priceOnRequest": "Precio a consultar",
         "offerTitle": "Hay una sustitución esperando",
         "acceptOffer": "Aceptar {name}",
         "back": "Tu mesa"
@@ -18122,6 +18131,8 @@
       "untitled": "(sin título)",
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
+      "itemProviderOwnedLink": "Abrir Servicios",
+      "duplicate": { "copySuffix": "copia" },
       "type": {
         "product": "Producto",
         "service": "Servicio",
@@ -18468,6 +18479,7 @@
         "fulfillmentHint": "Entrega inmediata · Recogida · A domicilio · Servir en mesa",
         "handoffNow": "Entrega inmediata",
         "station": "Estación",
+        "stationNone": "Aún no hay estaciones de cocina. Agrégalas en Configuración.",
         "prepTime": "Tiempo de preparación",
         "course": "Tiempo por defecto (mesas)"
       },

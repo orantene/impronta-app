@@ -27,7 +27,7 @@ export type ServicePresentationSource = {
   tradeSlug: string | null;
   /** Modes the owner's plan allows (talent or workspace entitlements). */
   allowedModes: readonly PresentationMode[];
-  /** Per-service stored setting (held migration 415800); empty until it lands. */
+  /** Per-service stored setting (held migration 418800); empty until it lands. */
   settings?: Record<string, PresentationMode>;
   /** The owner's published FAQ, shown in every quick view. */
   talentFaq?: ReadonlyArray<{ question: string; answer: string }>;

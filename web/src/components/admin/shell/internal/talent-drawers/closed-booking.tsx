@@ -18,6 +18,7 @@ import {
   SecondaryButton,
 } from "../primitives";
 import { KvRow, SectionLabel } from "./shared";
+import { RecordNotFoundDrawer } from "./record-not-found";
 
 // ─── Closed booking (read-only past-work archive) ────────────────────
 // Opens when a talent clicks a row in "Recent earnings" on Today.
@@ -30,7 +31,9 @@ export function TalentClosedBookingDrawer() {
   const t = useT();
   const open = state.drawer.drawerId === "talent-closed-booking";
   const earningId = (state.drawer.payload?.earningId as string) ?? "e1";
-  const e = EARNINGS_ROWS.find((x) => x.id === earningId) ?? EARNINGS_ROWS[0]!;
+  const found = EARNINGS_ROWS.find((x) => x.id === earningId);
+  if (!found) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
+  const e = found;
   const idx = EARNINGS_ROWS.findIndex((x) => x.id === earningId);
   const prev = idx > 0 ? EARNINGS_ROWS[idx - 1] : null;
   const next = idx < EARNINGS_ROWS.length - 1 ? EARNINGS_ROWS[idx + 1] : null;
@@ -590,7 +593,8 @@ export function TalentEarningsDetailDrawer() {
   const t = useT();
   const open = state.drawer.drawerId === "talent-earnings-detail";
   const id = (state.drawer.payload?.id as string) ?? "e1";
-  const e = EARNINGS_ROWS.find((x) => x.id === id) ?? EARNINGS_ROWS[0];
+  const e = EARNINGS_ROWS.find((x) => x.id === id);
+  if (!e) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
   return (
     <DrawerShell
       open={open}

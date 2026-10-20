@@ -16,9 +16,10 @@
  * fulfillment field (no station, prep time or course column) (D-POS-46).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useT } from "@/i18n/use-t";
+import { prepStationsList } from "@/lib/server-actions/venue-engine";
 import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { Outcome } from "../appointments-classes-ui";
@@ -178,32 +179,70 @@ export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving
         </Field>
       </div>
       {/* W05 draws `Fulfillment & preparation` under the rules as well as on its own tab; the same four fields, the same sentence. */}
-      <FulfillmentFields />
+      <FulfillmentFields item={item} patch={patch} saving={saving} />
       {/* TUL-1375: the chair, room or station a booking of this item holds. */}
       <ItemResourcesSection tenantId={tenantId} offeringId={item.id} disabled={isDraft} />
     </>
   );
 }
 
-export function FulfillmentTab(_props: TabProps) {
-  return <FulfillmentFields intro />;
+export function FulfillmentTab(props: TabProps) {
+  return <FulfillmentFields intro item={props.item} patch={props.patch} saving={props.saving} />;
 }
 
-function FulfillmentFields({ intro = false }: { intro?: boolean }) {
+function FulfillmentFields({
+  intro = false,
+  item,
+  patch,
+  saving = false,
+}: {
+  intro?: boolean;
+  item?: TabProps["item"];
+  patch?: TabProps["patch"];
+  saving?: boolean;
+}) {
   const t = useT();
   const reason = t("dashboard.catalog.fulfillment.reason");
+  const [stations, setStations] = useState<Array<{ id: string; name: string }>>([]);
+  // Fetch once per mount: the deps are a boolean, so an edit to the item never refetches the list.
+  const canLoad = Boolean(item && patch);
+  useEffect(() => {
+    if (!canLoad) return;
+    let cancelled = false;
+    void prepStationsList().then((res) => {
+      if (!cancelled && res.ok) setStations(res.stations.map((s) => ({ id: s.id, name: s.name })));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [canLoad]);
+  const canPick = Boolean(item && patch);
   return (
     <>
       <SectionHead title={t("dashboard.catalog.fulfillment.title")} intro={intro ? t("dashboard.catalog.fulfillment.intro") : undefined} />
-      <div className="grid grid-cols-4 gap-[16px]" data-testid="catalog-fulfillment">
+      <div className="grid grid-cols-4 gap-[16px] max-[720px]:grid-cols-2" data-testid="catalog-fulfillment">
         <Field label={t("dashboard.catalog.fulfillment.fulfillment")} reason={reason} hint={t("dashboard.catalog.fulfillment.fulfillmentHint")}>
           <SelectShell><select disabled className={SELECT}>
             <option>{t("dashboard.catalog.fulfillment.handoffNow")}</option>
           </select></SelectShell>
         </Field>
-        <Field label={t("dashboard.catalog.fulfillment.station")} reason={reason} quiet>
-          <SelectShell><select disabled className={SELECT}>
-            <option>{t("dashboard.catalog.dash")}</option>
+        <Field
+          label={t("dashboard.catalog.fulfillment.station")}
+          reason={canPick ? null : reason}
+          hint={canPick && stations.length === 0 ? t("dashboard.catalog.fulfillment.stationNone") : null}
+          quiet={!canPick}
+        >
+          <SelectShell><select
+            disabled={!canPick || saving}
+            value={item?.prepStationId ?? ""}
+            data-testid="catalog-field-station"
+            onChange={(e) => patch?.({ prepStationId: e.target.value || null })}
+            className={SELECT}
+          >
+            <option value="">{t("dashboard.catalog.dash")}</option>
+            {stations.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
           </select></SelectShell>
         </Field>
         <Field label={t("dashboard.catalog.fulfillment.prepTime")} reason={reason} quiet>
