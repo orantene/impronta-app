@@ -3,9 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/server/action-guards";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { readGuardedImage } from "@/lib/media/guarded-upload.server";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB (the 4 MB server-action body limit binds first)
 
 export type AvatarUploadResult =
   | { ok: true; avatarUrl: string }
@@ -25,22 +25,17 @@ export async function actionUploadAvatar(
   if (!file || file.size === 0) {
     return { ok: false, error: "No file provided." };
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return { ok: false, error: "Only JPEG, PNG, WebP, or GIF images are allowed." };
-  }
-  if (file.size > MAX_BYTES) {
-    return { ok: false, error: "File must be under 5 MB." };
-  }
+  // H1: type from the bytes (JPEG/PNG/WebP/GIF), pixel cap, and EXIF/GPS
+  // stripped: this lands in the PUBLIC bucket.
+  const guarded = await readGuardedImage(file, { maxBytes: MAX_BYTES });
+  if (!guarded.ok) return { ok: false, error: guarded.error };
 
-  const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
-  const storagePath = `avatars/${user.id}/avatar.${ext}`;
-
-  const bytes = await file.arrayBuffer();
+  const storagePath = `avatars/${user.id}/avatar.${guarded.ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from("media-public")
-    .upload(storagePath, bytes, {
-      contentType: file.type,
+    .upload(storagePath, guarded.bytes, {
+      contentType: guarded.mime,
       upsert: true,
     });
 

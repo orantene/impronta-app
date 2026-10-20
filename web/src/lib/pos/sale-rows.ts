@@ -38,6 +38,7 @@ export type OrderRow = {
   currency: string;
   customer_id: string | null;
   guest_session_id: string | null;
+  source_channel?: string | null;
   source_page: string | null;
   visit_id: string | null;
   space_id: string | null;

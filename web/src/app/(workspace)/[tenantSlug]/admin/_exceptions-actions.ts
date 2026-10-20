@@ -28,6 +28,8 @@ import { resumeException } from "@/lib/exceptions/resume";
 import type { ResumeOutcomeKey } from "@/lib/exceptions/outcome-copy";
 import { RESUME_VERBS, type ResumeVerb } from "@/lib/exceptions/model";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { resolvePaymentFlag } from "@/lib/payments/payment-review-flags";
+import { isPaymentReviewReason } from "@/lib/payments/payment-review-flags-model";
 
 export type LoadExceptionsResult =
   | { ok: true; load: ExceptionsLoad }
@@ -150,4 +152,49 @@ export async function resumeExceptionAction(input: {
               // reason precisely because "nothing changed" is untrue of it.
               "That did not go through. Nothing was changed.",
   };
+}
+
+export type ResolvePaymentFlagActionResult =
+  | { ok: true; resolved: boolean }
+  | { ok: false; error: "not_authorized" | "invalid" | "not_found" | "failed" };
+
+/**
+ * Review fix 4 (TUL-1283 / TUL-1284 / M2): "Mark resolved" on a flagged card
+ * charge, after a person has refunded or reconciled it in Stripe.
+ *
+ * BILLING-GATED: `manage_billing` (owners/admins), not the inbox's view
+ * capability. The tenant comes from the session, never from the caller.
+ * It only stamps `resolved_at` on the flag and moves no money, so it is not a
+ * resume verb and needs no idempotency claim (resolving twice is a no-op).
+ */
+export async function resolvePaymentFlagAction(input: {
+  transactionId: string;
+  reason: string;
+  paymentIntentId: string | null;
+}): Promise<ResolvePaymentFlagActionResult> {
+  await requireNotImpersonating();
+  const guard = await requireWorkspaceStaffAction({ capability: "manage_billing" });
+  if (!guard.ok) return { ok: false, error: "not_authorized" };
+
+  if (typeof input.transactionId !== "string" || !/^[0-9a-f-]{36}$/i.test(input.transactionId)) {
+    return { ok: false, error: "invalid" };
+  }
+  if (!isPaymentReviewReason(input.reason)) return { ok: false, error: "invalid" };
+  const paymentIntentId = input.paymentIntentId;
+  if (paymentIntentId !== null && (typeof paymentIntentId !== "string" || !/^[A-Za-z0-9_]{3,255}$/.test(paymentIntentId))) {
+    return { ok: false, error: "invalid" };
+  }
+
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: "failed" };
+
+  const result = await resolvePaymentFlag(admin, {
+    tenantId: guard.tenantId,
+    transactionId: input.transactionId,
+    reason: input.reason,
+    paymentIntentId,
+    actorUserId: guard.user.id,
+  });
+  if (result.ok) return { ok: true, resolved: result.resolved };
+  return { ok: false, error: result.error === "not_found" ? "not_found" : "failed" };
 }

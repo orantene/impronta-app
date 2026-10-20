@@ -213,6 +213,7 @@ export const siteHeaderSchemaV1 = z.object({
       "bottom_tab",
       "filter_bar",
       "chapter_dots",
+      "no_nav",
     ])
     .optional(),
 

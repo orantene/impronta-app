@@ -35,8 +35,8 @@ test("D-10a: storefront cores withhold the amount for on_request", () => {
 });
 
 test("D-10a: catalog grid and package selector only read public offerings (justified, unchanged)", () => {
-  assert.match(read("src/lib/storefront/catalog-grid.core.ts"), /\.eq\("visibility", "public"\)/);
-  assert.match(read("src/lib/storefront/package-selector.core.ts"), /\.eq\("visibility", "public"\)/);
+  assert.match(read("src/lib/storefront/catalog-grid.core.ts"), /scopeToSellableOfferings\([\s\S]{0,200}"guest"/);
+  assert.match(read("src/lib/storefront/package-selector.core.ts"), /scopeToSellableOfferings\([\s\S]{0,300}"guest"/);
 });
 
 test("D-10a: the menu board prints On request and no USD hint for on_request", () => {
