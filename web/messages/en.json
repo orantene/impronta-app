@@ -1763,7 +1763,9 @@
       "chooseService": "Service",
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
-      "contactCta": "Send a message"
+      "contactCta": "Send a message",
+      "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "requestCta": "Send a request"
     },
     "siteShellSurface": {
       "title": "Site header & footer",
@@ -1793,6 +1795,8 @@
       "phone": "Phone",
       "quoteOnRequest": "Quote on request",
       "selectAtLeastOne": "Choose {nounPlural}",
+      "chooseOption": "Choose an option",
+      "extrasLabel": "Extras",
       "selectQuantities": "Select quantities",
       "sending": "Sending",
       "sent": "Order sent.",
@@ -3300,6 +3304,8 @@
       "saving": "Saving…",
       "done": "Done",
       "gotIt": "Got it",
+      "recordNotFoundTitle": "We could not load this record",
+      "recordNotFoundBody": "Nothing was changed. Close this and open it again from the list.",
       "copy": "Copy",
       "open": "Open",
       "comingSoon": "Coming soon",
@@ -16359,6 +16365,7 @@
           "refusal": {
             "timeNotOffered": "That time is not offered for this party. Pick another.",
             "noOfferingConfigured": "Reservations are not bookable yet: no reservation offering is configured.",
+            "offeringNotPublished": "Publish the reservation item to accept reservations.",
             "noContact": "An email or a phone is needed so the guest can be reached.",
             "closed": "The venue is closed that day.",
             "tooLateToday": "Too late to book for tonight."
@@ -16887,6 +16894,8 @@
         "askBill": "Ask for the bill",
         "empty": "Nothing to order on this visit yet.",
         "add": "Add",
+        "soldOut": "Sold out",
+        "priceOnRequest": "Price on request",
         "offerTitle": "A substitution is waiting",
         "acceptOffer": "Accept {name}",
         "back": "Your table"
@@ -18123,6 +18132,8 @@
       "untitled": "(untitled)",
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
       "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
+      "itemProviderOwnedLink": "Open Services",
+      "duplicate": { "copySuffix": "copy" },
       "type": {
         "product": "Product",
         "service": "Service",
@@ -18469,6 +18480,7 @@
         "fulfillmentHint": "Handoff now · Pickup · Delivery · Serve at table",
         "handoffNow": "Handoff now",
         "station": "Station",
+        "stationNone": "No kitchen stations yet. Add them in Settings.",
         "prepTime": "Prep time",
         "course": "Default course (tables)"
       },

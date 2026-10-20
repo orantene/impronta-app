@@ -46,7 +46,7 @@ type Sb = NonNullable<ReturnType<typeof createServiceRoleClient>>;
  * the workspace default language. Null when unknown or on a read error (the
  * caller then falls back to the Stripe customer locale, then English).
  */
-async function loadDunningRecipientLocale(
+export async function loadDunningRecipientLocale(
   sb: Sb,
   scope: "talent" | "workspace",
   subscriptionId: string,

@@ -14,6 +14,7 @@ import type {
   MaxSiteRow,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { cachePublicTalentSiteData } from "./public-site-data-cache.server";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 /**
  * Talent Max Site — server LOADS (service-role reads).
@@ -215,14 +216,10 @@ async function loadSellsGoodsOnly(
   admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
   talentProfileId: string,
 ): Promise<boolean> {
-  const { data, error } = await admin
-    .from("talent_offerings")
-    .select("kind")
-    .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .eq("visibility", "public")
-    .limit(200);
+  const { data, error } = await scopeToSellableOfferings(
+    admin.from("talent_offerings").select("kind").eq("talent_profile_id", talentProfileId),
+    "guest",
+  ).limit(200);
   if (error) {
     logServerError("talentSite.loadSellsGoodsOnly", error);
     return false;

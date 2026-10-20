@@ -11,6 +11,7 @@ import type {
 } from "@/lib/orders/purchase-pricing";
 import type { PurchaseRefusalReason } from "@/lib/orders/purchase";
 import { isSellableOnChannel, type PurchaseChannel } from "@/lib/offerings/guest-sellable";
+import { variantSellability } from "@/lib/offerings/sellable";
 import { resolveOfferingPolicy } from "@/lib/talent/offering-policy-resolver";
 import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
 import { loadGroupExtras } from "@/lib/orders/purchase-catalog-groups";
@@ -47,6 +48,13 @@ export type Catalog =
       offerings: Map<string, PricedOffering>;
       variants: Map<string, PricedVariant>;
       addons: Map<string, PricedAddon>;
+      /**
+       * `talent_offerings.capacity_pool_id` per offering (null = unlimited).
+       * D5: the pipeline holds this pool for every line whose caller declared
+       * no capacity of its own (purchase-stock.ts). Optional only so hand-built
+       * catalogs in tests still type; `loadCatalog` always sets it.
+       */
+      stockPools?: Map<string, string | null>;
     }
   | { ok: false; error: string };
 
@@ -56,7 +64,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     .select(
       "id, tenant_id, title, status, price_type, amount_cents, currency, talent_profile_id, " +
         "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours, " +
-        "kind, duration_minutes, requires_identity, identity_reason, visibility, moderation_state",
+        "kind, duration_minutes, requires_identity, identity_reason, visibility, moderation_state, capacity_pool_id",
     )
     .in("id", offeringIds);
 
@@ -68,7 +76,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
   const [variantResult, addonResult] = await Promise.all([
     admin
       .from("talent_offering_variants")
-      .select("id, offering_id, label, amount_cents, min_per_order, max_per_order")
+      .select("id, offering_id, label, amount_cents, min_per_order, max_per_order, is_hidden")
       .in("offering_id", offeringIds),
     admin
       .from("talent_offering_addons")
@@ -103,6 +111,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     identity_reason: string | null;
     visibility: string | null;
     moderation_state: string | null;
+    capacity_pool_id?: string | null;
   };
 
   const policies = new Map<string, OfferingPolicy>();
@@ -187,6 +196,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     amount_cents: number | null;
     min_per_order?: number | null;
     max_per_order?: number | null;
+    is_hidden?: boolean | null;
   };
   type AddonRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
 
@@ -199,6 +209,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
       amountCents: row.amount_cents,
       minPerOrder: row.min_per_order ?? 1,
       maxPerOrder: row.max_per_order ?? null,
+      isHidden: row.is_hidden === true,
     });
   }
 
@@ -222,7 +233,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
   if (!groupExtras.ok) return { ok: false, error: "Could not load the extras." };
   for (const g of groupExtras.addons) addons.set(g.addonId, g);
 
-  return { ok: true, policies, rawOfferings, offerings, variants, addons };
+  const stockPools = new Map(typedRows.map((r) => [r.id, r.capacity_pool_id ?? null] as const));
+  return { ok: true, policies, rawOfferings, offerings, variants, addons, stockPools };
 }
 
 /**
@@ -334,6 +346,31 @@ export function refuseUnsellableOfferings(
     const row = raw ? { status, moderation_state: raw.moderationState, visibility: raw.visibility } : null;
     if (!isSellableOnChannel(row, channel)) {
       return { ok: false, reason: "offering_not_published", offeringId, error: "That item is no longer available." };
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * D1 addendum: the catalog load runs as the service role, so RLS never hid a
+ * hidden / comp tier from checkout. A guest charge for a tier that is
+ * `is_hidden` is refused unless the request carries that tier's link unlock
+ * (`unlockedVariantIds`, set only by the ticket picker). The staff desk is exempt.
+ */
+export function refuseHiddenVariants(
+  catalog: Extract<Catalog, { ok: true }>,
+  lines: ReadonlyArray<{ offeringId: string; variantId?: string | null }>,
+  channel: PurchaseChannel | undefined,
+  unlockedVariantIds: readonly string[] | undefined,
+): { ok: true } | { ok: false; reason: PurchaseRefusalReason; offeringId: string; error: string } {
+  const unlocked = new Set((unlockedVariantIds ?? []).map((id) => id.toLowerCase()));
+  const context = channel === "staff" ? "pos_desk" : channel === "reservation" ? "reservation" : "guest";
+  for (const line of lines) {
+    if (!line.variantId) continue;
+    const variant = catalog.variants.get(line.variantId);
+    if (!variant) continue; // an unknown / foreign variant is refused by pricing, not here
+    if (!variantSellability(variant, context, { unlocked: unlocked.has(line.variantId.toLowerCase()) }).ok) {
+      return { ok: false, reason: "offering_not_published", offeringId: line.offeringId, error: "That item is no longer available." };
     }
   }
   return { ok: true };

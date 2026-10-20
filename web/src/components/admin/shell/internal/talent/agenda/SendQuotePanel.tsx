@@ -14,6 +14,7 @@ import { AgendaPanelFrame, createPanelStore } from "./AgendaPanelFrame";
 import { TaskShell } from "./primitives/TaskShell";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { isSellable } from "@/lib/offerings/sellable";
 
 /**
  * Send quote as ONE shared panel over Today and Messages (mockup tc_ctas,
@@ -109,7 +110,7 @@ function SendQuoteForm({
     });
     void loadTalentOfferingsForEditor(talentProfileId).then((res) => {
       if (cancelled) return;
-      if (res.ok) setOfferings(res.items.filter((o) => o.status === "published"));
+      if (res.ok) setOfferings(res.items.filter((o) => isSellable(o, "pos_desk")));
       setOfferingsLoaded(true);
     });
     return () => {
