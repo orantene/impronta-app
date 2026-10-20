@@ -164,6 +164,9 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // /talent/where-you-appear — TUL-1371 channels page (where it's sold, where you appear,
+  // earnings by channel). Standalone server page.
+  (s) => s[0] === "talent" && s[1] === "where-you-appear",
   // /talent/get-found — Google Business Profile setup guide (TUL-584), standalone server page.
   (s) => s[0] === "talent" && s[1] === "get-found",
   // /talent/page-builder — bare editor (talent layout opts out of the shell on

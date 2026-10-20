@@ -10,6 +10,7 @@ src/app/(workspace)/?tenantSlug?/admin/pos/pos-mode-url-sync.render.test.tsx
 src/app/(workspace)/?tenantSlug?/client/_actions/offer-refusal.test.ts
 src/components/admin/pos/classes-copy.static.test.ts
 src/components/talent/money/ledger-clients-state.test.ts
+src/components/talent/service-hub/channel-panels.render.test.tsx
 src/lib/account/export-bundle.test.ts
 src/lib/account/export-scoping.test.ts
 src/lib/approvals/enforce.test.ts
@@ -267,6 +268,11 @@ src/lib/talent/new-service-currency.static.test.ts
 src/lib/talent/offering-save-patch.test.ts
 src/lib/talent/offering-variants-save.test.ts
 src/lib/talent/offerings-children-replace.test.ts
+src/lib/talent/service-hub-calendar.test.ts
+src/lib/talent/service-hub-channels-rows.test.ts
+src/lib/talent/service-hub-channels-wire.static.test.ts
+src/lib/talent/service-hub-channels.test.ts
+src/lib/talent/service-hub-lowest-errors.test.ts
 src/lib/venues/*.test.ts
 src/lib/visits/check-ops.test.ts
 src/lib/visits/commands.test.ts
