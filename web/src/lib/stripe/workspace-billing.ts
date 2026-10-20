@@ -40,6 +40,8 @@ import { trialParams } from "@/lib/billing/trial-eligibility";
 import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
 import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
+import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
+import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -220,6 +222,8 @@ export async function createWorkspaceCheckoutSession(opts: {
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
   const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId, buyerUserId: opts.buyerUserId }, customerResult.data, trialOffer);
 
+  // TUL-1280 race close: what this session charges, so a race loser is never sent to another price.
+  const priceIdentity = trialPriceIdentity({ planKey: opts.planKey, interval: price.interval, priceId, discount: discount.params });
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     customer: customerResult.data,
     mode: "subscription",
@@ -233,6 +237,7 @@ export async function createWorkspaceCheckoutSession(opts: {
       plan_key: opts.planKey,
       billing_interval: price.interval,
       checkout_type: "workspace_subscription",
+      ...(trialDays != null ? { [TRIAL_PRICE_IDENTITY]: priceIdentity } : {}),
     },
     subscription_data: {
       metadata: {
@@ -279,7 +284,14 @@ export async function createWorkspaceCheckoutSession(opts: {
       return { ok: false, error: "Stripe returned no checkout URL." };
     }
 
-    return { ok: true, data: { url: session.url } };
+    // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
+    // only when the winner is the same plan, else a retryable error.
+    const settled =
+      trialDays != null
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError })
+        : { url: session.url };
+    if ("error" in settled) return { ok: false, error: settled.error };
+    return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("workspace-billing.createCheckoutSession", err);
     return { ok: false, error: "Could not create checkout session." };

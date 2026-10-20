@@ -63,6 +63,7 @@ import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
+import { restoreInventoryAfterFullRefund, runRestoreInventory, type RestoreInventory } from "@/lib/payments/refund-restore-step";
 import { improntaLog } from "@/lib/server/structured-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -93,6 +94,8 @@ export type RefundDeps = {
   notifyBookingPayoutReversal?: typeof notifyBookingPayoutReversalReal;
   /** Notify the client of a partial refund. Defaults to the real notifier. */
   notifyClientPartialRefund?: typeof notifyClientPartialRefundReal;
+  /** Put back tickets, seats and promo after a FULL refund (TUL-1268 M5). Defaults to the real step. */
+  restoreInventory?: RestoreInventory;
 };
 
 /** Resolve the injected deps, defaulting every slot to its real implementation. */
@@ -102,6 +105,7 @@ function resolveRefundDeps(deps: RefundDeps): {
   markDisputed: typeof markDisputedReal;
   notifyBookingPayoutReversal: typeof notifyBookingPayoutReversalReal;
   notifyClientPartialRefund: typeof notifyClientPartialRefundReal;
+  restoreInventory: RestoreInventory;
 } {
   return {
     // A test passes `supabase` once and reuses it for every internal read/write;
@@ -111,6 +115,7 @@ function resolveRefundDeps(deps: RefundDeps): {
     markDisputed: deps.markDisputed ?? markDisputedReal,
     notifyBookingPayoutReversal: deps.notifyBookingPayoutReversal ?? notifyBookingPayoutReversalReal,
     notifyClientPartialRefund: deps.notifyClientPartialRefund ?? notifyClientPartialRefundReal,
+    restoreInventory: deps.restoreInventory ?? restoreInventoryAfterFullRefund,
   };
 }
 
@@ -610,6 +615,8 @@ export async function handleBookingRefund(
       await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "refund");
     }
   }
+
+  await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
   return true;
 }
 
@@ -710,6 +717,8 @@ export async function handleBookingDispute(
         await d.notifyBookingPayoutReversal(sb, ref.bookingId, outcomes, "dispute");
       }
     }
+
+    await runRestoreInventory(d.restoreInventory, d.resolveSupabase(), ref.transactionId);
     logServerError(
       `stripe-webhook.dispute.lost[txn=${ref.transactionId}]`,
       new Error(`Dispute ${input.disputeId} LOST — transfers reversed, booking refunded (amount=${input.amount} reason=${input.reason}).`),
