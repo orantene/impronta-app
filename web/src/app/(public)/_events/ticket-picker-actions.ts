@@ -27,6 +27,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createPurchase } from "@/lib/orders/purchase";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { ticketCardPaymentRefusal, type TicketPaymentRefusal } from "@/lib/events/ticket-payment-guard";
 import { commitCapacity } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
@@ -541,7 +542,9 @@ export type StartCardPaymentResult = { ok: true; url: string } | { ok: false; re
  * `expires_at` aligned to the hold is Orders' change in `stripe-checkout.ts`;
  * until it lands the seat-lost intent path is what protects the guest.
  */
-export async function startTicketCardPayment(input: unknown): Promise<StartCardPaymentResult> {
+export async function startTicketCardPayment(
+  input: unknown,
+): Promise<StartCardPaymentResult | { ok: false; reason: TicketPaymentRefusal }> {
   await requireNotImpersonating();
   const parsed = paySchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
@@ -573,6 +576,12 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       ? await admin.from("customers").select("email").eq("id", order.customer_id as string).maybeSingle()
       : { data: null, error: null };
     if (cErr) logServerError("events.pay.customer", cErr);
+
+    // TUL-1268 M2: never open a second Checkout session for an order that is
+    // already paid or closed. A second tab or a replayed request used to get a
+    // fresh session and could take a second charge for the same tickets.
+    const refusal = ticketCardPaymentRefusal(order.status as string | null, txn.status as string | null);
+    if (refusal) return { ok: false, reason: refusal };
 
     const hdrs = await headers();
     const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";

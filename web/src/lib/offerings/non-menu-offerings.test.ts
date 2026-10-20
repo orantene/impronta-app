@@ -129,7 +129,9 @@ test("POS catalog read failure is flagged so the page shows an error, not an emp
 test("posAddLine and posStartCollection call the guards; the page renders the error copy in en and es", () => {
   const dir = "src/app/(workspace)/[tenantSlug]/admin/pos/";
   const actions = readFileSync(dir + "actions.ts", "utf8");
-  assert.match(actions, /anyNonMenuOffering\(g\.admin, g\.tenantId, \[parsed\.data\.offeringId\]\)/);
+  // The non-menu guard lives in counter-guard.ts (moved out of actions.ts to keep it under its line cap).
+  assert.match(actions, /counterAddRefusal\(g\.admin, g\.tenantId, parsed\.data\)/);
+  assert.match(readFileSync("src/lib/pos/counter-guard.ts", "utf8"), /anyNonMenuOffering\(admin, tenantId, \[p\.offeringId\]\)/);
   assert.match(actions, /saleHoldsNonMenuOffering\(g\.admin, g\.tenantId, parsed\.data\.orderId\)/);
   assert.match(readFileSync(dir + "page.tsx", "utf8"), /catalog\.readFailed/);
   for (const l of ["en", "es"]) {
@@ -141,8 +143,8 @@ test("posAddLine and posStartCollection call the guards; the page renders the er
 
 // Exempt by PM 2026-10-19: Messages quote-adds with an inquiryId and the door/box-office paths.
 test("exemption 1: posAddLine skips the non-menu guard when an inquiryId is present (Messages quotes)", () => {
-  const actions = readFileSync("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts", "utf8");
-  assert.match(actions, /if \(!parsed\.data\.inquiryId && \(await anyNonMenuOffering\(/);
+  const guard = readFileSync("src/lib/pos/counter-guard.ts", "utf8");
+  assert.match(guard, /if \(!p\.inquiryId && \(await anyNonMenuOffering\(/);
 });
 
 test("exemption 2: door and box-office paths never call the non-menu guard", () => {

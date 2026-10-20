@@ -2474,6 +2474,15 @@
     }
   },
   "dashboard": {
+    "uploadGuard": {
+      "notAnImage": "This file is not a supported image. Use JPEG, PNG, WebP or GIF.",
+      "typeNotAllowed": "This image type is not supported here. Use JPEG, PNG, WebP or GIF.",
+      "blockedFile": "This file type cannot be uploaded.",
+      "tooLarge": "This file is too large.",
+      "tooManyPixels": "This image has too many pixels. Resize it and try again.",
+      "unreadable": "We could not read this image. Try a different file.",
+      "privateLink": "That link does not point to a public web address."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -18344,7 +18353,13 @@
         "duration": "Duration (min)",
         "durationHint": "Services and classes; leave empty for a product.",
         "photos": "Photos",
-        "photosReason": "Photos on a workspace item are not available yet; the gallery joins a talent profile."
+        "photosSaveFirst": "Save the item first, then add photos.",
+        "photosHint": "The first photo is the cover. It shows on the table QR menu.",
+        "photosAlt": "Describe the photo",
+        "photosCover": "Cover",
+        "photosRemove": "Remove photo",
+        "photosUploading": "Uploading",
+        "photosFailed": "The photo could not be uploaded. Try a JPG or PNG under 8 MB."
       },
       "pricing": {
         "baseTitle": "Base price",

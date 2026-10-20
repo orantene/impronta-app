@@ -15,6 +15,8 @@ src/components/admin/shell/internal/page-modules/mobile-bottom-nav.static.test.t
 src/components/admin/shell/internal/page-modules/pos-mode-switch.static.test.ts
 src/components/admin/shell/internal/page-modules/workspace-nav-groups.test.ts
 src/components/admin/shell/internal/state/talent-page-segment.test.ts
+src/components/admin/shell/internal/talent/agenda/booking-record-never-hangs.static.test.ts
+src/components/admin/shell/internal/talent/agenda/booking-record-state.test.ts
 src/components/analytics/analytics-consent-banner.static.test.ts
 src/components/edit-chrome/bridge-reference-identity.test.ts
 src/components/edit-chrome/client-builder-canvas-bridge.test.ts
@@ -136,6 +138,7 @@ src/lib/saas/talent-demo-host-redirect.test.ts
 src/lib/saas/talent-site-canonical-redirect.test.ts
 src/lib/saas/talent-site-host-context.test.ts
 src/lib/saas/team-seat-limit.test.ts
+src/lib/saas/tenant-admin-tables-role-rls.static.test.ts
 src/lib/saas/tenant-isolation.security.test.ts
 src/lib/saas/tenant-isolation.test.ts
 src/lib/saas/tracking-tenant-isolation.test.ts
@@ -192,6 +195,7 @@ src/lib/supabase/cookie-domain.test.ts
 src/lib/supabase/talent-profiles-anon-grants.static.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
+src/lib/talent-agenda/booking-stub.test.ts
 src/lib/talent-agenda/record-item.test.ts
 src/lib/talent-agenda/record-labels.test.ts
 src/lib/talent-agenda/resolve-record-target.test.ts
@@ -201,6 +205,7 @@ src/lib/talent/hub-profile-offerings.test.ts
 src/lib/talent/load-representation.test.ts
 src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
+src/lib/talent/offering-delete-or-archive.test.ts
 src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts

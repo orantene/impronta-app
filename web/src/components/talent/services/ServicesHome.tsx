@@ -672,7 +672,13 @@ export function ServicesHome({
                     return next;
                   });
                   const res = await deleteTalentOfferingForever(talentId, item.id);
-                  setToast(res.ok ? copy.t("Deleted") : res.error ?? copy.t("Could not delete"));
+                  setToast(
+                    res.ok
+                      ? res.archived
+                        ? copy.t("Archived instead: it was published or sold")
+                        : copy.t("Deleted")
+                      : res.error ?? copy.t("Could not delete"),
+                  );
                   editor.reload();
                 }}
                 onMove={(dir) => editor.move(item.id, dir)}
