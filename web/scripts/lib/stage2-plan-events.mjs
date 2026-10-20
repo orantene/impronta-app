@@ -62,7 +62,7 @@ const tierPool = (fx, key, ws, sessionKey, t, parentKey = null) =>
   poolOp(fx, `${key}`, ws, { kind: "session_tier", subjectId: s2Id(`session:${sessionKey}`), poolKey: t.poolKey, units: t.units, label: "seat", parentKey });
 
 /** One single-night event with one tier. */
-function singleNight(fx, key, ws, venueId, tz, e) {
+export function singleNight(fx, key, ws, venueId, tz, e) {
   const startsAt = zonedWallToUtc(e.date, e.from, tz);
   const endsAt = zonedWallToUtc(e.endDate ?? e.date, e.to, tz);
   const tier = { label: e.tier, cents: e.cents, poolKey: e.poolKey, max: e.max ?? 4, units: e.seats };

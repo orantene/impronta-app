@@ -120,7 +120,7 @@ test("T5 weekly class: instructor on the series and every night, 12 paid seats e
   const series = byKey(list, "series:clase").row;
   assert.equal(series.instructor_user_id, instr);
   assert.deepEqual(series.weekdays, [3]);
-  const sessions = where(list, "public.sessions");
+  const sessions = where(list, "public.sessions").filter((s) => s.series_id === series.id);
   assert.equal(sessions.length, 8);
   assert.ok(sessions.every((s) => s.instructor_user_id === instr && s.series_id === series.id && hoursUtc(s.starts_at) === 13));
   assert.equal(where(list, "public.capacity_pools").filter((p) => p.units_total === 12 && p.pool_key === "default").length, 8);

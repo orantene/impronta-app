@@ -10,22 +10,20 @@ import { planT1Catalog } from "./stage2-plan-t1-catalog.mjs";
 import { planT1Core, planT1Devices, planT1Floor } from "./stage2-plan-t1.mjs";
 import { planT2 } from "./stage2-plan-t2.mjs";
 import { HUB_TALENT_CODE, planHub, planT3 } from "./stage2-plan-t3.mjs";
+import { planT4 } from "./stage2-plan-t4.mjs";
 import { planT5 } from "./stage2-plan-t5.mjs";
 
-/** Built clusters. EV = the events on T1; T5 currently holds the workspace and the weekly class (2b adds the rest). */
-export const S2_FIXTURES = ["T1", "T2", "T3", "T5", "EV"];
+/** Built clusters. EV = the events on T1; T5 = workspace, weekly class, drink deal, tour, beach club. */
+export const S2_FIXTURES = ["T1", "T2", "T3", "T4", "T5", "EV"];
 export const DEPENDS = { EV: ["T1"] };
 
 /** What the card asks for that this build does not seed yet (printed by the dry run, never silently skipped). */
 export const NOT_BUILT = [
-  { id: "T4", what: "US salon (USD) + its Connect account", why: "push 2b (the Connect account is the separate --stripe step)" },
-  { id: "T5b", what: "T5 drink deal, tour seats + early bird, beach-club bed + minimum spend", why: "push 2b" },
   { id: "PR", what: "promos: codes, automatic, states and scopes", why: "push 3" },
   { id: "CU", what: "customers and messaging", why: "push 3" },
   { id: "MO", what: "money: completed/manual-payment bookings, refunded ticket, catering inquiry", why: "push 3 (paid history preferably created live in Stripe TEST)" },
   { id: "ST", what: "Stripe TEST Connect accounts (T1 MX, T4 US) + test clocks", why: "separate --stripe step, push 3" },
   { id: "RA", what: "RestaurAdmin exports v1/v2/v3 (files under docs/fixtures; import stays manual)", why: "push 3" },
-  { id: "CR", what: "docs/plans/stage2-cron-triggers.md", why: "push 2b" },
 ];
 
 export function resolveStage2(only) {
@@ -55,6 +53,7 @@ export function buildStage2Plan(sets, ctx) {
       blocked.push({ item: `${HUB_TALENT_CODE} package + payout account: the talent was not found on this database`, version: "n/a", file: "n/a" });
     }
   }
+  if (wanted.has("T4")) ops.push(...planT4(ctx.now));
   if (wanted.has("T5")) ops.push(...planT5(ctx.now));
   if (wanted.has("EV")) ops.push(...planEvents(ctx.now));
   return { ops, blocked, notes, notBuilt: NOT_BUILT };

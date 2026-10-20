@@ -1,9 +1,10 @@
 /**
- * T5: story-10 fixtures. Push 2a builds the workspace, the instructor login, the studio venue and the weekly paid yoga class.
- * The drink deal, the tour with an early bird and the beach-club bed with a minimum spend follow in push 2b.
+  * T5: story-10 fixtures. The workspace, the instructor login, the studio venue and the weekly paid yoga class (2a), plus the drink deal,
+  * the tour with an early bird and the beach-club bed with a minimum spend (2b, in stage2-plan-t5-extras.mjs).
  */
 import { email, insert, membershipOp, s2Id, userOps, workspaceOps } from "./stage2-ops.mjs";
 import { planClass } from "./stage2-plan-events.mjs";
+import { planT5Extras } from "./stage2-plan-t5-extras.mjs";
 
 export const T5_SLUG = "s2-experiencias";
 export const T5_WS = s2Id("workspace:t5");
@@ -22,5 +23,6 @@ export function planT5(at) {
     membershipOp(fx, "t5-instructor", ws, "t5-instructor", { role: "editor" }, at),
     insert(fx, "public.venues", "venue:t5-estudio", { id: venue, tenant_id: ws, name: "Estudio Aurora", slug: "s2-experiencias-estudio", city: "Cancún", country_code: "MX", timezone: "America/Cancun", is_default: true, status: "active" }),
     ...planClass(ws, venue, at),
+    ...planT5Extras(ws, at),
   ];
 }

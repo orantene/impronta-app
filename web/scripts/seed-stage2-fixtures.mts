@@ -337,7 +337,7 @@ const COUNT_TABLES = [
   "public.links", "public.visits", "public.pos_devices", "public.pos_shifts", "public.capacity_pools", "public.talent_offerings", "public.talent_offering_variants",
   "public.talent_offering_addons", "public.offering_components", "public.events", "public.tenant_promo_codes",
   "public.sessions", "public.session_series", "public.offering_price_phases", "public.talent_profiles", "public.agency_talent_roster",
-  "public.talent_booking_hours", "public.payout_accounts",
+  "public.talent_booking_hours", "public.payout_accounts", "public.space_group_members",
 ];
 async function tableCounts() {
   const out: Record<string, number> = {};

@@ -44,9 +44,9 @@ test("ids are deterministic (s2Id of the key), unique, and outside the Group-6 a
 });
 
 test("every cluster is built, and the build says what it did not seed", () => {
-  assert.deepEqual(S2_FIXTURES, ["T1", "T2", "T3", "T5", "EV"]);
+  assert.deepEqual(S2_FIXTURES, ["T1", "T2", "T3", "T4", "T5", "EV"]);
   const p = plan();
-  assert.ok(p.notBuilt.length >= 8);
+  assert.ok(p.notBuilt.length >= 5);
   assert.ok(p.notBuilt.every((n) => n.id && n.what && n.why));
   assert.deepEqual(plan(() => true, NOW, ["T2"]).ops.filter((o) => o.fx === "T1"), []);
 });
@@ -84,7 +84,7 @@ test("@example.test mailboxes only, and every slug / host / link code / event sl
   assert.equal(isExampleTestEmail("s2-t1-owner@example.test"), true);
   for (const bad of ["a@gmail.com", "a@example.com", "a@impronta.test", "x@example.test.evil.com", "tulalaqa+x@mail.grokbot.com"]) assert.equal(isExampleTestEmail(bad), false, bad);
   const emails = list.filter((o) => o.kind === "authUser").map((o) => o.row.email);
-  assert.equal(emails.length, T1_STAFF.length + 2 + 3 + 2);
+  assert.equal(emails.length, T1_STAFF.length + 2 + 3 + 3 + 2);
   assert.ok(emails.every(isExampleTestEmail));
   assert.ok(JSON.stringify(list).match(/@[a-z0-9.-]+/g).every((m) => m === "@example.test"));
   const slugs = list.flatMap((o) => ["slug", "hostname", "tenant_slug", "code"].map((c) => (o.table === "public.links" || c !== "code" ? o.row?.[c] : undefined)).filter(Boolean));
@@ -119,7 +119,7 @@ test("no public title, name, label, description or category says QA / test / E2E
   const mutated = list.map((o) => (o.key === "offering:t1-burrito" ? { ...o, row: { ...o.row, title: "QA Burrito" } } : o));
   assert.equal(publicCopyProblems(mutated).length, 1);
   const names = list.filter((o) => o.kind === "update" && o.table === "public.profiles").map((o) => o.set.display_name);
-  assert.ok(names.length === T1_STAFF.length + 2 + 3 + 2);
+  assert.ok(names.length === T1_STAFF.length + 2 + 3 + 3 + 2);
 });
 
 test("credentials: generated, written only to a gitignored mode-600 local file, never in the plan, rows, logs or backups", () => {
@@ -288,5 +288,5 @@ test("T2 shares nothing with T1 (every cross-tenant check starts clean)", () => 
   assert.equal(t2.filter((o) => o.table === "public.visits").length, 1);
   assert.equal(t2.filter((o) => o.table === "public.links").length, 3);
   const s = summarise(list);
-  assert.ok(s["public.talent_offerings"].insert >= 25 && s["public.agencies"].insert === 4);
+  assert.ok(s["public.talent_offerings"].insert >= 25 && s["public.agencies"].insert === 5);
 });
