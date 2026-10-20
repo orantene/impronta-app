@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { inquiryResourcesPrefix, releaseBookingResources } from "@/lib/resources/booking-resources";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { lateCancelRefundCents, type LateCancelRefund } from "@/lib/talent-policies/answers";
@@ -168,6 +169,17 @@ export async function cancelBookingSet(
   // cancelled; the conversation chips follow. Additive, non-fatal, and
   // placed before the refund arithmetic so a read failure below cannot hide
   // the cancellation from the thread.
+  // TUL-1375: a booking that came from a request/offer holds its chair, room or station
+  // under the inquiry's key (the RPC releases order-held resources itself). Give them
+  // back. Non-fatal and idempotent: a retry finds nothing left to release.
+  if (b.source_inquiry_id && typeof (admin as { from?: unknown }).from === "function") {
+    await releaseBookingResources(admin as never, {
+      tenantId: input.tenantId,
+      operationKey: inquiryResourcesPrefix(b.source_inquiry_id),
+      includeCommitted: true,
+    });
+  }
+
   const orderId = reply.order_id ?? b.order_id;
   await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "appointment", recordId: input.bookingId });
   if (orderId) {

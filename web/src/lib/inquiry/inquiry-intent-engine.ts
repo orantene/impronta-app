@@ -38,6 +38,7 @@ import {
   releaseReservationHold,
 } from "@/lib/scheduling/reservation-hold";
 import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling/reservation-card";
+import { holdInquiryResources } from "@/lib/resources/booking-resources";
 import { emitStandardEngineEvent, ENGINE_EVENT_TYPES } from "@/lib/inquiry/inquiry-events";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertTalentReservationAllowed } from "@/lib/scheduling/booking-surface";
@@ -207,6 +208,22 @@ export async function createInquiryFromIntent(
 
   if (placedHoldId && admin) {
     await attachReservationHoldToInquiry(admin, placedHoldId, result.data!.inquiryId);
+    // TUL-1375: now that the request has an id, hold the chair/room/station its service
+    // needs for the same window. If one is taken, the person's hold is given back: the
+    // request stays, without a held time (acceptance re-checks before confirming).
+    if (incomingStamp) {
+      const resources = await holdInquiryResources(admin, {
+        tenantId: ctx.tenant_id,
+        inquiryId: result.data!.inquiryId,
+        offeringIds: [incomingStamp.offering_id],
+        window: { startsAt: incomingStamp.starts_at, endsAt: incomingStamp.ends_at },
+        actorUserId: ctx.actor_user_id,
+      });
+      if (!resources.ok) {
+        logServerError("inquiry-intent/resources", `inquiry=${result.data!.inquiryId} reason=${resources.reason}`);
+        await releaseReservationHold(admin, placedHoldId);
+      }
+    }
     const stamp = parseReservationStamp(working.source_context);
     if (stamp) {
       try {

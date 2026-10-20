@@ -23,6 +23,7 @@ import { setMenuItemStockAction } from "@/lib/talent/menu-offerings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { Outcome } from "../appointments-classes-ui";
 import type { TabProps } from "./CatalogItemEditor";
+import { ItemResourcesSection } from "./item-resources-section";
 import { itemAvailability } from "./catalog-model";
 import { AddPill, BUTTON_SMALL, CARD, Eyebrow, Field, INPUT, ListHead, ModeCard, Note, SectionHead, SELECT, SelectShell, TotalRow } from "./catalog-ui";
 
@@ -178,6 +179,8 @@ export function AvailabilityTab({ item, patch, editor, tenantId, isDraft, saving
       </div>
       {/* W05 draws `Fulfillment & preparation` under the rules as well as on its own tab; the same four fields, the same sentence. */}
       <FulfillmentFields />
+      {/* TUL-1375: the chair, room or station a booking of this item holds. */}
+      <ItemResourcesSection tenantId={tenantId} offeringId={item.id} disabled={isDraft} />
     </>
   );
 }

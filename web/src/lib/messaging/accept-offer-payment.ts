@@ -9,6 +9,7 @@ import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { createDraftOrder } from "@/lib/pos/draft";
 import { resolveAppointmentMirrorSource } from "@/lib/scheduling/reservation-convert";
 import { isExclusionViolation, releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
+import { inquiryResourcesPrefix, releaseBookingResources, secureInquiryBookingResources } from "@/lib/resources/booking-resources";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
@@ -169,6 +170,38 @@ function bookingStore(c: Ctx, offer: AcceptOfferForPayment): OfferBookingStore {
         return false;
       }
       return true;
+    },
+
+    async holdResources({ window }) {
+      // TUL-1375: the shared resources (chair, room, station) the offered services need.
+      const { data: items, error } = await scoped("inquiry_offer_line_items").select("source_service_id").eq("offer_id", offer.id);
+      if (error) {
+        logServerError("messaging.acceptOffer.booking.resources.read", error);
+        return "failed";
+      }
+      const offeringIds = [
+        ...new Set(
+          ((items ?? []) as Array<{ source_service_id: string | null }>)
+            .map((r) => r.source_service_id)
+            .filter((x): x is string => Boolean(x)),
+        ),
+      ];
+      if (offeringIds.length === 0) return "ok";
+      return secureInquiryBookingResources(c.admin, {
+        tenantId: c.tenantId,
+        inquiryId: c.inquiryId,
+        offeringIds,
+        window: { startsAt: window.startsAt, endsAt: window.endsAt },
+        actorUserId: c.offerCreatedBy,
+      });
+    },
+
+    async releaseResources() {
+      await releaseBookingResources(c.admin, {
+        tenantId: c.tenantId,
+        operationKey: inquiryResourcesPrefix(c.inquiryId),
+        includeCommitted: true,
+      });
     },
 
     async insertMirror({ bookingId, talentProfileId, window }) {

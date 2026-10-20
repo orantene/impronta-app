@@ -1,0 +1,274 @@
+/**
+ * TUL-1375 · Hold the chair, room or station on every booking path.
+ *
+ * A service links the shared resources it needs (`talent_offerings.attributes.resourceSet
+ * .spaceIds`: a chair, room, station, bed, bay, vehicle or equipment unit, any `spaces`
+ * row with a capacity pool). Every booking path holds those pools for the booking window
+ * through the ONE engine command (`reserveResourceSet` -> `reserve_resource_set_v2`),
+ * which serializes on the pool and refuses an overlap, so two bookings can never take
+ * the same resource at the same time on any path. Works for any business with shared
+ * resources (salon, studio, clinic, rental, restaurant): nothing here names a tenant.
+ *
+ *   - Order paths (public /book, instant book, appointment and session pickers, POS desk,
+ *     reservations, cart): `createPurchase` adds the linked pools to the order's own
+ *     atomic batch (`withLinkedResourceNeeds`); cancel, expiry and reschedule already
+ *     act on the order's allocations.
+ *   - Request / offer paths (no order yet): allocations are keyed
+ *     `inquiry:<id>:resources`; held with the request, committed when the offer is
+ *     accepted, released on decline / expiry (pool TTL) / cancel.
+ */
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { commitCapacity, releaseCapacity } from "@/lib/capacity";
+import { logServerError } from "@/lib/server/safe-error";
+import type { CapacityNeed } from "@/lib/orders/capacity-requests";
+import { parseOfferingResourceSet } from "./offering-resource-set";
+import { reserveResourceSet, spaceCapacityPool } from "./reserve-set";
+
+type Admin = Pick<SupabaseClient, "rpc" | "from">;
+
+export type BookingWindow = { startsAt: string; endsAt: string };
+
+/**
+ * Request/offer resources are keyed per inquiry AND window: the engine replays the first
+ * answer for a repeated key (retry safety), so a new time needs a new key. Lookups use
+ * the inquiry prefix.
+ */
+export function inquiryResourcesPrefix(inquiryId: string): string {
+  return `inquiry:${inquiryId}:resources`;
+}
+
+export function inquiryResourcesKey(inquiryId: string, window: BookingWindow): string {
+  return `${inquiryResourcesPrefix(inquiryId)}:${Date.parse(window.startsAt)}-${Date.parse(window.endsAt)}`;
+}
+
+/**
+ * PURE: add each line's linked resource pools to a purchase's capacity needs, once per
+ * pool (a caller that already holds a pool, e.g. instant book's room, is not doubled).
+ * No window = nothing held in time.
+ */
+export function withLinkedResourceNeeds(
+  needs: readonly CapacityNeed[],
+  poolsByOffering: ReadonlyMap<string, readonly string[]>,
+  window: BookingWindow | null,
+): CapacityNeed[] {
+  const out = [...needs];
+  if (!window) return out;
+  const seen = new Set(out.map((n) => n.poolId));
+  for (const [offeringId, poolIds] of poolsByOffering) {
+    for (const poolId of poolIds) {
+      if (seen.has(poolId)) continue;
+      seen.add(poolId);
+      out.push({ offeringId, poolId, units: 1, startsAt: window.startsAt, endsAt: window.endsAt });
+    }
+  }
+  return out;
+}
+
+export type LinkedPoolsResult =
+  | { ok: true; poolsByOffering: Map<string, string[]> }
+  | { ok: false; error: string };
+
+/**
+ * The capacity pools of every resource linked to these services. A linked resource with
+ * no pool refuses (fail closed): selling it without holding it is the double-booking.
+ */
+export async function loadLinkedResourcePools(
+  admin: Pick<SupabaseClient, "from">,
+  tenantId: string,
+  offeringIds: readonly string[],
+): Promise<LinkedPoolsResult> {
+  const ids = [...new Set(offeringIds.filter(Boolean))];
+  const poolsByOffering = new Map<string, string[]>();
+  if (ids.length === 0) return { ok: true, poolsByOffering };
+  const { data, error } = await admin.from("talent_offerings").select("id, attributes").in("id", ids);
+  if (error) {
+    logServerError("resources.loadLinkedResourcePools", error);
+    return { ok: false, error: "Could not read what this service needs." };
+  }
+  for (const row of (data ?? []) as Array<{ id: string; attributes: unknown }>) {
+    const { spaceIds } = parseOfferingResourceSet(row.attributes);
+    if (spaceIds.length === 0) continue;
+    const pools: string[] = [];
+    for (const spaceId of spaceIds) {
+      const pool = await spaceCapacityPool(admin, { tenantId, spaceId });
+      if (!pool.ok) return { ok: false, error: "A resource this service needs is not set up for booking." };
+      pools.push(pool.poolId);
+    }
+    poolsByOffering.set(row.id, pools);
+  }
+  return { ok: true, poolsByOffering };
+}
+
+export type HoldResourcesResult =
+  | { ok: true; allocationIds: string[] }
+  | { ok: false; reason: "taken" | "unavailable"; error: string };
+
+/** Hold pools for a window under one key, atomically (all or none). Safe to retry. */
+export async function holdBookingResources(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    operationKey: string;
+    poolIds: readonly string[];
+    window: BookingWindow;
+    ttlSeconds?: number | null;
+    actorUserId?: string | null;
+  },
+): Promise<HoldResourcesResult> {
+  const pools = [...new Set(input.poolIds)];
+  if (pools.length === 0) return { ok: true, allocationIds: [] };
+  const set = await reserveResourceSet(admin, {
+    tenantId: input.tenantId,
+    operationKey: input.operationKey,
+    actorUserId: input.actorUserId ?? null,
+    ttlSeconds: input.ttlSeconds ?? null,
+    capacity: pools.map((poolId) => ({
+      poolId,
+      units: 1,
+      startsAt: input.window.startsAt,
+      endsAt: input.window.endsAt,
+    })),
+  });
+  if (set.ok) {
+    if (set.already) {
+      // A replayed answer for this key: only good if those allocations are still live.
+      const live = await allocationsForKey(admin, input.tenantId, input.operationKey, ["hold", "committed"]);
+      if (live === null || live.length < set.allocationIds.length) {
+        return { ok: false, reason: "unavailable", error: "That hold was already given back. Pick the time again." };
+      }
+    }
+    return { ok: true, allocationIds: set.allocationIds };
+  }
+  const taken = set.reason === "sold_out" || set.reason === "slot_taken" || set.reason === "ancestor_full";
+  return { ok: false, reason: taken ? "taken" : "unavailable", error: set.error };
+}
+
+type KeyedAllocation = { id: string; state: string; starts_at: string | null; ends_at: string | null };
+
+async function allocationRowsForKey(
+  admin: Pick<SupabaseClient, "from">,
+  tenantId: string,
+  operationKey: string,
+  states: readonly string[],
+): Promise<KeyedAllocation[] | null> {
+  // Cleanup callers (cancel, request clean-up) must never be broken by this read: any
+  // failure is logged and reported as "unknown" (null), never thrown.
+  try {
+    const { data, error } = await admin
+      .from("capacity_allocations")
+      .select("id, state, starts_at, ends_at")
+      .eq("tenant_id", tenantId)
+      .like("operation_key", `${operationKey}%`)
+      .in("state", [...states]);
+    if (error) {
+      logServerError("resources.allocationsForKey", error);
+      return null;
+    }
+    return (data ?? []) as KeyedAllocation[];
+  } catch (err) {
+    logServerError("resources.allocationsForKey", err);
+    return null;
+  }
+}
+
+async function allocationsForKey(
+  admin: Pick<SupabaseClient, "from">,
+  tenantId: string,
+  operationKey: string,
+  states: readonly string[],
+): Promise<string[] | null> {
+  const rows = await allocationRowsForKey(admin, tenantId, operationKey, states);
+  return rows === null ? null : rows.map((r) => r.id);
+}
+
+function sameInstant(a: string | null, b: string): boolean {
+  return a != null && Date.parse(a) === Date.parse(b);
+}
+
+/** Offer accepted: the held resources become the booking's (never expire). Key or key prefix. */
+export async function commitBookingResources(
+  admin: Admin,
+  input: { tenantId: string; operationKey: string },
+): Promise<{ ok: boolean; committed: number }> {
+  const ids = await allocationsForKey(admin, input.tenantId, input.operationKey, ["hold"]);
+  if (ids === null) return { ok: false, committed: 0 };
+  if (ids.length === 0) return { ok: true, committed: 0 };
+  const res = await commitCapacity(ids, null, admin);
+  return { ok: res.ok, committed: res.ok ? ids.length : 0 };
+}
+
+/**
+ * Give resources back (key or key prefix). Held ones by default (request declined, hold cleaned up);
+ * `includeCommitted` for a cancelled booking. Idempotent.
+ */
+export async function releaseBookingResources(
+  admin: Admin,
+  input: { tenantId: string; operationKey: string; includeCommitted?: boolean },
+): Promise<{ ok: boolean; released: number }> {
+  const states = input.includeCommitted ? ["hold", "committed"] : ["hold"];
+  const ids = await allocationsForKey(admin, input.tenantId, input.operationKey, states);
+  if (ids === null) return { ok: false, released: 0 };
+  if (ids.length === 0) return { ok: true, released: 0 };
+  const res = await releaseCapacity(ids, admin);
+  return { ok: res.ok, released: ids.length };
+}
+
+/**
+ * Request path: hold the linked resources of a service for an inquiry's window. Nothing
+ * linked = nothing to do. Used when a request reserves a time.
+ */
+export async function holdInquiryResources(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    inquiryId: string;
+    offeringIds: readonly string[];
+    window: BookingWindow;
+    ttlSeconds?: number | null;
+    actorUserId?: string | null;
+  },
+): Promise<HoldResourcesResult> {
+  const linked = await loadLinkedResourcePools(admin, input.tenantId, input.offeringIds);
+  if (!linked.ok) return { ok: false, reason: "unavailable", error: linked.error };
+  const poolIds = [...linked.poolsByOffering.values()].flat();
+  return holdBookingResources(admin, {
+    tenantId: input.tenantId,
+    operationKey: inquiryResourcesKey(input.inquiryId, input.window),
+    poolIds,
+    window: input.window,
+    ttlSeconds: input.ttlSeconds,
+    actorUserId: input.actorUserId,
+  });
+}
+
+/**
+ * Offer acceptance: keep the resources the request held, or hold them now for the
+ * agreed window (an offer sent without a held time), then commit. "taken" = another
+ * booking has the resource; the booking stays unscheduled, like a taken person.
+ */
+export async function secureInquiryBookingResources(
+  admin: Admin,
+  input: {
+    tenantId: string;
+    inquiryId: string;
+    offeringIds: readonly string[];
+    window: BookingWindow;
+    actorUserId?: string | null;
+  },
+): Promise<"ok" | "taken" | "failed"> {
+  const key = inquiryResourcesPrefix(input.inquiryId);
+  const rows = await allocationRowsForKey(admin, input.tenantId, key, ["hold", "committed"]);
+  if (rows === null) return "failed";
+  // The request held another time than the one agreed: give that back first.
+  const stale = rows.filter((r) => !sameInstant(r.starts_at, input.window.startsAt) || !sameInstant(r.ends_at, input.window.endsAt));
+  if (stale.length > 0) {
+    const res = await releaseCapacity(stale.map((r) => r.id), admin);
+    if (!res.ok) return "failed";
+  }
+  if (rows.length === stale.length) {
+    const held = await holdInquiryResources(admin, { ...input, ttlSeconds: null });
+    if (!held.ok) return held.reason === "taken" ? "taken" : "failed";
+  }
+  const committed = await commitBookingResources(admin, { tenantId: input.tenantId, operationKey: key });
+  return committed.ok ? "ok" : "failed";
+}
