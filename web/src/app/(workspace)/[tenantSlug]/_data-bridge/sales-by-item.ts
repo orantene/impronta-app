@@ -84,5 +84,25 @@ export async function loadSalesByItem(
     }
   }
 
-  return { ok: true, rows: aggregateSalesByItem(lines, orders) };
+  // The row is named after the offering itself, not its newest line label
+  // (which carries the size and extras). A failed title read is non-fatal:
+  // the aggregator falls back to the line label.
+  const titles = new Map<string, string>();
+  const ids = [...new Set(lines.map((l) => l.offeringId).filter((id): id is string => !!id))];
+  for (let i = 0; i < ids.length; i += SLICE) {
+    const res = await readAllPages<{ id: string; title: string | null }>((from, to) =>
+      tenantScopedQuery(admin, "talent_offerings", tenantId)
+        .select("id, title")
+        .in("id", ids.slice(i, i + SLICE))
+        .order("id")
+        .range(from, to),
+    );
+    if (res.error) {
+      logServerError("dataBridge.salesByItem/titles", res.error);
+      continue;
+    }
+    for (const o of res.data) if (o.title) titles.set(o.id, o.title);
+  }
+
+  return { ok: true, rows: aggregateSalesByItem(lines, orders, titles) };
 }
