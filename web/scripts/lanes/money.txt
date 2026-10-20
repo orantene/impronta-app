@@ -60,6 +60,7 @@ src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
 src/lib/catalog/tax.test.ts
+src/lib/coordinator/line-label-hint.test.ts
 src/lib/coordinator/offer-role-views.test.ts
 src/lib/coordinator/staffing-picker.test.ts
 src/lib/customers/client-record.test.ts
