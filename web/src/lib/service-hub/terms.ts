@@ -129,7 +129,10 @@ export function buildTermsCardLines(t: ProposedTerms, locale: string): TermsCard
   const shareAmount =
     t.shareKind === "percent" || t.shareKind === "margin"
       ? formatPercent(t.shareBps ?? 0)
-      : formatMoney(t.shareAmountCents ?? 0, t.shareCurrency ?? "USD", locale);
+      : t.shareCurrency
+        ? formatMoney(t.shareAmountCents ?? 0, t.shareCurrency, locale)
+        : // No currency stored (the DB forbids it): show the bare number, never guess a currency.
+          ((t.shareAmountCents ?? 0) / 100).toFixed(2);
   const lines: TermsCardLine[] = [
     { key: "model", label: k("labelModel"), value: k(`model_${t.workModel}`) },
     { key: "share", label: k("labelShare"), value: `${shareAmount} ${k(`share_${t.shareKind}`)}` },
