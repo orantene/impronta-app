@@ -14,37 +14,58 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-const SYSTEM_WRITERS = new Set([
-  "src/lib/bookings/transactions.ts",
-  "src/lib/call-sheet/actions.ts",
-  "src/lib/inquiry/guest-auto-ack.ts",
-  "src/lib/inquiry/inquiry-engine-approvals.ts",
-  "src/lib/inquiry/inquiry-engine-offers.ts",
-  "src/lib/inquiry/inquiry-system-messages.ts",
-  "src/lib/messaging/post-payment-cards.ts",
-  "src/lib/orders/purchase-thread.ts",
-  "src/lib/scheduling/reservation-card.ts",
-  "src/lib/server-actions/admin-bookings.ts",
-  "src/lib/server-actions/admin-call-sheet.ts",
-  "src/lib/server-actions/client-pipeline.ts", // the approve / reject offer_event cards only
-]);
+/**
+ * Per WRITER, not per file: each entry is the exact number of raw writes a file
+ * may keep, and why. A file that also has a human-text writer (client-pipeline.ts
+ * sends the client's own message) therefore cannot hide behind its system cards:
+ * its human writer uses the helper, and only the counted card writes stay raw.
+ */
+const SYSTEM_WRITES: Record<string, number> = {
+  "src/lib/bookings/transactions.ts": 7,
+  "src/lib/call-sheet/actions.ts": 1,
+  "src/lib/inquiry/guest-auto-ack.ts": 1,
+  "src/lib/inquiry/inquiry-engine-approvals.ts": 1,
+  "src/lib/inquiry/inquiry-engine-offers.ts": 5,
+  "src/lib/inquiry/inquiry-system-messages.ts": 2,
+  "src/lib/messaging/post-payment-cards.ts": 2,
+  "src/lib/orders/purchase-thread.ts": 2,
+  "src/lib/scheduling/reservation-card.ts": 2,
+  "src/lib/server-actions/admin-bookings.ts": 1,
+  "src/lib/server-actions/admin-call-sheet.ts": 1,
+  "src/lib/server-actions/client-pipeline.ts": 2, // the approve / reject offer_event cards only
+  // The ONE raw update of a body: editMessage stores what maskEditedBody returned.
+  "src/lib/inquiry/inquiry-engine-messages.ts": 1,
+};
 
-const RAW_INSERT = /from\("inquiry_messages"\)\s*\.insert\(/;
+// insert, upsert, or an update that sets the body, on inquiry_messages (single or multi line chains)
+const RAW_WRITE = /from\("inquiry_messages"\)\s*\.(?:insert|upsert)\(|from\("inquiry_messages"\)\s*\.update\(\{\s*body/g;
 
 function files(): string[] {
   const out = execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" });
   return out.split("\n").filter((f) => /\.(ts|tsx)$/.test(f) && !/\.test\./.test(f));
 }
 
-test("no direct insert into inquiry_messages outside the helper and the known system writers", () => {
-  const offenders: string[] = [];
+test("every raw write to inquiry_messages is accounted for, per writer: nothing new, nothing extra in a known file", () => {
+  const found: Record<string, number> = {};
   for (const f of files()) {
     if (f === "src/lib/coordinator/masked-message-write.server.ts") continue;
     const src = readFileSync(join(process.cwd(), f), "utf8");
     if (!src.includes("inquiry_messages")) continue;
-    if (RAW_INSERT.test(src) && !SYSTEM_WRITERS.has(f)) offenders.push(f);
+    const n = (src.match(RAW_WRITE) ?? []).length;
+    if (n > 0) found[f] = n;
   }
-  assert.deepEqual(offenders, [], "route these through insertInquiryMessage (or add a system writer with a reason)");
+  assert.deepEqual(found, SYSTEM_WRITES, "route new writers through insertInquiryMessage; a known file may not gain a raw write");
+});
+
+test("the matcher catches insert, upsert and update-of-body, single and multi line", () => {
+  const re = (s: string) => (s.match(RAW_WRITE) ?? []).length;
+  assert.equal(re('x.from("inquiry_messages").insert({'), 1);
+  assert.equal(re('x\n  .from("inquiry_messages")\n  .insert({'), 1);
+  assert.equal(re('x.from("inquiry_messages").upsert(rows)'), 1);
+  assert.equal(re('x.from("inquiry_messages").update({ body: b })'), 1);
+  assert.equal(re('x.from("inquiry_messages")\n.update({\n body: b })'), 1);
+  assert.equal(re('x.from("inquiry_messages").update({ metadata: m })'), 0);
+  assert.equal(re('x.from("inquiry_messages").select("id")'), 0);
 });
 
 test("the human-text writers use the helper", () => {
