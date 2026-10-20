@@ -5,6 +5,7 @@
  * Returns { ops, blocked, notBuilt }.
  */
 import { verifyS2Plan } from "./stage2-guards.mjs";
+import { orderOps } from "./stage2-order.mjs";
 import { planEvents } from "./stage2-plan-events.mjs";
 import { planT1Catalog } from "./stage2-plan-t1-catalog.mjs";
 import { planT1Core, planT1Devices, planT1Floor } from "./stage2-plan-t1.mjs";
@@ -56,7 +57,8 @@ export function buildStage2Plan(sets, ctx) {
   if (wanted.has("T4")) ops.push(...planT4(ctx.now));
   if (wanted.has("T5")) ops.push(...planT5(ctx.now));
   if (wanted.has("EV")) ops.push(...planEvents(ctx.now));
-  return { ops, blocked, notes, notBuilt: NOT_BUILT };
+  // Each builder is written in a valid order (a test asserts it on the raw list); the stable sort is the runner's safety net and leaves a valid list untouched.
+  return { ops: orderOps(ops), rawOps: ops, blocked, notes, notBuilt: NOT_BUILT };
 }
 
 export { verifyS2Plan };

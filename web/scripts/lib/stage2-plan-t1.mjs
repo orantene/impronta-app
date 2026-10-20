@@ -2,7 +2,7 @@
  * T1: MX restaurant / bar. MXN, ES + EN, venue A America/Cancun, venue B UTC (the column default, left unset on purpose),
  * venue C America/New_York (DST copy). Floor, QR, devices, shift, reservation rules and staff. Catalog: stage2-plan-t1-catalog.mjs.
  */
-import { email, insert, isoDays, J, linkOp, membershipOp, s2Id, userOps, visitToken, workspaceOps } from "./stage2-ops.mjs";
+import { email, insert, isoDays, J, linkOp, membershipOp, offeringOp, s2Id, userOps, visitToken, workspaceOps } from "./stage2-ops.mjs";
 
 export const T1_SLUG = "s2-cantina";
 export const T1_KEY = "t1";
@@ -71,6 +71,11 @@ export function planT1Floor(at) {
   }
   const venueA = s2Id("venue:t1-a");
   ops.push(
+    // The reservation offering BEFORE the rules row that points at it (venue_service_rules.reservation_offering_id is a non-deferrable FK).
+    offeringOp(fx, "t1-reserva", ws, {
+      kind: "service", title: "Reservación de mesa", titleEn: "Table reservation", description: "Mesa para cenar en el restaurante.", descriptionEn: "A table for dinner at the restaurant.",
+      category: "Reservaciones", cents: 10000, sort: 100, extra: { reserve_mode: "full", allow_pay_in_person: true, cancellation_hours: 24 },
+    }),
     insert(fx, "public.venue_service_rules", "rules:t1-a", {
       venue_id: venueA, tenant_id: ws, is_active: true, party_size_min: 1, party_size_max: 8, horizon_days: 60, min_notice_minutes: 60,
       default_turn_minutes: 90, allow_public_upsize: false, card_on_file_from_party: 6, no_show_fee_cents: 20000, no_show_fee_basis: "per_person",

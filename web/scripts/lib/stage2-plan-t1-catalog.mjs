@@ -77,7 +77,6 @@ export function planT1Catalog(ctx = { has: () => false }) {
   }
 
   // Reservation offering (venue A's rules point at it), a dinner menu, an event-backing package on a DRAFT event, and Dinner + Show.
-  item("t1-reserva", { kind: "service", title: "Reservación de mesa", titleEn: "Table reservation", description: "Mesa para cenar en el restaurante.", descriptionEn: "A table for dinner at the restaurant.", category: "Reservaciones", cents: 10000, sort: 100, extra: { reserve_mode: "full", allow_pay_in_person: true, cancellation_hours: 24 } });
   item("t1-menu-cena", { title: "Menú de cena", titleEn: "Dinner menu", description: "Entrada, plato fuerte y postre.", descriptionEn: "Starter, main and dessert.", category: "Combos", cents: 18000, station: KITCHEN(), sort: 110 });
   item("t1-show-evento", { kind: "package", title: "Show en vivo", titleEn: "Live show", description: "Música en vivo en el salón.", descriptionEn: "Live music in the dining room.", category: "Eventos", cents: 27000, sort: 120 });
   ops.push(insert(fx, "public.events", "event:t1-show", {
