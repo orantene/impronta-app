@@ -455,6 +455,7 @@ export async function fetchWorkspaceMenuOfferings(
     const children = await loadOfferingChildren(createServiceRoleClient() ?? supabase, derived.map((o) => o.id), {
       locale,
       chain: [locale, "en"],
+      publicOnly: true,
     }).catch(() => null);
     if (!children) return derived;
     return derived.map((o) => {
