@@ -84,7 +84,7 @@ import { clientAcceptOffer, staffAcceptOfferForTalent } from "@/lib/inquiry/inqu
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
-import { backfillMissingTalentEmbeds } from "@/lib/talent/backfill-talent-embeds";
+import { withTalentEmbeds } from "@/lib/talent/backfill-talent-embeds";
 
 import {
   loadInquiryAttachments as loadInquiryAttachmentsImpl,
@@ -1434,10 +1434,7 @@ export async function loadInquiryLineup(
       invited_at: string | null;
       talent_profiles: { display_name: string | null } | null;
     };
-    const rows = (data ?? []) as unknown as Row[];
-    // TUL-1382: a removed, unpublished talent has a NULL embed under the roster-scoped
-    // policy; fill the name through the service client (ids come from the authorized lineup).
-    await backfillMissingTalentEmbeds(supabase, rows, "display_name");
+    const rows = await withTalentEmbeds(supabase, (data ?? []) as unknown as Row[], "display_name"); // TUL-1382
     // Confidence: resolve a real face + discipline per talent so the lineup
     // shows people, not initials. Best-effort (missing → nulls → initials).
     const chips = await loadTalentChipInfo(
@@ -1677,9 +1674,7 @@ export async function loadOfferDraft(
       source_service_id: string | null;
       talent_profiles: { display_name: string | null } | null;
     };
-    const rows = (lines ?? []) as unknown as LineRow[];
-    // TUL-1382: offer lines of a removed, unpublished talent keep their name.
-    await backfillMissingTalentEmbeds(supabase, rows, "display_name");
+    const rows = await withTalentEmbeds(supabase, (lines ?? []) as unknown as LineRow[], "display_name"); // TUL-1382
 
     // W6a — read the saved negotiated terms (display + snapshot only). When the
     // offer predates W6a (null terms), fall back to the W5 resolver defaults so

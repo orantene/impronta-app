@@ -78,7 +78,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 test("each history screen backfills its talent embed (one read per screen)", () => {
   const pipeline = read("src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts");
-  assert.equal((pipeline.match(/backfillMissingTalentEmbeds\(/g) ?? []).length, 2, "lineup + offer line items");
+  assert.equal((pipeline.match(/withTalentEmbeds\(/g) ?? []).length, 2, "lineup + offer line items");
   const msgs = read("src/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages.ts");
   assert.match(msgs, /backfillMissingTalentEmbeds\(/);
   const ws = read("src/lib/inquiry/inquiry-workspace-data.ts");
@@ -106,7 +106,7 @@ test("no caller of the backfill asks for user_id (the client dashboard reaches t
     "src/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages.ts",
   ]) {
     const src = readFileSync(join(process.cwd(), f), "utf8");
-    for (const m of src.matchAll(/backfillMissingTalentEmbeds\([^;]*?"([^"]*)"\s*\)/g)) assert.doesNotMatch(m[1]!, /user_id/, f);
+    for (const m of src.matchAll(/(?:backfillMissingTalentEmbeds|withTalentEmbeds)\([^;]*?"([^"]*)"\s*\)/g)) assert.doesNotMatch(m[1]!, /user_id/, f);
   }
 });
 

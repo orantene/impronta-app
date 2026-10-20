@@ -58,3 +58,16 @@ export async function backfillMissingTalentEmbeds(
     if (found) (r as RowWithTalent).talent_profiles = found;
   }
 }
+
+/**
+ * `rows` with any NULL talent embed filled (see `backfillMissingTalentEmbeds`). One expression so a
+ * caller keeps its `const rows = ...` shape. Display columns only; the rows are returned in place.
+ */
+export async function withTalentEmbeds<T extends Record<string, unknown> | RowWithTalent>(
+  supabase: SupabaseClient,
+  rows: T[],
+  columns: string,
+): Promise<T[]> {
+  await backfillMissingTalentEmbeds(supabase, rows, columns);
+  return rows;
+}
