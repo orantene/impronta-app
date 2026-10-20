@@ -14,6 +14,7 @@
  */
 
 import { i18nPair, toI18nMap } from "@/lib/i18n/i18n-columns";
+import { isSellable } from "@/lib/offerings/sellable";
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
 import { IDENTITY_REASONS, isIdentityReason, type IdentityReason } from "@/lib/orders/identity-requirement";
 import { formatMoney } from "@/lib/talent/offerings-money";
@@ -181,13 +182,17 @@ export type TalentOffering = {
   visibility: OfferingVisibility;
   moderationState: OfferingModerationState;
   isFeatured: boolean;
+  /** Kitchen / prep station that makes it. undefined = not loaded. */
+  prepStationId?: string | null;
+  /** Sold at the counter (separate from status). undefined = the column is not applied yet. */
+  posEnabled?: boolean;
   sortOrder: number;
   /** Long-tail sink (variations/add-ons sub-shapes, compliance, quote vars). */
   attributes: Record<string, unknown>;
   /** Resolved gallery, hero first (media_assets.public_url). */
   imageUrls: string[];
   /** Editor-only: gallery with asset ids (drives upload/remove). Public loads omit it. */
-  imageAssets?: { id: string; url: string }[];
+  imageAssets?: { id: string; url: string; alt?: string | null }[];
   /** Selectable options (client picks one). Loaded from talent_offering_variants. */
   variants?: OfferingVariant[];
   /** Stackable extras (client picks any). Loaded from talent_offering_addons. */
@@ -221,6 +226,10 @@ export type TalentOfferingRow = {
   /** Per-locale category label; absent before migration 20261231299520. */
   category_i18n?: Record<string, string> | null;
   inventory_qty: number | null;
+  /** Kitchen / prep station (TUL-1271 #5). */
+  prep_station_id?: string | null;
+  /** POS switch, separate from status; absent before the held pos_enabled migration. */
+  pos_enabled?: boolean | null;
   capacity_pool_id?: string | null;
   consumes_units?: number | null;
   status: string;
@@ -377,6 +386,8 @@ export function rowToOffering(
       ? row.moderation_state
       : "approved",
     isFeatured: row.is_featured === true,
+    ...(row.prep_station_id !== undefined ? { prepStationId: row.prep_station_id ?? null } : {}),
+    ...(typeof row.pos_enabled === "boolean" ? { posEnabled: row.pos_enabled } : {}),
     sortOrder: typeof row.sort_order === "number" && Number.isFinite(row.sort_order) ? row.sort_order : 0,
     attributes: row.attributes && typeof row.attributes === "object" ? row.attributes : {},
     imageUrls,
@@ -429,6 +440,8 @@ export function offeringToRowPatch(
     visibility: o.visibility,
     moderation_state: o.moderationState,
     is_featured: o.isFeatured === true,
+    ...(o.prepStationId !== undefined ? { prep_station_id: o.prepStationId } : {}),
+    ...(typeof o.posEnabled === "boolean" ? { pos_enabled: o.posEnabled } : {}),
     sort_order: o.sortOrder,
     attributes: o.attributes ?? {},
     title_i18n: nullIfEmpty(i18nPair(o.titleI18n, title, primaryLocale)),
@@ -534,9 +547,9 @@ export function offeringIsDirectlyBookable(
 ): boolean {
   return (
     o.bookingMode === "instant" &&
-    o.status === "published" &&
-    o.moderationState === "approved" &&
-    o.visibility !== "agency_only" &&
+    // D1: "directly bookable" is a charge, so it asks for the guest context (an on_request
+    // service has request / quote paths only; checkout refuses an instant charge on it).
+    isSellable(o, "guest") &&
     o.priceType !== "custom" &&
     o.priceDisplay === "exact" &&
     o.amountCents != null &&

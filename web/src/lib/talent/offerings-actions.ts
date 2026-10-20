@@ -30,6 +30,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
+import { deleteOrArchiveTalentOffering } from "@/lib/talent/offering-delete-or-archive";
 import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
@@ -304,25 +305,22 @@ export async function upsertTalentOffering(
 export async function deleteTalentOffering(
   talentProfileId: string,
   offeringId: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; archived?: boolean }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
-  const { error } = await offeringsTable(admin)
-    .delete()
-    .eq("id", offeringId)
-    .eq("talent_profile_id", talentProfileId);
-  if (error) {
-    logServerError("talent.offerings.delete", error);
-    return { ok: false, error: "Failed to delete." };
-  }
+  // TUL-1335: history is re-checked here; anything published or sold is archived.
+  const result = await deleteOrArchiveTalentOffering(admin as SupabaseClient, talentProfileId, offeringId, (scope, err) =>
+    logServerError(`talent.offerings.delete.${scope}`, err),
+  );
+  if (!result.ok) return { ok: false, error: result.error };
   revalidatePath("/talent/services");
   bustTalentSiteCache(talentProfileId, null);
   await scheduleRebuildAiSearchDocument(admin, talentProfileId); // F1
-  return { ok: true };
+  return { ok: true, archived: result.outcome === "archived" };
 }
 
 export async function setOfferingPublication(
@@ -376,20 +374,12 @@ export async function duplicateTalentOffering(
 export async function deleteTalentOfferingForever(
   talentProfileId: string,
   offeringId: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; archived?: boolean }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   const auth = await authorizeForTalent(talentProfileId);
   if (!auth.ok) return { ok: false, error: auth.error };
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, error: "Server configuration error." };
-  const { count: bookingCount } = await admin
-    .from("talent_bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("offering_id", offeringId);
-  if ((bookingCount ?? 0) > 0) {
-    return { ok: false, error: "This item has bookings, so it cannot be deleted." };
-  }
+  // TUL-1335: no bookings pre-check here; deleteTalentOffering archives anything with history.
   return deleteTalentOffering(talentProfileId, offeringId);
 }
 

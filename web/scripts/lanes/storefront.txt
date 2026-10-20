@@ -1,4 +1,6 @@
 src/app/(public)/_services/business-service-view.render.test.tsx
+src/app/(public)/book/book-availability.test.ts
+src/app/(public)/book/book-no-times.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
@@ -11,6 +13,8 @@ src/components/edit-chrome/mobile-health-message-es.test.ts
 src/components/edit-chrome/section-display-name-i18n.test.ts
 src/components/edit-chrome/selection-focus.test.ts
 src/components/marketing/footer-tap-targets.static.test.ts
+src/components/services/quick-view/service-quick-view-host.test.tsx
+src/components/services/quick-view/service-quick-view.render.test.tsx
 src/components/talent/services/services-home-save-draft.static.test.ts
 src/components/talent/services/talent-orders-queue-loading.static.test.ts
 src/components/talent/site/aud-034-035.static.test.ts
@@ -47,8 +51,13 @@ src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/offerings/business-catalog-scope.test.ts
 src/lib/offerings/business-catalog.test.ts
+src/lib/offerings/contract.test.ts
+src/lib/offerings/dated-details-wire.static.test.ts
+src/lib/offerings/dated-details.test.ts
 src/lib/offerings/dated-filters.test.ts
 src/lib/offerings/dated-schema.test.ts
+src/lib/offerings/offering-paths.test.ts
+src/lib/offerings/offering-slugs-migration.static.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
@@ -57,6 +66,7 @@ src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
 src/lib/seo/a6-price-hiding.test.ts
 src/lib/seo/a6-seo-pack.static.test.ts
 src/lib/seo/ai-bot-gate-catalog.test.ts
+src/lib/seo/ai-bot-gate.test.ts
 src/lib/seo/directory-indexing.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts
 src/lib/seo/event-json-ld.test.ts
@@ -71,11 +81,17 @@ src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
 src/lib/services/business-pages/page-model.test.ts
 src/lib/services/business-pages/paths.test.ts
+src/lib/services/presentation/card-target.test.ts
+src/lib/services/presentation/catalog-presentation.test.ts
+src/lib/services/presentation/catalog-quick-views.server.test.ts
+src/lib/services/presentation/load-talent-presentation.server.test.ts
+src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
+src/lib/site-admin/server/annotate-open-times.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts
@@ -92,6 +108,8 @@ src/lib/talent-site/hub-profile-book-cta.test.ts
 src/lib/talent-site/live-bio.test.ts
 src/lib/talent-site/live-text-services.test.ts
 src/lib/talent-site/live-text.test.ts
+src/lib/talent-site/main-cta-real-mode.test.ts
+src/lib/talent-site/main-cta.test.ts
 src/lib/talent-site/my-website-target.test.ts
 src/lib/talent-site/seo-description-fallback.test.ts
 src/lib/talent-site/server/builder-load-parallel.static.test.ts

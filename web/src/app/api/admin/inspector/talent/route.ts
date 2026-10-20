@@ -28,12 +28,18 @@ export async function GET(request: Request) {
   }
   const { data: rosterRow } = await supabase
     .from("agency_talent_roster")
-    .select("talent_profile_id")
+    .select("talent_profile_id, status")
     .eq("tenant_id", scope.tenantId)
     .eq("talent_profile_id", id)
     .maybeSingle();
   if (!rosterRow) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  // TUL-1382: a talent removed from the roster is no longer readable by staff
+  // (roster-scoped policy). Say so plainly instead of passing the roster check and
+  // then failing the profile read with a bare 404.
+  if ((rosterRow as { status?: string | null }).status === "removed") {
+    return NextResponse.json({ error: "This talent was removed from your roster.", removed: true }, { status: 404 });
   }
 
   const { data: profile, error: pErr } = await supabase

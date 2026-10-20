@@ -14,8 +14,10 @@ import { addonCentsOnLine, priceAddons } from "./addons";
 import { LINE_COLUMNS, lineDiscountCents, num, totalsInput, type Admin, type LineAuthor, type LineRow, type OrderRow } from "./sale-rows";
 import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
+import { ITEM_UNAVAILABLE, offeringSellableAtReprice, variantRefusedAtReprice } from "./reprice-guards";
 import { livePhasePrice } from "@/lib/catalog/price-phases";
 import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
+import { isWholeQuantity } from "@/lib/orders/purchase-policy";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -82,7 +84,7 @@ async function loadDraft(
   const { data: order, error } = await admin
     .from("orders")
     .select(
-      "id, tenant_id, status, currency, customer_id, guest_session_id, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents, promo_code_id",
+      "id, tenant_id, status, currency, customer_id, guest_session_id, source_channel, source_page, visit_id, space_id, version, subtotal_cents, discount_cents, tax_cents, total_cents, tip_cents, promo_code_id",
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -294,7 +296,7 @@ export async function addLine(
   if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
     return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
   }
-  if (!Number.isFinite(input.line.units) || input.line.units <= 0) {
+  if (!isWholeQuantity(input.line.units)) { // TUL-1268 M9: refused, never truncated
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
 
@@ -538,7 +540,7 @@ export async function updateLine(
   if (input.expectedVersion != null && input.expectedVersion !== loadedVersion) {
     return { ok: false, reason: "conflict", error: "This sale was just changed. Reload." };
   }
-  if (!Number.isFinite(input.units) || input.units <= 0) {
+  if (!isWholeQuantity(input.units)) { // TUL-1268 M9: refused, never truncated
     return { ok: false, reason: "invalid", error: "Quantity must be at least one." };
   }
   const line = loaded.lines.find((l) => l.id === input.lineId);
@@ -640,7 +642,7 @@ export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
       ok: false;
-      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict" | "over_limit";
+      reason: "not_found" | "wrong_tenant" | "not_draft" | "unavailable" | "invalid" | "promo_needs_customer" | "promo_refused" | "conflict" | "over_limit" | "item_unavailable";
       error: string;
     };
 
@@ -685,7 +687,7 @@ export async function repriceAndValidate(
     if (!phase.ok) return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     const { data: offering, error } = await admin
       .from("talent_offerings")
-      .select("id, amount_cents, title")
+      .select("id, amount_cents, title, status, moderation_state, visibility")
       .eq("id", line.offering_id)
       .eq("tenant_id", input.tenantId)
       .maybeSingle();
@@ -693,30 +695,30 @@ export async function repriceAndValidate(
       logServerError("pos.reprice.offering", error);
       return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     }
+    if (offering && !offeringSellableAtReprice(offering as Record<string, unknown>, loaded.order.source_channel)) return ITEM_UNAVAILABLE;
     if (!offering && phase.priceCents == null) continue;
     let unitCents = Math.max(0, Math.trunc(num((offering as { amount_cents: number | null } | null)?.amount_cents)));
     if (line.variant_id) {
       const { data: variant, error: variantError } = await admin
         .from("talent_offering_variants")
-        .select("id, amount_cents")
+        .select("id, amount_cents, offering_id, is_hidden")
         .eq("id", line.variant_id)
         .maybeSingle();
       if (variantError) {
         logServerError("pos.reprice.variant", variantError);
         return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
       }
-      const amount = (variant as { amount_cents?: number | null } | null)?.amount_cents;
+      const v = variant as { amount_cents?: number | null; offering_id?: string; is_hidden?: boolean | null } | null;
+      if (variantRefusedAtReprice(v, line.offering_id, loaded.order.source_channel)) return ITEM_UNAVAILABLE;
+      const amount = v?.amount_cents;
       if (amount != null) unitCents = Math.max(0, Math.trunc(num(amount)));
     }
     if (phase.priceCents != null) unitCents = phase.priceCents;
-    // Extras are repriced from the catalog like everything else here. This is
-    // the one command whose job is to answer "what does this cost NOW", and an
-    // add-on left at its stored price would be the only stale number on a
-    // receipt that claims to be current.
-    //
-    // An add-on that has since been deleted or moved to another offering makes
-    // the whole reprice REFUSE. Silently dropping it would take money off the
-    // sale while the kitchen ticket still promises the extra.
+    // Extras are repriced from the catalog like everything else: this command
+    // answers "what does this cost NOW", so no add-on keeps a stale stored price.
+    // An add-on since deleted or moved to another offering makes the whole
+    // reprice REFUSE; dropping it would take money off the sale while the
+    // kitchen ticket still promises the extra.
     const addons = await priceAddons(admin, {
       tenantId: input.tenantId,
       offeringId: line.offering_id,

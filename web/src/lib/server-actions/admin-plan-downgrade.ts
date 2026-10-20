@@ -40,6 +40,8 @@ import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { trackPlanChanged } from "@/lib/analytics/conversion-events";
 import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { WORKSPACE_MONEY_GATES, isStrictPlanDowngrade } from "@/lib/billing/workspace-money-gates";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -188,7 +190,8 @@ export async function commitPlanDowngrade(input: {
   talent_keep_ids: string[];
 }): Promise<CommitDowngradeResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1269 M2: moving the plan is billing (owner), not any workspace staff.
+  const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.planChange });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -197,6 +200,26 @@ export async function commitPlanDowngrade(input: {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid request." };
   }
   const v = parsed.data;
+
+  // A downgrade must go DOWN. This action used to accept any tier, so it could
+  // stamp a paid tier ("free" -> "network") without a payment.
+  const { data: current, error: currentErr } = await supabase
+    .from("agencies")
+    .select("plan_tier")
+    .eq("id", tenantId)
+    .single();
+  if (currentErr || !current) {
+    logServerError("admin-plan-downgrade.commit.current", currentErr);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+  if (!isStrictPlanDowngrade(current.plan_tier as string | null, v.target_tier)) {
+    return { ok: false, error: "Paid upgrades go through billing." };
+  }
+
+  // The plan write needs the service role: plan_tier is platform-owned (held
+  // M1 trigger 20261231418100 refuses it from a member's own session).
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false, error: CLIENT_ERROR.update };
 
   // Re-validate against caps server-side (don't trust client).
   const { data: caps } = await supabase
@@ -240,7 +263,7 @@ export async function commitPlanDowngrade(input: {
   }
 
   // Flip the plan tier.
-  const { error: planErr } = await supabase
+  const { error: planErr } = await admin
     .from("agencies")
     .update({ plan_tier: v.target_tier, updated_at: now })
     .eq("id", tenantId);
@@ -300,7 +323,9 @@ export async function restoreFromDowngradeArchive(
 ): Promise<{ ok: true; restored_count: number } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1269 M2: restoring archived roster rows bypasses the plan's seat cap,
+  // so it is billing (owner) like the downgrade itself.
+  const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.planChange });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 

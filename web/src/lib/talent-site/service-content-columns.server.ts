@@ -3,7 +3,7 @@ import "server-only";
 /**
  * TUL-1272 C1: read the service content columns only when they exist.
  *
- * The migration that adds them is HELD (`_pending_pm/20261231415800_service_content_fields.sql`).
+ * The migration that adds them is HELD (`_pending_pm/20261231418800_offering_slugs_supersedes_415800_tul1324.sql`).
  * Existing loaders keep their current selects; these columns are fetched in a separate, small
  * query behind `serviceContentColumnsAvailable()`, a cached probe:
  *   - columns present: cached for the process lifetime (an additive column does not go away);
@@ -15,7 +15,7 @@ import "server-only";
  */
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { SERVICE_CONTENT_COLUMNS, serviceContentFromRow, type ServiceContentFields } from "./service-content-fields";
+import { SERVICE_CONTENT_DB_COLUMNS, serviceContentFromRow, type ServiceContentFields } from "./service-content-fields";
 
 type PgError = { code?: string; message?: string } | null;
 type ReadResult = { data: unknown; error: PgError };
@@ -31,7 +31,8 @@ export type ServiceContentDb = {
 };
 
 const NEGATIVE_TTL_MS = 5 * 60_000;
-const COLUMNS = SERVICE_CONTENT_COLUMNS.join(", ");
+// Only columns 418800 adds (no slug / slug_history: those live in offering_slugs).
+const COLUMNS = SERVICE_CONTENT_DB_COLUMNS.join(", ");
 
 let probe: { available: boolean; at: number } | null = null;
 

@@ -1,7 +1,7 @@
 /** Live "My website" card summary helpers (pure; unit-tested). */
 import type { MaisonCustomPaletteStored } from "@/lib/talent-site/theme-catalog/maison/maison-custom-palette";
 import { MAISON_PALETTES, MAISON_SEED, type MaisonPaletteKey } from "@/lib/talent-site/theme-catalog/maison/seed";
-import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { collectionDesignCard } from "@/lib/talent-site/theme-catalog/collection/design-cards";
 import { maisonSetupT, type MaisonSetupLocale } from "./maison-setup-copy";
 
 export function lookToPalette(lookSlug: string | null): MaisonPaletteKey | null {
@@ -35,7 +35,7 @@ export function liveCardPaletteName(
 export function liveDesignName(locale: MaisonSetupLocale, designSlug: string | null): string {
   const slug = designSlug?.trim().toLowerCase() ?? "";
   if (slug === "maison" || slug === MAISON_SEED.theme.key) return MAISON_SEED.theme.name;
-  const hit = COLLECTION_DESIGNS.find((d) => d.slug === slug);
+  const hit = collectionDesignCard(slug);
   if (hit) return hit.title;
   return locale === "es" ? "Tu diseño" : "Your design";
 }

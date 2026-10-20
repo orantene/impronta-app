@@ -7,6 +7,7 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { verifyReelStat, verifyStoredObjectType } from "@/lib/server/verify-stored-object-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
 import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
@@ -31,6 +32,9 @@ import {
 import { loadTalentMediaBundle, type TalentMediaBundle } from "@/lib/media/talent-media-bundle.server";
 import { authorizeTalentMediaRead } from "@/lib/media/talent-media-read-auth.server";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
+import { PHOTO_RASTER_MIMES as PHOTOS, SNIFF_HEAD_BYTES, guardImageBlob, guardImageBytes } from "@/lib/media/upload-guards";
+import { hasEmbeddedMetadata } from "@/lib/media/image-sanitize.server";
+import { readGuardedAttachment, uploadGuardError } from "@/lib/media/guarded-upload.server";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 import { downloadDriveFile, parseDriveUrl } from "./_drive-import-helpers";
@@ -117,6 +121,9 @@ export async function actionUploadAndAssignMedia(
   if (isImage && !isSafeImageMime(file.type)) {
     return { ok: false, error: "SVG and unknown image types are not supported." };
   }
+  const sniffed = isImage ? await guardImageBlob(file, { allowed: PHOTOS }) : null; // H1: bytes decide the type
+  if (sniffed && !sniffed.ok) return { ok: false, error: await uploadGuardError(sniffed.reason) };
+  const fileMime = sniffed?.ok ? sniffed.mime : file.type;
   // Images cap at 8 MB (was 25 MB) — we now sharp-resize server-side
   // before storage, so the raw upload doesn't need to be huge.
   const maxBytes = isVideo ? 200 * 1024 * 1024 : MAX_UPLOAD_BYTES;
@@ -170,10 +177,10 @@ export async function actionUploadAndAssignMedia(
   // types (SVG already rejected above; GIF would lose animation) pass
   // through unchanged. The resized version is what we serve.
   let uploadBytes: ArrayBuffer | Buffer = inputBytes;
-  let uploadContentType = file.type;
+  let uploadContentType = fileMime;
   let storedExtOverride: string | null = null;
   let resizedMeta: { width: number; height: number; byteSize: number } | null = null;
-  if (isImage && shouldResize(file.type)) {
+  if (isImage && shouldResize(fileMime)) {
     try {
       const resized = await resizeUploadForStorage(inputBytes, variantKind);
       uploadBytes = resized.buffer;
@@ -820,6 +827,8 @@ export async function actionUploadToStagingStorage(
   if (!isSafeImageMime(file.type)) {
     return { ok: false, error: "SVG and unknown image types are not supported." };
   }
+  const sniffed = await guardImageBlob(file, { allowed: PHOTOS }); // H1: bytes decide the type
+  if (!sniffed.ok) return { ok: false, error: await uploadGuardError(sniffed.reason) };
   // 8 MB cap (down from 25 MB) — sharp re-encodes server-side now, so
   // raw uploads don't need to be huge. See media-resize.ts.
   if (file.size > MAX_UPLOAD_BYTES) return { ok: false, error: "File must be under 5 MB." };
@@ -830,10 +839,10 @@ export async function actionUploadToStagingStorage(
   // Staging uploads land as "gallery" by default — most are assigned to
   // a talent gallery in step 2. Use gallery sizing.
   let uploadBytes: ArrayBuffer | Buffer = inputBytes;
-  let uploadContentType = file.type;
-  let storedExt = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  let uploadContentType: string = sniffed.mime;
+  let storedExt = sniffed.ext;
   let resizedMeta: { width: number; height: number; byteSize: number } | null = null;
-  if (shouldResize(file.type)) {
+  if (shouldResize(sniffed.mime)) {
     try {
       const resized = await resizeUploadForStorage(inputBytes, "gallery");
       uploadBytes = resized.buffer;
@@ -1148,16 +1157,16 @@ export async function actionUploadTalentDocument(
 
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) return { ok: false, error: "No file provided." };
-  // 50MB cap — generous for PDF contracts but blocks runaway uploads.
-  if (file.size > 50 * 1024 * 1024) return { ok: false, error: "File must be under 50 MB." };
+  // H1: size cap, executables/markup refused, type from bytes, photos stripped of GPS.
+  const guarded = await readGuardedAttachment(file, { maxBytes: 50 * 1024 * 1024 });
+  if (!guarded.ok) return { ok: false, error: guarded.error };
 
   const ext = (file.name.split(".").pop() ?? "bin").toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
   const storagePath = `${talentProfileId}/documents/${randomUUID()}.${ext}`;
 
-  const bytes = await file.arrayBuffer();
   const { error: upErr } = await admin.storage
     .from("media-originals")
-    .upload(storagePath, bytes, { contentType: file.type || "application/octet-stream", upsert: false });
+    .upload(storagePath, guarded.bytes, { contentType: guarded.contentType, upsert: false });
 
   if (upErr) {
     logServerError("media.actions.uploadTalentDocument", upErr);
@@ -1183,8 +1192,8 @@ export async function actionUploadTalentDocument(
     data: {
       storagePath,
       bucketId: "media-originals",
-      sizeBytes: file.size,
-      mimeType: file.type || "application/octet-stream",
+      sizeBytes: guarded.byteSize,
+      mimeType: guarded.contentType,
     },
   };
 }
@@ -1261,13 +1270,16 @@ export async function actionFinalizeDocumentUpload(
     return { ok: false, error: "File must be under 50 MB." };
   }
 
+  const typed = await verifyStoredObjectType(admin, "media-originals", storagePath, meta.mimetype || "application/octet-stream");
+  if (!typed.ok) return { ok: false, error: typed.error };
+
   return {
     ok: true,
     data: {
       storagePath,
       bucketId: "media-originals",
       sizeBytes: meta.size,
-      mimeType: meta.mimetype || "application/octet-stream",
+      mimeType: typed.mime,
     },
   };
 }
@@ -1967,7 +1979,9 @@ async function reverifyStoredObject(
   }
   const buf = Buffer.from(await blob.arrayBuffer());
   const storedSize = buf.byteLength;
-  const storedType = blob.type || "image/jpeg";
+  const sniffed = guardImageBytes(buf.subarray(0, SNIFF_HEAD_BYTES), { allowed: PHOTOS }); // H1: bytes, not blob.type
+  if (!sniffed.ok) return null;
+  const storedType: string = sniffed.mime;
 
   // SVG / GIF / non-images bypass — they're not in the resize policy.
   if (!shouldResize(storedType)) {
@@ -1991,7 +2005,9 @@ async function reverifyStoredObject(
   // Overwrite policy: only if sharp's output is meaningfully smaller
   // than what the client uploaded. A trusted compressed client beats
   // the server (good) — leave it alone. A liar gets corrected.
-  if (resized.byteSize < storedSize * SERVER_RESIZE_GUARD_RATIO) {
+  // H1: an original carrying EXIF/XMP (GPS) is always replaced, smaller or not.
+  const carriesMetadata = await hasEmbeddedMetadata(buf);
+  if (resized.byteSize < storedSize * SERVER_RESIZE_GUARD_RATIO || carriesMetadata) {
     const { error: upErr } = await admin.storage
       .from("media-public")
       .upload(storagePath, resized.buffer, {
@@ -2000,6 +2016,7 @@ async function reverifyStoredObject(
       });
     if (upErr) {
       logServerError("media.actions.reverify.overwrite", upErr);
+      if (carriesMetadata) return null; // never register a copy that still has GPS
       // Non-fatal — the original bytes are still in storage; the row
       // we're about to insert will just reflect the un-rewritten ones.
       return {
@@ -2156,15 +2173,11 @@ export async function actionRegisterUploadedAsset(
   // Reel videos skip the sharp re-verify: there's nothing to resize, and
   // downloading a 100-200 MB video into the Function just to measure it
   // defeats the point of the signed pipeline. Stat the object instead.
-  let verified: {
-    width: number | null;
-    height: number | null;
-    byteSize: number;
-    mimeType: string;
-  } | null;
+  let verified: { width: number | null; height: number | null; byteSize: number; mimeType: string } | null;
   if (variantKind === "reel") {
-    const stat = await statStoredObject(admin, storagePath);
-    verified = stat ? { width: null, height: null, ...stat } : null;
+    const reel = await verifyReelStat(admin, storagePath, await statStoredObject(admin, storagePath));
+    if (!reel.ok) return { ok: false, error: reel.error };
+    verified = reel.verified;
   } else {
     verified = await reverifyStoredObject(admin, storagePath, variantKind);
   }

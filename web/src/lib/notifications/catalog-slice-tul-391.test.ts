@@ -98,6 +98,27 @@ test("catalog: payment.needs_attention title branches on reason", () => {
   );
 });
 
+test("catalog: payment review flags (TUL-1283 / TUL-1284 / M2) ring in the reader's language", () => {
+  const entry = findCatalogEntryById("payment.needs_attention.workspace")!;
+  const es = { ...recipient(), locale: "es" };
+  const cases: Array<[string, string, string]> = [
+    ["amount_mismatch", "Payment amount does not match", "El monto pagado no coincide"],
+    ["charge_on_inactive_row", "Payment on a cancelled booking", "Pago en una reserva cancelada"],
+    ["duplicate_charge", "Possible duplicate charge", "Posible cobro duplicado"],
+  ];
+  for (const [reason, enTitle, esTitle] of cases) {
+    const ev = event("payment.needs_attention", { reason, amountCents: 101500, currency: "mxn" });
+    assert.equal(entry.in_app!.title(ev, recipient()), enTitle);
+    assert.equal(entry.in_app!.title(ev, es), esTitle);
+    const enBody = String(entry.in_app!.body!(ev, recipient()));
+    const esBody = String(entry.in_app!.body!(ev, es));
+    assert.match(enBody, /MXN/);
+    assert.match(esBody, /MXN/);
+    assert.notEqual(enBody, esBody);
+    assert.ok(!enBody.includes("—") && !esBody.includes("—"), "no em dashes in bell copy");
+  }
+});
+
 test("catalog: offer.pending_approval.workspace is approval Attention on offer.sent", () => {
   const entry = findCatalogEntryById("offer.pending_approval.workspace");
   assert.ok(entry);

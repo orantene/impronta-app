@@ -75,7 +75,23 @@ test("SellSurface renders products, favourites and category tabs in all three la
     assert.ok(markup.includes("Latte"));
     assert.ok(markup.includes("Bagel"));
     assert.ok(markup.includes(copy.favourites));
-    assert.ok(markup.includes(copy.favouritesUnavailable), "the disabled Favorites chip must carry its sentence");
+    // TUL-1271 #4: PRODUCTS holds a featured item, so the Favorites chip is LIVE and carries no "unavailable" sentence.
+    assert.ok(!markup.includes(copy.favouritesUnavailable), "a catalog with a favourite has a live Favorites chip");
+    const none = renderToStaticMarkup(
+      <SellSurface
+        products={PRODUCTS.map((p) => ({ ...p, favourite: false }))}
+        categories={CATEGORIES}
+        activeCategoryId={ALL_CATEGORIES_ID}
+        onSelectCategory={noop}
+        searchValue=""
+        onSearchChange={noop}
+        onSelectProduct={noop}
+        onSelectVariant={noop}
+        onOpenScan={noop}
+        copy={copy}
+      />,
+    );
+    assert.ok(none.includes(copy.favouritesUnavailable), "with no favourite the disabled chip must carry its sentence");
     assert.ok(markupIncludesText(markup, copy.scanLabel), "the scan door beside the search is missing");
     assert.match(markup, /data-pos-scanner-ready/);
     assertNoRawKeys(markup);
