@@ -265,6 +265,7 @@ src/lib/talent/new-service-currency.static.test.ts
 src/lib/talent/offering-save-patch.test.ts
 src/lib/talent/offering-variants-save.test.ts
 src/lib/talent/offerings-children-replace.test.ts
+src/lib/talent/service-hub-channels.test.ts
 src/lib/venues/*.test.ts
 src/lib/visits/check-ops.test.ts
 src/lib/visits/commands.test.ts
