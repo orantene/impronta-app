@@ -210,6 +210,8 @@ export async function messagingClientPickTime(input: { token: string; messageId:
     title: typeof p.title === "string" && p.title ? p.title : "Client pick",
     ttlSeconds: CLIENT_TIME_HOLD_SECONDS,
     createdByUserId: null,
+    // TUL-1375: holds the chair/room/station the service needs with the person.
+    offeringId: typeof p.offeringId === "string" && p.offeringId ? p.offeringId : null,
   });
   if (!hold.ok) {
     if (hold.code === "slot_taken") {

@@ -10,6 +10,8 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { loadDefaultVenue } from "@/lib/spaces/venues";
 import {
@@ -27,6 +29,8 @@ export type SpacesSnapshot = {
   venueName: string;
   spaces: SpaceRow[];
   groups: SpaceGroupRow[];
+  /** TUL-1375: units of each space's own pool (space id -> units), so settings can say "Bookable, N at a time". */
+  poolUnits: Record<string, number>;
 };
 
 export type LoadSpacesResult =
@@ -46,12 +50,32 @@ async function staffAndVenue(tenantSlug: string) {
   return { ok: true as const, tenantId: staff.tenantId, venue };
 }
 
+async function loadSpacePoolUnits(tenantId: string): Promise<Record<string, number>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return {};
+  const { data, error } = await admin
+    .from("capacity_pools")
+    .select("subject_id, units_total")
+    .eq("tenant_id", tenantId)
+    .eq("subject_kind", "space")
+    .eq("pool_key", "default");
+  if (error) {
+    // Display only: without it the settings simply do not show the badge.
+    logServerError("spaces-editor.loadSpacePoolUnits", error);
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const r of (data ?? []) as Array<{ subject_id: string; units_total: number }>) out[r.subject_id] = r.units_total;
+  return out;
+}
+
 export async function loadSpacesSnapshot(tenantSlug: string): Promise<LoadSpacesResult> {
   const ctx = await staffAndVenue(tenantSlug);
   if (!ctx.ok) return { ok: false, error: ctx.error };
-  const [spaces, groups] = await Promise.all([
+  const [spaces, groups, poolUnits] = await Promise.all([
     loadSpaces(ctx.tenantId, ctx.venue.id),
     loadSpaceGroups(ctx.tenantId, ctx.venue.id),
+    loadSpacePoolUnits(ctx.tenantId),
   ]);
   return {
     ok: true,
@@ -60,6 +84,7 @@ export async function loadSpacesSnapshot(tenantSlug: string): Promise<LoadSpaces
       venueName: ctx.venue.name,
       spaces,
       groups,
+      poolUnits,
     },
   };
 }

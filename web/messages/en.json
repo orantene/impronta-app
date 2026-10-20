@@ -5837,6 +5837,7 @@
         "roomNamePlaceholder": "Main room",
         "addRoom": "Add room",
         "tablesWord": "tables",
+        "bookableAtATime": "Bookable, {n} at a time",
         "addTablesTitle": "Add tables",
         "addTablesHint": "Add several at once. You never have to draw a floor plan to take reservations.",
         "addWord": "Add",
@@ -18115,6 +18116,14 @@
       }
     },
     "catalog": {
+      "resources": {
+        "title": "Resources this service uses",
+        "intro": "The chair, room or station a booking holds. Two bookings can never use the same one at the same time.",
+        "none": "Add your chairs, rooms or stations in space settings first.",
+        "saveFirst": "Save the item first, then choose its resources.",
+        "saved": "Saved.",
+        "error": "We could not save the resources. Try again."
+      },
       "loading": "Loading the catalog",
       "saving": "Saving",
       "saved": "Saved",
