@@ -24,6 +24,7 @@ import { canonicalCityLabel } from "./city-label.server";
 import { pickHeadshotUrl } from "../media-pick";
 import type { TalentPortfolioStarterMedia, TalentPortfolioStarterProfile } from "../starter";
 import type { TalentSiteSnapshot } from "../types";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 export async function loadTalentStarterProfileData(
   talentProfileId: string,
@@ -282,13 +283,10 @@ type Db = Pick<SupabaseClient, "from">;
 
 /** The currency most of her published services are priced in ("MXN"), or null. */
 export async function loadMenuCurrency(db: Db, talentProfileId: string): Promise<string | null> {
-  const { data, error } = await db
-    .from("talent_offerings")
-    .select("currency")
-    .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
+  const { data, error } = await scopeToSellableOfferings(
+    db.from("talent_offerings").select("currency").eq("talent_profile_id", talentProfileId),
+    "guest_request",
+  )
     .not("currency", "is", null)
     .limit(50);
   if (error) {
@@ -309,13 +307,10 @@ async function loadPublishedServiceNames(
   talentProfileId: string,
   primaryLocale: ReturnType<typeof starterPrimaryLocale>,
 ): Promise<string[]> {
-  const { data, error } = await db
-    .from("talent_offerings")
-    .select("title, title_i18n")
-    .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
+  const { data, error } = await scopeToSellableOfferings(
+    db.from("talent_offerings").select("title, title_i18n").eq("talent_profile_id", talentProfileId),
+    "guest_request",
+  )
     .order("sort_order", { ascending: true })
     .limit(12);
   if (error) {

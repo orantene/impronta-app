@@ -31,6 +31,7 @@ src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
+src/lib/billing/receipt-notice.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
@@ -99,6 +100,8 @@ src/lib/money/money-spine.static.test.ts
 src/lib/money/september-ledger-fixture.test.ts
 src/lib/money/today-money-tiles.test.ts
 src/lib/offerings/non-menu-offerings.test.ts
+src/lib/offerings/sellable-one-rule.static.test.ts
+src/lib/offerings/sellable.test.ts
 src/lib/offerings/services-safety.static.test.ts
 src/lib/ops/balance-reconcile.test.ts
 src/lib/ops/cron-heartbeat.test.ts
@@ -225,6 +228,7 @@ src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
 src/lib/pos/recover-collections.test.ts
 src/lib/pos/refusal-reason.test.ts
+src/lib/pos/reprice-item-availability.test.ts
 src/lib/pos/scan-code.test.ts
 src/lib/pos/shift-movements.test.ts
 src/lib/pos/shift.test.ts

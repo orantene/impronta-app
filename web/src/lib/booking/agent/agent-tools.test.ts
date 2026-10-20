@@ -211,6 +211,8 @@ function offering(partial: Partial<TalentOffering>): TalentOffering {
     title: "Gel manicure",
     description: "  Long\n description  ",
     kind: "service",
+    status: "published",
+    moderationState: "approved",
     visibility: "public",
     priceType: "flat_package",
     priceDisplay: "exact",

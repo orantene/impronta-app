@@ -10,6 +10,7 @@ import {
   mergeServiceCards,
   type LiveBookingSurface,
 } from "@/lib/site-admin/builder-node/live-booking-markers";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 /**
  * TUL-77: the published catalog a workspace site shows, and the real booking
@@ -30,13 +31,7 @@ export async function loadLiveBookingSurface(
         locale,
         host: { kind: "agency", tenantId },
       }),
-      admin
-        .from("talent_offerings")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("status", "published")
-        .eq("moderation_state", "approved")
-        .in("visibility", ["public", "on_request"])
+      scopeToSellableOfferings(admin.from("talent_offerings").select("*").eq("tenant_id", tenantId), "guest_request")
         .order("sort_order", { ascending: true })
         .limit(48),
       admin.from("agencies").select("slug").eq("id", tenantId).maybeSingle<{ slug: string | null }>(),
