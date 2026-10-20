@@ -270,11 +270,12 @@ export function quote(input: QuoteInput): QuoteResult {
   const list = lines.reduce((s, l) => s + l.list_cents, 0);
   const discount = lines.reduce((s, l) => s + l.discount_cents, 0);
   const finals = lines.reduce((s, l) => s + l.final_cents, 0);
-  // A7.6: a promo that pushes the total under Stripe's minimum makes it a free
-  // booking (no charge, no fee). Only a discount triggers it; an unknown
-  // currency floor never does.
+  // A7.6 / P-10: a promo that pushes a BOOKING under Stripe's minimum makes it a
+  // free booking (no charge, no fee). Only a discount triggers it; an unknown
+  // currency floor never does; any other channel (POS, QR, cash, web) charges the
+  // discounted total as priced and is refused at the card, never zeroed.
   const min = chargeMinimumMinor(currency);
-  const freeBooking = discount > 0 && finals > 0 && min !== null && finals < min;
+  const freeBooking = input.channel === "booking" && discount > 0 && finals > 0 && min !== null && finals < min;
   const charged = freeBooking ? 0 : finals;
 
   return {

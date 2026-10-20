@@ -598,6 +598,7 @@ export function previewQuote(d: PromoDraft, service: PreviewService, now: string
   const start = sampleAppointmentStart(d, now) ?? (now instanceof Date ? now.toISOString() : now);
   const status = d.audience === "lapsed" ? "lapsed" : d.audience === "returning" ? "returning" : "new";
   const res = quote({
+    channel: "booking",
     cart: [{
       id: "L1", kind: "service", target_id: service.id, list_cents: service.list_cents, qty: 1,
       currency: d.currency, appointment_start: start, slot_id: d.slot_id,

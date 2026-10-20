@@ -42,6 +42,7 @@ function run(over: Partial<QuoteInput> & Pick<QuoteInput, "promos">): QuoteResul
     now: "2026-10-11T12:00:00-06:00", // Sunday
     usage: {},
     unlocked: { codes: [], linkPromoIds: [] },
+    channel: "booking",
     ...over,
   });
 }
@@ -186,6 +187,33 @@ test("below the Stripe minimum after a promo: free booking, no charge, no fee", 
   assert.equal(r.totals.charged_cents, 0);
   assert.equal(r.totals.waived_cents, 500);
   assert.equal(r.totals.fee_cents, 0);
+});
+
+// TUL-1549 (P-10): "free below the Stripe minimum" is for bookings only.
+for (const channel of ["pos", "qr", "cash", "web"] as const) {
+  test(`${channel}: below the Stripe minimum after a promo is charged as priced, never free`, () => {
+    const r = run({
+      channel,
+      promos: [promo({ id: "p", offer_kind: "fixed_price", value: 500, currency: "MXN" })],
+      cart: [line({ id: "L1", list_cents: 5000, currency: "MXN" })],
+    });
+    assert.equal(r.lines[0]?.final_cents, 500);
+    assert.equal(r.free_booking, false);
+    assert.equal(r.totals.charged_cents, 500);
+    assert.equal(r.totals.waived_cents, 0);
+  });
+}
+
+test("MXN list 80, promo to 8: pos and qr charge 800, a booking is still free", () => {
+  const args = { promos: [promo({ id: "p", offer_kind: "fixed_price" as const, value: 800, currency: "MXN" })], cart: [line({ id: "L1", list_cents: 8000, currency: "MXN" })] };
+  for (const channel of ["pos", "qr"] as const) {
+    const r = run({ ...args, channel });
+    assert.equal(r.free_booking, false);
+    assert.equal(r.totals.charged_cents, 800);
+  }
+  const b = run({ ...args, channel: "booking" });
+  assert.equal(b.free_booking, true);
+  assert.equal(b.totals.charged_cents, 0);
 });
 
 test("exactly the Stripe minimum is charged", () => {

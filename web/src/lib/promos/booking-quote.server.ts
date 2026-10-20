@@ -287,6 +287,7 @@ export async function quoteBooking(
   let result: QuoteResult;
   try {
     result = quote({
+      channel: "booking",
       cart: input.lines,
       client: { customerId, email: input.contact?.email ?? null, phone: input.contact?.phone ?? null, status },
       now,

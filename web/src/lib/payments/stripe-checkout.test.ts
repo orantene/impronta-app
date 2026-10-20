@@ -236,3 +236,31 @@ test("TUL-141: non-production + no Stripe key mocks (existing behavior)", async 
   );
   assert.ok(res.ok);
 });
+
+// ---- TUL-1549 (P-10): under Stripe's minimum is refused with a sentence, never free ----
+
+test("a total under the Stripe minimum is refused before Stripe is called, in the payer's language", async () => {
+  for (const [currency, amountCents, locale, text] of [
+    ["MXN", 800, "es", /mínimo de pago con tarjeta/],
+    ["MXN", 999, "en", /under the card payment minimum/],
+    ["USD", 49, "en", /\$0\.50/],
+  ] as const) {
+    const { calls, stripe } = fakeStripe();
+    const out = await createCheckoutSessionForTransaction(input({ currency, amountCents, locale }), { stripe });
+    assert.equal(out.ok, false);
+    if (!out.ok) {
+      assert.match(out.error, text);
+      assert.equal(out.uncertain, false);
+    }
+    assert.equal(calls.length, 0, "nothing reaches Stripe");
+  }
+});
+
+test("exactly the minimum, and above it, still creates the session", async () => {
+  for (const [currency, amountCents] of [["MXN", 1000], ["USD", 50], ["MXN", 12_345]] as const) {
+    const { calls, stripe } = fakeStripe();
+    const out = await createCheckoutSessionForTransaction(input({ currency, amountCents }), { stripe });
+    assert.equal(out.ok, true);
+    assert.equal(calls.length, 1);
+  }
+});
