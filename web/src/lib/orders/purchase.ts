@@ -1,5 +1,6 @@
 import "server-only";
 
+import { applyCollectiveOwnerShares } from "@/lib/service-hub/collective-split";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
@@ -223,9 +224,9 @@ export async function createPurchase(
       logServerError("orders.createPurchase/lineAlignment", `${priced.lines.length}/${input.lines.length}`);
       return { ok: false, reason: "engine_error", error: "Could not price the order." };
     }
-    if (!priced.ok) {
-      return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
-    }
+    if (!priced.ok) return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
+    const split = await applyCollectiveOwnerShares(admin, input.tenantId, orderCurrency, priced.lines);
+    if (!split.ok) return { ok: false, reason: "engine_error", error: split.error };
 
     // ── 4. Buyer before promo (per-customer) and before pass-through collect.
     const buyer = await resolvePurchaseBuyer(admin, {
