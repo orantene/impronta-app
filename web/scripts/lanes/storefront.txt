@@ -47,9 +47,9 @@ src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/offerings/business-catalog-scope.test.ts
 src/lib/offerings/business-catalog.test.ts
-src/lib/offerings/offering-paths.test.ts
 src/lib/offerings/dated-filters.test.ts
 src/lib/offerings/dated-schema.test.ts
+src/lib/offerings/offering-paths.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
