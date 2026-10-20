@@ -220,6 +220,17 @@ export async function registerBrandingUpload(
     await admin.storage.from(BUCKET).remove([storagePath]);
     return { ok: false, error: "File contents don't match the image format." };
   }
+  // H1: pixel cap + EXIF/GPS stripped in place. A clean brand asset keeps its
+  // exact bytes; only one carrying location metadata is rewritten.
+  const { verifyStoredImage } = await import("@/lib/media/guarded-upload.server");
+  const verified = await verifyStoredImage(admin, BUCKET, storagePath, {
+    maxBytes: MAX_BYTES,
+    allowed: ["image/png", "image/jpeg", "image/webp"],
+  });
+  if (!verified.ok) {
+    await admin.storage.from(BUCKET).remove([storagePath]);
+    return { ok: false, error: verified.error };
+  }
 
   // Probe dimensions only — brand assets keep their exact bytes (logos and
   // transparent PNGs must not be re-encoded).
@@ -227,7 +238,9 @@ export async function registerBrandingUpload(
   let height: number | null = null;
   try {
     const sharp = (await import("sharp")).default;
-    const meta = await sharp(buf).metadata();
+    // H1: header read under the shared 100 MP cap.
+    const { SHARP_INPUT_LIMITS } = await import("@/lib/media/image-sanitize.server");
+    const meta = await sharp(buf, SHARP_INPUT_LIMITS).metadata();
     width = meta.width ?? null;
     height = meta.height ?? null;
   } catch {

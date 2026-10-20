@@ -27,6 +27,7 @@ import {
   talentRespondToOffer,
 } from "@/lib/inquiry/inquiry-engine-approvals";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { readGuardedAttachment } from "@/lib/media/guarded-upload.server";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently kept
 // as a structurally compatible local type so `withInquiryContext` can return
@@ -447,6 +448,12 @@ export async function uploadInquiryAttachmentAsTalent(
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Storage unavailable." };
 
+    // H1: executables and HTML/SVG refused, stored type from the bytes,
+    // photos stripped of EXIF/GPS. (The 4 MB server-action body limit binds
+    // before the 100 MB cap above.)
+    const guarded = await readGuardedAttachment(file, { maxBytes: 100 * 1024 * 1024 });
+    if (!guarded.ok) return { ok: false, error: guarded.error };
+
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const objectId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const storagePath = `${tenantId}/${inquiryId}/${objectId}-${safeName}`;
@@ -454,8 +461,8 @@ export async function uploadInquiryAttachmentAsTalent(
     const { error: uploadErr } = await admin
       .storage
       .from("inquiry-files")
-      .upload(storagePath, file, {
-        contentType: file.type || "application/octet-stream",
+      .upload(storagePath, guarded.bytes, {
+        contentType: guarded.contentType,
         upsert: false,
       });
     if (uploadErr) {
@@ -471,8 +478,8 @@ export async function uploadInquiryAttachmentAsTalent(
         uploaded_by: user.id,
         storage_path: storagePath,
         filename: file.name,
-        mime_type: file.type || null,
-        byte_size: file.size,
+        mime_type: guarded.contentType,
+        byte_size: guarded.byteSize,
         description,
         visibility: "participant",
       })
