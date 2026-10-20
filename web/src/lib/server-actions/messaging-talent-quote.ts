@@ -13,6 +13,7 @@ import { loadTalentOfferingsForEditor } from "@/lib/talent/offerings-actions";
 
 import { messagingTalentStartConversation } from "./messaging-talent-writes";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { isSellable } from "@/lib/offerings/sellable";
 
 /**
  * Send quote (talent dashboard), in two steps so the panel can show real
@@ -79,7 +80,7 @@ export async function messagingTalentQuoteSend(input: {
   const [hub, own] = await Promise.all([getPlatformHubTenant(), loadTalentOfferingsForEditor(actor.talentProfileId)]);
   if (!hub?.tenantId) return fail("unavailable");
   const tenantId = hub.tenantId;
-  const offering = own.ok ? own.items.find((o) => o.id === parsed.data.offeringId && o.status === "published") : undefined;
+  const offering = own.ok ? own.items.find((o) => o.id === parsed.data.offeringId && isSellable(o, "pos_desk")) : undefined;
   if (!offering) return fail("not_found");
 
   const { inquiryId } = parsed.data;

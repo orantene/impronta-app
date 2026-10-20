@@ -8,12 +8,14 @@
  *
  * IT IS NOT A SCRAPER, AND THE LIMITS ARE WHAT MAKE THAT TRUE
  * ──────────────────────────────────────────────────────────
- *   • ONE page. No crawling, no link following, no sitemap. `redirect: "manual"`,
- *     so a redirect is a failure rather than a second fetch into somewhere new.
+ *   • ONE page. No crawling, no link following, no sitemap. HTTP redirects
+ *     (http to https, apex to www) are followed up to 3 hops by `safeFetch`,
+ *     which re-validates and pins every hop, so a redirect cannot reach an
+ *     internal host (H1; before that every redirect simply failed).
  *   • Rate limited per session AND per IP, in its own namespace so it cannot eat
  *     the conversation's budget or hide behind it.
- *   • SSRF-guarded by the shared `assertPublicHttpUrl`, the same guard the link
- *     previews use.
+ *   • SSRF-guarded by `assertPublicHttpUrl` up front and `safeFetch` on the
+ *     wire, the same guard the link previews use.
  *   • HTML only, 512KB cap, 5s timeout.
  *
  * Without those it becomes a general-purpose fetch endpoint that anyone can
@@ -31,7 +33,8 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { assertPublicHttpUrl, readCappedText } from "@/lib/ssrf-guard";
+import { assertPublicHttpUrl } from "@/lib/ssrf-guard";
+import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 
@@ -131,35 +134,25 @@ export async function importFromUrl(input: {
 
 /** Fetch and strip one page. Null on any failure, which is common and fine. */
 async function fetchPage(url: URL): Promise<ImportedPage | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      method: "GET",
-      // No auto-follow: a redirect could land on an internal host that the
-      // pre-flight DNS check never saw.
-      redirect: "manual",
-      signal: controller.signal,
-      headers: {
-        "user-agent": "TulalaIntake/1.0 (+https://tulala.digital)",
-        accept: "text/html,application/xhtml+xml",
-        "accept-language": "en,es;q=0.8",
-      },
-    });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!res.ok) return null;
+  // H1: safeFetch pins the vetted IP into the socket and re-checks every
+  // redirect hop, so following a redirect can no longer land on an internal
+  // host (the old `redirect: "manual"` simply failed on every redirect).
+  const res = await safeFetch(url.toString(), {
+    maxBytes: MAX_BYTES,
+    overflow: "truncate",
+    timeoutMs: FETCH_TIMEOUT_MS,
+    headers: {
+      "user-agent": "TulalaIntake/1.0 (+https://tulala.digital)",
+      accept: "text/html,application/xhtml+xml",
+      "accept-language": "en,es;q=0.8",
+    },
+  });
+  if (!res.ok || res.status < 200 || res.status >= 300) return null;
 
   const contentType = res.headers.get("content-type") ?? "";
   if (!/text\/html|application\/xhtml/i.test(contentType)) return null;
 
-  const html = await readCappedText(res, MAX_BYTES);
+  const html = decodeBody(res.body);
   if (!html) return null;
 
   const meta = readMeta(html);

@@ -31,6 +31,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
+import { money } from "./ticket-picker-copy";
 
 type Locale = "en" | "es";
 
@@ -63,9 +64,15 @@ const COPY: Record<Locale, Record<string, string>> = {
     email: "Email",
     name: "Name",
     seats: "Seats",
-    book: "Take a seat",
+    book: "Book",
+    bookAndPay: "Book and pay",
     booking: "Taking your seat...",
-    done: "You are in. Check your email for the details.",
+    redirecting: "Opening payment...",
+    perPerson: "{price} per person",
+    total: "Total {price}",
+    // Shown only for a FREE booking: nothing is paid and no ticket email is sent, so it claims no email.
+    done: "Done, your spot is booked.",
+    pay_error: "We could not open the payment page. Press the button to try again.",
     emailRequired: "We need an email to send your place to.",
     // Refusals, each its own sentence. A visitor who reads the wrong one goes
     // somewhere else.
@@ -88,9 +95,14 @@ const COPY: Record<Locale, Record<string, string>> = {
     email: "Correo",
     name: "Nombre",
     seats: "Plazas",
-    book: "Reservar plaza",
+    book: "Reservar",
+    bookAndPay: "Reservar y pagar",
     booking: "Reservando tu plaza...",
-    done: "Listo. Revisa tu correo para los detalles.",
+    redirecting: "Abriendo el pago...",
+    perPerson: "{price} por persona",
+    total: "Total {price}",
+    done: "Listo, tu lugar está reservado.",
+    pay_error: "No pudimos abrir la página de pago. Pulsa el botón para intentar de nuevo.",
     emailRequired: "Necesitamos un correo para enviarte tu plaza.",
     sold_out: "Esa clase acaba de llenarse. Elige otra fecha y es tuya.",
     session_not_found: "Esa fecha ya no esta en el horario. Elige otra.",
@@ -108,6 +120,19 @@ export interface SessionPickerIslandProps {
   offeringId: string;
   title?: string;
   locale?: string;
+  /** Test seam only: production uses the dynamic import and window.location. */
+  deps?: {
+    loadActions?: () => Promise<typeof import("@/app/(public)/_sessions/session-picker-actions")>;
+    navigate?: (url: string) => void;
+  };
+}
+
+/** What the guest does after `bookSessionSeat` answers ok. Paid orders go to Stripe; only a free one is "done". */
+export function nextStepAfterBook(
+  result: { checkoutTransactionId: string | null },
+  amountCents: number | null,
+): "pay" | "done" {
+  return result.checkoutTransactionId && (amountCents ?? 0) > 0 ? "pay" : "done";
 }
 
 /** The venue's clock, not the reader's — a class happens where it happens. */
@@ -161,11 +186,17 @@ export function SessionPickerIsland({
   offeringId,
   title,
   locale,
+  deps,
 }: SessionPickerIslandProps) {
   const loc = pickLocale(locale);
   const t = (key: string) => COPY[loc][key] ?? COPY.en[key] ?? key;
 
+  const getActions = useCallback(
+    () => (deps?.loadActions ? deps.loadActions() : import("@/app/(public)/_sessions/session-picker-actions")),
+    [deps],
+  );
   const [sessions, setSessions] = useState<PickerSession[] | null>(null);
+  const [price, setPrice] = useState<{ amountCents: number | null; currency: string }>({ amountCents: null, currency: "USD" });
   const [chosen, setChosen] = useState<string | null>(null);
   const [seats, setSeats] = useState(1);
   const [email, setEmail] = useState("");
@@ -174,6 +205,7 @@ export function SessionPickerIsland({
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [boundOfferingId, setBoundOfferingId] = useState<string | null>(
     offeringId.trim() || null,
   );
@@ -204,7 +236,7 @@ export function SessionPickerIsland({
       return;
     }
     try {
-      const actions = await import("@/app/(public)/_sessions/session-picker-actions");
+      const actions = await getActions();
       let offering = (offeringId ?? "").trim();
       if (!offering) {
         const resolved = await actions.resolveSessionPickerOffering({ tenantId: tenant });
@@ -218,8 +250,10 @@ export function SessionPickerIsland({
       }
       setHidden(false);
       const result = await actions.loadSessionPicker({ tenantId: tenant, offeringId: offering });
-      if (result.ok) setSessions(result.sessions);
-      else {
+      if (result.ok) {
+        setSessions(result.sessions);
+        setPrice({ amountCents: result.amountCents, currency: result.currency });
+      } else {
         setSessions([]);
         setRefusal(t(result.reason));
       }
@@ -229,7 +263,7 @@ export function SessionPickerIsland({
       setSessions([]);
       setRefusal(t("unavailable"));
     }
-  }, [tenantId, offeringId, loc]);
+  }, [tenantId, offeringId, loc, getActions]);
 
   useEffect(() => {
     void load();
@@ -244,9 +278,7 @@ export function SessionPickerIsland({
     setBusy(true);
     setRefusal(null);
     try {
-      const { bookSessionSeat } = await import(
-        "@/app/(public)/_sessions/session-picker-actions"
-      );
+      const { bookSessionSeat, startSessionCardPayment } = await getActions();
       const result = await bookSessionSeat({
         tenantId,
         offeringId: boundOfferingId ?? offeringId,
@@ -258,6 +290,26 @@ export function SessionPickerIsland({
         locale: loc,
       });
       if (result.ok) {
+        if (nextStepAfterBook(result, price.amountCents) === "pay" && result.checkoutTransactionId) {
+          // Paid: straight to Stripe. NEVER the done screen here, and no claim
+          // of an email: the ticket is sent by the paid webhook, after payment.
+          setRedirecting(true);
+          const pay = await startSessionCardPayment({
+            tenantId,
+            orderId: result.orderId,
+            transactionId: result.checkoutTransactionId,
+            locale: loc,
+          });
+          if (pay.ok) {
+            (deps?.navigate ?? ((u: string) => window.location.assign(u)))(pay.url);
+            return;
+          }
+          // The order exists under this cart key, so the key is kept: the retry
+          // is idempotent and reuses the same order and transaction.
+          setRedirecting(false);
+          setRefusal(t("pay_error"));
+          return;
+        }
         setDone(true);
         return;
       }
@@ -365,6 +417,17 @@ export function SessionPickerIsland({
         </label>
       </div>
 
+      {price.amountCents != null && price.amountCents > 0 ? (
+        <div data-session-picker="price" style={{ marginTop: 12 }}>
+          <div>
+            {t("perPerson").replace("{price}", money(price.amountCents, price.currency, loc, ""))}
+          </div>
+          <div style={{ fontWeight: 600 }}>
+            {t("total").replace("{price}", money(price.amountCents * seats, price.currency, loc, ""))}
+          </div>
+        </div>
+      ) : null}
+
       {refusal ? (
         <div data-session-picker="refusal" style={{ marginTop: 12 }}>
           {refusal}
@@ -374,10 +437,16 @@ export function SessionPickerIsland({
       <button
         type="button"
         onClick={() => void book()}
-        disabled={!chosen || busy}
+        disabled={!chosen || busy || redirecting}
         style={{ marginTop: 12 }}
       >
-        {busy ? t("booking") : t("book")}
+        {redirecting
+          ? t("redirecting")
+          : busy
+            ? t("booking")
+            : (price.amountCents ?? 0) > 0
+              ? t("bookAndPay")
+              : t("book")}
       </button>
     </div>
   );

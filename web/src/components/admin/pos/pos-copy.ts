@@ -637,6 +637,7 @@ export function refusalCopy(t: Translator): PosRefusalCopy {
     tenderShort: t(`${K}.refusal.tenderShort`),
     emptySale: t(`${K}.refusal.emptySale`),
     itemRefused: t(`${K}.refusal.itemRefused`),
+    itemUnavailable: t(`${K}.refusal.itemUnavailable`),
     discountRefused: t(`${K}.refusal.discountRefused`),
     discountNeedsCustomer: t(`${K}.refusal.discountNeedsCustomer`),
     readerUnavailable: t(`${K}.refusal.readerUnavailable`),
