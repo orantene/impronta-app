@@ -129,7 +129,7 @@ async function loadCalendar(
       .eq("talent_profile_id", talentProfileId)
       .gt("ends_at", fromIso)
       .lt("starts_at", toIso),
-    supabase.from("agency_memberships").select("tenant_id").eq("profile_id", userId).eq("role", "owner"),
+    supabase.from("agency_memberships").select("tenant_id").eq("profile_id", userId).eq("role", "owner").eq("status", "active"),
   ]);
   const err = holdsRes.error ?? bookingsRes.error ?? ownRes.error;
   if (err) {
