@@ -31,6 +31,7 @@ src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
+src/lib/billing/receipt-notice.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
@@ -62,6 +63,7 @@ src/lib/catalog/tax.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
 src/lib/events/cancel-cascade.static.test.ts
+src/lib/events/ticket-payment-guard.test.ts
 src/lib/fulfilment/pipelines.test.ts
 src/lib/inquiry/counter-offer-currency.test.ts
 src/lib/inquiry/inquiry-engine-lifecycle.test.ts
@@ -98,6 +100,8 @@ src/lib/money/money-spine.static.test.ts
 src/lib/money/september-ledger-fixture.test.ts
 src/lib/money/today-money-tiles.test.ts
 src/lib/offerings/non-menu-offerings.test.ts
+src/lib/offerings/sellable-one-rule.static.test.ts
+src/lib/offerings/sellable.test.ts
 src/lib/offerings/services-safety.static.test.ts
 src/lib/ops/balance-reconcile.test.ts
 src/lib/ops/cron-heartbeat.test.ts
@@ -150,6 +154,7 @@ src/lib/payments/collected-today.test.ts
 src/lib/payments/connect-lane-attention.test.ts
 src/lib/payments/deposit-single-producer.static.test.ts
 src/lib/payments/disburse.test.ts
+src/lib/payments/dispute-evidence.test.ts
 src/lib/payments/failed-refund-attention-note.test.ts
 src/lib/payments/failed-refund-settlement.test.ts
 src/lib/payments/link-checkout-extend-claim.test.ts
@@ -169,6 +174,7 @@ src/lib/payments/pay-refund-status.test.ts
 src/lib/payments/pay-return-views.test.tsx
 src/lib/payments/pay-start-status.test.ts
 src/lib/payments/pay-theme.static.test.ts
+src/lib/payments/payment-review-flags.test.ts
 src/lib/payments/payments-method-source.static.test.ts
 src/lib/payments/payout-rail-policy.test.ts
 src/lib/payments/payout-release-gate.test.ts
@@ -222,6 +228,7 @@ src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
 src/lib/pos/recover-collections.test.ts
 src/lib/pos/refusal-reason.test.ts
+src/lib/pos/reprice-item-availability.test.ts
 src/lib/pos/scan-code.test.ts
 src/lib/pos/shift-movements.test.ts
 src/lib/pos/shift.test.ts

@@ -78,6 +78,8 @@ export type TicketPurchaseArgs = {
    * the gate decorative in a different way than it already was.
    */
   confirmedAge?: number | null;
+  /** Hidden tier ids unlocked by the page's deep link (D1). */
+  unlockedVariantIds?: string[] | null;
 };
 
 /**
@@ -109,6 +111,7 @@ export function buildTicketPurchase(a: TicketPurchaseArgs): PurchaseInput {
     promoCode: a.promoCode ?? null,
     locale: a.locale ?? null,
     ageAttestation: typeof a.confirmedAge === "number" ? { confirmedAge: a.confirmedAge } : null,
+    ...(a.unlockedVariantIds && a.unlockedVariantIds.length > 0 ? { unlockedVariantIds: a.unlockedVariantIds } : {}),
   };
 }
 

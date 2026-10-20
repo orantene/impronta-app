@@ -29,6 +29,7 @@ import {
 } from "@/lib/server-actions/roster-import";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { checkDeclaredLength } from "@/lib/media/upload-guards";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,6 +65,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Parse the multipart body. Reject early on size + format.
+  // H1: refuse by declared length before formData() buffers the body.
+  if (!checkDeclaredLength(req.headers.get("content-length"), MAX_FILE_SIZE_BYTES + 64 * 1024).ok) {
+    return NextResponse.json(
+      { ok: false, error: `File exceeds ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit` },
+      { status: 413 },
+    );
+  }
   let formData: FormData;
   try {
     formData = await req.formData();

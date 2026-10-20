@@ -5,6 +5,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
+import { RecordNotFoundDrawer } from "../talent-drawers/record-not-found";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { useQueuedRouterRefresh } from "@/lib/ui/use-queued-router-refresh";
@@ -5273,7 +5274,8 @@ export function PaymentDetailDrawer() {
   const { state, closeDrawer } = useAdminShell();
   const payload = state.drawer.payload ?? {};
   const rowId = (payload as { id?: string }).id;
-  const row = WORKSPACE_PAYMENTS.find((r) => r.id === rowId) ?? WORKSPACE_PAYMENTS[0];
+  const row = WORKSPACE_PAYMENTS.find((r) => r.id === rowId);
+  if (!row) return <RecordNotFoundDrawer open onClose={closeDrawer} />;
 
   // Try to find a matching rich summary by booking ref, falling back to
   // a synthesized one constructed from the row.

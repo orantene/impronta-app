@@ -14,6 +14,7 @@ import type {
   MaxSiteRow,
 } from "@/lib/talent-site/resolve-max-site-core";
 import { cachePublicTalentSiteData } from "./public-site-data-cache.server";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 /**
  * Talent Max Site — server LOADS (service-role reads).
@@ -206,6 +207,28 @@ export async function loadTalentSellingDefaults(talentProfileId: string): Promis
 }
 
 /**
+ * True when the talent's published, approved, public offerings are all goods or
+ * packages (product / package) and there is at least one. Any service, class or
+ * ticket makes it false, so a mixed seller keeps the booking wording. A read
+ * error is false (never switches a site to Buy on a blip).
+ */
+async function loadSellsGoodsOnly(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  talentProfileId: string,
+): Promise<boolean> {
+  const { data, error } = await scopeToSellableOfferings(
+    admin.from("talent_offerings").select("kind").eq("talent_profile_id", talentProfileId),
+    "guest",
+  ).limit(200);
+  if (error) {
+    logServerError("talentSite.loadSellsGoodsOnly", error);
+    return false;
+  }
+  const kinds = ((data ?? []) as Array<{ kind: string | null }>).map((r) => r.kind);
+  return kinds.length > 0 && kinds.every((k) => k === "product" || k === "package");
+}
+
+/**
  * Site-wide CTA mode for seeded action copy (Folio footer line, Frame
  * "Book a session", ...): booking posture with the plan ceiling applied,
  * and accepting_bookings (GRK-068) so a paused site never seeds "Reservar".
@@ -215,11 +238,14 @@ export async function loadTalentSiteCtaMode(
   planKey: string | null,
 ): Promise<SiteCtaMode> {
   const admin = createServiceRoleClient();
-  const [hours, switches] = await Promise.all([
+  const [hours, switches, sellsGoods] = await Promise.all([
     admin ? loadWorkingHoursPresence(admin, [talentProfileId]) : Promise.resolve(new Map<string, boolean>()),
     admin ? loadTalentSiteSwitches(admin, talentProfileId) : Promise.resolve(null),
+    admin ? loadSellsGoodsOnly(admin, talentProfileId) : Promise.resolve(false),
   ]);
   return resolveSiteCtaMode({
+    // TUL-639: goods or packages only (no services) = the Buy CTA.
+    sellsGoods,
     sellingDefaults: await loadTalentSellingDefaults(talentProfileId),
     confirmsByHand: !talentOffersInstantBooking(planKey),
     // An unknown hours read never downgrades (same rule as the offering loader).

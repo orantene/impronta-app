@@ -3,6 +3,19 @@
  * `actions.ts` (they are not server actions and were never exported).
  */
 
+import {
+  PHOTO_RASTER_MIMES,
+  SNIFF_HEAD_BYTES,
+  guardImageBytes,
+  readResponseCapped,
+} from "@/lib/media/upload-guards";
+
+/**
+ * H1: a shared Drive file can be any size. Raw camera photos fit; anything
+ * past this is refused while streaming, never buffered whole.
+ */
+export const DRIVE_IMPORT_MAX_BYTES = 25 * 1024 * 1024;
+
 export function parseDriveUrl(url: string): { kind: "file"; fileId: string } | { kind: "folder"; folderId: string } | null {
   try {
     const u = new URL(url.trim());
@@ -29,7 +42,15 @@ export async function downloadDriveFile(fileId: string): Promise<{ buffer: Array
   if (!res.ok) return null;
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.startsWith("image/")) return null;
-  const buffer = await res.arrayBuffer();
-  if (buffer.byteLength < 1000) return null; // likely an error HTML page
-  return { buffer, contentType };
+  const read = await readResponseCapped(res, DRIVE_IMPORT_MAX_BYTES);
+  if (!read.ok) return null;
+  if (read.bytes.byteLength < 1000) return null; // likely an error HTML page
+  // The header was Google's claim; the bytes decide (SVG and HTML refused).
+  const sniffed = guardImageBytes(read.bytes.subarray(0, SNIFF_HEAD_BYTES), { allowed: PHOTO_RASTER_MIMES });
+  if (!sniffed.ok) return null;
+  const buffer = read.bytes.buffer.slice(
+    read.bytes.byteOffset,
+    read.bytes.byteOffset + read.bytes.byteLength,
+  ) as ArrayBuffer;
+  return { buffer, contentType: sniffed.mime };
 }
