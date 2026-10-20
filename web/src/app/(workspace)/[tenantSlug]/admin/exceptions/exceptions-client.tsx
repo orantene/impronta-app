@@ -29,7 +29,7 @@ import { newCommandId } from "@/lib/commands/envelope";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import type { ExceptionRow, ExceptionSeverity, ExceptionSummary } from "@/lib/exceptions/model";
-import { resumeExceptionAction } from "../_exceptions-actions";
+import { resolvePaymentFlagAction, resumeExceptionAction } from "../_exceptions-actions";
 import {
   MOBILE_BUTTON_PRIMARY,
   MOBILE_BUTTON_SECONDARY,
@@ -118,10 +118,13 @@ export function ExceptionsClient({
   rows,
   summary,
   unavailable,
+  flagCopy,
 }: {
   rows: ExceptionRow[];
   summary: ExceptionSummary;
   unavailable: string[];
+  /** "Mark resolved" strings for flagged payments, already in the reader's language (server-resolved). */
+  flagCopy?: { resolve: string; resolved: string; resolveFailed: string };
 }) {
   const t = useT();
   const [state, setState] = useState<Record<string, RowState>>({});
@@ -164,6 +167,15 @@ export function ExceptionsClient({
     },
     [keys, t],
   );
+
+  // "Mark resolved" on a flagged card charge: moves no money; the row leaves on the next load.
+  const markResolved = async (row: ExceptionRow) => {
+    if (!row.resolvable) return;
+    const target = row.resolvable;
+    setState((s) => ({ ...s, [row.key]: { pending: true, message: null, failed: false } }));
+    const ok = await resolvePaymentFlagAction(target).then((r) => r.ok, () => false);
+    setState((s) => ({ ...s, [row.key]: { pending: false, message: (ok ? flagCopy?.resolved : flagCopy?.resolveFailed) ?? null, failed: !ok } }));
+  };
 
   return (
     <main style={{ padding: "32px 28px", maxWidth: 1080, margin: "0 auto", color: C.ink }} className="max-[720px]:p-0!">
@@ -365,6 +377,16 @@ export function ExceptionsClient({
                     </Link>
                   )}
 
+                  {row.resolvable && flagCopy && (!rowState || rowState.failed) && (
+                    <button
+                      type="button"
+                      onClick={() => void markResolved(row)}
+                      className="rounded-full border border-admin-border-soft px-[14px] py-[7px] text-[12.5px] font-semibold"
+                    >
+                      {flagCopy.resolve}
+                    </button>
+                  )}
+
                   {rowState?.message && (
                     <span
                       role="status"
@@ -440,6 +462,11 @@ export function ExceptionsClient({
                 <MobileRow title={t(`${K}.open`)} detail={t(`${K}.sheet.openDetail`)} href={openRow.href} />
               ) : null}
             </MobileCard>
+            {openRow.resolvable && flagCopy && (!state[openRow.key] || state[openRow.key]?.failed) ? (
+              <button type="button" onClick={() => void markResolved(openRow)} className={MOBILE_BUTTON_SECONDARY}>
+                {flagCopy.resolve}
+              </button>
+            ) : null}
             {state[openRow.key]?.message ? (
               <MobileNote tone={state[openRow.key]?.failed ? "coral" : "slate"}>{state[openRow.key]?.message}</MobileNote>
             ) : null}

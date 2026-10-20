@@ -86,6 +86,22 @@ export async function GET(request: NextRequest) {
       },
       (input) => supabase.auth.verifyOtp(input),
       email,
+      {
+        // TUL-1352: staging must not mint new users unless the flag says so.
+        allowCreate: process.env.DEV_SIGNIN_CREATE_FIXTURE_USERS === "1",
+        userExists: async (addr) => {
+          const target = addr.toLowerCase();
+          for (let page = 1; page <= 10; page += 1) {
+            const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+            // A failed lookup is "cannot confirm the user exists": refuse (never create on a blip).
+            if (error) return false;
+            const users = data?.users ?? [];
+            if (users.some((u) => u.email?.toLowerCase() === target)) return true;
+            if (users.length < 1000) return false;
+          }
+          return false;
+        },
+      },
     );
     if (!minted.ok) return new NextResponse(minted.message, { status: minted.status });
     return response;

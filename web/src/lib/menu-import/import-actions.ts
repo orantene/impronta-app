@@ -17,6 +17,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
+import { insertPatch, updatePatch } from "./import-patch";
 import { parseRestauradminMenu, type ImportedMenu } from "./parse-restauradmin";
 import { planMenuImport, SOURCE_ID_KEY, type ExistingOffering, type ImportPlan } from "./plan-import";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -189,7 +190,7 @@ export async function applyParsedMenu(
     if (offeringId) {
       const { error } = await admin
         .from("talent_offerings")
-        .update(patch)
+        .update(updatePatch(patch))
         .eq("id", offeringId)
         .eq("tenant_id", tenantId)
         .eq("owner_kind", "workspace");
@@ -201,7 +202,7 @@ export async function applyParsedMenu(
     } else {
       const { data, error } = await admin
         .from("talent_offerings")
-        .insert(patch)
+        .insert(insertPatch(patch))
         .select("id")
         .maybeSingle();
       if (error || !data) {

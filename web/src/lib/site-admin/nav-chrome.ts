@@ -17,6 +17,7 @@ export const NAV_CHROME_STYLES = [
   "bottom_tab",
   "filter_bar",
   "chapter_dots",
+  "no_nav",
 ] as const;
 
 export type NavChromeStyle = (typeof NAV_CHROME_STYLES)[number];
@@ -31,6 +32,7 @@ export const NAV_CHROME_LABELS: Readonly<Record<NavChromeStyle, string>> = {
   bottom_tab: "Bottom tabs",
   filter_bar: "Filter bar",
   chapter_dots: "Chapter dots",
+  no_nav: "Name only",
 };
 
 export const NAV_CHROME_HELPERS: Readonly<Record<NavChromeStyle, string>> = {
@@ -40,6 +42,7 @@ export const NAV_CHROME_HELPERS: Readonly<Record<NavChromeStyle, string>> = {
   bottom_tab: "Phone tab bar pinned to the bottom edge.",
   filter_bar: "Sticky horizontal chip strip of section anchors.",
   chapter_dots: "Phone dots with text labels for each chapter.",
+  no_nav: "No links: just your name, city and the booking button.",
 };
 
 export function isNavChromeStyle(value: unknown): value is NavChromeStyle {

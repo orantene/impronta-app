@@ -24,7 +24,14 @@ export type FixtureVerify = (input: { type: "magiclink"; token_hash: string }) =
 
 export type FixtureSessionResult =
   | { ok: true }
-  | { ok: false; status: 401 | 500; message: string };
+  | { ok: false; status: 401 | 404 | 500; message: string };
+
+export type FixtureOptions = {
+  /** TUL-1352: create a missing user only when true (env flag, off by default). */
+  allowCreate?: boolean;
+  /** Existence check used when creation is not allowed. */
+  userExists?: (email: string) => Promise<boolean>;
+};
 
 export const ALREADY_REGISTERED = /already|registered|exists/i;
 
@@ -32,11 +39,24 @@ export async function mintFixtureSession(
   admin: FixtureAdmin,
   verifyOtp: FixtureVerify,
   email: string,
+  options: FixtureOptions = {},
 ): Promise<FixtureSessionResult> {
-  // 1. The user exists after this line, whether or not it did before.
-  const { error: createError } = await admin.createUser({ email, email_confirm: true });
-  if (createError && !ALREADY_REGISTERED.test(createError.message ?? "")) {
-    return { ok: false, status: 500, message: `Failed to create fixture user: ${createError.message ?? "unknown"}` };
+  if (options.allowCreate) {
+    // 1. The user exists after this line, whether or not it did before.
+    const { error: createError } = await admin.createUser({ email, email_confirm: true });
+    if (createError && !ALREADY_REGISTERED.test(createError.message ?? "")) {
+      return { ok: false, status: 500, message: `Failed to create fixture user: ${createError.message ?? "unknown"}` };
+    }
+  } else {
+    // TUL-1352: never create by default. A missing account is refused by name.
+    const exists = options.userExists ? await options.userExists(email) : false;
+    if (!exists) {
+      return {
+        ok: false,
+        status: 404,
+        message: `Fixture account ${email} does not exist. Dev sign-in will not create it unless DEV_SIGNIN_CREATE_FIXTURE_USERS=1 is set.`,
+      };
+    }
   }
   // 2. One magic link for that user.
   const { data, error: linkError } = await admin.generateLink({ type: "magiclink", email });

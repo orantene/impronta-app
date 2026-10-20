@@ -7,6 +7,7 @@
  * matches the seed exactly and is never rewritten, so every label stays
  * editable and already-applied sites are fixed without a reapply.
  */
+import { mainCtaLabel } from "./main-cta";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
 import { registeredAuthoredOverlays } from "./theme-catalog/collection/authored";
@@ -210,7 +211,7 @@ function localisePattern(value: string): string | null {
 }
 
 /** The talent's site-wide booking mode (posture after the plan ceiling). */
-export type SiteCtaMode = "instant" | "request" | "inquiry";
+export type SiteCtaMode = "instant" | "request" | "inquiry" | "buy";
 
 /**
  * Site-wide CTA mode: the talent default posture (`selling_defaults`), with
@@ -228,7 +229,11 @@ export function resolveSiteCtaMode(input: {
   instantReady?: boolean;
   /** false = taking new bookings is paused (§8). undefined = not asked. */
   acceptingBookings?: boolean;
+  /** true = the talent sells goods or packages (no services): the main CTA is Buy, never booking wording. */
+  sellsGoods?: boolean;
 }): SiteCtaMode {
+  // A shop is not a booking: a pause on bookings does not hide it.
+  if (input.sellsGoods === true) return "buy";
   if (input.acceptingBookings === false) return "inquiry";
   const posture = parseSellingBookingSettings(input.sellingDefaults).bookingPosture;
   if (posture === "instant" && input.confirmsByHand) return "request";
@@ -248,41 +253,96 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     instant: { en: "Book online", es: "Reserva en línea" },
     request: { en: "Request an appointment", es: "Solicita una cita" },
     inquiry: { en: "Write to me for a quote", es: "Escríbeme para cotizar" },
+    buy: { en: "Shop now", es: "Compra ahora" },
   },
   "Book a session": {
     instant: { en: "Book a session", es: "Reserva una sesión" },
     request: { en: "Request a session", es: "Solicita una sesión" },
     inquiry: { en: "Write to me for a quote", es: "Escríbeme para cotizar" },
+    buy: { en: "Shop now", es: "Compra ahora" },
   },
   Book: {
     instant: { en: "Book", es: "Reserva" },
     request: { en: "Request", es: "Solicitar" },
     inquiry: { en: "Quote", es: "Cotizar" },
+    buy: { en: "Buy", es: "Comprar" },
   },
   // Maison v2 hero primary: the booking mode picks the verb.
   "Reserve a time": {
     instant: { en: "Book now", es: "Reservar" },
     request: { en: "Request a time", es: "Solicitar cita" },
     inquiry: { en: "Ask for a quote", es: "Pide una cotización" },
+    buy: { en: "Shop now", es: "Comprar" },
   },
   Booking: {
     instant: { en: "Booking", es: "Reservas" },
     request: { en: "Appointments", es: "Citas" },
     inquiry: { en: "Quotes", es: "Cotizaciones" },
+    buy: { en: "Shop", es: "Tienda" },
   },
   // Maison v2 2.7 footer button: the booking mode picks the verb.
+  // TUL-639: the main CTA reads from the ONE helper (`main-cta.ts`): Reservar cita /
+  // Solicitar / Escríbeme, never worded per theme.
   "Book an appointment": {
-    instant: { en: "Book an appointment", es: "Reservar cita" },
-    request: { en: "Request an appointment", es: "Solicitar cita" },
-    inquiry: { en: "Write to me", es: "Escríbeme" },
+    instant: { en: mainCtaLabel("instant", "en"), es: mainCtaLabel("instant", "es") },
+    request: { en: mainCtaLabel("request", "en"), es: mainCtaLabel("request", "es") },
+    inquiry: { en: mainCtaLabel("message", "en"), es: mainCtaLabel("message", "es") },
+    buy: { en: mainCtaLabel("buy", "en"), es: mainCtaLabel("buy", "es") },
   },
 };
+
+/**
+ * The ONLY label whose anchor follows the mode: the seeded default. Mode wordings
+ * (Reservar cita, Message me, Buy...) are outputs, so a button the talent typed
+ * with one of them keeps its own href.
+ */
+const MAIN_CTA_SEED_LABEL = "Book an appointment";
+
+/**
+ * TUL-639: the seeded main CTA lands on booking. The seed points at `#services`
+ * (the mode is unknown at seed time); wherever booking is on (instant or
+ * request, never an unknown mode) a SEEDED main-CTA button whose href is still `#services`
+ * is retargeted to `#book`, which opens the booking sheet. Inquiry and buy keep `#services`
+ * (the catalog).
+ * A button the talent re-pointed or retyped is never touched.
+ */
+function retargetMainCtaAnchors(value: unknown, mode: SiteCtaMode | null): unknown {
+  // Only where booking is on. Unknown mode (null), inquiry and buy keep `#services`.
+  if (mode !== "instant" && mode !== "request") return value;
+  if (Array.isArray(value)) {
+    let changed = false;
+    const out = value.map((v) => {
+      const r = retargetMainCtaAnchors(v, mode);
+      if (r !== v) changed = true;
+      return r;
+    });
+    return changed ? out : value;
+  }
+  if (!value || typeof value !== "object") return value;
+  const o = value as Record<string, unknown>;
+  let next: Record<string, unknown> | null = null;
+  if (typeof o.label === "string" && o.label.trim() === MAIN_CTA_SEED_LABEL && o.href === "#services") {
+    next = { ...o, href: "#book" };
+  }
+  for (const [k, v] of Object.entries(o)) {
+    if (k === "href") continue;
+    const r = retargetMainCtaAnchors(v, mode);
+    if (r !== v) (next ??= { ...o })[k] = r;
+  }
+  return next ?? value;
+}
 
 /** Spanish mode copy -> its entry, so a Spanish seed follows the mode in English. */
 const SEEDED_MODE_COPY_BY_ES: Readonly<Record<string, ModeCopy>> = (() => {
   const out: Record<string, ModeCopy> = {};
-  for (const copy of Object.values(SEEDED_MODE_COPY)) {
-    for (const line of Object.values(copy)) if (!(line.es in out)) out[line.es] = copy;
+  for (const [seed, copy] of Object.entries(SEEDED_MODE_COPY)) {
+    // The main CTA's Spanish wordings are mode OUTPUTS, never Spanish seeds: a label a talent
+    // typed in Spanish (Comprar, Escríbeme, Reservar cita) must not be rewritten on an English site.
+    if (seed === MAIN_CTA_SEED_LABEL) continue;
+    for (const [mode, line] of Object.entries(copy)) {
+      if (mode === "buy") continue;
+      if (!(line.es in out)) out[line.es] = copy;
+    }
   }
   return out;
 })();
@@ -437,8 +497,10 @@ export function localiseSeededDesignLabels(
   const one = (v: string, href?: unknown): string | null =>
     swaps[v.trim()] ?? localiseBakedLanguagesLine(v, locale) ?? localiseOne(v, target, mode, href);
   const visit = (node: BuilderNode): BuilderNode => {
-    const props = (node.props ?? {}) as Record<string, unknown>;
-    let next: Record<string, unknown> | null = null;
+    // TUL-639: retarget seeded main-CTA anchors first, while labels are still the seed text.
+    const retargeted = retargetMainCtaAnchors(node.props ?? {}, mode) as Record<string, unknown>;
+    const props = retargeted;
+    let next: Record<string, unknown> | null = retargeted !== (node.props ?? {}) ? { ...retargeted } : null;
     for (const key of LABEL_PROPS) {
       const v = props[key];
       if (typeof v !== "string") continue;

@@ -81,6 +81,13 @@
       "reason": "POLICY_HELPER_FUNCTIONS: read-only STABLE boolean RLS helper (TUL-1013 evidence)"
     },
     {
+      "signature": "caller_has_active_tenant_role(uuid, text[])",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "Write-policy helper (TUL-1269 item 5, held 20261231418000): read-only STABLE boolean keyed on auth.uid() (platform admin or ACTIVE membership with a listed role); authenticated-only, policies using it are TO authenticated"
+    },
+    {
       "signature": "is_agency_staff()",
       "roles": [
         "authenticated"
