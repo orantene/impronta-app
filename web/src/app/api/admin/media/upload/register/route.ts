@@ -36,6 +36,9 @@ import {
 } from "@/lib/site-admin/media/validation";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { SNIFF_HEAD_BYTES, guardImageBytes } from "@/lib/media/upload-guards";
+import { uploadGuardError } from "@/lib/media/guarded-upload.server";
+import { hasEmbeddedMetadata } from "@/lib/media/image-sanitize.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -113,6 +116,16 @@ export async function POST(req: Request) {
     );
   }
 
+  // H1: size from the object's metadata BEFORE downloading it. On an info
+  // error the post-download gate below stays the authority.
+  const { data: objInfo, error: infoErr } = await supabase.storage.from(BUCKET).info(storagePath);
+  if (infoErr) logServerError("api.admin.media.upload.register.info", infoErr);
+  const early = objInfo?.size ? validateMediaUploadSize({ kind, byteSize: objInfo.size }) : null;
+  if (early && !early.ok) {
+    await supabase.storage.from(BUCKET).remove([storagePath]);
+    return NextResponse.json({ ok: false, error: early.error }, { status: early.status });
+  }
+
   // Download what the browser put there so we can size it + decide
   // whether sharp needs to overwrite.
   const { data: blob, error: dlErr } = await supabase.storage
@@ -134,8 +147,11 @@ export async function POST(req: Request) {
     typeof body.originalFilename === "string" ? body.originalFilename : null;
   const originalMime =
     typeof body.originalMime === "string" ? body.originalMime : storedType;
-  const initialMime =
-    storedType && storedType !== "application/octet-stream"
+  // H1: for images the stored BYTES decide the type, not the upload's claim.
+  const sniffed = kind === "image" ? guardImageBytes(storedBuf.subarray(0, SNIFF_HEAD_BYTES)) : null;
+  const initialMime = sniffed?.ok
+    ? sniffed.mime
+    : storedType && storedType !== "application/octet-stream"
       ? storedType
       : originalMime;
 
@@ -158,10 +174,10 @@ export async function POST(req: Request) {
   }
 
   if (kind === "image") {
-    const validation = validateImageUpload({
-      mime: initialMime,
-      byteSize: storedSize,
-    });
+    const validation =
+      sniffed && !sniffed.ok
+        ? { ok: false as const, status: sniffed.status, error: await uploadGuardError(sniffed.reason) }
+        : validateImageUpload({ mime: initialMime, byteSize: storedSize });
     if (!validation.ok) {
       await supabase.storage.from(BUCKET).remove([storagePath]);
       auditFailure(scope.tenantId, "media", "media.upload.failed", "An upload was rejected", {
@@ -182,7 +198,10 @@ export async function POST(req: Request) {
       const resized = await resizeUploadForStorage(storedBuf, "gallery");
       width = resized.width;
       height = resized.height;
-      if (resized.byteSize < storedSize * SERVER_RESIZE_GUARD_RATIO) {
+      // H1: also overwrite when the original carries EXIF/XMP (GPS), even if
+      // the re-encode is not smaller: the stored copy must never keep location.
+      const carriesMetadata = await hasEmbeddedMetadata(storedBuf);
+      if (resized.byteSize < storedSize * SERVER_RESIZE_GUARD_RATIO || carriesMetadata) {
         const { error: upErr } = await supabase.storage
           .from(BUCKET)
           .upload(storagePath, resized.buffer, {
@@ -192,6 +211,9 @@ export async function POST(req: Request) {
         if (!upErr) {
           storedSize = resized.byteSize;
           storedType = resized.mimeType;
+        } else if (carriesMetadata) {
+          // Fatal here: the stored original still carries its EXIF/GPS.
+          throw upErr;
         } else {
           // Non-fatal — we still have valid bytes in storage, just
           // bigger than they could be. Log and proceed.
