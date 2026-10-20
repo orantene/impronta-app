@@ -128,9 +128,6 @@ const NOT_GUARDED_ON_PURPOSE: Readonly<Record<string, string>> = {
   "src/lib/media/watermark-bake.ts": "stores a sharp-rendered derivative of an already-stored asset",
   "src/lib/payments/booking-confirmation.ts": "stores a server-generated PDF",
   "src/lib/site-admin/builder-core/templates/auto-thumbnail.ts": "stores a server-generated screenshot",
-  // DEFERRED (follow-up card in the PR body):
-  "src/lib/site-admin/sections/contact_form/attachments-store.ts":
-    "DEFERRED: has its own magic-byte sniffer (private bucket); image EXIF strip not yet applied",
 };
 
 const STORAGE_UPLOAD = /\.storage\b[\s\S]{0,160}?\.upload(?:ToSignedUrl)?\(/;
