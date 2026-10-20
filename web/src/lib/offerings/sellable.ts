@@ -89,8 +89,8 @@ type FilterChain = {
 export function scopeToSellableOfferings<Q>(query: Q, context: Exclude<SellContext, "reservation">): Q {
   const q = query as unknown as FilterChain;
   if (context === "pos_desk") return q.eq("status", "published") as unknown as Q;
+  if (context === "staff_quote") return q.eq("status", "published").eq("moderation_state", "approved") as unknown as Q;
   const base = q.eq("status", "published").eq("moderation_state", "approved");
-  if (context === "staff_quote") return base as unknown as Q;
   if (context === "guest_request") return base.in("visibility", ["public", "on_request"]) as unknown as Q;
   return base.eq("visibility", "public") as unknown as Q;
 }
