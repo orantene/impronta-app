@@ -479,16 +479,18 @@ function TalentRouter() {
         }
         return "";
       })();
-      if (agendaV2) {
-        page = (
-          <BookingRecordRoute
-            bookingId={storedId}
-            snapshot={bridgeTalentAgendaItems ?? null}
-            onBack={() => setTalentPage("calendar")}
-            onMessage={() => setTalentPage("messages")}
-          />
-        );
-      }
+      // Not gated on agendaV2: Money, Clients and the order link hand out
+      // /talent/bookings/<id> to every talent, and the record loads its own
+      // data. Gating left `page` null, so the router fallback ("Loading ...
+      // Almost there") stayed up forever for any talent outside the rollout.
+      page = (
+        <BookingRecordRoute
+          bookingId={storedId}
+          snapshot={bridgeTalentAgendaItems ?? null}
+          onBack={() => setTalentPage(agendaV2 ? "calendar" : "money")}
+          onMessage={() => setTalentPage("messages")}
+        />
+      );
       break;
     }
     case "calendar-availability":

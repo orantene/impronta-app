@@ -94,6 +94,8 @@ export function portfolioBlock(
     creditLine?: string;
     albumId?: string;
     limit?: number;
+    /** W-12 tag filter chips above the shots (Frame contact sheet). */
+    tagFilter?: boolean;
   } = {},
 ): BuilderNode {
   const layout = opts.layout ?? "grid";
@@ -124,6 +126,7 @@ export function portfolioBlock(
           creditLine: opts.creditLine ?? "",
           albumId: opts.albumId ?? "",
           limit: opts.limit ?? (layout === "chapter" ? 6 : PORTFOLIO_DEFAULT_PROPS.limit),
+          ...(opts.tagFilter ? { tagFilter: true } : {}),
         },
       },
     ],

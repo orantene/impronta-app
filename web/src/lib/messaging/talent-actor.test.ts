@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fakeAdmin, uuid } from "@/lib/storefront/__fixtures__/fake-admin";
 
-import { TALENT_INBOX_SCAN_LIMIT, listTalentInquiryIds, loadTalentSale } from "./talent-actor";
+import { TALENT_INBOX_SCAN_LIMIT, listTalentInquiryIds, loadTalentActor, loadTalentSale } from "./talent-actor";
 
 const HER = uuid(1);
 const INQUIRY = uuid(2);
@@ -128,4 +128,15 @@ test("TUL-625: every talent inbox scan query is ordered and limited", async () =
     assert.equal(call.limit, TALENT_INBOX_SCAN_LIMIT, call.table);
     assert.ok(call.ordered, call.table);
   }
+});
+
+test("a read-only caller may fall back to the session client when no service client exists", async () => {
+  const rows = { data: [{ id: HER, is_demo: false, display_name: "Her" }], error: null };
+  const q = { select: () => q, eq: () => q, limit: () => Promise.resolve(rows) };
+  const supabase = { auth: { getUser: async () => ({ data: { user: { id: uuid(9) } }, error: null }) }, from: () => q } as unknown as SupabaseClient;
+  const deps = { rlsClient: async () => supabase, adminClient: () => null };
+  const strict = await loadTalentActor(undefined, deps);
+  assert.equal(strict.ok, false);
+  const read = await loadTalentActor(undefined, deps, { firstProfile: true, adminFallback: true });
+  assert.equal(read.ok && read.talentProfileId, HER);
 });

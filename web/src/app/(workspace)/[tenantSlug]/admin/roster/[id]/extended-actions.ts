@@ -24,6 +24,7 @@ import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { isTalentOwnedStoragePath } from "@/lib/media/talent-storage-path";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { verifyPortfolioUpload } from "@/lib/media/portfolio-upload-verify.server";
 
 type Result<T = null> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -470,6 +471,10 @@ export async function registerPortfolioPhoto(
       if (ownedErr) logServerError("roster.registerPortfolioPhoto.ownedLookup", ownedErr);
       if (ownedErr || !owned) return { ok: false, error: "That file is not in this talent's storage." };
     }
+
+    const checked = await verifyPortfolioUpload(r.admin, talentId, input); // H1: bytes, pixel cap, EXIF/GPS
+    if (!checked.ok) return checked;
+    input = checked.input;
 
     // Plan count quota (media pricing pass 2026-08-15 §3a). A portfolio photo
     // is a net add, charged to the talent's plan because the row is
