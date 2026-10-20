@@ -567,6 +567,9 @@ export const MARKETING_PAGE_PREFIXES = [
   "/for",
   // Educational resource articles + glossary (`/resources/*`).
   "/resources",
+  // Public changelog (TUL-1394) and its Spanish-slugged twin; noindex until the launch flag.
+  "/changelog",
+  "/novedades",
   // The feature hub: the index, every `/features/{slug}`, and its
   // `opengraph-image` route.
   "/features",
