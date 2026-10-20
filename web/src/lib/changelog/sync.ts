@@ -12,11 +12,13 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { readGuardedImage } from "@/lib/media/guarded-upload.server";
+import { LIBRARY_RASTER_MIMES, readResponseCapped } from "@/lib/media/upload-guards";
+
 import {
   blocksToHtml,
   coverImageSource,
   imageBlockSource,
-  imageExtension,
   imageStoragePath,
   mapReleasePage,
   splitBodyByLanguage,
@@ -113,19 +115,27 @@ async function listBlocks(deps: ChangelogSyncDeps, pageId: string): Promise<Noti
   return out;
 }
 
-/** Download an image and store it in the changelog bucket. Returns the public URL. */
+/**
+ * Download an image and store it in the changelog bucket. Returns the public URL,
+ * or null when the image is skipped (unreachable, too big, or not a real raster
+ * image). The bytes go through the H1 upload guards, not the Content-Type header:
+ * streaming size cap, magic-byte type (png/jpeg/webp/gif only, so no SVG or HTML),
+ * 100 MP pixel cap, and EXIF/GPS stripped.
+ */
 async function copyImage(deps: ChangelogSyncDeps, pageId: string, key: string, src: string): Promise<string | null> {
   const fetchImpl = deps.fetchImpl ?? fetch;
   const res = await fetchImpl(src, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), cache: "no-store" });
   if (!res.ok) return null;
-  const contentType = res.headers.get("content-type");
-  const ext = imageExtension(contentType);
-  if (!ext) return null;
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) return null;
-  const path = imageStoragePath(pageId, key, ext);
+  const read = await readResponseCapped(res, MAX_IMAGE_BYTES);
+  if (!read.ok) return null;
+  const guarded = await readGuardedImage(new Blob([new Uint8Array(read.bytes)]), {
+    maxBytes: MAX_IMAGE_BYTES,
+    allowed: LIBRARY_RASTER_MIMES,
+  });
+  if (!guarded.ok) return null;
+  const path = imageStoragePath(pageId, key, guarded.ext);
   const bucket = deps.admin.storage.from(CHANGELOG_BUCKET);
-  const { error } = await bucket.upload(path, bytes, { upsert: true, contentType: contentType ?? undefined });
+  const { error } = await bucket.upload(path, guarded.bytes, { upsert: true, contentType: guarded.mime });
   if (error) throw new Error(`image upload failed for ${path}`);
   return bucket.getPublicUrl(path).data.publicUrl;
 }
@@ -154,6 +164,8 @@ async function syncPage(deps: ChangelogSyncDeps, page: NotionReleasePage): Promi
   const coverUrl = coverSrc ? await copyImage(deps, page.id, "cover", coverSrc) : null;
 
   const { en, es } = splitBodyByLanguage(blocks);
+  // No onConflict: `notion_page_id` is the table's primary key, which is what an
+  // upsert conflicts on by default (and the audit never flags a primary-key target).
   const { error } = await deps.admin.from(CHANGELOG_TABLE).upsert(
     {
       ...fields,
@@ -162,7 +174,6 @@ async function syncPage(deps: ChangelogSyncDeps, page: NotionReleasePage): Promi
       cover_image_url: coverUrl,
       synced_at: new Date((deps.now ?? Date.now)()).toISOString(),
     },
-    { onConflict: "notion_page_id" },
   );
   if (error) throw new Error(`upsert failed: ${error.message}`);
 }

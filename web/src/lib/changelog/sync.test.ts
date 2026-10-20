@@ -5,6 +5,14 @@ import { syncChangelog } from "./sync";
 
 type Row = Record<string, unknown>;
 
+/** A real 1x1 PNG: the sync now checks the bytes, not the Content-Type header. */
+const PNG_1X1 = Uint8Array.from(
+  Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64",
+  ),
+);
+
 /** Minimal in-memory stand-ins for supabase-js (table + storage) and Notion. */
 function fakeAdmin(initial: Row[]) {
   const rows = new Map<string, Row>(initial.map((r) => [String(r.notion_page_id), r]));
@@ -70,7 +78,7 @@ function fakeFetch(pages: unknown[]) {
       return Response.json({ results: blocks, has_more: false, next_cursor: null });
     }
     if (url.startsWith("https://notion-files.test/")) {
-      return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } });
+      return new Response(PNG_1X1, { headers: { "content-type": "image/png" } });
     }
     return new Response("not found", { status: 404 });
   }) as typeof fetch;
@@ -125,7 +133,7 @@ test("one bad entry is reported and does not stop the others", async () => {
     }
     if (url.includes("/blocks/bad/")) return new Response("boom", { status: 400 });
     if (url.includes("/children")) return Response.json({ results: [], has_more: false, next_cursor: null });
-    return new Response(new Uint8Array([1]), { headers: { "content-type": "image/png" } });
+    return new Response(PNG_1X1, { headers: { "content-type": "image/png" } });
   }) as typeof fetch;
   const result = await syncChangelog({ ...base, admin, fetchImpl: impl });
   assert.equal(result.synced, 1);
@@ -145,4 +153,51 @@ test("stops starting new entries when the time budget is spent", async () => {
   });
   assert.equal(result.synced + result.deferred, 3);
   assert.ok(result.deferred >= 1);
+});
+
+test("images are checked by their bytes: markup or junk claiming image/png is skipped, the entry still syncs", async () => {
+  const { admin, rows, files } = fakeAdmin([]);
+  const impl = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("/query")) return Response.json({ results: [published("page-1", "2026-10-21T15:00:00.000Z")], has_more: false, next_cursor: null });
+    if (url.includes("/children")) return Response.json({ results: blocks, has_more: false, next_cursor: null });
+    if (url.endsWith("/cover.png")) {
+      return new Response('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', { headers: { "content-type": "image/png" } });
+    }
+    return new Response(new Uint8Array([1, 2, 3, 4]), { headers: { "content-type": "image/png" } });
+  }) as typeof fetch;
+  const result = await syncChangelog({ ...base, admin, fetchImpl: impl });
+  assert.equal(result.synced, 1);
+  assert.equal(result.errors.length, 0);
+  assert.equal(files.size, 0);
+  const row = rows.get("page-1") as Row;
+  assert.equal(row.cover_image_url, null);
+  assert.equal(String(row.body_en_html).includes("<img"), false);
+});
+
+test("an image over the size cap is skipped without buffering it", async () => {
+  const { admin, files } = fakeAdmin([]);
+  const impl = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("/query")) return Response.json({ results: [published("page-1", "2026-10-21T15:00:00.000Z")], has_more: false, next_cursor: null });
+    if (url.includes("/children")) return Response.json({ results: blocks, has_more: false, next_cursor: null });
+    return new Response(PNG_1X1, { headers: { "content-type": "image/png", "content-length": String(50 * 1024 * 1024) } });
+  }) as typeof fetch;
+  const result = await syncChangelog({ ...base, admin, fetchImpl: impl });
+  assert.equal(result.synced, 1);
+  assert.equal(files.size, 0);
+});
+
+test("the stored content type comes from the bytes (a jpeg named png is stored as jpeg)", async () => {
+  // PNG bytes served with a jpeg header: the extension and type follow the bytes.
+  const { admin, files } = fakeAdmin([]);
+  const { impl } = fakeFetch([published("page-1", "2026-10-21T15:00:00.000Z")]);
+  const lying = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const res = await impl(input, init);
+    return String(input).startsWith("https://notion-files.test/")
+      ? new Response(PNG_1X1, { headers: { "content-type": "image/jpeg" } })
+      : res;
+  }) as typeof fetch;
+  await syncChangelog({ ...base, admin, fetchImpl: lying });
+  assert.deepEqual([...files.keys()].sort(), ["page-1/b2.png", "page-1/cover.png"]);
 });

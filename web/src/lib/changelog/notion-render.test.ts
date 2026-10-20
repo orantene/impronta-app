@@ -6,7 +6,6 @@ import {
   changelogStatus,
   coverImageSource,
   escapeHtml,
-  imageExtension,
   imageStoragePath,
   mapReleasePage,
   parseTier,
@@ -128,9 +127,5 @@ test("tier, cover and image helpers", () => {
   assert.equal(parseTier(undefined), null);
   assert.equal(coverImageSource(page({ "Cover image": { files: [{ file: { url: "https://n/x.png" } }] } })), "https://n/x.png");
   assert.equal(coverImageSource(page({})), null);
-  assert.equal(imageExtension("image/png"), "png");
-  assert.equal(imageExtension("image/jpeg; charset=binary"), "jpg");
-  assert.equal(imageExtension("image/svg+xml"), null);
-  assert.equal(imageExtension("text/html"), null);
   assert.equal(imageStoragePath("3fe2c5ee-9743", "../cover", "png"), "3fe2c5ee-9743/cover.png");
 });

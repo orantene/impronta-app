@@ -297,19 +297,6 @@ export function coverImageSource(page: NotionReleasePage): string | null {
   return first?.file?.url ?? first?.external?.url ?? null;
 }
 
-const IMAGE_EXT: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
-
-/** File extension for an allowed image content type, or null (not copied). */
-export function imageExtension(contentType: string | null | undefined): string | null {
-  const base = (contentType ?? "").split(";")[0].trim().toLowerCase();
-  return IMAGE_EXT[base] ?? null;
-}
-
 /** Storage path for a copied image: one folder per Notion page. */
 export function imageStoragePath(pageId: string, key: string, ext: string): string {
   const safe = (s: string) => s.replace(/[^a-zA-Z0-9-]/g, "");
