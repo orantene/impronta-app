@@ -18,6 +18,7 @@ import {
 } from "@/lib/saas/discover-exposure";
 import { logServerError } from "@/lib/server/safe-error";
 import { pickTimezone } from "@/lib/spaces/venue-timezone";
+import { sellability } from "@/lib/offerings/sellable";
 import {
   parseTenantAppointmentSettings,
   resolveAppointmentPolicy,
@@ -182,9 +183,7 @@ export async function resolveTalentBooking(
     offering = data;
     if (
       !offering ||
-      offering.status !== "published" ||
-      offering.moderation_state !== "approved" || // D-10
-      (offering.visibility !== "public" && offering.visibility !== "on_request") ||
+      !sellability(offering, "guest_request").ok || // D1: the one sellable rule (public, or on_request for the request path)
       offering.kind === "product"
     ) {
       return { mode: "inquire", surface, tenantId: null, tenantSlug: null };

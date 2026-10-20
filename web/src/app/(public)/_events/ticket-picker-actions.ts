@@ -27,6 +27,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createPurchase } from "@/lib/orders/purchase";
 import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { ticketCardPaymentRefusal, type TicketPaymentRefusal } from "@/lib/events/ticket-payment-guard";
 import { commitCapacity } from "@/lib/capacity";
 import { tierReserveRequest } from "@/lib/sessions/tier-pools";
 import { checkQuantity, saleWindowState, type Tier } from "@/lib/events/tiers";
@@ -39,6 +40,8 @@ import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
 import { releaseCapacity } from "@/lib/capacity";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
+import { orderOfferingsSellable } from "@/lib/orders/order-sellable-gate";
+import { tierRefUnlocks } from "@/lib/offerings/sellable";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const HORIZON_DAYS = 180;
@@ -314,6 +317,8 @@ const buySchema = z.object({
   phone: z.string().trim().max(40).optional(),
   promoCode: z.string().trim().max(40).optional(),
   clientOrderKey: z.string().min(8).max(80),
+  /** The page's `?tier=` deep-link ref (tier id or tier key): the unlock for a hidden / comp tier (D1). */
+  unlockTier: z.string().max(80).optional(),
   paymentChoice: z.enum(["full", "in_person"]),
   locale: z.string().max(10).optional(),
   /**
@@ -421,6 +426,8 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       units: d.units, email: d.email, displayName: d.displayName ?? null, phone: d.phone || null, promoCode: d.promoCode ?? null,
       locale: d.locale ?? null, sourcePage: `/events`,
       confirmedAge: d.confirmedAge ?? null,
+      // D1: a hidden / comp tier sells only when the buyer arrived by that tier's link.
+      unlockedVariantIds: tierRefUnlocks(d.unlockTier, { variantId: tier.id, tierKey: tier.poolKey }) ? [tier.id] : [],
     }));
     if (!result.ok) {
       if (result.reason === "sold_out") return { ok: false, reason: "sold_out" };
@@ -526,7 +533,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
 
 const paySchema = z.object({ tenantId: uuidWire, orderId: uuidWire, transactionId: uuidWire, locale: z.string().max(10).optional() });
 
-export type StartCardPaymentResult = { ok: true; url: string } | { ok: false; reason: "invalid_request" | "not_found" | "engine_error"; detail?: string };
+export type StartCardPaymentResult = { ok: true; url: string } | { ok: false; reason: "invalid_request" | "not_found" | "not_sellable" | "engine_error"; detail?: string };
 
 /**
  * The card hop — the first GUEST caller of `createCheckoutSessionForTransaction`.
@@ -541,7 +548,9 @@ export type StartCardPaymentResult = { ok: true; url: string } | { ok: false; re
  * `expires_at` aligned to the hold is Orders' change in `stripe-checkout.ts`;
  * until it lands the seat-lost intent path is what protects the guest.
  */
-export async function startTicketCardPayment(input: unknown): Promise<StartCardPaymentResult> {
+export async function startTicketCardPayment(
+  input: unknown,
+): Promise<StartCardPaymentResult | { ok: false; reason: TicketPaymentRefusal }> {
   await requireNotImpersonating();
   const parsed = paySchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid_request" };
@@ -559,6 +568,12 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       .eq("id", d.transactionId).eq("order_id", d.orderId).maybeSingle();
     if (tErr) { logServerError("events.pay.txn", tErr); return { ok: false, reason: "engine_error" }; }
     if (!txn) return { ok: false, reason: "not_found" };
+    // D1: the order was created sellable, but the browser names the order id and the offering can
+    // be unpublished / hidden / un-approved since. A card session only starts for what a guest could still buy.
+    const stillSellable = await orderOfferingsSellable(admin, d.orderId, "guest");
+    if (!stillSellable.ok) {
+      return stillSellable.reason === "engine_error" ? { ok: false, reason: "engine_error" } : { ok: false, reason: "not_sellable" };
+    }
     // NO SENTINELS INTO STRIPE METADATA. `""` is a value that claims to be an
     // id and is not; downstream `?? null` does not catch it and a uuid `.eq`
     // against it is a cast error. A ticket transaction always has a booking
@@ -573,6 +588,12 @@ export async function startTicketCardPayment(input: unknown): Promise<StartCardP
       ? await admin.from("customers").select("email").eq("id", order.customer_id as string).maybeSingle()
       : { data: null, error: null };
     if (cErr) logServerError("events.pay.customer", cErr);
+
+    // TUL-1268 M2: never open a second Checkout session for an order that is
+    // already paid or closed. A second tab or a replayed request used to get a
+    // fresh session and could take a second charge for the same tickets.
+    const refusal = ticketCardPaymentRefusal(order.status as string | null, txn.status as string | null);
+    if (refusal) return { ok: false, reason: refusal };
 
     const hdrs = await headers();
     const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";

@@ -2183,7 +2183,8 @@
           "amount": "Ce montant en especes n'est pas valable.",
           "already_closed": "Ce service est deja cloture.",
           "not_allowed": "Vous n'avez pas la permission de faire cela.",
-          "no_customer": "Associez d'abord un client à cette vente."
+          "no_customer": "Associez d'abord un client à cette vente.",
+          "item_unavailable": "Cet article n'est plus disponible."
         }
       },
       "newSale": "Nouvelle vente",
@@ -2371,6 +2372,7 @@
           "tenderShort": "L'espèce comptée est inférieure au montant à encaisser.",
           "emptySale": "Il n'y a rien à encaisser sur cette vente.",
           "itemRefused": "Cet article ne peut pas figurer sur cette vente.",
+          "itemUnavailable": "Cet article n'est plus disponible.",
           "discountRefused": "Ce code ne peut pas être appliqué à cette vente.",
           "discountNeedsCustomer": "Un code de réduction exige un client nommé. Ajoutez-en un d'abord.",
           "readerUnavailable": "Aucun lecteur de carte n'est prêt sur cet appareil.",

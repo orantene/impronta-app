@@ -41,6 +41,7 @@ import {
 } from "@/lib/inquiry/inquiry-events";
 import type { VoiceNoteMeta } from "@/lib/messages/voice-types";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { readGuardedAttachment } from "@/lib/media/guarded-upload.server";
 
 const MAX_BYTES = 100 * 1024 * 1024; // matches inquiry-files bucket cap
 const MAX_DURATION_MS = 10 * 60 * 1000; // 10 min sanity ceiling
@@ -367,7 +368,11 @@ export async function uploadAndSendVoiceNote(
 
     // Storage path matches the staff RLS path convention so the Files tab
     // and existing download flows keep working.
-    const mimeType = file.type || "audio/webm";
+    // H1: executables and HTML/SVG refused by their bytes; the stored type is
+    // an audio/* claim or audio/webm, never an arbitrary client string.
+    const guarded = await readGuardedAttachment(file, { maxBytes: MAX_BYTES });
+    if (!guarded.ok) return { ok: false, error: guarded.error };
+    const mimeType = /^audio\/[a-z0-9.+-]+$/i.test(file.type) ? file.type : "audio/webm";
     const safeName = (file.name || "voice-note.webm")
       .replace(/[^a-zA-Z0-9._-]/g, "_")
       .slice(0, 80);
@@ -379,7 +384,7 @@ export async function uploadAndSendVoiceNote(
     // eslint-disable-next-line ratchet/no-untenanted-from -- storage BUCKET upload — bucket calls have no tenant table; path embeds tenantId
     const { error: uploadErr } = await admin.storage
       .from("inquiry-files")
-      .upload(storagePath, file, { contentType: mimeType, upsert: false });
+      .upload(storagePath, guarded.bytes, { contentType: mimeType, upsert: false });
     if (uploadErr) {
       logServerError("voice-notes.uploadAndSendVoiceNote/storage", uploadErr);
       return { ok: false, error: `Upload failed: ${uploadErr.message}` };

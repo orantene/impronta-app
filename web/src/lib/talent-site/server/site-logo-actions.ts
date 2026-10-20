@@ -25,6 +25,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { sanitizeSvgLogoBuffer } from "@/lib/site-admin/sanitize-svg-upload";
 import { talentOwnedStamp } from "@/lib/media/ownership";
+import { readGuardedImage } from "@/lib/media/guarded-upload.server";
+import { hasEmbeddedMetadata, stripImageMetadata } from "@/lib/media/image-sanitize.server";
 import { gate } from "./site-action-gate";
 import type { MaxSiteActionResult } from "./site-management-types";
 
@@ -173,21 +175,25 @@ export async function uploadMaxSiteLogoAction(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, code: "server_error", error: "Not configured." };
 
-  const ext =
-    file.type === "image/svg+xml"
-      ? "svg"
-      : file.type.split("/")[1]?.replace("jpeg", "jpg") ?? "png";
+  const isSvg = file.type === "image/svg+xml";
+  // H1: a raster logo's type comes from its bytes, under the pixel cap, with
+  // EXIF/GPS stripped (a clean logo is stored byte-exact).
+  const raster = isSvg
+    ? null
+    : await readGuardedImage(file, { maxBytes: LOGO_MAX_BYTES, allowed: ["image/png", "image/jpeg", "image/webp"] });
+  if (raster && !raster.ok) return { ok: false, code: "invalid_input", error: raster.error };
+  const ext = raster?.ok ? raster.ext : "svg";
+  const contentType = raster?.ok ? raster.mime : "image/svg+xml";
   const storagePath = logoStoragePath(g.talentProfileId, ext);
   // Public-bucket SVG is stored XSS unless sanitized (Wave 5.1): store only what the allowlist sanitizer accepts.
-  const body = ext === "svg" ? sanitizeSvgLogoBuffer(await file.text()) : ({ ok: true, bytes: await file.arrayBuffer() } as const);
+  const body = raster?.ok ? ({ ok: true, bytes: raster.bytes } as const) : sanitizeSvgLogoBuffer(await file.text());
   if (!body.ok) return { ok: false, code: "invalid_input", error: body.error };
   const bytes = body.bytes;
-  const byteSize =
-    bytes instanceof Buffer ? bytes.byteLength : (bytes as ArrayBuffer).byteLength;
+  const byteSize = bytes.byteLength;
 
   const { error: uploadErr } = await admin.storage
     .from(LOGO_BUCKET)
-    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+    .upload(storagePath, bytes, { contentType, upsert: false });
   if (uploadErr) {
     logServerError("maxSiteManager.logo.upload", uploadErr);
     return { ok: false, code: "server_error", error: "Upload failed. Try again." };
@@ -209,7 +215,7 @@ export async function uploadMaxSiteLogoAction(
     userId: g.userId,
     storagePath,
     publicUrl: logoUrl,
-    mime: file.type,
+    mime: contentType,
     byteSize,
   });
   return saved;
@@ -293,6 +299,20 @@ export async function finalizeMaxSiteLogoAction(
     await admin.storage.from(LOGO_BUCKET).remove([storagePath]);
     return { ok: false, code: "invalid_input", error: "That file isn't a PNG, JPEG or WebP image." };
   }
+  // H1: a logo carrying EXIF/GPS (or over the pixel cap) is replaced by its
+  // stripped copy or refused; a clean logo stays byte-exact.
+  let storedBytes = buf.byteLength;
+  if (await hasEmbeddedMetadata(buf)) {
+    const stripped = await stripImageMetadata(buf).catch(() => null);
+    const reErr = stripped
+      ? (await admin.storage.from(LOGO_BUCKET).upload(storagePath, stripped, { contentType: RASTER_EXT_MIME[rasterExt], upsert: true })).error
+      : new Error("unreadable");
+    if (reErr || !stripped) {
+      await admin.storage.from(LOGO_BUCKET).remove([storagePath]);
+      return { ok: false, code: "invalid_input", error: "That file isn't a PNG, JPEG or WebP image." };
+    }
+    storedBytes = stripped.byteLength;
+  }
 
   const { data: urlData } = admin.storage.from(LOGO_BUCKET).getPublicUrl(storagePath);
   const logoUrl = urlData.publicUrl;
@@ -314,7 +334,7 @@ export async function finalizeMaxSiteLogoAction(
     storagePath,
     publicUrl: logoUrl,
     mime: RASTER_EXT_MIME[rasterExt],
-    byteSize: buf.byteLength,
+    byteSize: storedBytes,
   });
   return saved;
 }
