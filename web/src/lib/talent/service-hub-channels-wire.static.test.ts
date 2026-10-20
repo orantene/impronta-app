@@ -40,3 +40,9 @@ test("the page is a standalone canonical route that needs a signed in talent", (
   assert.match(page, /if \(!session\.user\) notFound\(\)/);
   assert.match(page, /loadServiceHubChannels\(supabase, talentProfileId\)/);
 });
+
+test("the Money page links to the channels page, in the dashboard language", () => {
+  const src = read("components/talent/money/MoneyAgencyCards.tsx");
+  assert.match(src, /href="\/talent\/where-you-appear"/);
+  assert.match(src, /channelCopy\(useDashboardLocale\(\)\)/);
+});
