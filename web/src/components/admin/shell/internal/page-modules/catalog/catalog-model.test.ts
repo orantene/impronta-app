@@ -22,6 +22,9 @@ import {
   itemStatus,
   itemType,
   publishBlockers,
+  publishWarnings,
+  draftSeedFor,
+  canSaveDraftInPlace,
   tabFromQuery,
   viewFromQuery,
 } from "./catalog-model";
@@ -146,4 +149,33 @@ test("phaseState mirrors livePhasePrice: upcoming, live, ended", () => {
 test("engineRefusalKey: a contract code is its sentence key, anything else is unavailable", () => {
   assert.equal(engineRefusalKey("cycle"), "dashboard.scheduling.engine.refusal.cycle");
   assert.equal(engineRefusalKey("made_up"), "dashboard.scheduling.engine.refusal.unavailable");
+});
+
+// TUL-1271 #9: a new, unpriced Service saves as a draft (it would otherwise be
+// instant, and an instant draft needs one exact price).
+test("draftSeedFor: a priceless instant draft saves as request-to-book; a priced one is left alone", () => {
+  const blank = item({ amountCents: null, bookingMode: "instant" });
+  const seed = draftSeedFor(blank);
+  assert.equal(seed.status, "draft");
+  assert.equal(seed.bookingMode, "request");
+  assert.deepEqual(validateOffering({ ...blank, ...seed }), []);
+  const priced = draftSeedFor(item({ amountCents: 5000, bookingMode: "instant" }));
+  assert.equal(priced.status, "draft");
+  assert.equal(priced.bookingMode, undefined);
+});
+
+// TUL-1271 #8: "Save draft" never unpublishes a live item.
+test("canSaveDraftInPlace: only a not-yet-live item offers Save draft", () => {
+  assert.equal(canSaveDraftInPlace(item({ status: "published" }), false), false);
+  assert.equal(canSaveDraftInPlace(item({ status: "draft" }), false), true);
+  assert.equal(canSaveDraftInPlace(item({ status: "published" }), true), true);
+});
+
+// TUL-1271 #7: deeper publish checks, said as warnings so a publish is not
+// blocked by what the owner may legitimately skip.
+test("publishWarnings: missing photo, category and channel are named", () => {
+  assert.deepEqual(publishWarnings(item({ imageUrls: [], category: null })), ["photo", "category"]);
+  assert.deepEqual(publishWarnings(item({ imageUrls: ["https://x/y.jpg"], category: "Coffee" })), []);
+  assert.deepEqual(publishWarnings(item({ imageUrls: ["u"], category: "c", visibility: "agency_only" })), []);
+  assert.deepEqual(publishWarnings(item({ imageUrls: ["u"], category: "c", visibility: "on_request" })), ["channel"]);
 });

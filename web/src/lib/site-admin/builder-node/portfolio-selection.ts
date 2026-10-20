@@ -14,6 +14,7 @@ export type PortfolioSelectionInput = {
     mediaId: string;
     offeringId?: string;
     caption?: string;
+    tag?: string;
   }>;
 };
 
@@ -34,6 +35,7 @@ export function filterShotsForPortfolio(
       offeringId: bind.offeringId ?? shot.offeringId,
       offeringTitle: bind.offeringId ? shot.offeringTitle : shot.offeringTitle,
       caption: bind.caption ?? shot.caption,
+      tag: bind.tag ?? shot.tag,
     };
   });
 

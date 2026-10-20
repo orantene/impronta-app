@@ -29,6 +29,11 @@ import {
   isRefundReason,
 } from "@/lib/payments/refund-execute";
 import { assertTransactionOnThread } from "@/lib/payments/refund-thread-scope";
+import { authorizeRefund, refundAuthorityMessage } from "@/lib/payments/refund-authority";
+import { enforceRoleLimit } from "@/lib/approvals/enforce";
+import { findTenantMembership } from "@/lib/saas/tenant";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -451,7 +456,8 @@ export async function refundTransactionAction(formData: FormData): Promise<never
     const p = new URLSearchParams({ txerr: "Booking not found or permission denied." });
     returnToDetail(tenantSlug, inquiryId, p);
   }
-  if (!(await canUseBillingAction(context.tenantId, ["booking.payment.refund", "manage_billing"]))) {
+  const capable = await canUseBillingAction(context.tenantId, ["booking.payment.refund", "manage_billing"]);
+  if (!capable) {
     const p = new URLSearchParams({ txerr: "You do not have permission to refund a payment." });
     returnToDetail(tenantSlug, inquiryId, p);
   }
@@ -483,10 +489,48 @@ export async function refundTransactionAction(formData: FormData): Promise<never
     returnToDetail(tenantSlug, inquiryId, p);
   }
 
+  // TUL-1268 M6: the one refund guard. The remainder is the engine's own
+  // figure for this charge; a payment the engine would refuse anyway (cash,
+  // already refunded, not collected) keeps the engine's sentence.
+  const eligibility = await loadRefundEligibility(transactionId);
+  if ("error" in eligibility || eligibility.blockedReason) {
+    const p = new URLSearchParams({
+      txerr: "error" in eligibility ? eligibility.error : (eligibility.blockedReason ?? "Database unavailable."),
+    });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
   const actor = await getCachedActorSession();
+  const actorUserId = actor?.user?.id ?? null;
+  const membership = await findTenantMembership(context.tenantId);
+  const limitAdmin = createServiceRoleClient();
+  const authorized = await authorizeRefund({
+    capable,
+    requestedCents: amountCents,
+    refundableCents: eligibility.remainingCents,
+    allowFullRemainder: true,
+    enforceLimit: async (refundCents) =>
+      limitAdmin && actorUserId
+        ? enforceRoleLimit(limitAdmin, {
+            tenantId: context.tenantId,
+            role: membership?.role ?? null,
+            action: "refund",
+            amountCents: refundCents,
+            subjectId: transactionId,
+            requestedBy: actorUserId,
+            operationKey: `refund:txn:${transactionId}:${eligibility.alreadyRefundedCents}:${refundCents}`,
+            reason: `Refund from the booking page (${refundCents} cents, ${reasonRaw})`,
+          })
+        : { ok: false, reason: "unavailable" },
+  });
+  if (!authorized.ok) {
+    const locale = await getRequestLocale();
+    const p = new URLSearchParams({ txerr: refundAuthorityMessage(authorized.code, locale) });
+    returnToDetail(tenantSlug, inquiryId, p);
+  }
+
   const result = await executeBookingRefund({
     transactionId,
-    amountCents,
+    amountCents: authorized.amountCents,
     reason: reasonRaw,
     actorUserId: actor?.user?.id ?? null,
     note,

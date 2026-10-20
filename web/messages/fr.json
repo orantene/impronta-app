@@ -4332,6 +4332,7 @@
           "no_payout_receiver": "Impossible d enregistrer ceci comme paye pour l instant: personne n est configure pour recevoir le paiement. Configurez un destinataire de paiement, puis reessayez.",
           "offer_currency_seller_mismatch": "Cette offre est dans une autre devise que celle du vendeur. Changez la devise de l offre pour celle du vendeur et renvoyez la.",
           "offer_currency_unresolved": "Nous n avons pas pu determiner la devise de cette offre. Choisissez une devise pour l offre et reessayez.",
+          "over_refund_limit": "Un responsable avec une limite plus elevee doit faire ce remboursement.",
           "deposit_required": "Un acompte est du avant de pouvoir confirmer ceci."
         },
         "ui": {

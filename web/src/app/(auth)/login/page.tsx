@@ -220,6 +220,7 @@ export default async function LoginPage({
           <EmailCodeForm
             nextPath={nextPath}
             locale={locale}
+            marketingOrigin={resolveMarketingOrigin()}
             defaultEmail={email ? decodeURIComponent(email) : undefined}
             // Sign-IN must not mint an account for a mistyped address.
             allowCreate={false}
@@ -238,6 +239,7 @@ export default async function LoginPage({
           <EmailCodeForm
             nextPath={nextPath}
             locale={locale}
+            marketingOrigin={resolveMarketingOrigin()}
             defaultEmail={email ? decodeURIComponent(email) : undefined}
             allowCreate={false}
             startWithPassword

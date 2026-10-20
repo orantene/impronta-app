@@ -30,6 +30,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
+import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
@@ -42,6 +43,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { setOfferingStock, stockChanged } from "@/lib/capacity";
+import { offeringSaveGate } from "@/lib/talent/offering-save-gate.server"; // TUL-1270 #11/#12
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
@@ -188,6 +190,8 @@ export async function upsertTalentOffering(
 
     const errors = validateOffering(offering, await loadTalentDefaultPosture(talentProfileId));
     if (errors.length > 0) return { ok: false, error: errors[0] };
+    const gate = await offeringSaveGate(admin, talentProfileId, offering);
+    if (!gate.ok) return gate;
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it
     // stops a third currency reaching checkout, where it was never priced.
@@ -204,6 +208,8 @@ export async function upsertTalentOffering(
 
     let saved: TalentOfferingRow | null = null;
     if (offering.id) {
+      // TUL-1272 C1: a rename records the old slug in slug_history (flag + held columns only).
+      const slugRename = await prepareServiceSlugRename(admin, { offeringId: offering.id, talentProfileId, nextTitle: offering.title });
       const { data, error } = await offeringsTable(admin)
         .update(patchForSave(patch, true))
         .eq("id", offering.id)
@@ -215,6 +221,8 @@ export async function upsertTalentOffering(
         return { ok: false, error: "Failed to save." };
       }
       saved = data as TalentOfferingRow | null;
+      // Only when the talent-scoped UPDATE matched a row (a foreign id returns saved = null).
+      if (slugRename && saved) await commitServiceSlugHistory(admin, slugRename);
     } else {
       // Count BEFORE the insert so a zero here means this row is the first
       // offering this profile has ever had. Counting afterwards would race
