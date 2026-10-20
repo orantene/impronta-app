@@ -27,6 +27,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently
 // preserved as a structurally compatible local type so `startInquiryCheckout`
@@ -402,15 +403,13 @@ export async function sendInquiryMessageAsClient(
     const ctx = await loadClientInquiryContext(inquiryId);
     if (!ctx.ok) return ctx;
 
-    const { error } = await ctx.supabase
-      .from("inquiry_messages")
-      .insert({
-        inquiry_id: inquiryId,
-        thread_type: "private",
-        sender_user_id: ctx.userId,
-        body: trimmed,
-        tenant_id: ctx.tenantId,
-      });
+    const { error } = await insertInquiryMessage(ctx.supabase, {
+      inquiry_id: inquiryId,
+      thread_type: "private",
+      sender_user_id: ctx.userId,
+      body: trimmed,
+      tenant_id: ctx.tenantId,
+    });
     if (error) {
       logServerError("client-pipeline.sendInquiryMessageAsClient", error);
       return { ok: false, error: "Failed to send message." };

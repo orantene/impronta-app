@@ -12,6 +12,7 @@ import { loadTalentSelfProfile } from "../../../_data-bridge";
 import type { InquiryReportReason } from "@/lib/inquiry/guest-chat-contract";
 import { blockSubject, reportInquiry } from "@/lib/inquiry/recipient-safety";
 import { maybeSendGuestReplyNudge } from "@/lib/inquiry/guest-reply-nudge";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 export type { TalentGuestTrustChipData } from "./guest-trust-loader";
 
 export type SendTalentInquiryMessageResult = ServerActionResult<{
@@ -118,17 +119,15 @@ export async function sendTalentInquiryMessage(
     return { ok: false, error: "Only the job coordinator can message the client directly." };
   }
 
-  const { data, error: insertError } = await supabase
-    .from("inquiry_messages")
-    .insert({
-      inquiry_id: inquiryId,
-      thread_type: threadType,
-      sender_user_id: user.id,
-      body: trimmed,
-      tenant_id: inquiryTenantId,
-    })
-    .select("id, created_at")
-    .single();
+  const sent = await insertInquiryMessage(
+    supabase,
+    { inquiry_id: inquiryId, thread_type: threadType, sender_user_id: user.id, body: trimmed, tenant_id: inquiryTenantId },
+    { select: "id, created_at" },
+  );
+  const data = sent.data as { id: string; created_at: string } | null;
+  const insertError = sent.error;
+  // What was stored (masked or not) is what the client is nudged about.
+  const storedBody = sent.storedBody ?? trimmed;
 
   if (insertError) {
     logServerError("talent.thread.send", insertError);
@@ -145,7 +144,7 @@ export async function sendTalentInquiryMessage(
       tenantId: inquiryTenantId,
       senderUserId: user.id,
       messageId: data.id as string,
-      body: trimmed,
+      body: storedBody,
     });
   }
 

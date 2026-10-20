@@ -113,6 +113,7 @@ export type {
   CoordinatorAssignCandidate,
   SecondaryCoordinatorRow,
 } from "./_pipeline-types";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 // ─── convertInquiryToBookingAction ────────────────────────────────────────────
 
@@ -2019,15 +2020,13 @@ export async function bulkNudgeInquiries(
         .maybeSingle();
       if (!inq) { failed++; continue; }
 
-      const { error } = await supabase
-        .from("inquiry_messages")
-        .insert({
-          inquiry_id: inquiryId,
-          thread_type: "group",
-          sender_user_id: user.id,
-          body: trimmed,
-          tenant_id: tenantId,
-        });
+      const { error } = await insertInquiryMessage(supabase, {
+        inquiry_id: inquiryId,
+        thread_type: "group",
+        sender_user_id: user.id,
+        body: trimmed,
+        tenant_id: tenantId,
+      });
       if (error) failed++;
       else okCount++;
     }
