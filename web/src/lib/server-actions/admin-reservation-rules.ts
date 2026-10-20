@@ -37,6 +37,8 @@ import {
   saveServiceWindow,
   saveVenueServiceRules,
 } from "@/lib/reservations/store";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -72,6 +74,8 @@ const rulesSchema = z.object({
   depositFromParty: thresholdSchema,
   depositCentsPerPerson: z.number().int().min(0).max(100_000_000),
   freeCancelHours: z.number().min(0).max(720),
+  // TUL-1334: undefined = leave it, null = clear it. Ownership is checked below.
+  reservationOfferingId: z.string().uuid().nullable().optional(),
   waitlistEnabled: z.boolean(),
   walkinsEnabled: z.boolean(),
   notesEnabled: z.boolean(),
@@ -108,6 +112,17 @@ export async function saveReservationRules(input: unknown): Promise<ActionResult
   }
 
   try {
+    // The offering id is client input: it must be one of THIS workspace's own
+    // offerings, or a guessed id from another workspace would be sold here.
+    if (patch.reservationOfferingId) {
+      const sb = createServiceRoleClient();
+      if (!sb) return { ok: false, error: "Database not available." };
+      const { data, error } = await tenantScopedQuery(sb, "talent_offerings", auth.tenantId)
+        .select("id")
+        .eq("id", patch.reservationOfferingId)
+        .maybeSingle();
+      if (error || !data) return { ok: false, error: "That reservation item is not in this workspace." };
+    }
     const result = await saveVenueServiceRules(auth.tenantId, venueId, {
       ...patch,
       turnTimeBands: sorted,

@@ -739,6 +739,8 @@
       "phone": "Telephone",
       "quoteOnRequest": "Prix sur demande",
       "selectAtLeastOne": "Choisissez {nounPlural}",
+      "chooseOption": "Choisissez une option",
+      "extrasLabel": "Suppléments",
       "selectQuantities": "Choisissez les quantites",
       "sending": "Envoi",
       "sent": "Commande envoyee.",
@@ -4119,6 +4121,7 @@
           "refusal": {
             "timeNotOffered": "Cet horaire n'est pas proposé pour ce groupe. Choisissez-en un autre.",
             "noOfferingConfigured": "Les réservations ne sont pas encore possibles : aucune offre de réservation n'est configurée.",
+            "offeringNotPublished": "Publiez l'article de réservation pour accepter des réservations.",
             "noContact": "Un e-mail ou un téléphone est nécessaire pour joindre le client.",
             "closed": "L'établissement est fermé ce jour-là.",
             "tooLateToday": "Trop tard pour réserver ce soir."

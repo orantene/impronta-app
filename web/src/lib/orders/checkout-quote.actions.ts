@@ -10,6 +10,10 @@ import { quoteCheckoutCollect } from "@/lib/orders/checkout-quote";
 import type { CheckoutQuote } from "@/lib/orders/checkout-quote-display";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { travelFeeOnDayCents } from "@/lib/orders/travel-fee";
+import { offeringWhereFromAttributes } from "@/lib/talent/offering-request-detail";
+import { loadSellingDefaultsByTalent } from "@/lib/talent/offering-policy-server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Read-only: what Checkout will collect for this booking (principal + pass-through card fee), so the
@@ -59,9 +63,28 @@ export async function quoteBookingCollectAction(input: {
       depositPct: policy.depositPct,
       payInPerson: policy.payInPerson,
     });
-    return { ok: true, quote };
+    const travel = await quoteTravelFeeOnDay(admin, input.offeringId, offering.talentProfileId);
+    return { ok: true, quote: travel > 0 ? { ...quote, travelFeeOnDayCents: travel } : quote };
   } catch (err) {
     logServerError("orders.quoteBookingCollect", err);
     return { ok: false };
   }
+}
+
+/**
+ * E5 (TUL-1270 M2): the talent's travel fee for a home visit, shown as paid on the day.
+ * Display only, never added to the online charge. A failed read shows no line (logged).
+ */
+async function quoteTravelFeeOnDay(admin: SupabaseClient, offeringId: string, talentProfileId: string | null): Promise<number> {
+  if (!talentProfileId) return 0;
+  const { data, error } = await admin.from("talent_offerings").select("attributes").eq("id", offeringId).maybeSingle();
+  if (error) {
+    logServerError("orders.quoteBookingCollect/travelWhere", error);
+    return 0;
+  }
+  const where = offeringWhereFromAttributes((data as { attributes?: Record<string, unknown> | null } | null)?.attributes ?? null);
+  if (where.length === 0) return 0;
+  const defaults = await loadSellingDefaultsByTalent(admin, [talentProfileId]);
+  if (!defaults.ok) return 0;
+  return travelFeeOnDayCents({ where, sellingDefaults: defaults.defaults.get(talentProfileId) ?? null });
 }
