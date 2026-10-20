@@ -27,7 +27,7 @@ test("G1-G5 are registered, name their cards, and pull the F3 studio in", () => 
   }
   assert.deepEqual(resolveFixtures(["G4", "G1"]), ["F3", "G1", "G4"]);
   assert.deepEqual(parseFcArgs(["--only", "G1,G2,G3,G4,G5"]).errors, []);
-  assert.ok(parseFcArgs(["--only", "G6"]).errors.length > 0, "unknown fixture refused");
+  assert.ok(parseFcArgs(["--only", "G9"]).errors.length > 0, "unknown fixture refused");
   const ops = planOf(["G4"]);
   const ws = ops.findIndex((o) => o.key === "workspace:f3");
   assert.ok(ws >= 0 && ops.findIndex((o) => o.fx === "G4") > ws, "G ops come after the studio workspace");

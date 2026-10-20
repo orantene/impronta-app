@@ -34,7 +34,7 @@ import { FIXTURE_CARDS, buildPlan, resolveFixtures, verifyPlan } from "./lib/fai
 import { readBack } from "./lib/failed-cards-readback.mjs";
 
 type Row = Record<string, unknown>;
-type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; conflict?: string[] | null; template?: Row; sql?: string; applyOnly?: boolean };
+type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; sql?: string; applyOnly?: boolean };
 type PgClient = { connect(): Promise<void>; query(text: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>; end(): Promise<void> };
 const PG_MODULE = "pg";
 const pgMod = (await import(PG_MODULE)) as { default: { Client: new (cfg: { connectionString?: string; ssl?: unknown }) => PgClient } };
@@ -216,11 +216,41 @@ async function updateOwned(table: string, id: string, set: Row) {
   bump(table, "updated");
 }
 
+/**
+ * Additive jsonb merge on one of THIS seed's rows (G7: agencies.settings.display_currency). Only the named keys
+ * are set; every other key in the blob is kept. A row that existed before this run is backed up first
+ * (the backup holds the whole pre-image, so the key can be undone by hand); a no-op when the keys already match.
+ */
+async function mergeOwned(table: string, id: string, merge: Row) {
+  const cur = await q(`select to_jsonb(t) j from ${table} t where id = $1`, [id]);
+  if (!cur.rowCount) throw new Error(`${table} ${id}: row to merge into is missing`);
+  const before = cur.rows[0].j as Row;
+  const next: Row = {};
+  let differs = false;
+  for (const [col, patch] of Object.entries(merge)) {
+    const base = (before[col] && typeof before[col] === "object" && !Array.isArray(before[col]) ? before[col] : {}) as Row;
+    next[col] = { ...base, ...(patch as Row) };
+    if (J(next[col]) !== J(before[col] ?? {})) differs = true;
+  }
+  if (!differs) {
+    bump(table, "existed");
+    return;
+  }
+  if (!created.has(id)) {
+    backup.updated.push({ table, id, before });
+    saveBackup();
+  }
+  const cols = Object.keys(next);
+  await q(`update ${table} set ${cols.map((c, i) => `"${c}" = $${i + 2}::jsonb`).join(", ")} where id = $1`, [id, ...cols.map((c) => J(next[c]))]);
+  bump(table, "updated");
+}
+
 async function runOps(ops: Op[]) {
   for (const op of ops) {
     if (op.kind === "insert") await execInsert(op);
     else if (op.kind === "clone") await execClone(op);
     else if (op.kind === "authUser") await execAuthUser(op);
+    else if (op.kind === "update" && op.merge) await mergeOwned(op.table, op.id as string, op.merge);
     else if (op.kind === "update") await updateOwned(op.table, op.id as string, op.set as Row);
     else if (op.kind === "call") {
       if (mode === "apply") await q(op.sql as string);
@@ -334,7 +364,7 @@ const COUNT_TABLES = [
   "auth.users", "auth.identities", "public.profiles", "public.client_profiles", "public.talent_profiles", "public.talent_sites", "public.talent_pages",
   "public.talent_booking_hours", "public.talent_profile_taxonomy", "public.agency_talent_roster", "public.agencies", "public.agency_memberships",
   "public.agency_business_identity", "public.agency_branding", "public.agency_domains", "public.media_assets", "public.talent_offerings",
-  "public.talent_offering_media", "public.talent_offering_variants", "public.capacity_pools", "public.events", "public.sessions", "public.tenant_promo_codes", "public.talent_theme_catalog", "public.talent_theme_versions",
+  "public.talent_offering_media", "public.talent_offering_variants", "public.capacity_pools", "public.events", "public.sessions", "public.venues", "public.venue_service_rules", "public.venue_service_windows", "public.space_groups", "public.tenant_promo_codes", "public.talent_theme_catalog", "public.talent_theme_versions",
   "public.talent_theme_releases", "public.talent_theme_drafts", "public.taxonomy_terms", "public.inquiries", "public.inquiry_requirement_groups",
   "public.inquiry_participants", "public.inquiry_offers", "public.inquiry_offer_line_items", "public.inquiry_messages", "public.guest_sessions",
   "public.agency_bookings", "public.talent_bookings", "public.booking_talent", "public.workspace_subscriptions",
@@ -385,6 +415,14 @@ async function schemaAndCollisions(ops: Op[]) {
     if (r.rows.find((x) => x.id !== op.id)) {
       problems += 1;
       console.log(`  COLLISION promo code ${String(op.row?.code)} is held by a non-fixture promo in this workspace`);
+    }
+  }
+  // One default venue per workspace (idx_venues_one_default_per_tenant): G7's insert would fail if the studio already has another.
+  for (const op of ops.filter((o) => o.table === "public.venues" && o.row?.is_default)) {
+    const r = await q("select id::text id from public.venues where tenant_id = $1 and is_default", [op.row?.tenant_id]);
+    if (r.rows.find((x) => x.id !== op.id)) {
+      problems += 1;
+      console.log("  COLLISION the studio already has a default venue that is not this seed's");
     }
   }
   const qa20 = await q("select talent_profile_id::text t from public.tenant_promo_codes where tenant_id = '00000000-0000-0000-0000-000000000002' and upper(code) = 'QA20'");

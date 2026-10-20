@@ -5,6 +5,7 @@
 import { fcId } from "./failed-cards-guards.mjs";
 import { G6 } from "./failed-cards-ops.mjs";
 import { G_EVENT_SEATS, G_PROMO_CODE } from "./failed-cards-plan-g.mjs";
+import { G6_HIDDEN_KEY, G6_MAX_PER_ORDER, G7_DEPOSIT_CENTS_PER_PERSON, G7_DEPOSIT_FROM_PARTY, G7_DISPLAY_CURRENCY, G8_CANCEL_FREE_HOURS } from "./failed-cards-plan-g2.mjs";
 import { CONCIERGE_SLUG, LONG_TALENT_NAME } from "./failed-cards-plan-sites.mjs";
 
 const CHECKS = {
@@ -76,6 +77,18 @@ const CHECKS = {
   ],
   G5: [
     ["free-plan workspace: owner is the studio owner, no workspace_subscriptions row", "select count(*)::int n from public.agencies a join public.agency_memberships m on m.tenant_id = a.id and m.role = 'owner' and m.status = 'active' where a.id = $1 and a.plan_tier = 'free' and m.profile_id = $2 and not exists (select 1 from public.workspace_subscriptions w where w.tenant_id = a.id)", [fcId("workspace:g5-free"), fcId("user:f3-owner")], 1],
+  ],
+  G6: [
+    ["tiered event: published, 2 scheduled nights, 2 public tiers + 1 hidden tier (max/order >= 4)", "select count(*)::int n from public.events e where e.id = $1 and e.status = 'published' and (select count(*) from public.sessions s where s.event_id = e.id and s.status = 'scheduled' and s.starts_at > now()) = 2 and (select count(*) from public.talent_offering_variants v where v.offering_id = e.offering_id and not v.is_hidden and v.max_per_order >= $2) = 2 and (select count(*) from public.talent_offering_variants v where v.offering_id = e.offering_id and v.is_hidden and v.pool_key = $3 and v.amount_cents = 0) = 1", [fcId("event:g6"), G6_MAX_PER_ORDER, G6_HIDDEN_KEY], 1],
+    ["tiered event: 6 active pools (3 tiers x 2 nights), each public tier holds >= 6 seats", "select count(*)::int n from public.capacity_pools p join public.sessions s on s.id = p.subject_id where p.subject_kind = 'session_tier' and s.event_id = $1 and p.is_active and p.units_total >= 4 and (p.pool_key = $2 or p.units_total >= 6)", [fcId("event:g6"), G6_HIDDEN_KEY], 6],
+  ],
+  G7: [
+    ["reservations on: default venue, rules active, MXN 100/person from a party of 6, offering linked", "select count(*)::int n from public.venues v join public.venue_service_rules r on r.venue_id = v.id where v.id = $1 and v.is_default and r.is_active and r.deposit_from_party = $2 and r.deposit_cents_per_person = $3 and r.reservation_offering_id = $4", [fcId("venue:g7"), G7_DEPOSIT_FROM_PARTY, G7_DEPOSIT_CENTS_PER_PERSON, fcId("offering:g7-mesa")], 1],
+    ["reservations: a dinner window and a pooled party band that seats 6", "select count(distinct g.id)::int n from public.venue_service_windows w join public.space_groups g on g.venue_id = w.venue_id and g.party_min <= 6 and g.party_max >= 6 and g.kind = 'party_band' and g.sell_mode = 'band' join public.capacity_pools p on p.subject_kind = 'space_group' and p.subject_id = g.id and p.is_active and p.units_total > 0 where w.venue_id = $1 and w.is_active", [fcId("venue:g7")], 1],
+    ["workspace display currency is MXN (settings.display_currency)", "select count(*)::int n from public.agencies where id = $1 and settings->>'display_currency' = $2", [fcId("workspace:f3"), G7_DISPLAY_CURRENCY], 1],
+  ],
+  G8: [
+    ["prepaid instant service: published, priced, 48 h free cancel, on a roster talent with hours", "select count(*)::int n from public.talent_offerings o join public.talent_booking_hours h on h.talent_profile_id = o.talent_profile_id where o.id = $1 and o.status = 'published' and o.booking_mode = 'instant' and o.reserve_mode = 'full' and o.amount_cents > 0 and o.cancellation_hours = $2", [fcId("offering:g8-expres"), G8_CANCEL_FREE_HOURS], 1],
   ],
 };
 

@@ -16,7 +16,7 @@ export const FORBIDDEN_PROFILE_CODES = ["TAL-93938", "TAL-93940"];
 /** Card/ticket ids that are out of bounds for this seed (never named in any written value). */
 export const FORBIDDEN_TOKENS = ["TAL-93938", "TAL-93940", "TUL-52"];
 
-export const DB_FIXTURES = ["F1", "F3", "F2", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F14", "S5", "S6", "G1", "G2", "G3", "G4", "G5"];
+export const DB_FIXTURES = ["F1", "F3", "F2", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F14", "S5", "S6", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"];
 export const STRIPE_STEPS = ["S2", "S3", "S4", "S6"];
 /** Held for the PM: shared-row edits. Never planned, never executed. */
 export const HELD = {
@@ -134,7 +134,7 @@ export function checkPlan(ops, { forbiddenIds = [], fixtureIds = new Set() } = {
       const keyed = NO_ID_TABLES_KEYED_BY_PREFIX.has(op.table) && String(op.row?.design ?? "").startsWith(PREFIX);
       if (!refs && !keyed) problems.push(`${where}: row without an id does not reference a fixture row`);
     }
-    const values = { ...(op.row ?? {}), ...(op.set ?? {}) };
+    const values = { ...(op.row ?? {}), ...(op.set ?? {}), ...(op.merge ?? {}) };
     for (const s of walk(values)) {
       const low = s.toLowerCase();
       for (const b of banned) if (b && low.includes(b)) problems.push(`${where}: names forbidden ${b.toUpperCase()}`);

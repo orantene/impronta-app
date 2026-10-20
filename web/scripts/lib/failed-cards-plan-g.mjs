@@ -17,7 +17,7 @@ import { fcId } from "./failed-cards-guards.mjs";
 import { G6, J, clone, fcEmail, insert, isoDays, userOps } from "./failed-cards-ops.mjs";
 import { workspaceOps } from "./failed-cards-plan-sites.mjs";
 
-export const G_FIXTURES = ["G1", "G2", "G3", "G4", "G5"];
+export const G_FIXTURES = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"];
 export const G_PASSWORD_ENV = "QA_FIXTURE_PASSWORD";
 export const G_EVENT_SLUG = `${PREFIX}-noche-de-salsa`;
 export const G_PROMO_CODE = "SALSA10";
@@ -25,7 +25,7 @@ export const G_EVENT_SEATS = 2;
 export const G_FREE_SLUG = `${PREFIX}-estudio-aurora`;
 
 /** A workspace-owned Menu item (owner_kind 'workspace', no talent), shaped like menu-import's applyParsedMenu patch. */
-function menuItem(fx, key, ws, spec) {
+export function menuItem(fx, key, ws, spec) {
   const id = fcId(`offering:${key}`);
   return insert(fx, "public.talent_offerings", `offering:${key}`, {
     id,
@@ -50,6 +50,7 @@ function menuItem(fx, key, ws, spec) {
     sort_order: spec.sort ?? 0,
     attributes: J({}),
     ...(spec.poolId ? { capacity_pool_id: spec.poolId, inventory_qty: spec.stock } : {}),
+    ...(spec.extra ?? {}),
   });
 }
 

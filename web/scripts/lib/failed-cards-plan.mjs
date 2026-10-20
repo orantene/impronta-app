@@ -5,6 +5,7 @@
 import { DB_FIXTURES, HELD, checkPlan, fcId, labelCollisions, serviceCopyProblems } from "./failed-cards-guards.mjs";
 import { planF1, planF11, planF14, planF2, planF7, planF8, planF9 } from "./failed-cards-plan-threads.mjs";
 import { planG1, planG2, planG3, planG4, planG5 } from "./failed-cards-plan-g.mjs";
+import { planG6, planG7, planG8 } from "./failed-cards-plan-g2.mjs";
 import { planF10, planF12, planF14Base, planF3, planF3Sites, planF5, planF6, planS5, planS6 } from "./failed-cards-plan-sites.mjs";
 
 /** Cards each fixture unblocks (from docs/plans/failed-cards-fixture-inventory-2026-10-19.md). */
@@ -28,13 +29,16 @@ export const FIXTURE_CARDS = {
   G3: ["#4091", "#4096"],
   G4: ["TUL-940", "#4090"],
   G5: ["TUL-830", "#4088"],
+  G6: ["#4198", "#4201"],
+  G7: ["#4200"],
+  G8: ["#4199"],
   S2: ["TUL-833"],
   S3: ["TUL-832", "TUL-834"],
   S4: ["TUL-834"],
 };
 
 /** F2 and G1-G5 live in (or hang off) the F3 studio workspace. */
-export const DEPENDS = { F2: ["F3"], G1: ["F3"], G2: ["F3"], G3: ["F3"], G4: ["F3"], G5: ["F3"] };
+export const DEPENDS = { F2: ["F3"], G1: ["F3"], G2: ["F3"], G3: ["F3"], G4: ["F3"], G5: ["F3"], G6: ["F3"], G7: ["F3"], G8: ["F3"] };
 
 export function resolveFixtures(only) {
   const want = new Set(only?.length ? only : DB_FIXTURES);
@@ -71,6 +75,9 @@ export function buildPlan(fixtures, ctx) {
     else if (f === "G3") ops.push(...planG3(now, f3.studioId));
     else if (f === "G4") ops.push(...planG4(now, f3.studioId));
     else if (f === "G5") ops.push(...planG5(now, { ownerUser: f3.ownerUser }).ops);
+    else if (f === "G6") ops.push(...planG6(now, f3.studioId));
+    else if (f === "G7") ops.push(...planG7(f3.studioId));
+    else if (f === "G8") ops.push(...planG8(f3.studioId));
   }
   return ops;
 }

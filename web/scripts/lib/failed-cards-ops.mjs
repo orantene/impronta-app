@@ -267,7 +267,7 @@ export function offeringOps(fx, key, spec) {
       title_i18n: J({ es: spec.title, en: spec.titleEn }),
       owner_kind: "talent",
       reserve_mode: "full",
-      cancellation_hours: 24,
+      cancellation_hours: spec.cancellationHours ?? 24,
     }),
   ];
   for (const m of spec.mediaKeys ?? []) {
