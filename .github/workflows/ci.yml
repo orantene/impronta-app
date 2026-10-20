@@ -529,6 +529,10 @@ jobs:
         if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
         run: npm run test:orphans-enrolled-money-auth
 
+      - name: tests — previously orphaned promo, orders, POS and money tests, enrolled (TUL-1458)
+        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        run: npm run test:orphans-enrolled-money-promos
+
       - name: tests — fields
         if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
         run: npm run test:fields

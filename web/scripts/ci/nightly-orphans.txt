@@ -11,7 +11,6 @@ scripts/prod-flag-expectations.test.mjs
 scripts/qa/mockup-parity/loop-lib.test.mjs
 scripts/qa/mockup-parity/parity.test.mjs
 src/app/(public)/_events/ticket-picker-uuid.test.ts
-src/app/(public)/r/[code]/receipt-page-view.test.ts
 src/app/(workspace)/[tenantSlug]/admin/settings/domain-utils.test.ts
 src/app/(workspace)/[tenantSlug]/client/messages/client-thread-adapter.test.ts
 src/app/(workspace)/platform/admin/builder-lab/themes/demo-rebuild-timeout.test.ts
@@ -20,7 +19,6 @@ src/app/api/analytics/events/route.schema.test.ts
 src/app/api/cron/expire-free-reserves/logic.test.ts
 src/app/api/dev/preview-qa-signin/route.test.ts
 src/app/api/dev/reset-guest/route.test.ts
-src/app/api/webhooks/stripe-mx/route.test.ts
 src/components/account/account-export-links.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-polaroids-policy.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/new-talent-taxonomy.test.ts
@@ -50,7 +48,6 @@ src/components/consent/consent-embed-logic.test.ts
 src/components/home/data-sources-tenant-id.static.test.ts
 src/components/home/location-map-home-market.test.ts
 src/components/marketing/marketing-header-nav.test.ts
-src/components/public-booking/CatalogPurchaseMount.render.test.tsx
 src/components/public-booking/catalog-booking-chat.test.ts
 src/components/public-booking/catalog-booking-cta-contrast.static.test.ts
 src/components/public-booking/selection-dock-state.test.ts
@@ -80,7 +77,6 @@ src/lib/ai/run-ai-directory-search.test.ts
 src/lib/analytics/consent.test.ts
 src/lib/auth/preview-qa-token.test.ts
 src/lib/booking/guest-booking-presentation.test.ts
-src/lib/catalog/entitlement-credits.test.ts
 src/lib/catalog/service-defaults.test.ts
 src/lib/client-hub/load-hub-focus.test.ts
 src/lib/client-integrations/client-trust-summary.test.ts
@@ -97,7 +93,6 @@ src/lib/directory/profile-codes.test.ts
 src/lib/directory/search-params.test.ts
 src/lib/discover/hub-split-independent-talents.test.ts
 src/lib/discover/pro-gate.test.ts
-src/lib/email/order-confirmation.test.ts
 src/lib/email/reply-to.test.ts
 src/lib/email/ticket-issued.test.ts
 src/lib/field-engine/canonical-shadow.test.ts
@@ -143,7 +138,6 @@ src/lib/integrations/workspace-social-sync.test.ts
 src/lib/invites/cookie.test.ts
 src/lib/invites/token.test.ts
 src/lib/layouts/layout-objects.test.ts
-src/lib/ledger/write.test.ts
 src/lib/legal/acceptances.test.ts
 src/lib/legal/owner-decisions.static.test.ts
 src/lib/location-accents.test.ts
@@ -153,7 +147,6 @@ src/lib/master/layers.test.ts
 src/lib/master/vocabulary.test.ts
 src/lib/media/tenant-image-job-staleness.test.ts
 src/lib/menu-import/menu-from-brief.test.ts
-src/lib/money/total-client-revenue.test.ts
 src/lib/notifications/copy-has-entry.static.test.ts
 src/lib/notifications/customer-copy-voice.static.test.ts
 src/lib/notifications/envelope-log.test.ts
@@ -189,14 +182,11 @@ src/lib/server-actions/admin-talent-field-values.security.test.ts
 src/lib/server-actions/admin-translations-url.test.ts
 src/lib/server-actions/engine-result-contract.test.ts
 src/lib/server-actions/load-talent-profile-editor-data.security.test.ts
-src/lib/server-actions/messaging-money-actions.static.test.ts
 src/lib/server-actions/result.test.ts
 src/lib/server-actions/talent-field-values-catalog.security.test.ts
 src/lib/server-actions/types-constants-contract.test.ts
 src/lib/server-actions/validation-contract.test.ts
 src/lib/server/action-guards.security.test.ts
-src/lib/stripe/account-routing.test.ts
-src/lib/stripe/client-subscription-webhook.test.ts
 src/lib/talent-agenda/__fixtures__/jor-week.test.ts
 src/lib/talent-agenda/__fixtures__/trade-days.test.ts
 src/lib/talent-agenda/a1-units.static.test.ts
@@ -209,7 +199,6 @@ src/lib/talent-agenda/agenda-wall-clock-items.test.ts
 src/lib/talent-agenda/attention-cta.test.ts
 src/lib/talent-agenda/b4-activity-log.static.test.ts
 src/lib/talent-agenda/cancel-mirror-sync.static.test.ts
-src/lib/talent-agenda/cancel-money.test.ts
 src/lib/talent-agenda/first-day.test.ts
 src/lib/talent-agenda/flag.test.ts
 src/lib/talent-agenda/free-gaps.test.ts
@@ -220,7 +209,6 @@ src/lib/talent-agenda/g2-finish-collect.test.ts
 src/lib/talent-agenda/g2-quotes.static.test.ts
 src/lib/talent-agenda/g3-polish.static.test.ts
 src/lib/talent-agenda/journeys.test.ts
-src/lib/talent-agenda/load-money-fallback.test.ts
 src/lib/talent-agenda/pay-public-origin.test.ts
 src/lib/talent-agenda/rollout-legacy.test.ts
 src/lib/talent-agenda/t9-a11y.static.test.ts
@@ -246,7 +234,6 @@ src/lib/talent/offering-cta-derivation.test.ts
 src/lib/talent/offering-line-label.test.ts
 src/lib/talent/offering-policy-resolver.test.ts
 src/lib/talent/offerings-children-duration.static.test.ts
-src/lib/talent/offerings-draft-price-later.test.ts
 src/lib/talent/personal-profile-lock.security.test.ts
 src/lib/talent/platform-talent-shell.test.ts
 src/lib/talent/profile-code-alias-middleware.test.ts
