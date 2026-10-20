@@ -124,7 +124,7 @@ async function loadPublicOfferingsForProfileUncached(
       images.set(r.offering_id, list);
     }
     // D4 — attach the public options/extras (RLS-mirrored child tables).
-    const children = await loadOfferingChildren(db, rows.map((r) => r.id), { locale });
+    const children = await loadOfferingChildren(db, rows.map((r) => r.id), { locale, publicOnly: true });
     const groups = await loadAddonGroupsForOfferings(
       db,
       talentProfileId,

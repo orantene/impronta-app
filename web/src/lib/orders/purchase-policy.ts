@@ -57,6 +57,8 @@ export type PurchaseIntent = {
   /** Null for a guest. Never invented. */
   actorUserId: string | null;
   paymentChoice: PaymentChoice;
+  /** Server-set only (reserve.ts): the deposit comes from venue rules, not the offering. */
+  tableDeposit?: boolean;
   lines: Array<{ offeringId: string; units: number }>;
 };
 
@@ -98,6 +100,12 @@ export type ResolvedPurchasePolicy = {
 export type PolicyResult = ResolvedPurchasePolicy | PolicyRefusal;
 
 const MAX_DISTINCT_LINES = 20;
+export const MAX_UNITS_PER_LINE = 999;
+
+/** A sellable quantity: a positive whole number, at most `max` when one is given. */
+export function isWholeQuantity(units: number, max: number | null = null): boolean {
+  return Number.isSafeInteger(units) && units >= 1 && (max == null || units <= max);
+}
 
 /**
  * Resolve what this purchase may do.
@@ -133,7 +141,9 @@ export function resolvePurchasePolicy(
   const resolved: OfferingPolicy[] = [];
 
   for (const line of intent.lines) {
-    if (!Number.isFinite(line.units) || line.units <= 0 || line.units > 999) {
+    // Whole units only (TUL-1268 M9): no offering is sold by weight or time, and
+    // `order_lines.units` is NUMERIC, so 0.5 of a service priced at half. Refused, never rounded.
+    if (!isWholeQuantity(line.units, MAX_UNITS_PER_LINE)) {
       return {
         ok: false,
         reason: "invalid_units",
@@ -202,6 +212,19 @@ export function resolvePurchasePolicy(
       collect: "none",
       depositPct: null,
       payInPerson: true,
+      cancellationHours: strictestCancellation(resolved),
+    };
+  }
+
+  if (intent.paymentChoice === "deposit" && intent.tableDeposit) {
+    // A venue-rules table deposit (server-set, see purchase-table-deposit.ts):
+    // the order IS the deposit, so it is collected in full and the offering's
+    // own deposit_pct is not consulted.
+    return {
+      ok: true,
+      collect: "full",
+      depositPct: null,
+      payInPerson: false,
       cancellationHours: strictestCancellation(resolved),
     };
   }
