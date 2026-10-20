@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 import { MarketingContainer, MarketingSection } from "@/components/marketing/container";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
@@ -29,8 +30,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ChangelogPage() {
+  // Off must equal today: the route does not exist until launch.
+  if (!changelogPublicLaunch()) notFound();
   const locale = await getRequestLocale();
-  const posts = visibleChangelogPosts(changelogPublicLaunch());
+  const posts = visibleChangelogPosts(true);
   const loc = locale === "es" ? "es" : "en";
   return (
     <>

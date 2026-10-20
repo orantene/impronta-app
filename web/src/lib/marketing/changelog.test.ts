@@ -44,4 +44,5 @@ test("sitemap and page wire the switch", () => {
   const page = readFileSync(join(process.cwd(), "src/app/(marketing)/changelog/page.tsx"), "utf8");
   assert.match(page, /changelogRobots\(/);
   assert.match(page, /visibleChangelogPosts\(/);
+  assert.match(page, /if \(!changelogPublicLaunch\(\)\) notFound\(\);/);
 });
