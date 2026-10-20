@@ -43,6 +43,8 @@ type OfferingRow = {
   kind: string | null;
   inventory_qty: number | null;
   capacity_pool_id: string | null;
+  category: string | null;
+  is_featured: boolean | null;
   status?: string | null;
   pos_enabled?: boolean | null;
 };
@@ -78,7 +80,7 @@ async function readCounterOfferings(admin: Admin, tenantId: string) {
       .eq("owner_kind", "workspace")
       .eq("status", "published")
       .order("sort_order", { ascending: true });
-  const base = "id, title, amount_cents, kind, inventory_qty, capacity_pool_id";
+  const base = "id, title, amount_cents, kind, inventory_qty, capacity_pool_id, category, is_featured";
   const first = await run(`${base}, pos_enabled`);
   if (first.error && isMissingColumnError(first.error)) return run(base);
   return first;
@@ -149,6 +151,8 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
     sessions: sessionsByOffering.get(row.id) ?? [],
     options: optionsByOffering.get(row.id),
     stock: stockOf(row),
+    category: row.category?.trim() || null,
+    favourite: row.is_featured === true,
   }));
   return { items, sessionsByOffering, readFailed };
 }

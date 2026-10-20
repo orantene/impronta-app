@@ -65,6 +65,8 @@ export async function runCatalogConfirmWrite(input: {
   /** Promos v1: the pay step's promo choice, and a callback when the offer ran out. */
   promo?: { promoCode: string | null; promoShownDiscountCents: number | null } | null;
   onPromoGone?: () => void;
+  /** D5 / M7: the sheet's per-attempt key; a repeat submit replays the first order. */
+  clientOrderKey?: string | null;
 }): Promise<
   | { phase: "preview" }
   | { phase: "outcome"; outcome: ReturnType<typeof resolveCatalogConfirmOutcome>; bookingRef: string | null }
@@ -111,6 +113,7 @@ export async function runCatalogConfirmWrite(input: {
       captchaToken: input.captchaToken,
       locale: input.locale,
       sourcePage: typeof window !== "undefined" ? window.location.pathname : null,
+      ...(input.clientOrderKey ? { clientOrderKey: input.clientOrderKey } : {}),
     });
     if (!res.ok && res.promoGone) input.onPromoGone?.();
     return res;
