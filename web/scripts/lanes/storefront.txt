@@ -70,6 +70,7 @@ src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
+src/lib/service-hub/roster-catalog.test.ts
 src/lib/service-hub/roster-services.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
