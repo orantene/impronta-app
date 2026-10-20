@@ -27,6 +27,7 @@ import { isServiceOfferPriceable } from "@/lib/talent/services-menu-offer";
 import { SERVICE_PRICING_LABELS, type ServiceMenuItem, type ServicePricingType } from "@/lib/talent/services-menu-types";
 import { useT } from "@/i18n/use-t";
 import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
+import { isSellable } from "@/lib/offerings/sellable";
 
 /**
  * DEFAULT rate templates: every talent is offer-able even with zero configured
@@ -99,7 +100,7 @@ export function LineServicePicker({
       }
       const offeringItems: ServiceMenuItem[] = off.ok
         ? off.items
-            .filter((o: TalentOffering) => o.status === "published" && offeringIsOfferPriceable(o))
+            .filter((o: TalentOffering) => isSellable(o, "pos_desk") && offeringIsOfferPriceable(o))
             .map((o: TalentOffering) => ({
               id: o.id,
               name: o.title,

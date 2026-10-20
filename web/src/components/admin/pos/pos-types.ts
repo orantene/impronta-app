@@ -182,6 +182,7 @@ export const POS_REFUSAL_REASONS = [
   "tenderShort",
   "emptySale",
   "itemRefused",
+  "itemUnavailable",
   "discountRefused",
   "discountNeedsCustomer",
   "readerUnavailable",

@@ -1,6 +1,6 @@
 "use server";
 
-import { assertPublicHttpUrl, readCappedText } from "@/lib/ssrf-guard";
+import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 import type { LinkUnfurl } from "@/lib/messages/unfurl-types";
 
 /**
@@ -9,9 +9,10 @@ import type { LinkUnfurl } from "@/lib/messages/unfurl-types";
  * Shared CONTRACT (consumed by the message shells). Returns OpenGraph-ish
  * metadata for an http/https URL, or `{ ok:false, url }` on any failure.
  *
- * Safety posture: scheme allowlist, DNS range checks and the capped body read
- * all live in `@/lib/ssrf-guard`, shared with the Tulala URL importer. Only a
- * small set of <title> / og:* tags are parsed here; no HTML is executed.
+ * Safety posture: scheme allowlist, DNS range checks, the pinned connection,
+ * per-hop redirect checks and the capped body read all live in
+ * `@/lib/security/safe-fetch` (H1). Only a small set of <title> / og:* tags
+ * are parsed here; no HTML is executed.
  */
 
 const TIMEOUT_MS = 3000;
@@ -20,29 +21,16 @@ const MAX_BYTES = 512 * 1024;
 export async function unfurlLink(url: string): Promise<LinkUnfurl> {
   const fail: LinkUnfurl = { ok: false, url };
   try {
-    const checked = await assertPublicHttpUrl(url);
-    if (!checked.ok) return fail;
-    const parsed = checked.url;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    let res: Response;
-    try {
-      res = await fetch(parsed.toString(), {
-        method: "GET",
-        redirect: "manual", // don't auto-follow into an internal host
-        signal: controller.signal,
-        headers: {
-          "user-agent": "TulalaLinkPreview/1.0 (+https://tulala.digital)",
-          accept: "text/html,application/xhtml+xml",
-        },
-      });
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (!res.ok) return fail;
+    const res = await safeFetch(url, {
+      maxBytes: MAX_BYTES,
+      overflow: "truncate", // a truncated page still yields its <head>
+      timeoutMs: TIMEOUT_MS,
+      headers: {
+        "user-agent": "TulalaLinkPreview/1.0 (+https://tulala.digital)",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!res.ok || res.status < 200 || res.status >= 300) return fail;
 
     const contentType = res.headers.get("content-type") ?? "";
     if (!/text\/html|application\/xhtml/i.test(contentType)) {
@@ -50,10 +38,10 @@ export async function unfurlLink(url: string): Promise<LinkUnfurl> {
       return fail;
     }
 
-    const html = await readCappedText(res, MAX_BYTES);
+    const html = decodeBody(res.body);
     if (!html) return fail;
 
-    const meta = parseMeta(html, parsed);
+    const meta = parseMeta(html, res.url);
     if (!meta.title && !meta.description && !meta.image && !meta.siteName) {
       return fail;
     }

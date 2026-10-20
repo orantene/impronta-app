@@ -49,6 +49,8 @@ export interface FactoryDesignRow {
    * git yet — offer "Review code seed in Builder Lab" (TUL-366).
    */
   codeSeedReview?: boolean;
+  /** Theme Studio panel, server-rendered HTML (EN+ES); present only when TALENT_THEME_STUDIO=1. */
+  studioHtml?: string;
 }
 
 export interface FactoryOverview {

@@ -92,15 +92,14 @@ test("visit menu (guest-order.ts): the list uses the shared filter and the add p
 test("class timetable, session picker, event tickets: published also means approved and public", () => {
   assert.match(read("src/lib/storefront/class-timetable.core.ts"), /published: isGuestSellableOffering\(o\)/);
   const sessions = read("src/app/(public)/_sessions/session-picker-actions.ts");
-  assert.match(sessions, /\.eq\("moderation_state", "approved"\)/);
-  assert.match(sessions, /\.eq\("visibility", "public"\)/);
+  assert.match(sessions, /scopeToSellableOfferings\([\s\S]{0,160}"guest"/);
   assert.match(sessions, /!isGuestSellableOffering\(offering\)/);
   const events = read("src/app/(public)/_events/ticket-picker-actions.ts");
   assert.equal((events.match(/!isGuestSellableOffering\(offering\)/g) ?? []).length, 2, "picker and buy both gate");
 });
 
 test("open times, live availability and booking surface also require approval", () => {
-  assert.match(read("src/lib/scheduling/public-open-times.ts"), /offering\.moderation_state !== "approved"/);
-  assert.match(read("src/lib/scheduling/profile-live-availability.ts"), /\.eq\("moderation_state", "approved"\)/);
-  assert.match(read("src/lib/scheduling/booking-surface.ts"), /offering\.moderation_state !== "approved"/);
+  assert.match(read("src/lib/scheduling/public-open-times.ts"), /sellability\(offering, "guest"\)/);
+  assert.match(read("src/lib/scheduling/profile-live-availability.ts"), /scopeToSellableOfferings\([\s\S]{0,200}"guest"/);
+  assert.match(read("src/lib/scheduling/booking-surface.ts"), /sellability\(offering, "guest_request"\)/);
 });

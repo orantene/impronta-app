@@ -7,6 +7,7 @@
  * a person reads on the page.
  */
 
+import { isSellable } from "@/lib/offerings/sellable";
 import { offeringIsQuote, offeringPriceLabel, type TalentOffering } from "@/lib/talent/offerings-types";
 
 export type AgentService = {
@@ -33,7 +34,7 @@ function shortDescription(raw: string | null): string | null {
 
 export function toAgentServices(offerings: readonly TalentOffering[], locale: string): AgentService[] {
   return offerings
-    .filter((o) => o.visibility === "public" && o.kind !== "product")
+    .filter((o) => isSellable(o, "guest") && o.kind !== "product")
     .slice(0, AGENT_SERVICES_MAX)
     .map((o) => ({
       id: o.id,

@@ -39,11 +39,15 @@ import sharp from "sharp";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { isAllowedLogoUrl } from "@/lib/media/logo-url-allowlist";
+import { SHARP_INPUT_LIMITS } from "@/lib/media/image-sanitize.server";
+import { readResponseCapped } from "@/lib/media/upload-guards";
 import { derivedOwnershipStamp } from "@/lib/media/ownership";
 import { logServerError } from "@/lib/server/safe-error";
 
 /** px cap on the logo's long edge before compositing. */
 const MAX_LOGO_SIZE = 512;
+/** H1: a workspace logo download is capped while streaming. */
+const MAX_LOGO_FETCH_BYTES = 8 * 1024 * 1024;
 
 const PUBLIC_BUCKET = "media-public";
 const ORIGINALS_BUCKET = "media-originals";
@@ -243,7 +247,7 @@ async function composeAndStore(
 ): Promise<BakeWatermarkResult> {
   const { source, logoUrl, preset, tenantId, actorUserId, sourceBytes, existing } = args;
   try {
-    const srcImg = sharp(sourceBytes);
+    const srcImg = sharp(sourceBytes, SHARP_INPUT_LIMITS);
     const { width: imgW = 1920, height: imgH = 1080 } = await srcImg.metadata();
 
     // A7 — never dial a tenant-supplied URL unchecked. See isAllowedLogoUrl.
@@ -253,11 +257,13 @@ async function composeAndStore(
     }
     const logoResp = await fetch(logoUrl, { redirect: "error" });
     if (!logoResp.ok) throw new Error("Failed to fetch logo");
-    const logoBytes = Buffer.from(await logoResp.arrayBuffer());
+    const logoRead = await readResponseCapped(logoResp, MAX_LOGO_FETCH_BYTES);
+    if (!logoRead.ok) throw new Error("Logo exceeds the size cap");
+    const logoBytes = Buffer.from(logoRead.bytes);
 
     const shortEdge = Math.min(imgW, imgH);
     const logoTargetW = Math.round(shortEdge * (preset.size_pct / 100));
-    const logoResized = await sharp(logoBytes)
+    const logoResized = await sharp(logoBytes, SHARP_INPUT_LIMITS)
       .resize({ width: Math.min(logoTargetW, MAX_LOGO_SIZE), withoutEnlargement: true })
       .png()
       .toBuffer();
