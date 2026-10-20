@@ -59,7 +59,7 @@ test("cron selects * so it works before the refund_cents column exists (code-fir
 
 const SQL = blankComments(
   readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "20261231416000_admission_exchange_per_unit_atomic.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "20261231419200_admission_exchange_per_unit_atomic.sql"),
     "utf8",
   ).replace(/--[^\n]*/g, ""),
 );
