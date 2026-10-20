@@ -6,6 +6,8 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { FEE_UNAVAILABLE_MESSAGE, FeeUnavailableError } from "@/lib/billing/pass-through-arming";
+import { isStaffChannel } from "@/lib/pos/reprice-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { amountToCollectCents } from "@/lib/orders/purchase-pricing";
 import {
@@ -27,6 +29,8 @@ export async function resolveCheckoutCollectCents(
     collect: "full" | "deposit" | "none";
     depositPct: number | null;
     payInPerson: boolean;
+    /** Order source channel; staff (POS) charges no client service fee (TUL-1366). */
+    sourceChannel?: string | null;
   },
 ): Promise<{ baseCollectCents: number; collectCents: number; serviceFeeBpsByParty: Record<string, number> }> {
   const baseCollectCents = amountToCollectCents(
@@ -34,7 +38,7 @@ export async function resolveCheckoutCollectCents(
     input.collect,
     input.depositPct,
   );
-  if (!(baseCollectCents > 0) || input.payInPerson) {
+  if (!(baseCollectCents > 0) || input.payInPerson || isStaffChannel(input.sourceChannel)) {
     return { baseCollectCents, collectCents: baseCollectCents, serviceFeeBpsByParty: {} };
   }
   const priced = await resolveCollectForPrincipalDetailed(admin, {
@@ -113,9 +117,9 @@ export async function collectForOrderPrincipal(
     .select("talent_profile_id, owner_tenant_id, total_cents, talent_cost_cents")
     .eq("order_id", input.orderId);
   if (error) {
-    // Never charge less than the principal on a read failure; never guess a fee either. Say so loudly.
+    // Never charge less than the principal on a read failure; never guess a fee either: refuse.
     logServerError(`purchase-collect.collectForOrderPrincipal[order=${input.orderId}]`, error);
-    return input.principalCents;
+    throw new FeeUnavailableError("order_lines_read_failed");
   }
   const lines: PurchaseLineForCollect[] = ((data ?? []) as Array<{ talent_profile_id: string | null; owner_tenant_id: string | null; total_cents: number | string | null; talent_cost_cents: number | string | null }>).map((l) => ({
     talentProfileId: l.talent_profile_id,
@@ -124,4 +128,25 @@ export async function collectForOrderPrincipal(
     talentCostCents: Number(l.talent_cost_cents) || 0,
   }));
   return resolveCollectForPrincipal(admin, { tenantId: input.tenantId, orderCurrency: input.orderCurrency, lines, subtotalCents: input.subtotalCents, principalCents: input.principalCents, frozenFeeByParty });
+}
+
+
+/**
+ * `resolveCheckoutCollectCents` that REFUSES instead of throwing when the
+ * service fee cannot be confirmed (TUL-1366): the checkout stops with a plain
+ * retry message. Never a silent 0 fee.
+ */
+export async function resolveCheckoutCollectOrRefuse(
+  admin: SupabaseClient,
+  input: Parameters<typeof resolveCheckoutCollectCents>[1],
+): Promise<
+  | { ok: true; baseCollectCents: number; collectCents: number; serviceFeeBpsByParty: Record<string, number> }
+  | { ok: false; error: string }
+> {
+  try {
+    return { ok: true, ...(await resolveCheckoutCollectCents(admin, input)) };
+  } catch (err) {
+    if (err instanceof FeeUnavailableError) return { ok: false, error: FEE_UNAVAILABLE_MESSAGE };
+    throw err;
+  }
 }

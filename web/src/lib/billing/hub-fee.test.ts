@@ -128,29 +128,38 @@ describe("the 1.5% on a cancellation", () => {
 
 describe("wiring (every checkout and refund path)", () => {
   const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-  test("the commission engine and the checkout collect both use the same arming and rate resolver", () => {
-    for (const f of ["./commission-engine.ts", "../orders/purchase-pass-through-collect.ts"]) {
+  test("the commission engine, the checkout collect and the offer freeze all use the same fail-closed decision and rate resolver", () => {
+    for (const f of ["./commission-engine.ts", "../orders/purchase-pass-through-collect.ts", "./offer-service-fee.ts"]) {
       const src = read(f);
-      assert.match(src, /passThroughArmed\(\)/, f);
+      assert.match(src, /decidePassThrough\(/, f);
       assert.match(src, /loadSellerPassThroughBps/, f);
       assert.doesNotMatch(src, /process\.env\.COMMISSION_PROCESSING_PASS_THROUGH/, `${f} must not read the env key directly`);
     }
+  });
+  test("a refused fee stops the checkout, the payment link and the offer", () => {
+    assert.match(read("../orders/purchase.ts"), /resolveCheckoutCollectOrRefuse/);
+    assert.match(read("../orders/purchase.ts"), /if \(!collect\.ok\) return \{ ok: false, reason: "engine_error", error: collect\.error \}/);
+    assert.match(read("../payments/link-checkout.ts"), /instanceof FeeUnavailableError/);
+    assert.match(read("../../app/(public)/pay/[code]/pay-page.tsx"), /instanceof FeeUnavailableError/);
+    assert.match(read("../inquiry/inquiry-engine-offers.ts"), /freezeOfferServiceFee\(/);
+    assert.match(read("./commission-engine.ts"), /fee_unavailable:/);
   });
   test("the order is priced with a frozen fee and every later collect reads it", () => {
     assert.match(read("../orders/purchase.ts"), /service_fee_by_party: serviceFeeBpsByParty/);
     const pc = read("../orders/purchase-collect.ts");
     assert.match(pc, /select\("service_fee_by_party"\)/);
     assert.match(pc, /frozenFeeByParty/);
-    assert.match(read("./commission-engine.ts"), /select\("service_fee_by_party"\)/);
+    assert.match(read("./commission-engine.ts"), /select\("service_fee_by_party/);
+    assert.match(read("./commission-engine.ts"), /inquiry_offers/);
   });
-  test("all four refund paths pass who cancelled, so a seller cancel returns the fee", () => {
+  test("all four refund paths pass the cancel context, so the decided fee refund is honoured", () => {
     for (const f of [
       "../payments/refund-execute.ts",
       "../payments/refunds.ts",
       "../orders/refund-execute-lines.ts",
       "../../app/(workspace)/[tenantSlug]/admin/orders/refund-actions.ts",
     ]) {
-      assert.match(read(f), /cancelledBy: (await )?loadBookingCancelledBy\(/, f);
+      assert.match(read(f), /await loadBookingCancelContext\(/, f);
     }
   });
   test("the held migration lives in _pending_pm at the reserved version and is additive", () => {

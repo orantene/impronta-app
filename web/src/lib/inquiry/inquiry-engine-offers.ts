@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { freezeOfferServiceFee } from "@/lib/billing/offer-service-fee";
 import type { Database } from "@/lib/supabase/database.types";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
@@ -672,6 +673,11 @@ export async function sendOffer(
     if (!liRows?.length || lineSum <= 0) {
       return { success: false, error: "empty_offer" };
     }
+    // TUL-1366: freeze the Tulala service fee of each seller's current plan on
+    // the offer BEFORE it is sent, so the booking converted from it charges the
+    // fee the client was quoted. Fails closed: no fee, no send.
+    const feeFrozen = await freezeOfferServiceFee(supabase, { inquiryId: ctx.inquiryId, tenantId: ctx.tenantId, offerId: ctx.offerId });
+    if (!feeFrozen.ok) return { success: false, error: "fee_unavailable", message: feeFrozen.error };
     // TUL-274: refuse to send an offer priced in a currency the single seller
     // does not charge in (an MXN seller must not offer USD).
     const { data: curRow, error: curErr } = await supabase

@@ -40,7 +40,7 @@ export type {
   PurchaseResult,
 };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
-import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
+import { resolveCheckoutCollectOrRefuse } from "@/lib/orders/purchase-collect";
 
 /**
  * ONE purchase pipeline.
@@ -289,19 +289,19 @@ export async function createPurchase(
     // Settle + insert must agree; `orders_total_is_derived` refuses drift.
     const totalCents = priced.subtotalCents - promoDiscountCents;
 
-    const { baseCollectCents, collectCents, serviceFeeBpsByParty } = await resolveCheckoutCollectCents(
-      admin,
-      {
-        tenantId: input.tenantId,
-        orderCurrency,
-        lines: priced.lines,
-        subtotalCents: priced.subtotalCents,
-        totalCents,
-        collect: policy.collect,
-        depositPct: policy.depositPct,
-        payInPerson: policy.payInPerson,
-      },
-    );
+    const collect = await resolveCheckoutCollectOrRefuse(admin, {
+      tenantId: input.tenantId,
+      orderCurrency,
+      lines: priced.lines,
+      subtotalCents: priced.subtotalCents,
+      totalCents,
+      collect: policy.collect,
+      depositPct: policy.depositPct,
+      payInPerson: policy.payInPerson,
+      sourceChannel: input.sourceChannel,
+    });
+    if (!collect.ok) return { ok: false, reason: "engine_error", error: collect.error };
+    const { baseCollectCents, collectCents, serviceFeeBpsByParty } = collect;
 
     // ── 5. Create the order. `draft` until capacity is held and payment decided.
 

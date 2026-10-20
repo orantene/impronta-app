@@ -14,6 +14,7 @@ import {
   sellerOfRecordFromOwningParty,
 } from "./purchase-pass-through-collect";
 import type { ProcessorFeeRates } from "@/lib/billing/commission";
+import { FeeUnavailableError } from "@/lib/billing/pass-through-arming";
 
 const US: ProcessorFeeRates = { percent: 0.029, fixed_cents: 30, tax_on_fee: 0 };
 const MX: ProcessorFeeRates = { percent: 0.036, fixed_cents: 300, tax_on_fee: 0.16 };
@@ -205,12 +206,13 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
     processing_mode: "pass_through",
     pass_through_take_bps: 150,
     processor_fee_rates: { default: US, usd: US },
+    plan_service_fee_bps: {},
     ...extra,
   });
   const rpcFor = (row: unknown) => async (fn: string) =>
     fn === "engine_platform_processing_mode" ? { data: row, error: null } : { data: "seller", error: null };
 
-  it("TUL-1366: ON by default with the env unset: $100 gets the 1.5% customer fee", async () => {
+  it("TUL-1366: ON by default once the settings row carries the migration marker: $100 gets the 1.5% customer fee", async () => {
     await withEnv(undefined, async () => {
       const admin = { rpc: rpcFor(modeRow()) };
       assert.equal(
@@ -294,19 +296,53 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
     });
   });
 
-  it("fail-soft on mode RPC error: returns bare collect", async () => {
+  it("TUL-1366 FAILS CLOSED on a mode RPC error / throw: the checkout is refused, never a bare collect", async () => {
     await withEnv("1", async () => {
-      const admin = {
-        rpc: async () => ({ data: null, error: { message: "boom" } }),
-      };
-      assert.equal(
-        await resolvePassThroughCollectCents(admin, {
-          baseCollectCents: 10_000,
-          currencyCode: "USD",
-          sellers,
-        }),
-        10_000,
+      for (const rpc of [
+        async () => ({ data: null, error: { message: "boom" } }),
+        async () => {
+          throw new Error("down");
+        },
+      ]) {
+        await assert.rejects(
+          resolvePassThroughCollectCents({ rpc }, { baseCollectCents: 10_000, currencyCode: "USD", sellers }),
+          FeeUnavailableError,
+        );
+      }
+    });
+  });
+
+  it("TUL-1366: armed with a missing platform rate, missing card rates, or no seller is refused (no 150, no silent 0)", async () => {
+    await withEnv("1", async () => {
+      await assert.rejects(
+        resolvePassThroughCollectCents({ rpc: rpcFor(modeRow({ pass_through_take_bps: null })) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers }),
+        FeeUnavailableError,
       );
+      await assert.rejects(
+        resolvePassThroughCollectCents({ rpc: rpcFor(modeRow({ processor_fee_rates: {} })) }, { baseCollectCents: 10_000, currencyCode: "EUR", sellers }),
+        FeeUnavailableError,
+      );
+      await assert.rejects(
+        resolvePassThroughCollectCents({ rpc: rpcFor(modeRow()) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers: [] }),
+        FeeUnavailableError,
+      );
+    });
+  });
+
+  it("TUL-1366: no settings row / 'included' row / unmigrated unarmed env: bare collect, nothing written", async () => {
+    await withEnv(undefined, async () => {
+      for (const data of [null, { processing_mode: "included", pass_through_take_bps: 150 }, { processing_mode: "pass_through", pass_through_take_bps: 150 }]) {
+        const r = await resolvePassThroughCollect({ rpc: async () => ({ data, error: null }) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers });
+        assert.deepEqual(r, { cents: 10_000, feeBpsByParty: {}, armed: false });
+      }
+    });
+  });
+
+  it("TUL-1366: whenever the fee is on, the per-seller snapshot is returned (always written)", async () => {
+    await withEnv("1", async () => {
+      const r = await resolvePassThroughCollect({ rpc: rpcFor(modeRow()) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers });
+      assert.equal(r.armed, true);
+      assert.deepEqual(r.feeBpsByParty, { "tal-1": 150 });
     });
   });
 

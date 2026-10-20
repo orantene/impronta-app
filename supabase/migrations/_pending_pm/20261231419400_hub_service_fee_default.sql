@@ -44,6 +44,27 @@ ALTER TABLE public.orders
 COMMENT ON COLUMN public.orders.service_fee_by_party IS
   'Frozen Tulala service fee in bps per seller party id, captured when the order was priced.';
 
+-- 3b. Inquiry bookings have no order: the fee is frozen on the OFFER when it is
+--     sent (inquiry_offers.service_fee_by_party) and read at conversion.
+ALTER TABLE public.inquiry_offers
+  ADD COLUMN IF NOT EXISTS service_fee_by_party JSONB;
+ALTER TABLE public.inquiry_offers
+  DROP CONSTRAINT IF EXISTS inquiry_offers_service_fee_by_party_chk;
+ALTER TABLE public.inquiry_offers
+  ADD CONSTRAINT inquiry_offers_service_fee_by_party_chk
+    CHECK (service_fee_by_party IS NULL OR jsonb_typeof(service_fee_by_party) = 'object');
+COMMENT ON COLUMN public.inquiry_offers.service_fee_by_party IS
+  'Frozen Tulala service fee in bps per seller party id, captured when the offer was sent.';
+
+-- 3c. Cancellation: is the Tulala service fee returned? Decided ONCE at cancel
+--     time (seller side cancels: yes; client cancels inside the free-cancellation
+--     window: yes; client cancels after it: no) and read by every refund path.
+--     NULL = not decided (older bookings): refunds fall back to cancelled_by.
+ALTER TABLE public.agency_bookings
+  ADD COLUMN IF NOT EXISTS service_fee_refundable BOOLEAN;
+COMMENT ON COLUMN public.agency_bookings.service_fee_refundable IS
+  'Whether the Tulala service fee is returned with the refund of this cancelled booking. Set when the booking is cancelled; NULL = not decided.';
+
 -- 4. The reader RPC also returns the per-plan fee map, keyed by the RUNTIME plan
 --    key (workspace: free/studio/agency/network; talent: talent_basic/talent_pro/
 --    talent_portfolio), the same mapping pricing-cta-href.ts uses.

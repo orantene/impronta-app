@@ -25,17 +25,13 @@ import {
   type ProcessorFeeRates,
   type SellerOfRecord,
 } from "@/lib/billing/commission";
-import {
-  processorFeeRatesFromTable,
-  readPlatformProcessingMode,
-  resolvePassThroughTakeBps,
-} from "@/lib/billing/platform-processing-mode";
+import { processorFeeRatesFromTable } from "@/lib/billing/platform-processing-mode";
 import {
   moneyOwningParty,
   resolveOwningPartyForTalent,
   type OwningParty,
 } from "@/lib/inquiry/owning-party-resolver";
-import { passThroughArmed } from "@/lib/billing/fee-config";
+import { decidePassThrough, FeeUnavailableError } from "@/lib/billing/pass-through-arming";
 import { loadSellerPassThroughBps } from "@/lib/billing/pass-through-rate";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -294,16 +290,16 @@ async function inflateOnePayee(
 }
 
 /**
- * Inflate `baseCollectCents` with pass_through fees when armed. Fail-soft on
- * mode/rates faults (return bare collect). Fee-payer RPC faults default to
- * seller and keep the surcharge — matching the commission engine.
+ * Inflate `baseCollectCents` with pass_through fees when armed. FAILS CLOSED
+ * (throws FeeUnavailableError) when armed and the fee cannot be read. Fee-payer
+ * RPC faults default to seller and keep the surcharge, matching the engine.
  */
 export async function resolvePassThroughCollectCents(
   admin: PassThroughCollectRpc & Partial<Pick<SupabaseClient, "from">>,
   input: {
     baseCollectCents: number;
     currencyCode: string;
-    /** Resolved payees (one or more). Empty → bare collect. */
+    /** Resolved payees (one or more). Empty while armed refuses (no seller to price). */
     sellers: readonly PurchaseSellerForCollect[];
     /** The order's frozen fee snapshot, when it already carries one. */
     frozenByParty?: Record<string, number> | null;
@@ -324,51 +320,50 @@ export async function resolvePassThroughCollect(
     sellers: readonly PurchaseSellerForCollect[];
     frozenByParty?: Record<string, number> | null;
   },
-): Promise<{ cents: number; feeBpsByParty: Record<string, number> }> {
+): Promise<{ cents: number; feeBpsByParty: Record<string, number>; armed: boolean }> {
   const base = input.baseCollectCents;
-  const bare = { cents: base, feeBpsByParty: {} as Record<string, number> };
-  if (!(base > 0) || input.sellers.length === 0) return bare;
-  if (!passThroughArmed()) return bare;
+  const bare = { cents: Math.max(0, base || 0), feeBpsByParty: {} as Record<string, number>, armed: false };
+  if (!(base > 0)) return bare;
 
-  try {
-    const modeRow = await readPlatformProcessingMode(admin);
-    if (!modeRow) {
-      logServerError("orders.passThroughCollect/mode", "engine_platform_processing_mode empty");
-      return bare;
-    }
-    if (modeRow.processing_mode !== "pass_through") return bare;
+  // TUL-1366 (consultant P1-1): FAIL CLOSED. The decision is the settings row's;
+  // when it cannot be read, or it is on and a rate / seller / card rate is
+  // missing, the checkout is REFUSED (FeeUnavailableError), never a silent 0.
+  const decision = await decidePassThrough(admin);
+  if (decision.mode === "off") return bare;
+  if (decision.mode === "unavailable") {
+    logServerError("orders.passThroughCollect/decision", decision.detail);
+    throw new FeeUnavailableError(decision.detail);
+  }
+  if (input.sellers.length === 0) {
+    logServerError("orders.passThroughCollect/sellers", "armed with no resolvable seller");
+    throw new FeeUnavailableError("no_seller");
+  }
+  const processorFeeRates = processorFeeRatesFromTable(decision.row.processor_fee_rates, input.currencyCode);
+  if (!processorFeeRates) {
+    logServerError("orders.passThroughCollect/rates", `no processor_fee_rates for ${String(input.currencyCode ?? "").toLowerCase()}`);
+    throw new FeeUnavailableError("processor_rates_missing");
+  }
 
-    const processorFeeRates = processorFeeRatesFromTable(
-      modeRow.processor_fee_rates,
-      input.currencyCode,
-    );
-    if (!processorFeeRates) {
-      logServerError(
-        "orders.passThroughCollect/rates",
-        `no processor_fee_rates for ${String(input.currencyCode ?? "").toLowerCase()}`,
-      );
-      return bare;
-    }
-
-    const platformBps = resolvePassThroughTakeBps(modeRow);
-
-    let total = 0;
-    const feeBpsByParty: Record<string, number> = {};
-    for (const payee of input.sellers) {
-      const one = await inflateOnePayee(admin, {
+  let total = 0;
+  const feeBpsByParty: Record<string, number> = {};
+  for (const payee of input.sellers) {
+    let one: { cents: number; bps: number };
+    try {
+      one = await inflateOnePayee(admin, {
         payee,
         currencyCode: input.currencyCode,
-        platformBps,
-        planFeeBps: modeRow.plan_service_fee_bps ?? null,
+        platformBps: decision.platformBps,
+        planFeeBps: decision.planFeeBps,
         frozenByParty: input.frozenByParty ?? null,
         processorFeeRates,
       });
-      total += one.cents;
-      feeBpsByParty[payee.partyId] = one.bps;
+    } catch (err) {
+      logServerError("orders.passThroughCollect", err);
+      throw new FeeUnavailableError("payee_failed");
     }
-    return total > 0 ? { cents: total, feeBpsByParty } : bare;
-  } catch (err) {
-    logServerError("orders.passThroughCollect", err);
-    return bare;
+    total += one.cents;
+    feeBpsByParty[payee.partyId] = one.bps;
   }
+  if (!(total > 0)) throw new FeeUnavailableError("no_total");
+  return { cents: total, feeBpsByParty, armed: true };
 }

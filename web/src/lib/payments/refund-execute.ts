@@ -29,7 +29,7 @@
  * Server-only.
  */
 
-import { loadBookingCancelledBy } from "@/lib/billing/booking-cancelled-by";
+import { loadBookingCancelContext } from "@/lib/billing/booking-cancelled-by";
 import "server-only";
 import { nonRefundableFeeCents as nonRefundableFeeCentsOf } from "@/lib/billing/commission";
 import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
@@ -250,9 +250,7 @@ export async function loadRefundEligibility(
   let nonRefundableFeeCents: number | null = 0;
   if (typeof row.booking_id === "string" && row.booking_id) {
     try {
-      nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshotsForRefund(sb, row.booking_id), {
-        cancelledBy: await loadBookingCancelledBy(sb, row.booking_id),
-      });
+      nonRefundableFeeCents = nonRefundableFeeCentsOf(await loadBookingCommissionSnapshotsForRefund(sb, row.booking_id), await loadBookingCancelContext(sb, row.booking_id));
     } catch {
       nonRefundableFeeCents = null; // snapshot unreadable: block, never guess
     }

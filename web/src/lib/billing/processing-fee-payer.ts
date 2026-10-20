@@ -22,7 +22,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { estimateProcessorFeeCents, type BookingCommissionSnapshot, type ProcessingFeePayer, type ProcessorFeeRates } from "./commission";
-import { CLIENT_SERVICE_FEE_BPS, formatBpsPercent } from "./fee-config";
+import { formatBpsPercent } from "./fee-config";
 
 export type FeePayerParty = { kind: "talent" | "workspace"; id: string };
 
@@ -183,6 +183,10 @@ export function platformFeePercentLabel(lines: readonly FeeLine[]): string | nul
   const service = lines.find((l) => l.code === "service_subtotal")?.cents ?? 0;
   const fee = lines.find((l) => l.code === "platform_fee")?.cents;
   if (fee == null || service <= 0) return null;
-  const expected = Math.round((service * CLIENT_SERVICE_FEE_BPS) / 10_000);
-  return Math.abs(fee - expected) <= 1 ? formatBpsPercent(CLIENT_SERVICE_FEE_BPS) : null;
+  // TUL-1366: the rate varies by plan, so it is read back from the charged
+  // amounts, never inferred from a default. Only a clean whole-bps rate within
+  // one cent of rounding is stated; anything else shows no percent.
+  const bps = Math.round((fee * 10_000) / service);
+  if (bps < 0 || bps > 2000) return null;
+  return Math.abs(fee - Math.round((service * bps) / 10_000)) <= 1 ? formatBpsPercent(bps) : null;
 }
