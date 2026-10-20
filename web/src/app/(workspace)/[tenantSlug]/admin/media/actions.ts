@@ -7,10 +7,7 @@ import { requireWorkspaceStaffAction, requireTalentSelfAction } from "@/lib/saas
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import {
-  fetchStoredObjectHead,
-  verifyDeclaredAgainstBytes,
-} from "@/lib/server/sniff-upload-type";
+import { verifyReelStat, verifyStoredObjectType } from "@/lib/server/verify-stored-object-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
 import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
 import {
@@ -1120,29 +1117,6 @@ export type DocumentUploadResult = ActionResult<{
  * talent. That is not an error — it only means the workspace audit entry
  * is skipped, since there is no workspace to file it under.
  */
-/**
- * TUL-1289: a signed PUT lets the browser set the stored mimetype, so the
- * finalize lanes sniff the real bytes instead. A mismatch (or an unreadable
- * head) removes the object and refuses; on success the SNIFFED type is the
- * one recorded.
- */
-async function verifyStoredObjectType(
-  admin: SupabaseClient,
-  bucket: string,
-  storagePath: string,
-  declared: string,
-  opts: { family?: "video" } = {},
-): Promise<{ ok: true; mime: string } | { ok: false; error: string }> {
-  const head = await fetchStoredObjectHead(admin, bucket, storagePath);
-  const verdict = head
-    ? verifyDeclaredAgainstBytes(declared, head, opts)
-    : ({ ok: false, reason: "Could not verify upload. Try again." } as const);
-  if (verdict.ok) return verdict;
-  const { error: removeErr } = await admin.storage.from(bucket).remove([storagePath]);
-  if (removeErr) logServerError("media.actions.verifyStoredType.remove", removeErr);
-  return { ok: false, error: verdict.reason };
-}
-
 type TalentDocumentAuth =
   | { ok: true; tenantId: string | null; actor: "staff" | "self" }
   | { ok: false; error: string };
@@ -1296,12 +1270,7 @@ export async function actionFinalizeDocumentUpload(
     return { ok: false, error: "File must be under 50 MB." };
   }
 
-  const typed = await verifyStoredObjectType(
-    admin,
-    "media-originals",
-    storagePath,
-    meta.mimetype || "application/octet-stream",
-  );
+  const typed = await verifyStoredObjectType(admin, "media-originals", storagePath, meta.mimetype || "application/octet-stream");
   if (!typed.ok) return { ok: false, error: typed.error };
 
   return {
@@ -2204,24 +2173,11 @@ export async function actionRegisterUploadedAsset(
   // Reel videos skip the sharp re-verify: there's nothing to resize, and
   // downloading a 100-200 MB video into the Function just to measure it
   // defeats the point of the signed pipeline. Stat the object instead.
-  let verified: {
-    width: number | null;
-    height: number | null;
-    byteSize: number;
-    mimeType: string;
-  } | null;
+  let verified: { width: number | null; height: number | null; byteSize: number; mimeType: string } | null;
   if (variantKind === "reel") {
-    const stat = await statStoredObject(admin, storagePath);
-    if (stat) {
-      // TUL-1289: the stat's mimetype is client-set; the bytes must be a video.
-      const typed = await verifyStoredObjectType(admin, "media-public", storagePath, stat.mimeType, {
-        family: "video",
-      });
-      if (!typed.ok) return { ok: false, error: typed.error };
-      verified = { width: null, height: null, byteSize: stat.byteSize, mimeType: typed.mime };
-    } else {
-      verified = null;
-    }
+    const reel = await verifyReelStat(admin, storagePath, await statStoredObject(admin, storagePath));
+    if (!reel.ok) return { ok: false, error: reel.error };
+    verified = reel.verified;
   } else {
     verified = await reverifyStoredObject(admin, storagePath, variantKind);
   }

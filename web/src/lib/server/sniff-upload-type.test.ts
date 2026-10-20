@@ -56,6 +56,9 @@ test("the finalize lanes call the sniffer", async () => {
     new URL("../../app/(workspace)/[tenantSlug]/admin/media/actions.ts", import.meta.url),
     "utf8",
   );
-  assert.match(src, /verifyStoredDocumentType|verifyDeclaredAgainstBytes/);
-  assert.ok((src.match(/verifyStoredObjectType\(/g) ?? []).length >= 2, "document and reel finalize both verify");
+  const helper = readFileSync(new URL("./verify-stored-object-type.ts", import.meta.url), "utf8");
+  assert.match(helper, /verifyDeclaredAgainstBytes/);
+  assert.match(src, /verifyStoredObjectType\(/, "document finalize verifies");
+  assert.match(src, /verifyReelStat\(/, "reel finalize verifies");
+  assert.match(helper, /family: "video"/);
 });
