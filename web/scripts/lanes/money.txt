@@ -64,6 +64,7 @@ src/lib/catalog/tax.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
 src/lib/events/cancel-cascade.static.test.ts
+src/lib/events/cancel-event-stamp.static.test.ts
 src/lib/events/ticket-payment-guard.test.ts
 src/lib/fulfilment/pipelines.test.ts
 src/lib/inquiry/counter-offer-currency.test.ts
