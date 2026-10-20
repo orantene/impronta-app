@@ -16,6 +16,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { DEFAULT_POOL_KEY } from "@/lib/sessions/session-plan";
 import { MAX_SALES_CLOSE_MINUTES, parseSalesCloseMinutes, parseTierQuotas } from "@/lib/sessions/series-tiers";
@@ -47,11 +48,9 @@ export async function loadSeriesDatedSettingsAction(input: {
   const g = await staff();
   if (!g.ok) return g;
 
-  const { data: base, error: baseErr } = await g.admin
-    .from("session_series")
+  const { data: base, error: baseErr } = await tenantScopedQuery(g.admin, "session_series", g.tenantId)
     .select("id, offering_id")
     .eq("id", parsed.data.seriesId)
-    .eq("tenant_id", g.tenantId)
     .maybeSingle();
   if (baseErr) {
     logServerError("series.datedSettings.base", baseErr);
@@ -59,15 +58,18 @@ export async function loadSeriesDatedSettingsAction(input: {
   }
   if (!base) return { ok: false, reason: "not_found" };
 
-  // Held-migration columns: a failed read is "not set", never an error.
+  // Held-migration columns: ONLY a missing column (42703, migration not applied) reads as
+  // "not set". Any other error must not show an empty form: saving it would wipe the settings.
   let salesCloseMinutes: number | null = null;
   let tierQuotas: Record<string, number> = {};
-  const { data: extra, error: extraErr } = await g.admin
-    .from("session_series")
+  const { data: extra, error: extraErr } = await tenantScopedQuery(g.admin, "session_series", g.tenantId)
     .select("sales_close_minutes, tier_quotas")
     .eq("id", parsed.data.seriesId)
-    .eq("tenant_id", g.tenantId)
     .maybeSingle();
+  if (extraErr && extraErr.code !== "42703") {
+    logServerError("series.datedSettings.columns", extraErr);
+    return { ok: false, reason: "unavailable" };
+  }
   if (!extraErr && extra) {
     salesCloseMinutes = parseSalesCloseMinutes((extra as { sales_close_minutes?: unknown }).sales_close_minutes);
     tierQuotas = parseTierQuotas((extra as { tier_quotas?: unknown }).tier_quotas) ?? {};
@@ -75,13 +77,17 @@ export async function loadSeriesDatedSettingsAction(input: {
 
   const tiers: SeriesDatedSettings["tiers"] = [];
   if (base.offering_id) {
-    const { data: variants, error: vErr } = await g.admin
-      .from("talent_offering_variants")
-      .select("label, pool_key, sort_order")
-      .eq("offering_id", String(base.offering_id))
-      .order("sort_order", { ascending: true });
+    // Variants have no tenant column of their own: read them through the tenant's offering.
+    const { data: offering, error: vErr } = await tenantScopedQuery(g.admin, "talent_offerings", g.tenantId)
+      .select("id, talent_offering_variants(label, pool_key, sort_order)")
+      .eq("id", String(base.offering_id))
+      .maybeSingle();
     if (vErr) logServerError("series.datedSettings.tiers", vErr);
-    for (const v of variants ?? []) {
+    const variants = (
+      ((offering as { talent_offering_variants?: Array<{ label?: string; pool_key?: string | null; sort_order?: number | null }> } | null)
+        ?.talent_offering_variants ?? [])
+    ).slice().sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0));
+    for (const v of variants) {
       const key = typeof v.pool_key === "string" ? v.pool_key.trim() : "";
       if (key && key !== DEFAULT_POOL_KEY) tiers.push({ poolKey: key, label: String(v.label ?? key) });
     }
@@ -106,14 +112,12 @@ export async function saveSeriesDatedSettingsAction(input: {
   const g = await staff();
   if (!g.ok) return g;
 
-  const { data, error } = await g.admin
-    .from("session_series")
+  const { data, error } = await tenantScopedQuery(g.admin, "session_series", g.tenantId)
     .update({
       sales_close_minutes: parsed.data.salesCloseMinutes,
       tier_quotas: Object.keys(parsed.data.tierQuotas).length > 0 ? parsed.data.tierQuotas : null,
     })
     .eq("id", parsed.data.seriesId)
-    .eq("tenant_id", g.tenantId)
     .select("id")
     .maybeSingle();
   if (error) {
