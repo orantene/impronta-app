@@ -32,7 +32,9 @@ export async function readServiceCollectionCore(
       const { data, error } = await deps.admin
         .from("talent_offering_variants")
         .select("offering_id, amount_cents")
-        .in("offering_id", offerings.map((o) => o.id));
+        .in("offering_id", offerings.map((o) => o.id))
+        // A hidden / comp tier is not a public option, so it never sets the "from" price.
+        .neq("is_hidden", true);
       // A failed options read would print the base price as "from": refuse instead.
       if (error) return { ok: false, reason: "unavailable" };
       for (const v of (data ?? []) as Array<{ offering_id: string; amount_cents: number | null }>) {

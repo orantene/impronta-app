@@ -244,10 +244,10 @@ test("variantSellability: hidden tier refused for guest and client, ok for staff
   assert.deepEqual(variantSellability({}, "guest"), { ok: true }, "a tier with no hidden flag is public");
 });
 
-test("tierRefUnlocks: the deep link ref is the tier id or its tier key, nothing else", () => {
+test("tierRefUnlocks: the deep link ref is the tier id only; the guessable tier key unlocks nothing", () => {
   const tier = { variantId: "AAAA-1", tierKey: "vip" };
   assert.equal(tierRefUnlocks("aaaa-1", tier), true, "id, case-insensitive like the picker");
-  assert.equal(tierRefUnlocks("vip", tier), true);
+  assert.equal(tierRefUnlocks("vip", tier), false);
   assert.equal(tierRefUnlocks("other", tier), false);
   assert.equal(tierRefUnlocks(undefined, tier), false);
   assert.equal(tierRefUnlocks("", tier), false);
