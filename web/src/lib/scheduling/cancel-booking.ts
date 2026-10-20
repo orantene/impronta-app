@@ -1,7 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { inquiryResourcesPrefix, releaseBookingResources } from "@/lib/resources/booking-resources";
+import { releaseInquiryWindowResources } from "@/lib/resources/booking-resources";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { lateCancelRefundCents, type LateCancelRefund } from "@/lib/talent-policies/answers";
@@ -119,7 +119,7 @@ export async function cancelBookingSet(
   // page on the isolated database, 2026-09-11.
   const { data: booking, error: loadErr } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, starts_at, order_id, source_inquiry_id, currency_code")
+    .select("id, tenant_id, starts_at, ends_at, order_id, source_inquiry_id, currency_code")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (loadErr) {
@@ -130,6 +130,7 @@ export async function cancelBookingSet(
   const b = booking as {
     tenant_id: string;
     starts_at?: string | null;
+    ends_at?: string | null;
     order_id?: string | null;
     source_inquiry_id?: string | null;
     currency_code?: string | null;
@@ -169,14 +170,15 @@ export async function cancelBookingSet(
   // cancelled; the conversation chips follow. Additive, non-fatal, and
   // placed before the refund arithmetic so a read failure below cannot hide
   // the cancellation from the thread.
-  // TUL-1375: a booking that came from a request/offer holds its chair, room or station
-  // under the inquiry's key (the RPC releases order-held resources itself). Give them
-  // back. Non-fatal and idempotent: a retry finds nothing left to release.
-  if (b.source_inquiry_id && typeof (admin as { from?: unknown }).from === "function") {
-    await releaseBookingResources(admin as never, {
+  // TUL-1375: a request-sourced booking WITHOUT an order holds its chair, room or
+  // station under the inquiry's key; give back only THIS booking's (its window), never
+  // another booking's on the same request. Resources on an order line are released by
+  // the RPC above with the order. Non-fatal and idempotent.
+  if (b.source_inquiry_id && b.starts_at && b.ends_at) {
+    await releaseInquiryWindowResources(admin as never, {
       tenantId: input.tenantId,
-      operationKey: inquiryResourcesPrefix(b.source_inquiry_id),
-      includeCommitted: true,
+      inquiryId: b.source_inquiry_id,
+      window: { startsAt: b.starts_at, endsAt: b.ends_at },
     });
   }
 

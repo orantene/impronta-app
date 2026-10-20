@@ -63,9 +63,9 @@ export type OfferBookingStore = {
    * TUL-1375: hold the shared resources the booked services need (chair, room, station)
    * for the agreed window, committed to the booking. "taken" = another booking has one.
    */
-  holdResources(input: { bookingId: string; window: OfferBookingWindow }): Promise<"ok" | "taken" | "failed">;
+  holdResources(input: { bookingId: string; orderId: string | null; window: OfferBookingWindow }): Promise<"ok" | "taken" | "failed">;
   /** Give the resources back when the time could not be confirmed after all. */
-  releaseResources(input: { bookingId: string }): Promise<void>;
+  releaseResources(input: { bookingId: string; window: OfferBookingWindow }): Promise<void>;
   /** The calendar mirror (id = booking id). "taken" = the window is no longer free. */
   insertMirror(input: { bookingId: string; talentProfileId: string; window: OfferBookingWindow }): Promise<"ok" | "taken" | "failed">;
   /** The time was not free after all: the booking stays, unconfirmed and without a window. */
@@ -119,12 +119,12 @@ export async function ensureOfferBooking(store: OfferBookingStore, input: { orde
   let scheduled = plan.scheduled;
   if (plan.scheduled && plan.window) {
     // Resources first: a booking never confirms a time whose chair or room is taken.
-    const resources = await store.holdResources({ bookingId, window: plan.window });
+    const resources = await store.holdResources({ bookingId, orderId: input.orderId, window: plan.window });
     const mirrored = resources === "ok" ? await store.insertMirror({ bookingId, talentProfileId, window: plan.window }) : resources;
     if (mirrored === "ok") {
       await store.releaseHolds(plan.window.holdId);
     } else {
-      if (resources === "ok") await store.releaseResources({ bookingId });
+      if (resources === "ok") await store.releaseResources({ bookingId, window: plan.window });
       // Taken (or unwritable): never leave a confirmed booking the calendar cannot see.
       await store.markUnscheduled(bookingId);
       scheduled = false;

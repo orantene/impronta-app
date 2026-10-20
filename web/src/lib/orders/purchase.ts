@@ -20,9 +20,9 @@ import { confirmOrderPromos, releaseRedemptionIds } from "@/lib/promos/redemptio
 import { doorHoldSeconds } from "@/lib/orders/door-hold";
 import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
-import { buildCapacityRequests, type CapacityNeed } from "@/lib/orders/capacity-requests";
+import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
-import { loadLinkedResourcePools, withLinkedResourceNeeds } from "@/lib/resources/booking-resources";
+import { purchaseNeedsWithLinkedResources } from "@/lib/resources/booking-resources";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
@@ -408,42 +408,16 @@ export async function createPurchase(
       return { ok: false, reason: "engine_error", error: "Could not price the order." };
     }
 
-    // ── 7. Hold capacity, per line, each line all-or-nothing.
-    //
-    // NOTE for the Capacity Engine Manager: `reserveCapacityBatch` takes ONE
-    // `orderLineId` for a whole batch, so a cart whose lines each need capacity
-    // cannot be held in a single atomic batch while still attributing each
-    // allocation to its line. Per-line batches keep the attribution and lose
-    // cross-line atomicity, which the compensation below covers. Today every
-    // real cart has at most one capacity-bearing line, so this is a contract
-    // question rather than a live gap.
+    // ── 7. Hold capacity: ONE atomic batch for the whole cart (see below).
     const lineIdByOffering = new Map<string, string>();
     for (const row of insertedLines as Array<{ id: string; offering_id: string | null }>) {
       if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);
     }
 
     let shortestTtlSeconds: number | null = null;
-    // TUL-1375: the chair, room or station each booked service needs joins THIS atomic
-    // batch for the booked window, once per pool (instant book's room is not doubled).
-    // Every order path with a time window gets it: public /book, instant book, the
-    // appointment picker, the POS desk, reservations and carts. A linked resource with
-    // no pool refuses rather than selling a time nobody holds.
-    let needs: CapacityNeed[] = [...(input.capacity ?? [])];
-    if (input.reservation) {
-      const linked = await loadLinkedResourcePools(
-        admin,
-        input.tenantId,
-        input.lines.map((l) => l.offeringId).filter((id): id is string => typeof id === "string" && id.length > 0),
-      );
-      if (!linked.ok) {
-        await unwind("linked resources unreadable");
-        return { ok: false, reason: "capacity_unavailable", error: linked.error };
-      }
-      needs = withLinkedResourceNeeds(needs, linked.poolsByOffering, {
-        startsAt: input.reservation.startsAt,
-        endsAt: input.reservation.endsAt,
-      });
-    }
+    const linkedNeeds = await purchaseNeedsWithLinkedResources(admin, input); // TUL-1375: + linked chair/room/station
+    if (!linkedNeeds.ok) { await unwind("linked resources unreadable"); return { ok: false, reason: "capacity_unavailable", error: linkedNeeds.error }; }
+    const needs = linkedNeeds.needs;
     const slotHolds = [
       ...(input.holds ?? []),
       ...(input.reservation ? [input.reservation] : []),

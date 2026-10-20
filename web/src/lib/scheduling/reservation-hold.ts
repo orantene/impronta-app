@@ -233,7 +233,9 @@ export async function placeReservationHold(
       actorUserId: input.createdByUserId ?? null,
     });
     if (!resources.ok) {
-      await admin.from("talent_holds").delete().eq("id", data.id);
+      const { error: undoErr } = await admin.from("talent_holds").delete().eq("id", data.id);
+      // Loud, because until its TTL the person stays held for a time that was refused.
+      if (undoErr) logServerError("reservation-hold/undo_after_resources", undoErr);
       return resources.reason === "taken"
         ? { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." }
         : { ok: false, code: "unavailable", error: "Could not hold that time. Try again." };
@@ -298,4 +300,25 @@ export async function releaseHoldsForInquiry(
     await releaseBookingResources(admin, { tenantId, operationKey: inquiryResourcesPrefix(inquiryId) });
   }
   return { ok: true, released: (data ?? []).length };
+}
+
+
+/**
+ * TUL-1375: a request whose chair/room/station was taken keeps no held time. Remove the
+ * reservation stamp from the inquiry so nothing reads the window as held (the person's
+ * hold is released by the caller). Logged, never thrown.
+ */
+export async function clearInquiryReservationStamp(admin: SupabaseClient, inquiryId: string): Promise<void> {
+  const { data, error } = await admin.from("inquiries").select("source_context").eq("id", inquiryId).maybeSingle();
+  if (error || !data) {
+    if (error) logServerError("reservation-hold/clear_stamp_read", error);
+    return;
+  }
+  const ctx = (data as { source_context?: unknown }).source_context;
+  if (!ctx || typeof ctx !== "object" || Array.isArray(ctx)) return;
+  const next = { ...(ctx as Record<string, unknown>) };
+  if (!("reservation" in next)) return;
+  delete next.reservation;
+  const { error: upErr } = await admin.from("inquiries").update({ source_context: next }).eq("id", inquiryId);
+  if (upErr) logServerError("reservation-hold/clear_stamp_write", upErr);
 }

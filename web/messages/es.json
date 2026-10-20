@@ -5831,6 +5831,7 @@
         "roomNamePlaceholder": "Sala principal",
         "addRoom": "Agregar sala",
         "tablesWord": "mesas",
+        "bookableAtATime": "Reservable, {n} a la vez",
         "addTablesTitle": "Agregar mesas",
         "addTablesHint": "Agrega varias a la vez. Nunca hace falta dibujar un plano para tomar reservas.",
         "addWord": "Agregar",
@@ -18109,7 +18110,7 @@
       "resources": {
         "title": "Recursos que usa este servicio",
         "intro": "La silla, sala o estación que aparta una reserva. Dos reservas nunca pueden usar la misma al mismo tiempo.",
-        "none": "Todavía no hay sillas, salas ni estaciones configuradas para reservar.",
+        "none": "Primero agrega tus sillas, salas o estaciones en la configuración de espacios.",
         "saveFirst": "Guarda el artículo primero y luego elige sus recursos.",
         "saved": "Guardado.",
         "error": "No pudimos guardar los recursos. Inténtalo de nuevo."

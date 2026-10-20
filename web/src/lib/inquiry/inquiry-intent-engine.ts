@@ -36,6 +36,7 @@ import {
   attachReservationHoldToInquiry,
   placeReservationHold,
   releaseReservationHold,
+  clearInquiryReservationStamp,
 } from "@/lib/scheduling/reservation-hold";
 import { insertReservationCards, reservationCardPayload } from "@/lib/scheduling/reservation-card";
 import { holdInquiryResources } from "@/lib/resources/booking-resources";
@@ -211,6 +212,7 @@ export async function createInquiryFromIntent(
     // TUL-1375: now that the request has an id, hold the chair/room/station its service
     // needs for the same window. If one is taken, the person's hold is given back: the
     // request stays, without a held time (acceptance re-checks before confirming).
+    let resourcesRefused = false;
     if (incomingStamp) {
       const resources = await holdInquiryResources(admin, {
         tenantId: ctx.tenant_id,
@@ -222,9 +224,11 @@ export async function createInquiryFromIntent(
       if (!resources.ok) {
         logServerError("inquiry-intent/resources", `inquiry=${result.data!.inquiryId} reason=${resources.reason}`);
         await releaseReservationHold(admin, placedHoldId);
+        await clearInquiryReservationStamp(admin, result.data!.inquiryId);
+        resourcesRefused = true;
       }
     }
-    const stamp = parseReservationStamp(working.source_context);
+    const stamp = resourcesRefused ? null : parseReservationStamp(working.source_context);
     if (stamp) {
       try {
         await insertReservationCards(admin, {

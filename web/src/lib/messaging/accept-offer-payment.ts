@@ -9,7 +9,7 @@ import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { createDraftOrder } from "@/lib/pos/draft";
 import { resolveAppointmentMirrorSource } from "@/lib/scheduling/reservation-convert";
 import { isExclusionViolation, releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
-import { inquiryResourcesPrefix, releaseBookingResources, secureInquiryBookingResources } from "@/lib/resources/booking-resources";
+import { releaseInquiryWindowResources, secureInquiryBookingResources } from "@/lib/resources/booking-resources";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
@@ -172,7 +172,7 @@ function bookingStore(c: Ctx, offer: AcceptOfferForPayment): OfferBookingStore {
       return true;
     },
 
-    async holdResources({ window }) {
+    async holdResources({ orderId, window }) {
       // TUL-1375: the shared resources (chair, room, station) the offered services need.
       const { data: items, error } = await scoped("inquiry_offer_line_items").select("source_service_id").eq("offer_id", offer.id);
       if (error) {
@@ -187,7 +187,19 @@ function bookingStore(c: Ctx, offer: AcceptOfferForPayment): OfferBookingStore {
         ),
       ];
       if (offeringIds.length === 0) return "ok";
+      // With an order, the resources are committed onto its line: cancel_booking_set and
+      // reschedule_booking_set then release and move them with THIS booking.
+      let orderLineId: string | null = null;
+      if (orderId) {
+        const { data: line, error: lineErr } = await scoped("order_lines").select("id").eq("order_id", orderId).order("sort_order", { ascending: true }).limit(1).maybeSingle();
+        if (lineErr) {
+          logServerError("messaging.acceptOffer.booking.resources.line", lineErr);
+          return "failed";
+        }
+        orderLineId = (line as { id?: string } | null)?.id ?? null;
+      }
       return secureInquiryBookingResources(c.admin, {
+        orderLineId,
         tenantId: c.tenantId,
         inquiryId: c.inquiryId,
         offeringIds,
@@ -196,11 +208,12 @@ function bookingStore(c: Ctx, offer: AcceptOfferForPayment): OfferBookingStore {
       });
     },
 
-    async releaseResources() {
-      await releaseBookingResources(c.admin, {
+    async releaseResources({ window }) {
+      // Only this booking's window: never another booking's resources on the same request.
+      await releaseInquiryWindowResources(c.admin, {
         tenantId: c.tenantId,
-        operationKey: inquiryResourcesPrefix(c.inquiryId),
-        includeCommitted: true,
+        inquiryId: c.inquiryId,
+        window: { startsAt: window.startsAt, endsAt: window.endsAt },
       });
     },
 

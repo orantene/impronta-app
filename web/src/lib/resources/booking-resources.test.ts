@@ -4,6 +4,9 @@ import { parseOfferingResourceSet } from "./offering-resource-set";
 import {
   commitBookingResources,
   holdBookingResources,
+  moveInquiryBookingResources,
+  releaseInquiryWindowResources,
+  secureInquiryBookingResources,
   inquiryResourcesKey,
   inquiryResourcesPrefix,
   releaseBookingResources,
@@ -46,7 +49,7 @@ test("linked resources join the purchase's capacity, once per pool, only with a 
  * pool are serialized and counted, so a pool of 1 unit admits one overlapping window.
  */
 function fakeEngine(unitsTotal: number) {
-  const live: Array<{ id: string; key: string; pool: string; state: string; startsAt: string; endsAt: string }> = [];
+  const live: Array<{ id: string; key: string; pool: string; state: string; startsAt: string; endsAt: string; orderLineId: string | null }> = [];
   let chain = Promise.resolve();
   let n = 0;
   const rpc = async (name: string, args: Record<string, unknown>) => {
@@ -64,7 +67,7 @@ function fakeEngine(unitsTotal: number) {
         }
         const ids = cap.map((c) => {
           const id = `a${++n}`;
-          live.push({ id, key: String(args.p_operation_key), pool: c.pool_id, state: "hold", startsAt: c.starts_at, endsAt: c.ends_at });
+          live.push({ id, key: String(args.p_operation_key), pool: c.pool_id, state: "hold", startsAt: c.starts_at, endsAt: c.ends_at, orderLineId: null });
           return id;
         });
         out = { ok: true, allocation_ids: ids, hold_ids: [] };
@@ -83,9 +86,12 @@ function fakeEngine(unitsTotal: number) {
     if (name === "commit_capacity") {
       for (const id of args.p_allocation_ids as string[]) {
         const a = live.find((x) => x.id === id);
-        if (a) a.state = "committed";
+        if (a) {
+          a.state = "committed";
+          if (args.p_order_line_id) a.orderLineId = String(args.p_order_line_id);
+        }
       }
-      return { data: { committed: (args.p_allocation_ids as string[]).length }, error: null };
+      return { data: { ok: true, committed: (args.p_allocation_ids as string[]).length }, error: null };
     }
     if (name === "assert_capacity_pools_for_tenant") return { data: true, error: null };
     return { data: null, error: { message: `unexpected rpc ${name}` } };
@@ -101,7 +107,7 @@ function fakeEngine(unitsTotal: number) {
       then: (resolve: (v: unknown) => void) => {
         const rows =
           table === "capacity_allocations"
-            ? live.map((a) => ({ id: a.id, operation_key: a.key, state: a.state, tenant_id: "t1", pool_id: a.pool, starts_at: a.startsAt, ends_at: a.endsAt }))
+            ? live.map((a) => ({ id: a.id, operation_key: a.key, state: a.state, tenant_id: "t1", pool_id: a.pool, starts_at: a.startsAt, ends_at: a.endsAt, order_line_id: a.orderLineId }))
             : table === "capacity_pools"
               ? [{ id: "room-pool", tenant_id: "t1" }]
               : [];
@@ -190,4 +196,115 @@ test("resource picker strings exist in EN and ES with no em dashes", () => {
   assert.ok(e && s, "dashboard.catalog.resources block missing");
   assert.deepEqual(Object.keys(e).sort(), Object.keys(s).sort());
   for (const v of [...Object.values(e), ...Object.values(s)]) assert.equal(String(v).includes("—"), false);
+});
+
+import { planSpacePoolForLink } from "./space-pool-for-link";
+
+test("linking a space with no pool creates a 1-unit pool under its nearest pooled parent", () => {
+  const nodes = [
+    { id: "room", kind: "room" as const, parentId: null },
+    { id: "chair", kind: "chair" as const, parentId: "room" },
+    { id: "area", kind: "area" as const, parentId: null },
+    { id: "chair2", kind: "chair" as const, parentId: "area" },
+  ];
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "chair", nodes, pools: new Map([["room", { id: "p-room", unitsTotal: 3, parentPoolId: null }]]) }), {
+    action: "create",
+    parentPoolId: "p-room",
+    units: 1,
+  });
+  // a parent that has no pool yet is not a constraint: no parent
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "chair", nodes, pools: new Map() }), { action: "create", parentPoolId: null, units: 1 });
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "chair2", nodes, pools: new Map() }), { action: "create", parentPoolId: null, units: 1 });
+});
+
+test("an existing pool is used; an empty 0-unit pool on a space with nothing inside becomes 1", () => {
+  const nodes = [
+    { id: "room", kind: "room" as const, parentId: null },
+    { id: "t1", kind: "table" as const, parentId: "room" },
+    { id: "chair", kind: "chair" as const, parentId: null },
+  ];
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "chair", nodes, pools: new Map([["chair", { id: "pc", unitsTotal: 2, parentPoolId: null }]]) }), { action: "use", poolId: "pc" });
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "chair", nodes, pools: new Map([["chair", { id: "pc", unitsTotal: 0, parentPoolId: null }]]) }), {
+    action: "raise",
+    poolId: "pc",
+    parentPoolId: null,
+    units: 1,
+  });
+  // a room that holds tables keeps its own capacity rules: refused, never silently changed
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "room", nodes, pools: new Map([["room", { id: "pr", unitsTotal: 0, parentPoolId: null }]]) }), { action: "refuse" });
+  // an unpooled kind (area) cannot be held
+  assert.deepEqual(planSpacePoolForLink({ spaceId: "x", nodes: [{ id: "x", kind: "area" as const, parentId: null }], pools: new Map() }), { action: "refuse" });
+});
+
+test("space settings say plainly that a space is bookable (EN + ES)", () => {
+  type V = { dashboard: { adminWorkspace: { venue: Record<string, string> } } };
+  assert.equal((en as unknown as V).dashboard.adminWorkspace.venue.bookableAtATime, "Bookable, {n} at a time");
+  assert.equal((es as unknown as V).dashboard.adminWorkspace.venue.bookableAtATime, "Reservable, {n} a la vez");
+});
+
+const W1 = { startsAt: "2026-10-20T15:00:00Z", endsAt: "2026-10-20T16:00:00Z" };
+const W2 = { startsAt: "2026-10-21T15:00:00Z", endsAt: "2026-10-21T16:00:00Z" };
+const W3 = { startsAt: "2026-10-22T15:00:00Z", endsAt: "2026-10-22T16:00:00Z" };
+
+async function bookOn(admin: never, inquiryId: string, window: typeof W1, orderLineId: string | null = null) {
+  const held = await holdBookingResources(admin, { tenantId: "t1", operationKey: inquiryResourcesKey(inquiryId, window), poolIds: ["room-pool"], window });
+  assert.equal(held.ok, true);
+  return secureInquiryBookingResources(admin, { tenantId: "t1", inquiryId, offeringIds: [], window, orderLineId });
+}
+
+test("CANCEL SCOPE: two bookings on one inquiry; cancelling one never frees the other's room", async () => {
+  const { admin, live } = fakeEngine(1);
+  assert.equal(await bookOn(admin, "inq", W1), "ok");
+  assert.equal(await bookOn(admin, "inq", W2), "ok", "a second offer on the same request keeps the first booking's room");
+  assert.equal(live.filter((a) => a.state === "committed").length, 2);
+  await releaseInquiryWindowResources(admin, { tenantId: "t1", inquiryId: "inq", window: W1 });
+  assert.equal(live.find((a) => a.startsAt === W2.startsAt)!.state, "committed", "the other booking's room stays held");
+  assert.equal(live.find((a) => a.startsAt === W1.startsAt)!.state, "released");
+});
+
+test("an accepted booking with an order commits its room onto the order line (engine cancel/reschedule own it)", async () => {
+  const { admin, live } = fakeEngine(1);
+  assert.equal(await bookOn(admin, "inq", W1, "line-1"), "ok");
+  assert.equal(live[0].orderLineId, "line-1");
+  await releaseInquiryWindowResources(admin, { tenantId: "t1", inquiryId: "inq", window: W1 });
+  assert.equal(live[0].state, "committed", "window release only touches resources with no order line");
+});
+
+test("RESCHEDULE: the room moves to the new time; a taken new time is refused and nothing changes", async () => {
+  const { admin, live } = fakeEngine(1);
+  assert.equal(await bookOn(admin, "a", W1), "ok");
+  assert.equal(await bookOn(admin, "b", W2), "ok");
+  const taken = await moveInquiryBookingResources(admin, { tenantId: "t1", inquiryId: "a", from: W1, to: W2 });
+  assert.equal(taken.ok, false);
+  assert.equal(!taken.ok && taken.reason, "taken");
+  assert.equal(live.find((x) => x.key.startsWith("inquiry:a:") && x.startsAt === W1.startsAt)!.state, "committed");
+
+  const moved = await moveInquiryBookingResources(admin, { tenantId: "t1", inquiryId: "a", from: W1, to: W3 });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+  await moved.finish(true);
+  assert.equal(live.find((x) => x.key.startsWith("inquiry:a:") && x.startsAt === W1.startsAt)!.state, "released");
+  assert.equal(live.find((x) => x.key.startsWith("inquiry:a:") && x.startsAt === W3.startsAt)!.state, "committed");
+});
+
+test("RESCHEDULE: a failed calendar write gives the new room back and keeps the old one", async () => {
+  const { admin, live } = fakeEngine(1);
+  assert.equal(await bookOn(admin, "a", W1), "ok");
+  const moved = await moveInquiryBookingResources(admin, { tenantId: "t1", inquiryId: "a", from: W1, to: W3 });
+  assert.equal(moved.ok, true);
+  if (!moved.ok) return;
+  await moved.finish(false);
+  assert.equal(live.find((x) => x.startsAt === W3.startsAt)!.state, "released");
+  assert.equal(live.find((x) => x.startsAt === W1.startsAt)!.state, "committed");
+});
+
+test("RESCHEDULE RACE: two bookings moving into the same free time: exactly one gets the room", async () => {
+  const { admin } = fakeEngine(1);
+  assert.equal(await bookOn(admin, "a", W1), "ok");
+  assert.equal(await bookOn(admin, "b", W2), "ok");
+  const [x, y] = await Promise.all([
+    moveInquiryBookingResources(admin, { tenantId: "t1", inquiryId: "a", from: W1, to: W3 }),
+    moveInquiryBookingResources(admin, { tenantId: "t1", inquiryId: "b", from: W2, to: W3 }),
+  ]);
+  assert.equal([x, y].filter((r) => r.ok).length, 1);
 });

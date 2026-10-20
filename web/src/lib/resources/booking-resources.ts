@@ -64,6 +64,35 @@ export function withLinkedResourceNeeds(
   return out;
 }
 
+/**
+ * The order pipeline's capacity needs plus the chair, room or station each booked service
+ * needs, for the purchase's time window, once per pool (instant book's room is not
+ * doubled). Every order path with a window gets it: public /book, instant book, the
+ * appointment picker, the POS desk, reservations and carts. A linked resource with no
+ * pool refuses rather than selling a time nobody holds. No window: unchanged.
+ */
+export async function purchaseNeedsWithLinkedResources(
+  admin: Pick<SupabaseClient, "from">,
+  input: {
+    tenantId: string;
+    lines: ReadonlyArray<{ offeringId: string }>;
+    capacity?: readonly CapacityNeed[] | null;
+    reservation?: { startsAt: string; endsAt: string } | null;
+  },
+): Promise<{ ok: true; needs: CapacityNeed[] } | { ok: false; error: string }> {
+  const base = [...(input.capacity ?? [])];
+  if (!input.reservation) return { ok: true, needs: base };
+  const linked = await loadLinkedResourcePools(admin, input.tenantId, input.lines.map((l) => l.offeringId));
+  if (!linked.ok) return { ok: false, error: linked.error };
+  return {
+    ok: true,
+    needs: withLinkedResourceNeeds(base, linked.poolsByOffering, {
+      startsAt: input.reservation.startsAt,
+      endsAt: input.reservation.endsAt,
+    }),
+  };
+}
+
 export type LinkedPoolsResult =
   | { ok: true; poolsByOffering: Map<string, string[]> }
   | { ok: false; error: string };
@@ -80,7 +109,11 @@ export async function loadLinkedResourcePools(
   const ids = [...new Set(offeringIds.filter(Boolean))];
   const poolsByOffering = new Map<string, string[]>();
   if (ids.length === 0) return { ok: true, poolsByOffering };
-  const { data, error } = await admin.from("talent_offerings").select("id, attributes").in("id", ids);
+  const { data, error } = await admin
+    .from("talent_offerings")
+    .select("id, attributes")
+    .eq("tenant_id", tenantId)
+    .in("id", ids);
   if (error) {
     logServerError("resources.loadLinkedResourcePools", error);
     return { ok: false, error: "Could not read what this service needs." };
@@ -143,7 +176,14 @@ export async function holdBookingResources(
   return { ok: false, reason: taken ? "taken" : "unavailable", error: set.error };
 }
 
-type KeyedAllocation = { id: string; state: string; starts_at: string | null; ends_at: string | null };
+type KeyedAllocation = {
+  id: string;
+  state: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  pool_id: string;
+  order_line_id: string | null;
+};
 
 async function allocationRowsForKey(
   admin: Pick<SupabaseClient, "from">,
@@ -156,7 +196,7 @@ async function allocationRowsForKey(
   try {
     const { data, error } = await admin
       .from("capacity_allocations")
-      .select("id, state, starts_at, ends_at")
+      .select("id, state, starts_at, ends_at, pool_id, order_line_id")
       .eq("tenant_id", tenantId)
       .like("operation_key", `${operationKey}%`)
       .in("state", [...states]);
@@ -183,6 +223,73 @@ async function allocationsForKey(
 
 function sameInstant(a: string | null, b: string): boolean {
   return a != null && Date.parse(a) === Date.parse(b);
+}
+
+function inWindow(r: KeyedAllocation, w: BookingWindow): boolean {
+  return sameInstant(r.starts_at, w.startsAt) && sameInstant(r.ends_at, w.endsAt);
+}
+
+/**
+ * Cancel of a request-sourced booking: give back ONLY that booking's resources (its
+ * window), never another booking's on the same request. Resources committed onto an
+ * order line are the engine's (`cancel_booking_set` releases them by order).
+ */
+export async function releaseInquiryWindowResources(
+  admin: Admin,
+  input: { tenantId: string; inquiryId: string; window: BookingWindow },
+): Promise<{ ok: boolean; released: number }> {
+  const rows = await allocationRowsForKey(admin, input.tenantId, inquiryResourcesPrefix(input.inquiryId), ["hold", "committed"]);
+  if (rows === null) return { ok: false, released: 0 };
+  const ids = rows.filter((r) => r.order_line_id == null && inWindow(r, input.window)).map((r) => r.id);
+  if (ids.length === 0) return { ok: true, released: 0 };
+  const res = await releaseCapacity(ids, admin);
+  return { ok: res.ok, released: ids.length };
+}
+
+export type MoveResourcesResult =
+  | { ok: true; moved: boolean; finish: (calendarMoved: boolean) => Promise<void> }
+  | { ok: false; reason: "taken" | "unavailable" };
+
+/**
+ * Reschedule of a request-sourced booking: hold and commit the SAME pools for the new
+ * window first ("taken" refuses the reschedule), then `finish(true)` gives the old window
+ * back, or `finish(false)` (the calendar move failed) gives the new one back. Resources on
+ * an order line are moved by `reschedule_booking_set` itself and are skipped here.
+ * Known limit: a new window overlapping the old one on a 1-unit pool reads as taken
+ * (no self-exclusion outside the engine's reschedule).
+ */
+export async function moveInquiryBookingResources(
+  admin: Admin,
+  input: { tenantId: string; inquiryId: string; from: BookingWindow; to: BookingWindow; actorUserId?: string | null },
+): Promise<MoveResourcesResult> {
+  const noop: MoveResourcesResult = { ok: true, moved: false, finish: async () => undefined };
+  if (sameInstant(input.from.startsAt, input.to.startsAt) && sameInstant(input.from.endsAt, input.to.endsAt)) return noop;
+  const rows = await allocationRowsForKey(admin, input.tenantId, inquiryResourcesPrefix(input.inquiryId), ["hold", "committed"]);
+  if (rows === null) return { ok: false, reason: "unavailable" };
+  const old = rows.filter((r) => r.order_line_id == null && inWindow(r, input.from));
+  if (old.length === 0) return noop;
+  const held = await holdBookingResources(admin, {
+    tenantId: input.tenantId,
+    operationKey: inquiryResourcesKey(input.inquiryId, input.to),
+    poolIds: old.map((r) => r.pool_id),
+    window: input.to,
+    actorUserId: input.actorUserId ?? null,
+  });
+  if (!held.ok) return { ok: false, reason: held.reason };
+  const committed = await commitCapacity(held.allocationIds, null, admin);
+  if (!committed.ok) {
+    await releaseCapacity(held.allocationIds, admin);
+    return { ok: false, reason: "unavailable" };
+  }
+  return {
+    ok: true,
+    moved: true,
+    finish: async (calendarMoved) => {
+      const ids = calendarMoved ? old.map((r) => r.id) : held.allocationIds;
+      const res = await releaseCapacity(ids, admin);
+      if (!res.ok) logServerError("resources.moveInquiryBookingResources.finish", `inquiry=${input.inquiryId} moved=${calendarMoved}`);
+    },
+  };
 }
 
 /** Offer accepted: the held resources become the booking's (never expire). Key or key prefix. */
@@ -242,9 +349,12 @@ export async function holdInquiryResources(
 }
 
 /**
- * Offer acceptance: keep the resources the request held, or hold them now for the
- * agreed window (an offer sent without a held time), then commit. "taken" = another
- * booking has the resource; the booking stays unscheduled, like a taken person.
+ * Offer acceptance: keep the resources the request held for the agreed window, or hold
+ * them now (an offer sent without a held time), then commit them. When the booking has
+ * an order, they are committed ONTO its order line, so `cancel_booking_set` and
+ * `reschedule_booking_set` release and move them with the booking, scoped to it.
+ * Only stale HOLDS of this request are given back: another booking's committed
+ * resources on the same request are never touched. "taken" = another booking has one.
  */
 export async function secureInquiryBookingResources(
   admin: Admin,
@@ -253,22 +363,24 @@ export async function secureInquiryBookingResources(
     inquiryId: string;
     offeringIds: readonly string[];
     window: BookingWindow;
+    orderLineId?: string | null;
     actorUserId?: string | null;
   },
 ): Promise<"ok" | "taken" | "failed"> {
-  const key = inquiryResourcesPrefix(input.inquiryId);
-  const rows = await allocationRowsForKey(admin, input.tenantId, key, ["hold", "committed"]);
+  const rows = await allocationRowsForKey(admin, input.tenantId, inquiryResourcesPrefix(input.inquiryId), ["hold", "committed"]);
   if (rows === null) return "failed";
-  // The request held another time than the one agreed: give that back first.
-  const stale = rows.filter((r) => !sameInstant(r.starts_at, input.window.startsAt) || !sameInstant(r.ends_at, input.window.endsAt));
-  if (stale.length > 0) {
-    const res = await releaseCapacity(stale.map((r) => r.id), admin);
+  const staleHolds = rows.filter((r) => r.state === "hold" && !inWindow(r, input.window));
+  if (staleHolds.length > 0) {
+    const res = await releaseCapacity(staleHolds.map((r) => r.id), admin);
     if (!res.ok) return "failed";
   }
-  if (rows.length === stale.length) {
+  if (!rows.some((r) => inWindow(r, input.window))) {
     const held = await holdInquiryResources(admin, { ...input, ttlSeconds: null });
     if (!held.ok) return held.reason === "taken" ? "taken" : "failed";
   }
-  const committed = await commitBookingResources(admin, { tenantId: input.tenantId, operationKey: key });
-  return committed.ok ? "ok" : "failed";
+  const exact = await allocationsForKey(admin, input.tenantId, inquiryResourcesKey(input.inquiryId, input.window), ["hold"]);
+  if (exact === null) return "failed";
+  if (exact.length === 0) return "ok";
+  const res = await commitCapacity(exact, input.orderLineId ?? null, admin);
+  return res.ok ? "ok" : "failed";
 }
