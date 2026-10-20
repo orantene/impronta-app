@@ -236,6 +236,7 @@ src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
 src/lib/projects/project-record.test.ts
+src/lib/reviews/collective-reviews.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
 src/lib/sales/by-item.test.ts
