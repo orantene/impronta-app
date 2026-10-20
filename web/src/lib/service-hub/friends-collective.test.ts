@@ -200,3 +200,54 @@ describe("the apply action and its held migration", () => {
     assert.match(sql, /Rollback/);
   });
 });
+
+import { decideMemberShareUpdate, ownerSharePatch } from "./friends-collective";
+
+describe("the owner sets each member's share (owner only, collective only, capped at 90%)", () => {
+  const ok = { role: "owner", workModel: "friends_collective", memberOnRoster: true } as const;
+
+  test("percent and fixed shares become the roster columns", () => {
+    assert.deepEqual(ownerSharePatch({ kind: "percent", bps: 2000 }), { owner_share_kind: "percent", owner_share_bps: 2000, owner_share_cents: null, owner_share_currency: null });
+    assert.deepEqual(ownerSharePatch({ kind: "fixed", amountCents: 5000, currency: "mxn" }), { owner_share_kind: "fixed", owner_share_bps: null, owner_share_cents: 5000, owner_share_currency: "MXN" });
+    assert.deepEqual(ownerSharePatch(null), { owner_share_kind: null, owner_share_bps: null, owner_share_cents: null, owner_share_currency: null });
+  });
+  test("the owner of a collective can set, change and clear a member's share", () => {
+    assert.equal(decideMemberShareUpdate({ ...ok, share: { kind: "percent", bps: 2000 } }).ok, true);
+    assert.equal(decideMemberShareUpdate({ ...ok, share: null }).ok, true);
+  });
+  test("more than 90%, a bad fixed amount or no currency is refused", () => {
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, share: { kind: "percent", bps: 9001 } }), { ok: false, reason: "invalid_share" });
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, share: { kind: "fixed", amountCents: -1, currency: "MXN" } }), { ok: false, reason: "invalid_share" });
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, share: { kind: "fixed", amountCents: 100, currency: "" } }), { ok: false, reason: "invalid_share" });
+  });
+  test("not the owner, not a collective, or not a member of this workspace: refused", () => {
+    const share = { kind: "percent", bps: 1000 } as const;
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, role: "admin", share }), { ok: false, reason: "owner_only" });
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, workModel: null, share }), { ok: false, reason: "not_a_collective" });
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, workModel: "team_studio", share }), { ok: false, reason: "not_a_collective" });
+    assert.deepEqual(decideMemberShareUpdate({ ...ok, memberOnRoster: false, share }), { ok: false, reason: "not_a_member" });
+  });
+});
+
+describe("the owner screen", () => {
+  const act = read("./friends-collective-actions.ts");
+  test("setMemberOwnerShare is owner-only, tenant-scoped, audited", () => {
+    assert.match(act, /export async function setMemberOwnerShare/);
+    assert.match(act, /decideMemberShareUpdate\(/);
+    assert.match(act, /tenantScopedQuery\(admin, "agency_talent_roster", tenantId\)/);
+    assert.match(act, /action: "workspace\.owner_share\.set"/);
+  });
+  test("the settings page exists and mounts the card; copy has ES and EN", () => {
+    const page = read("../../app/(workspace)/[tenantSlug]/admin/settings/collective/page.tsx");
+    assert.match(page, /CollectiveSharesCard/);
+    const card = read("../../app/(workspace)/[tenantSlug]/admin/settings/collective/CollectiveSharesCard.tsx");
+    assert.match(card, /setMemberOwnerShare/);
+    assert.match(card, /applyFriendsCollectivePreset/);
+    for (const l of ["en", "es"] as const) {
+      for (const k of ["apply", "memberHeading", "percentLabel", "fixedLabel", "noShare", "save", "saved", "ownerOnly", "overCap"] as const) {
+        assert.ok(COLLECTIVE_COPY[l][k] && COLLECTIVE_COPY[l][k].length > 0, `${l}.${k}`);
+        assert.ok(!/[–—]/.test(COLLECTIVE_COPY[l][k]), `${l}.${k} has a dash`);
+      }
+    }
+  });
+});

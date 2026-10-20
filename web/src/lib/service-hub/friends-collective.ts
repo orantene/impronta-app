@@ -126,3 +126,33 @@ export function decideFriendsCollectivePreset(input: {
   const changed = input.currentModel !== FRIENDS_COLLECTIVE_MODEL || input.defaultCoordinatorUserId !== input.ownerUserId;
   return { ok: true, changed, set };
 }
+
+/** The roster columns for a share (null clears it). The currency is stored upper-case. */
+export function ownerSharePatch(share: OwnerShare | null): {
+  owner_share_kind: "percent" | "fixed" | null;
+  owner_share_bps: number | null;
+  owner_share_cents: number | null;
+  owner_share_currency: string | null;
+} {
+  if (!share) return { owner_share_kind: null, owner_share_bps: null, owner_share_cents: null, owner_share_currency: null };
+  if (share.kind === "percent") return { owner_share_kind: "percent", owner_share_bps: share.bps, owner_share_cents: null, owner_share_currency: null };
+  return { owner_share_kind: "fixed", owner_share_bps: null, owner_share_cents: share.amountCents, owner_share_currency: share.currency.trim().toUpperCase() };
+}
+
+export type MemberShareDecision =
+  | { ok: true; patch: ReturnType<typeof ownerSharePatch> }
+  | { ok: false; reason: "owner_only" | "not_a_collective" | "not_a_member" | "invalid_share" };
+
+/** Owner only, collective workspaces only, an existing member, a valid share (<= 90%) or null to clear. */
+export function decideMemberShareUpdate(input: {
+  role: string | null;
+  workModel: string | null;
+  memberOnRoster: boolean;
+  share: OwnerShare | null;
+}): MemberShareDecision {
+  if (input.role !== "owner") return { ok: false, reason: "owner_only" };
+  if (input.workModel !== FRIENDS_COLLECTIVE_MODEL) return { ok: false, reason: "not_a_collective" };
+  if (!input.memberOnRoster) return { ok: false, reason: "not_a_member" };
+  if (input.share && !validateOwnerShare(input.share).ok) return { ok: false, reason: "invalid_share" };
+  return { ok: true, patch: ownerSharePatch(input.share) };
+}

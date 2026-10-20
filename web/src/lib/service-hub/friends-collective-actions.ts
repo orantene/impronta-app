@@ -17,7 +17,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { decideFriendsCollectivePreset } from "./friends-collective";
+import { decideFriendsCollectivePreset, decideMemberShareUpdate, type OwnerShare } from "./friends-collective";
 
 export type ApplyPresetResult =
   | { ok: true; changed: boolean }
@@ -81,6 +81,72 @@ export async function applyFriendsCollectivePreset(): Promise<ApplyPresetResult>
     return { ok: true, changed: decision.changed };
   } catch (err) {
     logServerError("friends-collective.apply", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+export type SetMemberShareResult =
+  | { ok: true }
+  | { ok: false; reason: "unauthenticated" | "owner_only" | "not_a_collective" | "not_a_member" | "invalid_share" | "unavailable" };
+
+/**
+ * Owner only: set (or clear) what the owner takes from one member's sales. A %
+ * (max 90%) or a fixed amount in one currency. Applies to orders priced from
+ * now on; an order already priced keeps its split (the lines carry it).
+ */
+export async function setMemberOwnerShare(input: {
+  talentProfileId: string;
+  share: OwnerShare | null;
+}): Promise<SetMemberShareResult> {
+  await requireNotImpersonating();
+  try {
+    const auth = await requireWorkspaceStaffAction();
+    if (!auth.ok) return { ok: false, reason: "unauthenticated" };
+    const { tenantId, user, supabase } = auth;
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+
+    const { data: membership } = await tenantScopedQuery(supabase, "agency_memberships", tenantId)
+      .select("role")
+      .eq("profile_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    const { data: agency, error: agencyErr } = await admin.from("agencies").select("work_model").eq("id", tenantId).maybeSingle();
+    if (agencyErr) return { ok: false, reason: "unavailable" };
+    const { data: member } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
+      .select("id")
+      .eq("talent_profile_id", input.talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+
+    const decision = decideMemberShareUpdate({
+      role: (membership as { role?: string } | null)?.role ?? null,
+      workModel: (agency as { work_model?: string | null } | null)?.work_model ?? null,
+      memberOnRoster: Boolean(member),
+      share: input.share,
+    });
+    if (!decision.ok) return decision;
+
+    const { error } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
+      .update(decision.patch)
+      .eq("talent_profile_id", input.talentProfileId);
+    if (error) {
+      logServerError("friends-collective.setMemberShare", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    scheduleWorkspaceAudit({
+      tenantId,
+      category: "roster",
+      action: "workspace.owner_share.set",
+      summary: input.share ? "Set the owner's share of a member's sales" : "Cleared the owner's share of a member's sales",
+      targetType: "talent_profile",
+      targetId: input.talentProfileId,
+      metadata: { share: input.share },
+    });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("friends-collective.setMemberShare", err);
     return { ok: false, reason: "unavailable" };
   }
 }
