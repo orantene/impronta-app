@@ -25,6 +25,8 @@ const KEYS = [
   "itemsSelected",
   "itemsSelectedOne",
   "selectAtLeastOne",
+  "chooseOption",
+  "extrasLabel",
   "name",
   "email",
   "phone",

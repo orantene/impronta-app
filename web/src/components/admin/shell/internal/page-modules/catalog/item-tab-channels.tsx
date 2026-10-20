@@ -23,6 +23,7 @@ import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
 import { posSwitchPatch } from "./catalog-pos-switch";
 import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
+import { websiteSwitchPatch } from "./catalog-website-switch";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const IDENTITY_KEY: Record<IdentityReason, string> = {
@@ -51,7 +52,7 @@ export function ChannelsTab({ item, patch, saving, editor, isDraft }: TabProps) 
           note={published ? t("dashboard.catalog.channels.websiteNote") : t("dashboard.catalog.channels.needsPublish")}
           on={onWebsite}
           reason={saving ? t("dashboard.catalog.saving") : null}
-          onChange={(next) => patch({ visibility: next ? "public" : "agency_only" })}
+          onChange={(next) => patch(websiteSwitchPatch(item, next))}
           override={price}
           overrideLabel={t("dashboard.catalog.channels.priceOverride")}
           testId="catalog-channel-website"

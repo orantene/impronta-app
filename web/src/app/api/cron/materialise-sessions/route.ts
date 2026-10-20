@@ -71,7 +71,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { DEFAULT_POOL_KEY } from "@/lib/sessions/session-plan";
+import { loadSeriesPoolPlan } from "@/lib/sessions/series-pools";
 import {
   createSessionWithPools,
   ensureSessionPools,
@@ -254,6 +254,15 @@ export async function GET(request: Request) {
         });
       }
 
+      // One plan per series per sweep: the single default pool, or a default
+      // total with a capped child per tier (TUL-1344 slice 3).
+      const poolPlan = await loadSeriesPoolPlan(admin, {
+        tenantId: series.tenantId,
+        seriesId: series.id,
+        offeringId: row.offering_id ? String(row.offering_id) : null,
+        seats: series.seats,
+      });
+
       for (const occ of decision.create) {
         // One creator. This used to insert the row and call
         // `upsert_capacity_pool` inline, and it was correct; the staff
@@ -269,7 +278,7 @@ export async function GET(request: Request) {
             startsAt: occ.startsAt,
             endsAt: occ.endsAt,
           },
-          [{ poolKey: DEFAULT_POOL_KEY, units: series.seats }],
+          poolPlan,
         );
 
         if (!result.ok && result.reason !== "pools_failed") continue;
@@ -293,9 +302,7 @@ export async function GET(request: Request) {
       // upsert_capacity_pool would reset units_total on a pool that may have
       // seats sold against it or a count an operator deliberately raised.
       for (const sessionId of decision.poolBackfill) {
-        const repaired = await ensureSessionPools(admin, series.tenantId, sessionId, [
-          { poolKey: DEFAULT_POOL_KEY, units: series.seats },
-        ]);
+        const repaired = await ensureSessionPools(admin, series.tenantId, sessionId, poolPlan);
         poolsCreated += repaired.created.length;
       }
     }
