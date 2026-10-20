@@ -59,7 +59,8 @@ const FK = {
   "public.inquiry_requirement_groups.inquiry_id": "public.inquiries", "public.inquiry_requirement_groups.tenant_id": "public.agencies",
   "public.inquiry_participants.inquiry_id": "public.inquiries", "public.inquiry_participants.requirement_group_id": "public.inquiry_requirement_groups",
   "public.inquiry_participants.tenant_id": "public.agencies", "public.inquiry_participants.user_id": "auth.users",
-  "public.inquiry_offers.inquiry_id": "public.inquiries", "public.inquiry_offers.created_by_user_id": "auth.users",
+  "public.inquiry_offers.inquiry_id": "public.inquiries", "public.inquiry_offers.created_by_user_id": "auth.users", "public.inquiry_offers.tenant_id": "public.agencies",
+  "public.inquiry_offer_line_items.tenant_id": "public.agencies",
   "public.inquiry_offer_line_items.offer_id": "public.inquiry_offers", "public.inquiry_offer_line_items.owner_tenant_id": "public.agencies",
   "public.inquiry_offer_line_items.source_service_id": "public.talent_offerings",
 };

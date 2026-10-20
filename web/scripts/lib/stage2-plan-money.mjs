@@ -43,13 +43,13 @@ export function planMoney(now) {
       owning_party_type: "workspace", owning_party_id: ws,
     }),
     clone(fx, "public.inquiry_offers", "offer:t1-catering", G6.offerSent, {
-      id: offer, inquiry_id: inq, version: 1, status: "sent", total_client_price: CATERING_TOTAL, currency_code: "MXN", notes: "Experiencia de tacos para 20 personas, barra sin alcohol.",
+      id: offer, inquiry_id: inq, tenant_id: ws, version: 1, status: "sent", total_client_price: CATERING_TOTAL, currency_code: "MXN", notes: "Experiencia de tacos para 20 personas, barra sin alcohol.",
       valid_until: isoDays(now, 14), sent_at: minutes(now, -15), accepted_at: null, created_by_user_id: manager, created_at: minutes(now, -15), updated_at: minutes(now, -15),
       deposit_pct: CATERING_DEPOSIT_PCT, deposit_amount_cents: CATERING_DEPOSIT_CENTS, balance_collection_method: "request_in_messages", refund_policy_key: "flexible",
     }),
     // A house line: the payee is the workspace (owner_tenant_id), the source is a CATALOG offering (source_service_id), no talent.
     clone(fx, "public.inquiry_offer_line_items", "offer_line:t1-catering", G6.offerLine, {
-      id: s2Id("offer_line:t1-catering"), offer_id: offer, talent_profile_id: null, owner_tenant_id: ws, source_service_id: s2Id("offering:t1-tacos-exp"),
+      id: s2Id("offer_line:t1-catering"), offer_id: offer, tenant_id: ws, talent_profile_id: null, owner_tenant_id: ws, source_service_id: s2Id("offering:t1-tacos-exp"),
       label: "Experiencia de tacos x 20", unit_price: CATERING_TOTAL, total_price: CATERING_TOTAL, talent_cost: 0, price_snapshot_cents: CATERING_TOTAL * 100,
     }),
     update(fx, "public.inquiries", "inquiry:t1-catering:offer", inq, { current_offer_id: offer, status: "offer_pending" }),

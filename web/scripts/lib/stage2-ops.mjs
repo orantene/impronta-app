@@ -4,10 +4,34 @@
  * Ids are s2Id(key). `insert` / `clone` / `update` and the Group-6 template ids come from #4048 unchanged.
  */
 import { createHash } from "node:crypto";
-import { clone, insert, update, J, isoDays, G6, HUB_TENANT_ID } from "./failed-cards-ops.mjs";
+import { clone as baseClone, insert, update, J, isoDays, G6, HUB_TENANT_ID } from "./failed-cards-ops.mjs";
 import { s2Id } from "./stage2-guards.mjs";
 
-export { clone, insert, update, J, isoDays, G6, HUB_TENANT_ID, s2Id };
+export { insert, update, J, isoDays, G6, HUB_TENANT_ID, s2Id };
+
+/**
+ * A clone copies EVERY column of a Group-6 template row, including its tenant. Triggers (tenant_autofill_*) refuse a child whose tenant differs
+ * from its parent's, and a leaked template tenant would put a fixture row in the wrong workspace. So a clone must set every tenant-ish column
+ * of its table EXPLICITLY. Tables not listed here cannot be cloned until their tenant columns are listed (and checked against migrations).
+ */
+export const CLONE_TENANT_COLUMNS = {
+  "public.agencies": [], // the workspace itself: no tenant column (id + slug are always overridden)
+  "public.agency_memberships": ["tenant_id"],
+  "public.inquiries": ["tenant_id", "source_workspace_id"],
+  "public.inquiry_requirement_groups": ["tenant_id"],
+  "public.inquiry_participants": ["tenant_id"],
+  "public.inquiry_offers": ["tenant_id"],
+  "public.inquiry_offer_line_items": ["tenant_id", "owner_tenant_id"],
+};
+
+export function clone(fx, table, key, templateId, row, opts) {
+  const need = CLONE_TENANT_COLUMNS[table];
+  if (!need) throw new Error(`clone ${key}: ${table} has no entry in CLONE_TENANT_COLUMNS; list its tenant columns first`);
+  for (const col of need) {
+    if (typeof row[col] !== "string") throw new Error(`clone ${key}: ${table}.${col} must be set explicitly (a clone must not carry the template's tenant)`);
+  }
+  return baseClone(fx, table, key, templateId, row, opts);
+}
 
 export const email = (tag) => `s2-${tag}@example.test`;
 
