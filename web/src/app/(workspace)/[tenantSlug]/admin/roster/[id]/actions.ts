@@ -28,6 +28,8 @@ import { assertTalentReadyForPublicListing } from "@/lib/field-engine/profile-pu
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { afterResponse } from "@/lib/server/after-response";
+import { verifyStoredImage } from "@/lib/media/guarded-upload.server";
+import { PHOTO_RASTER_MIMES } from "@/lib/media/upload-guards";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -472,6 +474,11 @@ export async function registerRosterTalentPhoto(
   const { admin } = ctx;
   const BUCKET = "media-public";
   const now = new Date().toISOString();
+
+  // H1: the browser PUT these bytes straight into the public bucket; verify
+  // the type from the bytes and strip any EXIF/GPS before the row exists.
+  const verified = await verifyStoredImage(admin, BUCKET, storagePath, { maxBytes: 20 * 1024 * 1024, allowed: PHOTO_RASTER_MIMES });
+  if (!verified.ok) return { ok: false, error: verified.error };
 
   // Soft-delete previous card asset if any.
   await admin

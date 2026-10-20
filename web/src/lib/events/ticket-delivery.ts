@@ -169,13 +169,38 @@ export async function deliverTicketsForOrder(
     }
     const ids = ((rows ?? []) as Array<{ id: string }>).map((r) => r.id);
     if (ids.length === 0) return { ok: true, sent: 0, skipped: 0 };
-    return await deliverAdmissions(admin, {
+
+    // TUL-1267: ONCE PER ORDER. The per-admission claim below stops a second
+    // send of the same admission, but a replayed purchase (a double-submitted
+    // free order) can present admissions that look undelivered. The order's
+    // own ledger claim (`tickets:<orderId>`, the existing notice ledger) makes
+    // every caller idempotent per order. A forced resend skips it. A ledger
+    // that cannot be written is logged and does not block delivery: the
+    // admission claim still guarantees no admission is mailed twice.
+    const key = `tickets:${input.orderId}`;
+    let ownsOrder = false;
+    if (!input.force) {
+      const { error: lErr } = await admin
+        .from("billing_notice_ledger")
+        .insert({ dedupe_key: key, kind: "tickets", scope: "workspace" });
+      if (!lErr) ownsOrder = true;
+      else if (lErr.code === "23505") return { ok: true, sent: 0, skipped: ids.length };
+      else logServerError("events.ticketDelivery/orderClaim", lErr);
+    }
+    const result = await deliverAdmissions(admin, {
       tenantId: input.tenantId,
       admissionIds: ids,
       orderId: input.orderId,
       locale: input.locale ?? null,
       force: Boolean(input.force),
     });
+    if (ownsOrder && (!result.ok || result.sent === 0 || result.skipped > 0)) {
+      // Nothing went out, or only PART of the order did (another run holds, or
+      // failed on, the rest): give the order claim back so a retry can deliver
+      // what is left. The per-admission claims stop sent tickets going twice.
+      await admin.from("billing_notice_ledger").delete().eq("dedupe_key", key);
+    }
+    return result;
   } catch (err) {
     logServerError("events.ticketDelivery/order", err);
     return { ok: false, reason: "unavailable" };
