@@ -6,7 +6,7 @@
  */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 import { loadPublicSlots } from "./slot-picker-load";
 import { usePublicT } from "@/i18n/use-public-t";
@@ -29,6 +29,8 @@ type Props = {
   locale?: string;
   /** Where a guest with no times to pick can write to the studio (TUL-698). */
   contactHref?: string | null;
+  /** Primary request action shown when there are no times to pick (B2/D3). */
+  emptyAction?: ReactNode;
 };
 
 const INK = "var(--token-color-ink, #0B0B0D)";
@@ -62,6 +64,7 @@ export function SlotPicker({
   days = 14,
   locale: localeProp,
   contactHref = null,
+  emptyAction = null,
 }: Props) {
   const cookieT = usePublicT();
   const t = useMemo(() => {
@@ -101,7 +104,8 @@ export function SlotPicker({
     void loadPublicSlots(publicSlotsUrl(params)).then((r) => {
       if (cancelled) return;
       if (!r.ok) {
-        setError(t("public.slotPicker.unavailable"));
+        // Friendly, not an error: the guest can still send a request (B2/D3).
+        setError(t("public.bookPage.noTimesRequest"));
       } else {
         setSlots(r.slots);
         setEmptyReason(r.reason);
@@ -123,15 +127,20 @@ export function SlotPicker({
         ? "es"
         : "en";
 
-  const contactLink = contactHref ? (
+  const contactLink = emptyAction || contactHref ? (
+    <div className="mt-2 flex flex-col items-start gap-2">
+      {emptyAction}
+      {contactHref ? (
     <Link
       href={contactHref}
       data-testid="slot-picker-contact"
-      className="mt-2 inline-block rounded-lg border border-[rgba(24,24,27,0.12)] px-3 py-2 text-xs font-medium"
+      className="inline-block rounded-lg border border-[rgba(24,24,27,0.12)] px-3 py-2 text-xs font-medium"
       style={{ color: INK }}
     >
       {t("public.bookPage.contactCta")}
     </Link>
+      ) : null}
+    </div>
   ) : null;
 
   return (
@@ -151,7 +160,9 @@ export function SlotPicker({
         </div>
       ) : error ? (
         <div className="mt-3">
-          <p className="text-xs text-[#dc2626]">{error}</p>
+          <p className="text-xs" style={{ color: MUTED }} data-testid="slot-picker-unavailable">
+            {error}
+          </p>
           {contactLink}
         </div>
       ) : slots.length === 0 ? (
