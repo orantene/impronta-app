@@ -6,7 +6,10 @@
  * Email is required (no anonymous menu order).
  */
 
+import { randomUUID } from "node:crypto";
 import { createPurchase } from "@/lib/orders/purchase";
+import { fireMenuOrderToKitchen } from "@/lib/orders/menu-order-prep";
+import { toPurchaseLines } from "@/lib/orders/menu-order-lines";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -35,7 +38,15 @@ export type SubmitMenuOrderInput = {
   lines: MenuOrderLineInput[];
   payInPerson?: boolean;
   sourcePage?: string | null;
+  /**
+   * Per-intent key from the board (a fresh one per basket). The pipeline stores
+   * it on the order and replays the first order for a repeat (D5 / M7).
+   */
+  clientOrderKey?: string | null;
 };
+
+/** A client key we accept as-is: 8 to 80 plain characters. Anything else gets a fresh one. */
+const CLIENT_KEY = /^[A-Za-z0-9_-]{8,80}$/;
 
 export type SubmitMenuOrderResult =
   /**
@@ -95,12 +106,19 @@ export async function submitMenuOrder(
 
     const result = await createPurchase(admin, {
       tenantId: input.tenantId,
-      // Per CART. The board's session key is stable across re-renders and a
-      // reload, so a double-tapped Send cannot mint two orders.
-      clientOrderKey: `menu:${input.tenantId}:${email}:${input.sourcePage ?? ""}`,
+      // Per INTENT. The board sends one key per basket, so a double-tapped Send
+      // replays the first order (D5 / M7). Without a key there is nothing to
+      // dedupe on: a fresh one, never one derived from the email, which would
+      // turn the same guest's NEXT order into a replay of the first.
+      clientOrderKey: `menu:${input.tenantId}:${
+        typeof input.clientOrderKey === "string" && CLIENT_KEY.test(input.clientOrderKey)
+          ? input.clientOrderKey
+          : randomUUID()
+      }`,
       actorUserId,
       contact: { email, phone: input.contactPhone ?? null, displayName: name },
-      lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.quantity })),
+      // TUL-1332: the chosen option and extras ride along as ids; the pipeline prices them.
+      lines: toPurchaseLines(input.lines),
       // INTENT, never policy. The pipeline re-derives what this offering allows
       // from its own row and refuses if they disagree — which is the whole
       // indictment of the engine this replaces: it rendered offerings whose
@@ -122,6 +140,9 @@ export async function submitMenuOrder(
         result.reason === "offering_not_priceable"
         || result.reason === "unknown_offering"
         || result.reason === "offering_not_published"
+        || result.reason === "variant_required"
+        || result.reason === "variant_not_on_offering"
+        || result.reason === "addon_not_on_offering"
       ) {
         return {
           ok: false,
@@ -136,6 +157,9 @@ export async function submitMenuOrder(
         reason: result.reason,
       };
     }
+
+    // TUL-1332: the kitchen sees the order like a POS or QR one. Best effort: never fails the order.
+    await fireMenuOrderToKitchen(admin, { tenantId: input.tenantId, orderId: result.orderId });
 
     return {
       ok: true,

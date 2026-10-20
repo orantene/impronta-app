@@ -17,6 +17,7 @@ import {
   loadTalentStripeCustomerId,
   loadTalentStripeSubscriptionId,
 } from "@/lib/billing/talent-billing-reads";
+import { invoiceDisplayState } from "@/lib/billing/invoice-display";
 import { pickDefaultCard } from "@/lib/billing/talent-billing-display";
 
 export type TalentBillingInvoice = {
@@ -28,6 +29,10 @@ export type TalentBillingInvoice = {
   status: string | null;
   pdfUrl: string | null;
   hostedUrl: string | null;
+  /** TUL-1232: a charge Stripe tried and could not collect. */
+  failed: boolean;
+  needsAction: boolean;
+  nextAttemptAt: string | null;
 };
 
 export type TalentBillingSummary = {
@@ -63,6 +68,24 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
   if (sb) {
     try {
       const data = await loadTalentProviderInvoices(sb, talentProfile.id);
+      // TUL-1232: an unpaid open invoice may be waiting on a 3DS step rather than
+      // declined. Ask Stripe for its PaymentIntent status, best effort, for the
+      // few such rows only; a failed lookup leaves it as "failed" (safe default).
+      const intentStatus = new Map<string, string | null>();
+      const stripeForIntents = isStripeConfigured() ? getStripe() : null;
+      if (stripeForIntents) {
+        for (const r of data.filter((x) => x.status === "open" && (x.attempt_count ?? 0) > 0).slice(0, 3)) {
+          try {
+            const inv = await stripeForIntents.invoices.retrieve(r.stripe_invoice_id, {
+              expand: ["payments.data.payment.payment_intent"],
+            });
+            const pi = inv.payments?.data?.[0]?.payment?.payment_intent;
+            intentStatus.set(r.stripe_invoice_id, typeof pi === "object" && pi ? pi.status : null);
+          } catch (err) {
+            logServerError("talent-billing-summary.invoiceIntent", err);
+          }
+        }
+      }
       invoices = data
         .filter((r) => r.status !== "draft")
         .map((r) => ({
@@ -74,6 +97,12 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
           status: r.status,
           pdfUrl: r.invoice_pdf_url,
           hostedUrl: r.hosted_invoice_url,
+          ...invoiceDisplayState({
+            status: r.status,
+            attemptCount: r.attempt_count ?? 0,
+            nextAttemptAt: r.next_payment_attempt,
+            intentStatus: intentStatus.get(r.stripe_invoice_id) ?? null,
+          }),
         }));
     } catch (err) {
       logServerError("talent-billing-summary.invoices", err);
