@@ -80,4 +80,46 @@ ALTER TABLE public.agency_talent_roster
 COMMENT ON COLUMN public.agency_talent_roster.owner_share_kind IS
   'Friends collective: how the owner is paid from this member''s sales: percent (owner_share_bps, max 9000) or fixed (owner_share_cents + owner_share_currency). NULL = none.';
 
--- Rollback (manual): DROP TRIGGER IF EXISTS agencies_protect_work_model ON public.agencies; DROP FUNCTION IF EXISTS public.agencies_protect_work_model(); ALTER TABLE public.agencies DROP CONSTRAINT IF EXISTS agencies_work_model_chk; ALTER TABLE public.agencies DROP COLUMN IF EXISTS work_model; ALTER TABLE public.agency_talent_roster DROP CONSTRAINT IF EXISTS agency_talent_roster_owner_share_chk; ALTER TABLE public.agency_talent_roster DROP COLUMN IF EXISTS owner_share_kind, DROP COLUMN IF EXISTS owner_share_bps, DROP COLUMN IF EXISTS owner_share_cents, DROP COLUMN IF EXISTS owner_share_currency;
+-- ACCEPTANCE. owner_share_* above is the ACCEPTED (effective, versioned) share
+-- that checkout uses. The owner only ever writes a PENDING proposal; it becomes
+-- effective when the member accepts it (she sees what she receives first).
+ALTER TABLE public.agency_talent_roster
+  ADD COLUMN IF NOT EXISTS pending_share_kind TEXT,
+  ADD COLUMN IF NOT EXISTS pending_share_bps INT,
+  ADD COLUMN IF NOT EXISTS pending_share_cents BIGINT,
+  ADD COLUMN IF NOT EXISTS pending_share_currency TEXT,
+  ADD COLUMN IF NOT EXISTS pending_share_proposed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS owner_share_version INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS owner_share_accepted_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS owner_share_accepted_by UUID;
+ALTER TABLE public.agency_talent_roster
+  DROP CONSTRAINT IF EXISTS agency_talent_roster_pending_share_chk;
+ALTER TABLE public.agency_talent_roster
+  ADD CONSTRAINT agency_talent_roster_pending_share_chk CHECK (
+    pending_share_kind IS NULL
+    OR (pending_share_kind = 'percent' AND pending_share_bps BETWEEN 0 AND 9000
+        AND pending_share_cents IS NULL AND pending_share_currency IS NULL)
+    OR (pending_share_kind = 'fixed' AND pending_share_cents BETWEEN 0 AND 1000000000000
+        AND char_length(pending_share_currency) = 3 AND pending_share_bps IS NULL)
+  );
+
+-- THE LINE SNAPSHOT, with the 90% cap and the 10% member minimum enforced here,
+-- in the database, not only in code: the owner's take on a line can never exceed
+-- 90% of the line, and the member's cost is never below the rest.
+ALTER TABLE public.order_lines
+  ADD COLUMN IF NOT EXISTS owner_take_cents BIGINT,
+  ADD COLUMN IF NOT EXISTS owner_share_snapshot JSONB;
+ALTER TABLE public.order_lines
+  DROP CONSTRAINT IF EXISTS order_lines_owner_take_cap_chk;
+ALTER TABLE public.order_lines
+  ADD CONSTRAINT order_lines_owner_take_cap_chk CHECK (
+    owner_take_cents IS NULL
+    OR (owner_take_cents >= 0 AND owner_take_cents <= (total_cents * 9) / 10
+        AND talent_cost_cents >= total_cents - owner_take_cents)
+  );
+COMMENT ON COLUMN public.order_lines.owner_take_cents IS
+  'Friends collective: what the owner takes from this member line, frozen when the order was priced (max 90% of total_cents).';
+COMMENT ON COLUMN public.order_lines.owner_share_snapshot IS
+  'Friends collective: the ACCEPTED share (kind, bps / cents + currency, version) this line was split with.';
+
+-- Rollback (manual): DROP TRIGGER IF EXISTS agencies_protect_work_model ON public.agencies; DROP FUNCTION IF EXISTS public.agencies_protect_work_model(); ALTER TABLE public.agencies DROP CONSTRAINT IF EXISTS agencies_work_model_chk; ALTER TABLE public.agencies DROP COLUMN IF EXISTS work_model; ALTER TABLE public.agency_talent_roster DROP CONSTRAINT IF EXISTS agency_talent_roster_owner_share_chk; ALTER TABLE public.agency_talent_roster DROP COLUMN IF EXISTS owner_share_kind, DROP COLUMN IF EXISTS owner_share_bps, DROP COLUMN IF EXISTS owner_share_cents, DROP COLUMN IF EXISTS owner_share_currency, DROP COLUMN IF EXISTS pending_share_kind, DROP COLUMN IF EXISTS pending_share_bps, DROP COLUMN IF EXISTS pending_share_cents, DROP COLUMN IF EXISTS pending_share_currency, DROP COLUMN IF EXISTS pending_share_proposed_at, DROP COLUMN IF EXISTS owner_share_version, DROP COLUMN IF EXISTS owner_share_accepted_at, DROP COLUMN IF EXISTS owner_share_accepted_by; ALTER TABLE public.order_lines DROP CONSTRAINT IF EXISTS order_lines_owner_take_cap_chk; ALTER TABLE public.order_lines DROP COLUMN IF EXISTS owner_take_cents, DROP COLUMN IF EXISTS owner_share_snapshot;

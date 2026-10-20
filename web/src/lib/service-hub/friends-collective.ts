@@ -143,11 +143,31 @@ export function ownerSharePatch(share: OwnerShare | null): {
   return { owner_share_kind: "fixed", owner_share_bps: null, owner_share_cents: share.amountCents, owner_share_currency: share.currency.trim().toUpperCase() };
 }
 
+/** The PENDING columns for a proposal (the effective columns are untouched until the member accepts). */
+export function pendingSharePatch(share: OwnerShare): {
+  pending_share_kind: "percent" | "fixed";
+  pending_share_bps: number | null;
+  pending_share_cents: number | null;
+  pending_share_currency: string | null;
+} {
+  return share.kind === "percent"
+    ? { pending_share_kind: "percent", pending_share_bps: share.bps, pending_share_cents: null, pending_share_currency: null }
+    : { pending_share_kind: "fixed", pending_share_bps: null, pending_share_cents: share.amountCents, pending_share_currency: share.currency.trim().toUpperCase() };
+}
+
+const CLEAR_PENDING = { pending_share_kind: null, pending_share_bps: null, pending_share_cents: null, pending_share_currency: null } as const;
+
 export type MemberShareDecision =
-  | { ok: true; patch: ReturnType<typeof ownerSharePatch> }
+  | { ok: true; mode: "propose"; patch: ReturnType<typeof pendingSharePatch> }
+  | { ok: true; mode: "clear"; patch: ReturnType<typeof ownerSharePatch> & typeof CLEAR_PENDING }
   | { ok: false; reason: "owner_only" | "not_a_collective" | "not_a_member" | "invalid_share" };
 
-/** Owner only, collective workspaces only, an existing member, a valid share (<= 90%) or null to clear. */
+/**
+ * The owner PROPOSES a share (a valid % <= 90% or a fixed amount); it becomes
+ * effective only when the member accepts it. Clearing the share only helps the
+ * member, so it is immediate and also drops any pending proposal. Owner only,
+ * collective workspaces only, an existing member.
+ */
 export function decideMemberShareUpdate(input: {
   role: string | null;
   workModel: string | null;
@@ -157,6 +177,58 @@ export function decideMemberShareUpdate(input: {
   if (input.role !== "owner") return { ok: false, reason: "owner_only" };
   if (input.workModel !== FRIENDS_COLLECTIVE_MODEL) return { ok: false, reason: "not_a_collective" };
   if (!input.memberOnRoster) return { ok: false, reason: "not_a_member" };
-  if (input.share && !validateOwnerShare(input.share).ok) return { ok: false, reason: "invalid_share" };
-  return { ok: true, patch: ownerSharePatch(input.share) };
+  if (!input.share) return { ok: true, mode: "clear", patch: { ...ownerSharePatch(null), ...CLEAR_PENDING } };
+  if (!validateOwnerShare(input.share).ok) return { ok: false, reason: "invalid_share" };
+  return { ok: true, mode: "propose", patch: pendingSharePatch(input.share) };
+}
+
+export type ShareResponseDecision =
+  | { ok: true; outcome: "accepted" | "declined" }
+  | { ok: false; reason: "not_the_member" | "nothing_pending" };
+
+/** Only the member answers a proposal, and only while one is pending. */
+export function decideShareResponse(input: { isTheMember: boolean; hasPending: boolean; accept: boolean }): ShareResponseDecision {
+  if (!input.isTheMember) return { ok: false, reason: "not_the_member" };
+  if (!input.hasPending) return { ok: false, reason: "nothing_pending" };
+  return { ok: true, outcome: input.accept ? "accepted" : "declined" };
+}
+
+function money(cents: number, currency: string, locale: "en" | "es"): string {
+  try {
+    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+  }
+}
+
+/**
+ * "On a $100.00 sale you receive $85.00 and the owner takes $15.00." Shown to
+ * the member BEFORE she accepts. A fixed share in another currency than the
+ * service has no honest preview (never converted): null.
+ */
+export function memberNetPreview(share: OwnerShare, serviceCurrency: string, locale: "en" | "es"): string | null {
+  if (!validateOwnerShare(share).ok) return null;
+  if (share.kind === "fixed" && share.currency.trim().toUpperCase() !== serviceCurrency.trim().toUpperCase()) return null;
+  const sample = 10_000;
+  const take = ownerTakeCents(sample, share);
+  const net = sample - take;
+  const m = (c: number) => money(c, serviceCurrency, locale);
+  return locale === "es"
+    ? `En una venta de ${m(sample)} recibes ${m(net)} y la dueña se queda con ${m(take)}.`
+    : `On a ${m(sample)} sale you receive ${m(net)} and the owner takes ${m(take)}.`;
+}
+
+/** What an order line freezes: the owner's take and the ACCEPTED share (with its version). */
+export function buildLineSnapshot(
+  totalCents: number,
+  share: OwnerShare,
+  version: number,
+): { ownerTakeCents: number; snapshot: Record<string, unknown> } {
+  return {
+    ownerTakeCents: ownerTakeCents(totalCents, share),
+    snapshot:
+      share.kind === "percent"
+        ? { kind: "percent", bps: share.bps, version }
+        : { kind: "fixed", amountCents: share.amountCents, currency: share.currency.trim().toUpperCase(), version },
+  };
 }

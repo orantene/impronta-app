@@ -230,19 +230,27 @@ describe("the apply action and its held migration", () => {
   });
 });
 
-import { decideMemberShareUpdate, ownerSharePatch } from "./friends-collective";
+import { buildLineSnapshot, decideMemberShareUpdate, decideShareResponse, memberNetPreview } from "./friends-collective";
+import { resolveBookingCommissions } from "../billing/commission";
+import { proportionalRefundCents } from "../billing/commission-processing";
 
-describe("the owner sets each member's share (owner only, collective only, capped at 90%)", () => {
+describe("the owner PROPOSES a member's share; it takes effect only when the member accepts it", () => {
   const ok = { role: "owner", workModel: "friends_collective", memberOnRoster: true } as const;
 
-  test("percent and fixed shares become the roster columns", () => {
-    assert.deepEqual(ownerSharePatch({ kind: "percent", bps: 2000 }), { owner_share_kind: "percent", owner_share_bps: 2000, owner_share_cents: null, owner_share_currency: null });
-    assert.deepEqual(ownerSharePatch({ kind: "fixed", amountCents: 5000, currency: "mxn" }), { owner_share_kind: "fixed", owner_share_bps: null, owner_share_cents: 5000, owner_share_currency: "MXN" });
-    assert.deepEqual(ownerSharePatch(null), { owner_share_kind: null, owner_share_bps: null, owner_share_cents: null, owner_share_currency: null });
+  test("a proposal writes the PENDING columns, never the effective share", () => {
+    const d = decideMemberShareUpdate({ ...ok, share: { kind: "percent", bps: 2000 } });
+    assert.equal(d.ok && d.mode, "propose");
+    assert.deepEqual(d.ok && d.patch, { pending_share_kind: "percent", pending_share_bps: 2000, pending_share_cents: null, pending_share_currency: null });
+    const f = decideMemberShareUpdate({ ...ok, share: { kind: "fixed", amountCents: 5000, currency: "mxn" } });
+    assert.deepEqual(f.ok && f.patch, { pending_share_kind: "fixed", pending_share_bps: null, pending_share_cents: 5000, pending_share_currency: "MXN" });
   });
-  test("the owner of a collective can set, change and clear a member's share", () => {
-    assert.equal(decideMemberShareUpdate({ ...ok, share: { kind: "percent", bps: 2000 } }).ok, true);
-    assert.equal(decideMemberShareUpdate({ ...ok, share: null }).ok, true);
+  test("clearing the share is immediate (it only helps the member) and drops any pending proposal", () => {
+    const d = decideMemberShareUpdate({ ...ok, share: null });
+    assert.equal(d.ok && d.mode, "clear");
+    assert.deepEqual(d.ok && d.patch, {
+      owner_share_kind: null, owner_share_bps: null, owner_share_cents: null, owner_share_currency: null,
+      pending_share_kind: null, pending_share_bps: null, pending_share_cents: null, pending_share_currency: null,
+    });
   });
   test("more than 90%, a bad fixed amount or no currency is refused", () => {
     assert.deepEqual(decideMemberShareUpdate({ ...ok, share: { kind: "percent", bps: 9001 } }), { ok: false, reason: "invalid_share" });
@@ -255,6 +263,90 @@ describe("the owner sets each member's share (owner only, collective only, cappe
     assert.deepEqual(decideMemberShareUpdate({ ...ok, workModel: null, share }), { ok: false, reason: "not_a_collective" });
     assert.deepEqual(decideMemberShareUpdate({ ...ok, workModel: "team_studio", share }), { ok: false, reason: "not_a_collective" });
     assert.deepEqual(decideMemberShareUpdate({ ...ok, memberOnRoster: false, share }), { ok: false, reason: "not_a_member" });
+  });
+
+  test("only the member accepts or declines, and only when a proposal is pending", () => {
+    assert.deepEqual(decideShareResponse({ isTheMember: false, hasPending: true, accept: true }), { ok: false, reason: "not_the_member" });
+    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: false, accept: true }), { ok: false, reason: "nothing_pending" });
+    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, accept: true }), { ok: true, outcome: "accepted" });
+    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, accept: false }), { ok: true, outcome: "declined" });
+  });
+
+  test("the member sees what she receives BEFORE accepting (EN and ES), for a percent and a fixed share", () => {
+    assert.equal(
+      memberNetPreview({ kind: "percent", bps: 1500 }, "USD", "en"),
+      "On a $100.00 sale you receive $85.00 and the owner takes $15.00.",
+    );
+    assert.equal(
+      memberNetPreview({ kind: "fixed", amountCents: 3000, currency: "MXN" }, "MXN", "es"),
+      "En una venta de $100.00 recibes $70.00 y la dueña se queda con $30.00.",
+    );
+    // A fixed share in another currency has no honest preview (never converted).
+    assert.equal(memberNetPreview({ kind: "fixed", amountCents: 3000, currency: "MXN" }, "USD", "en"), null);
+  });
+
+  test("the line snapshot records the ACCEPTED share, its version and the owner's take (<= 90% of the line)", () => {
+    const snap = buildLineSnapshot(10_000, { kind: "percent", bps: 1500 }, 3);
+    assert.deepEqual(snap, { ownerTakeCents: 1500, snapshot: { kind: "percent", bps: 1500, version: 3 } });
+    const fixed = buildLineSnapshot(10_000, { kind: "fixed", amountCents: 50_000, currency: "MXN" }, 1);
+    assert.deepEqual(fixed, { ownerTakeCents: 9000, snapshot: { kind: "fixed", amountCents: 50_000, currency: "MXN", version: 1 } });
+  });
+});
+
+describe("rounding is defined: half up to the cent, owner take + member net = price", () => {
+  test("worked half-cent cases", () => {
+    assert.equal(ownerTakeCents(333, { kind: "percent", bps: 1500 }), 50); // 49.95 -> 50
+    assert.equal(ownerTakeCents(5, { kind: "percent", bps: 1000 }), 1); // 0.5 -> 1 (half up)
+    assert.equal(ownerTakeCents(1, { kind: "percent", bps: 5000 }), 0); // 0.5 -> 1, then capped at floor(0.9 * 1) = 0
+    assert.equal(ownerTakeCents(99, { kind: "percent", bps: 9000 }), 89); // 89.1 -> 89, cap floor(89.1) = 89
+    assert.equal(ownerTakeCents(101, { kind: "percent", bps: 9000 }), 90); // 90.9 -> 91, cap floor(90.9) = 90
+  });
+  test("the member always keeps at least 10% of the line, for every price and every allowed share", () => {
+    for (let price = 1; price <= 400; price++) {
+      for (const bps of [0, 1, 500, 1234, 5000, 8999, 9000]) {
+        const take = ownerTakeCents(price, { kind: "percent", bps });
+        const net = memberNetCents(price, { kind: "percent", bps });
+        assert.equal(take + net, price);
+        assert.ok(net * 10 >= price, `${price} @ ${bps}: net ${net}`);
+      }
+    }
+  });
+});
+
+describe("the Tulala fee stays out of the split; lanes reverse proportionally", () => {
+  const cfg = { default_take_bps: 600, default_take_floor_cents: 0, plan_tier_bps: {}, processing_mode: "pass_through" as const, pass_through_take_bps: 150 };
+  test("with the 1.5% customer fee on, the owner's lane is exactly her take and the member's lane exactly her net", () => {
+    const price = 10_000;
+    const share = { kind: "percent", bps: 2000 } as const;
+    const snap = resolveBookingCommissions({
+      tenantId: "ws",
+      workspacePlan: "free",
+      offerLineItems: [{ line_total_cents: price, talent_cost_total_cents: memberNetCents(price, share) }],
+      currencyCode: "MXN",
+      paymentMethod: "card",
+      sellerOfRecord: "workspace",
+      platformConfig: cfg,
+      tenantOverride: null,
+      orderBackedCollect: true,
+    });
+    assert.equal(snap.talent_net_cents, 8000);
+    assert.equal(snap.workspace_fee_cents, 2000);
+    assert.equal(snap.client_surcharge_cents, 150);
+    assert.equal(snap.gross_charged_cents, 10_150);
+    assert.equal(snap.talent_net_cents + snap.workspace_fee_cents + snap.platform_fee_cents, snap.gross_charged_cents);
+  });
+  test("a refund of part of the order reduces each lane in proportion (no cent lost)", () => {
+    // lanes 8000 member / 2000 owner; refund half of the 10_000 line
+    const half = (lane: number) => proportionalRefundCents(lane, 0.5);
+    assert.equal(half(8000) + half(2000), 5000);
+    assert.equal(proportionalRefundCents(8000, 0.5) , 4000);
+    assert.equal(proportionalRefundCents(2000, 0.5), 1000);
+  });
+  test("payouts are one row per booking, member and party; partial reversals carry an idempotency anchor", () => {
+    const ledger = readFileSync(new URL("../../../../supabase/migrations/20260601014922_booking_payouts_ledger.sql", import.meta.url), "utf8");
+    assert.match(ledger, /booking_payouts_unique_leg unique \(booking_id, participant_id, party\)/);
+    const rev = read("../payments/booking-payouts-ledger.ts");
+    assert.match(rev, /partialReversalAnchor/);
   });
 });
 
@@ -273,10 +365,51 @@ describe("the owner screen", () => {
     assert.match(card, /setMemberOwnerShare/);
     assert.match(card, /applyFriendsCollectivePreset/);
     for (const l of ["en", "es"] as const) {
-      for (const k of ["apply", "memberHeading", "percentLabel", "fixedLabel", "noShare", "save", "saved", "ownerOnly", "overCap", "reviewsHeading"] as const) {
+      for (const k of ["apply", "memberHeading", "percentLabel", "fixedLabel", "noShare", "save", "saved", "ownerOnly", "overCap", "reviewsHeading", "pendingNote", "splitOff", "proposalHeading", "accept", "decline", "nothingPending", "answered"] as const) {
         assert.ok(COLLECTIVE_COPY[l][k] && COLLECTIVE_COPY[l][k].length > 0, `${l}.${k}`);
         assert.ok(!/[–—]/.test(COLLECTIVE_COPY[l][k]), `${l}.${k} has a dash`);
       }
     }
+  });
+});
+
+describe("DB guarantees, flag gate and acceptance wiring", () => {
+  const sql = readFileSync(new URL("../../../../supabase/migrations/_pending_pm/20261231420200_agencies_work_model_tul1374.sql", import.meta.url), "utf8");
+  test("the 90% cap and the 10% member minimum are enforced IN THE DATABASE on the order line, and the share is snapshotted there", () => {
+    assert.match(sql, /ALTER TABLE public\.order_lines[\s\S]*owner_take_cents BIGINT/);
+    assert.match(sql, /owner_share_snapshot JSONB/);
+    assert.match(sql, /order_lines_owner_take_cap_chk CHECK/);
+    assert.match(sql, /owner_take_cents >= 0 AND owner_take_cents <= \(total_cents \* 9\) \/ 10/);
+    assert.match(sql, /talent_cost_cents >= total_cents - owner_take_cents/);
+  });
+  test("the roster keeps an ACCEPTED share (effective, versioned) apart from a PENDING proposal", () => {
+    for (const col of ["pending_share_kind", "pending_share_bps", "pending_share_cents", "pending_share_currency", "pending_share_proposed_at", "owner_share_version", "owner_share_accepted_at", "owner_share_accepted_by"]) {
+      assert.match(sql, new RegExp(col), col);
+    }
+    assert.match(sql, /pending_share_bps BETWEEN 0 AND 9000/);
+  });
+  test("checkout reads only the ACCEPTED columns, and snapshots them on the line", () => {
+    const split = read("./collective-split.ts");
+    assert.doesNotMatch(split, /pending_share/);
+    assert.match(split, /owner_share_version/);
+    assert.match(split, /buildLineSnapshot\(/);
+    assert.match(split, /ownerTakeCents/);
+    assert.match(split, /ownerShareSnapshot/);
+    assert.match(read("../orders/purchase.ts"), /owner_take_cents: l\.ownerTakeCents, owner_share_snapshot: l\.ownerShareSnapshot/);
+  });
+  test("flag-gated: the split applies only when COLLECTIVE_SPLIT_ENABLED is exactly 1 (default OFF)", () => {
+    const split = read("./collective-split.ts");
+    assert.match(split, /env\.COLLECTIVE_SPLIT_ENABLED === "1"/);
+    assert.match(split, /collectiveSplitEnabled/);
+  });
+  test("the member's accept action and page exist, and show the net before accepting", () => {
+    const act = read("./friends-collective-actions.ts");
+    assert.match(act, /export async function respondToOwnerShare/);
+    assert.match(act, /decideShareResponse\(/);
+    assert.match(act, /requireTalentSelf\(/);
+    const page = read("../../app/(workspace)/[tenantSlug]/talent/collective-share/page.tsx");
+    assert.match(page, /memberNetPreview\(/);
+    const card = read("../../app/(workspace)/[tenantSlug]/talent/collective-share/CollectiveShareResponseCard.tsx");
+    assert.match(card, /respondToOwnerShare/);
   });
 });

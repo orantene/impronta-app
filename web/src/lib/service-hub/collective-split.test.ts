@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { applyCollectiveOwnerShares, applySharesToLines, parseOwnerShareRow } from "./collective-split";
+import { applyCollectiveOwnerShares, applySharesToLines, collectiveSplitEnabled, parseOwnerShareRow } from "./collective-split";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 const line = (talentProfileId: string | null, totalCents: number, talentCostCents = totalCents) => ({ talentProfileId, totalCents, talentCostCents, ownerTenantId: null, label: "Gel manicure" });
@@ -32,13 +32,13 @@ describe("share rows", () => {
 
 describe("applying shares to order lines", () => {
   test("a % share: owner takes it from the member's line; the member's cost is the rest; they add up to the line", () => {
-    const r = applySharesToLines([line("a", 10_000)], new Map([["a", { kind: "percent" as const, bps: 2000 }]]), "MXN");
+    const r = applySharesToLines([line("a", 10_000)], new Map([["a", { share: { kind: "percent" as const, bps: 2000 }, version: 1 }]]), "MXN");
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.equal(r.lines[0].talentCostCents, 8000);
   });
   test("a fixed share is per line, in the order's currency, and capped so the member keeps at least 10%", () => {
-    const shares = new Map([["a", { kind: "fixed" as const, amountCents: 50_000, currency: "MXN" }]]);
+    const shares = new Map([["a", { share: { kind: "fixed" as const, amountCents: 50_000, currency: "MXN" }, version: 1 }]]);
     const r = applySharesToLines([line("a", 10_000)], shares, "MXN");
     assert.equal(r.ok && r.lines[0].talentCostCents, 1000);
     assert.deepEqual(applySharesToLines([line("a", 10_000)], shares, "USD"), { ok: false, error: "share_currency_mismatch" });
@@ -63,10 +63,24 @@ describe("applying shares to order lines", () => {
   });
   test("never mutates the input lines", () => {
     const input = [line("a", 10_000)];
-    applySharesToLines(input, new Map([["a", { kind: "percent" as const, bps: 5000 }]]), "MXN");
+    applySharesToLines(input, new Map([["a", { share: { kind: "percent" as const, bps: 5000 }, version: 1 }]]), "MXN");
     assert.equal(input[0].talentCostCents, 10_000);
   });
 });
+
+describe("flag gate and the line snapshot", () => {
+  test("OFF unless the flag is exactly 1", () => {
+    for (const v of [undefined, "", "0", "true", "yes"]) assert.equal(collectiveSplitEnabled({ COLLECTIVE_SPLIT_ENABLED: v }), false, String(v));
+    assert.equal(collectiveSplitEnabled({ COLLECTIVE_SPLIT_ENABLED: "1" }), true);
+  });
+  test("each split line carries the owner's take and the accepted-share snapshot (version included)", () => {
+    const r = applySharesToLines([line("a", 10_000)], new Map([["a", { share: { kind: "percent" as const, bps: 2000 }, version: 4 }]]), "MXN");
+    assert.equal(r.ok && r.lines[0].ownerTakeCents, 2000);
+    assert.deepEqual(r.ok && r.lines[0].ownerShareSnapshot, { kind: "percent", bps: 2000, version: 4 });
+  });
+});
+
+process.env.COLLECTIVE_SPLIT_ENABLED = "1";
 
 describe("loading the workspace's model and shares (fails closed)", () => {
   type Reply = { data?: unknown; error?: { code?: string; message?: string } | null };
@@ -101,7 +115,7 @@ describe("loading the workspace's model and shares (fails closed)", () => {
     const r = await applyCollectiveOwnerShares(
       fakeAdmin({
         agencies: { data: { work_model: "friends_collective" }, error: null },
-        agency_talent_roster: { data: [{ talent_profile_id: "a", owner_share_kind: "percent", owner_share_bps: 2500 }], error: null },
+        agency_talent_roster: { data: [{ talent_profile_id: "a", owner_share_kind: "percent", owner_share_bps: 2500, owner_share_version: 2 }], error: null },
         talent_profiles: { data: [{ id: "a", display_name: "Ana" }], error: null },
       }),
       "t1",
@@ -110,6 +124,26 @@ describe("loading the workspace's model and shares (fails closed)", () => {
     );
     assert.equal(r.ok && r.lines[0].talentCostCents, 7500);
     assert.equal(r.ok && r.lines[0].label, "Gel manicure · Ana");
+    assert.deepEqual(r.ok && r.lines[0].ownerShareSnapshot, { kind: "percent", bps: 2500, version: 2 });
+    assert.equal(r.ok && r.lines[0].ownerTakeCents, 2500);
+  });
+  test("with the flag OFF (default) a collective is NOT split: no share read, lines untouched", async () => {
+    const prev = process.env.COLLECTIVE_SPLIT_ENABLED;
+    delete process.env.COLLECTIVE_SPLIT_ENABLED;
+    try {
+      const r = await applyCollectiveOwnerShares(
+        fakeAdmin({
+          agencies: { data: { work_model: "friends_collective" }, error: null },
+          agency_talent_roster: { data: null, error: { message: "must not read" } },
+        }),
+        "t1",
+        "MXN",
+        lines(),
+      );
+      assert.equal(r.ok && r.lines[0].talentCostCents, 10_000);
+    } finally {
+      if (prev !== undefined) process.env.COLLECTIVE_SPLIT_ENABLED = prev;
+    }
   });
   test("any other read failure REFUSES the order (never prices a collective sale without its split)", async () => {
     const down = await applyCollectiveOwnerShares(fakeAdmin({ agencies: { data: null, error: { code: "XX000", message: "db down" } } }), "t1", "MXN", lines());

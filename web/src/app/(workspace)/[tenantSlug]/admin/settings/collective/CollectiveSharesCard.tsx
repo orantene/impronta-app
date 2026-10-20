@@ -13,7 +13,7 @@ import type { OwnerShare } from "@/lib/service-hub/friends-collective";
 
 export type CollectiveReview = { id: string; rating: number; body: string };
 
-export type CollectiveMember = { talentProfileId: string; name: string; share: OwnerShare | null };
+export type CollectiveMember = { talentProfileId: string; name: string; share: OwnerShare | null; pending: OwnerShare | null };
 
 type Mode = "none" | "percent" | "fixed";
 
@@ -40,7 +40,7 @@ function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" 
     }
     start(async () => {
       const r = await setMemberOwnerShare({ talentProfileId: member.talentProfileId, share });
-      if (r.ok) setMsg({ ok: true, text: c.saved });
+      if (r.ok) setMsg({ ok: true, text: share ? c.pendingNote : c.saved });
       else setMsg({ ok: false, text: r.reason === "owner_only" ? c.ownerOnly : r.reason === "invalid_share" ? c.overCap : "Could not save. Try again." });
     });
   };
@@ -48,6 +48,7 @@ function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" 
   return (
     <div data-testid="collective-member-row" style={{ padding: "12px 0", borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
       <div style={{ fontWeight: 600, fontSize: 14 }}>{member.name}</div>
+      {member.pending && <div role="note" style={{ fontSize: 12.5, opacity: 0.7, marginTop: 4 }}>{c.pendingNote}</div>}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 8 }}>
         <select value={mode} onChange={(e) => setMode(e.target.value as Mode)} aria-label={c.memberHeading} style={{ padding: "7px 9px", borderRadius: 8, border: "1px solid rgba(24,24,27,0.15)" }}>
           <option value="none">{c.noShare}</option>
@@ -72,7 +73,7 @@ function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" 
   );
 }
 
-export function CollectiveSharesCard({ locale, isCollective, members, reviews }: { locale: "en" | "es"; isCollective: boolean; members: CollectiveMember[]; reviews: CollectiveReview[] }) {
+export function CollectiveSharesCard({ locale, isCollective, members, reviews, splitOn }: { locale: "en" | "es"; isCollective: boolean; members: CollectiveMember[]; reviews: CollectiveReview[]; splitOn: boolean }) {
   const c = COLLECTIVE_COPY[locale];
   const [on, setOn] = useState(isCollective);
   const [pending, start] = useTransition();
@@ -106,6 +107,7 @@ export function CollectiveSharesCard({ locale, isCollective, members, reviews }:
         </button>
       ) : (
         <div>
+          {!splitOn && <p role="note" style={{ fontSize: 13, opacity: 0.75 }}>{c.splitOff}</p>}
           <h2 style={{ fontSize: 15, margin: "8px 0 0" }}>{c.memberHeading}</h2>
           {members.map((m) => (
             <MemberRow key={m.talentProfileId} member={m} locale={locale} />

@@ -6,7 +6,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { parseOwnerShareRow } from "@/lib/service-hub/collective-split";
+import { collectiveSplitEnabled, parseOwnerShareRow } from "@/lib/service-hub/collective-split";
 import { FRIENDS_COLLECTIVE_MODEL } from "@/lib/service-hub/friends-collective";
 import { loadWorkspaceReviews } from "@/lib/reviews/collective-reviews";
 import { CollectiveSharesCard, type CollectiveMember, type CollectiveReview } from "./CollectiveSharesCard";
@@ -31,17 +31,22 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
         reviews.push({ id: r.id, rating: r.rating, body: r.body ?? "" });
       }
       const { data: rows } = await tenantScopedQuery(admin, "agency_talent_roster", scope.tenantId)
-        .select("talent_profile_id, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, talent_profiles!inner(display_name)")
+        .select("talent_profile_id, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, talent_profiles!inner(display_name)")
         .neq("status", "removed");
       for (const r of (rows ?? []) as Array<Record<string, unknown> & { talent_profile_id: string; talent_profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
         const tp = Array.isArray(r.talent_profiles) ? r.talent_profiles[0] : r.talent_profiles;
-        members.push({ talentProfileId: r.talent_profile_id, name: tp?.display_name ?? "", share: parseOwnerShareRow(r) });
+        members.push({
+          talentProfileId: r.talent_profile_id,
+          name: tp?.display_name ?? "",
+          share: parseOwnerShareRow(r),
+          pending: parseOwnerShareRow({ owner_share_kind: r.pending_share_kind, owner_share_bps: r.pending_share_bps, owner_share_cents: r.pending_share_cents, owner_share_currency: r.pending_share_currency }),
+        });
       }
     }
   }
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <CollectiveSharesCard locale={locale} isCollective={workModel === FRIENDS_COLLECTIVE_MODEL} members={members} reviews={reviews} />
+      <CollectiveSharesCard locale={locale} isCollective={workModel === FRIENDS_COLLECTIVE_MODEL} members={members} reviews={reviews} splitOn={collectiveSplitEnabled()} />
     </main>
   );
 }

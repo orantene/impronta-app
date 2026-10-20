@@ -22,6 +22,13 @@ export type CollectiveCopy = {
   ownerOnly: string;
   overCap: string;
   reviewsHeading: string;
+  pendingNote: string;
+  splitOff: string;
+  proposalHeading: string;
+  accept: string;
+  decline: string;
+  nothingPending: string;
+  answered: string;
 };
 
 export const COLLECTIVE_COPY: Record<"en" | "es", CollectiveCopy> = {
@@ -47,6 +54,13 @@ export const COLLECTIVE_COPY: Record<"en" | "es", CollectiveCopy> = {
     ownerOnly: "Only the workspace owner can change this.",
     overCap: "The owner can take at most 90% of a member's price.",
     reviewsHeading: "Reviews collected on your page",
+    pendingNote: "Waiting for the member to accept. Until she does, her sales are not split.",
+    splitOff: "The split is switched off for now. Members keep their whole price until it is turned on.",
+    proposalHeading: "Your workspace owner proposes a share",
+    accept: "Accept",
+    decline: "Decline",
+    nothingPending: "You have no share proposals waiting.",
+    answered: "Done. Thank you.",
   },
   es: {
     title: "Colectivo de amigos",
@@ -70,5 +84,12 @@ export const COLLECTIVE_COPY: Record<"en" | "es", CollectiveCopy> = {
     ownerOnly: "Solo la dueña del espacio puede cambiar esto.",
     overCap: "La dueña puede quedarse como máximo el 90% del precio de un miembro.",
     reviewsHeading: "Reseñas reunidas en tu página",
+    pendingNote: "Esperando que la miembro acepte. Mientras no lo haga, sus ventas no se reparten.",
+    splitOff: "El reparto está desactivado por ahora. Los miembros se quedan con todo el precio hasta que se active.",
+    proposalHeading: "La dueña de tu espacio propone un reparto",
+    accept: "Aceptar",
+    decline: "Rechazar",
+    nothingPending: "No tienes propuestas de reparto pendientes.",
+    answered: "Listo. Gracias.",
   },
 };

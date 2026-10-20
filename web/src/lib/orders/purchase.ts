@@ -393,8 +393,8 @@ export async function createPurchase(
       talent_profile_id: l.talentProfileId,
       owner_tenant_id: l.ownerTenantId,
       talent_cost_cents: l.talentCostCents,
-      // Never `orders.session_id` (a box-office convenience); this is what
-      // `mint-on-paid` filters on.
+      ...(l.ownerTakeCents != null ? { owner_take_cents: l.ownerTakeCents, owner_share_snapshot: l.ownerShareSnapshot } : {}),
+      // Never `orders.session_id` (a box-office convenience); `mint-on-paid` filters on this.
       session_id: input.lines[i]?.sessionId ?? null,
       sort_order: i,
     }));

@@ -78,6 +78,9 @@ export type PricedLine = {
   talentProfileId: string | null;
   ownerTenantId: string | null;
   talentCostCents: number;
+  /** TUL-1374: set for a Friends collective member line: the owner's take and the accepted-share snapshot. */
+  ownerTakeCents?: number;
+  ownerShareSnapshot?: Record<string, unknown>;
 };
 
 export type PricingRefusal = {

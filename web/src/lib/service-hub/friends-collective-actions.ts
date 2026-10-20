@@ -17,7 +17,9 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { decideFriendsCollectivePreset, decideMemberShareUpdate, type OwnerShare } from "./friends-collective";
+import { decideFriendsCollectivePreset, decideMemberShareUpdate, decideShareResponse, type OwnerShare } from "./friends-collective";
+import { parseOwnerShareRow } from "./collective-split";
+import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 
 export type ApplyPresetResult =
   | { ok: true; changed: boolean }
@@ -134,7 +136,7 @@ export async function setMemberOwnerShare(input: {
     if (!decision.ok) return decision;
 
     const { error } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
-      .update(decision.patch)
+      .update(decision.mode === "propose" ? { ...decision.patch, pending_share_proposed_at: new Date().toISOString() } : decision.patch)
       .eq("talent_profile_id", input.talentProfileId);
     if (error) {
       logServerError("friends-collective.setMemberShare", error);
@@ -144,15 +146,87 @@ export async function setMemberOwnerShare(input: {
       tenantId,
       category: "roster",
       action: "workspace.owner_share.set",
-      summary: input.share ? "Set the owner's share of a member's sales" : "Cleared the owner's share of a member's sales",
+      summary: input.share ? "Proposed the owner's share of a member's sales (pending the member's acceptance)" : "Cleared the owner's share of a member's sales",
       targetType: "talent_profile",
       targetId: input.talentProfileId,
-      metadata: { share: input.share },
+      metadata: { share: input.share, mode: decision.mode },
     });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
     logServerError("friends-collective.setMemberShare", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+
+export type RespondShareResult =
+  | { ok: true; outcome: "accepted" | "declined" }
+  | { ok: false; reason: "unauthenticated" | "not_the_member" | "nothing_pending" | "unavailable" };
+
+/**
+ * The MEMBER answers the owner's proposal for ONE workspace. Accepting makes the
+ * pending share the effective one (version + 1, who and when recorded); orders
+ * priced from then on use it and snapshot it on their lines. Declining drops it.
+ * Only the member herself (never an owner or admin acting for her), and never
+ * while impersonating.
+ */
+export async function respondToOwnerShare(input: { tenantId: string; accept: boolean }): Promise<RespondShareResult> {
+  await requireNotImpersonating();
+  try {
+    const me = await requireTalentSelf();
+    if (!me.ok) return { ok: false, reason: "unauthenticated" };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+
+    const { data: row, error } = await tenantScopedQuery(admin, "agency_talent_roster", input.tenantId)
+      .select("talent_profile_id, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, owner_share_version")
+      .eq("talent_profile_id", me.talentProfile.id)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (error) return { ok: false, reason: "unavailable" };
+    const r = row as { pending_share_kind: string | null; pending_share_bps: number | null; pending_share_cents: number | null; pending_share_currency: string | null; owner_share_version: number | null } | null;
+    const pending = r
+      ? parseOwnerShareRow({ owner_share_kind: r.pending_share_kind, owner_share_bps: r.pending_share_bps, owner_share_cents: r.pending_share_cents, owner_share_currency: r.pending_share_currency })
+      : null;
+
+    const decision = decideShareResponse({ isTheMember: Boolean(r), hasPending: Boolean(pending), accept: input.accept });
+    if (!decision.ok) return decision;
+
+    const clearPending = { pending_share_kind: null, pending_share_bps: null, pending_share_cents: null, pending_share_currency: null, pending_share_proposed_at: null };
+    const patch =
+      decision.outcome === "accepted" && pending
+        ? {
+            ...clearPending,
+            owner_share_kind: pending.kind,
+            owner_share_bps: pending.kind === "percent" ? pending.bps : null,
+            owner_share_cents: pending.kind === "fixed" ? pending.amountCents : null,
+            owner_share_currency: pending.kind === "fixed" ? pending.currency : null,
+            owner_share_version: (r?.owner_share_version ?? 0) + 1,
+            owner_share_accepted_at: new Date().toISOString(),
+            owner_share_accepted_by: me.session.user.id,
+          }
+        : clearPending;
+    const { error: wErr } = await tenantScopedQuery(admin, "agency_talent_roster", input.tenantId)
+      .update(patch)
+      .eq("talent_profile_id", me.talentProfile.id);
+    if (wErr) {
+      logServerError("friends-collective.respondShare", wErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    await logWorkspaceAudit({
+      tenantId: input.tenantId,
+      category: "roster",
+      action: decision.outcome === "accepted" ? "workspace.owner_share.accepted" : "workspace.owner_share.declined",
+      summary: decision.outcome === "accepted" ? "A member accepted the owner's share" : "A member declined the owner's share",
+      targetType: "talent_profile",
+      targetId: me.talentProfile.id,
+      metadata: { share: pending, version: decision.outcome === "accepted" ? (r?.owner_share_version ?? 0) + 1 : null },
+    });
+    revalidatePath("/", "layout");
+    return { ok: true, outcome: decision.outcome };
+  } catch (err) {
+    logServerError("friends-collective.respondShare", err);
     return { ok: false, reason: "unavailable" };
   }
 }

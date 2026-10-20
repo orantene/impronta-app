@@ -10,7 +10,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
-import { FRIENDS_COLLECTIVE_MODEL, memberNetCents, validateOwnerShare, type OwnerShare } from "./friends-collective";
+import { FRIENDS_COLLECTIVE_MODEL, buildLineSnapshot, memberNetCents, validateOwnerShare, type OwnerShare } from "./friends-collective";
 
 export const SPLIT_UNAVAILABLE_MESSAGE = "We could not confirm the split for this order. Nothing was charged. Try again.";
 
@@ -32,7 +32,22 @@ export function parseOwnerShareRow(row: ShareRow): OwnerShare | null {
   return share && validateOwnerShare(share).ok ? share : null;
 }
 
-type SplitLine = { talentProfileId: string | null; totalCents: number; talentCostCents: number; label: string };
+type SplitLine = {
+  talentProfileId: string | null;
+  totalCents: number;
+  talentCostCents: number;
+  label: string;
+  /** Set when a share was applied: the owner's take and the accepted-share snapshot, frozen on the line. */
+  ownerTakeCents?: number;
+  ownerShareSnapshot?: Record<string, unknown>;
+};
+
+/** The split applies only when COLLECTIVE_SPLIT_ENABLED is exactly 1 (default OFF, staging first). */
+export function collectiveSplitEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.COLLECTIVE_SPLIT_ENABLED === "1";
+}
+
+export type AcceptedShare = { share: OwnerShare; version: number };
 
 const LABEL_MAX = 300;
 
@@ -43,19 +58,23 @@ const LABEL_MAX = 300;
  */
 export function applySharesToLines<L extends SplitLine>(
   lines: readonly L[],
-  shares: ReadonlyMap<string, OwnerShare>,
+  shares: ReadonlyMap<string, AcceptedShare>,
   orderCurrency: string,
   names: ReadonlyMap<string, string> = new Map(),
 ): { ok: true; lines: L[] } | { ok: false; error: "share_currency_mismatch" } {
   const out: L[] = [];
   for (const l of lines) {
     const next: L = { ...l, label: withMemberName(l.label, l.talentProfileId ? names.get(l.talentProfileId) : undefined) };
-    const share = l.talentProfileId ? shares.get(l.talentProfileId) : undefined;
-    if (share) {
+    const accepted = l.talentProfileId ? shares.get(l.talentProfileId) : undefined;
+    if (accepted) {
+      const { share } = accepted;
       if (share.kind === "fixed" && share.currency !== orderCurrency.trim().toUpperCase()) {
         return { ok: false, error: "share_currency_mismatch" };
       }
       next.talentCostCents = memberNetCents(l.totalCents, share);
+      const snap = buildLineSnapshot(l.totalCents, share, accepted.version);
+      next.ownerTakeCents = snap.ownerTakeCents;
+      next.ownerShareSnapshot = snap.snapshot;
     }
     out.push(next);
   }
@@ -92,20 +111,22 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
     const { data: agency, error: aErr } = await admin.from("agencies").select("work_model").eq("id", tenantId).maybeSingle();
     if (aErr) return aErr.code === UNDEFINED_COLUMN ? { ok: true, lines } : refuse(aErr);
     if ((agency as { work_model?: string | null } | null)?.work_model !== FRIENDS_COLLECTIVE_MODEL) return { ok: true, lines };
+    // Flag-gated and OFF by default: until staging QA the members keep their whole line.
+    if (!collectiveSplitEnabled()) return { ok: true, lines };
 
     const talentIds = [...new Set(lines.map((l) => l.talentProfileId).filter((x): x is string => !!x))];
-    const shares = new Map<string, OwnerShare>();
+    const shares = new Map<string, AcceptedShare>();
     if (talentIds.length > 0) {
       const { data: rows, error } = await admin
         .from("agency_talent_roster")
-        .select("talent_profile_id, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency")
+        .select("talent_profile_id, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version")
         .eq("tenant_id", tenantId)
         .in("talent_profile_id", talentIds)
         .neq("status", "removed");
       if (error) return refuse(error);
-      for (const r of (rows ?? []) as Array<ShareRow & { talent_profile_id: string }>) {
+      for (const r of (rows ?? []) as Array<ShareRow & { talent_profile_id: string; owner_share_version?: number | null }>) {
         const s = parseOwnerShareRow(r);
-        if (s) shares.set(r.talent_profile_id, s);
+        if (s) shares.set(r.talent_profile_id, { share: s, version: Number(r.owner_share_version) || 1 });
       }
     }
     const names = new Map<string, string>();
@@ -121,6 +142,8 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
     applied.lines.forEach((l, i) => {
       lines[i].talentCostCents = l.talentCostCents;
       lines[i].label = l.label;
+      lines[i].ownerTakeCents = l.ownerTakeCents;
+      lines[i].ownerShareSnapshot = l.ownerShareSnapshot;
     });
     return { ok: true, lines };
   } catch (err) {
