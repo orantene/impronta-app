@@ -67,6 +67,7 @@ import { handleBookingRefund, handleBookingDispute } from "@/lib/payments/refund
 import { handleFailedRefundWebhookAction } from "@/lib/payments/failed-refund-settlement";
 import { recordProviderPayout } from "@/lib/payments/provider-payouts";
 import { recordProviderDispute } from "@/lib/payments/provider-disputes";
+import { maybeSubmitDisputeEvidence } from "@/lib/payments/dispute-evidence-deps";
 import { sendPaymentFailedNotice } from "@/lib/billing/dunning-notice";
 import { defaultDunningNoticeDeps } from "@/lib/billing/dunning-notice-deps";
 import { detectCancelTransition, sendCancelStateNotice } from "@/lib/billing/cancel-state-notice";
@@ -586,6 +587,12 @@ export async function processStripeEvent(
         currency: action.currency,
         evidenceDueBy: action.evidenceDueBy,
       });
+      // TUL-1364: gather and submit evidence for a booking dispute that just
+      // opened. OFF unless DISPUTE_EVIDENCE_AUTOSUBMIT=1, TEST mode only,
+      // never throws.
+      if (wasBookingDispute && action.eventType === "charge.dispute.created") {
+        await maybeSubmitDisputeEvidence(stripe, action.disputeId);
+      }
       if (!wasBookingDispute) {
         logServerError(
           action.closed ? "stripe-webhook.dispute.closed" : "stripe-webhook.dispute.created",

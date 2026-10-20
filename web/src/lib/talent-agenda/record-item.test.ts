@@ -32,8 +32,13 @@ test("F60: the record route falls back to the reader, scoped to her own profile"
   const route = readFileSync(join(dir, "../../components/admin/shell/internal/talent/agenda/BookingRecordRoute.tsx"), "utf8");
   assert.match(route, /loadTalentAgendaRecordItem\(bookingId\)/);
   const loader = readFileSync(join(dir, "load-record-item.ts"), "utf8");
-  assert.match(loader, /\.eq\("talent_profile_id", actor\.talentProfileId\)/);
-  assert.match(loader, /loadTalentAgenda\(actor\.talentProfileId, window\)/);
+  // The ownership scoping moved with the reads into resolve-record-target.ts / booking-stub.ts
+  // (both unit-tested with fakes); the loader passes HER profile id, derived from the verified user.
+  assert.match(loader, /resolveRecordTarget\([\s\S]*actor\.talentProfileId,\s*bookingId/);
+  assert.match(loader, /loadTalentAgenda\(actor\.talentProfileId, window,/);
+  assert.match(loader, /readTimelessBookingStub\([\s\S]*actor\.talentProfileId,\s*bookingId/);
+  const stub = readFileSync(join(dir, "booking-stub.ts"), "utf8");
+  assert.match(stub, /\.eq\("talent_profile_id", talentProfileId\)/);
 });
 
 test("F63: the New booking panel has one save outcome: close, stay, toast with View booking, refresh", () => {

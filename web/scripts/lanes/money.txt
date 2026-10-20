@@ -25,8 +25,10 @@ src/lib/billing/commission-processing-client-pays.test.ts
 src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
+src/lib/billing/fee-reader-rpc-guards.static.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
+src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/review-trial-days.test.ts
@@ -37,6 +39,7 @@ src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
 src/lib/billing/trial-session-reconcile.test.ts
+src/lib/billing/workspace-money-gates.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
@@ -80,6 +83,7 @@ src/lib/inquiry/retry-failed-engine-effects.test.ts
 src/lib/ledger/project.test.ts
 src/lib/ledger/run-projection.test.ts
 src/lib/ledger/transfer-settlement.test.ts
+src/lib/menu-import/import-patch.test.ts
 src/lib/menu-import/parse-restauradmin.test.ts
 src/lib/menu-import/photo-ingest.test.ts
 src/lib/menu-import/plan-import.test.ts
@@ -148,6 +152,7 @@ src/lib/payments/collected-today.test.ts
 src/lib/payments/connect-lane-attention.test.ts
 src/lib/payments/deposit-single-producer.static.test.ts
 src/lib/payments/disburse.test.ts
+src/lib/payments/dispute-evidence.test.ts
 src/lib/payments/failed-refund-attention-note.test.ts
 src/lib/payments/failed-refund-settlement.test.ts
 src/lib/payments/link-checkout-extend-claim.test.ts

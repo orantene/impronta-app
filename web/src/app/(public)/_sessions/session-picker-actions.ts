@@ -23,6 +23,7 @@
  */
 
 import { z } from "zod";
+import { headers } from "next/headers";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -34,6 +35,9 @@ import { uuidWire } from "@/lib/events/uuid-wire";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
+import { resolvePayeeName } from "@/lib/payments/payee-name";
+import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { resolveSessionCardPayment } from "@/lib/sessions/session-card-payment";
 
 const HORIZON_DAYS = 90;
 
@@ -449,6 +453,98 @@ export async function bookSessionSeat(input: unknown): Promise<BookSeatResult> {
     return { ok: true, orderId: result.orderId, checkoutTransactionId: result.transactionId };
   } catch (error) {
     logServerError("sessions.picker.book", error);
+    return { ok: false, reason: "engine_error" };
+  }
+}
+
+const payBodySchema = z.object({
+  tenantId: uuidWire,
+  orderId: uuidWire,
+  transactionId: uuidWire,
+  locale: z.string().max(12).optional(),
+});
+
+export type StartSessionCardPaymentResult =
+  | { ok: true; url: string }
+  | { ok: false; reason: "invalid_request" | "not_found" | "engine_error" };
+
+/**
+ * The card hop for a paid seat, copied from `startTicketCardPayment`
+ * (`_events/ticket-picker-actions.ts`) with two differences: cancel returns the
+ * guest to the page they came from (Referer, same host only, else the site
+ * root), never `/events`, and the Stripe line description is the offering title.
+ *
+ * Ownership is checked by `resolveSessionCardPayment`: a transaction from
+ * another order, an order from another tenant, an already-paid order and a
+ * zero-amount transaction are all refused before Stripe is reached. Success is
+ * the receipt at `/r/<code>?paid=1`; the paid webhook runs
+ * `mintAndDeliverForPaidOrder`, which sends the ticket email.
+ */
+export async function startSessionCardPayment(input: unknown): Promise<StartSessionCardPaymentResult> {
+  await requireNotImpersonating();
+  const parsed = payBodySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid_request" };
+  const d = parsed.data;
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "engine_error" };
+
+    const found = await resolveSessionCardPayment(admin, d);
+    if (!found.ok) {
+      if (found.reason === "engine_error") logServerError("sessions.picker.pay.lookup", "lookup failed");
+      return { ok: false, reason: found.reason };
+    }
+    // No sentinels into Stripe metadata: a transaction with no booking row is refused.
+    if (!found.bookingId) {
+      logServerError("sessions.picker.pay.txn", `transaction ${d.transactionId} has no booking id`);
+      return { ok: false, reason: "engine_error" };
+    }
+
+    let payerEmail: string | null = null;
+    if (found.customerId) {
+      const { data: customer, error: cErr } = await admin.from("customers").select("email").eq("id", found.customerId).maybeSingle();
+      if (cErr) logServerError("sessions.picker.pay.customer", cErr);
+      payerEmail = (customer?.email as string | null) ?? null;
+    }
+
+    const hdrs = await headers();
+    const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+    const proto = hdrs.get("x-forwarded-proto") ?? "https";
+    if (!host) return { ok: false, reason: "engine_error" };
+    const origin = `${proto}://${host}`;
+
+    // The page the guest came from, only if it is on this same host.
+    let cancelUrl = `${origin}/`;
+    const referer = hdrs.get("referer");
+    if (referer) {
+      try {
+        const ref = new URL(referer);
+        if (ref.host === host) cancelUrl = `${origin}${ref.pathname}${ref.search}`;
+      } catch {
+        /* keep the site root */
+      }
+    }
+
+    const res = await createCheckoutSessionForTransaction({
+      transactionId: d.transactionId,
+      amountCents: found.amountCents,
+      currency: found.currency,
+      payerEmail,
+      inquiryId: found.inquiryId,
+      bookingId: found.bookingId,
+      successUrl: `${origin}/r/${found.receiptCode}?paid=1`,
+      cancelUrl,
+      description: found.description,
+      payeeName: await resolvePayeeName(admin, d.tenantId),
+      locale: d.locale ?? null,
+    });
+    if (!res.ok) {
+      logServerError("sessions.picker.pay.checkout", res.error);
+      return { ok: false, reason: "engine_error" };
+    }
+    return { ok: true, url: res.url };
+  } catch (error) {
+    logServerError("sessions.picker.pay", error);
     return { ok: false, reason: "engine_error" };
   }
 }
