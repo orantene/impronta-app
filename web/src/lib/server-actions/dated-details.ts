@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability } from "@/lib/access";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { parseDatedDetails, sanitizeDatedDetails, type DatedDetails } from "@/lib/offerings/dated-details";
 
@@ -36,24 +37,25 @@ export async function loadDatedDetailsAction(input: {
   if (!parsed.success) return { ok: false, reason: "invalid" };
   const g = await staff();
   if (!g.ok) return g;
-  const { data: own, error: ownErr } = await g.admin
-    .from("talent_offerings")
+  const { data: own, error: ownErr } = await tenantScopedQuery(g.admin, "talent_offerings", g.tenantId)
     .select("id")
     .eq("id", parsed.data.offeringId)
-    .eq("tenant_id", g.tenantId)
     .maybeSingle();
   if (ownErr) {
     logServerError("datedDetails.load.own", ownErr);
     return { ok: false, reason: "unavailable" };
   }
   if (!own) return { ok: false, reason: "not_found" };
-  // Held-migration columns: a failed read is "not set".
-  const { data, error } = await g.admin
-    .from("talent_offerings")
+  // Held-migration columns: ONLY a missing column (42703, migration not applied) reads as
+  // "not set". Any other error must not show an empty form: saving it would wipe the details.
+  const { data, error } = await tenantScopedQuery(g.admin, "talent_offerings", g.tenantId)
     .select("dated_details_i18n, private_on_request")
     .eq("id", parsed.data.offeringId)
-    .eq("tenant_id", g.tenantId)
     .maybeSingle();
+  if (error && error.code !== "42703") {
+    logServerError("datedDetails.load.columns", error);
+    return { ok: false, reason: "unavailable" };
+  }
   if (error || !data) return { ok: true, details: {}, privateOnRequest: false };
   return {
     ok: true,
@@ -72,14 +74,12 @@ export async function saveDatedDetailsAction(input: {
   if (!parsed.success) return { ok: false, reason: "invalid" };
   const g = await staff();
   if (!g.ok) return g;
-  const { data, error } = await g.admin
-    .from("talent_offerings")
+  const { data, error } = await tenantScopedQuery(g.admin, "talent_offerings", g.tenantId)
     .update({
       dated_details_i18n: sanitizeDatedDetails(parsed.data.details),
       private_on_request: parsed.data.privateOnRequest,
     })
     .eq("id", parsed.data.offeringId)
-    .eq("tenant_id", g.tenantId)
     .select("id")
     .maybeSingle();
   if (error) {

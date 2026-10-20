@@ -9,13 +9,18 @@ import { DATED_DETAILS_EDITOR_COPY } from "@/components/admin/shell/internal/pag
 const root = join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const action = readFileSync(join(root, "lib/server-actions/dated-details.ts"), "utf8");
 
-test("the actions are staff-guarded and every query is tenant scoped", () => {
+test("the actions are staff-guarded and every offering query goes through the tenant-scoped helper", () => {
   assert.match(action, /^"use server";/);
   assert.match(action, /await requireNotImpersonating\(\)/);
   assert.equal((action.match(/await staff\(\)/g) ?? []).length, 2);
-  const queries = action.match(/\.from\("talent_offerings"\)[\s\S]{0,300}?(?:maybeSingle\(\))/g) ?? [];
-  assert.equal(queries.length, 3);
-  for (const q of queries) assert.match(q, /\.eq\("tenant_id", g\.tenantId\)/);
+  // the lint ratchet forbids a raw .from("talent_offerings") in a server action
+  assert.doesNotMatch(action, /\.from\("talent_offerings"\)/);
+  assert.equal((action.match(/tenantScopedQuery\(g\.admin, "talent_offerings", g\.tenantId\)/g) ?? []).length, 3);
+});
+
+test("a failed read of the held columns is not an empty form (saving it would wipe the details)", () => {
+  assert.match(action, /error\.code !== "42703"/);
+  assert.match(action, /datedDetails\.load\.columns/);
 });
 
 test("saving always sanitizes; the raw client value is never written", () => {
