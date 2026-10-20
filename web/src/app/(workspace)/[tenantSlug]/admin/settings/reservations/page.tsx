@@ -21,6 +21,9 @@ import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { loadDefaultVenue } from "@/lib/spaces/venues";
 import { loadVenueServiceConfig } from "@/lib/reservations/store";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { ReservationSettingsForm } from "./ReservationSettingsForm";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +95,20 @@ export default async function ReservationSettingsPage({ params }: { params: Page
           .map((b) => `${b.name} (${b.partyMin} to ${b.partyMax})`)
           .join(" · ");
 
+  // TUL-1334: the items staff can pick as "the reservation item".
+  const admin = createServiceRoleClient();
+  const offerings: Array<{ id: string; title: string; status: string }> = [];
+  if (admin) {
+    const { data } = await tenantScopedQuery(admin, "talent_offerings", scope.tenantId)
+      .select("id, title, status")
+      .eq("owner_kind", "workspace")
+      .order("title");
+    for (const o of (data ?? []) as Array<{ id: string; title: string | null; status: string }>) {
+      offerings.push({ id: o.id, title: o.title ?? "", status: o.status });
+    }
+  }
+  const locale = (await getRequestLocale()) === "es" ? "es" : "en";
+
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
       <header style={{ marginBottom: 20 }}>
@@ -141,6 +158,8 @@ export default async function ReservationSettingsPage({ params }: { params: Page
         rules={config.rules}
         windows={config.windows}
         canGoLive={config.bands.length > 0}
+        offerings={offerings}
+        locale={locale}
       />
     </main>
   );

@@ -80,6 +80,7 @@ src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
 src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
+src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts

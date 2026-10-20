@@ -16353,6 +16353,7 @@
           "refusal": {
             "timeNotOffered": "Esa hora no se ofrece para este grupo. Elige otra.",
             "noOfferingConfigured": "Las reservas aún no se pueden tomar: no hay una oferta de reserva configurada.",
+            "offeringNotPublished": "Publica el artículo de reservas para aceptar reservas.",
             "noContact": "Hace falta un correo o un teléfono para localizar al cliente.",
             "closed": "El local cierra ese día.",
             "tooLateToday": "Es tarde para reservar esta noche."

@@ -16353,6 +16353,7 @@
           "refusal": {
             "timeNotOffered": "That time is not offered for this party. Pick another.",
             "noOfferingConfigured": "Reservations are not bookable yet: no reservation offering is configured.",
+            "offeringNotPublished": "Publish the reservation item to accept reservations.",
             "noContact": "An email or a phone is needed so the guest can be reached.",
             "closed": "The venue is closed that day.",
             "tooLateToday": "Too late to book for tonight."
