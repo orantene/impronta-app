@@ -739,6 +739,8 @@
       "phone": "Telephone",
       "quoteOnRequest": "Prix sur demande",
       "selectAtLeastOne": "Choisissez {nounPlural}",
+      "chooseOption": "Choisissez une option",
+      "extrasLabel": "Suppléments",
       "selectQuantities": "Choisissez les quantites",
       "sending": "Envoi",
       "sent": "Commande envoyee.",
