@@ -10,6 +10,8 @@ import { test } from "node:test";
 
 import { visibleRosterIdsWithinCap } from "./roster-visibility";
 
+const ON = { HUB_PLAN_CAP_PICKS_ENABLED: "1" } as const;
+
 type Row = Record<string, unknown>;
 
 function fake(rows: Row[], error = false) {
@@ -32,25 +34,50 @@ const roster = (n: number, featured: string[] = []): Row[] =>
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i + 1}`);
 
 test("within the cap (or unlimited) nothing is restricted", async () => {
-  assert.equal(await visibleRosterIdsWithinCap(fake(roster(5)), "t1", ids(5), 5), null);
-  assert.equal(await visibleRosterIdsWithinCap(fake(roster(40)), "t1", ids(40), null), null);
+  assert.equal(await visibleRosterIdsWithinCap(fake(roster(5)), "t1", ids(5), 5, ON), null);
+  assert.equal(await visibleRosterIdsWithinCap(fake(roster(40)), "t1", ids(40), null, ON), null);
 });
 
 test("over the cap: the owner's featured picks stay, then the longest-standing; extras are hidden", async () => {
-  const visible = await visibleRosterIdsWithinCap(fake(roster(8, ["p7", "p8"])), "t1", ids(8), 5);
+  const visible = await visibleRosterIdsWithinCap(fake(roster(8, ["p7", "p8"])), "t1", ids(8), 5, ON);
   assert.deepEqual([...visible!].sort(), ["p1", "p2", "p3", "p7", "p8"]);
 });
 
 test("with no picks the longest-standing members stay (join order)", async () => {
-  const visible = await visibleRosterIdsWithinCap(fake(roster(8)), "t1", ids(8), 5);
+  const visible = await visibleRosterIdsWithinCap(fake(roster(8)), "t1", ids(8), 5, ON);
   assert.deepEqual([...visible!].sort(), ["p1", "p2", "p3", "p4", "p5"]);
 });
 
 test("a read error keeps the old behaviour (null = no restriction here; the offset cap still applies)", async () => {
-  assert.equal(await visibleRosterIdsWithinCap(fake(roster(8), true), "t1", ids(8), 5), null);
+  assert.equal(await visibleRosterIdsWithinCap(fake(roster(8), true), "t1", ids(8), 5, ON), null);
 });
 
 test("wiring: the directory restricts its tenant roster to the visible set when over the cap", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/directory/fetch-directory-page.ts"), "utf8");
   assert.match(src, /visibleRosterIdsWithinCap\(supabase, tenantScopeId, rosterIds, tenantRosterDisplayCap\)/);
+});
+
+test("OFF by default: over the cap nothing changes in the public directory until the flag is on", async () => {
+  const f = fake(roster(8, ["p7", "p8"]));
+  assert.equal(await visibleRosterIdsWithinCap(f, "t1", ids(8), 5, {}), null);
+  assert.equal(await visibleRosterIdsWithinCap(f, "t1", ids(8), 5, { HUB_PLAN_CAP_PICKS_ENABLED: "0" }), null);
+  assert.equal(await visibleRosterIdsWithinCap(f, "t1", ids(8), 5, { HUB_PLAN_CAP_PICKS_ENABLED: "true" }), null);
+});
+
+test("a roster id the query does not return stays in the roster (counted last), it does not vanish", async () => {
+  // p9 is on the roster list but missing from the rows (e.g. a non-active row): 9 ids, cap 5.
+  const visible = await visibleRosterIdsWithinCap(fake(roster(8)), "t1", ids(9), 5, ON);
+  assert.deepEqual([...visible!].sort(), ["p1", "p2", "p3", "p4", "p5"]);
+  // With room under the cap it is kept too: 9 ids, cap 8, p9 missing from rows -> all 8 known + p9 is the 9th, hidden by the cap only.
+  const wide = await visibleRosterIdsWithinCap(fake(roster(8)), "t1", ids(9), 8, ON);
+  assert.equal(wide!.length, 8);
+  assert.ok(!wide!.includes("p9"), "last in line, hidden only because the cap is full");
+  const roomy = await visibleRosterIdsWithinCap(fake(roster(3)), "t1", ids(5), 4, ON);
+  assert.deepEqual([...roomy!].sort(), ["p1", "p2", "p3", "p4"], "an id with no row fills a free seat");
+});
+
+test("a row with no added_at is treated as the newest, not the longest-standing", async () => {
+  const rows = roster(6).map((r, i) => (i === 0 ? { ...r, added_at: null } : r));
+  const visible = await visibleRosterIdsWithinCap(fake(rows), "t1", ids(6), 5, ON);
+  assert.ok(!visible!.includes("p1"));
 });

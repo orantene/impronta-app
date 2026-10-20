@@ -109,3 +109,22 @@ test("currency: the service keeps the talent's currency, the hub shows the works
 test("a safety officer only where the talent talks to the client directly (open network, rental studio)", () => {
   assert.deepEqual(MODELS.filter(safetyOfficerApplies).sort(), ["open_network", "rental_studio"]);
 });
+
+test("a missing joined date never counts as the longest-standing", () => {
+  const out = pickVisibleWithinCap(
+    [{ id: "unknown", pinned: false, joinedAt: null }, { id: "old", pinned: false, joinedAt: "2024-01-01" }, { id: "new", pinned: false, joinedAt: "2026-01-01" }],
+    2,
+  );
+  assert.deepEqual(out.visibleIds, ["old", "new"]);
+  assert.deepEqual(out.hiddenIds, ["unknown"]);
+});
+
+test("currency fails closed: never an empty string, never a guess", () => {
+  assert.equal(hubPriceCurrency({ workspaceCurrency: "", serviceCurrency: "" }), null);
+  assert.equal(hubPriceCurrency({ workspaceCurrency: null, serviceCurrency: "  " }), null);
+  assert.equal(hubPriceCurrency({ workspaceCurrency: "us", serviceCurrency: "mxn" }), "MXN", "a malformed workspace code is treated as absent");
+  assert.equal(hubPriceCurrency({ workspaceCurrency: " usd ", serviceCurrency: "MXN" }), "USD");
+  assert.equal(chargeCurrency({ seller: "workspace", workspaceCurrency: "", talentCurrency: "MXN" }), null, "the seller of record has no valid currency: no charge, no fallback to the other party");
+  assert.equal(chargeCurrency({ seller: "talent", workspaceCurrency: "USD", talentCurrency: "pesos" }), null);
+  assert.equal(chargeCurrency({ seller: "talent", workspaceCurrency: "USD", talentCurrency: "mxn" }), "MXN");
+});

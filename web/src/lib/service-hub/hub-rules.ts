@@ -14,7 +14,8 @@ export type HubModel = "coordinator_agency" | "friends_collective" | "open_netwo
 
 // ── Plan caps and downgrade ───────────────────────────────────────────────────
 
-export type CapCandidate = { id: string; pinned: boolean; joinedAt: string };
+/** `joinedAt` null = unknown: such a person counts as the NEWEST, never the longest-standing. */
+export type CapCandidate = { id: string; pinned: boolean; joinedAt: string | null };
 
 export type VisibleWithinCap = {
   /** In priority order: the owner's picks first, then longest standing. */
@@ -38,7 +39,16 @@ export function pickVisibleWithinCap(
   cap: number | null,
   opts: { openJobIds?: ReadonlySet<string> } = {},
 ): VisibleWithinCap {
-  const ordered = [...people].sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.joinedAt.localeCompare(b.joinedAt) || a.id.localeCompare(b.id));
+  const joined = (c: CapCandidate) => (c.joinedAt && c.joinedAt.trim() ? c.joinedAt : null);
+  const byJoined = (a: CapCandidate, b: CapCandidate) => {
+    const x = joined(a);
+    const y = joined(b);
+    if (x === y) return 0;
+    if (x === null) return 1; // unknown sorts last
+    if (y === null) return -1;
+    return x.localeCompare(y);
+  };
+  const ordered = [...people].sort((a, b) => Number(b.pinned) - Number(a.pinned) || byJoined(a, b) || a.id.localeCompare(b.id));
   const keep = cap == null ? ordered.length : Math.max(0, Math.trunc(cap));
   const visibleIds = ordered.slice(0, keep).map((p) => p.id);
   const hiddenIds = ordered.slice(keep).map((p) => p.id);
@@ -105,14 +115,20 @@ export function customerListVisible(input: { role: "talent" | "staff"; sameWorks
 
 // ── Currency ──────────────────────────────────────────────────────────────────
 
-/** What the hub shows a price in: the workspace currency (with an approximate line), else the service's own. */
-export function hubPriceCurrency(input: { workspaceCurrency: string | null; serviceCurrency: string }): string {
-  return (input.workspaceCurrency ?? "").trim().toUpperCase() || input.serviceCurrency.trim().toUpperCase();
+/** A 3-letter ISO code, upper-cased, or null. Fail closed: a bad or empty value is never turned into "". */
+function validCurrency(value: string | null | undefined): string | null {
+  const code = (value ?? "").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : null;
 }
 
-/** The charge is always in the SELLER OF RECORD's currency (the service itself keeps the talent's currency). */
-export function chargeCurrency(input: { seller: "workspace" | "talent"; workspaceCurrency: string; talentCurrency: string }): string {
-  return (input.seller === "workspace" ? input.workspaceCurrency : input.talentCurrency).trim().toUpperCase();
+/** What the hub shows a price in: the workspace currency (with an approximate line), else the service's own. null = no valid currency: show no price. */
+export function hubPriceCurrency(input: { workspaceCurrency: string | null; serviceCurrency: string }): string | null {
+  return validCurrency(input.workspaceCurrency) ?? validCurrency(input.serviceCurrency);
+}
+
+/** The charge is always in the SELLER OF RECORD's currency (the service itself keeps the talent's currency). null = refuse the charge; never the other party's currency. */
+export function chargeCurrency(input: { seller: "workspace" | "talent"; workspaceCurrency: string; talentCurrency: string }): string | null {
+  return validCurrency(input.seller === "workspace" ? input.workspaceCurrency : input.talentCurrency);
 }
 
 // ── Safety officer ────────────────────────────────────────────────────────────

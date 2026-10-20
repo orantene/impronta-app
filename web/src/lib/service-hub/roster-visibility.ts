@@ -17,7 +17,11 @@ export async function visibleRosterIdsWithinCap(
   tenantId: string,
   rosterIds: readonly string[],
   cap: number | null,
+  env: Record<string, string | undefined> = process.env,
 ): Promise<string[] | null> {
+  // OFF by default: this changes the live public directory for every over-cap workspace,
+  // so until HUB_PLAN_CAP_PICKS_ENABLED=1 the directory keeps today's position-based cap.
+  if (env.HUB_PLAN_CAP_PICKS_ENABLED !== "1") return null;
   if (cap == null || rosterIds.length <= cap) return null;
   const { data, error } = await supabase
     .from("agency_talent_roster")
@@ -30,8 +34,15 @@ export async function visibleRosterIdsWithinCap(
     return null;
   }
   const rows = (data ?? []) as Array<{ talent_profile_id: string; agency_visibility: string | null; added_at: string | null }>;
+  const byId = new Map(rows.map((r) => [r.talent_profile_id, r]));
+  // Start from the roster ids we were given: an id the query did not return is still on the
+  // roster. It competes as an unpinned person with an unknown join date (last in line), so it
+  // can fill a free seat and is never silently dropped.
   const picked = pickVisibleWithinCap(
-    rows.map((r) => ({ id: r.talent_profile_id, pinned: r.agency_visibility === "featured", joinedAt: r.added_at ?? "" })),
+    [...new Set(rosterIds)].map((id) => {
+      const r = byId.get(id);
+      return { id, pinned: r?.agency_visibility === "featured", joinedAt: r?.added_at ?? null };
+    }),
     cap,
   );
   return picked.visibleIds;
