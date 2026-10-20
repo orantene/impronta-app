@@ -57,7 +57,7 @@ export async function renderClientAccountPage(view: AccountView) {
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
-    else if (view.tab === "saved") data.saved = await loadSavedTalent(userId);
+    else if (view.tab === "saved") data.saved = await loadSavedTalent(userId, tenantId);
     else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
     else if (view.tab === "payments") {
       [data.summary, data.payLinks, data.receipts] = await Promise.all([

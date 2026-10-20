@@ -16,11 +16,16 @@ export type SavedTalentRow = {
 
 export type SavedTalent = { displayName: string; city: string | null; href: string };
 
-export function shapeSavedTalent(rows: readonly SavedTalentRow[], appUrl: string): SavedTalent[] {
+/**
+ * `rosterIds`: on an agency or business site only talents on THAT tenant's roster are shown (never
+ * promote another tenant's talent on a tenant's site). null = the hub, which shows all.
+ */
+export function shapeSavedTalent(rows: readonly SavedTalentRow[], appUrl: string, rosterIds: ReadonlySet<string> | null = null): SavedTalent[] {
   const base = appUrl.replace(/\/$/, "");
   return [...rows]
     .sort((a, b) => b.added_at.localeCompare(a.added_at))
     .flatMap((r) => {
+      if (rosterIds && !rosterIds.has(r.talent_profile_id)) return [];
       const p = r.talent_profiles;
       if (!p || !isPublicCatalogProfile(p)) return [];
       const code = p.profile_code?.trim();

@@ -1,3 +1,5 @@
+import { loadMyReviews } from "./my-reviews.server";
+import { loadSavedTalent } from "./saved-talent.server";
 import { notFound } from "next/navigation";
 
 import { GoogleFontsLink } from "@/app/google-fonts-link";
@@ -55,6 +57,8 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
+    else if (view.tab === "saved") data.saved = await loadSavedTalent(userId, hostContext === "hub" ? null : tenantId);
+    else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
     else if (view.tab === "payments") {
       [data.summary, data.payLinks, data.receipts] = await Promise.all([
         loadClientAccountSummary({ userId, tenantId, timeZone: tenant.timeZone, locale }),

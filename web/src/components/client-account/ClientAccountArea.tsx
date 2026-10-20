@@ -345,11 +345,11 @@ export function ClientAccountArea(props: Props) {
       <ul data-testid="client-saved" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
         {list.map((s) => (
           <li key={s.href} style={{ listStyle: "none" }}>
-            <a href={s.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+            <Link href={s.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
               <strong>{s.displayName}</strong>
               {s.city ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{s.city}</span> : null}
               <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{a("viewProfile")}</span>
-            </a>
+            </Link>
           </li>
         ))}
       </ul>

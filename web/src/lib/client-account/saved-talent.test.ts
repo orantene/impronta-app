@@ -82,8 +82,29 @@ test("empty Saved says how to save one, ES and EN", () => {
 
 test("wiring: the page loads the list for the signed-in client only, from the one favourites table", () => {
   const render = readFileSync(join(process.cwd(), "src/lib/client-account/render-area.tsx"), "utf8");
-  assert.match(render, /view\.tab === "saved"[\s\S]{0,120}loadSavedTalent\(userId\)/);
+  assert.match(render, /view\.tab === "saved"[\s\S]{0,120}loadSavedTalent\(userId, tenantId\)/);
   const loader = readFileSync(join(process.cwd(), "src/lib/client-account/saved-talent.server.ts"), "utf8");
   assert.match(loader, /from\("client_favorites"\)/);
   assert.match(loader, /\.eq\("client_user_id", userId\)/);
+});
+
+test("a tenant's site shows only saved talents on that tenant's roster; the hub (null) shows all", () => {
+  const pub = { deleted_at: null, is_publicly_hidden: false, is_publicly_listed: true, visibility: "public", profile_kind: "talent" };
+  const row = (id: string, code: string) => ({
+    added_at: "2026-10-01T00:00:00Z", talent_profile_id: id,
+    talent_profiles: { id, ...pub, display_name: code, profile_code: code, home_city_text: null },
+  });
+  const rows = [row("a", "AAA"), row("b", "BBB")];
+  assert.deepEqual(shapeSavedTalent(rows, "https://x.test", new Set(["a"])).map((s) => s.displayName), ["AAA"]);
+  assert.deepEqual(shapeSavedTalent(rows, "https://x.test", null).map((s) => s.displayName).sort(), ["AAA", "BBB"]);
+  assert.equal(shapeSavedTalent(rows, "https://x.test", new Set()).length, 0);
+});
+
+test("wiring: roster-scoped on tenant hosts, unscoped only on the hub; links use next/link", () => {
+  const tenant = readFileSync(join(process.cwd(), "src/lib/client-account/render-tenant-area.tsx"), "utf8");
+  assert.match(tenant, /loadSavedTalent\(userId, hostContext === "hub" \? null : tenantId\)/);
+  const loader = readFileSync(join(process.cwd(), "src/lib/client-account/saved-talent.server.ts"), "utf8");
+  assert.match(loader, /from\("agency_talent_roster"\)[\s\S]*\.eq\("tenant_id", tenantId\)/);
+  const comp = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
+  assert.doesNotMatch(comp, /<a href=\{s\.href\}/);
 });

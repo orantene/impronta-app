@@ -11,7 +11,7 @@ import { CATALOG_PROFILE_COLUMNS, shapeSavedTalent, type SavedTalent, type Saved
  * (`client_user_id = userId`, never a request parameter), newest first, public talent only.
  * Reads degrade to an empty list (the table or a column missing is logged once per call).
  */
-export async function loadSavedTalent(userId: string): Promise<SavedTalent[]> {
+export async function loadSavedTalent(userId: string, tenantId: string | null): Promise<SavedTalent[]> {
   const admin = createServiceRoleClient();
   if (!admin || !userId) return [];
   const { data, error } = await admin
@@ -24,5 +24,20 @@ export async function loadSavedTalent(userId: string): Promise<SavedTalent[]> {
     logServerError("clientAccount.saved.list", error);
     return [];
   }
-  return shapeSavedTalent((data ?? []) as unknown as SavedTalentRow[], getAppUrl());
+  const rows = (data ?? []) as unknown as SavedTalentRow[];
+  if (tenantId === null) return shapeSavedTalent(rows, getAppUrl(), null);
+  // A tenant's site shows only saved talents on that tenant's active roster.
+  const ids = rows.map((r) => r.talent_profile_id);
+  if (ids.length === 0) return [];
+  const roster = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "active")
+    .in("talent_profile_id", ids);
+  if (roster.error) {
+    logServerError("clientAccount.saved.roster", roster.error);
+    return [];
+  }
+  return shapeSavedTalent(rows, getAppUrl(), new Set((roster.data ?? []).map((r) => r.talent_profile_id)));
 }
