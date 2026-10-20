@@ -494,5 +494,13 @@ async function acceptOffer(
     expectedStatus: "offered",
   });
   if (!accepted.ok) return mapEngineRefusal(accepted, deps.locale);
-  return { ok: true, op: "accept_offer", entryId: accepted.entryId, already: accepted.already };
+  return {
+    ok: true,
+    op: "accept_offer",
+    entryId: accepted.entryId,
+    already: accepted.already,
+    ...(accepted.payment
+      ? { checkoutUrl: accepted.payment.payUrl, holdExpiresAt: accepted.payment.holdExpiresAt }
+      : {}),
+  };
 }
