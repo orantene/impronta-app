@@ -173,4 +173,6 @@ export const TALENT_EDITORS_ES_TEXT: Record<string, string> = {
   "Publish your profile first to get a public link": "Publica tu perfil primero para obtener un enlace público",
   "Your public page is not published yet": "Tu página pública aún no está publicada",
   "Publish your profile to get a public address you can share.": "Publica tu perfil para obtener una dirección pública que puedas compartir.",
+  // TUL-1335 talent service delete archives
+  "Archived instead: it was published or sold": "Archivado en su lugar: se publicó o se vendió",
 };

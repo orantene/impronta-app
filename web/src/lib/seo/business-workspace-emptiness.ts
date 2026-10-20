@@ -4,6 +4,7 @@ import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { isEmptyBusinessWorkspace } from "@/lib/seo/business-workspace-seo";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 /**
  * TUL-591: true when the tenant is a business workspace with no published
@@ -17,13 +18,10 @@ export async function loadIsEmptyBusinessWorkspace(tenantId: string): Promise<bo
     const admin = createServiceRoleClient();
     if (!admin) return false;
     const [services, pages] = await Promise.all([
-      admin
-        .from("talent_offerings")
-        .select("id", { count: "exact", head: true })
-        .eq("tenant_id", tenantId)
-        .eq("status", "published")
-        .eq("moderation_state", "approved")
-        .in("visibility", ["public", "on_request"]),
+      scopeToSellableOfferings(
+        admin.from("talent_offerings").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+        "guest_request",
+      ),
       admin
         .from("cms_pages")
         .select("id", { count: "exact", head: true })

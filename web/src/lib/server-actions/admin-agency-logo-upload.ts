@@ -33,6 +33,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, CLIENT_ERROR } from "@/lib/server/safe-error";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { sanitizeSvgLogoBuffer } from "@/lib/site-admin/sanitize-svg-upload";
+import { verifyStoredImage } from "@/lib/media/guarded-upload.server";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const BUCKET = "media-public";
@@ -135,6 +136,15 @@ export async function actionFinalizeAgencyLogo(
   if (!matchesRasterMagic(head, ext)) {
     await storageClient.storage.from(BUCKET).remove([storagePath]);
     return { ok: false, error: "File contents don't match the image format." };
+  }
+  // H1: pixel cap + EXIF/GPS stripped in place (a clean logo stays byte-exact).
+  const verified = await verifyStoredImage(storageClient, BUCKET, storagePath, {
+    maxBytes: MAX_RASTER_BYTES,
+    allowed: ["image/png", "image/jpeg", "image/webp"],
+  });
+  if (!verified.ok) {
+    await storageClient.storage.from(BUCKET).remove([storagePath]);
+    return { ok: false, error: verified.error };
   }
 
   const { data: urlData } = storageClient.storage

@@ -396,6 +396,9 @@ export interface BuilderNodeRenderDataSources {
    * eligible home service card links to its own service page. Unset (builder, hub, previews): no links.
    */
   talentServiceLinkBase?: string | null;
+  /** TUL-1272 #3: per-widget card hrefs + quick views, computed server-side on published talent sites while the resolver flag is on. */
+  // Pre-rendered by the server (render-max-site-document): render.tsx sits in the admin client graph, so it imports none of it.
+  serviceQuickViews?: Record<string, { hrefs: Record<string, string>; layer: ReactNode }>;
   /**
    * Talent selling defaults for sheet CTAs (default booking mode instant / request / inquiry + who-step
    * vocabulary). Prep minutes live in the same JSON but are applied server-side
@@ -6042,7 +6045,8 @@ function renderBuilderNodeElement(
             : "No services are published yet.");
       const confirmsByHand = options.dataSources.talentOfferingsConfirmsByHand ?? true;
       const usdRates = options.dataSources.talentOfferingsUsdRates ?? null;
-      const serviceHrefs = servicePageHrefs(visible, options.dataSources.talentServiceLinkBase);
+      const quickViews = options.dataSources.serviceQuickViews?.[node.id];
+      const serviceHrefs = quickViews?.hrefs ?? servicePageHrefs(visible, options.dataSources.talentServiceLinkBase);
       const layout = p.layout ?? "rows";
       const useWebsiteTheme = p.useWebsiteTheme !== false;
       // Live band ground: when useWebsiteTheme skips custom Style overrides,
@@ -6258,6 +6262,7 @@ function renderBuilderNodeElement(
               />
             </CatalogIslandBoundary>
           )}
+          {quickViews?.layer ?? null}
         </section>
       );
     }

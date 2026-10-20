@@ -1109,6 +1109,8 @@ export const servicesCatalogPropsSchema = z.object({
   density: z.enum(["comfortable", "compact"]).optional(),
   useWebsiteTheme: z.boolean().optional(),
   detailPresentation: z.enum(["modal", "sheet_mobile", "inline"]).optional(),
+  /** TUL-1272 #4 / TUL-1339: "Al tocar". auto = each service's own presentation. */
+  tapAction: z.enum(["auto", "page", "quick_view", "book"]).optional(),
   showAskLink: z.boolean().optional(),
   bookingSheet: z
     .object({

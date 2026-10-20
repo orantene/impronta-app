@@ -33,6 +33,7 @@ import type { TicketEmailAdmission, TicketEmailLocale, TicketIssuedInput } from 
 import { encodeQr } from "@/lib/links/qr";
 import { drawMatrix } from "@/lib/links/qr/draw-matrix";
 import { isAllowedLogoUrl } from "@/lib/media/logo-url-allowlist";
+import { readResponseCapped } from "@/lib/media/upload-guards";
 import { loadMediaKitTypeface } from "@/lib/talent/media-kit-font";
 import { toFontSafe, toWinAnsiSafe } from "@/lib/talent/media-kit-pdf";
 
@@ -237,12 +238,11 @@ export const defaultLogoFetcher: LogoFetcher = async (url) => {
   const ct = (res.headers.get("content-type") ?? "").toLowerCase();
   const kind = ct.includes("png") ? "png" : ct.includes("jpeg") || ct.includes("jpg") ? "jpg" : null;
   if (!kind) return null;
-  const declared = Number(res.headers.get("content-length") ?? "");
-  if (Number.isFinite(declared) && declared > MAX_LOGO_BYTES) return null;
   try {
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength === 0 || buf.byteLength > MAX_LOGO_BYTES) return null;
-    return { bytes: new Uint8Array(buf), kind };
+    // H1: Content-Length pre-check plus a streaming cap (never buffer first).
+    const read = await readResponseCapped(res, MAX_LOGO_BYTES);
+    if (!read.ok || read.bytes.byteLength === 0) return null;
+    return { bytes: read.bytes, kind };
   } catch {
     return null;
   }
