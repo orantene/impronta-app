@@ -16,6 +16,7 @@ import { TaskShell } from "./primitives/TaskShell";
 import { AgendaEventQuote, AgendaProjectQuote } from "./AgendaQuotes";
 import { dayWindows } from "./AgendaCalendarViews";
 import { useAgendaCopy } from "./use-agenda-copy";
+import { isSellable } from "@/lib/offerings/sellable";
 
 type PayChoice = "received" | "due_later" | "request_link" | null;
 
@@ -150,7 +151,7 @@ function SlotComposer({
     let cancelled = false;
     void loadTalentOfferingsForEditor(talentProfileId).then((res) => {
       if (cancelled || !res.ok) return;
-      setOfferings(res.items.filter((item) => item.status === "published"));
+      setOfferings(res.items.filter((item) => isSellable(item, "pos_desk")));
     });
     void loadTalentClients(talentProfileId).then((res) => {
       if (cancelled || !res.ok) return;

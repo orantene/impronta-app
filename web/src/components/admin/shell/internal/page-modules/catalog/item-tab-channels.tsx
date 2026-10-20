@@ -21,7 +21,9 @@ import { IDENTITY_REASONS, type IdentityReason, type TalentOffering } from "@/li
 import { Icon } from "../../primitives";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
+import { posSwitchPatch } from "./catalog-pos-switch";
 import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
+import { websiteSwitchPatch } from "./catalog-website-switch";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 
 const IDENTITY_KEY: Record<IdentityReason, string> = {
@@ -30,12 +32,13 @@ const IDENTITY_KEY: Record<IdentityReason, string> = {
   entitlement: "dashboard.catalog.policies.identity.entitlement",
 };
 
-export function ChannelsTab({ item, patch, saving }: TabProps) {
+export function ChannelsTab({ item, patch, saving, editor, isDraft }: TabProps) {
   const t = useT();
   const locale = useDashboardLocale();
   const price = item.amountCents == null ? t("dashboard.catalog.dash") : formatDashboardMoneyCents(item.amountCents, item.currency, locale);
   const published = item.status === "published";
   const onWebsite = item.visibility !== "agency_only";
+  const posOn = published && item.posEnabled !== false;
   const reason = t("dashboard.catalog.channels.reason");
   const overrideReason = t("dashboard.catalog.channels.overrideReason");
   const placement = item.isFeatured ? t("dashboard.catalog.channels.favorites") : item.category ?? t("dashboard.catalog.channels.allItems");
@@ -49,7 +52,7 @@ export function ChannelsTab({ item, patch, saving }: TabProps) {
           note={published ? t("dashboard.catalog.channels.websiteNote") : t("dashboard.catalog.channels.needsPublish")}
           on={onWebsite}
           reason={saving ? t("dashboard.catalog.saving") : null}
-          onChange={(next) => patch({ visibility: next ? "public" : "agency_only" })}
+          onChange={(next) => patch(websiteSwitchPatch(item, next))}
           override={price}
           overrideLabel={t("dashboard.catalog.channels.priceOverride")}
           testId="catalog-channel-website"
@@ -57,9 +60,9 @@ export function ChannelsTab({ item, patch, saving }: TabProps) {
         <ChannelRow
           name={t("dashboard.catalog.channels.posCounter")}
           note={published ? placement : t("dashboard.catalog.channels.counterOff")}
-          on={published}
+          on={posOn}
           reason={saving ? t("dashboard.catalog.saving") : null}
-          onChange={(next) => patch({ status: next ? "published" : "draft" })}
+          onChange={(next) => patch(posSwitchPatch(item, next, { columnPresent: editor.items.some((i) => typeof i.posEnabled === "boolean"), isDraft }))}
           override={price}
           overrideLabel={t("dashboard.catalog.channels.priceOverride")}
           testId="catalog-channel-pos"

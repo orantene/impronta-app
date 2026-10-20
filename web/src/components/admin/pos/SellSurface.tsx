@@ -115,6 +115,7 @@ export function SellSurface({
   className,
 }: SellSurfaceProps) {
   const [chooser, setChooser] = useState<string | null>(null);
+  const hasFavourites = products.some((p) => p.favourite);
   const visible =
     activeCategoryId === ALL_CATEGORIES_ID
       ? products
@@ -176,12 +177,13 @@ export function SellSurface({
           type="button"
           role="tab"
           aria-selected={activeCategoryId === FAVOURITES_ID}
-          disabled
-          title={copy.favouritesUnavailable}
-          className={cn(POS_CHIP, POS_CHIP_IDLE)}
+          disabled={!hasFavourites}
+          title={hasFavourites ? undefined : copy.favouritesUnavailable}
+          onClick={hasFavourites ? () => onSelectCategory(FAVOURITES_ID) : undefined}
+          className={cn(POS_CHIP, activeCategoryId === FAVOURITES_ID ? POS_CHIP_ACTIVE : POS_CHIP_IDLE)}
         >
           {copy.favourites}
-          <span className="sr-only">{copy.favouritesUnavailable}</span>
+          {hasFavourites ? null : <span className="sr-only">{copy.favouritesUnavailable}</span>}
         </button>
         <button
           type="button"

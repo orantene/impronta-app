@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * read.ts — gather the six sources into one queue.
+ * read.ts — gather the sources into one queue.
  *
  * SIX READS, NOT ONE VIEW. A SQL view over all six was the obvious shape and
  * is the wrong one: `admissions_mint_shortfall` is already a view over a join,
@@ -28,6 +28,7 @@ import {
   classifyEngineEffect,
   classifyMintShortfall,
   classifyOutboxDead,
+  classifyPaymentFlag,
   classifyRefundIntent,
   classifyStaleCommandClaim,
   classifyUnresolvedCollection,
@@ -36,6 +37,7 @@ import {
   type ExceptionRow,
   type ExceptionSummary,
 } from "./model";
+import { openPaymentReviewFlags } from "@/lib/payments/payment-review-flags-model";
 
 type Admin = SupabaseClient;
 
@@ -363,6 +365,40 @@ async function readStaleCommandClaims(
 }
 
 /**
+ * Charges the Stripe settle path flagged for a person (TUL-1283, TUL-1284,
+ * TUL-1268 M2): one row per open flag in `metadata.payment_flags`.
+ *
+ * `source_tenant_id`, for the same reason as the collections read above. The
+ * `not.is.null` filter keeps this to the handful of rows that carry a flag at
+ * all; the parse decides which flags are still open.
+ */
+async function readPaymentFlags(
+  admin: Admin,
+  tenantId: string,
+  tenantSlug: string,
+): Promise<ExceptionRow[] | null> {
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("id, order_id, metadata, updated_at")
+    .eq("source_tenant_id", tenantId)
+    .not("metadata->payment_flags", "is", null)
+    .order("updated_at", { ascending: true })
+    .limit(200);
+  if (error) {
+    logServerError("exceptions/read.paymentFlags", error);
+    return null;
+  }
+  const rows: ExceptionRow[] = [];
+  for (const raw of (data ?? []) as Array<Record<string, unknown>>) {
+    const orderId = raw.order_id ? String(raw.order_id) : null;
+    for (const flag of openPaymentReviewFlags(raw.metadata)) {
+      rows.push(classifyPaymentFlag({ transactionId: String(raw.id), orderId, flag }, orderHref(tenantSlug, orderId)));
+    }
+  }
+  return rows;
+}
+
+/**
  * Read every source concurrently and merge.
  *
  * `Promise.all` and not a sequence: six independent reads that each take a
@@ -374,13 +410,14 @@ export async function loadExceptions(
   input: { tenantId: string; tenantSlug: string; now?: number },
 ): Promise<ExceptionsLoad> {
   const now = input.now ?? Date.now();
-  const [refunds, shortfall, effects, collections, dead, claims] = await Promise.all([
+  const [refunds, shortfall, effects, collections, dead, claims, paymentFlags] = await Promise.all([
     readRefundIntents(admin, input.tenantId, input.tenantSlug, now),
     readMintShortfall(admin, input.tenantId, input.tenantSlug),
     readEngineEffects(admin, input.tenantId, input.tenantSlug),
     readUnresolvedCollections(admin, input.tenantId, input.tenantSlug, now),
     readDeadOutbox(admin, input.tenantId),
     readStaleCommandClaims(admin, input.tenantId, now),
+    readPaymentFlags(admin, input.tenantId, input.tenantSlug),
   ]);
 
   const named: Array<[string, ExceptionRow[] | null]> = [
@@ -390,6 +427,7 @@ export async function loadExceptions(
     ["Card payments", collections],
     ["Background jobs", dead],
     ["Commands", claims],
+    ["Flagged payments", paymentFlags],
   ];
 
   const rows: ExceptionRow[] = [];
