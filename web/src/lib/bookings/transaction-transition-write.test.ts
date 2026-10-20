@@ -29,7 +29,15 @@ const PI = "pi_test_race";
 const GROSS = 101500;
 const MARK_PAID_FROM = ["payment_requested", "pending", "disputed"] as const;
 
-type Row = { id: string; status: string; gross_amount_cents: number; currency: string; net_amount_cents: number };
+type Row = {
+  id: string;
+  status: string;
+  gross_amount_cents: number;
+  currency: string;
+  net_amount_cents: number;
+  /** markPaid records the settling PaymentIntent in the same write. */
+  provider_metadata?: { payment_intent_id: string | null };
+};
 
 /** `writes` counts paid writes only (the draft advance is a separate, earlier step). */
 type Db = { row: Row; writes: number; failUpdate?: boolean };
@@ -146,12 +154,16 @@ describe("parallel settle: completed + payment_intent.succeeded on one row", () 
         getAdmin: () => sb,
         loadChargePlatformForTransaction: async () => "us",
         recordChargePlatform: async () => true,
-        markPaid: async (id) => {
+        markPaid: async (id, opts) => {
           const { data } = await sb.from("booking_transactions").select("status").eq("id", id).maybeSingle();
           await bothRead();
           const status = String((data as { status: string } | null)?.status);
           if (!(MARK_PAID_FROM as readonly string[]).includes(status)) return { ok: false, error: `Cannot transition from '${status}' to 'paid'.` };
-          const w = await writeGuardedTransition(sb, { transactionId: id, fromStatuses: MARK_PAID_FROM, patch: { status: "paid" } });
+          const w = await writeGuardedTransition(sb, {
+            transactionId: id,
+            fromStatuses: MARK_PAID_FROM,
+            patch: { status: "paid", provider_metadata: { payment_intent_id: opts?.paymentIntentId ?? null } },
+          });
           if (!w.ok) return { ok: false, error: w.alreadyTransitioned ? "already transitioned" : w.error.message };
           sideEffects.push("confirm+notify+card+audit");
           return { ok: true };

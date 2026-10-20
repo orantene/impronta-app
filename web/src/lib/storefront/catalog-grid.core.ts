@@ -9,6 +9,7 @@
  * one query each and attached. Collections are the offerings' categories.
  */
 
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import { rowToOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 import { hideTestServiceOnPublicSite, type TestServiceScope } from "@/lib/talent/qa-test-service";
@@ -41,13 +42,10 @@ export async function readCatalogGridCore(
   if (!UUID.test(tenantId)) return { ok: false, reason: "invalid_request" };
   const now = (deps.now ?? (() => new Date()))();
   try {
-    let q = deps.admin
-      .from("talent_offerings")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .eq("visibility", "public");
+    let q = scopeToSellableOfferings(
+      deps.admin.from("talent_offerings").select("*").eq("tenant_id", tenantId),
+      "guest",
+    );
     if (Array.isArray(props.offeringIds) && props.offeringIds.length > 0) q = q.in("id", props.offeringIds);
     const { data: rows, error } = await q.order("sort_order", { ascending: true }).limit(MAX_ITEMS);
     if (error) return { ok: false, reason: "unavailable" };

@@ -19,6 +19,11 @@ import { TALENT_ASK_HREF } from "@/lib/talent-site/contact-channels";
 import type { BuiltinDesignEntry } from "../builtins/types";
 import type { DesignPayload } from "../types";
 import { FOLIO_STYLE_TOKEN_DEFAULTS } from "./folio-defaults";
+import { FRAME_STYLE_TOKEN_DEFAULTS } from "./frame-defaults";
+import { COLLECTION_DESIGN_SLUGS, collectionDesignCard, isCollectionDesignSlug } from "./design-cards";
+import { frameDarkHero } from "./frame-hero";
+import { solaceRotatingHero } from "./solace-hero";
+import { MONO_STYLE_TOKEN_DEFAULTS, monoLeftHero } from "./mono-defaults";
 import {
   aboutBlock,
   portfolioBlock,
@@ -53,10 +58,12 @@ export { buildGridlinePayload, buildMaisonV2Payload };
 // editorial single column, a two-column image pair, centered contact.
 export function buildSolacePayload(): DesignPayload {
   const id = seqIds("solace");
-  const hero = tuneHeading(heroCover(id, { accent: false }), {
-    fontWeight: 300,
-    letterSpacing: "-0.01em",
-  });
+  const hero = solaceRotatingHero(
+    tuneHeading(heroCover(id, { accent: false }), {
+      fontWeight: 300,
+      letterSpacing: "-0.01em",
+    }),
+  );
   return {
     shellTree: shell(id, {
       navChrome: "overlay",
@@ -94,13 +101,17 @@ export function buildSolacePayload(): DesignPayload {
 // searchable price list straight after it, a short FAQ; no gallery.
 export function buildMonoPayload(): DesignPayload {
   const id = seqIds("mono");
-  const hero = tuneHeading(heroCentered(id, { chips: false, accent: true }), {
-    size: "display",
-    fontWeight: 800,
-    letterSpacing: "-0.03em",
-  });
+  const hero = monoLeftHero(
+    tuneHeading(heroCentered(id, { chips: false, accent: true }), {
+      size: "display",
+      fontWeight: 800,
+      letterSpacing: "-0.04em",
+    }),
+  );
   return {
-    shellTree: shell(id),
+    tokenDefaults: { ...MONO_STYLE_TOKEN_DEFAULTS },
+    // TH20: the header is the name and city plus the booking button, no link strip.
+    shellTree: shell(id, { navChrome: "no_nav", headerTone: "solid" }),
     homeTree: [
       hero,
       servicesSection(id, {
@@ -127,13 +138,17 @@ export function buildMonoPayload(): DesignPayload {
 // contact sheet (W-12), services as cards.
 export function buildFramePayload(): DesignPayload {
   const id = seqIds("frame");
-  const hero = tuneHeading(
-    heroSplit(id, { ratio: "40-60", chips: false, accent: false, eyebrow: true, minHeight: "56vh" }),
-    { textTransform: "uppercase", letterSpacing: "0.02em" },
+  const hero = frameDarkHero(
+    tuneHeading(
+      heroSplit(id, { ratio: "40-60", chips: false, accent: false, eyebrow: true, minHeight: "56vh" }),
+      { textTransform: "uppercase", letterSpacing: "0.02em" },
+    ),
   );
   return {
+    tokenDefaults: { ...FRAME_STYLE_TOKEN_DEFAULTS },
     shellTree: shell(id, {
       navChrome: "filter_bar",
+      headerTone: "solid",
       navLinks: [
         { label: "Work", href: "#gallery" },
         { label: "Book", href: "#book" },
@@ -143,7 +158,7 @@ export function buildFramePayload(): DesignPayload {
     }),
     homeTree: [
       hero,
-      portfolioBlock(id, { layout: "contact_sheet", columns: 4, heading: "Work", showCaptions: true }),
+      portfolioBlock(id, { layout: "contact_sheet", columns: 4, heading: "Work", showCaptions: true, tagFilter: true, limit: 16 }),
       servicesSection(id, {
         label: "Sessions and prices",
         eyebrow: "Book",
@@ -389,8 +404,6 @@ function withFooterCta(node: BuilderNode): BuilderNode {
 
 function entry(
   slug: string,
-  title: string,
-  summary: string,
   category: BuiltinDesignEntry["category"],
   tags: string[],
   sort: number,
@@ -398,11 +411,13 @@ function entry(
 ): BuiltinDesignEntry {
   const withBand = (p: DesignPayload): DesignPayload =>
     loadAuthoredOverlay(slug) ? p : withPostsBand(p, slug);
+  const card = collectionDesignCard(slug);
+  if (!card) throw new Error(`design-cards: ${slug} missing`);
   return {
     kind: "design",
     slug,
-    title,
-    summary,
+    title: card.title,
+    summary: card.summary,
     category,
     tags,
     required_talent_tier: "talent_basic",
@@ -423,8 +438,6 @@ function entry(
 export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   entry(
     "maison-v2",
-    "Maison v2",
-    "Split hero, recent work first, an image-led menu and a soft visit band. The next version of Maison.",
     "editorial",
     ["beauty", "menu", "image-led"],
     6,
@@ -432,8 +445,6 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   ),
   entry(
     "solace",
-    "Solace",
-    "Calm and spacious: a full-bleed cover, a short intro and services in one unhurried column.",
     "minimal",
     ["calm", "wellness", "beauty"],
     7,
@@ -441,8 +452,6 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   ),
   entry(
     "mono",
-    "Mono",
-    "One statement and a fast price list. Built for clients who already know what they want.",
     "minimal",
     ["fast", "price-list", "beauty"],
     8,
@@ -450,8 +459,6 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   ),
   entry(
     "frame",
-    "Frame",
-    "Your work first: a portrait split hero, a dense work grid, then services as cards.",
     "creator",
     ["portfolio", "grid", "beauty"],
     9,
@@ -459,8 +466,6 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   ),
   entry(
     "folio",
-    "Folio",
-    "Magazine cover with your name as the masthead, a staggered book of work and a rate card.",
     "editorial",
     ["magazine", "portfolio", "beauty"],
     10,
@@ -468,8 +473,6 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   ),
   entry(
     "gridline",
-    "Gridline",
-    "A utility bar with a tap-to-call button, a spec-block hero, a task picker and a clear comparison of services. Built for trades that get called.",
     "bold",
     ["trades", "urgent", "price-matrix"],
     11,
@@ -477,13 +480,7 @@ export const COLLECTION_DESIGNS: readonly BuiltinDesignEntry[] = [
   ),
 ];
 
-export const COLLECTION_DESIGN_SLUGS: ReadonlySet<string> = new Set(
-  COLLECTION_DESIGNS.map((d) => d.slug),
-);
-
-export function isCollectionDesignSlug(slug: string): boolean {
-  return COLLECTION_DESIGN_SLUGS.has(slug.trim().toLowerCase());
-}
+export { COLLECTION_DESIGN_SLUGS, isCollectionDesignSlug };
 
 /** Spanish summaries for the gallery cards (en lives on each entry). */
 export { COLLECTION_DESIGN_SUMMARY_ES } from "./design-summaries-es";
@@ -491,9 +488,9 @@ export { COLLECTION_DESIGN_SUMMARY_ES } from "./design-summaries-es";
 /** What each design still needs from shared widgets (mockup → today). */
 export const COLLECTION_DESIGN_GAPS: Readonly<Record<string, readonly string[]>> = {
   "maison-v2": [],
-  solace: ["W-10 rotating word", "studio/villa hero toggle (app)"],
-  mono: ["no-nav header style", "inline 3-tap slot picker (app)"],
-  frame: ["W-12 contact sheet tag filter and loupe"],
+  solace: ["studio/villa hero toggle (app)"],
+  mono: ["inline 3-tap slot picker (app)"],
+  frame: [],
   folio: [],
   gridline: [],
 };

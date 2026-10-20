@@ -13,6 +13,7 @@ import { NavChromeScrollSpy } from "@/lib/site-admin/builder-node/NavChromeScrol
 import { navChromeNeedsScrollSpy, normalizeNavChrome } from "@/lib/site-admin/nav-chrome";
 import { ClusterIcon } from "./header-cluster-icon";
 import { primaryNavAriaLabel } from "@/i18n/primary-nav-label";
+import { siteHeaderLabels } from "@/i18n/site-header-labels";
 import { accountPreviewMode } from "@/lib/client-account/account-preview";
 import { renderAccountItem } from "./HeaderAccountPreview";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -462,7 +463,7 @@ export async function SiteHeaderComponent({
           if (!phone) return null;
           const href = headerContactHref("phone", phone.value);
           return href ? (
-            <a key={key} {...attrs} className="site-header__ritem site-header__contact" data-contact-type="phone" href={href} aria-label={phone.label ?? "Phone"}>
+            <a key={key} {...attrs} className="site-header__ritem site-header__contact" data-contact-type="phone" href={href} aria-label={phone.label ?? siteHeaderLabels(locale).phone}>
               <ClusterIcon name="phone" />
               <span className="site-header__contact-label">{(phone.label ?? phone.value).replace(/^tel:/i, "")}</span>
             </a>
@@ -471,7 +472,7 @@ export async function SiteHeaderComponent({
         case "inquiry": {
           const href = resolveRosterSafeHref(item.href, hasRoster, inquiryFallback);
           return (
-            <a key={key} {...attrs} className="site-header__ritem site-header__inquiry" href={href} aria-label="Your inquiry">
+            <a key={key} {...attrs} className="site-header__ritem site-header__inquiry" href={href} aria-label={siteHeaderLabels(locale).inquiry}>
               <ClusterIcon name="inquiry" />
               {item.showCount === false ? null : <HeaderRegionLiveCount kind="saved" />}
             </a>
@@ -480,7 +481,7 @@ export async function SiteHeaderComponent({
         case "saved": {
           const href = resolveRosterSafeHref(item.href, hasRoster, inquiryFallback);
           return (
-            <a key={key} {...attrs} className="site-header__ritem site-header__saved" href={href} aria-label="Saved">
+            <a key={key} {...attrs} className="site-header__ritem site-header__saved" href={href} aria-label={siteHeaderLabels(locale).saved}>
               <ClusterIcon name="saved" />
               <HeaderRegionLiveCount kind="favorites" />
             </a>
@@ -539,7 +540,7 @@ export async function SiteHeaderComponent({
           <div className="site-header__region" data-region="center">{regions.center.map(renderItem)}</div>
           <div className="site-header__region" data-region="right">{regions.right.map(renderItem)}</div>
           {hasMobileMenu ? <input type="checkbox" id={`${sectionId}-menu`} className="site-header__menu-toggle" aria-hidden="true" tabIndex={-1} /> : null}
-          {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label="Menu"><span /><span /><span /></label> : null}
+          {hasMobileMenu ? <label htmlFor={`${sectionId}-menu`} className="site-header__burger" aria-label={siteHeaderLabels(locale).menu}><span /><span /><span /></label> : null}
         </div>
         {hasMobileMenu ? <div className="site-header__mobile-panel" data-mobile-panel="">{allItems.filter((i) => i.type !== "section_switcher").map((item, i) => renderItem(item, i))}</div> : null}
       </header>
@@ -592,18 +593,18 @@ export async function SiteHeaderComponent({
                     aria-label={
                       c.label ??
                       (c.type === "whatsapp"
-                        ? "WhatsApp"
+                        ? siteHeaderLabels(locale).whatsapp
                         : c.type === "email"
-                          ? "Email"
-                          : "Phone")
+                          ? siteHeaderLabels(locale).email
+                          : siteHeaderLabels(locale).phone)
                     }
                     title={
                       c.label ??
                       (isPhone
                         ? c.value
                         : c.type === "whatsapp"
-                          ? "WhatsApp"
-                          : "Email")
+                          ? siteHeaderLabels(locale).whatsapp
+                          : siteHeaderLabels(locale).email)
                     }
                     {...(c.type === "whatsapp"
                       ? { target: "_blank", rel: "noopener noreferrer" }
