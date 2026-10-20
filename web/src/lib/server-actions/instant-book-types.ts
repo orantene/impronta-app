@@ -35,6 +35,11 @@ export type InstantBookFormPayload = {
   promoCode?: string | null;
   /** Promos v1: the discount the sheet showed; a smaller one now refuses as "promo gone". */
   promoShownDiscountCents?: number | null;
+  /**
+   * D5 / M7: one key per booking attempt, made by the sheet. A repeat submit
+   * with the same key gets the first order (and its Checkout) back.
+   */
+  clientOrderKey?: string | null;
 };
 
 export type InstantBookActionResult =

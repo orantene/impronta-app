@@ -21,7 +21,7 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
   const [menu, visit] = await Promise.all([
-    guestVisitMenu(admin, { tenantId: host.tenantId, token }),
+    guestVisitMenu(admin, { tenantId: host.tenantId, token, locale }),
     loadOpenVisitByToken(admin, { tenantId: host.tenantId, publicToken: token }),
   ]);
   if (!menu.ok || !visit.ok) notFound();
@@ -55,7 +55,18 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
       tableCode={visit.tableCode ?? ""}
       holderName={null}
       currency={visit.currency}
-      items={menu.items}
+      locale={locale}
+      items={menu.items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        category: item.category,
+        amountCents: item.amountCents,
+        options: item.options,
+        imageUrl: item.imageUrl,
+        imageAlt: item.imageAlt,
+        soldOut: item.soldOut,
+      }))}
       offers={offers}
       copy={{
         title: tr("dashboard.visit.menu.title"),
@@ -67,6 +78,8 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
         askBill: tr("dashboard.visit.menu.askBill"),
         empty: tr("dashboard.visit.menu.empty"),
         add: tr("dashboard.visit.menu.add"),
+        soldOut: tr("dashboard.visit.menu.soldOut"),
+        priceOnRequest: tr("dashboard.visit.menu.priceOnRequest"),
         offerTitle: tr("dashboard.visit.menu.offerTitle"),
         acceptOffer: tr("dashboard.visit.menu.acceptOffer"),
         back: tr("dashboard.visit.menu.back"),

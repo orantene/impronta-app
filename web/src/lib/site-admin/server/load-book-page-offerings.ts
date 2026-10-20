@@ -15,23 +15,20 @@ import { loadOfferingSeats } from "@/lib/sessions/offering-seats";
 import { hideTestServiceOnPublicSite } from "@/lib/talent/qa-test-service";
 import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
 import { describeSeatsLeft, seatsLeft } from "@/lib/sessions/seats-left";
+import { annotateOpenTimes } from "@/lib/site-admin/server/annotate-open-times";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 export async function loadPublicBookableOfferings(args: {
   tenantId?: string | null;
   talentProfileId?: string | null;
   locale?: string;
   host?: { kind: string; tenantId?: string | null };
-}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null }>> {
+}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null }>> {
   if (!args.tenantId && !args.talentProfileId) return [];
   try {
     const admin = createServiceRoleClient();
     if (!admin) return [];
-    let query = admin
-      .from("talent_offerings")
-      .select("*")
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .in("visibility", ["public", "on_request"]);
+    let query = scopeToSellableOfferings(admin.from("talent_offerings").select("*"), "guest_request");
     if (args.tenantId) query = query.eq("tenant_id", args.tenantId);
     if (args.talentProfileId) {
       query = query.eq("talent_profile_id", args.talentProfileId);
@@ -54,7 +51,7 @@ export async function loadPublicBookableOfferings(args: {
       kind: args.tenantId ? "agency" : "talent_site",
       tenantId: args.tenantId ?? null,
     };
-    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null }> = [];
+    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null }> = [];
     for (const offering of offerings) {
       if (!isSlotEligibleOffering(offering)) continue;
 
@@ -82,6 +79,14 @@ export async function loadPublicBookableOfferings(args: {
       });
       if (mode !== "inquire") kept.push({ ...offering, bookingMode: mode, seatsLabel: null });
     }
+    // B2/D3: tell the page which services have times (capped probe).
+    await annotateOpenTimes(admin, kept, {
+      host: {
+        kind: args.tenantId ? "agency" : host.kind,
+        tenantId: args.tenantId ?? host.tenantId ?? null,
+      },
+      talentSiteId: args.talentProfileId ?? null,
+    });
     // Seats last, on the kept list only: a cohort count for an offering nobody
     // can book is a query for nothing. Absent pool means absent entry means no
     // badge, which is why this cannot turn an unlimited service into "Sold out".

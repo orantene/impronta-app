@@ -6,11 +6,11 @@ import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
 import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
-import { admissionIsRefundable, classifyAdmissionEffect } from "@/lib/orders/refund-admissions";
+import { admissionIsRefundable } from "@/lib/orders/refund-admissions";
+import { restoreRefundedLines } from "@/lib/orders/refund-restore";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
 import { nonRefundableFeeCents } from "@/lib/billing/commission";
 import { loadBookingCommissionSnapshotsForRefund } from "@/lib/billing/commission-engine";
-import { voidRedemptionPatch } from "@/lib/orders/promo-redemption-status";
 
 /**
  * Refund whole order lines: money, per-line state, tickets, seats.
@@ -336,82 +336,28 @@ export async function refundOrderLines(
       }
     }
 
-    // ── Tickets and seats, one operation each. `refund_admission` stamps the
-    // admission and releases its allocation under one row lock: releasing
-    // without stamping leaves a refunded ticket that still admits.
-    let stamped = 0;
-    const stampedAdmissionIds: string[] = [];
-    let admissionsIncomplete = false;
-    const { data: admRows, error: admErr } = await admin
-      .from("admissions")
-      .select("id, order_line_id, line_seq, admitted_count, status")
-      .in("order_line_id", plan.lines.map((l) => l.id));
-
-    // I DROPPED THIS ERROR AND THE RATCHET CAUGHT IT. PostgREST does not throw:
-    // a denied policy, a missing table and a bad column all arrive as
-    // `data: null`. Unchecked, the loop below would iterate nothing, `stamped`
-    // would stay 0, and this would return ok — reporting a clean refund while
-    // every ticket on it still admits at a door. The exact failure the atomic
-    // `refund_admission` exists to prevent, reintroduced one layer up by not
-    // reading a variable.
-    if (admErr) {
-      admissionsIncomplete = true;
-      logServerError(
-        "orders.refundLines/TICKETS_NOT_VOIDED_AFTER_REFUND",
-        `order ${input.orderId}: money refunded but admissions could not be read (${admErr.message}). `
-          + `Tickets on this order may still admit. Needs a human.`,
-      );
-    }
-
-    // `void` is refundable, not skippable. `cancel_event_cascade` stamps every
-    // admission of a cancelled event `void` at the moment of the decision so
-    // the door closes immediately, then leaves a refund intent for the cron —
-    // which lands here. Skipping `void` would leave the row at `void` for ever
-    // (the door then says "cancelled" to a person we did pay back) and, worse,
-    // would never call `refund_admission`, so the seat's allocation would stay
-    // committed against the pool. `refund_admission` accepts both states and
-    // still refuses `admitted_count > 0` first, so an attended ticket remains a
-    // dispute either way.
-    // EVERY outcome is classified, and an RPC ERROR IS AN OUTCOME. It used to
-    // log and `continue`, which left `stamped` short with the flag still false
-    // — a clean-looking refund over a ticket that still admits. See
-    // `classifyAdmissionEffect`, where the failure branch is unit-tested.
-    for (const a of (admRows ?? []) as Array<{ id: string; admitted_count: number; status: string }>) {
-      if (!admissionIsRefundable({ admittedCount: a.admitted_count, status: a.status })) continue;
-      const { data: res, error } = await admin.rpc("refund_admission", { p_admission_id: a.id });
-      const effect = classifyAdmissionEffect(
-        res as { ok?: boolean; reason?: string } | null,
-        error,
-      );
-      if (effect.effect === "stamped") {
-        stamped += 1;
-        stampedAdmissionIds.push(a.id);
-      } else if (effect.effect === "incomplete") {
-        admissionsIncomplete = true;
-        logServerError(
-          "orders.refundLines/TICKETS_NOT_VOIDED_AFTER_REFUND",
-          `order ${input.orderId}: money refunded but admission ${a.id} was not stamped `
-            + `(${effect.why}: ${effect.reason ?? "no reason given"}). That ticket may still `
-            + `admit and its seat is still committed. Retry is safe — refund_admission is `
-            + `idempotent — but the refund legs are NOT. Needs a human.`,
-        );
-      }
-    }
-
-    // ── Promo. A FULL refund releases the redemption; a partial does not, and
+    // ── Tickets, seats, stock and promo: the SHARED restore step
+    // (`refund-restore.ts`), the same one the webhook runs after a full refund
+    // from any other route (TUL-1268 M5). Idempotent by identity, so the
+    // `charge.refunded` this refund triggers restores nothing a second time.
+    //
+    // Tickets: every planned line, through the atomic `refund_admission`.
+    // Non-ticket capacity (session seats, pooled stock): only when the planner
+    // says FULL, because `release_capacity` frees whole allocations.
+    // Promo: a FULL refund releases the redemption; a partial does not, and
     // eligibility is never re-evaluated. See `releasesPromoRedemption`.
-    // Released by VOIDING the row, never deleting it: a voided row no longer
-    // counts against the code's limits, and the audit trail survives.
-    let releasedPromo = false;
-    if (releasesPromoRedemption(plan)) {
-      const { error } = await admin
-        .from("tenant_promo_redemptions")
-        .update(voidRedemptionPatch())
-        .eq("order_id", input.orderId)
-        .in("status", ["confirmed", "held"]);
-      if (error) logServerError("orders.refundLines/promoRelease", error);
-      else releasedPromo = true;
-    }
+    const plannedLineIds = plan.lines.map((l) => l.id);
+    const restore = await restoreRefundedLines(admin, {
+      orderId: input.orderId,
+      lineIds: plannedLineIds,
+      wholeLineIds: plan.isFullRefund ? plannedLineIds : [],
+      releasePromo: releasesPromoRedemption(plan),
+      logScope: "orders.refundLines",
+    });
+    const stamped = restore.admissionsStamped;
+    const stampedAdmissionIds = restore.stampedAdmissionIds;
+    const admissionsIncomplete = restore.admissionsIncomplete;
+    const releasedPromo = restore.releasedPromoRedemption;
 
     // Messages v5 / S2: the chip reads refunded / partially_refunded from
     // the line figures and the admissions this just stamped.

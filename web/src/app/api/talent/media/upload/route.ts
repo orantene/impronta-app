@@ -33,6 +33,8 @@ import {
 import { validateImageUpload } from "@/lib/site-admin/media/validation";
 import { talentOwnedStamp } from "@/lib/media/ownership";
 import { checkTalentUploadQuota } from "@/lib/media/talent-storage-usage";
+import { checkDeclaredLength, guardImageBlob } from "@/lib/media/upload-guards";
+import { uploadGuardError } from "@/lib/media/guarded-upload.server";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export const runtime = "nodejs";
@@ -45,6 +47,14 @@ const UUID_RE =
 export async function POST(req: Request) {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
+  // H1: refuse an oversized body by its declared length BEFORE formData()
+  // buffers it. 64 KB of slack covers the multipart envelope.
+  if (!checkDeclaredLength(req.headers.get("content-length"), MAX_UPLOAD_BYTES + 64 * 1024).ok) {
+    return NextResponse.json(
+      { ok: false, error: `Image exceeds the ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB limit.` },
+      { status: 413 },
+    );
+  }
   let form: FormData;
   try {
     form = await req.formData();
@@ -97,7 +107,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const mime = (file.type || "").toLowerCase();
+  // H1: the bytes decide the type; the client's File.type is only a claim.
+  const sniffed = await guardImageBlob(file);
+  if (!sniffed.ok) {
+    return NextResponse.json({ ok: false, error: await uploadGuardError(sniffed.reason) }, { status: sniffed.status });
+  }
+  const mime = sniffed.mime;
   const validation = validateImageUpload({
     mime,
     byteSize: file.size,

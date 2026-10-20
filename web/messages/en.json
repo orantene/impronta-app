@@ -1763,7 +1763,9 @@
       "chooseService": "Service",
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
-      "contactCta": "Send a message"
+      "contactCta": "Send a message",
+      "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "requestCta": "Send a request"
     },
     "siteShellSurface": {
       "title": "Site header & footer",
@@ -2474,6 +2476,15 @@
     }
   },
   "dashboard": {
+    "uploadGuard": {
+      "notAnImage": "This file is not a supported image. Use JPEG, PNG, WebP or GIF.",
+      "typeNotAllowed": "This image type is not supported here. Use JPEG, PNG, WebP or GIF.",
+      "blockedFile": "This file type cannot be uploaded.",
+      "tooLarge": "This file is too large.",
+      "tooManyPixels": "This image has too many pixels. Resize it and try again.",
+      "unreadable": "We could not read this image. Try a different file.",
+      "privateLink": "That link does not point to a public web address."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
@@ -3291,6 +3302,8 @@
       "saving": "Saving…",
       "done": "Done",
       "gotIt": "Got it",
+      "recordNotFoundTitle": "We could not load this record",
+      "recordNotFoundBody": "Nothing was changed. Close this and open it again from the list.",
       "copy": "Copy",
       "open": "Open",
       "comingSoon": "Coming soon",
@@ -14497,7 +14510,8 @@
           "amount": "That cash amount is not valid.",
           "already_closed": "That shift is already closed.",
           "not_allowed": "You do not have permission to do this.",
-          "no_customer": "Attach a customer to this sale first."
+          "no_customer": "Attach a customer to this sale first.",
+          "item_unavailable": "This item is no longer available."
         }
       },
       "newSale": "New sale",
@@ -14685,6 +14699,7 @@
           "tenderShort": "The cash counted is less than the amount being collected.",
           "emptySale": "There is nothing on this sale to charge for.",
           "itemRefused": "That item cannot go on this sale.",
+          "itemUnavailable": "This item is no longer available.",
           "discountRefused": "That code cannot be applied to this sale.",
           "discountNeedsCustomer": "A discount code needs a named customer. Attach one first.",
           "readerUnavailable": "No card reader is ready on this device.",
@@ -16866,6 +16881,8 @@
         "askBill": "Ask for the bill",
         "empty": "Nothing to order on this visit yet.",
         "add": "Add",
+        "soldOut": "Sold out",
+        "priceOnRequest": "Price on request",
         "offerTitle": "A substitution is waiting",
         "acceptOffer": "Accept {name}",
         "back": "Your table"
@@ -18344,7 +18361,13 @@
         "duration": "Duration (min)",
         "durationHint": "Services and classes; leave empty for a product.",
         "photos": "Photos",
-        "photosReason": "Photos on a workspace item are not available yet; the gallery joins a talent profile."
+        "photosSaveFirst": "Save the item first, then add photos.",
+        "photosHint": "The first photo is the cover. It shows on the table QR menu.",
+        "photosAlt": "Describe the photo",
+        "photosCover": "Cover",
+        "photosRemove": "Remove photo",
+        "photosUploading": "Uploading",
+        "photosFailed": "The photo could not be uploaded. Try a JPG or PNG under 8 MB."
       },
       "pricing": {
         "baseTitle": "Base price",
@@ -18442,6 +18465,7 @@
         "fulfillmentHint": "Handoff now · Pickup · Delivery · Serve at table",
         "handoffNow": "Handoff now",
         "station": "Station",
+        "stationNone": "No kitchen stations yet. Add them in Settings.",
         "prepTime": "Prep time",
         "course": "Default course (tables)"
       },

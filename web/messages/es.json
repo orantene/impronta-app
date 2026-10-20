@@ -1763,7 +1763,9 @@
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
       "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
-      "contactCta": "Enviar un mensaje"
+      "contactCta": "Enviar un mensaje",
+      "noTimesRequest": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
+      "requestCta": "Enviar una solicitud"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
@@ -2474,6 +2476,15 @@
     }
   },
   "dashboard": {
+    "uploadGuard": {
+      "notAnImage": "Este archivo no es una imagen compatible. Usa JPEG, PNG, WebP o GIF.",
+      "typeNotAllowed": "Este tipo de imagen no es compatible aquí. Usa JPEG, PNG, WebP o GIF.",
+      "blockedFile": "Este tipo de archivo no se puede subir.",
+      "tooLarge": "Este archivo es demasiado grande.",
+      "tooManyPixels": "Esta imagen tiene demasiados píxeles. Redúcela e inténtalo de nuevo.",
+      "unreadable": "No pudimos leer esta imagen. Prueba con otro archivo.",
+      "privateLink": "Ese enlace no apunta a una dirección web pública."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",
@@ -3291,6 +3302,8 @@
       "saving": "Guardando…",
       "done": "Listo",
       "gotIt": "Entendido",
+      "recordNotFoundTitle": "No pudimos cargar este registro",
+      "recordNotFoundBody": "No se cambió nada. Cierra esto y ábrelo de nuevo desde la lista.",
       "copy": "Copiar",
       "open": "Abrir",
       "comingSoon": "Muy pronto",
@@ -14497,7 +14510,8 @@
           "amount": "Ese monto en efectivo no es valido.",
           "already_closed": "Ese turno ya está cerrado.",
           "not_allowed": "No tienes permiso para hacer esto.",
-          "no_customer": "Primero asigna un cliente a esta venta."
+          "no_customer": "Primero asigna un cliente a esta venta.",
+          "item_unavailable": "Este artículo ya no está disponible."
         }
       },
       "newSale": "Nueva venta",
@@ -14685,6 +14699,7 @@
           "tenderShort": "El efectivo contado es menor que el monto a cobrar.",
           "emptySale": "No hay nada en esta venta para cobrar.",
           "itemRefused": "Ese artículo no puede ir en esta venta.",
+          "itemUnavailable": "Este artículo ya no está disponible.",
           "discountRefused": "Ese código no se puede aplicar a esta venta.",
           "discountNeedsCustomer": "Un código de descuento necesita un cliente con nombre. Agrega uno primero.",
           "readerUnavailable": "No hay un lector de tarjetas listo en este dispositivo.",
@@ -16866,6 +16881,8 @@
         "askBill": "Pedir la cuenta",
         "empty": "Aún no hay nada que pedir en esta visita.",
         "add": "Añadir",
+        "soldOut": "Agotado",
+        "priceOnRequest": "Precio a consultar",
         "offerTitle": "Hay una sustitución esperando",
         "acceptOffer": "Aceptar {name}",
         "back": "Tu mesa"
@@ -18344,7 +18361,13 @@
         "duration": "Duración (min)",
         "durationHint": "Servicios y clases; vacío para un producto.",
         "photos": "Fotos",
-        "photosReason": "Las fotos en un artículo del espacio aún no están disponibles; la galería se une a un perfil de talento."
+        "photosSaveFirst": "Guarda el artículo primero y luego agrega fotos.",
+        "photosHint": "La primera foto es la portada. Se ve en el menú QR de la mesa.",
+        "photosAlt": "Describe la foto",
+        "photosCover": "Portada",
+        "photosRemove": "Quitar foto",
+        "photosUploading": "Subiendo",
+        "photosFailed": "No se pudo subir la foto. Prueba con un JPG o PNG de menos de 8 MB."
       },
       "pricing": {
         "baseTitle": "Precio base",
@@ -18442,6 +18465,7 @@
         "fulfillmentHint": "Entrega inmediata · Recogida · A domicilio · Servir en mesa",
         "handoffNow": "Entrega inmediata",
         "station": "Estación",
+        "stationNone": "Aún no hay estaciones de cocina. Agrégalas en Configuración.",
         "prepTime": "Tiempo de preparación",
         "course": "Tiempo por defecto (mesas)"
       },

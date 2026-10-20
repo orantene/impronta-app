@@ -8,6 +8,8 @@ import type { WorkspacePlan } from "@/lib/dashboard/admin-workspace-summary";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { WORKSPACE_MONEY_GATES } from "@/lib/billing/workspace-money-gates";
 
 const PAID_PLANS = new Set<WorkspacePlan>([
   "website",
@@ -35,14 +37,20 @@ export async function changeWorkspacePlan(
     return { ok: false, error: "Unknown plan." };
   }
 
-  const auth = await requireWorkspaceStaffAction({
-    capability: "manage_billing",
-  });
+  const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.planChange });
   if (!auth.ok) {
     return { ok: false, error: auth.error };
   }
 
-  const { error } = await auth.supabase
+  // plan_tier / talent_seat_limit are platform-owned (held M1 trigger
+  // 20261231418100 refuses them from a member's own session), so the write
+  // runs on the service role after the owner-only check above.
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { ok: false, error: "Could not update plan. Try again." };
+  }
+
+  const { error } = await admin
     .from("agencies")
     .update({
       plan_tier: plan,
