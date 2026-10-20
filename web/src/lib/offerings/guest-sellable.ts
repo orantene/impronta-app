@@ -17,6 +17,14 @@ export function scopeToGuestSellableOfferings<Q>(query: Q): Q {
   return scopeToSellableOfferings(query, "guest");
 }
 
+export type CatalogScope = "guest" | "staff";
+
+/** One switch for the readers: guest (default, strict) or staff quote list. */
+export function scopeOfferingsFor<Q>(query: Q, scope: CatalogScope | undefined): Q {
+  // TUL-1347: the staff quote context is part of the one sellable rule (`sellable.ts`).
+  return scopeToSellableOfferings(query, scope === "staff" ? "staff_quote" : "guest");
+}
+
 /**
  * Which door a purchase came through. `guest` is every public and storefront
  * surface and is the DEFAULT: a caller that forgets to say gets the strict rule.

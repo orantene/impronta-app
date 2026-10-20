@@ -25,52 +25,52 @@ const CASES: Case[] = [
   {
     name: "published + approved + public",
     row: OK,
-    expect: { guest: true, client: true, guest_request: true, pos_desk: true, reservation: true },
+    expect: { guest: true, client: true, guest_request: true, pos_desk: true, staff_quote: true, reservation: true },
   },
   {
     name: "on_request",
     row: { ...OK, visibility: "on_request" },
-    expect: { guest: "on_request_no_charge", client: "on_request_no_charge", guest_request: true, pos_desk: true, reservation: true },
+    expect: { guest: "on_request_no_charge", client: "on_request_no_charge", guest_request: true, pos_desk: true, staff_quote: true, reservation: true },
   },
   {
     name: "agency_only",
     row: { ...OK, visibility: "agency_only" },
-    expect: { guest: "not_public", client: "not_public", guest_request: "not_public", pos_desk: true, reservation: true },
+    expect: { guest: "not_public", client: "not_public", guest_request: "not_public", pos_desk: true, staff_quote: true, reservation: true },
   },
   {
     name: "an unknown visibility value (fails closed; the reservation offering is agency_only or public)",
     row: { ...OK, visibility: "unlisted" },
-    expect: { guest: "not_public", client: "not_public", guest_request: "not_public", pos_desk: true, reservation: true },
+    expect: { guest: "not_public", client: "not_public", guest_request: "not_public", pos_desk: true, staff_quote: true, reservation: true },
   },
   {
     name: "pending approval",
     row: { ...OK, moderation_state: "pending" },
-    expect: { guest: "not_approved", client: "not_approved", guest_request: "not_approved", pos_desk: true, reservation: "not_approved" },
+    expect: { guest: "not_approved", client: "not_approved", guest_request: "not_approved", pos_desk: true, staff_quote: "not_approved", reservation: "not_approved" },
   },
   {
     name: "rejected",
     row: { ...OK, moderation_state: "rejected" },
-    expect: { guest: "not_approved", client: "not_approved", guest_request: "not_approved", pos_desk: true, reservation: "not_approved" },
+    expect: { guest: "not_approved", client: "not_approved", guest_request: "not_approved", pos_desk: true, staff_quote: "not_approved", reservation: "not_approved" },
   },
   {
     name: "draft",
     row: { ...OK, status: "draft" },
-    expect: { guest: "not_published", client: "not_published", guest_request: "not_published", pos_desk: "not_published", reservation: "not_published" },
+    expect: { guest: "not_published", client: "not_published", guest_request: "not_published", pos_desk: "not_published", staff_quote: "not_published", reservation: "not_published" },
   },
   {
     name: "archived",
     row: { ...OK, status: "archived" },
-    expect: { guest: "not_published", client: "not_published", guest_request: "not_published", pos_desk: "not_published", reservation: "not_published" },
+    expect: { guest: "not_published", client: "not_published", guest_request: "not_published", pos_desk: "not_published", staff_quote: "not_published", reservation: "not_published" },
   },
   {
     name: "missing row",
     row: null,
-    expect: { guest: "not_found", client: "not_found", guest_request: "not_found", pos_desk: "not_found", reservation: "not_found" },
+    expect: { guest: "not_found", client: "not_found", guest_request: "not_found", pos_desk: "not_found", staff_quote: "not_found", reservation: "not_found" },
   },
   {
     name: "no moderation / visibility value (fails closed)",
     row: { status: "published" },
-    expect: { guest: "not_approved", client: "not_approved", guest_request: "not_approved", pos_desk: true, reservation: "not_approved" },
+    expect: { guest: "not_approved", client: "not_approved", guest_request: "not_approved", pos_desk: true, staff_quote: "not_approved", reservation: "not_approved" },
   },
 ];
 
@@ -102,6 +102,9 @@ test("scopeToSellableOfferings emits the same filters the predicate implies", ()
   assert.deepEqual(calls.splice(0), ["eq:status=published", "eq:moderation_state=approved", "in:visibility=public|on_request"]);
   scopeToSellableOfferings(chain, "pos_desk");
   assert.deepEqual(calls.splice(0), ["eq:status=published"]);
+  // TUL-1347: staff quoting from Messages: published + approved, any visibility.
+  scopeToSellableOfferings(chain, "staff_quote");
+  assert.deepEqual(calls.splice(0), ["eq:status=published", "eq:moderation_state=approved"]);
 });
 
 // ── Entry point: createPurchase (every catalog checkout) ────────────────────
