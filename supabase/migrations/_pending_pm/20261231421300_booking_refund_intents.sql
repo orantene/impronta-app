@@ -15,7 +15,9 @@
 -- after the code. Additive only; no existing table or function changes.
 --
 -- UNIQUE (booking_id) is the idempotency guard: a replayed cancel hits 23505
--- and reads "already opened".
+-- and reads "already opened". `refund_cents` is the amount computed AT CANCEL
+-- TIME (policy amount minus anything already refunded by hand); a replay reads
+-- this row back and never recomputes it.
 --
 -- NO anon path. Written by the service role; staff read their own tenant.
 
@@ -28,7 +30,9 @@ CREATE TABLE IF NOT EXISTS public.booking_refund_intents (
   order_id       uuid REFERENCES public.orders(id) ON DELETE SET NULL,
   refund_cents   integer NOT NULL CHECK (refund_cents > 0),
   paid_cents     integer NOT NULL CHECK (paid_cents >= 0),
-  currency_code  text,
+  -- NOT NULL: an owed amount without its currency cannot be refunded; the
+  -- writer refuses (fail closed) rather than record one.
+  currency_code  text NOT NULL CHECK (length(btrim(currency_code)) > 0),
   cancelled_by   text CHECK (cancelled_by IN ('talent', 'client', 'staff', 'system')),
   created_at     timestamptz NOT NULL DEFAULT now(),
   -- Set when a person (or a later executor) has refunded or waived it.
