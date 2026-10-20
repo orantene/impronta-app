@@ -57,6 +57,8 @@ export type PurchaseIntent = {
   /** Null for a guest. Never invented. */
   actorUserId: string | null;
   paymentChoice: PaymentChoice;
+  /** Server-set only (reserve.ts): the deposit comes from venue rules, not the offering. */
+  tableDeposit?: boolean;
   lines: Array<{ offeringId: string; units: number }>;
 };
 
@@ -210,6 +212,19 @@ export function resolvePurchasePolicy(
       collect: "none",
       depositPct: null,
       payInPerson: true,
+      cancellationHours: strictestCancellation(resolved),
+    };
+  }
+
+  if (intent.paymentChoice === "deposit" && intent.tableDeposit) {
+    // A venue-rules table deposit (server-set, see purchase-table-deposit.ts):
+    // the order IS the deposit, so it is collected in full and the offering's
+    // own deposit_pct is not consulted.
+    return {
+      ok: true,
+      collect: "full",
+      depositPct: null,
+      payInPerson: false,
       cancellationHours: strictestCancellation(resolved),
     };
   }

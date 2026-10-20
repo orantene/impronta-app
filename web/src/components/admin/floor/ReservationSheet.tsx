@@ -152,7 +152,8 @@ export function ReservationSheet(props: ReservationSheetProps) {
   }
 
   const deposit = times?.ok ? times.depositCents : 0;
-  const currency = times?.ok ? times.currency : "USD";
+  // Never a guessed currency: the server sends one whenever a deposit is due.
+  const currency = times?.ok ? times.currency : null;
   const dates = times?.dates ?? [];
   const canConfirm = Boolean(onDate && slot) && !busy && !loading && !done;
 
@@ -166,9 +167,9 @@ export function ReservationSheet(props: ReservationSheetProps) {
       </p>
       <div className="flex flex-wrap justify-center gap-2">
         <span className={cn(POS_PILL, POS_PILL_GREEN)}>{copy.panel.stateConfirmed}</span>
-        {done.collectCents > 0 && <span className={cn(POS_PILL, "bg-admin-coral-soft text-admin-coral-deep")}>{interpolate(r.deposit, { amount: formatOrderMoney(done.collectCents, currency) })}</span>}
+        {done.collectCents > 0 && currency && <span className={cn(POS_PILL, "bg-admin-coral-soft text-admin-coral-deep")}>{interpolate(r.deposit, { amount: formatOrderMoney(done.collectCents, currency) })}</span>}
       </div>
-      {done.collectCents > 0 && (
+      {done.collectCents > 0 && currency && (
         <a href={props.checkHref(done.orderId)} className={POS_PRIMARY_ACTION}>
           {interpolate(r.collectNext, { amount: formatOrderMoney(done.collectCents, currency) })}
         </a>
@@ -331,7 +332,7 @@ export function ReservationSheet(props: ReservationSheetProps) {
         <p className={cn("m-0", FLOOR_EYEBROW)}>{r.money}</p>
         <div className="rounded-[14px] border-[1.5px] border-admin-border bg-admin-card px-4 py-1">
           <div className={FACT_ROW}>
-            <span className="text-admin-ink-muted">{deposit > 0 ? interpolate(r.deposit, { amount: formatOrderMoney(deposit, currency) }) : r.noDeposit}</span>
+            <span className="text-admin-ink-muted">{deposit > 0 && currency ? interpolate(r.deposit, { amount: formatOrderMoney(deposit, currency) }) : r.noDeposit}</span>
             <strong className="text-right text-admin-ink">{deposit > 0 ? r.depositSub : r.noDepositSub}</strong>
           </div>
         </div>
@@ -359,7 +360,7 @@ export function ReservationSheet(props: ReservationSheetProps) {
       footerEnd={
         done ? undefined : (
           <button type="button" data-floor-reserve-confirm className={POS_PRIMARY_ACTION} disabled={!canConfirm} onClick={() => void confirm()}>
-            {deposit > 0 ? interpolate(r.confirmDeposit, { amount: formatOrderMoney(deposit, currency) }) : r.confirm}
+            {deposit > 0 && currency ? interpolate(r.confirmDeposit, { amount: formatOrderMoney(deposit, currency) }) : r.confirm}
           </button>
         )
       }
