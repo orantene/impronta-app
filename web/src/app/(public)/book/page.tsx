@@ -18,6 +18,8 @@ import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-p
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { pinnedServiceId } from "@/lib/client-account/book-again";
 import { BookPageClient } from "./BookPageClient";
+import { RosterRequestList } from "./RosterRequestList";
+import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -94,6 +96,10 @@ export default async function BookPage({
   // Respects /w/<slug>; agency hosts serve the contact page at the root.
   const pathPrefix = host.kind === "agency" ? "" : await getPublicPathPrefix();
   const guestChrome = await loadGuestInstantChrome(tenantId || null);
+  // TUL-1372: roster services (accepted listings) of an AGENCY workspace, request-only. The tenant is
+  // the public host's resolved tenant, never a request parameter. Fails closed (empty).
+  const rosterAdmin = host.kind === "agency" && tenantId ? createServiceRoleClient() : null;
+  const rosterItems = rosterAdmin && host.kind === "agency" ? await loadWorkspaceRosterServices(rosterAdmin, tenantId) : [];
 
   return (
     <>
@@ -114,6 +120,16 @@ export default async function BookPage({
           captcha={guestChrome.captcha}
           locale={locale}
           contactHref={`${pathPrefix}/contact`}
+        />
+        <RosterRequestList
+          items={rosterItems}
+          contactHref={`${pathPrefix}/contact`}
+          locale={locale}
+          copy={{
+            heading: t("public.bookPage.rosterHeading"),
+            request: t("public.bookPage.rosterRequest"),
+            note: t("public.bookPage.rosterNote"),
+          }}
         />
       </main>
       <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />

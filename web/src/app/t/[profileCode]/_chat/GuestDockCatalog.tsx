@@ -426,7 +426,7 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 accent={accent}
                 accentInk={accentInk}
               />
-            ) : buyHref && row.available ? (
+            ) : buyHref && row.available && !row.requestOnly ? (
               <SmallButton itemName={row.title}
                 label={row.category === "service" || row.category === "class" ? t("public.guestChat.catalogAdd") : dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
                 href={buyHref}

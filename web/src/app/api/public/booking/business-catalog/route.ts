@@ -29,6 +29,8 @@ import { aiReadVerdictForRequest } from "@/lib/seo/ai-bot-gate.server";
 import { aiAccessJson, resolveAiAccess } from "@/lib/offerings/ai-access";
 import { pageOf, parseCatalogPaging, toBusinessCatalogServices } from "@/lib/offerings/business-catalog";
 import { loadBusinessCatalogOfferings } from "@/lib/offerings/business-catalog.server";
+import { mergeRosterIntoCatalog, rosterServicesToCatalog } from "@/lib/service-hub/roster-catalog";
+import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
 import { checkPublicCatalog } from "@/lib/rate-limit-kv";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { resolvePublicClientIp } from "@/lib/server/public-client-ip";
@@ -105,7 +107,12 @@ export async function GET(request: Request) {
         { status: 403, headers: { ...CORS, "Cache-Control": "no-store", Vary: "User-Agent" } },
       );
     }
-    const all = toBusinessCatalogServices(loaded.offerings, locale);
+    const own = toBusinessCatalogServices(loaded.offerings, locale);
+    // TUL-1372: an agency workspace also sells its roster's accepted listings. Never the shared
+    // hub host (it is a network, not one business). The reader is tenant-strict and fails closed.
+    const roster =
+      hostKind === "agency" ? rosterServicesToCatalog(await loadWorkspaceRosterServices(admin, host.tenantId), locale) : [];
+    const all = mergeRosterIntoCatalog(own, roster);
     const page = pageOf(all, paging);
     return NextResponse.json(
       {
