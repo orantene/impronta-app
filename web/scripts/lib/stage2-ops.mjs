@@ -21,11 +21,11 @@ export const visitToken = (key) => `s2v-${createHash("sha256").update(`visit:${k
  * A login. `secretKey` names the generated password in the local seed config; the password itself is NEVER in an op.
  * status: 'active' (default), 'invited' (pending invitee: unconfirmed), 'suspended'.
  */
-export function userOps(fx, key, { email: mail, name, confirmed = true }) {
+export function userOps(fx, key, { email: mail, name, confirmed = true, appRole = "agency_staff" }) {
   const id = s2Id(`user:${key}`);
   return [
     { fx, kind: "authUser", table: "auth.users", key: `user:${key}`, id, row: { email: mail, name, confirmed, secretKey: key } },
-    update(fx, "public.profiles", `profile:${key}`, id, { display_name: name, app_role: "agency_staff", account_status: "active", is_test_account: true }),
+    update(fx, "public.profiles", `profile:${key}`, id, { display_name: name, app_role: appRole, account_status: "active", is_test_account: true }),
   ];
 }
 
@@ -40,14 +40,14 @@ export function membershipOp(fx, key, ws, userKey, { role, status = "active" }, 
 }
 
 /** A fixture workspace: agency (cloned from the Group-6 workspace), owner membership, identity, staging subdomain. */
-export function workspaceOps(fx, key, { slug, name, tagline, plan = "website", businessType, currency = "MXN", locales = ["es", "en"], tz = "America/Cancun", ownerKey, settings = {}, at }) {
+export function workspaceOps(fx, key, { slug, name, tagline, plan = "website", workspaceType = "business", seats = null, businessType, currency = "MXN", locales = ["es", "en"], tz = "America/Cancun", ownerKey, settings = {}, at }) {
   const ws = s2Id(`workspace:${key}`);
   const iso = at.toISOString();
   return {
     ws,
     ops: [
       clone(fx, "public.agencies", `workspace:${key}`, G6.ws, {
-        id: ws, slug, display_name: name, plan_tier: plan, talent_seat_limit: null, workspace_type: "business",
+        id: ws, slug, display_name: name, plan_tier: plan, talent_seat_limit: seats, workspace_type: workspaceType,
         default_currency: currency, preferred_currency: currency.toLowerCase(), timezone: tz, supported_locales: locales,
         settings: { business_type_id: businessType, display_currency: currency, ...settings },
         onboarding_completed_at: iso, created_at: iso, updated_at: iso, default_coordinator_user_id: null,
@@ -93,10 +93,11 @@ export const addonOp = (fx, key, offeringKey, a) =>
   });
 
 /** A capacity pool (units, no time dimension unless the subject is a session). `pool_path` is rewritten by the trigger. */
-export const poolOp = (fx, key, ws, { kind, subjectId, poolKey = "default", units, label = "unit" }) =>
+export const poolOp = (fx, key, ws, { kind, subjectId, poolKey = "default", units, label = "unit", parentKey = null }) =>
   insert(fx, "public.capacity_pools", `pool:${key}`, {
     id: s2Id(`pool:${key}`), tenant_id: ws, subject_kind: kind, subject_id: subjectId, pool_key: poolKey, units_total: units, overbook_units: 0,
     hold_ttl_seconds: 900, unit_label: label, is_active: true, pool_path: [],
+    ...(parentKey ? { parent_pool_id: s2Id(`pool:${parentKey}`) } : {}),
   });
 
 /** A readable QR short link (kind table | menu). */

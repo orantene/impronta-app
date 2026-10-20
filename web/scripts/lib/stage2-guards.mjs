@@ -16,7 +16,10 @@ export const S2_NS = "s2:";
 export const S2_SLUG_PREFIX = "s2-";
 export const s2Id = (key) => stableId(`${S2_NS}${key}`);
 
+/** The only PRE-EXISTING talent the seed may touch, and only additively (new rows, never an update). */
 export const ALLOWED_TALENT_CODES = ["TAL-93900"];
+/** The seed's own fixture talents (like #4048's TAL-960xx): TAL-962xx. */
+export const FIXTURE_TALENT_CODE = /^TAL-962\d\d$/i;
 export const FORBIDDEN_TOKENS = ["pluhda", "TAL-93938", "TUL-52\""];
 /** qa-1 .. qa-6 as a whole label (hosts, slugs, rows): qa-1.tulala.digital, "qa-3". */
 export const QA_POOL_HOST = /(^|[^a-z0-9])qa-[1-6](?![0-9])/i;
@@ -37,7 +40,7 @@ const SLUG_COLS = new Set(["slug", "site_slug", "tenant_slug", "hostname"]);
 export const PUBLIC_COPY_TABLES = new Set([
   "public.talent_offerings", "public.talent_offering_variants", "public.talent_offering_addons", "public.events", "public.venues",
   "public.spaces", "public.space_groups", "public.agencies", "public.agency_business_identity", "public.links", "public.prep_stations",
-  "public.profiles",
+  "public.profiles", "public.talent_profiles",
 ]);
 const COPY_COLS = ["title", "description", "category", "label", "name", "display_name", "public_name", "tagline"];
 
@@ -55,9 +58,8 @@ export const checkS2Target = (env) => checkFcTarget(env);
  * Refuse a plan that could touch anything outside this seed. `ctx.tenantIds` are the workspaces this plan creates;
  * `ctx.externalTenantIds` are the only other tenants rows may name (none in push 1).
  */
-export function checkS2Plan(ops, { fixtureIds = new Set(), tenantIds = new Set(), externalTenantIds = new Set() } = {}) {
+export function checkS2Plan(ops, { fixtureIds = new Set(), tenantIds = new Set(), externalTenantIds = new Set(), existingTalentIds = new Set() } = {}) {
   const problems = [];
-  const allowedTenant = (t) => tenantIds.has(t) || externalTenantIds.has(t);
   for (const op of ops) {
     const where = `${op.fx} ${op.table} ${op.key ?? op.id}`;
     if (op.kind === "update" || op.kind === "delete" || op.kind === "pin") {
@@ -70,20 +72,27 @@ export function checkS2Plan(ops, { fixtureIds = new Set(), tenantIds = new Set()
     if (op.id && op.kind !== "update" && op.kind !== "pin" && op.kind !== "authUser" && op.id !== s2Id(op.key)) problems.push(`${where}: id is not s2Id(key)`);
     const values = { ...(op.row ?? {}), ...(op.set ?? {}), ...(op.merge ?? {}) };
     const t = values.tenant_id;
-    if (typeof t === "string" && !allowedTenant(t)) problems.push(`${where}: tenant_id ${t} is not a fixture tenant`);
+    if (op.touchesExisting) {
+      // Additive writes next to a pre-existing talent: new rows only, tenant exactly the resolved hub tenant.
+      if (op.touchesExisting !== "TAL-93900") problems.push(`${where}: touches pre-existing ${op.touchesExisting}; only TAL-93900 is allowed`);
+      if (op.kind !== "insert") problems.push(`${where}: a write to pre-existing ${op.touchesExisting} must be a new row (no updates)`);
+      if (typeof t === "string" && !externalTenantIds.has(t)) problems.push(`${where}: tenant_id ${t} is not the resolved hub tenant`);
+    } else {
+      if (typeof t === "string" && !tenantIds.has(t)) problems.push(`${where}: tenant_id ${t} is not a fixture tenant`);
+      for (const v of walk(values)) if (existingTalentIds.has(v)) problems.push(`${where}: references a pre-existing talent without the touchesExisting flag`);
+    }
     for (const s of walk(values)) {
       const low = s.toLowerCase();
       for (const b of FORBIDDEN_TOKENS) if (low.includes(b.toLowerCase())) problems.push(`${where}: names forbidden ${b}`);
       if (QA_POOL_HOST.test(s)) problems.push(`${where}: names a qa-1..qa-6 pool host/row (${s.slice(0, 40)})`);
-      for (const m of s.match(TALENT_CODE) ?? []) if (!ALLOWED_TALENT_CODES.includes(m.toUpperCase())) problems.push(`${where}: names talent ${m}; only ${ALLOWED_TALENT_CODES.join(",")} is allowed`);
+      for (const m of s.match(TALENT_CODE) ?? []) if (!ALLOWED_TALENT_CODES.includes(m.toUpperCase()) && !FIXTURE_TALENT_CODE.test(m)) problems.push(`${where}: names talent ${m}; only ${ALLOWED_TALENT_CODES.join(",")} and the seed's own TAL-962xx are allowed`);
     }
     for (const [col, v] of Object.entries(values)) {
       if (EMAIL_COLS.has(col) && v != null && !isExampleTestEmail(v)) problems.push(`${where}: ${col} is not an ${EMAIL_DOMAIN} mailbox`);
       if (SLUG_COLS.has(col) && v != null && !String(v).startsWith(S2_SLUG_PREFIX)) problems.push(`${where}: ${col} must start with ${S2_SLUG_PREFIX}`);
     }
     if (op.table === "public.links" && !String(op.row?.code ?? "").startsWith(S2_SLUG_PREFIX)) problems.push(`${where}: link code must start with ${S2_SLUG_PREFIX}`);
-    if (op.table === "public.talent_profiles" && !ALLOWED_TALENT_CODES.includes(String(op.row?.profile_code ?? ""))) problems.push(`${where}: a talent profile other than ${ALLOWED_TALENT_CODES.join(",")}`);
-    if (op.table === "public.talent_profiles" && op.kind !== "update") problems.push(`${where}: this seed never inserts a talent profile`);
+    if (op.table === "public.talent_profiles" && !FIXTURE_TALENT_CODE.test(String(op.row?.profile_code ?? ""))) problems.push(`${where}: a talent profile that is not one of the seed's own TAL-962xx`);
   }
   return { ok: problems.length === 0, problems };
 }
@@ -137,10 +146,10 @@ export function labelCollisions(ops) {
   return clashes;
 }
 
-export function verifyS2Plan(ops, { externalTenantIds = new Set() } = {}) {
+export function verifyS2Plan(ops, { externalTenantIds = new Set(), existingTalentIds = new Set() } = {}) {
   const fixtureIds = new Set(ops.filter((o) => o.id).map((o) => o.id));
   const tenantIds = new Set(ops.filter((o) => o.table === "public.agencies" && o.kind !== "update").map((o) => o.id));
-  const res = checkS2Plan(ops, { fixtureIds, tenantIds, externalTenantIds });
+  const res = checkS2Plan(ops, { fixtureIds, tenantIds, externalTenantIds, existingTalentIds });
   const problems = [...res.problems, ...publicCopyProblems(ops), ...alcoholDealProblems(ops), ...labelCollisions(ops).map((l) => `DNS label ${l} is claimed twice`)];
   return { ok: problems.length === 0, problems, fixtureIds, tenantIds };
 }

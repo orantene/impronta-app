@@ -17,14 +17,14 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 import { STAGING_MARKER_AGENCY_ID, parseEnvText } from "./lib/group6-fixtures.mjs";
-import { G6_REQUIRED } from "./lib/failed-cards-ops.mjs";
+import { G6_REQUIRED, HUB_TENANT_ID } from "./lib/failed-cards-ops.mjs";
 import { checkS2Target, summarise } from "./lib/stage2-guards.mjs";
 import { S2_FIXTURES, buildStage2Plan, resolveStage2, verifyS2Plan } from "./lib/stage2-plan.mjs";
 import { readBack } from "./lib/stage2-readback.mjs";
 import { SEED_CONFIG_PATH, loadSeedConfig, pinName, pwName, resolveSecrets, writeSeedConfig } from "./lib/stage2-secrets.mjs";
 
 type Row = Record<string, unknown>;
-type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; userId?: string; secretKey?: string };
+type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; userId?: string; secretKey?: string; touchesExisting?: string };
 type PgClient = { connect(): Promise<void>; query(text: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>; end(): Promise<void> };
 const PG_MODULE = "pg";
 const pgMod = (await import(PG_MODULE)) as { default: { Client: new (cfg: { connectionString?: string; ssl?: unknown }) => PgClient } };
@@ -88,12 +88,19 @@ let secrets = new Map<string, string>();
 
 // ------------------------------------------------------------------ guards (run before EVERY write batch)
 const LIVE_COLUMNS = ["talent_offerings.pos_enabled"];
+/** Pre-existing talent facts, resolved read-only in context(): the hub talent TAL-93900 (additive rows only) and the ids no op may name. */
+let hubCtx: { talentId: string; tenantId: string; hasPayout: boolean } | null = null;
+let forbiddenTalentIds: string[] = [];
+const guardCtx = () => ({
+  externalTenantIds: new Set(hubCtx ? [hubCtx.tenantId] : []),
+  existingTalentIds: new Set([...(hubCtx ? [hubCtx.talentId] : []), ...forbiddenTalentIds]),
+});
 async function assertBatchGuards(label: string, ops: Op[]) {
   const t = checkS2Target(env);
   if (!t.ok) throw new Error(`${label}: target guard failed: ${t.reasons.join("; ")}`);
   const marker = await q("select 1 from public.agencies where id = $1", [STAGING_MARKER_AGENCY_ID]);
   if (!marker.rowCount) throw new Error(`${label}: staging marker agency (qa-journeys) not found; not the staging database`);
-  const v = verifyS2Plan(ops);
+  const v = verifyS2Plan(ops, guardCtx());
   if (!v.ok) throw new Error(`${label}: plan guard failed:\n  - ${v.problems.join("\n  - ")}`);
   const ws = [...v.tenantIds];
   const clash = await q("select id::text id, slug from public.agencies where id = any($1::uuid[]) and slug not like 's2-%'", [ws]);
@@ -115,7 +122,17 @@ async function context() {
   const have = new Set<string>();
   const cols = await q("select table_name || '.' || column_name c from information_schema.columns where table_schema = 'public' and table_name || '.' || column_name = any($1::text[])", [LIVE_COLUMNS]);
   for (const r of cols.rows) have.add(r.c as string);
-  return { now: new Date(), has: (c: string) => have.has(c) };
+  // Talents: TAL-93900 is the only pre-existing one this seed may add rows next to; TAL-93938 / TAL-93940 may never be named.
+  const forbidden = await q("select id::text id, user_id::text uid from public.talent_profiles where profile_code = any($1)", [["TAL-93938", "TAL-93940"]]);
+  forbiddenTalentIds = forbidden.rows.flatMap((r) => [r.id, r.uid]).filter(Boolean) as string[];
+  const hubRow = await q("select id::text id from public.talent_profiles where profile_code = 'TAL-93900'");
+  hubCtx = null;
+  if (hubRow.rowCount) {
+    const talentId = hubRow.rows[0].id as string;
+    const pay = await q("select 1 from public.payout_accounts where tenant_id = $1 and owner_type = 'talent' and owner_id = $2 and status in ('pending_verification','connected')", [HUB_TENANT_ID, talentId]);
+    hubCtx = { talentId, tenantId: HUB_TENANT_ID, hasPayout: Boolean(pay.rowCount) };
+  }
+  return { now: new Date(), has: (c: string) => have.has(c), hub: hubCtx };
 }
 
 // ------------------------------------------------------------------ executors
@@ -319,6 +336,8 @@ const COUNT_TABLES = [
   "public.role_limits", "public.venues", "public.venue_service_rules", "public.venue_service_windows", "public.space_groups", "public.spaces", "public.prep_stations",
   "public.links", "public.visits", "public.pos_devices", "public.pos_shifts", "public.capacity_pools", "public.talent_offerings", "public.talent_offering_variants",
   "public.talent_offering_addons", "public.offering_components", "public.events", "public.tenant_promo_codes",
+  "public.sessions", "public.session_series", "public.offering_price_phases", "public.talent_profiles", "public.agency_talent_roster",
+  "public.talent_booking_hours", "public.payout_accounts",
 ];
 async function tableCounts() {
   const out: Record<string, number> = {};
@@ -380,7 +399,7 @@ async function main() {
   const ctx = await context();
   const plan = buildStage2Plan(sets, ctx);
   const ops = plan.ops as Op[];
-  const v = verifyS2Plan(ops);
+  const v = verifyS2Plan(ops, guardCtx());
   if (!v.ok) throw new Error(`plan refused:\n  - ${v.problems.join("\n  - ")}`);
   console.log(`${TAG} plan guards OK: ${ops.length} ops across ${v.tenantIds.size} fixture workspaces`);
 
@@ -394,6 +413,10 @@ async function main() {
     console.log(`${TAG} schema + collision check: ${problems === 0 ? "OK" : `${problems} PROBLEM(S)`}`);
     const pos = await q("select workspace_pos_enabled from public.platform_settings limit 1").catch(() => null);
     console.log(`${TAG} platform kill switch platform_settings.workspace_pos_enabled (shared platform row, NOT written by this seed): ${pos?.rows[0] ? String(pos.rows[0].workspace_pos_enabled) : "unreadable"}`);
+    const touching = ops.filter((o) => o.touchesExisting);
+    console.log(`${TAG} touches pre-existing TAL-93900 (additive new rows only, no updates): ${touching.length}`);
+    for (const o of touching) console.log(`  ${o.table.padEnd(30)} ${o.key}`);
+    for (const n of plan.notes) console.log(`${TAG} note: ${n}`);
     for (const b of plan.blocked) console.log(`${TAG} BLOCKED by held migration ${b.version} (${b.file}): ${b.item}`);
     for (const n of plan.notBuilt) console.log(`${TAG} NOT BUILT yet [${n.id}] ${n.what} (${n.why})`);
     await q("rollback");

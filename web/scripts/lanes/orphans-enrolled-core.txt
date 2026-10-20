@@ -3,6 +3,7 @@ scripts/ai-builder-eval/screenshot.test.ts
 scripts/ci/held-migrations-report.test.mjs
 scripts/e2e-web-server-command.test.ts
 scripts/lib/failed-cards-fixtures.test.mjs
+scripts/lib/stage2-events.test.mjs
 scripts/lib/stage2-fixtures.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts

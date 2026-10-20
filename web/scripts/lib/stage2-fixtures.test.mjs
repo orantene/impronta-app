@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-import { G6 } from "./failed-cards-ops.mjs";
+import { G6, HUB_TENANT_ID } from "./failed-cards-ops.mjs";
 import { fcId } from "./failed-cards-guards.mjs";
 import {
   ALCOHOL_WORD, alcoholDealProblems, checkS2Plan, checkS2Target, isExampleTestEmail, publicCopyProblems, s2Id, summarise, verifyS2Plan,
@@ -19,7 +19,10 @@ import { SEED_CONFIG_PATH, loadSeedConfig, parseSeedConfig, pinName, pwName, res
 const STAGING = "postgresql://postgres.fxlankepwnvelxjrahwk:pw@aws-0-us-east-2.pooler.supabase.com:6543/postgres";
 const PROD = "postgresql://postgres.pluhdapdnuiulvxmyspd:pw@aws-0-us-east-2.pooler.supabase.com:6543/postgres";
 const NOW = new Date("2026-10-21T12:00:00Z");
-const plan = (has = () => true, now = NOW, only = null) => buildStage2Plan(resolveStage2(only), { now, has });
+const HUB = { talentId: "5f0f0f0f-0000-4000-8000-000000009390", tenantId: HUB_TENANT_ID, hasPayout: false };
+const GUARD = { externalTenantIds: new Set([HUB.tenantId]), existingTalentIds: new Set([HUB.talentId]) };
+const verify = (list) => verifyS2Plan(list, GUARD);
+const plan = (has = () => true, now = NOW, only = null, hub = HUB) => buildStage2Plan(resolveStage2(only), { now, has, hub });
 const ops = (...a) => plan(...a).ops;
 const byKey = (list, key) => list.find((o) => o.key === key);
 const source = readFileSync(new URL("../seed-stage2-fixtures.mts", import.meta.url), "utf8");
@@ -36,12 +39,12 @@ test("ids are deterministic (s2Id of the key), unique, and outside the Group-6 a
   const g6 = new Set(Object.values(G6));
   assert.ok(ids.every((id) => !g6.has(id)));
   assert.notEqual(s2Id("workspace:t1"), fcId("workspace:t1"));
-  assert.deepEqual(verifyS2Plan(a).problems, []);
-  assert.deepEqual(verifyS2Plan(ops(() => false)).problems, []);
+  assert.deepEqual(verify(a).problems, []);
+  assert.deepEqual(verify(ops(() => false)).problems, []);
 });
 
 test("every cluster is built, and the build says what it did not seed", () => {
-  assert.deepEqual(S2_FIXTURES, ["T1", "T2"]);
+  assert.deepEqual(S2_FIXTURES, ["T1", "T2", "T3", "T5", "EV"]);
   const p = plan();
   assert.ok(p.notBuilt.length >= 8);
   assert.ok(p.notBuilt.every((n) => n.id && n.what && n.why));
@@ -59,7 +62,7 @@ test("guards: production, pluhda, qa-1..qa-6, TAL-93938 and every other talent a
   const item = base.find((o) => o.key === "offering:t1-burrito");
   const bad = (patch, label) => {
     const mutated = base.map((o) => (o === item ? { ...o, row: { ...o.row, ...patch } } : o));
-    const v = verifyS2Plan(mutated);
+    const v = verify(mutated);
     assert.equal(v.ok, false, label);
     return v.problems.join(" | ");
   };
@@ -69,7 +72,7 @@ test("guards: production, pluhda, qa-1..qa-6, TAL-93938 and every other talent a
   assert.match(bad({ description: "copy of TAL-93938" }, "TAL-93938"), /TAL-93938/);
   assert.match(bad({ description: "talent TAL-93940" }, "other talent"), /only TAL-93900/);
   assert.match(bad({ description: "talent TAL-12345" }, "other talent 2"), /only TAL-93900/);
-  assert.deepEqual(verifyS2Plan(base.map((o) => (o === item ? { ...o, row: { ...o.row, description: "hub talent TAL-93900" } } : o))).problems.filter((p) => /TAL-/.test(p)), [], "TAL-93900 is the one allowed code");
+  assert.deepEqual(verify(base.map((o) => (o === item ? { ...o, row: { ...o.row, description: "hub talent TAL-93900" } } : o))).problems.filter((p) => /TAL-/.test(p)), [], "TAL-93900 is the one allowed code");
   assert.match(bad({ tenant_id: "00000000-0000-0000-0000-00000000dead" }, "foreign tenant"), /not a fixture tenant/);
   assert.equal(checkS2Plan([{ fx: "X", kind: "update", table: "public.talent_offerings", key: "u", id: G6.t1, set: { title: "x" } }], { fixtureIds: new Set() }).ok, false, "update on a non-fixture row");
   assert.equal(checkS2Plan([{ fx: "X", kind: "insert", table: "public.talent_profiles", key: "t", id: s2Id("t"), row: { profile_code: "TAL-96999" } }], { fixtureIds: new Set([s2Id("t")]) }).ok, false, "no talent profile is ever inserted");
@@ -81,15 +84,15 @@ test("@example.test mailboxes only, and every slug / host / link code / event sl
   assert.equal(isExampleTestEmail("s2-t1-owner@example.test"), true);
   for (const bad of ["a@gmail.com", "a@example.com", "a@impronta.test", "x@example.test.evil.com", "tulalaqa+x@mail.grokbot.com"]) assert.equal(isExampleTestEmail(bad), false, bad);
   const emails = list.filter((o) => o.kind === "authUser").map((o) => o.row.email);
-  assert.equal(emails.length, T1_STAFF.length + 2);
+  assert.equal(emails.length, T1_STAFF.length + 2 + 3 + 2);
   assert.ok(emails.every(isExampleTestEmail));
   assert.ok(JSON.stringify(list).match(/@[a-z0-9.-]+/g).every((m) => m === "@example.test"));
   const slugs = list.flatMap((o) => ["slug", "hostname", "tenant_slug", "code"].map((c) => (o.table === "public.links" || c !== "code" ? o.row?.[c] : undefined)).filter(Boolean));
   assert.ok(slugs.length > 15 && slugs.every((s) => String(s).startsWith("s2-")), slugs.filter((s) => !String(s).startsWith("s2-")).join(","));
   const mutated = list.map((o) => (o.key === "workspace:t1" ? { ...o, row: { ...o.row, slug: "impronta" } } : o));
-  assert.equal(verifyS2Plan(mutated).ok, false);
+  assert.equal(verify(mutated).ok, false);
   const badMail = list.map((o) => (o.key === "user:t1-owner" ? { ...o, row: { ...o.row, email: "owner@gmail.com" } } : o));
-  assert.equal(verifyS2Plan(badMail).ok, false);
+  assert.equal(verify(badMail).ok, false);
 });
 
 test("O6: no alcohol in any deal item; the beers and the margarita are gated control items with non-alcoholic counterparts", () => {
@@ -116,7 +119,7 @@ test("no public title, name, label, description or category says QA / test / E2E
   const mutated = list.map((o) => (o.key === "offering:t1-burrito" ? { ...o, row: { ...o.row, title: "QA Burrito" } } : o));
   assert.equal(publicCopyProblems(mutated).length, 1);
   const names = list.filter((o) => o.kind === "update" && o.table === "public.profiles").map((o) => o.set.display_name);
-  assert.ok(names.length === T1_STAFF.length + 2);
+  assert.ok(names.length === T1_STAFF.length + 2 + 3 + 2);
 });
 
 test("credentials: generated, written only to a gitignored mode-600 local file, never in the plan, rows, logs or backups", () => {
@@ -181,7 +184,7 @@ test("the guards run before EVERY write batch, and the Stripe step refuses until
   assert.ok(runOps.indexOf("assertBatchGuards") < runOps.indexOf("execInsert"));
   assert.match(source, /await assertBatchGuards\("cleanup batch", ops\)/);
   const guards = source.slice(source.indexOf("async function assertBatchGuards"), source.indexOf("async function context"));
-  for (const frag of ["checkS2Target(env)", "STAGING_MARKER_AGENCY_ID", "verifyS2Plan(ops)", "qa-[1-6]"]) assert.ok(guards.includes(frag), frag);
+  for (const frag of ["checkS2Target(env)", "STAGING_MARKER_AGENCY_ID", "verifyS2Plan(ops", "qa-[1-6]"]) assert.ok(guards.includes(frag), frag);
   assert.match(source, /--stripe/);
   assert.match(source, /not built yet/);
   assert.ok(source.indexOf("checkS2Target(env)") < source.indexOf("pgMod.default.Client("), "the target check precedes any connection");
@@ -228,7 +231,7 @@ test("T1: three venue clocks, reservation rules, floor, QR, devices, shift and s
 });
 
 test("T1 catalog: the prices and edge cases the card lists", () => {
-  const list = ops();
+  const list = ops(() => true, NOW, ["T1"]);
   const row = (k) => byKey(list, `offering:${k}`).row;
   assert.equal(row("t1-hamburguesa").amount_cents, 12000);
   assert.equal(byKey(list, "variant:t1-hamburguesa-grande").row.amount_cents, 15000);
@@ -285,5 +288,5 @@ test("T2 shares nothing with T1 (every cross-tenant check starts clean)", () => 
   assert.equal(t2.filter((o) => o.table === "public.visits").length, 1);
   assert.equal(t2.filter((o) => o.table === "public.links").length, 3);
   const s = summarise(list);
-  assert.ok(s["public.talent_offerings"].insert >= 25 && s["public.agencies"].insert === 2);
+  assert.ok(s["public.talent_offerings"].insert >= 25 && s["public.agencies"].insert === 4);
 });

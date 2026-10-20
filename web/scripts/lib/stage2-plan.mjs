@@ -1,35 +1,44 @@
 /**
- * Composes the Stage 2 plan from cluster modules (pure). ctx = { now, has(col) } where has("table.column") says whether
- * the LIVE schema carries a column that exists only in a held migration. Returns { ops, blocked, notBuilt }.
+ * Composes the Stage 2 plan from cluster modules (pure). ctx = { now, has(col), hub } where
+ *   has("table.column")  says whether the LIVE schema carries a column that exists only in a held migration, and
+ *   hub = { talentId, tenantId, hasPayout } | null  is the pre-existing hub talent TAL-93900, resolved read-only at run time.
+ * Returns { ops, blocked, notBuilt }.
  */
 import { verifyS2Plan } from "./stage2-guards.mjs";
+import { planEvents } from "./stage2-plan-events.mjs";
 import { planT1Catalog } from "./stage2-plan-t1-catalog.mjs";
 import { planT1Core, planT1Devices, planT1Floor } from "./stage2-plan-t1.mjs";
 import { planT2 } from "./stage2-plan-t2.mjs";
+import { HUB_TALENT_CODE, planHub, planT3 } from "./stage2-plan-t3.mjs";
+import { planT5 } from "./stage2-plan-t5.mjs";
 
-/** Push 1 clusters. Later pushes append T3, T4, T5, EV, PR, CU, MO. */
-export const S2_FIXTURES = ["T1", "T2"];
+/** Built clusters. EV = the events on T1; T5 currently holds the workspace and the weekly class (2b adds the rest). */
+export const S2_FIXTURES = ["T1", "T2", "T3", "T5", "EV"];
+export const DEPENDS = { EV: ["T1"] };
 
 /** What the card asks for that this build does not seed yet (printed by the dry run, never silently skipped). */
 export const NOT_BUILT = [
-  { id: "T3", what: "agency tenant: roster talent public service + venue table QR; hub talent TAL-93900 package + payout account", why: "push 2; a NEW roster talent conflicts with the 'TAL-93900 only' guard (needs a ruling)" },
-  { id: "T4", what: "US salon (USD) + Connect account", why: "push 2" },
-  { id: "T5", what: "studio class + drink deal, tour seats + early bird, beach-club bed + minimum spend", why: "push 2" },
-  { id: "EV", what: "events: Friday DJ series, free event, overnight, pool-of-1, New_York DST series, weekly class", why: "push 2" },
+  { id: "T4", what: "US salon (USD) + its Connect account", why: "push 2b (the Connect account is the separate --stripe step)" },
+  { id: "T5b", what: "T5 drink deal, tour seats + early bird, beach-club bed + minimum spend", why: "push 2b" },
   { id: "PR", what: "promos: codes, automatic, states and scopes", why: "push 3" },
   { id: "CU", what: "customers and messaging", why: "push 3" },
   { id: "MO", what: "money: completed/manual-payment bookings, refunded ticket, catering inquiry", why: "push 3 (paid history preferably created live in Stripe TEST)" },
   { id: "ST", what: "Stripe TEST Connect accounts (T1 MX, T4 US) + test clocks", why: "separate --stripe step, push 3" },
-  { id: "RA", what: "RestaurAdmin exports v1/v2/v3", why: "the importer takes a pasted export (parse-restauradmin); files are generated in a later push, import is manual" },
-  { id: "TH", what: "T1 theme published + site pages", why: "no column/table identified for a one-row 'theme published'; builder content needs its own fixture" },
-  { id: "PA", what: "platform admin user", why: "the card does not allow one; not built" },
-  { id: "TO", what: "talent-owner user", why: "needs a talent profile; only TAL-93900 may be touched" },
+  { id: "RA", what: "RestaurAdmin exports v1/v2/v3 (files under docs/fixtures; import stays manual)", why: "push 3" },
+  { id: "CR", what: "docs/plans/stage2-cron-triggers.md", why: "push 2b" },
 ];
+
+export function resolveStage2(only) {
+  const want = new Set(only?.length ? only : S2_FIXTURES);
+  for (const [f, deps] of Object.entries(DEPENDS)) if (want.has(f)) for (const d of deps) want.add(d);
+  return S2_FIXTURES.filter((f) => want.has(f));
+}
 
 export function buildStage2Plan(sets, ctx) {
   const wanted = new Set(sets?.length ? sets : S2_FIXTURES);
   const ops = [];
   const blocked = [];
+  const notes = [];
   if (wanted.has("T1")) {
     const cat = planT1Catalog(ctx);
     // Order matters: the workspace and venues exist before anything that names them.
@@ -37,12 +46,18 @@ export function buildStage2Plan(sets, ctx) {
     blocked.push(...cat.blocked);
   }
   if (wanted.has("T2")) ops.push(...planT2(ctx.now));
-  return { ops, blocked, notBuilt: NOT_BUILT.filter((n) => !wanted.has(n.id)) };
-}
-
-export function resolveStage2(only) {
-  const want = new Set(only?.length ? only : S2_FIXTURES);
-  return S2_FIXTURES.filter((f) => want.has(f));
+  if (wanted.has("T3")) {
+    ops.push(...planT3(ctx.now, ctx.hub));
+    if (ctx.hub) {
+      ops.push(...planHub(ctx.hub, ctx.now));
+      if (ctx.hub.hasPayout) notes.push(`${HUB_TALENT_CODE} already has an active payout account: no payout row is added`);
+    } else {
+      blocked.push({ item: `${HUB_TALENT_CODE} package + payout account: the talent was not found on this database`, version: "n/a", file: "n/a" });
+    }
+  }
+  if (wanted.has("T5")) ops.push(...planT5(ctx.now));
+  if (wanted.has("EV")) ops.push(...planEvents(ctx.now));
+  return { ops, blocked, notes, notBuilt: NOT_BUILT };
 }
 
 export { verifyS2Plan };
