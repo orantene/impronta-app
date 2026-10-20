@@ -3,7 +3,7 @@
 // talent shell yields), same pattern as /talent/discover.
 import { notFound } from "next/navigation";
 
-import { EarningsByChannelCard, WhereItsSoldPanel, WhereYouAppearPanel } from "@/components/talent/service-hub/ChannelPanels";
+import { CalendarByChannelPanel, EarningsByChannelCard, WhereItsSoldPanel, WhereYouAppearPanel } from "@/components/talent/service-hub/ChannelPanels";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -23,7 +23,7 @@ export default async function TalentWhereYouAppearPage() {
   ]);
   if (!talentProfileId || !supabase) notFound();
   const c = channelCopy(locale);
-  const data = await loadServiceHubChannels(supabase, talentProfileId);
+  const data = await loadServiceHubChannels(supabase, talentProfileId, session.user.id);
   const currency = data.ok ? (data.services[0]?.service.currency ?? "USD") : "USD";
   return (
     <main className="mx-auto flex max-w-[720px] flex-col gap-6 px-4 py-8" data-testid="where-you-appear-page">
@@ -36,6 +36,7 @@ export default async function TalentWhereYouAppearPage() {
           {data.services.map((s) => (
             <WhereItsSoldPanel key={s.service.id} data={s} locale={locale} />
           ))}
+          <CalendarByChannelPanel result={data.calendar} locale={locale} />
           <EarningsByChannelCard items={data.earnings} currency={currency} locale={locale} />
         </>
       )}

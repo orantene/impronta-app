@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { whereItsSold } from "@/lib/talent/service-hub-channels";
 import { soldListingsFromRows } from "@/lib/talent/service-hub-channels-rows";
-import { EarningsByChannelCard, WhereItsSoldPanel, WhereYouAppearPanel } from "./ChannelPanels";
+import { CalendarByChannelPanel, EarningsByChannelCard, WhereItsSoldPanel, WhereYouAppearPanel } from "./ChannelPanels";
 
 const names = new Map([["t-1", "Blue Oar"]]);
 const rows = whereItsSold(
@@ -83,5 +83,25 @@ describe("channel panels", () => {
     assert.match(html, /Earnings by channel/);
     assert.match(html, /\$160\.00 · You keep 80%/);
     assert.match(html, /My site/);
+  });
+});
+
+describe("calendar by channel", () => {
+  const rows = [
+    { id: "1", kind: "booking" as const, title: "Paddle", startsAt: "2026-11-10T15:00:00Z", endsAt: "2026-11-10T17:00:00Z", channelKey: "ws:t-1", channelName: "Blue Oar", holdStrength: null },
+    { id: "2", kind: "hold" as const, title: "Sunrise", startsAt: "2026-11-11T15:00:00Z", endsAt: "2026-11-11T17:00:00Z", channelKey: "my_site_hub", channelName: null, holdStrength: "firm" as const },
+  ];
+  it("labels each entry with its channel; my site / hub for own and hub", () => {
+    const html = renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows }} locale="en" timeZone="UTC" />);
+    assert.match(html, /Calendar by channel/);
+    assert.match(html, /Blue Oar/);
+    assert.match(html, /My site \/ hub/);
+    assert.match(html, /Hold · firm/);
+    assert.match(html, />Booking</);
+  });
+  it("Spanish, empty and failed states are different", () => {
+    assert.match(renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows }} locale="es" />), /Calendario por canal[\s\S]*Mi sitio \/ hub/);
+    assert.match(renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: true, rows: [] }} locale="en" />), /Nothing coming up\./);
+    assert.match(renderToStaticMarkup(<CalendarByChannelPanel result={{ ok: false }} locale="en" />), /role="alert"[^>]*>Could not load your calendar/);
   });
 });

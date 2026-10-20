@@ -10,7 +10,7 @@ const read = (p: string) => readFileSync(join(root, p), "utf8");
 test("the loader runs as the talent (RLS) and a failed read is not an empty page", () => {
   const src = read("lib/talent/service-hub-channels.server.ts");
   assert.match(src, /\.eq\("talent_profile_id", talentProfileId\)/);
-  assert.equal((src.match(/\.eq\("talent_profile_id", talentProfileId\)/g) ?? []).length, 3);
+  assert.equal((src.match(/\.eq\("talent_profile_id", talentProfileId\)/g) ?? []).length, 5);
   assert.doesNotMatch(src, /createServiceRoleClient/);
   assert.match(src, /return \{ ok: false \}/);
 });
@@ -38,11 +38,18 @@ test("held migration 420000: function only, own talent only, no direct grants on
 test("the page is a standalone canonical route that needs a signed in talent", () => {
   const page = read("app/(workspace)/talent/where-you-appear/page.tsx");
   assert.match(page, /if \(!session\.user\) notFound\(\)/);
-  assert.match(page, /loadServiceHubChannels\(supabase, talentProfileId\)/);
+  assert.match(page, /loadServiceHubChannels\(supabase, talentProfileId, session\.user\.id\)/);
+  assert.match(page, /<CalendarByChannelPanel result=\{data\.calendar\}/);
 });
 
 test("the Money page links to the channels page, in the dashboard language", () => {
   const src = read("components/talent/money/MoneyAgencyCards.tsx");
   assert.match(src, /href="\/talent\/where-you-appear"/);
   assert.match(src, /channelCopy\(useDashboardLocale\(\)\)/);
+});
+
+test("the calendar read fails as a whole, never as an empty calendar", () => {
+  const src = read("lib/talent/service-hub-channels.server.ts");
+  assert.match(src, /holdsRes\.error \?\? bookingsRes\.error \?\? ownRes\.error/);
+  assert.match(src, /serviceHub\.channels\.calendarTenants/);
 });

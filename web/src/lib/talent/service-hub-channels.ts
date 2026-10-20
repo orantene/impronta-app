@@ -225,6 +225,14 @@ export type ChannelCopy = {
   offered: string;
   pending: string;
   feeNote: string;
+  calendarByChannel: string;
+  mySiteHub: string;
+  hold: string;
+  booking: string;
+  firm: string;
+  soft: string;
+  noUpcoming: string;
+  calendarFailed: string;
 };
 
 export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
@@ -249,6 +257,14 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     offered: "Waiting for your answer",
     pending: "Waiting for your answer",
     feeNote: "Tulala's fee is added on top for the client.",
+    calendarByChannel: "Calendar by channel",
+    mySiteHub: "My site / hub",
+    hold: "Hold",
+    booking: "Booking",
+    firm: "firm",
+    soft: "soft",
+    noUpcoming: "Nothing coming up.",
+    calendarFailed: "Could not load your calendar. Try again in a moment.",
   },
   es: {
     whereSold: "Dónde se vende",
@@ -271,6 +287,14 @@ export const CHANNEL_COPY: Record<"en" | "es", ChannelCopy> = {
     offered: "Esperando tu respuesta",
     pending: "Esperando tu respuesta",
     feeNote: "La comisión de Tulala se suma encima para el cliente.",
+    calendarByChannel: "Calendario por canal",
+    mySiteHub: "Mi sitio / hub",
+    hold: "Bloqueo",
+    booking: "Reserva",
+    firm: "firme",
+    soft: "provisional",
+    noUpcoming: "Nada próximo.",
+    calendarFailed: "No se pudo cargar tu calendario. Inténtalo de nuevo en un momento.",
   },
 };
 
