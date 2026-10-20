@@ -36,6 +36,7 @@ src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
+src/lib/billing/trial-session-reconcile.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
@@ -236,6 +237,7 @@ src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/publishable-key-server-resolved.test.ts
+src/lib/stripe/recurring-consent.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts
