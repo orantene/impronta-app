@@ -143,6 +143,8 @@ import {
 import { resolveLocalized } from "@/lib/i18n/resolve-localized";
 import { isLocalizableProp } from "@/lib/i18n/builder-i18n-props";
 import { localizeBlockNode } from "./block-i18n";
+import { RotatingWord } from "./rotating-word";
+import { cleanRotatingWords, splitRotate } from "./rotating-word-logic";
 import { mergeCategoriesByLabel } from "./catalog-category-label";
 import type {
   BuilderNavLink,
@@ -5466,6 +5468,11 @@ function renderBuilderNodeElement(
         options.contentLocale,
       );
       const cue = localeFallbackCue(resolved.isFallback, options.contentLocale);
+      // W-10: `{rotate}` in the text is replaced by the (localized) rotating words.
+      const rotateParts = splitRotate(resolved.value);
+      const rotateWords = rotateParts
+        ? cleanRotatingWords(localizeBlockNode(node, options.contentLocale).props.rotatingWords)
+        : [];
       return (
         <Tag
           key={node.id}
@@ -5480,7 +5487,15 @@ function renderBuilderNodeElement(
         >
           {wrapBlockHref(
             node.props.href,
-            renderInlineRich(resolved.value),
+            rotateParts ? (
+              <>
+                {renderInlineRich(rotateParts[0])}
+                <RotatingWord words={rotateWords} intervalMs={node.props.rotateMs} />
+                {renderInlineRich(rotateParts[1])}
+              </>
+            ) : (
+              renderInlineRich(resolved.value)
+            ),
             options.publicPathPrefix ?? "",
           )}
         </Tag>

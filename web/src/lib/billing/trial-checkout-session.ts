@@ -11,8 +11,8 @@
  * re-click is kept, because Stripe replays the cached session for that key.
  *
  * Best effort: a failed list or expire is logged and never blocks checkout.
- * Residual race: two creates in the same instant can each list before the
- * other exists. This MITIGATES the double trial; it does not eliminate it.
+ * Two creates in the same instant can each list before the other exists; the
+ * post-create reconcile (trial-session-reconcile.ts) closes that race.
  */
 
 export const TRIAL_SESSION_MARKER = "trial_checkout_key";
@@ -32,7 +32,8 @@ export type SessionStripe = {
 /**
  * Expires the customer's other open trial sessions and returns the marker to
  * ADD to this session's metadata ({} when this checkout carries no trial),
- * plus the ids it expired in THIS request (checkout-session-reopen.ts uses them
+ * plus the ids it expired in THIS request and whether another trial session is
+ * KNOWN still open (an expire failed), (checkout-session-reopen.ts uses them
  * to spot a replayed session that is already dead). Per Stripe customer: talent
  * and workspace customers are separate and never cross-swept.
  */
@@ -42,19 +43,21 @@ export async function sweepTrialSessions(
   trialDays: number | null,
   idempotencyKey: string,
   onError: (where: string, err: unknown) => void,
-): Promise<{ marker: Record<string, string>; expiredIds: Set<string> }> {
+): Promise<{ marker: Record<string, string>; expiredIds: Set<string>; otherTrialKnownOpen: boolean }> {
   const expiredIds = new Set<string>();
-  if (trialDays == null || trialDays <= 0) return { marker: {}, expiredIds };
+  if (trialDays == null || trialDays <= 0) return { marker: {}, expiredIds, otherTrialKnownOpen: false };
   const marker = { [TRIAL_SESSION_MARKER]: idempotencyKey };
-  if (!stripe) return { marker, expiredIds };
+  if (!stripe) return { marker, expiredIds, otherTrialKnownOpen: false };
 
   let open: { id: string; metadata?: Record<string, string> | null }[];
   try {
     open = (await stripe.checkout.sessions.list({ customer: customerId, status: "open", limit: 100 })).data;
   } catch (err) {
     onError("billing.trialSession.list", err);
-    return { marker, expiredIds };
+    return { marker, expiredIds, otherTrialKnownOpen: false };
   }
+  // An expire that failed leaves a trial session KNOWN open: the post-create reconcile fails closed on it.
+  let otherTrialKnownOpen = false;
   for (const s of open) {
     const key = s.metadata?.[TRIAL_SESSION_MARKER];
     if (!key || key === idempotencyKey) continue;
@@ -62,10 +65,11 @@ export async function sweepTrialSessions(
       await stripe.checkout.sessions.expire(s.id);
       expiredIds.add(s.id);
     } catch (err) {
+      otherTrialKnownOpen = true;
       onError("billing.trialSession.expire", err);
     }
   }
-  return { marker, expiredIds };
+  return { marker, expiredIds, otherTrialKnownOpen };
 }
 
 /** The metadata marker only (see sweepTrialSessions). */

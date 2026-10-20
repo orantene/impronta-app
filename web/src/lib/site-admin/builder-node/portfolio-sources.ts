@@ -149,6 +149,7 @@ export async function loadPortfolioSources(
       offeringId: linked?.id ?? null,
       offeringTitle: linked?.title ?? null,
       albumId: metaAlbum || null,
+      tag: typeof r.metadata?.tag === "string" && r.metadata.tag.trim() ? r.metadata.tag.trim().slice(0, 40) : null,
       width: r.width,
       height: r.height,
       sortOrder: r.sort_order ?? 0,
