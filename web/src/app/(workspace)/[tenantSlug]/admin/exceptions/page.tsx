@@ -25,6 +25,8 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadExceptions } from "@/lib/exceptions/read";
+import { localizePaymentFlagRows, paymentFlagUiCopy } from "@/lib/exceptions/payment-flag-copy";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { ExceptionsClient } from "./exceptions-client";
 
 export const dynamic = "force-dynamic";
@@ -57,13 +59,19 @@ export default async function ExceptionsPage({ params }: { params: PageParams })
     );
   }
 
-  const load = await loadExceptions(admin, { tenantId: scope.tenantId, tenantSlug });
+  const [load, locale] = await Promise.all([
+    loadExceptions(admin, { tenantId: scope.tenantId, tenantSlug }),
+    getRequestLocale(),
+  ]);
 
+  // Flagged card charges are worded here, on the server, so their en/es/fr
+  // sentences never ship in the admin client bundle (`payment-flag-copy.ts`).
   return (
     <ExceptionsClient
-      rows={load.rows}
+      rows={localizePaymentFlagRows(load.rows, locale)}
       summary={load.summary}
       unavailable={load.unavailable}
+      flagCopy={paymentFlagUiCopy(locale)}
     />
   );
 }

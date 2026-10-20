@@ -62,6 +62,7 @@ src/lib/catalog/tax.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
 src/lib/events/cancel-cascade.static.test.ts
+src/lib/events/ticket-payment-guard.test.ts
 src/lib/fulfilment/pipelines.test.ts
 src/lib/inquiry/counter-offer-currency.test.ts
 src/lib/inquiry/inquiry-engine-lifecycle.test.ts
@@ -170,6 +171,7 @@ src/lib/payments/pay-refund-status.test.ts
 src/lib/payments/pay-return-views.test.tsx
 src/lib/payments/pay-start-status.test.ts
 src/lib/payments/pay-theme.static.test.ts
+src/lib/payments/payment-review-flags.test.ts
 src/lib/payments/payments-method-source.static.test.ts
 src/lib/payments/payout-rail-policy.test.ts
 src/lib/payments/payout-release-gate.test.ts
