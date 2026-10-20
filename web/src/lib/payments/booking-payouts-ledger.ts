@@ -13,6 +13,7 @@
  */
 
 import { attemptLegTransfer } from "./payout-transfer-retry";
+import { unrecordedReversedCents } from "./charge-share-math";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripeFor } from "@/lib/stripe/client";
 import { decideReleasePlatform, loadChargePlatformForBooking } from "@/lib/stripe/charge-platform";
@@ -723,7 +724,7 @@ export async function reverseBookingPayouts(
     if (stripe) {
       try {
         const list = await stripe.transfers.list({ transfer_group: `booking_${bookingId}`, limit: 100 });
-        for (const t of list.data) reversedAlready.set(t.id, t.amount_reversed ?? 0);
+        for (const t of list.data) { reversedAlready.set(t.id, t.amount_reversed ?? 0); reversedAlready.set(`amount:${t.id}`, t.amount); }
       } catch (err) {
         logServerError(`booking-payouts.reverse.list[booking=${bookingId}]`, err);
       }
@@ -740,7 +741,7 @@ export async function reverseBookingPayouts(
       if (plan.mode === "partial") {
         const clawback = plan.workspaceClawbackByLeg?.get(reversalLegKey(leg.participant_id, leg.party)) ?? 0;
         if (leg.party !== "workspace" || leg.status !== "transferred" || clawback <= 0) continue;
-        const already = leg.stripe_transfer_id ? (reversedAlready.get(leg.stripe_transfer_id) ?? 0) : 0;
+        const already = leg.stripe_transfer_id ? unrecordedReversedCents(reversedAlready.get(leg.stripe_transfer_id) ?? 0, reversedAlready.get(`amount:${leg.stripe_transfer_id}`), leg.amount_cents) : 0;
         outcomes.push(
           await partialReverseLeg(sb, stripe, leg, clawback, plan.reference, plan.partialReversalAnchor ?? null, already),
         );
@@ -749,7 +750,8 @@ export async function reverseBookingPayouts(
 
       // ── mode 'full' ──
       if (leg.status === "transferred" && leg.stripe_transfer_id && stripe) {
-        const already = reversedAlready.get(leg.stripe_transfer_id) ?? 0;
+        // E5: a share-only refund already lowered amount_cents; subtract only reversals it does not reflect.
+        const already = unrecordedReversedCents(reversedAlready.get(leg.stripe_transfer_id) ?? 0, reversedAlready.get(`amount:${leg.stripe_transfer_id}`), leg.amount_cents);
         const remaining = Math.max(0, leg.amount_cents - already);
         let reversalId: string | null = null;
         if (remaining > 0) {

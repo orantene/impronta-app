@@ -141,6 +141,30 @@ test("updateLine changes quantity from stored unit price, not a purchase", async
   assert.equal(store.orders[0].total_cents, 15000);
 });
 
+test("E5 (TUL-1268 M9): the desk refuses a fractional quantity instead of truncating it", async () => {
+  // Before: 2.5 was truncated to 2 on add, 1.5 to 1 on update, and 0.5 to 0.
+  const store = makeStore();
+  seedOffering(store);
+  const created = await createDraftOrder(fakeAdmin(store), { tenantId: "t1", actorUserId: "u1" });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  for (const units of [2.5, 0.5]) {
+    const added = await addLine(fakeAdmin(store), { tenantId: "t1", orderId: created.orderId, line: { offeringId: "off-1", units } });
+    assert.equal(added.ok, false, `units=${units} must refuse`);
+    if (!added.ok) assert.equal(added.reason, "invalid");
+  }
+  assert.equal(store.order_lines.length, 0);
+
+  const whole = await addLine(fakeAdmin(store), { tenantId: "t1", orderId: created.orderId, line: { offeringId: "off-1", units: 2 } });
+  assert.equal(whole.ok, true);
+  const lineId = store.order_lines[0].id as string;
+  const updated = await updateLine(fakeAdmin(store), { tenantId: "t1", orderId: created.orderId, lineId, units: 1.5 });
+  assert.equal(updated.ok, false);
+  if (!updated.ok) assert.equal(updated.reason, "invalid");
+  assert.equal(store.order_lines[0].units, 2);
+  assert.equal(store.orders[0].total_cents, 10000);
+});
+
 test("adding a line on another workspace's draft writes nothing", async () => {
   const store = makeStore();
   seedOffering(store);

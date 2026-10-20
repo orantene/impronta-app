@@ -28,7 +28,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scopeToGuestVisibleRoster } from "@/lib/saas/talent-roster";
-import { scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
+import { scopeOfferingsFor, type CatalogScope } from "@/lib/offerings/guest-sellable";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import type { CatalogOption, CatalogRow, ItemAvailability, TicketTier } from "@/lib/messages-v5/items-picker";
@@ -82,7 +82,7 @@ export function pickScopedTalentId(input: { forcedTalentId: string | null | unde
   return input.talentOwned && input.contextTalentIds.length === 1 ? input.contextTalentIds[0] : null;
 }
 
-export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date }): Promise<ItemsCatalog> {
+export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date; scope?: CatalogScope }): Promise<ItemsCatalog> {
   const now = input.now ?? new Date();
   const [inqRes, tenantRes, tz] = await Promise.all([
     admin.from("inquiries").select("event_date, event_timezone, source_context").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
@@ -116,6 +116,7 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
     now,
     date,
     reservations: Boolean(preset.features.reservations),
+    scope: input.scope,
   });
 
   return { rows, date, timezone, preset: presetRaw };
@@ -132,18 +133,18 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
  */
 export async function loadCatalogRowsForScope(
   admin: Admin,
-  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean },
+  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean; scope?: CatalogScope },
 ): Promise<CatalogRow[]> {
-  const { tenantId, talentProfileId, forcedTalent, window, now, date, reservations } = input;
+  const { tenantId, talentProfileId, forcedTalent, window, now, date, reservations, scope } = input;
   if (forcedTalent && talentProfileId) {
-    return loadTalentProfileOfferingRows(admin, null, talentProfileId);
+    return loadTalentProfileOfferingRows(admin, null, talentProfileId, scope);
   }
   const [talent, offerings, sessions, tables] = await Promise.all([
     // A solo talent sells only their own services: the hub roster lists other
     // talents, so the Talent tab is not offered at all.
     talentProfileId ? Promise.resolve([] as CatalogRow[]) : loadTalentRows(admin, tenantId, window, now),
-    talentProfileId ? loadTalentProfileOfferingRows(admin, tenantId, talentProfileId) : loadOfferingRows(admin, tenantId),
-    loadSessionRows(admin, tenantId, now),
+    talentProfileId ? loadTalentProfileOfferingRows(admin, tenantId, talentProfileId, scope) : loadOfferingRows(admin, tenantId, scope),
+    loadSessionRows(admin, tenantId, now, scope),
     date && reservations ? loadTableRows(tenantId, date) : Promise.resolve([] as CatalogRow[]),
   ]);
   return [...talent, ...offerings, ...sessions, ...tables];
@@ -201,13 +202,15 @@ export async function loadTalentRows(admin: Admin, tenantId: string, window: { f
   }));
 }
 
-export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<CatalogRow[]> {
-  // D-10: published AND approved AND public (was status only), tenant-scoped.
-  const { data, error } = await scopeToGuestSellableOfferings(
+export async function loadOfferingRows(admin: Admin, tenantId: string, scope?: CatalogScope): Promise<CatalogRow[]> {
+  // D-10: guest = published AND approved AND public (was status only), tenant-scoped.
+  // TUL-1347: staff scope drops only the visibility gate.
+  const { data, error } = await scopeOfferingsFor(
     admin
       .from("talent_offerings")
       .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes, talent_profile_id")
       .eq("tenant_id", tenantId),
+    scope,
   )
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
@@ -247,7 +250,7 @@ export async function loadOfferingRows(admin: Admin, tenantId: string): Promise<
 }
 
 /** Her published services, with the option as a variant and extras as add-ons. */
-export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string | null, talentProfileId: string): Promise<CatalogRow[]> {
+export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: string | null, talentProfileId: string, scope?: CatalogScope): Promise<CatalogRow[]> {
   let query = admin
     .from("talent_offerings")
     .select("id, title, amount_cents, currency, kind, inventory_qty, capacity_pool_id, duration_minutes");
@@ -255,7 +258,7 @@ export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: stri
   if (tenantId) query = query.eq("tenant_id", tenantId);
   query = query.eq("talent_profile_id", talentProfileId);
   // D-10: the dock lists only published + approved + public (it also listed on_request).
-  const { data, error } = await scopeToGuestSellableOfferings(query)
+  const { data, error } = await scopeOfferingsFor(query, scope)
     .in("kind", ["package", "service", "product"])
     .order("sort_order", { ascending: true });
   if (error) {
@@ -301,7 +304,7 @@ export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: stri
   });
 }
 
-async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promise<CatalogRow[]> {
+async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?: CatalogScope): Promise<CatalogRow[]> {
   const { data, error } = await admin
     .from("sessions")
     .select("id, title, offering_id, event_id, starts_at, ends_at")
@@ -319,12 +322,13 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date): Promi
   if (withOffering.length === 0) return [];
   // D-10: a session is only as public as its offering. Without this an
   // agency_only / pending / draft offering's classes and tickets surfaced here.
-  const { data: sellable, error: sellableErr } = await scopeToGuestSellableOfferings(
+  const { data: sellable, error: sellableErr } = await scopeOfferingsFor(
     admin
       .from("talent_offerings")
       .select("id")
       .eq("tenant_id", tenantId)
       .in("id", [...new Set(withOffering.map((r) => r.offering_id as string))]),
+    scope,
   );
   if (sellableErr) {
     logServerError("messagesV5.itemsCatalog/sessionOfferings", sellableErr);
