@@ -14513,7 +14513,8 @@
           "already_closed": "That shift is already closed.",
           "not_allowed": "You do not have permission to do this.",
           "no_customer": "Attach a customer to this sale first.",
-          "item_unavailable": "This item is no longer available."
+          "item_unavailable": "This item is no longer available.",
+          "payment_required": "This class is paid, so the place cannot be confirmed before payment. To give it to them, decline this offer, then sell the place at the counter so it is paid."
         }
       },
       "newSale": "New sale",
