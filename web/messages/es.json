@@ -2474,6 +2474,16 @@
     }
   },
   "dashboard": {
+    "serviceHubListing": {
+      "status_offered": "Esperando al talento",
+      "status_accepted": "A la venta",
+      "status_hidden": "Oculto",
+      "belowFloor": "Este precio está por debajo de lo que acepta el talento más el mínimo del espacio ({floor}).",
+      "exclusiveOnly": "Este talento es exclusivo de otro espacio. Solo ese espacio y el hub de Tulala pueden vender este servicio.",
+      "needsConsent": "El talento tiene que aceptar antes de que este servicio se venda aquí.",
+      "floorBreached": "El talento subió su precio. Actualiza esta publicación; las ofertas abiertas mantienen su precio.",
+      "error": "No pudimos guardar la publicación. Inténtalo de nuevo."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Por hora",

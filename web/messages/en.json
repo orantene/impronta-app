@@ -2474,6 +2474,16 @@
     }
   },
   "dashboard": {
+    "serviceHubListing": {
+      "status_offered": "Waiting for the talent",
+      "status_accepted": "On sale",
+      "status_hidden": "Hidden",
+      "belowFloor": "This price is below what the talent accepts plus the workspace minimum ({floor}).",
+      "exclusiveOnly": "This talent is exclusive to another workspace. Only that workspace and the Tulala hub can sell this service.",
+      "needsConsent": "The talent has to accept before this service is sold here.",
+      "floorBreached": "The talent raised the price. Update this listing; open offers keep their price.",
+      "error": "We could not save the listing. Try again."
+    },
     "enums": {
       "servicePricing": {
         "hour": "Per hour",
