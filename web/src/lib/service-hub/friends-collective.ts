@@ -104,7 +104,7 @@ export function memberPriceLine(input: { name: string; priceCents: number; curre
 
 export type PresetDecision =
   | { ok: true; changed: boolean; set: { work_model: typeof FRIENDS_COLLECTIVE_MODEL; default_coordinator_user_id: string } }
-  | { ok: false; reason: "owner_only" | "over_seat_cap" | "model_already_set" };
+  | { ok: false; reason: "owner_only" | "over_seat_cap" | "model_already_set" | "coordinator_already_set" };
 
 /**
  * Applying the Friends collective preset to a workspace: only the OWNER can (it
@@ -122,6 +122,10 @@ export function decideFriendsCollectivePreset(input: {
   if (input.role !== "owner") return { ok: false, reason: "owner_only" };
   if (!input.seatOk) return { ok: false, reason: "over_seat_cap" };
   if (input.currentModel && input.currentModel !== FRIENDS_COLLECTIVE_MODEL) return { ok: false, reason: "model_already_set" };
+  // A coordinator someone chose on purpose is never overwritten: only an unset one, or the owner already.
+  if (input.defaultCoordinatorUserId !== null && input.defaultCoordinatorUserId !== input.ownerUserId) {
+    return { ok: false, reason: "coordinator_already_set" };
+  }
   const set = { work_model: FRIENDS_COLLECTIVE_MODEL, default_coordinator_user_id: input.ownerUserId } as const;
   const changed = input.currentModel !== FRIENDS_COLLECTIVE_MODEL || input.defaultCoordinatorUserId !== input.ownerUserId;
   return { ok: true, changed, set };

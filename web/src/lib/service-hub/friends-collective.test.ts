@@ -162,9 +162,17 @@ describe("applying the preset to a workspace (owner only, idempotent, respects s
       { ok: true, changed: false, set: { work_model: "friends_collective", default_coordinator_user_id: "u-owner" } },
     );
   });
-  test("it re-points the inbox at the owner if the coordinator drifted", () => {
-    const d = decideFriendsCollectivePreset({ ...base, currentModel: "friends_collective", defaultCoordinatorUserId: "someone-else" });
-    assert.equal(d.ok && d.changed, true);
+  test("a coordinator someone else already chose is never overwritten: refused with coordinator_already_set", () => {
+    for (const currentModel of [null, "friends_collective"]) {
+      assert.deepEqual(
+        decideFriendsCollectivePreset({ ...base, currentModel, defaultCoordinatorUserId: "someone-else" }),
+        { ok: false, reason: "coordinator_already_set" },
+      );
+    }
+  });
+  test("an unset coordinator, or the owner already, is fine", () => {
+    assert.equal(decideFriendsCollectivePreset({ ...base, defaultCoordinatorUserId: null }).ok, true);
+    assert.equal(decideFriendsCollectivePreset({ ...base, defaultCoordinatorUserId: "u-owner" }).ok, true);
   });
   test("admins and members cannot apply it; only the owner", () => {
     for (const role of ["admin", "editor", "viewer", null]) {
@@ -183,13 +191,19 @@ describe("applying the preset to a workspace (owner only, idempotent, respects s
 
 describe("the apply action and its held migration", () => {
   const act = read("./friends-collective-actions.ts");
+  test("the audit is written synchronously and records the previous model and coordinator", () => {
+    assert.match(act, /await logWorkspaceAudit\(/);
+    assert.doesNotMatch(act, /scheduleWorkspaceAudit\(/);
+    assert.match(act, /previous_work_model: row\.work_model/);
+    assert.match(act, /previous_coordinator: row\.default_coordinator_user_id/);
+  });
   test("owner-only, not impersonating, seat-checked, audited, writes only work_model and the coordinator", () => {
     assert.match(act, /^"use server";/);
     assert.match(act, /requireNotImpersonating\(\)/);
     assert.match(act, /requireWorkspaceStaffAction\(\)/);
     assert.match(act, /checkRosterSeatAvailability\(/);
     assert.match(act, /decideFriendsCollectivePreset\(/);
-    assert.match(act, /scheduleWorkspaceAudit\(/);
+    assert.match(act, /logWorkspaceAudit\(/);
     assert.match(act, /\.update\(decision\.set\)/);
   });
   test("the migration is held at the reserved version, additive, and limits work_model to the five models", () => {
@@ -198,6 +212,21 @@ describe("the apply action and its held migration", () => {
     for (const m of ["coordinator_agency", "open_network", "team_studio", "rental_studio", "friends_collective"]) assert.match(sql, new RegExp(m));
     assert.doesNotMatch(sql, /DROP TABLE|DELETE FROM|CREATE POLICY/);
     assert.match(sql, /Rollback/);
+  });
+  test("non-owner staff cannot change work_model or default_coordinator_user_id directly (the 418000 policies alone do NOT cover these columns)", () => {
+    const rls = readFileSync(new URL("../../../../supabase/migrations/_pending_pm/20261231418000_tenant_admin_tables_role_aware_rls.sql", import.meta.url), "utf8");
+    // 418000 lets any ACTIVE non-viewer member UPDATE agencies and narrows only the 418100 platform columns.
+    assert.match(rls, /agencies: UPDATE by ACTIVE non-viewer members/);
+    assert.doesNotMatch(rls, /work_model|default_coordinator_user_id/);
+    const sql = readFileSync(new URL("../../../../supabase/migrations/_pending_pm/20261231420200_agencies_work_model_tul1374.sql", import.meta.url), "utf8");
+    assert.match(sql, /CREATE OR REPLACE FUNCTION public\.agencies_protect_work_model\(\)/);
+    assert.match(sql, /current_user IN \('authenticated', 'anon'\)/);
+    assert.match(sql, /NEW\.work_model\s+IS DISTINCT FROM OLD\.work_model/);
+    assert.match(sql, /NEW\.default_coordinator_user_id\s+IS DISTINCT FROM OLD\.default_coordinator_user_id/);
+    assert.match(sql, /m\.role = 'owner'[\s\S]*m\.status = 'active'/);
+    assert.match(sql, /public\.is_platform_admin\(\)/);
+    assert.match(sql, /BEFORE UPDATE ON public\.agencies/);
+    assert.match(sql, /ERRCODE = '42501'/);
   });
 });
 

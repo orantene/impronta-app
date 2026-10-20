@@ -16,6 +16,48 @@ ALTER TABLE public.agencies
 COMMENT ON COLUMN public.agencies.work_model IS
   'How this workspace sells with its talents: coordinator_agency, open_network, team_studio, rental_studio or friends_collective. NULL = not chosen.';
 
+-- Who may change these two columns. 418000 (held) lets any ACTIVE non-viewer
+-- member UPDATE agencies and its 418100 trigger narrows only the plan / seats /
+-- status / Stripe columns, so an editor could still rewrite the model or point
+-- every request at another inbox through PostgREST. Same shape as
+-- agencies_protect_platform_columns (418100): browser sessions (authenticated /
+-- anon) must be the workspace OWNER (active) or a platform admin; the service
+-- role (our owner-only server actions) and SECURITY DEFINER functions are not
+-- 'authenticated' and pass.
+CREATE OR REPLACE FUNCTION public.agencies_protect_work_model()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon')
+     AND (
+          NEW.work_model                  IS DISTINCT FROM OLD.work_model
+       OR NEW.default_coordinator_user_id IS DISTINCT FROM OLD.default_coordinator_user_id
+     )
+     AND NOT public.is_platform_admin()
+     AND NOT EXISTS (
+       SELECT 1 FROM public.agency_memberships m
+        WHERE m.tenant_id = NEW.id
+          AND m.profile_id = auth.uid()
+          AND m.role = 'owner'
+          AND m.status = 'active'
+     ) THEN
+    RAISE EXCEPTION 'agencies.work_model and default_coordinator_user_id can only be changed by the workspace owner or the platform'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION public.agencies_protect_work_model() IS
+  'BEFORE UPDATE guard on agencies: work_model and default_coordinator_user_id change only via service role, SECURITY DEFINER functions, the active workspace owner or a platform admin (TUL-1374).';
+
+DROP TRIGGER IF EXISTS agencies_protect_work_model ON public.agencies;
+CREATE TRIGGER agencies_protect_work_model
+  BEFORE UPDATE ON public.agencies
+  FOR EACH ROW EXECUTE FUNCTION public.agencies_protect_work_model();
+
 -- The owner's share per member, set by the owner on the roster row (workspace x
 -- talent): a percentage (bps, 0..9000 = at most 90%) or a fixed amount in one
 -- currency. NULL = no share (the member keeps her whole line). Applied when an
@@ -38,4 +80,4 @@ ALTER TABLE public.agency_talent_roster
 COMMENT ON COLUMN public.agency_talent_roster.owner_share_kind IS
   'Friends collective: how the owner is paid from this member''s sales: percent (owner_share_bps, max 9000) or fixed (owner_share_cents + owner_share_currency). NULL = none.';
 
--- Rollback (manual): ALTER TABLE public.agencies DROP CONSTRAINT IF EXISTS agencies_work_model_chk; ALTER TABLE public.agencies DROP COLUMN IF EXISTS work_model; ALTER TABLE public.agency_talent_roster DROP CONSTRAINT IF EXISTS agency_talent_roster_owner_share_chk; ALTER TABLE public.agency_talent_roster DROP COLUMN IF EXISTS owner_share_kind, DROP COLUMN IF EXISTS owner_share_bps, DROP COLUMN IF EXISTS owner_share_cents, DROP COLUMN IF EXISTS owner_share_currency;
+-- Rollback (manual): DROP TRIGGER IF EXISTS agencies_protect_work_model ON public.agencies; DROP FUNCTION IF EXISTS public.agencies_protect_work_model(); ALTER TABLE public.agencies DROP CONSTRAINT IF EXISTS agencies_work_model_chk; ALTER TABLE public.agencies DROP COLUMN IF EXISTS work_model; ALTER TABLE public.agency_talent_roster DROP CONSTRAINT IF EXISTS agency_talent_roster_owner_share_chk; ALTER TABLE public.agency_talent_roster DROP COLUMN IF EXISTS owner_share_kind, DROP COLUMN IF EXISTS owner_share_bps, DROP COLUMN IF EXISTS owner_share_cents, DROP COLUMN IF EXISTS owner_share_currency;

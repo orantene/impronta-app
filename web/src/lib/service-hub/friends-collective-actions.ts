@@ -10,7 +10,7 @@
  * (TUL-1369) call this; nothing else writes `work_model`.
  */
 import { revalidatePath } from "next/cache";
-import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { logWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -21,7 +21,7 @@ import { decideFriendsCollectivePreset, decideMemberShareUpdate, type OwnerShare
 
 export type ApplyPresetResult =
   | { ok: true; changed: boolean }
-  | { ok: false; reason: "unauthenticated" | "owner_only" | "over_seat_cap" | "model_already_set" | "unavailable"; message?: string };
+  | { ok: false; reason: "unauthenticated" | "owner_only" | "over_seat_cap" | "model_already_set" | "coordinator_already_set" | "unavailable"; message?: string };
 
 export async function applyFriendsCollectivePreset(): Promise<ApplyPresetResult> {
   await requireNotImpersonating();
@@ -67,14 +67,20 @@ export async function applyFriendsCollectivePreset(): Promise<ApplyPresetResult>
         logServerError("friends-collective.apply", error);
         return { ok: false, reason: "unavailable" };
       }
-      scheduleWorkspaceAudit({
+      // Written synchronously, with what it replaced (the previous coordinator can be restored from here).
+      await logWorkspaceAudit({
         tenantId,
         category: "settings",
         action: "workspace.work_model.set",
         summary: "Set the workspace model to Friends collective",
         targetType: "agency",
         targetId: tenantId,
-        metadata: { work_model: decision.set.work_model, coordinator: "owner" },
+        metadata: {
+          work_model: decision.set.work_model,
+          previous_work_model: row.work_model,
+          coordinator: "owner",
+          previous_coordinator: row.default_coordinator_user_id,
+        },
       });
       revalidatePath("/", "layout");
     }
@@ -134,7 +140,7 @@ export async function setMemberOwnerShare(input: {
       logServerError("friends-collective.setMemberShare", error);
       return { ok: false, reason: "unavailable" };
     }
-    scheduleWorkspaceAudit({
+    await logWorkspaceAudit({
       tenantId,
       category: "roster",
       action: "workspace.owner_share.set",
