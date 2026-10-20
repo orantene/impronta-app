@@ -64,6 +64,12 @@ test("refuses what it cannot do safely", () => {
   assert.deepEqual(planReplacement({ lines: [], droppedTalentId: "t1", replacement: newbie }), { ok: false, reason: "not_on_offer" });
 });
 
+test("refuses a replacement who is already on the offer, and an empty id", () => {
+  assert.deepEqual(planReplacement({ lines, droppedTalentId: "t1", replacement: { ...newbie, talentProfileId: "t2" } }), { ok: false, reason: "already_on_offer" });
+  assert.deepEqual(planReplacement({ lines, droppedTalentId: "", replacement: newbie }), { ok: false, reason: "invalid_id" });
+  assert.deepEqual(planReplacement({ lines, droppedTalentId: "t1", replacement: { ...newbie, talentProfileId: "  " } }), { ok: false, reason: "invalid_id" });
+});
+
 test("the original lines are never mutated", () => {
   const before = JSON.stringify(lines);
   planReplacement({ lines, droppedTalentId: "t1", replacement: newbie });

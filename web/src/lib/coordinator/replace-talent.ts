@@ -34,7 +34,7 @@ export type ReplacementPlan =
       clientNotice: "none" | "person_changed";
       notify: { dropped: string; added: string };
     }
-  | { ok: false; reason: "not_on_offer" | "same_person" | "invalid_cost" };
+  | { ok: false; reason: "not_on_offer" | "same_person" | "already_on_offer" | "invalid_id" | "invalid_cost" };
 
 const shown = (w: OfferLine["showWho"]) => w === "name" || w === "portfolio";
 
@@ -44,9 +44,14 @@ export function planReplacement(input: {
   replacement: Replacement;
 }): ReplacementPlan {
   const { droppedTalentId, replacement } = input;
+  if (!droppedTalentId.trim() || !replacement.talentProfileId.trim()) return { ok: false, reason: "invalid_id" };
   const theirs = input.lines.filter((l) => l.kind === "talent" && l.talentProfileId === droppedTalentId);
   if (theirs.length === 0) return { ok: false, reason: "not_on_offer" };
   if (replacement.talentProfileId === droppedTalentId) return { ok: false, reason: "same_person" };
+  // Someone already staffed on this offer cannot also be the replacement (it would double-book them).
+  if (input.lines.some((l) => l.kind === "talent" && l.talentProfileId === replacement.talentProfileId)) {
+    return { ok: false, reason: "already_on_offer" };
+  }
   if (!Number.isFinite(replacement.costCents) || replacement.costCents < 0 || !Number.isInteger(replacement.costCents)) {
     return { ok: false, reason: "invalid_cost" };
   }
