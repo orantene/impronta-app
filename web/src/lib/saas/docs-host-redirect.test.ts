@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { DOCS_HOST_REDIRECT_TARGET, TULALA_DOCS_HOST, docsHostRedirect } from "./docs-host-redirect";
+import { DOCS_HOST_REDIRECT_TARGET, TULALA_DOCS_HOST, docsHostRedirect, docsHostResponse } from "./docs-host-redirect";
 
 test("docs host hops to the help center", () => {
   assert.equal(TULALA_DOCS_HOST, "docs.tulala.digital");
@@ -37,8 +37,23 @@ test("no other host is ever redirected", () => {
 
 test("the proxy runs the docs redirect before host resolution", () => {
   const proxy = readFileSync(join(__dirname, "../../proxy.ts"), "utf8");
-  const redirectAt = proxy.indexOf("docsHostRedirect(");
+  const redirectAt = proxy.indexOf("docsHostResponse(");
   const resolveAt = proxy.indexOf("resolveTenantContext(request, hostHeader)");
-  assert.ok(redirectAt > 0, "proxy.ts must call docsHostRedirect");
+  assert.ok(redirectAt > 0, "proxy.ts must call docsHostResponse");
   assert.ok(redirectAt < resolveAt, "docs redirect must precede host resolution");
+});
+
+test("the proxy response is a 308 to /help, a 421 for unsafe methods, and null elsewhere", () => {
+  const hop = docsHostResponse("docs.tulala.digital", "GET");
+  assert.ok(hop);
+  assert.equal(hop.status, 308);
+  assert.equal(hop.headers.get("location"), "https://tulala.digital/help");
+  assert.equal(docsHostResponse("docs.tulala.digital", "POST")?.status, 421);
+  assert.equal(docsHostResponse("tulala.digital", "GET"), null);
+});
+
+test("proxy.ts stays under its line cap and keeps the docs call to a couple of lines", () => {
+  const proxy = readFileSync(join(__dirname, "../../proxy.ts"), "utf8");
+  assert.ok(proxy.split("\n").length <= 800);
+  assert.equal(proxy.split("\n").filter((l) => l.includes("docsHostResponse")).length, 2);
 });

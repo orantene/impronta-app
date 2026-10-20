@@ -57,7 +57,7 @@ import {
 import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
-import { docsHostRedirect } from "@/lib/saas/docs-host-redirect";
+import { docsHostResponse } from "@/lib/saas/docs-host-redirect";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect"; import { hubSearchRedirect } from "@/lib/saas/hub-search-redirect";
@@ -160,19 +160,8 @@ async function proxyInner(request: NextRequest) {
     });
   }
 
-  // docs.tulala.digital is reserved for developer docs later; until then it
-  // hops to the help center (TUL-1393). Before host resolution on purpose: the
-  // redirect must work whether or not the host row is seeded.
-  {
-    const docsHop = docsHostRedirect(hostHeader, request.method);
-    if (docsHop?.kind === "redirect") return NextResponse.redirect(docsHop.location, 308);
-    if (docsHop?.kind === "wrong_method") {
-      return new NextResponse("Misdirected request: use tulala.digital for this method.", {
-        status: 421,
-        headers: { "content-type": "text/plain; charset=utf-8" },
-      });
-    }
-  }
+  const docsHop = docsHostResponse(hostHeader, request.method);
+  if (docsHop) return docsHop;
 
   const hostContext = await timed("proxy.resolveTenantContext", resolveTenantContext(request, hostHeader));
 
