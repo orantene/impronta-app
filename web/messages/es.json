@@ -1763,7 +1763,9 @@
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
       "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
-      "contactCta": "Enviar un mensaje"
+      "contactCta": "Enviar un mensaje",
+      "noTimesRequest": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
+      "requestCta": "Enviar una solicitud"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",

@@ -1763,7 +1763,9 @@
       "chooseService": "Service",
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
-      "contactCta": "Send a message"
+      "contactCta": "Send a message",
+      "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "requestCta": "Send a request"
     },
     "siteShellSurface": {
       "title": "Site header & footer",
