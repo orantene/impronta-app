@@ -50,3 +50,13 @@ test("name is trimmed; a featured entry cannot also be hidden", () => {
   assert.deepEqual(validateEntryPatch({ featured: true, hidden: true }, ["editor"]), { ok: false, reason: "invalid", fields: ["featured", "hidden"] });
   assert.deepEqual(validateEntryPatch({ featured: true, hidden: false }, ["editor"]), { ok: true, patch: { featured: true, hidden: false } });
 });
+
+import { hubRolesFromMembership } from "./entry-permissions";
+
+test("membership roles map to hub roles; viewer and unknown map to nothing", () => {
+  assert.deepEqual(hubRolesFromMembership("owner"), ["admin"]);
+  assert.deepEqual(hubRolesFromMembership("admin"), ["admin"]);
+  assert.deepEqual(hubRolesFromMembership("coordinator"), ["manager"]);
+  assert.deepEqual(hubRolesFromMembership("editor"), ["editor"]);
+  for (const r of ["viewer", "", null, undefined, "root"]) assert.deepEqual(hubRolesFromMembership(r as never), []);
+});

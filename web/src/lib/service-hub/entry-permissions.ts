@@ -120,3 +120,22 @@ export function validateEntryPatch(input: Record<string, unknown>, roles: readon
   if (bad.length > 0) return { ok: false, reason: "invalid", fields: bad };
   return { ok: true, patch };
 }
+
+/**
+ * The workspace membership roles (agency_memberships.role) as hub roles.
+ * owner and admin change terms and money; coordinator coordinates and sends
+ * offers; editor edits entries; viewer and anything unknown can do nothing.
+ */
+export function hubRolesFromMembership(role: string | null | undefined): HubRole[] {
+  switch (role) {
+    case "owner":
+    case "admin":
+      return ["admin"];
+    case "coordinator":
+      return ["manager"];
+    case "editor":
+      return ["editor"];
+    default:
+      return [];
+  }
+}
