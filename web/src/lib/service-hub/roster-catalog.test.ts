@@ -20,7 +20,8 @@ const item = (over: Partial<RosterServiceItem> = {}): RosterServiceItem => ({
 
 test("a roster entry becomes a catalog service labelled roster, request-only, in the service currency", () => {
   const [s] = rosterServicesToCatalog([item()], "en");
-  assert.equal(s!.id, "S1");
+  assert.equal(s!.id, "roster_L1", "opaque, listing-derived: never the real offering id");
+  assert.equal(s!.guest_sellable, false, "request-only: not guest-sellable");
   assert.equal(s!.title, "Chef for dinners");
   assert.equal(s!.source, "roster");
   assert.equal(s!.booking, "request", "request-only until the listing checkout reader is wired");
@@ -45,10 +46,11 @@ test("show-who: the talent name only when the entry shows it; never a profile id
   assert.ok(!JSON.stringify(rosterServicesToCatalog([item()], "en")).match(/tp1|phone|email|whatsapp/i));
 });
 
-test("merge: roster entries follow the workspace's own services; an id already listed is not duplicated", () => {
+test("merge: roster entries follow the workspace's own services and never expose a real offering id", () => {
   const own = [{ id: "OWN", title: "House service", description: null, category: null, duration_minutes: null, price: "$500", amount_cents: 50000, currency: "MXN", guest_sellable: true as const }];
   const merged = mergeRosterIntoCatalog(own, rosterServicesToCatalog([item(), item({ offeringId: "OWN", listingId: "L2" })], "en"));
-  assert.deepEqual(merged.map((s) => s.id), ["OWN", "S1"]);
+  assert.deepEqual(merged.map((s) => s.id), ["OWN", "roster_L1", "roster_L2"]);
+  assert.ok(!JSON.stringify(rosterServicesToCatalog([item({ talentName: null, talentProfileId: null })], "en")).includes("S1"), "a hidden-who entry never leaks the offering id");
 });
 
 test("the route merges roster services for AGENCY hosts only (never the shared hub host)", () => {

@@ -64,7 +64,7 @@ test("wiring: guest scope only, host-resolved tenant, request-only flag reaches 
   assert.match(catalog, /input\.includeRoster && !talentProfileId \? await loadWorkspaceRosterServices\(admin, input\.tenantId\)/);
   const actions = read("src/app/t/[profileCode]/_actions/guest-catalog-actions.ts");
   assert.match(actions, /guestCatalogTenantAllowed/);
-  assert.match(actions, /includeRoster: true/);
+  assert.match(actions, /includeRoster: tenantKind !== "hub"/);
   assert.doesNotMatch(read("src/lib/server-actions/messaging-items.ts"), /includeRoster/, "staff Messages never asks for the roster rows");
   assert.match(actions, /requestOnly: r\.requestOnly === true/);
   const dock = read("src/app/t/[profileCode]/_chat/GuestDockCatalog.tsx");

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { CATALOG_PROFILE_COLUMNS, isPublicCatalogProfile, type CatalogProfileRow } from "@/lib/offerings/business-catalog";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -86,6 +87,29 @@ export function rosterServicePriceCents(
  * `host.tenantId`). Show-who "portfolio" returns the talent profile id ON PURPOSE: portfolio
  * means show the talent's public profile.
  */
+const SELLABLE_TTL_MS = 30_000;
+const SELLABLE_CACHE_MAX = 500;
+const sellableCache = new Map<string, { ok: boolean; at: number }>();
+
+/** @internal tests only */
+export function _resetRosterSellableCacheForTests(): void {
+  sellableCache.clear();
+}
+
+async function sellableVerdict(admin: Admin, listingId: string): Promise<boolean> {
+  const hit = sellableCache.get(listingId);
+  if (hit && Date.now() - hit.at < SELLABLE_TTL_MS) return hit.ok;
+  const { data, error } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: listingId });
+  if (error) {
+    logServerError("serviceHub.rosterServices.sellable", error);
+    return false; // an error is never cached: the next render asks again
+  }
+  const ok = data === true;
+  if (sellableCache.size >= SELLABLE_CACHE_MAX) sellableCache.clear();
+  sellableCache.set(listingId, { ok, at: Date.now() });
+  return ok;
+}
+
 export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string): Promise<RosterServiceItem[]> {
   if (!tenantId) return [];
 
@@ -104,18 +128,12 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   const listings = ((raw ?? []) as ListingRow[]).filter((l) => l.tenant_id === tenantId && l.status === "accepted");
   if (listings.length === 0) return [];
 
-  // The database decides sellable. Any error or false hides the entry.
-  // TODO(TUL-1372): one RPC per listing (N+1). Batch it (a set-returning sellable check) once the
-  // listing table is applied and the row counts justify it.
-  const sellable = new Set<string>();
-  for (const l of listings) {
-    const { data, error: rpcErr } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: l.id });
-    if (rpcErr) {
-      logServerError("serviceHub.rosterServices.sellable", rpcErr);
-      continue;
-    }
-    if (data === true) sellable.add(l.id);
-  }
+  // The database decides sellable. Any error or false hides the entry. The checks run in parallel
+  // and verdicts are cached briefly per listing (SELLABLE_TTL_MS), so a public page render does not
+  // repeat one RPC per listing on every visit. A revoked listing can therefore linger up to the TTL.
+  // TODO(TUL-1372): replace with one set-returning sellable RPC once the listing table is applied.
+  const verdicts = await Promise.all(listings.map(async (l) => [l.id, await sellableVerdict(admin, l.id)] as const));
+  const sellable = new Set(verdicts.filter(([, ok]) => ok).map(([id]) => id));
   const live = listings.filter((l) => sellable.has(l.id));
   if (live.length === 0) return [];
 
@@ -146,13 +164,26 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
     ((offerings ?? []) as Array<{ id: string; talent_profile_id: string | null; title: string | null; amount_cents: number | null; currency: string | null; status: string; moderation_state: string }>).map((o) => [o.id, o]),
   );
 
-  const namedTalentIds = [...new Set(live.filter((l) => l.show_who === "name").map((l) => l.talent_profile_id))];
+  // PRIVACY: an entry that NAMES the talent (show-who name or portfolio) is shown only while the
+  // talent passes the same public-directory predicate the directory and the catalog API use. A talent
+  // hidden from the directory is never named, whichever flag hides them; the entry is dropped.
+  const namedTalentIds = [...new Set(live.filter((l) => l.show_who !== "hidden").map((l) => l.talent_profile_id))];
   const names = new Map<string, string>();
+  const publicTalent = new Set<string>();
   if (namedTalentIds.length > 0) {
-    const { data: people, error: nameErr } = await admin.from("talent_profiles").select("id, display_name").in("id", namedTalentIds);
-    if (nameErr) logServerError("serviceHub.rosterServices.names", nameErr);
-    for (const p of (people ?? []) as Array<{ id: string; display_name: string | null }>) {
-      if (p.display_name?.trim()) names.set(p.id, p.display_name.trim());
+    const { data: people, error: nameErr } = await admin
+      .from("talent_profiles")
+      .select(`${CATALOG_PROFILE_COLUMNS}, display_name`)
+      .in("id", namedTalentIds);
+    if (nameErr) {
+      // Unknown visibility is not a yes: no named entry is shown.
+      logServerError("serviceHub.rosterServices.names", nameErr);
+    } else {
+      for (const p of (people ?? []) as unknown as Array<CatalogProfileRow & { display_name: string | null }>) {
+        if (!isPublicCatalogProfile(p)) continue;
+        publicTalent.add(p.id);
+        if (p.display_name?.trim()) names.set(p.id, p.display_name.trim());
+      }
     }
   }
 
@@ -162,6 +193,7 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
     if (!o || o.talent_profile_id !== l.talent_profile_id) continue; // the service must belong to the listing's talent
     if (o.status !== "published" || o.moderation_state !== "approved") continue;
     if (!active.has(l.talent_profile_id)) continue;
+    if (l.show_who !== "hidden" && !publicTalent.has(l.talent_profile_id)) continue;
     // Fail closed: no currency means no honest label for the price, so the item is skipped.
     const currency = (l.currency || o.currency || "").trim().toUpperCase();
     if (!currency) continue;

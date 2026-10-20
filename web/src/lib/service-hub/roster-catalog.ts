@@ -15,7 +15,9 @@ import type { CatalogRow } from "@/lib/messages-v5/items-picker";
 
 import type { RosterServiceItem } from "./roster-services";
 
-export type RosterCatalogService = BusinessCatalogService & {
+export type RosterCatalogService = Omit<BusinessCatalogService, "guest_sellable"> & {
+  /** Request-only: a roster entry is never guest-sellable (no instant charge). */
+  guest_sellable: false;
   source: "roster";
   /** the talent's name when this entry shows it, else null */
   talent: string | null;
@@ -29,7 +31,8 @@ export function rosterServicesToCatalog(items: readonly RosterServiceItem[], loc
     const money = i.priceCents == null ? null : formatDashboardMoneyCents(i.priceCents, i.currency, locale);
     const price = money == null ? (isEs(locale) ? "A cotizar" : "Quote") : i.priceIsFrom ? `${isEs(locale) ? "Desde" : "From"} ${money}` : money;
     return {
-      id: i.offeringId,
+      // Opaque, listing-derived: never the real offering id (a hidden-who entry must not leak it).
+      id: `roster_${i.listingId}`,
       title: i.title.trim(),
       description: null,
       category: null,
@@ -37,7 +40,7 @@ export function rosterServicesToCatalog(items: readonly RosterServiceItem[], loc
       price,
       amount_cents: i.priceCents,
       currency: i.currency,
-      guest_sellable: true as const,
+      guest_sellable: false as const,
       source: "roster" as const,
       talent: i.talentName,
       booking: "request" as const,
@@ -45,7 +48,7 @@ export function rosterServicesToCatalog(items: readonly RosterServiceItem[], loc
   });
 }
 
-/** The workspace's own services first, then roster entries; an id already listed is not repeated. */
+/** The workspace's own services first, then roster entries (their ids are opaque and cannot collide). */
 export function mergeRosterIntoCatalog<T extends { id: string }>(own: readonly T[], roster: readonly RosterCatalogService[]): Array<T | RosterCatalogService> {
   const seen = new Set(own.map((s) => s.id));
   return [...own, ...roster.filter((r) => !seen.has(r.id))];

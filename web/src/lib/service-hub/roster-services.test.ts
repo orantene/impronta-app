@@ -8,9 +8,11 @@
  * Run: NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' npx tsx --test src/lib/service-hub/roster-services.test.ts
  */
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { beforeEach, test } from "node:test";
 
-import { loadWorkspaceRosterServices, rosterServicePriceCents } from "./roster-services";
+import { _resetRosterSellableCacheForTests, loadWorkspaceRosterServices, rosterServicePriceCents } from "./roster-services";
+
+beforeEach(() => _resetRosterSellableCacheForTests());
 
 type Row = Record<string, unknown>;
 
@@ -65,7 +67,7 @@ const WORLD = (): Record<string, Row[]> => ({
     { tenant_id: A, talent_profile_id: TALENT, status: "active" },
     { tenant_id: B, talent_profile_id: TALENT, status: "active" },
   ],
-  talent_profiles: [{ id: TALENT, display_name: "Rafa Chef" }],
+  talent_profiles: [{ id: TALENT, display_name: "Rafa Chef", deleted_at: null, is_publicly_hidden: false, is_publicly_listed: true, visibility: "public", profile_kind: "talent" }],
 });
 
 test("a talent in two workspaces: workspace A shows only A's listing, B only B's, and an unlisted service never appears", async () => {
@@ -155,4 +157,40 @@ test("a listing with no currency (on the listing or the service) is skipped, nev
   w2.workspace_service_listings = [listing({ currency: "" })];
   const [item] = await loadWorkspaceRosterServices(fakeAdmin(w2).client, A);
   assert.equal(item!.currency, "MXN");
+});
+
+// ── Consultant review (TUL-1372): privacy, caching ─────────────────────────────
+
+test("PRIVACY: a talent hidden from the public directory is never named, whatever the flag that hides them", async () => {
+  for (const hidden of [
+    { is_publicly_hidden: true },
+    { is_publicly_listed: false },
+    { visibility: "private" },
+    { deleted_at: "2026-10-01" },
+    { profile_kind: "resource" },
+  ]) {
+    const w = WORLD();
+    w.talent_profiles = [{ ...w.talent_profiles![0], ...hidden }];
+    for (const showWho of ["name", "portfolio"]) {
+      w.workspace_service_listings = [listing({ show_who: showWho })];
+      assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A), [], `${JSON.stringify(hidden)} ${showWho}`);
+    }
+  }
+  // An entry that names nobody (show-who hidden) does not need the talent to be public.
+  const w = WORLD();
+  w.talent_profiles = [{ ...w.talent_profiles![0], is_publicly_hidden: true }];
+  w.workspace_service_listings = [listing({ show_who: "hidden" })];
+  const [anon] = await loadWorkspaceRosterServices(fakeAdmin(w).client, A);
+  assert.equal(anon!.talentName, null);
+  assert.equal(anon!.talentProfileId, null);
+});
+
+test("sellable checks run in parallel and are cached, so a public page does not repeat them", async () => {
+  const w = WORLD();
+  w.workspace_service_listings = [listing({ id: "La", offering_id: "S1" }), listing({ id: "Lb", offering_id: "S1" })];
+  const admin = fakeAdmin(w);
+  await loadWorkspaceRosterServices(admin.client, A);
+  assert.equal(admin.rpcCalls.length, 2);
+  await loadWorkspaceRosterServices(admin.client, A);
+  assert.equal(admin.rpcCalls.length, 2, "the second render reuses the cached verdicts");
 });

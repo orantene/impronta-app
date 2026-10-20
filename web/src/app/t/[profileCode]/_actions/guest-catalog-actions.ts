@@ -94,7 +94,7 @@ export async function getGuestItemsCatalog(raw: { tenantSlug: string; inquiryId?
       pageTalentId = await publicProfileIdByCode(admin, parsed.data.profileCode);
       if (!pageTalentId) return { ok: true, groups: [] };
     }
-    const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000", talentProfileId: pageTalentId, includeRoster: true });
+    const catalog = await loadItemsCatalog(admin, { tenantId, inquiryId: parsed.data.inquiryId ?? "00000000-0000-0000-0000-000000000000", talentProfileId: pageTalentId, includeRoster: tenantKind !== "hub" });
     const codes = await profileCodes(admin, catalog.rows.map((r) => r.talentProfileId).filter((v): v is string => Boolean(v)));
     // The shared reader lists the whole roster for staff. A visitor sees only
     // what the public directory shows (D-MSG-222): a person the directory
