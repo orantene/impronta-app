@@ -164,10 +164,10 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
     ((offerings ?? []) as Array<{ id: string; talent_profile_id: string | null; title: string | null; amount_cents: number | null; currency: string | null; status: string; moderation_state: string }>).map((o) => [o.id, o]),
   );
 
-  // PRIVACY: an entry that NAMES the talent (show-who name or portfolio) is shown only while the
-  // talent passes the same public-directory predicate the directory and the catalog API use. A talent
-  // hidden from the directory is never named, whichever flag hides them; the entry is dropped.
-  const namedTalentIds = [...new Set(live.filter((l) => l.show_who !== "hidden").map((l) => l.talent_profile_id))];
+  // PRIVACY: EVERY entry is shown only while its talent passes the same public-directory predicate the
+  // directory and the catalog API use. A talent hidden from the directory is never named OR sold
+  // anonymously, whichever flag hides them; the entry is dropped. Show-who only controls the name.
+  const namedTalentIds = [...new Set(live.map((l) => l.talent_profile_id))];
   const names = new Map<string, string>();
   const publicTalent = new Set<string>();
   if (namedTalentIds.length > 0) {
@@ -176,7 +176,7 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
       .select(`${CATALOG_PROFILE_COLUMNS}, display_name`)
       .in("id", namedTalentIds);
     if (nameErr) {
-      // Unknown visibility is not a yes: no named entry is shown.
+      // Unknown visibility is not a yes: no entry is shown.
       logServerError("serviceHub.rosterServices.names", nameErr);
     } else {
       for (const p of (people ?? []) as unknown as Array<CatalogProfileRow & { display_name: string | null }>) {
@@ -193,7 +193,8 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
     if (!o || o.talent_profile_id !== l.talent_profile_id) continue; // the service must belong to the listing's talent
     if (o.status !== "published" || o.moderation_state !== "approved") continue;
     if (!active.has(l.talent_profile_id)) continue;
-    if (l.show_who !== "hidden" && !publicTalent.has(l.talent_profile_id)) continue;
+    // Show-who only controls the NAME: anonymous selling of a hidden talent is not allowed either.
+    if (!publicTalent.has(l.talent_profile_id)) continue;
     // Fail closed: no currency means no honest label for the price, so the item is skipped.
     const currency = (l.currency || o.currency || "").trim().toUpperCase();
     if (!currency) continue;

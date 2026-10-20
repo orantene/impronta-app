@@ -176,11 +176,15 @@ test("PRIVACY: a talent hidden from the public directory is never named, whateve
       assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A), [], `${JSON.stringify(hidden)} ${showWho}`);
     }
   }
-  // An entry that names nobody (show-who hidden) does not need the talent to be public.
+  // Anonymous selling of a hidden talent is NOT allowed either: show-who only controls the NAME.
   const w = WORLD();
   w.talent_profiles = [{ ...w.talent_profiles![0], is_publicly_hidden: true }];
   w.workspace_service_listings = [listing({ show_who: "hidden" })];
-  const [anon] = await loadWorkspaceRosterServices(fakeAdmin(w).client, A);
+  assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A), []);
+  // A visible talent with show-who hidden is shown anonymously.
+  const visible = WORLD();
+  visible.workspace_service_listings = [listing({ show_who: "hidden" })];
+  const [anon] = await loadWorkspaceRosterServices(fakeAdmin(visible).client, A);
   assert.equal(anon!.talentName, null);
   assert.equal(anon!.talentProfileId, null);
 });

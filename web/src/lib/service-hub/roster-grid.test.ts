@@ -56,7 +56,8 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 test("wiring: tenant pages only, the widget renders the grid, no checkout in the client component", () => {
   const sources = read("src/components/home/homepage-cms-data-sources.ts");
-  assert.match(sources, /nativeNeeds\.servicesCatalog && !catalogTalentId && tenantId[\s\S]{0,200}loadWorkspaceRosterServices\(/);
+  assert.match(sources, /nativeNeeds\.servicesCatalog && !catalogTalentId && tenantId[\s\S]{0,400}loadWorkspaceRosterServices\(/);
+  assert.match(sources, /getPlatformHubTenant\(\)[\s\S]{0,200}hub\?\.tenantId !== dataTenantId|dataTenantId !== hub/, "the shared hub tenant never gets roster services");
   const render = read("src/lib/site-admin/builder-node/render.tsx");
   assert.match(render, /RosterServicesGrid/);
   assert.match(render, /rosterServices/);
