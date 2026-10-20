@@ -1,4 +1,5 @@
 import "server-only";
+import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -98,7 +99,8 @@ export async function loadTalentChipInfo(
   // the default for a talent with no published reviews, so the caller treats
   // 0 as "no rating" and renders nothing (absence is neutral).
   try {
-    const { data: standing } = await supabase
+    // TUL-1382: service client, keyed by ids the caller already scoped.
+    const { data: standing } = await (await staffTalentClient(supabase))
       .from("talent_profiles")
       .select("id, rating_avg, rating_count")
       .in("id", ids);
