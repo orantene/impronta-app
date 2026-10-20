@@ -26,7 +26,7 @@
  * `dataSources`. A builder node holds no tenant id and issues no query, so a
  * cross-tenant leak is not reachable from the render path at all.
  */
-import { loadOfferingChildren } from "@/lib/talent/offerings-children";
+import { loadOfferingChildren } from "@/lib/talent/offerings-children-read";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { pickLocale } from "@/lib/i18n/pick-locale";
