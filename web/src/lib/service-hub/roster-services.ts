@@ -80,6 +80,12 @@ export function rosterServicePriceCents(
   }
 }
 
+/**
+ * `tenantId` must be AUTHORIZED by the caller: staff of that tenant, or the public host's
+ * resolved tenant. Never a client-supplied value (the public catalog route passes
+ * `host.tenantId`). Show-who "portfolio" returns the talent profile id ON PURPOSE: portfolio
+ * means show the talent's public profile.
+ */
 export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string): Promise<RosterServiceItem[]> {
   if (!tenantId) return [];
 
@@ -99,6 +105,8 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   if (listings.length === 0) return [];
 
   // The database decides sellable. Any error or false hides the entry.
+  // TODO(TUL-1372): one RPC per listing (N+1). Batch it (a set-returning sellable check) once the
+  // listing table is applied and the row counts justify it.
   const sellable = new Set<string>();
   for (const l of listings) {
     const { data, error: rpcErr } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: l.id });
@@ -154,6 +162,9 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
     if (!o || o.talent_profile_id !== l.talent_profile_id) continue; // the service must belong to the listing's talent
     if (o.status !== "published" || o.moderation_state !== "approved") continue;
     if (!active.has(l.talent_profile_id)) continue;
+    // Fail closed: no currency means no honest label for the price, so the item is skipped.
+    const currency = (l.currency || o.currency || "").trim().toUpperCase();
+    if (!currency) continue;
     out.push({
       listingId: l.id,
       offeringId: l.offering_id,
@@ -165,7 +176,7 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
         o.amount_cents,
       ),
       priceIsFrom: l.price_mode === "from",
-      currency: (l.currency || o.currency || "").toUpperCase(),
+      currency,
       bookingType: l.booking_type,
       clientContact: l.client_contact,
     });

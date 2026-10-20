@@ -144,3 +144,15 @@ test("items carry 'from' for from-priced listings and keep the service currency"
   const [item] = await loadWorkspaceRosterServices(fakeAdmin(w).client, A);
   assert.deepEqual([item!.priceCents, item!.priceIsFrom, item!.currency], [120000, true, "MXN"]);
 });
+
+test("a listing with no currency (on the listing or the service) is skipped, never shown as an unlabeled price", async () => {
+  const w = WORLD();
+  w.workspace_service_listings = [listing({ currency: "" })];
+  w.talent_offerings = [{ ...w.talent_offerings![0], currency: null }];
+  assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A), []);
+  // The service's own currency is still a valid label when the listing row has none.
+  const w2 = WORLD();
+  w2.workspace_service_listings = [listing({ currency: "" })];
+  const [item] = await loadWorkspaceRosterServices(fakeAdmin(w2).client, A);
+  assert.equal(item!.currency, "MXN");
+});
