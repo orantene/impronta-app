@@ -111,7 +111,9 @@ export type MessagingRefusal =
   /** TUL-274: an offer priced in a currency its single seller does not charge in. */
   | "offer_currency_seller_mismatch"
   /** TUL-313: no currency could be resolved for a new offer (never guessed). */
-  | "offer_currency_unresolved";
+  | "offer_currency_unresolved"
+  /** TUL-1268 M6: the refund is over the actor's role limit; an approval request was filed. */
+  | "over_refund_limit";
 
 export type ActionOk<T extends Record<string, unknown> = Record<string, never>> = { ok: true } & T;
 /** `nextFreeTimes` is only set when a time pick comes back `unavailable` / slot taken. Empty = calendar has no open time; never invent one. */

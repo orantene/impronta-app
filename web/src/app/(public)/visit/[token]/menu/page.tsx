@@ -55,6 +55,7 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
       tableCode={visit.tableCode ?? ""}
       holderName={null}
       currency={visit.currency}
+      locale={locale}
       items={menu.items}
       offers={offers}
       copy={{

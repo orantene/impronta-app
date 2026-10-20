@@ -44,10 +44,19 @@ import {
   type CancelPreview,
 } from "@/lib/messaging/money";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
-import { executeBookingRefund, type RefundReason } from "@/lib/payments/refund-execute";
+import { executeBookingRefund, loadRefundEligibility, type RefundReason } from "@/lib/payments/refund-execute";
+import { authorizeRefund, type RefundAuthorityCode } from "@/lib/payments/refund-authority";
+import { enforceRoleLimit } from "@/lib/approvals/enforce";
+import { findTenantMembership } from "@/lib/saas/tenant";
 import { recordVerifiedCollection } from "@/lib/pos/collection";
 import { markInquiryPaidInCash } from "@/app/(workspace)/[tenantSlug]/admin/_pipeline-actions";
-import { RECORD_KINDS, type ActionFail, type ActionResult, type RecordKind } from "@/lib/messaging/types";
+import {
+  RECORD_KINDS,
+  type ActionFail,
+  type ActionResult,
+  type MessagingRefusal,
+  type RecordKind,
+} from "@/lib/messaging/types";
 import { stampInquiryPaidCards, syncPaymentCardsForRecord } from "@/lib/messaging/payment-card-sync";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -62,6 +71,26 @@ async function requirePermission(
 ): Promise<{ ok: true } | ActionFail> {
   const ok = await hasMessagingMoneyPermission(admin, { tenantId, userId, permission });
   return ok ? { ok: true } : fail("not_allowed");
+}
+
+/**
+ * The refund guard's refusal as a Messages refusal code (translated en/es/fr
+ * under `dashboard.pos.messages.refusal.*`). TUL-1268 M6.
+ */
+function messagingRefusalForAuthority(code: RefundAuthorityCode): MessagingRefusal {
+  switch (code) {
+    case "not_allowed":
+      return "not_allowed";
+    case "invalid_amount":
+    case "over_remainder":
+      return "invalid";
+    case "nothing_left":
+      return "already";
+    case "over_limit":
+      return "over_refund_limit";
+    default:
+      return "unavailable";
+  }
 }
 
 async function loadInquiryVersion(
@@ -158,6 +187,33 @@ export async function messagingCancelRecord(input: {
   if (parsed.data.refund.mode === "partial") {
     const amt = parsed.data.refund.amountCents as number;
     if (amt > preview.refundableCents) return fail("invalid");
+  }
+
+  // TUL-1268 M6: the one refund guard, whenever this cancel moves money.
+  // "keep" moves none. A "full" cancel with nothing paid moves none either and
+  // keeps today's path (the line refund answers it).
+  const movesMoney =
+    parsed.data.refund.mode === "partial" ||
+    (parsed.data.refund.mode === "full" && preview.refundableCents > 0);
+  if (movesMoney) {
+    const authorized = await authorizeRefund({
+      capable: perm.ok,
+      requestedCents: parsed.data.refund.mode === "partial" ? (parsed.data.refund.amountCents as number) : null,
+      refundableCents: preview.refundableCents,
+      allowFullRemainder: parsed.data.refund.mode === "full",
+      enforceLimit: async (refundCents) =>
+        enforceRoleLimit(g.admin, {
+          tenantId: g.tenantId,
+          role: (await findTenantMembership(g.tenantId))?.role ?? null,
+          action: "refund",
+          amountCents: refundCents,
+          subjectId: parsed.data.recordId,
+          requestedBy: g.userId,
+          operationKey: `refund:msgcancel:${parsed.data.recordId}:${parsed.data.refund.mode}:${refundCents}`,
+          reason: `Cancel with refund from Messages (${refundCents} cents)`,
+        }),
+    });
+    if (!authorized.ok) return fail(messagingRefusalForAuthority(authorized.code));
   }
 
   let refundedCents = 0;
@@ -313,9 +369,34 @@ export async function messagingRefund(input: {
   if (!owned) return fail("not_found");
   if (!(await orderLinkedToInquiry(g.admin, g.tenantId, owned.orderId, parsed.data.inquiryId))) return fail("not_found");
 
+  // TUL-1268 M6: the one refund guard, on this charge's own remainder.
+  const eligibility = await loadRefundEligibility(parsed.data.paymentId);
+  if ("error" in eligibility) return fail(eligibility.code === "not_found" ? "not_found" : "unavailable");
+  // A payment the engine refuses outright (cash, already refunded, not
+  // collected) answers exactly as it did before this guard existed.
+  if (eligibility.blockedReason) return fail("unavailable");
+  const authorized = await authorizeRefund({
+    capable: perm.ok,
+    requestedCents: parsed.data.mode === "full" ? null : (parsed.data.amountCents ?? null),
+    refundableCents: eligibility.remainingCents,
+    allowFullRemainder: parsed.data.mode === "full",
+    enforceLimit: async (refundCents) =>
+      enforceRoleLimit(g.admin, {
+        tenantId: g.tenantId,
+        role: (await findTenantMembership(g.tenantId))?.role ?? null,
+        action: "refund",
+        amountCents: refundCents,
+        subjectId: parsed.data.paymentId,
+        requestedBy: g.userId,
+        operationKey: `refund:txn:${parsed.data.paymentId}:${eligibility.alreadyRefundedCents}:${refundCents}`,
+        reason: `Refund from Messages (${refundCents} cents)`,
+      }),
+  });
+  if (!authorized.ok) return fail(messagingRefusalForAuthority(authorized.code));
+
   const result = await executeBookingRefund({
     transactionId: parsed.data.paymentId,
-    amountCents: parsed.data.mode === "full" ? null : parsed.data.amountCents,
+    amountCents: authorized.amountCents,
     reason: "goodwill",
     actorUserId: g.userId,
     note: parsed.data.reason,

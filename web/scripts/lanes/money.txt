@@ -37,6 +37,7 @@ src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
+src/lib/billing/trial-session-reconcile.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
@@ -80,6 +81,7 @@ src/lib/inquiry/retry-failed-engine-effects.test.ts
 src/lib/ledger/project.test.ts
 src/lib/ledger/run-projection.test.ts
 src/lib/ledger/transfer-settlement.test.ts
+src/lib/menu-import/import-patch.test.ts
 src/lib/menu-import/parse-restauradmin.test.ts
 src/lib/menu-import/photo-ingest.test.ts
 src/lib/menu-import/plan-import.test.ts
@@ -172,11 +174,14 @@ src/lib/payments/payout-transfer-retry.test.ts
 src/lib/payments/processing-fee.test.ts
 src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
+src/lib/payments/refund-authority-wire.static.test.ts
+src/lib/payments/refund-authority.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts
+src/lib/payments/refunds-restore-inventory.test.ts
 src/lib/payments/refunds.test.ts
 src/lib/payments/retry-fee-unknown-payouts.test.ts
 src/lib/payments/seller-currency-guard.test.ts
@@ -234,6 +239,7 @@ src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/publishable-key-server-resolved.test.ts
+src/lib/stripe/recurring-consent.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts
