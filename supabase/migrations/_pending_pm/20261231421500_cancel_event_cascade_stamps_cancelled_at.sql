@@ -193,9 +193,11 @@ BEGIN
     'eve-d01-' || gen_random_uuid()::text, 'evd' || replace(gen_random_uuid()::text, '-', ''), v_session
   ) RETURNING id INTO v_order;
 
+  -- order_lines_payee_xor wants exactly one of talent_profile_id /
+  -- owner_tenant_id: a workspace-owned line is paid to the workspace.
   INSERT INTO public.order_lines (
-    tenant_id, order_id, session_id, label, units, unit_cents, total_cents
-  ) VALUES (v_tenant, v_order, v_session, 'Proof ticket', 1, 5000, 5000)
+    tenant_id, order_id, session_id, owner_tenant_id, label, units, unit_cents, total_cents
+  ) VALUES (v_tenant, v_order, v_session, v_tenant, 'Proof ticket', 1, 5000, 5000)
   RETURNING id INTO v_line;
 
   INSERT INTO public.admissions (
