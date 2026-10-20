@@ -272,7 +272,12 @@ export async function refundOrderLines(
         if (!scoped.ok) return { ok: false, reason: scoped.reason, movedCents: 0 };
         // A comp line (nothing to return) keeps amount unset: the planner treats
         // it as a free line and only the selected tickets are voided.
-        if (amountCents == null && scoped.amountCents > 0) amountCents = scoped.amountCents;
+        // The LAST ticket(s) on the line keep it unset too: "the rest of the
+        // line" is what they are owed, and only the planner's no-amount path
+        // caps that at a charge with a kept fee. An explicit amount there
+        // refuses `exceeds_captured` on every retry. The plan is then FULL when
+        // the order is fully refunded, so E3 releases the promo as before.
+        if (amountCents == null && scoped.amountCents > 0 && !scoped.takesRest) amountCents = scoped.amountCents;
       }
     }
 

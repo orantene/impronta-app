@@ -11,7 +11,18 @@
 export type UnitAdmission = { id: string; admittedCount: number; status: string };
 
 export type UnitScope =
-  | { ok: true; amountCents: number; selectedIds: string[] }
+  | {
+      ok: true;
+      amountCents: number;
+      selectedIds: string[];
+      /**
+       * These are the line's LAST unrefunded tickets. The executor then leaves
+       * the amount unset so the planner refunds "the rest of the line" under its
+       * own fee-aware cap: an explicit amount above what the charge can still
+       * return (a fee is kept) refuses `exceeds_captured`, every retry, forever.
+       */
+      takesRest: boolean;
+    }
   | { ok: false; reason: "admission_not_on_line" | "already_admitted" | "line_already_refunded" };
 
 /**
@@ -43,5 +54,5 @@ export function scopeUnitRefund(input: {
   const untouched = input.admissions.filter((a) => a.status !== "refunded");
   const takesEverythingLeft = untouched.length === picked.length;
   const share = takesEverythingLeft ? remaining : Math.floor((net * picked.length) / Math.max(1, units));
-  return { ok: true, amountCents: Math.min(remaining, share), selectedIds: selected };
+  return { ok: true, amountCents: Math.min(remaining, share), selectedIds: selected, takesRest: takesEverythingLeft };
 }

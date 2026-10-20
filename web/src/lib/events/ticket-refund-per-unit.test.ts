@@ -59,13 +59,13 @@ test("cron selects * so it works before the refund_cents column exists (code-fir
 
 const SQL = blankComments(
   readFileSync(
-    join(process.cwd(), "..", "supabase", "migrations", "_pending_pm", "20261231419300_admission_exchange_per_unit_atomic.sql"),
+    join(process.cwd(), "..", "supabase", "migrations", "_pending_pm", "20261231421400_admission_exchange_per_unit_atomic.sql"),
     "utf8",
   ).replace(/--[^\n]*/g, ""),
 );
 
 test("exchange SQL: old price is PER TICKET, not the line total", () => {
-  assert.match(SQL, /ol\.total_cents \/ GREATEST\(1, COALESCE\(ol\.units, 1\)\)/);
+  assert.match(SQL, /v_line\.total_cents \/ GREATEST\(1, COALESCE\(v_line\.units, 1\)\)/);
   assert.doesNotMatch(SQL, /SELECT total_cents INTO v_old_cents/);
 });
 
@@ -90,6 +90,48 @@ test("exchange SQL: capacity is reserved before the move and the old seat releas
 test("exchange SQL: the intent names the admission and the difference", () => {
   assert.match(SQL, /requested_by_admission_id, refund_cents/);
   assert.match(SQL, /'admission_exchange', v_adm\.id, -v_delta/);
+});
+
+test("exchange SQL: the ORDER LINE is locked FOR UPDATE, after the admission and before any write", () => {
+  // Two exchanges on one line, or a guest request racing an exchange, used to
+  // see no intent, both move, and the second refund vanished in ON CONFLICT DO
+  // NOTHING after its ticket had already moved. FOR UPDATE (not NO KEY UPDATE)
+  // also blocks the guest request's FK key-share on the same line until commit.
+  const admLock = SQL.search(/FROM public\.admissions WHERE id = p_admission_id FOR UPDATE/);
+  const lineLock = SQL.search(/FROM public\.order_lines ol WHERE ol\.id = v_adm\.order_line_id\s+FOR UPDATE/);
+  const pendingCheck = SQL.indexOf("'refund_pending'");
+  const reserve = SQL.indexOf("reserve_resource_set_v2");
+  const move = SQL.indexOf("UPDATE public.admissions");
+  assert.ok(admLock > -1, "admission row lock");
+  assert.ok(lineLock > -1, "order line row lock");
+  assert.ok(admLock < lineLock, "lock order admission -> line, the order every other writer uses");
+  assert.ok(lineLock < pendingCheck && lineLock < reserve && lineLock < move, "the line is held for the whole operation");
+});
+
+test("exchange SQL: an intent insert that returns no row FAILS the exchange and undoes the move", () => {
+  assert.match(SQL, /ON CONFLICT \(order_line_id\) DO NOTHING\s+RETURNING id INTO v_intent/);
+  assert.match(SQL, /IF v_intent IS NULL THEN\s+RAISE EXCEPTION 'refund_pending'/);
+  // The raise lands in the block's handler, which rolls the reserve, commit,
+  // move and release back to the block's savepoint and answers refund_pending.
+  assert.match(SQL, /EXCEPTION\s+WHEN raise_exception THEN[\s\S]{0,200}'reason', 'refund_pending'/);
+  assert.doesNotMatch(SQL, /ON CONFLICT \(order_line_id\) DO NOTHING;/, "a silent DO NOTHING is the lost refund");
+});
+
+test("exchange SQL: target must be the SAME offering, in the order's currency, on the line's own tier", () => {
+  assert.match(SQL, /'reason', 'different_offering'/);
+  assert.match(SQL, /'reason', 'currency_mismatch'/);
+  assert.match(SQL, /'reason', 'tier_mismatch'/);
+  // The tier is the line's variant, checked against the target's offering;
+  // never "the first variant by sort_order".
+  assert.match(SQL, /WHERE tov\.id = v_line\.variant_id AND tov\.offering_id = v_to\.offering_id/);
+  assert.doesNotMatch(SQL, /ORDER BY tov\.sort_order/);
+  // And the seat comes from that tier's pool on the target night.
+  assert.match(SQL, /cp\.pool_key = v_pool_key/);
+  // All three refusals come before anything moves.
+  const move = SQL.indexOf("UPDATE public.admissions");
+  for (const word of ["'different_offering'", "'currency_mismatch'", "'tier_mismatch'"]) {
+    assert.ok(SQL.indexOf(word) < move, `${word} refuses before the move`);
+  }
 });
 
 test("exchange SQL: contract kept (same signature, service_role only, additive column)", () => {

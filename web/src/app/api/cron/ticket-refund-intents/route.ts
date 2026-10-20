@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
   const { data: pending, error: pErr } = await admin
     .from("ticket_refund_intents")
-    // "*" on purpose: `refund_cents` only exists once migration 20261231419300 is
+    // "*" on purpose: `refund_cents` only exists once migration 20261231421400 is
     // applied, and naming it would fail this whole select before that (code-first).
     .select("*")
     .is("executed_at", null)
