@@ -1,6 +1,6 @@
 -- TUL-1368 · Service hub: terms card when a talent joins a workspace (and when terms change).
 --
--- HELD in _pending_pm. Additive only: two new tables + two RPCs. Nothing existing changes.
+-- HELD in _pending_pm. Additive only: two new tables + three RPCs. Nothing existing changes.
 -- The app degrades gracefully while this is absent (no card is shown; owner propose returns
 -- "unavailable").
 --
@@ -11,6 +11,14 @@
 --
 -- Works for every kind of group (agency, network, studio, rental studio, collective) in
 -- every trade: the model is a column, not a tenant.
+--
+-- ROLLBACK (nothing else depends on these objects until TUL-1367 reads them):
+--   DROP FUNCTION IF EXISTS public.revoke_workspace_talent_terms(uuid);
+--   DROP FUNCTION IF EXISTS public.respond_workspace_talent_terms(uuid, boolean);
+--   DROP FUNCTION IF EXISTS public.propose_workspace_talent_terms(uuid,uuid,text,text,integer,bigint,text,text,text,boolean,text,boolean,boolean);
+--   DROP TABLE IF EXISTS public.talent_exclusive_workspace;
+--   DROP TABLE IF EXISTS public.workspace_talent_terms;
+-- The app reads nothing / answers "unavailable" once they are gone.
 
 BEGIN;
 
@@ -23,8 +31,8 @@ CREATE TABLE IF NOT EXISTS public.workspace_talent_terms (
                                     'coordinator_agency','open_network','team_studio',
                                     'rental_studio','friends_collective')),
   share_kind          text        NOT NULL CHECK (share_kind IN ('percent','fixed','per_hour','margin','rent')),
-  share_bps           integer     NULL CHECK (share_bps IS NULL OR (share_bps >= 0 AND share_bps <= 10000)),
-  share_amount_cents  bigint      NULL CHECK (share_amount_cents IS NULL OR share_amount_cents >= 0),
+  share_bps           integer     NULL CHECK (share_bps IS NULL OR (share_bps >= 0 AND share_bps <= 9000)),
+  share_amount_cents  bigint      NULL CHECK (share_amount_cents IS NULL OR (share_amount_cents > 0 AND share_amount_cents <= 1000000000000)),
   share_currency      text        NULL CHECK (share_currency IS NULL OR share_currency ~ '^[A-Z]{3}$'),
   client_price_mode   text        NOT NULL CHECK (client_price_mode IN ('talent_price','talent_plus_margin','fixed','from')),
   show_identity       text        NOT NULL CHECK (show_identity IN ('name','portfolio','hidden')),
@@ -33,7 +41,7 @@ CREATE TABLE IF NOT EXISTS public.workspace_talent_terms (
   exclusive           boolean     NOT NULL DEFAULT false,
   no_poaching         boolean     NOT NULL DEFAULT false,
   status              text        NOT NULL DEFAULT 'pending'
-                                    CHECK (status IN ('pending','accepted','declined','superseded')),
+                                    CHECK (status IN ('pending','accepted','declined','superseded','revoked')),
   proposed_by         uuid        NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
   proposed_at         timestamptz NOT NULL DEFAULT now(),
   responded_by        uuid        NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -139,6 +147,16 @@ BEGIN
     RAISE EXCEPTION 'not allowed' USING ERRCODE = '42501';
   END IF;
 
+  -- Only for a talent the workspace has (active roster row) or has invited (pending row).
+  -- Fail closed: no terms card can be dropped on an arbitrary talent.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agency_talent_roster r
+    WHERE r.tenant_id = p_tenant_id AND r.talent_profile_id = p_talent_profile_id
+      AND r.status IN ('active','pending')
+  ) THEN
+    RAISE EXCEPTION 'not allowed' USING ERRCODE = '42501';
+  END IF;
+
   -- Serialize proposals for one pair.
   PERFORM pg_advisory_xact_lock(hashtext(p_tenant_id::text || ':' || p_talent_profile_id::text));
 
@@ -240,6 +258,41 @@ BEGIN
   RETURN CASE WHEN p_accept THEN 'accepted' ELSE 'declined' END;
 END;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- revoke_workspace_talent_terms: the talent withdraws consent to ACCEPTED terms.
+-- Revoked terms are never in force; revoking exclusive terms ends the exclusivity.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.revoke_workspace_talent_terms(p_terms_id uuid)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_row public.workspace_talent_terms%ROWTYPE;
+BEGIN
+  SELECT * INTO v_row FROM public.workspace_talent_terms WHERE id = p_terms_id FOR UPDATE;
+  IF NOT FOUND OR NOT public.is_own_talent_profile(v_row.talent_profile_id) THEN
+    RAISE EXCEPTION 'not allowed' USING ERRCODE = '42501';
+  END IF;
+  IF v_row.status <> 'accepted' THEN
+    RETURN 'not_accepted';
+  END IF;
+
+  UPDATE public.workspace_talent_terms
+     SET status = 'revoked', responded_by = (SELECT auth.uid()), responded_at = now()
+   WHERE id = p_terms_id;
+
+  DELETE FROM public.talent_exclusive_workspace
+   WHERE talent_profile_id = v_row.talent_profile_id AND tenant_id = v_row.tenant_id;
+
+  RETURN 'revoked';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.revoke_workspace_talent_terms(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.revoke_workspace_talent_terms(uuid) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.propose_workspace_talent_terms(uuid,uuid,text,text,integer,bigint,text,text,text,boolean,text,boolean,boolean) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.respond_workspace_talent_terms(uuid,boolean) FROM PUBLIC, anon;

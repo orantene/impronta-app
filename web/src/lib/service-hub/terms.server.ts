@@ -6,6 +6,7 @@ import "server-only";
  */
 import { isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { parseTermsRow, resolveTalentTermsState, type WorkspaceTalentTermsRow } from "./terms";
 
 export type PendingHubTerms = {
@@ -15,9 +16,11 @@ export type PendingHubTerms = {
 };
 
 export async function loadPendingHubTermsForTalent(talentProfileId: string): Promise<PendingHubTerms[]> {
-  const admin = createServiceRoleClient();
-  if (!admin || !talentProfileId) return [];
-  const { data, error } = await admin
+  if (!talentProfileId) return [];
+  // Terms are read with the USER session: RLS lets a talent read only their own rows.
+  const supabase = await createClient();
+  if (!supabase) return [];
+  const { data, error } = await supabase
     .from("workspace_talent_terms")
     .select(
       "id, tenant_id, talent_profile_id, version, work_model, share_kind, share_bps, share_amount_cents, share_currency, client_price_mode, show_identity, show_contact, client_contact, exclusive, no_poaching, status, proposed_at",
@@ -44,6 +47,9 @@ export async function loadPendingHubTermsForTalent(talentProfileId: string): Pro
     if (state.pending) out.push({ pending: state.pending, hasTermsInForce: state.inForce !== null });
   }
   if (out.length === 0) return [];
+  // Workspace display names only (public-facing names); the talent may not read agencies.
+  const admin = createServiceRoleClient();
+  if (!admin) return out.map((o) => ({ ...o, workspaceName: "" }));
   const { data: agencies, error: namesErr } = await admin
     .from("agencies")
     .select("id, display_name")

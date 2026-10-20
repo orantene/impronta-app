@@ -5,7 +5,7 @@
  * terms to a talent; the talent accepts or declines. Every change is a new version. The
  * latest ACCEPTED version stays in force until the talent accepts a newer one (rule 20 of
  * the Service hub flows). Storage: public.workspace_talent_terms (held migration
- * 20261231419100_workspace_talent_terms_tul1368.sql).
+ * 20261231419200_workspace_talent_terms_tul1368.sql).
  */
 import { createTranslator } from "@/i18n/messages";
 
@@ -22,7 +22,7 @@ export type ShareKind = "percent" | "fixed" | "per_hour" | "margin" | "rent";
 export type ClientPriceMode = "talent_price" | "talent_plus_margin" | "fixed" | "from";
 export type ShowIdentity = "name" | "portfolio" | "hidden";
 export type ClientContact = "workspace" | "talent";
-export type TermsStatus = "pending" | "accepted" | "declined" | "superseded";
+export type TermsStatus = "pending" | "accepted" | "declined" | "superseded" | "revoked";
 
 export type ProposedTerms = {
   workModel: WorkModel;
@@ -50,16 +50,23 @@ export type WorkspaceTalentTermsRow = ProposedTerms & {
 /** Coordinator models: the workspace talks to the client and the talent must not go around it. */
 const COORDINATOR_MODELS: ReadonlySet<WorkModel> = new Set(["coordinator_agency", "friends_collective"]);
 
-/** Model presets (preset first; the owner may change any field). */
-export function defaultTermsForModel(model: WorkModel): ProposedTerms {
+/** Highest share or margin a workspace may take (Oran to confirm whether 100% should be allowed). */
+export const MAX_SHARE_BPS = 9000;
+
+/**
+ * Model presets (preset first; the owner may change any field). Rental studios get no
+ * default rent (PM): the owner must enter the amount; the currency defaults to the one
+ * passed in (talent's or workspace's).
+ */
+export function defaultTermsForModel(model: WorkModel, currency: string | null = null): ProposedTerms {
   const coordinator = COORDINATOR_MODELS.has(model);
   const workspaceTalks = coordinator || model === "team_studio";
   return {
     workModel: model,
     shareKind: model === "rental_studio" ? "rent" : coordinator ? "margin" : "percent",
     shareBps: model === "rental_studio" ? null : 2000,
-    shareAmountCents: model === "rental_studio" ? 0 : null,
-    shareCurrency: null,
+    shareAmountCents: null,
+    shareCurrency: model === "rental_studio" ? currency : null,
     clientPriceMode: coordinator ? "talent_plus_margin" : "talent_price",
     showIdentity: coordinator ? "portfolio" : "name",
     showContact: !workspaceTalks,
@@ -74,11 +81,11 @@ export type TermsValidation = { ok: true } | { ok: false; reason: string };
 export function validateProposedTerms(t: ProposedTerms): TermsValidation {
   if (!WORK_MODELS.includes(t.workModel)) return { ok: false, reason: "work_model" };
   if (t.shareKind === "percent" || t.shareKind === "margin") {
-    if (t.shareBps == null || !Number.isInteger(t.shareBps) || t.shareBps < 0 || t.shareBps > 10000) {
+    if (t.shareBps == null || !Number.isInteger(t.shareBps) || t.shareBps < 0 || t.shareBps > MAX_SHARE_BPS) {
       return { ok: false, reason: "share_bps" };
     }
   } else {
-    if (t.shareAmountCents == null || !Number.isInteger(t.shareAmountCents) || t.shareAmountCents < 0) {
+    if (t.shareAmountCents == null || !Number.isInteger(t.shareAmountCents) || t.shareAmountCents <= 0 || t.shareAmountCents > 1e12) {
       return { ok: false, reason: "share_amount" };
     }
     if (!t.shareCurrency || !/^[A-Z]{3}$/.test(t.shareCurrency)) return { ok: false, reason: "share_currency" };

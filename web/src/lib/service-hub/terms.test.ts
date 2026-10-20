@@ -145,3 +145,25 @@ test("exclusive terms carry a plain notice shown before Accept (EN + ES)", () =>
   );
   assert.equal(exclusiveNotice(row({ exclusive: false }), "en"), null);
 });
+
+test("rental preset: no default rent; currency defaults to the one passed in; amount is required", () => {
+  const p = defaultTermsForModel("rental_studio", "MXN");
+  assert.equal(p.shareKind, "rent");
+  assert.equal(p.shareAmountCents, null);
+  assert.equal(p.shareCurrency, "MXN");
+  assert.equal(validateProposedTerms(p).ok, false);
+  assert.equal(validateProposedTerms({ ...p, shareAmountCents: 300000 }).ok, true);
+});
+
+test("share and margin are capped at 90% (9000 bps)", () => {
+  const base = defaultTermsForModel("open_network");
+  assert.equal(validateProposedTerms({ ...base, shareBps: 9000 }).ok, true);
+  assert.equal(validateProposedTerms({ ...base, shareBps: 9001 }).ok, false);
+  assert.equal(validateProposedTerms({ ...defaultTermsForModel("coordinator_agency"), shareBps: 9500 }).ok, false);
+});
+
+test("revoked terms are never in force", () => {
+  const s = resolveTalentTermsState([row({ id: "a", version: 1, status: "revoked" })]);
+  assert.equal(s.inForce, null);
+  assert.equal(s.pending, null);
+});

@@ -46,6 +46,24 @@ export async function respondToHubTermsAction(termsId: string, accept: boolean):
   return { ok: true, status: String(data ?? "") };
 }
 
+/** The talent withdraws consent to accepted terms (markups, hidden name). Revoking exclusive terms ends the exclusivity. */
+export async function revokeHubTermsAction(termsId: string): Promise<HubTermsActionResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: "forbidden" };
+  if (typeof termsId !== "string" || !/^[0-9a-f-]{36}$/i.test(termsId)) return { ok: false, error: "invalid" };
+  const supabase = await createClient();
+  if (!supabase) return { ok: false, error: "unavailable" };
+  const { data, error } = await supabase.rpc("revoke_workspace_talent_terms", { p_terms_id: termsId });
+  if (error) {
+    if (isMissingRpc(error)) return { ok: false, error: "unavailable" };
+    if ((error as { code?: string }).code === "42501") return { ok: false, error: "forbidden" };
+    logServerError("serviceHub.terms.revoke", error);
+    return { ok: false, error: "failed" };
+  }
+  revalidatePath("/talent", "layout");
+  return { ok: true, status: String(data ?? "") };
+}
+
 /** Form wrapper for the card buttons (no client JS needed). */
 export async function respondToHubTermsFormAction(formData: FormData): Promise<void> {
   const id = String(formData.get("termsId") ?? "");
