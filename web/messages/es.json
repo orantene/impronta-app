@@ -18179,6 +18179,32 @@
       "preparation": {
         "reason": "Aún no se registra estación ni tiempo de preparación en un artículo."
       },
+      "websiteControl": {
+        "statusLabel": "Estado",
+        "presenceLabel": "En el sitio",
+        "status": {
+          "draft": "Borrador",
+          "published": "Publicado",
+          "stopped": "Detenido",
+          "archived": "Archivado"
+        },
+        "statusHint": {
+          "draft": "Aún no está a la venta.",
+          "published": "A la venta.",
+          "stopped": "No está a la venta. Las reservas ya hechas se respetan.",
+          "archived": "Se guarda como historial, fuera de todas las listas."
+        },
+        "presence": {
+          "own_page": "Página propia",
+          "lists_only": "Solo en listas",
+          "hidden": "No aparece en el sitio"
+        },
+        "presenceHint": {
+          "own_page": "Se muestra en listas y en su propia página.",
+          "lists_only": "Se muestra en listas y tarjetas, sin página propia.",
+          "hidden": "No se muestra en el sitio web."
+        }
+      },
       "usedIn": {
         "label": "Se usa en",
         "pos": "POS",

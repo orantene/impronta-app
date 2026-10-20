@@ -21,6 +21,7 @@ import { StatePill, type PillTone } from "../appointments-classes-ui";
 import { MissingTranslationChip } from "./MissingTranslationChip";
 import { NeedsPriceChip } from "./NeedsPriceChip";
 import type { CatalogNav } from "./CatalogPage";
+import { statusPatch } from "./catalog-website-control";
 import { itemAvailability, itemChannels, itemStatus, itemType, type CatalogItemType, type CatalogStatus } from "./catalog-model";
 import { BlockPill, Chip, ListRow, RowMenuButton, type BlockTone } from "./catalog-ui";
 import { CELL_FROM_1080, CELL_FROM_680, CELL_FROM_680_FLEX, CELL_FROM_900, LIST_COLS } from "./catalog-list-columns";
@@ -32,10 +33,11 @@ export const TYPE_KEY: Record<CatalogItemType, string> = {
   custom: "dashboard.catalog.type.custom",
 };
 
-const STATUS_TONE: Record<CatalogStatus, PillTone & BlockTone> = { published: "green", draft: "coral", incomplete: "coral" };
+const STATUS_TONE: Record<CatalogStatus, PillTone & BlockTone> = { published: "green", draft: "coral", stopped: "coral", incomplete: "coral" };
 const STATUS_KEY: Record<CatalogStatus, string> = {
   published: "dashboard.catalog.status.published",
   draft: "dashboard.catalog.status.draft",
+  stopped: "dashboard.catalog.websiteControl.status.stopped",
   incomplete: "dashboard.catalog.status.incomplete",
 };
 
@@ -153,7 +155,7 @@ export function CatalogRow({
             onMouseLeave={onMenuClose}
           >
             <MenuItem onClick={() => nav.go({ item: o.id })}>{t("dashboard.catalog.rowMenu.open")}</MenuItem>
-            <MenuItem onClick={() => { editor.patchItem(o.id, { status: live ? "draft" : "published" }); onMenuClose(); }}>
+            <MenuItem onClick={() => { editor.patchItem(o.id, statusPatch(o, live ? "draft" : "published")); onMenuClose(); }}>
               {live ? t("dashboard.catalog.rowMenu.unpublish") : t("dashboard.catalog.rowMenu.publish")}
             </MenuItem>
             <MenuItem onClick={() => { editor.duplicate(o); onMenuClose(); }}>{t("dashboard.catalog.rowMenu.duplicate")}</MenuItem>
