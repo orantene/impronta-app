@@ -13,6 +13,7 @@
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 import type { MaisonContent } from "./maison-content";
+import { isSellable } from "@/lib/offerings/sellable";
 import type { MaisonShot } from "./MaisonGallery";
 import type { MaisonProfileLayoutProps } from "./MaisonProfileLayout";
 
@@ -144,12 +145,7 @@ export function pick(locale: string): Copy {
 
 export function publicOfferings(offerings: TalentOffering[]): TalentOffering[] {
   return offerings
-    .filter(
-      (o) =>
-        o.status === "published" &&
-        o.moderationState === "approved" &&
-        o.visibility !== "agency_only",
-    )
+    .filter((o) => isSellable(o, "guest_request"))
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 

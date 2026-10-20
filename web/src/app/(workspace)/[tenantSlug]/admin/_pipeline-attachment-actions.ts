@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { readGuardedAttachment } from "@/lib/media/guarded-upload.server";
 
 import type {
   PipelineActionResult,
@@ -120,6 +121,12 @@ export async function uploadInquiryAttachment(
     if (!inq) return { ok: false, error: "Inquiry not found in this workspace." };
 
     // Build storage path — matches the bucket RLS pattern.
+    // H1: executables and HTML/SVG refused, stored type from the bytes,
+    // photos stripped of EXIF/GPS. (The 4 MB server-action body limit binds
+    // before the 100 MB cap above.)
+    const guarded = await readGuardedAttachment(file, { maxBytes: 100 * 1024 * 1024 });
+    if (!guarded.ok) return { ok: false, error: guarded.error };
+
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const objectId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const storagePath = `${tenantId}/${inquiryId}/${objectId}-${safeName}`;
@@ -127,8 +134,8 @@ export async function uploadInquiryAttachment(
     const { error: uploadErr } = await supabase
       .storage
       .from("inquiry-files")
-      .upload(storagePath, file, {
-        contentType: file.type || "application/octet-stream",
+      .upload(storagePath, guarded.bytes, {
+        contentType: guarded.contentType,
         upsert: false,
       });
     if (uploadErr) {
@@ -144,8 +151,8 @@ export async function uploadInquiryAttachment(
         uploaded_by: user.id,
         storage_path: storagePath,
         filename: file.name,
-        mime_type: file.type || null,
-        byte_size: file.size,
+        mime_type: guarded.contentType,
+        byte_size: guarded.byteSize,
         description,
         visibility: "staff",
         attachment_kind: attachmentKind,
