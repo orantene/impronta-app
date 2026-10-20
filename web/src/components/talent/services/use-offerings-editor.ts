@@ -351,11 +351,16 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
                   sourceVariants: it.variants ?? [],
                   copyVariants: copied && copied.ok ? copied.variants : [],
                   nowIso: new Date().toISOString(),
+                  tenantId: workspaceTenantId,
+                  sourcePhotoIds: (it.imageAssets ?? []).map((a) => a.id),
                 })
               : null;
           setSaving(false);
-          const withKids =
-            copied && copied.ok ? { ...res.item, variants: copied.variants, addOns: copied.addOns } : res.item;
+          const withKids = {
+            ...res.item,
+            ...(copied && copied.ok ? { variants: copied.variants, addOns: copied.addOns } : {}),
+            ...(extras && extras.ok && extras.assets ? { imageAssets: extras.assets, imageUrls: extras.assets.map((a) => a.url) } : {}),
+          };
           setItems((cur) => [...cur, withKids]);
           flashSaved();
           if (copied && !copied.ok) setError(copied.error);

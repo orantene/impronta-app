@@ -46,3 +46,12 @@ test("the provider-owned notice links with next/link, not a bare anchor", () => 
   assert.match(page, /import Link from "next\/link"/);
   assert.doesNotMatch(page, /<a href="\/talent\/services"/);
 });
+
+test("TUL-1337: Duplicate also links the original's photos to the copy (same library assets, cover first)", () => {
+  const actions = src("./duplicate-extras-actions.ts");
+  assert.match(actions, /setWorkspaceItemPhotos\(input\.tenantId, input\.copyId, \[\.\.\.input\.sourcePhotoIds\]\)/);
+  const hook = src("../../components/talent/services/use-offerings-editor.ts");
+  const dup = hook.slice(hook.indexOf("const duplicate = useCallback"), hook.indexOf("const startAdd"));
+  assert.match(dup, /sourcePhotoIds: \(it\.imageAssets \?\? \[\]\)\.map\(\(a\) => a\.id\)/);
+  assert.match(dup, /imageAssets: extras\.assets/);
+});
