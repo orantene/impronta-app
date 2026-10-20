@@ -3,6 +3,7 @@ import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { lookupTalentUserId, staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { buildInquiryBells } from "./inquiry-notifications";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
@@ -182,11 +183,9 @@ export async function addTalentToRoster(
       }
     }
 
-    const { data: tp } = await supabase
-      .from("talent_profiles")
-      .select("user_id")
-      .eq("id", ctx.talentProfileId)
-      .maybeSingle();
+    // TUL-1359: after the actor/tenant checks above; service client, keyed by the authorized id.
+    const tp = await lookupTalentUserId(await staffTalentClient(supabase), ctx.talentProfileId);
+    if (!tp.found) return { success: false, error: "talent_not_found" };
 
     const { data: maxSort } = await supabase
       .from("inquiry_participants")
@@ -204,7 +203,7 @@ export async function addTalentToRoster(
     const { error } = await writeAddTalent.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
       tenant_id: ctx.tenantId,
-      user_id: tp?.user_id ?? null,
+      user_id: tp.userId,
       talent_profile_id: ctx.talentProfileId,
       role: "talent",
       status: "invited",
@@ -235,8 +234,8 @@ export async function addTalentToRoster(
       inquiryId: ctx.inquiryId,
       actorUserId: ctx.actorUserId,
       data: { talentProfileId: ctx.talentProfileId },
-      notifications: tp?.user_id
-        ? [{ userId: tp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+      notifications: tp.userId
+        ? [{ userId: tp.userId, title: "Inquiry invitation", body: "You were added to an inquiry." }]
         : [],
     });
 
@@ -569,11 +568,9 @@ export async function swapTalent(
       .maybeSingle();
     if (!outgoing) return { success: false, error: "outgoing_not_on_roster" };
 
-    const { data: incomingTp } = await supabase
-      .from("talent_profiles")
-      .select("user_id")
-      .eq("id", ctx.incomingTalentProfileId)
-      .maybeSingle();
+    // TUL-1359: service client, keyed by the id the action authorized.
+    const incomingTp = await lookupTalentUserId(await staffTalentClient(supabase), ctx.incomingTalentProfileId);
+    if (!incomingTp.found) return { success: false, error: "talent_not_found" };
 
     const write = await inquiryWriteClient(supabase);
 
@@ -591,7 +588,7 @@ export async function swapTalent(
     const { error: insErr } = await write.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
       tenant_id: ctx.tenantId,
-      user_id: incomingTp?.user_id ?? null,
+      user_id: incomingTp.userId,
       talent_profile_id: ctx.incomingTalentProfileId,
       role: "talent",
       status: "invited",
@@ -631,8 +628,8 @@ export async function swapTalent(
         eventType: "roster_talent_swapped",
         body: "A talent on the lineup was swapped for another.",
       },
-      notifications: incomingTp?.user_id
-        ? [{ userId: incomingTp.user_id as string, title: "Inquiry invitation", body: "You were added to an inquiry." }]
+      notifications: incomingTp.userId
+        ? [{ userId: incomingTp.userId, title: "Inquiry invitation", body: "You were added to an inquiry." }]
         : [],
     });
 
