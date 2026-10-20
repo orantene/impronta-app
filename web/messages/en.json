@@ -2510,6 +2510,7 @@
       "talks_talent": "You",
       "exclusiveYes": "Yes: only this workspace represents you",
       "exclusiveNo": "No",
+      "exclusiveNotice": "Only this workspace and your own site can sell your services",
       "noPoachingLine": "You agree not to take this workspace's clients directly.",
       "accept": "Accept",
       "decline": "Decline",

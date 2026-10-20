@@ -10,7 +10,7 @@ import { createTranslator } from "@/i18n/messages";
 import { withInterpolation } from "@/i18n/interpolate";
 import { loadPendingHubTermsForTalent } from "@/lib/service-hub/terms.server";
 import { respondToHubTermsFormAction } from "@/lib/service-hub/terms-actions";
-import { buildTermsCardLines } from "@/lib/service-hub/terms";
+import { buildTermsCardLines, exclusiveNotice } from "@/lib/service-hub/terms";
 
 export async function HubTermsPrompt({ talentProfileId, locale }: { talentProfileId: string; locale: string }) {
   const items = await loadPendingHubTermsForTalent(talentProfileId);
@@ -23,6 +23,7 @@ export async function HubTermsPrompt({ talentProfileId, locale }: { talentProfil
       {items.map(({ pending, hasTermsInForce, workspaceName }) => {
         const lines = buildTermsCardLines(pending, locale);
         const titleId = `hub-terms-${pending.id}`;
+        const exclusiveLine = exclusiveNotice(pending, locale);
         return (
           <section
             key={pending.id}
@@ -43,6 +44,11 @@ export async function HubTermsPrompt({ talentProfileId, locale }: { talentProfil
                 </div>
               ))}
             </dl>
+            {exclusiveLine ? (
+              <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-sm font-medium text-foreground" role="note">
+                {exclusiveLine}
+              </p>
+            ) : null}
             <p className="mt-3 text-xs text-muted-foreground">{k("version", { version: pending.version })}</p>
             <form action={respondToHubTermsFormAction} className="mt-3 flex flex-col gap-2 sm:flex-row sm:justify-end">
               <input type="hidden" name="termsId" value={pending.id} />

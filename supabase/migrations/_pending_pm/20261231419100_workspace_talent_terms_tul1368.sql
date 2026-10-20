@@ -1,6 +1,6 @@
 -- TUL-1368 · Service hub: terms card when a talent joins a workspace (and when terms change).
 --
--- HELD in _pending_pm. Additive only: one new table + two RPCs. Nothing existing changes.
+-- HELD in _pending_pm. Additive only: two new tables + two RPCs. Nothing existing changes.
 -- The app degrades gracefully while this is absent (no card is shown; owner propose returns
 -- "unavailable").
 --
@@ -71,6 +71,31 @@ CREATE POLICY workspace_talent_terms_read ON public.workspace_talent_terms
 -- No direct INSERT/UPDATE/DELETE policies: writes go through the two RPCs below.
 
 REVOKE ALL ON public.workspace_talent_terms FROM anon;
+
+-- The talent's exclusive workspace, set by accepting EXCLUSIVE terms (PM 2026-10-19).
+-- One row per talent: accepting exclusive terms elsewhere moves it. Read by the listing
+-- link (TUL-1367): an exclusive talent is sold only by this workspace, their own site
+-- and the Tulala hub.
+CREATE TABLE IF NOT EXISTS public.talent_exclusive_workspace (
+  talent_profile_id  uuid        PRIMARY KEY REFERENCES public.talent_profiles(id) ON DELETE CASCADE,
+  tenant_id          uuid        NOT NULL REFERENCES public.agencies(id) ON DELETE CASCADE,
+  terms_id           uuid        NOT NULL REFERENCES public.workspace_talent_terms(id) ON DELETE CASCADE,
+  set_at             timestamptz NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.talent_exclusive_workspace IS
+  'TUL-1368: the workspace a talent accepted EXCLUSIVE terms with (one per talent). Written only by respond_workspace_talent_terms.';
+
+ALTER TABLE public.talent_exclusive_workspace ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS talent_exclusive_workspace_read ON public.talent_exclusive_workspace;
+CREATE POLICY talent_exclusive_workspace_read ON public.talent_exclusive_workspace
+  FOR SELECT TO authenticated
+  USING (
+    public.is_platform_admin()
+    OR public.is_staff_of_tenant(tenant_id)
+    OR public.is_own_talent_profile(talent_profile_id)
+  );
+REVOKE ALL ON public.talent_exclusive_workspace FROM anon;
 
 -- ---------------------------------------------------------------------------
 -- propose_workspace_talent_terms: staff of the workspace proposes terms.
@@ -199,6 +224,18 @@ BEGIN
          responded_by = (SELECT auth.uid()),
          responded_at = now()
    WHERE id = p_terms_id;
+
+  -- Exclusivity follows the accepted terms: exclusive terms make this workspace the
+  -- talent's exclusive one; non-exclusive terms from the same workspace end it.
+  IF p_accept AND v_row.exclusive THEN
+    INSERT INTO public.talent_exclusive_workspace (talent_profile_id, tenant_id, terms_id, set_at)
+    VALUES (v_row.talent_profile_id, v_row.tenant_id, v_row.id, now())
+    ON CONFLICT (talent_profile_id) DO UPDATE
+      SET tenant_id = EXCLUDED.tenant_id, terms_id = EXCLUDED.terms_id, set_at = EXCLUDED.set_at;
+  ELSIF p_accept THEN
+    DELETE FROM public.talent_exclusive_workspace
+     WHERE talent_profile_id = v_row.talent_profile_id AND tenant_id = v_row.tenant_id;
+  END IF;
 
   RETURN CASE WHEN p_accept THEN 'accepted' ELSE 'declined' END;
 END;

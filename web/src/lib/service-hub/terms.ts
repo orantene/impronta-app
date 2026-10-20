@@ -5,7 +5,7 @@
  * terms to a talent; the talent accepts or declines. Every change is a new version. The
  * latest ACCEPTED version stays in force until the talent accepts a newer one (rule 20 of
  * the Service hub flows). Storage: public.workspace_talent_terms (held migration
- * 20261020005730_workspace_talent_terms_tul1368.sql).
+ * 20261231419100_workspace_talent_terms_tul1368.sql).
  */
 import { createTranslator } from "@/i18n/messages";
 
@@ -174,4 +174,9 @@ export function parseTermsRow(raw: Record<string, unknown>): WorkspaceTalentTerm
     status: raw.status as TermsStatus,
     proposedAt: String(raw.proposed_at ?? ""),
   };
+}
+
+/** Plain line shown before Accept when the terms make this workspace the talent's exclusive one. */
+export function exclusiveNotice(t: ProposedTerms, locale: string): string | null {
+  return t.exclusive ? createTranslator(locale)("dashboard.serviceHubTerms.exclusiveNotice") : null;
 }

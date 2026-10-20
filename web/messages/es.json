@@ -2510,6 +2510,7 @@
       "talks_talent": "Tú",
       "exclusiveYes": "Sí: solo este espacio te representa",
       "exclusiveNo": "No",
+      "exclusiveNotice": "Solo este espacio y tu propio sitio pueden vender tus servicios",
       "noPoachingLine": "Aceptas no tomar directamente a los clientes de este espacio.",
       "accept": "Aceptar",
       "decline": "Rechazar",

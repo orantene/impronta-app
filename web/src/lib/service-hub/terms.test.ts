@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   buildTermsCardLines,
   defaultTermsForModel,
+  exclusiveNotice,
   resolveTalentTermsState,
   validateProposedTerms,
   type WorkspaceTalentTermsRow,
@@ -131,4 +132,16 @@ test("every string the card uses exists in EN and ES, with no em dashes", () => 
       assert.ok(l.value && !l.value.startsWith("dashboard."), `missing value ${l.key} (${locale})`);
     }
   }
+});
+
+test("exclusive terms carry a plain notice shown before Accept (EN + ES)", () => {
+  assert.equal(
+    exclusiveNotice(row({ exclusive: true }), "en"),
+    "Only this workspace and your own site can sell your services",
+  );
+  assert.equal(
+    exclusiveNotice(row({ exclusive: true }), "es"),
+    "Solo este espacio y tu propio sitio pueden vender tus servicios",
+  );
+  assert.equal(exclusiveNotice(row({ exclusive: false }), "en"), null);
 });
