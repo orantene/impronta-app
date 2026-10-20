@@ -9,6 +9,7 @@
 import React, { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTranslator } from "@/i18n/messages";
+import { EXT_FOR_SNIFFED_MIME, sniffImageBlob } from "@/lib/media/image-sniff";
 import { createClient as createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type {
   TaxonomyTermPick,
@@ -830,23 +831,23 @@ export function GallerySection({
 
     for (const file of Array.from(files)) {
       try {
-        if (!file.type.startsWith("image/")) {
-          setError(t("admin.talent.edit.gallery.errorNotImage").replace("{name}", file.name));
-          setUploading((u) => Math.max(0, u - 1));
-          continue;
-        }
         if (file.size > 15 * 1024 * 1024) {
           setError(t("admin.talent.edit.gallery.errorTooLarge").replace("{name}", file.name));
           setUploading((u) => Math.max(0, u - 1));
           continue;
         }
-        const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().slice(0, 5);
-        const safeExt = ext.replace(/[^a-z0-9]/g, "") || "jpg";
-        const storagePath = `${talentId}/gallery/${crypto.randomUUID()}.${safeExt}`;
+        // H1: bytes decide the type; the register action re-verifies.
+        const mime = await sniffImageBlob(file);
+        if (!mime || mime === "image/heic") {
+          setError(t("admin.talent.edit.gallery.errorNotImage").replace("{name}", file.name));
+          setUploading((u) => Math.max(0, u - 1));
+          continue;
+        }
+        const storagePath = `${talentId}/gallery/${crypto.randomUUID()}.${EXT_FOR_SNIFFED_MIME[mime]}`;
         const { error: upErr } = await supabase.storage
           .from("media-public")
           .upload(storagePath, file, {
-            contentType: file.type || "image/jpeg",
+            contentType: mime,
             upsert: false,
           });
         if (upErr) {
@@ -863,7 +864,7 @@ export function GallerySection({
           width: dim?.width,
           height: dim?.height,
           fileSize: file.size,
-          mimeType: file.type,
+          mimeType: mime,
         });
         if (!reg.ok) {
           setError(t("admin.talent.edit.gallery.errorRegisterFailed").replace("{name}", file.name).replace("{message}", reg.error ?? ""));

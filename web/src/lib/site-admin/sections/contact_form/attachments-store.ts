@@ -33,6 +33,7 @@ import {
   type ContactAttachmentErrorCode,
 } from "./attachments";
 import type { ContactFormField } from "./schema";
+import { stripImageMetadata } from "./strip-image-metadata";
 
 type ServiceClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
 
@@ -136,9 +137,12 @@ export async function storeContactAttachments(args: {
         attachmentId,
         ext: item.ext,
       });
+      // TUL-1288: location/camera metadata never reaches storage.
+      const original = new Uint8Array(await file.arrayBuffer());
+      const clean = stripImageMetadata(original, item.mime);
       const { error: uploadError } = await admin.storage
         .from(CONTACT_ATTACHMENT_BUCKET)
-        .upload(storagePath, file, {
+        .upload(storagePath, clean, {
           // The SNIFFED type, never `file.type`. The browser-declared value is
           // attacker-controlled, and it is what a later signed download would
           // be served with.
@@ -158,7 +162,7 @@ export async function storeContactAttachments(args: {
         field_name: item.fieldName,
         original_filename: item.filename,
         mime_type: item.mime,
-        byte_size: item.byteSize,
+        byte_size: clean.byteLength,
         bucket_id: CONTACT_ATTACHMENT_BUCKET,
         storage_path: storagePath,
       });

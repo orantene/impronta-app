@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AiSearchDocumentOffering } from "@/lib/ai/ai-search-document-offerings";
 import { AI_DOC_OFFERINGS_MAX } from "@/lib/ai/ai-search-document-offerings";
 import { logServerError } from "@/lib/server/safe-error";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 type OfferingRow = {
   id: string;
@@ -26,14 +27,14 @@ export async function loadAiSearchDocumentOfferings(
   supabase: SupabaseClient,
   talentProfileId: string,
 ): Promise<AiSearchDocumentOffering[]> {
-  const { data, error } = await supabase
-    .from("talent_offerings")
-    .select("id, title, category, description, sort_order, status, moderation_state, visibility")
-    .eq("talent_profile_id", talentProfileId)
-    .eq("owner_kind", "talent")
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"])
+  const { data, error } = await scopeToSellableOfferings(
+    supabase
+      .from("talent_offerings")
+      .select("id, title, category, description, sort_order, status, moderation_state, visibility")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("owner_kind", "talent"),
+    "guest_request",
+  )
     .order("sort_order", { ascending: true })
     .order("id", { ascending: true })
     // Over-fetch a little: the builder re-checks the gate and drops empty titles.

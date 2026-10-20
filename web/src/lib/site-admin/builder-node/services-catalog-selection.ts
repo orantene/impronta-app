@@ -3,6 +3,7 @@
  * Widget stores references only — never duplicates catalog rows.
  */
 
+import { isSellable } from "@/lib/offerings/sellable";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 
 export type ServicesCatalogSelectionMode = "all" | "categories" | "ids";
@@ -18,11 +19,7 @@ export type ServicesCatalogSelectionProps = {
 };
 
 export function isPublicEligibleOffering(o: TalentOffering): boolean {
-  return (
-    o.status === "published" &&
-    o.visibility !== "agency_only" &&
-    o.moderationState === "approved"
-  );
+  return isSellable(o, "guest_request");
 }
 
 /** Offering IDs the talent selected that are no longer publicly eligible. */

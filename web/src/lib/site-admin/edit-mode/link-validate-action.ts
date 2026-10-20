@@ -14,6 +14,7 @@
 
 import { requireSession } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
+import { safeFetch } from "@/lib/security/safe-fetch";
 
 export type LinkValidateResult =
   | { ok: true; status: number; reachable: boolean }
@@ -63,39 +64,34 @@ export async function validateLinkUrl(input: {
     return { ok: false, error: "Invalid URL" };
   }
 
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    let res = await fetch(target.toString(), {
-      method: "HEAD",
-      signal: ctrl.signal,
-      redirect: "follow",
-      headers: { "User-Agent": "Tulala-LinkValidator/1.0" },
-    });
-    // Some servers reject HEAD; retry with GET (no body fetched, just
-    // the headers — we abort the body via signal once we have status).
-    if (res.status === 405 || res.status === 501) {
-      res = await fetch(target.toString(), {
-        method: "GET",
-        signal: ctrl.signal,
-        redirect: "follow",
-        headers: { "User-Agent": "Tulala-LinkValidator/1.0" },
-      });
-    }
-    return {
-      ok: true,
-      status: res.status,
-      reachable: res.status >= 200 && res.status < 400,
-    };
-  } catch (err) {
+  // H1: the URL is typed by an operator. safeFetch refuses private and
+  // metadata addresses (a status code for http://10.0.0.5:8080 is a port
+  // scanner), pins the vetted IP and re-checks every redirect hop.
+  const common = {
+    headers: { "User-Agent": "Tulala-LinkValidator/1.0" },
+    timeoutMs: TIMEOUT_MS,
+    maxBytes: 16 * 1024,
+    overflow: "truncate" as const,
+  };
+  let res = await safeFetch(target.toString(), { ...common, method: "HEAD" });
+  // Some servers reject HEAD; retry with GET (body capped at 16 KB).
+  if (res.ok && (res.status === 405 || res.status === 501)) {
+    res = await safeFetch(target.toString(), { ...common, method: "GET" });
+  }
+  if (!res.ok) {
     return {
       ok: false,
       error:
-        (err as Error).name === "AbortError"
+        res.reason === "timeout"
           ? "Timed out (4s)."
-          : "Couldn't reach URL.",
+          : res.reason === "network" || res.reason === "dns_failed" || res.reason === "too_many_redirects"
+            ? "Couldn't reach URL."
+            : "That link does not point to a public web address.",
     };
-  } finally {
-    clearTimeout(t);
   }
+  return {
+    ok: true,
+    status: res.status,
+    reachable: res.status >= 200 && res.status < 400,
+  };
 }

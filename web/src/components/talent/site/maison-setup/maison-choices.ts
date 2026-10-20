@@ -11,7 +11,7 @@ import {
   MAISON_PALETTE_ORDER,
 } from "@/lib/talent-site/theme-catalog/maison/seed";
 import { designSummaryLine } from "@/lib/talent-site/maison-summary-line";
-import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { isCollectionDesignSlug } from "@/lib/talent-site/theme-catalog/collection/design-cards";
 import { getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import type { MaisonPreviewContentMode } from "@/lib/talent-site/theme-catalog/maison/preview-hydration";
 import {
