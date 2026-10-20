@@ -14,7 +14,7 @@ import { addonCentsOnLine, priceAddons } from "./addons";
 import { LINE_COLUMNS, lineDiscountCents, num, totalsInput, type Admin, type LineAuthor, type LineRow, type OrderRow } from "./sale-rows";
 import { posGuestSessionId, type PosLineInput } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
-import { isSellableOnChannel } from "@/lib/offerings/guest-sellable";
+import { ITEM_UNAVAILABLE, offeringSellableAtReprice, variantRefusedAtReprice } from "./reprice-guards";
 import { livePhasePrice } from "@/lib/catalog/price-phases";
 import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
 
@@ -637,11 +637,6 @@ export async function removeLine(
   return { ok: true, orderId: input.orderId };
 }
 
-/** Counter draft channels (`pos`, `pos:*`) are staff; anything else is a guest. */
-function isStaffChannel(sourceChannel: string | null | undefined): boolean {
-  return sourceChannel === "pos" || (typeof sourceChannel === "string" && sourceChannel.startsWith("pos:"));
-}
-
 export type RepriceResult =
   | { ok: true; orderId: string; discountCents: number }
   | {
@@ -699,15 +694,7 @@ export async function repriceAndValidate(
       logServerError("pos.reprice.offering", error);
       return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
     }
-    // TUL-1349: an item unpublished or archived after it went into the cart
-    // must not complete checkout. Fail closed, refuse only; no price is touched.
-    // Staff at the counter keep the status-only rule; EVERY other channel (the
-    // guest cart, anything unknown) is held to D-10 / D-10a: published AND
-    // approved AND public, so an item that later became agency_only, on_request
-    // or rejected cannot take an instant charge.
-    if (offering && !isSellableOnChannel(offering as Record<string, unknown>, isStaffChannel(loaded.order.source_channel) ? "staff" : "guest")) {
-      return { ok: false, reason: "item_unavailable", error: "This item is no longer available." };
-    }
+    if (offering && !offeringSellableAtReprice(offering as Record<string, unknown>, loaded.order.source_channel)) return ITEM_UNAVAILABLE;
     if (!offering && phase.priceCents == null) continue;
     let unitCents = Math.max(0, Math.trunc(num((offering as { amount_cents: number | null } | null)?.amount_cents)));
     if (line.variant_id) {
@@ -720,25 +707,17 @@ export async function repriceAndValidate(
         logServerError("pos.reprice.variant", variantError);
         return { ok: false, reason: "unavailable", error: "Could not re-read prices." };
       }
-      // TUL-1349: the chosen option must still exist and still belong to this
-      // item (every channel). A HIDDEN option is refused for guests only: hidden
-      // options are the staff-only and comp options a cashier legitimately sells.
       const v = variant as { amount_cents?: number | null; offering_id?: string; is_hidden?: boolean | null } | null;
-      if (!v || v.offering_id !== line.offering_id || (v.is_hidden === true && !isStaffChannel(loaded.order.source_channel))) {
-        return { ok: false, reason: "item_unavailable", error: "This item is no longer available." };
-      }
-      const amount = v.amount_cents;
+      if (variantRefusedAtReprice(v, line.offering_id, loaded.order.source_channel)) return ITEM_UNAVAILABLE;
+      const amount = v?.amount_cents;
       if (amount != null) unitCents = Math.max(0, Math.trunc(num(amount)));
     }
     if (phase.priceCents != null) unitCents = phase.priceCents;
-    // Extras are repriced from the catalog like everything else here. This is
-    // the one command whose job is to answer "what does this cost NOW", and an
-    // add-on left at its stored price would be the only stale number on a
-    // receipt that claims to be current.
-    //
-    // An add-on that has since been deleted or moved to another offering makes
-    // the whole reprice REFUSE. Silently dropping it would take money off the
-    // sale while the kitchen ticket still promises the extra.
+    // Extras are repriced from the catalog like everything else: this command
+    // answers "what does this cost NOW", so no add-on keeps a stale stored price.
+    // An add-on since deleted or moved to another offering makes the whole
+    // reprice REFUSE; dropping it would take money off the sale while the
+    // kitchen ticket still promises the extra.
     const addons = await priceAddons(admin, {
       tenantId: input.tenantId,
       offeringId: line.offering_id,
