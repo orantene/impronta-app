@@ -567,6 +567,8 @@ export const MARKETING_PAGE_PREFIXES = [
   "/for",
   // Educational resource articles + glossary (`/resources/*`).
   "/resources",
+  // Tulala product blog (TUL-1399): marketing-host /blog and /blog/<slug>. 404s unless PLATFORM_BLOG_TENANT_ID is set.
+  "/blog",
   // The feature hub: the index, every `/features/{slug}`, and its
   // `opengraph-image` route.
   "/features",

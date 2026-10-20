@@ -51,6 +51,8 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { localeAlternateUrl } from "@/i18n/alternates";
 import { listPublishedPostRows } from "@/lib/cms/posts-public";
+import { buildPlatformBlogSite, platformBlogTenantId } from "@/lib/cms/platform-blog";
+import { postSiteUrlFor } from "@/lib/cms/posts-public-site";
 import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
 import { blogIndexSitemapEntries } from "@/lib/seo/blog-index-sitemap-entries";
 import { loadEventSitemapEntries } from "@/lib/seo/event-sitemap-entries";
@@ -424,7 +426,17 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
         ];
       },
     );
-    return [...marketingEntries, ...featureEntries, ...comparisonEntries, ...platformTalentEntries];
+    // TUL-1399: the product blog's posts, only when PLATFORM_BLOG_TENANT_ID is configured.
+    const blogTenantId = platformBlogTenantId();
+    const blogSite = blogTenantId ? buildPlatformBlogSite(blogTenantId) : null;
+    const blogEntries: MetadataRoute.Sitemap = blogSite
+      ? await (async () => {
+          const rows = await listPublishedPostRows(blogSite.scope, blogSite.supportedLocales).catch(() => []);
+          const url = postSiteUrlFor(blogSite);
+          return [...blogIndexSitemapEntries(rows, url, new Date()), ...postSitemapEntries(rows, url, new Date())];
+        })()
+      : [];
+    return [...marketingEntries, ...featureEntries, ...comparisonEntries, ...platformTalentEntries, ...blogEntries];
   }
   if (isTalentProfilePlatformHost(hostContext.kind)) {
     return platformTalentEntries;
