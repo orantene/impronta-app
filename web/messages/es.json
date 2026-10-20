@@ -8586,7 +8586,17 @@
           "tabPricing": "Precios",
           "tabFeatures": "Funciones",
           "tabDisplay": "Presentación",
-          "tabStripe": "Stripe"
+          "tabStripe": "Stripe",
+          "serviceFee": {
+            "label": "Cargo por servicio de Tulala",
+            "help": "Lo paga el cliente encima del precio de la reserva y se muestra antes de pagar. Aplica a las reservas vendidas por quien esté en este plan. Un cambio afecta los pagos que se coticen desde ahora; los pedidos ya cotizados conservan el cargo con el que se cotizaron.",
+            "field": "Cargo (%)",
+            "save": "Guardar cargo",
+            "saving": "Guardando...",
+            "saved": "Guardado. Los nuevos pagos usan este cargo.",
+            "range": "Escribe un cargo entre 0% y 20%.",
+            "notReady": "El ajuste del cargo por servicio aún no está disponible. Se activa cuando se aplica la migración del cargo."
+          }
         },
         "pricingTab": {
           "activePricesTitle": "Precios activos",

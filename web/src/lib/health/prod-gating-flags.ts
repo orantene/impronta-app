@@ -9,6 +9,7 @@
  * It does not flip any flags.
  */
 
+import { passThroughArmed } from "@/lib/billing/fee-config";
 import {
   readMaisonThemeMode,
   readMaisonThemeTalentAllowlist,
@@ -156,7 +157,7 @@ export function resolveEnvProdGatingFlags(
       key: "COMMISSION_PROCESSING_PASS_THROUGH",
       source: "env+db",
       env: envRaw(env, "COMMISSION_PROCESSING_PASS_THROUGH"),
-      resolved: env.COMMISSION_PROCESSING_PASS_THROUGH === "1",
+      resolved: passThroughArmed(env),
     },
     {
       key: "CLIENT_WELCOME_EMAIL_ENABLED",
@@ -298,7 +299,7 @@ export async function resolveProdGatingFlags(
         resolved: bps,
       });
       // Combined arming signal: env AND db mode (matches commission-engine).
-      const envArmed = env.COMMISSION_PROCESSING_PASS_THROUGH === "1";
+      const envArmed = passThroughArmed(env);
       patch(byKey, "COMMISSION_PROCESSING_PASS_THROUGH", {
         db: mode,
         resolved: envArmed && mode === "pass_through",

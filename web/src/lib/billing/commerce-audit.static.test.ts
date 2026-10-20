@@ -30,6 +30,7 @@ const WEB_ROOT = process.cwd();
  */
 const AUDITED_WRITE_MODULES = [
   "admin-product-pricing",
+  "admin-tier-service-fee",
   "admin-product-features",
   "admin-product-discounts",
   "admin-subscription-discounts",
