@@ -291,6 +291,7 @@ export function LayoutTab({ config, patch }: Props) {
                 <option value="bottom_tab">Bottom tabs</option>
                 <option value="filter_bar">Filter bar</option>
                 <option value="chapter_dots">Chapter dots</option>
+                <option value="no_nav">Name only</option>
               </select>
             </div>
           </InspectorGroup>

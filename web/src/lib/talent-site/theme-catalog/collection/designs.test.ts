@@ -182,7 +182,7 @@ test("collection Designs stamp shared navChrome modes on the standard header", (
   const expected: Record<string, string | undefined> = {
     "maison-v2": undefined,
     solace: "overlay",
-    mono: undefined,
+    mono: "no_nav",
     frame: "filter_bar",
     folio: undefined,
   };

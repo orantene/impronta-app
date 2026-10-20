@@ -49,6 +49,13 @@ import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { isValidRating } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { resolveReviewLocale, type ReviewLocale } from "./review-page-copy";
+import {
+  bookingLocaleOf,
+  loadOfferingDisplayTitle,
+  resolveRequestOfferingId,
+  stampReviewOffering,
+} from "./review-offering";
 
 /** Statuses that mean the invite can no longer be used. */
 const TERMINAL_STATUSES = new Set(["completed", "expired"]);
@@ -118,7 +125,11 @@ type ReviewRequestRow = {
  *   { kind: "expired" }  → past expiry, or already completed / expired.
  *   { kind: "ok", … }    → a live invite the page can render + prefill.
  */
-export async function loadReviewInviteByToken(token: string): Promise<
+export async function loadReviewInviteByToken(
+  token: string,
+  /** The browser's Accept-Language, the fallback when the booking has no language of its own. */
+  acceptLanguage?: string | null,
+): Promise<
   | { kind: "invalid" }
   | { kind: "expired" }
   | {
@@ -142,6 +153,10 @@ export async function loadReviewInviteByToken(token: string): Promise<
       invitedEmail: string | null;
       /** The talent's optional personal note in the invite. */
       message: string | null;
+      /** G2: the page language (the booking's, else the browser's, else English). */
+      locale: ReviewLocale;
+      /** G2: the service this review is about, in the page language; null when none. */
+      serviceName: string | null;
     }
 > {
   const t = cleanToken(token);
@@ -188,6 +203,18 @@ export async function loadReviewInviteByToken(token: string): Promise<
       eventDate = booking?.event_date ?? null;
     }
 
+    // G2: the page language and the service the review is about. Both are
+    // best-effort reads; a failure leaves the page in English with no service.
+    const locale = resolveReviewLocale({
+      bookingLocale: await bookingLocaleOf(svc, row.booking_id),
+      acceptLanguage,
+    });
+    const serviceName = await loadOfferingDisplayTitle(
+      svc,
+      await resolveRequestOfferingId(svc, { requestId: row.id, bookingId: row.booking_id }),
+      locale,
+    );
+
     return {
       kind: "ok",
       token: t,
@@ -201,6 +228,8 @@ export async function loadReviewInviteByToken(token: string): Promise<
       clientUserId: row.client_user_id,
       invitedEmail: (row.invited_email ?? "").trim() || null,
       message: (row.message ?? "").trim() || null,
+      locale,
+      serviceName,
     };
   } catch (err) {
     logServerError("reviews/token/load", err);
@@ -414,6 +443,12 @@ export async function submitReviewViaTokenAction(
       };
     }
     await markRequestCompleted(svc, invite.id);
+    await stampReviewOffering(svc, {
+      bookingId,
+      talentProfileId: invite.talent_profile_id,
+      clientUserId: user.id,
+      offeringId: await resolveRequestOfferingId(svc, { requestId: invite.id, bookingId }),
+    });
     return { ok: true };
   }
 
@@ -484,6 +519,12 @@ export async function submitReviewViaTokenAction(
   }
 
   await markRequestCompleted(svc, invite.id);
+  await stampReviewOffering(svc, {
+    bookingId,
+    talentProfileId: invite.talent_profile_id,
+    clientUserId: guestUserId,
+    offeringId: await resolveRequestOfferingId(svc, { requestId: invite.id, bookingId }),
+  });
   return { ok: true };
 }
 

@@ -7,6 +7,7 @@ import ReviewReceived from "../../../emails/reviews/ReviewReceived";
 import type { AudienceMember, CatalogEntry, NotificationEvent } from "./types";
 import { eventUser, str } from "./catalog-audiences";
 import { formatDateLabel, pageUrl } from "./catalog-render";
+import { normalizeBookingLocale } from "@/lib/scheduling/booking-locale";
 
 /**
  * Reviews catalog entries (STANDING v2, spec §Phase 2) — the collection engine
@@ -37,12 +38,15 @@ import { formatDateLabel, pageUrl } from "./catalog-render";
  * in-app bell on their client surface.
  */
 export const reviewInvitee = async (event: NotificationEvent): Promise<AudienceMember[]> => {
+  // G2: an automatic request carries the language the booking was made in, so a
+  // Spanish booking is asked for its review in Spanish. Absent = tenant default.
+  const locale = normalizeBookingLocale(event.payload.locale) ?? undefined;
   const clientUserId = str(event.payload.clientUserId);
-  if (clientUserId) return [{ kind: "user", userId: clientUserId, role: "client" }];
+  if (clientUserId) return [{ kind: "user", userId: clientUserId, role: "client", locale }];
   const email = str(event.payload.invitedEmail);
   if (email) {
     return [
-      { kind: "guest", email, displayName: str(event.payload.clientName), role: "client" },
+      { kind: "guest", email, displayName: str(event.payload.clientName), role: "client", locale },
     ];
   }
   return [];
