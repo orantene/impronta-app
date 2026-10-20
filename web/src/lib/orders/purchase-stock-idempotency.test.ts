@@ -404,3 +404,20 @@ test("BEFORE the held migration (no client_order_key column) purchases still wor
   assert.equal(r.ok, true, `purchase must not depend on the held column, got ${JSON.stringify(r)}`);
   assert.equal("client_order_key" in db.tables.orders[0], false, "the key is not written to a missing column");
 });
+
+test("TUL-1552: a leg that names its own hold TTL holds for that long, not the pool's 15 minutes", async () => {
+  const db = fakeDb({ stock: 5 });
+  const before = Date.now();
+  const r = await createPurchase(
+    db.admin,
+    menuOrder({ capacity: [{ offeringId: OFFERING, poolId: POOL, units: 1, ttlSeconds: 1920 }] }),
+  );
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const reserve = db.rpcCalls.find((c) => c.fn === "reserve_resource_set_v2");
+  const args = reserve?.args as { p_ttl_seconds: number; p_capacity: Array<{ ttl_seconds: number | null }> };
+  assert.equal(args.p_ttl_seconds, 1920);
+  assert.equal(args.p_capacity[0]?.ttl_seconds, 1920, "the leg itself carries the TTL");
+  const pending = db.orderUpdates.find((u) => u.status === "pending_payment");
+  const holdEnd = Date.parse(String(pending?.hold_expires_at));
+  assert.ok(Math.abs(holdEnd - (before + 1920_000)) < 5_000, `hold_expires_at follows the leg TTL, got ${String(pending?.hold_expires_at)}`);
+});

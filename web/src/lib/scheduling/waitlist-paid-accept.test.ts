@@ -36,7 +36,7 @@ const ENTRY = uuid(5);
 const NOW = Date.now();
 const iso = (ms: number) => new Date(ms).toISOString();
 
-function seed(amountCents: number): FakeStore {
+function seed(amountCents: number | null, variantCents: ReadonlyArray<number | null> = []): FakeStore {
   return {
     session_waitlist_entries: [
       {
@@ -53,6 +53,7 @@ function seed(amountCents: number): FakeStore {
       },
     ],
     talent_offerings: [{ id: OFFERING, tenant_id: TENANT, amount_cents: amountCents, price_type: "fixed", currency: "MXN" }],
+    talent_offering_variants: variantCents.map((cents, i) => ({ id: uuid(70 + i), offering_id: OFFERING, amount_cents: cents })),
     capacity_pools: [{ id: POOL, tenant_id: TENANT, subject_kind: "session_tier", subject_id: SESSION, pool_key: "default" }],
     capacity_allocations: [],
     orders: [],
@@ -81,12 +82,13 @@ function fakePurchase(store: FakeStore, calls: PurchaseInput[]) {
     store.orders.push({
       id: orderId, tenant_id: TENANT, status: "pending_payment", customer_id: uuid(9),
       source_channel: input.sourceChannel, currency: "MXN", receipt_code: "RCPT1234",
-      hold_expires_at: iso(NOW + 15 * 60_000), created_at: iso(NOW), updated_at: iso(NOW),
+      // The pipeline takes the hold TTL from the leg when one is given (else the pool's 15 min).
+      hold_expires_at: iso(NOW + (input.capacity?.[0]?.ttlSeconds ?? 900) * 1000), created_at: iso(NOW), updated_at: iso(NOW),
     });
     store.order_lines.push({ id: lineId, order_id: orderId, session_id: input.lines[0]?.sessionId ?? null });
     store.capacity_allocations.push({
       id: uuid(62), tenant_id: TENANT, pool_id: POOL, order_line_id: lineId, state: "hold",
-      units: input.capacity?.[0]?.units ?? 1, expires_at: iso(NOW + 15 * 60_000),
+      units: input.capacity?.[0]?.units ?? 1, expires_at: iso(NOW + (input.capacity?.[0]?.ttlSeconds ?? 900) * 1000),
     });
     return {
       ok: true, orderId, inquiryId: null, customerId: uuid(9), totalCents: 50000, collectCents: 50000,
@@ -96,8 +98,8 @@ function fakePurchase(store: FakeStore, calls: PurchaseInput[]) {
   };
 }
 
-function setup(amountCents: number) {
-  const store = seed(amountCents);
+function setup(amountCents: number | null, variantCents: ReadonlyArray<number | null> = []) {
+  const store = seed(amountCents, variantCents);
   const db = fakeAdmin(store, { accept_session_waitlist_offer: acceptRpc(store) });
   const purchases: PurchaseInput[] = [];
   const checkouts: CheckoutSessionInput[] = [];
@@ -232,4 +234,65 @@ test("an unreadable price refuses, never commits (fail closed)", async () => {
   const result = await acceptWaitlistOffer(broken as never, input, charge);
   assert.equal(result.ok, false);
   assert.equal(committed(store).length, 0);
+});
+
+/* ── PM review of #4213 ────────────────────────────────────────────────────── */
+
+test("a session priced only by VARIANT (base 0, tier > 0) is not free: no committed seat, refused as ambiguous", async () => {
+  const { store, db, purchases, charge, input } = setup(0, [0, 3000]);
+  const result = await acceptWaitlistOffer(db.admin as never, input, charge);
+  assert.equal(committed(store).length, 0, "a priced tier must never be handed out as free");
+  assert.equal(store.session_waitlist_entries[0].status, "offered");
+  assert.equal(purchases.length, 0, "the place has no single price to charge, so nothing is opened");
+  assert.equal(result.ok, false);
+});
+
+test("a base price with NO amount (null) is not a definite 0: refused, never committed", async () => {
+  const { store, db, charge, input } = setup(null);
+  const result = await acceptWaitlistOffer(db.admin as never, input, charge);
+  assert.equal(result.ok, false);
+  assert.equal(committed(store).length, 0);
+});
+
+test("unreadable variants refuse (fail closed), never commit", async () => {
+  const { store, charge, input } = setup(0);
+  const db = fakeAdmin(store, { accept_session_waitlist_offer: acceptRpc(store) });
+  type Reply = { data: null; error: { code: string; message: string } };
+  type Failing = { select: () => Failing; eq: () => Failing; in: () => Failing; then: (r: (v: Reply) => unknown) => unknown };
+  const failing: Failing = {
+    select: () => failing,
+    eq: () => failing,
+    in: () => failing,
+    then: (r) => r({ data: null, error: { code: "57014", message: "timeout" } }),
+  };
+  const broken = {
+    from: (table: string) => (table === "talent_offering_variants" ? failing : db.admin.from(table)),
+    rpc: db.admin.rpc,
+  };
+  const result = await acceptWaitlistOffer(broken as never, input, charge);
+  assert.equal(result.ok, false);
+  assert.equal(committed(store).length, 0);
+});
+
+test("free still means free: base 0 and every variant 0 commits directly", async () => {
+  const { store, db, purchases, charge, input } = setup(0, [0, 0]);
+  const result = await acceptWaitlistOffer(db.admin as never, input, charge);
+  assert.equal(result.ok, true);
+  assert.equal(purchases.length, 0);
+  assert.equal(committed(store).length, 1);
+});
+
+test("the hold matches the offer window, and Checkout closes before the hold does", async () => {
+  const { store, db, purchases, checkouts, charge, input } = setup(25000);
+  const mod = await import("./waitlist-charge");
+  const holdSeconds = (mod as { WAITLIST_HOLD_SECONDS?: number }).WAITLIST_HOLD_SECONDS;
+  const marginSeconds = (mod as { WAITLIST_CHECKOUT_MARGIN_SECONDS?: number }).WAITLIST_CHECKOUT_MARGIN_SECONDS;
+  await acceptWaitlistOffer(db.admin as never, input, charge);
+  assert.ok(typeof holdSeconds === "number" && holdSeconds >= 30 * 60, "the hold covers the 30-minute offer window");
+  assert.equal(purchases[0]?.capacity?.[0]?.ttlSeconds, holdSeconds, "the order holds for the offer window, not the pool's 15 min");
+  const holdEnd = Date.parse(String(store.orders[0]?.hold_expires_at));
+  const checkoutEnd = Date.parse(String(checkouts[0]?.expiresAt));
+  assert.ok(Number.isFinite(checkoutEnd), "the Checkout session is given an expiry");
+  assert.equal(holdEnd - checkoutEnd, (marginSeconds ?? NaN) * 1000, "nobody can pay after the seat is gone");
+  assert.ok(checkoutEnd - Date.now() >= 30 * 60_000, "Stripe's 30-minute minimum is met");
 });

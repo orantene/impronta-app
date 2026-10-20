@@ -41,6 +41,16 @@ export type WaitlistChargeAdmin = {
   from: (table: string) => any;
 };
 
+/**
+ * How long a waitlist order holds its seat: the 30-minute offer window plus
+ * two minutes, so the Checkout link can close a minute BEFORE the hold and
+ * still be 30 minutes away when Stripe creates it (its minimum).
+ */
+export const WAITLIST_HOLD_SECONDS = 32 * 60;
+/** Checkout closes this long before the hold, so nobody pays for a released seat. */
+export const WAITLIST_CHECKOUT_MARGIN_SECONDS = 60;
+const STRIPE_MIN_CHECKOUT_SECONDS = 30 * 60;
+
 export type WaitlistChargeDeps = {
   createPurchase: (admin: never, input: PurchaseInput) => Promise<PurchaseResult>;
   createCheckout: (input: CheckoutSessionInput) => Promise<CheckoutSessionResult>;
@@ -65,6 +75,8 @@ export type WaitlistPriceRead =
   /** Not a paid live offer: the commit RPC decides, exactly as before. */
   | { kind: "rpc" }
   | { kind: "error" }
+  /** Paid, but no single price can be named (e.g. priced only by tier): refuse, never commit. */
+  | { kind: "ambiguous" }
   | {
       kind: "paid";
       entry: { id: string; customerName: string; customerEmail: string | null; partySize: number };
@@ -126,8 +138,36 @@ export async function readWaitlistPrice(
     logServerError("scheduling.waitlistCharge/offering", offeringErr);
     return { kind: "error" };
   }
-  const amount = Number((offeringData as { amount_cents?: number | null } | null)?.amount_cents ?? 0);
-  if (!(amount > 0)) return { kind: "rpc" };
+  // A place is FREE only when its price is a definite 0: the base amount is 0
+  // AND no tier/variant the guest could be placed on has a price. Anything
+  // else is paid, and a paid place whose single price cannot be named (a base
+  // of 0 or no base, with priced tiers) is refused: the entry carries no tier,
+  // so charging the base would sell a priced tier for nothing.
+  if (!offeringData) {
+    logServerError("scheduling.waitlistCharge/offering", `session ${session.id}: offering ${session.offering_id} not found`);
+    return { kind: "ambiguous" };
+  }
+  const { data: variantRows, error: variantErr } = await admin
+    .from("talent_offering_variants")
+    .select("id, amount_cents")
+    .eq("offering_id", session.offering_id);
+  if (variantErr) {
+    logServerError("scheduling.waitlistCharge/variants", variantErr);
+    return { kind: "error" };
+  }
+  const rawBase = (offeringData as { amount_cents?: number | null }).amount_cents;
+  const base = typeof rawBase === "number" && Number.isFinite(rawBase) ? rawBase : null;
+  const pricedTier = ((variantRows ?? []) as Array<{ amount_cents?: number | null }>).some(
+    (v) => typeof v.amount_cents === "number" && v.amount_cents > 0,
+  );
+  if (base === 0 && !pricedTier) return { kind: "rpc" };
+  if (base === null || base <= 0) {
+    logServerError(
+      "scheduling.waitlistCharge/price",
+      `session ${session.id}: no single price to charge (base ${String(rawBase)}, priced tier ${String(pricedTier)}); refused`,
+    );
+    return { kind: "ambiguous" };
+  }
 
   return {
     kind: "paid",
@@ -180,7 +220,11 @@ export async function chargeForWaitlistPlace(
     paymentChoice: "full",
     sourceChannel: "waitlist",
     channel: deps.channel,
-    capacity: [{ offeringId: session.offeringId, poolId: request.poolId, startsAt: request.startsAt, endsAt: request.endsAt, units: request.units }],
+    capacity: [{
+      offeringId: session.offeringId, poolId: request.poolId, startsAt: request.startsAt, endsAt: request.endsAt, units: request.units,
+      // Held for the offer window, not the pool's 15 minutes (this leg only; the pool is untouched).
+      ttlSeconds: WAITLIST_HOLD_SECONDS,
+    }],
     locale: deps.locale,
   });
   if (!result.ok) {
@@ -197,10 +241,22 @@ export async function chargeForWaitlistPlace(
   if (orderErr) logServerError("scheduling.waitlistCharge/order", orderErr);
   const order = (orderErr ? null : orderData) as { receipt_code?: string | null; hold_expires_at?: string | null } | null;
 
+  // Checkout closes WAITLIST_CHECKOUT_MARGIN_SECONDS before the hold does, so
+  // nobody can pay for a seat already back in the pool. Stripe refuses an
+  // expiry under 30 minutes away; if that cannot be met (or the hold end is
+  // unknown) no link is opened, and accepting again retries on the same order.
+  const holdEndMs = order?.hold_expires_at ? Date.parse(order.hold_expires_at) : NaN;
+  const checkoutEndMs = holdEndMs - WAITLIST_CHECKOUT_MARGIN_SECONDS * 1000;
+  const checkoutExpiryOk = Number.isFinite(checkoutEndMs) && checkoutEndMs - Date.now() >= STRIPE_MIN_CHECKOUT_SECONDS * 1000;
+  if (!checkoutExpiryOk) {
+    logServerError("scheduling.waitlistCharge/checkoutExpiry", `order ${result.orderId}: hold ends ${String(order?.hold_expires_at)}; no link opened`);
+  }
+
   let payUrl: string | null = null;
-  if (result.collectCents > 0 && result.transactionId && result.bookingId && deps.origin) {
+  if (checkoutExpiryOk && result.collectCents > 0 && result.transactionId && result.bookingId && deps.origin) {
     const receipt = typeof order?.receipt_code === "string" ? order.receipt_code : null;
     const checkout = await deps.createCheckout({
+      expiresAt: new Date(checkoutEndMs).toISOString(),
       transactionId: result.transactionId,
       amountCents: result.collectCents,
       // The order's own currency, from the pipeline. Never guessed.

@@ -413,7 +413,11 @@ export async function acceptWaitlistOffer(
   }
 
   const priced = await readWaitlistPrice(admin, input);
-  if (priced.kind === "error") return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+  // An unreadable price, or a paid place with no single price (priced only by
+  // tier), refuses. Neither may fall through to the commit RPC.
+  if (priced.kind === "error" || priced.kind === "ambiguous") {
+    return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+  }
   if (priced.kind === "paid") {
     if (!charge) {
       logServerError("scheduling.acceptWaitlistOffer/paid", `entry ${input.entryId}: paid session accepted with no way to charge; refused`);

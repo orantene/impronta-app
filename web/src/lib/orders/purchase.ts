@@ -449,8 +449,7 @@ export async function createPurchase(
       // thing rather than in pieces — and it is why the order's
       // `hold_expires_at` matches the first allocation to lapse.
       for (const need of needs) {
-        const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
-        const ttl = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
+        const ttl = need.ttlSeconds ?? (await capacityHoldTtlSeconds(need.poolId, admin)) ?? FALLBACK_HOLD_TTL_SECONDS; // leg TTL wins (TUL-1552)
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
       if (input.reservation?.poolId) {
