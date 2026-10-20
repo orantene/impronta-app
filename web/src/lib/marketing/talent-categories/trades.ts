@@ -63,7 +63,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking or order the fee is six percent, three from the customer and three from you, with card processing included in that. The same on every plan.",
+          a: "The page is free. On a paid booking or order the customer pays a 1.5% Tulala service fee on top and nothing comes off your price. Card processing is charged at cost, and you can have the customer cover it. The same on every plan.",
         },
         {
           q: "I run a pizza place out of my home kitchen. Is that too small?",
@@ -107,7 +107,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una reserva o pedido pagado la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En una reserva o pedido pagado el cliente paga una tarifa de servicio de Tulala de 1.5% encima y nada sale de tu precio. El procesamiento de tarjeta se cobra a costo, y puedes hacer que lo cubra el cliente. Igual en todos los planes.",
         },
         {
           q: "Hago pizzas desde la cocina de mi casa. ¿Es muy chico?",
@@ -161,7 +161,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking the fee is six percent, three from the customer and three from you, with card processing included.",
+          a: "The page is free. On a paid booking the customer pays a 1.5% Tulala service fee on top and nothing comes off your price. Card processing is charged at cost, and you can have the customer cover it.",
         },
       ],
     },
@@ -205,7 +205,7 @@ export const TRADE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una reserva pagada la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido.",
+          a: "La página es gratis. En una reserva pagada el cliente paga una tarifa de servicio de Tulala de 1.5% encima y nada sale de tu precio. El procesamiento de tarjeta se cobra a costo, y puedes hacer que lo cubra el cliente.",
         },
       ],
     },

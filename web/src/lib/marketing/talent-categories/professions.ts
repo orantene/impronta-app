@@ -65,7 +65,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid commission the fee is six percent, three from the client and three from you, with card processing included. The same on every plan.",
+          a: "The page is free. On a paid commission the client pays a 1.5% Tulala service fee on top and nothing comes off your price. Card processing is charged at cost, and you can have the client cover it. The same on every plan.",
         },
       ],
     },
@@ -109,7 +109,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En un encargo pagado la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En un encargo pagado el cliente paga una tarifa de servicio de Tulala de 1.5% encima y nada sale de tu precio. El procesamiento de tarjeta se cobra a costo, y puedes hacer que lo cubra el cliente. Igual en todos los planes.",
         },
       ],
     },
@@ -159,7 +159,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking the fee is six percent, three from the client and three from you, with card processing included. The same on every plan.",
+          a: "The page is free. On a paid booking the client pays a 1.5% Tulala service fee on top and nothing comes off your price. Card processing is charged at cost, and you can have the client cover it. The same on every plan.",
         },
       ],
     },
@@ -203,7 +203,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una cita pagada la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En una cita pagada el cliente paga una tarifa de servicio de Tulala de 1.5% encima y nada sale de tu precio. El procesamiento de tarjeta se cobra a costo, y puedes hacer que lo cubra el cliente. Igual en todos los planes.",
         },
       ],
     },
