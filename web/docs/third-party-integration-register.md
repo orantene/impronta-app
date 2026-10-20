@@ -30,7 +30,7 @@ Owner: IT Integration and Security Director. Kept current by that role. One row 
 | Google Search Console reporting | GOOGLE_SEARCH_CONSOLE_CREDENTIALS_JSON | NONE | service account not created | GSC reporting | web/src/lib/server/gsc-reporting.ts | n/a | 2026-09-06 |
 | Google Analytics reporting | GOOGLE_ANALYTICS_CREDENTIALS_JSON | NONE | service account not created | GA4 reporting | web/src/lib/server/ga4-reporting.ts | n/a | 2026-09-06 |
 | Stripe (additional webhook endpoints) | STRIPE_V2_WEBHOOK_SECRET, STRIPE_CLIENT_SUBSCRIPTION_WEBHOOK_SECRET | NONE | endpoints not registered in Stripe | /api/webhooks/stripe-v2, /api/discover/subscriptions/webhook | those two routes | n/a; both routes refuse or no-op without the secret, verify which | 2026-09-06 |
-| Internal secrets | AI_CREDENTIALS_ENCRYPTION_KEY (vault, AES-256-GCM), CRON_SECRET, GUEST_COOKIE_SECRET, IMPERSONATION_COOKIE_SECRET, MEDIA_URL_SIGNING_SECRET, PREVIEW_JWT_SECRET | prod (+preview for some) | platform | see names | credential-vault.ts, api/cron/*, guest cookies, impersonation, media signing, preview | vault key CANNOT rotate without re-encrypting tenant_integration_secrets (no tool exists) | 2026-09-05 |
+| Internal secrets | AI_CREDENTIALS_ENCRYPTION_KEY (vault, AES-256-GCM), CRON_SECRET, BOOKING_MANAGE_TOKEN_SECRET (manage-booking links, TUL-1550), GUEST_COOKIE_SECRET, IMPERSONATION_COOKIE_SECRET, MEDIA_URL_SIGNING_SECRET, PREVIEW_JWT_SECRET | prod (+preview for some) | platform | see names | credential-vault.ts, api/cron/*, guest cookies, impersonation, media signing, preview | vault key CANNOT rotate without re-encrypting tenant_integration_secrets (no tool exists) | 2026-09-05 |
 
 ## Which half is a secret, and why it matters here
 

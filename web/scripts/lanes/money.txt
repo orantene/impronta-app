@@ -52,6 +52,7 @@ src/lib/bookings/fee-display.test.ts
 src/lib/bookings/fee-netted-order-guard.test.ts
 src/lib/bookings/gallery-selection.test.ts
 src/lib/bookings/lesson-package.test.ts
+src/lib/bookings/manage-token.test.ts
 src/lib/bookings/mark-refunded-plan.test.ts
 src/lib/bookings/payment-booking.test.ts
 src/lib/bookings/policy-overrides.test.ts
@@ -234,6 +235,7 @@ src/lib/pos/link-booking.test.ts
 src/lib/pos/outbox-replay.test.ts
 src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
+src/lib/pos/pos-rpc-hardening.static.test.ts
 src/lib/pos/recover-collections.test.ts
 src/lib/pos/refusal-reason.test.ts
 src/lib/pos/reprice-item-availability.test.ts
