@@ -272,6 +272,16 @@ export async function GET(request: Request) {
           [{ poolKey: DEFAULT_POOL_KEY, units: series.seats }],
         );
 
+        if (!result.ok && (result.reason === "room_taken" || result.reason === "room_unavailable")) {
+          // TUL-1413: the class's room is taken at that time (or could not be held): not scheduled,
+          // and said, so the owner can move one of the two. The next sweep tries again.
+          void improntaLog("sessions.cron.room_refused", {
+            seriesId: series.id,
+            startsAt: occ.startsAt,
+            reason: result.reason,
+          });
+          continue;
+        }
         if (!result.ok && result.reason !== "pools_failed") continue;
 
         // A repeat is the normal second-run path and no longer a refusal: the

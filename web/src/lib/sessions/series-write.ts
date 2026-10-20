@@ -269,7 +269,8 @@ export async function generateSessionsForSeries(
       },
       [{ poolKey: "default", units: s.seats }],
     );
-    if (!made.ok) return { ok: false, reason: "unavailable" };
+    // TUL-1413: the room is taken by another session at that time: the same refusal as an overlapping room.
+    if (!made.ok) return { ok: false, reason: made.reason === "room_taken" ? "overlapping_room" : "unavailable" };
     if (made.created) created += 1;
     else reused += 1;
   }

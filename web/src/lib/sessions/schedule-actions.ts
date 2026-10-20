@@ -623,6 +623,12 @@ export async function scheduleSession(
     );
 
     if (!result.ok) {
+      if (result.reason === "room_taken") {
+        return { ok: false, message: "That room is already taken at that time. Pick another time or room." };
+      }
+      if (result.reason === "room_unavailable") {
+        return { ok: false, message: "Could not reserve this class's room. Nothing was scheduled; try again." };
+      }
       if (result.reason === "insert_failed") {
         return { ok: false, message: "Could not create the session." };
       }

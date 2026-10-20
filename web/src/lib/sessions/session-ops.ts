@@ -1,10 +1,13 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { releaseResourcesOfCancelledSessions } from "@/lib/resources/session-resource-holds";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rpc?: (fn: string, args: Record<string, unknown>) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  from?: (table: string) => any;
 };
 
 export type SessionOpsReason =
@@ -82,6 +85,38 @@ export async function sessionMoveParticipant(
   };
 }
 
+/**
+ * TUL-1413: a cancelled session gives its room back. The cancel RPC does not say which
+ * sessions it cancelled (scope this / future / series), so the session and its series are
+ * read back and every one now cancelled releases its hold. A failure here never undoes the
+ * cancel (the people are already notified); it is logged and the next cancel or a manual
+ * release can retry, because releasing is idempotent.
+ */
+async function releaseRoomsAfterCancel(admin: Admin, tenantId: string, sessionId: string): Promise<void> {
+  try {
+    if (typeof admin.from !== "function") return;
+    const from = (table: string) => admin.from!(table);
+    const { data: base, error } = await from("sessions").select("id, series_id, status").eq("tenant_id", tenantId).eq("id", sessionId).maybeSingle();
+    if (error || !base) {
+      if (error) logServerError("sessions.sessionCancel.rooms/base", error);
+      return;
+    }
+    const b = base as { id: string; series_id: string | null; status: string };
+    let candidates: Array<{ id: string; status: string }> = [{ id: b.id, status: b.status }];
+    if (b.series_id) {
+      const { data: rows, error: seriesErr } = await from("sessions").select("id, status").eq("tenant_id", tenantId).eq("series_id", b.series_id).eq("status", "cancelled").limit(1000);
+      if (seriesErr) logServerError("sessions.sessionCancel.rooms/series", seriesErr);
+      else candidates = [...candidates, ...((rows ?? []) as Array<{ id: string; status: string }>)];
+    }
+    const seen = new Set<string>();
+    candidates = candidates.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
+    const res = await releaseResourcesOfCancelledSessions({ admin: admin as never, tenantId, sessions: candidates });
+    if (!res.ok) logServerError("sessions.sessionCancel.rooms/release", `session=${sessionId}`);
+  } catch (err) {
+    logServerError("sessions.sessionCancel.rooms", err);
+  }
+}
+
 export async function sessionCancel(
   admin: Admin,
   input: {
@@ -125,6 +160,7 @@ export async function sessionCancel(
     paid_seats_need_refund?: boolean;
   };
   if (reply.ok === true) {
+    await releaseRoomsAfterCancel(admin, input.tenantId, input.sessionId);
     return {
       ok: true,
       sessionsCancelled: Number(reply.sessions_cancelled) || 0,

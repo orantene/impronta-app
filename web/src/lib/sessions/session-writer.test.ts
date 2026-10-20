@@ -237,3 +237,47 @@ test("a SERIES occurrence repeat is still idempotent, on its own index", async (
   assert.equal(db.sessions.length, 1);
   assert.equal(db.pools.length, 1);
 });
+
+// ── TUL-1413: the session holds its room once ─────────────────────────────────
+
+test("a session with a linked room holds it BEFORE the row exists, under the id the row gets", async () => {
+  const { admin, sessions } = fakeDb();
+  const held: Array<{ sessionId: string; offeringId: string }> = [];
+  const deps = {
+    hold: (async (i: { sessionId: string; offeringId: string }) => (held.push({ sessionId: i.sessionId, offeringId: i.offeringId }), { ok: true, held: 1 })) as never,
+    release: (async () => ({ ok: true, released: 1 })) as never,
+  };
+  const res = await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.equal(res.ok, true);
+  assert.equal(held.length, 1);
+  assert.equal(held[0].offeringId, "off-1");
+  assert.equal(sessions.length, 1);
+});
+
+test("a taken room refuses the session and creates nothing (no row, no pools)", async () => {
+  const { admin, sessions, pools } = fakeDb();
+  const deps = { hold: (async () => ({ ok: false, reason: "room_taken" })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  const res = await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.deepEqual(res, { ok: false, reason: "room_taken" });
+  assert.equal(sessions.length, 0);
+  assert.equal(pools.length, 0);
+});
+
+test("a night that already exists is a repeat: no second hold is asked for", async () => {
+  const { admin } = fakeDb();
+  let holds = 0;
+  const deps = { hold: (async () => (holds += 1, { ok: true, held: 1 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  const night = { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt };
+  await createSessionWithPools(admin as never, night, [{ poolKey: "default", units: 12 }], deps);
+  const again = await createSessionWithPools(admin as never, night, [{ poolKey: "default", units: 12 }], deps);
+  assert.equal(holds, 1);
+  assert.equal(again.ok && again.created, false);
+});
+
+test("a session with no offering asks the engine for no room at all", async () => {
+  const { admin } = fakeDb();
+  let holds = 0;
+  const deps = { hold: (async () => (holds += 1, { ok: true, held: 0 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.equal(holds, 0);
+});
