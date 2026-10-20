@@ -16881,6 +16881,8 @@
         "askBill": "Pedir la cuenta",
         "empty": "Aún no hay nada que pedir en esta visita.",
         "add": "Añadir",
+        "soldOut": "Agotado",
+        "priceOnRequest": "Precio a consultar",
         "offerTitle": "Hay una sustitución esperando",
         "acceptOffer": "Aceptar {name}",
         "back": "Tu mesa"
@@ -18463,6 +18465,7 @@
         "fulfillmentHint": "Entrega inmediata · Recogida · A domicilio · Servir en mesa",
         "handoffNow": "Entrega inmediata",
         "station": "Estación",
+        "stationNone": "Aún no hay estaciones de cocina. Agrégalas en Configuración.",
         "prepTime": "Tiempo de preparación",
         "course": "Tiempo por defecto (mesas)"
       },

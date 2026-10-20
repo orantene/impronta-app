@@ -49,7 +49,22 @@ export type PosCatalogItem = {
   readonly sessions: readonly PosCatalogSession[];
   readonly options?: readonly PosCatalogOption[];
   readonly stock?: PosCatalogStock;
+  /** The owner's category (TUL-1271 #4): the counter groups by it. Null = by kind. */
+  readonly category?: string | null;
+  /** `talent_offerings.is_featured`: the counter's Favorites. */
+  readonly favourite?: boolean;
 };
+
+/** The tab id of an owner category, so it can never collide with a kind id (`service`, `product`). */
+export function categoryTabId(category: string): string {
+  // Case and spacing ignored: "Drinks" and " drinks " are one tab.
+  return `cat:${category.trim().toLowerCase()}`;
+}
+
+function tabIdFor(item: Pick<PosCatalogItem, "kind" | "category">): string {
+  const category = item.category?.trim();
+  return category ? categoryTabId(category) : item.kind;
+}
 
 /**
  * Below this many units the tile says `N left` (`POSCounter`: `3 left`); a
@@ -161,7 +176,8 @@ export function toProductTiles(
       title: item.title,
       amountCents: item.amountCents,
       currency,
-      categoryId: item.kind,
+      categoryId: tabIdFor(item),
+      favourite: item.favourite === true,
       badge: tileBadge(item),
       soldOut: item.stock?.kind === "counted" && item.stock.available <= 0,
       // Price variants (`Options`): the chooser lists them and the chosen one
@@ -237,11 +253,21 @@ export function toCategoryTabs(
   catalog: readonly PosCatalogItem[],
   labels: Readonly<Record<string, string>>,
 ): PosCategoryTab[] {
-  const seen: string[] = [];
+  // Owner categories first (first-seen order), then the kind of every uncategorised item.
+  const categories: string[] = [];
+  const kinds: string[] = [];
   for (const item of catalog) {
-    if (!seen.includes(item.kind)) seen.push(item.kind);
+    const category = item.category?.trim();
+    if (category) {
+      if (!categories.some((c) => categoryTabId(c) === categoryTabId(category))) categories.push(category);
+    } else if (!kinds.includes(item.kind)) {
+      kinds.push(item.kind);
+    }
   }
-  return seen.map((kind) => ({ id: kind, label: labels[kind] ?? kind }));
+  return [
+    ...categories.map((category) => ({ id: categoryTabId(category), label: category })),
+    ...kinds.map((kind) => ({ id: kind, label: labels[kind] ?? kind })),
+  ];
 }
 
 /**
