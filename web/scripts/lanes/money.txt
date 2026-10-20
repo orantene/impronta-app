@@ -100,6 +100,8 @@ src/lib/money/money-spine.static.test.ts
 src/lib/money/september-ledger-fixture.test.ts
 src/lib/money/today-money-tiles.test.ts
 src/lib/offerings/non-menu-offerings.test.ts
+src/lib/offerings/sellable-one-rule.static.test.ts
+src/lib/offerings/sellable.test.ts
 src/lib/offerings/services-safety.static.test.ts
 src/lib/ops/balance-reconcile.test.ts
 src/lib/ops/cron-heartbeat.test.ts
