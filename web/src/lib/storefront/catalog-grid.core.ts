@@ -69,7 +69,7 @@ export async function readCatalogGridCore(
     let images = new Map<string, string[]>();
     if (ids.length > 0) {
       const [{ data: vRows, error: vErr }, { data: aRows, error: aErr }, { data: cRows, error: cErr }] = await Promise.all([
-        deps.admin.from("talent_offering_variants").select("id, offering_id, label, amount_cents, sort_order").in("offering_id", ids).order("sort_order", { ascending: true }),
+        deps.admin.from("talent_offering_variants").select("id, offering_id, label, amount_cents, sort_order").in("offering_id", ids).neq("is_hidden", true).order("sort_order", { ascending: true }),
         deps.admin.from("talent_offering_addons").select("id, offering_id, label, amount_cents, sort_order").in("offering_id", ids).order("sort_order", { ascending: true }),
         deps.admin.from("offering_components").select("offering_id, component_offering_id, qty, required").eq("tenant_id", tenantId).in("offering_id", ids),
       ]);

@@ -277,7 +277,7 @@ export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: stri
   };
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];
-  const children = await loadOfferingChildren(admin, rows.map((row) => row.id));
+  const children = await loadOfferingChildren(admin, rows.map((row) => row.id), { publicOnly: true });
   return rows.map((row) => {
     const counted = !!row.capacity_pool_id && typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty);
     const variants: CatalogOption[] = (children.variants.get(row.id) ?? []).map((v) => ({

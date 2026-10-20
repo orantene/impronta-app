@@ -277,20 +277,25 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
       };
     }).filter((t) =>
       !t.hidden
-      || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase())
-      || (includeTierKey != null && t.tierKey === includeTierKey));
+      || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase()));
+    // A hidden / comp tier is reachable ONLY by its unguessable variant id in the link. The pool key
+    // ("comp", "vip") is guessable, so `includeTierKey` never unlocks one.
+    void includeTierKey;
+    // Night eligibility and availability come from the LISTED tiers only, so an anonymous payload
+    // never carries a hidden tier's id.
+    const listedIds = new Set(tiers.map((t) => t.variantId));
 
     const nights: PickerNight[] = (sessions ?? []).map((s) => {
       const keys = poolKeysBySession.get(s.id as string) ?? new Set<string>();
       return {
         sessionId: s.id as string, startsAt: s.starts_at as string, endsAt: s.ends_at as string,
-        sellableVariantIds: tierRows.filter((v) => keys.has(v.pool_key as string)).map((v) => v.id as string),
+        sellableVariantIds: tierRows.filter((v) => listedIds.has(v.id as string) && keys.has(v.pool_key as string)).map((v) => v.id as string),
         door: doorOfferState({
           allowPayInPerson: offering.allow_pay_in_person === true,
           sessionStartsAt: s.starts_at as string, sessionEndsAt: s.ends_at as string, now,
         }),
         seats: seatsBySession.get(s.id as string) ?? [],
-        availability: availabilityBySession.get(s.id as string) ?? {},
+        availability: Object.fromEntries(Object.entries(availabilityBySession.get(s.id as string) ?? {}).filter(([id]) => listedIds.has(id))),
       };
     });
 
@@ -427,7 +432,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       locale: d.locale ?? null, sourcePage: `/events`,
       confirmedAge: d.confirmedAge ?? null,
       // D1: a hidden / comp tier sells only when the buyer arrived by that tier's link.
-      unlockedVariantIds: tierRefUnlocks(d.unlockTier, { variantId: tier.id, tierKey: tier.poolKey }) ? [tier.id] : [],
+      unlockedVariantIds: tierRefUnlocks(d.unlockTier, { variantId: tier.id }) ? [tier.id] : [],
     }));
     if (!result.ok) {
       if (result.reason === "sold_out") return { ok: false, reason: "sold_out" };
