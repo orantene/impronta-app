@@ -1,0 +1,93 @@
+/** TUL-1376 copy (EN/ES). Plain language; the fee line points at the checkout, which shows it. */
+export const RENT_COPY = {
+  en: {
+    title: "Station rent",
+    intro: "Rent a station to a member and bill it through Tulala each month. The member agrees first. The Tulala fee is shown on the payment page before they pay.",
+    testOnly: "Rent billing is in test mode: no real money moves yet.",
+    member: "Member",
+    rent: "Monthly rent",
+    currency: "Currency",
+    startsOn: "Starts on",
+    propose: "Send to member",
+    waiting: "Waiting for the member to accept",
+    active: "Active",
+    paused: "Paused",
+    ended: "Ended",
+    declined: "Declined",
+    issue: "Issue this month's rent",
+    copyLink: "Payment link",
+    already: "Already issued. Same link:",
+    paid: "Paid",
+    pause: "Pause",
+    resume: "Resume",
+    end: "End",
+    off: "Rent billing is not switched on yet.",
+    notTest: "Rent billing only runs in Stripe test mode for now.",
+    notAccepted: "The member has not accepted yet.",
+    notActive: "This plan is not active.",
+    needsApproval: "This amount needs an approval first (Point of sale settings, custom amount limit).",
+    unavailable: "Could not do that. Try again.",
+    ownerOnly: "Only the workspace owner can do this.",
+    saved: "Saved.",
+    safetyTitle: "Who is working",
+    safetyIntro: "Upcoming bookings of the members who rent from you. Read-only: you never reply to their clients from here.",
+    safetyEmpty: "No upcoming bookings.",
+    proposalHeading: "Station rent proposals",
+    proposalEmpty: "No rent proposals waiting.",
+    perMonth: "per month",
+    safetyNote: "This studio can see when you are booked, and the name on each booking, to know who is in the building. It cannot message your clients.",
+    accept: "Accept",
+    decline: "Decline",
+  },
+  es: {
+    title: "Renta de estación",
+    intro: "Renta una estación a un miembro y cóbrala cada mes con Tulala. El miembro acepta primero. La comisión de Tulala se muestra en la página de pago antes de que pague.",
+    testOnly: "El cobro de renta está en modo de prueba: todavía no se mueve dinero real.",
+    member: "Miembro",
+    rent: "Renta mensual",
+    currency: "Moneda",
+    startsOn: "Empieza el",
+    propose: "Enviar al miembro",
+    waiting: "Esperando que el miembro acepte",
+    active: "Activa",
+    paused: "En pausa",
+    ended: "Terminada",
+    declined: "Rechazada",
+    issue: "Emitir la renta de este mes",
+    copyLink: "Enlace de pago",
+    already: "Ya estaba emitida. Mismo enlace:",
+    paid: "Pagada",
+    pause: "Pausar",
+    resume: "Reanudar",
+    end: "Terminar",
+    off: "El cobro de renta todavía no está activado.",
+    notTest: "El cobro de renta solo funciona en modo de prueba de Stripe por ahora.",
+    notAccepted: "El miembro todavía no ha aceptado.",
+    notActive: "Este plan no está activo.",
+    needsApproval: "Este monto necesita una aprobación primero (ajustes del punto de venta, límite de monto personalizado).",
+    unavailable: "No se pudo hacer. Inténtalo de nuevo.",
+    ownerOnly: "Solo el dueño del espacio puede hacer esto.",
+    saved: "Guardado.",
+    safetyTitle: "Quién está trabajando",
+    safetyIntro: "Próximas reservas de los miembros que te rentan. Solo lectura: nunca respondes a sus clientes desde aquí.",
+    safetyEmpty: "No hay reservas próximas.",
+    proposalHeading: "Propuestas de renta de estación",
+    proposalEmpty: "No hay propuestas de renta pendientes.",
+    perMonth: "al mes",
+    safetyNote: "Este estudio puede ver cuándo tienes reservas, y el nombre en cada una, para saber quién está en el local. No puede escribirle a tus clientes.",
+    accept: "Aceptar",
+    decline: "Rechazar",
+  },
+} as const;
+export type RentCopy = (typeof RENT_COPY)["en"];
+
+export function rentRefusalText(reason: string, c: RentCopy): string {
+  switch (reason) {
+    case "disabled": return c.off;
+    case "not_test_mode": return c.notTest;
+    case "not_accepted": return c.notAccepted;
+    case "not_active": return c.notActive;
+    case "needs_approval": return c.needsApproval;
+    default: return c.unavailable;
+  }
+}

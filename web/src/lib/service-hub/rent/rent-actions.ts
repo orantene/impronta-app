@@ -1,0 +1,214 @@
+"use server";
+
+/**
+ * TUL-1376: studio and member actions for station rent. Every action is flag-gated (test mode
+ * only), seat/role checked and idempotent. Staff propose, the MEMBER accepts (consent to be
+ * charged), the studio issues one invoice per month by hand. Nothing here touches a price,
+ * fee or commission rule: the rent line goes through the ordinary order and payment-link path.
+ */
+import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { logWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { userHasCapability } from "@/lib/access";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { requireTalentSelf } from "@/lib/server/talent-self-guard";
+import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { currentRentPeriod, validateRentProposal } from "./rent-cycle";
+import { rentBillingGate } from "./rent-gate";
+import { issueRentInvoice, type RentIssueResult } from "./rent-issue";
+import { buildRentIssueDeps } from "./rent-store.server";
+
+type Fail<R extends string> = { ok: false; reason: R };
+
+async function ownerGuard() {
+  const auth = await requireWorkspaceStaffAction();
+  if (!auth.ok) return { ok: false as const, reason: "unauthenticated" as const };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false as const, reason: "unavailable" as const };
+  const { data } = await tenantScopedQuery(auth.supabase, "agency_memberships", auth.tenantId)
+    .select("role")
+    .eq("profile_id", auth.user.id)
+    .eq("status", "active")
+    .maybeSingle();
+  if ((data as { role?: string } | null)?.role !== "owner") return { ok: false as const, reason: "owner_only" as const };
+  return { ok: true as const, tenantId: auth.tenantId, userId: auth.user.id, admin };
+}
+
+export type ProposeRentResult = { ok: true } | Fail<"unauthenticated" | "owner_only" | "disabled" | "not_test_mode" | "invalid" | "not_on_roster" | "already_has_plan" | "unavailable">;
+
+export async function proposeRentPlan(input: {
+  talentProfileId: string;
+  monthlyRentCents: number;
+  currency: string;
+  startsOn: string;
+}): Promise<ProposeRentResult> {
+  await requireNotImpersonating();
+  try {
+    const g = await ownerGuard();
+    if (!g.ok) return g;
+    const gate = rentBillingGate();
+    if (!gate.ok) return gate;
+    const proposal = { monthlyRentCents: input.monthlyRentCents, currency: input.currency.trim().toUpperCase(), startsOn: input.startsOn };
+    if (!validateRentProposal(proposal).ok) return { ok: false, reason: "invalid" };
+
+    const { data: member } = await tenantScopedQuery(g.admin, "agency_talent_roster", g.tenantId)
+      .select("id")
+      .eq("talent_profile_id", input.talentProfileId)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (!member) return { ok: false, reason: "not_on_roster" };
+
+    const { error } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId).insert({
+      talent_profile_id: input.talentProfileId,
+      monthly_rent_cents: proposal.monthlyRentCents,
+      currency: proposal.currency,
+      starts_on: proposal.startsOn,
+      status: "proposed",
+      proposed_by: g.userId,
+    });
+    if (error) {
+      if ((error as { code?: string }).code === "23505") return { ok: false, reason: "already_has_plan" };
+      logServerError("rent.propose", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    await logWorkspaceAudit({
+      tenantId: g.tenantId,
+      category: "roster",
+      action: "workspace.rent_plan.proposed",
+      summary: "Proposed a monthly station rent to a member (pending the member's acceptance)",
+      targetType: "talent_profile",
+      targetId: input.talentProfileId,
+      metadata: { monthly_rent_cents: proposal.monthlyRentCents, currency: proposal.currency, starts_on: proposal.startsOn },
+    });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("rent.propose", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+export type SetRentStatusResult = { ok: true } | Fail<"unauthenticated" | "owner_only" | "not_found" | "invalid" | "unavailable">;
+
+/** Owner: pause, resume or end an accepted plan. (A plan cannot be activated here: only the member does that.) */
+export async function setRentPlanStatus(input: { planId: string; status: "paused" | "active" | "ended" }): Promise<SetRentStatusResult> {
+  await requireNotImpersonating();
+  try {
+    const g = await ownerGuard();
+    if (!g.ok) return g;
+    const { data: plan } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId).select("id, status, accepted_at").eq("id", input.planId).maybeSingle();
+    const row = plan as { status: string; accepted_at: string | null } | null;
+    if (!row) return { ok: false, reason: "not_found" };
+    const from = row.status;
+    const allowed =
+      (input.status === "paused" && from === "active") ||
+      (input.status === "active" && from === "paused" && row.accepted_at != null) ||
+      (input.status === "ended" && (from === "active" || from === "paused" || from === "proposed"));
+    if (!allowed) return { ok: false, reason: "invalid" };
+    const { error } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId)
+      .update({ status: input.status, updated_at: new Date().toISOString() })
+      .eq("id", input.planId)
+      .eq("status", from);
+    if (error) {
+      logServerError("rent.setStatus", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    await logWorkspaceAudit({
+      tenantId: g.tenantId,
+      category: "roster",
+      action: "workspace.rent_plan.status",
+      summary: `Rent plan ${from} to ${input.status}`,
+      targetType: "studio_rent_plan",
+      targetId: input.planId,
+      metadata: { from, to: input.status },
+    });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("rent.setStatus", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/** Issue (or re-open) the rent invoice for `period` (default: this month). Staff with payment-request rights. */
+export async function issueRent(input: { planId: string; period?: string }): Promise<RentIssueResult | Fail<"unauthenticated" | "not_allowed">> {
+  await requireNotImpersonating();
+  try {
+    const auth = await requireWorkspaceStaffAction();
+    if (!auth.ok) return { ok: false, reason: "unauthenticated" };
+    if (!(await userHasCapability("booking.payment.request", auth.tenantId))) return { ok: false, reason: "not_allowed" };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+    const hdrs = await headers();
+    const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+    const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
+    const publicOrigin = await resolveAgendaPayPublicOrigin(admin, auth.tenantId, host ? `${proto}://${host}` : "");
+    const locale = (await getRequestLocale()) === "es" ? "es" : "en";
+    const result = await issueRentInvoice(
+      { tenantId: auth.tenantId, planId: input.planId, period: input.period ?? currentRentPeriod(new Date()), locale },
+      { ...buildRentIssueDeps(admin, { actorUserId: auth.user.id, publicOrigin }) },
+    );
+    if (result.ok && !result.already) {
+      await logWorkspaceAudit({
+        tenantId: auth.tenantId,
+        category: "billing",
+        action: "workspace.rent_invoice.issued",
+        summary: "Issued a monthly station rent invoice",
+        targetType: "studio_rent_invoice",
+        targetId: result.invoiceId,
+        metadata: { period: input.period ?? currentRentPeriod(new Date()) },
+      });
+    }
+    revalidatePath("/", "layout");
+    return result;
+  } catch (err) {
+    logServerError("rent.issue", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+export type RespondRentResult = { ok: true } | Fail<"unauthenticated" | "not_found" | "unavailable">;
+
+/** The member answers a proposal. Accepting is the consent to be charged; it is the only way a plan becomes active. */
+export async function respondRentPlan(input: { planId: string; accept: boolean }): Promise<RespondRentResult> {
+  await requireNotImpersonating();
+  try {
+    const me = await requireTalentSelf();
+    if (!me.ok) return { ok: false, reason: "unauthenticated" };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+    const now = new Date().toISOString();
+    const { data, error } = await admin
+      .from("studio_rent_plans")
+      .update(input.accept ? { status: "active", accepted_at: now, updated_at: now } : { status: "declined", updated_at: now })
+      .eq("id", input.planId)
+      .eq("talent_profile_id", me.talentProfile.id)
+      .eq("status", "proposed")
+      .select("id, tenant_id")
+      .maybeSingle();
+    if (error) {
+      logServerError("rent.respond", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!data) return { ok: false, reason: "not_found" };
+    await logWorkspaceAudit({
+      tenantId: (data as { tenant_id: string }).tenant_id,
+      category: "roster",
+      action: input.accept ? "workspace.rent_plan.accepted" : "workspace.rent_plan.declined",
+      summary: input.accept ? "Member accepted the monthly station rent" : "Member declined the monthly station rent",
+      targetType: "studio_rent_plan",
+      targetId: input.planId,
+      metadata: {},
+    });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("rent.respond", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
