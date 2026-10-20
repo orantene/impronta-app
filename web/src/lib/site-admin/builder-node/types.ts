@@ -969,6 +969,10 @@ export interface BuilderHeadingNode extends BuilderNodeBase {
     fieldBindings?: BuilderNodeFieldBindings;
     /** Follows a profile value at render time (see live-text-keys.ts); `text` is the fallback. */
     liveText?: LiveTextKey;
+    /** W-10 rotating word: cycled in place of the `{rotate}` marker in `text`. */
+    rotatingWords?: Array<{ text: string }>;
+    /** Milliseconds each rotating word stays (1500 to 8000). */
+    rotateMs?: number;
     style?: BuilderNodeStyle;
   };
 }
@@ -1343,7 +1347,10 @@ export interface BuilderPortfolioNode extends BuilderNodeBase {
       mediaId: string;
       offeringId?: string;
       caption?: string;
+      tag?: string;
     }>;
+    /** Show filter chips (All + each shot tag) above the shots. Needs 2+ distinct tags. */
+    tagFilter?: boolean;
     /** offering = photo opens that service; none = display only. */
     linkMode?: "offering" | "none";
     emptyMessage?: string;
@@ -2636,7 +2643,8 @@ export interface BuilderNavNode extends BuilderNodeBase {
       | "side_rail"
       | "bottom_tab"
       | "filter_bar"
-      | "chapter_dots";
+      | "chapter_dots"
+      | "no_nav";
     /** Accessible label for the hamburger toggle (default "Menu"). */
     menuLabel?: string;
     // Mobile-menu palette — the authoring path to the --bn-nav-menu-* custom

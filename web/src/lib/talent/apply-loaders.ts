@@ -2,7 +2,10 @@ import "server-only";
 
 import { cache } from "react";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -247,68 +250,87 @@ export type AgencyApplicationAdminRow = {
   decidedAt: string | null;
 };
 
+type ApplicationClient = SupabaseClient;
+
+/**
+ * TUL-1359: the applications are read with the caller's own session (RLS keeps
+ * them to this tenant), but the applicant's name and code are read with the
+ * SERVICE client, keyed by the talent ids those authorized rows carry.
+ * Applicants are not on the roster and are often unpublished, so once
+ * `talent_profiles` SELECT is roster-scoped a session-side embed would come
+ * back empty and every applicant would render as "Talent". The caller
+ * (admin/roster/applications/page.tsx) has already passed the tenant
+ * capability check.
+ */
+export async function buildAgencyApplicationRows(
+  supabase: ApplicationClient,
+  talentClient: ApplicationClient,
+  tenantId: string,
+): Promise<AgencyApplicationAdminRow[]> {
+  const [agencyRes, hubRes] = await Promise.all([
+    supabase
+      .from("talent_agency_applications")
+      .select("id, talent_profile_id, status, message, decision_note, submitted_at, decided_at")
+      .eq("tenant_id", tenantId)
+      .order("submitted_at", { ascending: false }),
+    supabase
+      .from("talent_hub_applications")
+      .select("id, talent_profile_id, status, message, decision_note, submitted_at, decided_at")
+      .eq("tenant_id", tenantId)
+      .order("submitted_at", { ascending: false }),
+  ]);
+
+  type Row = {
+    id: string;
+    talent_profile_id: string;
+    status: "pending" | "approved" | "rejected" | "withdrawn";
+    message: string | null;
+    decision_note: string | null;
+    submitted_at: string;
+    decided_at: string | null;
+  };
+  const agencyRows = (agencyRes.data ?? []) as unknown as Row[];
+  const hubRows = (hubRes.data ?? []) as unknown as Row[];
+
+  const talentIds = [...new Set([...agencyRows, ...hubRows].map((r) => r.talent_profile_id))];
+  const people = new Map<string, { display_name: string | null; profile_code: string | null }>();
+  if (talentIds.length > 0) {
+    const { data: profiles, error } = await talentClient
+      .from("talent_profiles")
+      .select("id, display_name, profile_code")
+      .in("id", talentIds);
+    if (error) logServerError("talent.applyLoaders.applicationTalent", error);
+    for (const p of (profiles ?? []) as Array<{ id: string; display_name: string | null; profile_code: string | null }>) {
+      people.set(p.id, { display_name: p.display_name, profile_code: p.profile_code });
+    }
+  }
+
+  const out: AgencyApplicationAdminRow[] = [];
+  for (const [kind, rows] of [["agency", agencyRows], ["hub", hubRows]] as const) {
+    for (const r of rows) {
+      const person = people.get(r.talent_profile_id);
+      out.push({
+        id: r.id,
+        kind,
+        talentProfileId: r.talent_profile_id,
+        talentDisplayName: person?.display_name ?? "Talent",
+        talentProfileCode: person?.profile_code ?? null,
+        status: r.status,
+        message: r.message,
+        decisionNote: r.decision_note,
+        submittedAt: r.submitted_at,
+        decidedAt: r.decided_at,
+      });
+    }
+  }
+  out.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+  return out;
+}
+
 export const loadAgencyApplications = cache(
   async (tenantId: string): Promise<AgencyApplicationAdminRow[]> => {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return [];
-
-    const [agencyRes, hubRes] = await Promise.all([
-      supabase
-        .from("talent_agency_applications")
-        .select(
-          "id, talent_profile_id, status, message, decision_note, submitted_at, decided_at, talent_profiles!talent_agency_applications_talent_profile_id_fkey ( id, display_name, profile_code )",
-        )
-        .eq("tenant_id", tenantId)
-        .order("submitted_at", { ascending: false }),
-      supabase
-        .from("talent_hub_applications")
-        .select(
-          "id, talent_profile_id, status, message, decision_note, submitted_at, decided_at, talent_profiles!talent_hub_applications_talent_profile_id_fkey ( id, display_name, profile_code )",
-        )
-        .eq("tenant_id", tenantId)
-        .order("submitted_at", { ascending: false }),
-    ]);
-
-    type Row = {
-      id: string;
-      talent_profile_id: string;
-      status: "pending" | "approved" | "rejected" | "withdrawn";
-      message: string | null;
-      decision_note: string | null;
-      submitted_at: string;
-      decided_at: string | null;
-      talent_profiles: { id: string; display_name: string | null; profile_code: string | null } | null;
-    };
-    const out: AgencyApplicationAdminRow[] = [];
-    for (const r of ((agencyRes.data ?? []) as unknown as Row[])) {
-      out.push({
-        id: r.id,
-        kind: "agency",
-        talentProfileId: r.talent_profile_id,
-        talentDisplayName: r.talent_profiles?.display_name ?? "Talent",
-        talentProfileCode: r.talent_profiles?.profile_code ?? null,
-        status: r.status,
-        message: r.message,
-        decisionNote: r.decision_note,
-        submittedAt: r.submitted_at,
-        decidedAt: r.decided_at,
-      });
-    }
-    for (const r of ((hubRes.data ?? []) as unknown as Row[])) {
-      out.push({
-        id: r.id,
-        kind: "hub",
-        talentProfileId: r.talent_profile_id,
-        talentDisplayName: r.talent_profiles?.display_name ?? "Talent",
-        talentProfileCode: r.talent_profiles?.profile_code ?? null,
-        status: r.status,
-        message: r.message,
-        decisionNote: r.decision_note,
-        submittedAt: r.submitted_at,
-        decidedAt: r.decided_at,
-      });
-    }
-    out.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
-    return out;
+    return buildAgencyApplicationRows(supabase, await staffTalentClient(supabase), tenantId);
   },
 );

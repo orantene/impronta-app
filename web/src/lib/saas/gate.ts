@@ -9,6 +9,8 @@ import type { HostKind } from "./host-kinds";
 import { HUB_API_EXACT_PATHS, HUB_API_PREFIXES, AGENCY_API_PREFIXES, AGENCY_BLOG_DETAIL_PREFIX, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_EVENTS_ES_PREFIX, CANONICAL_EVENTS_PREFIX, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_MANAGE_PREFIX, CANONICAL_PAY_LINK_PREFIX, CANONICAL_PAY_PREFIX, CANONICAL_RECEIPT_PREFIX, CANONICAL_TALENT_PREFIX, CANONICAL_TICKET_API_PREFIX, CANONICAL_TICKET_PREFIX, CANONICAL_VISIT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
 import { anyExact, anyPrefix, hasPrefix } from "./path-utils";
 import { isWorkspaceSlugPath } from "./reserved-slugs";
+import { isBusinessServicePagePath } from "@/lib/services/business-pages/paths";
+import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 
 /**
  * True when `pathname` is permitted on `kind`. `pathname` must be locale-
@@ -42,6 +44,12 @@ export function isPathAllowedForHostKind(
   if (hasPrefix(pathname, CANONICAL_EVENTS_PREFIX)) return kind === "agency" || kind === "hub";
   if (hasPrefix(pathname, CANONICAL_EVENTS_ES_PREFIX)) return kind === "agency" || kind === "hub";
   if (hasPrefix(pathname, CANONICAL_RECEIPT_PREFIX)) return kind === "agency" || kind === "hub";
+  // TUL-1272 #5: one business service page, `/services/<slug>` or `/servicios/<slug>`.
+  // Two segments only: a CMS page may own the single-segment `/servicios` list.
+  // Business (agency) hosts only, never the hub (ruling 2026-10-19). Only while the presentation
+  // flag is on (flag off = exactly main: the CMS catch-all keeps these paths), and only slugs that
+  // carry the id8 (nested CMS pages like `/services/photography` stay the CMS's).
+  if (kind === "agency" && servicePresentationResolverEnabled() && isBusinessServicePagePath(pathname)) return true;
   // TUL-1252: the pay page is looked up by code alone (the code is the
   // credential), so the platform app host serves it too. The client account
   // lives on app.<domain>; its "Pagar ahora" links are relative and 404'd there.

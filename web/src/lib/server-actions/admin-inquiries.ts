@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { lookupTalentSnapshot, staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
@@ -912,17 +913,15 @@ export async function createBooking(
   }
 
   if (talent_profile_id) {
-    const { data: tp } = await supabase
-      .from("talent_profiles")
-      .select("display_name, profile_code")
-      .eq("id", talent_profile_id)
-      .maybeSingle();
+    // TUL-1359: service client after the staff/tenant checks, keyed by the chosen talent id.
+    const tp = await lookupTalentSnapshot(await staffTalentClient(supabase), talent_profile_id);
+    if (!tp.found) return { error: CLIENT_ERROR.update };
     const { error: lineErr } = await supabase.from("booking_talent").insert({
       tenant_id: tenantId,
       booking_id: bookingRow.id,
       talent_profile_id,
-      talent_name_snapshot: tp?.display_name ?? null,
-      profile_code_snapshot: tp?.profile_code ?? null,
+      talent_name_snapshot: tp.displayName,
+      profile_code_snapshot: tp.profileCode,
       sort_order: 0,
     });
     if (lineErr) {
