@@ -170,7 +170,7 @@ test("sweepTrialSessions reports the ids it expired and keeps the same-key sessi
   const r = await sweepTrialSessions(f.stripe, "cus_test_1", 14, "k", () => {});
   assert.deepEqual([...r.expiredIds], ["cs_other"]);
   assert.deepEqual(r.marker, { [TRIAL_SESSION_MARKER]: "k" });
-  assert.deepEqual(await sweepTrialSessions(f.stripe, "cus_test_1", null, "k", () => {}), { marker: {}, expiredIds: new Set() });
+  assert.deepEqual(await sweepTrialSessions(f.stripe, "cus_test_1", null, "k", () => {}), { marker: {}, expiredIds: new Set(), otherTrialKnownOpen: false });
 });
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");

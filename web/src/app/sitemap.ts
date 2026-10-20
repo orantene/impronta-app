@@ -54,6 +54,7 @@ import { listPublishedPostRows } from "@/lib/cms/posts-public";
 import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
 import { blogIndexSitemapEntries } from "@/lib/seo/blog-index-sitemap-entries";
 import { loadEventSitemapEntries } from "@/lib/seo/event-sitemap-entries";
+import { loadBusinessServiceSitemapEntries } from "@/lib/services/business-pages/sitemap-entries";
 import { cleanSitemapEntries } from "@/lib/seo/sitemap-hygiene";
 
 const PLATFORM_TALENT_SITEMAP_BASE = `https://${TULALA_APEX_HOST}`;
@@ -651,6 +652,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     ...postSitemapEntries(postRows, postUrl, new Date()),
   ];
   postEntries.push(...(await loadEventSitemapEntries({ supabase, tenantId: publicScope.tenantId, origin: base, defaultLocale: localeSettings.defaultLocale, supportedLocales: localeSettings.supportedLocales }))); // F4: public events (logic in lib/seo/event-sitemap-entries.ts)
+  postEntries.push(...(await loadBusinessServiceSitemapEntries({ supabase: createServiceRoleClient() ?? supabase, tenantId: publicScope.tenantId, origin: base, defaultLocale: localeSettings.defaultLocale, supportedLocales: localeSettings.supportedLocales }))); // TUL-1272 #5: business service pages (lib/services/business-pages/sitemap-entries.ts)
 
   // Phase G PR 1 — include the agency's published roster in the sitemap.
   // Without this, talent profile pages (`/t/<profileCode>`) are crawlable
