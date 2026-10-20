@@ -26,12 +26,14 @@ src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
 src/lib/billing/fee-reader-rpc-guards.static.test.ts
+src/lib/billing/invoice-display.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/receipt-notice.test.ts
+src/lib/billing/refunded-charge-net.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
@@ -143,6 +145,7 @@ src/lib/orders/refund-record-lines.test.ts
 src/lib/orders/refund-resume-effects.test.ts
 src/lib/orders/settle-at-door.test.ts
 src/lib/orders/settles-on-creation.test.ts
+src/lib/orders/travel-fee.test.ts
 src/lib/orders/unwind-failed-checkout.test.ts
 src/lib/payments/activity-shape.test.ts
 src/lib/payments/balance-transactions.test.ts
@@ -187,11 +190,14 @@ src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
 src/lib/payments/refund-authority-wire.static.test.ts
 src/lib/payments/refund-authority.test.ts
+src/lib/payments/refund-charge-share-fail-closed.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts
+src/lib/payments/refunds-charge-share.test.ts
+src/lib/payments/refunds-restore-gate.test.ts
 src/lib/payments/refunds-restore-inventory.test.ts
 src/lib/payments/refunds.test.ts
 src/lib/payments/retry-fee-unknown-payouts.test.ts

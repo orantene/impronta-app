@@ -18,6 +18,8 @@ export type LedgerPaidRow = {
   metadata?: unknown;
   currency?: string | null;
   paid_at?: string | null;
+  /** Set on the linked refund row of a partial / remainder refund; null on a charge. */
+  refund_of_transaction_id?: string | null;
 };
 
 export type LedgerPaid = {
@@ -29,7 +31,21 @@ export type LedgerPaid = {
   currency: string | null;
   /** True when any money-in row was stamped paid_after_cancellation (refund from Money). */
   paidAfterCancellation?: boolean;
+  /**
+   * E5: CHARGES on this booking that were fully refunded (status `refunded`, not
+   * a linked refund row). Never part of paidCents; Money uses it to lower the
+   * talent net after a share-only payout reversal.
+   */
+  refundedChargeCents?: number;
 };
+
+const emptyLedgerPaid = (): LedgerPaid => ({
+  paidCents: 0,
+  byMethod: {},
+  lastMethod: null,
+  lastPaidAt: null,
+  currency: null,
+});
 
 export function ledgerRowMethod(row: Pick<LedgerPaidRow, "provider" | "metadata">): string {
   const meta = row.metadata && typeof row.metadata === "object" ? (row.metadata as Record<string, unknown>) : {};
@@ -42,17 +58,19 @@ export function ledgerRowMethod(row: Pick<LedgerPaidRow, "provider" | "metadata"
 export function summarizeLedgerPaid(rows: readonly LedgerPaidRow[]): Map<string, LedgerPaid> {
   const out = new Map<string, LedgerPaid>();
   for (const r of rows) {
+    if (r.status === "refunded" && !r.refund_of_transaction_id) {
+      const refunded = Math.max(0, Math.round(Number(r.gross_amount_cents)) || 0);
+      if (refunded === 0) continue;
+      const cur = out.get(r.booking_id) ?? emptyLedgerPaid();
+      cur.refundedChargeCents = (cur.refundedChargeCents ?? 0) + refunded;
+      out.set(r.booking_id, cur);
+      continue;
+    }
     if (!(MONEY_IN_STATUSES as readonly string[]).includes(r.status)) continue;
     const cents = Math.max(0, Math.round(Number(r.gross_amount_cents)) || 0);
     if (cents === 0) continue;
     const method = ledgerRowMethod(r);
-    const cur = out.get(r.booking_id) ?? {
-      paidCents: 0,
-      byMethod: {},
-      lastMethod: null,
-      lastPaidAt: null,
-      currency: null,
-    };
+    const cur = out.get(r.booking_id) ?? emptyLedgerPaid();
     cur.paidCents += cents;
     cur.byMethod[method] = (cur.byMethod[method] ?? 0) + cents;
     const meta = r.metadata && typeof r.metadata === "object" ? (r.metadata as Record<string, unknown>) : {};
@@ -82,9 +100,9 @@ export async function loadLedgerPaidByBooking(
   if (bookingIds.length === 0) return new Map();
   const { data, error } = await client
     .from("booking_transactions")
-    .select("booking_id, gross_amount_cents, status, provider, metadata, currency, paid_at")
+    .select("booking_id, gross_amount_cents, status, provider, metadata, currency, paid_at, refund_of_transaction_id")
     .in("booking_id", [...bookingIds])
-    .in("status", [...MONEY_IN_STATUSES]);
+    .in("status", [...MONEY_IN_STATUSES, "refunded"]);
   if (error) return new Map();
   return summarizeLedgerPaid((data ?? []) as LedgerPaidRow[]);
 }

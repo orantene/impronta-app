@@ -22,6 +22,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPurchase } from "@/lib/orders/purchase";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
+import { refusalFromPurchaseReason } from "./reservation-item";
 import { availabilityForWindow, resolveWindowOnDate } from "./index";
 import type { OfferedTime, PartyBand } from "./availability";
 import { explicitDisplayCurrency } from "./deposit-currency";
@@ -31,6 +32,7 @@ import type { ServiceRules, ServiceWindow, ServiceWindowException } from "./type
 export type ReserveRefusal =
   | "reservations_off"
   | "no_offering_configured"
+  | "offering_not_published"
   | "time_not_offered"
   | "sold_out"
   | "capacity_unavailable"
@@ -202,12 +204,7 @@ export async function createReservation(
     // The pipeline distinguishes "sold out" from "could not reach capacity".
     // Collapsing them would tell a guest the restaurant is full during an
     // outage, which is the same mistake as reading an unknown as a free table.
-    const reason: ReserveRefusal =
-      purchase.reason === "sold_out"
-        ? "sold_out"
-        : purchase.reason === "capacity_unavailable"
-          ? "capacity_unavailable"
-          : "engine_error";
+    const reason: ReserveRefusal = refusalFromPurchaseReason(purchase.reason);
     return { ok: false, reason, error: purchase.reason };
   }
 

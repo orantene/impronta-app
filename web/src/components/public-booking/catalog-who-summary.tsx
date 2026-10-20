@@ -33,7 +33,7 @@ export function CatalogWhoSummary({
   total: string;
   addressNote?: "studio" | "client" | "none";
   /** TUL-1268 item 5: the pass-through card fee and what is charged now, shown before Stripe. */
-  cardFee?: { feeLabel: string; payNowLabel: string } | null;
+  cardFee?: { feeLabel: string | null; payNowLabel: string | null; travelFeeLabel?: string | null } | null;
 }) {
   const feeCopy = cardFeeCopy(es);
   const zone = tz ? catalogTimezoneLabel(tz, es, placeCity) : "";
@@ -56,7 +56,7 @@ export function CatalogWhoSummary({
         <span>Total</span>
         <b style={val}>{total}</b>
       </div>
-      {cardFee ? (
+      {cardFee?.feeLabel && cardFee.payNowLabel ? (
         <>
           <div style={ROW} data-catalog-card-fee="">
             <span>{feeCopy.fee}</span>
@@ -67,6 +67,12 @@ export function CatalogWhoSummary({
             <b style={val}>{cardFee.payNowLabel}</b>
           </div>
         </>
+      ) : null}
+      {cardFee?.travelFeeLabel ? (
+        <div style={ROW} data-catalog-travel-fee="">
+          <span>{feeCopy.travelOnDay}</span>
+          <b style={val}>{cardFee.travelFeeLabel}</b>
+        </div>
       ) : null}
       {addressNote === "studio" ? (
         <p className="jb-fixture" data-catalog-address-note="studio">
