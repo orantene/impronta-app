@@ -1,4 +1,12 @@
-# Frame reference mockup (DRAFT)
+# Frame reference mockup (DRAFT, superseded by the owner original)
+
+> 2026-10-19 (O1): the source of truth is the owner screenshot `TH08-Frame.jpg`
+> (1440px, kept outside the repo). The design in code was re-ported from it
+> (`collection/frame-defaults.ts`, `frame-hero.ts`, `frame.golden.test.ts`):
+> IBM Plex Sans Condensed / Plex Sans / Plex Mono, warm grey page, one red, dark
+> hero panel, tag-filtered contact sheet. This dev-authored `index.html` and
+> `kit.js` are kept only until the pack is rebuilt from the original; do not use
+> them to judge fidelity.
 
 - **Status:** DRAFT for PM review (TUL-328). Authored by the developer from the
   theme's existing tokens and sections (`buildFramePayload` + `gallery-meta.ts`),

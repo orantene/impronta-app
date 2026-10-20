@@ -18,8 +18,8 @@ test("default nav chrome is top_bar", () => {
   assert.equal(normalizeNavChrome("nope"), "top_bar");
 });
 
-test("all six shared modes are recognized", () => {
-  assert.equal(NAV_CHROME_STYLES.length, 6);
+test("all seven shared modes are recognized", () => {
+  assert.equal(NAV_CHROME_STYLES.length, 7);
   for (const style of NAV_CHROME_STYLES) {
     assert.equal(isNavChromeStyle(style), true);
     assert.equal(normalizeNavChrome(style), style);
@@ -33,4 +33,5 @@ test("scroll-spy modes exclude top_bar and overlay", () => {
   assert.equal(navChromeNeedsScrollSpy("bottom_tab"), true);
   assert.equal(navChromeNeedsScrollSpy("filter_bar"), true);
   assert.equal(navChromeNeedsScrollSpy("chapter_dots"), true);
+  assert.equal(navChromeNeedsScrollSpy("no_nav"), false);
 });
