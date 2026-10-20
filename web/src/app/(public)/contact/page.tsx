@@ -8,6 +8,7 @@ import { contactSurfaceForHostKind } from "@/lib/saas/contact-host";
 import { MarketingContactPage } from "@/components/marketing/support/MarketingContactPage";
 
 import { ContactInquiryForm } from "./ContactInquiryForm";
+import { contactMessagePrefill } from "@/lib/service-hub/roster-request";
 
 /** Host-dispatched: marketing hosts must not prerender the tenant form. */
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ContactPage({
   searchParams,
 }: {
-  searchParams: Promise<{ t?: string; source?: string; host?: string; code?: string }>;
+  searchParams: Promise<{ t?: string; source?: string; host?: string; code?: string; message?: string | string[] }>;
 }) {
   const ctx = await getPublicHostContext();
   if (contactSurfaceForHostKind(ctx.kind) === "marketing") {
@@ -42,6 +43,8 @@ export default async function ContactPage({
   }
 
   const t = createTranslator(await getRequestLocale());
+  // TUL-1372: a roster service's Request link prefills the message (a convenience, never a submission).
+  const defaultMessage = contactMessagePrefill(await searchParams);
 
   const copy = {
     nameLabel: t("public.contact.form.nameLabel"),
@@ -66,7 +69,7 @@ export default async function ContactPage({
         </h1>
         <p className="mt-6 text-muted-foreground">{t("public.contact.body")}</p>
 
-        <ContactInquiryForm copy={copy} />
+        <ContactInquiryForm copy={copy} defaultMessage={defaultMessage} />
       </div>
     </main>
   );

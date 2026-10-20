@@ -1763,7 +1763,10 @@
       "chooseService": "Service",
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
-      "contactCta": "Send a message"
+      "contactCta": "Send a message",
+      "rosterHeading": "From our team",
+      "rosterNote": "Request a service and the studio will reply with the details.",
+      "rosterRequest": "Request"
     },
     "siteShellSurface": {
       "title": "Site header & footer",

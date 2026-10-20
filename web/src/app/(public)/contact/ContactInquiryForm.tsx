@@ -44,7 +44,7 @@ function SubmitButton({ copy }: { copy: ContactFormCopy }) {
   );
 }
 
-export function ContactInquiryForm({ copy }: { copy: ContactFormCopy }) {
+export function ContactInquiryForm({ copy, defaultMessage }: { copy: ContactFormCopy; defaultMessage?: string | null }) {
   const [state, formAction] = useActionState<ContactInquiryState, FormData>(
     submitContactInquiry,
     { status: "idle" },
@@ -114,6 +114,7 @@ export function ContactInquiryForm({ copy }: { copy: ContactFormCopy }) {
         <Textarea
           id="message"
           name="message"
+          defaultValue={defaultMessage ?? undefined}
           required
           rows={6}
           placeholder={copy.messagePlaceholder}

@@ -1763,7 +1763,10 @@
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
       "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
-      "contactCta": "Enviar un mensaje"
+      "contactCta": "Enviar un mensaje",
+      "rosterHeading": "De nuestro equipo",
+      "rosterNote": "Solicita un servicio y el estudio te responderá con los detalles.",
+      "rosterRequest": "Solicitar"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
