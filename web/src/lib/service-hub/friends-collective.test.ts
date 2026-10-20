@@ -143,3 +143,60 @@ describe("copy exists in ES and EN", () => {
     assert.equal(COLLECTIVE_OWNER_SHARE_CAP_BPS, 9000);
   });
 });
+
+import { decideFriendsCollectivePreset } from "./friends-collective";
+
+describe("applying the preset to a workspace (owner only, idempotent, respects seats)", () => {
+  const base = { role: "owner", ownerUserId: "u-owner", currentModel: null, defaultCoordinatorUserId: null, seatOk: true } as const;
+
+  test("the owner applies it: the model is recorded and ALL requests go to the owner's inbox", () => {
+    assert.deepEqual(decideFriendsCollectivePreset(base), {
+      ok: true,
+      changed: true,
+      set: { work_model: "friends_collective", default_coordinator_user_id: "u-owner" },
+    });
+  });
+  test("a second apply is a no-op", () => {
+    assert.deepEqual(
+      decideFriendsCollectivePreset({ ...base, currentModel: "friends_collective", defaultCoordinatorUserId: "u-owner" }),
+      { ok: true, changed: false, set: { work_model: "friends_collective", default_coordinator_user_id: "u-owner" } },
+    );
+  });
+  test("it re-points the inbox at the owner if the coordinator drifted", () => {
+    const d = decideFriendsCollectivePreset({ ...base, currentModel: "friends_collective", defaultCoordinatorUserId: "someone-else" });
+    assert.equal(d.ok && d.changed, true);
+  });
+  test("admins and members cannot apply it; only the owner", () => {
+    for (const role of ["admin", "editor", "viewer", null]) {
+      assert.deepEqual(decideFriendsCollectivePreset({ ...base, role }), { ok: false, reason: "owner_only" });
+    }
+  });
+  test("over the seat cap: refused (Free cap 5 respected)", () => {
+    assert.deepEqual(decideFriendsCollectivePreset({ ...base, seatOk: false }), { ok: false, reason: "over_seat_cap" });
+  });
+  test("another model already chosen: refused, never silently switched", () => {
+    for (const currentModel of ["coordinator_agency", "open_network", "team_studio", "rental_studio"]) {
+      assert.deepEqual(decideFriendsCollectivePreset({ ...base, currentModel }), { ok: false, reason: "model_already_set" });
+    }
+  });
+});
+
+describe("the apply action and its held migration", () => {
+  const act = read("./friends-collective-actions.ts");
+  test("owner-only, not impersonating, seat-checked, audited, writes only work_model and the coordinator", () => {
+    assert.match(act, /^"use server";/);
+    assert.match(act, /requireNotImpersonating\(\)/);
+    assert.match(act, /requireWorkspaceStaffAction\(\)/);
+    assert.match(act, /checkRosterSeatAvailability\(/);
+    assert.match(act, /decideFriendsCollectivePreset\(/);
+    assert.match(act, /scheduleWorkspaceAudit\(/);
+    assert.match(act, /\.update\(decision\.set\)/);
+  });
+  test("the migration is held at the reserved version, additive, and limits work_model to the five models", () => {
+    const sql = readFileSync(new URL("../../../../supabase/migrations/_pending_pm/20261231420200_agencies_work_model_tul1374.sql", import.meta.url), "utf8");
+    assert.match(sql, /ADD COLUMN IF NOT EXISTS work_model TEXT/);
+    for (const m of ["coordinator_agency", "open_network", "team_studio", "rental_studio", "friends_collective"]) assert.match(sql, new RegExp(m));
+    assert.doesNotMatch(sql, /DROP TABLE|DELETE FROM|CREATE POLICY/);
+    assert.match(sql, /Rollback/);
+  });
+});

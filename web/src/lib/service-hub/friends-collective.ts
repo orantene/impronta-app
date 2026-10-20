@@ -101,3 +101,28 @@ export function memberPriceLine(input: { name: string; priceCents: number; curre
   }
   return `${name} · ${money}`;
 }
+
+export type PresetDecision =
+  | { ok: true; changed: boolean; set: { work_model: typeof FRIENDS_COLLECTIVE_MODEL; default_coordinator_user_id: string } }
+  | { ok: false; reason: "owner_only" | "over_seat_cap" | "model_already_set" };
+
+/**
+ * Applying the Friends collective preset to a workspace: only the OWNER can (it
+ * puts every request in her inbox), it must fit the plan's seat cap, and it
+ * never silently switches a workspace away from another model. Idempotent.
+ * Pure: the action reads the facts and writes `set`.
+ */
+export function decideFriendsCollectivePreset(input: {
+  role: string | null;
+  ownerUserId: string;
+  currentModel: string | null;
+  defaultCoordinatorUserId: string | null;
+  seatOk: boolean;
+}): PresetDecision {
+  if (input.role !== "owner") return { ok: false, reason: "owner_only" };
+  if (!input.seatOk) return { ok: false, reason: "over_seat_cap" };
+  if (input.currentModel && input.currentModel !== FRIENDS_COLLECTIVE_MODEL) return { ok: false, reason: "model_already_set" };
+  const set = { work_model: FRIENDS_COLLECTIVE_MODEL, default_coordinator_user_id: input.ownerUserId } as const;
+  const changed = input.currentModel !== FRIENDS_COLLECTIVE_MODEL || input.defaultCoordinatorUserId !== input.ownerUserId;
+  return { ok: true, changed, set };
+}
