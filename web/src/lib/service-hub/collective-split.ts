@@ -108,11 +108,12 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
     return { ok: false as const, error: SPLIT_UNAVAILABLE_MESSAGE };
   };
   try {
+    // Flag-gated and OFF by default, and checked FIRST: with the flag off no workspace is
+    // read at all, so this code cannot slow down or refuse a single order anywhere.
+    if (!collectiveSplitEnabled()) return { ok: true, lines };
     const { data: agency, error: aErr } = await admin.from("agencies").select("work_model").eq("id", tenantId).maybeSingle();
     if (aErr) return aErr.code === UNDEFINED_COLUMN ? { ok: true, lines } : refuse(aErr);
     if ((agency as { work_model?: string | null } | null)?.work_model !== FRIENDS_COLLECTIVE_MODEL) return { ok: true, lines };
-    // Flag-gated and OFF by default: until staging QA the members keep their whole line.
-    if (!collectiveSplitEnabled()) return { ok: true, lines };
 
     const talentIds = [...new Set(lines.map((l) => l.talentProfileId).filter((x): x is string => !!x))];
     const shares = new Map<string, AcceptedShare>();

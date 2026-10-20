@@ -19,7 +19,7 @@ export default async function CollectiveSharePage() {
   if (me.ok && admin) {
     const { data: rows } = await admin
       .from("agency_talent_roster")
-      .select("tenant_id, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, agencies:tenant_id ( display_name, default_currency )")
+      .select("tenant_id, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, pending_share_proposed_at, agencies:tenant_id ( display_name, default_currency )")
       .eq("talent_profile_id", me.talentProfile.id)
       .neq("status", "removed")
       .not("pending_share_kind", "is", null);
@@ -30,7 +30,7 @@ export default async function CollectiveSharePage() {
       const currency = share.kind === "fixed" ? share.currency : (ag?.default_currency ?? "USD");
       const preview = memberNetPreview(share, currency, locale);
       if (!preview) continue; // a share with no honest preview (currency mismatch) is not offered for acceptance
-      proposals.push({ tenantId: r.tenant_id, workspaceName: ag?.display_name ?? "", preview });
+      proposals.push({ proposedAt: String(r.pending_share_proposed_at ?? ""), tenantId: r.tenant_id, workspaceName: ag?.display_name ?? "", preview });
     }
   }
   return (

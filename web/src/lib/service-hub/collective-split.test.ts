@@ -111,6 +111,20 @@ describe("loading the workspace's model and shares (fails closed)", () => {
     const r = await applyCollectiveOwnerShares(fakeAdmin({ agencies: { data: null, error: { code: "42703", message: "column work_model does not exist" } } }), "t1", "MXN", lines());
     assert.equal(r.ok && r.lines[0].talentCostCents, 10_000);
   });
+  test("flag OFF: no workspace is touched, not even read: an agencies read error cannot refuse any order", async () => {
+    const prev = process.env.COLLECTIVE_SPLIT_ENABLED;
+    delete process.env.COLLECTIVE_SPLIT_ENABLED;
+    try {
+      const reads: string[] = [];
+      const admin = fakeAdmin({ agencies: { data: null, error: { code: "57014", message: "statement timeout" } } });
+      const spy = { from: (t: string) => { reads.push(t); return (admin as unknown as { from: (t: string) => unknown }).from(t); } } as unknown as SupabaseClient;
+      const r = await applyCollectiveOwnerShares(spy, "t1", "MXN", lines());
+      assert.equal(r.ok && r.lines[0].talentCostCents, 10_000);
+      assert.deepEqual(reads, []);
+    } finally {
+      if (prev !== undefined) process.env.COLLECTIVE_SPLIT_ENABLED = prev;
+    }
+  });
   test("a collective applies each member's share", async () => {
     const r = await applyCollectiveOwnerShares(
       fakeAdmin({

@@ -162,7 +162,7 @@ export async function setMemberOwnerShare(input: {
 
 export type RespondShareResult =
   | { ok: true; outcome: "accepted" | "declined" }
-  | { ok: false; reason: "unauthenticated" | "not_the_member" | "nothing_pending" | "unavailable" };
+  | { ok: false; reason: "unauthenticated" | "not_the_member" | "nothing_pending" | "proposal_changed" | "unavailable" };
 
 /**
  * The MEMBER answers the owner's proposal for ONE workspace. Accepting makes the
@@ -171,7 +171,7 @@ export type RespondShareResult =
  * Only the member herself (never an owner or admin acting for her), and never
  * while impersonating.
  */
-export async function respondToOwnerShare(input: { tenantId: string; accept: boolean }): Promise<RespondShareResult> {
+export async function respondToOwnerShare(input: { tenantId: string; accept: boolean; proposedAt: string }): Promise<RespondShareResult> {
   await requireNotImpersonating();
   try {
     const me = await requireTalentSelf();
@@ -180,17 +180,19 @@ export async function respondToOwnerShare(input: { tenantId: string; accept: boo
     if (!admin) return { ok: false, reason: "unavailable" };
 
     const { data: row, error } = await tenantScopedQuery(admin, "agency_talent_roster", input.tenantId)
-      .select("talent_profile_id, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, owner_share_version")
+      .select("talent_profile_id, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, pending_share_proposed_at, owner_share_version")
       .eq("talent_profile_id", me.talentProfile.id)
       .neq("status", "removed")
       .maybeSingle();
     if (error) return { ok: false, reason: "unavailable" };
-    const r = row as { pending_share_kind: string | null; pending_share_bps: number | null; pending_share_cents: number | null; pending_share_currency: string | null; owner_share_version: number | null } | null;
+    const r = row as { pending_share_kind: string | null; pending_share_bps: number | null; pending_share_cents: number | null; pending_share_currency: string | null; pending_share_proposed_at: string | null; owner_share_version: number | null } | null;
     const pending = r
       ? parseOwnerShareRow({ owner_share_kind: r.pending_share_kind, owner_share_bps: r.pending_share_bps, owner_share_cents: r.pending_share_cents, owner_share_currency: r.pending_share_currency })
       : null;
 
-    const decision = decideShareResponse({ isTheMember: Boolean(r), hasPending: Boolean(pending), accept: input.accept });
+    // The accept must carry the exact proposal she saw (its timestamp) and match the stored pending row.
+    const proposalMatches = Boolean(r?.pending_share_proposed_at) && r?.pending_share_proposed_at != null && Date.parse(r.pending_share_proposed_at) === Date.parse(input.proposedAt);
+    const decision = decideShareResponse({ isTheMember: Boolean(r), hasPending: Boolean(pending), proposalMatches, accept: input.accept });
     if (!decision.ok) return decision;
 
     const clearPending = { pending_share_kind: null, pending_share_bps: null, pending_share_cents: null, pending_share_currency: null, pending_share_proposed_at: null };
@@ -207,13 +209,18 @@ export async function respondToOwnerShare(input: { tenantId: string; accept: boo
             owner_share_accepted_by: me.session.user.id,
           }
         : clearPending;
-    const { error: wErr } = await tenantScopedQuery(admin, "agency_talent_roster", input.tenantId)
+    // Compare-and-swap: the write only lands while the pending row is still the one she answered, so an
+    // owner who swaps the proposal between the read and this write changes nothing (0 rows -> refused).
+    const { data: written, error: wErr } = await tenantScopedQuery(admin, "agency_talent_roster", input.tenantId)
       .update(patch)
-      .eq("talent_profile_id", me.talentProfile.id);
+      .eq("talent_profile_id", me.talentProfile.id)
+      .eq("pending_share_proposed_at", r?.pending_share_proposed_at ?? "")
+      .select("talent_profile_id");
     if (wErr) {
       logServerError("friends-collective.respondShare", wErr);
       return { ok: false, reason: "unavailable" };
     }
+    if (!Array.isArray(written) || written.length !== 1) return { ok: false, reason: "proposal_changed" };
     await logWorkspaceAudit({
       tenantId: input.tenantId,
       category: "roster",

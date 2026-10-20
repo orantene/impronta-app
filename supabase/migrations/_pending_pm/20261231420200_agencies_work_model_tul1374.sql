@@ -103,6 +103,62 @@ ALTER TABLE public.agency_talent_roster
         AND char_length(pending_share_currency) = 3 AND pending_share_bps IS NULL)
   );
 
+-- WHO MAY WRITE THE SHARE COLUMNS. Without this, any active staff member (418000 lets them UPDATE
+-- the roster) could PATCH owner_share_bps = 9000 through PostgREST and sell a member at a share she
+-- never accepted. Browser sessions (authenticated / anon) may NOT change the effective share
+-- (owner_share_*, owner_share_version, owner_share_accepted_*) or the pending proposal
+-- (pending_share_*) on INSERT or UPDATE, whoever they are: only the service role (the owner and member
+-- server actions, which check the role and the member) and SECURITY DEFINER functions write them.
+-- Same shape as agencies_protect_work_model, with no owner exemption: the owner proposes through the
+-- action, which also stamps pending_share_proposed_at.
+CREATE OR REPLACE FUNCTION public.agency_talent_roster_protect_owner_share()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') THEN
+    IF TG_OP = 'INSERT' THEN
+      IF NEW.owner_share_kind IS NOT NULL OR NEW.owner_share_bps IS NOT NULL
+         OR NEW.owner_share_cents IS NOT NULL OR NEW.owner_share_currency IS NOT NULL
+         OR NEW.pending_share_kind IS NOT NULL OR NEW.pending_share_bps IS NOT NULL
+         OR NEW.pending_share_cents IS NOT NULL OR NEW.pending_share_currency IS NOT NULL
+         OR NEW.pending_share_proposed_at IS NOT NULL
+         OR COALESCE(NEW.owner_share_version, 0) <> 0
+         OR NEW.owner_share_accepted_at IS NOT NULL OR NEW.owner_share_accepted_by IS NOT NULL THEN
+        RAISE EXCEPTION 'owner share columns can only be written by the platform'
+          USING ERRCODE = '42501';
+      END IF;
+    ELSIF (
+         NEW.owner_share_kind            IS DISTINCT FROM OLD.owner_share_kind
+      OR NEW.owner_share_bps             IS DISTINCT FROM OLD.owner_share_bps
+      OR NEW.owner_share_cents           IS DISTINCT FROM OLD.owner_share_cents
+      OR NEW.owner_share_currency        IS DISTINCT FROM OLD.owner_share_currency
+      OR NEW.owner_share_version         IS DISTINCT FROM OLD.owner_share_version
+      OR NEW.owner_share_accepted_at     IS DISTINCT FROM OLD.owner_share_accepted_at
+      OR NEW.owner_share_accepted_by     IS DISTINCT FROM OLD.owner_share_accepted_by
+      OR NEW.pending_share_kind          IS DISTINCT FROM OLD.pending_share_kind
+      OR NEW.pending_share_bps           IS DISTINCT FROM OLD.pending_share_bps
+      OR NEW.pending_share_cents         IS DISTINCT FROM OLD.pending_share_cents
+      OR NEW.pending_share_currency      IS DISTINCT FROM OLD.pending_share_currency
+      OR NEW.pending_share_proposed_at   IS DISTINCT FROM OLD.pending_share_proposed_at
+    ) THEN
+      RAISE EXCEPTION 'owner share columns can only be written by the platform'
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+COMMENT ON FUNCTION public.agency_talent_roster_protect_owner_share() IS
+  'BEFORE INSERT OR UPDATE guard on agency_talent_roster: owner_share_*, pending_share_* and owner_share_version change only via service role / SECURITY DEFINER, never from a browser session (TUL-1374).';
+
+DROP TRIGGER IF EXISTS agency_talent_roster_protect_owner_share ON public.agency_talent_roster;
+CREATE TRIGGER agency_talent_roster_protect_owner_share
+  BEFORE INSERT OR UPDATE ON public.agency_talent_roster
+  FOR EACH ROW EXECUTE FUNCTION public.agency_talent_roster_protect_owner_share();
+
 -- THE LINE SNAPSHOT, with the 90% cap and the 10% member minimum enforced here,
 -- in the database, not only in code: the owner's take on a line can never exceed
 -- 90% of the line, and the member's cost is never below the rest.
@@ -122,4 +178,4 @@ COMMENT ON COLUMN public.order_lines.owner_take_cents IS
 COMMENT ON COLUMN public.order_lines.owner_share_snapshot IS
   'Friends collective: the ACCEPTED share (kind, bps / cents + currency, version) this line was split with.';
 
--- Rollback (manual): DROP TRIGGER IF EXISTS agencies_protect_work_model ON public.agencies; DROP FUNCTION IF EXISTS public.agencies_protect_work_model(); ALTER TABLE public.agencies DROP CONSTRAINT IF EXISTS agencies_work_model_chk; ALTER TABLE public.agencies DROP COLUMN IF EXISTS work_model; ALTER TABLE public.agency_talent_roster DROP CONSTRAINT IF EXISTS agency_talent_roster_owner_share_chk; ALTER TABLE public.agency_talent_roster DROP COLUMN IF EXISTS owner_share_kind, DROP COLUMN IF EXISTS owner_share_bps, DROP COLUMN IF EXISTS owner_share_cents, DROP COLUMN IF EXISTS owner_share_currency, DROP COLUMN IF EXISTS pending_share_kind, DROP COLUMN IF EXISTS pending_share_bps, DROP COLUMN IF EXISTS pending_share_cents, DROP COLUMN IF EXISTS pending_share_currency, DROP COLUMN IF EXISTS pending_share_proposed_at, DROP COLUMN IF EXISTS owner_share_version, DROP COLUMN IF EXISTS owner_share_accepted_at, DROP COLUMN IF EXISTS owner_share_accepted_by; ALTER TABLE public.order_lines DROP CONSTRAINT IF EXISTS order_lines_owner_take_cap_chk; ALTER TABLE public.order_lines DROP COLUMN IF EXISTS owner_take_cents, DROP COLUMN IF EXISTS owner_share_snapshot;
+-- Rollback (manual): DROP TRIGGER IF EXISTS agency_talent_roster_protect_owner_share ON public.agency_talent_roster; DROP FUNCTION IF EXISTS public.agency_talent_roster_protect_owner_share(); DROP TRIGGER IF EXISTS agencies_protect_work_model ON public.agencies; DROP FUNCTION IF EXISTS public.agencies_protect_work_model(); ALTER TABLE public.agencies DROP CONSTRAINT IF EXISTS agencies_work_model_chk; ALTER TABLE public.agencies DROP COLUMN IF EXISTS work_model; ALTER TABLE public.agency_talent_roster DROP CONSTRAINT IF EXISTS agency_talent_roster_owner_share_chk; ALTER TABLE public.agency_talent_roster DROP COLUMN IF EXISTS owner_share_kind, DROP COLUMN IF EXISTS owner_share_bps, DROP COLUMN IF EXISTS owner_share_cents, DROP COLUMN IF EXISTS owner_share_currency, DROP COLUMN IF EXISTS pending_share_kind, DROP COLUMN IF EXISTS pending_share_bps, DROP COLUMN IF EXISTS pending_share_cents, DROP COLUMN IF EXISTS pending_share_currency, DROP COLUMN IF EXISTS pending_share_proposed_at, DROP COLUMN IF EXISTS owner_share_version, DROP COLUMN IF EXISTS owner_share_accepted_at, DROP COLUMN IF EXISTS owner_share_accepted_by; ALTER TABLE public.order_lines DROP CONSTRAINT IF EXISTS order_lines_owner_take_cap_chk; ALTER TABLE public.order_lines DROP COLUMN IF EXISTS owner_take_cents, DROP COLUMN IF EXISTS owner_share_snapshot;

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { respondToOwnerShare } from "@/lib/service-hub/friends-collective-actions";
 import { COLLECTIVE_COPY } from "@/lib/service-hub/friends-collective-copy";
 
-export type ShareProposal = { tenantId: string; workspaceName: string; preview: string };
+export type ShareProposal = { proposedAt: string; tenantId: string; workspaceName: string; preview: string };
 
 function Row({ proposal, locale }: { proposal: ShareProposal; locale: "en" | "es" }) {
   const c = COLLECTIVE_COPY[locale];
@@ -12,7 +12,7 @@ function Row({ proposal, locale }: { proposal: ShareProposal; locale: "en" | "es
   const [done, setDone] = useState(false);
   const answer = (accept: boolean) =>
     start(async () => {
-      const r = await respondToOwnerShare({ tenantId: proposal.tenantId, accept });
+      const r = await respondToOwnerShare({ tenantId: proposal.tenantId, accept, proposedAt: proposal.proposedAt });
       if (r.ok) setDone(true);
     });
   return (

@@ -184,12 +184,14 @@ export function decideMemberShareUpdate(input: {
 
 export type ShareResponseDecision =
   | { ok: true; outcome: "accepted" | "declined" }
-  | { ok: false; reason: "not_the_member" | "nothing_pending" };
+  | { ok: false; reason: "not_the_member" | "nothing_pending" | "proposal_changed" };
 
-/** Only the member answers a proposal, and only while one is pending. */
-export function decideShareResponse(input: { isTheMember: boolean; hasPending: boolean; accept: boolean }): ShareResponseDecision {
+/** Only the member answers a proposal, only while one is pending, and an accept must match the proposal she saw. */
+export function decideShareResponse(input: { isTheMember: boolean; hasPending: boolean; proposalMatches: boolean; accept: boolean }): ShareResponseDecision {
   if (!input.isTheMember) return { ok: false, reason: "not_the_member" };
   if (!input.hasPending) return { ok: false, reason: "nothing_pending" };
+  // She accepts only the proposal she was shown. If the owner changed it since, nothing is accepted.
+  if (input.accept && !input.proposalMatches) return { ok: false, reason: "proposal_changed" };
   return { ok: true, outcome: input.accept ? "accepted" : "declined" };
 }
 

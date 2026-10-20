@@ -266,10 +266,10 @@ describe("the owner PROPOSES a member's share; it takes effect only when the mem
   });
 
   test("only the member accepts or declines, and only when a proposal is pending", () => {
-    assert.deepEqual(decideShareResponse({ isTheMember: false, hasPending: true, accept: true }), { ok: false, reason: "not_the_member" });
-    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: false, accept: true }), { ok: false, reason: "nothing_pending" });
-    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, accept: true }), { ok: true, outcome: "accepted" });
-    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, accept: false }), { ok: true, outcome: "declined" });
+    assert.deepEqual(decideShareResponse({ isTheMember: false, hasPending: true, proposalMatches: true, accept: true }), { ok: false, reason: "not_the_member" });
+    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: false, proposalMatches: true, accept: true }), { ok: false, reason: "nothing_pending" });
+    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, proposalMatches: true, accept: true }), { ok: true, outcome: "accepted" });
+    assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, proposalMatches: true, accept: false }), { ok: true, outcome: "declined" });
   });
 
   test("the member sees what she receives BEFORE accepting (EN and ES), for a percent and a fixed share", () => {
@@ -412,4 +412,10 @@ describe("DB guarantees, flag gate and acceptance wiring", () => {
     const card = read("../../app/(workspace)/[tenantSlug]/talent/collective-share/CollectiveShareResponseCard.tsx");
     assert.match(card, /respondToOwnerShare/);
   });
+});
+
+test("accepting a proposal that changed since she saw it is refused (swap 10% for 90% before the click)", () => {
+  assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, proposalMatches: false, accept: true }), { ok: false, reason: "proposal_changed" });
+  // Declining is always safe, even if it changed: it only drops the pending row.
+  assert.deepEqual(decideShareResponse({ isTheMember: true, hasPending: true, proposalMatches: false, accept: false }), { ok: true, outcome: "declined" });
 });
