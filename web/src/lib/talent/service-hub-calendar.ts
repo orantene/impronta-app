@@ -46,6 +46,17 @@ export function calendarByChannel(input: {
 }): ChannelCalendarRow[] {
   const nowMs = input.now.getTime();
   const rows: ChannelCalendarRow[] = [];
+  // An opaque per-response key for another workspace's rows: the same workspace gets the same
+  // key within one response, but nothing derived from its id ever leaves this function.
+  const opaque = new Map<string, string>();
+  const keyFor = (tenantId: string) => {
+    let k = opaque.get(tenantId);
+    if (!k) {
+      k = `ws:${opaque.size + 1}`;
+      opaque.set(tenantId, k);
+    }
+    return k;
+  };
   for (const en of input.entries) {
     const start = Date.parse(en.startsAt);
     const end = Date.parse(en.endsAt);
@@ -64,7 +75,7 @@ export function calendarByChannel(input: {
       title: mine ? en.title : null,
       startsAt: en.startsAt,
       endsAt: en.endsAt,
-      channelKey: mine ? "my_site_hub" : `ws:${en.tenantId}`,
+      channelKey: mine ? "my_site_hub" : keyFor(en.tenantId),
       channelType: mine ? "mine" : "workspace",
       channelName: mine ? null : (input.tenantNames.get(en.tenantId) ?? null),
       holdStrength: en.holdStrength,

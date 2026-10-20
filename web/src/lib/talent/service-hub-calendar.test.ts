@@ -29,7 +29,7 @@ test("each entry is labelled by its placing workspace; own and hub tenants read 
   });
   assert.deepEqual(out.map((r) => [r.id, r.channelKey, r.channelType, r.channelName]), [
     ["2", "my_site_hub", "mine", null],
-    ["1", "ws:ws-1", "workspace", "Blue Oar"],
+    ["1", "ws:1", "workspace", "Blue Oar"],
     ["3", "my_site_hub", "mine", null],
   ]);
 });
@@ -38,8 +38,8 @@ test("a workspace with no readable name is 'another workspace': name null, never
   const out = calendarByChannel({ ...base, entries: [e({ tenantId: "ws-9" })] });
   assert.equal(out[0].channelType, "workspace");
   assert.equal(out[0].channelName, null);
-  assert.ok(!JSON.stringify(out[0]).includes("ws-9") || out[0].channelKey === "ws:ws-9");
   assert.equal(Object.values(out[0]).filter((v) => v === "ws-9").length, 0);
+  assert.equal(JSON.stringify(out[0]).includes("ws-9"), false);
 });
 
 test("another workspace's booking title (it can carry the client's name) is never exposed; own and hub titles are", () => {
@@ -84,4 +84,19 @@ test("an entry already under way (started, not ended) still shows", () => {
 
 test("no entries, no rows", () => {
   assert.deepEqual(calendarByChannel({ ...base, entries: [] }), []);
+});
+
+test("no tenant id appears anywhere in any row; the same workspace shares one opaque key per response", () => {
+  const out = calendarByChannel({
+    ...base,
+    entries: [
+      e({ id: "1", tenantId: "ws-1", startsAt: "2026-11-10T10:00:00Z", endsAt: "2026-11-10T11:00:00Z" }),
+      e({ id: "2", tenantId: "ws-2", startsAt: "2026-11-11T10:00:00Z", endsAt: "2026-11-11T11:00:00Z" }),
+      e({ id: "3", tenantId: "ws-1", startsAt: "2026-11-12T10:00:00Z", endsAt: "2026-11-12T11:00:00Z" }),
+      e({ id: "4", tenantId: "own", startsAt: "2026-11-13T10:00:00Z", endsAt: "2026-11-13T11:00:00Z" }),
+    ],
+  });
+  const json = JSON.stringify(out);
+  for (const id of ["ws-1", "ws-2", "own", "hub"]) assert.ok(!json.includes(`"${id}"`) && !json.includes(`:${id}`), id);
+  assert.deepEqual(out.map((r) => r.channelKey), ["ws:1", "ws:2", "ws:1", "my_site_hub"]);
 });
