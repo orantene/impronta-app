@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { lookupTalentSnapshot, staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
@@ -812,19 +813,17 @@ export async function addBookingTalentRow(
     .maybeSingle();
   const sort_order = (maxSort?.sort_order ?? -1) + 1;
 
-  const { data: tp } = await supabase
-    .from("talent_profiles")
-    .select("display_name, profile_code")
-    .eq("id", talent_profile_id)
-    .maybeSingle();
+  // TUL-1359: service client after the staff/tenant + booking checks, keyed by the chosen talent id.
+  const tp = await lookupTalentSnapshot(await staffTalentClient(supabase), talent_profile_id);
+  if (!tp.found) return { error: "Talent not found." };
 
   const t = computeBookingTalentRowTotals(1, 0, 0);
   const { error } = await supabase.from("booking_talent").insert({
     tenant_id: tenantId,
     booking_id,
     talent_profile_id,
-    talent_name_snapshot: tp?.display_name ?? null,
-    profile_code_snapshot: tp?.profile_code ?? null,
+    talent_name_snapshot: tp.displayName,
+    profile_code_snapshot: tp.profileCode,
     sort_order,
     units: 1,
     pricing_unit: "event" as never,
@@ -1099,18 +1098,19 @@ export async function createManualBooking(formData: FormData): Promise<void> {
 
   let sortOrder = 0;
   for (const tid of talentIds) {
-    const { data: tp } = await supabase
-      .from("talent_profiles")
-      .select("display_name, profile_code")
-      .eq("id", tid)
-      .maybeSingle();
+    // TUL-1359: service client after the staff/tenant checks, keyed by the chosen talent id.
+    const tp = await lookupTalentSnapshot(await staffTalentClient(supabase), tid);
+    if (!tp.found) {
+      logServerError("admin/createManualBooking/talentLookup", `talent ${tid} not found`);
+      redirect(`${returnTo}?err=${encodeURIComponent(CLIENT_ERROR.update)}`);
+    }
     const t = computeBookingTalentRowTotals(1, 0, 0);
     const { error: lineErr } = await supabase.from("booking_talent").insert({
       tenant_id: tenantId,
       booking_id: bookingRow.id,
       talent_profile_id: tid,
-      talent_name_snapshot: tp?.display_name ?? null,
-      profile_code_snapshot: tp?.profile_code ?? null,
+      talent_name_snapshot: tp.displayName,
+      profile_code_snapshot: tp.profileCode,
       sort_order: sortOrder++,
       units: 1,
       pricing_unit: "event" as never,
