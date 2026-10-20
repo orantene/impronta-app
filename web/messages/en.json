@@ -17138,6 +17138,8 @@
         "accept": "They took it",
         "accepting": "Taking the place...",
         "accepted": "{name} has the place. That seat is off this class now.",
+        "acceptedPayPending": "{name}'s place is held until {when}. It is theirs once they pay. Pay link (copied): {url}",
+        "acceptedPayPendingNoLink": "{name}'s place is held until {when}. It is theirs once they pay. The pay link could not be made yet: accept again to retry.",
         "alreadyHasPlace": "{name} already has this place. Nothing changed.",
         "decline": "They said no",
         "declining": "Giving it back...",

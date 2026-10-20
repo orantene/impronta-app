@@ -111,6 +111,14 @@ export type ClassTimetableDone =
       replayed: boolean;
     }
   | { ok: true; op: "join_waitlist"; entryId: string; already: boolean }
-  | { ok: true; op: "accept_offer"; entryId: string; already: boolean };
+  | {
+      ok: true;
+      op: "accept_offer";
+      entryId: string;
+      already: boolean;
+      /** TUL-1552: a paid session. The place is held until the guest pays here; null when free. */
+      checkoutUrl?: string | null;
+      holdExpiresAt?: string | null;
+    };
 
 export type ClassTimetableResult = ClassTimetableDone | StorefrontRefusal;
