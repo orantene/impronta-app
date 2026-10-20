@@ -371,6 +371,14 @@ function DesignCard({
         </div>
       </div>
 
+      {row.studioHtml ? (
+        <div
+          className={`mt-4 border-t border-white/10 pt-3 text-sm text-white/70 ${lang === "en" ? "[&_[data-l=es]]:hidden" : "[&_[data-l=en]]:hidden"}`}
+          data-studio
+          dangerouslySetInnerHTML={{ __html: row.studioHtml }}
+        />
+      ) : null}
+
       {row.canRebuild ? <DemoRebuildPanel design={row.slug} lang={lang} /> : null}
     </section>
   );

@@ -67,8 +67,13 @@ test("TUL-1272/C3 part 1: offerings render on the hub profile without a services
   const root = join(__dirname, "..");
   const layout = readFileSync(join(root, "app/t/[profileCode]/_light/LightProfileLayout.tsx"), "utf8");
   assert.match(layout, /storefrontOfferings\.length > 0 \? \(\s*<TalentStorefront[\s\S]*?\) : \(\s*<ServiceMenuBlock/);
+  // TUL-1272: the loader's row query lives in offerings-public-rows.ts; the loader must run it.
   const loader = readFileSync(join(root, "lib/talent/offerings-public.ts"), "utf8");
-  assert.match(loader, /\.eq\("moderation_state", "approved"\)\s*\.in\("visibility", \["public", "on_request"\]\)/);
+  assert.match(loader, /import \{ selectPublicOfferingRows[^}]*\} from "\.\/offerings-public-rows"/);
+  assert.match(loader, /await selectPublicOfferingRows\(/);
+  const rows = readFileSync(join(root, "lib/talent/offerings-public-rows.ts"), "utf8");
+  assert.match(rows, /\.eq\("owner_kind", "talent"\)/);
+  assert.match(rows, /\.eq\("moderation_state", "approved"\)\s*\.in\("visibility", \["public", "on_request"\]\)/);
 });
 
 test("TUL-1272/C3: hostile message text cannot end the inline script and round-trips", () => {

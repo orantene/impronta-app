@@ -11,6 +11,7 @@ import { resolveOwningPartiesForTalents, isHubSourcedChannel } from "./owning-pa
 import { resolveInquiryHome } from "./inquiry-rehome";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import type { EngineResult } from "./inquiry-engine.types";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
@@ -252,12 +253,17 @@ export async function submitInquiry(
     // coordinator-of-record, the lineup rows, and self-coordination seeding.
     const talentUserIdByProfile = new Map<string, string | null>();
     if (input.talent_profile_ids.length > 0) {
-      const { data: tpRows } = await supabase
+      // TUL-1359: service client; ids are the ones the caller submitted this inquiry for.
+      const { data: tpRows } = await (await staffTalentClient(supabase))
         .from("talent_profiles")
         .select("id, user_id")
         .in("id", input.talent_profile_ids);
       for (const r of (tpRows ?? []) as Array<{ id: string; user_id: string | null }>) {
         talentUserIdByProfile.set(r.id, r.user_id ?? null);
+      }
+      // A filtered or missing row must not become a NULL user_id on the lineup.
+      if (new Set(input.talent_profile_ids).size !== talentUserIdByProfile.size) {
+        return { success: false, error: "talent_not_found" };
       }
     }
 

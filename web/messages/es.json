@@ -16543,6 +16543,7 @@
           "no_payout_receiver": "Esto no se puede registrar como pagado todavía: nadie esta configurado para recibir el pago. Configura un receptor de pagos e inténtalo de nuevo.",
           "offer_currency_seller_mismatch": "Esta oferta esta en una moneda distinta a la que cobra quien vende. Cambia la moneda de la oferta a la de quien vende y vuelve a enviarla.",
           "offer_currency_unresolved": "No pudimos saber en que moneda va esta oferta. Elige una moneda para la oferta e intenta de nuevo.",
+          "over_refund_limit": "Un gerente con un límite mayor tiene que hacer este reembolso.",
           "identity_unconfirmed": "La identidad del cliente no está confirmada.",
           "already_linked": "Ese registro ya está ligado.",
           "version_stale": "Otra persona guardo primero. Compara las tres versiones.",
