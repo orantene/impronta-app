@@ -2,6 +2,15 @@
 
 <!-- What changed and why (1–3 sentences). -->
 
+## Acceptance (from TUL-xxxx)
+
+<!-- One line per acceptance point of the card, copied from Notion. Tick it only if this PR does it. -->
+<!-- Every UNTICKED point needs a reason AND a linked follow-up card before merge. -->
+<!-- Money PRs: say "OK to merge", never "verified", until QA's Stripe TEST run matches the amounts. -->
+
+- [ ] <!-- acceptance point 1 --> (or: not done, because ..., follow-up: TUL-xxxx)
+- [ ] <!-- acceptance point 2 -->
+
 ## Dashboard UX Spec Compliance (Section R)
 
 - [ ] Correct shell used (Section A)

@@ -44,6 +44,13 @@
 export type TierUnits = {
   poolKey: string;
   units: number;
+  /**
+   * The pool_key of this pool's parent on the SAME session (a tier hangs under
+   * the session's `default` pool so "20 seats, at most 6 children" is the
+   * engine's ancestor rule, not ours). Absent or null: parentless, exactly as
+   * before. The parent must be created in the same call or already exist.
+   */
+  parentPoolKey?: string | null;
 };
 
 export type SessionPlanRefusal =
