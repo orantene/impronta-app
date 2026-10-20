@@ -27,6 +27,7 @@ function fakeDb() {
   const sessions: Row[] = [];
   const pools: Row[] = [];
   let nextId = 1;
+  const readFails = { sessions: false };
 
   function violatesUnique(row: Row): boolean {
     // sessions_series_occurrence_uniq (series_id, starts_at) — NULLS DISTINCT,
@@ -88,6 +89,13 @@ function fakeDb() {
             const hit = sessions.find((r) => filters.every((f) => f(r)));
             return { data: hit ? { id: hit.id } : null, error: null };
           },
+          order() {
+            return api;
+          },
+          async limit(n: number) {
+            if (readFails.sessions) return { data: null, error: { code: "57014", message: "timeout" } };
+            return { data: sessions.filter((r) => filters.every((f) => f(r))).slice(0, n).map((r) => ({ id: r.id })), error: null };
+          },
         };
         return api;
       }
@@ -127,7 +135,7 @@ function fakeDb() {
     },
   };
 
-  return { admin, sessions, pools };
+  return { admin, sessions, pools, readFails };
 }
 
 const NIGHT = {
@@ -280,4 +288,15 @@ test("a session with no offering asks the engine for no room at all", async () =
   const deps = { hold: (async () => (holds += 1, { ok: true, held: 0 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
   await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
   assert.equal(holds, 0);
+});
+
+test("when the 'does this night exist' read fails, nothing is held or created (fail closed)", async () => {
+  const { admin, sessions, readFails } = fakeDb();
+  readFails.sessions = true;
+  let holds = 0;
+  const deps = { hold: (async () => (holds += 1, { ok: true, held: 1 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  const res = await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.deepEqual(res, { ok: false, reason: "room_unavailable" });
+  assert.equal(holds, 0);
+  assert.equal(sessions.length, 0);
 });

@@ -5,14 +5,16 @@ import { sessionCancel } from "./session-ops";
 
 type Row = Record<string, unknown>;
 
-function fakeAdmin(sessions: Row[], live: Row[]) {
+function fakeAdmin(sessions: Row[], live: Row[], opts: { releaseFails?: boolean; cancelReply?: Record<string, unknown> } = {}) {
   const released: string[][] = [];
   const admin = {
     rpc: async (fn: string, args: Record<string, unknown>) => {
+      if (fn === "session_cancel" && opts.cancelReply) return { data: opts.cancelReply, error: null };
       if (fn === "session_cancel") {
         for (const s of sessions) if (args.p_scope === "this" ? s.id === args.p_session_id : true) s.status = "cancelled";
         return { data: { ok: true, sessions_cancelled: 1 }, error: null };
       }
+      if (fn === "release_capacity" && opts.releaseFails) return { data: null, error: { message: "boom" } };
       if (fn === "release_capacity") {
         released.push(args.p_allocation_ids as string[]);
         return { data: { released: (args.p_allocation_ids as string[]).length, already_released: 0 }, error: null };
@@ -62,4 +64,19 @@ test("a session with no room hold changes nothing; the cancel still succeeds", a
   const r = await sessionCancel(admin, { tenantId: "t", sessionId: "s9", scope: "this", reason: "x", operationKey: "key-123456" });
   assert.equal(r.ok, true);
   assert.deepEqual(released, []);
+});
+
+test("a cancel whose room cannot be released FAILS the call, so nobody believes the room is free", async () => {
+  const sessions = [{ id: "s1", tenant_id: "t", series_id: null, status: "scheduled" }];
+  const { admin } = fakeAdmin(sessions, live, { releaseFails: true });
+  const r = await sessionCancel(admin, { tenantId: "t", sessionId: "s1", scope: "this", reason: "x", operationKey: "key-123456" });
+  assert.deepEqual(r, { ok: false, reason: "room_release_failed" });
+});
+
+test("pressing cancel again after a failed release heals the room", async () => {
+  const sessions = [{ id: "s1", tenant_id: "t", series_id: null, status: "cancelled" }];
+  const { admin, released } = fakeAdmin(sessions, live, { cancelReply: { ok: false, reason: "already_cancelled" } });
+  const r = await sessionCancel(admin, { tenantId: "t", sessionId: "s1", scope: "this", reason: "x", operationKey: "key-123456" });
+  assert.deepEqual(r, { ok: false, reason: "already_cancelled" });
+  assert.deepEqual(released, [["a-s1"]]);
 });

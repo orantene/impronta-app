@@ -114,7 +114,10 @@ export async function createSessionWithPools(
   // already exists is a repeat: it keeps the hold it has and asks for no second one.
   const sessionId = crypto.randomUUID();
   let roomHeld = false;
-  if (session.offeringId && !(await findExistingSession(admin, session))) {
+  const already = session.offeringId ? await findExistingSession(admin, session) : null;
+  // An unreadable "does this night exist" must not become a second hold against the first one's room.
+  if (already === FIND_FAILED) return { ok: false, reason: "room_unavailable" };
+  if (session.offeringId && !already) {
     const hold = await roomDeps.hold({
       admin,
       tenantId: session.tenantId,
@@ -157,7 +160,7 @@ export async function createSessionWithPools(
     // event night through, which is the defect this replaces.
     if (insertError.code === "23505") {
       const existingId = await findExistingSession(admin, session);
-      if (existingId) {
+      if (existingId && existingId !== FIND_FAILED) {
         // Fill in any pool the first attempt failed to create. Additive only:
         // `ensureSessionPools` never re-asserts an existing pool, so a repeat
         // cannot reset a seat count somebody raised or that has seats sold.
@@ -200,10 +203,13 @@ export async function createSessionWithPools(
  * occurrence key otherwise. Tenant-scoped, so a collision with another
  * workspace's row (impossible today, cheap to guarantee) can never be returned.
  */
+/** The read itself failed: not "no such session". Callers fail closed. */
+const FIND_FAILED = Symbol("find_failed");
+
 async function findExistingSession(
   admin: Admin,
   session: SessionRowInput,
-): Promise<string | null> {
+): Promise<string | null | typeof FIND_FAILED> {
   let query = admin
     .from("sessions")
     .select("id")
@@ -219,12 +225,14 @@ async function findExistingSession(
     return null;
   }
 
-  const { data, error } = await query.maybeSingle();
+  // limit(1) rather than maybeSingle(): two matching rows must not read as "no session".
+  const { data, error } = await query.order("created_at", { ascending: true }).limit(1);
   if (error) {
     logServerError("sessions.findExistingSession", error);
-    return null;
+    return FIND_FAILED;
   }
-  return data?.id ? String(data.id) : null;
+  const first = (data ?? [])[0] as { id?: unknown } | undefined;
+  return first?.id ? String(first.id) : null;
 }
 
 /**

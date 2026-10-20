@@ -76,6 +76,7 @@ import {
   createSessionWithPools,
   ensureSessionPools,
 } from "@/lib/sessions/session-writer";
+import { sweepCancelledSessionRooms } from "@/lib/resources/session-resource-holds";
 import { improntaLog } from "@/lib/server/structured-log";
 import {
   DEFAULT_HORIZON_DAYS,
@@ -309,6 +310,10 @@ export async function GET(request: Request) {
         poolsCreated += repaired.created.length;
       }
     }
+
+    // Safety net: a cancelled session never keeps its room, even if its cancel could not release it.
+    const swept = await sweepCancelledSessionRooms(admin);
+    void improntaLog("sessions.cron.rooms_swept", { ok: swept.ok, released: swept.ok ? swept.released : 0 });
 
     void improntaLog("sessions.cron.materialise", {
       series: (seriesRows ?? []).length,

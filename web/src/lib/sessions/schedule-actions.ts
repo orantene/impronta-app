@@ -57,6 +57,8 @@ import {
   describeSessionRefusal,
   planSession,
 } from "@/lib/sessions/session-plan";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { roomMessage } from "@/lib/sessions/room-messages";
 import { createSessionWithPools } from "@/lib/sessions/session-writer";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -624,10 +626,10 @@ export async function scheduleSession(
 
     if (!result.ok) {
       if (result.reason === "room_taken") {
-        return { ok: false, message: "That room is already taken at that time. Pick another time or room." };
+        return { ok: false, message: roomMessage("room_taken", await getRequestLocale()) };
       }
       if (result.reason === "room_unavailable") {
-        return { ok: false, message: "Could not reserve this class's room. Nothing was scheduled; try again." };
+        return { ok: false, message: roomMessage("room_unavailable", await getRequestLocale()) };
       }
       if (result.reason === "insert_failed") {
         return { ok: false, message: "Could not create the session." };

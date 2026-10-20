@@ -18,7 +18,8 @@ export type SessionOpsReason =
   | "not_found"
   | "wrong_tenant"
   | "invalid"
-  | "unavailable";
+  | "unavailable"
+  | "room_release_failed";
 
 function mapReason(raw: string | undefined, allowed: SessionOpsReason[]): SessionOpsReason {
   if (raw && (allowed as string[]).includes(raw)) return raw as SessionOpsReason;
@@ -88,32 +89,40 @@ export async function sessionMoveParticipant(
 /**
  * TUL-1413: a cancelled session gives its room back. The cancel RPC does not say which
  * sessions it cancelled (scope this / future / series), so the session and its series are
- * read back and every one now cancelled releases its hold. A failure here never undoes the
- * cancel (the people are already notified); it is logged and the next cancel or a manual
- * release can retry, because releasing is idempotent.
+ * read back and every one now cancelled releases its hold. Releasing is idempotent. A
+ * failure FAILS the cancel call (the caller is told to press cancel again; the DB cancel is
+ * already done, so the retry's "already cancelled" answer releases the room first), and the
+ * cron sweep (`sweepCancelledSessionRooms`) is the safety net, so a room is never held for
+ * good.
  */
-async function releaseRoomsAfterCancel(admin: Admin, tenantId: string, sessionId: string): Promise<void> {
+async function releaseRoomsAfterCancel(admin: Admin, tenantId: string, sessionId: string): Promise<boolean> {
   try {
-    if (typeof admin.from !== "function") return;
+    // No database client to read with (a bare test double): nothing to release.
+    if (typeof admin.from !== "function") return true;
     const from = (table: string) => admin.from!(table);
     const { data: base, error } = await from("sessions").select("id, series_id, status").eq("tenant_id", tenantId).eq("id", sessionId).maybeSingle();
     if (error || !base) {
       if (error) logServerError("sessions.sessionCancel.rooms/base", error);
-      return;
+      return false;
     }
     const b = base as { id: string; series_id: string | null; status: string };
     let candidates: Array<{ id: string; status: string }> = [{ id: b.id, status: b.status }];
     if (b.series_id) {
       const { data: rows, error: seriesErr } = await from("sessions").select("id, status").eq("tenant_id", tenantId).eq("series_id", b.series_id).eq("status", "cancelled").limit(1000);
-      if (seriesErr) logServerError("sessions.sessionCancel.rooms/series", seriesErr);
-      else candidates = [...candidates, ...((rows ?? []) as Array<{ id: string; status: string }>)];
+      if (seriesErr) {
+        logServerError("sessions.sessionCancel.rooms/series", seriesErr);
+        return false;
+      }
+      candidates = [...candidates, ...((rows ?? []) as Array<{ id: string; status: string }>)];
     }
     const seen = new Set<string>();
     candidates = candidates.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
     const res = await releaseResourcesOfCancelledSessions({ admin: admin as never, tenantId, sessions: candidates });
     if (!res.ok) logServerError("sessions.sessionCancel.rooms/release", `session=${sessionId}`);
+    return res.ok;
   } catch (err) {
     logServerError("sessions.sessionCancel.rooms", err);
+    return false;
   }
 }
 
@@ -160,7 +169,8 @@ export async function sessionCancel(
     paid_seats_need_refund?: boolean;
   };
   if (reply.ok === true) {
-    await releaseRoomsAfterCancel(admin, input.tenantId, input.sessionId);
+    // Fail the call, never swallow: the cancel is done in the database, the room is still held.
+    if (!(await releaseRoomsAfterCancel(admin, input.tenantId, input.sessionId))) return { ok: false, reason: "room_release_failed" };
     return {
       ok: true,
       sessionsCancelled: Number(reply.sessions_cancelled) || 0,
@@ -169,6 +179,10 @@ export async function sessionCancel(
       refundIntents: Number(reply.refund_intents) || 0,
       paidSeatsNeedRefund: reply.paid_seats_need_refund === true,
     };
+  }
+  if (reply.reason === "already_cancelled") {
+    // A retry after a failed release lands here: heal the room, report the same answer.
+    await releaseRoomsAfterCancel(admin, input.tenantId, input.sessionId);
   }
   return { ok: false, reason: mapReason(reply.reason, ["already_cancelled", "not_found", "invalid"]) };
 }

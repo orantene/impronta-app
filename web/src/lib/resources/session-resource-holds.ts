@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { commitCapacity, releaseCapacity } from "@/lib/capacity";
+import { commitCapacity } from "@/lib/capacity";
 import { logServerError } from "@/lib/server/safe-error";
 import { reserveResourceSet, spaceCapacityPool } from "./reserve-set";
 
@@ -71,6 +71,26 @@ export type SessionHoldDeps = {
   liveAllocationIds(tenantId: string, operationKey: string): Promise<string[] | null>;
 };
 
+/**
+ * `releaseCapacity` reports ok even when its RPC errored (it is built for best-effort callers).
+ * A room that stays held is the failure this file exists to prevent, so release here is strict:
+ * an RPC error is a failed release.
+ */
+async function releaseStrict(admin: SupabaseClient, ids: string[]): Promise<{ ok: boolean }> {
+  if (ids.length === 0) return { ok: true };
+  try {
+    const { error } = await admin.rpc("release_capacity", { p_allocation_ids: [...ids] });
+    if (error) {
+      logServerError("resources.sessionRoom.release", error);
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (err) {
+    logServerError("resources.sessionRoom.release", err);
+    return { ok: false };
+  }
+}
+
 export function realSessionHoldDeps(admin: SupabaseClient): SessionHoldDeps {
   return {
     async spaceIdsForOffering(tenantId, offeringId) {
@@ -100,8 +120,7 @@ export function realSessionHoldDeps(admin: SupabaseClient): SessionHoldDeps {
       return { ok: r.ok };
     },
     async release(ids) {
-      const r = await releaseCapacity(ids, admin);
-      return { ok: r.ok };
+      return releaseStrict(admin, ids);
     },
     async liveAllocationIds(tenantId, operationKey) {
       try {
@@ -183,4 +202,49 @@ export async function releaseResourcesOfCancelledSessions(
     if (!r.ok) ok = false;
   }
   return { ok, released };
+}
+
+/**
+ * Safety net for a room held for good: every live session-room allocation whose session is
+ * cancelled is released. Cross-tenant (a cron), bounded, idempotent. Fail closed: a read
+ * that errors reports `ok: false` and releases nothing.
+ */
+export async function sweepCancelledSessionRooms(
+  admin: SupabaseClient,
+  opts: { limit?: number; release?: (ids: string[]) => Promise<{ ok: boolean }> } = {},
+): Promise<{ ok: true; released: number } | { ok: false }> {
+  const limit = Math.min(Math.max(opts.limit ?? 200, 1), 1000);
+  try {
+    const { data: live, error } = await admin
+      .from("capacity_allocations")
+      .select("id, operation_key")
+      .like("operation_key", "session:%:resources")
+      .in("state", ["hold", "committed"])
+      .limit(limit);
+    if (error) {
+      logServerError("resources.sessionRoom.sweep/live", error);
+      return { ok: false };
+    }
+    const bySession = new Map<string, string[]>();
+    for (const row of (live ?? []) as Array<{ id: string; operation_key: string }>) {
+      const m = /^session:([0-9a-f-]{36}):resources$/i.exec(row.operation_key);
+      if (!m) continue;
+      bySession.set(m[1], [...(bySession.get(m[1]) ?? []), row.id]);
+    }
+    if (bySession.size === 0) return { ok: true, released: 0 };
+    const { data: sessions, error: sErr } = await admin.from("sessions").select("id, status").in("id", [...bySession.keys()]);
+    if (sErr) {
+      logServerError("resources.sessionRoom.sweep/sessions", sErr);
+      return { ok: false };
+    }
+    const ids = ((sessions ?? []) as Array<{ id: string; status: string }>)
+      .filter((s) => s.status === "cancelled")
+      .flatMap((s) => bySession.get(s.id) ?? []);
+    if (ids.length === 0) return { ok: true, released: 0 };
+    const r = await (opts.release ?? ((x: string[]) => releaseStrict(admin, x)))(ids);
+    return r.ok ? { ok: true, released: ids.length } : { ok: false };
+  } catch (err) {
+    logServerError("resources.sessionRoom.sweep", err);
+    return { ok: false };
+  }
 }

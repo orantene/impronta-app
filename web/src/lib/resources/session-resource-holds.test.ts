@@ -123,3 +123,48 @@ test("after a cancel, only the cancelled sessions among the candidates give thei
   assert.deepEqual(r, { ok: true, released: 2 });
   assert.deepEqual(released, ["alloc-session:a:resources", "alloc-session:c:resources"]);
 });
+
+// ── sweep: a cancelled session never keeps its room ───────────────────────────
+import { sweepCancelledSessionRooms } from "./session-resource-holds";
+
+const S1 = "11111111-1111-4111-8111-111111111111";
+const S2 = "22222222-2222-4222-8222-222222222222";
+
+function sweepAdmin(live: Array<Record<string, unknown>>, sessions: Array<Record<string, unknown>>, fail?: "live" | "sessions") {
+  const mk = (rows: Array<Record<string, unknown>>, failing: boolean) => {
+    const q: Record<string, unknown> = {};
+    q.select = () => q;
+    q.like = () => q;
+    q.in = () => q;
+    q.limit = async () => (failing ? { data: null, error: { message: "x" } } : { data: rows, error: null });
+    q.then = (ok: (v: unknown) => unknown) => Promise.resolve(failing ? { data: null, error: { message: "x" } } : { data: rows, error: null }).then(ok);
+    return q;
+  };
+  return { from: (t: string) => (t === "capacity_allocations" ? mk(live, fail === "live") : mk(sessions, fail === "sessions")) } as never;
+}
+
+test("the sweep releases the room of a cancelled session and leaves a live session's room alone", async () => {
+  const released: string[][] = [];
+  const admin = sweepAdmin(
+    [{ id: "a1", operation_key: `session:${S1}:resources` }, { id: "a2", operation_key: `session:${S2}:resources` }],
+    [{ id: S1, status: "cancelled" }, { id: S2, status: "scheduled" }],
+  );
+  const r = await sweepCancelledSessionRooms(admin, { release: async (ids) => (released.push(ids), { ok: true }) });
+  assert.deepEqual(r, { ok: true, released: 1 });
+  assert.deepEqual(released, [["a1"]]);
+});
+
+test("the sweep fails closed on an unreadable read and releases nothing", async () => {
+  const released: string[][] = [];
+  for (const fail of ["live", "sessions"] as const) {
+    const admin = sweepAdmin([{ id: "a1", operation_key: `session:${S1}:resources` }], [{ id: S1, status: "cancelled" }], fail);
+    const r = await sweepCancelledSessionRooms(admin, { release: async (ids) => (released.push(ids), { ok: true }) });
+    assert.deepEqual(r, { ok: false });
+  }
+  assert.deepEqual(released, []);
+});
+
+test("the sweep reports failure when the release itself fails", async () => {
+  const admin = sweepAdmin([{ id: "a1", operation_key: `session:${S1}:resources` }], [{ id: S1, status: "cancelled" }]);
+  assert.deepEqual(await sweepCancelledSessionRooms(admin, { release: async () => ({ ok: false }) }), { ok: false });
+});
