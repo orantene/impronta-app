@@ -8,16 +8,18 @@
  * on pure inputs and on a real file written into the tree.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { computeOrphans } from "../../../scripts/ci/list-orphan-tests.mjs";
 import { moneyOrphans, newOrphans, parseList } from "../../../scripts/ci/orphan-gate.mjs";
 import { WEB_ROOT } from "./supabase-unchecked-read";
 
-const { testCountFromOutput } = createRequire(join(WEB_ROOT, "package.json"))("./scripts/lane-test.cjs") as {
+const { testCountFromOutput, laneExitCode } = createRequire(join(WEB_ROOT, "package.json"))("./scripts/lane-test.cjs") as {
   testCountFromOutput: (out: string) => number | null;
+  laneExitCode: (status: number | null, count: number | null) => { code: number; message: string | null };
 };
 
 test("lane runner reads the test count from TAP and spec output; 0 is detectable", () => {
@@ -25,6 +27,16 @@ test("lane runner reads the test count from TAP and spec output; 0 is detectable
   assert.equal(testCountFromOutput("ℹ tests 7\nℹ pass 7\n"), 7);
   assert.equal(testCountFromOutput("# tests 0\n# pass 0\n"), 0);
   assert.equal(testCountFromOutput("no summary here"), null);
+});
+
+test("lane exit code: a green run with no summary line or zero tests FAILS", () => {
+  assert.deepEqual(laneExitCode(0, 12), { code: 0, message: null });
+  assert.equal(laneExitCode(0, 0).code, 2);
+  const none = laneExitCode(0, testCountFromOutput("stubbed runner output, no summary line"));
+  assert.equal(none.code, 2);
+  assert.match(none.message ?? "", /test count not reported/);
+  assert.equal(laneExitCode(1, null).code, 1, "a real failure keeps its own exit code");
+  assert.equal(laneExitCode(null, null).code, 1);
 });
 
 const read = (rel: string) => parseList(readFileSync(join(WEB_ROOT, rel), "utf8"));
@@ -73,18 +85,19 @@ test("GUARD BITES (pure): a money-scope orphan is reported even when allow-liste
   assert.deepEqual(moneyOrphans(["src/lib/brand/logo.test.ts"]), []);
 });
 
-test("GUARD BITES (real tree): a deliberately orphaned money test turns the gate red", () => {
+test("GUARD BITES (scanner on a temp root): a deliberately orphaned money test turns the gate red", () => {
+  // A throwaway root under os.tmpdir(): nothing in the repo tree is touched, so no other test
+  // that scans src/lib/promos can ever see the synthetic file.
+  const root = mkdtempSync(join(tmpdir(), "orphan-gate-"));
   const rel = "src/lib/promos/zz-synthetic-orphan-fixture.test.ts";
-  const abs = join(WEB_ROOT, rel);
   try {
-    mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, 'import { test } from "node:test";\ntest("x", () => {});\n');
-    const orphans = computeOrphans();
-    assert.ok(orphans.includes(rel), "the orphan scan did not see the synthetic file");
-    assert.ok(newOrphans(orphans, allowed()).includes(rel), "gate 1 stayed green on a new orphan");
-    assert.ok(moneyOrphans(orphans).includes(rel), "gate 2 stayed green on a money orphan");
+    mkdirSync(dirname(join(root, rel)), { recursive: true });
+    writeFileSync(join(root, rel), 'import { test } from "node:test";\ntest("x", () => {});\n');
+    const orphans = computeOrphans({ root });
+    assert.deepEqual(orphans, [rel], "the orphan scan did not see exactly the synthetic file");
+    assert.deepEqual(newOrphans(orphans, allowed()), [rel], "gate 1 stayed green on a new orphan");
+    assert.deepEqual(moneyOrphans(orphans), [rel], "gate 2 stayed green on a money orphan");
   } finally {
-    rmSync(abs, { force: true });
+    rmSync(root, { recursive: true, force: true });
   }
-  assert.ok(!computeOrphans().includes(rel), "the fixture was not cleaned up");
 });

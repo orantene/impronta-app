@@ -39,6 +39,15 @@ function testCountFromOutput(out) {
   return m ? Number(m[1]) : null;
 }
 
+/** Exit code for a finished run. A green exit that printed no summary, or 0 tests, is a failure. */
+function laneExitCode(status, count) {
+  if (status === null) return { code: 1, message: "the test process was killed" };
+  if (status !== 0) return { code: status, message: null };
+  if (count === null) return { code: 2, message: "test count not reported (no summary line): a lane that cannot prove it ran tests fails" };
+  if (count === 0) return { code: 2, message: "the lane ran ZERO tests (a green lane that ran nothing is a CI hole)" };
+  return { code: 0, message: null };
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const flags = argv.filter((a) => a.startsWith("-"));
@@ -69,15 +78,13 @@ function main() {
   });
   child.on("close", (status) => {
     const count = testCountFromOutput(tail);
-    console.log(`lane-test: ${run.length} file(s), ${count === null ? "test count not reported" : `${count} test(s)`}`);
-    if (status === 0 && count === 0) {
-      console.error("lane-test: the lane ran ZERO tests (a green lane that ran nothing is a CI hole)");
-      process.exit(2);
-    }
-    process.exit(status === null ? 1 : status);
+    console.log(`lane-test: ${run.length} test file(s), ${count === null ? "test count not reported" : `${count} test(s)`}`);
+    const verdict = laneExitCode(status, count);
+    if (verdict.message) console.error(`lane-test: ${verdict.message}`);
+    process.exit(verdict.code);
   });
 }
 
 if (require.main === module) main();
 
-module.exports = { testCountFromOutput };
+module.exports = { testCountFromOutput, laneExitCode };
