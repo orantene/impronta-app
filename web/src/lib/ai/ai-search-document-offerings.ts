@@ -10,6 +10,8 @@
  * (Selling stays D-10, `isGuestSellableOffering`: public only.)
  */
 
+import { isSellable } from "@/lib/offerings/sellable";
+
 /** Most services written into one document (the embedding stays focused). */
 export const AI_DOC_OFFERINGS_MAX = 12;
 export const AI_DOC_OFFERING_TITLE_MAX = 120;
@@ -35,12 +37,7 @@ export function isDirectoryListableOffering(row: {
   moderation_state?: unknown;
   visibility?: unknown;
 } | null | undefined): boolean {
-  return (
-    Boolean(row) &&
-    row!.status === "published" &&
-    row!.moderation_state === "approved" &&
-    (row!.visibility === "public" || row!.visibility === "on_request")
-  );
+  return isSellable(row, "guest_request");
 }
 
 /**

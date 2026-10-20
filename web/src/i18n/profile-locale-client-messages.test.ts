@@ -71,9 +71,15 @@ test("TUL-1272/C3 part 1: offerings render on the hub profile without a services
   const loader = readFileSync(join(root, "lib/talent/offerings-public.ts"), "utf8");
   assert.match(loader, /import \{ selectPublicOfferingRows[^}]*\} from "\.\/offerings-public-rows"/);
   assert.match(loader, /await selectPublicOfferingRows\(/);
+  // D1 (TUL-1268): the guest filter is the ONE sellable rule, applied in the module that runs the query.
   const rows = readFileSync(join(root, "lib/talent/offerings-public-rows.ts"), "utf8");
   assert.match(rows, /\.eq\("owner_kind", "talent"\)/);
-  assert.match(rows, /\.eq\("moderation_state", "approved"\)\s*\.in\("visibility", \["public", "on_request"\]\)/);
+  assert.match(rows, /scopeToSellableOfferings\([\s\S]*?"guest_request",?\s*\)/);
+  const sellable = readFileSync(join(root, "lib/offerings/sellable.ts"), "utf8");
+  assert.match(
+    sellable,
+    /\.eq\("status", "published"\)\.eq\("moderation_state", "approved"\);\s*if \(context === "guest_request"\) return base\.in\("visibility", \["public", "on_request"\]\)/,
+  );
 });
 
 test("TUL-1272/C3: hostile message text cannot end the inline script and round-trips", () => {
