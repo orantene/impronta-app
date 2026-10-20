@@ -22,9 +22,10 @@ describe("a new service takes the talent's currency (never a silent USD)", () =>
   });
 
   it("the currency stays visible in the editor even for 'Contact for price' (it prices the quotes she sends)", () => {
-    const ui = rd("../../components/talent/services/TalentOfferingsManager.tsx");
-    assert.match(ui, /\{!showAmount && \([\s\S]{0,400}data-service-currency/);
-    assert.match(ui, /data-service-currency[\s\S]{0,600}onPatch\(\{ currency: e\.target\.value \}\)/);
+    // TUL-1270 #10: the legacy manager is retired; the current editor keeps the
+    // currency field outside the `!quote` price block, so a quote still shows it.
+    const ui = rd("../../components/talent/services/EditorScreen.tsx");
+    assert.match(ui, /\{!quote && \([\s\S]{0,900}\)\}\s*<CurrencyField value=\{item\.currency\}[^\n]*onChange=\{\(c\) => patch\(\{ currency: c \}\)\}/);
   });
 
   it("changing the default never rewrites her services; it says how many keep another currency", () => {

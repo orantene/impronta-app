@@ -11,6 +11,7 @@ import { sortGuestMenu, toGuestMenuItem, type GuestMenuItem, type GuestMenuRow }
 import { isGuestSellableOffering, scopeToGuestSellableOfferings } from "@/lib/offerings/guest-sellable";
 import { anyNonMenuOffering, loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { VenueAdmin } from "@/lib/venues/locations";
+import { guestVariantSellable, type GuestMenuOption } from "./guest-menu-options";
 
 export type GuestReason =
   | "visit_closed"
@@ -65,7 +66,7 @@ async function loadCoverImages(admin: SupabaseClient, offeringIds: string[]): Pr
 export async function guestVisitMenu(
   admin: VenueAdmin,
   input: { tenantId: string; token: string; locale?: string },
-): Promise<{ ok: true; items: GuestMenuItem[] } | GuestFail> {
+): Promise<{ ok: true; items: Array<GuestMenuItem & { options: GuestMenuOption[] }> } | GuestFail> {
   const visit = await openVisit(admin, input.tenantId, input.token);
   if (!visit.ok) return visit;
   // D-10: published AND approved AND public; tenant scoping is the .eq below.
@@ -90,13 +91,42 @@ export async function guestVisitMenu(
   }
   // TUL-1271 item 6: event-backing and reservation offerings are not menu items.
   const menuRows = withoutNonMenuOfferings(((data ?? []) as unknown as GuestMenuRow[]).map((r) => ({ ...r, id: String(r.id) })), nonMenu.ids);
+  // TUL-1348: the options (sizes) of each dish. Read per dish id; a failed read
+  // hides the whole menu rather than show an option-priced dish at a wrong price.
+  const optionsByItem = new Map<string, GuestMenuOption[]>();
+  const ids = menuRows.map((r) => r.id);
+  if (ids.length > 0) {
+    const { data: variants, error: vErr } = await admin
+      .from("talent_offering_variants")
+      .select("id, offering_id, label, amount_cents, is_hidden, sort_order")
+      .in("offering_id", ids)
+      .order("sort_order", { ascending: true });
+    if (vErr) {
+      logServerError("visits.guestVisitMenu.options", vErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    for (const v of (variants ?? []) as Array<Record<string, unknown>>) {
+      if (v.is_hidden === true) continue;
+      const key = String(v.offering_id);
+      const list = optionsByItem.get(key) ?? [];
+      list.push({
+        id: String(v.id),
+        label: String(v.label ?? ""),
+        amountCents: v.amount_cents == null ? null : Number(v.amount_cents),
+      });
+      optionsByItem.set(key, list);
+    }
+  }
   // TUL-1271 #5: the photo, in the guest's language, in the owner's order. A failed photo read
   // never hides the menu (the item simply has no picture).
   const images = await loadCoverImages(admin as unknown as SupabaseClient, menuRows.map((r) => r.id)).catch(() => new Map<string, { url: string; alt: string | null }>());
   const locale = input.locale ?? "en";
   return {
     ok: true,
-    items: sortGuestMenu(menuRows.map((row) => toGuestMenuItem(row, locale, images.get(row.id)?.url ?? null, images.get(row.id)?.alt ?? null))),
+    items: sortGuestMenu(menuRows.map((row) => toGuestMenuItem(row, locale, images.get(row.id)?.url ?? null, images.get(row.id)?.alt ?? null))).map((item) => ({
+      ...item,
+      options: optionsByItem.get(item.id) ?? [],
+    })),
   };
 }
 
@@ -168,6 +198,24 @@ export async function guestVisitAddLine(
   if (!off || !isGuestSellableOffering(off)) return { ok: false, reason: "item_unavailable" };
   // TUL-1271 item 6: an event-backing or reservation id is not a menu item either (fails closed).
   if (await anyNonMenuOffering(admin, input.tenantId, [off.id])) return { ok: false, reason: "item_unavailable" };
+
+  // [MONEY] A guest names a variant by id, so it is re-read here: it must be this
+  // dish's, not hidden (staff-only, comp or test options stay unreachable from the
+  // QR) and inside its sales window. The staff POS path is unchanged.
+  if (input.variantId) {
+    const { data: variant, error: variantErr } = await admin
+      .from("talent_offering_variants")
+      .select("id, offering_id, is_hidden, sales_from, sales_until")
+      .eq("id", input.variantId)
+      .eq("offering_id", off.id)
+      .maybeSingle();
+    if (variantErr) {
+      logServerError("visits.guestVisitAddLine.variant", variantErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    const v = variant as { offering_id?: string; is_hidden?: boolean | null; sales_from?: string | null; sales_until?: string | null } | null;
+    if (!guestVariantSellable(v, off.id, new Date())) return { ok: false, reason: "item_unavailable" };
+  }
 
   const draft = await guestDraft(admin, {
     tenantId: input.tenantId,

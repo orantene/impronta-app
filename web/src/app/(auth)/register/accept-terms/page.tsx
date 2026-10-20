@@ -1,3 +1,4 @@
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { redirect } from "next/navigation";
 
 import { AuthCard, AuthHeading } from "@/components/auth/auth-ui";
@@ -31,7 +32,7 @@ export default async function AcceptTermsPage({
         description={t("public.auth.acceptTerms.description")}
       />
       <AuthCard>
-        <AcceptTermsForm nextPath={normalizeNextPath(next)} locale={locale} />
+        <AcceptTermsForm nextPath={normalizeNextPath(next)} locale={locale} marketingOrigin={resolveMarketingOrigin()} />
       </AuthCard>
     </div>
   );

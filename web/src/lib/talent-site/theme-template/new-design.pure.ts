@@ -3,7 +3,7 @@
  * Slug derivation, the independent payload copy, and the gallery meta
  * fallback for authored Designs that have no code builtin.
  */
-import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { COLLECTION_DESIGN_CARDS } from "@/lib/talent-site/theme-catalog/collection/design-cards";
 import type { GalleryDesign, Localized } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import type { DesignPayload, ThemePreview } from "@/lib/talent-site/theme-catalog/types";
 
@@ -11,7 +11,7 @@ const SLUG_MAX = 48;
 
 /** Slugs that can never be taken by an authored design (code builtins). */
 export function reservedDesignSlugs(): string[] {
-  return ["maison", ...COLLECTION_DESIGNS.map((d) => d.slug)];
+  return ["maison", ...COLLECTION_DESIGN_CARDS.map((d) => d.slug)];
 }
 
 /** kebab-case of a name; accents folded; matches the catalog slug check. */

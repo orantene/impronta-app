@@ -89,7 +89,7 @@ export interface InEditorCanvasRenderData {
    */
   labelLocale?: {
     locale: string;
-    ctaMode: "instant" | "request" | "inquiry" | null;
+    ctaMode: "instant" | "request" | "inquiry" | "buy" | null;
     swaps: Record<string, string>;
     /**
      * Lines that follow her profile (hero headline, eyebrow, proof line...), resolved for

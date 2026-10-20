@@ -36,15 +36,18 @@ test("robots: AI search/user agents are explicitly allowed with the same rules a
   for (const ua of ["OAI-SearchBot", "ChatGPT-User", "PerplexityBot", "Claude-SearchBot", "Claude-User", "Googlebot", "Bingbot"]) {
     const rule = ruleFor(r, ua);
     assert.ok(rule, `${ua} has a rule`);
-    assert.equal(rule.allow, "/");
+    assert.deepEqual(rule.allow, ["/", "/api/public/"]);
     assert.deepEqual(rule.disallow, ["/api/", "/admin/", "/preview/", "/_vercel/"]);
   }
 });
 
-test("robots: training crawlers are not given rules", () => {
-  const listed = JSON.stringify(buildRobots("talent_site", PLATFORM).rules);
-  for (const ua of ["GPTBot", "ClaudeBot", "CCBot", "Google-Extended", "anthropic-ai"]) {
-    assert.ok(!listed.includes(ua), `${ua} must not appear`);
+test("robots: AI training crawlers are explicitly disallowed (TUL-1326)", () => {
+  const r = buildRobots("talent_site", PLATFORM);
+  for (const ua of ["GPTBot", "ClaudeBot", "CCBot", "Google-Extended", "anthropic-ai", "Bytespider"]) {
+    const rule = ruleFor(r, ua);
+    assert.ok(rule, `${ua} has a rule`);
+    assert.equal(rule.disallow, "/");
+    assert.equal(rule.allow, undefined);
   }
   assert.equal(AI_SEARCH_USER_AGENTS.length, 7);
 });

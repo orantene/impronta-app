@@ -7,6 +7,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -16,6 +17,8 @@ import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-te
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
+import { OFFERING_MEDIA_EMBED, imagesFromEmbed, loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
+import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
 import { loadWorkspaceMenuDefaults } from "@/lib/talent/workspace-menu-defaults";
 import {
   loadOfferingChildren,
@@ -109,7 +112,8 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     const ownerTalentIds = await fetchOwnerTalentIds(admin, tenantId);
     const [{ data, error }, nonMenu] = await Promise.all([
       offeringsTable(admin)
-        .select("*")
+        // The photos ride in the same read (embedded join): no extra round trip on the load path.
+        .select(`*, ${OFFERING_MEDIA_EMBED}`)
         .eq("tenant_id", tenantId)
         // TUL-915: the house rows PLUS the workspace OWNER's own provider rows
         // (onboarding writes those as owner_kind='talent' and the public site
@@ -142,7 +146,9 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     const primaryLocale = defaults.primaryLocale;
     const items = rows.map((r) => {
       // The editor edits the PRIMARY-language text; the maps ride along.
-      const item = rowToOffering(r, primaryLocale, [], [primaryLocale]);
+      const assets = imagesFromEmbed(admin as unknown as SupabaseClient, r as unknown as { talent_offering_media?: unknown });
+      const item = rowToOffering(r, primaryLocale, assets.map((a) => a.url), [primaryLocale]);
+      item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
       return item;
@@ -530,5 +536,124 @@ export async function setMenuItemStockAction(
   } catch (error) {
     logServerError("menuOfferings.setStock", error);
     return { ok: false, error: "Could not update stock." };
+  }
+}
+
+
+type PhotoResult = { ok: true; assets: { id: string; url: string; alt: string | null }[] } | { ok: false; error: string };
+
+/**
+ * TUL-1271 #1 — set an item's photos (cover first). The item must be this
+ * workspace's own row, and every photo must be a live asset of this workspace
+ * (uploaded through the tenant library), so an id from another business is refused.
+ */
+export async function setWorkspaceItemPhotos(
+  tenantId: string,
+  offeringId: string,
+  mediaAssetIds: string[],
+): Promise<PhotoResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+
+    const { data: own } = await offeringsTable(admin)
+      .select("id")
+      .eq("id", offeringId)
+      .eq("tenant_id", tenantId)
+      .eq("owner_kind", "workspace")
+      .maybeSingle();
+    if (!own) return { ok: false, error: "Not found." };
+
+    // An event's backing row belongs to Events; same guard as every other workspace write.
+    if (await isEventOfferingId(admin, tenantId, offeringId)) {
+      return { ok: false, error: "This item belongs to an event. Edit it under Events." };
+    }
+
+    const wanted = nextPhotoIds(mediaAssetIds, {}).slice(0, MAX_ITEM_PHOTOS);
+    if (wanted.length > 0) {
+      const { data: mine, error: ownErr } = await admin
+        .from("media_assets")
+        .select("id, mime_type")
+        .in("id", wanted)
+        .eq("tenant_id", tenantId)
+        .is("deleted_at", null);
+      if (ownErr) {
+        logServerError("menu.offerings.photoOwner", ownErr);
+        return { ok: false, error: "Failed to update photos." };
+      }
+      const owned = new Map(((mine ?? []) as unknown as { id: string; mime_type: string | null }[]).map((m): [string, string | null] => [m.id, m.mime_type]));
+      if (wanted.some((id) => !owned.has(id))) return { ok: false, error: "One of those photos is not in your library." };
+      // Photos only: a document or video id must not become a picture.
+      if (wanted.some((id) => { const mt = owned.get(id); return typeof mt === "string" && mt !== "" && !mt.startsWith("image/"); })) {
+        return { ok: false, error: "Only images can be item photos." };
+      }
+    }
+
+    // Insert-then-remove (never remove-then-insert): a failed write leaves the OLD photos in place
+    // instead of none. The upsert also rewrites sort_order for photos that stay.
+    if (wanted.length > 0) {
+      const { error: upErr } = await admin.from("talent_offering_media").upsert(
+        wanted.map((mid, i) => ({ offering_id: offeringId, media_asset_id: mid, sort_order: i })),
+        { onConflict: "offering_id,media_asset_id" },
+      );
+      if (upErr) {
+        logServerError("menu.offerings.photoSet", upErr);
+        return { ok: false, error: "Failed to update photos." };
+      }
+    }
+    const stale = admin.from("talent_offering_media").delete().eq("offering_id", offeringId);
+    const { error: delErr } = wanted.length > 0 ? await stale.not("media_asset_id", "in", `(${wanted.join(",")})`) : await stale;
+    if (delErr) {
+      logServerError("menu.offerings.photoClear", delErr);
+      return { ok: false, error: "Failed to update photos." };
+    }
+    revalidatePath("/admin/menu");
+    const assets = (await loadOfferingImageAssets(admin as unknown as SupabaseClient, [offeringId])).get(offeringId) ?? [];
+    return { ok: true, assets };
+  } catch (err) {
+    logServerError("menu.offerings.photos", err);
+    return { ok: false, error: "Unexpected error." };
+  }
+}
+
+
+/**
+ * TUL-1340 — the alt text of one of this workspace's photos (read by screen readers on the QR
+ * menu and the site). The asset must be a live asset of this workspace; text is trimmed to 200.
+ */
+export async function setWorkspacePhotoAlt(
+  tenantId: string,
+  mediaAssetId: string,
+  alt: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  try {
+    const auth = await authorizeForWorkspace(tenantId);
+    if (!auth.ok) return { ok: false, error: auth.error };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: "Server configuration error." };
+    const clean = String(alt ?? "").trim().slice(0, 200);
+    const { data, error } = await admin
+      .from("media_assets")
+      .update({ alt: clean || null })
+      .eq("id", mediaAssetId)
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null)
+      .select("id");
+    if (error) {
+      logServerError("menu.offerings.photoAlt", error);
+      return { ok: false, error: "Failed to save." };
+    }
+    if (!data || data.length === 0) return { ok: false, error: "Not found." };
+    revalidatePath("/admin/menu");
+    return { ok: true };
+  } catch (err) {
+    logServerError("menu.offerings.photoAlt", err);
+    return { ok: false, error: "Unexpected error." };
   }
 }

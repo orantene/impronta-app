@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server";
 
+import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { countryLabel } from "@/lib/geo/country-code";
@@ -47,6 +48,11 @@ const PHOTO_VARIANT_PRIORITY = [
 const MAX_IDS = 200;
 
 export async function POST(req: Request) {
+  // H2 (TUL-1269 #12): a public batch read gets a per-caller limit.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  if (!tryConsumeRateLimit(`directory-by-ids:${ip}`, 60, 60_000)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
   let body: RequestBody = {};
   try {
     body = (await req.json()) as RequestBody;
@@ -78,6 +84,7 @@ export async function POST(req: Request) {
       `,
     )
     .in("id", ids)
+    .eq("workflow_status", "approved")
     .neq("profile_kind", "resource");
 
   if (error) {

@@ -1,3 +1,4 @@
+src/app/(public)/_services/business-service-view.render.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
@@ -27,6 +28,7 @@ src/lib/admin/website-editor-base-url.test.ts
 src/lib/auth/apple-provider-flag.test.ts
 src/lib/client-account/after-verified-sign-in.test.ts
 src/lib/client-account/agency-account-site-pure.test.ts
+src/lib/client-account/book-again.test.ts
 src/lib/client-account/claim-landing.test.ts
 src/lib/client-account/client-root-landing.static.test.ts
 src/lib/client-account/client_account_foundation.migration.test.ts
@@ -43,6 +45,11 @@ src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
+src/lib/offerings/business-catalog-scope.test.ts
+src/lib/offerings/business-catalog.test.ts
+src/lib/offerings/dated-filters.test.ts
+src/lib/offerings/dated-schema.test.ts
+src/lib/offerings/offering-paths.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
@@ -50,15 +57,21 @@ src/lib/scheduling/bookings-off-wording.static.test.ts
 src/lib/scheduling/instant-purchase-plan-ceiling.static.test.ts
 src/lib/seo/a6-price-hiding.test.ts
 src/lib/seo/a6-seo-pack.static.test.ts
+src/lib/seo/ai-bot-gate-catalog.test.ts
 src/lib/seo/directory-indexing.test.ts
 src/lib/seo/en-meta-description-no-spanish.test.ts
 src/lib/seo/event-json-ld.test.ts
 src/lib/seo/event-metadata.test.ts
 src/lib/seo/event-sitemap-entries.test.ts
+src/lib/seo/f5-sitemap-share-images.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
+src/lib/services/business-pages/gate.test.ts
+src/lib/services/business-pages/load-and-sitemap.server.test.ts
+src/lib/services/business-pages/page-model.test.ts
+src/lib/services/business-pages/paths.test.ts
 src/lib/services/presentation/resolve.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
@@ -80,6 +93,8 @@ src/lib/talent-site/hub-profile-book-cta.test.ts
 src/lib/talent-site/live-bio.test.ts
 src/lib/talent-site/live-text-services.test.ts
 src/lib/talent-site/live-text.test.ts
+src/lib/talent-site/main-cta-real-mode.test.ts
+src/lib/talent-site/main-cta.test.ts
 src/lib/talent-site/my-website-target.test.ts
 src/lib/talent-site/seo-description-fallback.test.ts
 src/lib/talent-site/server/builder-load-parallel.static.test.ts

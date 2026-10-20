@@ -55,12 +55,14 @@ export default async function GuestVisitMenuPage({ params }: { params: Promise<{
       tableCode={visit.tableCode ?? ""}
       holderName={null}
       currency={visit.currency}
+      locale={locale}
       items={menu.items.map((item) => ({
         id: item.id,
         title: item.title,
         description: item.description,
         category: item.category,
         amountCents: item.amountCents,
+        options: item.options,
         imageUrl: item.imageUrl,
         imageAlt: item.imageAlt,
         soldOut: item.soldOut,

@@ -54,6 +54,11 @@ const en = {
     label: "For a business",
     blurb: "You run the business, with or without a roster of people behind you.",
   },
+  audience: {
+    tablist: "Choose your plan type",
+    infoLabel: "More info",
+    approxTip: "Shown for reference. You are charged in US dollars.",
+  },
   salesLed: "Let's talk",
   cadence: {
     month: "per month",
@@ -142,6 +147,11 @@ const es: PricingLaddersCopy = {
   business: {
     label: "Para un negocio",
     blurb: "Llevas el negocio, con o sin un catálogo de personas detrás.",
+  },
+  audience: {
+    tablist: "Elige el tipo de plan",
+    infoLabel: "Más información",
+    approxTip: "Solo de referencia. El cobro se hace en dólares (USD).",
   },
   salesLed: "Hablemos",
   cadence: {
