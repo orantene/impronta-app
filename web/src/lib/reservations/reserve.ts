@@ -20,10 +20,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPurchase } from "@/lib/orders/purchase";
+import { displayCurrencyFromSettings } from "@/lib/orders/display-currency";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { availabilityForWindow, resolveWindowOnDate } from "./index";
 import type { OfferedTime, PartyBand } from "./availability";
+import { depositCentsForParty } from "./rules";
 import type { ServiceRules, ServiceWindow, ServiceWindowException } from "./types";
 
 export type ReserveRefusal =
@@ -100,6 +102,14 @@ export function findOfferedTime(input: {
   return null;
 }
 
+/** The workspace's display currency (USD when never chosen), read fresh from its settings. */
+export async function workspaceCurrency(admin: SupabaseClient | null, tenantId: string): Promise<string> {
+  if (!admin) return displayCurrencyFromSettings(null);
+  const { data, error } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
+  if (error) logServerError("reservations.workspaceCurrency", error);
+  return displayCurrencyFromSettings((data as { settings?: unknown } | null)?.settings ?? null);
+}
+
 /**
  * Hold the table and record the visit.
  *
@@ -123,6 +133,8 @@ export async function createReservation(
     sourcePage?: string | null;
     locale?: string | null;
   },
+  /** Injectable so the money decision is testable without the whole pipeline. */
+  deps: { createPurchase: typeof createPurchase } = { createPurchase },
 ): Promise<ReserveOutcome> {
   const { rules, offered, partySize } = input;
 
@@ -135,7 +147,15 @@ export async function createReservation(
     return { ok: false, reason: "no_contact" };
   }
 
-  const purchase = await createPurchase(admin, {
+  // The deposit is the venue's rule, the SAME figure the floor shows
+  // (`depositCentsForParty`), in the workspace's currency; never the catalog
+  // item's deposit_pct. 0 means nothing is paid online.
+  const depositCents = depositCentsForParty(rules, partySize);
+  const tableDeposit = depositCents > 0
+    ? { cents: depositCents, currency: await workspaceCurrency(admin, input.tenantId) }
+    : undefined;
+
+  const purchase = await deps.createPurchase(admin, {
     tenantId: input.tenantId,
     clientOrderKey: input.clientOrderKey,
     actorUserId: input.actorUserId,
@@ -145,9 +165,8 @@ export async function createReservation(
     // INTENT, not policy: the pipeline re-derives what this offering permits
     // and refuses this choice if the offering forbids it. A table with no
     // deposit is not paid online, which is what "in person" means here.
-    paymentChoice: rules.depositFromParty !== null && partySize >= rules.depositFromParty
-      ? "deposit"
-      : "in_person",
+    paymentChoice: tableDeposit ? "deposit" : "in_person",
+    ...(tableDeposit ? { tableDeposit } : {}),
     sourceChannel: "reservation",
     // D1: the venue's configured reservation offering is deliberately not a public menu
     // item (agency_only or public, owner's choice), so it uses its own sellable context: published + approved.

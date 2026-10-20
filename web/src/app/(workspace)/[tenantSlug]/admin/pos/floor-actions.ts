@@ -22,7 +22,7 @@ import { z } from "zod";
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import { userHasCapability } from "@/lib/access";
 import { depositCentsForParty } from "@/lib/reservations";
-import { createReservation, findOfferedTime } from "@/lib/reservations/reserve";
+import { createReservation, findOfferedTime, workspaceCurrency } from "@/lib/reservations/reserve";
 import { loadVenueServiceConfig } from "@/lib/reservations/store";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -79,7 +79,7 @@ export async function floorLoadReserveTimes(input: { onDate: string | null; part
       w.slots.map((s) => ({ startsAtIso: s.startsAtIso, label: s.label, isLastSeating: s.isLastSeating, isUpsize: s.isUpsize })),
     ),
     depositCents,
-    currency: "USD",
+    currency: await workspaceCurrency(createServiceRoleClient(), g.tenantId),
   };
 }
 

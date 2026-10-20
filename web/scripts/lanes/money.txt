@@ -134,6 +134,7 @@ src/lib/orders/purchase-pricing.test.ts
 src/lib/orders/purchase-refusal.test.ts
 src/lib/orders/purchase-seller.test.ts
 src/lib/orders/purchase-stock-idempotency.test.ts
+src/lib/orders/purchase-table-deposit.test.ts
 src/lib/orders/refund-admissions.test.ts
 src/lib/orders/refund-desk-copy.test.ts
 src/lib/orders/refund-effects.test.ts
@@ -238,6 +239,7 @@ src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
 src/lib/projects/project-record.test.ts
+src/lib/reservations/reserve-table-deposit.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
 src/lib/sales/by-item.test.ts
