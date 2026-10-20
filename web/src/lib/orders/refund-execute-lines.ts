@@ -1,5 +1,6 @@
 import "server-only";
 
+import { loadBookingCancelledBy } from "@/lib/billing/booking-cancelled-by";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
@@ -201,7 +202,9 @@ export async function refundOrderLines(
       try {
         feeByBooking.set(
           bookingId,
-          nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId)),
+          nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId), {
+            cancelledBy: await loadBookingCancelledBy(admin, bookingId),
+          }),
         );
       } catch (err) {
         logServerError("orders.refundLines/fees", err);

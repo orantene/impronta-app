@@ -35,6 +35,8 @@ import {
   resolveOwningPartyForTalent,
   type OwningParty,
 } from "@/lib/inquiry/owning-party-resolver";
+import { passThroughArmed } from "@/lib/billing/fee-config";
+import { loadSellerPassThroughBps } from "@/lib/billing/pass-through-rate";
 import { logServerError } from "@/lib/server/safe-error";
 
 /** Minimal RPC surface — avoids coupling tests to the full Supabase client type. */
@@ -241,11 +243,12 @@ export function purchaseSellerForCollect(
 }
 
 async function inflateOnePayee(
-  admin: PassThroughCollectRpc,
+  admin: PassThroughCollectRpc & Partial<Pick<SupabaseClient, "from">>,
   input: {
     payee: PurchaseSellerForCollect;
     currencyCode: string;
     passThroughTakeBps: number;
+    planTierBps?: Record<string, number> | null;
     processorFeeRates: ProcessorFeeRates;
   },
 ): Promise<number> {
@@ -274,7 +277,16 @@ async function inflateOnePayee(
     sellerOfRecord: input.payee.sellerOfRecord,
     talentCostCents: input.payee.talentCostCents,
     processingFeePayer,
-    passThroughTakeBps: input.passThroughTakeBps,
+    // TUL-1366: per plan / workspace rate, resolved exactly as the commission
+    // engine does (workspace payees only; a rpc-only caller keeps the platform rate).
+    passThroughTakeBps:
+      admin.from && input.payee.sellerOfRecord !== "talent"
+        ? await loadSellerPassThroughBps(admin as Pick<SupabaseClient, "from">, {
+            platformBps: input.passThroughTakeBps,
+            planTierBps: input.planTierBps ?? null,
+            tenantId: input.payee.partyId,
+          })
+        : input.passThroughTakeBps,
     processorFeeRates: input.processorFeeRates,
   });
 }
@@ -285,7 +297,7 @@ async function inflateOnePayee(
  * seller and keep the surcharge — matching the commission engine.
  */
 export async function resolvePassThroughCollectCents(
-  admin: PassThroughCollectRpc,
+  admin: PassThroughCollectRpc & Partial<Pick<SupabaseClient, "from">>,
   input: {
     baseCollectCents: number;
     currencyCode: string;
@@ -295,7 +307,7 @@ export async function resolvePassThroughCollectCents(
 ): Promise<number> {
   const base = input.baseCollectCents;
   if (!(base > 0) || input.sellers.length === 0) return base;
-  if (process.env.COMMISSION_PROCESSING_PASS_THROUGH !== "1") return base;
+  if (!passThroughArmed()) return base;
 
   try {
     const modeRow = await readPlatformProcessingMode(admin);
@@ -325,6 +337,7 @@ export async function resolvePassThroughCollectCents(
         payee,
         currencyCode: input.currencyCode,
         passThroughTakeBps,
+        planTierBps: modeRow.plan_tier_pass_through_bps ?? null,
         processorFeeRates,
       });
     }

@@ -39,6 +39,8 @@ import {
 } from "./commission";
 import { moneyOwningParty } from "@/lib/inquiry/owning-party-resolver";
 import { attachPayoutProcessingFees } from "./commission-processing";
+import { passThroughArmed } from "./fee-config";
+import { loadSellerPassThroughBps } from "./pass-through-rate";
 import {
   processorFeeRatesFromTable,
   readPlatformProcessingMode,
@@ -185,7 +187,9 @@ export async function persistBookingCommissionSnapshot(
   // With the env unset NO extra RPC is made, so existing behaviour (and call
   // sequence) is byte-identical. Non-fatal and fail-safe: an absent RPC
   // (migration not applied) or any error leaves the mode 'included'.
-  if (process.env.COMMISSION_PROCESSING_PASS_THROUGH === "1") {
+  // TUL-1366: ON by default (env "0" is the kill switch); see passThroughArmed.
+  let passThroughPlanBps: Record<string, number> | null = null;
+  if (passThroughArmed()) {
    try {
     const modeRow = await readPlatformProcessingMode(
       supabase as unknown as Parameters<typeof readPlatformProcessingMode>[0],
@@ -200,6 +204,7 @@ export async function persistBookingCommissionSnapshot(
             : null,
         processor_fee_rates: modeRow.processor_fee_rates ?? null,
       };
+      passThroughPlanBps = modeRow.plan_tier_pass_through_bps ?? null;
     }
    } catch {
     /* 'included' default applies */
@@ -320,6 +325,17 @@ export async function persistBookingCommissionSnapshot(
           platformConfig.processor_fee_rates,
           String(ctx.currency_code ?? ""),
         );
+        // TUL-1366: the rate is per plan and per workspace (default 1.5%); the
+        // checkout collect resolves the same way, so quote, snapshot and charge agree.
+        platformConfig = {
+          ...platformConfig,
+          pass_through_take_bps: await loadSellerPassThroughBps(supabase, {
+            platformBps: platformConfig.pass_through_take_bps,
+            planTierBps: passThroughPlanBps,
+            tenantId: p.owning_party_type === "talent" ? null : p.tenant_id,
+            plan: p.workspace_plan,
+          }),
+        };
       }
 
       const base = resolveBookingCommissions({

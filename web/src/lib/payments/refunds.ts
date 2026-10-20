@@ -43,6 +43,7 @@
  * they no-op cleanly in mock/test mode (no live transfers to reverse).
  */
 
+import { loadBookingCancelledBy } from "@/lib/billing/booking-cancelled-by";
 import { bookAfterLostRace, resolveRefundForEvent } from "@/lib/payments/refund-event-resolve";
 import type Stripe from "stripe";
 import { markRefunded as markRefundedReal, markDisputed as markDisputedReal } from "@/lib/bookings/transactions";
@@ -528,7 +529,7 @@ export async function handleBookingRefund(
   if (ref.bookingId) {
     try {
       const sbFees = d.resolveSupabase();
-      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(sbFees, ref.bookingId)) ?? 0;
+      if (sbFees) feesKeptCents = nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(sbFees, ref.bookingId), { cancelledBy: await loadBookingCancelledBy(sbFees, ref.bookingId) }) ?? 0;
     } catch {
       /* fall back to the legacy full-charge comparison */
     }

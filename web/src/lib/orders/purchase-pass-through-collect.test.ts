@@ -182,8 +182,8 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
     }
   }
 
-  it("returns the bare collect when the env arm is off", async () => {
-    await withEnv(undefined, async () => {
+  it("returns the bare collect when the kill switch is on (env '0')", async () => {
+    await withEnv("0", async () => {
       const admin = {
         rpc: async () => {
           throw new Error("must not call RPC when env is off");
@@ -197,6 +197,54 @@ describe("resolvePassThroughCollectCents — env / RPC gate", () => {
         }),
         10_000,
       );
+    });
+  });
+
+  const modeRow = (extra: Record<string, unknown> = {}) => ({
+    processing_mode: "pass_through",
+    pass_through_take_bps: 150,
+    processor_fee_rates: { default: US, usd: US },
+    ...extra,
+  });
+  const rpcFor = (row: unknown) => async (fn: string) =>
+    fn === "engine_platform_processing_mode" ? { data: row, error: null } : { data: "seller", error: null };
+
+  it("TUL-1366: ON by default with the env unset: $100 gets the 1.5% customer fee", async () => {
+    await withEnv(undefined, async () => {
+      const admin = { rpc: rpcFor(modeRow()) };
+      assert.equal(
+        await resolvePassThroughCollectCents(admin, { baseCollectCents: 10_000, currencyCode: "USD", sellers }),
+        10_150,
+      );
+    });
+  });
+
+  it("TUL-1366: a workspace seller's own rate (300 bps) and its plan rate drive the charge", async () => {
+    const wsSellers = [{ sellerOfRecord: "workspace" as const, partyId: "ws-1", baseCollectCents: 10_000, talentCostCents: 6_000 }];
+    const fromFor = (override: number | null, plan: string | null) => (table: string) => {
+      const row = table === "workspace_commission_overrides" ? { pass_through_take_bps: override } : { plan_tier: plan };
+      const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: row, error: null }) };
+      return q;
+    };
+    await withEnv(undefined, async () => {
+      const base = await resolvePassThroughCollectCents({ rpc: rpcFor(modeRow()) }, { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers });
+      assert.equal(base, 10_150);
+      const tenant = await resolvePassThroughCollectCents(
+        { rpc: rpcFor(modeRow()), from: fromFor(300, null) as never },
+        { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers },
+      );
+      assert.equal(tenant, 10_300);
+      const plan = await resolvePassThroughCollectCents(
+        { rpc: rpcFor(modeRow({ plan_tier_pass_through_bps: { agency: 250 } })), from: fromFor(null, "agency") as never },
+        { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers },
+      );
+      assert.equal(plan, 10_250);
+      // A bad override is ignored, never applied.
+      const bad = await resolvePassThroughCollectCents(
+        { rpc: rpcFor(modeRow()), from: fromFor(99_999, null) as never },
+        { baseCollectCents: 10_000, currencyCode: "USD", sellers: wsSellers },
+      );
+      assert.equal(bad, 10_150);
     });
   });
 

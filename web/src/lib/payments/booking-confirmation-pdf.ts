@@ -88,7 +88,7 @@ function fmtMoneyExact(cents: number, currency: string): string {
 const PDF_FEE_LABELS: Record<string, string> = {
   service_subtotal: "Service",
   base_reservation_fee: "Reservation fee",
-  platform_fee: `Platform fee (${clientServiceFeePercentLabel()})`,
+  platform_fee: `Tulala service fee (${clientServiceFeePercentLabel()})`,
   processing_fee: "Card processing",
 };
 

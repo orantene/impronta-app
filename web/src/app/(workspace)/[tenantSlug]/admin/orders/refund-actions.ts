@@ -1,5 +1,6 @@
 "use server";
 
+import { loadBookingCancelledBy } from "@/lib/billing/booking-cancelled-by";
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -102,7 +103,9 @@ async function captureRefundableForOrder(
     try {
       feeByBooking.set(
         bookingId,
-        nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId)),
+        nonRefundableFeeCents(await loadBookingCommissionSnapshotsForRefund(admin, bookingId), {
+          cancelledBy: await loadBookingCancelledBy(admin, bookingId),
+        }),
       );
     } catch (err) {
       logServerError("orders.refund.captureFees", err);

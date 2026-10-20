@@ -21,7 +21,7 @@ describe("receiptPaymentRows", () => {
     });
     assert.deepEqual(rows, [
       { label: "Service", value: "$100.00" },
-      { label: "Platform fee (1.5%)", value: "$1.50" },
+      { label: "Tulala service fee (1.5%)", value: "$1.50" },
       { label: "Amount paid", value: "$101.50", strong: true },
     ]);
   });
@@ -41,7 +41,7 @@ describe("receiptPaymentRows", () => {
     assert.equal(rows.length, 5);
     assert.equal(rows[0].label, "Service");
     assert.equal(rows[1].label, "Reservation fee");
-    assert.equal(rows[2].label, "Platform fee (1.5%)");
+    assert.equal(rows[2].label, "Tulala service fee (1.5%)");
     assert.equal(rows[3].label, "Card processing");
     assert.deepEqual(rows[4], { label: "Amount paid", value: "$109.80", strong: true });
   });

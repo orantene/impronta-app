@@ -26,6 +26,18 @@ import type { ProcessorFeeRates } from "./commission";
 export const CLIENT_SERVICE_FEE_BPS = 150;
 
 /**
+ * TUL-1366: the customer-only service fee (processing_mode = 'pass_through') is
+ * the platform default. It used to need the env key
+ * COMMISSION_PROCESSING_PASS_THROUGH=1; now it is ON unless that key is
+ * exactly "0", which is the explicit kill switch back to the legacy "included"
+ * model. The DB setting (platform_commission_config.processing_mode) is the
+ * second key and ships as 'pass_through' too.
+ */
+export function passThroughArmed(env: Record<string, string | undefined> = process.env): boolean {
+  return env.COMMISSION_PROCESSING_PASS_THROUGH !== "0";
+}
+
+/**
  * Canonical processor fee table, shared by the charge path and every preview.
  * Mirrors the SQL default on platform_commission_config.processor_fee_rates.
  */

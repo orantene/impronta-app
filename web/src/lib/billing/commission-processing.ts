@@ -48,11 +48,20 @@ export function nonRefundableFeeCents(
     client_surcharge_cents?: number | null;
     client_processing_fee_cents?: number | null;
   }>,
+  /**
+   * TUL-1366: who cancelled the booking (`agency_bookings.cancelled_by`). When
+   * the SELLER side cancels (talent, staff, system) the client is not charged
+   * for the seller's failure, so the Tulala service fee (client surcharge) is
+   * returned. A client cancel, or an unknown actor, keeps it. The processing
+   * fee is a real card cost either way and is never returned here.
+   */
+  opts: { cancelledBy?: string | null } = {},
 ): number | null {
+  const sellerCancelled = opts.cancelledBy === "talent" || opts.cancelledBy === "staff" || opts.cancelledBy === "system";
   let sum = 0;
   for (const r of snaps) {
     if (r.processing_mode !== "pass_through") continue;
-    sum += r.client_surcharge_cents ?? 0;
+    if (!sellerCancelled) sum += r.client_surcharge_cents ?? 0;
     if (r.processing_fee_payer === "client") {
       sum += r.client_processing_fee_cents ?? 0;
     } else {
