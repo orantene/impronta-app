@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { formatPrice } from "@/lib/money/format-price";
+import { newOrderKey } from "@/lib/site-admin/builder-node/ticket-picker-copy";
 import {
   MAX_QTY,
   REFRESH_MIN_INTERVAL_MS,
@@ -221,6 +222,13 @@ export function MenuBoardIsland({
     }
   }, [hydrated, quantities, tenantId]);
 
+  // D5 / M7: one key per basket. A double-tapped Send (or a retry after a lost
+  // answer) reuses it and gets the first order back; a changed basket or a
+  // placed order is a new intent and gets a new key.
+  const orderKey = useRef(newOrderKey());
+  useEffect(() => {
+    orderKey.current = newOrderKey();
+  }, [quantities]);
   const lastRefreshAt = useRef(0);
   const refreshing = useRef(false);
 
@@ -362,6 +370,7 @@ export function MenuBoardIsland({
           payInPerson: shouldPayInPerson(selectedLines.map((l) => l.offering)),
           sourcePage:
             typeof window !== "undefined" ? window.location.pathname : null,
+          clientOrderKey: orderKey.current,
         });
 
         if (!result.ok) {

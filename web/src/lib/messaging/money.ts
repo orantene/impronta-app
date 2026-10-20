@@ -265,6 +265,8 @@ export async function resolveMoneyRecordLines(
  * cannot be used for it — filtered by hand instead (D-MSG-40).
  */
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { logServerError } from "@/lib/server/safe-error";
+import { releaseCapacity } from "@/lib/capacity";
 import { executeBookingRefund, type RefundReason } from "@/lib/payments/refund-execute";
 import type { RefundLinesResult } from "@/lib/orders/refund-execute-lines";
 
@@ -295,16 +297,33 @@ export async function stampOrderCancelStatus(
   return !error;
 }
 
+/**
+ * Give back the seats and stock a cancelled order's lines hold.
+ *
+ * D5: this used to read `order_lines.allocation_ids`, which migration
+ * 20261228000144 DROPPED; the select errored, the function returned silently and
+ * a Messages cancel ("partial" and "keep") never released anything. Allocations
+ * hang off `capacity_allocations.order_line_id` now. Same lookup as the refund
+ * restore (`orders/refund-restore.ts`, #4090) and the same release path as the
+ * purchase pipeline's unwind (`releaseCapacity` -> `release_capacity`), which
+ * only moves allocations not already released, so a repeat is a no-op.
+ */
 export async function releaseOrderLinesCapacity(admin: Admin, tenantId: string, lineIds: readonly string[]): Promise<void> {
   if (lineIds.length === 0) return;
-  const { data: lines, error: linesErr } = await tenantScopedQuery(admin as never, "order_lines", tenantId)
-    .select("allocation_ids")
-    .in("id", lineIds);
-  if (linesErr) return;
-  const allocationIds = ((lines ?? []) as { allocation_ids: string[] | null }[]).flatMap((l) => l.allocation_ids ?? []);
+  const { data: allocs, error: allocErr } = await tenantScopedQuery(admin as never, "capacity_allocations", tenantId)
+    .select("id")
+    .in("order_line_id", [...lineIds])
+    .neq("state", "released");
+  if (allocErr) {
+    logServerError(
+      "messaging.releaseOrderLinesCapacity/CAPACITY_NOT_RELEASED",
+      `lines ${lineIds.join(",")}: allocations could not be read (${allocErr.message}). Seats or stock may still be held.`,
+    );
+    return;
+  }
+  const allocationIds = ((allocs ?? []) as Array<{ id: string }>).map((a) => a.id);
   if (allocationIds.length === 0) return;
-  const rpcAdmin = admin as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown> };
-  await rpcAdmin.rpc("release_capacity", { p_allocation_ids: allocationIds });
+  await releaseCapacity(allocationIds, admin as unknown as Parameters<typeof releaseCapacity>[1]);
 }
 
 export async function cancelRecordReminder(admin: Admin, tenantId: string, recordKind: RecordKind, recordId: string): Promise<void> {
