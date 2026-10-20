@@ -37,7 +37,7 @@ import type {
 
 export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
-import { tableDepositCurrency, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
+import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
 import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
 
 /**
@@ -206,15 +206,8 @@ export async function createPurchase(
     // ARS and USD under one symbol is the mixed-total bug the desk already had,
     // and an order is a worse place for it because someone is charged.
     const lineCurrencies = input.lines.map((l) => catalog.offerings.get(l.offeringId)?.currency ?? null);
-    // A table deposit is charged in the workspace's explicit currency, which the
-    // reservation offering's own currency must match (purchase-table-deposit.ts).
-    if (input.tableDeposit && !tableDepositCurrency(input.tableDeposit.currency, lineCurrencies).ok) {
-      return {
-        ok: false,
-        reason: "invalid_units",
-        error: "table_deposit_currency_mismatch: the reservation item is priced in a different currency from the workspace.",
-      };
-    }
+    const depositRefusal = tableDepositRefusal(input.tableDeposit, lineCurrencies); // purchase-table-deposit.ts
+    if (depositRefusal) return depositRefusal;
     const ccy = resolveOrderCurrency(input.tableDeposit ? [input.tableDeposit.currency] : lineCurrencies);
     if (!ccy.ok) {
       return {

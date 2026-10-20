@@ -101,3 +101,12 @@ test("a malformed deposit currency is refused, never defaulted", () => {
   assert.equal(tableDepositCurrency("pesos", ["MXN"]).ok, false);
   assert.equal(tableDepositCurrency("", [null]).ok, false);
 });
+
+test("tableDepositRefusal: refuses a mismatched reservation currency, passes agreement and no deposit", async () => {
+  const { tableDepositRefusal } = await import("@/lib/orders/purchase-table-deposit");
+  const refused = tableDepositRefusal({ cents: 60000, currency: "MXN" }, ["USD"]);
+  assert.equal(refused?.ok, false);
+  assert.match(refused?.error ?? "", /^table_deposit_currency_mismatch/);
+  assert.equal(tableDepositRefusal({ cents: 60000, currency: "MXN" }, ["MXN"]), null);
+  assert.equal(tableDepositRefusal(undefined, ["USD"]), null);
+});

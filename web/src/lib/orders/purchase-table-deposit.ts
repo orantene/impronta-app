@@ -13,6 +13,7 @@
  * reaches it.
  */
 import { MAX_ORDER_TOTAL_CENTS, type PricingResult } from "@/lib/orders/purchase-pricing";
+import type { PurchaseResult } from "@/lib/orders/purchase-types";
 
 export type TableDeposit = { cents: number; currency: string };
 
@@ -65,4 +66,21 @@ export function tableDepositCurrency(
     return { ok: false, reason: "currency_mismatch", currencies: [...seen].filter(Boolean).sort() };
   }
   return { ok: true, currency: want };
+}
+
+/**
+ * `createPurchase`'s guard: a table deposit whose reservation offering is priced in a different
+ * currency from the workspace is refused (see `tableDepositCurrency`). Null when there is no
+ * deposit or the currencies agree.
+ */
+export function tableDepositRefusal(
+  deposit: TableDeposit | undefined,
+  lineCurrencies: readonly (string | null | undefined)[],
+): Extract<PurchaseResult, { ok: false }> | null {
+  if (!deposit || tableDepositCurrency(deposit.currency, lineCurrencies).ok) return null;
+  return {
+    ok: false,
+    reason: "invalid_units",
+    error: "table_deposit_currency_mismatch: the reservation item is priced in a different currency from the workspace.",
+  };
 }
