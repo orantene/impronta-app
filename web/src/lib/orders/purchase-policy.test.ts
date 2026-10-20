@@ -197,6 +197,20 @@ test("units must be a sane positive number", () => {
   }
 });
 
+test("E5 (TUL-1268 M9): a fractional quantity is REFUSED, never priced or rounded", () => {
+  // Before: 0.5, 2.5 and 1.000001 passed the gate, and 0.5 of a 50000 service
+  // priced at 25000. order_lines.units is NUMERIC, so nothing downstream stopped it.
+  for (const units of [0.5, 2.5, 1.000001, 998.9]) {
+    const r = resolvePurchasePolicy(intent({ lines: [{ offeringId: "off_1", units }] }), map(policy()));
+    assert.equal(r.ok, false, `units=${units} must refuse`);
+    assert.equal(!r.ok && r.reason, "invalid_units");
+  }
+  for (const units of [1, 2, 999]) {
+    const r = resolvePurchasePolicy(intent({ lines: [{ offeringId: "off_1", units }] }), map(policy()));
+    assert.equal(r.ok, true, `units=${units} stays allowed`);
+  }
+});
+
 test("an empty cart is refused", () => {
   const r = resolvePurchasePolicy(intent({ lines: [] }), map(policy()));
   assert.equal(r.ok, false);
