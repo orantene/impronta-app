@@ -20,6 +20,9 @@ import {
   SecondaryButton,
 } from "../primitives";
 import { KvRow } from "./shared";
+import { RecordNotFoundDrawer } from "./record-not-found";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 // ─── Discriminant → catalog-key maps (render label via t(), switch on raw union) ──
 const REQUEST_KIND_KEYS: Record<TalentRequest["kind"], string> = {
@@ -134,7 +137,8 @@ export function TalentOfferDetailDrawer() {
   const t = useT();
   const open = state.drawer.drawerId === "talent-offer-detail" || state.drawer.drawerId === "talent-request-detail";
   const id = (state.drawer.payload?.id as string) ?? "rq1";
-  const r = TALENT_REQUESTS.find((x) => x.id === id) ?? TALENT_REQUESTS[0];
+  const r = TALENT_REQUESTS.find((x) => x.id === id);
+  if (!r) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
 
   return (
     <DrawerShell
@@ -194,7 +198,16 @@ export function TalentBookingDetailDrawer() {
   const t = useT();
   const open = state.drawer.drawerId === "talent-booking-detail";
   const id = (state.drawer.payload?.id as string) ?? "bk1";
-  const b = TALENT_BOOKINGS.find((x) => x.id === id) ?? TALENT_BOOKINGS[0];
+  const b = TALENT_BOOKINGS.find((x) => x.id === id);
+  const router = useRouter();
+  // A real booking id is not a prototype row: open its real record page instead of any fixture.
+  useEffect(() => {
+    if (!open || b || typeof window === "undefined") return;
+    const prefix = window.location.pathname.match(/^(.*?)\/talent(?:\/|$)/)?.[1] ?? "";
+    closeDrawer();
+    router.push(`${prefix}/talent/bookings/${encodeURIComponent(id)}`);
+  }, [open, b, id, closeDrawer, router]);
+  if (!b) return <RecordNotFoundDrawer open={open} onClose={closeDrawer} />;
 
   return (
     <DrawerShell
