@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { loadReviewInviteByToken } from "@/lib/reviews/review-token-actions";
+import {
+  fillCopy,
+  formatReviewDate,
+  getReviewPageCopy,
+  resolveReviewLocale,
+  type ReviewPageCopy,
+} from "@/lib/reviews/review-page-copy";
 
 import { ReviewTokenForm } from "./ReviewTokenForm";
 
@@ -30,7 +38,7 @@ import { ReviewTokenForm } from "./ReviewTokenForm";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Leave a review",
+  title: "Leave a review | Deja tu reseña",
   robots: { index: false, follow: false },
 };
 
@@ -49,24 +57,8 @@ const C = {
   accentSoft: "rgba(29,78,216,0.08)",
 } as const;
 
-/** Format an ISO event date as a short, locale-neutral label. */
-function formatEventDate(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  try {
-    return d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return iso.slice(0, 10);
-  }
-}
-
 /** Page shell: centered card on a faint-cool ground, no workspace chrome. */
-function Shell({ children }: { children: ReactNode }) {
+function Shell({ children, t, lang }: { children: ReactNode; t: ReviewPageCopy; lang: string }) {
   const page: CSSProperties = {
     minHeight: "100dvh",
     background: C.ground,
@@ -80,7 +72,7 @@ function Shell({ children }: { children: ReactNode }) {
   };
   const inner: CSSProperties = { width: "100%", maxWidth: 480 };
   return (
-    <main style={page}>
+    <main style={page} lang={lang}>
       <div style={inner}>
         <div
           style={{
@@ -96,8 +88,7 @@ function Shell({ children }: { children: ReactNode }) {
         </div>
         {children}
         <div style={{ textAlign: "center", marginTop: 20, fontSize: 11, color: C.inkDim, lineHeight: 1.5 }}>
-          Reviews are published on the talent&rsquo;s page. You can only review
-          your own bookings.
+          {t.footer}
         </div>
       </div>
     </main>
@@ -138,16 +129,17 @@ export default async function ReviewInvitePage({
 }) {
   const { token } = await params;
 
-  const invite = await loadReviewInviteByToken(token);
+  const acceptLanguage = (await headers()).get("accept-language");
+  const invite = await loadReviewInviteByToken(token, acceptLanguage);
+  // Before an invite resolves there is no booking language: the browser's decides.
+  const lang = invite.kind === "ok" ? invite.locale : resolveReviewLocale({ acceptLanguage });
+  const t = getReviewPageCopy(lang);
 
   // ─── Invalid token ───────────────────────────────────────────────────
   if (invite.kind === "invalid") {
     return (
-      <Shell>
-        <MessageCard
-          title="This review link isn't valid"
-          body="The link may be mistyped or was never issued. If you were asked to leave a review, please open the most recent invite email."
-        />
+      <Shell t={t} lang={lang}>
+        <MessageCard title={t.invalidTitle} body={t.invalidBody} />
       </Shell>
     );
   }
@@ -155,17 +147,16 @@ export default async function ReviewInvitePage({
   // ─── Expired / already used ──────────────────────────────────────────
   if (invite.kind === "expired") {
     return (
-      <Shell>
-        <MessageCard
-          title="This review link has expired"
-          body="It may have already been used, or the window to respond has passed. If you'd still like to leave a review, ask for a fresh invite."
-        />
+      <Shell t={t} lang={lang}>
+        <MessageCard title={t.expiredTitle} body={t.expiredBody} />
       </Shell>
     );
   }
 
   // ─── Live invite ─────────────────────────────────────────────────────
-  const eventDate = formatEventDate(invite.eventDate);
+  const eventDate = formatReviewDate(invite.eventDate, lang);
+  // The loader's English fallback label reads "the talent"; say it in the page language.
+  const talentLabel = invite.talentName === "the talent" ? t.theTalent : invite.talentName;
   const loginHref = `/login?next=${encodeURIComponent(`/review/${token}`)}`;
 
   // Server-side auth check to decide the initial state. We NEVER trust the
@@ -200,15 +191,21 @@ export default async function ReviewInvitePage({
       }}
     >
       <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: C.accent, marginBottom: 6 }}>
-        You worked with
+        {t.workedWith}
       </div>
       <div style={{ fontSize: 17, fontWeight: 700, color: C.ink, letterSpacing: -0.3 }}>
-        {invite.talentName}
+        {talentLabel}
       </div>
+      {/* G2: the service the review is about */}
+      {invite.serviceName && (
+        <div style={{ fontSize: 13, color: C.ink, marginTop: 4, fontWeight: 600 }}>
+          {t.service}: {invite.serviceName}
+        </div>
+      )}
       {(invite.eventTitle || eventDate) && (
         <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 4 }}>
-          {invite.eventTitle}
-          {invite.eventTitle && eventDate ? " · " : ""}
+          {invite.eventTitle && invite.eventTitle !== invite.serviceName ? invite.eventTitle : null}
+          {invite.eventTitle && invite.eventTitle !== invite.serviceName && eventDate ? " · " : ""}
           {eventDate}
         </div>
       )}
@@ -226,7 +223,7 @@ export default async function ReviewInvitePage({
           }}
         >
           <span style={{ display: "block", fontSize: 10.5, fontWeight: 700, letterSpacing: 0.2, textTransform: "uppercase", color: C.inkDim, marginBottom: 4 }}>
-            A note from {invite.talentName}
+            {fillCopy(t.noteFrom, { name: talentLabel })}
           </span>
           {invite.message}
         </div>
@@ -244,7 +241,7 @@ export default async function ReviewInvitePage({
   // Needs-auth: a known-account invite opened without the matching session.
   if (!authMatched && !guestEligible) {
     return (
-      <Shell>
+      <Shell t={t} lang={lang}>
         {contextCard}
         <div
           style={{
@@ -257,12 +254,10 @@ export default async function ReviewInvitePage({
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 700, color: C.ink, letterSpacing: -0.2, marginBottom: 8 }}>
-            {invite.talentName} asked you for a review
+            {fillCopy(t.askedTitle, { name: talentLabel })}
           </div>
           <div style={{ fontSize: 13, color: C.inkMuted, lineHeight: 1.6, marginBottom: 16 }}>
-            To keep reviews honest, we confirm it&rsquo;s really you before
-            publishing. Sign in with the account this invite was sent to, then
-            leave your review.
+            {t.askedBody}
           </div>
           <Link
             href={loginHref}
@@ -278,7 +273,7 @@ export default async function ReviewInvitePage({
               fontFamily: FONT,
             }}
           >
-            Sign in and continue
+            {t.signInContinue}
           </Link>
         </div>
       </Shell>
@@ -288,16 +283,18 @@ export default async function ReviewInvitePage({
   // Matched (verified-capable) OR a guest reviewing an email-only invite. A
   // guest review can never be payment-verified, so it never claims "Verified".
   return (
-    <Shell>
+    <Shell t={t} lang={lang}>
       {contextCard}
       <ReviewTokenForm
         token={invite.token}
-        talentName={invite.talentName}
+        talentName={talentLabel}
         talentProfileCode={invite.talentProfileCode}
         verifiable={verifiable && !guestEligible}
         guestMode={guestEligible}
         bookingId={invite.bookingId}
         talentProfileId={invite.talentProfileId}
+        t={t}
+        serviceName={invite.serviceName}
       />
     </Shell>
   );

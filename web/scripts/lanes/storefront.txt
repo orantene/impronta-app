@@ -1,3 +1,4 @@
+src/app/(public)/_services/business-service-view.render.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
@@ -46,6 +47,8 @@ src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/offerings/business-catalog-scope.test.ts
 src/lib/offerings/business-catalog.test.ts
+src/lib/offerings/dated-filters.test.ts
+src/lib/offerings/dated-schema.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
@@ -59,10 +62,15 @@ src/lib/seo/en-meta-description-no-spanish.test.ts
 src/lib/seo/event-json-ld.test.ts
 src/lib/seo/event-metadata.test.ts
 src/lib/seo/event-sitemap-entries.test.ts
+src/lib/seo/f5-sitemap-share-images.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
+src/lib/services/business-pages/gate.test.ts
+src/lib/services/business-pages/load-and-sitemap.server.test.ts
+src/lib/services/business-pages/page-model.test.ts
+src/lib/services/business-pages/paths.test.ts
 src/lib/services/presentation/resolve.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx

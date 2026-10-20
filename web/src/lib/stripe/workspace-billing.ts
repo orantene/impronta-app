@@ -13,6 +13,7 @@
  *   supabase/server.ts → SSR client (RLS-bound reads from server actions)
  */
 
+import { resumeSubscriptionParams, subscriptionCancelMirror } from "@/lib/billing/pending-cancellation";
 import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
@@ -34,11 +35,20 @@ import {
 } from "@/lib/billing/subscription-discounts";
 import { idempotencySuffix, returnQuery } from "@/lib/billing/checkout-return";
 import { loadTrialOffer } from "@/lib/plan-trials/offers";
+import { checkoutTrialDays } from "@/lib/billing/trial-eligibility.server";
+import { trialParams } from "@/lib/billing/trial-eligibility";
+import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
+import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
+import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
+import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
+import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
+import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -211,50 +221,82 @@ export async function createWorkspaceCheckoutSession(opts: {
   // number was displayed in marketing copy and never sent to Stripe, so a
   // "14-day free trial" charged on day zero.
   const trialOffer = await loadTrialOffer("workspace", opts.planKey);
-  const trialDays =
-    trialOffer?.isEnabled && trialOffer.trialDays > 0 ? trialOffer.trialDays : null;
+  // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
+  const trialDays = await checkoutTrialDays({ kind: "workspace", tenantId: opts.tenantId, buyerUserId: opts.buyerUserId }, customerResult.data, trialOffer);
 
-  try {
-    const session = await stripe.checkout.sessions.create({
-      customer: customerResult.data,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success${returnQuery(opts.returnToken)}`,
-      cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
-      // Show Checkout in the owner's app language, not their browser's.
-      locale: stripeCheckoutLocale(opts.locale),
+  // TUL-1280 race close: what this session charges, so a race loser is never sent to another price.
+  const priceIdentity = trialPriceIdentity({ planKey: opts.planKey, interval: price.interval, priceId, discount: discount.params });
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    customer: customerResult.data,
+    mode: "subscription",
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=success${returnQuery(opts.returnToken)}`,
+    cancel_url:  `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account?billing=cancelled`,
+    // Show Checkout in the owner's app language, not their browser's.
+    locale: stripeCheckoutLocale(opts.locale),
+    metadata: {
+      tenant_id: opts.tenantId,
+      plan_key: opts.planKey,
+      billing_interval: price.interval,
+      checkout_type: "workspace_subscription",
+      ...(trialDays != null ? { [TRIAL_PRICE_IDENTITY]: priceIdentity } : {}),
+    },
+    subscription_data: {
       metadata: {
         tenant_id: opts.tenantId,
         plan_key: opts.planKey,
         billing_interval: price.interval,
         checkout_type: "workspace_subscription",
+        // Read back by the webhook so a redemption records WHO, not just
+        // which workspace. Omitted rather than sent empty when unknown.
+        ...(opts.buyerUserId ? { user_id: opts.buyerUserId } : {}),
       },
-      subscription_data: {
-        metadata: {
-          tenant_id: opts.tenantId,
-          plan_key: opts.planKey,
-          billing_interval: price.interval,
-          checkout_type: "workspace_subscription",
-          // Read back by the webhook so a redemption records WHO, not just
-          // which workspace. Omitted rather than sent empty when unknown.
-          ...(opts.buyerUserId ? { user_id: opts.buyerUserId } : {}),
-        },
-        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
-      },
-      ...discount.params,
-      // Adaptive Pricing: Stripe converts the USD price to the customer's local
-      // currency (subscription mode cannot force `currency` off the Price's USD).
-      adaptive_pricing: { enabled: true },
+      ...trialParams(trialDays),
     },
-    // Idempotency: a double submit must not mint a SECOND Checkout session.
-    // One subscription per workspace per plan; a second session risks a second sub.
-    { idempotencyKey: checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }) });
+    ...discount.params,
+    // TUL-1229: explicit recurring-charge agreement (required checkbox + renewal text) before Subscribe.
+    // Part of sessionParams, so the idempotency key (checkoutSessionKey) hashes it: a re-click still dedupes.
+    ...recurringConsentParams({ locale: opts.locale, interval: price.interval, trialDays, marketingOrigin: resolveMarketingOrigin() }),
+    // Adaptive Pricing: Stripe converts the USD price to the customer's local
+    // currency (subscription mode cannot force `currency` off the Price's USD).
+    adaptive_pricing: { enabled: true },
+  };
+  // TUL-1280 retest: the key follows the exact params (a trial decided differently after a cancel
+  // must not reuse the key; Stripe rejects that). Identical params still dedupe a double submit.
+  const idempotencyKey = checkoutSessionKey(
+    checkoutIdempotencyKey({ prefix: "cs_ws", subjectId: opts.tenantId, planKey: opts.planKey, interval: price.interval, suffix: idempotencySuffix(opts.returnToken) }),
+    sessionParams,
+  );
+  // TUL-1280 P1: at most one open trial session per customer (best effort, see module).
+  const trialSweep = await sweepTrialSessions(stripe, customerResult.data, trialDays, idempotencyKey, logServerError);
+
+  const createParams: Stripe.Checkout.SessionCreateParams = { ...sessionParams, metadata: { ...sessionParams.metadata, ...trialSweep.marker } };
+
+  try {
+    const created = await stripe.checkout.sessions.create(
+      createParams,
+      // Idempotency: a double submit must not mint a SECOND Checkout session.
+      // One subscription per workspace per plan; a second session risks a second sub.
+      { idempotencyKey },
+    );
+    // TUL-1280 review P1: a replayed session the sweep already expired is re-keyed, never handed back dead.
+    const session =
+      trialDays != null
+        ? await reopenIfExpired(stripe, created, createParams, idempotencyKey, trialSweep.expiredIds)
+        : created;
 
     if (!session.url) {
       return { ok: false, error: "Stripe returned no checkout URL." };
     }
 
-    return { ok: true, data: { url: session.url } };
+    // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
+    // only when the winner is the same plan, else a retryable error.
+    const settled =
+      trialDays != null
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError })
+        : { url: session.url };
+    if ("error" in settled) return { ok: false, error: settled.error };
+    return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("workspace-billing.createCheckoutSession", err);
     return { ok: false, error: "Could not create checkout session." };
@@ -396,7 +438,7 @@ export async function syncStripeSubscriptionToDb(
           status,
           current_period_start:   periodStart,
           current_period_end:     periodEnd,
-          cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
+          ...subscriptionCancelMirror(subscription),
           cancelled_at:           cancelledAt,
           trial_end:              trialEnd,
           stripe_price_id:        priceId,
@@ -587,9 +629,12 @@ export async function reactivateWorkspaceSubscription(
   }
 
   try {
-    const updated = await stripe.subscriptions.update(row.stripe_subscription_id, {
-      cancel_at_period_end: false,
-    });
+    // Portal cancels set cancel_at, app cancels set the flag; Stripe refuses both together.
+    const live = await stripe.subscriptions.retrieve(row.stripe_subscription_id);
+    const updated = await stripe.subscriptions.update(
+      row.stripe_subscription_id,
+      resumeSubscriptionParams(live),
+    );
     const periodEnd = updated.items?.data?.[0]?.current_period_end ?? null;
     const renewsAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : row.current_period_end ?? null;
 
