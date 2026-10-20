@@ -14,9 +14,16 @@ import { blankComments } from "@/lib/quality/supabase-unchecked-read";
  * The arithmetic is already covered by `refund-plan.test.ts` against the pure
  * planner, which is where it belongs.
  */
-const SRC = blankComments(
+// The executor plus the restore step it delegates to (`refund-restore.ts`, shared
+// with the webhook since TUL-1268 M5): the ticket/seat/promo properties below
+// travel with that step, the money-order ones stay in the executor.
+const EXECUTOR = blankComments(
   readFileSync(join(process.cwd(), "src/lib/orders/refund-execute-lines.ts"), "utf8"),
 );
+const RESTORE = blankComments(
+  readFileSync(join(process.cwd(), "src/lib/orders/refund-restore.ts"), "utf8"),
+);
+const SRC = `${EXECUTOR}\n${RESTORE}`;
 
 test("a mid-plan failure after money moved is NOT a plain failure", () => {
   // A Stripe refund cannot be un-refunded. If this returned a generic error
@@ -139,7 +146,9 @@ test("the promo redemption is released only when the planner says FULL", () => {
   // Never re-derived here. A partial refund keeps the redemption, and
   // eligibility is never re-evaluated — a customer who receives a refund we
   // granted must not end up owing money.
-  assert.match(SRC, /releasesPromoRedemption\(plan\)/, "the ruling lives in one place");
+  assert.match(EXECUTOR, /releasePromo: releasesPromoRedemption\(plan\)/, "the ruling lives in one place");
+  // And the desk restores through the SAME step the webhook uses (TUL-1268 M5).
+  assert.match(EXECUTOR, /await restoreRefundedLines\(admin,/);
 });
 
 test("refunded totals are read the ENGINE's way, not a second way", () => {
@@ -158,7 +167,7 @@ test("every Supabase read in the executor checks its error", () => {
   //
   // That is the exact failure the atomic `refund_admission` exists to prevent,
   // reintroduced one layer up by not reading a variable.
-  const reads = [...SRC.matchAll(/const \{([^}]*)\}\s*=\s*await admin/g)].map((m) => m[1]);
+  const reads = [...SRC.matchAll(/const \{([^}]*)\}\s*=\s*await (?:admin|sb)\b/g)].map((m) => m[1]);
   assert.ok(reads.length >= 4, `expected several reads, found ${reads.length}`);
   const unchecked = reads.filter((d) => d.includes("data") && !d.includes("error"));
   assert.deepEqual(unchecked, [], "a read whose error is dropped turns failure into an empty result");

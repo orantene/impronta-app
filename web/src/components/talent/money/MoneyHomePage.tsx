@@ -594,19 +594,29 @@ export function MoneyHomePage() {
   };
   const refund = (row: MoneyAgendaRow) => {
     setRefundStatus(null);
+    // TUL-1268 M6: the talent refunds the amount on the row (what was paid
+    // after cancelling), never "everything on the order".
+    if (row.amountCents == null || row.amountCents <= 0) {
+      setRefundStatus(t("Nothing left to refund on this booking."));
+      return;
+    }
+    const amountCents = row.amountCents;
     setRefundBusyId(row.id);
     startRefund(async () => {
-      const res = await refundOwnBookingPayment({ bookingId: row.id });
+      const res = await refundOwnBookingPayment({ bookingId: row.id, amountCents });
       setRefundBusyId(null);
       if (!res.ok) {
-        setRefundStatus(`${t("Refund failed")}: ${res.reason}`);
+        const spanish = String(copy.locale ?? "").toLowerCase().startsWith("es");
+        let said = res.reason;
+        if ("message" in res && res.message) said = spanish ? res.message.es : res.message.en;
+        setRefundStatus(`${t("Refund failed")}: ${said}`);
         return;
       }
       if (res.already || res.refundedCents <= 0) {
         setRefundStatus(t("Nothing left to refund on this booking."));
       } else {
         setRefundStatus(
-          `${t("Refund sent")} ${(res.refundedCents / 100).toFixed(2)} ${res.currency}. ${t("Money updates when Stripe confirms it.")}`,
+          `${t("Refund sent")} ${(res.refundedCents / 100).toFixed(2)} ${res.currency ?? ""}. ${t("Money updates when Stripe confirms it.")}`,
         );
       }
       router.refresh();

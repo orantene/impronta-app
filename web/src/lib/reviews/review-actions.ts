@@ -36,6 +36,7 @@ import {
   isValidRating,
 } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
+import { offeringIdForBooking, stampReviewOffering } from "./review-offering";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 type BookingRow = {
@@ -259,6 +260,18 @@ export async function submitTalentReviewAction(
   if (!writeRes.ok) {
     logServerError("reviews/submit/upsert", writeRes.error);
     return { ok: false, error: CLIENT_ERROR.update };
+  }
+
+  // G2: tie the review to the service that was sold. Best-effort and separate
+  // from the write: the review is already stored, a failure here only logs.
+  const offeringSvc = createServiceRoleClient();
+  if (offeringSvc) {
+    await stampReviewOffering(offeringSvc, {
+      bookingId: cleanBookingId,
+      talentProfileId: cleanTalentId,
+      clientUserId: user.id,
+      offeringId: await offeringIdForBooking(offeringSvc, cleanBookingId),
+    });
   }
 
   // Tell the talent a review just published, through the EXISTING notification
