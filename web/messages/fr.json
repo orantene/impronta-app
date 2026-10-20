@@ -6248,8 +6248,7 @@
         "categoryPlaceholder": "ex. Café, Boulangerie, Massages",
         "duration": "Durée (min)",
         "durationHint": "Services et cours ; vide pour un produit.",
-        "photos": "Photos",
-        "photosReason": "Les photos sur un article de l'espace ne sont pas encore disponibles ; la galerie est liée à un profil de talent."
+        "photos": "Photos"
       },
       "pricing": {
         "baseTitle": "Prix de base",
