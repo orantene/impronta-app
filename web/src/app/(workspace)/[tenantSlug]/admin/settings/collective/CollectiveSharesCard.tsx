@@ -11,6 +11,8 @@ import { applyFriendsCollectivePreset, setMemberOwnerShare } from "@/lib/service
 import { COLLECTIVE_COPY } from "@/lib/service-hub/friends-collective-copy";
 import type { OwnerShare } from "@/lib/service-hub/friends-collective";
 
+export type CollectiveReview = { id: string; rating: number; body: string };
+
 export type CollectiveMember = { talentProfileId: string; name: string; share: OwnerShare | null };
 
 type Mode = "none" | "percent" | "fixed";
@@ -70,7 +72,7 @@ function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" 
   );
 }
 
-export function CollectiveSharesCard({ locale, isCollective, members }: { locale: "en" | "es"; isCollective: boolean; members: CollectiveMember[] }) {
+export function CollectiveSharesCard({ locale, isCollective, members, reviews }: { locale: "en" | "es"; isCollective: boolean; members: CollectiveMember[]; reviews: CollectiveReview[] }) {
   const c = COLLECTIVE_COPY[locale];
   const [on, setOn] = useState(isCollective);
   const [pending, start] = useTransition();
@@ -108,6 +110,16 @@ export function CollectiveSharesCard({ locale, isCollective, members }: { locale
           {members.map((m) => (
             <MemberRow key={m.talentProfileId} member={m} locale={locale} />
           ))}
+          {reviews.length > 0 && (
+            <div data-testid="collective-reviews" style={{ marginTop: 20 }}>
+              <h2 style={{ fontSize: 15, margin: "0 0 6px" }}>{c.reviewsHeading}</h2>
+              {reviews.map((r) => (
+                <p key={r.id} style={{ margin: "6px 0", fontSize: 13.5 }}>
+                  {"★".repeat(Math.max(0, Math.min(5, Math.round(r.rating))))} {r.body}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {msg && <p role="status" style={{ marginTop: 10, fontSize: 13 }}>{msg}</p>}

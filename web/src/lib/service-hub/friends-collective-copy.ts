@@ -21,6 +21,7 @@ export type CollectiveCopy = {
   saved: string;
   ownerOnly: string;
   overCap: string;
+  reviewsHeading: string;
 };
 
 export const COLLECTIVE_COPY: Record<"en" | "es", CollectiveCopy> = {
@@ -45,6 +46,7 @@ export const COLLECTIVE_COPY: Record<"en" | "es", CollectiveCopy> = {
     saved: "Saved. Orders priced from now on use this split.",
     ownerOnly: "Only the workspace owner can change this.",
     overCap: "The owner can take at most 90% of a member's price.",
+    reviewsHeading: "Reviews collected on your page",
   },
   es: {
     title: "Colectivo de amigos",
@@ -67,5 +69,6 @@ export const COLLECTIVE_COPY: Record<"en" | "es", CollectiveCopy> = {
     saved: "Guardado. Los pedidos que se coticen desde ahora usan este reparto.",
     ownerOnly: "Solo la dueña del espacio puede cambiar esto.",
     overCap: "La dueña puede quedarse como máximo el 90% del precio de un miembro.",
+    reviewsHeading: "Reseñas reunidas en tu página",
   },
 };

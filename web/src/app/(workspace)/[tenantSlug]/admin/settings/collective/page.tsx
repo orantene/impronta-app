@@ -8,7 +8,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { parseOwnerShareRow } from "@/lib/service-hub/collective-split";
 import { FRIENDS_COLLECTIVE_MODEL } from "@/lib/service-hub/friends-collective";
-import { CollectiveSharesCard, type CollectiveMember } from "./CollectiveSharesCard";
+import { loadWorkspaceReviews } from "@/lib/reviews/collective-reviews";
+import { CollectiveSharesCard, type CollectiveMember, type CollectiveReview } from "./CollectiveSharesCard";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,14 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
 
   let workModel: string | null = null;
   const members: CollectiveMember[] = [];
+  const reviews: CollectiveReview[] = [];
   if (admin) {
     const { data: agency } = await admin.from("agencies").select("work_model").eq("id", scope.tenantId).maybeSingle();
     workModel = (agency as { work_model?: string | null } | null)?.work_model ?? null;
     if (workModel === FRIENDS_COLLECTIVE_MODEL) {
+      for (const r of await loadWorkspaceReviews(admin, scope.tenantId, 10)) {
+        reviews.push({ id: r.id, rating: r.rating, body: r.body ?? "" });
+      }
       const { data: rows } = await tenantScopedQuery(admin, "agency_talent_roster", scope.tenantId)
         .select("talent_profile_id, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, talent_profiles!inner(display_name)")
         .neq("status", "removed");
@@ -36,7 +41,7 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
   }
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <CollectiveSharesCard locale={locale} isCollective={workModel === FRIENDS_COLLECTIVE_MODEL} members={members} />
+      <CollectiveSharesCard locale={locale} isCollective={workModel === FRIENDS_COLLECTIVE_MODEL} members={members} reviews={reviews} />
     </main>
   );
 }

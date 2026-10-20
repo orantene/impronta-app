@@ -244,7 +244,7 @@ describe("the owner screen", () => {
     assert.match(card, /setMemberOwnerShare/);
     assert.match(card, /applyFriendsCollectivePreset/);
     for (const l of ["en", "es"] as const) {
-      for (const k of ["apply", "memberHeading", "percentLabel", "fixedLabel", "noShare", "save", "saved", "ownerOnly", "overCap"] as const) {
+      for (const k of ["apply", "memberHeading", "percentLabel", "fixedLabel", "noShare", "save", "saved", "ownerOnly", "overCap", "reviewsHeading"] as const) {
         assert.ok(COLLECTIVE_COPY[l][k] && COLLECTIVE_COPY[l][k].length > 0, `${l}.${k}`);
         assert.ok(!/[–—]/.test(COLLECTIVE_COPY[l][k]), `${l}.${k} has a dash`);
       }
