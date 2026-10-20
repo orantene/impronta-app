@@ -1,7 +1,7 @@
 /**
  * Terms / Privacy hrefs for the auth shell footer (TUL-758).
  *
- * B7 ruling stays: the links always point at the platform site (getSiteUrl),
+ * B7 ruling stays: the links always point at the platform marketing site (resolveMarketingOrigin),
  * never a tenant host. Only the locale follows the page: the platform's default
  * locale (en) is unprefixed, every other locale is served under `/<locale>`.
  */

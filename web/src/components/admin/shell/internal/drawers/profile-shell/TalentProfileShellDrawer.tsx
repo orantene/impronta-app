@@ -209,7 +209,7 @@ import { CommercialTermsEditor } from "./profile-shell-modules/profile-commercia
 import { detailsGroupHelperText } from "./profile-shell-modules/profile-shell-helper-text";
 import { localizePublishBlockerMessage } from "./profile-shell-modules/publish-requirement-label";
 import { DirectBookingRosterSwitch } from "@/components/appointments/DirectBookingRosterSwitch";
-import { TalentOfferingsManager } from "@/components/talent/services/TalentOfferingsManager";
+import { ServicesEditorLink } from "@/components/talent/services/ServicesEditorLink";
 import { ProfileReviewsEditor } from "./profile-shell-modules/profile-reviews";
 import { totalPhotosOf } from "./profile-shell-modules/profile-shell-album-media";
 import { useProfileShellMedia } from "./profile-shell-modules/use-profile-shell-media";
@@ -4200,9 +4200,8 @@ export function TalentProfileShellDrawer() {
               >
                 <CommercialTermsEditor talentId={payload.talentId} />
                 <DirectBookingRosterSwitch talentId={payload.talentId} />
-                {/* S13 — admin parity for the services menu (same self-saving
-                    card the talent uses; configuration only). */}
-                <TalentOfferingsManager talentId={payload.talentId} />
+                {/* TUL-1270 #10: legacy editor retired; talent: link to Services; staff: the current editor here. */}
+                <ServicesEditorLink isSelf={isSelf} talentId={payload.talentId} />
               </ProfileAccordionSection>
             )}
 

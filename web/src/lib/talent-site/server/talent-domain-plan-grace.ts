@@ -21,6 +21,7 @@ import {
   type TalentPlanKey,
   normalizeTalentPlanKey,
 } from "@/lib/access/talent-membership";
+import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { removeCustomDomainFromVercelProject } from "@/lib/saas/custom-domain-actions";
 import {
   getDomainAuthCode,
@@ -410,9 +411,16 @@ export async function sweepTalentDomainPlanGrace(
           logServerError("talentDomainGrace.sweep.planRead", profileError);
           continue;
         }
-        const planKey =
-          (profile as { talent_plan_key?: string | null } | null)?.talent_plan_key ??
-          "talent_basic";
+        // TUL-835: gate on the EFFECTIVE plan (dunning-aware), never the raw stored key.
+        // A past_due talent inside the 7-day grace keeps Web Office; one past it reads as Free.
+        // A billing read error keeps the stored plan (the choke point fails open), so a blip
+        // never starts a grace.
+        const planKey = await resolveEffectiveTalentPlanKey(
+          admin,
+          talentProfileId,
+          (profile as { talent_plan_key?: string | null } | null)?.talent_plan_key ?? "talent_basic",
+          now,
+        );
         if (planGrantsCustomDomain(planKey)) continue;
         await beginTalentDomainPlanGrace({
           talentProfileId,

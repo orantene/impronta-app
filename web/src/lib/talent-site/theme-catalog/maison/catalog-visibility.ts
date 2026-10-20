@@ -5,7 +5,7 @@
  * slug may appear in `loadTalentThemeCatalog` (DB rows or built-ins fallback).
  * Slug convention (PR 1 seeds): `maison`, `maison-<palette>`, `maison-<demo>`.
  */
-import { isCollectionDesignSlug } from "../collection/designs";
+import { isCollectionDesignSlug } from "../collection/design-cards";
 
 export const MAISON_DESIGN_SLUG = "maison";
 

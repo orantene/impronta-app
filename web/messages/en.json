@@ -2184,6 +2184,7 @@
         "visit": "Open",
         "nextSteps": "Next steps",
         "nextVisit": "Visit your website",
+        "nextServices": "Review your services",
         "nextCustomize": "Customize your content",
         "nextPhotos": "Add your photos",
         "nextDomain": "Connect your domain (optional)",
@@ -16540,6 +16541,7 @@
           "no_payout_receiver": "This cannot be recorded as paid yet: nobody is set up to receive the payout. Set up a payout receiver, then try again.",
           "offer_currency_seller_mismatch": "This offer is in a different currency than the seller charges in. Change the offer currency to the seller's currency and send it again.",
           "offer_currency_unresolved": "We could not tell which currency this offer should use. Choose a currency for the offer and try again.",
+          "over_refund_limit": "A manager with a higher limit has to make this refund.",
           "identity_unconfirmed": "Client identity is not confirmed.",
           "already_linked": "That record is already linked.",
           "version_stale": "Someone else saved first. Compare the three versions.",
@@ -18321,6 +18323,11 @@
         "depositPct": "Set the deposit between 1 and 99 percent.",
         "identityReason": "Say why the buyer's name is needed.",
         "currency": "Pick a currency."
+      },
+      "warning": {
+        "photo": "No photo yet: it will show without a picture on the counter and the menu.",
+        "category": "No category yet: it will sit under All items.",
+        "channel": "Price on request: it shows on your site without a price. Staff can still sell it at the counter."
       },
       "details": {
         "title": "Details",

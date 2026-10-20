@@ -54,6 +54,7 @@ import {
 import { HideOutcome, RowMenu, listPrice, listPriceState } from "./ServicesHomeRowChrome";
 import { ServicesWebsiteSetupBanner } from "./ServicesWebsiteSetupBanner";
 import { ServicesListSkeleton } from "./ServicesListSkeleton";
+import { ServiceShareSheet } from "./ServiceShareSheet";
 import { countItemsLabel } from "@/components/admin/shell/internal/count-items-label";
 import { useSearchParams } from "next/navigation";
 
@@ -90,6 +91,7 @@ export function ServicesHome({
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [addons, setAddons] = useState<AddonGroup[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [shareItem, setShareItem] = useState<TalentOffering | null>(null); // TUL-1270 #13
   const [hideTarget, setHideTarget] = useState<TalentOffering | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [slowLoad, setSlowLoad] = useState(false);
@@ -624,13 +626,7 @@ export function ServicesHome({
                   openEditor(item);
                   setPreviewFirst(true);
                 }}
-                onShare={async () => {
-                  const dest = destinations[0]?.href;
-                  if (dest && navigator.clipboard) {
-                    await navigator.clipboard.writeText(window.location.origin + dest);
-                    setToast(copy.t("Link copied"));
-                  }
-                }}
+                onShare={() => setShareItem(item)}
                 onDuplicate={async () => {
                   const res = await duplicateTalentOffering(talentId, item.id);
                   if (res.ok) {
@@ -789,6 +785,7 @@ export function ServicesHome({
         </div>
       )}
 
+      {shareItem && <ServiceShareSheet item={shareItem} talentId={talentId} onClose={() => setShareItem(null)} />}
       {toast && (
         <div className="fixed bottom-20 right-4 rounded-full bg-admin-ink px-3 py-2 text-[12px] text-white">{toast}</div>
       )}

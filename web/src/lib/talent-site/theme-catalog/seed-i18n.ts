@@ -32,8 +32,13 @@ import {
   listOverlayKey,
   localizableListSpecsForKind,
 } from "@/lib/i18n/builder-i18n-list-props";
+import { SOLACE_SEED_TEXT_ES } from "./seed-i18n-solace";
+import { TRANCHE_SEED_TEXT_ES } from "./seed-i18n-tranche";
 import { HEADER_OVERLAY_PREFIX, headerLabelEntries } from "../header-i18n";
 import type { DesignPayload } from "./types";
+
+/** Every theme seed authors English as the base prop (TUL-369). Spanish lives in `props.i18n`. */
+export const THEME_SEED_BASE_LOCALE = "en" as const;
 
 export type SeedI18nOverlay = {
   es: Record<string, string>;
@@ -57,6 +62,8 @@ export const NO_EMERGENCIES_TODAY_LABEL = {
 
 /** English seed text -> neutral Mexican Spanish (tuteo). Exact seed strings. */
 export const SEED_TEXT_ES: Readonly<Record<string, string>> = {
+  ...SOLACE_SEED_TEXT_ES,
+  ...TRANCHE_SEED_TEXT_ES,
   // Hero / actions
   "Ask a question": "Hacer una pregunta",
   "See services": "Ver servicios",
