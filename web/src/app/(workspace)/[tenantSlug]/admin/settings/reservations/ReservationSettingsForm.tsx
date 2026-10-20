@@ -18,6 +18,7 @@
 
 import { useState, useTransition } from "react";
 import type { ServiceRules, ServiceWindow } from "@/lib/reservations";
+import { reservationItemState } from "@/lib/reservations/reservation-item";
 import { saveReservationRules } from "@/lib/server-actions/admin-reservation-rules";
 
 const C = {
@@ -119,14 +120,20 @@ export function ReservationSettingsForm({
   rules,
   windows,
   canGoLive,
+  offerings,
+  locale,
 }: {
   venueId: string;
   timezone: string;
   rules: ServiceRules;
   windows: ServiceWindow[];
   canGoLive: boolean;
+  offerings: Array<{ id: string; title: string; status: string }>;
+  locale: "es" | "en";
 }) {
+  const es = locale === "es";
   const [form, setForm] = useState(rules);
+  const itemState = reservationItemState(form.reservationOfferingId, offerings);
   const [saving, startSaving] = useTransition();
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [advanced, setAdvanced] = useState(false);
@@ -155,6 +162,7 @@ export function ReservationSettingsForm({
         depositFromParty: form.depositFromParty,
         depositCentsPerPerson: form.depositCentsPerPerson,
         freeCancelHours: form.freeCancelHours,
+        reservationOfferingId: form.reservationOfferingId,
         waitlistEnabled: form.waitlistEnabled,
         walkinsEnabled: form.walkinsEnabled,
         notesEnabled: form.notesEnabled,
@@ -169,6 +177,47 @@ export function ReservationSettingsForm({
 
   return (
     <div>
+      <Section title={es ? "Artículo de reservas" : "Reservation item"}>
+        <Row
+          label={es ? "Se vende como" : "Sold as"}
+          hint={
+            itemState === "ready"
+              ? es
+                ? "Cada reserva se registra como una venta de este artículo."
+                : "Every reservation is recorded as a sale of this item."
+              : itemState === "unset"
+                ? es
+                  ? "Elige el artículo con el que se toman las reservas. Sin él, nadie puede reservar."
+                  : "Pick the item reservations are taken as. Without it nobody can book."
+                : es
+                  ? "Publica el artículo de reservas para aceptar reservas."
+                  : "Publish the reservation item to accept reservations."
+          }
+        >
+          <select
+            value={form.reservationOfferingId ?? ""}
+            onChange={(e) => set("reservationOfferingId", e.target.value || null)}
+            aria-label={es ? "Artículo de reservas" : "Reservation item"}
+            data-testid="reservation-item-select"
+            style={{ ...numberStyle, width: 220 }}
+          >
+            <option value="">{es ? "Sin elegir" : "Not set"}</option>
+            {offerings.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.title || o.id}
+                {o.status === "published" ? "" : es ? " (sin publicar)" : " (not published)"}
+              </option>
+            ))}
+          </select>
+        </Row>
+        {itemState === "unpublished" || itemState === "unset" || itemState === "missing" ? (
+          <div role="status" data-testid="reservation-item-prompt" style={{ color: C.danger, fontSize: 12.5, padding: "8px 0 4px" }}>
+            {itemState === "unset"
+              ? es ? "Falta elegir el artículo de reservas." : "No reservation item is set."
+              : es ? "Publica el artículo de reservas para aceptar reservas." : "Publish the reservation item to accept reservations."}
+          </div>
+        ) : null}
+      </Section>
       <Section title="Taking reservations">
         <Row
           label="Reservations are on"
