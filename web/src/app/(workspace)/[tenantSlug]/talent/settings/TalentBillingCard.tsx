@@ -11,6 +11,7 @@ import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useEffect, useState, useTransition } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
+import { billingDateLabel } from "@/lib/billing/pending-cancellation";
 import { talentBillingPlanLabel, talentPastDueView } from "@/lib/billing/talent-billing-display";
 import {
   loadTalentBillingSummary,
@@ -84,7 +85,7 @@ export function TalentBillingCard({ tenantSlug }: { tenantSlug: string }) {
         <dd>{copy.t(planName)}</dd>
         {sub?.nextChargeAt && (
           <>
-            <dt className="text-neutral-500">{copy.t(sub.cancelAtPeriodEnd ? "Cancels on" : "Next charge")}</dt>
+            <dt className="text-neutral-500">{copy.t(billingDateLabel(sub.cancelAtPeriodEnd))}</dt>
             <dd>{day(sub.nextChargeAt)}</dd>
           </>
         )}
