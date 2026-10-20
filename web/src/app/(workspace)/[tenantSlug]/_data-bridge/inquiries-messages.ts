@@ -509,7 +509,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
     // policy; fill the name through the service client (ids come from the authorized lineup).
     await backfillMissingTalentEmbeds(
       supabase,
-      (participantsRes.data ?? []) as Array<Record<string, unknown>>,
+      (participantsRes.data ?? []) as unknown as Array<Record<string, unknown>>,
       "display_name, first_name, last_name",
     );
     const lineupChips = await loadTalentChipInfo(

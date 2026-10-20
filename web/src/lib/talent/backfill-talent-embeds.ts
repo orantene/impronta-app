@@ -49,7 +49,7 @@ export async function backfillMissingTalentEmbeds(
     return;
   }
   const byId = new Map<string, Record<string, unknown>>();
-  for (const p of (data ?? []) as Array<Record<string, unknown>>) {
+  for (const p of (data ?? []) as unknown as Array<Record<string, unknown>>) {
     const { id, ...rest } = p;
     byId.set(String(id), rest);
   }

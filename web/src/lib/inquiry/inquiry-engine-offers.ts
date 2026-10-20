@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import type { Database } from "@/lib/supabase/database.types";
 import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
