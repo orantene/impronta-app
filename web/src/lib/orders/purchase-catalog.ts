@@ -48,6 +48,13 @@ export type Catalog =
       offerings: Map<string, PricedOffering>;
       variants: Map<string, PricedVariant>;
       addons: Map<string, PricedAddon>;
+      /**
+       * `talent_offerings.capacity_pool_id` per offering (null = unlimited).
+       * D5: the pipeline holds this pool for every line whose caller declared
+       * no capacity of its own (purchase-stock.ts). Optional only so hand-built
+       * catalogs in tests still type; `loadCatalog` always sets it.
+       */
+      stockPools?: Map<string, string | null>;
     }
   | { ok: false; error: string };
 
@@ -57,7 +64,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     .select(
       "id, tenant_id, title, status, price_type, amount_cents, currency, talent_profile_id, " +
         "reserve_mode, deposit_pct, allow_pay_in_person, require_account_to_book, cancellation_hours, " +
-        "kind, duration_minutes, requires_identity, identity_reason, visibility, moderation_state",
+        "kind, duration_minutes, requires_identity, identity_reason, visibility, moderation_state, capacity_pool_id",
     )
     .in("id", offeringIds);
 
@@ -104,6 +111,7 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
     identity_reason: string | null;
     visibility: string | null;
     moderation_state: string | null;
+    capacity_pool_id?: string | null;
   };
 
   const policies = new Map<string, OfferingPolicy>();
@@ -225,7 +233,8 @@ export async function loadCatalog(admin: SupabaseClient, offeringIds: string[]):
   if (!groupExtras.ok) return { ok: false, error: "Could not load the extras." };
   for (const g of groupExtras.addons) addons.set(g.addonId, g);
 
-  return { ok: true, policies, rawOfferings, offerings, variants, addons };
+  const stockPools = new Map(typedRows.map((r) => [r.id, r.capacity_pool_id ?? null] as const));
+  return { ok: true, policies, rawOfferings, offerings, variants, addons, stockPools };
 }
 
 /**

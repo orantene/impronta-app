@@ -50,7 +50,7 @@ export async function messagingLoadItemsCatalog(input: { inquiryId: string }): P
   if (!admin) return { ok: false, reason: "unavailable" };
 
   try {
-    return { ok: true, catalog: await loadItemsCatalog(admin, { tenantId, inquiryId }) };
+    return { ok: true, catalog: await loadItemsCatalog(admin, { tenantId, inquiryId, scope: "staff" }) };
   } catch (err) {
     logServerError("messagesV5.itemsCatalog/load", err);
     return { ok: false, reason: "unavailable" };

@@ -709,7 +709,7 @@ export function CatalogBookingSheet({
                 placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
-                cardFee={cardFee ? { feeLabel: money(cardFee.feeCents, cardFee.currency), payNowLabel: money(cardFee.payNowCents, cardFee.currency) } : null}
+                cardFee={cardFee ? { feeLabel: cardFee.feeCents > 0 ? money(cardFee.feeCents, cardFee.currency) : null, payNowLabel: money(cardFee.payNowCents, cardFee.currency), travelFeeLabel: cardFee.travelFeeOnDayCents > 0 ? money(cardFee.travelFeeOnDayCents, cardFee.currency) : null } : null}
               />
               <CatalogWhoContact
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}

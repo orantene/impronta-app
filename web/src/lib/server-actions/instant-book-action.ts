@@ -45,6 +45,7 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
 import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 import { cookies } from "next/headers";
+import { randomUUID } from "node:crypto";
 import { PROMO_COOKIE, PROMO_VIA_COOKIE } from "@/lib/promos/share/cookies";
 import { bookingPromoRequest, instantPaymentStep, promoRefusal } from "@/lib/scheduling/instant-book-promo";
 
@@ -152,9 +153,15 @@ export async function createInstantBookingAction(
           payInPerson: payload.payInPerson,
           sourceChannel: "instant_book",
           sourcePage: payload.sourcePage ?? null,
-          // Per CART. Stable for one attempt at one offering by one buyer, so a
-          // double-tapped Confirm cannot mint two bookings.
-          clientOrderKey: `instant:${engineInput.tenantId}:${offeringId}:${engineInput.contactEmail}`,
+          // Per ATTEMPT (D5 / M7). The sheet's key makes a double-tapped Confirm
+          // replay the first order; with no key, a fresh one. Never derived from
+          // the email: that would turn the same guest's next booking of this
+          // service into a replay of the first one.
+          clientOrderKey: `instant:${engineInput.tenantId}:${
+            typeof payload.clientOrderKey === "string" && /^[A-Za-z0-9_-]{8,80}$/.test(payload.clientOrderKey)
+              ? payload.clientOrderKey
+              : randomUUID()
+          }`,
           // Instant bookings are worked in Messages exactly as before.
           openThread: true,
           guestSessionId: await ensureGuestSessionId(),

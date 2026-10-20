@@ -6,6 +6,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadLedgerPaidByBooking, type LedgerPaid } from "@/lib/bookings/ledger-paid";
+import { talentNetAfterRefundedCharges } from "@/lib/billing/refunded-charge-net";
 import { totalClientRevenueToCents } from "@/lib/money/total-client-revenue";
 
 import {
@@ -383,7 +384,8 @@ export async function fetchTalentSnapshotAggregateRows(
       payoutDate,
       clientLabel: resolveClientLabel(booking),
       grossCents: snapshot.gross_cents,
-      netCents: snapshot.talent_net_cents,
+      // E5: a fully refunded deposit on a still-paid booking took its share of the payout back.
+      netCents: talentNetAfterRefundedCharges(snapshot.talent_net_cents, ledger),
       workspaceFeeCents: snapshot.workspace_fee_cents,
       status: mapBookingPayoutStatus(booking),
       source: mapBookingSource(booking.source_type_snapshot),

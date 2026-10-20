@@ -47,6 +47,15 @@ test("a simple line prices from the catalog row", () => {
   assert.equal(r.ok && r.subtotalCents, 10000);
 });
 
+test("E5 (TUL-1268 M9): a fractional quantity is refused on a line with no variant", () => {
+  // Before: 0.5 x 5000 priced at 2500 and 2.5 x 5000 at 12500.
+  for (const units of [0.5, 2.5]) {
+    const r = pricePurchase([{ offeringId: "off_1", units }], catalog());
+    assert.equal(r.ok, false, `units=${units} must refuse`);
+    assert.equal(!r.ok && r.reason, "invalid_units");
+  }
+});
+
 test("a variant OVERRIDES the base price", () => {
   const r = pricePurchase(
     [{ offeringId: "off_1", units: 1, variantId: "var_1" }],

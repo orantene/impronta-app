@@ -31,14 +31,20 @@ function seedOrder(overrides: Partial<{ orderStatus: string; linesRefunded: [num
       { id: ORDER, tenant_id: TENANT, inquiry_id: INQUIRY, status: overrides.orderStatus ?? "paid", discount_cents: 0, tip_cents: 0, currency: "USD" },
     ],
     order_lines: [
-      { id: LINE_A, order_id: ORDER, tenant_id: TENANT, total_cents: 5000, refunded_cents: overrides.linesRefunded?.[0] ?? 0, variant_id: null, offering_id: OFFERING, allocation_ids: ["alloc-a"] },
-      { id: LINE_B, order_id: ORDER, tenant_id: TENANT, total_cents: 3000, refunded_cents: overrides.linesRefunded?.[1] ?? 0, variant_id: null, offering_id: null, allocation_ids: [] },
+      { id: LINE_A, order_id: ORDER, tenant_id: TENANT, total_cents: 5000, refunded_cents: overrides.linesRefunded?.[0] ?? 0, variant_id: null, offering_id: OFFERING },
+      { id: LINE_B, order_id: ORDER, tenant_id: TENANT, total_cents: 3000, refunded_cents: overrides.linesRefunded?.[1] ?? 0, variant_id: null, offering_id: null },
     ],
     admissions: [
       { id: ADMISSION_A, tenant_id: TENANT, order_line_id: LINE_A, starts_at: "2026-10-01T18:00:00Z", status: "valid" },
       { id: ADMISSION_B, tenant_id: TENANT, order_line_id: LINE_B, starts_at: "2026-10-05T18:00:00Z", status: "valid" },
     ],
     talent_offerings: [{ id: OFFERING, cancellation_hours: 24 }],
+    // D5: allocations hang off `capacity_allocations.order_line_id`; the old
+    // `order_lines.allocation_ids` column was dropped (20261228000144).
+    capacity_allocations: [
+      { id: "alloc-a", tenant_id: TENANT, order_line_id: LINE_A, state: "hold" },
+      { id: "alloc-a-old", tenant_id: TENANT, order_line_id: LINE_A, state: "released" },
+    ],
     booking_transactions: [
       { id: uuid(20), order_id: ORDER, status: "paid", gross_amount_cents: 8000, created_at: "2026-09-01T00:00:00Z", source_tenant_id: TENANT },
     ],
@@ -149,7 +155,7 @@ test("stampOrderCancelStatus: writes the status, tenant-scoped", async () => {
   assert.equal(row.status, "cancelled");
 });
 
-test("releaseOrderLinesCapacity: calls release_capacity with every line's allocation ids, flattened", async () => {
+test("releaseOrderLinesCapacity: calls release_capacity with every line's live allocations, found by order_line_id", async () => {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const { admin } = seedOrder();
   const rpcAdmin = admin as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown> };
@@ -172,7 +178,7 @@ test("releaseOrderLinesCapacity: no lines with allocations means no RPC call", a
     called = true;
     return { data: null, error: null };
   };
-  await releaseOrderLinesCapacity(admin, TENANT, [LINE_B]); // LINE_B has no allocation_ids
+  await releaseOrderLinesCapacity(admin, TENANT, [LINE_B]); // LINE_B has no live allocations
   assert.equal(called, false);
 });
 
