@@ -11,6 +11,7 @@
  * talent_profiles.talent_plan_key is synced by syncTalentSubscriptionToDb().
  */
 
+import { resumeSubscriptionParams, subscriptionCancelMirror } from "@/lib/billing/pending-cancellation";
 import { nextPastDueSince } from "@/lib/billing/dunning-grace";
 import "server-only";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
@@ -35,6 +36,8 @@ import { trialParams } from "@/lib/billing/trial-eligibility";
 import { checkoutSessionKey } from "@/lib/billing/checkout-session-key";
 import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
+import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
+import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
 import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
@@ -215,6 +218,8 @@ export async function createTalentCheckoutSession(opts: {
   // TUL-1280: one trial per customer; a prior trial/subscription or a failed read sends none.
   const trialDays = await checkoutTrialDays({ kind: "talent", talentProfileId: opts.talentProfileId, userId: opts.userId }, customerResult.data, trialOffer);
 
+  // TUL-1280 race close: what this session charges, so a race loser is never sent to another price.
+  const priceIdentity = trialPriceIdentity({ planKey: opts.planKey, interval: price.interval, priceId, discount: discount.params });
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     customer: customerResult.data,
     mode: "subscription",
@@ -230,6 +235,7 @@ export async function createTalentCheckoutSession(opts: {
       plan_key:          opts.planKey,
       billing_interval:  price.interval,
       checkout_type:     "talent_subscription",
+      ...(trialDays != null ? { [TRIAL_PRICE_IDENTITY]: priceIdentity } : {}),
     },
     subscription_data: {
       metadata: {
@@ -273,7 +279,14 @@ export async function createTalentCheckoutSession(opts: {
       return { ok: false, error: "Stripe returned no checkout URL." };
     }
 
-    return { ok: true, data: { url: session.url } };
+    // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
+    // only when the winner is the same plan, else a retryable error.
+    const settled =
+      trialDays != null
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError })
+        : { url: session.url };
+    if ("error" in settled) return { ok: false, error: settled.error };
+    return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("talent-billing.createCheckoutSession", err);
     return { ok: false, error: "Could not create checkout session." };
@@ -427,7 +440,7 @@ export async function syncTalentSubscriptionToDb(
           plan_key:               decision.rowPlan,
           status,
           current_period_end:     periodEnd,
-          cancel_at_period_end:   subscription.cancel_at_period_end ?? false,
+          ...subscriptionCancelMirror(subscription),
           cancelled_at:           cancelledAt,
           trial_end:              trialEnd,
           stripe_price_id:        priceId,
@@ -634,9 +647,10 @@ export async function resumeTalentSubscription(opts: {
     return { ok: false, error: "Billing is not available right now. Nothing was changed." };
   }
   try {
+    const live = await stripe.subscriptions.retrieve(row.stripe_subscription_id);
     const updated = await stripe.subscriptions.update(
       row.stripe_subscription_id,
-      { cancel_at_period_end: false },
+      resumeSubscriptionParams(live),
       { idempotencyKey: talentCancelIdempotencyKey("resume", row.stripe_subscription_id, Date.now()) },
     );
     const end = updated.items?.data?.[0]?.current_period_end ?? null;

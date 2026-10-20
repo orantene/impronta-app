@@ -26,6 +26,7 @@ src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
+src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/review-trial-days.test.ts
@@ -35,6 +36,7 @@ src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
+src/lib/billing/trial-session-reconcile.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
@@ -170,11 +172,14 @@ src/lib/payments/payout-transfer-retry.test.ts
 src/lib/payments/processing-fee.test.ts
 src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
+src/lib/payments/refund-authority-wire.static.test.ts
+src/lib/payments/refund-authority.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts
+src/lib/payments/refunds-restore-inventory.test.ts
 src/lib/payments/refunds.test.ts
 src/lib/payments/retry-fee-unknown-payouts.test.ts
 src/lib/payments/seller-currency-guard.test.ts
