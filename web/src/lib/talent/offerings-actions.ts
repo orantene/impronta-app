@@ -30,6 +30,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
+import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
 import { normalizeServicesMenu } from "@/lib/talent/services-menu-types";
@@ -207,6 +208,8 @@ export async function upsertTalentOffering(
 
     let saved: TalentOfferingRow | null = null;
     if (offering.id) {
+      // TUL-1272 C1: a rename records the old slug in slug_history (flag + held columns only).
+      const slugRename = await prepareServiceSlugRename(admin, { offeringId: offering.id, talentProfileId, nextTitle: offering.title });
       const { data, error } = await offeringsTable(admin)
         .update(patchForSave(patch, true))
         .eq("id", offering.id)
@@ -218,6 +221,8 @@ export async function upsertTalentOffering(
         return { ok: false, error: "Failed to save." };
       }
       saved = data as TalentOfferingRow | null;
+      // Only when the talent-scoped UPDATE matched a row (a foreign id returns saved = null).
+      if (slugRename && saved) await commitServiceSlugHistory(admin, slugRename);
     } else {
       // Count BEFORE the insert so a zero here means this row is the first
       // offering this profile has ever had. Counting afterwards would race

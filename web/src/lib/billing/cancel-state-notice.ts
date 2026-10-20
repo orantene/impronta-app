@@ -9,6 +9,7 @@
  * ledger. Pure: no Stripe, Supabase or Resend imports.
  */
 import type Stripe from "stripe";
+import { isCancellationPending } from "@/lib/billing/pending-cancellation";
 import { cancelStateSubject, renderCancelStateEmail } from "@/lib/email/subscription-cancel-state";
 
 export type CancelTransition = {
@@ -19,14 +20,28 @@ export type CancelTransition = {
   periodEnd: string | null;
 };
 
-/** Returns the transition when this event flipped cancel_at_period_end, else null. */
+/**
+ * Returns the transition when this event flipped the pending-cancellation
+ * state, else null. State = cancel_at_period_end OR a future cancel_at (the
+ * billing portal on API 2026-04-22.dahlia only sets cancel_at). The previous
+ * state is the current object overlaid with previous_attributes, judged at the
+ * event's own time so a replay decides the same way.
+ */
 export function detectCancelTransition(event: Stripe.Event): CancelTransition | null {
   if (event.type !== "customer.subscription.updated") return null;
   const prev = (event.data.previous_attributes ?? {}) as Partial<Stripe.Subscription>;
-  if (typeof prev.cancel_at_period_end !== "boolean") return null;
+  if (typeof prev.cancel_at_period_end !== "boolean" && !("cancel_at" in prev)) return null;
   const sub = event.data.object as Stripe.Subscription;
-  const now = sub.cancel_at_period_end === true;
-  if (now === prev.cancel_at_period_end) return null;
+  const at = typeof event.created === "number" ? new Date(event.created * 1000) : new Date();
+  const was = isCancellationPending(
+    {
+      cancel_at_period_end: prev.cancel_at_period_end ?? sub.cancel_at_period_end,
+      cancel_at: "cancel_at" in prev ? prev.cancel_at : sub.cancel_at,
+    },
+    at,
+  );
+  const now = isCancellationPending(sub, at);
+  if (now === was) return null;
   // A subscription that already ended has nothing to confirm.
   if (sub.status === "canceled" || sub.status === "incomplete_expired") return null;
   const end = sub.items?.data?.[0]?.current_period_end;

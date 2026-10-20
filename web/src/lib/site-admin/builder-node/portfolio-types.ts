@@ -16,6 +16,8 @@ export type TalentPortfolioShot = {
   offeringTitle?: string | null;
   /** Talent media album id from `media_assets.metadata.albumId`. */
   albumId?: string | null;
+  /** Contact-sheet filter tag (`metadata.tag` or an editor binding). */
+  tag?: string | null;
   width?: number | null;
   height?: number | null;
   sortOrder?: number;
