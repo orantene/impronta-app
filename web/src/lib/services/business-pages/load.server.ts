@@ -12,6 +12,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveEffectiveWorkspacePlanKey } from "@/lib/billing/effective-workspace-plan";
 import { loadNonMenuOfferingIds } from "@/lib/offerings/non-menu-offerings";
+import { isSellable, scopeToSellableOfferings } from "@/lib/offerings/sellable";
 import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { rowToOffering, type TalentOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 
@@ -45,8 +46,7 @@ export function pickBusinessServiceRow(
   const eligible = rows
     .filter((r) => r.tenant_id === tenantId && r.owner_kind === "workspace")
     .filter((r) => !nonMenuIds.has(String(r.id)))
-    .filter((r) => r.status === "published" && r.moderation_state === "approved")
-    .filter((r) => r.visibility === "public" || r.visibility === "on_request")
+    .filter((r) => isSellable(r, "guest_request"))
     .filter((r) => (PAGE_KINDS as readonly string[]).includes(r.kind as string))
     .sort((a, b) => String(a.id).localeCompare(String(b.id)));
   return eligible.find((r) => String(r.id).replace(/-/g, "").toLowerCase().startsWith(id8)) ?? null;
@@ -88,14 +88,10 @@ export async function loadBusinessServiceRows(
     const rows: BusinessServiceRow[] = [];
     for (let page = 0; page < MAX_PAGES; page += 1) {
       const from = page * PAGE;
-      const { data, error } = await db
-        .from("talent_offerings")
-        .select("*")
-        .eq("tenant_id", tenantId)
-        .eq("owner_kind", "workspace")
-        .eq("status", "published")
-        .eq("moderation_state", "approved")
-        .in("visibility", opts.publicOnly ? ["public"] : ["public", "on_request"])
+      const { data, error } = await scopeToSellableOfferings(
+        db.from("talent_offerings").select("*").eq("tenant_id", tenantId).eq("owner_kind", "workspace"),
+        opts.publicOnly ? "guest" : "guest_request",
+      )
         .in("kind", [...PAGE_KINDS])
         .order("sort_order", { ascending: true })
         .order("id", { ascending: true })
