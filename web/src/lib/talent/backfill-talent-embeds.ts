@@ -15,6 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { logServerError } from "@/lib/server/safe-error";
 import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 
 type RowWithTalent = { talent_profile_id?: string | null; talent_profiles?: unknown };
@@ -41,7 +42,12 @@ export async function backfillMissingTalentEmbeds(
   if (safe.length === 0) return;
   const client = await staffTalentClient(supabase);
   // `id` is always selected so rows can be matched back.
-  const { data } = await client.from("talent_profiles").select(`id, ${safe.join(", ")}`).in("id", ids);
+  const { data, error } = await client.from("talent_profiles").select(`id, ${safe.join(", ")}`).in("id", ids);
+  if (error) {
+    // Display only: leave the embeds empty rather than fail the screen.
+    logServerError("talent.backfillTalentEmbeds", error);
+    return;
+  }
   const byId = new Map<string, Record<string, unknown>>();
   for (const p of (data ?? []) as Array<Record<string, unknown>>) {
     const { id, ...rest } = p;

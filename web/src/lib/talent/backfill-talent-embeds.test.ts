@@ -106,7 +106,7 @@ test("no caller of the backfill asks for user_id (the client dashboard reaches t
     "src/app/(workspace)/[tenantSlug]/_data-bridge/inquiries-messages.ts",
   ]) {
     const src = readFileSync(join(process.cwd(), f), "utf8");
-    for (const m of src.matchAll(/backfillMissingTalentEmbeds\([^;]*?"([^"]*)"\s*\)/gs)) assert.doesNotMatch(m[1]!, /user_id/, f);
+    for (const m of src.matchAll(/backfillMissingTalentEmbeds\([^;]*?"([^"]*)"\s*\)/g)) assert.doesNotMatch(m[1]!, /user_id/, f);
   }
 });
 
