@@ -16,6 +16,7 @@ import { publicRequestSiteBase } from "@/lib/seo/request-base";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
+import { changelogPublicLaunch, changelogSitemapPaths } from "@/lib/marketing/changelog";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
 import {
   FEATURE_HUB_PATHS,
@@ -361,6 +362,8 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       "/resources",
       "/resources/glossary",
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
+      // TUL-1400: absent until CHANGELOG_PUBLIC_LAUNCH=1.
+      ...changelogSitemapPaths(changelogPublicLaunch()),
     ];
     // The feature hub is emitted separately from `marketingPaths`, because the
     // generic flatMap below assumes both locales share ONE path. These pages
