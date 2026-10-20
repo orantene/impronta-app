@@ -22,6 +22,7 @@ import {
   setDeliverableAmount,
 } from "@/lib/projects/project-ops";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
 import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "@/lib/sessions/session-ops";
 import { generateSessionsForSeries, upsertSessionSeries } from "@/lib/sessions/series-write";
@@ -154,12 +155,17 @@ export async function cancelBookingSetAction(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return cancelBookingSet(g.admin, {
+  const result = await cancelBookingSet(g.admin, {
     tenantId: g.tenantId,
     ...parsed.data,
     // Desk cancel: the signed-in staff member is the audit actor.
     actorUserId: g.userId,
   });
+  // Pay links come down and an unpaid order is voided; runs on a replay too.
+  if (result.ok) {
+    await settleCancelledBookingMoney(g.admin, { tenantId: g.tenantId, bookingId: parsed.data.bookingId, orderId: result.orderId });
+  }
+  return result;
 }
 
 export async function signBookingManageTokenAction(input: {
@@ -197,7 +203,7 @@ export async function cancelBookingByManageToken(input: {
   if (verified.payload.action !== "cancel") return { ok: false as const, reason: "token_invalid" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
-  return cancelBookingSet(admin, {
+  const result = await cancelBookingSet(admin, {
     tenantId: verified.payload.tenantId,
     bookingId: verified.payload.bookingId,
     operationKey: parsed.data.operationKey,
@@ -206,6 +212,15 @@ export async function cancelBookingByManageToken(input: {
     by: "client",
     actorUserId: null,
   });
+  // Same follow-up as every other cancel path: pay links dead, unpaid order voided.
+  if (result.ok) {
+    await settleCancelledBookingMoney(admin, {
+      tenantId: verified.payload.tenantId,
+      bookingId: verified.payload.bookingId,
+      orderId: result.orderId,
+    });
+  }
+  return result;
 }
 
 /**
