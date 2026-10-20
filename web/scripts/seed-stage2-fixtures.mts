@@ -14,17 +14,19 @@
  *
  * Run from web/: npx tsx scripts/seed-stage2-fixtures.mts --env-file <tmp> [--selftest | --apply --backup-file <f>]
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 
-import { STAGING_MARKER_AGENCY_ID, parseEnvText } from "./lib/group6-fixtures.mjs";
+import { STAGING_MARKER_AGENCY_ID, checkKeyFileMode, checkStripeKey, parseEnvText, parseKeyFileText } from "./lib/group6-fixtures.mjs";
 import { G6_REQUIRED, HUB_TENANT_ID } from "./lib/failed-cards-ops.mjs";
-import { checkS2Target, summarise } from "./lib/stage2-guards.mjs";
+import { checkS2Target, s2Id, summarise, triggerSideEffects } from "./lib/stage2-guards.mjs";
 import { S2_FIXTURES, buildStage2Plan, resolveStage2, verifyS2Plan } from "./lib/stage2-plan.mjs";
 import { readBack } from "./lib/stage2-readback.mjs";
+import { checkStripeSteps, describeS2Stripe, openTestStripe, runS2Stripe } from "./lib/stage2-stripe.mjs";
 import { SEED_CONFIG_PATH, loadSeedConfig, pinName, pwName, resolveSecrets, writeSeedConfig } from "./lib/stage2-secrets.mjs";
 
 type Row = Record<string, unknown>;
-type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; userId?: string; secretKey?: string; touchesExisting?: string };
+type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; userId?: string; secretKey?: string; touchesExisting?: string; natural?: string };
 type PgClient = { connect(): Promise<void>; query(text: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>; end(): Promise<void> };
 const PG_MODULE = "pg";
 const pgMod = (await import(PG_MODULE)) as { default: { Client: new (cfg: { connectionString?: string; ssl?: unknown }) => PgClient } };
@@ -43,14 +45,19 @@ const val = (n: string) => {
   const v = i >= 0 ? argv[i + 1] : undefined;
   return v && !v.startsWith("--") ? v : null;
 };
-const KNOWN = new Set(["--apply", "--cleanup", "--selftest", "--help", "-h", "--env-file", "--backup-file", "--only", "--stripe"]);
+const KNOWN = new Set(["--apply", "--cleanup", "--selftest", "--help", "-h", "--env-file", "--backup-file", "--only", "--stripe", "--stripe-key-file", "--stripe-mx-key-file"]);
 const unknown = argv.filter((a) => a.startsWith("-") && !KNOWN.has(a));
 if (flag("--help") || flag("-h")) {
   console.log("usage: seed-stage2-fixtures.mts [--env-file p] [--only T1,T2] [--selftest | --apply --backup-file p | --cleanup [--apply --backup-file p]]");
   process.exit(0);
 }
 if (unknown.length) die(`unknown argument ${unknown.join(" ")}`, 2);
-if (flag("--stripe")) die("the Stripe TEST step (Connect accounts + test clocks) is not built yet (push 3)", 2);
+const stripeSteps = val("--stripe")?.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean) ?? [];
+if (flag("--stripe") && !stripeSteps.length) die("--stripe needs a step list: T1,T4,CLOCKS", 2);
+const stepsVerdict = checkStripeSteps(stripeSteps);
+if (!stepsVerdict.ok) die(stepsVerdict.reason as string, 2);
+if (stripeSteps.length && (flag("--selftest") || flag("--cleanup"))) die("the Stripe TEST step never runs with --selftest or --cleanup", 2);
+if ((val("--stripe-key-file") || val("--stripe-mx-key-file")) && !stripeSteps.length) die("--stripe-key-file only applies with --stripe <steps>", 2);
 const apply = flag("--apply");
 const cleanupMode = flag("--cleanup");
 const selftest = flag("--selftest");
@@ -69,6 +76,30 @@ if (!targetVerdict.ok) die(`refusing to run:\n  - ${targetVerdict.reasons.join("
 
 const mode = cleanupMode ? (apply ? "cleanup-apply" : "cleanup-plan") : selftest ? "selftest" : apply ? "apply" : "plan";
 const sets = resolveStage2(only);
+// ------------------------------------------------------------------ Stripe TEST keys (only with --stripe; never printed)
+function readKeyFile(path: string | null, fallback: string | undefined, label: string): string | null {
+  if (!path) return fallback?.trim() || null;
+  const p = path.replace(/^~(?=\/|$)/, homedir());
+  let mode = 0;
+  try {
+    mode = statSync(p).mode;
+  } catch {
+    die(`${label}: cannot read ${p}`, 2);
+  }
+  const m = checkKeyFileMode(mode);
+  if (!m.ok) die(`${label}: ${m.reason}`, 2);
+  return parseKeyFileText(readFileSync(p, "utf8"));
+}
+let stripeKey: string | null = null;
+let stripeMxKey: string | null = null;
+if (stripeSteps.length) {
+  stripeKey = readKeyFile(val("--stripe-key-file"), env.STRIPE_SECRET_KEY, "--stripe-key-file");
+  stripeMxKey = readKeyFile(val("--stripe-mx-key-file"), env.STRIPE_MX_SECRET_KEY_TEST, "--stripe-mx-key-file");
+  for (const [k, label] of [[stripeKey, "Stripe key"], [stripeMxKey, "MX Stripe key"]] as const) {
+    if (k && !checkStripeKey(k).ok) die(`${label}: ${checkStripeKey(k).reason}`, 2);
+  }
+}
+
 const client = new pgMod.default.Client({ connectionString: env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 await client.connect();
 const q = (text: string, params: unknown[] = []) => client.query(text, params);
@@ -154,17 +185,19 @@ async function writableCols(table: string): Promise<string[]> {
 }
 
 async function execClone(op: Op) {
-  const tpl = op.template as { id: string };
+  const tpl = op.template as { id?: string | null; whereInquiry?: string };
+  const where = tpl.id ? "s.id = $1" : "s.inquiry_id = $1";
+  const tplKey = tpl.id ?? tpl.whereInquiry;
   const cols = (await writableCols(op.table)).map((c) => `"${c}"`).join(",");
   const r = await q(
-    `insert into ${op.table} (${cols}) select ${cols} from (select r.* from ${op.table} s, json_populate_record(null::${op.table}, (to_jsonb(s) || $2::jsonb)::json) r where s.id = $1 limit 1) t on conflict (id) do nothing`,
-    [tpl.id, J(op.row)],
+    `insert into ${op.table} (${cols}) select ${cols} from (select r.* from ${op.table} s, json_populate_record(null::${op.table}, (to_jsonb(s) || $2::jsonb)::json) r where ${where} limit 1) t on conflict (id) do nothing`,
+    [tplKey, J(op.row)],
   );
   if ((r.rowCount ?? 0) > 0) {
     bump(op.table, "created");
     created.add(op.id as string);
   } else {
-    if (!(await q(`select 1 from ${op.table} where id = $1`, [op.id])).rowCount) throw new Error(`${op.fx} ${op.table} ${op.key}: template ${tpl.id} not found, nothing inserted`);
+    if (!(await q(`select 1 from ${op.table} where id = $1`, [op.id])).rowCount) throw new Error(`${op.fx} ${op.table} ${op.key}: template ${tplKey} not found, nothing inserted`);
     bump(op.table, "existed");
   }
 }
@@ -297,12 +330,21 @@ async function cleanup(ops: Op[], record: boolean) {
   await assertNoSalesHistory(ops);
   const eventIds = ops.filter((o) => o.table === "public.events" && o.kind !== "update").map((o) => o.id as string);
   if (eventIds.length) await q("update public.events set status = 'draft', published_at = null where id = any($1::uuid[]) and status <> 'cancelled'", [eventIds]); // draft-only delete rule; zero admissions proven above
+  // inquiries.current_offer_id points at an offer that is itself a child of the inquiry: break the cycle before the purge (same as #4048).
+  const inquiryIds = ops.filter((o) => o.table === "public.inquiries" && o.kind !== "update").map((o) => o.id as string);
+  if (inquiryIds.length) await q("update public.inquiries set status = 'closed', current_offer_id = null where id = any($1::uuid[])", [inquiryIds]);
   const roots = [...ops].reverse().filter((o) => o.id && (o.kind === "insert" || o.kind === "clone") && !NO_DESCENT.has(o.table));
   const seen = new Set<string>();
   for (const o of roots) {
     if (seen.has(o.id as string)) continue;
     seen.add(o.id as string);
     await purge(o.table, "id", [o.id as string], 0, record);
+  }
+  // Rows keyed by an @example.test natural key (no id): delete exactly those.
+  for (const o of ops.filter((x) => x.natural)) {
+    const col = o.natural as string;
+    const del = await q(`delete from ${o.table} where ${col} = $1`, [(o.row as Row)[col]]);
+    purged += del.rowCount ?? 0;
   }
   const users = ops.filter((o) => o.kind === "authUser").map((o) => o.id as string);
   await purge("public.profiles", "id", users, 0, record);
@@ -317,6 +359,13 @@ async function presentCount(ops: Op[]) {
     const table = op.kind === "authUser" ? "auth.users" : op.table;
     const r = await q(`select count(*)::int n from ${table} where id = $1`, [op.id]);
     const t = (byTable[table] ??= { n: 0, of: 0 });
+    t.of += 1;
+    t.n += r.rows[0].n as number;
+  }
+  for (const op of ops.filter((o) => o.natural)) {
+    const col = op.natural as string;
+    const r = await q(`select count(*)::int n from ${op.table} where ${col} = $1`, [(op.row as Row)[col]]);
+    const t = (byTable[op.table] ??= { n: 0, of: 0 });
     t.of += 1;
     t.n += r.rows[0].n as number;
   }
@@ -337,7 +386,9 @@ const COUNT_TABLES = [
   "public.links", "public.visits", "public.pos_devices", "public.pos_shifts", "public.capacity_pools", "public.talent_offerings", "public.talent_offering_variants",
   "public.talent_offering_addons", "public.offering_components", "public.events", "public.tenant_promo_codes",
   "public.sessions", "public.session_series", "public.offering_price_phases", "public.talent_profiles", "public.agency_talent_roster",
-  "public.talent_booking_hours", "public.payout_accounts", "public.space_group_members",
+  "public.talent_booking_hours", "public.payout_accounts", "public.space_group_members", "public.promo_targets", "public.customers",
+  "public.guest_email_unsubscribes", "public.account_deletion_requests", "public.inquiries", "public.inquiry_requirement_groups",
+  "public.inquiry_participants", "public.inquiry_offers", "public.inquiry_offer_line_items",
 ];
 async function tableCounts() {
   const out: Record<string, number> = {};
@@ -392,6 +443,41 @@ async function schemaAndCollisions(ops: Op[]) {
   return problems;
 }
 
+// ------------------------------------------------------------------ Stripe TEST step (separate flag; --apply writes, plan only previews)
+async function stripeClients() {
+  const { default: Stripe } = await import("stripe");
+  const us = stripeKey ? await openTestStripe(Stripe, stripeKey) : null; // sk_test_ AND /v1/balance livemode=false
+  const mx = stripeMxKey ? await openTestStripe(Stripe, stripeMxKey) : null;
+  return { us, mx };
+}
+
+async function stripePreflight() {
+  const have: { usKey: boolean; mxKey: boolean; accounts: Record<string, boolean>; clocks: Record<string, boolean> } = { usKey: Boolean(stripeKey), mxKey: Boolean(stripeMxKey), accounts: {}, clocks: {} };
+  if (stripeKey || stripeMxKey) {
+    await stripeClients();
+    console.log(`${TAG} Stripe preflight (read-only; each key is sk_test_ and /v1/balance livemode=false)`);
+    for (const t of ["T1", "T4"] as const) {
+      const wsRow = await q("select stripe_account_id from public.agencies where id = $1", [s2Id(t === "T1" ? "workspace:t1" : "workspace:t4")]);
+      have.accounts[t] = Boolean(wsRow.rows[0]?.stripe_account_id);
+    }
+  }
+  for (const l of describeS2Stripe(stripeSteps, have)) console.log(`  ${l}`);
+}
+
+async function stripeApply() {
+  const stripes = await stripeClients();
+  if (!stripes.us && !stripes.mx) die("--stripe needs a TEST key (--stripe-key-file or STRIPE_SECRET_KEY; MX: --stripe-mx-key-file or STRIPE_MX_SECRET_KEY_TEST)", 2);
+  await q("begin");
+  try {
+    await runS2Stripe(stripeSteps, stripes, { q, updateOwned, log: (m: string) => console.log(`${TAG} ${m}`) });
+    saveBackup();
+    await q("commit");
+  } catch (e) {
+    await q("rollback").catch(() => undefined);
+    throw e;
+  }
+}
+
 // ------------------------------------------------------------------ main
 async function main() {
   console.log(`${TAG} target OK (staging fxlankepwnvelxjrahwk). mode=${mode} clusters=${sets.join(",")}`);
@@ -416,9 +502,12 @@ async function main() {
     const touching = ops.filter((o) => o.touchesExisting);
     console.log(`${TAG} touches pre-existing TAL-93900 (additive new rows only, no updates): ${touching.length}`);
     for (const o of touching) console.log(`  ${o.table.padEnd(30)} ${o.key}`);
+    console.log(`${TAG} trigger side effects (rows the database itself writes):`);
+    for (const t of triggerSideEffects(ops)) console.log(`  ${t.table.padEnd(46)} ${String(t.rows).padStart(3)}  ${t.note}`);
     for (const n of plan.notes) console.log(`${TAG} note: ${n}`);
     for (const b of plan.blocked) console.log(`${TAG} BLOCKED by held migration ${b.version} (${b.file}): ${b.item}`);
     for (const n of plan.notBuilt) console.log(`${TAG} NOT BUILT yet [${n.id}] ${n.what} (${n.why})`);
+    if (stripeSteps.length) await stripePreflight();
     await q("rollback");
     console.log(mode === "plan" ? `${TAG} DRY RUN: nothing written.` : `${TAG} cleanup plan only: nothing deleted.`);
     if (problems) process.exitCode = 1;
@@ -474,6 +563,7 @@ async function main() {
     saveBackup();
     await q("commit");
     console.log(`${TAG} COMMITTED. backup: ${backupFile} (${backup.updated.length} pre-existing rows changed)`);
+    if (stripeSteps.length) await stripeApply();
   } catch (e) {
     await q("rollback").catch(() => undefined);
     throw e;

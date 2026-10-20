@@ -51,8 +51,19 @@ const FK = {
   "public.agency_talent_roster.tenant_id": "public.agencies", "public.agency_talent_roster.talent_profile_id": "public.talent_profiles",
   "public.talent_booking_hours.talent_profile_id": "public.talent_profiles", "public.talent_booking_hours.tenant_id": "public.agencies",
   "public.payout_accounts.tenant_id": "public.agencies",
+  "public.tenant_promo_codes.event_id": "public.events", "public.tenant_promo_codes.variant_id": "public.talent_offering_variants",
+  "public.promo_targets.promo_id": "public.tenant_promo_codes",
+  "public.customers.tenant_id": "public.agencies", "public.customers.user_id": "auth.users",
+  "public.inquiries.tenant_id": "public.agencies", "public.inquiries.source_workspace_id": "public.agencies", "public.inquiries.client_user_id": "auth.users",
+  "public.inquiries.owner_user_id": "auth.users", "public.inquiries.customer_id": "public.customers",
+  "public.inquiry_requirement_groups.inquiry_id": "public.inquiries", "public.inquiry_requirement_groups.tenant_id": "public.agencies",
+  "public.inquiry_participants.inquiry_id": "public.inquiries", "public.inquiry_participants.requirement_group_id": "public.inquiry_requirement_groups",
+  "public.inquiry_participants.tenant_id": "public.agencies", "public.inquiry_participants.user_id": "auth.users",
+  "public.inquiry_offers.inquiry_id": "public.inquiries", "public.inquiry_offers.created_by_user_id": "auth.users",
+  "public.inquiry_offer_line_items.offer_id": "public.inquiry_offers", "public.inquiry_offer_line_items.owner_tenant_id": "public.agencies",
+  "public.inquiry_offer_line_items.source_service_id": "public.talent_offerings",
 };
-const CLUSTERS = [["T1"], ["T2"], ["T3"], ["T4"], ["T5"], ["EV"], null];
+const CLUSTERS = [["T1"], ["T2"], ["T3"], ["T4"], ["T5"], ["EV"], ["PR"], ["CU"], ["MO"], null];
 
 test("every cluster, alone and together, inserts the row a foreign key points at BEFORE the row that points at it", () => {
   for (const only of CLUSTERS) {
@@ -76,7 +87,7 @@ test("the FK map covers every id-valued column in the plan, and each points at t
       assert.equal(made.get(v), FK[k], `${k} points at ${made.get(v)}, the map says ${FK[k]}`);
     }
   }
-  assert.ok(seen.size >= 45, `${seen.size} FK columns exercised`);
+  assert.ok(seen.size >= 60, `${seen.size} FK columns exercised`);
   for (const k of NOT_FK) assert.match(k, /^public\./);
 });
 

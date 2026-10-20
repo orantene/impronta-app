@@ -1,0 +1,188 @@
+{
+  "config": {
+    "currency": {
+      "code": "MXN"
+    },
+    "defaultLanguage": "es"
+  },
+  "catalog": {
+    "categories": [
+      {
+        "id": "cat-antojitos",
+        "translations": {
+          "es": {
+            "name": "Antojitos"
+          },
+          "en": {
+            "name": "Snacks"
+          }
+        },
+        "priceTypes": {}
+      },
+      {
+        "id": "cat-sopes",
+        "translations": {
+          "es": {
+            "name": "Sopes"
+          },
+          "en": {
+            "name": "Sopes"
+          }
+        },
+        "priceTypes": {
+          "ped3": {
+            "name": {
+              "es": "Orden de 3",
+              "en": "Order of 3"
+            }
+          },
+          "ped5": {
+            "name": {
+              "es": "Orden de 5",
+              "en": "Order of 5"
+            }
+          }
+        }
+      },
+      {
+        "id": "cat-bebidas",
+        "translations": {
+          "es": {
+            "name": "Bebidas"
+          },
+          "en": {
+            "name": "Drinks"
+          }
+        },
+        "priceTypes": {}
+      }
+    ],
+    "products": [
+      {
+        "id": "p-alambre",
+        "enabled": true,
+        "categoryId": "cat-antojitos",
+        "translations": {
+          "es": {
+            "name": "Alambre mixto",
+            "description": "Res, tocino, queso y pimiento."
+          },
+          "en": {
+            "name": "Mixed alambre",
+            "description": "Beef, bacon, cheese and pepper."
+          }
+        },
+        "prices": {
+          "default": 15500
+        },
+        "modifiers": [
+          {
+            "id": "m-queso",
+            "name": {
+              "es": "Queso extra",
+              "en": "Extra cheese"
+            },
+            "price": 1500,
+            "priceAction": "add"
+          }
+        ]
+      },
+      {
+        "id": "p-torta",
+        "enabled": true,
+        "categoryId": "cat-antojitos",
+        "translations": {
+          "es": {
+            "name": "Torta cubana",
+            "description": "Pierna, jamón y salchicha."
+          },
+          "en": {
+            "name": "Cuban sandwich",
+            "description": "Pork leg, ham and sausage."
+          }
+        },
+        "prices": {
+          "default": 9800
+        },
+        "modifiers": []
+      },
+      {
+        "id": "p-quesadilla",
+        "enabled": true,
+        "categoryId": "cat-antojitos",
+        "translations": {
+          "es": {
+            "name": "Quesadilla de flor",
+            "description": "Flor de calabaza y queso Oaxaca."
+          },
+          "en": {
+            "name": "Squash blossom quesadilla",
+            "description": "Squash blossom and Oaxaca cheese."
+          }
+        },
+        "prices": {
+          "default": 7200
+        },
+        "modifiers": []
+      },
+      {
+        "id": "p-sopes",
+        "enabled": true,
+        "categoryId": "cat-sopes",
+        "translations": {
+          "es": {
+            "name": "Sopes de frijol",
+            "description": "Frijol, crema y queso fresco."
+          },
+          "en": {
+            "name": "Bean sopes",
+            "description": "Beans, cream and fresh cheese."
+          }
+        },
+        "prices": {
+          "ped3": 6500,
+          "ped5": 10000
+        },
+        "modifiers": []
+      },
+      {
+        "id": "p-tamarindo",
+        "enabled": true,
+        "categoryId": "cat-bebidas",
+        "translations": {
+          "es": {
+            "name": "Agua de tamarindo",
+            "description": "Agua fresca de tamarindo."
+          },
+          "en": {
+            "name": "Tamarind water",
+            "description": "Fresh tamarind water."
+          }
+        },
+        "prices": {
+          "default": 4500
+        },
+        "modifiers": []
+      },
+      {
+        "id": "p-atole",
+        "enabled": true,
+        "categoryId": "cat-bebidas",
+        "translations": {
+          "es": {
+            "name": "Atole de vainilla",
+            "description": "Atole caliente de vainilla."
+          },
+          "en": {
+            "name": "Vanilla atole",
+            "description": "Warm vanilla atole."
+          }
+        },
+        "prices": {
+          "default": 3800
+        },
+        "modifiers": []
+      }
+    ]
+  }
+}

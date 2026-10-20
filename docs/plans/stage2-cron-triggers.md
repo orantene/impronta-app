@@ -33,7 +33,7 @@ The Stage 2 seed does not seed cron results. The crons below are run by the test
 | Path | `/api/cron/promo-hold-sweep` |
 | Schedule | `*/10 * * * *` |
 | What | Releases expired promo redemption holds, then clears the stale `show_on_site` flag on promos that ended or were archived. |
-| Seeded data | The promos arrive in push 3 (codes incl. the max-1 and max-3 race codes). Until then only `FONDA10` (T2) exists. |
+| Seeded data | T1 promos: `RACE1` (max 1) and `RACE3` (max 3) for the hold race, `LUNES30`, `FRIDAY30`, the automatic 20% / 50% / 30% (cap 200, MXN 5,000 budget) and the non-alcoholic happy hour; T2 `FONDA10`. Take a hold (start a checkout with a code), let it expire, then run the sweep. |
 | Read back | JSON `{ ok, released, showOnSiteCleared, showOnSiteFailed }`. Take a hold, let it expire, run: `released` counts it; seat counts already ignore expired holds, so a late run never blocks a buyer. |
 
 ## 4. booking-reminders
@@ -53,6 +53,9 @@ The Stage 2 seed does not seed cron results. The crons below are run by the test
 | What | Cancels draft and pending_payment orders whose hold or idle fuse lapsed; recovers card collections whose response was lost (asks the provider first); reaps collection reservations, payment links, waitlist offers, party waitlist entries and admission holds. |
 | Seeded data | None. Start a checkout and abandon it (QR menu on `s2-cantina-t1`, or a DJ ticket) so a hold exists. |
 | Read back | The JSON counts (orders expired, `reservationsReleased`, `paymentLinksExpired`, `waitlistOffersReleased`, `partyWaitlistExpired`, `admissionHoldsReleased`). Capacity is returned by capacity's own reaper; this job moves the ORDER so it does not sit in pending_payment. |
+
+## Also seeded for a cron: process-account-deletions
+`/api/cron/process-account-deletions` (`40 4 * * *`, same bearer header, env var name `CRON_SECRET`) executes self-serve account deletions whose 14-day grace has passed. The seed plants one pending request already past its grace for the login `s2-c-delete@example.test` (T1 customer "Daniel Baja"); run the job to see the account, profile and customer link removed, and run it again to see nothing change. Do not run it before the other lanes if they need that login.
 
 ## Cleanup note
 `--cleanup` of the seed refuses once orders, tickets, redemptions or committed seats exist on a fixture tenant, so run the crons and the QA purchases first, record the evidence, then cancel and refund in the app before teardown.

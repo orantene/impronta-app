@@ -44,9 +44,9 @@ test("ids are deterministic (s2Id of the key), unique, and outside the Group-6 a
 });
 
 test("every cluster is built, and the build says what it did not seed", () => {
-  assert.deepEqual(S2_FIXTURES, ["T1", "T2", "T3", "T4", "T5", "EV"]);
+  assert.deepEqual(S2_FIXTURES, ["T1", "T2", "T3", "T4", "T5", "EV", "PR", "CU", "MO"]);
   const p = plan();
-  assert.ok(p.notBuilt.length >= 5);
+  assert.ok(p.notBuilt.length >= 3);
   assert.ok(p.notBuilt.every((n) => n.id && n.what && n.why));
   assert.deepEqual(plan(() => true, NOW, ["T2"]).ops.filter((o) => o.fx === "T1"), []);
 });
@@ -84,7 +84,7 @@ test("@example.test mailboxes only, and every slug / host / link code / event sl
   assert.equal(isExampleTestEmail("s2-t1-owner@example.test"), true);
   for (const bad of ["a@gmail.com", "a@example.com", "a@impronta.test", "x@example.test.evil.com", "tulalaqa+x@mail.grokbot.com"]) assert.equal(isExampleTestEmail(bad), false, bad);
   const emails = list.filter((o) => o.kind === "authUser").map((o) => o.row.email);
-  assert.equal(emails.length, T1_STAFF.length + 2 + 3 + 3 + 2);
+  assert.equal(emails.length, T1_STAFF.length + 2 + 3 + 3 + 2 + 2);
   assert.ok(emails.every(isExampleTestEmail));
   assert.ok(JSON.stringify(list).match(/@[a-z0-9.-]+/g).every((m) => m === "@example.test"));
   const slugs = list.flatMap((o) => ["slug", "hostname", "tenant_slug", "code"].map((c) => (o.table === "public.links" || c !== "code" ? o.row?.[c] : undefined)).filter(Boolean));
@@ -119,7 +119,7 @@ test("no public title, name, label, description or category says QA / test / E2E
   const mutated = list.map((o) => (o.key === "offering:t1-burrito" ? { ...o, row: { ...o.row, title: "QA Burrito" } } : o));
   assert.equal(publicCopyProblems(mutated).length, 1);
   const names = list.filter((o) => o.kind === "update" && o.table === "public.profiles").map((o) => o.set.display_name);
-  assert.ok(names.length === T1_STAFF.length + 2 + 3 + 3 + 2);
+  assert.ok(names.length === T1_STAFF.length + 2 + 3 + 3 + 2 + 2);
 });
 
 test("credentials: generated, written only to a gitignored mode-600 local file, never in the plan, rows, logs or backups", () => {
@@ -169,7 +169,8 @@ test("cleanup covers every inserted id, every written table is drift-counted, an
     if (!o.id || o.kind === "update" || o.kind === "pin") continue;
     assert.ok(roots.has(o.id) || users.has(o.id) || (NO_DESCENT.has(o.table) && workspaces.has(o.row.tenant_id)), `${o.table} ${o.key} is not reachable by --cleanup`);
   }
-  for (const o of list.filter((x) => !x.id)) assert.ok(Object.values(o.row).some((v) => roots.has(v)), `${o.table} ${o.key} hangs off no fixture row`);
+  for (const o of list.filter((x) => !x.id && !x.natural)) assert.ok(Object.values(o.row).some((v) => roots.has(v)), `${o.table} ${o.key} hangs off no fixture row`);
+  for (const o of list.filter((x) => x.natural)) assert.ok(/ops\.filter\(\(x\) => x\.natural\)/.test(source) && source.includes("delete from ${o.table} where ${col} = $1"), `${o.key}: natural-key rows are deleted by cleanup`);
   const counted = source.slice(source.indexOf("const COUNT_TABLES"), source.indexOf("];", source.indexOf("const COUNT_TABLES")));
   for (const t of new Set(list.filter((o) => o.kind !== "authUser" && o.kind !== "update" && o.kind !== "pin").map((o) => o.table))) assert.ok(counted.includes(`"${t}"`), `${t} missing from COUNT_TABLES`);
   const body = source.slice(source.indexOf("async function cleanup("), source.indexOf("async function presentCount"));
@@ -186,7 +187,7 @@ test("the guards run before EVERY write batch, and the Stripe step refuses until
   const guards = source.slice(source.indexOf("async function assertBatchGuards"), source.indexOf("async function context"));
   for (const frag of ["checkS2Target(env)", "STAGING_MARKER_AGENCY_ID", "verifyS2Plan(ops", "qa-[1-6]"]) assert.ok(guards.includes(frag), frag);
   assert.match(source, /--stripe/);
-  assert.match(source, /not built yet/);
+  assert.match(source, /the Stripe TEST step never runs with --selftest or --cleanup/);
   assert.ok(source.indexOf("checkS2Target(env)") < source.indexOf("pgMod.default.Client("), "the target check precedes any connection");
 });
 
@@ -267,11 +268,11 @@ test("held-migration columns: built only when the live schema has them, otherwis
   assert.equal(HELD.posEnabled.version, "20261231417300");
   assert.ok(existsSync(join(WEB, "..", HELD.posEnabled.file)), `${HELD.posEnabled.file} exists in the repo`);
   const without = plan(() => false);
-  assert.equal(without.blocked.length, 1);
-  assert.equal(without.blocked[0].version, "20261231417300");
+  const pos = (r) => r.blocked.filter((b) => b.version === "20261231417300");
+  assert.equal(pos(without).length, 1);
   assert.equal(without.ops.some((o) => o.key === "offering:t1-solo-linea"), false);
   const withCol = plan((c) => c === "talent_offerings.pos_enabled");
-  assert.equal(withCol.blocked.length, 0);
+  assert.equal(pos(withCol).length, 0);
   assert.equal(byKey(withCol.ops, "offering:t1-solo-linea").row.pos_enabled, false);
 });
 

@@ -22,7 +22,7 @@ test("the whole 2b plan passes its guards; T4 is a cluster of its own", () => {
   const all = ops();
   assert.deepEqual(verifyS2Plan(all, GUARD).problems, []);
   assert.ok(all.length > 330, `${all.length} ops`);
-  assert.equal(all.filter((o) => o.kind === "update" && o.table !== "public.profiles" && o.kind !== "pin").length, 0, "no update besides the trigger-made profile rows (and the PIN on the seed's own workspace)");
+  assert.equal(all.filter((o) => o.kind === "update" && o.table !== "public.profiles" && o.table !== "public.inquiries" && o.kind !== "pin").length, 0, "no update besides the trigger-made profile rows (and the PIN on the seed's own workspace)");
 });
 
 test("T4 US salon: USD, New York, English first, staff, two stylists with hours, four USD services, no payout or Stripe row", () => {

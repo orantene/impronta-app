@@ -66,6 +66,25 @@ CHECKS.EV = [
   ["event offerings are workspace-owned packages (never menu items)", "select count(*)::int n from public.events e join public.talent_offerings o on o.id = e.offering_id where e.tenant_id = $1 and e.status = 'published' and o.kind = 'package' and o.owner_kind = 'workspace'", [T1], 5],
 ];
 
+const pr = (k) => s2Id(`promo:${k}`);
+CHECKS.PR = [
+  ["promos on T1: 15 rows, 10 with a code", "select (select count(*) from public.tenant_promo_codes where tenant_id = $1)::int * 100 + (select count(*) from public.tenant_promo_codes where tenant_id = $1 and code is not null)::int n", [T1], 1510],
+  ["race codes: RACE1 capped at 1, RACE3 at 3", "select count(*)::int n from public.tenant_promo_codes where tenant_id = $1 and ((upper(code) = 'RACE1' and max_redemptions = 1) or (upper(code) = 'RACE3' and max_redemptions = 3))", [T1], 2],
+  ["Monday burrito: fixed price 3000 on the burrito only, Mondays", "select count(*)::int n from public.tenant_promo_codes p join public.promo_targets t on t.promo_id = p.id where p.id = $1 and p.offer_kind = 'fixed_price' and p.value = 3000 and p.weekdays = array[1]::smallint[] and t.target_id = $2", [pr("t1-lunes-burrito"), s2Id("offering:t1-burrito")], 1],
+  ["30% whole menu: cap 200, MXN 5,000 budget, targets present and none is alcoholic", "select (select count(*) from public.tenant_promo_codes where id = $1 and max_redemptions = 200 and budget_cap_cents = 500000)::int * 100 + (select (count(*) > 0)::int from public.promo_targets where promo_id = $1) * 10 + (select (count(*) = 0)::int from public.promo_targets t join public.talent_offerings o on o.id = t.target_id where t.promo_id = $1 and o.attributes->>'alcohol' = 'true') n", [pr("t1-menu30")], 111],
+  ["happy hour (T1 + T5): 4 targets, every one non-alcoholic", "select (select count(*) from public.promo_targets where promo_id = any($1::uuid[]))::int * 10 + (select count(*) from public.promo_targets t join public.talent_offerings o on o.id = t.target_id where t.promo_id = any($1::uuid[]) and o.attributes->>'alcohol' <> 'false')::int n", [[pr("t1-happy"), pr("t5-happy")]], 40],
+  ["states: paused, expired, paid-plan-only (audience, no end), variant-scoped, legacy event_id", "select (select count(*) from public.tenant_promo_codes where id = $1 and is_paused)::int + (select count(*) from public.tenant_promo_codes where id = $2 and ends_at < now())::int + (select count(*) from public.tenant_promo_codes where id = $3 and audience = 'new_clients' and unlock = 'auto' and ends_at is null)::int + (select count(*) from public.tenant_promo_codes where id = $4 and event_id is not null and variant_id is not null)::int + (select count(*) from public.tenant_promo_codes where id = $5 and event_id is not null and variant_id is null)::int n", [pr("t1-paused"), pr("t1-expired"), pr("t1-nuevos"), pr("t1-vip-dj"), pr("t1-legacy-event")], 5],
+];
+CHECKS.CU = [
+  ["customers: T1 has 6, the shared email is in both the T3 agency and the T4 salon, the household phone sits on one row", "select (select count(*) from public.customers where tenant_id = $1)::int * 100 + (select count(*) from public.customers where tenant_id = any($2::uuid[]) and email = $3)::int * 10 + (select count(*) from public.customers where tenant_id = $1 and phone_e164 = $4)::int n", [T1, [T3, T4], "s2-c-shared@example.test", "+529981230001"], 621],
+  ["unsubscribe: a guest_email_unsubscribes row (unsubscribed) plus the matching customer", "select count(*)::int n from public.guest_email_unsubscribes u join public.customers c on lower(c.email::text) = u.email_normalized where u.email_normalized = 's2-c-unsub@example.test' and u.unsubscribed_at is not null and c.tenant_id = $1", [T1], 1],
+  ["account deletion: a confirmed login with a pending request already past its grace", "select count(*)::int n from public.account_deletion_requests r join auth.users u on u.id = r.user_id where r.id = $1 and r.status = 'pending' and r.scheduled_for < now() and u.email_confirmed_at is not null", [s2Id("deletion:c-delete")], 1],
+  ["verified account: confirmed login linked to its customer row", "select count(*)::int n from public.customers c join auth.users u on u.id = c.user_id where c.id = $1 and u.email_confirmed_at is not null", [s2Id("customer:verified")], 1],
+];
+CHECKS.MO = [
+  ["catering inquiry: offer sent with a 30% deposit, a catalog house line, a client and a house participant", "select (select count(*) from public.inquiries i join public.inquiry_offers o on o.id = i.current_offer_id where i.id = $1 and i.tenant_id = $2 and o.status = 'sent' and o.deposit_pct = 30 and o.deposit_amount_cents = 149400)::int * 100 + (select count(*) from public.inquiry_offer_line_items where offer_id = $3 and owner_tenant_id = $2 and talent_profile_id is null and source_service_id = $4)::int * 10 + (select count(*) from public.inquiry_participants where inquiry_id = $1 and role::text in ('house','client'))::int n", [s2Id("inquiry:t1-catering"), T1, s2Id("offer:t1-catering"), s2Id("offering:t1-tacos-exp")], 112],
+];
+
 export async function readBack(q, sets) {
   const lines = [];
   let failures = 0;

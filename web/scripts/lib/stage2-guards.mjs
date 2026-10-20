@@ -33,7 +33,7 @@ export const TEST_WORD = /qa|test|e2e/i;
 /** Words that make an item alcoholic: none may appear in a deal / 2x1 / happy-hour item (PM rule O6). */
 export const ALCOHOL_WORD = /margarita|cerveza|beer|mezcal|tequila|vino|wine|whisk|vodka|cocktail|michelada|\bron\b|\bgin\b|licor|sangr/i;
 
-const EMAIL_COLS = new Set(["email", "contact_email", "payer_email", "holder_email", "notification_email", "recipient_email", "to_email"]);
+const EMAIL_COLS = new Set(["email", "contact_email", "payer_email", "holder_email", "notification_email", "recipient_email", "to_email", "email_normalized"]);
 const SLUG_COLS = new Set(["slug", "site_slug", "tenant_slug", "hostname"]);
 
 /** Tables whose title / name / label / description / category are shown to the public. */
@@ -67,7 +67,8 @@ export function checkS2Plan(ops, { fixtureIds = new Set(), tenantIds = new Set()
     } else if (op.id && !fixtureIds.has(op.id)) problems.push(`${where}: insert id is not a deterministic fixture id`);
     else if (!op.id) {
       const refs = Object.values(op.row ?? {}).some((v) => typeof v === "string" && fixtureIds.has(v));
-      if (!refs) problems.push(`${where}: row without an id does not reference a fixture row`);
+      const natural = op.natural && isExampleTestEmail(op.row?.[op.natural]);
+      if (!refs && !natural) problems.push(`${where}: row without an id does not reference a fixture row (or name an @example.test natural key)`);
     }
     if (op.id && op.kind !== "update" && op.kind !== "pin" && op.kind !== "authUser" && op.id !== s2Id(op.key)) problems.push(`${where}: id is not s2Id(key)`);
     const values = { ...(op.row ?? {}), ...(op.set ?? {}), ...(op.merge ?? {}) };
@@ -163,4 +164,21 @@ export function summarise(ops) {
     else t.insert += 1;
   }
   return out;
+}
+
+/**
+ * Rows the DATABASE writes by itself when this plan runs (triggers), counted from the plan so PM's shared-row note and the cleanup accounting
+ * cover them. The roster figure is inferred from the Conductor's selftest delta (+6 roster rows for 3 new talents = 3 explicit + 3 trigger).
+ * Cleanup removes them: roster rows hang off the talent (FK descent) and profiles go with their login.
+ */
+export function triggerSideEffects(ops) {
+  const users = ops.filter((o) => o.kind === "authUser").length;
+  const talents = ops.filter((o) => o.table === "public.talent_profiles" && o.kind === "insert").length;
+  const reservationTenants = new Set(ops.filter((o) => o.table === "public.venue_service_rules" && o.row?.is_active).map((o) => o.row.tenant_id)).size;
+  return [
+    { table: "auth.identities", rows: users, note: "written explicitly by the seed with each login" },
+    { table: "public.profiles", rows: users, note: "made by the signup trigger; the seed then UPDATES these rows (its own)" },
+    { table: "public.agency_talent_roster", rows: talents, note: "hub roster auto-enroll, one per new talent (the selftest delta of +6 for 3 talents = 3 explicit roster rows + 3 trigger rows); cleanup removes them through the talent" },
+    { table: "public.agencies (takes_reservations flag)", rows: reservationTenants, note: "trigger on venue_service_rules flips the flag on the seed's own workspace" },
+  ];
 }

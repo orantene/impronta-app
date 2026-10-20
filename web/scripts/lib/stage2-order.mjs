@@ -11,6 +11,9 @@
 export const NOT_FK = new Set([
   "public.capacity_pools.subject_id", // polymorphic: offering / session / space / space_group, no constraint
   "public.offering_price_phases.variant_id", // plain uuid, no constraint
+  "public.promo_targets.target_id", // polymorphic (service / product / addon)
+  "public.inquiry_participants.owning_party_id", // polymorphic (workspace / agency)
+  "public.account_deletion_requests.user_id", // no FK on purpose: the row outlives the auth user
 ]);
 
 const isId = (v) => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
@@ -33,6 +36,10 @@ export function dependencies(ops) {
       const c = made.get(op.id);
       if (c !== undefined && c !== i) deps.add(c);
       if (op.userId && made.has(op.userId)) deps.add(made.get(op.userId));
+      for (const v of Object.values(op.set ?? {})) {
+        const c = isId(v) ? made.get(v) : undefined;
+        if (c !== undefined && c !== i) deps.add(c);
+      }
     }
     for (const [col, v] of Object.entries(op.row ?? {})) {
       if (NOT_FK.has(`${op.table}.${col}`) || !isId(v) || v === op.id) continue;
