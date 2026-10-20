@@ -30,6 +30,7 @@ import type {
   TenantCommercialTerms,
 } from "@/lib/billing/commercial-terms-types";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { WORKSPACE_MONEY_GATES } from "@/lib/billing/workspace-money-gates";
 
 const REFUND_POLICY_KEYS = ["tiered", "flexible", "strict", "manual"] as const;
 
@@ -124,7 +125,9 @@ export async function updateTenantCommercialTerms(
 ): Promise<UpdateTenantCommercialTermsResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1269 M2: deposit %, refund policy and instant book are workspace
+  // settings (owner/admin), not something every staff member may change.
+  const auth = await requireWorkspaceStaffAction({ capability: WORKSPACE_MONEY_GATES.commercialTerms });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

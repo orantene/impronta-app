@@ -214,6 +214,8 @@ export function TicketPickerIsland({ tenantId, eventId, title, locale, preload, 
         tenantId, eventId, sessionId: chosenNight.sessionId, variantId: chosenTier.variantId, units: qty,
         email, displayName: details.name.trim() || undefined, phone: details.phone.trim() || undefined,
         promoCode: details.promo.trim() || undefined, clientOrderKey: orderKey, paymentChoice: choice, locale: loc,
+        // The deep link that unlocked a hidden tier on this page; the server re-checks it against the chosen tier.
+        unlockTier: queryTier ?? undefined,
         // Sent only when a gate applies AND the box is ticked. The server
         // refuses a gated basket that arrives without it, so an unticked box is
         // a refusal there rather than a silent sale here.

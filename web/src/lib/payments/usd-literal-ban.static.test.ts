@@ -92,7 +92,6 @@ const ALLOWED: Record<string, number> = {
   "lib/stripe/talent-domain-renewal.ts": 1, // renewal is registrar-cost USD; a missing Stripe currency fails closed unless it is usd
   "lib/stripe/webhook-handler.ts": 1, // log text of a Stripe dispute code
   "lib/stripe/webhook-routing.ts": 6, // Stripe event codes recorded as received
-  "lib/talent-agenda/refund-actions.ts": 1, // result shape; real currency comes from executeBookingRefund
   "lib/talent/offerings-money.ts": 1, // formatter fallback
   "lib/talent/offerings-types.ts": 2, // normalizers; write path validates isTalentCurrency
 };

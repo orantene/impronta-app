@@ -241,3 +241,62 @@ test("cancelling retreat day three leaves day one, day two and the massage stand
   assert.deepEqual(released, ["a-d3"]);
   assert.deepEqual(result.standingLineIds.sort(), ["day-1", "day-2", "massage"]);
 });
+
+function okRefund(cents: number) {
+  return {
+    ok: true as const,
+    refundedCents: cents,
+    refundIds: ["r1"],
+    steps: [{ transactionId: "txn-1", amountCents: cents, refundId: "r1" }],
+    admissionsStamped: 0,
+    admissionsIncomplete: false,
+    lineStateIncomplete: false,
+    releasedPromoRedemption: false,
+  };
+}
+
+test("TUL-1268 M6: a hybrid component refund moves the REQUESTED amount, not the whole remainder", async () => {
+  const store = makeStore();
+  store.orders.push({ id: "ord", tenant_id: "ten", status: "paid" });
+  store.order_lines.push(
+    { id: "game", order_id: "ord", total_cents: 8000, refunded_cents: 0 },
+    { id: "catering", order_id: "ord", total_cents: 2000, refunded_cents: 0 },
+  );
+  const asked: Array<number | null | undefined> = [];
+  const result = await cancelHybridComponents(
+    fakeAdmin(store),
+    { tenantId: "ten", orderId: "ord", lineIds: ["catering"], amountCents: 700 },
+    {
+      refundLines: async (_admin, input) => {
+        asked.push(input.amountCents);
+        return okRefund(700);
+      },
+      release: async (ids) => ({ ok: true, released: ids.length, alreadyReleased: 0 }),
+    },
+  );
+  assert.deepEqual(asked, [700]);
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.refundedCents, 700);
+});
+
+test("TUL-1268 M6: no amount on a hybrid refund keeps today's payout (full remainder of the picked lines)", async () => {
+  const store = makeStore();
+  store.orders.push({ id: "ord", tenant_id: "ten", status: "paid" });
+  store.order_lines.push(
+    { id: "game", order_id: "ord", total_cents: 8000, refunded_cents: 0 },
+    { id: "catering", order_id: "ord", total_cents: 2000, refunded_cents: 0 },
+  );
+  const asked: Array<number | null | undefined> = [];
+  await cancelHybridComponents(
+    fakeAdmin(store),
+    { tenantId: "ten", orderId: "ord", lineIds: ["catering"] },
+    {
+      refundLines: async (_admin, input) => {
+        asked.push(input.amountCents);
+        return okRefund(2000);
+      },
+      release: async (ids) => ({ ok: true, released: ids.length, alreadyReleased: 0 }),
+    },
+  );
+  assert.deepEqual(asked, [null]);
+});

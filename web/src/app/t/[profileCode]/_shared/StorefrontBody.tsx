@@ -13,7 +13,7 @@
 import Image from "next/image";
 import type { TalentOffering, OfferingKind } from "@/lib/talent/offerings-types";
 import { offeringIsQuote, offeringPriceLabel } from "@/lib/talent/offerings-types";
-import { OfferingCta } from "./OfferingCta";
+import { CardBookAction } from "./CardBookAction";
 import { durationLabel } from "@/lib/talent/duration-label";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -75,7 +75,7 @@ function DurationChip({ minutes, locale }: { minutes: number; locale: string }) 
   );
 }
 
-function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null, href }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string }) {
+function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null, href, ownerBookHref }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string; ownerBookHref?: string | null }) {
   // Sold out is a POOL fact, not a kind fact. Gating on `kind === "product"`
   // meant a seat-limited package never showed sold out, because it never sold
   // down. `inventoryQty` is the pool mirror maintained by the stock RPCs, so a
@@ -113,13 +113,13 @@ function ServiceRow({ it, locale, confirmsByHand = false, usdRates = null, href 
           {locale === "es" ? "Agotado" : "Sold out"}
         </span>
       ) : (
-        <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
+        <CardBookAction it={it} locale={locale} compact confirmsByHand={confirmsByHand} ownerBookHref={ownerBookHref} />
       )}
     </div>
   );
 }
 
-function PackageCard({ it, locale, confirmsByHand = false, usdRates = null, href }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string }) {
+function PackageCard({ it, locale, confirmsByHand = false, usdRates = null, href, ownerBookHref }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string; ownerBookHref?: string | null }) {
   return (
     <div
       className="overflow-hidden rounded-[var(--plt-radius-md)] border"
@@ -146,14 +146,14 @@ function PackageCard({ it, locale, confirmsByHand = false, usdRates = null, href
         <UsdLine it={it} locale={locale} fx={usdRates} />
           </p>
           <DetailLink href={href} locale={locale} />
-          <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
+          <CardBookAction it={it} locale={locale} compact confirmsByHand={confirmsByHand} ownerBookHref={ownerBookHref} />
         </div>
       </div>
     </div>
   );
 }
 
-function ProductTile({ it, locale, confirmsByHand = false, usdRates = null }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null }) {
+function ProductTile({ it, locale, confirmsByHand = false, usdRates = null, ownerBookHref }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; ownerBookHref?: string | null }) {
   const soldOut = it.capacityPoolId != null && it.inventoryQty === 0;
   // A product with no image degrades to a service-style row upstream; here we
   // always have an image or render a quiet ground (never an empty gray box).
@@ -182,7 +182,7 @@ function ProductTile({ it, locale, confirmsByHand = false, usdRates = null }: { 
               {locale === "es" ? "Agotado" : "Sold out"}
             </span>
           ) : (
-            <OfferingCta offering={it} locale={locale} compact confirmsByHand={confirmsByHand} />
+            <CardBookAction it={it} locale={locale} compact confirmsByHand={confirmsByHand} ownerBookHref={ownerBookHref} />
           )}
         </div>
       </div>
@@ -190,7 +190,7 @@ function ProductTile({ it, locale, confirmsByHand = false, usdRates = null }: { 
   );
 }
 
-function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null, href }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string }) {
+function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null, href, ownerBookHref }: { it: TalentOffering; locale: string; confirmsByHand?: boolean; usdRates?: UsdRates | null; href?: string; ownerBookHref?: string | null }) {
   const tag = pickLocale(locale, { en: "Signature", es: "Insignia" });
   return (
     <div
@@ -221,7 +221,7 @@ function FeaturedRail({ it, locale, confirmsByHand = false, usdRates = null, hre
         <UsdLine it={it} locale={locale} fx={usdRates} />
           </p>
           <DetailLink href={href} locale={locale} />
-          <OfferingCta offering={it} locale={locale} confirmsByHand={confirmsByHand} />
+          <CardBookAction it={it} locale={locale} confirmsByHand={confirmsByHand} ownerBookHref={ownerBookHref} />
         </div>
       </div>
     </div>
@@ -240,6 +240,7 @@ export function StorefrontBody({
   confirmsByHand = false,
   usdRates = null,
   serviceHrefs,
+  ownerBookHrefs,
 }: {
   visible: TalentOffering[];
   locale: string;
@@ -249,6 +250,8 @@ export function StorefrontBody({
   usdRates?: UsdRates | null;
   /** TUL-795: offering id -> its service detail page (talent site host). */
   serviceHrefs?: Record<string, string>;
+  /** TUL-1272: hub card for another workspace's row -> its owner's booking page (null: no action). */
+  ownerBookHrefs?: Record<string, string | null>;
 }) {
   if (visible.length === 0) return null;
   // WSF-C §8: the loader stamps the talent's pause on every offering.
@@ -280,7 +283,7 @@ export function StorefrontBody({
           {pickLocale(locale, { en: "She confirms by hand.", es: "Ella confirma a mano.", fr: "Elle confirme à la main." })}
         </p>
       ) : null}
-      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[featured.id]} /> : null}
+      {featured ? <FeaturedRail it={featured} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[featured.id]} ownerBookHref={ownerBookHrefs?.[featured.id]} /> : null}
 
       {groups.map((g) => (
         <div key={g.kind} className="mb-6 last:mb-0">
@@ -299,19 +302,19 @@ export function StorefrontBody({
               style={{ borderColor: "var(--plt-hairline)", background: "var(--plt-bg-raised)" }}
             >
               {g.items.map((it) => (
-                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} />
+                <ServiceRow key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} ownerBookHref={ownerBookHrefs?.[it.id]} />
               ))}
             </div>
           ) : g.kind === "package" ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {g.items.map((it) => (
-                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} />
+                <PackageCard key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} href={serviceHrefs?.[it.id]} ownerBookHref={ownerBookHrefs?.[it.id]} />
               ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {g.items.map((it) => (
-                <ProductTile key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} />
+                <ProductTile key={it.id} it={it} locale={locale} confirmsByHand={confirmsByHand} usdRates={usdRates} ownerBookHref={ownerBookHrefs?.[it.id]} />
               ))}
             </div>
           )}
