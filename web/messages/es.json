@@ -3300,6 +3300,8 @@
       "saving": "Guardando…",
       "done": "Listo",
       "gotIt": "Entendido",
+      "recordNotFoundTitle": "No pudimos cargar este registro",
+      "recordNotFoundBody": "No se cambió nada. Cierra esto y ábrelo de nuevo desde la lista.",
       "copy": "Copiar",
       "open": "Abrir",
       "comingSoon": "Muy pronto",
