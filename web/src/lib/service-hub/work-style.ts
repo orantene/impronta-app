@@ -187,3 +187,107 @@ export function afterWorkspaceCreatedPath(adminPath: string, enabled: boolean): 
   if (!enabled) return adminPath;
   return `${adminPath.replace(/\/+$/, "")}/work-style`;
 }
+
+// ── Changing the style later: never overwrite silently ───────────────────────
+
+/** Setting the style sets client prices, the split and who gets requests: owner or admin only. */
+export function canSetWorkStyle(role: string | null | undefined): boolean {
+  return role === "owner" || role === "admin";
+}
+
+export type StoredWorkStyle = { choice: WorkStyleChoice; preset: HubPreset };
+
+const SPLIT_KINDS = ["percent", "margin", "all", "rent"] as const;
+
+/** The stored row (`workspace_hub_defaults`) as choice + preset. Null (fail closed) on anything unknown. */
+export function storedToPreset(row: Record<string, unknown> | null | undefined): StoredWorkStyle | null {
+  const choice = rowToChoice(row);
+  if (!row || !choice) return null;
+  const kind = row.split_kind;
+  if (!(SPLIT_KINDS as readonly unknown[]).includes(kind)) return null;
+  const bps = typeof row.split_bps === "number" ? row.split_bps : null;
+  const requestsGoTo = row.requests_go_to === "talent" || row.requests_go_to === "workspace" ? row.requests_go_to : null;
+  const chatSeenBy = row.chat_seen_by === "talent" || row.chat_seen_by === "workspace" ? row.chat_seen_by : null;
+  const priceShown = row.price_shown === "talent_price" || row.price_shown === "talent_plus_margin" || row.price_shown === "workspace_price" ? row.price_shown : null;
+  if (!requestsGoTo || !chatSeenBy || !priceShown) return null;
+  let split: Split;
+  if (kind === "percent" || kind === "margin") {
+    if (bps === null) return null;
+    split = { kind, bps };
+  } else split = kind === "all" ? { kind: "all", bps: null } : { kind: "rent", bps: null, amountCents: null };
+  return { choice, preset: { requestsGoTo, chatSeenBy, priceShown, split, safetyOfficer: row.safety_officer === true } };
+}
+
+export type ChangeField = "requestsGoTo" | "chatSeenBy" | "priceShown" | "split" | "safetyOfficer";
+export type Change = { field: ChangeField; from: string; to: string };
+
+function splitKey(s: Split): string {
+  return s.bps === null ? s.kind : `${s.kind}:${s.bps}`;
+}
+
+function valueKey(field: ChangeField, p: HubPreset): string {
+  return field === "split" ? splitKey(p.split) : String(p[field]);
+}
+
+const CHANGE_FIELDS: readonly ChangeField[] = ["requestsGoTo", "chatSeenBy", "priceShown", "split", "safetyOfficer"];
+
+export type WorkStylePlan =
+  | { kind: "first_time" }
+  | { kind: "same" }
+  | { kind: "confirm"; changes: Change[] };
+
+/**
+ * What saving `choice` would do. Nothing stored: first-time setup, fills everything, nothing
+ * is overwritten. Stored: only settings that would actually change are listed, and the
+ * caller must get an explicit confirm before anything is written.
+ */
+export function planWorkStyleChange(current: StoredWorkStyle | null, choice: WorkStyleChoice): WorkStylePlan {
+  if (!current) return { kind: "first_time" };
+  const next = presetFor(choice);
+  const changes: Change[] = [];
+  for (const field of CHANGE_FIELDS) {
+    const from = valueKey(field, current.preset);
+    const to = valueKey(field, next);
+    if (from !== to) changes.push({ field, from, to });
+  }
+  if (changes.length === 0 && current.choice === choice) return { kind: "same" };
+  // Same settings under a different style label: still a confirm (the label changes), no lines.
+  return { kind: "confirm", changes };
+}
+
+const FIELD_LABEL: Record<ChangeField, { es: string; en: string }> = {
+  requestsGoTo: { es: "Quién recibe las solicitudes", en: "Who gets requests" },
+  chatSeenBy: { es: "Quién ve el chat con el cliente", en: "Who sees the client chat" },
+  priceShown: { es: "Precio que ve el cliente", en: "Price shown" },
+  split: { es: "Tu parte", en: "Your share" },
+  safetyOfficer: { es: "Cuidas la seguridad de la red", en: "You keep the network safe" },
+};
+
+function valueLabel(field: ChangeField, key: string, locale: WorkStyleLocale): string {
+  const es = locale === "es";
+  switch (field) {
+    case "requestsGoTo":
+    case "chatSeenBy":
+      return key === "workspace" ? (es ? "Tú" : "You") : es ? "Cada persona" : "Each person";
+    case "priceShown":
+      return key === "talent_plus_margin"
+        ? es ? "Precio de la persona más tu parte" : "Person's price plus your share"
+        : key === "workspace_price"
+          ? es ? "Precio de tu negocio" : "Your business's price"
+          : es ? "Precio de la persona" : "Person's price";
+    case "safetyOfficer":
+      return key === "true" ? (es ? "Sí" : "Yes") : es ? "No" : "No";
+    case "split": {
+      const [kind, bps] = key.split(":");
+      const pct = bps ? `${Number(bps) / 100}%` : "";
+      if (kind === "all") return es ? "Todo" : "Everything";
+      if (kind === "rent") return es ? "Renta (tú fijas el monto)" : "Rent (you set the amount)";
+      return es ? `${pct}${kind === "margin" ? " sobre el precio" : ""}` : `${pct}${kind === "margin" ? " on top of the price" : ""}`;
+    }
+  }
+}
+
+/** Plain lines for the confirm: "Price shown: A → B". */
+export function describeChanges(changes: readonly Change[], locale: WorkStyleLocale): string[] {
+  return changes.map((c) => `${FIELD_LABEL[c.field][locale]}: ${valueLabel(c.field, c.from, locale)} → ${valueLabel(c.field, c.to, locale)}`);
+}

@@ -96,3 +96,56 @@ test("a new workspace lands on the question only when enabled", () => {
   assert.equal(afterWorkspaceCreatedPath("/acme/admin", true), "/acme/admin/work-style");
   assert.equal(afterWorkspaceCreatedPath("/acme/admin/", true), "/acme/admin/work-style");
 });
+
+import { canSetWorkStyle, describeChanges, planWorkStyleChange, storedToPreset } from "./work-style";
+
+test("only an owner or an admin may set the work style", () => {
+  assert.equal(canSetWorkStyle("owner"), true);
+  assert.equal(canSetWorkStyle("admin"), true);
+  for (const r of ["manager", "editor", "coordinator", "viewer", "", null, undefined]) assert.equal(canSetWorkStyle(r as never), false);
+});
+
+test("first-time setup (nothing stored) applies the preset with nothing to confirm", () => {
+  assert.deepEqual(planWorkStyleChange(null, "open_network"), { kind: "first_time" });
+});
+
+test("re-picking the same style changes nothing", () => {
+  const cur = { choice: "open_network" as const, preset: presetFor("open_network") };
+  assert.deepEqual(planWorkStyleChange(cur, "open_network"), { kind: "same" });
+});
+
+test("re-picking a different style needs a confirm that lists exactly what changes", () => {
+  const cur = { choice: "coordinator_agency" as const, preset: presetFor("coordinator_agency") };
+  const plan = planWorkStyleChange(cur, "open_network");
+  assert.equal(plan.kind, "confirm");
+  if (plan.kind !== "confirm") return;
+  const keys = plan.changes.map((c) => c.field).sort();
+  assert.deepEqual(keys, ["chatSeenBy", "priceShown", "requestsGoTo", "safetyOfficer", "split"].sort());
+  const price = plan.changes.find((c) => c.field === "priceShown")!;
+  assert.deepEqual([price.from, price.to], ["talent_plus_margin", "talent_price"]);
+});
+
+test("a setting the owner already tuned to the new value is not listed as a change", () => {
+  const cur = { choice: "coordinator_agency" as const, preset: { ...presetFor("coordinator_agency"), safetyOfficer: true } };
+  const plan = planWorkStyleChange(cur, "open_network");
+  assert.equal(plan.kind === "confirm" && plan.changes.some((c) => c.field === "safetyOfficer"), false);
+});
+
+test("the change lines read 'Label: A -> B' in ES and EN with plain values", () => {
+  const cur = { choice: "coordinator_agency" as const, preset: presetFor("coordinator_agency") };
+  const plan = planWorkStyleChange(cur, "open_network");
+  assert.equal(plan.kind, "confirm");
+  if (plan.kind !== "confirm") return;
+  const en = describeChanges(plan.changes, "en");
+  assert.ok(en.some((l) => l === "Price shown: Person's price plus your share → Person's price"));
+  const es = describeChanges(plan.changes, "es");
+  assert.ok(es.some((l) => l.startsWith("Precio que ve el cliente: ")));
+  for (const l of [...en, ...es]) assert.doesNotMatch(l, /_|bps|[—–]/);
+});
+
+test("a stored row maps back to a preset and an unknown row is null", () => {
+  const row = { work_model: "rental_studio", requests_go_to: "talent", chat_seen_by: "talent", price_shown: "talent_price", split_kind: "rent", split_bps: null, safety_officer: false };
+  assert.deepEqual(storedToPreset(row), { choice: "rental_studio", preset: presetFor("rental_studio") });
+  assert.equal(storedToPreset({ ...row, split_kind: "weird" }), null);
+  assert.equal(storedToPreset(null), null);
+});
