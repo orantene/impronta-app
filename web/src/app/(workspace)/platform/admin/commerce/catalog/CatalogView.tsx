@@ -37,12 +37,15 @@ export function CatalogView({
   stripeAccount,
   fx,
   trialOffers,
+  serviceFees,
   initialDrawerId = null,
 }: {
   catalog: PricingCatalog;
   stripeAccount: StripeAccountInfo;
   fx: FxPreview;
   trialOffers: TrialOffer[];
+  /** TUL-1366: { tierId: service fee bps }; empty until the migration is applied. */
+  serviceFees: Record<string, number>;
   /** `?d=` as the SERVER saw it. See the drawer-state comment below. */
   initialDrawerId?: string | null;
 }) {
@@ -105,6 +108,7 @@ export function CatalogView({
           pkg={openTier.pkg}
           stripeConfigured={stripeConfigured}
           testMode={testMode}
+          serviceFeeBps={serviceFees[openTier.tier.id] ?? null}
           onClose={() => {
             setClosed(true);
             setOpenTierId(null);

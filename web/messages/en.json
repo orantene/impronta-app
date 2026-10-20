@@ -8588,7 +8588,17 @@
           "tabPricing": "Pricing",
           "tabFeatures": "Features",
           "tabDisplay": "Display",
-          "tabStripe": "Stripe"
+          "tabStripe": "Stripe",
+          "serviceFee": {
+            "label": "Tulala service fee",
+            "help": "Paid by the customer on top of the booking price, shown before payment. Applies to bookings sold by a seller on this plan. A change affects checkouts quoted from now on; orders already priced keep the fee they were quoted with.",
+            "field": "Fee (%)",
+            "save": "Save fee",
+            "saving": "Saving...",
+            "saved": "Saved. New checkouts use this fee.",
+            "range": "Enter a fee between 0% and 20%.",
+            "notReady": "The service fee setting is not available yet. It turns on when the fee migration is applied."
+          }
         },
         "pricingTab": {
           "activePricesTitle": "Active prices",
