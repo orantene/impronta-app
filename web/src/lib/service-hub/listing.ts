@@ -2,7 +2,7 @@
  * TUL-1367 · Service hub listing link (pure, no DB).
  *
  * One row per talent x workspace x service (public.workspace_service_listings, held
- * migration 20261020010631_workspace_service_listings_tul1367.sql). It lets ANY kind of
+ * migration 20261231419300_workspace_service_listings_tul1367.sql). It lets ANY kind of
  * group (agency, network, studio, rental studio, collective) sell a talent's service with
  * the talent's consent, at a price the client sees, never below the talent's floor.
  *
@@ -32,8 +32,10 @@ export type ServiceListing = {
   currency: string;
   /** "Lowest price I accept" for this workspace, set by the talent. */
   talentLowestCents: number | null;
-  /** The least the workspace keeps on top of the talent's basis. */
+  /** Workspace-wide minimum client price (workspace_service_hub_settings). */
   workspaceMinCents: number;
+  /** A listing may set a HIGHER minimum, never a lower one. */
+  listingMinCents: number;
   showWho: ListingShowWho;
   clientContact: ListingClientContact;
   bookingType: ListingBookingType;
@@ -41,7 +43,17 @@ export type ServiceListing = {
   acceptedTermsVersion: number | null;
   /** Set when the talent raised the price above this listing's price (owner alert). */
   floorBreachedAt: string | null;
+  /** Set when the talent changed the service currency: stopped until the talent re-accepts. */
+  currencyChangedAt: string | null;
 };
+
+/** Cap on every cents column (overflow guard, mirrored in SQL). */
+export const MAX_CENTS = 1e12;
+
+/** Effective minimum = MAX(workspace minimum, listing minimum): a listing can raise it, never lower it. */
+export function effectiveMinCents(workspaceMinCents: number, listingMinCents: number): number {
+  return Math.max(0, workspaceMinCents, listingMinCents);
+}
 
 /** What the client sees, in the service's currency. */
 export function listingClientPriceCents(l: ServiceListing, talentPriceCents: number): number {
@@ -55,13 +67,21 @@ export function listingClientPriceCents(l: ServiceListing, talentPriceCents: num
   }
 }
 
-/** Never sell below: the talent's lowest accepted price (or their price) + the workspace minimum. */
+/**
+ * Floor (PM-confirmed 2026-10-19): MAX(talent's lowest accepted price, else their price;
+ * effective minimum). The minimum is a floor on the client price, NOT a margin (the margin
+ * lives only in the "price + margin" mode). Never a sum.
+ */
 export function listingFloorCents(input: {
   talentPriceCents: number;
   talentLowestCents: number | null;
   workspaceMinCents: number;
+  listingMinCents: number;
 }): number {
-  return (input.talentLowestCents ?? input.talentPriceCents) + Math.max(0, input.workspaceMinCents);
+  return Math.max(
+    input.talentLowestCents ?? input.talentPriceCents,
+    effectiveMinCents(input.workspaceMinCents, input.listingMinCents),
+  );
 }
 
 export type ListingPriceCheck = { ok: true } | { ok: false; reason: "below_floor"; floorCents: number };
@@ -73,6 +93,7 @@ export function checkListingPrice(l: ServiceListing, talentPriceCents: number | 
     talentPriceCents,
     talentLowestCents: l.talentLowestCents,
     workspaceMinCents: l.workspaceMinCents,
+    listingMinCents: l.listingMinCents,
   });
   return listingClientPriceCents(l, talentPriceCents) >= floorCents
     ? { ok: true }
@@ -88,12 +109,13 @@ export function listingsBreachedByTalentPrice(listings: readonly ServiceListing[
 
 /** Consent given, still above the floor: may be shown and sold. Open offers keep their own price. */
 export function isListingSellable(l: ServiceListing): boolean {
-  return l.status === "accepted" && l.floorBreachedAt == null;
+  return l.status === "accepted" && l.floorBreachedAt == null && l.currencyChangedAt == null;
 }
 
 /**
  * Exclusive talents (TUL-1365 decision 4): sold only by their exclusive workspace, their
  * own site (not a listing) and the Tulala hub (which routes requests to that workspace).
+ * The exclusive workspace comes from accepted exclusive terms (talent_exclusive_workspace, #4158).
  */
 export function canListForWorkspace(input: {
   exclusiveTenantId: string | null;
@@ -104,20 +126,51 @@ export function canListForWorkspace(input: {
   return input.targetIsHub || input.exclusiveTenantId === input.targetTenantId;
 }
 
+const IDENTITY_RANK: Record<ListingShowWho, number> = { hidden: 0, portfolio: 1, name: 2 };
+const TERMS_PRICE_MODE: Record<string, ListingPriceMode> = {
+  talent_price: "talent_price",
+  talent_plus_margin: "margin",
+  fixed: "fixed",
+  from: "from",
+};
+
+/** Consent is bound to the accepted terms: never show more of the talent, same price mode. */
+export function listingWithinTerms(
+  l: Pick<ServiceListing, "showWho" | "priceMode">,
+  terms: { showIdentity: ListingShowWho; clientPriceMode: string },
+): boolean {
+  return IDENTITY_RANK[l.showWho] <= IDENTITY_RANK[terms.showIdentity] && TERMS_PRICE_MODE[terms.clientPriceMode] === l.priceMode;
+}
+
+/** An owner edit to any field the talent agreed to sends the listing back to "offered". */
+export function ownerEditNeedsReconsent(before: ServiceListing, after: ServiceListing): boolean {
+  return (
+    before.priceMode !== after.priceMode ||
+    before.marginBps !== after.marginBps ||
+    before.priceCents !== after.priceCents ||
+    before.showWho !== after.showWho ||
+    before.clientContact !== after.clientContact ||
+    before.bookingType !== after.bookingType
+  );
+}
+
 export type ListingValidation = { ok: true } | { ok: false; reason: string };
 
 export function validateListingInput(l: ServiceListing): ListingValidation {
   if (l.priceMode === "margin" && (l.marginBps == null || !Number.isInteger(l.marginBps) || l.marginBps < 0 || l.marginBps > 10000)) {
     return { ok: false, reason: "margin_bps" };
   }
-  if ((l.priceMode === "fixed" || l.priceMode === "from") && (l.priceCents == null || !Number.isInteger(l.priceCents) || l.priceCents < 0)) {
+  if ((l.priceMode === "fixed" || l.priceMode === "from") && (l.priceCents == null || !Number.isInteger(l.priceCents) || l.priceCents < 0 || l.priceCents > MAX_CENTS)) {
     return { ok: false, reason: "price_cents" };
   }
   if (l.bookingType === "instant" && l.priceMode === "from") return { ok: false, reason: "instant_needs_price" };
   if (l.talentLowestCents != null && (!Number.isInteger(l.talentLowestCents) || l.talentLowestCents < 0)) {
     return { ok: false, reason: "talent_lowest" };
   }
-  if (!Number.isInteger(l.workspaceMinCents) || l.workspaceMinCents < 0) return { ok: false, reason: "workspace_min" };
+  for (const [k, v] of [["workspace_min", l.workspaceMinCents], ["listing_min", l.listingMinCents]] as const) {
+    if (!Number.isInteger(v) || v < 0 || v > MAX_CENTS) return { ok: false, reason: k };
+  }
+  if (l.talentLowestCents != null && l.talentLowestCents > MAX_CENTS) return { ok: false, reason: "talent_lowest" };
   if (!/^[A-Z]{3}$/.test(l.currency)) return { ok: false, reason: "currency" };
   return { ok: true };
 }
@@ -167,10 +220,12 @@ export function parseListingRow(raw: Record<string, unknown>): ServiceListing | 
     currency: String(raw.currency ?? ""),
     talentLowestCents: num(raw.talent_lowest_cents),
     workspaceMinCents: Number(raw.workspace_min_cents ?? 0),
+    listingMinCents: Number(raw.listing_min_cents ?? 0),
     showWho: raw.show_who as ListingShowWho,
     clientContact: raw.client_contact as ListingClientContact,
     bookingType: raw.booking_type as ListingBookingType,
     acceptedTermsVersion: num(raw.accepted_terms_version),
     floorBreachedAt: (raw.floor_breached_at as string | null) ?? null,
+    currencyChangedAt: (raw.currency_changed_at as string | null) ?? null,
   };
 }

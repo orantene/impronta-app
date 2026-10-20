@@ -27,6 +27,8 @@ export function listingErrorMessage(
     case "exclusive_talent":
       return t(`${NS}.exclusiveOnly`);
     case "needs_consent":
+    case "no_accepted_terms":
+    case "outside_terms":
       return t(`${NS}.needsConsent`);
     case "floor_breached":
       return t(`${NS}.floorBreached`);
