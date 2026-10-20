@@ -17,7 +17,7 @@ test("held in _pending_pm, well formed, and says it supersedes 415800", () => {
   assert.ok(readdirSync(join(ROOT, "_pending_pm")).includes(FILE));
   assert.match(FILE, /^\d{14}_[a-z0-9_]+\.sql$/);
   assert.match(sql, /SUPERSEDES 20261231415800_service_content_fields\.sql/);
-  // No dependence on 415800 still existing (the PM removes it) or on version order.
+  // 415800 is gone (removed); this file must not depend on it existing or on version order.
 });
 
 test("no slug columns on talent_offerings; the table carries per-locale slugs and history", () => {

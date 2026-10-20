@@ -2,7 +2,8 @@
  * TUL-1272 #1 (C1): service content fields (slug, slug history, summary, SEO, OG image,
  * presentation, page link, service type, tags) on `talent_offerings`.
  *
- * The migration is HELD (`supabase/migrations/_pending_pm/20261231415800_service_content_fields.sql`),
+ * The migration is HELD (`supabase/migrations/_pending_pm/20261231418800_offering_slugs_supersedes_415800_tul1324.sql`; the
+ * older 415800 was removed, it is superseded and must never be applied),
  * so everything here works without the columns: a row that lacks a key reads as empty content,
  * and `effectiveServiceContent` derives every value the page paints today. Nothing changes on a
  * site until the migration is applied AND a row stores a value.
@@ -30,6 +31,14 @@ export const SERVICE_CONTENT_COLUMNS = [
   "service_type",
   "tags",
 ] as const;
+
+/**
+ * The columns that really exist on `talent_offerings` once 418800 is applied. 418800 keeps every
+ * content column of the removed 415800 EXCEPT `slug` / `slug_history`: per-locale slugs and their
+ * history live in `offering_slugs`. The probe and the loader must select ONLY these, or a select
+ * of a column that no migration adds would fail forever and the real columns would never be read.
+ */
+export const SERVICE_CONTENT_DB_COLUMNS = SERVICE_CONTENT_COLUMNS.filter((c) => c !== "slug" && c !== "slug_history");
 
 /** Local type shim for the new columns (all optional: absent before the migration). */
 export type ServiceContentRowShim = Partial<{
