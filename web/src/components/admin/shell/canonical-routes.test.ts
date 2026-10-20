@@ -107,6 +107,8 @@ test("Projects is canonical at the list AND at the record; the Clients LIST is n
   // so the matcher must require the id segment. This is the assertion that
   // catches a matcher written as `s[1] === "clients"` with no id check.
   assert.equal(pathIsCanonical("/admin/clients"), false);
+  assert.equal(pathIsCanonical("/admin/catalog/service-hub"), true);
+  assert.equal(pathIsCanonical("/impronta/admin/catalog/service-hub"), true);
   assert.equal(pathIsCanonical("/impronta/admin/clients"), false);
 });
 

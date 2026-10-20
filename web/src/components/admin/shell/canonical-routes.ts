@@ -164,6 +164,9 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // /<tenant>/admin/catalog/service-hub — TUL-1369 owner service hub (review queue, groups,
+  // entries). Standalone server page; the Catalog list itself stays the SPA module.
+  (s) => s[0] === "admin" && s[1] === "catalog" && s[2] === "service-hub",
   // /talent/get-found — Google Business Profile setup guide (TUL-584), standalone server page.
   (s) => s[0] === "talent" && s[1] === "get-found",
   // /talent/page-builder — bare editor (talent layout opts out of the shell on
