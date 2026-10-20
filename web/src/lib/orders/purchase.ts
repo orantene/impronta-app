@@ -26,6 +26,8 @@ import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
 import { expandEventSeriesLines } from "@/lib/venues/event-series";
+import { keepsStockUntilVisit, withOfferingStockNeeds } from "@/lib/orders/purchase-stock";
+import { findKeyedOrder, isClientKeyConflict, replayKeyedPurchase } from "@/lib/orders/purchase-idempotency";
 import type {
   PurchaseInput,
   PurchaseLineInput,
@@ -132,6 +134,12 @@ export async function createPurchase(
   };
 
   try {
+    // ── 0. A repeated clientOrderKey replays the first order (purchase-idempotency.ts).
+    const keyed = input.clientOrderKey ? await findKeyedOrder(admin, input.tenantId, input.clientOrderKey) : null;
+    if (keyed && !keyed.ok) return { ok: false, reason: "engine_error", error: "Could not place the order." };
+    const replay = keyed?.order ? await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, input.contact, keyed.order) : null;
+    if (replay) return replay;
+
     // ── 1. Load the catalog. Policy AND price come from these rows, never
     //       from the request.
     const series = await expandEventSeriesLines(admin, { tenantId: input.tenantId, lines: input.lines });
@@ -344,10 +352,16 @@ export async function createPurchase(
         // refuses a half-filled triple, and writing them as three expressions
         // here is how they came apart.
         ...ageGateStamp(ageVerdict, new Date().toISOString()),
+        ...(keyed?.ok && keyed.keyColumn ? { client_order_key: input.clientOrderKey } : {}),
       })
       .select("id")
       .single();
 
+    // Lost the race for this key: the unique index refused us, so the winner's order is the answer.
+    if (orderErr && isClientKeyConflict(orderErr)) {
+      const winner = await replayKeyedPurchase(admin, input.tenantId, input.clientOrderKey, input.contact);
+      if (winner) return winner;
+    }
     if (orderErr || !orderRow) {
       logServerError("orders.createPurchase/order", orderErr);
       return { ok: false, reason: "engine_error", error: "Could not start the order." };
@@ -409,36 +423,22 @@ export async function createPurchase(
       return { ok: false, reason: "engine_error", error: "Could not price the order." };
     }
 
-    // ── 7. Hold capacity, per line, each line all-or-nothing.
-    //
-    // NOTE for the Capacity Engine Manager: `reserveCapacityBatch` takes ONE
-    // `orderLineId` for a whole batch, so a cart whose lines each need capacity
-    // cannot be held in a single atomic batch while still attributing each
-    // allocation to its line. Per-line batches keep the attribution and lose
-    // cross-line atomicity, which the compensation below covers. Today every
-    // real cart has at most one capacity-bearing line, so this is a contract
-    // question rather than a live gap.
+    // ── 7. Hold capacity: the caller's pools plus each line's offering stock (purchase-stock.ts).
     const lineIdByOffering = new Map<string, string>();
     for (const row of insertedLines as Array<{ id: string; offering_id: string | null }>) {
       if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);
     }
 
     let shortestTtlSeconds: number | null = null;
-    const needs = input.capacity ?? [];
+    const needs = withOfferingStockNeeds(input.capacity ?? [], input.lines, catalog.stockPools);
     const slotHolds = [
       ...(input.holds ?? []),
       ...(input.reservation ? [input.reservation] : []),
     ];
 
     if (needs.length > 0 || slotHolds.length > 0) {
-      // ONE atomic batch for the whole cart.
-      //
-      // This used to be a loop, one batch per line, because
-      // `reserveCapacityBatch` took a single `orderLineId` for a whole batch and
-      // a per-line loop was the only way to attribute each allocation to its
-      // line. Capacity made `orderLineId` per-request (0.11) after I flagged it,
-      // so the loop is gone: a refused leg now writes ZERO rows again and the
-      // compensation below no longer has to cover a partially-held cart.
+      // ONE atomic batch for the whole cart (`orderLineId` is per request since
+      // Capacity 0.11), so a refused leg writes ZERO rows.
       //
       // Attribution is not cosmetic — `capacity_allocations.order_line_id` is
       // what refund-by-line reads to decide which units to free, so a wrong
@@ -673,6 +673,7 @@ export async function createPurchase(
       totalCents,
       heldAllocationIds,
       holdTtlSeconds: shortestTtlSeconds ?? FALLBACK_HOLD_TTL_SECONDS,
+      keepUntilVisit: keepsStockUntilVisit({ payInPerson: policy.payInPerson, declared: input.capacity ?? [], needs, slotHolds: slotHolds.length, lines: input.lines }),
     });
     if (!settlement.ok) {
       await unwind(settlement.note);

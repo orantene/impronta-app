@@ -59,6 +59,7 @@ export function BookableComposer({
   captcha = null,
   locale: localeProp,
   contactHref = null,
+  requestLabel = null,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -75,6 +76,8 @@ export function BookableComposer({
   locale?: string | null;
   /** Empty-slot escape hatch for the inline picker (TUL-698). */
   contactHref?: string | null;
+  /** B2/D3: label of a request button (opens the drawer without a slot); also shown when the picker has no times. */
+  requestLabel?: string | null;
 }) {
   const cookieT = usePublicT();
   const dashboardLocale = useDashboardLocale();
@@ -229,8 +232,19 @@ export function BookableComposer({
     }
   }
 
+  const requestButton = requestLabel ? (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className="rounded-full bg-[#0B0B0D] px-5 py-2.5 text-sm font-medium text-white"
+    >
+      {requestLabel}
+    </button>
+  ) : null;
+
   return (
     <div>
+      {showInlinePicker ? null : requestButton}
       {showInlinePicker ? (
         <SlotPicker
           offeringId={active.offeringId}
@@ -238,6 +252,7 @@ export function BookableComposer({
           timezone={active.timezone}
           locale={pageLocale}
           contactHref={contactHref}
+          emptyAction={requestButton}
           value={slot}
           onChange={(next) => {
             setSlot(next);
