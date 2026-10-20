@@ -4,6 +4,7 @@ import * as React from "react";
 import { useActionState, useEffect, useRef, useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createTranslator } from "@/i18n/messages";
+import { sniffImageBlob } from "@/lib/media/image-sniff";
 import { createClient } from "@/lib/supabase/client";
 import {
   type RosterTalentEditState,
@@ -191,6 +192,12 @@ function PhotoUploader({
     if (!file) return;
     if (file.size > 20 * 1024 * 1024) {
       setStage({ kind: "error", message: t("admin.talent.edit.photo.errorSize") });
+      return;
+    }
+    // H1: bytes decide the type; the register action re-verifies.
+    const mime = await sniffImageBlob(file);
+    if (!mime || mime === "image/heic") {
+      setStage({ kind: "error", message: t("dashboard.uploadGuard.notAnImage") });
       return;
     }
     try {

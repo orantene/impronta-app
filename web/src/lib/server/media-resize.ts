@@ -24,6 +24,8 @@
 import "server-only";
 import sharp from "sharp";
 
+import { SHARP_INPUT_LIMITS, readImageHeader } from "@/lib/media/image-sanitize.server";
+
 /** Variant-kind → max longest-edge in CSS pixels. */
 // 2026-09-20: the hero cap of 1400 was sized for a 4:5 cover CARD. The
 // profile templates (Noir, Lumen, Atelier) render `hero` as a full-bleed
@@ -86,10 +88,11 @@ export async function resizeUploadForStorage(
   // One sharp instance, two reads: first for metadata (to decide JPEG
   // vs PNG), then the actual pipeline. Cheap — metadata doesn't decode
   // the full image.
-  const meta = await sharp(inBuf, { failOn: "none" }).metadata();
+  // H1: header read under the 100 MP cap (throws before any full decode).
+  const meta = await readImageHeader(inBuf);
   const hasAlpha = meta.hasAlpha === true;
 
-  const base = sharp(inBuf, { failOn: "none" })
+  const base = sharp(inBuf, SHARP_INPUT_LIMITS)
     .rotate() // honor EXIF orientation, then strip
     .resize({
       width: longEdge,

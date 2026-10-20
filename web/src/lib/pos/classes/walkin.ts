@@ -26,6 +26,7 @@
  * policy the owner set.
  */
 
+import { posOffIds } from "@/lib/pos/pos-enabled";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { PurchaseRefusalReason } from "@/lib/orders/purchase-types";
@@ -73,7 +74,9 @@ export async function loadWalkInServices(
     logServerError("pos.classes.walkin/services", read.error);
     return { ok: false, error: "Could not load the services." };
   }
-  const candidates = (read.data ?? []).filter((r) => r.kind !== "product");
+  // TUL-1321: walk-in booking is a counter channel; POS-off services are not offered here.
+  const off = await posOffIds(admin, tenantId, (read.data ?? []).map((r) => String(r.id)));
+  const candidates = (read.data ?? []).filter((r) => r.kind !== "product" && !off.has(String(r.id)));
   const talentIds = [...new Set(candidates.map((r) => r.talent_profile_id).filter((id): id is string => typeof id === "string"))];
   const names = new Map<string, string>();
   const sellingDefaults = new Map<string, unknown>();

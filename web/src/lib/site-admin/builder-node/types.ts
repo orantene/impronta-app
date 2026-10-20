@@ -1790,6 +1790,8 @@ export interface BuilderServicesCatalogNode extends BuilderNodeBase {
     /** Default true — inherit website theme tokens; Style overrides apply when false. */
     useWebsiteTheme?: boolean;
     detailPresentation?: "modal" | "sheet_mobile" | "inline";
+    /** TUL-1272 #4: what a tap on a card does. auto (default) follows each service's presentation. */
+    tapAction?: "auto" | "page" | "quick_view" | "book";
     showAskLink?: boolean;
     bookingSheet?: {
       accent?: "ink" | "primary";
