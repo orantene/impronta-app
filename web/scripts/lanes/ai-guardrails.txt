@@ -29,6 +29,7 @@ src/lib/ai/booking-assistant/price-label.test.ts
 src/lib/ai/booking-assistant/resolve-talent-id.test.ts
 src/lib/ai/booking-assistant/schedule.static.test.ts
 src/lib/ai/booking-assistant/spend.test.ts
+src/lib/ai/booking-assistant/tools/handoff-context.test.ts
 src/lib/ai/booking-assistant/usage-format.test.ts
 src/lib/ai/booking-assistant/usage-wiring.static.test.ts
 src/lib/ai/build-ai-search-document-offerings.test.ts
