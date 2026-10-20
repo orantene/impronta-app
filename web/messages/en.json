@@ -14506,7 +14506,8 @@
           "amount": "That cash amount is not valid.",
           "already_closed": "That shift is already closed.",
           "not_allowed": "You do not have permission to do this.",
-          "no_customer": "Attach a customer to this sale first."
+          "no_customer": "Attach a customer to this sale first.",
+          "item_unavailable": "This item is no longer available."
         }
       },
       "newSale": "New sale",
@@ -14694,6 +14695,7 @@
           "tenderShort": "The cash counted is less than the amount being collected.",
           "emptySale": "There is nothing on this sale to charge for.",
           "itemRefused": "That item cannot go on this sale.",
+          "itemUnavailable": "This item is no longer available.",
           "discountRefused": "That code cannot be applied to this sale.",
           "discountNeedsCustomer": "A discount code needs a named customer. Attach one first.",
           "readerUnavailable": "No card reader is ready on this device.",
