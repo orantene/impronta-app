@@ -249,6 +249,7 @@ src/lib/preparation/tickets.test.ts
 src/lib/projects/project-record.test.ts
 src/lib/reservations/deposit-currency.test.ts
 src/lib/reservations/reserve-table-deposit.test.ts
+src/lib/resources/session-resource-holds.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
 src/lib/sales/by-item.test.ts
@@ -256,6 +257,8 @@ src/lib/sales/csv.test.ts
 src/lib/sales/filters.test.ts
 src/lib/scheduling/offering-home-tenant.test.ts
 src/lib/scheduling/waitlist-offers.test.ts
+src/lib/sessions/room-messages.test.ts
+src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
