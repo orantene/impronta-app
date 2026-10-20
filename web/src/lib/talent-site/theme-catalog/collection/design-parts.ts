@@ -38,6 +38,8 @@ export function shell(
     navLinks?: ReadonlyArray<{ label: string; href: string }>;
     /** Override the standard shell primary CTA label (seed English or locale-stable). */
     primaryCtaLabel?: string;
+    /** Flat header paint for light themes (see KitShellOptions.headerTone). */
+    headerTone?: "surface" | "solid";
   } = {},
 ) {
   return buildKitStandardShell(makeId, {
@@ -46,6 +48,7 @@ export function shell(
     ...(opts.navChrome ? { navChrome: opts.navChrome } : {}),
     ...(opts.navLinks ? { navLinks: opts.navLinks } : {}),
     ...(opts.primaryCtaLabel ? { primaryCtaLabel: opts.primaryCtaLabel } : {}),
+    ...(opts.headerTone ? { headerTone: opts.headerTone } : {}),
   }).map(deferYear);
 }
 

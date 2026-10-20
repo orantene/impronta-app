@@ -8,7 +8,10 @@
  *
  *   settleCheckoutPayment  — the charge landed: amount guard, then `markPaid`
  *                            (PaymentIntent id, booking sync, receipt, transfers,
- *                            order, claim, payment link).
+ *                            order, claim, payment link). A charge it cannot
+ *                            book (wrong amount, closed row, second PaymentIntent
+ *                            on a paid row) leaves a durable flag on the row
+ *                            (`payment-review-flags.ts`) and moves no money.
  *   closeCheckoutSession   — the session can never be paid: a payment link's
  *                            row fails, its claim goes back, the link expires.
  *
@@ -28,6 +31,8 @@ import { loadChargePlatformForTransaction, recordChargePlatform } from "@/lib/st
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { advanceDraftForSettlement, type DraftAdvanceResult } from "@/lib/stripe/webhook-draft-advance";
+import { flagPaymentForReview, type FlagPaymentResult } from "@/lib/payments/payment-review-flags";
+import type { PaymentReviewFlagInput, PaymentReviewReason } from "@/lib/payments/payment-review-flags-model";
 
 /** Audit #5: pull the actually-charged amount + currency from the settlement event
  *  (PaymentIntent or Checkout Session) so it can be reconciled against the booking
@@ -44,26 +49,48 @@ export function extractChargedAmount(event: Stripe.Event): { amountCents: number
   return null;
 }
 
-const SETTLED_TRANSACTION_STATUSES = new Set(["paid", "payout_pending", "payout_sent"]);
+/** Money already taken on the row. `disputed` too: it was paid, then contested. */
+const SETTLED_TRANSACTION_STATUSES = new Set(["paid", "payout_pending", "payout_sent", "disputed"]);
 
-/** True when the money row has already moved past waiting for its payment. */
-async function transactionAlreadySettled(
+/** TUL-1284: a row that can never be paid again. A new charge landing on it is owed back. */
+const INACTIVE_TRANSACTION_STATUSES = new Set(["cancelled", "failed", "refunded", "partially_refunded"]);
+
+/** The PaymentIntent `markPaid` recorded when it settled the row (see markPaid). */
+function paidByPaymentIntent(providerMetadata: unknown): string | null {
+  if (!providerMetadata || typeof providerMetadata !== "object" || Array.isArray(providerMetadata)) return null;
+  const id = (providerMetadata as Record<string, unknown>).payment_intent_id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+type RowFacts = {
+  status: string | null;
+  paidBy: string | null;
+  expectedAmountCents: number | null;
+  expectedCurrency: string | null;
+};
+
+/** Where the row went after `markPaid` refused it (another writer won, or it was closed). */
+async function readRowAfterRefusal(
   transactionId: string,
   getAdmin: () => SupabaseClient | null,
-): Promise<boolean> {
+): Promise<{ status: string | null; paidBy: string | null } | null> {
   const sb = getAdmin();
-  if (!sb) return false;
+  if (!sb) return null;
   const { data, error } = await sb
     .from("booking_transactions")
-    .select("status")
+    .select("status, provider_metadata")
     .eq("id", transactionId)
     .maybeSingle();
-  if (error || !data) return false;
-  return SETTLED_TRANSACTION_STATUSES.has(String((data as { status: string }).status));
+  if (error || !data) return null;
+  const row = data as { status?: unknown; provider_metadata?: unknown };
+  return {
+    status: typeof row.status === "string" ? row.status : null,
+    paidBy: paidByPaymentIntent(row.provider_metadata),
+  };
 }
 
 export type SettleCheckoutResult =
-  | { ok: true; outcome: "paid" | "already_settled" | "amount_mismatch" }
+  | { ok: true; outcome: "paid" | "already_settled" | "amount_mismatch" | "charge_on_inactive_row" | "duplicate_charge" }
   | { ok: false; error: string };
 
 /** Everything `settleCheckoutPayment` reaches outside itself. Each defaults to the
@@ -78,6 +105,8 @@ export type SettleDeps = {
   getAdmin: () => SupabaseClient | null;
   /** TUL-1268 M1: a checkout row still at `draft` steps to `payment_requested` first. */
   advanceDraft: (sb: SupabaseClient, transactionId: string) => Promise<DraftAdvanceResult>;
+  /** TUL-1283 / TUL-1284 / M2: durable flag on the money row for a person. Never moves money. */
+  flagPayment: (transactionId: string, flag: PaymentReviewFlagInput) => Promise<FlagPaymentResult>;
 };
 
 export async function settleCheckoutPayment(
@@ -92,6 +121,13 @@ export async function settleCheckoutPayment(
   const loadPlatform = deps.loadChargePlatformForTransaction ?? loadChargePlatformForTransaction;
   const getAdmin = deps.getAdmin ?? createServiceRoleClient;
   const advanceDraft = deps.advanceDraft ?? advanceDraftForSettlement;
+  const flagPayment =
+    deps.flagPayment ??
+    (async (transactionId: string, flag: PaymentReviewFlagInput): Promise<FlagPaymentResult> => {
+      const sb = getAdmin();
+      if (!sb) return { ok: false, error: "payment flag: database unavailable" };
+      return flagPaymentForReview(sb, { transactionId, flag });
+    });
   // The platform that delivered this settlement IS the platform that took the
   // charge. Record it BEFORE markPaid fans out payouts (transfers, refunds and
   // reversals all key off it), and flag a disagreement with what checkout stored.
@@ -105,36 +141,111 @@ export async function settleCheckoutPayment(
       new Error(`ALERT US-platform settlement for txn ${action.transactionId} recorded as an MX charge (event ${event.id})`),
     );
   }
+
+  const charged = extractChargedAmount(event);
+
+  /** Raise one flag; a flag that cannot be written is a retry, because it is the only record. */
+  const raise = async (
+    reason: PaymentReviewReason,
+    row: RowFacts,
+    otherPaymentIntentId: string | null,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const flagged = await flagPayment(action.transactionId, {
+      reason,
+      paymentIntentId: action.paymentIntentId,
+      otherPaymentIntentId,
+      expectedAmountCents: row.expectedAmountCents,
+      expectedCurrency: row.expectedCurrency,
+      chargedAmountCents: charged?.amountCents ?? null,
+      chargedCurrency: charged?.currency ?? null,
+      rowStatus: row.status,
+      stripeEventId: event.id,
+    });
+    return flagged.ok ? { ok: true } : { ok: false, error: `${reason} flag for ${action.transactionId}: ${flagged.error}` };
+  };
+
+  /**
+   * The row is no longer waiting for money. Three answers, none of them a retry:
+   *   settled by THIS PaymentIntent  -> a replay; acknowledged, nothing runs twice.
+   *   settled by ANOTHER one, or by
+   *   cash / by hand (no id recorded) -> M2 duplicate charge; flagged with both ids.
+   *   cancelled / failed             -> TUL-1284 charge on an inactive row; flagged
+   *                                     for refund. Retrying for three days would
+   *                                     only hide that the money was taken.
+   * Returns null when the row is still open and the ordinary path continues.
+   */
+  const closedRowAnswer = async (row: RowFacts): Promise<SettleCheckoutResult | null> => {
+    // Mock-mode ids are never recorded by markPaid, so they cannot be compared.
+    const incoming = action.paymentIntentId && !action.paymentIntentId.startsWith("mock_pi_") ? action.paymentIntentId : null;
+    if (row.status && SETTLED_TRANSACTION_STATUSES.has(row.status)) {
+      // A row paid by cash or by hand records no PaymentIntent (paidBy null):
+      // a card charge on it is a second payment too, not a replay.
+      if (incoming && row.paidBy !== incoming) {
+        const flagged = await raise("duplicate_charge", row, row.paidBy);
+        return flagged.ok ? { ok: true, outcome: "duplicate_charge" } : flagged;
+      }
+      void improntaLog("stripe_webhook.info", {
+        message: `booking_payment already settled: transaction ${action.transactionId} (event ${event.id})`,
+      });
+      return { ok: true, outcome: "already_settled" };
+    }
+    if (row.status && INACTIVE_TRANSACTION_STATUSES.has(row.status)) {
+      // The very charge that was later refunded, delivered late: not a new charge.
+      if (incoming && row.paidBy === incoming) {
+        void improntaLog("stripe_webhook.info", {
+          message: `booking_payment replay on a closed row: transaction ${action.transactionId} (event ${event.id})`,
+        });
+        return { ok: true, outcome: "already_settled" };
+      }
+      const flagged = await raise("charge_on_inactive_row", row, null);
+      return flagged.ok ? { ok: true, outcome: "charge_on_inactive_row" } : flagged;
+    }
+    return null;
+  };
+
   // Audit #5: verify the actually-charged amount + currency match the booking
   // transaction BEFORE marking paid + disbursing. The PaymentIntent is
   // idempotency-keyed at its first amount, so a later gross edit can silently
   // diverge; auto-paying out on a mismatched charge would over/under-pay the
-  // talent. On mismatch, skip markPaid and flag for manual reconciliation
-  // (logged) instead of auto-paying the wrong amount.
-  const charged = extractChargedAmount(event);
-  if (charged) {
-    const sbGuard = getAdmin();
-    if (sbGuard) {
-      const { data: txnRow, error: guardErr } = await sbGuard
-        .from("booking_transactions")
-        .select("gross_amount_cents, currency")
-        .eq("id", action.transactionId)
-        .maybeSingle();
-      // A guard that cannot read the row cannot vouch for the amount: retry
-      // rather than pay out unguarded (this used to fall through to markPaid).
-      if (guardErr) return { ok: false, error: `amount guard read failed for ${action.transactionId}: ${guardErr.message}` };
+  // talent. On mismatch, skip markPaid and write a reconciliation flag
+  // (TUL-1283) instead of auto-paying the wrong amount.
+  let facts: RowFacts = { status: null, paidBy: null, expectedAmountCents: null, expectedCurrency: null };
+  const sbGuard = getAdmin();
+  if (sbGuard) {
+    const { data: txnRow, error: guardErr } = await sbGuard
+      .from("booking_transactions")
+      .select("gross_amount_cents, currency, status, provider_metadata")
+      .eq("id", action.transactionId)
+      .maybeSingle();
+    // A guard that cannot read the row cannot vouch for the amount: retry
+    // rather than pay out unguarded (this used to fall through to markPaid).
+    if (guardErr) return { ok: false, error: `amount guard read failed for ${action.transactionId}: ${guardErr.message}` };
+    if (txnRow) {
+      const row = txnRow as { gross_amount_cents?: unknown; currency?: unknown; status?: unknown; provider_metadata?: unknown };
+      facts = {
+        status: typeof row.status === "string" ? row.status : null,
+        paidBy: paidByPaymentIntent(row.provider_metadata),
+        expectedAmountCents: row.gross_amount_cents == null ? null : Number(row.gross_amount_cents),
+        expectedCurrency: row.currency == null ? null : String(row.currency),
+      };
+      // A closed row first: a second charge on a paid row is a duplicate even
+      // when its amount differs, and a charge on a cancelled row is owed back
+      // whatever it was for.
+      const closed = await closedRowAnswer(facts);
+      if (closed) return closed;
       if (
-        txnRow &&
-        (Number(txnRow.gross_amount_cents) !== charged.amountCents ||
-          String(txnRow.currency).toLowerCase() !== charged.currency.toLowerCase())
+        charged &&
+        (Number(row.gross_amount_cents) !== charged.amountCents ||
+          String(row.currency).toLowerCase() !== charged.currency.toLowerCase())
       ) {
         logServerError(
           "stripe-webhook.booking_payment.amount_mismatch",
           new Error(
-            `charged ${charged.amountCents} ${charged.currency} != txn ${txnRow.gross_amount_cents} ${txnRow.currency} (txn ${action.transactionId}) — skipped markPaid for manual reconciliation`,
+            `charged ${charged.amountCents} ${charged.currency} != txn ${String(row.gross_amount_cents)} ${String(row.currency)} (txn ${action.transactionId}): skipped markPaid, flagged for reconciliation`,
           ),
         );
-        return { ok: true, outcome: "amount_mismatch" };
+        const flagged = await raise("amount_mismatch", facts, null);
+        return flagged.ok ? { ok: true, outcome: "amount_mismatch" } : flagged;
       }
     }
   }
@@ -156,11 +267,12 @@ export async function settleCheckoutPayment(
   // getting there first, `async_payment_succeeded` after `completed`) used to
   // turn that refusal into a 5xx that Stripe retried for three days against
   // money already booked. Settled once means acknowledged; nothing runs twice.
-  if (await transactionAlreadySettled(action.transactionId, getAdmin)) {
-    void improntaLog("stripe_webhook.info", {
-      message: `booking_payment already settled: transaction ${action.transactionId} (event ${event.id})`,
-    });
-    return { ok: true, outcome: "already_settled" };
+  // The row may also have moved between the guard read and markPaid (a racing
+  // PaymentIntent won, or a cancel landed): the same three answers apply.
+  const after = await readRowAfterRefusal(action.transactionId, getAdmin);
+  if (after) {
+    const closed = await closedRowAnswer({ ...facts, status: after.status, paidBy: after.paidBy });
+    if (closed) return closed;
   }
   // Otherwise almost always a transient DB blip. The caller retries rather
   // than silently lose a paid booking.

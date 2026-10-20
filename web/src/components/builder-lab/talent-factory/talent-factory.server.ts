@@ -10,8 +10,8 @@ import { join } from "node:path";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { COLLECTION_DESIGNS } from "@/lib/talent-site/theme-catalog/collection/designs";
-import { FINISHED_GALLERY_SLUGS } from "@/lib/talent-site/theme-catalog/gallery-meta";
+import { COLLECTION_DESIGNS, COLLECTION_DESIGN_GAPS } from "@/lib/talent-site/theme-catalog/collection/designs";
+import { FINISHED_GALLERY_SLUGS, getGalleryDesign } from "@/lib/talent-site/theme-catalog/gallery-meta";
 import { hashBuiltinPayload, syncBuiltinTalentThemes } from "@/lib/talent-site/theme-catalog/sync-builtins.server";
 import { isAuthoredReflected } from "@/lib/talent-site/theme-catalog/authored-sync-rule";
 import { authoredOverlayVersion } from "@/lib/talent-site/theme-catalog/collection/authored";
@@ -21,6 +21,8 @@ import { demosFor } from "@/lib/talent-site/demos/registry";
 import type { DemoDesign } from "@/lib/talent-site/demos/types";
 import { loadDesignsOverview } from "@/lib/talent-site/theme-releases/manager/release-manager.server";
 
+import { buildStudioChecklist, buildTokenPreview, studioFlagOn } from "./studio-checklist";
+import { renderStudioPanel } from "./studio-panel";
 import {
   codeVersionOf,
   deriveFactoryStatus,
@@ -63,6 +65,28 @@ function readMockupRuns(slug: string): FactoryMockupRun[] {
   return out;
 }
 
+
+/** Theme Studio facts for one code design (filesystem only, read-only). */
+function studioChecklistFor(slug: string, row: { referenceDemoCode: string | null; galleryVisible: boolean; mockupRun: FactoryMockupRun | null }) {
+  const dir = join(process.cwd(), "design-references", slug);
+  const packFiles = existsSync(dir) ? readdirSync(dir) : [];
+  let readmeDraft = false;
+  try {
+    readmeDraft = /\bDRAFT\b/.test(readFileSync(join(dir, "README.md"), "utf8"));
+  } catch {
+    // Missing README is reported by the pack row (file absent), not fatal.
+  }
+  return buildStudioChecklist({
+    packFiles,
+    readmeDraft,
+    referenceDemoCode: row.referenceDemoCode,
+    openDeltas: row.mockupRun ? row.mockupRun.openDeltas : null,
+    gaps: COLLECTION_DESIGN_GAPS[slug] ?? [],
+    overlayPresent: existsSync(join(process.cwd(), "src", "lib", "talent-site", "theme-catalog", "collection", "authored", `${slug}.overlay.json`)),
+    galleryVisible: row.galleryVisible,
+  });
+}
+
 export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryOverview> {
   const overview = new Map((await loadDesignsOverview(admin)).map((d) => [d.slug, d] as const));
   const [{ data: catalog }, { data: snaps }] = await Promise.all([
@@ -72,6 +96,7 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
   const catalogBySlug = new Map((catalog ?? []).map((c) => [c.slug as string, c] as const));
   const mockupMode = isProduction() ? "production" : "local";
 
+  const studioOn = studioFlagOn(process.env);
   const rows: FactoryDesignRow[] = COLLECTION_DESIGNS.map((entry) => {
     const slug = entry.slug;
     const row = catalogBySlug.get(slug);
@@ -107,6 +132,9 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
     const overlayVersion = authoredOverlayVersion(slug);
     const authoredPending = codeDiffers && !!latest && !isAuthoredReflected(latest, overlayVersion);
     const metaCodeHash = typeof latest?.meta?.code_hash === "string" ? latest.meta.code_hash : null;
+    const galleryVisible = FINISHED_GALLERY_SLUGS.includes(slug);
+    const referenceDemoCode = demos.find((d) => d.reference)?.profileCode ?? null;
+    const mockupRun = mockupMode === "local" ? newestRun(readMockupRuns(slug)) : null;
     return {
       slug,
       title: ov?.title ?? entry.title,
@@ -119,14 +147,23 @@ export async function loadTalentFactory(admin: SupabaseClient): Promise<FactoryO
         authoredPending,
       }),
       demoCount,
-      galleryVisible: FINISHED_GALLERY_SLUGS.includes(slug),
+      galleryVisible,
       latestReleaseId: newestRelease?.id ?? null,
       previewHref: previewFromCodeHref(slug),
       mockupPath: mockupPathFor(slug),
       parityMapPresent: existsSync(join(process.cwd(), "design-references", slug, "parity-map.json")),
       canRebuild: demoCount > 0,
-      referenceDemoCode: demos.find((d) => d.reference)?.profileCode ?? null,
-      mockupRun: mockupMode === "local" ? newestRun(readMockupRuns(slug)) : null,
+      referenceDemoCode,
+      mockupRun,
+      studioHtml: studioOn
+        ? renderStudioPanel(
+            studioChecklistFor(slug, { referenceDemoCode, galleryVisible, mockupRun }),
+            buildTokenPreview({
+              fonts: getGalleryDesign(slug)?.fonts ?? null,
+              palettes: (getGalleryDesign(slug)?.palettes ?? []).map((p) => ({ key: p.key, name: p.name.en, page: p.page, section: p.section, text: p.text, accent: p.accent })),
+            }),
+          )
+        : undefined,
       codeSeedReview: factoryNeedsCodeSeedReview({
         slug,
         codeDiffers,

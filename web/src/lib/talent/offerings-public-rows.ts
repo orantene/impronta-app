@@ -11,6 +11,7 @@
 
 import type { TalentOfferingRow } from "./offerings-types";
 import { isHubProfileListableOffering } from "./hub-profile-offerings";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 type Result = PromiseLike<{ data: unknown; error: unknown }>;
 type RowsQuery = {
@@ -26,14 +27,10 @@ export async function selectPublicOfferingRows(
   talentProfileId: string,
   filterTenantId: string | null,
 ): Promise<{ ok: true; rows: TalentOfferingRow[] } | { ok: false; error: unknown }> {
-  let query = db
-    .from("talent_offerings")
-    .select("*")
-    .eq("talent_profile_id", talentProfileId)
-    .eq("owner_kind", "talent")
-    .eq("status", "published")
-    .eq("moderation_state", "approved")
-    .in("visibility", ["public", "on_request"]);
+  let query = scopeToSellableOfferings(
+    db.from("talent_offerings").select("*").eq("talent_profile_id", talentProfileId).eq("owner_kind", "talent"),
+    "guest_request",
+  );
   if (filterTenantId) query = query.eq("tenant_id", filterTenantId);
   const { data, error } = await query.order("sort_order", { ascending: true });
   if (error) return { ok: false, error };

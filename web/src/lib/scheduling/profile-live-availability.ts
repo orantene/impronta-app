@@ -14,6 +14,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadPublicOpenTimes } from "@/lib/scheduling/public-open-times";
 import { liveSlotsAllEmpty, type ProfileAvailability } from "@/lib/scheduling/profile-live-availability-core";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 const WINDOW_DAYS = 30;
 const MAX_SERVICES_CHECKED = 4;
@@ -27,13 +28,10 @@ export async function withLiveAvailability(
   const admin = createServiceRoleClient();
   if (!admin) return base;
   try {
-    const { data: offerings, error } = await admin
-      .from("talent_offerings")
-      .select("id")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "published")
-      .eq("moderation_state", "approved") // D-10
-      .eq("visibility", "public")
+    const { data: offerings, error } = await scopeToSellableOfferings(
+      admin.from("talent_offerings").select("id").eq("talent_profile_id", talentProfileId),
+      "guest",
+    )
       .neq("kind", "product")
       .limit(MAX_SERVICES_CHECKED);
     if (error) {

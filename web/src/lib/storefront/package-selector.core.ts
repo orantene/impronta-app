@@ -6,6 +6,7 @@
  */
 
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 import { withEffectiveBookingModes } from "@/lib/talent/effective-booking-mode-loader";
 import type { PurchaseInput, PurchaseResult } from "@/lib/orders/purchase-types";
 import type { CheckoutSessionInput, CheckoutSessionResult } from "@/lib/payments/stripe-checkout";
@@ -39,7 +40,7 @@ export async function readPackageSelectorCore(
   if (!UUID.test(tenantId)) return { ok: false, reason: "invalid_request" };
   const now = (deps.now ?? (() => new Date()))();
   try {
-    let q = deps.admin.from("talent_offerings").select("*").eq("tenant_id", tenantId).eq("kind", "package").eq("status", "published").eq("moderation_state", "approved").eq("visibility", "public");
+    let q = scopeToSellableOfferings(deps.admin.from("talent_offerings").select("*").eq("tenant_id", tenantId).eq("kind", "package"), "guest");
     if (Array.isArray(props.packageIds)) q = q.in("id", props.packageIds);
     const { data: rows, error } = await q.order("sort_order", { ascending: true }).limit(40);
     if (error) return { ok: false, reason: "unavailable" };

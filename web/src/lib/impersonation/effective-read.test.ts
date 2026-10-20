@@ -452,3 +452,19 @@ test("client root resolver: bare /client keys tenant + profile on the effective 
   assert.match(src, /\.eq\("user_id", subjectUserId\)/);
   assert.doesNotMatch(src, /loadClientPrimaryTenantSlug\(session\.user\.id\)/);
 });
+
+test("#4114: a multi-role user (talent and workspace admin) with no verified impersonation reads as themselves", async () => {
+  const { effectiveReadContext, readUserId } = await import("./effective-read");
+  const SELF = "user-self";
+  const ownIdentity = { actorUser: { id: SELF }, effectiveUserId: SELF, isImpersonating: false };
+  const ctx = effectiveReadContext(SELF, ownIdentity);
+  assert.equal(ctx.impersonated, false);
+  assert.equal(readUserId(SELF, ctx), SELF);
+  assert.equal(readUserId(SELF, undefined), SELF);
+  // A claimed impersonation of someone else that is not for this session user is ignored.
+  const forged = effectiveReadContext(SELF, { actorUser: { id: "someone-else" }, effectiveUserId: "victim", isImpersonating: true });
+  assert.equal(readUserId(SELF, forged), SELF);
+  // Verified impersonation resolves the subject, as before.
+  const verified = effectiveReadContext(SELF, { actorUser: { id: SELF }, effectiveUserId: "talent-x", isImpersonating: true });
+  assert.equal(readUserId(SELF, verified), "talent-x");
+});
