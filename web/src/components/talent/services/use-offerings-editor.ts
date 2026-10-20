@@ -24,13 +24,19 @@ import {
   deleteTalentOffering,
   reorderTalentOfferings,
   importLegacyToOfferings,
+  setOfferingOptions,
 } from "@/lib/talent/offerings-actions";
 import {
   loadWorkspaceMenuForEditor,
   upsertWorkspaceMenuItem,
   deleteWorkspaceMenuItem,
   reorderWorkspaceMenuItems,
+  setWorkspaceMenuItemOptions,
 } from "@/lib/talent/menu-offerings-actions";
+import { childrenInputFromItem } from "@/lib/talent/duplicate-children";
+import { copyCatalogExtras } from "@/lib/talent/duplicate-extras-actions";
+import { copyTitle } from "@/lib/talent/duplicate-extras";
+import { useT } from "@/i18n/use-t";
 import { invalidateWebsiteEligibility } from "@/components/talent/studio/useWebsiteEligibility";
 import { settleServerAction } from "@/lib/client/settle-server-action";
 import { takeServicesSeed } from "./services-bootstrap";
@@ -314,6 +320,8 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
     [items, reorderAll, flashSaved],
   );
 
+  const t = useT();
+  const copySuffix = t("dashboard.catalog.duplicate.copySuffix");
   const duplicate = useCallback(
     (it: TalentOffering) => {
       setSaving(true);
@@ -321,19 +329,49 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
         const res = await upsertOne({
           ...it,
           id: "",
-          title: `${it.title} (copy)`,
+          title: copyTitle(it.title, copySuffix),
           status: "draft",
           sortOrder: items.length,
           imageUrls: [],
         });
-        setSaving(false);
         if (res.ok) {
-          setItems((cur) => [...cur, res.item]);
+          // TUL-1271 #8: the copy keeps the original's options and extras.
+          const kids = childrenInputFromItem(it);
+          const copied = kids
+            ? await (isWorkspace
+                ? setWorkspaceMenuItemOptions(workspaceTenantId, res.item.id, kids)
+                : setOfferingOptions(talentId, res.item.id, kids))
+            : null;
+          // A package's parts and its live/upcoming price phases (workspace items only).
+          const extras =
+            isWorkspace && (!copied || copied.ok)
+              ? await copyCatalogExtras({
+                  sourceId: it.id,
+                  copyId: res.item.id,
+                  sourceVariants: it.variants ?? [],
+                  copyVariants: copied && copied.ok ? copied.variants : [],
+                  nowIso: new Date().toISOString(),
+                  tenantId: workspaceTenantId,
+                  sourcePhotoIds: (it.imageAssets ?? []).map((a) => a.id),
+                })
+              : null;
+          setSaving(false);
+          const withKids = {
+            ...res.item,
+            ...(copied && copied.ok ? { variants: copied.variants, addOns: copied.addOns } : {}),
+            ...(extras && extras.ok && extras.assets ? { imageAssets: extras.assets, imageUrls: extras.assets.map((a) => a.url) } : {}),
+          };
+          setItems((cur) => [...cur, withKids]);
           flashSaved();
-        } else setError(res.error);
+          if (copied && !copied.ok) setError(copied.error);
+          else if (extras && !extras.ok) setError(extras.error);
+        } else {
+          setSaving(false);
+          setError(res.error);
+        }
       });
     },
-    [items.length, upsertOne, flashSaved],
+    [items.length, upsertOne, flashSaved, isWorkspace, workspaceTenantId, talentId, copySuffix],
   );
 
   // `owner` is a fresh object literal on every caller render; the two fields

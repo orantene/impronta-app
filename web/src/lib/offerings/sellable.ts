@@ -18,6 +18,12 @@
  *  - `pos_desk`      staff at the point of sale / staff pickers: published only.
  *                    A person with workspace access is the confirmation, and an
  *                    agency_only service is exactly what the desk sells.
+ *  - `staff_quote`   staff quoting from Messages (the items picker): published +
+ *                    approved, ANY visibility. Staff quote `on_request` and
+ *                    `agency_only` services; an unapproved or unpublished one
+ *                    still never reaches a quote. Used ONLY by
+ *                    `messagingLoadItemsCatalog` (TUL-1347); the guest dock stays
+ *                    on `guest`.
  *  - `reservation`   the one offering a venue configured for table bookings
  *                    (`venue_service_rules.reservation_offering_id`). It is
  *                    deliberately NOT a menu item (agency_only or
@@ -29,7 +35,7 @@
  * value, is a refusal.
  */
 
-export type SellContext = "guest" | "client" | "guest_request" | "pos_desk" | "reservation";
+export type SellContext = "guest" | "client" | "guest_request" | "pos_desk" | "staff_quote" | "reservation";
 
 export type SellRefusalReason =
   | "tier_hidden"
@@ -56,7 +62,7 @@ export function sellability(row: SellableRow | null | undefined, context: SellCo
 
   const moderation = row.moderation_state ?? row.moderationState;
   if (moderation !== "approved") return { ok: false, reason: "not_approved" };
-  if (context === "reservation") return { ok: true };
+  if (context === "reservation" || context === "staff_quote") return { ok: true };
 
   const visibility = row.visibility;
   if (visibility === "public") return { ok: true };
@@ -83,6 +89,7 @@ type FilterChain = {
 export function scopeToSellableOfferings<Q>(query: Q, context: Exclude<SellContext, "reservation">): Q {
   const q = query as unknown as FilterChain;
   if (context === "pos_desk") return q.eq("status", "published") as unknown as Q;
+  if (context === "staff_quote") return q.eq("status", "published").eq("moderation_state", "approved") as unknown as Q;
   const base = q.eq("status", "published").eq("moderation_state", "approved");
   if (context === "guest_request") return base.in("visibility", ["public", "on_request"]) as unknown as Q;
   return base.eq("visibility", "public") as unknown as Q;
@@ -104,8 +111,12 @@ export function variantSellability(
   return { ok: false, reason: "tier_hidden" };
 }
 
-/** The deep-link ref names a tier by its id (case-insensitive) or its tier key. */
+/**
+ * The deep-link ref unlocks a hidden tier by its id (case-insensitive) only. The tier key
+ * (pool_key such as "comp") is guessable, so it never unlocks anything; `tierKey` is accepted
+ * and ignored.
+ */
 export function tierRefUnlocks(ref: string | null | undefined, tier: { variantId: string; tierKey?: string | null }): boolean {
   if (!ref) return false;
-  return ref.toLowerCase() === tier.variantId.toLowerCase() || (tier.tierKey != null && tier.tierKey !== "" && ref === tier.tierKey);
+  return ref.toLowerCase() === tier.variantId.toLowerCase();
 }

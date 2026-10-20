@@ -107,6 +107,10 @@ function fakeDb() {
           poolFilters.push((r) => r[col] === val);
           return poolApi;
         },
+        async maybeSingle() {
+          const hit = pools.find((r) => poolFilters.every((f) => f(r)));
+          return { data: hit ? { id: hit.id } : null, error: null };
+        },
         then(resolve: (v: unknown) => void) {
           resolve({ data: pools.filter((r) => poolFilters.every((f) => f(r))), error: null });
         },
@@ -122,16 +126,23 @@ function fakeDb() {
           p.subject_kind === args.p_subject_kind,
       );
       // ON CONFLICT DO UPDATE SET units_total = EXCLUDED — the real behaviour.
-      if (existing) existing.units_total = args.p_units_total;
-      else
+      if (existing) {
+        existing.units_total = args.p_units_total;
+        return { data: existing.id, error: null };
+      }
+      const id = `pool-${pools.length + 1}`;
+      {
         pools.push({
+          id,
+          parent_pool_id: args.p_parent_pool_id ?? null,
           subject_kind: args.p_subject_kind,
           subject_id: args.p_subject_id,
           pool_key: args.p_pool_key,
           units_total: args.p_units_total,
           tenant_id: args.p_tenant_id,
         });
-      return { data: null, error: null };
+      }
+      return { data: id, error: null };
     },
   };
 
@@ -299,4 +310,33 @@ test("when the 'does this night exist' read fails, nothing is held or created (f
   assert.deepEqual(res, { ok: false, reason: "room_unavailable" });
   assert.equal(holds, 0);
   assert.equal(sessions.length, 0);
+});
+
+test("tier pools: the default pool is written first and each tier hangs under it", async () => {
+  const { admin, pools } = fakeDb();
+  const res = await createSessionWithPools(
+    admin as never,
+    { tenantId: "t1", seriesId: "series-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt },
+    // children listed BEFORE the parent on purpose: the writer must reorder
+    [
+      { poolKey: "child", units: 6, parentPoolKey: "default" },
+      { poolKey: "default", units: 20 },
+    ],
+  );
+  assert.equal(res.ok, true);
+  const parent = pools.find((p) => p.pool_key === "default")!;
+  const child = pools.find((p) => p.pool_key === "child")!;
+  assert.equal(parent.parent_pool_id, null);
+  assert.equal(child.parent_pool_id, parent.id);
+});
+
+test("a tier whose parent cannot be found is NOT created parentless", async () => {
+  const { admin, pools } = fakeDb();
+  const res = await createSessionWithPools(
+    admin as never,
+    { tenantId: "t1", seriesId: "series-2", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt },
+    [{ poolKey: "child", units: 6, parentPoolKey: "default" }],
+  );
+  assert.equal(res.ok, false);
+  assert.equal(pools.length, 0);
 });

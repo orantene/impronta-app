@@ -8,6 +8,7 @@ import {
   type VenueOccupancy,
 } from "./materialise";
 import { createSessionWithPools } from "./session-writer";
+import { loadSeriesPoolPlan } from "./series-pools";
 import type { IsoWeekday } from "./recurrence";
 
 type Admin = {
@@ -254,6 +255,12 @@ export async function generateSessionsForSeries(
 
   let created = 0;
   let reused = decision.existing;
+  const poolPlan = await loadSeriesPoolPlan(admin as never, {
+    tenantId: input.tenantId,
+    seriesId: input.seriesId,
+    offeringId: s.offering_id,
+    seats: s.seats,
+  });
   for (const occ of decision.create) {
     const made = await createSessionWithPools(
       admin as never,
@@ -267,7 +274,7 @@ export async function generateSessionsForSeries(
         title: s.title,
         instructorUserId: s.instructor_user_id,
       },
-      [{ poolKey: "default", units: s.seats }],
+      poolPlan,
     );
     // TUL-1413: the room is taken by another session at that time: the same refusal as an overlapping room.
     if (!made.ok) return { ok: false, reason: made.reason === "room_taken" ? "overlapping_room" : "unavailable" };

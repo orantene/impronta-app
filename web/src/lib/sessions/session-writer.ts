@@ -253,7 +253,7 @@ export async function ensureSessionPools(
 ): Promise<{ created: string[]; alreadyPresent: string[]; failed: string[] }> {
   const { data: existing, error } = await admin
     .from("capacity_pools")
-    .select("pool_key")
+    .select("id, pool_key")
     .eq("tenant_id", tenantId)
     .eq("subject_kind", "session_tier")
     .eq("subject_id", sessionId);
@@ -265,17 +265,21 @@ export async function ensureSessionPools(
     return { created: [], alreadyPresent: [], failed: wanted.map((w) => w.poolKey) };
   }
 
-  const present = new Set((existing ?? []).map((row) => String(row.pool_key)));
+  const idByKey = new Map((existing ?? []).map((row) => [String(row.pool_key), String(row.id)]));
+  const present = new Set(idByKey.keys());
   const created: string[] = [];
   const alreadyPresent: string[] = [];
   const failed: string[] = [];
 
-  for (const tier of wanted) {
+  for (const tier of parentsFirst(wanted)) {
     if (present.has(tier.poolKey)) {
       alreadyPresent.push(tier.poolKey);
       continue;
     }
-    const ok = await createOnePool(admin, tenantId, sessionId, tier);
+    const parent = await resolveParent(admin, tenantId, sessionId, tier, idByKey);
+    // A tier whose parent is not there is NOT created parentless: that would
+    // sell it past the session's total. It is reported failed and retried.
+    const ok = parent.ok && (await createOnePool(admin, tenantId, sessionId, tier, parent.id, idByKey));
     (ok ? created : failed).push(tier.poolKey);
   }
 
@@ -289,10 +293,43 @@ async function createPools(
   pools: ReadonlyArray<TierUnits>,
 ): Promise<number> {
   let made = 0;
-  for (const tier of pools) {
-    if (await createOnePool(admin, tenantId, sessionId, tier)) made += 1;
+  const idByKey = new Map<string, string>();
+  for (const tier of parentsFirst(pools)) {
+    const parent = await resolveParent(admin, tenantId, sessionId, tier, idByKey);
+    if (parent.ok && (await createOnePool(admin, tenantId, sessionId, tier, parent.id, idByKey))) made += 1;
   }
   return made;
+}
+
+/** Parents before children, otherwise the given order. Pure. */
+export function parentsFirst(pools: ReadonlyArray<TierUnits>): TierUnits[] {
+  return [...pools.filter((p) => !p.parentPoolKey), ...pools.filter((p) => p.parentPoolKey)];
+}
+
+async function resolveParent(
+  admin: Admin,
+  tenantId: string,
+  sessionId: string,
+  tier: TierUnits,
+  idByKey: Map<string, string>,
+): Promise<{ ok: true; id: string | null } | { ok: false }> {
+  if (!tier.parentPoolKey) return { ok: true, id: null };
+  const known = idByKey.get(tier.parentPoolKey);
+  if (known) return { ok: true, id: known };
+  const { data, error } = await admin
+    .from("capacity_pools")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("subject_kind", "session_tier")
+    .eq("subject_id", sessionId)
+    .eq("pool_key", tier.parentPoolKey)
+    .maybeSingle();
+  if (error || !data?.id) {
+    if (error) logServerError("sessions.resolveParent", error);
+    return { ok: false };
+  }
+  idByKey.set(tier.parentPoolKey, String(data.id));
+  return { ok: true, id: String(data.id) };
 }
 
 async function createOnePool(
@@ -300,17 +337,20 @@ async function createOnePool(
   tenantId: string,
   sessionId: string,
   tier: TierUnits,
+  parentPoolId: string | null = null,
+  idByKey?: Map<string, string>,
 ): Promise<boolean> {
-  const { error } = await admin.rpc("upsert_capacity_pool", {
+  const { data, error } = await admin.rpc("upsert_capacity_pool", {
     p_tenant_id: tenantId,
     p_subject_kind: "session_tier",
     p_subject_id: sessionId,
     p_units_total: tier.units,
     p_pool_key: tier.poolKey,
-    // Parentless on purpose today. When Spaces gives a room a pool, the parent
+    // Parentless unless the plan names a parent on this session (a tier under
+    // the session's total). When Spaces gives a room a pool, that parent also
     // belongs here and in exactly one place, which is why this is the one
     // creator.
-    p_parent_pool_id: null,
+    p_parent_pool_id: parentPoolId,
     p_overbook_units: 0,
     p_hold_ttl_seconds: HOLD_TTL_SECONDS,
     p_unit_label: UNIT_LABEL,
@@ -320,5 +360,7 @@ async function createOnePool(
     logServerError("sessions.createOnePool", error);
     return false;
   }
+  // upsert_capacity_pool returns the pool id; remember it for this session's children.
+  if (idByKey && typeof data === "string") idByKey.set(tier.poolKey, data);
   return true;
 }

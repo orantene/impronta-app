@@ -35,7 +35,7 @@ describe("prepareServiceSlugRename (C1: slug_history on rename)", () => {
     assert.deepEqual(calls, []);
   });
 
-  it("columns absent (415800 held): no read, nothing to write", async () => {
+  it("columns absent (migration held): no read, nothing to write", async () => {
     const { db, calls } = fakeDb(ROW);
     assert.equal(await prepareServiceSlugRename(db, { offeringId: ID, talentProfileId: "p1", nextTitle: "Corte moderno" }, { enabled: true, columnsAvailable: async () => false }), null);
     assert.deepEqual(calls, []);
