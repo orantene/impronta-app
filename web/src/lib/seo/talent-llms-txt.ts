@@ -2,6 +2,7 @@
  * llms.txt for talent-site hosts (TUL-589). Built only from the talent's
  * published public profile; pure so the gate and the text are unit-testable.
  */
+import { contractToLlmsLine, type OfferingContract } from "@/lib/offerings/contract";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { maxSitePublicGate } from "@/lib/talent-site/resolve-max-site-core";
 
@@ -26,6 +27,11 @@ export interface TalentLlmsInput {
   city: string | null;
   languages: string[];
   services: TalentLlmsService[];
+  /**
+   * F2: the offering contracts. When present they ARE the Services list (the
+   * same record the page and the API read); `services` is the fallback.
+   */
+  contracts?: OfferingContract[];
   /** Indexable posts, already localized to absolute URLs. */
   posts?: TalentLlmsPost[];
   /** Talent switch "booking through AI assistants". Absent counts as OFF. */
@@ -67,7 +73,9 @@ export function buildTalentLlmsTxt(base: URL, t: TalentLlmsInput): string {
   const facts = [t.trade, t.city].filter((v): v is string => !!v && v.trim() !== "");
   const out = [`# ${t.name}`, ""];
   if (facts.length > 0) out.push(`> ${facts.join(" in ")}`, "");
-  if (t.services.length > 0) {
+  if (t.contracts && t.contracts.length > 0) {
+    out.push("## Services", "", ...t.contracts.map(contractToLlmsLine), "");
+  } else if (t.services.length > 0) {
     out.push("## Services", "", ...t.services.map((s) => `- ${s.title}: ${s.priceText}`), "");
   }
   if (t.languages.length > 0) out.push("## Languages", "", t.languages.join(", "), "");

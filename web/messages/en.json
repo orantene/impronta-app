@@ -1763,7 +1763,9 @@
       "chooseService": "Service",
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
-      "contactCta": "Send a message"
+      "contactCta": "Send a message",
+      "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "requestCta": "Send a request"
     },
     "siteShellSurface": {
       "title": "Site header & footer",
@@ -16879,6 +16881,8 @@
         "askBill": "Ask for the bill",
         "empty": "Nothing to order on this visit yet.",
         "add": "Add",
+        "soldOut": "Sold out",
+        "priceOnRequest": "Price on request",
         "offerTitle": "A substitution is waiting",
         "acceptOffer": "Accept {name}",
         "back": "Your table"
@@ -18461,6 +18465,7 @@
         "fulfillmentHint": "Handoff now · Pickup · Delivery · Serve at table",
         "handoffNow": "Handoff now",
         "station": "Station",
+        "stationNone": "No kitchen stations yet. Add them in Settings.",
         "prepTime": "Prep time",
         "course": "Default course (tables)"
       },

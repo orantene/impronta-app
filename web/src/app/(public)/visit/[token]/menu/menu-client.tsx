@@ -25,7 +25,13 @@ import {
 } from "@/lib/visits/guest-menu-options";
 import { venueEngineRefusalSentence, type VenueEngineRefusalSentences } from "@/lib/venues/engine-refusals";
 
-export type GuestMenuItem = GuestMenuOptionItem;
+export type GuestMenuItem = GuestMenuOptionItem & {
+  description?: string | null;
+  category?: string | null;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  soldOut?: boolean;
+};
 export type GuestOffer = { lineId: string; offeringId: string; label: string };
 
 export function GuestMenuClient(props: {
@@ -46,6 +52,8 @@ export function GuestMenuClient(props: {
     askBill: string;
     empty: string;
     add: string;
+    soldOut: string;
+    priceOnRequest: string;
     offerTitle: string;
     acceptOffer: string;
     back: string;
@@ -172,26 +180,43 @@ export function GuestMenuClient(props: {
           <p className="m-0 text-[14px] text-admin-ink-muted">{props.copy.empty}</p>
         ) : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {props.items.map((item) => {
+            {props.items.map((item, index) => {
               const price = guestPriceLabel(item);
               const open = picking === item.id;
               return (
-                <li key={item.id} className="rounded-[16px] border-[1.5px] border-admin-border bg-admin-card px-4 py-3">
+                <li key={item.id} className="flex flex-col gap-2">
+                  {item.category && item.category !== props.items[index - 1]?.category ? (
+                    <h2 className="m-0 mt-2 text-[13px] font-semibold uppercase tracking-[0.04em] text-admin-ink-muted" data-testid="guest-menu-category">
+                      {item.category}
+                    </h2>
+                  ) : null}
+                  <div className="rounded-[16px] border-[1.5px] border-admin-border bg-admin-card px-4 py-3">
                   <div className="flex items-center gap-3">
+                    {item.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.imageUrl} alt={item.imageAlt ?? ""} className="h-14 w-14 shrink-0 rounded-[10px] object-cover" loading="lazy" />
+                    ) : null}
                     <div className="min-w-0 flex-1">
                       <p className="m-0 text-[15px] font-semibold text-admin-ink">{item.title}</p>
+                      {item.description ? <p className="m-0 line-clamp-2 text-[12.5px] text-admin-ink-muted">{item.description}</p> : null}
                       {price.kind !== "none" ? (
                         <p className="m-0 text-[13px] text-admin-ink-muted">
                           {price.kind === "from" ? `${oc.from} ` : ""}
                           {formatOrderMoney(price.cents, props.currency)}
+                          {item.soldOut ? ` · ${props.copy.soldOut}` : ""}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className="m-0 text-[13px] text-admin-ink-muted">
+                          {props.copy.priceOnRequest}
+                          {item.soldOut ? ` · ${props.copy.soldOut}` : ""}
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"
                       aria-label={props.copy.add}
                       aria-expanded={item.options.length > 0 ? open : undefined}
-                      disabled={busy || (price.kind === "none" && item.options.length === 0)}
+                      disabled={busy || item.soldOut === true || (price.kind === "none" && item.options.length === 0)}
                       data-testid={`guest-add-${item.id}`}
                       onClick={() => {
                         // An item with options asks first; a dish with no price of its own cannot skip it.
@@ -238,6 +263,7 @@ export function GuestMenuClient(props: {
                       </button>
                     </div>
                   ) : null}
+                  </div>
                 </li>
               );
             })}

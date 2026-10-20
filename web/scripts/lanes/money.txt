@@ -93,6 +93,7 @@ src/lib/menu-import/photo-ingest.test.ts
 src/lib/menu-import/plan-import.test.ts
 src/lib/messages-v5/record-money.test.ts
 src/lib/messaging/accept-offer-order-adopt.test.ts
+src/lib/messaging/release-order-lines-capacity.test.ts
 src/lib/messaging/repair-duplicate-offer-orders.test.ts
 src/lib/messaging/sheets-offer-currency.test.ts
 src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
@@ -134,6 +135,7 @@ src/lib/orders/purchase-policy.test.ts
 src/lib/orders/purchase-pricing.test.ts
 src/lib/orders/purchase-refusal.test.ts
 src/lib/orders/purchase-seller.test.ts
+src/lib/orders/purchase-stock-idempotency.test.ts
 src/lib/orders/refund-admissions.test.ts
 src/lib/orders/refund-desk-copy.test.ts
 src/lib/orders/refund-effects.test.ts
