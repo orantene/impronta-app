@@ -74,11 +74,11 @@ test("a transient error is not cached as 'absent'", async () => {
 test("columns present: loader maps rows by id through the tolerant parser", async () => {
   resetServiceContentProbeForTests();
   const { db, selects } = fakeDb((_cols, ids) =>
-    ids ? { data: [{ id: ID, slug: "corte-clasico", slug_history: ["corte-viejo"], tags: null }], error: null } : { data: [], error: null },
+    ids ? { data: [{ id: ID, summary: "Un corte clasico", tags: null }], error: null } : { data: [], error: null },
   );
   const map = await loadServiceContentFields([ID, ID], db, { now: 0 });
-  assert.deepEqual(map.get(ID), { ...EMPTY_SERVICE_CONTENT, slug: "corte-clasico", slugHistory: ["corte-viejo"] });
-  assert.match(selects.at(-1) ?? "", /^id, slug, slug_history,/);
+  assert.deepEqual(map.get(ID), { ...EMPTY_SERVICE_CONTENT, summary: "Un corte clasico" });
+  assert.match(selects.at(-1) ?? "", /^id, summary,/);
 });
 
 test("columns dropped after a positive probe: loader falls back to defaults and re-probes later", async () => {
@@ -98,4 +98,26 @@ test("no ids or no client: empty map, no query", async () => {
   assert.equal((await loadServiceContentFields([], db)).size, 0);
   assert.equal((await loadServiceContentFields([ID], null)).size, 0);
   assert.equal(selects.length, 0);
+});
+
+import { SERVICE_CONTENT_DB_COLUMNS as DB_COLS } from "./service-content-fields";
+
+test("the probe and the loader select only columns the migration adds (never slug / slug_history)", async () => {
+  resetServiceContentProbeForTests();
+  const selects: string[] = [];
+  const db = {
+    from: () => ({
+      select: (cols: string) => {
+        selects.push(cols);
+        return { limit: async () => ({ data: [], error: null }), in: async () => ({ data: [], error: null }) };
+      },
+    }),
+  } as never;
+  await loadServiceContentFields(["00000000-0000-4000-8000-000000000001"], db);
+  assert.ok(selects.length >= 2);
+  for (const s of selects) {
+    assert.doesNotMatch(s, /\bslug\b|slug_history/);
+    for (const c of DB_COLS) assert.match(s, new RegExp(`\\b${c}\\b`));
+  }
+  resetServiceContentProbeForTests();
 });

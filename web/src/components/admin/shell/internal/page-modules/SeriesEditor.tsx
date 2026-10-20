@@ -39,6 +39,7 @@ import type { SessionRow } from "./appointments-classes-model";
 import { ActionButton, BUTTON_PRIMARY, CARD, FactRow, INPUT, Outcome, SectionLabel, StatePill, UsedIn } from "./appointments-classes-ui";
 import { whenLine } from "./appointments-format";
 import type { StaffOption } from "./SessionPanelForms";
+import { SeriesDatedSettings } from "./SeriesDatedSettings";
 
 const K = "dashboard.adminAppointments.board.seriesEditor";
 const B = "dashboard.adminAppointments.board";
@@ -395,6 +396,9 @@ export function SeriesEditor({
           <OffField label={t(`${K}.attendance`)} value={t(`${K}.attendanceValue`)} reason={t(`${K}.attendanceOff`)} />
           <OffField label={t(`${K}.cancellation`)} value={t(`${B}.panel.cancellationOff`)} reason={t(`${K}.cancellationOff`)} />
         </div>
+
+        {/* TUL-1344 slice 3: stop selling and spots per price. */}
+        <SeriesDatedSettings seriesId={draft.seriesId} locale={locale} />
 
         {/* The preview: the series' dated sessions and the sweep's collisions. */}
         <div className={`${CARD} overflow-hidden`} data-testid="series-preview">

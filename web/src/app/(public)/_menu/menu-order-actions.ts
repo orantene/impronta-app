@@ -8,6 +8,8 @@
 
 import { randomUUID } from "node:crypto";
 import { createPurchase } from "@/lib/orders/purchase";
+import { fireMenuOrderToKitchen } from "@/lib/orders/menu-order-prep";
+import { toPurchaseLines } from "@/lib/orders/menu-order-lines";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -115,7 +117,8 @@ export async function submitMenuOrder(
       }`,
       actorUserId,
       contact: { email, phone: input.contactPhone ?? null, displayName: name },
-      lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.quantity })),
+      // TUL-1332: the chosen option and extras ride along as ids; the pipeline prices them.
+      lines: toPurchaseLines(input.lines),
       // INTENT, never policy. The pipeline re-derives what this offering allows
       // from its own row and refuses if they disagree — which is the whole
       // indictment of the engine this replaces: it rendered offerings whose
@@ -137,6 +140,9 @@ export async function submitMenuOrder(
         result.reason === "offering_not_priceable"
         || result.reason === "unknown_offering"
         || result.reason === "offering_not_published"
+        || result.reason === "variant_required"
+        || result.reason === "variant_not_on_offering"
+        || result.reason === "addon_not_on_offering"
       ) {
         return {
           ok: false,
@@ -151,6 +157,9 @@ export async function submitMenuOrder(
         reason: result.reason,
       };
     }
+
+    // TUL-1332: the kitchen sees the order like a POS or QR one. Best effort: never fails the order.
+    await fireMenuOrderToKitchen(admin, { tenantId: input.tenantId, orderId: result.orderId });
 
     return {
       ok: true,
