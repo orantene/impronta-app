@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createReservation } from "@/lib/reservations/reserve";
+import { createReservation, workspaceCurrency, type ReserveOutcome } from "@/lib/reservations/reserve";
 import { depositCentsForParty, parseServiceRules } from "@/lib/reservations/rules";
 import type { PurchaseInput, PurchaseResult } from "@/lib/orders/purchase-types";
 import type { OfferedTime } from "@/lib/reservations/availability";
@@ -29,11 +29,11 @@ function rules(over: Record<string, unknown> = {}) {
 }
 
 /** An admin whose only readable row is the workspace's settings. */
-function fakeAdmin(settings: unknown): SupabaseClient {
+function fakeAdmin(settings: unknown, error: unknown = null): SupabaseClient {
   const q = {
     select: () => q,
     eq: () => q,
-    maybeSingle: async () => ({ data: { settings }, error: null }),
+    maybeSingle: async () => (error ? { data: null, error } : { data: { settings }, error: null }),
   };
   return { from: () => q } as unknown as SupabaseClient;
 }
@@ -44,11 +44,11 @@ const offered = {
   band: { poolId: "pool_1" },
 } as unknown as OfferedTime;
 
-async function sentToPipeline(r: ReturnType<typeof rules>, partySize: number, settings: unknown) {
+async function attempt(r: ReturnType<typeof rules>, partySize: number, admin: SupabaseClient) {
   let seen: PurchaseInput | null = null;
   const refusal: PurchaseResult = { ok: false, reason: "sold_out" };
-  await createReservation(
-    fakeAdmin(settings),
+  const outcome: ReserveOutcome = await createReservation(
+    admin,
     {
       tenantId: TENANT,
       venueId: "venue_1",
@@ -66,8 +66,13 @@ async function sentToPipeline(r: ReturnType<typeof rules>, partySize: number, se
       },
     },
   );
+  return { seen: seen as PurchaseInput | null, outcome };
+}
+
+async function sentToPipeline(r: ReturnType<typeof rules>, partySize: number, settings: unknown) {
+  const { seen } = await attempt(r, partySize, fakeAdmin(settings));
   assert.ok(seen, "the pipeline was called");
-  return seen as PurchaseInput;
+  return seen;
 }
 
 test("party of 6 at MXN 100 per person is charged MXN 600, the figure the floor shows", async () => {
@@ -81,8 +86,42 @@ test("party of 6 at MXN 100 per person is charged MXN 600, the figure the floor 
 test("the deposit currency is the workspace currency, not a hard-coded USD", async () => {
   const mxn = await sentToPipeline(rules(), 6, { display_currency: "MXN" });
   assert.equal(mxn.tableDeposit?.currency, "MXN");
-  const unset = await sentToPipeline(rules(), 6, {});
-  assert.equal(unset.tableDeposit?.currency, "USD", "a workspace that never chose is USD");
+  const usd = await sentToPipeline(rules(), 6, { display_currency: "usd" });
+  assert.equal(usd.tableDeposit?.currency, "USD", "an explicit choice is normalised, not replaced");
+});
+
+// P0 (consultant FIX FIRST): never charge in a guessed currency. A deposit with
+// no explicitly chosen, valid display currency is REFUSED before the pipeline.
+for (const [label, admin] of [
+  ["never chosen", fakeAdmin({})],
+  ["settings null", fakeAdmin(null)],
+  ["malformed (pesos)", fakeAdmin({ display_currency: "pesos" })],
+  ["malformed (number)", fakeAdmin({ display_currency: 484 })],
+  ["the settings read failed", fakeAdmin(null, { message: "boom" })],
+] as const) {
+  test(`a deposit with the workspace currency ${label} is refused, never charged in USD`, async () => {
+    const { seen, outcome } = await attempt(rules(), 6, admin);
+    assert.equal(seen, null, "the pipeline must not be called");
+    assert.deepEqual(outcome, { ok: false, reason: "currency_not_set" });
+  });
+}
+
+test("no admin client means no currency, so a deposit is refused", async () => {
+  assert.equal(await workspaceCurrency(null, TENANT), null);
+});
+
+test("workspaceCurrency returns only an explicit valid code", async () => {
+  assert.equal(await workspaceCurrency(fakeAdmin({ display_currency: "MXN" }), TENANT), "MXN");
+  assert.equal(await workspaceCurrency(fakeAdmin({ display_currency: " ars " }), TENANT), "ARS");
+  assert.equal(await workspaceCurrency(fakeAdmin({}), TENANT), null);
+  assert.equal(await workspaceCurrency(fakeAdmin({ display_currency: "US$" }), TENANT), null);
+  assert.equal(await workspaceCurrency(fakeAdmin(null, { message: "x" }), TENANT), null);
+});
+
+test("a table with no deposit needs no currency, so an unset workspace can still book it", async () => {
+  const { seen } = await attempt(rules(), 5, fakeAdmin({}));
+  assert.ok(seen);
+  assert.equal(seen.paymentChoice, "in_person");
 });
 
 test("a large party is priced from the venue rules, so it needs no catalog deposit_pct", async () => {

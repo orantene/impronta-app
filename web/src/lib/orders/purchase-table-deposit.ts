@@ -34,3 +34,35 @@ export function withTableDeposit(priced: PricingResult, deposit: TableDeposit | 
     lines: [{ ...line, units: 1, unitCents: deposit.cents, totalCents: deposit.cents, addonIds: [], talentCostCents: 0 }],
   };
 }
+
+const CODE = /^[A-Z]{3}$/;
+
+export type TableDepositCurrency =
+  | { ok: true; currency: string }
+  | { ok: false; reason: "currency_mismatch"; currencies: string[] };
+
+/**
+ * The currency the table deposit is charged in.
+ *
+ * Every other order takes its currency from the offering (`resolveOrderCurrency`:
+ * the offering is the truth). A table deposit is a venue rule priced in the
+ * workspace's explicit display currency, so the two must AGREE: an offering
+ * with its own currency that differs refuses the deposit rather than relabel
+ * MXN cents as USD. An offering with no currency of its own takes the
+ * workspace's. A malformed deposit currency is refused, never defaulted.
+ */
+export function tableDepositCurrency(
+  depositCurrency: string,
+  offeringCurrencies: readonly (string | null | undefined)[],
+): TableDepositCurrency {
+  const want = (depositCurrency ?? "").trim().toUpperCase();
+  const seen = new Set<string>([want]);
+  for (const c of offeringCurrencies) {
+    const code = (c ?? "").trim().toUpperCase();
+    if (code) seen.add(code);
+  }
+  if (!CODE.test(want) || seen.size !== 1) {
+    return { ok: false, reason: "currency_mismatch", currencies: [...seen].filter(Boolean).sort() };
+  }
+  return { ok: true, currency: want };
+}

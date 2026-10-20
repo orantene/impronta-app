@@ -20,11 +20,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPurchase } from "@/lib/orders/purchase";
-import { displayCurrencyFromSettings } from "@/lib/orders/display-currency";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { availabilityForWindow, resolveWindowOnDate } from "./index";
 import type { OfferedTime, PartyBand } from "./availability";
+import { explicitDisplayCurrency } from "./deposit-currency";
 import { depositCentsForParty } from "./rules";
 import type { ServiceRules, ServiceWindow, ServiceWindowException } from "./types";
 
@@ -35,6 +35,8 @@ export type ReserveRefusal =
   | "sold_out"
   | "capacity_unavailable"
   | "no_contact"
+  /** A deposit is due but the workspace has no explicit, valid display currency. */
+  | "currency_not_set"
   | "engine_error";
 
 export type ReserveOutcome =
@@ -102,12 +104,20 @@ export function findOfferedTime(input: {
   return null;
 }
 
-/** The workspace's display currency (USD when never chosen), read fresh from its settings. */
-export async function workspaceCurrency(admin: SupabaseClient | null, tenantId: string): Promise<string> {
-  if (!admin) return displayCurrencyFromSettings(null);
+/**
+ * The workspace's EXPLICIT display currency, read fresh from its settings, or
+ * null. FAILS CLOSED: a read error, a missing setting and a malformed setting
+ * are all null, never USD, so no deposit is charged or shown in a guessed
+ * currency (deposit-currency.ts).
+ */
+export async function workspaceCurrency(admin: SupabaseClient | null, tenantId: string): Promise<string | null> {
+  if (!admin) return null;
   const { data, error } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
-  if (error) logServerError("reservations.workspaceCurrency", error);
-  return displayCurrencyFromSettings((data as { settings?: unknown } | null)?.settings ?? null);
+  if (error) {
+    logServerError("reservations.workspaceCurrency", error);
+    return null;
+  }
+  return explicitDisplayCurrency((data as { settings?: unknown } | null)?.settings ?? null);
 }
 
 /**
@@ -150,10 +160,14 @@ export async function createReservation(
   // The deposit is the venue's rule, the SAME figure the floor shows
   // (`depositCentsForParty`), in the workspace's currency; never the catalog
   // item's deposit_pct. 0 means nothing is paid online.
+  // No explicit currency means no charge: refused, never defaulted to USD.
   const depositCents = depositCentsForParty(rules, partySize);
-  const tableDeposit = depositCents > 0
-    ? { cents: depositCents, currency: await workspaceCurrency(admin, input.tenantId) }
-    : undefined;
+  let tableDeposit: { cents: number; currency: string } | undefined;
+  if (depositCents > 0) {
+    const currency = await workspaceCurrency(admin, input.tenantId);
+    if (!currency) return { ok: false, reason: "currency_not_set" };
+    tableDeposit = { cents: depositCents, currency };
+  }
 
   const purchase = await deps.createPurchase(admin, {
     tenantId: input.tenantId,

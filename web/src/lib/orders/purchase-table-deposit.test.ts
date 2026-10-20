@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolvePurchasePolicy, type OfferingPolicy, type PurchaseIntent } from "@/lib/orders/purchase-policy";
 import { amountToCollectCents, MAX_ORDER_TOTAL_CENTS, type PricingResult } from "@/lib/orders/purchase-pricing";
-import { withTableDeposit } from "@/lib/orders/purchase-table-deposit";
+import { tableDepositCurrency, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
 
 const TENANT = "11111111-1111-1111-1111-111111111111";
 
@@ -79,4 +79,25 @@ test("no table deposit leaves pricing untouched", () => {
 test("an absurd deposit is refused, not charged", () => {
   const out = withTableDeposit(priced(0), { cents: MAX_ORDER_TOTAL_CENTS + 1, currency: "USD" });
   assert.equal(out.ok, false);
+});
+
+// P2 (TUL-1453): the deposit is charged in the workspace currency, and the
+// reservation offering's own currency must agree with it or the deposit is refused.
+test("a deposit in the offering's own currency is charged in it", () => {
+  assert.deepEqual(tableDepositCurrency("MXN", ["MXN"]), { ok: true, currency: "MXN" });
+  assert.deepEqual(tableDepositCurrency("MXN", [" mxn "]), { ok: true, currency: "MXN" });
+});
+
+test("an offering priced in another currency refuses the deposit rather than relabel it", () => {
+  assert.deepEqual(tableDepositCurrency("MXN", ["USD"]), { ok: false, reason: "currency_mismatch", currencies: ["MXN", "USD"] });
+});
+
+test("an offering with no currency of its own takes the workspace currency", () => {
+  assert.deepEqual(tableDepositCurrency("MXN", [null]), { ok: true, currency: "MXN" });
+  assert.deepEqual(tableDepositCurrency("MXN", [""]), { ok: true, currency: "MXN" });
+});
+
+test("a malformed deposit currency is refused, never defaulted", () => {
+  assert.equal(tableDepositCurrency("pesos", ["MXN"]).ok, false);
+  assert.equal(tableDepositCurrency("", [null]).ok, false);
 });
