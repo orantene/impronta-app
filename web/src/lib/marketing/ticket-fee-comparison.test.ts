@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import * as comparison from "./ticket-fee-comparison";
 import { ticketFeeRows } from "./ticket-fee-comparison";
 
 /**
@@ -71,4 +72,19 @@ test("the split in the prose is derived, not typed", () => {
     !/\$0\.30 added to the buyer/.test(src),
     "a typed $0.30 stops matching the engine the moment the surcharge changes",
   );
+});
+
+test("there is no built-in fee: the table needs a rate, and a missing one renders nothing", () => {
+  assert.ok(!("TULALA_RATE_FALLBACK" in comparison), "a typed fallback rate is exactly what drifted before");
+  const t = readFileSync("src/components/marketing/ticket-fee-table.tsx", "utf8");
+  assert.ok(!/FALLBACK/.test(t), "the table must not fall back to a number");
+  assert.match(t, /if \(!feeRate\) return null/);
+  const lib = readFileSync("src/lib/marketing/ticket-fee-comparison.ts", "utf8");
+  assert.ok(!/=\s*0\.06\b/.test(lib));
+});
+
+test("the drift guard no longer compares a typed fallback", () => {
+  const g = readFileSync("scripts/check-compare-table-drift.mjs", "utf8");
+  assert.ok(!/TULALA_RATE_FALLBACK/.test(g));
+  assert.match(g, /service_fee_bps/);
 });
