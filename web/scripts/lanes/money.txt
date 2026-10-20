@@ -60,6 +60,8 @@ src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
 src/lib/catalog/tax.test.ts
+src/lib/coordinator/replacement-availability.test.ts
+src/lib/coordinator/replacement-candidates-reader.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
 src/lib/events/cancel-cascade.static.test.ts
