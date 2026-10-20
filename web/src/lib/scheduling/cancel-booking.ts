@@ -6,6 +6,7 @@ import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { lateCancelRefundCents, type LateCancelRefund } from "@/lib/talent-policies/answers";
 import { notifyBookingSetCancelled, type BookingSetCancelNotifier } from "./cancel-notify";
 import { bookingOfferingId, loadBookingCancelPolicy } from "./booking-cancel-policy";
+import { recordBookingRefundIntent, type BookingRefundIntentOutcome } from "./booking-refund-intent";
 
 export { bookingOfferingId };
 
@@ -36,6 +37,10 @@ export type CancelBookingResult =
       ok: true;
       bookingId: string;
       refundableCents: number;
+      /** The booking's order, for the money follow-up (`settleCancelledBookingMoney`). */
+      orderId?: string | null;
+      /** Whether the owed refund was recorded; additive, old callers ignore it. */
+      refundIntent?: BookingRefundIntentOutcome;
       already?: boolean;
       by?: CancelBookingActor | null;
       actorUserId?: string | null;
@@ -220,6 +225,19 @@ export async function cancelBookingSet(
     nowMs: input.nowMs ?? Date.now(),
   });
 
+  // MONEY BUG 4: the refund the policy owes is recorded, not just computed.
+  // Idempotent (UNIQUE booking_id), runs on a replay too so a failed first
+  // write heals, and never fails an accepted cancel.
+  const refundIntent = await recordBookingRefundIntent(admin, {
+    tenantId: input.tenantId,
+    bookingId: input.bookingId,
+    orderId: orderId ?? null,
+    refundCents: refundableCents,
+    paidCents,
+    currency: b.currency_code ?? null,
+    by,
+  });
+
   tell(paidCents, refundableCents);
 
   const replyBy = reply.by == null ? by : normalizeCancelBy(String(reply.by));
@@ -228,6 +246,8 @@ export async function cancelBookingSet(
     ok: true,
     bookingId: reply.booking_id ?? input.bookingId,
     refundableCents,
+    orderId: orderId ?? null,
+    refundIntent,
     already: reply.already === true,
     by: replyBy,
     actorUserId: reply.actor_id ?? actorUserId,

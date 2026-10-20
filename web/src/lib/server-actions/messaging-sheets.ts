@@ -24,6 +24,7 @@ import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link
 import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -152,6 +153,7 @@ export async function messagingCancelBooking(input: { inquiryId: string; booking
     actorUserId: g.userId,
   });
   if (!result.ok) return { ok: false as const, reason: result.reason };
+  await settleCancelledBookingMoney(g.admin, { tenantId: g.tenantId, bookingId: parsed.data.bookingId, orderId: result.orderId });
   return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };
 }
 
