@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { respondRentPlan } from "@/lib/service-hub/rent/rent-actions";
+import { memberEndRentPlan, respondRentPlan } from "@/lib/service-hub/rent/rent-actions";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
 
-export type RentProposal = { id: string; workspaceName: string; monthlyRentCents: number; currency: string; startsOn: string };
+export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; currency: string; startsOn: string };
 
 function money(cents: number, currency: string, locale: "en" | "es"): string {
   try {
@@ -28,6 +28,14 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
           <div style={{ fontSize: 15, margin: "4px 0" }}>{money(p.monthlyRentCents, p.currency, locale)} {c.perMonth}</div>
           <div style={{ fontSize: 12.5, opacity: 0.7 }}>{c.startsOn} {p.startsOn}</div>
           <p style={{ fontSize: 12.5, opacity: 0.75 }}>{c.safetyNote}</p>
+          {p.status !== "proposed" ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" disabled={pending} onClick={() => start(async () => {
+                const r = await memberEndRentPlan({ planId: p.id });
+                setDone((d) => ({ ...d, [p.id]: r.ok ? c.saved : c.unavailable }));
+              })}>{c.endMine}</button>
+            </div>
+          ) : (
           <div style={{ display: "flex", gap: 8 }}>
             {(["accept", "decline"] as const).map((k) => (
               <button
@@ -35,12 +43,13 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
                 type="button"
                 disabled={pending}
                 onClick={() => start(async () => {
-                  const r = await respondRentPlan({ planId: p.id, accept: k === "accept" });
+                  const r = await respondRentPlan({ planId: p.id, accept: k === "accept", seenAmountCents: p.monthlyRentCents });
                   setDone((d) => ({ ...d, [p.id]: r.ok ? c.saved : c.unavailable }));
                 })}
               >{c[k]}</button>
             ))}
           </div>
+          )}
         </div>
       ))}
       {Object.entries(done).map(([id, text]) => <p key={id} role="status">{text}</p>)}

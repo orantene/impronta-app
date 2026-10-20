@@ -16,12 +16,12 @@ export default async function RentProposalsPage() {
   if (me.ok && admin) {
     const { data: rows } = await admin
       .from("studio_rent_plans")
-      .select("id, monthly_rent_cents, currency, starts_on, agencies:tenant_id ( display_name )")
+      .select("id, status, monthly_rent_cents, currency, starts_on, agencies:tenant_id ( display_name )")
       .eq("talent_profile_id", me.talentProfile.id)
-      .eq("status", "proposed");
-    for (const r of (rows ?? []) as Array<{ id: string; monthly_rent_cents: number; currency: string; starts_on: string; agencies: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
+      .in("status", ["proposed", "active", "paused"]);
+    for (const r of (rows ?? []) as Array<{ id: string; status: string; monthly_rent_cents: number; currency: string; starts_on: string; agencies: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
       const ag = Array.isArray(r.agencies) ? r.agencies[0] : r.agencies;
-      proposals.push({ id: r.id, workspaceName: ag?.display_name ?? "", monthlyRentCents: r.monthly_rent_cents, currency: r.currency, startsOn: r.starts_on });
+      proposals.push({ id: r.id, status: r.status, workspaceName: ag?.display_name ?? "", monthlyRentCents: r.monthly_rent_cents, currency: r.currency, startsOn: r.starts_on });
     }
   }
   return (

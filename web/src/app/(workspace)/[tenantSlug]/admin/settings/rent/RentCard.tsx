@@ -11,7 +11,16 @@ import { RENT_COPY, rentRefusalText } from "@/lib/service-hub/rent/rent-copy";
 import type { SafetyRow } from "@/lib/service-hub/rent/rent-safety-view";
 
 export type RentMember = { talentProfileId: string; name: string };
-export type RentPlanView = { id: string; name: string; monthlyRentCents: number; currency: string; status: string };
+export type RentPlanView = {
+  id: string;
+  name: string;
+  monthlyRentCents: number;
+  currency: string;
+  status: string;
+  endedBy: string | null;
+  /** The latest month's invoice and what its payment link is doing. */
+  invoice: { period: string; state: "none" | "waiting" | "paid" | "needs_new_link" } | null;
+};
 
 const field = { padding: "7px 9px", borderRadius: 8, border: "1px solid rgba(24,24,27,0.15)" } as const;
 const primary = { padding: "8px 14px", borderRadius: 8, border: "none", background: "#0F4F3E", color: "#fff", fontWeight: 600 } as const;
@@ -63,8 +72,21 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
             {p.name} · {money(p.monthlyRentCents, p.currency, locale)} {c.perMonth}
           </div>
           <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>
-            {p.status === "proposed" ? c.waiting : p.status === "active" ? c.active : p.status === "paused" ? c.paused : c.ended}
+            {p.status === "proposed" ? c.waiting : p.status === "active" ? c.active : p.status === "paused" ? c.paused : p.status === "declined" ? c.declinedByMember : p.endedBy === "member" ? c.endedByMember : c.endedByOwner}
           </div>
+          {p.invoice && (p.status === "active" || p.status === "paused") && (
+            <div data-testid="rent-invoice-state" style={{ fontSize: 12.5, marginTop: 4, color: p.invoice.state === "needs_new_link" ? "#A8471B" : "inherit" }}>
+              {p.invoice.period} · {p.invoice.state === "paid" ? c.paid : p.invoice.state === "waiting" ? c.linkWaiting : p.invoice.state === "needs_new_link" ? c.linkNew : ""}
+              {p.invoice.state === "needs_new_link" && (
+                <button type="button" disabled={pending} style={{ marginLeft: 8 }} onClick={() => start(async () => {
+                  setMsg(null);
+                  const r = await issueRent({ planId: p.id, period: p.invoice!.period });
+                  if (r.ok) { setLink(r.url); setMsg({ ok: true, text: c.copyLink }); }
+                  else setMsg({ ok: false, text: rentRefusalText(r.reason, c) });
+                })}>{c.sendNewLink}</button>
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             {p.status === "active" && (
               <button type="button" disabled={pending} style={primary} onClick={() => start(async () => {
@@ -76,7 +98,7 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
             )}
             {p.status === "active" && <button type="button" disabled={pending} onClick={() => run(() => setRentPlanStatus({ planId: p.id, status: "paused" }), c.saved)}>{c.pause}</button>}
             {p.status === "paused" && <button type="button" disabled={pending} onClick={() => run(() => setRentPlanStatus({ planId: p.id, status: "active" }), c.saved)}>{c.resume}</button>}
-            {p.status !== "ended" && <button type="button" disabled={pending} onClick={() => run(() => setRentPlanStatus({ planId: p.id, status: "ended" }), c.saved)}>{c.end}</button>}
+            {(p.status === "active" || p.status === "paused" || p.status === "proposed") && <button type="button" disabled={pending} onClick={() => run(() => setRentPlanStatus({ planId: p.id, status: "ended" }), c.saved)}>{c.end}</button>}
           </div>
         </div>
       ))}

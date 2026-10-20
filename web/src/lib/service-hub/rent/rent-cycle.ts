@@ -18,6 +18,11 @@ export type RentPlan = {
   startsOn: string;
   status: RentPlanStatus;
   acceptedAt: string | null;
+  /** What the member agreed to (recorded at acceptance). */
+  acceptedAmountCents: number | null;
+  acceptedCurrency: string | null;
+  termsVersion: number;
+  acceptedTermsVersion: number | null;
 };
 
 export type RentProposal = { monthlyRentCents: number; currency: string; startsOn: string };
@@ -80,4 +85,32 @@ export function rentLineLabel(period: string, locale: "en" | "es"): string {
     new Date(Date.UTC(y, m - 1, 1)),
   );
   return locale === "es" ? `Renta de estación, ${month}` : `Station rent, ${month}`;
+}
+
+/**
+ * An invoice that is exactly what the member accepted (same terms version, amount and currency)
+ * needs no manager approval for the custom-amount limit: the member's consent is the approval.
+ * Anything else (an edited plan, a missing record) still goes through the normal approval.
+ */
+export function matchesAcceptedTerms(plan: RentPlan, invoice: { amountCents: number; currency: string }): boolean {
+  return (
+    plan.acceptedAt != null &&
+    plan.acceptedAmountCents === invoice.amountCents &&
+    plan.acceptedCurrency === invoice.currency &&
+    plan.acceptedTermsVersion != null &&
+    plan.acceptedTermsVersion === plan.termsVersion
+  );
+}
+
+export type RentLinkState = "none" | "waiting" | "paid" | "needs_new_link";
+
+/** What the owner sees for one month's invoice. A dead link (expired, cancelled, failed) asks for a new one. */
+export function rentLinkState(invoiceStatus: string, linkStatus: string | null): RentLinkState {
+  if (invoiceStatus === "paid" || linkStatus === "paid") return "paid";
+  if (invoiceStatus === "void") return "none";
+  if (invoiceStatus === "failed") return "needs_new_link";
+  if (invoiceStatus === "issuing") return "needs_new_link";
+  if (linkStatus === "open") return "waiting";
+  if (linkStatus == null) return "none";
+  return "needs_new_link";
 }

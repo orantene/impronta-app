@@ -30,9 +30,22 @@ CREATE TABLE IF NOT EXISTS public.studio_rent_plans (
   proposed_by         uuid        NULL REFERENCES public.profiles(id) ON DELETE SET NULL,
   proposed_at         timestamptz NOT NULL DEFAULT now(),
   accepted_at         timestamptz NULL,
+  -- What the member agreed to, stored at acceptance: the terms version and the exact amount +
+  -- currency. A later edit bumps terms_version; invoices that no longer match what was accepted
+  -- are not auto-approved (see the app's rent issue path).
+  terms_version          integer  NOT NULL DEFAULT 1 CHECK (terms_version >= 1),
+  accepted_terms_version integer  NULL,
+  accepted_amount_cents  integer  NULL CHECK (accepted_amount_cents IS NULL OR accepted_amount_cents > 0),
+  accepted_currency      text     NULL CHECK (accepted_currency IS NULL OR accepted_currency ~ '^[A-Z]{3}$'),
+  ended_by            text        NULL CHECK (ended_by IS NULL OR ended_by IN ('owner','member')),
+  ended_at            timestamptz NULL,
   updated_at          timestamptz NOT NULL DEFAULT now(),
-  -- 'active' and 'paused' mean the member said yes.
-  CONSTRAINT studio_rent_plans_accepted CHECK (status NOT IN ('active','paused') OR accepted_at IS NOT NULL)
+  -- 'active' and 'paused' mean the member said yes, to a recorded amount.
+  CONSTRAINT studio_rent_plans_accepted CHECK (
+    status NOT IN ('active','paused')
+    OR (accepted_at IS NOT NULL AND accepted_terms_version IS NOT NULL
+        AND accepted_amount_cents IS NOT NULL AND accepted_currency IS NOT NULL)
+  )
 );
 
 -- One live plan (proposed, active or paused) per studio and member.

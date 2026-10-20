@@ -40,4 +40,32 @@ describe("rent billing wiring (TUL-1376)", () => {
     const loader = code(sources.find((s) => s.f === "rent-safety-view.server.ts")!.text);
     assert.doesNotMatch(loader, /email|phone|contact|whatsapp/i);
   });
+
+  test("the safety view reads only this workspace's bookings, tenant-scoped", () => {
+    const loader = code(sources.find((s) => s.f === "rent-safety-view.server.ts")!.text);
+    assert.match(loader, /tenantScopedQuery\(admin, "talent_bookings", tenantId\)/);
+    assert.doesNotMatch(loader, /\.from\("talent_bookings"\)/);
+  });
+
+  test("owner-only is enforced in the settings read itself and in every owner action", () => {
+    const page = readFileSync(join(dir, "../../../app/(workspace)/[tenantSlug]/admin/settings/rent/page.tsx"), "utf8");
+    assert.match(page, /await ownerGuard\(\)/);
+    assert.ok(page.indexOf("ownerGuard()") < page.indexOf("createServiceRoleClient()"), "guard runs before any data read");
+    const actions = code(sources.find((s) => s.f === "rent-actions.ts")!.text);
+    assert.equal((actions.match(/await ownerGuard\(\)/g) ?? []).length, 2, "propose and set-status are owner-only");
+  });
+
+  test("the member's consent records the terms; ending is the member's too", () => {
+    const actions = code(sources.find((s) => s.f === "rent-actions.ts")!.text);
+    assert.match(actions, /accepted_terms_version: row\.terms_version/);
+    assert.match(actions, /accepted_amount_cents: row\.monthly_rent_cents/);
+    assert.match(actions, /accepted_currency: row\.currency/);
+    assert.match(actions, /export async function memberEndRentPlan/);
+  });
+
+  test("an invoice never gets a second order: saveOrder updates only an empty order_id and reports the row count", () => {
+    const store = code(sources.find((s) => s.f === "rent-store.server.ts")!.text);
+    assert.match(store, /\.is\("order_id", null\)\s*\.select\("id"\)/);
+    assert.match(store, /data\.length === 1/);
+  });
 });

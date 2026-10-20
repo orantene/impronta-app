@@ -6,6 +6,7 @@
 export type SafetyPlan = { talentProfileId: string; memberName: string; status: string };
 export type SafetyBookingRow = {
   id: string;
+  tenant_id: string;
   talent_profile_id: string;
   title: string | null;
   client_label: string | null;
@@ -24,11 +25,13 @@ export type SafetyRow = {
 
 export const SAFETY_VIEW_LIMIT = 50;
 
-export function shapeSafetyRows(plans: readonly SafetyPlan[], bookings: readonly SafetyBookingRow[], now: Date): SafetyRow[] {
+export function shapeSafetyRows(tenantId: string, plans: readonly SafetyPlan[], bookings: readonly SafetyBookingRow[], now: Date): SafetyRow[] {
   // Members the studio rents to (accepted: active or paused). A proposed/declined/ended plan shows nothing.
   const members = new Map(plans.filter((p) => p.status === "active" || p.status === "paused").map((p) => [p.talentProfileId, p.memberName]));
   const rows: SafetyRow[] = [];
   for (const b of bookings) {
+    // Only this studio's own workspace: the member consented to rent here, not to be watched elsewhere.
+    if (b.tenant_id !== tenantId) continue;
     const memberName = members.get(b.talent_profile_id);
     if (memberName === undefined) continue;
     if (b.status !== "confirmed") continue;

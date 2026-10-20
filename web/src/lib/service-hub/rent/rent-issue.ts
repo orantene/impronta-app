@@ -7,7 +7,7 @@
  * A second click, a retry after a crash or a replay lands on the same invoice row, reuses its
  * order and gets the same link. The amount is the plan's rent frozen on the invoice row.
  */
-import { decideRentIssue, rentLineLabel, type RentIssueRefusal, type RentPlan } from "./rent-cycle";
+import { decideRentIssue, matchesAcceptedTerms, rentLineLabel, type RentIssueRefusal, type RentPlan } from "./rent-cycle";
 import { rentBillingGate } from "./rent-gate";
 
 export type RentInvoiceRow = {
@@ -34,12 +34,18 @@ export type RentIssueDeps = {
     currency: string;
   }): Promise<RentInvoiceRow | null>;
   createOrder(input: {
+    invoiceId: string;
+    /** The invoice is exactly what the member accepted: the custom-amount approval is recorded for it. */
+    matchesAcceptedTerms: boolean;
     tenantId: string;
     currency: string;
     label: string;
     amountCents: number;
   }): Promise<{ ok: true; orderId: string; needsApproval: boolean } | { ok: false }>;
+  /** Set the invoice's order only if it has none. false = 0 rows updated (another request won). */
   saveOrder(invoiceId: string, orderId: string): Promise<boolean>;
+  /** The order the winner stored, or null. */
+  readOrderId(invoiceId: string): Promise<string | null>;
   mintLink(input: {
     tenantId: string;
     orderId: string;
@@ -97,15 +103,23 @@ export async function issueRentInvoice(
   let orderId = invoice.orderId;
   if (!orderId) {
     const order = await deps.createOrder({
+      invoiceId: invoice.id,
+      matchesAcceptedTerms: matchesAcceptedTerms(plan, invoice),
       tenantId: plan.tenantId,
       currency: invoice.currency,
       label: rentLineLabel(invoice.period, input.locale),
       amountCents: invoice.amountCents,
     });
     if (!order.ok) return { ok: false, reason: "unavailable" };
-    if (!(await deps.saveOrder(invoice.id, order.orderId))) return { ok: false, reason: "unavailable" };
-    orderId = order.orderId;
-    if (order.needsApproval) return { ok: false, reason: "needs_approval" };
+    if (await deps.saveOrder(invoice.id, order.orderId)) {
+      orderId = order.orderId;
+      if (order.needsApproval) return { ok: false, reason: "needs_approval" };
+    } else {
+      // Lost the race: the invoice already has the winner's order. Use it; ours is never linked.
+      const winner = await deps.readOrderId(invoice.id);
+      if (!winner) return { ok: false, reason: "unavailable" };
+      orderId = winner;
+    }
   }
 
   const link = await deps.mintLink({

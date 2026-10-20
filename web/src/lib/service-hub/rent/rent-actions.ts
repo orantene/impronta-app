@@ -16,6 +16,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { ownerGuard } from "./rent-owner.server";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { currentRentPeriod, validateRentProposal } from "./rent-cycle";
@@ -24,20 +25,6 @@ import { issueRentInvoice, type RentIssueResult } from "./rent-issue";
 import { buildRentIssueDeps } from "./rent-store.server";
 
 type Fail<R extends string> = { ok: false; reason: R };
-
-async function ownerGuard() {
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false as const, reason: "unauthenticated" as const };
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false as const, reason: "unavailable" as const };
-  const { data } = await tenantScopedQuery(auth.supabase, "agency_memberships", auth.tenantId)
-    .select("role")
-    .eq("profile_id", auth.user.id)
-    .eq("status", "active")
-    .maybeSingle();
-  if ((data as { role?: string } | null)?.role !== "owner") return { ok: false as const, reason: "owner_only" as const };
-  return { ok: true as const, tenantId: auth.tenantId, userId: auth.user.id, admin };
-}
 
 export type ProposeRentResult = { ok: true } | Fail<"unauthenticated" | "owner_only" | "disabled" | "not_test_mode" | "invalid" | "not_on_roster" | "already_has_plan" | "unavailable">;
 
@@ -111,7 +98,11 @@ export async function setRentPlanStatus(input: { planId: string; status: "paused
       (input.status === "ended" && (from === "active" || from === "paused" || from === "proposed"));
     if (!allowed) return { ok: false, reason: "invalid" };
     const { error } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId)
-      .update({ status: input.status, updated_at: new Date().toISOString() })
+      .update({
+        status: input.status,
+        updated_at: new Date().toISOString(),
+        ...(input.status === "ended" ? { ended_by: "owner", ended_at: new Date().toISOString() } : {}),
+      })
       .eq("id", input.planId)
       .eq("status", from);
     if (error) {
@@ -174,8 +165,71 @@ export async function issueRent(input: { planId: string; period?: string }): Pro
 
 export type RespondRentResult = { ok: true } | Fail<"unauthenticated" | "not_found" | "unavailable">;
 
-/** The member answers a proposal. Accepting is the consent to be charged; it is the only way a plan becomes active. */
-export async function respondRentPlan(input: { planId: string; accept: boolean }): Promise<RespondRentResult> {
+/**
+ * The member answers a proposal. Accepting is the consent to be charged and records exactly what
+ * was agreed (terms version, amount, currency); it is the only way a plan becomes active.
+ * The update is pinned to the amount the member was shown, so a proposal edited in between
+ * cannot be accepted by mistake.
+ */
+export async function respondRentPlan(input: { planId: string; accept: boolean; seenAmountCents?: number }): Promise<RespondRentResult> {
+  await requireNotImpersonating();
+  try {
+    const me = await requireTalentSelf();
+    if (!me.ok) return { ok: false, reason: "unauthenticated" };
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, reason: "unavailable" };
+    const { data: plan, error: readErr } = await admin
+      .from("studio_rent_plans")
+      .select("id, tenant_id, monthly_rent_cents, currency, terms_version")
+      .eq("id", input.planId)
+      .eq("talent_profile_id", me.talentProfile.id)
+      .eq("status", "proposed")
+      .maybeSingle();
+    if (readErr) {
+      logServerError("rent.respond.read", readErr);
+      return { ok: false, reason: "unavailable" };
+    }
+    const row = plan as { id: string; tenant_id: string; monthly_rent_cents: number; currency: string; terms_version: number } | null;
+    if (!row) return { ok: false, reason: "not_found" };
+    if (input.accept && input.seenAmountCents != null && input.seenAmountCents !== row.monthly_rent_cents) return { ok: false, reason: "not_found" };
+    const now = new Date().toISOString();
+    const { data, error } = await admin
+      .from("studio_rent_plans")
+      .update(
+        input.accept
+          ? { status: "active", accepted_at: now, updated_at: now, accepted_terms_version: row.terms_version, accepted_amount_cents: row.monthly_rent_cents, accepted_currency: row.currency }
+          : { status: "declined", updated_at: now },
+      )
+      .eq("id", row.id)
+      .eq("status", "proposed")
+      .eq("monthly_rent_cents", row.monthly_rent_cents)
+      .eq("terms_version", row.terms_version)
+      .select("id")
+      .maybeSingle();
+    if (error) {
+      logServerError("rent.respond", error);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!data) return { ok: false, reason: "not_found" };
+    await logWorkspaceAudit({
+      tenantId: row.tenant_id,
+      category: "roster",
+      action: input.accept ? "workspace.rent_plan.accepted" : "workspace.rent_plan.declined",
+      summary: input.accept ? "Member accepted the monthly station rent" : "Member declined the monthly station rent",
+      targetType: "studio_rent_plan",
+      targetId: input.planId,
+      metadata: { terms_version: row.terms_version, amount_cents: row.monthly_rent_cents, currency: row.currency },
+    });
+    revalidatePath("/", "layout");
+    return { ok: true };
+  } catch (err) {
+    logServerError("rent.respond", err);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/** The member ends their own active or paused plan. The owner sees it on the Station rent card and in the audit log. */
+export async function memberEndRentPlan(input: { planId: string }): Promise<RespondRentResult> {
   await requireNotImpersonating();
   try {
     const me = await requireTalentSelf();
@@ -185,22 +239,22 @@ export async function respondRentPlan(input: { planId: string; accept: boolean }
     const now = new Date().toISOString();
     const { data, error } = await admin
       .from("studio_rent_plans")
-      .update(input.accept ? { status: "active", accepted_at: now, updated_at: now } : { status: "declined", updated_at: now })
+      .update({ status: "ended", ended_by: "member", ended_at: now, updated_at: now })
       .eq("id", input.planId)
       .eq("talent_profile_id", me.talentProfile.id)
-      .eq("status", "proposed")
+      .in("status", ["active", "paused"])
       .select("id, tenant_id")
       .maybeSingle();
     if (error) {
-      logServerError("rent.respond", error);
+      logServerError("rent.memberEnd", error);
       return { ok: false, reason: "unavailable" };
     }
     if (!data) return { ok: false, reason: "not_found" };
     await logWorkspaceAudit({
       tenantId: (data as { tenant_id: string }).tenant_id,
       category: "roster",
-      action: input.accept ? "workspace.rent_plan.accepted" : "workspace.rent_plan.declined",
-      summary: input.accept ? "Member accepted the monthly station rent" : "Member declined the monthly station rent",
+      action: "workspace.rent_plan.ended_by_member",
+      summary: "Member ended the monthly station rent",
       targetType: "studio_rent_plan",
       targetId: input.planId,
       metadata: {},
@@ -208,7 +262,7 @@ export async function respondRentPlan(input: { planId: string; accept: boolean }
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
-    logServerError("rent.respond", err);
+    logServerError("rent.memberEnd", err);
     return { ok: false, reason: "unavailable" };
   }
 }

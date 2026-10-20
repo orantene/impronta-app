@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { currentRentPeriod, decideRentIssue, rentLineLabel, validateRentProposal, type RentPlan } from "./rent-cycle";
+import { currentRentPeriod, decideRentIssue, matchesAcceptedTerms, rentLineLabel, rentLinkState, validateRentProposal, type RentPlan } from "./rent-cycle";
 import { rentBillingGate } from "./rent-gate";
 
 const plan = (over: Partial<RentPlan> = {}): RentPlan => ({
@@ -12,6 +12,10 @@ const plan = (over: Partial<RentPlan> = {}): RentPlan => ({
   startsOn: "2026-09-01",
   status: "active",
   acceptedAt: "2026-08-30T10:00:00Z",
+  acceptedAmountCents: 120000,
+  acceptedCurrency: "MXN",
+  termsVersion: 1,
+  acceptedTermsVersion: 1,
   ...over,
 });
 const NOW = new Date("2026-10-20T12:00:00Z");
@@ -79,5 +83,32 @@ describe("test-mode gate", () => {
     for (const k of ["sk_live_abc", "", undefined, "rk_live_x", "mock"]) {
       assert.deepEqual(rentBillingGate({ RENT_BILLING_ENABLED: "1", STRIPE_SECRET_KEY: k }), { ok: false, reason: "not_test_mode" });
     }
+  });
+});
+
+describe("what the member accepted", () => {
+  const inv = { amountCents: 120000, currency: "MXN" };
+  test("an invoice equal to the accepted amount, currency and terms version matches", () => {
+    assert.equal(matchesAcceptedTerms(plan(), inv), true);
+  });
+  test("any difference does not match: other amount, other currency, newer terms, nothing recorded", () => {
+    assert.equal(matchesAcceptedTerms(plan(), { ...inv, amountCents: 130000 }), false);
+    assert.equal(matchesAcceptedTerms(plan(), { ...inv, currency: "USD" }), false);
+    assert.equal(matchesAcceptedTerms(plan({ termsVersion: 2 }), inv), false);
+    assert.equal(matchesAcceptedTerms(plan({ acceptedAmountCents: null, acceptedCurrency: null, acceptedTermsVersion: null }), inv), false);
+    assert.equal(matchesAcceptedTerms(plan({ acceptedAt: null }), inv), false);
+  });
+});
+
+describe("what the owner sees for a month's link", () => {
+  test("open link waits, paid is paid, dead links ask for a new one", () => {
+    assert.equal(rentLinkState("issued", "open"), "waiting");
+    assert.equal(rentLinkState("issued", "paid"), "paid");
+    assert.equal(rentLinkState("paid", null), "paid");
+    for (const l of ["expired", "cancelled", "failed"]) assert.equal(rentLinkState("issued", l), "needs_new_link");
+    assert.equal(rentLinkState("failed", "open"), "needs_new_link");
+    assert.equal(rentLinkState("issuing", null), "needs_new_link");
+    assert.equal(rentLinkState("void", "open"), "none");
+    assert.equal(rentLinkState("issued", null), "none");
   });
 });

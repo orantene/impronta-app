@@ -12,10 +12,15 @@ const PLAN: RentPlan = {
   startsOn: "2026-09-01",
   status: "active",
   acceptedAt: "2026-08-30T10:00:00Z",
+  acceptedAmountCents: 120000,
+  acceptedCurrency: "MXN",
+  termsVersion: 1,
+  acceptedTermsVersion: 1,
 };
 
 function world(over: { plan?: RentPlan | null; mintFails?: boolean; needsApproval?: boolean; gate?: boolean } = {}) {
-  const state = { mintFails: over.mintFails === true };
+  const state = { mintFails: over.mintFails === true, loseRace: false };
+  const created: Array<{ matches: boolean; invoiceId: string }> = [];
   const invoices = new Map<string, RentInvoiceRow>();
   const orders: Array<{ label: string; amountCents: number; currency: string; tenantId: string }> = [];
   const links = new Map<string, string>();
@@ -36,12 +41,26 @@ function world(over: { plan?: RentPlan | null; mintFails?: boolean; needsApprova
       return created;
     },
     async createOrder(input) {
+      created.push({ matches: input.matchesAcceptedTerms, invoiceId: input.invoiceId });
       orders.push({ label: input.label, amountCents: input.amountCents, currency: input.currency, tenantId: input.tenantId });
       return { ok: true, orderId: `ord-${orders.length}`, needsApproval: over.needsApproval === true };
     },
     async saveOrder(invoiceId, orderId) {
-      for (const inv of invoices.values()) if (inv.id === invoiceId) inv.orderId = orderId;
-      return true;
+      for (const inv of invoices.values()) {
+        if (inv.id !== invoiceId) continue;
+        // 0 rows updated when an order is already there, or when a concurrent request just won.
+        if (inv.orderId || state.loseRace) {
+          if (state.loseRace && !inv.orderId) inv.orderId = "ord-winner";
+          return false;
+        }
+        inv.orderId = orderId;
+        return true;
+      }
+      return false;
+    },
+    async readOrderId(invoiceId) {
+      for (const inv of invoices.values()) if (inv.id === invoiceId) return inv.orderId;
+      return null;
     },
     async mintLink(input) {
       calls.mint += 1;
@@ -55,7 +74,7 @@ function world(over: { plan?: RentPlan | null; mintFails?: boolean; needsApprova
       return true;
     },
   };
-  return { deps, invoices, orders, links, calls, state };
+  return { deps, invoices, orders, links, calls, state, created };
 }
 const ARGS = { tenantId: "t-1", planId: "plan-1", period: "2026-10", locale: "en" as const };
 
@@ -134,5 +153,34 @@ describe("issue one month of rent", () => {
     const w = world({ needsApproval: true });
     assert.deepEqual(await issueRentInvoice(ARGS, w.deps), { ok: false, reason: "needs_approval" });
     assert.equal(w.calls.mint, 0);
+  });
+
+  test("RACE: two requests both made an order; the loser links the winner's order, never a second", async () => {
+    const w = world();
+    w.state.loseRace = true;
+    const minted: string[] = [];
+    const baseMint = w.deps.mintLink;
+    w.deps.mintLink = async (i) => { minted.push(i.orderId); return baseMint(i); };
+    const r = await issueRentInvoice(ARGS, w.deps);
+    assert.equal(r.ok, true);
+    assert.deepEqual(minted, ["ord-winner"], "the link is minted on the winner's order");
+    assert.equal([...w.invoices.values()][0].orderId, "ord-winner", "the invoice keeps exactly one order");
+  });
+
+  test("RACE: if the winner's order cannot be read, nothing is minted (fail closed)", async () => {
+    const w = world();
+    w.state.loseRace = true;
+    w.deps.readOrderId = async () => null;
+    assert.deepEqual(await issueRentInvoice(ARGS, w.deps), { ok: false, reason: "unavailable" });
+    assert.equal(w.calls.mint, 0);
+  });
+
+  test("an invoice equal to what the member accepted asks for the approval to be recorded; a different amount does not", async () => {
+    const same = world();
+    await issueRentInvoice(ARGS, same.deps);
+    assert.equal(same.created[0].matches, true);
+    const edited = world({ plan: { ...PLAN, monthlyRentCents: 150000 } });
+    await issueRentInvoice(ARGS, edited.deps);
+    assert.equal(edited.created[0].matches, false, "a changed amount still goes through approval");
   });
 });

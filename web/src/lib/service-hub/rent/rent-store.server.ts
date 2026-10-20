@@ -23,6 +23,10 @@ type PlanDbRow = {
   starts_on: string;
   status: RentPlanStatus;
   accepted_at: string | null;
+  accepted_amount_cents: number | null;
+  accepted_currency: string | null;
+  terms_version: number;
+  accepted_terms_version: number | null;
 };
 type InvoiceDbRow = {
   id: string;
@@ -35,7 +39,7 @@ type InvoiceDbRow = {
   status: RentInvoiceRow["status"];
 };
 
-export const PLAN_COLUMNS = "id, tenant_id, talent_profile_id, monthly_rent_cents, currency, starts_on, status, accepted_at";
+export const PLAN_COLUMNS = "id, tenant_id, talent_profile_id, monthly_rent_cents, currency, starts_on, status, accepted_at, accepted_amount_cents, accepted_currency, terms_version, accepted_terms_version";
 const INVOICE_COLUMNS = "id, plan_id, period, amount_cents, currency, order_id, payment_link_code, status";
 
 export function planFromRow(r: PlanDbRow): RentPlan {
@@ -48,6 +52,10 @@ export function planFromRow(r: PlanDbRow): RentPlan {
     startsOn: r.starts_on,
     status: r.status,
     acceptedAt: r.accepted_at,
+    acceptedAmountCents: r.accepted_amount_cents,
+    acceptedCurrency: r.accepted_currency,
+    termsVersion: r.terms_version,
+    acceptedTermsVersion: r.accepted_terms_version,
   };
 }
 
@@ -58,7 +66,7 @@ function invoiceFromRow(r: InvoiceDbRow): RentInvoiceRow {
 export function buildRentIssueDeps(
   admin: SupabaseClient,
   ctx: { actorUserId: string; publicOrigin: string },
-): Pick<RentIssueDeps, "loadPlan" | "claimInvoice" | "createOrder" | "saveOrder" | "mintLink" | "markIssued"> {
+): Pick<RentIssueDeps, "loadPlan" | "claimInvoice" | "createOrder" | "saveOrder" | "readOrderId" | "mintLink" | "markIssued"> {
   return {
     async loadPlan(planId, tenantId) {
       const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", tenantId).select(PLAN_COLUMNS).eq("id", planId).maybeSingle();
@@ -123,13 +131,39 @@ export function buildRentIssueDeps(
         operatorUserId: ctx.actorUserId,
       });
       if (!line.ok) return { ok: false };
-      return { ok: true, orderId: draft.orderId, needsApproval: line.needsApproval };
+      let needsApproval = line.needsApproval;
+      if (needsApproval && input.matchesAcceptedTerms && line.lineId) {
+        // The member accepted exactly this amount: record the custom-amount approval for the line.
+        const { error } = await admin.from("pos_approvals").insert({
+          tenant_id: input.tenantId,
+          order_id: draft.orderId,
+          line_id: line.lineId,
+          kind: "custom_amount",
+          approver_user_id: ctx.actorUserId,
+          method: "session",
+          operation_key: `rent-terms:${input.invoiceId}`,
+        });
+        if (error && (error as { code?: string }).code !== "23505") logServerError("rent.approval", error);
+        else needsApproval = false;
+      }
+      return { ok: true, orderId: draft.orderId, needsApproval };
     },
 
     async saveOrder(invoiceId, orderId) {
-      const { error } = await admin.from("studio_rent_invoices").update({ order_id: orderId }).eq("id", invoiceId).is("order_id", null);
+      const { data, error } = await admin
+        .from("studio_rent_invoices")
+        .update({ order_id: orderId })
+        .eq("id", invoiceId)
+        .is("order_id", null)
+        .select("id");
       if (error) logServerError("rent.saveOrder", error);
-      return !error;
+      return !error && Array.isArray(data) && data.length === 1;
+    },
+
+    async readOrderId(invoiceId) {
+      const { data, error } = await admin.from("studio_rent_invoices").select("order_id").eq("id", invoiceId).maybeSingle();
+      if (error) logServerError("rent.readOrderId", error);
+      return (data as { order_id?: string | null } | null)?.order_id ?? null;
     },
 
     async mintLink(input) {
