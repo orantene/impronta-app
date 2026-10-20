@@ -66,10 +66,9 @@ test("flag on: failed reads mask (privacy fails closed); a missing terms table m
   assert.equal(await withFlag("true", () => contactMaskingActive(fake({ ...lineup, workspace_talent_terms: { error: { code: "42P01", message: "no table" } } }).admin, input)), false);
 });
 
-test("sendMessage masks only the client chat, and uses the masked text for notifications and edits", () => {
+test("sendMessage and editMessage go through the one masked writer", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/inquiry/inquiry-engine-messages.ts"), "utf8");
-  assert.match(src, /ctx\.threadType === "private" && \(await contactMaskingActive\(/);
-  assert.match(src, /body: storedBody,\s+metadata:/);
-  assert.doesNotMatch(src.slice(src.indexOf("export async function sendMessage"), src.indexOf("export async function markThreadRead")), /body: ctx\.body/);
-  assert.match(src, /msg\.thread_type === "private" && \(await contactMaskingActive\(/);
+  assert.match(src, /await insertInquiryMessage\(writeMsg,/);
+  assert.match(src, /await maskEditedBody\(/);
+  assert.doesNotMatch(src.slice(src.indexOf("export async function sendMessage"), src.indexOf("export async function markThreadRead")), /body: ctx\.body,\s+\.\.\./);
 });

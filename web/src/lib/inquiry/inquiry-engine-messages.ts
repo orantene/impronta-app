@@ -9,8 +9,7 @@ import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { notifyMentionedParticipants } from "@/lib/notifications/mention-notify";
 import { maybeSendGuestReplyNudge } from "./guest-reply-nudge";
 import { logServerError } from "@/lib/server/safe-error";
-import { maskContactDetails } from "@/lib/coordinator/contact-masking";
-import { contactMaskingActive } from "@/lib/coordinator/contact-masking.server";
+import { insertInquiryMessage, maskEditedBody } from "@/lib/coordinator/masked-message-write.server";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Every read/write against
 // inquiries / inquiry_messages / inquiry_message_reads filters on tenant_id,
@@ -86,30 +85,21 @@ export async function sendMessage(
     // the security gate. See qa-evidence/2026-05-14/step-06.
     // Guests (anon, no JWT) likewise cannot pass RLS — same gate, same path.
     const writeMsg = await inquiryWriteClient(supabase);
-    // TUL-1373: on the client chat, hide phone and email while the workspace is the
-    // client's contact and nothing is booked. Dark unless the flag is on; the staff
-    // group thread is never masked.
-    let storedBody = ctx.body;
-    let maskedCount = 0;
-    if (ctx.threadType === "private" && (await contactMaskingActive(writeMsg, { inquiryId: ctx.inquiryId, tenantId: ctx.tenantId }))) {
-      const masked = maskContactDetails(body);
-      storedBody = masked.text;
-      maskedCount = masked.maskedCount;
-    }
-    const { data: row, error } = await writeMsg
-      .from("inquiry_messages")
-      .insert({
-        inquiry_id: ctx.inquiryId,
-        tenant_id: ctx.tenantId,
-        thread_type: ctx.threadType,
-        sender_user_id: isGuestSender ? null : ctx.actorUserId,
-        guest_session_id: isGuestSender ? ctx.guestSessionId : null,
-        body: storedBody,
-        metadata: maskedCount > 0 ? { contact_masked: maskedCount } : {},
-        ...(ctx.replyToMessageId ? { reply_to_message_id: ctx.replyToMessageId } : {}),
-      })
-      .select("id")
-      .single();
+    // TUL-1373: the one masked writer (dark unless the flag is on; client chat only).
+    const written = await insertInquiryMessage(writeMsg, {
+      inquiry_id: ctx.inquiryId,
+      tenant_id: ctx.tenantId,
+      thread_type: ctx.threadType,
+      sender_user_id: isGuestSender ? null : ctx.actorUserId,
+      guest_session_id: isGuestSender ? ctx.guestSessionId : null,
+      body: ctx.body,
+      metadata: {},
+      ...(ctx.replyToMessageId ? { reply_to_message_id: ctx.replyToMessageId } : {}),
+    });
+    const row = written.data;
+    const error = written.error;
+    // What was stored (masked or not) feeds the notification, nudge and mention fan-out.
+    const storedBody = written.storedBody ?? ctx.body;
 
     if (error || !row) return { success: false, error: error?.message ?? "insert_failed" };
 
@@ -353,11 +343,15 @@ export async function editMessage(
     const p = await validateActorPermission(supabase, msg.inquiry_id as string, ctx.actorUserId, "edit_message");
     if (!p.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
-    // An edit must not put back what masking took out.
-    let editedBody = ctx.body;
-    if (msg.thread_type === "private" && (await contactMaskingActive(supabase, { inquiryId: msg.inquiry_id as string, tenantId: ctx.tenantId }))) {
-      editedBody = maskContactDetails(editedBody).text;
-    }
+    // An edit must not put back what masking took out; the typed original is kept.
+    const editedBody = await maskEditedBody({
+      messageId: ctx.messageId,
+      inquiryId: msg.inquiry_id as string,
+      tenantId: ctx.tenantId,
+      threadType: String(msg.thread_type ?? ""),
+      body: ctx.body,
+    });
+    if (editedBody === null) return { success: false, error: "edit_not_saved" };
     await supabase
       .from("inquiry_messages")
       .update({ body: editedBody, edited_at: new Date().toISOString() })

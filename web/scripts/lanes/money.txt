@@ -62,6 +62,8 @@ src/lib/catalog/price-phases.test.ts
 src/lib/catalog/tax.test.ts
 src/lib/coordinator/contact-masking-wire.test.ts
 src/lib/coordinator/contact-masking.test.ts
+src/lib/coordinator/masked-message-write.test.ts
+src/lib/coordinator/masked-writer-guard.static.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
 src/lib/events/cancel-cascade.static.test.ts
