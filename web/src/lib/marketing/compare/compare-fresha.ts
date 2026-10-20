@@ -102,12 +102,12 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Parte de un cliente nuevo",
-        tulala: "Una tarifa de servicio de Tulala sobre la reserva, igual para todos.",
+        tulala: "Un cargo por servicio de Tulala sobre la reserva, igual para todos.",
         them: "20% de la primera reserva de un cliente nuevo del marketplace, mínimo $6, una sola vez por cliente.",
       },
       {
         label: "Procesamiento de tarjeta",
-        tulala: "Cubierto por la tarifa de servicio de Tulala.",
+        tulala: "Cubierto por el cargo por servicio de Tulala.",
         them: "Aproximadamente 2.19% a 3.30% más unos $0.20 por transacción, aparte.",
       },
       {
@@ -117,7 +117,7 @@ export const FRESHA_COMPARISON: Comparison = {
       },
       {
         label: "Qué pagas por TU propio cliente",
-        tulala: "La tarifa de servicio de Tulala, y nada más.",
+        tulala: "El cargo por servicio de Tulala, y nada más.",
         them: "No hay comisión de marketplace por tus propios clientes, pero la suscripción y el procesamiento siguen aplicando.",
       },
     ],

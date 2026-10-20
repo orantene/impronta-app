@@ -234,7 +234,7 @@ export const AGENCY_ARTICLES: ResourceArticle[] = [
         },
         {
           q: "¿Tulala cobra comisión?",
-          a: "Una tarifa de servicio de Tulala sobre una reserva pagada, que se suma a lo que paga el cliente y se muestra en el checkout antes de pagar. No se cobra nada por una consulta sin pagar. La tarifa se define por plan, y los planes también difieren en cupos de la lista y herramientas.",
+          a: "Un cargo por servicio de Tulala sobre una reserva pagada, que se suma a lo que paga el cliente y se muestra en el checkout antes de pagar. No se cobra nada por una consulta sin pagar. La tarifa se define por plan, y los planes también difieren en cupos de la lista y herramientas.",
         },
       ],
     },

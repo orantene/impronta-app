@@ -126,7 +126,7 @@ export function TermsEs() {
                 espera a que se pueda, en lugar de estimarse.
               </p>
               <p>
-                Tarifa de servicio: los clientes pagan una tarifa de servicio de{" "}
+                Cargo por servicio: los clientes pagan un cargo por servicio de{" "}
                 {PLATFORM_BRAND.name} de {clientServiceFeePercentLabel()} sobre el precio de la reservación. Se muestra al
                 pagar, antes de que el cliente confirme, y es independiente de la comisión de
                 procesamiento de tarjeta descrita arriba, y no se reembolsa cuando se reembolsa

@@ -103,7 +103,7 @@ export const SERVICE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. Cuando recibes una reserva pagada se aplica una tarifa de servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
+          a: "La página es gratis. Cuando recibes una reserva pagada se aplica un cargo por servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
         {
           q: "Trabajo con otras dos personas. ¿Sirve igual?",
@@ -201,7 +201,7 @@ export const SERVICE_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una reserva pagada se aplica una tarifa de servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
+          a: "La página es gratis. En una reserva pagada se aplica un cargo por servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
       ],
     },

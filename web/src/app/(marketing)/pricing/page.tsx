@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
     }),
     description: pickLocale(locale, {
       en: "Two ladders, one question: are you a person or a business? Start free on either. A paid booking carries a Tulala service fee, added on top for the client.",
-      es: "¿Eres una persona o un negocio? Empieza gratis en cualquiera de los dos. Una reserva pagada lleva una tarifa de servicio de Tulala, que se suma por encima para el cliente.",
+      es: "¿Eres una persona o un negocio? Empieza gratis en cualquiera de los dos. Una reserva pagada lleva un cargo por servicio de Tulala, que se suma por encima para el cliente.",
     }),
     ...buildMarketingLocaleAlternates(locale, "/pricing"),
   };
@@ -96,7 +96,7 @@ export default async function PricingPage({
       heroTitleA: "Dos columnas.",
       heroTitleB: "Una pregunta.",
       heroSubtitle:
-        "\u00bfEres una persona o un negocio? Elige la columna y luego elige chico, mediano o grande. Las dos empiezan gratis, y una reserva pagada lleva una tarifa de servicio de Tulala, que se suma por encima para el cliente.",
+        "\u00bfEres una persona o un negocio? Elige la columna y luego elige chico, mediano o grande. Las dos empiezan gratis, y una reserva pagada lleva un cargo por servicio de Tulala, que se suma por encima para el cliente.",
       heroPrimary: "Empieza gratis",
       heroSecondary: "Ver el recorrido",
       compareEyebrow: "Comparaci\u00f3n de planes de negocio",

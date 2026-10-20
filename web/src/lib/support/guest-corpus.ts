@@ -47,15 +47,15 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
       {
         slug: "sales-booking-cut",
         purpose:
-          "Tulala cobra una tarifa de servicio sobre una reserva pagada. Se suma por encima del precio para el cliente, se define por plan y se muestra en el checkout antes de pagar. No se cobra nada hasta que una reserva se paga.",
+          "Tulala cobra un cargo por servicio sobre una reserva pagada. Se suma por encima del precio para el cliente, se define por plan y se muestra en el checkout antes de pagar. No se cobra nada hasta que una reserva se paga.",
         youCanHere: [
-          "Ver la tarifa de servicio de Tulala en /pricing",
+          "Ver el cargo por servicio de Tulala en /pricing",
           "La misma tarifa desde el hub o desde el sitio de la agencia",
         ],
         faqs: [
           {
             q: "¿Cuánto se queda Tulala de cada reserva?",
-            a: "Tulala cobra una tarifa de servicio sobre una reserva pagada, que se suma por encima del precio para el cliente. Se muestra en el checkout antes de pagar.",
+            a: "Tulala cobra un cargo por servicio sobre una reserva pagada, que se suma por encima del precio para el cliente. Se muestra en el checkout antes de pagar.",
           },
         ],
         category: "pricing",

@@ -212,13 +212,13 @@ const es: PricingLaddersCopy = {
   },
   fee: {
     eyebrow: "Comisión por transacción",
-    title: "Una tarifa de servicio de Tulala sobre una reserva pagada.",
+    title: "Un cargo por servicio de Tulala sobre una reserva pagada.",
     body:
-      "La tarifa de servicio de Tulala se suma por encima del precio para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
+      "El cargo por servicio de Tulala se suma por encima del precio para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
     exampleTitle: "Cómo se compone una reserva pagada",
     rows: [
-      { label: "El cliente paga", value: "El precio más la tarifa de servicio de Tulala" },
-      { label: "Tulala se queda con", value: "La tarifa de servicio de Tulala" },
+      { label: "El cliente paga", value: "El precio más el cargo por servicio de Tulala" },
+      { label: "Tulala se queda con", value: "El cargo por servicio de Tulala" },
     ],
     note:
       "La misma tarifa aplica ya sea que la reserva llegue desde el hub de Tulala o desde el sitio propio de la agencia. No se cobra nada hasta que una reserva se paga.",

@@ -9,7 +9,7 @@ import { buildGuestCorpus } from "@/lib/support/guest-corpus";
 /**
  * TUL-1414. The Tulala service fee is set per plan in Platform Admin, so no
  * public copy or support bot text may state it as a fixed 6%. Static marketing
- * copy and the bot's knowledge say "Tulala service fee" / "tarifa de servicio
+ * copy and the bot's knowledge say "Tulala service fee" / "cargo por servicio
  * de Tulala" with no percentage.
  *
  * Out of scope on purpose: `ticket-fee-comparison.ts` (its fallback constant is
@@ -68,5 +68,5 @@ test("the neutral wording is used, in both languages", () => {
   const en = JSON.stringify(getPricingLaddersCopy("en").fee);
   const es = JSON.stringify(getPricingLaddersCopy("es").fee);
   assert.match(en, /Tulala service fee/);
-  assert.match(es, /tarifa de servicio de Tulala/);
+  assert.match(es, /cargo por servicio de Tulala/);
 });

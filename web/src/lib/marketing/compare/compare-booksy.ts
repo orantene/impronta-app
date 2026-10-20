@@ -103,12 +103,12 @@ export const BOOKSY_COMPARISON: Comparison = {
       },
       {
         label: "Parte de un cliente nuevo",
-        tulala: "Una tarifa de servicio de Tulala sobre la reserva. Igual para un cliente nuevo que para uno de siempre.",
+        tulala: "Un cargo por servicio de Tulala sobre la reserva. Igual para un cliente nuevo que para uno de siempre.",
         them: "Boost se lleva 30% de la primera visita de un cliente nuevo, mínimo $10 y máximo $100. Una sola vez por cliente.",
       },
       {
         label: "Procesamiento de tarjeta",
-        tulala: "Cubierto por la tarifa de servicio de Tulala.",
+        tulala: "Cubierto por el cargo por servicio de Tulala.",
         them: "Aproximadamente 2.49% a 2.69% más una tarifa por transacción, aparte.",
       },
       {
@@ -118,7 +118,7 @@ export const BOOKSY_COMPARISON: Comparison = {
       },
       {
         label: "¿Cambia la tarifa según el plan?",
-        tulala: "Sin cargo por asiento. La tarifa de servicio de Tulala se define por plan, incluido el gratis.",
+        tulala: "Sin cargo por asiento. El cargo por servicio de Tulala se define por plan, incluido el gratis.",
         them: "El plan cambia lo que pagas al mes.",
       },
     ],

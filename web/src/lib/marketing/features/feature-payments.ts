@@ -174,7 +174,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "Una comisión clara, y sin candado por plan",
         body: [
           [
-            "La tarifa de servicio de Tulala sobre el trabajo reservado se suma por encima para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
+            "El cargo por servicio de Tulala sobre el trabajo reservado se suma por encima para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
           ],
           [
             "Es igual en todos los planes, incluido el gratuito. Un negocio que no puede cobrar no es un negocio, así que no ponemos el cobro detrás de una suscripción.",
@@ -211,7 +211,7 @@ export const PAYMENTS_FEATURE: Feature = {
       "Cobro en tu propio sitio",
       "Anticipos, saldos y pago completo",
       "Depósitos a tu propia cuenta bancaria",
-      "Tarifa de servicio de Tulala sobre trabajo reservado, visible antes de pagar",
+      "Cargo por servicio de Tulala sobre trabajo reservado, visible antes de pagar",
       "Disponible en todos los planes, incluido el gratuito",
       "Un solo reporte entre reservas, trabajos y campañas",
     ],
@@ -223,7 +223,7 @@ export const PAYMENTS_FEATURE: Feature = {
       },
       {
         q: "¿Cuánto cuesta exactamente?",
-        a: "La tarifa de servicio de Tulala sobre trabajo reservado se suma por encima para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
+        a: "El cargo por servicio de Tulala sobre trabajo reservado se suma por encima para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
       },
       {
         q: "¿Cuándo recibo el dinero?",

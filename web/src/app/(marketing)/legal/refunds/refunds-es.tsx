@@ -71,7 +71,7 @@ export function RefundsEs() {
               <p>
                 Las comisiones de procesamiento de tarjeta no son reembolsables. Ni el talento
                 ni {PLATFORM_BRAND.name} cubren esas comisiones cuando se emite un reembolso.
-                Tampoco se reembolsa la tarifa de servicio de {PLATFORM_BRAND.name} que paga el
+                Tampoco se reembolsa el cargo por servicio de {PLATFORM_BRAND.name} que paga el
                 cliente.
               </p>
             </>
