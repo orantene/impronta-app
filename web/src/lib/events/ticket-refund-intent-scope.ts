@@ -17,7 +17,7 @@ export type IntentRow = {
   reason: string;
   source?: string | null;
   requested_by_admission_id?: string | null;
-  /** Exchange only; absent before migration 20261231419200 is applied. */
+  /** Exchange only; absent before migration 20261231419300 is applied. */
   refund_cents?: number | string | null;
 };
 
