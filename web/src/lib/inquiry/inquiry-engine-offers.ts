@@ -5,6 +5,7 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, inquiryWriteClient, runWithEngineLog } from "./inquiry-engine.helpers";
+import { lookupTalentUserId, staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import { normalizeCurrencyCode } from "./offer-currency";
 import { checkInquiryCurrencyMatchesSeller, resolveNewOfferCurrency } from "./offer-currency-seller";
@@ -115,7 +116,8 @@ async function resolveDefaultOfferTerms(
       ];
     }
     if (talentIds.length > 0) {
-      const { data: profiles } = await supabase
+      // TUL-1359: service client; the ids come from this inquiry's own offer lines / participants.
+      const { data: profiles } = await (await staffTalentClient(supabase))
         .from("talent_profiles")
         .select("id, booking_terms")
         .in("id", talentIds)
@@ -272,11 +274,12 @@ async function ensureOfferTalentsOnLineup(
       .eq("role", "talent")
       .maybeSingle();
     if (existing) continue;
-    const { data: tp } = await supabase
-      .from("talent_profiles")
-      .select("user_id")
-      .eq("id", talentProfileId)
-      .maybeSingle();
+    // TUL-1359: service client; never insert a lineup row with a user_id the read could not see.
+    const tp = await lookupTalentUserId(await staffTalentClient(supabase), talentProfileId);
+    if (!tp.found) {
+      logServerError("inquiry-engine-offers.ensureOfferTalentsOnLineup.talent", `talent ${talentProfileId} not found`);
+      continue;
+    }
     const { data: maxSort } = await supabase
       .from("inquiry_participants")
       .select("sort_order")
@@ -290,7 +293,7 @@ async function ensureOfferTalentsOnLineup(
     const { error } = await supabase.from("inquiry_participants").insert({
       inquiry_id: inquiryId,
       tenant_id: tenantId,
-      user_id: (tp?.user_id as string | null) ?? null,
+      user_id: tp.userId,
       talent_profile_id: talentProfileId,
       role: "talent",
       status: "active",
