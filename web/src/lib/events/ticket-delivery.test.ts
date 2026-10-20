@@ -108,6 +108,8 @@ function world(over: Partial<Record<string, Row[]>> = {}) {
     agencies: [{ id: T, timezone: "America/Cancun", default_locale: "es" }],
     booking_transactions: [],
     customers: [],
+    // Typed so tests can read the ledger back (TUL-1267).
+    billing_notice_ledger: [] as Row[],
     ...over,
   };
 }
