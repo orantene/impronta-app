@@ -40,7 +40,8 @@ import {
   HOST_TALENT_PROFILE_HEADER,
 } from "@/lib/saas/host-context";
 import { LEGACY_PRIVACY_SLUG, POLICY_SLUG } from "@/lib/talent-policies/public";
-import { needsRouteLookup, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
+import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
+import { needsRouteLookup, needsServiceLookup, serviceRouteVerdict, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
 import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
 import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -112,6 +113,11 @@ async function originalLocalePrefix(locale: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** `/en/<slug>` when the request carried a locale prefix, else `/<slug>`. */
+function serviceRedirectPath(localePrefix: string | null, slug: string): string {
+  return `${localePrefix ? `/${localePrefix}` : ""}/${encodeURIComponent(slug)}`;
 }
 
 function firstSegment(pageSlug: string[] | undefined): string | null {
@@ -214,6 +220,17 @@ export default async function TalentSiteHostPage({
     if (verdict === "privacy-redirect") permanentRedirect(`/${POLICY_SLUG.privacy}`);
     if (verdict === "not-found") notFound();
   }
+  // TUL-1273 #5: a removed or archived service is a real 404 too (same reason as above). The id8 in
+  // the slug decides; the public offerings read is the render's own cached read.
+  if (needsServiceLookup(seg, preview)) {
+    const [offerings, pages] = await Promise.all([
+      loadPublicOfferingsForProfile(talentProfileId, locale, null).catch(() => null),
+      loadMaxSitePages(talentProfileId),
+    ]);
+    // The loader returns [] on a failed read as well as for a talent with no services, so an empty
+    // result is UNKNOWN: fall through to the renderer rather than hard-404 a live service on a blip.
+    if (offerings && offerings.length > 0 && serviceRouteVerdict(seg, offerings, pages.map((p) => p.slug)) === "not-found") notFound();
+  }
   return (
     <Suspense fallback={<TalentSitePaintSkeleton locale={locale} />}>
       <TalentSiteBody
@@ -261,6 +278,9 @@ async function TalentSiteBody({
   // `/privacy` is the English word talents and footers guess; it used to 404
   // unless authored. The policy page lives at `/privacidad`.
   if (result.kind !== "render" && seg === LEGACY_PRIVACY_SLUG) permanentRedirect(`/${POLICY_SLUG.privacy}`);
+  // TUL-1272 C1: an old service slug 308s to the current one, keeping the locale prefix. In-stream
+  // fallback: the pre-Suspense 308 moves into the route verdict once #4080 merges.
+  if (result.kind === "redirect") permanentRedirect(serviceRedirectPath(await originalLocalePrefix(locale), result.slug));
   if (result.kind !== "render") notFound();
   const jsonLd = maxSiteJsonLdString(result.seo);
   return (

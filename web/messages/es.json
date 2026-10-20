@@ -2184,6 +2184,7 @@
         "visit": "Abrir",
         "nextSteps": "Siguientes pasos",
         "nextVisit": "Visita tu sitio",
+        "nextServices": "Revisa tus servicios",
         "nextCustomize": "Personaliza tu contenido",
         "nextPhotos": "Agrega tus fotos",
         "nextDomain": "Conecta tu dominio (opcional)",
@@ -16540,6 +16541,7 @@
           "no_payout_receiver": "Esto no se puede registrar como pagado todavía: nadie esta configurado para recibir el pago. Configura un receptor de pagos e inténtalo de nuevo.",
           "offer_currency_seller_mismatch": "Esta oferta esta en una moneda distinta a la que cobra quien vende. Cambia la moneda de la oferta a la de quien vende y vuelve a enviarla.",
           "offer_currency_unresolved": "No pudimos saber en que moneda va esta oferta. Elige una moneda para la oferta e intenta de nuevo.",
+          "over_refund_limit": "Un gerente con un límite mayor tiene que hacer este reembolso.",
           "identity_unconfirmed": "La identidad del cliente no está confirmada.",
           "already_linked": "Ese registro ya está ligado.",
           "version_stale": "Otra persona guardo primero. Compara las tres versiones.",
@@ -18342,7 +18344,13 @@
         "duration": "Duración (min)",
         "durationHint": "Servicios y clases; vacío para un producto.",
         "photos": "Fotos",
-        "photosReason": "Las fotos en un artículo del espacio aún no están disponibles; la galería se une a un perfil de talento."
+        "photosSaveFirst": "Guarda el artículo primero y luego agrega fotos.",
+        "photosHint": "La primera foto es la portada. Se ve en el menú QR de la mesa.",
+        "photosAlt": "Describe la foto",
+        "photosCover": "Portada",
+        "photosRemove": "Quitar foto",
+        "photosUploading": "Subiendo",
+        "photosFailed": "No se pudo subir la foto. Prueba con un JPG o PNG de menos de 8 MB."
       },
       "pricing": {
         "baseTitle": "Precio base",

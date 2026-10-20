@@ -316,6 +316,7 @@ export default async function RegisterPage({
           <EmailCodeForm
             nextPath={nextPath}
             locale={locale}
+            marketingOrigin={resolveMarketingOrigin()}
             defaultEmail={defaultEmail}
             collectName
             clientSignup
@@ -325,6 +326,7 @@ export default async function RegisterPage({
                 nextPath={nextPath}
                 submitLabel={t(keys.submit)}
                 locale={locale}
+                marketingOrigin={resolveMarketingOrigin()}
                 defaultEmail={defaultEmail}
                 collectName
                 clientSignup
@@ -344,6 +346,7 @@ export default async function RegisterPage({
             nextPath={nextPath}
             submitLabel={t(keys.submit)}
             locale={locale}
+            marketingOrigin={resolveMarketingOrigin()}
             defaultEmail={defaultEmail}
           />
         )}
