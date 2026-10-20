@@ -10,6 +10,7 @@ src/app/(workspace)/?tenantSlug?/admin/pos/pos-mode-url-sync.render.test.tsx
 src/app/(workspace)/?tenantSlug?/client/_actions/offer-refusal.test.ts
 src/components/admin/pos/classes-copy.static.test.ts
 src/components/admin/service-hub/owner-hub-screen.render.test.tsx
+src/components/storefront/public-hub-entries.render.test.tsx
 src/components/talent/money/ledger-clients-state.test.ts
 src/lib/account/export-bundle.test.ts
 src/lib/account/export-scoping.test.ts
@@ -248,7 +249,10 @@ src/lib/service-hub/entries-rows.test.ts
 src/lib/service-hub/entries.server.test.ts
 src/lib/service-hub/entries.test.ts
 src/lib/service-hub/entry-permissions.test.ts
+src/lib/service-hub/entry-photos.test.ts
 src/lib/service-hub/owner-hub-wire.static.test.ts
+src/lib/service-hub/public-hub.server.test.ts
+src/lib/service-hub/public-hub.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts

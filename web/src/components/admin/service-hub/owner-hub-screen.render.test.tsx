@@ -22,8 +22,8 @@ const hub: Ok = {
   ok: true,
   ready: true,
   entries: [
-    { id: "e1", name: "Massage", category: "Massage", photoMediaId: null, bookingType: "request", hubPriceCents: 55000, currency: "USD", showWho: "name", clientContact: "workspace", featured: false, hidden: false, ownOfferingId: null, members: [L("m1", { entryId: "e1" }), L("m2", { entryId: "e1", priceCents: 45000 })], differences: [{ field: "price", values: [] }] },
-    { id: "e2", name: "Studio hire", category: "Rooms", photoMediaId: null, bookingType: "request", hubPriceCents: 20000, currency: "USD", showWho: "name", clientContact: "workspace", featured: false, hidden: false, ownOfferingId: "own-1", members: [], differences: [] },
+    { id: "e1", name: "Massage", category: "Massage", photoMediaId: null, photoChoices: [], bookingType: "request", hubPriceCents: 55000, currency: "USD", showWho: "name", clientContact: "workspace", featured: false, hidden: false, ownOfferingId: null, members: [L("m1", { entryId: "e1" }), L("m2", { entryId: "e1", priceCents: 45000 })], differences: [{ field: "price", values: [] }] },
+    { id: "e2", name: "Studio hire", category: "Rooms", photoMediaId: null, photoChoices: [], bookingType: "request", hubPriceCents: 20000, currency: "USD", showWho: "name", clientContact: "workspace", featured: false, hidden: false, ownOfferingId: "own-1", members: [], differences: [] },
   ],
   queue: [{ listing: L("q1"), joinableEntryIds: ["e1"], options: ["accept_into_group", "new_entry", "skip"] }, { listing: L("q2", { categoryId: "yoga", title: "Yoga" }), joinableEntryIds: [], options: ["new_entry", "skip"] }],
   suggestions: [],

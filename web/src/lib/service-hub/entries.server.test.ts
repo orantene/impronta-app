@@ -34,6 +34,7 @@ function fakeDb(seed: Record<string, Row[]>, opts: { failTable?: string } = {}) 
     const b: Record<string, unknown> = {};
     b.select = () => b;
     b.eq = (c: string, v: unknown) => { filters.push((r) => r[c] === v); return b; };
+    b.order = () => b;
     b.in = (c: string, vs: unknown[]) => { filters.push((r) => vs.includes(r[c])); return b; };
     b.update = (p: Row) => { mode = "update"; patch = p; return b; };
     b.delete = () => { mode = "delete"; return b; };
@@ -179,4 +180,35 @@ test("the workspace's own service joins the same list; a talent's offering canno
   assert.equal(db.tables.workspace_service_entries[0].own_offering_id, "own-1");
   assert.equal(db.tables.workspace_service_entries[0].hub_price_cents, 20000);
   assert.deepEqual(await addOwnService(ctxFor(db.admin), { offeringId: "o-a" }), { ok: false, reason: "not_found" });
+});
+
+// ── photo picker ──────────────────────────────────────────────────────────────
+const media = (offeringId: string, mediaId: string, sort = 0): Row => ({ offering_id: offeringId, sort_order: sort, media_asset_id: mediaId, media_assets: { public_url: `https://img/${mediaId}.jpg`, bucket_id: null, storage_path: null } });
+const photoSeed = () => {
+  const e1 = { id: "e1", tenant_id: T, name: "Massage", booking_type: "request" };
+  return seed({
+    workspace_service_entries: [e1],
+    workspace_service_listings: [listing("a", { entry_id: "e1" }), listing("b", { entry_id: "e1" })],
+    talent_offering_media: [media("o-a", "m1"), media("o-b", "m2"), media("o-zzz", "m-other")],
+  });
+};
+
+test("the hub offers an entry the photos of its own members only", async () => {
+  const hub = await loadOwnerHub(fakeDb(photoSeed()).admin, T);
+  assert.ok(hub.ok);
+  if (hub.ok) assert.deepEqual(hub.entries[0].photoChoices.map((c) => c.mediaId).sort(), ["m1", "m2"]);
+});
+
+test("choosing one of the entry's own photos works; another workspace's media id is refused", async () => {
+  const db = fakeDb(photoSeed());
+  assert.deepEqual(await updateEntry(ctxFor(db.admin), { entryId: "e1", patch: { photoMediaId: "m2" } }), { ok: true, entryId: "e1" });
+  assert.equal(db.tables.workspace_service_entries[0].photo_media_id, "m2");
+  assert.deepEqual(await updateEntry(ctxFor(db.admin), { entryId: "e1", patch: { photoMediaId: "m-other" } }), { ok: false, reason: "invalid", fields: ["photoMediaId"] });
+  assert.equal(db.tables.workspace_service_entries[0].photo_media_id, "m2");
+  assert.deepEqual(await updateEntry(ctxFor(db.admin), { entryId: "e1", patch: { photoMediaId: null } }), { ok: true, entryId: "e1" });
+});
+
+test("a photo change refuses when the photos cannot be read (fail closed)", async () => {
+  const db = fakeDb(photoSeed(), { failTable: "talent_offering_media" });
+  assert.deepEqual(await updateEntry(ctxFor(db.admin), { entryId: "e1", patch: { photoMediaId: "m1" } }), { ok: false, reason: "unavailable" });
 });

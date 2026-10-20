@@ -10,6 +10,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { SmartImage } from "@/components/ui/smart-image";
+
 import {
   addOwnServiceAction,
   decideQueueItemAction,
@@ -69,6 +71,7 @@ function EntrySettings({ entry, roles, locale, c }: { entry: HubEntry; roles: re
   const [booking, setBooking] = useState(entry.bookingType);
   const [featured, setFeatured] = useState(entry.featured);
   const [hidden, setHidden] = useState(entry.hidden);
+  const [photo, setPhoto] = useState<string | null>(entry.photoMediaId);
   const { busy, message, run } = useRun(c);
   const dis = (f: string) => !allowed.has(f);
 
@@ -85,6 +88,7 @@ function EntrySettings({ entry, roles, locale, c }: { entry: HubEntry; roles: re
     if (!dis("bookingType") && booking !== entry.bookingType) patch.bookingType = booking;
     if (!dis("featured") && featured !== entry.featured) patch.featured = featured;
     if (!dis("hidden") && hidden !== entry.hidden) patch.hidden = hidden;
+    if (!dis("photoMediaId") && photo !== entry.photoMediaId) patch.photoMediaId = photo;
     if (Object.keys(patch).length === 0) return;
     void run(() => updateEntryAction({ entryId: entry.id, patch }));
   };
@@ -109,6 +113,20 @@ function EntrySettings({ entry, roles, locale, c }: { entry: HubEntry; roles: re
         </select></label>
       <label className="flex items-center gap-2 text-admin-12"><input type="checkbox" checked={featured} disabled={dis("featured")} onChange={(e) => { setFeatured(e.target.checked); if (e.target.checked) setHidden(false); }} />{c.featured}</label>
       <label className="flex items-center gap-2 text-admin-12"><input type="checkbox" checked={hidden} disabled={dis("hidden")} onChange={(e) => { setHidden(e.target.checked); if (e.target.checked) setFeatured(false); }} />{c.hiddenLabel}</label>
+      {entry.photoChoices.length > 0 ? (
+        <fieldset className="col-span-full" data-testid={`entry-photo-${entry.id}`} disabled={dis("photoMediaId")}>
+          <legend className="text-admin-12">{c.photo}</legend>
+          <div className="mt-1 flex flex-wrap gap-2" role="radiogroup" aria-label={c.photo}>
+            <button type="button" role="radio" aria-checked={photo === null} onClick={() => setPhoto(null)} className={`min-h-[44px] rounded-lg border px-3 text-admin-12 ${photo === null ? "border-admin-ink" : "border-admin-line"}`}>{c.photoNone}</button>
+            {entry.photoChoices.map((p) => (
+              <button key={p.mediaId} type="button" role="radio" aria-checked={photo === p.mediaId} onClick={() => setPhoto(p.mediaId)} className={`overflow-hidden rounded-lg border ${photo === p.mediaId ? "border-2 border-admin-ink" : "border-admin-line"}`}>
+                <SmartImage src={p.url} alt="" width={64} height={64} className="size-16 object-cover" />
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-admin-11 text-admin-ink-muted">{c.photoHint}</p>
+        </fieldset>
+      ) : null}
       <div className="col-span-full flex items-center gap-2">
         <button type="button" className={PRIMARY} disabled={busy} onClick={save}>{c.save}</button>
         {message ? <span role="alert" className="text-admin-12 text-admin-ink-muted">{message}</span> : null}

@@ -27,6 +27,9 @@ export type OwnerHubCopy = {
   contactWorkspace: string;
   contactTalent: string;
   bookingType: string;
+  photo: string;
+  photoNone: string;
+  photoHint: string;
   bookingRequest: string;
   bookingInstant: string;
   featured: string;
@@ -79,6 +82,9 @@ export const OWNER_HUB_COPY: Record<"en" | "es", OwnerHubCopy> = {
     contactWorkspace: "The workspace",
     contactTalent: "The person",
     bookingType: "Booking type",
+    photo: "Photo",
+    photoNone: "No photo",
+    photoHint: "Pick one from the photos of the services in this entry.",
     bookingRequest: "On request",
     bookingInstant: "Instant",
     featured: "Feature",
@@ -129,6 +135,9 @@ export const OWNER_HUB_COPY: Record<"en" | "es", OwnerHubCopy> = {
     contactWorkspace: "El espacio de trabajo",
     contactTalent: "La persona",
     bookingType: "Tipo de reserva",
+    photo: "Foto",
+    photoNone: "Sin foto",
+    photoHint: "Elige una de las fotos de los servicios de esta entrada.",
     bookingRequest: "Por solicitud",
     bookingInstant: "Inmediata",
     featured: "Destacar",

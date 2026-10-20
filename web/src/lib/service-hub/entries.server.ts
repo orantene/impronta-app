@@ -19,6 +19,8 @@ import {
 } from "./entries";
 import { hubRolesFromMembership, can, validateEntryPatch, type HubRole } from "./entry-permissions";
 import { listingFromRows } from "./entries-rows";
+import { choicesForEntry, photoChoiceAllowed, type PhotoChoice } from "./entry-photos";
+import { loadOfferingPhotoChoices } from "./entry-photos.server";
 
 /**
  * Reads and writes of the owner's service hub (TUL-1369). Service-role client, so
@@ -34,6 +36,8 @@ export type HubEntry = {
   name: string;
   category: string | null;
   photoMediaId: string | null;
+  /** The photos of the services inside this entry; the owner picks one. Empty when unreadable. */
+  photoChoices: PhotoChoice[];
   bookingType: "request" | "instant";
   hubPriceCents: number | null;
   currency: string | null;
@@ -75,12 +79,14 @@ export async function resolveHubRoles(admin: SupabaseClient, tenantId: string, u
   return hubRolesFromMembership((data as { role?: string } | null)?.role);
 }
 
-async function loadListings(admin: SupabaseClient, tenantId: string): Promise<EntryListing[] | null> {
+export type LoadedListings = { listings: EntryListing[]; offeringByListing: Map<string, string> };
+
+export async function loadListings(admin: SupabaseClient, tenantId: string): Promise<LoadedListings | null> {
   const { data: rows, error } = await tenantScopedQuery(admin, "workspace_service_listings", tenantId).select(
     "id, tenant_id, talent_profile_id, offering_id, status, price_mode, margin_bps, price_cents, currency, booking_type, entry_id, owner_skipped_at",
   );
   if (error) {
-    if (isMissing(error)) return [];
+    if (isMissing(error)) return { listings: [], offeringByListing: new Map() };
     logServerError("serviceHub.entries.listings", error);
     return null;
   }
@@ -109,11 +115,15 @@ async function loadListings(admin: SupabaseClient, tenantId: string): Promise<En
     }
   }
   const out: EntryListing[] = [];
+  const offeringByListing = new Map<string, string>();
   for (const l of listings) {
     const mapped = listingFromRows(l, offerings.get(String(l.offering_id)) ?? {}, names.get(String(l.talent_profile_id)) ?? "");
-    if (mapped) out.push(mapped);
+    if (mapped) {
+      out.push(mapped);
+      offeringByListing.set(mapped.listingId, String(l.offering_id));
+    }
   }
-  return out;
+  return { listings: out, offeringByListing };
 }
 
 export async function loadOwnerHub(admin: SupabaseClient, tenantId: string): Promise<OwnerHub> {
@@ -126,10 +136,16 @@ export async function loadOwnerHub(admin: SupabaseClient, tenantId: string): Pro
       logServerError("serviceHub.entries.read", entriesRes.error);
       return { ok: false };
     }
-    const listings = await loadListings(admin, tenantId);
-    if (!listings) return { ok: false };
+    const loaded = await loadListings(admin, tenantId);
+    if (!loaded) return { ok: false };
+    const { listings, offeringByListing } = loaded;
 
     const rows = (missing ? [] : (entriesRes.data ?? [])) as Raw[];
+    const offeringsOf = (entryId: string, own: string | null) => [
+      ...listings.filter((l) => l.entryId === entryId).map((l) => offeringByListing.get(l.listingId) ?? ""),
+      ...(own ? [own] : []),
+    ].filter(Boolean);
+    const photoByOffering = await loadOfferingPhotoChoices(admin, [...new Set(rows.flatMap((r) => offeringsOf(String(r.id), typeof r.own_offering_id === "string" ? r.own_offering_id : null)))]);
     const entries: HubEntry[] = rows.map((r) => {
       const members = listings.filter((l) => l.entryId === String(r.id));
       return {
@@ -137,6 +153,7 @@ export async function loadOwnerHub(admin: SupabaseClient, tenantId: string): Pro
         name: String(r.name ?? ""),
         category: typeof r.category === "string" ? r.category : null,
         photoMediaId: typeof r.photo_media_id === "string" ? r.photo_media_id : null,
+        photoChoices: photoByOffering ? choicesForEntry(offeringsOf(String(r.id), typeof r.own_offering_id === "string" ? r.own_offering_id : null), photoByOffering) : [],
         bookingType: r.booking_type === "instant" ? "instant" : "request",
         hubPriceCents: typeof r.hub_price_cents === "number" ? r.hub_price_cents : r.hub_price_cents == null ? null : Number(r.hub_price_cents),
         currency: typeof r.currency === "string" ? r.currency : null,
@@ -198,13 +215,13 @@ async function guard(ctx: Ctx, action: Parameters<typeof can>[1]): Promise<HubRo
 const isResult = (v: HubRole[] | HubWriteResult): v is HubWriteResult => !Array.isArray(v);
 
 async function listingById(ctx: Ctx, listingId: string): Promise<EntryListing | "unreadable" | null> {
-  const all = await loadListings(ctx.admin, ctx.tenantId);
+  const all = (await loadListings(ctx.admin, ctx.tenantId))?.listings;
   if (!all) return "unreadable";
   return all.find((l) => l.listingId === listingId) ?? null;
 }
 
 async function membersOf(ctx: Ctx, entryId: string): Promise<EntryListing[] | "unreadable"> {
-  const all = await loadListings(ctx.admin, ctx.tenantId);
+  const all = (await loadListings(ctx.admin, ctx.tenantId))?.listings;
   if (!all) return "unreadable";
   return all.filter((l) => l.entryId === entryId);
 }
@@ -291,7 +308,7 @@ export async function mergeEntries(ctx: Ctx, input: { keepId: string; mergeId: s
   const g = await guard(ctx, "group_edit");
   if (isResult(g)) return g;
   if (input.keepId === input.mergeId) return { ok: false, reason: "invalid" };
-  const all = await loadListings(ctx.admin, ctx.tenantId);
+  const all = (await loadListings(ctx.admin, ctx.tenantId))?.listings;
   if (!all) return { ok: false, reason: "unavailable" };
   for (const id of [input.keepId, input.mergeId]) {
     const e = await entryExists(ctx, id);
@@ -354,6 +371,17 @@ export async function splitEntry(ctx: Ctx, input: { entryId: string; listingIds:
   return { ok: true, entryId: newId };
 }
 
+/** The photos this entry may show: its listings' offerings plus its own service. Null = unreadable. */
+async function entryPhotoChoices(admin: SupabaseClient, tenantId: string, entryId: string): Promise<PhotoChoice[] | null> {
+  const { data: entry, error: eErr } = await tenantScopedQuery(admin, "workspace_service_entries", tenantId).select("own_offering_id").eq("id", entryId).maybeSingle();
+  if (eErr || !entry) return null;
+  const { data: rows, error: lErr } = await tenantScopedQuery(admin, "workspace_service_listings", tenantId).select("offering_id").eq("entry_id", entryId);
+  if (lErr) return null;
+  const ids = [...((rows ?? []) as Raw[]).map((r) => String(r.offering_id)), ...(typeof (entry as Raw).own_offering_id === "string" ? [String((entry as Raw).own_offering_id)] : [])];
+  const by = await loadOfferingPhotoChoices(admin, ids);
+  return by ? choicesForEntry(ids, by) : null;
+}
+
 export async function updateEntry(ctx: Ctx, input: { entryId: string; patch: Record<string, unknown> }): Promise<HubWriteResult> {
   const roles = await resolveHubRoles(ctx.admin, ctx.tenantId, ctx.userId);
   if (roles === "unreadable") return { ok: false, reason: "unavailable" };
@@ -362,6 +390,12 @@ export async function updateEntry(ctx: Ctx, input: { entryId: string; patch: Rec
     return { ok: false, reason: checked.reason === "not_allowed" ? "not_allowed" : "invalid", fields: checked.fields };
   }
   const p = checked.patch;
+  if (typeof p.photoMediaId === "string") {
+    // A photo must be one of this entry's own members' photos; an unreadable check refuses.
+    const choices = await entryPhotoChoices(ctx.admin, ctx.tenantId, input.entryId);
+    if (!choices) return { ok: false, reason: "unavailable" };
+    if (!photoChoiceAllowed(choices, p.photoMediaId)) return { ok: false, reason: "invalid", fields: ["photoMediaId"] };
+  }
   const row: Raw = {};
   if (p.name !== undefined) row.name = p.name;
   if (p.categoryId !== undefined) row.category = p.categoryId;
