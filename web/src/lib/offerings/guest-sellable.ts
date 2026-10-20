@@ -17,21 +17,12 @@ export function scopeToGuestSellableOfferings<Q>(query: Q): Q {
   return scopeToSellableOfferings(query, "guest");
 }
 
-/**
- * TUL-1347: the STAFF quote list (Messages items picker). Staff quote
- * `on_request` and `agency_only` services, so visibility is not a gate here;
- * published AND approved still is. Used ONLY by `messagingLoadItemsCatalog`;
- * the guest dock keeps `scopeToGuestSellableOfferings`.
- */
-export function scopeToStaffQuotableOfferings<Q>(query: Q): Q {
-  return (query as unknown as EqChain).eq("status", "published").eq("moderation_state", "approved") as unknown as Q;
-}
-
 export type CatalogScope = "guest" | "staff";
 
 /** One switch for the readers: guest (default, strict) or staff quote list. */
 export function scopeOfferingsFor<Q>(query: Q, scope: CatalogScope | undefined): Q {
-  return scope === "staff" ? scopeToStaffQuotableOfferings(query) : scopeToGuestSellableOfferings(query);
+  // TUL-1347: the staff quote context is part of the one sellable rule (`sellable.ts`).
+  return scopeToSellableOfferings(query, scope === "staff" ? "staff_quote" : "guest");
 }
 
 /**

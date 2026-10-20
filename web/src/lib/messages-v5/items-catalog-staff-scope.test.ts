@@ -71,3 +71,18 @@ test("only the staff Messages picker passes the staff scope; the guest dock neve
   const guestSrc = readFileSync(join(here, "../../app/t/[profileCode]/_actions/guest-catalog-actions.ts"), "utf8");
   assert.doesNotMatch(guestSrc, /scope:\s*"staff"/);
 });
+
+test("the staff quote scope is a context of the ONE sellable rule, not a second status/moderation chain", async () => {
+  const { readFileSync: rf } = await import("node:fs");
+  const guestSellable = rf(join(dirname(fileURLToPath(import.meta.url)), "../offerings/guest-sellable.ts"), "utf8");
+  assert.doesNotMatch(guestSellable, /\.eq\("status"/);
+  assert.doesNotMatch(guestSellable, /\.eq\("moderation_state"/);
+  assert.match(guestSellable, /scopeToSellableOfferings\(query, scope === "staff" \? "staff_quote" : "guest"\)/);
+  const { sellability, isSellable } = await import("../offerings/sellable");
+  for (const visibility of ["public", "on_request", "agency_only"]) {
+    assert.equal(isSellable({ status: "published", moderation_state: "approved", visibility }, "staff_quote"), true, visibility);
+  }
+  assert.deepEqual(sellability({ status: "published", moderation_state: "pending", visibility: "public" }, "staff_quote"), { ok: false, reason: "not_approved" });
+  assert.deepEqual(sellability({ status: "draft", moderation_state: "approved", visibility: "public" }, "staff_quote"), { ok: false, reason: "not_published" });
+  assert.equal(isSellable({ status: "published", moderation_state: "approved", visibility: "agency_only" }, "guest"), false, "guests stay strict");
+});
