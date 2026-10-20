@@ -8588,7 +8588,17 @@
           "tabPricing": "Precios",
           "tabFeatures": "Funciones",
           "tabDisplay": "Presentación",
-          "tabStripe": "Stripe"
+          "tabStripe": "Stripe",
+          "serviceFee": {
+            "label": "Cargo por servicio de Tulala",
+            "help": "Lo paga el cliente encima del precio de la reserva y se muestra antes de pagar. Aplica a las reservas vendidas por quien esté en este plan. Un cambio afecta los pagos que se coticen desde ahora; los pedidos ya cotizados conservan el cargo con el que se cotizaron.",
+            "field": "Cargo (%)",
+            "save": "Guardar cargo",
+            "saving": "Guardando...",
+            "saved": "Guardado. Los nuevos pagos usan este cargo.",
+            "range": "Escribe un cargo entre 0% y 20%.",
+            "notReady": "El ajuste del cargo por servicio aún no está disponible. Se activa cuando se aplica la migración del cargo."
+          }
         },
         "pricingTab": {
           "activePricesTitle": "Precios activos",
@@ -8811,7 +8821,7 @@
           "clientSurcharge": "Recargo al cliente (% del subtotal)",
           "clientSurchargePlaceholder": "división equitativa",
           "clientSurchargeEven": "equitativa",
-          "clientSurchargeHint": "La mitad del lado del cliente, añadida sobre el subtotal. Vacío = división equitativa. Con una comisión del 6%, 3% aquí = 3% cliente + 3% vendedor. Al Talent nunca se le cobra.",
+          "clientSurchargeHint": "La mitad del lado del cliente, añadida sobre el subtotal. Vacío = división equitativa. Lo que quede de la comisión después de esta parte sale del lado del vendedor. Al Talent nunca se le cobra.",
           "baseCapsTitle": "Tarifa base de reserva. Límites de plataforma",
           "baseCapsBody": "Un espacio de trabajo puede añadir una tarifa base de reserva automática (fija o % del subtotal) en cada reserva. Estos son los límites superiores que puede fijar. Vacío = sin límite. La tarifa es ingreso del espacio de trabajo y nunca se toma del Talent.",
           "maxFlatFee": "Tarifa base fija máx. ($ USD)",

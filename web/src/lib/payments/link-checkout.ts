@@ -32,6 +32,7 @@ import { resolvePayeeName } from "@/lib/payments/payee-name";
 import { PAYMENT_LINK_METADATA_KEY } from "@/lib/payments/link-settlement";
 import { resolveLinkPayoutReceiver } from "@/lib/payments/link-payout-receiver";
 import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
+import { FeeUnavailableError } from "@/lib/billing/pass-through-arming";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 
@@ -182,13 +183,20 @@ async function openOnce(
   const amountCents = Number(link.amount_cents);
   // The principal is what the order is credited. What Stripe charges is the principal plus the
   // pass_through client surcharge when armed: the same helper the direct checkout uses.
-  const collectCents = await (deps.resolveCollect ?? collectForOrderPrincipal)(admin as unknown as SupabaseClient, {
-    tenantId: link.tenant_id,
-    orderId: order.id,
-    orderCurrency: currency,
-    principalCents: amountCents,
-    subtotalCents: Number((order as { total_cents?: number | string | null }).total_cents ?? 0),
-  });
+  let collectCents: number;
+  try {
+    collectCents = await (deps.resolveCollect ?? collectForOrderPrincipal)(admin as unknown as SupabaseClient, {
+      tenantId: link.tenant_id,
+      orderId: order.id,
+      orderCurrency: currency,
+      principalCents: amountCents,
+      subtotalCents: Number((order as { total_cents?: number | string | null }).total_cents ?? 0),
+    });
+  } catch (err) {
+    // TUL-1366: the service fee could not be confirmed: refuse, never charge without it.
+    if (err instanceof FeeUnavailableError) return { ok: false, reason: "unavailable" };
+    throw err;
+  }
 
   // ── 2. RESUME, DO NOT MINT A SECOND.
   let transactionId: string | null = claim.transaction_id;
