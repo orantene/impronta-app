@@ -1,6 +1,7 @@
 import "server-only";
 
 import sharp from "sharp";
+import { SHARP_INPUT_LIMITS } from "@/lib/media/image-sanitize.server";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type ExtractedMediaMetadata = {
@@ -45,7 +46,7 @@ export async function extractImageMetadata(
 
   if (mimeType.startsWith("image/") && mimeType !== SVG_MIME) {
     try {
-      const meta = await sharp(Buffer.from(buffer)).metadata();
+      const meta = await sharp(Buffer.from(buffer), SHARP_INPUT_LIMITS).metadata();
       width = typeof meta.width === "number" ? meta.width : null;
       height = typeof meta.height === "number" ? meta.height : null;
     } catch (err) {

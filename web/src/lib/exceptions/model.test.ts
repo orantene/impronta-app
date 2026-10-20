@@ -21,6 +21,7 @@ import {
   classifyEngineEffect,
   classifyMintShortfall,
   classifyOutboxDead,
+  classifyPaymentFlag,
   classifyRefundIntent,
   classifyStaleCommandClaim,
   classifyUnresolvedCollection,
@@ -28,6 +29,7 @@ import {
   summariseExceptions,
   type ExceptionRow,
 } from "./model";
+import { localizePaymentFlagRows, paymentFlagUiCopy } from "./payment-flag-copy";
 
 const NOW = Date.parse("2026-06-01T12:00:00.000Z");
 const minutesAgo = (n: number) => new Date(NOW - n * 60_000).toISOString();
@@ -402,4 +404,81 @@ test("an abandoned command claim is critical and has no button", () => {
     !/Nothing was changed/.test(row.detail),
     "an abandoned claim is the one row that cannot say what happened",
   );
+});
+
+// ── TUL-1283 / TUL-1284 / M2: a payment flagged for a person ─────────────
+
+const flagFacts = (over: Partial<Parameters<typeof classifyPaymentFlag>[0]> = {}) => ({
+  transactionId: "55555555-5555-4555-8555-555555555555",
+  orderId: "order-9",
+  flag: {
+    reason: "duplicate_charge" as const,
+    paymentIntentId: "pi_second",
+    otherPaymentIntentId: "pi_first",
+    expectedAmountCents: 101500,
+    expectedCurrency: "MXN",
+    chargedAmountCents: 101500,
+    chargedCurrency: "mxn",
+    rowStatus: "paid",
+    stripeEventId: "evt_1",
+    flaggedAt: minutesAgo(3),
+  },
+  ...over,
+});
+
+test("a flagged payment is a critical money row with no button", () => {
+  const row = classifyPaymentFlag(flagFacts(), "/acme/admin/orders?q=order-9");
+  assert.equal(row.source, "payment_flag");
+  assert.equal(row.severity, "critical", "money was taken that the books do not explain");
+  assert.equal(row.owner, "money");
+  assert.equal(row.nextAction.kind, "inspect", "a flagged charge must never get a refund button here");
+  assert.equal(row.firstSeenAt, minutesAgo(3));
+  assert.equal(row.href, "/acme/admin/orders?q=order-9");
+  assert.equal(row.key, "payment_flag:55555555-5555-4555-8555-555555555555:duplicate_charge:pi_second");
+  assert.deepEqual(row.resolvable, {
+    transactionId: "55555555-5555-4555-8555-555555555555",
+    reason: "duplicate_charge",
+    paymentIntentId: "pi_second",
+  });
+});
+
+test("each reason carries its own translated copy keys and the facts as variables", () => {
+  for (const reason of ["amount_mismatch", "charge_on_inactive_row", "duplicate_charge"] as const) {
+    const row = classifyPaymentFlag(flagFacts({ flag: { ...flagFacts().flag, reason } }), null);
+    assert.ok(row.copy, `${reason} has no copy keys`);
+    assert.equal(row.copy.title, `paymentFlag.${reason}.title`);
+    assert.equal(row.copy.detail, `paymentFlag.${reason}.detail`);
+    assert.equal(row.copy.label, "paymentFlag.label");
+    assert.equal(row.copy.why, "paymentFlag.why");
+  }
+  const row = classifyPaymentFlag(flagFacts(), null);
+  assert.equal(row.copy?.vars.paymentIntent, "pi_second");
+  assert.equal(row.copy?.vars.otherPaymentIntent, "pi_first");
+  assert.match(row.copy?.vars.charged ?? "", /MXN/);
+  assert.match(row.copy?.vars.expected ?? "", /MXN/);
+  assert.equal(row.copy?.vars.status, "paid");
+});
+
+test("the page words a flagged row in the reader's language and leaves other rows alone", () => {
+  const flag = classifyPaymentFlag(flagFacts(), null);
+  const other = classifyMintShortfall(
+    { orderLineId: "l1", orderId: "o1", expectedRows: 1, mintedRows: 0, missingRows: 1, orderUpdatedAt: minutesAgo(1) },
+    null,
+  );
+  const [es, untouched] = localizePaymentFlagRows([flag, other], "es");
+  assert.equal(es!.title, "Posible cobro duplicado con tarjeta");
+  assert.match(es!.detail, /MXN/);
+  assert.match(es!.detail, /pi_second/);
+  assert.ok(!/\{\w+\}/.test(es!.detail), "every placeholder is filled");
+  assert.equal(es!.nextAction.label, "Revisar el cobro en Stripe");
+  assert.equal(es!.copy, undefined, "the keys do not travel to the client");
+  assert.equal(untouched, other);
+  assert.equal(localizePaymentFlagRows([flag], "de")[0]!.title, "Possible duplicate card charge", "unknown locale reads English");
+  assert.equal(paymentFlagUiCopy("es").resolve, "Marcar como resuelto");
+});
+
+test("two flags on one row are two rows", () => {
+  const a = classifyPaymentFlag(flagFacts(), null);
+  const b = classifyPaymentFlag(flagFacts({ flag: { ...flagFacts().flag, reason: "amount_mismatch" } }), null);
+  assert.notEqual(a.key, b.key);
 });

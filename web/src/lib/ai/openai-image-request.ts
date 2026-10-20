@@ -17,6 +17,8 @@
  * `quality: "standard" | "hd"` — the builder maps our tiers onto those.
  */
 
+import { GENERATED_IMAGE_MAX_BYTES, readResponseCapped } from "@/lib/media/upload-guards";
+
 export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1.5";
 
 export type OpenAiImageSize = "1024x1024" | "1536x1024" | "1024x1536";
@@ -68,7 +70,10 @@ export async function readOpenAiImageResponse(json: unknown): Promise<Buffer> {
   if (first?.url) {
     const img = await fetch(first.url);
     if (!img.ok) throw new Error("Failed to download generated image from URL.");
-    return Buffer.from(await img.arrayBuffer());
+    // H1: Content-Length pre-check + streaming cap, never an unbounded buffer.
+    const read = await readResponseCapped(img, GENERATED_IMAGE_MAX_BYTES);
+    if (!read.ok) throw new Error("Generated image exceeds the size cap.");
+    return Buffer.from(read.bytes);
   }
   throw new Error("OpenAI returned no image in the response.");
 }

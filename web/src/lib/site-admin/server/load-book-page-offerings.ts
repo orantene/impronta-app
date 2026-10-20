@@ -16,6 +16,7 @@ import { hideTestServiceOnPublicSite } from "@/lib/talent/qa-test-service";
 import { loadTestServiceScope } from "@/lib/talent/qa-test-service.server";
 import { describeSeatsLeft, seatsLeft } from "@/lib/sessions/seats-left";
 import { annotateOpenTimes } from "@/lib/site-admin/server/annotate-open-times";
+import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
 export async function loadPublicBookableOfferings(args: {
   tenantId?: string | null;
@@ -27,12 +28,7 @@ export async function loadPublicBookableOfferings(args: {
   try {
     const admin = createServiceRoleClient();
     if (!admin) return [];
-    let query = admin
-      .from("talent_offerings")
-      .select("*")
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .in("visibility", ["public", "on_request"]);
+    let query = scopeToSellableOfferings(admin.from("talent_offerings").select("*"), "guest_request");
     if (args.tenantId) query = query.eq("tenant_id", args.tenantId);
     if (args.talentProfileId) {
       query = query.eq("talent_profile_id", args.talentProfileId);

@@ -18,6 +18,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { WEB_ROOT } from "@/lib/quality/supabase-unchecked-read";
+import { PAYMENT_FLAG_COPY } from "./payment-flag-copy";
 
 const read = (rel: string) => readFileSync(join(WEB_ROOT, rel), "utf8");
 
@@ -230,4 +231,51 @@ test("an abandoned command claim is a source, and it is inspect-only", () => {
     !/kind: "resume"/.test(classifier.slice(0, 1400)),
     "an abandoned claim was given a button that would re-run an unknown handler",
   );
+});
+
+test("a flagged payment row is inspect-only and its copy exists in en, es and fr (server-side)", () => {
+  // TUL-1283 / TUL-1284 / M2. The money is already at Stripe and owed back or
+  // unexplained; a button here would be a refund executor on a screen with no
+  // claim guard. A person refunds or reconciles in Stripe.
+  const model = read("src/lib/exceptions/model.ts");
+  const classifier = model.slice(model.indexOf("export function classifyPaymentFlag"));
+  assert.match(classifier.slice(0, 2000), /kind: "inspect"/);
+  assert.ok(!/kind: "resume"/.test(classifier.slice(0, 2000)), "a flagged payment was given a button");
+
+  // The sentences live on the server (`payment-flag-copy.ts`), never in the
+  // client-bundled catalogs: the admin bundle budget is not spent on them.
+  for (const locale of ["en", "es", "fr"] as const) {
+    const c = PAYMENT_FLAG_COPY[locale];
+    const strings = [c.label, c.why, c.resolve, c.resolved, c.resolveFailed, ...Object.values(c.reasons).flatMap((r) => [r.title, r.detail])];
+    const en = PAYMENT_FLAG_COPY.en;
+    const enStrings = [en.label, en.why, en.resolve, en.resolved, en.resolveFailed, ...Object.values(en.reasons).flatMap((r) => [r.title, r.detail])];
+    assert.equal(Object.keys(c.reasons).length, 3, `${locale}: a reason has no copy`);
+    strings.forEach((value, i) => {
+      assert.ok(value.trim().length > 0, `${locale}: empty string`);
+      if (locale !== "en") assert.notEqual(value, enStrings[i], `${locale}: "${value}" is copied from English`);
+      assert.ok(!value.includes("—"), `${locale}: "${value}" has an em dash`);
+    });
+  }
+  for (const locale of ["en", "es", "fr"]) {
+    assert.ok(!read(`messages/${locale}.json`).includes('"paymentFlag"'), `${locale}.json: payment-flag copy belongs on the server`);
+  }
+  // The page words the rows and hands the client plain strings.
+  const page = read("src/app/(workspace)/[tenantSlug]/admin/exceptions/page.tsx");
+  assert.match(page, /localizePaymentFlagRows\(load\.rows, locale\)/);
+  assert.match(page, /flagCopy=\{paymentFlagUiCopy\(locale\)\}/);
+  assert.ok(!/payment-flag-copy/.test(CLIENT_SRC), "the client must not import the copy dictionary");
+});
+
+test("review fix 4: 'Mark resolved' is billing-gated, tenant-scoped, and moves no money", () => {
+  const action = ACTIONS_SRC.slice(ACTIONS_SRC.indexOf("export async function resolvePaymentFlagAction"));
+  assert.ok(action.length > 0 && ACTIONS_SRC.includes("export async function resolvePaymentFlagAction"));
+  const body = action.slice(0, 2400);
+  assert.match(body, /requireNotImpersonating\(\)/);
+  assert.match(body, /requireWorkspaceStaffAction\(\{ capability: "manage_billing" \}\)/, "only owners/admins with billing may resolve");
+  assert.match(body, /isPaymentReviewReason\(input\.reason\)/, "the reason is validated against the closed set");
+  assert.match(body, /tenantId: guard\.tenantId/, "the tenant comes from the session, never the caller");
+  assert.ok(!/refund|markPaid|markRefunded/i.test(body.replace(/\/\/.*$/gm, "")), "resolving a flag must never move money");
+  // The client offers it only on flag rows, outside the inspect arm, and through the action.
+  assert.match(CLIENT_SRC, /resolvePaymentFlagAction\(/);
+  assert.match(CLIENT_SRC, /row\.resolvable/);
 });

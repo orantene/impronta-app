@@ -613,6 +613,22 @@ export function ServicesCatalogLayoutInspector({
         </div>
       ) : null}
       <div className={KIT.field}>
+        <label className={KIT.label}>On tap</label>
+        <select
+          className={KIT.input}
+          value={catalog.tapAction ?? "auto"}
+          onChange={(e) => onPatch({ tapAction: e.target.value })}
+        >
+          <option value="auto">Follow each service</option>
+          <option value="page">Always open its page</option>
+          <option value="quick_view">Always open the quick view</option>
+          <option value="book">Go straight to booking</option>
+        </select>
+        <p className="text-xs text-black/50">
+          Plans without service pages open the quick view instead of a page.
+        </p>
+      </div>
+      <div className={KIT.field}>
         <label className={KIT.label}>Duration format</label>
         <select
           className={KIT.input}
