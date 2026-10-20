@@ -16,6 +16,8 @@ export type ProviderInvoiceRow = {
   status: string | null;
   invoice_pdf_url: string | null;
   hosted_invoice_url: string | null;
+  attempt_count: number | null;
+  next_payment_attempt: string | null;
 };
 
 /** Latest 24 invoices for a talent profile from our provider_invoices register. */
@@ -25,7 +27,7 @@ export async function loadTalentProviderInvoices(
 ): Promise<ProviderInvoiceRow[]> {
   const { data, error } = await sb
     .from("provider_invoices")
-    .select("stripe_invoice_id,invoice_number,stripe_created_at,total_cents,currency,status,invoice_pdf_url,hosted_invoice_url")
+    .select("stripe_invoice_id,invoice_number,stripe_created_at,total_cents,currency,status,invoice_pdf_url,hosted_invoice_url,attempt_count,next_payment_attempt")
     .eq("talent_profile_id", talentProfileId)
     .order("stripe_created_at", { ascending: false })
     .limit(24);

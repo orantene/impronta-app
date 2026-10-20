@@ -62,6 +62,8 @@ export type LiveMenuOffering = {
   kind: string;
   unitsLeft: number | null;
   allowPayInPerson: boolean;
+  options?: Array<{ id: string; label: string; amountCents: number | null }>;
+  extras?: Array<{ id: string; label: string; amountCents: number | null }>;
 };
 
 export type LoadLiveMenuBoardResult =
@@ -86,6 +88,8 @@ function project(offering: WorkspaceMenuOffering): LiveMenuOffering {
     kind: offering.kind,
     unitsLeft: offering.unitsLeft,
     allowPayInPerson: offering.allowPayInPerson,
+    ...(offering.options ? { options: offering.options } : {}),
+    ...(offering.extras ? { extras: offering.extras } : {}),
   };
 }
 

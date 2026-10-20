@@ -59,6 +59,7 @@ export type FloorRefusalKey =
   // A staff reservation (`floorCreateReservation`).
   | "time_not_offered"
   | "no_offering_configured"
+  | "offering_not_published"
   | "no_contact"
   | "closed"
   | "too_late_today"
@@ -728,6 +729,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       reservations_off: t(`${D}.reservationsOff`),
       time_not_offered: t(`${K}.refusal.timeNotOffered`),
       no_offering_configured: t(`${K}.refusal.noOfferingConfigured`),
+      offering_not_published: t(`${K}.refusal.offeringNotPublished`),
       no_contact: t(`${K}.refusal.noContact`),
       closed: t(`${K}.refusal.closed`),
       too_late_today: t(`${K}.refusal.tooLateToday`),

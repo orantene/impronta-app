@@ -70,4 +70,5 @@ src/lib/talent-profile/profile-page-templates.parity.test.ts
 src/lib/talent-site/theme-releases/builder-lab-errors.test.ts
 src/lib/talent-site/theme-releases/superseded-rows.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts
+src/lib/talent/backfill-talent-embeds.test.ts
 src/lib/talent/load-representation.test.ts

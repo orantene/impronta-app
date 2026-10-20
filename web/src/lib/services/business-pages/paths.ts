@@ -8,7 +8,7 @@
  *
  * Slug: `<title words>-<id8>`. The id8 (first 8 hex of the offering id) decides,
  * so a renamed service keeps resolving and 301s to its current slug. When the
- * held content migration (415800) lands, a custom slug and its history plug in
+ * held content migration (418800) lands, a custom slug and its history plug in
  * through C1's `resolveServiceSlugWithHistory` (#4035).
  *
  * Only TWO-segment paths are ours: a business may own a CMS page at
