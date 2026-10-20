@@ -43,6 +43,7 @@ const row = (over: Partial<SalesItemRow>): SalesItemRow => ({
   refundedCents: 1000,
   netCents: 8000,
   orderCount: 2,
+  variants: [],
   ...over,
 });
 

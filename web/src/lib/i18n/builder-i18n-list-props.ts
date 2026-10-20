@@ -25,6 +25,8 @@ export const LOCALIZABLE_LIST_PROPS_BY_KIND: Partial<
   Record<BuilderNodeKind, readonly LocalizableListSpec[]>
 > = {
   spec_table: [{ list: "rows", fields: ["label", "value"] }],
+  // W-10: the words a heading rotates through (`rotatingWords.0.text`).
+  heading: [{ list: "rotatingWords", fields: ["text"] }],
   masthead: [{ list: "contents", fields: ["label", "credit"] }],
   // TUL-209: the visit block's extra facts (`extraFacts.0.label`) were read raw, so an English value never applied.
   visit: [{ list: "extraFacts", fields: ["label", "value", "note"] }],

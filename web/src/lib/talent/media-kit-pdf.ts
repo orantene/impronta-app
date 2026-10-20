@@ -25,6 +25,7 @@ import {
 } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { isAllowedLogoUrl } from "@/lib/media/logo-url-allowlist";
+import { readResponseCapped } from "@/lib/media/upload-guards";
 import { loadMediaKitTypeface } from "@/lib/talent/media-kit-font";
 import type { TalentMediaKitModel } from "@/lib/talent/media-kit-model";
 
@@ -147,18 +148,16 @@ async function fetchEmbeddableImage(url: string): Promise<FetchedImage | null> {
       : null;
   if (!kind) return null;
 
-  const declared = Number(res.headers.get("content-length") ?? "");
-  if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) return null;
-
-  let buffer: ArrayBuffer;
+  // H1: Content-Length pre-check plus a streaming cap (never buffer first).
+  let read;
   try {
-    buffer = await res.arrayBuffer();
+    read = await readResponseCapped(res, MAX_IMAGE_BYTES);
   } catch {
     return null;
   }
-  if (buffer.byteLength === 0 || buffer.byteLength > MAX_IMAGE_BYTES) return null;
+  if (!read.ok || read.bytes.byteLength === 0) return null;
 
-  return { bytes: new Uint8Array(buffer), kind };
+  return { bytes: read.bytes, kind };
 }
 
 async function embed(pdf: PDFDocument, url: string | null): Promise<PDFImage | null> {

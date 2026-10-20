@@ -27,6 +27,8 @@ import { buildPortfolioGallery, generalBookLabel, type PortfolioGallery } from "
 import { captionLanguageHint } from "./portfolio-caption-hint";
 import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
 import { PortfolioShotLink } from "./portfolio-shot-link";
+import { PortfolioTagBar } from "./portfolio-tag-bar";
+import { portfolioTagList } from "./portfolio-tag-filter";
 import { PORTFOLIO_WORK_ORDER_CSS, WorkOrderFigure } from "./portfolio-work-order";
 import { renderItalicMarkedTitle } from "./services-catalog-title";
 import type { TalentPortfolioShot } from "./portfolio-types";
@@ -109,6 +111,12 @@ export const PORTFOLIO_CSS = `
 .sb-portfolio--contact_sheet{display:grid;gap:0.4rem;grid-template-columns:repeat(var(--sb-portfolio-cols,4),minmax(0,1fr))}
 .sb-portfolio--contact_sheet .sb-portfolio-frame{aspect-ratio:1/1}
 .sb-portfolio--contact_sheet .sb-portfolio-cap{font-size:0.7rem;margin-top:0.25rem}
+.sb-portfolio-tags{display:flex;flex-wrap:wrap;gap:0.4rem;margin:0 0 0.75rem}
+.sb-portfolio-tag{min-height:44px;padding:0 0.9rem;border:1px solid var(--token-color-ink);background:transparent;color:var(--token-color-ink);font:inherit;font-size:0.75rem;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer}
+.sb-portfolio-tag[aria-pressed="true"]{background:var(--token-color-ink);color:var(--token-color-surface,#fff)}
+.sb-portfolio-tag:focus-visible{outline:2px solid var(--token-color-accent,var(--token-color-ink));outline-offset:2px}
+.sb-portfolio-tag-n{opacity:.55;margin-left:.25rem}
+.sb-portfolio-item[hidden]{display:none}
 .sb-portfolio-chapter{display:grid;gap:1.25rem}
 .sb-portfolio-chapter-head{display:flex;flex-direction:column;gap:0.45rem;min-width:0}
 .sb-portfolio-chapter-num{margin:0;font-size:clamp(2rem,4vw,3rem);font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--token-color-ink)}
@@ -249,6 +257,7 @@ function ShotFigure({
     <figure
       className={itemClass ? `sb-portfolio-item ${itemClass}` : "sb-portfolio-item"}
       data-portfolio-media={shot.id}
+      data-portfolio-tag={shot.tag?.trim() || undefined}
     >
       <PortfolioShotLink
         offering={offering}
@@ -379,6 +388,9 @@ export function renderPortfolioBlock(args: {
     />
   ));
 
+  const tagList = p.tagFilter === true ? portfolioTagList(visible) : [];
+  const showTagBar = tagList.length >= 2;
+
   return (
     <section
       data-builder-node-kind="portfolio"
@@ -435,7 +447,12 @@ export function renderPortfolioBlock(args: {
               <p style={{ margin: args.editorPreview ? "8px 0 0" : 0 }}>{empty}</p>
             </div>
           ) : (
-            <div className={`sb-portfolio--${layout}`}>{shotNodes}</div>
+            <>
+              {showTagBar ? (
+                <PortfolioTagBar tags={tagList} total={visible.length} allLabel={es ? "Todo" : "All"} />
+              ) : null}
+              <div className={`sb-portfolio--${layout}`}>{shotNodes}</div>
+            </>
           )}
           {framed && layout === "staggered" && visible.length > 2 ? (
             <p className="sb-portfolio-hint" aria-hidden="true">

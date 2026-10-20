@@ -30,9 +30,11 @@ export function itemType(o: Pick<TalentOffering, "kind" | "priceDisplay" | "pric
  */
 export type CatalogChannel = "website" | "pos";
 
-export function itemChannels(o: Pick<TalentOffering, "status" | "visibility">): CatalogChannel[] {
+export function itemChannels(o: Pick<TalentOffering, "status" | "visibility" | "posEnabled">): CatalogChannel[] {
   if (o.status !== "published") return [];
-  return o.visibility === "agency_only" ? ["pos"] : ["website", "pos"];
+  const pos = o.posEnabled !== false;
+  if (o.visibility === "agency_only") return pos ? ["pos"] : [];
+  return pos ? ["website", "pos"] : ["website"];
 }
 
 /** The availability column and the W05 mode card that is lit. */

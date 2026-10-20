@@ -24,6 +24,11 @@
  * privately for the fetch. Closing that requires pinning the checked IP into the
  * connection, which Node's fetch does not expose. Accepted, and written down
  * here rather than left as an unstated assumption.
+ *
+ * H1 (2026-10-19): `@/lib/security/safe-fetch` closes it. It reuses the range
+ * checks below, pins the vetted IP into the socket, and re-validates every
+ * redirect hop. New code that fetches a user URL uses `safeFetch`, not this
+ * pre-flight plus a bare `fetch`.
  */
 
 import { lookup as dnsLookup } from "node:dns/promises";
@@ -116,18 +121,75 @@ function isPrivateIpv4(ip: string): boolean {
   if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
   if (a === 192 && b === 168) return true; // 192.168/16
   if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64/10
+  const c = parts[2]!;
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return true; // IETF 192.0.0/24, TEST-NET-1
+  if (a === 192 && b === 88 && c === 99) return true; // 6to4 relay anycast
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking 198.18/15
+  if (a === 198 && b === 51 && c === 100) return true; // TEST-NET-2
+  if (a === 203 && b === 0 && c === 113) return true; // TEST-NET-3
   if (a >= 224) return true; // multicast + reserved
   return false;
 }
 
+/**
+ * Parse any textual IPv6 (compressed, zone id, embedded dotted v4) into 8
+ * hextets, or null. A string match on "::ffff:" missed the hex form
+ * `::ffff:7f00:1`, which is 127.0.0.1 all the same.
+ */
+function parseIpv6(ip: string): number[] | null {
+  let h = ip.toLowerCase();
+  const zone = h.indexOf("%");
+  if (zone >= 0) h = h.slice(0, zone);
+  const dotted = /(\d+\.\d+\.\d+\.\d+)$/.exec(h);
+  if (dotted) {
+    const v4 = dotted[1]!.split(".").map((p) => Number.parseInt(p, 10));
+    if (v4.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return null;
+    h =
+      h.slice(0, h.length - dotted[1]!.length) +
+      ((v4[0]! << 8) | v4[1]!).toString(16) + ":" + ((v4[2]! << 8) | v4[3]!).toString(16);
+  }
+  const halves = h.split("::");
+  if (halves.length > 2) return null;
+  const head = halves[0] ? halves[0].split(":") : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 1 ? missing !== 0 : missing < 1) return null;
+  const groups = [...head, ...Array<string>(halves.length === 2 ? missing : 0).fill("0"), ...tail];
+  const out: number[] = [];
+  for (const g of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(g)) return null;
+    out.push(Number.parseInt(g, 16));
+  }
+  return out.length === 8 ? out : null;
+}
+
+function v4FromHextets(hi: number, lo: number): string {
+  return `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+}
+
 function isPrivateIpv6(ip: string): boolean {
-  const h = ip.toLowerCase();
-  if (h === "::" || h === "::1") return true; // unspecified + loopback
-  if (h.startsWith("fe80")) return true; // link-local
-  if (h.startsWith("fc") || h.startsWith("fd")) return true; // unique-local fc00::/7
-  // IPv4-mapped (::ffff:a.b.c.d) — range-check the embedded v4.
-  const mapped = /::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(h);
-  if (mapped) return isPrivateIpv4(mapped[1]!);
+  const g = parseIpv6(ip);
+  if (!g) return true; // unparseable → unsafe
+  const [g0, g1, g2, g3, g4, g5, g6, g7] = g as [number, number, number, number, number, number, number, number];
+  const firstFiveZero = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0;
+  // ::/96 covers :: (unspecified), ::1 (loopback) and the deprecated
+  // IPv4-compatible form; ::ffff:0:0/96 is IPv4-mapped. Both embed a v4.
+  if (firstFiveZero && (g5 === 0 || g5 === 0xffff)) {
+    if (g5 === 0 && g6 === 0) return true; // ::, ::1 and the rest of ::/112
+    return isPrivateIpv4(v4FromHextets(g6, g7));
+  }
+  if (g0 === 0x64 && g1 === 0xff9b) {
+    if (g2 === 1) return true; // 64:ff9b:1::/48 local-use NAT64
+    return isPrivateIpv4(v4FromHextets(g6, g7)); // 64:ff9b::/96 NAT64
+  }
+  if (g0 === 0x2002) return isPrivateIpv4(v4FromHextets(g1, g2)); // 6to4 embeds a v4
+  if (g0 === 0x100 && g1 === 0 && g2 === 0 && g3 === 0) return true; // discard 100::/64
+  if (g0 === 0x2001 && g1 === 0) return true; // Teredo 2001::/32 tunnels to anywhere
+  if (g0 === 0x2001 && g1 === 0xdb8) return true; // documentation
+  if ((g0 & 0xfe00) === 0xfc00) return true; // unique-local fc00::/7
+  if ((g0 & 0xffc0) === 0xfe80) return true; // link-local fe80::/10
+  if ((g0 & 0xffc0) === 0xfec0) return true; // site-local fec0::/10 (deprecated)
+  if ((g0 & 0xff00) === 0xff00) return true; // multicast ff00::/8
   return false;
 }
 

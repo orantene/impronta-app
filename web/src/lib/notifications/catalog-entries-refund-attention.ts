@@ -18,6 +18,51 @@ function moneyLabel(amountCents: number | null, currency: string | null): string
 }
 
 /**
+ * TUL-1283 / TUL-1284 / TUL-1268 M2: the three payment review flags the Stripe
+ * settle path raises (`lib/payments/payment-review-flags.ts`). Worded per
+ * reason, in the recipient's language (en, es; anything else reads English).
+ */
+function paymentFlagCopy(
+  reason: string | null,
+  locale: string | null | undefined,
+): { title: string; body: (amount: string) => string } | null {
+  const es = (locale ?? "").toLowerCase().startsWith("es");
+  const lead = (amount: string) => {
+    const verb = es ? "Stripe cobró" : "Stripe charged";
+    return amount ? `${verb} ${amount}` : verb;
+  };
+  const next = es ? "Revisa el cobro en Stripe." : "Check the charge in Stripe.";
+  if (reason === "amount_mismatch") {
+    return {
+      title: es ? "El monto pagado no coincide" : "Payment amount does not match",
+      body: (a) =>
+        es
+          ? `${lead(a)}, pero no coincide con la reserva, así que no se marcó como pagada. ${next}`
+          : `${lead(a)}, but it does not match the booking, so it was not marked paid. ${next}`,
+    };
+  }
+  if (reason === "charge_on_inactive_row") {
+    return {
+      title: es ? "Pago en una reserva cancelada" : "Payment on a cancelled booking",
+      body: (a) =>
+        es
+          ? `${lead(a)} en una reserva cancelada. Se le debe devolver el dinero al cliente. ${next}`
+          : `${lead(a)} on a cancelled booking. The money is owed back to the customer. ${next}`,
+    };
+  }
+  if (reason === "duplicate_charge") {
+    return {
+      title: es ? "Posible cobro duplicado" : "Possible duplicate charge",
+      body: (a) =>
+        es
+          ? `${lead(a)} otra vez en una reserva ya pagada. ${next}`
+          : `${lead(a)} again on a booking that was already paid. ${next}`,
+    };
+  }
+  return null;
+}
+
+/**
  * TUL-391 money-attention catalog entries.
  *
  * Split out of `catalog-entries-billing.ts` rather than raising that file's
@@ -72,16 +117,20 @@ export const PAYMENT_NEEDS_ATTENTION_WORKSPACE: CatalogEntry = {
   in_app: {
     kind: "payment",
     surface: "workspace",
-    title: (event) => {
+    title: (event, recipient) => {
       const reason = str(event.payload.reason);
+      const flag = paymentFlagCopy(reason, recipient.locale);
+      if (flag) return flag.title;
       if (reason === "refund_failed") return "Refund needs attention";
       if (reason === "paid_after_cancellation") return "Payment needs a refund";
       return "Payment needs attention";
     },
-    body: (event) => {
+    body: (event, recipient) => {
       const note = str(event.payload.note);
       if (note) return note;
       const reason = str(event.payload.reason);
+      const flag = paymentFlagCopy(reason, recipient.locale);
+      if (flag) return flag.body(moneyLabel(num(event.payload.amountCents), str(event.payload.currency)));
       if (reason === "paid_after_cancellation") {
         return "A payment landed after the booking was cancelled. Refund it from Money.";
       }

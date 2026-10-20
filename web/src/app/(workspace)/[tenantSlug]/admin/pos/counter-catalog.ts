@@ -29,6 +29,7 @@ import "server-only";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { isMissingColumnError, isPosSellable } from "@/lib/pos/pos-enabled";
 import { logServerError } from "@/lib/server/safe-error";
 
 import type { PosCatalogItem, PosCatalogOption, PosCatalogStock } from "./counter-model";
@@ -42,6 +43,8 @@ type OfferingRow = {
   kind: string | null;
   inventory_qty: number | null;
   capacity_pool_id: string | null;
+  status?: string | null;
+  pos_enabled?: boolean | null;
 };
 
 type VariantRow = { id: string; offering_id: string; label: string | null; amount_cents: number | null };
@@ -65,15 +68,25 @@ export type CounterCatalog = {
   readonly readFailed: boolean;
 };
 
-export async function loadCounterCatalog(admin: Admin, input: { tenantId: string; nowIso: string }): Promise<CounterCatalog> {
-  const [catalog, upcoming, nonMenu] = await Promise.all([
+/** Reads the counter's rows with `pos_enabled`; if the held migration is not applied, again without it. */
+async function readCounterOfferings(admin: Admin, tenantId: string) {
+  const run = (columns: string) =>
     admin
       .from("talent_offerings")
-      .select("id, title, amount_cents, kind, inventory_qty, capacity_pool_id")
-      .eq("tenant_id", input.tenantId)
+      .select(columns)
+      .eq("tenant_id", tenantId)
       .eq("owner_kind", "workspace")
       .eq("status", "published")
-      .order("sort_order", { ascending: true }),
+      .order("sort_order", { ascending: true });
+  const base = "id, title, amount_cents, kind, inventory_qty, capacity_pool_id";
+  const first = await run(`${base}, pos_enabled`);
+  if (first.error && isMissingColumnError(first.error)) return run(base);
+  return first;
+}
+
+export async function loadCounterCatalog(admin: Admin, input: { tenantId: string; nowIso: string }): Promise<CounterCatalog> {
+  const [catalog, upcoming, nonMenu] = await Promise.all([
+    readCounterOfferings(admin, input.tenantId),
     admin
       .from("sessions")
       .select("id, offering_id, title, starts_at")
@@ -93,7 +106,12 @@ export async function loadCounterCatalog(admin: Admin, input: { tenantId: string
   // items. If that exclusion list cannot be read, show nothing rather than
   // sell a ticketed night or a table booking off the counter.
   const readFailed = Boolean(catalog.error || nonMenu.error);
-  const rows = readFailed ? [] : withoutNonMenuOfferings((catalog.data ?? []) as OfferingRow[], nonMenu.ids);
+  // TUL-1271 #3: POS-off items stay online but are not counter items.
+  const rows = readFailed
+    ? []
+    : withoutNonMenuOfferings((catalog.data ?? []) as unknown as OfferingRow[], nonMenu.ids).filter((r) =>
+        isPosSellable({ status: "published", pos_enabled: r.pos_enabled }),
+      );
   const ids = rows.map((row) => row.id);
 
   // Variants are children of the offering (no tenant column of their own);
