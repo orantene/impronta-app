@@ -19,6 +19,7 @@ import { canonicalCityLabel } from "./city-label.server";
 import { loadMenuCurrency } from "./load-starter-data";
 import { loadTalentSocialLinks } from "./talent-social-links";
 import { loadProofInput } from "./talent-locale-swaps.server";
+import { isSellable } from "@/lib/offerings/sellable";
 
 type Row = {
   display_name: string | null;
@@ -58,7 +59,7 @@ async function loadServiceVisibility(admin: NonNullable<ReturnType<typeof create
   const visible: string[] = [];
   const hidden: string[] = [];
   for (const r of (data ?? []) as OfferingTitleRow[]) {
-    const shown = r.status === "published" && r.moderation_state === "approved" && (r.visibility === "public" || r.visibility === "on_request");
+    const shown = isSellable(r, "guest_request");
     if (shown) {
       const t = offeringText({ title: r.title, title_i18n: r.title_i18n, description: null, description_i18n: null }, "title", lang, [...chain, "en"]);
       if (t?.trim()) visible.push(t.trim());
