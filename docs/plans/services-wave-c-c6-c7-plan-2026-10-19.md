@@ -28,17 +28,17 @@ Plan rules confirmed by Oran: free talent = no own page (quick view + share link
 
 **Defaults.** Every theme gets a default template made of the same widgets in today's order, so a site that never opens the editor looks the same as today. `service-main.tsx` and the C5 view stay as the engine fallback when no template exists or it fails to render.
 
-**Custom page for one service (business plans and paid talents; decision 1).** "Diseñar esta página" on a service copies the template into a page linked to that service, the same model events already use: `events.page_id`, `resolveLinkedBuilderPage` (`web/src/lib/events/event-page-link.ts`), a 308 from the builder page's own URL to the service URL, the `?edit=1` exemption, a "Página" tab on the service. The column already exists in the held migration 415800 (`talent_offerings.page_id`), so C6 needs no new migration beyond that one.
+**Custom page for one service (business plans and paid talents; decision 1).** "Diseñar esta página" on a service copies the template into a page linked to that service, the same model events already use: `events.page_id`, `resolveLinkedBuilderPage` (`web/src/lib/events/event-page-link.ts`), a 308 from the builder page's own URL to the service URL, the `?edit=1` exemption, a "Página" tab on the service. The column already exists in the held migration 418800 (`talent_offerings.page_id`), so C6 needs no new migration beyond that one.
 
 **"Edit this page" on talent sites (G3.8).** An owner viewing their own service page sees "Editar esta página", which opens the template (or the custom page) in the builder.
 
 **Build slices (one PR each, off main):**
 1. Widget kinds `service_gallery`, `service_facts`, `service_booking_panel` (locked), `service_faq`, `service_reviews`, `service_related` in the builder registry, renderer and inspector, bound to a "current service" data source. All four layers (schema, renderer, inspector, publish preflight) in the same PR.
 2. The per-site template page (a page role, like the home page role) + the default template per theme + the route reads it, fallback to today's component.
-3. Custom page per service (`page_id`, linked-page resolver, 308, Página tab). Needs migration 415800 applied first.
+3. Custom page per service (`page_id`, linked-page resolver, 308, Página tab). Needs migration 418800 applied first.
 4. "Editar esta página" on talent hosts.
 
-**Size.** Large: 4 PRs, roughly the size of the events page work. Slice 3 waits on migration 415800.
+**Size.** Large: 4 PRs, roughly the size of the events page work. Slice 3 waits on migration 418800.
 
 **Decided.** Both former open questions are answered above (decisions 1 and 2). The plan gate for slice 3 is "studio / agency / network workspace, or `talent_pro` / `talent_portfolio` talent"; free talents see the default template only.
 
@@ -60,8 +60,8 @@ Plan rules confirmed by Oran: free talent = no own page (quick view + share link
 
 ## Order once approved
 
-C4 (after #4087 merges) and the C1 follow-ups (#4105 is open: the pre-stream 308 after #4080 merges, the business 308 step after #4093 merges) come first, then C7 slices 1 and 3, then C6 slices 1, 2, 4, then C7 slice 2, then C6 slice 3 after migration 415800 is applied.
+C4 (after #4087 merges) and the C1 follow-ups (#4105 is open: the pre-stream 308 after #4080 merges, the business 308 step after #4093 merges) come first, then C7 slices 1 and 3, then C6 slices 1, 2, 4, then C7 slice 2, then C6 slice 3 after migration 418800 is applied.
 
 ## Rollback
 
-Every slice is flag-gated and code-only, except C6 slice 3, which relies on held migration 415800 (additive; its rollback SQL is in the file header). Turning the flag off restores today's pages.
+Every slice is flag-gated and code-only, except C6 slice 3, which relies on held migration 418800 (additive; its rollback SQL is in the file header). Turning the flag off restores today's pages.
