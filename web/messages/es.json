@@ -4615,7 +4615,18 @@
         "activity": "Actividad",
         "activitySub": "Los mismos eventos aparecen en el hilo del chat.",
         "acceptForRoster": "Aceptar por el talento del roster",
-        "acceptForRosterTitle": "Registra la aprobación del talento gestionado por la agencia que no tiene cuenta. El talento con cuenta propia debe aceptarla él mismo."
+        "acceptForRosterTitle": "Registra la aprobación del talento gestionado por la agencia que no tiene cuenta. El talento con cuenta propia debe aceptarla él mismo.",
+        "lineConfirm": {
+          "summary": "{confirmed} de {total} confirmados",
+          "confirm": "Confirmar",
+          "decline": "Rechazar",
+          "saveFailed": "No pudimos guardar tu respuesta. Inténtalo de nuevo.",
+          "state": {
+            "confirmed": "Confirmado",
+            "declined": "Rechazado",
+            "pending": "Esperando respuesta"
+          }
+        }
       },
       "reassign": {
         "assignTitle": "Asignar coordinador",
