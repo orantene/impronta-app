@@ -10,6 +10,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { developerDocsEnabled } from "@/lib/developer-docs/flag";
 import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 
 export const TULALA_DOCS_HOST = `docs.${TULALA_APEX_HOST}` as const;
@@ -33,12 +34,29 @@ export function docsHostRedirect(hostHeader: string | null | undefined, method: 
  * the call sits inside `proxyInner`, so the auth-scope sweep wraps it like every
  * other response.
  */
-export function docsHostResponse(hostHeader: string | null | undefined, method: string): NextResponse | null {
+export function docsHostResponse(
+  hostHeader: string | null | undefined,
+  method: string,
+  requestUrl?: URL,
+  env: Record<string, string | undefined> = process.env,
+): NextResponse | null {
   const hop = docsHostRedirect(hostHeader, method);
   if (!hop) return null;
+  // TUL-1401: flag ON serves the developer docs on this host instead of the /help hop. The rewrite
+  // is final (no re-entry through the surface gate), so /developers is never admitted on other hosts.
+  if (developerDocsEnabled(env) && requestUrl) {
+    if (hop.kind === "wrong_method") return new NextResponse(null, { status: 405, headers: { Allow: "GET, HEAD" } });
+    return NextResponse.rewrite(new URL(docsRewritePath(requestUrl.pathname), requestUrl));
+  }
   if (hop.kind === "redirect") return NextResponse.redirect(hop.location, 308);
   return new NextResponse("Misdirected request: use tulala.digital for this method.", {
     status: 421,
     headers: { "content-type": "text/plain; charset=utf-8" },
   });
+}
+
+/** `/` -> `/developers`, `/auth` -> `/developers/auth`; an already-prefixed path is kept. */
+export function docsRewritePath(pathname: string): string {
+  if (pathname === "/developers" || pathname.startsWith("/developers/")) return pathname;
+  return pathname === "/" ? "/developers" : `/developers${pathname}`;
 }
