@@ -62,6 +62,7 @@ src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
+src/lib/changelog/launch-edition-link.test.ts
 src/lib/changelog/launch-guard.test.ts
 src/lib/changelog/public-read.test.ts
 src/lib/changelog/whats-new.test.ts
