@@ -31,10 +31,10 @@ export type MilestoneDecisionResult =
 
 /**
  * TUL-1708: every action in this file WRITES (approve, request a revision, add a milestone). The old guard
- * only needed `view_dashboard`, which a `viewer` holds. Writers now need `coordinate_inquiry` (manager and above).
+ * only needed `view_dashboard`, which a `viewer` holds. Writers now need `edit_client_relationship` (editor and above, as editors could before; no money moves).
  */
 async function guard() {
-  const staff = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
+  const staff = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!staff.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
