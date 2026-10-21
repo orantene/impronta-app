@@ -37,6 +37,7 @@ import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { withTimeout } from "@/lib/tulala/with-timeout";
 import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 
@@ -153,6 +154,20 @@ export async function requestPasswordReset(
   };
 }
 
+/**
+ * TUL-1784: a sign-in that never answers is worse than one that fails. Every remote call on this path gets a wall
+ * clock: the password check itself ends in a visible error, and the best-effort follow-ups (claims, locale reset,
+ * profile read) are logged and skipped so a slow side table can never hold the visitor on "Signing in…".
+ */
+const SIGN_IN_PASSWORD_DEADLINE_MS = 15_000;
+const SIGN_IN_FOLLOW_UP_DEADLINE_MS = 6_000;
+const TIMED_OUT = Symbol("sign-in-timed-out");
+async function bounded<T>(label: string, p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  const out = await withTimeout<T | typeof TIMED_OUT>(p, ms, TIMED_OUT);
+  if (out === TIMED_OUT) logServerError(`auth/signIn.timeout.${label}`, new Error(`${label} exceeded ${ms} ms`));
+  return out;
+}
+
 export async function signInWithEmail(
   _prev: AuthActionState,
   formData: FormData,
@@ -169,7 +184,9 @@ export async function signInWithEmail(
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
-  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
+  const signedIn = await bounded("signInWithPassword", supabase.auth.signInWithPassword({ email, password }), SIGN_IN_PASSWORD_DEADLINE_MS);
+  if (signedIn === TIMED_OUT) return { error: t("public.auth.errors.timeout") };
+  const { data: signInData, error } = signedIn;
   if (error) {
     // A wrong password is the user's outcome, not ours: warn, audit, no Sentry.
     if (isRejectedCredentials(error)) {
@@ -206,18 +223,24 @@ export async function signInWithEmail(
   const user = signInData?.user ?? null;
   // G3: a confirmed client who signs in by password claims + activates first.
   if (user) {
-    await claimAndActivateVerifiedClient({
-      userId: user.id,
-      email: user.email,
-      emailProven: isAuthEmailConfirmedForClaim(user),
-    });
+    await bounded(
+      "claimAndActivateVerifiedClient",
+      claimAndActivateVerifiedClient({
+        userId: user.id,
+        email: user.email,
+        emailProven: isAuthEmailConfirmedForClaim(user),
+      }),
+      SIGN_IN_FOLLOW_UP_DEADLINE_MS,
+    );
   }
-  const [profileData] = await Promise.all([
-    user ? loadAccessProfile(supabase, user.id) : Promise.resolve(null),
-    user ? resetLocaleOnSignIn(user.id) : Promise.resolve(),
-    user ? claimGuestSupportOnAuth(user.id) : Promise.resolve(),
-    user ? claimTulalaBriefOnAuth(supabase, user.id) : Promise.resolve(),
+  const [profileRead] = await Promise.all([
+    user ? bounded("loadAccessProfile", loadAccessProfile(supabase, user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(null),
+    user ? bounded("resetLocaleOnSignIn", resetLocaleOnSignIn(user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
+    user ? bounded("claimGuestSupportOnAuth", claimGuestSupportOnAuth(user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
+    user ? bounded("claimTulalaBriefOnAuth", claimTulalaBriefOnAuth(supabase, user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
   ]);
+  // A profile read that timed out routes like "no profile yet" (the same fallback as a missing row), never blocks sign-in.
+  const profileData = profileRead === TIMED_OUT ? null : profileRead;
 
   if (user) {
     const tenantId = await auditTenantId();

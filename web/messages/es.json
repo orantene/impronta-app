@@ -72,6 +72,7 @@
         "google": "Continuar con Google",
         "emailSubmit": "Iniciar sesión",
         "pending": "Iniciando sesión…",
+        "slow": "Seguimos trabajando. Si no termina en unos segundos, recarga la página e inténtalo de nuevo.",
         "forgot": "¿Olvidaste tu contraseña?",
         "remember": "Mantener mi sesión activa por 30 días",
         "noAccount": "¿No tienes cuenta?",
@@ -172,7 +173,8 @@
         "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
         "emailNotConfirmed": "Tu correo aún no está verificado. Elige Envíame un código abajo para verificarlo e iniciar sesión.",
         "tooManyAttempts": "Demasiados intentos; espera un minuto e inténtalo de nuevo.",
-        "network": "Problema de conexión; revisa tu red e inténtalo de nuevo."
+        "network": "Problema de conexión; revisa tu red e inténtalo de nuevo.",
+        "timeout": "Iniciar sesión está tardando más de lo normal. Inténtalo de nuevo."
       },
       "claim": {
         "eyebrow": "Reclamar perfil",
