@@ -19,7 +19,7 @@ import type { TrialDoorOffer } from "@/lib/server-actions/trial-door";
  * GlobalUpgradeModal — THE upgrade modal. One instance, mounted at the admin
  * shell, reached by every upgrade CTA in the product.
  *
- * Free downgrade  → changeWorkspacePlan (direct DB write, no Stripe)
+ * Free downgrade  → changeWorkspacePlan (Stripe cancel at period end when subscribed; direct write only when not billed)
  * Studio / Agency → startWorkspaceUpgrade → Stripe Checkout redirect
  * Network         → mailto: sales handoff (no self-serve price yet)
  *
@@ -113,7 +113,11 @@ export function GlobalUpgradeModal({
     startTransition(async () => {
       const result = await changeWorkspacePlan(plan);
       if (result.ok) {
-        toast.success(`Workspace plan set to ${plan}.`);
+        toast.success(
+          result.data.scheduledForPeriodEnd
+            ? `Your paid plan ends${result.data.effectiveAt ? ` on ${new Date(result.data.effectiveAt).toLocaleDateString()}` : " at the end of this billing period"}, then your workspace moves to ${plan}.`
+            : `Workspace plan set to ${plan}.`,
+        );
         queueRouterRefresh();
       } else {
         toast.error(result.error);
