@@ -60,6 +60,21 @@ export function decideTalentProfileLocale(input: {
   return { locale, primary, supported, chain: locale === primary ? [locale] : [locale, primary] };
 }
 
+/**
+ * TUL-875: the profile code of a `/t/<code>` request (optionally `/xx/t/<code>`),
+ * or null for any other path. Used so the root layout can ask the SAME
+ * decision the page and <head> make.
+ */
+export function talentProfileCodeFromPathname(pathname: string | null | undefined): string | null {
+  const m = pathname ? /^\/(?:[a-z]{2}\/)?t\/([^/]+)\/?$/.exec(pathname) : null;
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]!);
+  } catch {
+    return null;
+  }
+}
+
 export function talentProfileAlternates(input: {
   origin: string;
   path: string;
