@@ -16,6 +16,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
+const NOT_PUBLIC_STATUSES: ReadonlySet<string> = new Set([
+  "cancelled",
+  "archived",
+  "suspended",
+  "restricted",
+]);
+
 export async function resolvePublicWorkspaceTenantId(
   admin: SupabaseClient,
   slug: string | null,
@@ -32,6 +39,8 @@ export async function resolvePublicWorkspaceTenantId(
     logServerError("scheduling.resolvePublicWorkspaceTenantId", error);
     return null;
   }
-  if (!data || data.status === "cancelled" || data.status === "archived") return null;
+  // The storefront page itself 404s a suspended workspace (suspended-workspace-gate);
+  // "restricted" is refused too so slots never outlive a page that is not served.
+  if (!data || NOT_PUBLIC_STATUSES.has(data.status ?? "")) return null;
   return data.id;
 }

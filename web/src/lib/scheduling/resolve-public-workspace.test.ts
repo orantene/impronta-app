@@ -24,6 +24,8 @@ test("a live workspace resolves for a signed-out guest (no relationship needed)"
 test("cancelled, archived, unknown, empty and errored all fail closed", async () => {
   assert.equal(await resolvePublicWorkspaceTenantId(fake({ id: "t", status: "cancelled" }).admin, "a"), null);
   assert.equal(await resolvePublicWorkspaceTenantId(fake({ id: "t", status: "archived" }).admin, "a"), null);
+  assert.equal(await resolvePublicWorkspaceTenantId(fake({ id: "t", status: "suspended" }).admin, "a"), null);
+  assert.equal(await resolvePublicWorkspaceTenantId(fake({ id: "t", status: "restricted" }).admin, "a"), null);
   assert.equal(await resolvePublicWorkspaceTenantId(fake(null).admin, "a"), null);
   assert.equal(await resolvePublicWorkspaceTenantId(fake({ id: "t", status: "active" }).admin, ""), null);
   assert.equal(await resolvePublicWorkspaceTenantId(fake(null, { message: "x" }).admin, "a"), null);
