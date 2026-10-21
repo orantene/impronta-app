@@ -54,6 +54,13 @@ const DEFAULT_FLAGS: AiFeatureFlags = {
   ai_talent_translate_enabled: false,
 };
 
+/**
+ * What callers get when the flags cannot be read (no service client, or the query failed): the
+ * master switch OFF. A kill switch that cannot be read must not leave paid calls running, and
+ * every other toggle already defaults to off.
+ */
+export const FLAGS_WHEN_UNREADABLE: AiFeatureFlags = { ...DEFAULT_FLAGS, ai_master_enabled: false };
+
 const KEYS = [
   "ai_master_enabled",
   "ai_provider",
@@ -113,18 +120,18 @@ export function decideAiMaster(input: { hasClient: boolean; failed?: boolean; ro
 
 /**
  * Reads AI toggles from `public.settings`. Uses service role so keys stay off the public RLS allowlist.
- * When the service role key is missing, returns all **false** (safe default).
+ * When the service role key is missing or the read fails, returns FLAGS_WHEN_UNREADABLE (everything off).
  */
 export async function getAiFeatureFlags(): Promise<AiFeatureFlags> {
   const supabase = createServiceRoleClient();
-  if (!supabase) return { ...DEFAULT_FLAGS };
+  if (!supabase) return { ...FLAGS_WHEN_UNREADABLE };
 
   const { data, error } = await supabase
     .from("settings")
     .select("key, value")
     .in("key", [...KEYS]);
 
-  if (error || !data) return { ...DEFAULT_FLAGS };
+  if (error || !data) return { ...FLAGS_WHEN_UNREADABLE };
 
   const map = new Map<string, unknown>();
   for (const row of data) {

@@ -4,7 +4,7 @@ import { join, relative } from "node:path";
 import { describe, it } from "node:test";
 
 import { AI_OFF_MESSAGE, createDisabledChatAdapter } from "./providers/disabled-chat-adapter";
-import { decideAiMaster } from "../settings/ai-feature-flags";
+import { FLAGS_WHEN_UNREADABLE, decideAiMaster } from "../settings/ai-feature-flags";
 
 /**
  * TUL-1622 — `ai_master_enabled` must stop EVERY AI path.
@@ -48,6 +48,20 @@ describe("decideAiMaster", () => {
   it("is OFF when the switch cannot be read: a failed query or no service client", () => {
     assert.equal(decideAiMaster({ hasClient: true, failed: true, row: null }), false);
     assert.equal(decideAiMaster({ hasClient: false }), false);
+  });
+});
+
+describe("getAiFeatureFlags when it cannot read (fails closed)", () => {
+  it("turns every AI toggle off, master included", () => {
+    for (const [k, v] of Object.entries(FLAGS_WHEN_UNREADABLE)) {
+      if (typeof v === "boolean") assert.equal(v, false, k);
+    }
+  });
+  it("both unreadable paths return it, never the master-on defaults", () => {
+    const src = read("lib/settings/ai-feature-flags.ts");
+    const fn = src.slice(src.indexOf("export async function getAiFeatureFlags"), src.indexOf("let providerFromRegistry"));
+    assert.equal((fn.match(/return \{ \.\.\.FLAGS_WHEN_UNREADABLE \};/g) ?? []).length, 2);
+    assert.ok(!fn.includes("DEFAULT_FLAGS"));
   });
 });
 
