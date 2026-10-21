@@ -3,6 +3,7 @@ src/app/(workspace)/?tenantSlug?/_data-bridge/sales-by-item.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/_projects/projects-mode-model.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/classes-actions-capabilities.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/counter-model.test.ts
+src/app/(workspace)/?tenantSlug?/admin/pos/customer-actions-capabilities.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/door-client-never-silent.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/door-delivery-labels.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/floor-client.render.test.tsx
