@@ -81,7 +81,7 @@ export function maskContactDetails(input: string): MaskResult {
  * caption) is masked like a message body. Only these keys are text; ids, amounts, dates and
  * references are never touched, so a long number in a structured field is not mangled.
  */
-const CARD_TEXT_KEYS = new Set(["title", "summary", "note", "notes", "description", "message", "caption", "text", "label", "name"]);
+export const CARD_TEXT_KEYS: ReadonlySet<string> = new Set(["title", "summary", "note", "notes", "description", "message", "caption", "text", "label", "name", "hint"]);
 
 export function maskCardPayloadText(payload: unknown): { payload: unknown; maskedCount: number } {
   let count = 0;
