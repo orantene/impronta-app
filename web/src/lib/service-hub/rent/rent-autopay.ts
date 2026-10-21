@@ -200,7 +200,7 @@ export function buildRentSubscriptionParams(input: {
                 (input.locale === "es"
                   ? `Además, cada mes se cobra el ${plan.percentBps / 100}% de tus ventas del mes anterior en este estudio, más el cargo por servicio de Tulala. `
                   : `Each month also charges ${plan.percentBps / 100}% of your sales in this studio the month before, plus the Tulala service fee. `) +
-                (typeof input.consent.custom_text?.submit === "object" ? input.consent.custom_text.submit.message : ""),
+                (input.consent.custom_text?.submit && typeof input.consent.custom_text.submit === "object" ? input.consent.custom_text.submit.message : ""),
             },
           },
         }

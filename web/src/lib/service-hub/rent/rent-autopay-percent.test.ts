@@ -61,7 +61,7 @@ describe("consent and wiring", () => {
   const plan = { id: "plan-1", tenantId: "t-1", talentProfileId: "tp-1", monthlyRentCents: 50_000, percentBps: 1_000, currency: "MXN", startsOn: "2026-09-01", status: "active", acceptedAt: "x", acceptedAmountCents: 50_000, acceptedPercentBps: 1_000, acceptedCurrency: "MXN", termsVersion: 1, acceptedTermsVersion: 1 } as RentPlan;
   test("the Subscribe text says a percentage of sales is charged each month, in the member's language", () => {
     const p = buildRentSubscriptionParams({ plan, amounts: rentAutopayAmounts(50_000, 150)!, feeBps: 150, customerId: "c", studioAccountId: "a", successUrl: "s", cancelUrl: "c", locale: "es", anchorSeconds: 1, rentLabel: "r", feeLabel: "f", consent: { custom_text: { submit: { message: "Tu plan se renueva." } } } });
-    assert.match((typeof p.custom_text?.submit === "object" ? p.custom_text.submit.message : ""), /^Además, cada mes se cobra el 10% de tus ventas del mes anterior en este estudio, más el cargo por servicio de Tulala\. Tu plan se renueva\.$/);
+    assert.match((p.custom_text?.submit && typeof p.custom_text.submit === "object" ? p.custom_text.submit.message : ""), /^Además, cada mes se cobra el 10% de tus ventas del mes anterior en este estudio, más el cargo por servicio de Tulala\. Tu plan se renueva\.$/);
     assert.equal(p.metadata?.fee_bps, "150");
   });
   test("the draft handler stamps the invoice, keys every item by invoice, and checks the ACCEPTED percentage", () => {
