@@ -24,6 +24,8 @@ import {
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { roomMessage } from "@/lib/sessions/room-messages";
 import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "@/lib/sessions/session-ops";
 import { generateSessionsForSeries, upsertSessionSeries } from "@/lib/sessions/series-write";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -133,7 +135,11 @@ export async function sessionCancelAction(input: {
     .object({ sessionId: uuid, scope, reason: z.string().max(200), operationKey: opKey })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return sessionCancel(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  const res = await sessionCancel(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  if (!res.ok && res.reason === "room_release_failed") {
+    return { ...res, message: roomMessage("room_release_failed", await getRequestLocale()) };
+  }
+  return res;
 }
 
 export async function cancelBookingSetAction(input: {

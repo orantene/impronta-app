@@ -76,6 +76,7 @@ import {
   createSessionWithPools,
   ensureSessionPools,
 } from "@/lib/sessions/session-writer";
+import { sweepCancelledSessionRooms } from "@/lib/resources/session-resource-holds";
 import { improntaLog } from "@/lib/server/structured-log";
 import {
   DEFAULT_HORIZON_DAYS,
@@ -281,6 +282,16 @@ export async function GET(request: Request) {
           poolPlan,
         );
 
+        if (!result.ok && (result.reason === "room_taken" || result.reason === "room_unavailable")) {
+          // TUL-1413: the class's room is taken at that time (or could not be held): not scheduled,
+          // and said, so the owner can move one of the two. The next sweep tries again.
+          void improntaLog("sessions.cron.room_refused", {
+            seriesId: series.id,
+            startsAt: occ.startsAt,
+            reason: result.reason,
+          });
+          continue;
+        }
         if (!result.ok && result.reason !== "pools_failed") continue;
 
         // A repeat is the normal second-run path and no longer a refusal: the
@@ -306,6 +317,10 @@ export async function GET(request: Request) {
         poolsCreated += repaired.created.length;
       }
     }
+
+    // Safety net: a cancelled session never keeps its room, even if its cancel could not release it.
+    const swept = await sweepCancelledSessionRooms(admin);
+    void improntaLog("sessions.cron.rooms_swept", { ok: swept.ok, released: swept.ok ? swept.released : 0 });
 
     void improntaLog("sessions.cron.materialise", {
       series: (seriesRows ?? []).length,
