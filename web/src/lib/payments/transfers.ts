@@ -20,6 +20,11 @@
  * Until then this runs harmlessly in skip/mock mode.
  */
 
+import {
+  bookingRefundTotals,
+  talentCentsNetOfRefunds,
+  type BookingTxnRow,
+} from "./balance-payout-refund-net";
 import { legLastError } from "./connect-lane-attention";
 import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
 import { decideLegPlatform } from "@/lib/stripe/account-routing";
@@ -377,6 +382,23 @@ export async function executeBookingTransfers(
     }
     const ppIds = new Set(ppSnaps.map((s) => s.participant_id));
 
+    // TUL-1294: net out charges already refunded (e.g. the deposit) so the
+    // balance payout never pays the talent for money the client got back.
+    const { data: bookingTxnRows, error: bookingTxnErr } = await sb
+      .from("booking_transactions")
+      .select("id, status, gross_amount_cents, refund_of_transaction_id")
+      .eq("booking_id", bookingId);
+    if (bookingTxnErr) {
+      // Refund state unknown: never risk paying a refunded share. Skipped
+      // loudly; the next webhook / retry run re-checks.
+      logServerError(
+        "transfers.refund_state_unreadable",
+        new Error(`booking ${bookingId} (txn ${transactionId}): ${bookingTxnErr.message} (payout skipped this run)`),
+      );
+      return outcomes;
+    }
+    const refundTotals = bookingRefundTotals((bookingTxnRows ?? []) as BookingTxnRow[]);
+
     for (const snap of snapshots) {
       // OFF-PLATFORM MONEY HAS NO PAYOUT LEG.
       //
@@ -447,6 +469,20 @@ export async function executeBookingTransfers(
             });
           }
         }
+      }
+
+      if (refundTotals.refundedCents > 0 && talentAmountCents > 0) {
+        const before = talentAmountCents;
+        talentAmountCents = talentCentsNetOfRefunds(talentAmountCents, refundTotals);
+        void improntaLog("transfers.talent_net_of_refunds", {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          beforeCents: before,
+          afterCents: talentAmountCents,
+          chargedCents: refundTotals.chargedCents,
+          refundedCents: refundTotals.refundedCents,
+        });
       }
 
       // Audit #5: never transfer in a currency the platform did NOT settle. The
