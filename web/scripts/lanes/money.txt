@@ -351,6 +351,7 @@ src/lib/service-hub/terms-wire.static.test.ts
 src/lib/service-hub/terms.test.ts
 src/lib/service-hub/work-style.server.test.ts
 src/lib/service-hub/work-style.test.ts
+src/lib/sessions/events-projects-capabilities.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/sessions/sessions-public-read-visibility.static.test.ts
