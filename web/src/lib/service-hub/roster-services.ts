@@ -125,7 +125,16 @@ async function sellableVerdicts(admin: Admin, listingIds: readonly string[]): Pr
   return yes;
 }
 
-export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string): Promise<RosterServiceItem[]> {
+/**
+ * Which sell rule decides if a roster service may be listed. PUBLIC surfaces (the site, /book, the
+ * widget, the catalog API, the guest dock and chat) use `guest_request`: published + approved AND
+ * public or on request, so an agency-only or hidden service never reaches a visitor. A STAFF
+ * surface (quoting from Messages) passes `staff_quote`, which only needs published + approved.
+ * The default is the strict public rule, so a caller that forgets to say gets the safe one.
+ */
+export type RosterSellContext = "guest_request" | "staff_quote";
+
+export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string, context: RosterSellContext = "guest_request"): Promise<RosterServiceItem[]> {
   if (!tenantId) return [];
 
   const { data: raw, error } = await admin
@@ -167,7 +176,7 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   const offeringIds = [...new Set(live.map((l) => l.offering_id))];
   const { data: offerings, error: offErr } = await admin
     .from("talent_offerings")
-    .select("id, talent_profile_id, title, amount_cents, currency, status, moderation_state")
+    .select("id, talent_profile_id, title, amount_cents, currency, status, moderation_state, visibility")
     .in("id", offeringIds);
   if (offErr) {
     logServerError("serviceHub.rosterServices.offerings", offErr);
@@ -204,8 +213,8 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   for (const l of live) {
     const o = offeringById.get(l.offering_id);
     if (!o || o.talent_profile_id !== l.talent_profile_id) continue; // the service must belong to the listing's talent
-    // Published + approved via the one sell rule (no visibility filter, unchanged from #4171; see PM note).
-    if (!isSellable(o, "staff_quote")) continue;
+    // The one sell rule, in the caller's context (public by default; see RosterSellContext).
+    if (!isSellable(o, context)) continue;
     if (!active.has(l.talent_profile_id)) continue;
     // Show-who only controls the NAME: anonymous selling of a hidden talent is not allowed either.
     if (!publicTalent.has(l.talent_profile_id)) continue;
