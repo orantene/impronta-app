@@ -127,7 +127,7 @@ test("wiring: host tenant only, agency host only, tenant-strict reader, request-
   const src = read("src/app/t/[profileCode]/_actions/roster-request-actions.ts");
   assert.match(src, /^"use server";/);
   assert.match(src, /host\.kind !== "agency" \|\| !host\.tenantId/);
-  assert.match(src, /loadWorkspaceRosterServices\(admin, host\.tenantId\)/);
+  assert.match(src, /loadRosterServicesWithHub\(admin, host\.tenantId\)/);
   assert.match(src, /checkPublicCatalog/);
   const input = src.slice(src.indexOf("const inputSchema"), src.indexOf("export type BuildRosterRequestResult"));
   assert.doesNotMatch(input, /tenant|talent|offering/i, "no client-supplied tenant, talent or offering");

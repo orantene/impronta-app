@@ -28,7 +28,7 @@ import {
   rosterChatRequestHref,
   type RosterRequestLine,
 } from "@/lib/service-hub/roster-chat-request";
-import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
+import { loadRosterServicesWithHub } from "@/lib/service-hub/hub-roster.server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const inputSchema = z.object({
@@ -63,7 +63,7 @@ export async function buildRosterRequestFromSentence(raw: { sentence: string; lo
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "unavailable" };
 
-    const items = await loadWorkspaceRosterServices(admin, host.tenantId);
+    const items = await loadRosterServicesWithHub(admin, host.tenantId);
     if (items.length === 0) return { ok: false, error: "no_match" };
     const draft = buildRosterRequestDraft(parsed.data.sentence, items);
     if (draft.lines.length === 0) return { ok: false, error: "no_match" };

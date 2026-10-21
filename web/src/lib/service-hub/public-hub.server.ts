@@ -36,18 +36,35 @@ async function isSellable_rpc(admin: SupabaseClient, listingId: string): Promise
  * never a partial or other workspace's list. Missing tables (migrations not applied) = none.
  */
 export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: string): Promise<PublicEntry[]> {
+  return (await loadPublicHub(admin, hostTenantId)).entries;
+}
+
+export type PublicHub = {
+  entries: PublicEntry[];
+  /**
+   * Listings already represented by a shown entry (sellable + public member of a visible entry).
+   * Surfaces that also list loose roster rows drop these. Listings still in the review queue
+   * (no entry) or in a hidden entry are never in this set. Empty whenever the read is unreadable.
+   */
+  coveredListingIds: Set<string>;
+};
+
+const EMPTY_HUB = (): PublicHub => ({ entries: [], coveredListingIds: new Set() });
+
+/** Entries plus the listing ids they contain, from one read (one sellable batch). Fails closed to empty. */
+export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string): Promise<PublicHub> {
   try {
     const { data: rows, error } = await tenantScopedQuery(admin, "workspace_service_entries", hostTenantId)
       .select("id, name, category, photo_media_id, hub_price_cents, currency, show_who, featured, hidden, own_offering_id")
       .eq("hidden", false);
     if (error) {
       if (!missing(error)) logServerError("serviceHub.public.entries", error);
-      return [];
+      return EMPTY_HUB();
     }
     const entryRows = (rows ?? []) as Raw[];
-    if (entryRows.length === 0) return [];
+    if (entryRows.length === 0) return EMPTY_HUB();
     const loaded = await loadListings(admin, hostTenantId);
-    if (!loaded) return [];
+    if (!loaded) return EMPTY_HUB();
     const accepted = loaded.listings.filter((l) => l.talentAccepted && l.entryId);
     const offeringOf = (listingId: string) => loaded.offeringByListing.get(listingId) ?? "";
 
@@ -59,7 +76,7 @@ export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: 
       const { data: profs, error: pErr } = await admin.from("talent_profiles").select(CATALOG_PROFILE_COLUMNS).in("id", talentIds.slice(i, i + ID_CHUNK));
       if (pErr) {
         logServerError("serviceHub.public.talents", pErr);
-        return [];
+        return EMPTY_HUB();
       }
       for (const p of (profs ?? []) as CatalogProfileRow[]) if (isPublicCatalogProfile(p)) publicTalent.add(p.id);
     }
@@ -67,13 +84,16 @@ export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: 
     // (c) Each member offering must still be published + approved + public/on request.
     const memberOfferingIds = [...new Set(accepted.map((l) => offeringOf(l.listingId)).filter(Boolean))];
     const offeringOk = new Set<string>();
+    // D-10a: a price shows only for a public offering; an on-request member contributes no price.
+    const onRequest = new Set<string>();
     for (let i = 0; i < memberOfferingIds.length; i += ID_CHUNK) {
       const { data: offs, error: oErr } = await admin.from("talent_offerings").select("id, status, moderation_state, visibility").in("id", memberOfferingIds.slice(i, i + ID_CHUNK));
       if (oErr) {
         logServerError("serviceHub.public.offerings", oErr);
-        return [];
+        return EMPTY_HUB();
       }
       for (const o of (offs ?? []) as Raw[]) {
+        if (o.visibility === "on_request") onRequest.add(String(o.id));
         if (isSellable({ status: o.status as string | null, moderation_state: o.moderation_state as string | null, visibility: o.visibility as string | null }, "guest_request")) offeringOk.add(String(o.id));
       }
     }
@@ -101,7 +121,7 @@ export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: 
       );
       if (ownErr) {
         logServerError("serviceHub.public.own", ownErr);
-        return [];
+        return EMPTY_HUB();
       }
       for (const o of (ownRows ?? []) as Raw[]) ownSellable.add(String(o.id));
     }
@@ -127,12 +147,15 @@ export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: 
         ownOfferingId: own,
         members: accepted
           .filter((l) => l.entryId === String(r.id) && sellable.get(l.listingId) === true)
-          .map((l) => ({ listingId: l.listingId, talentName: l.talentName, priceCents: l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),
+          .map((l) => ({ listingId: l.listingId, talentName: l.talentName, priceCents: onRequest.has(offeringOf(l.listingId)) ? null : l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),
       };
     });
-    return shapePublicEntries(inputs);
+    const entries = shapePublicEntries(inputs);
+    const shown = new Set(entries.map((e) => e.id));
+    const coveredListingIds = new Set(liveMembers.filter((l) => l.entryId && shown.has(l.entryId)).map((l) => l.listingId));
+    return { entries, coveredListingIds };
   } catch (err) {
     logServerError("serviceHub.public.load", err);
-    return [];
+    return EMPTY_HUB();
   }
 }
