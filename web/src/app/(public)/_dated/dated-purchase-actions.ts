@@ -125,8 +125,21 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
     // TUL-1472: on a talent's own site the talent's accepting switch and booking posture decide
     // whether a place can be bought by card at all. Same checks as the instant-book path; any
     // unreadable setting refuses.
+    // The gate follows the OFFERING, never a client flag: a talent-owned item is always gated, so
+    // a caller cannot skip it by leaving `channel` out. A workspace-owned item (no talent) is not.
     const onTalentSite = d.channel === "talent_site";
-    if (onTalentSite) {
+    const { data: ownerRow, error: ownerErr } = await admin
+      .from("talent_offerings")
+      .select("talent_profile_id")
+      .eq("id", d.offeringId)
+      .eq("tenant_id", d.tenantId)
+      .maybeSingle();
+    if (ownerErr) {
+      logServerError("dated.purchase.owner", ownerErr);
+      return { ok: false, reason: "booking_unavailable", detail: "unreadable" };
+    }
+    const talentOwned = typeof (ownerRow as { talent_profile_id?: unknown } | null)?.talent_profile_id === "string";
+    if (talentOwned || onTalentSite) {
       const gate = await datedTalentGate(admin, { tenantId: d.tenantId, offeringId: d.offeringId });
       if (!gate.ok) return { ok: false, reason: "booking_unavailable", detail: gate.reason };
     }

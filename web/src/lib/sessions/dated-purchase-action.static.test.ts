@@ -55,3 +55,11 @@ test("a repeated free order does not mint or mail twice", () => {
   assert.match(src, /alreadyMinted/);
   assert.match(src, /\.from\("admissions"\)[\s\S]{0,200}\.eq\("tenant_id", d\.tenantId\)/);
 });
+
+test("TUL-1472: the talent gate follows the offering's owner, not the client's channel flag (no bypass by omitting it)", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/_dated/dated-purchase-actions.ts"), "utf8");
+  assert.match(src, /talentOwned \|\| onTalentSite/);
+  assert.match(src, /select\("talent_profile_id"\)/);
+  // An unreadable owner refuses (fail closed).
+  assert.match(src, /ownerErr[\s\S]{0,200}booking_unavailable/);
+});
