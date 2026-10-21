@@ -33,7 +33,7 @@ const MODS: Mod[] = [
   { file: "src/lib/server-actions/message-media.ts", writers: {}, reads: ["getMessageMediaUrl"] },
   { file: "src/lib/media/asset-assignments-actions.ts", writers: {}, reads: ["actionListAssetAssignments"] },
   { file: "src/lib/server-actions/admin-media-release.ts", writers: { actionDecideMediaReleaseRequest: "agency.roster.edit", actionRetryReleaseWatermarkBake: "agency.roster.edit", actionRevokeMediaRelease: "agency.roster.edit" }, reads: ["actionListMediaReleaseRequests", "actionListMediaReleaseHistory", "actionListReleaseBakeRepairs"] },
-  { file: "src/lib/server-actions/admin-branding-media.ts", writers: {}, reads: ["actionListBrandingMedia"] },
+  { file: "src/lib/server-actions/admin-branding-media.ts", writers: { actionCreateBrandingMediaUploadUrl: "agency.site_admin.branding.edit", actionRegisterBrandingMediaUpload: "agency.site_admin.branding.edit", actionSetBrandImageRole: "agency.site_admin.branding.edit", actionDeleteBrandingMediaAsset: "agency.site_admin.branding.edit" }, reads: ["actionListBrandingMedia"] },
 ];
 
 const fns = (src: string) => [...src.matchAll(/export (?:async )?function (\w+)|export const (GET|POST|PUT|PATCH|DELETE)\b/g)].map((m) => ({ name: (m[1] ?? m[2])!, at: m.index! }));
@@ -52,7 +52,7 @@ test("every media writer here requires its capability; every other export is a l
     assert.deepEqual(unlisted, [], `${m.file}: classify these exports (writer with a capability, or read)`);
     for (const [fn, cap] of Object.entries(m.writers)) {
       const body = bodyOf(src, fn);
-      assert.match(body, new RegExp(`requireWorkspaceStaffAction\\(\\{ capability: "${cap.replace(/\./g, "\\.")}" \\}\\)`), `${m.file} ${fn} must require ${cap}`);
+      assert.match(body, new RegExp(`requireWorkspaceStaffAction\\(\\{\\s*capability: "${cap.replace(/\./g, "\\.")}",?\\s*\\}\\)`), `${m.file} ${fn} must require ${cap}`);
       assert.doesNotMatch(body, /requireWorkspaceStaffAction\(\s*\)/, `${fn} still has a capability-less guard`);
     }
     for (const fn of m.reads) assert.match(bodyOf(src, fn), /requireWorkspaceStaffAction\(\s*\)/, `${m.file} ${fn} is a read and keeps the viewer default`);
