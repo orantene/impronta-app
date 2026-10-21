@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { afterResponse } from "@/lib/server/after-response";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { notifyCoordinatorRoleAssigned } from "@/lib/notifications/producers/coordinator-role-notify";
 import { lookupTalentSnapshot, staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -795,7 +798,7 @@ export async function addBookingTalentRow(
 
   const { data: bookingRow } = await supabase
     .from("agency_bookings")
-    .select("id")
+    .select("id, title, starts_at, timezone")
     .eq("id", booking_id)
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -818,7 +821,9 @@ export async function addBookingTalentRow(
   if (!tp.found) return { error: "Talent not found." };
 
   const t = computeBookingTalentRowTotals(1, 0, 0);
-  const { error } = await supabase.from("booking_talent").insert({
+  const { data: inserted, error } = await supabase
+    .from("booking_talent")
+    .insert({
     tenant_id: tenantId,
     booking_id,
     talent_profile_id,
@@ -832,7 +837,9 @@ export async function addBookingTalentRow(
     talent_cost_total: t.talent_cost_total,
     client_charge_total: t.client_charge_total,
     gross_profit: t.gross_profit,
-  });
+    })
+    .select("id, role_label")
+    .maybeSingle();
 
   if (error) {
     logServerError("admin/addBookingTalentRow", error);
@@ -845,6 +852,30 @@ export async function addBookingTalentRow(
     eventType: BOOKING_AUDIT.TALENT_ROW_ADDED,
     payload: { talent_profile_id },
   });
+
+  // TUL-1603: tell the person their own part (after the write, fire-and-forget, never throws).
+  const seatId = (inserted as { id?: string } | null)?.id;
+  // TUL-1606: the seat's real role label; empty falls back to a localized "Equipo"/"Team" in the message.
+  const seatRole = (inserted as { role_label?: string | null } | null)?.role_label?.trim() ?? "";
+  const serviceAdmin = createServiceRoleClient();
+  if (seatId && serviceAdmin) {
+    const b = bookingRow as { title: string | null; starts_at: string | null; timezone: string | null };
+    afterResponse(
+      () =>
+        notifyCoordinatorRoleAssigned({
+          admin: serviceAdmin,
+          tenantId,
+          jobId: booking_id,
+          roleId: seatId,
+          role: seatRole,
+          eventTitle: b.title ?? "",
+          startsAt: b.starts_at,
+          timeZone: b.timezone ?? "UTC",
+          talentProfileId: talent_profile_id,
+        }),
+      "admin/addBookingTalentRow.notify",
+    );
+  }
 
   await recalculateBookingTotals(supabase, booking_id, tenantId);
   revalidatePath(`/admin/bookings/${booking_id}`);
