@@ -1,6 +1,7 @@
 import "server-only";
 
 import { applyCollectiveOwnerShares } from "@/lib/service-hub/collective-split";
+import { refuseHubListingChargeCurrency } from "@/lib/service-hub/listing-charge-currency.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
@@ -228,6 +229,8 @@ export async function createPurchase(
     if (!priced.ok) return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
     const split = await applyCollectiveOwnerShares(admin, input.tenantId, orderCurrency, priced.lines);
     if (!split.ok) return { ok: false, reason: "engine_error", error: split.error };
+    const hubCharge = input.hubListingId ? await refuseHubListingChargeCurrency(admin, { tenantId: input.tenantId, listingId: input.hubListingId, orderCurrency, offeringIds, locale: input.locale }) : null; // TUL-1591 (d): seller's currency or refuse
+    if (hubCharge && !hubCharge.ok) return { ok: false, reason: "engine_error", error: hubCharge.error };
 
     // ── 4. Buyer before promo (per-customer) and before pass-through collect.
     const buyer = await resolvePurchaseBuyer(admin, {

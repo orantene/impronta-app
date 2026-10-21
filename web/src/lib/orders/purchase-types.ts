@@ -105,6 +105,12 @@ export type PurchaseInput = {
    */
   bookingPromo?: BookingPromoRequest | null;
   locale?: string | null;
+  /**
+   * TUL-1591 (d): the hub listing this purchase sells (talent x workspace x service). When
+   * set, the order is charged only in the SELLER OF RECORD's explicit currency and refuses
+   * on a missing or mismatched one (`listing-charge-currency.server.ts`). Server-set only.
+   */
+  hubListingId?: string | null;
   /** TUL-426: where the service happens, from the booking sheet; cleaned before it is stored. */
   eventLocation?: string | null;
   /**
