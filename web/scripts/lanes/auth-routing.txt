@@ -7,6 +7,7 @@ src/app/api/dev/signin/fixture-session.test.ts
 src/app/api/dev/signin/guard.test.ts
 src/app/auth/sign-in-deadlines.static.test.ts
 src/app/client/client-root-loading.static.test.ts
+src/components/auth/age-terms-checkbox.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
 src/components/client-account/client-account-help.static.test.ts

@@ -372,6 +372,8 @@ export function EmailCodeForm({
               autoComplete="name"
               required
               maxLength={120}
+              aria-invalid={stepError && !readAuthNameDraft().trim() ? true : undefined}
+              aria-describedby={stepError ? "email-step-error" : undefined}
               defaultValue={readAuthNameDraft()}
               onChange={(e) => writeAuthNameDraft(e.target.value)}
               placeholder={t("public.auth.form.namePlaceholder")}
@@ -409,7 +411,14 @@ export function EmailCodeForm({
           />
         </AuthField>
 
-        {allowCreate ? <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} /> : null}
+        {allowCreate ? (
+          <AgeTermsCheckbox
+            locale={locale}
+            marketingOrigin={marketingOrigin}
+            invalid={stepError === t("public.auth.actions.ageTermsRequired")}
+            errorId="email-step-error"
+          />
+        ) : null}
 
         <AuthSubmitButton
           pending={sending}
