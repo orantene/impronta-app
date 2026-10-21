@@ -1,6 +1,6 @@
 /**
  * TUL-1708: the events readers name their default capability out loud (no capability-less guard left), and the
- * project milestone writers need `coordinate_inquiry` (a viewer holds the `view_dashboard` they used to check).
+ * project milestone writers need `edit_client_relationship` (a viewer holds the `view_dashboard` they used to check).
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -27,15 +27,15 @@ test("event writers still need manage_agency_settings; only the readers say agen
   }
 });
 
-test("project milestone actions all go through a coordinate_inquiry guard; view_dashboard is no longer enough", () => {
+test("project milestone actions all go through an edit_client_relationship guard; view_dashboard is no longer enough", () => {
   const src = read(ADMIN + "projects/[projectId]/actions.ts");
-  assert.match(src, /requireWorkspaceStaffAction\(\{ capability: "coordinate_inquiry" \}\)/);
+  assert.match(src, /requireWorkspaceStaffAction\(\{ capability: "edit_client_relationship" \}\)/);
   assert.doesNotMatch(src, /view_dashboard/);
   assert.equal((src.match(/await guard\(\)/g) ?? []).length, 3);
 });
 
-test("a viewer and an editor are refused coordinate_inquiry; manager, admin, owner allowed", () => {
-  for (const role of ["viewer", "editor"] as const) assert.equal(roleGrantsCapability(role, "coordinate_inquiry"), false, role);
-  for (const role of ["manager", "admin", "owner"] as const) assert.equal(roleGrantsCapability(role, "coordinate_inquiry"), true, role);
+test("a viewer is refused edit_client_relationship; editor, manager, admin, owner allowed", () => {
+  assert.equal(roleGrantsCapability("viewer", "edit_client_relationship"), false);
+  for (const role of ["editor", "manager", "admin", "owner"] as const) assert.equal(roleGrantsCapability(role, "edit_client_relationship"), true, role);
   assert.equal(roleGrantsCapability("viewer", "view_dashboard"), true, "the old check let a viewer through");
 });
