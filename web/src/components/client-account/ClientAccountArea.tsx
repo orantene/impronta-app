@@ -9,6 +9,8 @@ import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail }
 import type { MeItem } from "@/lib/me/shape-me";
 import type { SavedTalent } from "@/lib/client-account/saved-talent";
 import type { MyReviews } from "@/lib/client-account/my-reviews";
+import type { SavedService } from "@/lib/client-account/saved-services";
+import type { VisitReviewState } from "@/lib/client-account/visit-review";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
@@ -17,6 +19,7 @@ import { ClientAccountButton } from "./ClientAccountButton";
 import { LogOutButton, NamePrompt, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
 import { bookAgainHref, canBookAgain } from "@/lib/client-account/book-again";
 import { btnPrimary } from "./account-button-styles";
+import { VisitReviewForm } from "./VisitReviewForm";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -37,6 +40,10 @@ export type AreaData = {
   saved?: SavedTalent[];
   /** TUL-1317: reviews written here and review requests waiting (My reviews tab). */
   reviews?: MyReviews;
+  /** TUL-1463: services the client saved on this site (Saved tab). */
+  savedServices?: SavedService[];
+  /** TUL-1463: the visit page's review block (form, open request link, done, or nothing). */
+  visitReview?: VisitReviewState | null;
   profile?: { name: string; phone: string; locale: string; marketingOptIn: boolean };
 };
 
@@ -125,6 +132,34 @@ export function ClientAccountArea(props: Props) {
     return a("statusOther");
   };
 
+  // TUL-1463: leave a review on a completed visit (one per visit; an open request is reused).
+  const reviewBlock = (bookingId: string | null) => {
+    const r = props.data.visitReview;
+    if (!r || r.kind === "none" || !bookingId) return null;
+    return (
+      <section style={{ ...card, marginTop: 24 }} data-account-visit-review={r.kind}>
+        <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("reviewVisitTitle")}</h2>
+        {r.kind === "done" ? <p style={{ margin: 0, color: MUTED }}>{a("reviewDone")}</p> : null}
+        {r.kind === "request" ? (
+          <Link href={r.href} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("leaveReview")}</Link>
+        ) : null}
+        {r.kind === "form" ? (
+          <VisitReviewForm
+            bookingId={bookingId}
+            copy={{
+              title: a("reviewVisitTitle"), rating: a("reviewRating"), star: a("reviewStar"), body: a("reviewBody"), send: a("reviewSend"),
+              thanks: a("reviewThanks"), note: a("reviewNote"), pickRating: a("reviewPickRating"),
+              errors: {
+                generic: a("reviewErr"), not_completed: a("reviewErrNotCompleted"), already_reviewed: a("reviewDone"),
+                not_owner: a("errNotAllowed"), wrong_tenant: a("errNotAllowed"), not_signed_in: a("errNotAllowed"),
+              },
+            }}
+          />
+        ) : null}
+      </section>
+    );
+  };
+
   // ── Visit detail ────────────────────────────────────────────────────────
   if (props.view.kind === "visit") {
     const v = props.data.visit;
@@ -199,6 +234,7 @@ export function ClientAccountArea(props: Props) {
             <button type="submit" style={btnPrimary}>{a("payNow")}</button>
           </form>
         ) : null}
+        {reviewBlock(v.bookingId)}
       </>,
     );
   }
@@ -341,7 +377,8 @@ export function ClientAccountArea(props: Props) {
     );
   } else if (tab === "saved") {
     const list = props.data.saved ?? [];
-    body = list.length === 0 ? <p>{a("noSaved")}</p> : (
+    const services = props.data.savedServices ?? [];
+    const people = list.length === 0 ? null : (
       <ul data-testid="client-saved" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
         {list.map((s) => (
           <li key={s.href} style={{ listStyle: "none" }}>
@@ -353,6 +390,32 @@ export function ClientAccountArea(props: Props) {
           </li>
         ))}
       </ul>
+    );
+    body = list.length + services.length === 0 ? <p>{a("noSaved")}</p> : (
+      <>
+        {people && services.length > 0 ? <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("savedPeople")}</h2> : null}
+        {people}
+        {services.length > 0 ? (
+          <section style={{ marginTop: people ? 24 : 0 }}>
+            {people ? <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("savedServices")}</h2> : null}
+            <ul data-testid="client-saved-services" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+              {services.map((s, i) => (
+                <li key={`${i}:${s.title}`} style={{ listStyle: "none" }}>
+                  {s.href ? (
+                    <Link href={s.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+                      <strong>{s.title}</strong>
+                      <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{a("viewService")}</span>
+                    </Link>
+                  ) : (
+                    // No page on this site is sure to show it: listed, never a dead link.
+                    <div style={card}><strong>{s.title}</strong></div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </>
     );
   } else if (tab === "reviews") {
     const r = props.data.reviews ?? { written: [], toWrite: [] };

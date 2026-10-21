@@ -35,6 +35,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/site-admin/add-gallery/workspace-copy-type-action.ts", ["fetchWorkspaceTypeForCopy"], READ],
   ["lib/client-account/actions.ts", ["signOutClientAccount"], "SIGN-OUT: ends the session; must keep working while impersonating (PM exception)"],
   ["lib/reviews/review-actions.ts", ["loadReviewableBookingsAction", "loadClientReviewablesAction"], READ],
+  ["lib/client-account/save-service-actions.ts", ["savedServiceStatus"], READ],
   ["lib/reviews/review-ask-load-action.ts", ["loadReviewAskBookingsAction", "loadReviewAskPicksAction"], READ],
   ["lib/server-actions/messaging-engine.ts", ["staff", "messagingLoadInbox", "messagingResolveOrderThread", "messagingLoadThread", "messagingLoadEssentials", "loadConversationHistory", "messagingResolve", "messagingRelinkImpact", "messagingSearch"], READ],
   ["lib/server-actions/messaging-identity.ts", ["messagingMatchCustomers"], READ],
