@@ -32,6 +32,13 @@
 // Usage:
 //   node web/scripts/post-deploy-smoke-test.mjs
 //   node web/scripts/post-deploy-smoke-test.mjs --host https://app.tulala.digital
+//   node web/scripts/post-deploy-smoke-test.mjs --staging --host https://staging.tulala.digital
+//     Staging mode (Build staging button): runs ONLY the checks that are meaningful on a
+//     gated, non-production host (reachable, CSP, image optimizer, edge region, served
+//     release == SMOKE_EXPECT_SHA). Never runs the production-only checks (alias parity,
+//     migration drift, prod flags, agency hosts). --host is required. Sends the staging
+//     gate / protection bypass headers from STAGING_GATE_CI_TOKEN and
+//     VERCEL_AUTOMATION_BYPASS_SECRET (env only, never printed).
 //
 // Exit code: 0 = all checks pass, 1 = at least one failure.
 
@@ -39,7 +46,12 @@ import { judgeGetStartedRedirect, cronSecretPlan, judgeTalentSiteCacheHeaders } 
 import { checkPublicTalentHosts } from "./lib/public-talent-hosts.mjs";
 
 const args = process.argv.slice(2);
+const STAGING_MODE = args.includes("--staging");
 const hostFlag = args.indexOf("--host");
+if (STAGING_MODE && !(hostFlag !== -1 && args[hostFlag + 1])) {
+  console.error("--staging requires --host https://<staging host>");
+  process.exit(1);
+}
 const HOST =
   hostFlag !== -1 && args[hostFlag + 1] ? args[hostFlag + 1] : "https://app.tulala.digital";
 const PUBLIC_HOST =
@@ -70,8 +82,18 @@ function warn(label, reason) {
   console.log(`  ⚠ ${label}  — ${reason}`);
 }
 
+// Staging mode only: the staging hosts sit behind the staging gate and Vercel deployment
+// protection. Secrets come from env and are only ever sent as request headers.
+const STAGING_HEADERS = {};
+if (STAGING_MODE) {
+  if (process.env.STAGING_GATE_CI_TOKEN) STAGING_HEADERS["x-staging-gate-token"] = process.env.STAGING_GATE_CI_TOKEN;
+  if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+    STAGING_HEADERS["x-vercel-protection-bypass"] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  }
+}
+
 async function get(url, opts = {}) {
-  const res = await fetch(url, { redirect: "manual", ...opts });
+  const res = await fetch(url, { redirect: "manual", ...opts, headers: { ...STAGING_HEADERS, ...(opts.headers ?? {}) } });
   const headers = {};
   for (const [k, v] of res.headers.entries()) headers[k.toLowerCase()] = v;
   return { status: res.status, headers, body: opts.body ? null : await res.text().catch(() => "") };
@@ -805,8 +827,31 @@ async function check_auth_surface_matrix() {
   }
 }
 
+// Staging mode: the served build must be the SHA the Build staging workflow just deployed.
+async function check_served_release_matches_expected_sha() {
+  console.log("\nServed release vs expected SHA");
+  const expected = (process.env.SMOKE_EXPECT_SHA ?? "").trim();
+  if (!/^[0-9a-f]{40}$/.test(expected)) return fail("served release", "SMOKE_EXPECT_SHA (40-hex) is required in staging mode");
+  try {
+    const page = await get(HOST + "/login");
+    const served = /sentry-release=([0-9a-f]{40})/.exec(page.body ?? "")?.[1];
+    if (!served) return fail("served release", `no sentry-release in ${HOST}/login`);
+    if (served === expected) pass(`served release ${served.slice(0, 9)} == expected`);
+    else fail("served release", `served ${served.slice(0, 9)} but expected ${expected.slice(0, 9)}: alias not on the new build`);
+  } catch (e) {
+    fail("served release", e.message);
+  }
+}
+
 console.log(`Smoke-testing ${HOST} (and ${PUBLIC_HOST})…`);
-for (const check of [
+const STAGING_CHECKS = [
+  check_root_reachable,
+  check_csp,
+  check_image_optimizer,
+  check_edge_region,
+  check_served_release_matches_expected_sha,
+];
+for (const check of STAGING_MODE ? STAGING_CHECKS : [
   check_root_reachable,
   check_services_band_renders,
   check_talent_site_cache_headers,
