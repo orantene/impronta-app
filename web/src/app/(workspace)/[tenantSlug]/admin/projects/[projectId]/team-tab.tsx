@@ -8,12 +8,14 @@
 
 import Link from "next/link";
 import { interpolate } from "@/i18n/interpolate";
+import { projectEventBoard, type SeatState } from "@/lib/projects/project-event-board";
+import type { ConfirmationsRead } from "@/lib/projects/assignment-confirmation";
 import { candidateTag } from "@/lib/coordinator/replacement-availability";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { ProjectRecord } from "@/lib/projects/project-record";
 import type { ReplacementCandidatesLoad } from "@/lib/projects/projects-reader";
 import { schedulingEngineSentences } from "@/lib/scheduling/engine-refusals";
-import { BTN_ROW, BTN_SECONDARY, Card, SectionTitle, dayLabel } from "../_shared";
+import { BTN_ROW, BTN_SECONDARY, Card, Pill, SectionTitle, dayLabel } from "../_shared";
 import { TeamRows } from "./team-replace";
 
 type Tr = (key: string) => string;
@@ -21,6 +23,7 @@ type Tr = (key: string) => string;
 export function TeamTab({
   project,
   candidates,
+  confirmations,
   locale,
   visibilityHref,
   conversationHref,
@@ -28,6 +31,7 @@ export function TeamTab({
 }: {
   project: ProjectRecord;
   candidates: ReplacementCandidatesLoad;
+  confirmations: ConfirmationsRead;
   locale: string;
   visibilityHref: string;
   conversationHref: string | null;
@@ -35,8 +39,67 @@ export function TeamTab({
 }) {
   const noDate = tr("dashboard.projects.noDate");
   const when = dayLabel(project.startsAt, project.timeZone, locale, noDate);
+  const view = projectEventBoard({ assignments: project.assignments, startsAt: project.startsAt, confirmations });
+  const { board } = view;
+  const seatLabel: Record<SeatState, string> = {
+    confirmed: tr("dashboard.projects.team.stateConfirmed"),
+    declined: tr("dashboard.projects.team.stateDeclined"),
+    awaiting: tr("dashboard.projects.team.stateAwaiting"),
+  };
   return (
     <>
+      {board.roles.length > 0 ? (
+        <section data-event-board aria-label={tr("dashboard.projects.team.boardTitle")} className="flex flex-col gap-2">
+          <SectionTitle
+            aside={
+              <Pill tone={board.complete ? "green" : "slate"}>
+                {interpolate(tr("dashboard.projects.team.boardSummary"), { confirmed: board.totals.confirmed, needed: board.totals.needed })}
+              </Pill>
+            }
+          >
+            {tr("dashboard.projects.team.boardTitle")}
+          </SectionTitle>
+          <Card>
+            <ul className="m-0 list-none p-0">
+              {board.roles.map((r) => (
+                <li key={r.id} data-board-role={r.id} className="flex items-center justify-between gap-3 border-t px-4 py-2.5 first:border-t-0">
+                  <b className="text-[13px] text-admin-ink">{r.role || tr("dashboard.projects.team.colRole")}</b>
+                  <span className="flex items-center gap-2 text-[12.5px] text-admin-ink-muted">
+                    {interpolate(tr("dashboard.projects.team.boardRole"), { confirmed: r.confirmed, needed: r.needed })}
+                    <Pill tone={r.state === "filled" ? "green" : r.state === "partial" ? "indigo" : "coral"}>
+                      {r.state === "filled" ? tr("dashboard.projects.team.boardFilled") : interpolate(tr("dashboard.projects.team.boardOpen"), { open: r.open })}
+                    </Pill>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {!view.stateAvailable ? (
+              <p className="m-0 border-t px-4 py-2.5 text-[12.5px] text-admin-ink-muted" data-board-no-state>
+                {tr("dashboard.projects.team.boardNoState")}
+              </p>
+            ) : null}
+          </Card>
+          <SectionTitle>{tr("dashboard.projects.team.callSheet")}</SectionTitle>
+          <Card>
+            {board.callSheet.length === 0 ? (
+              <p className="m-0 px-4 py-3 text-[13px] text-admin-ink-muted" data-call-sheet-empty>
+                {tr("dashboard.projects.team.callSheetEmpty")}
+              </p>
+            ) : (
+              <ul className="m-0 list-none p-0" data-call-sheet>
+                {board.callSheet.map((c) => (
+                  <li key={`${c.roleId}:${c.talentProfileId}`} className="flex items-center justify-between gap-3 border-t px-4 py-2.5 text-[13px] first:border-t-0">
+                    <b className="text-admin-ink">{c.name || tr("dashboard.projects.team.unnamed")}</b>
+                    <span className="text-admin-ink-muted">
+                      {c.role || tr("dashboard.projects.team.colRole")} · {dayLabel(c.callTime, project.timeZone, locale, noDate, { weekday: true, time: true })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </section>
+      ) : null}
       <SectionTitle
         aside={
           conversationHref ? (
@@ -79,7 +142,7 @@ export function TeamTab({
                 fee: formatOrderMoney(a.talentCostCents, a.currency),
                 charge: formatOrderMoney(a.clientChargeCents, a.currency),
               }),
-              stateLabel: tr("dashboard.projects.team.assigned"),
+              stateLabel: seatLabel[view.stateByAssignment[a.id] ?? "awaiting"],
             }))}
             copy={{
               replace: tr("dashboard.projects.team.replace"),
