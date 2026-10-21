@@ -27,6 +27,7 @@ export const CLIENT_MESSAGE_SUBTREES = [
   "dashboard.mediaField",
   "dashboard.mediaLibrary",
   "dashboard.mediaPickerLock",
+  "dashboard.uploadGuard",
   "public.auth",
   "public.bookPage",
   "public.clientAccount",
