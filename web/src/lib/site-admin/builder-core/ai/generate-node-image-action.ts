@@ -27,8 +27,6 @@ import {
 } from "@/lib/ai/ai-image-generation";
 import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
-import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
-import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 

@@ -18,7 +18,6 @@ import sharp from "sharp";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
-import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import type { StockRole } from "./platform-stock";
