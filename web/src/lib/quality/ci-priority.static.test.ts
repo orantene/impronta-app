@@ -49,7 +49,9 @@ test("an unlabelled ordinary PR fails (not skips) the gate", () => {
 
 test("every heavy step is conditioned on the policy output", () => {
   assert.doesNotMatch(ci, /if: \$\{\{ !cancelled\(\) \}\}/);
-  const gated = ci.match(/steps\.policy\.outputs\.run == 'true'/g) ?? [];
+  // TUL-1770: the policy is its own job now; worker jobs read its output.
+  assert.doesNotMatch(ci, /steps\.policy\.outputs\.run == 'true'/);
+  const gated = ci.match(/needs\.policy\.outputs\.run == 'true'/g) ?? [];
   assert.ok(gated.length >= 50, `only ${gated.length} steps gated on the policy`);
 });
 
