@@ -29,8 +29,11 @@ src/lib/billing/commission-processing-client-pays.test.ts
 src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-snapshot-authz.static.test.ts
 src/lib/billing/commission.test.ts
+src/lib/billing/fee-fail-closed.test.ts
 src/lib/billing/fee-reader-rpc-guards.static.test.ts
+src/lib/billing/hub-fee.test.ts
 src/lib/billing/invoice-display.test.ts
+src/lib/billing/pass-through-arming.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
@@ -294,6 +297,7 @@ src/lib/service-hub/rent/rent-safety-view.test.ts
 src/lib/service-hub/rent/rent-wire.static.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
+src/lib/server-actions/admin-tier-service-fee.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts

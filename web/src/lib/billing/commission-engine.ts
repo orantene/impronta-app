@@ -39,10 +39,10 @@ import {
 } from "./commission";
 import { moneyOwningParty } from "@/lib/inquiry/owning-party-resolver";
 import { attachPayoutProcessingFees } from "./commission-processing";
-import {
-  processorFeeRatesFromTable,
-  readPlatformProcessingMode,
-} from "./platform-processing-mode";
+import { decidePassThrough } from "./pass-through-arming";
+import { loadSellerPassThroughBps, type PassThroughSeller } from "./pass-through-rate";
+import { isStaffChannel } from "@/lib/pos/reprice-guards";
+import { processorFeeRatesFromTable } from "./platform-processing-mode";
 
 /** One element of the participants array returned by
  *  `engine_load_commission_context`. */
@@ -176,34 +176,25 @@ export async function persistBookingCommissionSnapshot(
     /* even-split default applies */
   }
 
-  // Fee model (owner decision 2026-10-01): 'included' (default, legacy) or
-  // 'pass_through' (client pays +1.5% surcharge, seller bears the real
-  // processing fee at payout). TWO-KEY ARMING, mirroring HUB_REFERRAL_LANE:
-  // env COMMISSION_PROCESSING_PASS_THROUGH=1 (code armed) AND
-  // platform_commission_config.processing_mode='pass_through' (the setting,
-  // read via a tiny reader RPC added with the `processing_mode` migration).
-  // With the env unset NO extra RPC is made, so existing behaviour (and call
-  // sequence) is byte-identical. Non-fatal and fail-safe: an absent RPC
-  // (migration not applied) or any error leaves the mode 'included'.
-  if (process.env.COMMISSION_PROCESSING_PASS_THROUGH === "1") {
-   try {
-    const modeRow = await readPlatformProcessingMode(
-      supabase as unknown as Parameters<typeof readPlatformProcessingMode>[0],
-    );
-    if (modeRow?.processing_mode === "pass_through") {
-      ctx.platform_config = {
-        ...ctx.platform_config,
-        processing_mode: "pass_through",
-        pass_through_take_bps:
-          typeof modeRow.pass_through_take_bps === "number"
-            ? modeRow.pass_through_take_bps
-            : null,
-        processor_fee_rates: modeRow.processor_fee_rates ?? null,
-      };
-    }
-   } catch {
-    /* 'included' default applies */
-   }
+  // Fee model: 'included' (legacy) or 'pass_through' (client pays the Tulala
+  // service fee on top). ONE fail-closed decision shared with the checkout
+  // collect (pass-through-arming.ts): off / on / unavailable. When the fee
+  // cannot be confirmed the snapshot is REFUSED (the booking conversion then
+  // rolls back); there is no silent legacy fallback and no 150 default.
+  let planServiceFeeBps: Record<string, number> | null = null;
+  const feeDecision = await decidePassThrough(supabase as unknown as Parameters<typeof decidePassThrough>[0]);
+  if (feeDecision.mode === "unavailable") {
+    logServerError(`commission-engine/fee_unavailable[booking=${bookingId}]`, feeDecision.detail);
+    return { ok: false, reason: "context_load_failed", detail: `fee_unavailable:${feeDecision.detail}` };
+  }
+  if (feeDecision.mode === "on") {
+    ctx.platform_config = {
+      ...ctx.platform_config,
+      processing_mode: "pass_through",
+      pass_through_take_bps: feeDecision.platformBps,
+      processor_fee_rates: feeDecision.row.processor_fee_rates ?? null,
+    };
+    planServiceFeeBps = feeDecision.planFeeBps;
   }
 
   // Phase C — hub referral lane. Gated on the HUB_REFERRAL_LANE flag (default
@@ -221,7 +212,7 @@ export async function persistBookingCommissionSnapshot(
   // fee the checkout never collects: gross_charged == what the collect charges.
   const { data: orderBacking, error: bkError } = await supabase
     .from("agency_bookings")
-    .select("order_id")
+    .select("order_id, source_inquiry_id")
     .eq("id", bookingId)
     .maybeSingle();
   if (bkError) {
@@ -231,6 +222,37 @@ export async function persistBookingCommissionSnapshot(
     return { ok: false, reason: "context_load_failed", detail: bkError.message };
   }
   const orderBackedCollect = Boolean((orderBacking as { order_id?: string | null } | null)?.order_id);
+  // TUL-1366: the service fee frozen when the sale was QUOTED. An order-backed
+  // booking reads orders.service_fee_by_party; an inquiry booking (no order)
+  // reads the offer it was converted from (inquiry_offers.service_fee_by_party,
+  // frozen at send). A POS sale charges no client fee, so it freezes at 0.
+  let fees: { byParty: Record<string, number> | null; pos: boolean } | undefined;
+  const feeSnapshotForBooking = async () => {
+    if (fees) return fees;
+    fees = { byParty: null, pos: false };
+    const bk = orderBacking as { order_id?: string | null; source_inquiry_id?: string | null } | null;
+    try {
+      if (bk?.order_id) {
+        const { data } = await supabase.from("orders").select("service_fee_by_party, source_channel").eq("id", bk.order_id).maybeSingle();
+        const row = data as { service_fee_by_party?: unknown; source_channel?: string | null } | null;
+        fees.pos = isStaffChannel(row?.source_channel);
+        if (row?.service_fee_by_party && typeof row.service_fee_by_party === "object" && !Array.isArray(row.service_fee_by_party)) {
+          fees.byParty = row.service_fee_by_party as Record<string, number>;
+        }
+      } else if (bk?.source_inquiry_id) {
+        const { data: inq } = await supabase.from("inquiries").select("current_offer_id").eq("id", bk.source_inquiry_id).maybeSingle();
+        const offerId = (inq as { current_offer_id?: string | null } | null)?.current_offer_id;
+        if (offerId) {
+          const { data } = await supabase.from("inquiry_offers").select("service_fee_by_party").eq("id", offerId).maybeSingle();
+          const v = (data as { service_fee_by_party?: unknown } | null)?.service_fee_by_party;
+          if (v && typeof v === "object" && !Array.isArray(v)) fees.byParty = v as Record<string, number>;
+        }
+      }
+    } catch {
+      /* no snapshot readable: the seller's current plan applies */
+    }
+    return fees;
+  };
 
   // 2. Resolve per participant (pure — no IO inside the loop).
   const snapshots: ParticipantSnapshot[] = [];
@@ -320,6 +342,24 @@ export async function persistBookingCommissionSnapshot(
           platformConfig.processor_fee_rates,
           String(ctx.currency_code ?? ""),
         );
+        // TUL-1366: the fee is set per plan by Platform Admin. An order-backed
+        // booking uses the fee frozen on its order at quote time; otherwise the
+        // seller's current plan. The checkout collect resolves the same way, so
+        // quote, snapshot and charge agree and a later change never moves a past order.
+        const seller: PassThroughSeller =
+          p.owning_party_type === "talent" || !p.tenant_id
+            ? { kind: "talent", partyId: p.owning_party_id }
+            : { kind: "workspace", partyId: p.tenant_id, plan: p.workspace_plan };
+        const snap = await feeSnapshotForBooking();
+        platformConfig = {
+          ...platformConfig,
+          pass_through_take_bps: await loadSellerPassThroughBps(supabase, {
+            platformBps: platformConfig.pass_through_take_bps,
+            planFeeBps: planServiceFeeBps,
+            frozenByParty: snap.pos ? { [seller.partyId]: 0 } : snap.byParty,
+            seller,
+          }),
+        };
       }
 
       const base = resolveBookingCommissions({

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { serviceFeeRefundableOnCancel } from "@/lib/billing/booking-cancelled-by";
 import { logServerError } from "@/lib/server/safe-error";
 import { releaseInquiryWindowResources } from "@/lib/resources/booking-resources";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
@@ -286,6 +287,27 @@ export async function cancelBookingSet(
   }
 
   tell(paidCents, refundableCents);
+
+  // TUL-1366: decide ONCE whether the Tulala service fee comes back with the
+  // refund (seller side cancels, or the client cancels inside the free window).
+  // Non-fatal; the refund paths fall back to cancelled_by when this is unset.
+  if (reply.already !== true) {
+    try {
+      const win = resolveCancellationWindow({
+        cancellationHours: policy.cancelFreeHours,
+        startsAt: b.starts_at ?? null,
+        eventDate: null,
+        nowMs: input.nowMs ?? Date.now(),
+      });
+      await admin
+        .from("agency_bookings")
+        .update({ service_fee_refundable: serviceFeeRefundableOnCancel({ by, lateCancel: win.enforceable && win.insideWindow }) })
+        .eq("id", input.bookingId)
+        .eq("tenant_id", input.tenantId);
+    } catch (err) {
+      logServerError("scheduling.cancelBookingSet.feeRefundable", err);
+    }
+  }
 
   const replyBy = reply.by == null ? by : normalizeCancelBy(String(reply.by));
 

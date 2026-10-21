@@ -83,7 +83,7 @@ describe("confirmationTotalRows", () => {
     });
     assert.deepEqual(rows, [
       { label: "Service", value: "$100.00" },
-      { label: "Platform fee (1.5%)", value: "$1.50" },
+      { label: "Tulala service fee", value: "$1.50" },
     ]);
   });
   it("includes card processing when the client pays it", () => {

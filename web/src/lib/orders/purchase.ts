@@ -39,7 +39,7 @@ import type {
 export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
 import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
-import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
+import { resolveCheckoutCollectOrRefuse } from "@/lib/orders/purchase-collect";
 
 /**
  * ONE purchase pipeline.
@@ -297,19 +297,19 @@ export async function createPurchase(
     // Settle + insert must agree; `orders_total_is_derived` refuses drift.
     const totalCents = priced.subtotalCents - promoDiscountCents;
 
-    const { baseCollectCents, collectCents } = await resolveCheckoutCollectCents(
-      admin,
-      {
-        tenantId: input.tenantId,
-        orderCurrency,
-        lines: priced.lines,
-        subtotalCents: priced.subtotalCents,
-        totalCents,
-        collect: policy.collect,
-        depositPct: policy.depositPct,
-        payInPerson: policy.payInPerson,
-      },
-    );
+    const collect = await resolveCheckoutCollectOrRefuse(admin, {
+      tenantId: input.tenantId,
+      orderCurrency,
+      lines: priced.lines,
+      subtotalCents: priced.subtotalCents,
+      totalCents,
+      collect: policy.collect,
+      depositPct: policy.depositPct,
+      payInPerson: policy.payInPerson,
+      sourceChannel: input.sourceChannel,
+    });
+    if (!collect.ok) return { ok: false, reason: "engine_error", error: collect.error };
+    const { baseCollectCents, collectCents, serviceFeeBpsByParty } = collect;
 
     // ── 5. Create the order. `draft` until capacity is held and payment decided.
 
@@ -340,6 +340,8 @@ export async function createPurchase(
         payout_release_rule: "immediate",
         created_by: input.actorUserId,
         ...(input.policyVersionId ? { policy_version_id: input.policyVersionId } : {}),
+        // TUL-1366: the service fee frozen at quote time; a later fee change never moves this order.
+        ...(Object.keys(serviceFeeBpsByParty).length > 0 ? { service_fee_by_party: serviceFeeBpsByParty } : {}),
         // The age gate as it was at the moment of sale, and what the buyer said
         // about it. Stored on the ORDER rather than derived later because both
         // halves can move: a venue can lower the gate next week, and the
