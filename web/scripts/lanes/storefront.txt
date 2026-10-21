@@ -55,7 +55,12 @@ src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/developer-docs/developer-docs.test.ts
 src/lib/events/venue-address.test.ts
+src/lib/match-me/candidates.test.ts
+src/lib/match-me/flag.test.ts
+src/lib/match-me/match-me-actions.static.test.ts
+src/lib/match-me/match-ui.test.ts
 src/lib/match-me/rules.test.ts
+src/lib/match-me/views.test.ts
 src/lib/offerings/business-catalog-scope.test.ts
 src/lib/offerings/business-catalog.test.ts
 src/lib/offerings/contract.test.ts

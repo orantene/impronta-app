@@ -118,7 +118,10 @@ export async function widenIfDue(requestId: string, tenantId: string, candidates
     logServerError("matchMe.widen.prior", prior.error);
     return [];
   }
-  const picked = pickMatches(candidates, { zone: req.data.zone }, { excludeIds: (prior.data ?? []).map((r) => r.talent_profile_id) });
+  const priorIds = (prior.data ?? []).map((r) => r.talent_profile_id);
+  // Nobody was ever offered it: an honest "no one available" request, never widened.
+  if (!shouldWiden({ status: req.data.status as MatchStatus, roundStartedAtMs, offeredCount: priorIds.length }, nowMs)) return [];
+  const picked = pickMatches(candidates, { zone: req.data.zone }, { excludeIds: priorIds });
   if (picked.length === 0) return [];
   const offered = await offerTo(admin, requestId, req.data.round + 1, picked);
   if (offered.length === 0) return [];

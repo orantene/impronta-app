@@ -1,0 +1,33 @@
+/** TUL-1598: copy for the professional's "Jobs for you" screen (EN + ES, no em dashes). */
+export const MATCH_OFFERS_COPY = {
+  en: {
+    heading: "Jobs for you",
+    empty: "No open jobs right now. When a client asks for a professional like you, it shows up here.",
+    hint: "The first professional to accept gets the job. The client's contact details are shared only after you accept.",
+    accept: "Accept this job",
+    accepting: "Accepting...",
+    accepted: "You got the job. The client has been told.",
+    taken: "Another professional accepted first.",
+    forbidden: "You can't accept this job.",
+    closed: "This job is no longer open.",
+    error: "Something went wrong. Try again.",
+    off: "Jobs from clients are not available yet.",
+    where: "Where",
+    from: "From",
+  },
+  es: {
+    heading: "Trabajos para ti",
+    empty: "No hay trabajos abiertos por ahora. Cuando un cliente pida un profesional como tú, aparecerá aquí.",
+    hint: "El primer profesional en aceptar se queda con el trabajo. Los datos de contacto del cliente se comparten solo después de aceptar.",
+    accept: "Aceptar este trabajo",
+    accepting: "Aceptando...",
+    accepted: "Conseguiste el trabajo. Ya avisamos al cliente.",
+    taken: "Otro profesional aceptó primero.",
+    forbidden: "No puedes aceptar este trabajo.",
+    closed: "Este trabajo ya no está abierto.",
+    error: "Algo salió mal. Inténtalo de nuevo.",
+    off: "Los trabajos de clientes aún no están disponibles.",
+    where: "Dónde",
+    from: "De",
+  },
+} as const;
