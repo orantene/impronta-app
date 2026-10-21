@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 
-import { collectiveTenantIdsForTalent, loadWorkspaceReviews, notInTenantsFilter } from "./collective-reviews";
+import { collectiveTenantIdsForTalent, collectiveTenantIdsOwnedByTalent, loadWorkspaceReviews, mergeOwnerPageReviews, notInTenantsFilter } from "./collective-reviews";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
@@ -19,7 +19,7 @@ function fakeDb(replies: Record<string, Reply>) {
     seen,
     from(table: string) {
       const q: Record<string, unknown> = {};
-      for (const op of ["select", "eq", "in", "neq", "order", "limit", "range", "not"]) {
+      for (const op of ["select", "eq", "in", "neq", "order", "limit", "range", "not", "maybeSingle"]) {
         q[op] = (...args: unknown[]) => {
           seen.push({ table, op, args });
           return q;
@@ -87,5 +87,42 @@ describe("wiring", () => {
     assert.match(src, /collectiveTenantIdsForTalent\(/);
     assert.match(src, /notInTenantsFilter\(hidden\)/);
     assert.match(src, /const cachedCount = hidden\.length > 0 \? undefined :/);
+  });
+});
+
+describe("TUL-1467: the owner's PUBLIC page shows the collective's reviews", () => {
+  test("a talent owns the collectives where her account is an active owner", async () => {
+    const db = fakeDb({
+      talent_profiles: { data: { user_id: "u1" } },
+      agency_memberships: { data: [{ tenant_id: "t1" }, { tenant_id: "t2" }] },
+      agencies: { data: [{ id: "t2" }] },
+    });
+    assert.deepEqual(await collectiveTenantIdsOwnedByTalent(db as never, "tal"), ["t2"]);
+    assert.ok(db.seen.some((s) => s.table === "agency_memberships" && s.op === "eq" && s.args[0] === "role" && s.args[1] === "owner"));
+    assert.ok(db.seen.some((s) => s.table === "agency_memberships" && s.op === "eq" && s.args[0] === "status" && s.args[1] === "active"));
+  });
+  test("no account, no memberships or any read problem: she owns none, her page is unchanged", async () => {
+    assert.deepEqual(await collectiveTenantIdsOwnedByTalent(fakeDb({ talent_profiles: { data: { user_id: null } } }) as never, "tal"), []);
+    assert.deepEqual(await collectiveTenantIdsOwnedByTalent(fakeDb({ talent_profiles: { data: { user_id: "u" } }, agency_memberships: { data: null, error: { message: "x" } } }) as never, "tal"), []);
+    assert.deepEqual(await collectiveTenantIdsOwnedByTalent({ from: () => { throw new Error("x"); } } as never, "tal"), []);
+  });
+  const r = (id: string, createdAt: string, body: string | null = "Great") => ({ id, body, rating: 5, createdAt, clientName: null });
+  test("her own reviews and the collective's merge newest first, no duplicates, empty bodies dropped, capped", () => {
+    const merged = mergeOwnerPageReviews(
+      [r("a", "2026-10-01"), r("dup", "2026-10-03")],
+      [r("dup", "2026-10-03"), r("b", "2026-10-05"), r("empty", "2026-10-09", "  ")],
+      3,
+    );
+    assert.deepEqual(merged.map((x) => x.id), ["b", "dup", "a"]);
+    assert.equal(mergeOwnerPageReviews([r("a", "2026-10-01"), r("b", "2026-10-02")], [], 1).length, 1);
+  });
+  test("the collective's reviews never carry a client name (the page shows the quote and the rating only)", () => {
+    const merged = mergeOwnerPageReviews([], [{ ...r("w", "2026-10-02"), clientName: "Luis" }], 5);
+    assert.equal(merged[0].clientName, null);
+  });
+  test("wiring: the reviews source adds the collective's reviews only for a collective owner", () => {
+    const src = read("../site-admin/builder-node/reviews-sources.ts");
+    assert.match(src, /collectiveTenantIdsOwnedByTalent\(/);
+    assert.match(src, /mergeOwnerPageReviews\(/);
   });
 });
