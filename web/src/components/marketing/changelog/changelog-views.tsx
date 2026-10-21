@@ -68,7 +68,8 @@ export async function changelogIndexMetadata(locale: ChangelogLocale): Promise<M
   const c = COPY[locale];
   const launched = await isChangelogLive();
   return {
-    title: `${c.title} · Tulala`,
+    // TUL-1799: the root layout title template already appends "· Tulala"; the index title says Tulala itself.
+    title: { absolute: c.title },
     description: c.lede,
     metadataBase: new URL(ORIGIN),
     alternates: {
@@ -85,10 +86,10 @@ export async function changelogEntryMetadata(id: string, locale: ChangelogLocale
   const row = await loadChangelogRow(id);
   const launched = await isChangelogLive();
   const robots = launched ? { index: true, follow: true } : { index: false, follow: true };
-  if (!row) return { title: `${COPY[locale].title} · Tulala`, robots: { index: false, follow: false } };
+  if (!row) return { title: { absolute: COPY[locale].title }, robots: { index: false, follow: false } };
   const e = toEntryView(row, locale);
   return {
-    title: `${e.title} · Tulala`,
+    title: e.title, // the layout template adds the single "· Tulala" suffix
     description: e.summary.slice(0, 200),
     metadataBase: new URL(ORIGIN),
     alternates: {

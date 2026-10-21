@@ -15,6 +15,7 @@ export function TermsEs() {
       title="Términos de servicio"
       lastUpdated="2026-10-01"
       lastUpdatedLabel="Última actualización"
+      locale="es"
       intro={
         <p>
           Al usar {PLATFORM_BRAND.name}{" "}aceptas estos términos. Los hemos mantenido breves y

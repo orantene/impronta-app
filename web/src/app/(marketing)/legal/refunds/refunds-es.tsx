@@ -16,6 +16,7 @@ export function RefundsEs() {
       title="Política de reembolsos"
       lastUpdated="2026-10-01"
       lastUpdatedLabel="Última actualización"
+      locale="es"
       intro={
         <p>
           Esta página explica cómo funcionan los reembolsos cuando un cliente paga a un
