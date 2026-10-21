@@ -1782,6 +1782,14 @@
       "dismiss": "No, gracias",
       "regionLabel": "Sugerencia de idioma"
     },
+    "hubLanding": {
+      "agenciesTitle": "Agencias en la plataforma",
+      "tagline": "Cada agencia tiene su propio sitio en su propio dominio. Visita una para ver su elenco y enviar una consulta.",
+      "noAgencies": "Aún no hay agencias activas.",
+      "searchAgencies": "Buscar agencias",
+      "noMatch": "Ninguna agencia coincide con tu búsqueda.",
+      "featured": "Destacados en el hub"
+    },
     "menuBoard": {
       "contactRequired": "El nombre, el correo y el teléfono son obligatorios.",
       "decrease": "Quitar uno de {item}",

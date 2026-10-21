@@ -11,7 +11,7 @@ export function hubAgencyLabel(item: HubAgencyItem): { title: string; sub: strin
 }
 
 /** Hub landing agency list with a small search box (TUL-978). Matches the name and the domain. */
-export function HubAgencyList({ agencies }: { agencies: HubAgencyItem[] }) {
+export function HubAgencyList({ agencies, labels }: { agencies: HubAgencyItem[]; labels: { search: string; noMatch: string } }) {
   const [q, setQ] = useState("");
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -26,13 +26,13 @@ export function HubAgencyList({ agencies }: { agencies: HubAgencyItem[] }) {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search agencies"
-          aria-label="Search agencies"
+          placeholder={labels.search}
+          aria-label={labels.search}
           className="mb-4 w-full rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-transparent px-4 py-2.5 text-sm text-foreground outline-none"
         />
       ) : null}
       {shown.length === 0 ? (
-        <p className="text-sm text-[var(--impronta-muted)]">No agencies match your search.</p>
+        <p className="text-sm text-[var(--impronta-muted)]">{labels.noMatch}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {shown.map((agency) => {
