@@ -80,6 +80,7 @@ src/lib/guide/guide-search.test.ts
 src/lib/i18n/place-names-es.test.ts
 src/lib/inquiry/inquiry-action-log.test.ts
 src/lib/locale-time.test.ts
+src/lib/media/asset-usage.server.test.ts
 src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
