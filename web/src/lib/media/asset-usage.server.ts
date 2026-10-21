@@ -31,10 +31,28 @@ export type AssetUsage = Record<AssetUsageKind, string[]> & {
   unchecked: boolean;
 };
 
+/** A named place that uses an image: a site page, a service or a product. */
+export type AssetUsagePlace = {
+  assetId: string;
+  kind: "page" | "service" | "product";
+  id: string;
+  /** Display name; empty when the row has none (the UI shows a localized fallback). */
+  name: string;
+  /** Admin link target, relative to the workspace host. */
+  href: string;
+};
+
 export type AssetUsageResult = AssetUsage & {
   /** Every id that must not be deleted, for any reason above. */
   blocked: string[];
+  /** Pages, services and products that use the images, by name. */
+  places: AssetUsagePlace[];
 };
+
+/** Kinds the owner may knowingly delete anyway. Brand, posts, events and talent never are. */
+const OVERRIDABLE: readonly AssetUsageKind[] = ["pages", "services"];
+
+type Ref = { assetId: string; kind: "page" | "service"; id: string };
 
 type TargetRow = {
   id: string;
@@ -44,7 +62,7 @@ type TargetRow = {
   variant_kind?: string | null;
 };
 
-type Found = { ids: Set<string>; complete: boolean };
+type Found = { ids: Set<string>; complete: boolean; refs: Ref[] };
 type DbError = { code?: string; message?: string } | null;
 
 /** A table or column the database does not have yet means "nothing there references it". */
@@ -52,7 +70,7 @@ function isMissingRelation(error: DbError): boolean {
   return error?.code === "42P01" || error?.code === "42703" || error?.code === "PGRST205";
 }
 
-const empty = (complete = true): Found => ({ ids: new Set(), complete });
+const empty = (complete = true): Found => ({ ids: new Set(), complete, refs: [] });
 
 /** Rows of `table` whose `column` holds one of the asset ids. */
 async function byIdColumn(admin: SupabaseClient, table: string, column: string, ids: string[]): Promise<Found> {
@@ -80,7 +98,7 @@ async function scanJson(
   columns: string,
   tenantId: string,
   targets: TargetRow[],
-  opts: { skipArchived?: boolean } = {},
+  opts: { skipArchived?: boolean; pageRef?: boolean } = {},
 ): Promise<Found> {
   const out = empty();
   for (let page = 0; page < ASSET_USAGE_MAX_PAGES; page++) {
@@ -97,7 +115,11 @@ async function scanJson(
     for (const row of rows) {
       const hay = JSON.stringify(row);
       for (const t of targets) {
-        if (!out.ids.has(t.id) && (hay.includes(t.id) || (t.storage_path ? hay.includes(t.storage_path) : false))) out.ids.add(t.id);
+        if (hay.includes(t.id) || (t.storage_path ? hay.includes(t.storage_path) : false)) {
+          out.ids.add(t.id);
+          const pageId = opts.pageRef ? (row as { page_id?: unknown }).page_id : null;
+          if (typeof pageId === "string") out.refs.push({ assetId: t.id, kind: "page", id: pageId });
+        }
       }
     }
     if (rows.length < ASSET_USAGE_PAGE_SIZE) return out;
@@ -105,10 +127,28 @@ async function scanJson(
   return empty(false);
 }
 
+/** Pages whose share image is one of the assets. */
+async function pageShareUsage(admin: SupabaseClient, tenantId: string, ids: string[]): Promise<Found> {
+  const res = await admin.from("cms_pages").select("id, og_image_media_asset_id").eq("tenant_id", tenantId).in("og_image_media_asset_id", ids);
+  if (res.error) {
+    if (isMissingRelation(res.error)) return empty();
+    logServerError("media.assetUsage.cms_pages", res.error);
+    return empty(false);
+  }
+  const out = empty();
+  for (const r of (res.data ?? []) as unknown as { id: string; og_image_media_asset_id: string | null }[]) {
+    if (!r.og_image_media_asset_id) continue;
+    out.ids.add(r.og_image_media_asset_id);
+    out.refs.push({ assetId: r.og_image_media_asset_id, kind: "page", id: r.id });
+  }
+  return out;
+}
+
 async function merge(...parts: Promise<Found>[]): Promise<Found> {
   const out = empty();
   for (const p of await Promise.all(parts)) {
     p.ids.forEach((id) => out.ids.add(id));
+    out.refs.push(...p.refs);
     if (!p.complete) out.complete = false;
   }
   return out;
@@ -130,7 +170,11 @@ async function serviceUsage(admin: SupabaseClient, tenantId: string, assetIds: s
       return empty(false);
     }
     const mine = new Set((offerings.data as { id: string }[]).map((o) => o.id));
-    for (const r of rows) if (mine.has(r.offering_id)) out.ids.add(r.media_asset_id);
+    for (const r of rows) {
+      if (!mine.has(r.offering_id)) continue;
+      out.ids.add(r.media_asset_id);
+      out.refs.push({ assetId: r.media_asset_id, kind: "service", id: r.offering_id });
+    }
   }
   return merge(Promise.resolve(out), byIdColumn(admin, "talent_addon_groups", "media_asset_id", assetIds));
 }
@@ -162,7 +206,7 @@ async function talentUsage(admin: SupabaseClient, targets: TargetRow[]): Promise
 export async function findAssetUsage(admin: SupabaseClient, tenantId: string, assetIds: string[]): Promise<AssetUsageResult> {
   const none = (): AssetUsage => ({ brand: [], pages: [], posts: [], services: [], events: [], talent: [], unchecked: false });
   const wanted = [...new Set(assetIds.filter(Boolean))];
-  if (wanted.length === 0) return { ...none(), blocked: [] };
+  if (wanted.length === 0) return { ...none(), blocked: [], places: [] };
 
   const targetsRes = await admin
     .from("media_assets")
@@ -171,11 +215,11 @@ export async function findAssetUsage(admin: SupabaseClient, tenantId: string, as
     .in("id", wanted);
   if (targetsRes.error || !targetsRes.data) {
     logServerError("media.assetUsage.targets", targetsRes.error);
-    return { ...none(), unchecked: true, blocked: wanted };
+    return { ...none(), unchecked: true, blocked: wanted, places: [] };
   }
   const targets = targetsRes.data as TargetRow[];
   const ids = targets.map((t) => t.id);
-  if (ids.length === 0) return { ...none(), blocked: [] };
+  if (ids.length === 0) return { ...none(), blocked: [], places: [] };
 
   const [wordmarkOrFavicon, brandExtras, pages, posts, services, events, talent] = await Promise.all([
     listProtectedBrandAssetIds(admin, tenantId, ids),
@@ -185,8 +229,8 @@ export async function findAssetUsage(admin: SupabaseClient, tenantId: string, as
       byIdColumn(admin, "agency_business_identity", "seo_default_share_image_media_asset_id", ids),
     ),
     merge(
-      scanJson(admin, "cms_sections", "props_jsonb", tenantId, targets, { skipArchived: true }),
-      byIdColumn(admin, "cms_pages", "og_image_media_asset_id", ids),
+      scanJson(admin, "cms_sections", "page_id, props_jsonb", tenantId, targets, { skipArchived: true, pageRef: true }),
+      pageShareUsage(admin, tenantId, ids),
     ),
     scanJson(admin, "cms_posts", "cover_image_url, body_blocks", tenantId, targets),
     serviceUsage(admin, tenantId, ids),
@@ -206,7 +250,78 @@ export async function findAssetUsage(admin: SupabaseClient, tenantId: string, as
   const blocked = new Set<string>(KINDS.flatMap((k) => usage[k]));
   // A lookup we could not finish cannot clear anything: every asset stays blocked.
   if (usage.unchecked) for (const id of ids) blocked.add(id);
-  return { ...usage, blocked: [...blocked] };
+  const refs = [...pages.refs, ...services.refs];
+  const places = usage.unchecked ? [] : await resolvePlaces(admin, tenantId, refs);
+  return { ...usage, blocked: [...blocked], places };
+}
+
+/** Look up the display name of each page / service that uses an image. A failed lookup leaves the name empty. */
+async function resolvePlaces(admin: SupabaseClient, tenantId: string, refs: Ref[]): Promise<AssetUsagePlace[]> {
+  const pageIds = [...new Set(refs.filter((r) => r.kind === "page").map((r) => r.id))];
+  const offeringIds = [...new Set(refs.filter((r) => r.kind === "service").map((r) => r.id))];
+  const pageNames = new Map<string, string>();
+  const offerings = new Map<string, { name: string; product: boolean }>();
+  if (pageIds.length > 0) {
+    const res = await admin.from("cms_pages").select("id, title").eq("tenant_id", tenantId).in("id", pageIds);
+    if (res.error) logServerError("media.assetUsage.pageNames", res.error);
+    for (const r of (res.data ?? []) as { id: string; title: string | null }[]) pageNames.set(r.id, r.title ?? "");
+  }
+  if (offeringIds.length > 0) {
+    const res = await admin.from("talent_offerings").select("id, title, kind").eq("tenant_id", tenantId).in("id", offeringIds);
+    if (res.error) logServerError("media.assetUsage.offeringNames", res.error);
+    for (const r of (res.data ?? []) as { id: string; title: string | null; kind?: string | null }[]) {
+      offerings.set(r.id, { name: r.title ?? "", product: r.kind === "product" });
+    }
+  }
+  const seen = new Set<string>();
+  const out: AssetUsagePlace[] = [];
+  for (const r of refs) {
+    const key = `${r.assetId}:${r.kind}:${r.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (r.kind === "page") {
+      out.push({ assetId: r.assetId, kind: "page", id: r.id, name: pageNames.get(r.id) ?? "", href: `/admin/site-settings/content/pages/${r.id}` });
+    } else {
+      const o = offerings.get(r.id);
+      out.push({ assetId: r.assetId, kind: o?.product ? "product" : "service", id: r.id, name: o?.name ?? "", href: "/admin/catalog" });
+    }
+  }
+  return out;
+}
+
+/** Ids still blocked once the owner's "delete anyway" choice is applied. Brand, posts, events and talent never lift. */
+export function assetIdsStillBlocked(usage: AssetUsageResult, allowInUse: boolean): string[] {
+  if (usage.unchecked || !allowInUse) return usage.blocked;
+  const hard = new Set<string>(KINDS.filter((k) => !OVERRIDABLE.includes(k)).flatMap((k) => usage[k]));
+  return [...hard];
+}
+
+export type AssetDeleteGuard = {
+  error: string;
+  /** What the UI needs for the second confirm. */
+  usage: { canOverride: boolean; places: AssetUsagePlace[] };
+};
+
+/**
+ * The server-side gate for a media delete. Returns null when the delete may go ahead. `allowInUse`
+ * is the owner's explicit "delete anyway": it lifts page and service/product uses only, and is
+ * re-checked here against fresh usage, so a client flag alone never frees a wordmark or favicon.
+ */
+export async function guardAssetDelete(
+  admin: SupabaseClient,
+  tenantId: string,
+  ids: string[],
+  opts: { allowInUse?: boolean; locale?: UsageLocale } = {},
+): Promise<AssetDeleteGuard | null> {
+  const usage = await findAssetUsage(admin, tenantId, ids);
+  if (usage.blocked.length === 0) return null;
+  const locale = opts.locale ?? "en";
+  const still = assetIdsStillBlocked(usage, opts.allowInUse === true);
+  if (still.length === 0) return null;
+  const hardOnly = opts.allowInUse === true && !usage.unchecked;
+  const shown: AssetUsageResult = hardOnly ? { ...usage, pages: [], services: [], blocked: still, places: [] } : usage;
+  const canOverride = !usage.unchecked && assetIdsStillBlocked(usage, true).length === 0;
+  return { error: describeAssetUsageRefusal(shown, locale), usage: { canOverride, places: hardOnly ? [] : usage.places } };
 }
 
 export type UsageLocale = "en" | "es";
@@ -237,8 +352,13 @@ export function describeAssetUsageRefusal(usage: AssetUsageResult, locale: Usage
       ? "No pudimos comprobar si estas imágenes están en uso. No se eliminó nada. Inténtalo de nuevo en un momento."
       : "We could not check whether these images are in use. Nothing was deleted. Try again in a moment.";
   }
+  const allPlaces = usage.places ?? [];
+  const named = allPlaces.filter((p) => p.name).slice(0, 5);
+  const more = allPlaces.length - named.length;
+  const list = named.map((p) => `"${p.name}"`).join(", ");
+  const names = named.length === 0 ? "" : locale === "es" ? ` Usadas en: ${list}${more > 0 ? ` y ${more} más` : ""}.` : ` Used by: ${list}${more > 0 ? ` and ${more} more` : ""}.`;
   const where = KINDS.filter((k) => usage[k].length > 0).map((k) => `${usage[k].length} ${WHERE[locale][k]}`);
   return locale === "es"
-    ? `No se eliminó nada: ${usage.blocked.length} imagen(es) seleccionada(s) están en uso (${where.join("; ")}). Reemplázalas allí primero.`
-    : `Nothing was deleted: ${usage.blocked.length} selected image(s) are in use (${where.join("; ")}). Replace them there first.`;
+    ? `No se eliminó nada: ${usage.blocked.length} imagen(es) seleccionada(s) están en uso (${where.join("; ")}). Reemplázalas allí primero.${names}`
+    : `Nothing was deleted: ${usage.blocked.length} selected image(s) are in use (${where.join("; ")}). Replace them there first.${names}`;
 }
