@@ -47,6 +47,8 @@ import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { isDefiniteStripeFailure } from "@/lib/billing/stripe-failure";
+import { applyPendingDowngradeAtTierDrop, clearPendingOnTierIncrease } from "@/lib/billing/workspace-downgrade-archive";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
@@ -54,7 +56,7 @@ import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
 export type BillingResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; /** false = Stripe may still have applied the write (TUL-1737); omitted = definite */ definite?: boolean };
 
 export type { WorkspaceSubscriptionState } from "@/lib/stripe/workspace-subscription-reads";
 export { hasLiveWorkspaceSubscription, loadWorkspaceSubscriptionState } from "@/lib/stripe/workspace-subscription-reads";
@@ -535,6 +537,24 @@ export async function syncStripeSubscriptionToDb(
       });
     }
 
+    // TUL-1737: the tier has now actually moved. If the owner chose which talent to keep when they scheduled this
+    // downgrade, archive the overflow NOW (period end), under the same archive_event id. Skipped when the tier write
+    // failed (the retry redoes both) and a no-op unless newPlanTier reached the downgrade's target. A failure here
+    // fails the sync so Stripe retries; the pending row stays until the archive lands.
+    if (!agencyError) {
+      // An upgrade since the downgrade was scheduled supersedes it: drop the stale keep-list first (TUL-1737).
+      const superseded = await clearPendingOnTierIncrease(sb, { tenantId, priorTier: priorPlanTier, newTier: newPlanTier });
+      if (!superseded.ok) {
+        logServerError("workspace-billing.syncSubscription.clearPending", superseded.error);
+        return { ok: false, error: "Failed to clear the superseded downgrade." };
+      }
+      const pending = await applyPendingDowngradeAtTierDrop(sb, { tenantId, newTier: newPlanTier, nowIso: new Date().toISOString() });
+      if (!pending.ok) {
+        logServerError("workspace-billing.syncSubscription.downgradeArchive", pending.error);
+        return { ok: false, error: "Failed to archive the roster for the scheduled downgrade." };
+      }
+    }
+
     return { ok: true, data: undefined };
   } catch (err) {
     logServerError("workspace-billing.syncSubscription", err);
@@ -708,7 +728,7 @@ export async function cancelWorkspaceSubscriptionAtPeriodEnd(
     return { ok: true, data: { effectiveAt, hadSubscription: true } };
   } catch (err) {
     logServerError("workspace-billing.cancelAtPeriodEnd", err);
-    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed.", definite: isDefiniteStripeFailure(err) };
   }
 }
 

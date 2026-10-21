@@ -101,10 +101,10 @@ test("payment methods: a role refusal says forbidden, not unauthenticated", () =
 test("plan downgrade: commit + restore need the billing gate; commit must go down", () => {
   const src = read("admin-plan-downgrade.ts");
   const commit = exported(src, "commitPlanDowngrade");
-  assertGateFirst(commit, "planChange", '.from("agency_talent_roster")', "commitPlanDowngrade");
+  assertGateFirst(commit, "planChange", "archiveRosterOverflow(", "commitPlanDowngrade");
   assert.match(commit, /isStrictPlanDowngrade\(/);
   assert.ok(
-    commit.indexOf("isStrictPlanDowngrade(") < commit.indexOf('.from("agency_talent_roster")'),
+    commit.indexOf("isStrictPlanDowngrade(") < commit.indexOf("archiveRosterOverflow("),
     "direction check runs before any roster row is archived",
   );
   assertGateFirst(

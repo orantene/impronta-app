@@ -11327,7 +11327,8 @@
         "cancelPending": "Keep your current plan and cancel the change you scheduled.",
         "noChange": "You are already on this plan.",
         "confirm": "Confirm change",
-        "cancel": "Not now"
+        "cancel": "Not now",
+        "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."
       }
     },
     "adminIntegrationsCatalog": {
