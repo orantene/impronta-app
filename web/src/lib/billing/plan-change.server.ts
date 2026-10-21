@@ -14,6 +14,8 @@ import { toCatalogInterval } from "./checkout-interval";
 import { logServerError } from "@/lib/server/safe-error";
 import { confirmPlanChange, previewPlanChange, type PlanChangeRequest } from "./plan-change";
 import type { PlanChangeConfirm, PlanChangePreview } from "./plan-change-policy";
+import { isExistingSubscriptionStatus } from "./subscription-live-status";
+import { clearPendingDowngrade, recordPendingDowngrade, type PendingDowngrade } from "./workspace-downgrade-archive";
 import { cancelWorkspaceSubscriptionAtPeriodEnd } from "@/lib/stripe/workspace-billing";
 import {
   applyWorkspaceDowngradeAtStripe,
@@ -79,12 +81,33 @@ export async function confirmPlanChangeFor(
   if ("error" in req) return { ok: false, error: req.error, code: req.code };
   const out = await confirmPlanChange(stripe, req, prorationDate);
   if (!out.ok) logServerError("billing.planChange.confirm", out.error);
+  else if (kind === "workspace") {
+    // TUL-1737: any confirmed in-app plan change supersedes a stored downgrade keep-list (best effort; the webhook also
+    // clears it on a tier increase).
+    const sb = createServiceRoleClient();
+    if (sb) {
+      const cleared = await clearPendingDowngrade(sb, subjectId);
+      if (!cleared.ok) logServerError("billing.planChange.clearPending", cleared.error);
+    }
+  }
   return out;
 }
 
 /** TUL-1518: tell Stripe about a workspace downgrade BEFORE anything local changes (see workspace-downgrade-stripe.ts). */
-export async function applyWorkspaceDowngrade(tenantId: string, target: WorkspaceDowngradeTarget): Promise<WorkspaceDowngradeStripeResult> {
+export async function applyWorkspaceDowngrade(
+  tenantId: string,
+  target: WorkspaceDowngradeTarget,
+  /** TUL-1737: the owner's keep-list, stored with the pending change so the webhook archives at period end. */
+  pending: PendingDowngrade,
+): Promise<WorkspaceDowngradeStripeResult> {
   const out = await applyWorkspaceDowngradeAtStripe(tenantId, target, {
+    async recordPending(id) {
+      const sb = createServiceRoleClient();
+      if (!sb) return { ok: false };
+      const r = await recordPendingDowngrade(sb, id, pending);
+      if (!r.ok) logServerError("billing.workspaceDowngrade.recordPending", r.error);
+      return r.ok ? { ok: true } : { ok: false };
+    },
     async readSubscriptionId(id) {
       const sb = createServiceRoleClient();
       if (!sb) throw new Error("no database client");
@@ -92,7 +115,7 @@ export async function applyWorkspaceDowngrade(tenantId: string, target: Workspac
       if (error) throw error;
       const row = data as { stripe_subscription_id?: string | null; status?: string | null } | null;
       if (!row?.stripe_subscription_id) return null;
-      return ["canceled", "cancelled", "incomplete_expired"].includes(String(row.status ?? "")) ? null : row.stripe_subscription_id;
+      return isExistingSubscriptionStatus(row.status) ? row.stripe_subscription_id : null; // unpaid/incomplete/paused are existing (TUL-1737)
     },
     stripe: () => getStripe(),
     async resolvePriceId(plan, interval) {
@@ -101,7 +124,13 @@ export async function applyWorkspaceDowngrade(tenantId: string, target: Workspac
     },
     async cancelAtPeriodEnd(id) {
       const r = await cancelWorkspaceSubscriptionAtPeriodEnd(id);
-      return r.ok ? { ok: true, effectiveAt: r.data.effectiveAt } : { ok: false, error: r.error };
+      return r.ok ? { ok: true, effectiveAt: r.data.effectiveAt } : { ok: false, error: r.error, definite: r.definite };
+    },
+    async clearPending(id) {
+      const sb = createServiceRoleClient();
+      if (!sb) return;
+      const r = await clearPendingDowngrade(sb, id);
+      if (!r.ok) logServerError("billing.workspaceDowngrade.clearPending", r.error);
     },
     now: () => Date.now(),
   });

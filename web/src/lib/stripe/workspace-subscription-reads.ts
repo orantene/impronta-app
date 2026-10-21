@@ -8,6 +8,7 @@
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { isExistingSubscriptionStatus } from "@/lib/billing/subscription-live-status";
 
 export type WorkspaceSubscriptionState = {
   stripeSubscriptionId: string;
@@ -41,7 +42,8 @@ export async function hasLiveWorkspaceSubscription(tenantId: string): Promise<bo
   if (error) throw error;
   const row = data as { stripe_subscription_id?: string | null; status?: string | null } | null;
   if (!row?.stripe_subscription_id) return false;
-  return !["canceled", "cancelled", "incomplete_expired"].includes(String(row.status ?? ""));
+  // unpaid / incomplete / paused still count as a live subscription (TUL-1737).
+  return isExistingSubscriptionStatus(row.status);
 }
 
 /**
