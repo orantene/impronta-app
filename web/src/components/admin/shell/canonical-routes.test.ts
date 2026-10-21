@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pathIsCanonical } from "./canonical-routes";
+import { pathIsCanonical, pathIsTalentShellHosted } from "./canonical-routes";
 import { DESTINATIONS } from "@/lib/workspace/destinations";
 
 /** Absolute path to `web/`, derived from this file rather than from cwd. */
@@ -215,4 +215,16 @@ test("People is canonical on both host shapes, from the registry and not by hand
   // (they are real server pages) — that is unchanged, and it is why the People
   // row can go on linking to them from their `adminPath`.
   assert.equal(pathIsCanonical("/impronta/admin/roster/applications"), true);
+});
+
+test("TUL-1819: only /talent/trust is hosted inside the talent shell", () => {
+  assert.equal(pathIsTalentShellHosted("/talent/trust"), true);
+  assert.equal(pathIsTalentShellHosted("/impronta/talent/trust"), true);
+  // Bare / standalone talent canonical routes keep yielding.
+  for (const p of ["/talent/page-builder", "/talent/onboarding", "/talent/discover", "/talent/get-found"]) {
+    assert.equal(pathIsTalentShellHosted(p), false, p);
+  }
+  assert.equal(pathIsTalentShellHosted("/talent/today"), false);
+  assert.equal(pathIsTalentShellHosted("/admin/trust"), false);
+  assert.equal(pathIsTalentShellHosted(null), false);
 });
