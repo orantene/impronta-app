@@ -99,13 +99,5 @@ export const RENT_COPY = {
 } as const;
 export type RentCopy = (typeof RENT_COPY)[keyof typeof RENT_COPY];
 
-export function rentRefusalText(reason: string, c: RentCopy): string {
-  switch (reason) {
-    case "disabled": return c.off;
-    case "not_test_mode": return c.notTest;
-    case "not_accepted": return c.notAccepted;
-    case "not_active": return c.notActive;
-    case "needs_approval": return c.needsApproval;
-    default: return c.unavailable;
-  }
-}
+/** Kept for existing importers; client code imports it from `./rent-refusal` (no copy tables). */
+export { rentRefusalText } from "./rent-refusal";

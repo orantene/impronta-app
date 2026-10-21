@@ -9,6 +9,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { collectiveSplitEnabled, parseOwnerShareRow } from "@/lib/service-hub/collective-split";
 import { FRIENDS_COLLECTIVE_MODEL } from "@/lib/service-hub/friends-collective";
 import { loadWorkspaceReviews } from "@/lib/reviews/collective-reviews";
+import { COLLECTIVE_COPY } from "@/lib/service-hub/friends-collective-copy";
 import { CollectiveSharesCard, type CollectiveMember, type CollectiveReview } from "./CollectiveSharesCard";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -48,7 +49,7 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
   }
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <CollectiveSharesCard locale={locale} isCollective={workModel === FRIENDS_COLLECTIVE_MODEL} members={members} reviews={reviews} splitOn={collectiveSplitEnabled()} />
+      <CollectiveSharesCard locale={locale} copy={COLLECTIVE_COPY[locale]} isCollective={workModel === FRIENDS_COLLECTIVE_MODEL} members={members} reviews={reviews} splitOn={collectiveSplitEnabled()} />
     </main>
   );
 }

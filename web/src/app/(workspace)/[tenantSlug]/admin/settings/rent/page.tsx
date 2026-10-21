@@ -77,7 +77,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
   }
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <RentCard locale={locale} gate={gate.ok ? "on" : gate.reason} plans={plans} members={members} safety={safety} />
+      <RentCard locale={locale} copy={RENT_COPY[locale]} gate={gate.ok ? "on" : gate.reason} plans={plans} members={members} safety={safety} />
     </main>
   );
 }

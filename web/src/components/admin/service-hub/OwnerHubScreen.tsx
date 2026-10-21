@@ -20,8 +20,9 @@ import {
   updateEntryAction,
 } from "@/lib/server-actions/service-hub-entries";
 import type { HubEntry, OwnerHub } from "@/lib/service-hub/entries.server";
-import { fieldsAllowed, type HubRole } from "@/lib/service-hub/entry-permissions";
-import { blockerSentence, ownerHubCopy, type OwnerHubCopy } from "@/lib/service-hub/owner-hub-copy";
+import type { HubRole } from "@/lib/service-hub/entry-permissions";
+import { blockerSentence } from "@/lib/service-hub/owner-hub-blockers";
+import type { OwnerHubCopy } from "@/lib/service-hub/owner-hub-copy";
 
 type Ok = Extract<OwnerHub, { ok: true }>;
 
@@ -61,8 +62,8 @@ function useRun(c: OwnerHubCopy) {
   return { busy, message, run };
 }
 
-function EntrySettings({ entry, roles, locale, c }: { entry: HubEntry; roles: readonly HubRole[]; locale: string; c: OwnerHubCopy }) {
-  const allowed = new Set<string>(fieldsAllowed(roles));
+function EntrySettings({ entry, allowedFields, locale, c }: { entry: HubEntry; allowedFields: readonly string[]; locale: string; c: OwnerHubCopy }) {
+  const allowed = new Set<string>(allowedFields);
   const [name, setName] = useState(entry.name);
   const [category, setCategory] = useState(entry.category ?? "");
   const [price, setPrice] = useState(entry.hubPriceCents == null ? "" : String(entry.hubPriceCents / 100));
@@ -136,7 +137,7 @@ function EntrySettings({ entry, roles, locale, c }: { entry: HubEntry; roles: re
   );
 }
 
-function EntryCard({ entry, others, roles, locale, c }: { entry: HubEntry; others: readonly HubEntry[]; roles: readonly HubRole[]; locale: string; c: OwnerHubCopy }) {
+function EntryCard({ entry, others, roles, allowedFields, locale, c }: { entry: HubEntry; others: readonly HubEntry[]; roles: readonly HubRole[]; allowedFields: readonly string[]; locale: string; c: OwnerHubCopy }) {
   const [open, setOpen] = useState(false);
   const [mergeId, setMergeId] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
@@ -188,13 +189,17 @@ function EntryCard({ entry, others, roles, locale, c }: { entry: HubEntry; other
         ) : null}
         {message ? <span role="alert" className="text-admin-12 text-admin-ink-muted">{message}</span> : null}
       </div>
-      {open ? <EntrySettings entry={entry} roles={roles} locale={locale} c={c} /> : null}
+      {open ? <EntrySettings entry={entry} allowedFields={allowedFields} locale={locale} c={c} /> : null}
     </li>
   );
 }
 
-export function OwnerHubScreen({ hub, roles, locale }: { hub: Ok; roles: readonly HubRole[]; locale: string }) {
-  const c = ownerHubCopy(locale);
+/**
+ * `copy` (the active locale's table) and `allowedFields` (`fieldsAllowed(roles)`) are resolved on the
+ * server page, so neither the other language nor the permission rules ship to the browser.
+ */
+export function OwnerHubScreen({ hub, roles, locale, copy, allowedFields }: { hub: Ok; roles: readonly HubRole[]; locale: string; copy: OwnerHubCopy; allowedFields: readonly string[] }) {
+  const c = copy;
   const { busy, message, run } = useRun(c);
   const canQueue = roles.includes("admin") || roles.includes("editor");
   const byId = new Map(hub.entries.map((e) => [e.id, e]));
@@ -262,7 +267,7 @@ export function OwnerHubScreen({ hub, roles, locale }: { hub: Ok; roles: readonl
         <h2 className="m-0 text-[16px] font-semibold text-admin-ink">{c.entriesTitle}</h2>
         {hub.entries.length === 0 ? <p className="m-0 text-admin-13 text-admin-ink-muted">{c.entriesEmpty}</p> : (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {hub.entries.map((e) => <EntryCard key={e.id} entry={e} others={hub.entries.filter((o) => o.id !== e.id)} roles={roles} locale={locale} c={c} />)}
+            {hub.entries.map((e) => <EntryCard key={e.id} entry={e} others={hub.entries.filter((o) => o.id !== e.id)} roles={roles} allowedFields={allowedFields} locale={locale} c={c} />)}
           </ul>
         )}
       </section>

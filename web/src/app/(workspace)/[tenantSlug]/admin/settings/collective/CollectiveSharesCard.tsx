@@ -8,7 +8,7 @@
  */
 import { useState, useTransition } from "react";
 import { applyFriendsCollectivePreset, setMemberOwnerShare } from "@/lib/service-hub/friends-collective-actions";
-import { COLLECTIVE_COPY } from "@/lib/service-hub/friends-collective-copy";
+import type { CollectiveCopy } from "@/lib/service-hub/friends-collective-copy";
 import type { OwnerShare } from "@/lib/service-hub/friends-collective";
 
 export type CollectiveReview = { id: string; rating: number; body: string };
@@ -17,8 +17,7 @@ export type CollectiveMember = { talentProfileId: string; name: string; share: O
 
 type Mode = "none" | "percent" | "fixed";
 
-function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" | "es" }) {
-  const c = COLLECTIVE_COPY[locale];
+function MemberRow({ member, locale, c }: { member: CollectiveMember; locale: "en" | "es"; c: CollectiveCopy }) {
   const [mode, setMode] = useState<Mode>(member.share?.kind ?? "none");
   const [percent, setPercent] = useState(member.share?.kind === "percent" ? String(member.share.bps / 100) : "");
   const [fixed, setFixed] = useState(member.share?.kind === "fixed" ? String(member.share.amountCents / 100) : "");
@@ -73,8 +72,8 @@ function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" 
   );
 }
 
-export function CollectiveSharesCard({ locale, isCollective, members, reviews, splitOn }: { locale: "en" | "es"; isCollective: boolean; members: CollectiveMember[]; reviews: CollectiveReview[]; splitOn: boolean }) {
-  const c = COLLECTIVE_COPY[locale];
+/** `copy` is the active locale's table, resolved on the server, so only one language ships to the browser. */
+export function CollectiveSharesCard({ locale, copy: c, isCollective, members, reviews, splitOn }: { locale: "en" | "es"; copy: CollectiveCopy; isCollective: boolean; members: CollectiveMember[]; reviews: CollectiveReview[]; splitOn: boolean }) {
   const [on, setOn] = useState(isCollective);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
@@ -110,7 +109,7 @@ export function CollectiveSharesCard({ locale, isCollective, members, reviews, s
           {!splitOn && <p role="note" style={{ fontSize: 13, opacity: 0.75 }}>{c.splitOff}</p>}
           <h2 style={{ fontSize: 15, margin: "8px 0 0" }}>{c.memberHeading}</h2>
           {members.map((m) => (
-            <MemberRow key={m.talentProfileId} member={m} locale={locale} />
+            <MemberRow key={m.talentProfileId} member={m} locale={locale} c={c} />
           ))}
           {reviews.length > 0 && (
             <div data-testid="collective-reviews" style={{ marginTop: 20 }}>

@@ -166,7 +166,5 @@ export function ownerHubCopy(locale: string): OwnerHubCopy {
   return locale.toLowerCase().startsWith("es") ? OWNER_HUB_COPY.es : OWNER_HUB_COPY.en;
 }
 
-export function blockerSentence(c: OwnerHubCopy, blockers: readonly string[]): string {
-  const map: Record<string, string> = { category: c.blockedCategory, duration: c.blockedDuration, booking_type: c.blockedBookingType };
-  return blockers.map((b) => map[b]).filter(Boolean).join(" ");
-}
+/** Kept for existing importers; client code imports it from `./owner-hub-blockers` (no copy tables). */
+export { blockerSentence } from "./owner-hub-blockers";

@@ -7,7 +7,8 @@
  */
 import { useState, useTransition } from "react";
 import { issueRent, proposeRentPlan, setRentPlanStatus } from "@/lib/service-hub/rent/rent-actions";
-import { RENT_COPY, rentRefusalText } from "@/lib/service-hub/rent/rent-copy";
+import type { RentCopy } from "@/lib/service-hub/rent/rent-copy";
+import { rentRefusalText } from "@/lib/service-hub/rent/rent-refusal";
 import type { SafetyRow } from "@/lib/service-hub/rent/rent-safety-view";
 
 export type RentMember = { talentProfileId: string; name: string };
@@ -33,8 +34,8 @@ function money(cents: number, currency: string, locale: "en" | "es"): string {
   }
 }
 
-export function RentCard({ locale, gate, plans, members, safety }: { locale: "en" | "es"; gate: "on" | "disabled" | "not_test_mode"; plans: RentPlanView[]; members: RentMember[]; safety: SafetyRow[] }) {
-  const c = RENT_COPY[locale];
+/** `copy` is the active locale's table, resolved on the server, so only one language ships to the browser. */
+export function RentCard({ locale, copy: c, gate, plans, members, safety }: { locale: "en" | "es"; copy: RentCopy; gate: "on" | "disabled" | "not_test_mode"; plans: RentPlanView[]; members: RentMember[]; safety: SafetyRow[] }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [link, setLink] = useState<string | null>(null);

@@ -6,7 +6,12 @@ import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared
 
 import type { OwnerHub } from "@/lib/service-hub/entries.server";
 import type { EntryListing } from "@/lib/service-hub/entries";
+import { fieldsAllowed, type HubRole } from "@/lib/service-hub/entry-permissions";
+import { ownerHubCopy } from "@/lib/service-hub/owner-hub-copy";
 import { OwnerHubScreen } from "./OwnerHubScreen";
+
+/** The page resolves the active-locale copy and the allowed fields on the server; the test does the same. */
+const screen = (hubArg: Ok, roles: HubRole[], locale: string) => <OwnerHubScreen hub={hubArg} roles={roles} locale={locale} copy={ownerHubCopy(locale)} allowedFields={fieldsAllowed(roles)} />;
 
 type Ok = Extract<OwnerHub, { ok: true }>;
 
@@ -32,7 +37,7 @@ const hub: Ok = {
 
 describe("OwnerHubScreen", () => {
   it("review queue: add to the matching group is the primary action, new entry and skip are there", () => {
-    const html = renderToStaticMarkup(wrap(<OwnerHubScreen hub={hub} roles={["admin"]} locale="en" />));
+    const html = renderToStaticMarkup(wrap(screen(hub, ["admin"], "en")));
     assert.match(html, /To review · 2/);
     assert.match(html, /Add to Massage/);
     assert.match(html, /Make a new entry/);
@@ -43,7 +48,7 @@ describe("OwnerHubScreen", () => {
   });
 
   it("entries list the people, what differs, and the workspace's own service in the same list", () => {
-    const html = renderToStaticMarkup(wrap(<OwnerHubScreen hub={hub} roles={["admin"]} locale="en" />));
+    const html = renderToStaticMarkup(wrap(screen(hub, ["admin"], "en")));
     assert.match(html, /2 people/);
     assert.match(html, /Differs: Price/);
     assert.match(html, /Studio hire/);
@@ -53,7 +58,7 @@ describe("OwnerHubScreen", () => {
   });
 
   it("Spanish", () => {
-    const html = renderToStaticMarkup(wrap(<OwnerHubScreen hub={hub} roles={["admin"]} locale="es" />));
+    const html = renderToStaticMarkup(wrap(screen(hub, ["admin"], "es")));
     assert.match(html, /Por revisar · 2/);
     assert.match(html, /Agregar a Massage/);
     assert.match(html, /Lo que vendes/);
@@ -61,7 +66,7 @@ describe("OwnerHubScreen", () => {
   });
 
   it("a viewer or manager sees the screen but cannot decide the queue (buttons disabled)", () => {
-    const html = renderToStaticMarkup(wrap(<OwnerHubScreen hub={hub} roles={["manager"]} locale="en" />));
+    const html = renderToStaticMarkup(wrap(screen(hub, ["manager"], "en")));
     const q1 = html.slice(html.indexOf('data-testid="queue-q1"'));
     const card = q1.slice(0, q1.indexOf("</li>"));
     assert.equal((card.match(/disabled=""/g) ?? []).length, 3);
@@ -70,7 +75,7 @@ describe("OwnerHubScreen", () => {
 
   it("not ready and empty states are said plainly", () => {
     const empty: Ok = { ...hub, ready: false, entries: [], queue: [], ownServices: [] };
-    const html = renderToStaticMarkup(wrap(<OwnerHubScreen hub={empty} roles={["admin"]} locale="en" />));
+    const html = renderToStaticMarkup(wrap(screen(empty, ["admin"], "en")));
     assert.match(html, /not available yet/);
     assert.match(html, /Nothing to review\./);
     assert.match(html, /No entries yet\./);
