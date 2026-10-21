@@ -2,17 +2,19 @@
 --
 -- (a) A split line's money always adds up in the database, not only in code: the member's cost plus the owner's take
 --     equals the line total. (The 90% cap and the 10% member minimum are already CHECKed by 20261231420200.)
--- (b) The share columns of agency_talent_roster are not readable by `anon`. The public roster SELECT policy exposes whole
---     rows of publicly visible members, so without this the owner's cut of each member was public. Column privileges
---     only bite when there is no table-level grant, so the table-level SELECT is revoked from anon and every OTHER
---     column is granted back (the list is read from the catalog at apply time).
+-- (b) The share columns of agency_talent_roster are not readable by `anon` or `authenticated`. The public roster SELECT policy exposes whole
+--     rows of publicly visible members, so without this the owner's cut of each member was public (to ANY signed-in user too, not only anon). Column privileges
+--     only bite when there is no table-level grant, so the table-level SELECT is revoked from anon AND authenticated and every OTHER
+--     column is granted back to both (the list is read from the catalog at apply time).
 -- (c) Reviews earned inside a Friends collective are collected on the OWNER's page and stay out of the member's public
 --     rating (talent_profiles.rating_avg / rating_count / would_book_again_pct), which feeds directory cards, Discover
 --     and the messages views. The private totals (rating_all_*) still count everything.
 --
 -- ROLLBACK:
 --   ALTER TABLE public.order_lines DROP CONSTRAINT IF EXISTS order_lines_owner_split_sums_chk;
---   GRANT SELECT ON public.agency_talent_roster TO anon;
+--   GRANT SELECT ON public.agency_talent_roster TO anon, authenticated;
+--   DROP TRIGGER IF EXISTS order_lines_owner_split_stale_clear ON public.order_lines;
+--   DROP FUNCTION IF EXISTS public.order_lines_owner_split_stale_clear();
 --   DROP TRIGGER IF EXISTS agencies_work_model_rating_recompute ON public.agencies;
 --   DROP FUNCTION IF EXISTS public.agencies_work_model_rating_recompute();
 --   and re-apply the talent_reviews_recompute_summary body of 20261110040000_reviews_standing_integrity.sql.
@@ -26,6 +28,32 @@ ALTER TABLE public.order_lines
   ADD CONSTRAINT order_lines_owner_split_sums_chk CHECK (
     owner_take_cents IS NULL OR talent_cost_cents = total_cents - owner_take_cents
   );
+
+-- A line whose total changes (a POS quantity change) must not trip the equality above on a frozen split: when the total
+-- moves and the owner's take was NOT rewritten in the same statement, the stale split is cleared (the cost goes back to
+-- the unit price, POS convention) and the next collection re-splits from the new total.
+CREATE OR REPLACE FUNCTION public.order_lines_owner_split_stale_clear()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.total_cents IS DISTINCT FROM OLD.total_cents
+     AND NEW.owner_take_cents IS NOT NULL
+     AND NEW.owner_take_cents IS NOT DISTINCT FROM OLD.owner_take_cents THEN
+    NEW.owner_take_cents := NULL;
+    NEW.owner_share_snapshot := NULL;
+    IF NEW.talent_cost_cents IS NOT DISTINCT FROM OLD.talent_cost_cents THEN
+      NEW.talent_cost_cents := COALESCE(NEW.unit_cents, 0);
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS order_lines_owner_split_stale_clear ON public.order_lines;
+CREATE TRIGGER order_lines_owner_split_stale_clear
+  BEFORE UPDATE ON public.order_lines
+  FOR EACH ROW EXECUTE FUNCTION public.order_lines_owner_split_stale_clear();
 
 -- (b) ------------------------------------------------------------------------------------------------------------
 DO $$
@@ -42,8 +70,8 @@ BEGIN
   IF v_cols IS NULL THEN
     RAISE EXCEPTION 'agency_talent_roster has no readable columns: refusing to change grants';
   END IF;
-  EXECUTE 'REVOKE SELECT ON public.agency_talent_roster FROM anon';
-  EXECUTE format('GRANT SELECT (%s) ON public.agency_talent_roster TO anon', v_cols);
+  EXECUTE 'REVOKE SELECT ON public.agency_talent_roster FROM anon, authenticated';
+  EXECUTE format('GRANT SELECT (%s) ON public.agency_talent_roster TO anon, authenticated', v_cols);
 END $$;
 
 -- (c) ------------------------------------------------------------------------------------------------------------

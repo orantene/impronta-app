@@ -33,10 +33,18 @@ describe("(a) member net + owner take = line total, in the database", () => {
   });
 });
 
-describe("(b) anon cannot read the share columns", () => {
+describe("(a2) a POS quantity change never errors on a frozen split", () => {
+  test("a total change without a new owner take clears the stale split instead of tripping the equality CHECK", () => {
+    assert.match(code, /CREATE TRIGGER order_lines_owner_split_stale_clear\s+BEFORE UPDATE ON public\.order_lines/);
+    assert.match(code, /NEW\.owner_take_cents := NULL;\s+NEW\.owner_share_snapshot := NULL;/);
+    assert.match(code, /NEW\.talent_cost_cents := COALESCE\(NEW\.unit_cents, 0\)/);
+  });
+});
+
+describe("(b) neither anon nor any signed-in user can read the share columns", () => {
   test("table-level SELECT is revoked from anon and every column EXCEPT owner_share_* / pending_share_* is granted back", () => {
-    assert.match(code, /REVOKE SELECT ON public\.agency_talent_roster FROM anon/);
-    assert.match(code, /GRANT SELECT \(%s\) ON public\.agency_talent_roster TO anon/);
+    assert.match(code, /REVOKE SELECT ON public\.agency_talent_roster FROM anon, authenticated/);
+    assert.match(code, /GRANT SELECT \(%s\) ON public\.agency_talent_roster TO anon, authenticated/);
     assert.match(code, /c\.column_name NOT LIKE 'owner\\_share\\_%'/);
     assert.match(code, /c\.column_name NOT LIKE 'pending\\_share\\_%'/);
   });
