@@ -84,6 +84,7 @@ src/lib/locale-time.test.ts
 src/lib/media/asset-usage.server.test.ts
 src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
+src/lib/media/workspace-asset-url.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/coordinator-role-notify.test.ts
 src/lib/notifications/hub-listing-below-minimum.test.ts

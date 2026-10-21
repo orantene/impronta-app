@@ -280,7 +280,7 @@ async function resolveLogoUrl(admin: SupabaseClient, tenantId: string, brief: Br
   if (fromBrief && /^https?:\/\//i.test(fromBrief)) return fromBrief;
   const { data, error } = await admin.from("agency_branding").select("logo_media_asset_id").eq("tenant_id", tenantId).maybeSingle<{ logo_media_asset_id: string | null }>();
   if (error || !data?.logo_media_asset_id) return null;
-  const { data: asset, error: assetErr } = await admin.from("media_assets").select("storage_path, bucket_id").eq("id", data.logo_media_asset_id).maybeSingle<{ storage_path: string | null; bucket_id: string | null }>();
+  const { data: asset, error: assetErr } = await admin.from("media_assets").select("storage_path, bucket_id").eq("tenant_id", tenantId).eq("id", data.logo_media_asset_id).maybeSingle<{ storage_path: string | null; bucket_id: string | null }>();
   if (assetErr || !asset?.storage_path) return null;
   return admin.storage.from(asset.bucket_id ?? "media-public").getPublicUrl(asset.storage_path).data.publicUrl;
 }
