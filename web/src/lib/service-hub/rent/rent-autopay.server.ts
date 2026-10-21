@@ -7,6 +7,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import { rentReversalCents } from "./rent-autopay-refunds";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { afterResponse } from "@/lib/server/after-response";
@@ -155,5 +156,95 @@ export async function syncRentAutopayWithPlan(
   } catch (err) {
     logServerError("rent.autopay.sync", err);
     return { ok: false };
+  }
+}
+
+// ── TUL-1611: refunds and disputes on an automatic rent charge ────────────────────────────────────────────────
+
+export type RentChargeOutcome = "not_rent" | "reversed" | "nothing_to_reverse" | "dispute_flagged" | "retry";
+
+/**
+ * Runs BEFORE the normal refund/dispute routing (which keeps recording every dispute and ignores untracked refunds).
+ * Resolves the charge to a rent invoice (PaymentIntent -> invoice payment -> our row by Stripe invoice id). Not a rent
+ * charge: no-op. A refund or a LOST dispute reverses the studio's proportional share from its transfer
+ * (`rentReversalCents`, cumulative, idempotency-keyed); a new dispute is flagged on the row and the owner is told.
+ */
+export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Stripe, event: Stripe.Event): Promise<RentChargeOutcome> {
+  try {
+    let charge: Stripe.Charge;
+    let lostDisputeCents = 0;
+    let disputeOpened = false;
+    if (event.type === "charge.refunded") {
+      charge = event.data.object as Stripe.Charge;
+    } else if (event.type === "charge.dispute.created" || event.type === "charge.dispute.closed") {
+      const dispute = event.data.object as Stripe.Dispute;
+      const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id;
+      if (!chargeId) return "not_rent";
+      charge = await stripe.charges.retrieve(chargeId);
+      if (event.type === "charge.dispute.closed" && dispute.status === "lost") lostDisputeCents = dispute.amount ?? 0;
+      disputeOpened = event.type === "charge.dispute.created";
+    } else {
+      return "not_rent";
+    }
+    const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
+    if (!pi) return "not_rent";
+    const payments = await stripe.invoicePayments.list({ payment: { type: "payment_intent", payment_intent: pi }, limit: 1 });
+    const inv = payments.data[0]?.invoice;
+    const invoiceId = typeof inv === "string" ? inv : inv?.id;
+    if (!invoiceId) return "not_rent";
+
+    // stripe_invoice_id is unique across workspaces (index): this lookup names exactly one rent row, or none.
+    const { data: row, error } = await admin
+      .from("studio_rent_invoices")
+      .select("id, tenant_id, plan_id, period, talent_profile_id")
+      .eq("stripe_invoice_id", invoiceId)
+      .maybeSingle();
+    if (error) return "retry";
+    if (!row) return "not_rent";
+    const r = row as { id: string; tenant_id: string; plan_id: string; period: string; talent_profile_id: string };
+
+    if (disputeOpened) {
+      await tenantScopedQuery(admin, "studio_rent_invoices", r.tenant_id).update({ disputed_at: new Date().toISOString() }).eq("id", r.id);
+      logServerError("rent.autopay.dispute", new Error(`rent invoice ${r.id} (${r.period}) disputed: charge ${charge.id}`));
+      afterResponse(() =>
+        dispatchEventNotifications({
+          type: "rent.autopay_disputed",
+          tenantId: r.tenant_id,
+          eventId: `rent-dispute:${charge.id}`,
+          payload: { period: r.period, rentUrl: `${getAppUrl()}` },
+        }).catch((err) => logServerError("rent.autopay.disputeNotify", err)),
+      );
+      return "dispute_flagged";
+    }
+
+    const transferId = typeof charge.transfer === "string" ? charge.transfer : charge.transfer?.id;
+    let reversed = 0;
+    if (transferId) {
+      const transfer = await stripe.transfers.retrieve(transferId);
+      const amount = rentReversalCents({
+        chargeCents: charge.amount,
+        transferCents: transfer.amount,
+        alreadyReversedCents: transfer.amount_reversed ?? 0,
+        refundedCents: charge.amount_refunded ?? 0,
+        lostDisputeCents,
+      });
+      if (amount > 0) {
+        const target = (transfer.amount_reversed ?? 0) + amount;
+        await stripe.transfers.createReversal(transferId, { amount }, { idempotencyKey: `rent_reverse_${transferId}_${target}` });
+        reversed = amount;
+      }
+    }
+    const fullyRefunded = (charge.amount_refunded ?? 0) >= charge.amount;
+    await tenantScopedQuery(admin, "studio_rent_invoices", r.tenant_id)
+      .update({
+        refunded_cents: charge.amount_refunded ?? 0,
+        ...(fullyRefunded ? { status: "refunded" } : {}),
+        ...(lostDisputeCents > 0 ? { dispute_lost_at: new Date().toISOString() } : {}),
+      })
+      .eq("id", r.id);
+    return reversed > 0 ? "reversed" : "nothing_to_reverse";
+  } catch (err) {
+    logServerError("rent.autopay.chargeEvent", err);
+    return "retry";
   }
 }
