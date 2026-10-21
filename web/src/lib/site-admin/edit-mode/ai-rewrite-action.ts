@@ -35,6 +35,7 @@ import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { gateAiCall, meterAiCall } from "@/lib/ai/metered-ai";
 
 export type AiRewriteInput = {
   sectionTypeKey: string;
@@ -200,6 +201,9 @@ export async function rewriteFieldWithAi(
     .map(([k, v]) => `- ${k}: ${v.slice(0, 400)}`)
     .join("\n");
 
+  // TUL-1623: the workspace spend cap / request limits, before the paid call.
+  const gate = await gateAiCall(scope.tenantId);
+  if (!gate.ok) return gate;
   const adapter = await resolveAiChatAdapter();
   const userMessageParts = [
     `Section type: ${input.sectionTypeKey}`,
@@ -220,12 +224,14 @@ export async function rewriteFieldWithAi(
   const userMessage = userMessageParts.join("\n");
 
   try {
+    const startedAt = Date.now();
     const result = await adapter.chatCompletion({
       systemPrompt: SYSTEM_PROMPT,
       userMessage,
       temperature: 0.6,
       maxTokens: 600,
     });
+    meterAiCall({ tenantId: scope.tenantId, actorProfileId: auth.user.id, feature: "edit_rewrite_field", provider: adapter.id, model: null, result, startedAt });
     if (!result.ok) {
       return {
         ok: false,
@@ -319,14 +325,18 @@ export async function translateSectionWithAi(
     JSON.stringify(source, null, 2),
   ].join("\n");
 
+  const gate = await gateAiCall(scope.tenantId);
+  if (!gate.ok) return gate;
   const adapter = await resolveAiChatAdapter();
   try {
+    const startedAt = Date.now();
     const result = await adapter.chatCompletion({
       systemPrompt: TRANSLATE_SYSTEM_PROMPT,
       userMessage,
       temperature: 0.3,
       maxTokens: 2400,
     });
+    meterAiCall({ tenantId: scope.tenantId, actorProfileId: auth.user.id, feature: "edit_translate_section", provider: adapter.id, model: null, result, startedAt });
     if (!result.ok) {
       return {
         ok: false,

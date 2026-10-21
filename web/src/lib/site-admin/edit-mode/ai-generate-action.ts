@@ -24,6 +24,7 @@ import {
   type SectionTypeKey,
 } from "@/lib/site-admin/sections/registry";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { gateAiCall, meterAiCall } from "@/lib/ai/metered-ai";
 
 // Reuse the same in-memory rate bucket as the rewrite action would —
 // we re-declare it here to avoid an import cycle. Per-tenant cap of
@@ -119,14 +120,19 @@ export async function generateSectionWithAi(
     `Brief: ${input.prompt.slice(0, 1000)}`,
   ].join("\n");
 
+  // TUL-1623: the workspace spend cap / request limits, before the paid call.
+  const gate = await gateAiCall(scope.tenantId);
+  if (!gate.ok) return gate;
   const adapter = await resolveAiChatAdapter();
   try {
+    const startedAt = Date.now();
     const result = await adapter.chatCompletion({
       systemPrompt: SECTION_GEN_SYSTEM_PROMPT,
       userMessage,
       temperature: 0.7,
       maxTokens: 2000,
     });
+    meterAiCall({ tenantId: scope.tenantId, actorProfileId: auth.user.id, feature: "edit_generate_section", provider: adapter.id, model: null, result, startedAt });
     if (!result.ok) {
       return {
         ok: false,
@@ -257,14 +263,18 @@ export async function generateAltTextWithAi(
     "Write the alt text. Just the sentence, no quotes.",
   ].join("\n");
 
+  const gate = await gateAiCall(scope.tenantId);
+  if (!gate.ok) return gate;
   const adapter = await resolveAiChatAdapter();
   try {
+    const startedAt = Date.now();
     const result = await adapter.chatCompletion({
       systemPrompt: ALT_SYSTEM_PROMPT,
       userMessage,
       temperature: 0.4,
       maxTokens: 200,
     });
+    meterAiCall({ tenantId: scope.tenantId, actorProfileId: auth.user.id, feature: "edit_alt_text", provider: adapter.id, model: null, result, startedAt });
     if (!result.ok) return { ok: false, error: result.message ?? "AI failed.", code: result.code };
     let alt = result.text.trim().slice(0, 200);
     if ((alt.startsWith('"') && alt.endsWith('"')) || (alt.startsWith("'") && alt.endsWith("'"))) {
