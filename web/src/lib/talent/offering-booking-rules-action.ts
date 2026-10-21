@@ -30,7 +30,7 @@ export async function patchOfferingBookingRules(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
