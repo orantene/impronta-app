@@ -42,7 +42,8 @@ import { addUtcDays, utcToZonedYmd, zonedLocalToUtc } from "@/lib/scheduling/tz"
 import { readSessionSeats, type WaitlistSeats } from "@/lib/scheduling/waitlist-desk";
 import { logServerError } from "@/lib/server/safe-error";
 import { rosterItemsToCatalogRows } from "@/lib/service-hub/roster-catalog";
-import { loadWorkspaceRosterServices, type RosterServiceItem } from "@/lib/service-hub/roster-services";
+import { loadRosterServicesWithHub } from "@/lib/service-hub/hub-roster.server";
+import type { RosterServiceItem } from "@/lib/service-hub/roster-services";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 
@@ -120,7 +121,7 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
     reservations: Boolean(preset.features.reservations),
     // TUL-1372: the workspace's roster services (request-only) reach the GUEST dock only, and only on
     // a tenant-wide catalog. `input.tenantId` is authorized by the caller (the host-resolved tenant).
-    roster: input.includeRoster && !talentProfileId ? await loadWorkspaceRosterServices(admin, input.tenantId) : undefined,
+    roster: input.includeRoster && !talentProfileId ? await loadRosterServicesWithHub(admin, input.tenantId) : undefined,
     scope: input.scope,
   });
 

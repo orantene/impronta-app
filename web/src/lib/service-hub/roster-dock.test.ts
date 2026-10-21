@@ -61,7 +61,7 @@ const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 test("wiring: guest scope only, host-resolved tenant, request-only flag reaches the dock and suppresses Add/Buy", () => {
   const catalog = read("src/lib/messages-v5/items-catalog.ts");
-  assert.match(catalog, /input\.includeRoster && !talentProfileId \? await loadWorkspaceRosterServices\(admin, input\.tenantId\)/);
+  assert.match(catalog, /input\.includeRoster && !talentProfileId \? await loadRosterServicesWithHub\(admin, input\.tenantId\)/);
   const actions = read("src/app/t/[profileCode]/_actions/guest-catalog-actions.ts");
   assert.match(actions, /guestCatalogTenantAllowed/);
   assert.match(actions, /includeRoster: tenantKind !== "hub"/);

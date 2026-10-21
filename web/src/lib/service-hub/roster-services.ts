@@ -183,7 +183,7 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
     return [];
   }
   const offeringById = new Map(
-    ((offerings ?? []) as Array<{ id: string; talent_profile_id: string | null; title: string | null; amount_cents: number | null; currency: string | null; status: string; moderation_state: string }>).map((o) => [o.id, o]),
+    ((offerings ?? []) as Array<{ id: string; talent_profile_id: string | null; title: string | null; amount_cents: number | null; currency: string | null; status: string; moderation_state: string; visibility?: string | null }>).map((o) => [o.id, o]),
   );
 
   // PRIVACY: EVERY entry is shown only while its talent passes the same public-directory predicate the
@@ -227,10 +227,11 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
       title: o.title?.trim() || "Service",
       talentProfileId: l.show_who === "hidden" ? null : l.talent_profile_id,
       talentName: l.show_who === "name" ? names.get(l.talent_profile_id) ?? null : null,
-      priceCents: rosterServicePriceCents(
-        { priceMode: l.price_mode, marginBps: l.margin_bps, priceCents: l.price_cents },
-        o.amount_cents,
-      ),
+      // D-10a: an on-request service shows no price (a quote), whatever its listing price mode.
+      priceCents:
+        o.visibility === "on_request"
+          ? null
+          : rosterServicePriceCents({ priceMode: l.price_mode, marginBps: l.margin_bps, priceCents: l.price_cents }, o.amount_cents),
       priceIsFrom: l.price_mode === "from",
       currency,
       bookingType: l.booking_type,
