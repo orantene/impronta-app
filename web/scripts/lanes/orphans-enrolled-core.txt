@@ -120,6 +120,7 @@ src/lib/server-actions/admin-talent-taxonomy-capabilities.test.ts
 src/lib/server-actions/admin-visible-picks-link.test.ts
 src/lib/server-actions/tul-1708-bookings-capabilities.test.ts
 src/lib/server-actions/tul-1708-venue-capability-patch.test.ts
+src/lib/server-actions/tul1708-area-g-discovery-content-capabilities.static.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts

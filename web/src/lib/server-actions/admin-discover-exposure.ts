@@ -94,7 +94,9 @@ export async function saveDiscoverExposure(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: write (toggles cross-hub exposure) requires manage_storefront_settings
+  // (admin+); the default capability (agency.workspace.view) is viewer-held.
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_storefront_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
