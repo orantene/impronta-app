@@ -222,8 +222,6 @@ test("cut: scans EVERY chunk, not the first 40 (TUL-1794)", async () => {
   assert.equal(row(p, "CUT", "fxlank").status, "FAIL");
   assert.ok(row(p, "CUT", "fxlank").detail.includes("c67.js"));
 });
-  assert.ok(row(u, "CUT", "fxlank").detail.includes("68 of 68"));
-});
 
 test("cut: pk_live_ -> FAIL without echoing the key; clean and pk_test_ -> PASS", async () => {
   const bad = await probe({ bundle: `var u="${STAGING}",k="${FAKE_KEY}";` });
