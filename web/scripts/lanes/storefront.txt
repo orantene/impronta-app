@@ -45,6 +45,7 @@ src/lib/client-account/guest-activate.test.ts
 src/lib/client-account/merge_verified_client_customers.migration.test.ts
 src/lib/client-account/my-reviews.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
+src/lib/client-account/save-service-core.test.ts
 src/lib/client-account/saved-services.test.ts
 src/lib/client-account/saved-talent.test.ts
 src/lib/client-account/signin-apple.static.test.ts
