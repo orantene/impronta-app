@@ -38,3 +38,49 @@ test("Otros servicios: the same displayPrice number", () => {
   const plain = serviceRelatedLinks([A, B], null, A.id, "es", (p) => p);
   assert.doesNotMatch(plain[0]!.facts, /Antes/);
 });
+
+// ── TUL-1472: the dated booking step on a talent-site service page ───────────
+import { serviceDatedSlot } from "./service-dated-slot";
+
+test("with a booking slot, the dated step replaces the generic book link and the phone bar jumps to it", () => {
+  const html = renderToStaticMarkup(<>{serviceMainNode(A, { locale: "en", homePath: "/", bookingSlot: <div data-test-step="">STEP</div> })}</>);
+  assert.match(html, /id="dated-places"/);
+  assert.match(html, /data-test-step/);
+  assert.doesNotMatch(html, /data-talent-service-book/);
+  assert.match(html, /data-talent-service-sticky[\s\S]*href="#dated-places"/);
+});
+
+test("no slot: byte-identical to before (the generic link stays for non-dated services)", () => {
+  const plain = renderToStaticMarkup(<>{serviceMainNode(A, { locale: "en", homePath: "/" })}</>);
+  assert.match(plain, /data-talent-service-book/);
+  assert.doesNotMatch(plain, /dated-places/);
+});
+
+test("a hidden booking button mounts nothing", () => {
+  const html = renderToStaticMarkup(<>{serviceMainNode({ ...A, publicCtaHidden: true }, { locale: "en", homePath: "/", bookingSlot: <div>STEP</div> })}</>);
+  assert.doesNotMatch(html, /STEP|dated-places/);
+});
+
+const okPicker = { ok: true as const, title: "Class", currency: "MXN", defaultAmountCents: 50000, tiers: [], dates: [{ sessionId: "s1", startsAt: "2026-11-01T10:00:00Z", endsAt: "2026-11-01T11:00:00Z", timeZone: null, state: "open", seatsLeft: 5, sellableVariantIds: [], payAtPlaceOffered: false }], privateOnRequest: false };
+const base = { tenantId: "t1", offeringId: A.id, locale: "en", returnPath: "/servicio-x" };
+
+test("serviceDatedSlot: mounts only when the picker has upcoming dates; otherwise null", async () => {
+  assert.notEqual(await serviceDatedSlot(base, async () => okPicker as never), null);
+  assert.equal(await serviceDatedSlot(base, async () => ({ ...okPicker, dates: [] }) as never), null);
+  assert.equal(await serviceDatedSlot(base, async () => ({ ok: false, reason: "not_sellable" })), null);
+});
+
+test("serviceDatedSlot fails closed: no tenant, hidden CTA or a throwing loader is null and never throws", async () => {
+  let called = 0;
+  const counting = async () => (called++, okPicker as never);
+  assert.equal(await serviceDatedSlot({ ...base, tenantId: null }, counting), null);
+  assert.equal(await serviceDatedSlot({ ...base, publicCtaHidden: true }, counting), null);
+  assert.equal(called, 0, "never even asks");
+  assert.equal(await serviceDatedSlot(base, async () => { throw new Error("x"); }), null);
+});
+
+test("the picker is asked for the site's tenant and this offering only", async () => {
+  const seen: unknown[] = [];
+  await serviceDatedSlot(base, async (i) => (seen.push(i), okPicker as never));
+  assert.deepEqual(seen, [{ tenantId: "t1", offeringId: A.id }]);
+});

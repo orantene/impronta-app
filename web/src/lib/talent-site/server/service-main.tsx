@@ -25,6 +25,7 @@ import {
 
 import { serviceReviewsCopy, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import { buildServiceFaqJsonLd, serviceFaqCopy, type ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
+import { DATED_STEP_ANCHOR_ID, datedAnchorHref } from "@/lib/sessions/dated-mount";
 import { buildServiceBreadcrumbNode } from "@/lib/talent-site/service-page-breadcrumb";
 
 import type { MaxSiteSeo } from "./render-max-site";
@@ -113,6 +114,8 @@ export function serviceMainNode(
     /** Only used for the generated summary sentence when the service has no description. */
     talentName?: string | null;
     city?: string | null;
+    /** TUL-1472: the dated booking step for an item with upcoming dates; replaces the generic book link. */
+    bookingSlot?: ReactNode;
   },
 ): ReactNode {
   const copy = servicePageCopy(opts.locale);
@@ -172,7 +175,9 @@ export function serviceMainNode(
           ))}
         </div>
       ) : null}
-      {o.publicCtaHidden ? null : (
+      {o.publicCtaHidden ? null : opts.bookingSlot ? (
+        <div id={DATED_STEP_ANCHOR_ID} data-talent-service-dated="" style={{ margin: "0 0 8px" }}>{opts.bookingSlot}</div>
+      ) : (
         <Link
           href={serviceBookHref(o.id, opts.homePath)}
           data-talent-service-book=""
@@ -196,7 +201,7 @@ export function serviceMainNode(
       {o.publicCtaHidden ? null : (
         <div data-talent-service-sticky="" style={STICKY}>
           {price ? <span style={{ fontWeight: 600, minWidth: 0 }}>{price}</span> : <span />}
-          <Link href={serviceBookHref(o.id, opts.homePath)} style={STICKY_BTN}>{copy.bookShort}</Link>
+          <Link href={opts.bookingSlot ? datedAnchorHref() : serviceBookHref(o.id, opts.homePath)} style={STICKY_BTN}>{copy.bookShort}</Link>
         </div>
       )}
       {opts.related && opts.related.length > 0 ? (
