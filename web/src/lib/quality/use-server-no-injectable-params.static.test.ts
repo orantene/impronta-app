@@ -90,6 +90,10 @@ describe('the "use server" scan itself', () => {
     assert.ok(clientChosenTenant("input: Foo", "interface Foo { tenantSlug: string }"));
     assert.ok(clientChosenTenant("raw: z.infer<typeof fooSchema>", "const fooSchema = z.object({ tenantId: z.string() });"));
     assert.equal(clientChosenTenant("id: string, locale: string", ""), null);
+    // A `type X = {` block must start AFTER its `{`, or it runs into later code and picks up an unrelated tenantId.
+    assert.equal(clientChosenTenant("input: Foo", "type Foo = { id: string };\nexport async function other(a: { tenantId: string }) {}"), null);
+    assert.equal(clientChosenTenant("input: Foo", "type Foo = {\n  id: string;\n  nested: { x: number };\n};\nconst later = { tenantId: 1 };"), null);
+    assert.ok(clientChosenTenant("input: Foo", "type Foo = {\n  nested: { x: number };\n  tenantId: string;\n};"));
     assert.equal(clientChosenTenant("input: Bar", "type Bar = { id: string };"), null);
   });
 

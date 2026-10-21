@@ -149,7 +149,7 @@ export function clientChosenTenant(params: string, source: string): string | nul
   const src = stripComments(source);
   for (const id of new Set(params.match(/\b[A-Za-z_]\w*\b/g) ?? [])) {
     for (const decl of [
-      new RegExp(`\\b(?:type|interface)\\s+${id}\\b[^{=]*[={]`),
+      new RegExp(`\\b(?:type|interface)\\s+${id}\\b[^{=]*=?\\s*\\{`),
       new RegExp(`\\b(?:const|let)\\s+${id}\\s*=\\s*z\\s*\\.\\s*object\\s*\\(`),
     ]) {
       const m = decl.exec(src);
