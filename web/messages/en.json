@@ -21894,6 +21894,7 @@
           "noHat": "Pick at least one hat to continue.",
           "noName": "A name is needed before anyone can be added.",
           "noEmailForAccess": "An email address is needed to invite someone to sign in.",
+          "noAccessPermission": "Only an admin or owner can give someone access.",
           "bookableOnly": "A person with only the Bookable hat cannot be added yet: there is no invitation for a contractor. Add them with a public profile, or give them access, and turn Bookable on from their record.",
           "bookableWithAccess": "Bookable is turned on from the person's record once they are here; the invitation grants access first."
         },

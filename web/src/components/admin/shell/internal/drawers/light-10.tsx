@@ -18,6 +18,7 @@ import {
   Toggle,
   getFieldPrivacyCatalog,
   getWorkspaceFieldCatalog,
+  meetsRole,
   resetWorkspaceFieldVisibility,
   setWorkspaceFieldCatalog,
   setWorkspaceFieldGroup,
@@ -49,6 +50,13 @@ export function FieldCatalogDrawer() {
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   const canCustomize = rules.canFlipPublicInternal; // studio+: enable/disable + relabel
   const canRequire = rules.canSetRequired;          // agency+: required toggle
+  // TUL-1708: setWorkspaceFieldCatalog/setWorkspaceFieldGroup now require
+  // manage_field_catalog (admin+). Below Studio an editor/manager never saw
+  // these controls anyway (plan floor); Studio+ had no role floor at all —
+  // intercept here the same way canCustomize/canRequire already do for the
+  // plan floor, so the toggle never round-trips to a 403.
+  const canManage = meetsRole(state.role, "admin");
+  const roleGateMessage = tt("Only an admin or owner can change this.");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +86,7 @@ export function FieldCatalogDrawer() {
 
   // ── field ops ──────────────────────────────────────────────────────
   const toggleField = async (f: CatField) => {
+    if (!canManage) { toast(roleGateMessage); return; }
     if (!canCustomize) { toast(tt("Upgrade to Studio to customize the field catalog")); return; }
     const next = !f.enabled;
     const snap = fields;
@@ -90,6 +99,7 @@ export function FieldCatalogDrawer() {
   };
 
   const toggleRequired = async (f: CatField) => {
+    if (!canManage) { toast(roleGateMessage); return; }
     if (!canRequire) { toast(tt("Upgrade to Agency to set required fields")); return; }
     if (!f.enabled) { toast(tt("Enable the field before making it required")); return; }
     const next = !(f.required_override ?? false);
@@ -103,6 +113,7 @@ export function FieldCatalogDrawer() {
   };
 
   const commitFieldLabel = async (f: CatField) => {
+    if (!canManage) { toast(roleGateMessage); setRenaming(null); return; }
     if (!canCustomize) { toast(tt("Upgrade to Studio to edit fields")); setRenaming(null); return; }
     const v = renameVal.trim();
     const nextLabel = v && v !== f.label ? v : null;
@@ -131,6 +142,7 @@ export function FieldCatalogDrawer() {
   };
 
   const persistFieldOrder = async (nextItems: CatField[], previousFields: CatField[], groupKey: string) => {
+    if (!canManage) { toast(roleGateMessage); return; }
     if (!canCustomize) { toast(tt("Upgrade to Studio to reorder fields")); return; }
     mark(`order:${groupKey}`, true);
     for (let index = 0; index < nextItems.length; index += 1) {
@@ -183,6 +195,7 @@ export function FieldCatalogDrawer() {
 
   // ── group ops ──────────────────────────────────────────────────────
   const toggleGroup = async (g: CatGroup) => {
+    if (!canManage) { toast(roleGateMessage); return; }
     if (!canCustomize) { toast(tt("Upgrade to Studio to customize the field catalog")); return; }
     const next = !g.enabled;
     const snap = groups;
@@ -195,6 +208,7 @@ export function FieldCatalogDrawer() {
   };
 
   const commitGroupLabel = async (g: CatGroup) => {
+    if (!canManage) { toast(roleGateMessage); setRenaming(null); return; }
     if (!canCustomize) { toast(tt("Upgrade to Studio to rename sections")); setRenaming(null); return; }
     const v = renameVal.trim();
     const nextLabel = v && v !== g.name ? v : null;
@@ -210,6 +224,7 @@ export function FieldCatalogDrawer() {
   };
 
   const persistGroupOrder = async (nextGroups: CatGroup[], previousGroups: CatGroup[]) => {
+    if (!canManage) { toast(roleGateMessage); return; }
     if (!canCustomize) { toast(tt("Upgrade to Studio to reorder sections")); return; }
     mark("order:groups", true);
     for (let index = 0; index < nextGroups.length; index += 1) {
@@ -612,6 +627,12 @@ export function FieldPrivacyDrawer() {
   const tt = copy.t;
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
+  // TUL-1708: setWorkspaceFieldVisibility/resetWorkspaceFieldVisibility now
+  // require manage_field_catalog (admin+); intercept here the same way the
+  // plan-tier rules above already do, so the control never round-trips to
+  // a 403 for an editor/manager.
+  const canManage = meetsRole(state.role, "admin");
+  const roleGateMessage = tt("Only an admin or owner can change this.");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -638,6 +659,7 @@ export function FieldPrivacyDrawer() {
   const onChange = async (f: Entry, protoVis: FieldVisibility) => {
     const target = toEng(protoVis);
     if (target === effOf(f)) return;
+    if (!canManage) { toast(roleGateMessage); return; }
     if (!rules.canFlipPublicInternal && target !== f.platform_default) {
       toast(tt("Upgrade to Studio to change field visibility")); return;
     }
