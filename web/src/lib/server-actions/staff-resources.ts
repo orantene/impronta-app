@@ -93,7 +93,9 @@ type CreateResult = { ok: true; resource: StaffResource } | { ok: false; error: 
 export async function createStaffResource(name: string): Promise<CreateResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireBusinessWorkspace("manage_talent_roster");
+  // TUL-1708 (PM revision): creating a staff/chair resource is day-to-day
+  // operations, gated on operate_venue (editor+), not manage_talent_roster.
+  const auth = await requireBusinessWorkspace("operate_venue");
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = createSchema.safeParse({ name });
   if (!parsed.success) return { ok: false, error: "Enter a name." };
@@ -138,7 +140,8 @@ type ArchiveResult = { ok: true } | { ok: false; error: string };
 export async function archiveStaffResource(resourceId: string): Promise<ArchiveResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireBusinessWorkspace("manage_talent_roster");
+  // TUL-1708 (PM revision): same bar as createStaffResource — operate_venue.
+  const auth = await requireBusinessWorkspace("operate_venue");
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!/^[0-9a-f-]{36}$/i.test(resourceId)) return { ok: false, error: "Invalid resource." };
 

@@ -1,23 +1,29 @@
 /**
- * TUL-1708 (security sweep, area I: calendar, POS support helpers & venue).
+ * TUL-1708 (security sweep, area I: calendar, POS support helpers & venue) —
+ * PM-revised slice applied on top of #4317 (operate_venue capability).
  *
- * Eight write actions across 7 files called `requireWorkspaceStaffAction()` (or the
- * local `staff()` / `requireBusinessWorkspace()` aliases) with NO capability, which
- * defaults to `agency.workspace.view` — a capability the viewer role holds. A viewer
- * could mint/kill a calendar sync feed, place/release a talent hold, mark a product
- * order fulfilled (releasing its deferred payout), flip the support-replay-buffer
- * setting, create/archive a business staff resource, pair/unlink WhatsApp, or edit
- * venue settings.
+ * This is the scoped reapplication of PR #4326's fix for exactly the 4
+ * functions the PM asked to be re-capped on `operate_venue` (editor+, #4317)
+ * instead of the capability #4326 originally picked:
+ *   - channels/pairing-actions.ts#askOwnerToConnectWhatsApp: operate_venue,
+ *     not coordinate_inquiry. The other 3 WhatsApp pairing writes
+ *     (startWhatsAppPairing, requestWhatsAppPairingCode, unlinkWhatsApp) are
+ *     UNCHANGED from #4326 — they keep coordinate_inquiry (manager+), which
+ *     already matched the canPairWhatsApp role gate those three enforce.
+ *   - talent/fulfillment-actions.ts#authorizeForBooking (backing
+ *     markBookingFulfillment): operate_venue, not booking.payment.mark_received.
+ *   - server-actions/staff-resources.ts#createStaffResource /
+ *     archiveStaffResource: operate_venue, not manage_talent_roster.
  *
- * This is a self-contained test (no `capabilityless-staff-guard.*` ratchet dependency —
- * that infra ships with #4288/#4300, not yet on main): static source assertions that
- * every writer below now passes its capability, that no bare guard remains on a writer,
- * and that reads keep the default; plus the role matrix for each capability used.
+ * Deliberately out of scope here (left for the main #4326 branch / a
+ * separate consultant-reviewed #4317 follow-up, not reapplied in this
+ * worktree): calendar/feed-actions.ts, talent-calendar/hold-actions.ts,
+ * support/replay/replay-actions.ts, and server-actions/venue-settings.ts
+ * (updateVenueSettings explicitly STAYS manage_agency_settings per PM
+ * decision — not touched by this revision at all).
  *
- * `pos-modes.ts` and `pos-location-facts.ts` are deliberately NOT in this file:
- * pos-modes.ts's writers already require `manage_billing` (fixed before this sweep),
- * and pos-location-facts.ts has no writer at all — see the PR body.
- * `catalog-engine-reads.ts` is also excluded: both its exports are reads.
+ * Self-contained (no `capabilityless-staff-guard.*` ratchet dependency —
+ * that infra ships with #4288/#4300, not on main or on this branch point).
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -30,40 +36,33 @@ import type { CapabilityKey } from "@/lib/access/capabilities";
 const ROOT = process.cwd();
 const read = (p: string) => readFileSync(join(ROOT, "src", p), "utf8");
 
-const ROSTER_EDIT = "agency.roster.edit" as const; // editor+
-const SETTINGS = "manage_agency_settings" as const; // admin+
-const MARK_RECEIVED = "booking.payment.mark_received" as const; // admin+
-const MANAGE_ROSTER = "manage_talent_roster" as const; // manager+
 const COORDINATE = "coordinate_inquiry" as const; // manager+
+const OPERATE_VENUE = "operate_venue" as const; // editor+ (#4317)
 
 function escape(cap: string): string {
   return cap.replace(/\./g, "\\.");
 }
 
-/** Every writer this PR fixed, and the capability it must now require. */
+/** The 4 writers this patch re-caps on operate_venue. */
 const WRITERS: Array<{ file: string; fn: string; capability: CapabilityKey }> = [
-  { file: "lib/calendar/feed-actions.ts", fn: "issueCalendarFeedUrl", capability: ROSTER_EDIT },
-  { file: "lib/calendar/feed-actions.ts", fn: "disconnectCalendarFeed", capability: ROSTER_EDIT },
-  { file: "lib/talent-calendar/hold-actions.ts", fn: "placeTalentHold", capability: ROSTER_EDIT },
-  { file: "lib/talent-calendar/hold-actions.ts", fn: "releaseTalentHold", capability: ROSTER_EDIT },
-  { file: "lib/talent/fulfillment-actions.ts", fn: "authorizeForBooking", capability: MARK_RECEIVED },
-  { file: "lib/support/replay/replay-actions.ts", fn: "saveSupportReplayBufferSetting", capability: SETTINGS },
-  { file: "lib/server-actions/staff-resources.ts", fn: "createStaffResource", capability: MANAGE_ROSTER },
-  { file: "lib/server-actions/staff-resources.ts", fn: "archiveStaffResource", capability: MANAGE_ROSTER },
-  { file: "lib/channels/pairing-actions.ts", fn: "startWhatsAppPairing", capability: COORDINATE },
-  { file: "lib/channels/pairing-actions.ts", fn: "requestWhatsAppPairingCode", capability: COORDINATE },
-  { file: "lib/channels/pairing-actions.ts", fn: "unlinkWhatsApp", capability: COORDINATE },
-  { file: "lib/channels/pairing-actions.ts", fn: "askOwnerToConnectWhatsApp", capability: COORDINATE },
-  { file: "lib/server-actions/venue-settings.ts", fn: "updateVenueSettings", capability: SETTINGS },
+  { file: "lib/talent/fulfillment-actions.ts", fn: "authorizeForBooking", capability: OPERATE_VENUE },
+  { file: "lib/server-actions/staff-resources.ts", fn: "createStaffResource", capability: OPERATE_VENUE },
+  { file: "lib/server-actions/staff-resources.ts", fn: "archiveStaffResource", capability: OPERATE_VENUE },
+  { file: "lib/channels/pairing-actions.ts", fn: "askOwnerToConnectWhatsApp", capability: OPERATE_VENUE },
 ];
 
-/** Every read this PR deliberately left on the viewer-held default. */
+/** Unchanged sibling writers in the same files, kept on coordinate_inquiry. */
+const UNCHANGED_COORDINATE_WRITERS = [
+  "startWhatsAppPairing",
+  "requestWhatsAppPairingCode",
+  "unlinkWhatsApp",
+];
+
+/** Reads in these files that must keep the viewer-held default (no capability). */
 const READS: Array<{ file: string; fn: string }> = [
   { file: "lib/talent/fulfillment-actions.ts", fn: "loadTalentOrders" },
-  { file: "lib/support/replay/replay-actions.ts", fn: "loadSupportReplayBufferSetting" },
   { file: "lib/server-actions/staff-resources.ts", fn: "listStaffResources" },
   { file: "lib/channels/pairing-actions.ts", fn: "loadWhatsAppConnection" },
-  { file: "lib/server-actions/venue-settings.ts", fn: "loadVenueSettings" },
 ];
 
 /** Slices a named `export async function <fn>` (or a local helper fn) out of source. */
@@ -77,7 +76,7 @@ function body(src: string, fn: string): string {
   return rest.slice(0, nextFn ? nextFn.index : rest.length);
 }
 
-test("every fixed writer requires its capability (no bare guard left on it)", () => {
+test("every re-capped writer requires operate_venue (no bare guard left on it)", () => {
   const byFile = new Map<string, string>();
   for (const w of [...WRITERS, ...READS]) {
     if (!byFile.has(w.file)) byFile.set(w.file, read(w.file));
@@ -86,8 +85,8 @@ test("every fixed writer requires its capability (no bare guard left on it)", ()
     const src = byFile.get(w.file)!;
     const fnBody = body(src, w.fn);
     const direct = new RegExp(`requireWorkspaceStaffAction\\(\\{\\s*capability:\\s*"${escape(w.capability)}"\\s*\\}\\)`);
-    // The channels/staff-resources files route through a local helper that takes the
-    // capability as its own argument instead of building the options object inline.
+    // channels/pairing-actions.ts and server-actions/staff-resources.ts route
+    // through a local helper that takes the capability as its own argument.
     const viaHelper = new RegExp(`(?:staff|requireBusinessWorkspace)\\("${escape(w.capability)}"\\)`);
     assert.ok(
       direct.test(fnBody) || viaHelper.test(fnBody),
@@ -101,13 +100,22 @@ test("every fixed writer requires its capability (no bare guard left on it)", ()
   }
 });
 
-test("every read this PR touched keeps the viewer-held default", () => {
+test("the 3 unchanged WhatsApp pairing writes still require coordinate_inquiry", () => {
+  const src = read("lib/channels/pairing-actions.ts");
+  for (const fn of UNCHANGED_COORDINATE_WRITERS) {
+    const fnBody = body(src, fn);
+    assert.match(
+      fnBody,
+      new RegExp(`staff\\("${escape(COORDINATE)}"\\)`),
+      `${fn} must still require ${COORDINATE} — only askOwnerToConnectWhatsApp moved to operate_venue`,
+    );
+  }
+});
+
+test("every read in these files keeps the viewer-held default", () => {
   for (const r of READS) {
     const src = read(r.file);
     const fnBody = body(src, r.fn);
-    // A read either calls the guard bare directly, or (fulfillment-actions'
-    // loadTalentOrders, pairing-actions' loadWhatsAppConnection) calls a bare
-    // staff/guard helper with no capability argument.
     assert.match(
       fnBody,
       /requireWorkspaceStaffAction\(\s*\)|(?:staff|requireBusinessWorkspace)\(\s*\)/,
@@ -116,38 +124,18 @@ test("every read this PR touched keeps the viewer-held default", () => {
   }
 });
 
-test("role matrix: viewer is refused on every capability used; the granting tier is allowed", () => {
-  // agency.workspace.view (the unfixed default) is viewer-held — the vulnerability
-  // this whole PR closes.
+test("role matrix: viewer is refused on operate_venue, editor and up are allowed", () => {
+  // agency.workspace.view (the unfixed default) is viewer-held — the
+  // vulnerability the original TUL-1708 sweep closed.
   assert.equal(roleGrantsCapability("viewer", "agency.workspace.view"), true);
 
-  for (const cap of [ROSTER_EDIT]) {
-    assert.equal(roleGrantsCapability("viewer", cap), false, `viewer must NOT hold ${cap}`);
-    assert.equal(roleGrantsCapability("editor", cap), true, `editor must hold ${cap}`);
+  assert.equal(roleGrantsCapability("viewer", OPERATE_VENUE), false, "viewer must NOT hold operate_venue");
+  for (const role of ["editor", "manager", "admin", "owner"] as const) {
+    assert.equal(roleGrantsCapability(role, OPERATE_VENUE), true, `${role} must hold operate_venue`);
   }
-  for (const cap of [MANAGE_ROSTER, COORDINATE]) {
-    assert.equal(roleGrantsCapability("viewer", cap), false, `viewer must NOT hold ${cap}`);
-    assert.equal(roleGrantsCapability("editor", cap), false, `editor must NOT hold ${cap}`);
-    assert.equal(roleGrantsCapability("manager", cap), true, `manager must hold ${cap}`);
-  }
-  for (const cap of [SETTINGS, MARK_RECEIVED]) {
-    assert.equal(roleGrantsCapability("viewer", cap), false, `viewer must NOT hold ${cap}`);
-    assert.equal(roleGrantsCapability("editor", cap), false, `editor must NOT hold ${cap}`);
-    assert.equal(roleGrantsCapability("manager", cap), false, `manager must NOT hold ${cap}`);
-    assert.equal(roleGrantsCapability("admin", cap), true, `admin must hold ${cap}`);
-  }
-  for (const cap of [ROSTER_EDIT, MANAGE_ROSTER, COORDINATE, SETTINGS, MARK_RECEIVED]) {
-    assert.equal(roleGrantsCapability("owner", cap), true, `owner must hold ${cap}`);
-  }
-});
 
-test("pairing-actions' canPairWhatsApp role gate and coordinate_inquiry agree on the bar", () => {
-  // startWhatsAppPairing/requestWhatsAppPairingCode/unlinkWhatsApp already checked
-  // `canPairWhatsApp(role)` (owner|admin|manager) before this PR; coordinate_inquiry
-  // is manager+, so this PR's capability gate tightens nothing for those three and
-  // only closes the real gap, askOwnerToConnectWhatsApp (which had no check at all).
-  const src = read("lib/channels/pairing-actions.ts");
-  assert.match(src, /canPairWhatsApp\(role: string \| null \| undefined\)|canPairWhatsApp/);
+  // coordinate_inquiry stays manager+ for the 3 unchanged pairing writes.
+  assert.equal(roleGrantsCapability("viewer", COORDINATE), false);
+  assert.equal(roleGrantsCapability("editor", COORDINATE), false, "editor must NOT hold coordinate_inquiry");
   assert.equal(roleGrantsCapability("manager", COORDINATE), true);
-  assert.equal(roleGrantsCapability("editor", COORDINATE), false);
 });

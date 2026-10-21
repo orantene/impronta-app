@@ -70,10 +70,10 @@ async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
 
   // Staff path: tenant-scoped staff of the booking's tenant. Only reached
   // from the markBookingFulfillment WRITE (loadTalentOrders below has its own
-  // read-tier guard); TUL-1708: marking a product handed off releases the
-  // deferred payout, so this needs the same bar as other payment-state
-  // confirmations, not the viewer-held default.
-  const staff = await requireWorkspaceStaffAction({ capability: "booking.payment.mark_received" });
+  // read-tier guard); TUL-1708 (PM revision): marking a product handed off is
+  // day-to-day operations, gated on operate_venue (editor+), not the
+  // admin-tier booking.payment.mark_received.
+  const staff = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!staff.ok || staff.tenantId !== booking.tenant_id) return { ok: false, error: "Forbidden." };
   return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId };
 }
