@@ -160,6 +160,19 @@ describe("loading the workspace's model and shares (fails closed)", () => {
       if (prev !== undefined) process.env.COLLECTIVE_SPLIT_ENABLED = prev;
     }
   });
+  test("a member who left the workspace (removed row, no live row) REFUSES the order: the owner's cut is never skipped", async () => {
+    const r = await applyCollectiveOwnerShares(
+      fakeAdmin({
+        agencies: { data: { work_model: "friends_collective" }, error: null },
+        agency_talent_roster: { data: [{ talent_profile_id: "a", status: "removed", owner_share_kind: "percent", owner_share_bps: 2500, owner_share_version: 1 }], error: null },
+        talent_profiles: { data: [{ id: "a", display_name: "Ana" }], error: null },
+      }),
+      "t1",
+      "MXN",
+      lines(),
+    );
+    assert.equal(r.ok, false);
+  });
   test("any other read failure REFUSES the order (never prices a collective sale without its split)", async () => {
     const down = await applyCollectiveOwnerShares(fakeAdmin({ agencies: { data: null, error: { code: "XX000", message: "db down" } } }), "t1", "MXN", lines());
     assert.deepEqual(down, { ok: false, error: "We could not confirm the split for this order. Nothing was charged. Try again." });
