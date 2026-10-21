@@ -9,7 +9,7 @@ import { parseServiceSlug, resolveServiceBySlug, type ServicePageOffering } from
  * service slugs only, so we only decide when the slug is none of the latter two and ask whether
  * any page row owns it (draft or published: a draft-only slug is left to the renderer).
  */
-export type TalentRouteVerdict = "render" | "privacy-redirect" | "not-found";
+export type TalentRouteVerdict = "render" | "privacy-redirect" | "not-found" | "check-old-slug";
 
 /** True when the first segment needs a page lookup at all (home, policy, service and draft preview never do). */
 export function needsRouteLookup(seg: string | null, preview: string | undefined): seg is string {
@@ -17,9 +17,15 @@ export function needsRouteLookup(seg: string | null, preview: string | undefined
   return seg === LEGACY_PRIVACY_SLUG || (!policyDocForSlug(seg) && parseServiceSlug(seg) === null);
 }
 
-export function talentRouteVerdict(seg: string, pageSlugs: readonly string[]): TalentRouteVerdict {
+export function talentRouteVerdict(
+  seg: string,
+  pageSlugs: readonly string[],
+  /** TUL-1594: `servicePresentationResolverEnabled()`. On, a slug that matches nothing else gets one old-slug check before the 404. Off = exactly the old verdict. */
+  opts: { oldSlugCheck?: boolean } = {},
+): TalentRouteVerdict {
   if (pageSlugs.includes(seg)) return "render";
-  return seg === LEGACY_PRIVACY_SLUG ? "privacy-redirect" : "not-found";
+  if (seg === LEGACY_PRIVACY_SLUG) return "privacy-redirect";
+  return opts.oldSlugCheck ? "check-old-slug" : "not-found";
 }
 
 /**

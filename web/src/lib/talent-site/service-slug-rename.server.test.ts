@@ -22,6 +22,7 @@ function fakeDb(tables: { offering?: Row | null; slugs?: Row[]; scoped?: Row[] }
           log.push(`update ${JSON.stringify(patch)} ${JSON.stringify(filters)}`);
           return { data: null, error: null };
         }
+        if (t === "talent_offerings") log.push(`offering ${JSON.stringify(filters)}`);
         if (t === "talent_offerings") return { data: tables.offering ?? null, error: null };
         const hasScope = filters.some(([c]) => c === "owner_scope");
         return { data: hasScope ? (tables.scoped ?? []) : state.slugs, error: null };
@@ -79,6 +80,43 @@ describe("prepareServiceSlugRename (slug history in offering_slugs)", () => {
   it("another talent's service is never read: the offering is looked up by id AND this talent", async () => {
     const f = fakeDb({ offering: null, slugs: [CUR] });
     assert.equal(await prepareServiceSlugRename(f.db, input, { enabled: true }), null);
+  });
+});
+
+describe("prepareServiceSlugRename for a workspace-owned service (TUL-1594)", () => {
+  const wInput = { offeringId: ID, tenantId: "tn1", nextTitle: "Corte moderno" };
+
+  it("uses the w:<tenant> scope and looks the service up by id AND this workspace's house rows", async () => {
+    const f = fakeDb({ offering: OFFERING, slugs: [CUR] });
+    const out = await prepareServiceSlugRename(f.db, wInput, { enabled: true });
+    assert.deepEqual(out, {
+      offeringId: ID,
+      tenantId: "tn1",
+      scope: "w:tn1",
+      ops: [{ kind: "retire", rowId: "r1" }, { kind: "insert", locale: "es", slug: "corte-moderno" }],
+    });
+    const lookup = f.log.find((l) => l.startsWith("offering")) ?? "";
+    assert.match(lookup, /"tenant_id","tn1"/);
+    assert.match(lookup, /"owner_kind","workspace"/);
+    assert.doesNotMatch(lookup, /talent_profile_id/);
+  });
+
+  it("flag off, another workspace's service, or an owner-less/two-owner call: nothing", async () => {
+    assert.equal(await prepareServiceSlugRename(fakeDb({ offering: OFFERING, slugs: [CUR] }).db, wInput, { enabled: false }), null);
+    assert.equal(await prepareServiceSlugRename(fakeDb({ offering: null, slugs: [CUR] }).db, wInput, { enabled: true }), null);
+    assert.equal(await prepareServiceSlugRename(fakeDb({ offering: OFFERING, slugs: [CUR] }).db, { offeringId: ID, nextTitle: "x y" }, { enabled: true }), null);
+    assert.equal(await prepareServiceSlugRename(fakeDb({ offering: OFFERING, slugs: [CUR] }).db, { ...wInput, talentProfileId: "p1" }, { enabled: true }), null);
+  });
+
+  it("commit writes the insert into the w: scope", async () => {
+    const f = fakeDb({ slugs: [CUR] });
+    await commitServiceSlugHistory(f.db, {
+      offeringId: ID,
+      tenantId: "tn1",
+      scope: "w:tn1",
+      ops: [{ kind: "retire", rowId: "r1" }, { kind: "insert", locale: "es", slug: "corte-moderno" }],
+    });
+    assert.match(f.log[1], /"owner_scope":"w:tn1"/);
   });
 });
 
