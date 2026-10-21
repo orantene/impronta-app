@@ -10,6 +10,7 @@ import { issueRent, proposeRentPlan, setRentPlanStatus } from "@/lib/service-hub
 import { RENT_COPY, rentRefusalText } from "@/lib/service-hub/rent/rent-copy";
 import { currentRentPeriod } from "@/lib/service-hub/rent/rent-cycle";
 import type { SafetyRow } from "@/lib/service-hub/rent/rent-safety-view";
+import { PaidOutsideForm } from "./PaidOutsideForm";
 
 export type RentMember = { talentProfileId: string; name: string };
 export type RentPlanView = {
@@ -22,6 +23,7 @@ export type RentPlanView = {
   endedBy: string | null;
   /** TUL-1612: off | pending | active | paused | past_due | canceled */
   autopayStatus: string;
+  startsOn: string;
   /** The latest month's invoice and what its payment link is doing. */
   invoice: { period: string; state: "none" | "waiting" | "paid" | "needs_new_link" } | null;
 };
@@ -100,6 +102,9 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
             <div data-testid="rent-autopay-state" style={{ fontSize: 12.5, marginTop: 4, color: p.autopayStatus === "past_due" ? "#A8471B" : "inherit" }}>
               {p.autopayStatus === "past_due" ? c.ownerAutopayPastDue : p.autopayStatus === "paused" ? c.ownerAutopayPaused : p.autopayStatus === "pending" ? c.ownerAutopayPending : c.ownerAutopayOn}
             </div>
+          )}
+          {(p.status === "active" || p.status === "paused") && (
+            <PaidOutsideForm planId={p.id} startsOn={p.startsOn} defaultAmountCents={p.monthlyRentCents} locale={locale} />
           )}
           {p.invoice && (p.status === "active" || p.status === "paused") && (
             <div data-testid="rent-invoice-state" style={{ fontSize: 12.5, marginTop: 4, color: p.invoice.state === "needs_new_link" ? "var(--color-admin-red)" : "inherit" }}>
