@@ -62,14 +62,17 @@ and only the first is yours:
 2. **CI runs the structural quality gate on that commit** (~11 min). If it
    fails, nothing below happens and `main-red-alert.yml` opens a pinned
    `🔴 MAIN IS RED` issue (see §10).
-3. **A release is cut by hand.** `main` deploys to staging; once staging has
-   been tested in a large chunk, run `gh workflow run promote-production.yml
+3. **Staging is built by hand, then a release is cut by hand.** Merging to
+   `main` builds NOTHING (ignoreCommand, #3872). The PM builds staging manually
+   (one build per trigger; `web/docs/vercel-staging-build.md`). Once staging has
+   been tested, the PM sends the GO/NO-GO report and **Oran gives an explicit GO**;
+   only then run `gh workflow run promote-production.yml
    -f release_note="<what is in this release>" [-f sha=<sha>]`. It
    fast-forwards `production` to that commit (green gate only), and Vercel
    builds `production` with `target: "production"`. It refuses to rewind: it
    promotes only commits that are ancestors of `origin/main`. Only a P0 hotfix
    may go outside the batch (`release_note="P0 hotfix: <reason>"`).
-   **Who cuts it:** the PM. When QA Staging signs off a chunk on staging, the PM
+   **Who cuts it:** the PM, only after Oran's explicit GO. When QA Staging signs off a chunk on staging and Oran says GO, the PM
    runs the promote with a release note that lists the PRs in the release. A P0
    hotfix is promoted by the PM right after it merges. Developers and agents do
    not run it and never push the `production` branch.
