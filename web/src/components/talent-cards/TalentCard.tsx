@@ -24,6 +24,7 @@ import {
   VerifiedBadge,
 } from "./talent-card-parts";
 import { TalentCardEmptyPlate } from "./talent-card-empty-plate";
+import { TalentCardPhoto } from "./talent-card-photo";
 
 /**
  * Canonical talent card — the SINGLE card every directory / featured surface
@@ -72,11 +73,10 @@ function Photo({
     >
       {data.photoUrl ? (
         <>
-          <Image
+          <TalentCardPhoto
             src={data.photoUrl}
             alt={data.name}
-            fill
-            className="object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
+            discipline={data.primaryType}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             priority={priority}
           />
