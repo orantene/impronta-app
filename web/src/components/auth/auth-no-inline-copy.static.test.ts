@@ -38,3 +38,8 @@ for (const file of FILES) {
     assert.deepEqual(offenders, [], `inline copy in ${file}; move it to messages/{en,es}.json`);
   });
 }
+
+test("TUL-910: both email-code steps share a floor height so the card does not jump", () => {
+  const src = readFileSync("src/components/auth/email-code-form.tsx", "utf8");
+  assert.equal((src.match(/\$\{STEP_MIN_HEIGHT\}/g) ?? []).length, 2);
+});

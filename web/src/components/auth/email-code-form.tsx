@@ -97,6 +97,12 @@ function QuietAction({
  */
 export const METHOD_SWAP_RESERVE = "pb-[5.3rem]";
 
+/**
+ * TUL-910: the email step and the code step share one floor height, so requesting a code
+ * does not make the card jump (293px -> 580px at 390 before the copy was shortened).
+ */
+export const STEP_MIN_HEIGHT = "min-h-[19rem]";
+
 export function EmailCodeForm({
   nextPath,
   locale = "en",
@@ -242,7 +248,7 @@ export function EmailCodeForm({
 
   if (onCodeStep && email) {
     return (
-      <div className="space-y-3.5">
+      <div className={`space-y-3.5 ${STEP_MIN_HEIGHT}`}>
         {notice ? (
           <AuthNotice tone="success">{notice.replace("{email}", email)}</AuthNotice>
         ) : null}
@@ -346,7 +352,7 @@ export function EmailCodeForm({
   }
 
   return (
-    <div className="space-y-3.5">
+    <div className={`space-y-3.5 ${STEP_MIN_HEIGHT}`}>
       <form
         action={sendAction}
         noValidate // TUL-893: the server answers in the page language; no English browser tooltip
