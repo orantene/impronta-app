@@ -4570,7 +4570,18 @@
         "activity": "Actividad",
         "activitySub": "Los mismos eventos aparecen en el hilo del chat.",
         "acceptForRoster": "Aceptar por el talento del roster",
-        "acceptForRosterTitle": "Registra la aprobación del talento gestionado por la agencia que no tiene cuenta. El talento con cuenta propia debe aceptarla él mismo."
+        "acceptForRosterTitle": "Registra la aprobación del talento gestionado por la agencia que no tiene cuenta. El talento con cuenta propia debe aceptarla él mismo.",
+        "lineConfirm": {
+          "summary": "{confirmed} de {total} confirmados",
+          "confirm": "Confirmar",
+          "decline": "Rechazar",
+          "saveFailed": "No pudimos guardar tu respuesta. Inténtalo de nuevo.",
+          "state": {
+            "confirmed": "Confirmado",
+            "declined": "Rechazado",
+            "pending": "Esperando respuesta"
+          }
+        }
       },
       "reassign": {
         "assignTitle": "Asignar coordinador",
@@ -17676,6 +17687,17 @@
         "impactOutgoingValue": "Se conserva en la línea para el registro · nada ganado",
         "impactClient": "Cliente",
         "impactClientValue": "No se avisa desde aquí · no requiere aprobación",
+        "boardTitle": "Tablero del evento",
+        "boardSummary": "{confirmed} de {needed} confirmados",
+        "boardRole": "{confirmed} de {needed} confirmados",
+        "boardFilled": "Completo",
+        "boardOpen": "Faltan {open}",
+        "boardNoState": "Ahora no se pueden leer las confirmaciones, así que nadie aparece como confirmado.",
+        "callSheet": "Hoja de llamado",
+        "callSheetEmpty": "La hoja de llamado lista a las personas cuando confirman.",
+        "stateConfirmed": "Confirmado",
+        "stateDeclined": "Rechazó",
+        "stateAwaiting": "Esperando respuesta",
         "replaceConfirm": "Sustituir e invitar a {name}",
         "replaceNoProfile": "Esta persona se escribió en la oferta y no tiene perfil que sustituir.",
         "replacementPick": "Elige a una persona",

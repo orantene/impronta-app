@@ -26,6 +26,7 @@ import { talentPayoutLabel } from "./talent-payout-label";
 import { selectTalentOfferView } from "./talent-offer-view";
 import type { SendGateResult } from "./offer-save-state";
 import { OfferTermsSummary } from "./offer-terms-ui";
+import { OfferLineConfirmations } from "./offer-line-confirmations";
 import { type OfferCommercialTerms } from "@/lib/billing/commercial-terms-types";
 import { DealSummaryCard, LineupRowCard, ParticipantRow, TimelineRow, dashedBtn, disabledBtn, ghostBtn, primaryBtn } from "./machinery-13";
 import { SubmitRateSheet } from "./machinery-14";
@@ -249,6 +250,10 @@ export function LiveOfferPanel({
           )}
         </div>
       </div>
+
+      {/* TUL-1608: per-line talent readiness ("3 of 4 confirmed"). Display and
+          each person's own Confirm / Decline only; it never gates approval or money. */}
+      {status !== "draft" && <OfferLineConfirmations inquiryId={inquiryId} offerId={offerId} />}
 
       {/* Line items */}
       {offer.lineItems.length > 0 && (
@@ -566,6 +571,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         return (
           <div className="flex flex-col gap-3 p-[18px] font-body">
             <TalentOfferApprovalCard inquiryId={conv.id} view={stubView} takeHome={takeHome} />
+            <OfferLineConfirmations inquiryId={conv.id} />
           </div>
         );
       }
@@ -615,6 +621,8 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               </div>
             )}
           </div>
+          {/* TUL-1608: booked / on-hold talent still answers their own line. */}
+          {hasOffer && realInquiryId && <OfferLineConfirmations inquiryId={conv.id} />}
         </div>
       );
     }
@@ -628,6 +636,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       return (
         <div className="flex flex-col gap-3 p-[18px] font-body">
           <TalentOfferApprovalCard inquiryId={conv.id} view={talentView} takeHome={takeHome} />
+          <OfferLineConfirmations inquiryId={conv.id} />
         </div>
       );
     }
