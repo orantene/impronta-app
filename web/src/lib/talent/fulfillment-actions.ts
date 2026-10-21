@@ -29,7 +29,7 @@ import {
 import { executeBookingTransfers } from "@/lib/payments/transfers";
 
 type BookingAuth =
-  | { ok: true; tenantId: string | null; talentProfileId: string | null }
+  | { ok: true; tenantId: string | null; talentProfileId: string | null; via: "owner" | "staff" }
   | { ok: false; error: string };
 
 async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
@@ -64,18 +64,19 @@ async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
       .eq("id", talentProfileId)
       .maybeSingle();
     if (tp?.user_id && tp.user_id === session.user.id) {
-      return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId };
+      return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId, via: "owner" };
     }
   }
 
   // Staff path: tenant-scoped staff of the booking's tenant. Only reached
   // from the markBookingFulfillment WRITE (loadTalentOrders below has its own
-  // read-tier guard); TUL-1708: marking a product handed off releases the
-  // deferred payout, so this needs the same bar as other payment-state
-  // confirmations, not the viewer-held default.
-  const staff = await requireWorkspaceStaffAction({ capability: "booking.payment.mark_received" });
+  // read-tier guard); TUL-1708 (PM revision): marking a product handed off is
+  // day-to-day operations, gated on operate_venue (editor+), not the
+  // admin-tier booking.payment.mark_received. The handed-off states
+  // themselves are a further, manager-tier gate — see markBookingFulfillment.
+  const staff = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!staff.ok || staff.tenantId !== booking.tenant_id) return { ok: false, error: "Forbidden." };
-  return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId };
+  return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId, via: "staff" };
 }
 
 /**
@@ -92,6 +93,15 @@ export async function markBookingFulfillment(
     if (!FULFILLMENT_STATUSES.includes(input.status)) return { ok: false, error: "Unknown status." };
     const auth = await authorizeForBooking(bookingId);
     if (!auth.ok) return { ok: false, error: auth.error };
+
+    // TUL-1708 (PM revision): on the staff path, the handed-off states release
+    // the deferred payout below (executeBookingTransfers) — that's money in
+    // motion, manager-tier, not the operate_venue (editor+) bar that admitted
+    // the staff path in general. The talent owner's own path is unaffected.
+    if (auth.via === "staff" && HANDED_OFF_STATES.includes(input.status)) {
+      const handoff = await requireWorkspaceStaffAction({ capability: "booking.payment.request" });
+      if (!handoff.ok || handoff.tenantId !== auth.tenantId) return { ok: false, error: "Forbidden." };
+    }
 
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
