@@ -27,7 +27,10 @@ export function isOpenAiConfigured(): boolean {
 /**
  * Translate EN bio → ES via configured chat provider. Never throws.
  */
-export async function translateBioEnToEs(text: string): Promise<BioTranslateResult> {
+/**
+ * `opts.tenantId`: the workspace the translation is done for (TUL-1623); omitted = platform-level work, billed to the platform.
+ */
+export async function translateBioEnToEs(text: string, opts: { tenantId?: string | null } = {}): Promise<BioTranslateResult> {
   const trimmed = text.trim();
   if (!trimmed) {
     return { ok: true, text: "" };
@@ -52,8 +55,8 @@ export async function translateBioEnToEs(text: string): Promise<BioTranslateResu
     };
   }
 
-  // TUL-1623: platform-level admin tool (no workspace): gated and metered against the platform tenant.
-  const gate = await gateAiCall();
+  // TUL-1623: gated and metered against the workspace it was done for (the platform tenant when there is none).
+  const gate = await gateAiCall(opts.tenantId);
   if (!gate.ok) return { ok: false, code: "quota", message: gate.error };
   const adapter = await resolveAiChatAdapter();
   const startedAt = Date.now();
@@ -62,7 +65,7 @@ export async function translateBioEnToEs(text: string): Promise<BioTranslateResu
     userMessage: trimmed,
     temperature: 0.3,
   });
-  meterAiCall({ feature: "translate_bio_en_es", provider: adapter.id, model: null, result, startedAt });
+  meterAiCall({ tenantId: opts.tenantId, feature: "translate_bio_en_es", provider: adapter.id, model: null, result, startedAt });
 
   if (!result.ok) {
     if (result.code === "quota") {

@@ -21,7 +21,7 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
-import { gateAiCall, meterAiCall } from "@/lib/ai/metered-ai";
+import { meterAiCall } from "@/lib/ai/metered-ai";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,

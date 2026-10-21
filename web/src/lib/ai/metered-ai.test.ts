@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, test } from "node:test";
-import { gateAiCall } from "./metered-ai";
+import { estimateCostUsd } from "./ai-model-costs";
+import { gateAiCall, meteredUsageArgs, toGateAiCallResult } from "./metered-ai";
 
 const ROOT = process.cwd();
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -99,10 +100,80 @@ describe("the seven paths named on the card", () => {
 });
 
 describe("gateAiCall", () => {
-  test("is the shared spend gate (a refusal carries the gate's code upper-cased); no database needed", () => {
+  test("is the shared spend gate (no database needed to check the wiring)", () => {
     const src = read("src/lib/ai/metered-ai.ts");
     assert.match(src, /assertAiInvocationAllowed\(tenantId \|\| undefined\)/);
-    assert.match(src, /code: gate\.code\.toUpperCase\(\)/);
     assert.equal(typeof gateAiCall, "function");
+  });
+  test("the refusal codes callers already branch on: rate_limit is RATE_LIMITED (ai-translate-site-action checks that), the rest upper-case", () => {
+    assert.deepEqual(toGateAiCallResult({ ok: false, code: "rate_limit", message: "m" }), { ok: false, error: "m", code: "RATE_LIMITED" });
+    assert.deepEqual(toGateAiCallResult({ ok: false, code: "spend_cap", message: "m" }), { ok: false, error: "m", code: "SPEND_CAP" });
+    assert.deepEqual(toGateAiCallResult({ ok: false, code: "monthly_requests", message: "m" }), { ok: false, error: "m", code: "MONTHLY_REQUESTS" });
+    assert.deepEqual(toGateAiCallResult({ ok: true }), { ok: true });
+    assert.match(read("src/lib/site-admin/edit-mode/ai-translate-site-action.ts"), /result\.code === "RATE_LIMITED"/);
+  });
+});
+
+describe("pricing: the model that SERVED the call prices it (no fallback-rate over-billing)", () => {
+  const base = { feature: "f", provider: "anthropic", startedAt: Date.now() };
+  const usage = { inputTokens: 1_000_000, outputTokens: 1_000_000 };
+  test("a successful call carries the served model into the usage row, and it is priced at THAT model's rate", () => {
+    const args = meteredUsageArgs({ ...base, model: null, result: { ok: true, text: "x", model: "claude-haiku-5-5", usage } });
+    assert.equal(args.model, "claude-haiku-5-5");
+    assert.equal(estimateCostUsd(args.model, usage.inputTokens, usage.outputTokens), 0.1 + 0.5);
+    // the same tokens at the unknown-model fallback would be 3 + 15 = 18 USD: 30x more
+    assert.equal(estimateCostUsd(null, usage.inputTokens, usage.outputTokens), 18);
+  });
+  test("the caller's model is only the fallback when a result carries none; a failed call records no usage", () => {
+    assert.equal(meteredUsageArgs({ ...base, model: "claude-sonnet-5", result: { ok: true, text: "x", usage } }).model, "claude-sonnet-5");
+    const failed = meteredUsageArgs({ ...base, model: "claude-sonnet-5", result: { ok: false, code: "x", message: "m" } });
+    assert.equal(failed.ok, false);
+    assert.equal(failed.usage, undefined);
+  });
+  test("the tenant, actor and feature are carried into the row", () => {
+    const args = meteredUsageArgs({ ...base, tenantId: "w1", actorProfileId: "u1", model: null, result: { ok: true, text: "x", model: "gpt-4o-mini", usage } });
+    assert.equal(args.tenantId, "w1");
+    assert.equal(args.actorProfileId, "u1");
+    assert.equal(args.scope, "f");
+  });
+});
+
+describe("bio translation is billed to the workspace (not the platform)", () => {
+  test("the translator takes the tenant, the four service functions pass it, the admin actions supply it", () => {
+    const bio = strip(read("src/lib/translation/ai-translate-bio.ts"));
+    assert.match(bio, /gateAiCall\(opts\.tenantId\)/);
+    assert.match(bio, /meterAiCall\(\{ tenantId: opts\.tenantId,/);
+    const svc = strip(read("src/lib/translation/talent-bio-translation-service.ts"));
+    assert.equal((svc.match(/translateBioEnToEs\(en, \{ tenantId: billingTenantId \}\)/g) ?? []).length, 4);
+    const admin = strip(read("src/lib/server-actions/admin-talent-translations.ts"));
+    assert.match(admin, /aiFillMissingSpanishBio\(\s*auth\.supabase,[\s\S]*?billingTenantId,\s*\)/);
+    assert.match(admin, /aiRefreshSpanishBioLive\(auth\.supabase, id, auth\.user\.id, billingTenantId\)/);
+  });
+  test("no unused imports left behind in text-to-page (it only meters; the gate was already there)", () => {
+    assert.doesNotMatch(read("src/lib/site-admin/builder-core/ai/text-to-page-action.ts"), /import \{ gateAiCall/);
+  });
+});
+
+describe("raw model calls (fetch to a provider, image generation) also record usage", () => {
+  const callers = walk(join(ROOT, "src"))
+    .map((f) => ({ rel: relative(ROOT, f), src: strip(readFileSync(f, "utf8")) }))
+    .filter((f) => /fetch\(\s*["'`]https:\/\/api\.(openai|anthropic)\.com\//.test(f.src) || /\bgenerateStockImage\(|\bgenerateImageBytesFromPrompt\(/.test(f.src));
+  /** Files that make a raw provider call and are metered by the caller, are plumbing, or are covered by TUL-1624 (#4329). */
+  const RAW_ALLOW: Readonly<Record<string, string>> = {
+    "src/lib/ai/ai-image-generation.ts": "the image provider seam itself; its callers meter (stock engine, node image action)",
+    "src/lib/ai/openai-image-request.ts": "the OpenAI image request seam; its callers (stock engine, node image action) meter",
+    "src/lib/ai/openai-embeddings.ts": "the embedding seam; search records the usage per call (TUL-1624, #4329)",
+    "src/lib/media/stock-qa.server.ts": "vision QA call: gated and recorded in TUL-1624 (#4329)",
+    "src/lib/site-admin/builder-core/ai/generate-node-image-action.ts": "node image: gated and recorded in TUL-1624 (#4329)",
+    "src/lib/taxonomy/openai-taxonomy-promo-image.ts": "platform taxonomy promo image (admin-only batch tool); metered by its stock-engine caller",
+  };
+  test("floor: the scan sees raw provider callers", () => {
+    assert.ok(callers.length >= 3, `found ${callers.length}`);
+  });
+  test("every raw caller records usage or is allow-listed with a reason", () => {
+    const problems = callers
+      .filter((c) => !RAW_ALLOW[c.rel] && !METER.test(c.src))
+      .map((c) => `${c.rel}: calls a provider directly and never records usage`);
+    assert.deepEqual(problems, []);
   });
 });
