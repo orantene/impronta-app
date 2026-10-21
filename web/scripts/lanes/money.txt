@@ -48,6 +48,7 @@ src/lib/billing/receipt-notice.test.ts
 src/lib/billing/refunded-charge-net.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
+src/lib/billing/talent-plan-card-cancel.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
 src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
