@@ -60,6 +60,8 @@ import {
   playfairDisplay,
 } from "./fonts";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { talentProfileCodeFromPathname } from "@/lib/talent-site/talent-profile-locale";
+import { resolveTalentProfileLocaleByCode } from "@/lib/talent-site/talent-profile-locale.server";
 import { LocaleSuggestionBanner } from "@/components/locale-suggestion-banner";
 import { CLIENT_MESSAGES_GLOBAL } from "@/i18n/messages.client";
 import { getClientMessagesPayload } from "@/i18n/messages";
@@ -172,12 +174,21 @@ export default async function RootLayout({
   ]);
   const requestLocale = await getRequestLocale();
   const reqHeaders = await headers();
-  const locale = resolveDocumentLocale(
+  let locale = resolveDocumentLocale(
     requestLocale,
     reqHeaders.get(ORIGINAL_PATHNAME_HEADER),
     reqHeaders.get(ORIGINAL_SEARCH_HEADER),
     { acceptLanguage: reqHeaders.get("accept-language"), country: reqHeaders.get("x-vercel-ip-country") },
   );
+  // TUL-875: /t/<code> renders in the TALENT-bounded locale (decideTalentProfileLocale);
+  // <html lang> and the client messages must be that exact locale, the same
+  // one <head> uses for canonical + hreflang, not the raw request locale.
+  const talentCode = talentProfileCodeFromPathname(reqHeaders.get(ORIGINAL_PATHNAME_HEADER));
+  if (talentCode) {
+    const search = new URLSearchParams((reqHeaders.get(ORIGINAL_SEARCH_HEADER) ?? "").replace(/^\?/, ""));
+    const decided = await resolveTalentProfileLocaleByCode(talentCode, search.get("lang"));
+    if (decided) locale = decided.locale;
+  }
   const { dir, hreflang } = getLocaleMetadata(locale);
   const consentRegion = consentRegionForCountry(reqHeaders.get("x-vercel-ip-country"));
 
