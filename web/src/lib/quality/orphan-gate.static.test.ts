@@ -61,7 +61,7 @@ test("the allow-lists hold no money-scope file and no file that is gone", () => 
   const list = allowed();
   assert.deepEqual(moneyOrphans(list), []);
   const live = new Set(computeOrphans());
-  const stale = read("scripts/ci/orphan-baseline.txt").filter((f) => !live.has(f));
+  const stale = read("scripts/ci/orphan-baseline.txt").filter((f: string) => !live.has(f));
   assert.deepEqual(stale, [], `Now run by a lane (or deleted): drop from orphan-baseline.txt:\n${stale.join("\n")}`);
 });
 
