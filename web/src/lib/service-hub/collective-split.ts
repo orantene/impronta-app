@@ -120,12 +120,16 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
     if (talentIds.length > 0) {
       const { data: rows, error } = await admin
         .from("agency_talent_roster")
-        .select("talent_profile_id, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version")
+        .select("talent_profile_id, status, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version")
         .eq("tenant_id", tenantId)
-        .in("talent_profile_id", talentIds)
-        .neq("status", "removed");
+        .in("talent_profile_id", talentIds);
       if (error) return refuse(error);
-      for (const r of (rows ?? []) as Array<ShareRow & { talent_profile_id: string; owner_share_version?: number | null }>) {
+      const all = (rows ?? []) as Array<ShareRow & { talent_profile_id: string; status?: string | null; owner_share_version?: number | null }>;
+      // A talent who left (or was removed) must never sell here with the owner's cut skipped: refuse
+      // unless she still has a live row (TUL-1469).
+      const live = new Set(all.filter((r) => r.status !== "removed").map((r) => r.talent_profile_id));
+      if (all.some((r) => r.status === "removed" && !live.has(r.talent_profile_id))) return refuse("removed roster member on a collective order");
+      for (const r of all.filter((x) => x.status !== "removed")) {
         const s = parseOwnerShareRow(r);
         if (s) shares.set(r.talent_profile_id, { share: s, version: Number(r.owner_share_version) || 1 });
       }

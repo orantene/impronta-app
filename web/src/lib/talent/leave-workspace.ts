@@ -2,7 +2,7 @@
  * TUL-1469 · leaving a workspace, the part that is not the database. Pure.
  * The RPC answer (or its error) becomes one of four outcomes with a plain sentence in ES/EN.
  */
-export type LeaveOutcome = "left" | "not_member" | "forbidden" | "unavailable" | "failed";
+export type LeaveOutcome = "left" | "not_member" | "forbidden" | "not_allowed" | "unavailable" | "failed";
 
 export function leaveOutcomeFromRpc(res: { data: unknown; error: { code?: string; message?: string } | null }): LeaveOutcome {
   if (res.error) {
@@ -12,7 +12,10 @@ export function leaveOutcomeFromRpc(res: { data: unknown; error: { code?: string
     if (code === "PGRST202" || code === "42883" || code === "42P01" || code === "PGRST205") return "unavailable";
     return "failed";
   }
-  return res.data === "left" ? "left" : res.data === "not_member" ? "not_member" : "failed";
+  if (res.data === "left") return "left";
+  if (res.data === "not_member") return "not_member";
+  if (res.data === "not_allowed_hub" || res.data === "not_allowed_home" || res.data === "not_allowed_primary") return "not_allowed";
+  return "failed";
 }
 
 const COPY = {
@@ -25,6 +28,7 @@ const COPY = {
     left: "Saliste de este negocio. Los trabajos ya reservados se mantienen.",
     not_member: "Ya no eres parte de este negocio.",
     forbidden: "No puedes hacer este cambio.",
+    not_allowed: "No puedes salir de este negocio desde aquí.",
     unavailable: "Esto aún no está disponible. Inténtalo más tarde.",
     failed: "No se pudo completar. Inténtalo otra vez.",
   },
@@ -37,6 +41,7 @@ const COPY = {
     left: "You left this business. Jobs already booked stay.",
     not_member: "You are no longer part of this business.",
     forbidden: "You cannot make this change.",
+    not_allowed: "You cannot leave this workspace from here.",
     unavailable: "This is not available yet. Please try again later.",
     failed: "Could not finish. Please try again.",
   },
