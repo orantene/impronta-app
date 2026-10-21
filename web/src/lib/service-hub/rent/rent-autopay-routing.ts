@@ -9,6 +9,8 @@ import type Stripe from "stripe";
 export type RentSubscriptionEvent =
   /** An abandoned Checkout: the member never subscribed (TUL-1601 fix). */
   | { type: "expired"; planId: string; tenantId: string }
+  /** TUL-1609: a monthly invoice was created as a draft: the closed month's percentage can still be added. */
+  | { type: "draft"; planId: string; tenantId: string; subscriptionId: string; invoiceId: string; customerId: string | null; periodStart: number; currency: string; percentAdded: boolean; feeBps: number | null }
   | { type: "started"; planId: string; tenantId: string; subscriptionId: string; customerId: string | null }
   | { type: "status"; planId: string; tenantId: string; subscriptionId: string; stripeStatus: string; paused: boolean; deleted: boolean }
   | { type: "paid"; planId: string; tenantId: string; subscriptionId: string; invoiceId: string; periodStart: number; amountPaid: number; currency: string; rentCents: number }
@@ -19,7 +21,7 @@ function rentMeta(md: Stripe.Metadata | null | undefined): { planId: string; ten
   const planId = md.rent_plan_id;
   const tenantId = md.tenant_id;
   const rentCents = Number(md.rent_cents);
-  if (!planId || !tenantId || !Number.isInteger(rentCents) || rentCents <= 0) return null;
+  if (!planId || !tenantId || !Number.isInteger(rentCents) || rentCents < 0) return null;
   return { planId, tenantId, rentCents };
 }
 
@@ -62,6 +64,15 @@ export function classifyRentSubscriptionEvent(event: Stripe.Event): RentSubscrip
         deleted: event.type === "customer.subscription.deleted",
       };
     }
+    case "invoice.created": {
+      const inv = event.data.object as Stripe.Invoice;
+      const details = inv.parent?.subscription_details;
+      const m = rentMeta(details?.metadata ?? null);
+      const subscriptionId = id(details?.subscription as string | Stripe.Subscription | null | undefined);
+      // Only the monthly renewal: the sign-up invoice is the start month, billed by its payment link.
+      if (!m || !subscriptionId || !inv.id || inv.billing_reason !== "subscription_cycle" || inv.status !== "draft") return null;
+      return { type: "draft", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, customerId: id(inv.customer as string | null), periodStart: periodStartOf(inv), currency: inv.currency, percentAdded: inv.metadata?.rent_percent_cents != null, feeBps: Number.isInteger(Number(details?.metadata?.fee_bps)) && details?.metadata?.fee_bps !== "" ? Number(details?.metadata?.fee_bps) : null };
+    }
     case "invoice.paid":
     case "invoice.payment_failed": {
       const inv = event.data.object as Stripe.Invoice;
@@ -72,9 +83,16 @@ export function classifyRentSubscriptionEvent(event: Stripe.Event): RentSubscrip
       if (event.type === "invoice.paid") {
         // A 0-amount invoice (the anchor invoice at sign-up) is not a rent payment.
         if ((inv.amount_paid ?? 0) <= 0) return null;
-        return { type: "paid", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), amountPaid: inv.amount_paid, currency: inv.currency, rentCents: m.rentCents };
+        // The rent recorded is the fixed part plus any percentage added to this invoice (TUL-1609).
+        const percent = Number(inv.metadata?.rent_percent_cents ?? 0);
+        const rentCents = m.rentCents + (Number.isInteger(percent) && percent > 0 ? percent : 0);
+        return { type: "paid", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), amountPaid: inv.amount_paid, currency: inv.currency, rentCents };
       }
-      return { type: "failed", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), attempt: inv.attempt_count ?? 1, currency: inv.currency ?? "", rentCents: m.rentCents };
+      // A failed charge records what was owed: fixed part + percentage added, else the invoice amount (never 0, the row needs amount_cents > 0).
+      const pctFailed = Number(inv.metadata?.rent_percent_cents ?? 0);
+      const owed = m.rentCents + (Number.isInteger(pctFailed) && pctFailed > 0 ? pctFailed : 0);
+      const failedRent = owed > 0 ? owed : Math.max(inv.amount_due ?? 0, 0);
+      return { type: "failed", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), attempt: inv.attempt_count ?? 1, currency: inv.currency ?? "", rentCents: failedRent };
     }
     default:
       return null;

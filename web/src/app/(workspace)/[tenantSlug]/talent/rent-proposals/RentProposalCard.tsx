@@ -29,7 +29,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
           <div style={{ fontSize: 15, margin: "4px 0" }}>{p.monthlyRentCents > 0 ? `${money(p.monthlyRentCents, p.currency, locale)} ${c.perMonth}` : ""}{p.monthlyRentCents > 0 && p.percentBps > 0 ? " + " : ""}{p.percentBps > 0 ? `${p.percentBps / 100}% ${c.ofSales}` : ""}</div>
           <div style={{ fontSize: 12.5, opacity: 0.7 }}>{c.startsOn} {p.startsOn}</div>
           <p style={{ fontSize: 12.5, opacity: 0.75 }}>{c.safetyNote}</p>
-          {p.status !== "proposed" && p.autopayOffered && p.percentBps === 0 && (
+          {p.status !== "proposed" && p.autopayOffered && (
             <div data-testid="rent-autopay" style={{ fontSize: 13, margin: "6px 0" }}>
               {["active", "pending", "past_due", "paused"].includes(p.autopayStatus) ? (
                 <>

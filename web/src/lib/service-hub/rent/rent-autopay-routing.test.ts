@@ -13,7 +13,7 @@ describe("only rent subscriptions are routed here; everything else is left alone
     assert.equal(classifyRentSubscriptionEvent(ev("invoice.paid", { id: "in_1", amount_paid: 100, parent: { subscription_details: { subscription: "sub_1", metadata: { checkout_type: "workspace_subscription" } } } })), null);
   });
   test("bad or missing rent metadata is ignored (fail closed)", () => {
-    for (const bad of [{ ...md, rent_plan_id: "" }, { ...md, rent_cents: "0" }, { ...md, rent_cents: "x" }, { ...md, tenant_id: "" }]) {
+    for (const bad of [{ ...md, rent_plan_id: "" }, { ...md, rent_cents: "-1" }, { ...md, rent_cents: "x" }, { ...md, tenant_id: "" }]) {
       assert.equal(classifyRentSubscriptionEvent(ev("customer.subscription.updated", { id: "sub_1", status: "active", metadata: bad })), null);
     }
   });
