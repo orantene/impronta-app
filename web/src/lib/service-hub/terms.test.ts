@@ -115,8 +115,8 @@ test("card lines render the share as a percent and as money in the talent's curr
 });
 
 test("every string the card uses exists in EN and ES, with no em dashes", () => {
-  const enBlock = (en as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubTerms;
-  const esBlock = (es as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubTerms;
+  const enBlock = (en as unknown as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubTerms;
+  const esBlock = (es as unknown as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubTerms;
   assert.ok(enBlock && esBlock, "dashboard.serviceHubTerms block missing");
   assert.deepEqual(Object.keys(enBlock).sort(), Object.keys(esBlock).sort());
   assert.equal(enBlock.accept, "Accept");

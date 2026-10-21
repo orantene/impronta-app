@@ -11,7 +11,7 @@ import { loadReplacementCandidates } from "@/lib/projects/projects-reader";
 const read = (p: string) => readFileSync(join(process.cwd(), "src", p), "utf8");
 
 test("the reader orders free, then unknown, then busy; best rated first; and never calls an unreadable list free", () => {
-  const src = read("lib/projects/projects-reader.ts");
+  const src = read("lib/projects/projects-replacement-reader.ts");
   assert.match(src, /const rank = \{ free: 0, unknown: 1, busy: 2 \}/);
   assert.match(src, /busy = "unreadable"/);
   assert.match(src, /availabilityByTalent\(rows\.map/);

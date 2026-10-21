@@ -61,7 +61,7 @@ export async function applyFriendsCollectivePreset(): Promise<ApplyPresetResult>
       seatOk: seats.ok,
     });
     if (!decision.ok) {
-      return { ok: false, reason: decision.reason, ...(decision.reason === "over_seat_cap" ? { message: seats.message } : {}) };
+      return { ok: false, reason: decision.reason, ...(decision.reason === "over_seat_cap" && !seats.ok ? { message: seats.message } : {}) };
     }
     if (decision.changed) {
       const { error } = await admin.from("agencies").update(decision.set).eq("id", tenantId);

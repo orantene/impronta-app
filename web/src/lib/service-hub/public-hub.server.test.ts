@@ -32,7 +32,7 @@ const T = "tenant-1";
 const entry = (id: string, over: Row = {}): Row => ({ id, tenant_id: T, name: `Entry ${id}`, category: null, photo_media_id: null, hub_price_cents: null, currency: "USD", show_who: "name", featured: false, hidden: false, own_offering_id: null, ...over });
 const listing = (id: string, entryId: string, over: Row = {}): Row => ({ id, tenant_id: T, talent_profile_id: `p-${id}`, offering_id: `o-${id}`, status: "accepted", price_mode: "talent_price", booking_type: "instant", currency: "USD", entry_id: entryId, owner_skipped_at: null, ...over });
 const PUBLIC_TALENT = (id: string, over: Row = {}): Row => ({ id: `p-${id}`, display_name: id === "a" ? "Ana" : `T ${id}`, deleted_at: null, is_publicly_hidden: false, is_publicly_listed: true, visibility: "public", profile_kind: "talent", ...over });
-const base = () => ({
+const base = (): Record<string, Row[]> => ({
   workspace_service_entries: [entry("e1")],
   workspace_service_listings: [listing("a", "e1")],
   talent_offerings: [{ id: "o-a", title: "Massage", category: "massage", duration_minutes: 60, amount_cents: 50000, currency: "USD", status: "published", moderation_state: "approved", visibility: "public" }],

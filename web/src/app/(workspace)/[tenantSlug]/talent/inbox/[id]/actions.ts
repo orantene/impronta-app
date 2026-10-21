@@ -129,7 +129,7 @@ export async function sendTalentInquiryMessage(
   // What was stored (masked or not) is what the client is nudged about.
   const storedBody = sent.storedBody ?? trimmed;
 
-  if (insertError) {
+  if (insertError || !data) {
     logServerError("talent.thread.send", insertError);
     return { ok: false, error: "Could not send message." };
   }

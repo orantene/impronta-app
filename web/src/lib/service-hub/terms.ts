@@ -158,6 +158,7 @@ export function parseTermsRow(raw: Record<string, unknown>): WorkspaceTalentTerm
   const model = raw.work_model as WorkModel;
   if (!WORK_MODELS.includes(model) || typeof raw.id !== "string") {
     if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console -- dev-only diagnostic for a malformed row (gated off in production)
       console.warn("[service-hub/terms] skipped bad workspace_talent_terms row", raw.id, "work_model", raw.work_model);
     }
     return null;

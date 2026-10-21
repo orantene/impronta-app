@@ -29,7 +29,7 @@ function chunk(type: string, data: Buffer): Buffer {
 }
 
 test("JPEG: the EXIF (APP1) segment is removed, the rest kept", () => {
-  const out = Buffer.from(stripImageMetadata(jpegWithExif(), "image/jpeg"));
+  const out = Buffer.from(stripImageMetadata(jpegWithExif(), "image/jpeg") ?? new Uint8Array(0));
   assert.equal(out.includes(GPS), false);
   assert.equal(out.includes(Buffer.from("JFIF")), true);
   assert.deepEqual([...out.subarray(0, 2)], [0xff, 0xd8]);
@@ -45,7 +45,7 @@ test("PNG: the eXIf chunk is removed, IDAT kept", () => {
     chunk("IDAT", Buffer.from("pixels")),
     chunk("IEND", Buffer.alloc(0)),
   ]);
-  const out = Buffer.from(stripImageMetadata(png, "image/png"));
+  const out = Buffer.from(stripImageMetadata(png, "image/png") ?? new Uint8Array(0));
   assert.equal(out.includes(GPS), false);
   assert.equal(out.includes(Buffer.from("pixels")), true);
   assert.equal(out.includes(Buffer.from("IEND")), true);
@@ -61,7 +61,7 @@ test("WebP: the EXIF chunk is removed and the RIFF size is rewritten", () => {
   const size = Buffer.alloc(4);
   size.writeUInt32LE(body.length);
   const webp = Buffer.concat([Buffer.from("RIFF"), size, body]);
-  const out = Buffer.from(stripImageMetadata(webp, "image/webp"));
+  const out = Buffer.from(stripImageMetadata(webp, "image/webp") ?? new Uint8Array(0));
   assert.equal(out.includes(GPS), false);
   assert.equal(out.readUInt32LE(4), out.length - 8);
   assert.equal(out.includes(Buffer.from("data")), true);

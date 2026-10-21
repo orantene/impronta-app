@@ -99,7 +99,7 @@ describe("Free seat cap of 5 is respected", () => {
 describe("the member's price is shown with her name", () => {
   test("EN and ES", () => {
     assert.equal(memberPriceLine({ name: "Ana", priceCents: 50_000, currency: "MXN" }, "es"), "Ana · $500.00");
-    assert.match(memberPriceLine({ name: "Ana", priceCents: 50_000, currency: "USD" }, "en"), /^Ana · \$500\.00$/);
+    assert.match(memberPriceLine({ name: "Ana", priceCents: 50_000, currency: "USD" }, "en") ?? "", /^Ana · \$500\.00$/);
   });
   test("no name, no price line (never an anonymous price)", () => {
     assert.equal(memberPriceLine({ name: "  ", priceCents: 100, currency: "USD" }, "en"), null);

@@ -69,7 +69,7 @@ export async function sendAdminInquiryMessage(
   const data = sent.data as { id: string; created_at: string } | null;
   const insertError = sent.error;
 
-  if (insertError) {
+  if (insertError || !data) {
     logServerError("admin.thread.send", insertError);
     return { ok: false, error: "Could not send message." };
   }

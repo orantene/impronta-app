@@ -40,7 +40,7 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
         members.push({
           talentProfileId: r.talent_profile_id,
           name: tp?.display_name ?? "",
-          share: parseOwnerShareRow(r),
+          share: parseOwnerShareRow({ owner_share_kind: r.owner_share_kind, owner_share_bps: r.owner_share_bps, owner_share_cents: r.owner_share_cents, owner_share_currency: r.owner_share_currency }),
           pending: parseOwnerShareRow({ owner_share_kind: r.pending_share_kind, owner_share_bps: r.pending_share_bps, owner_share_cents: r.pending_share_cents, owner_share_currency: r.pending_share_currency }),
         });
       }

@@ -203,6 +203,7 @@ export function parseListingRow(raw: Record<string, unknown>): ServiceListing | 
   const status = raw.status as ListingStatus;
   if (typeof raw.id !== "string" || !["offered", "accepted", "hidden"].includes(status)) {
     if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console -- dev-only diagnostic for a malformed row (gated off in production)
       console.warn("[service-hub/listing] skipped bad workspace_service_listings row", raw.id, "status", raw.status);
     }
     return null;

@@ -11,7 +11,7 @@ function fakeDb(seed: Record<string, Row[]>, opts: { failTable?: string } = {}) 
   let n = 0;
   const from = (table: string) => {
     const rows = (tables[table] ??= []);
-    let filters: Array<(r: Row) => boolean> = [];
+    const filters: Array<(r: Row) => boolean> = [];
     let mode: "select" | "update" | "delete" | "insert" = "select";
     let patch: Row = {};
     let inserted: Row | null = null;

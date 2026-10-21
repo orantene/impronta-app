@@ -13,7 +13,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { applyCollectiveOwnerShares, applySharesToLines, collectiveSplitEnabled, parseOwnerShareRow } from "./collective-split";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
-const line = (talentProfileId: string | null, totalCents: number, talentCostCents = totalCents) => ({ talentProfileId, totalCents, talentCostCents, ownerTenantId: null, label: "Gel manicure" });
+type TestLine = { talentProfileId: string | null; totalCents: number; talentCostCents: number; ownerTenantId: null; label: string; ownerTakeCents?: number; ownerShareSnapshot?: Record<string, unknown> };
+const line = (talentProfileId: string | null, totalCents: number, talentCostCents = totalCents): TestLine => ({ talentProfileId, totalCents, talentCostCents, ownerTenantId: null, label: "Gel manicure" });
 
 describe("share rows", () => {
   test("percent and fixed rows parse; bad or half-filled rows are null", () => {

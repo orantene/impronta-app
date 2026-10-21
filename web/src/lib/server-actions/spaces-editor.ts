@@ -12,6 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { loadDefaultVenue } from "@/lib/spaces/venues";
 import {
@@ -53,10 +54,8 @@ async function staffAndVenue(tenantSlug: string) {
 async function loadSpacePoolUnits(tenantId: string): Promise<Record<string, number>> {
   const admin = createServiceRoleClient();
   if (!admin) return {};
-  const { data, error } = await admin
-    .from("capacity_pools")
+  const { data, error } = await tenantScopedQuery(admin, "capacity_pools", tenantId)
     .select("subject_id, units_total")
-    .eq("tenant_id", tenantId)
     .eq("subject_kind", "space")
     .eq("pool_key", "default");
   if (error) {

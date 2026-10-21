@@ -97,7 +97,7 @@ export const RENT_COPY = {
     decline: "Rechazar",
   },
 } as const;
-export type RentCopy = (typeof RENT_COPY)["en"];
+export type RentCopy = (typeof RENT_COPY)[keyof typeof RENT_COPY];
 
 export function rentRefusalText(reason: string, c: RentCopy): string {
   switch (reason) {

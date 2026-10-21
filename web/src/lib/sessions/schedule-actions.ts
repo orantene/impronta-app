@@ -637,9 +637,10 @@ export async function scheduleSession(
       // The session exists but not all of its pools do. Said plainly, with the
       // count, because a tier with no pool is unsellable for this night and
       // silence here is exactly the failure the plan refuses to create.
+      const poolsCreated = "poolsCreated" in result ? result.poolsCreated : 0;
       return {
         ok: false,
-        message: `The session was created, but only ${result.poolsCreated} of ${plan.pools.length} tiers got seats. Open the session and add the missing tiers before selling.`,
+        message: `The session was created, but only ${poolsCreated} of ${plan.pools.length} tiers got seats. Open the session and add the missing tiers before selling.`,
       };
     }
 

@@ -122,8 +122,8 @@ test("hub display: price in the talent's currency, approximate line in the works
 });
 
 test("listing strings exist in EN and ES with the same keys and no em dashes", () => {
-  const enB = (en as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubListing;
-  const esB = (es as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubListing;
+  const enB = (en as unknown as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubListing;
+  const esB = (es as unknown as { dashboard: Record<string, Record<string, string>> }).dashboard.serviceHubListing;
   assert.ok(enB && esB, "dashboard.serviceHubListing block missing");
   assert.deepEqual(Object.keys(enB).sort(), Object.keys(esB).sort());
   for (const v of [...Object.values(enB), ...Object.values(esB)]) assert.equal(String(v).includes("—"), false);

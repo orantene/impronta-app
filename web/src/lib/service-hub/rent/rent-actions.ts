@@ -138,7 +138,8 @@ export async function issueRent(input: { planId: string; period?: string }): Pro
     const hdrs = await headers();
     const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
     const proto = hdrs.get("x-forwarded-proto") === "http" ? "http" : "https";
-    const publicOrigin = await resolveAgendaPayPublicOrigin(admin, auth.tenantId, host ? `${proto}://${host}` : "");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- service-role Supabase client (same as the other callers)
+    const publicOrigin = await resolveAgendaPayPublicOrigin(admin as any, auth.tenantId, host ? `${proto}://${host}` : "");
     const locale = (await getRequestLocale()) === "es" ? "es" : "en";
     const result = await issueRentInvoice(
       { tenantId: auth.tenantId, planId: input.planId, period: input.period ?? currentRentPeriod(new Date()), locale },
