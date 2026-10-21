@@ -81,7 +81,7 @@ test("reader: on_request loose and hub items carry priceCents null; public ones 
 
 for (const [name, titles] of [["loose", ["Private lesson"]], ["hub entry", ["Massage"]]] as const) {
   test(`${name} on_request: no price on the book list, widget grid, catalog API, dock and request`, async () => {
-    const list = (await items()).filter((i) => titles.includes(i.title));
+    const list = (await items()).filter((i) => (titles as readonly string[]).includes(i.title));
     assert.equal(list.length, 1);
     // /book list + widget grid (both read rosterServicesToCatalog / rosterGridEntries)
     const api = rosterServicesToCatalog(list, "en");

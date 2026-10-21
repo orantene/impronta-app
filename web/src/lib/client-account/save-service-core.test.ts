@@ -131,7 +131,7 @@ test("the normal save still works: agency host (no hub talent scope) saves any v
 });
 
 test("guest, talent account and impersonation are refused before any database call", async () => {
-  const cases: Array<[Partial<SaveServiceDeps>, string]> = [
+  const cases: Array<[Omit<Partial<SaveServiceDeps>, "admin">, string]> = [
     [{ session: async () => ({ userId: null, appRole: null }) }, "sign_in"],
     [{ session: async () => ({ userId: "t1", appRole: "talent" }) }, "not_client"],
     [{ notImpersonating: async () => false }, "unavailable"],
