@@ -48,9 +48,10 @@ export function CardDockFrame({
   // Esc already closes (the panel listens on window); on close, focus goes back to
   // whatever opened the chat (the launcher or the dock's chat button).
   useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement;
+    const opener = active instanceof HTMLElement && active !== document.body ? active : null;
     return () => {
-      if (opener && opener.isConnected) opener.focus();
+      if (opener && opener.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
 
@@ -90,12 +91,13 @@ export function CardDockFrame({
       role="dialog"
       aria-modal="false"
       data-guest-chat-panel=""
+      tabIndex={-1}
       aria-label={ariaLabel}
       data-chat-variant="card"
       data-chat-expanded={expanded ? "true" : "false"}
       data-chat-compact={compact ? "true" : "false"}
       data-tl-motion=""
-      style={{ ...cardVars(card, accent, accentInk), ...cardFrameStyle(compact, expanded || typing, keyboardInsetPx) } as CSSProperties}
+      style={{ ...cardVars(card, accent, accentInk), ...cardFrameStyle(compact, expanded || typing, keyboardInsetPx), outline: "none" } as CSSProperties}
     >
       <style>{CARD_CHAT_CSS}</style>
       {compact && !expanded && !typing ? (

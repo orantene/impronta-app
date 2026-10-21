@@ -28,7 +28,7 @@ export function useDockFocusReturn(open: boolean, pillRef: RefObject<HTMLElement
           [openerRef.current, pillRef.current, ...Array.from(document.querySelectorAll<HTMLElement>(CHAT_OPENER_SELECTOR))],
           isKeyboardReachable,
         );
-        target?.focus();
+        target?.focus({ preventScroll: true });
       });
       wasOpenRef.current = false;
       return () => cancelAnimationFrame(raf);
@@ -39,8 +39,8 @@ export function useDockFocusReturn(open: boolean, pillRef: RefObject<HTMLElement
 }
 
 /** Move focus into the dock on open: the composer on desktop, the dialog itself otherwise. */
-export function focusIntoDock(phone: boolean, composer: { focus: () => void } | null): void {
-  if (!phone) composer?.focus();
+export function focusIntoDock(phone: boolean, composer: { focus: (options?: FocusOptions) => void } | null): void {
+  if (!phone) composer?.focus({ preventScroll: true } as FocusOptions);
   const panel = document.querySelector<HTMLElement>("[data-guest-chat-panel]");
   if (panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
 }
