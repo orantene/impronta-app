@@ -24,7 +24,7 @@
 
 import { randomBytes } from "node:crypto";
 
-import { requireSession, requireStaff } from "@/lib/server/action-guards";
+import { requirePlatformAdmin, requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
@@ -418,20 +418,12 @@ export async function promoteWorkspaceTemplate(input: {
 }): Promise<SimpleResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireStaff();
-  if (!auth.ok) return { ok: false, error: auth.error };
+  // Platform-admin gate (TUL-1733). The old check read `profiles.role`, a column that does not exist
+  // (it is `app_role`), so it always denied; `requirePlatformAdmin()` is the real check.
+  const auth = await requirePlatformAdmin();
+  if (!auth.ok) return { ok: false, error: "Only platform admins can promote templates." };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server is missing service-role credentials." };
-
-  // Super-admin gate.
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("role")
-    .eq("id", auth.user.id)
-    .maybeSingle();
-  if (!profile || profile.role !== "super_admin") {
-    return { ok: false, error: "Only platform admins can promote templates." };
-  }
 
   const { error } = await admin
     .from("cms_workspace_templates")

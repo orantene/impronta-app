@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requirePlatformAdmin } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { canonicalBioEn } from "@/lib/translation/public-bio";
 import {
@@ -54,7 +54,7 @@ export async function loadTranslationQuickEditPayload(
   const parsed = loadSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { adapterId, entityId, parentEntityId } = parsed.data;
@@ -134,7 +134,7 @@ export async function applyTranslationQuickEditSave(
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
 
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { saveKind, entityId, parentEntityId, fields } = parsed.data;
