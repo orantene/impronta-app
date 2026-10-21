@@ -23,6 +23,8 @@ export type RentPlanView = {
   status: string;
   endedBy: string | null;
   stationId: string | null;
+  /** TUL-1612: off | pending | active | paused | past_due | canceled */
+  autopayStatus: string;
   /** The latest month's invoice and what its payment link is doing. */
   invoice: { period: string; state: "none" | "waiting" | "paid" | "needs_new_link" } | null;
 };
@@ -97,6 +99,11 @@ export function RentCard({ locale, gate, plans, members, stations, safety }: { l
           <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>
             {p.status === "proposed" ? c.waiting : p.status === "active" ? c.active : p.status === "paused" ? c.paused : p.status === "declined" ? c.declinedByMember : p.endedBy === "member" ? c.endedByMember : c.endedByOwner}
           </div>
+          {["pending", "active", "paused", "past_due"].includes(p.autopayStatus) && (
+            <div data-testid="rent-autopay-state" style={{ fontSize: 12.5, marginTop: 4, color: p.autopayStatus === "past_due" ? "#A8471B" : "inherit" }}>
+              {p.autopayStatus === "past_due" ? c.ownerAutopayPastDue : p.autopayStatus === "paused" ? c.ownerAutopayPaused : p.autopayStatus === "pending" ? c.ownerAutopayPending : c.ownerAutopayOn}
+            </div>
+          )}
           {p.invoice && (p.status === "active" || p.status === "paused") && (
             <div data-testid="rent-invoice-state" style={{ fontSize: 12.5, marginTop: 4, color: p.invoice.state === "needs_new_link" ? "var(--color-admin-red)" : "inherit" }}>
               {p.invoice.period} · {p.invoice.state === "paid" ? c.paid : p.invoice.state === "waiting" ? c.linkWaiting : p.invoice.state === "needs_new_link" ? c.linkNew : ""}
