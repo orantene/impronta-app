@@ -21,6 +21,7 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { requireEditSurfaceTenantScope } from "@/lib/saas";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { gateAiCall, meterAiCall } from "@/lib/ai/metered-ai";
 import {
   isResolvedAiChatConfigured,
   resolveAiChatAdapter,
@@ -71,7 +72,7 @@ const RANK_SYSTEM_PROMPT = `You help pick the best website starter design for a 
  * failure. The model is constrained to RE-ORDER the closed candidate id list; it
  * cannot widen it (the composer discards any id not in the candidate set).
  */
-function buildModelRanker(): (
+function buildModelRanker(tenantId: string, actorProfileId: string | null): (
   brief: string,
   candidateIds: ReadonlyArray<string>,
 ) => Promise<ReadonlyArray<string> | null> {
@@ -86,12 +87,15 @@ function buildModelRanker(): (
         "",
         "Return the ids ordered best-first as a JSON array.",
       ].join("\n");
+      const startedAt = Date.now();
       const result = await adapter.chatCompletion({
         systemPrompt: RANK_SYSTEM_PROMPT,
         userMessage,
         temperature: 0.2,
         maxTokens: 200,
       });
+      // TUL-1623: this call was gated but never recorded, so its cost was invisible to the cap.
+      meterAiCall({ tenantId, actorProfileId, feature: "text_to_page_rank", provider: adapter.id, model: null, result, startedAt });
       if (!result.ok) return null;
       let raw = result.text.trim();
       if (raw.startsWith("```")) {
@@ -164,7 +168,7 @@ export async function composePageFromBriefAction(input: {
     surface: input.surface,
     locale: input.locale,
     useModel,
-    rankWithModel: useModel ? buildModelRanker() : undefined,
+    rankWithModel: useModel ? buildModelRanker(tenantId, auth.user.id) : undefined,
   });
 
   if (!result.ok) {
