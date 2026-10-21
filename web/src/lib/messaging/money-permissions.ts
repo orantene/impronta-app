@@ -1,5 +1,6 @@
 import "server-only";
 
+import { selectStaffPermissions } from "@/lib/staff-permissions/read";
 
 /**
  * S6 (D-MSG-40): the permission keys this lane introduces for the money
@@ -80,13 +81,15 @@ export async function hasMessagingMoneyPermission(
   // An unreadable roster is also a deny — never "open because empty" (D-MSG-414).
   if (staffIds == null || staffIds.length === 0 || !staffIds.includes(input.userId)) return false;
 
-  const { data: rows, error: permErr } = await admin
-    .from("staff_permissions")
-    .select("user_id")
-    .eq("permission", input.permission)
-    .in("user_id", staffIds);
+  // Tenant-scoped (TUL-1813): a grant in another workspace never counts here.
+  // Tolerates the pre-migration table shape; never a single-row read.
+  const { rows, error: permErr } = await selectStaffPermissions(admin, {
+    tenantId: input.tenantId,
+    userIds: staffIds,
+    permission: input.permission,
+  });
   if (permErr) return false;
-  const grantedIds = new Set(((rows ?? []) as { user_id: string }[]).map((r) => r.user_id));
+  const grantedIds = new Set(rows.map((r) => r.user_id));
 
   if (grantedIds.size === 0) return true; // unconfigured tenant: open
   return grantedIds.has(input.userId);

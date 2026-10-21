@@ -300,6 +300,7 @@ src/lib/reviews/collective-reviews.test.ts
 src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
 src/lib/reviews/team-studio-private-notes.static.test.ts
+src/lib/rls/staff-permissions-tenant-scope.static.test.ts
 src/lib/saas/capabilityless-staff-guard.static.test.ts
 src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/media-area-writers-capability.static.test.ts
@@ -377,6 +378,7 @@ src/lib/sessions/events-projects-capabilities.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/sessions/sessions-public-read-visibility.static.test.ts
+src/lib/staff-permissions/read.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts

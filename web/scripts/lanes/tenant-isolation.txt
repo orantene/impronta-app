@@ -108,6 +108,7 @@ src/lib/quality/subscription-template-check-migration.static.test.ts
 src/lib/rls/close-global-is-agency-staff-policies.static.test.ts
 src/lib/rls/for-all-staff-policy-inventory.static.test.ts
 src/lib/rls/talent-insert-staff-scope.static.test.ts
+src/lib/rls/staff-permissions-tenant-scope.static.test.ts
 src/lib/saas/actor-signature.test.ts
 src/lib/saas/admin-api-tenant-scope.security.test.ts
 src/lib/saas/admin-href-invariant.static.test.ts
