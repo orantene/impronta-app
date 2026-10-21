@@ -29,9 +29,21 @@ on:
 permissions:
   issues: write
 
+# TUL-1403: one alert run per (commit, outcome). The three watched gates each fire this
+# workflow, and re-runs fire it again; duplicates of the SAME outcome on the SAME commit are
+# collapsed so they cannot crowd the runner queue behind the real CI runs. The conclusion is in
+# the key on purpose: a late `success` event must never cancel an in-flight `failure` alert
+# (that would drop the red-main alarm), and an alert for one commit never cancels another's.
+concurrency:
+  group: main-red-alert-${{ github.event.workflow_run.head_sha }}-${{ github.event.workflow_run.conclusion }}-${{ github.event.workflow_run.name }}
+  cancel-in-progress: true
+
 jobs:
   alert:
     name: Raise / clear the red-main issue
+    # TUL-1403: `cancelled` / `skipped` / `neutral` runs do nothing in the script below (it acts only
+    # on failure, timed_out and success), so do not spend a runner start on them.
+    if: contains(fromJSON('["failure","timed_out","success"]'), github.event.workflow_run.conclusion)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
