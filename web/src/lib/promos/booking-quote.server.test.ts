@@ -29,6 +29,7 @@ function promo(over: Partial<Promo> = {}): Promo {
 
 function quoteOf(promos: Promo[], over: Partial<QuoteInput> = {}) {
   return quote({
+    channel: "booking",
     cart: bookingCartLines(
       [{ offeringId: SERVICE, kind: "service", totalCents: 60000, addons: [{ id: ADDON, cents: 10000 }] }],
       { currency: "MXN", appointmentStart: START },

@@ -80,7 +80,7 @@ test("eligibility agrees with quote() for audience templates", () => {
   const promo = draftToPromo(buildDraft("first_booking", ctx()), "p1");
   for (const status of ["new", "returning", "lapsed"] as const) {
     const client: Client = { status };
-    const q = quote({ cart, client, now: NOW, promos: [promo], usage: {}, unlocked: { codes: [], linkPromoIds: [] } });
+    const q = quote({ channel: "booking", cart, client, now: NOW, promos: [promo], usage: {}, unlocked: { codes: [], linkPromoIds: [] } });
     assert.equal(q.applied.length > 0, engagementEligibility({ signedIn: true, status }, promo).eligible, status);
   }
 });
@@ -90,7 +90,7 @@ test("signup unlock: guest sees it locked, signed in gets the price via quote()"
   const promo = draftToPromo(d, "p1");
   const cart: CartLine[] = [{ id: "l1", kind: "service", target_id: "s1", list_cents: 45_000, qty: 1, currency: "MXN", appointment_start: "2026-10-13T12:00:00-06:00" }];
   const run = (signedIn: boolean) =>
-    quote({ cart, client: { status: "new" }, now: NOW, promos: [promo], usage: {}, unlocked: { codes: signupUnlockedCodes({ signedIn }, promo), linkPromoIds: [] } });
+    quote({ channel: "booking", cart, client: { status: "new" }, now: NOW, promos: [promo], usage: {}, unlocked: { codes: signupUnlockedCodes({ signedIn }, promo), linkPromoIds: [] } });
   assert.equal(run(false).applied.length, 0);
   assert.equal(run(false).rejected[0]?.reason, "locked");
   assert.equal(run(true).applied.length, 1);
