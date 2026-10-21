@@ -112,7 +112,6 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
  */
 export async function markBookingNoShow(input: {
   bookingId: string;
-  now?: Date;
 }): Promise<AgendaActionResult> {
   await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
@@ -121,7 +120,9 @@ export async function markBookingNoShow(input: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
-  const now = input.now ?? new Date();
+  // The SERVER clock only (TUL-1744): an exported action must not take `now` from the caller, or a
+  // talent could pass a future time and mark an upcoming booking no-show past the before_start guard.
+  const now = new Date();
   const { data: row, error } = await admin
     .from("agency_bookings")
     .select("id, status, starts_at, customer_id, tenant_id")
