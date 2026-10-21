@@ -10,6 +10,8 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { userHasCapability } from "@/lib/access";
+import { OFFERING_CURATION_CAPABILITY, resolveServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
@@ -206,6 +208,20 @@ export async function upsertWorkspaceMenuItem(
       if (!station) return { ok: false, error: "That kitchen station is not in this workspace." };
     }
 
+    // TUL-1633: moderation is never the client's; Favorites and the Website switch
+    // need the admin capability, and a failed read of the current row refuses the save.
+    const curator = await userHasCapability(OFFERING_CURATION_CAPABILITY, tenantId);
+    const owned = await resolveServerOwnedOfferingFields(admin as SupabaseClient, {
+      offeringId: offering.id || null,
+      scope: { tenant_id: tenantId, owner_kind: "workspace" },
+      requested: { moderation_state: offering.moderationState, is_featured: offering.isFeatured, visibility: offering.visibility },
+      curation: curator ? "curator" : "refuse_change",
+    });
+    if (!owned.ok) {
+      if (owned.code === "read_failed") logServerError("menu.offerings.serverOwned", owned.code);
+      return { ok: false, error: owned.error };
+    }
+
     const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const patch = {
       ...offeringToRowPatch({
@@ -214,6 +230,7 @@ export async function upsertWorkspaceMenuItem(
         talentProfileId: null,
         tenantId,
       }, primaryLocale), // the workspace's own language: a Spanish title is stored as `es`, not `en`
+      ...owned.fields,
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,
