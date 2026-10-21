@@ -17,11 +17,11 @@ test("messagingEnsureSharedDraft gates via messagingInquiryManager", () => {
   const fn = engine.slice(engine.indexOf("export async function messagingEnsureSharedDraft"));
   const end = fn.indexOf("export async function messagingRequestPayment");
   const body = end >= 0 ? fn.slice(0, end) : fn;
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
-  assert.match(guard, /requireInquiryManagerAction\(inquiryId\)/);
-  assert.match(guard, /return messagingStaff\(\)/);
-  const mgrIdx = guard.indexOf("requireInquiryManagerAction(inquiryId)");
-  const staffIdx = guard.indexOf("return messagingStaff()");
+  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId, WRITE_CAP\.\w+\)/);
+  assert.match(guard, /requireInquiryManagerAction\(inquiryId, capability/);
+  assert.match(guard, /return messagingStaff\(capability\)/);
+  const mgrIdx = guard.indexOf("requireInquiryManagerAction(inquiryId, capability");
+  const staffIdx = guard.indexOf("return messagingStaff(capability)");
   assert.ok(mgrIdx >= 0 && staffIdx > mgrIdx, "manager gate before staff fallback");
 });
 
@@ -29,6 +29,6 @@ test("messagingSendOffer gates via messagingInquiryManager", () => {
   const fn = engine.slice(engine.indexOf("export async function messagingSendOffer"));
   const end = fn.indexOf("export async function messagingGuestDraftAdd");
   const body = end >= 0 ? fn.slice(0, end) : fn;
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
+  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId, WRITE_CAP\.\w+\)/);
   assert.doesNotMatch(body, /const g = await staff\(\)/);
 });

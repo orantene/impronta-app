@@ -37,18 +37,20 @@ function sliceExport(src: string, name: string, nextNames: string[]): string {
 
 test("offer writers gate via messagingInquiryManager(inquiryId)", () => {
   assert.match(offers, /from "@\/lib\/messaging\/staff-guard"/);
-  assert.match(guard, /requireInquiryManagerAction\(inquiryId\)/);
+  assert.match(guard, /requireInquiryManagerAction\(inquiryId, capability/);
   for (let i = 0; i < OFFER_WRITERS.length; i++) {
     const name = OFFER_WRITERS[i]!;
     const body = sliceExport(offers, name, OFFER_WRITERS.slice(i + 1) as string[]);
-    assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
+    // TUL-1629: the readers keep the viewer default; every WRITER also names its capability.
+    const isReader = name === "messagingLoadOfferForEditor" || name === "messagingListOffers";
+    assert.match(body, isReader ? /messagingInquiryManager\(parsed\.data\.inquiryId\)/ : /messagingInquiryManager\(parsed\.data\.inquiryId, WRITE_CAP\.\w+\)/);
     assert.doesNotMatch(body, /const g = await staff\(\)/);
   }
 });
 
 test("messagingSendOffer gates via messagingInquiryManager", () => {
   const body = sliceExport(engine, "messagingSendOffer", ["messagingGuestDraftAdd"]);
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
+  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId, WRITE_CAP\.\w+\)/);
   assert.doesNotMatch(body, /const g = await staff\(\)/);
 });
 
