@@ -30,6 +30,7 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
+import { resolveServerOwnedOfferingFields, type ServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
 import { deleteOrArchiveTalentOffering } from "@/lib/talent/offering-delete-or-archive";
 import { afterResponse } from "@/lib/server/after-response";
 import { notifyListingsBelowMinimum } from "@/lib/notifications/producers/listing-below-minimum-notify";
@@ -178,10 +179,21 @@ type SaveResult =
   | { ok: true; item: TalentOffering; bookingHoursStatus?: BookingHoursStatus }
   | { ok: false; error: string };
 
-/** Create or update one offering (id === "" ⇒ insert). Validates first. */
+/** Create or update one offering (id === "" ⇒ insert). TUL-1633: moderation, featured, visibility are server-owned. */
 export async function upsertTalentOffering(
   talentProfileId: string,
   offering: TalentOffering,
+): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
+  return saveTalentOffering(talentProfileId, offering);
+}
+
+/** Not exported (never an action): `insertSeed` comes only from a server-read row (duplicate). */
+async function saveTalentOffering(
+  talentProfileId: string,
+  offering: TalentOffering,
+  insertSeed?: Partial<ServerOwnedOfferingFields>,
 ): Promise<SaveResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
@@ -202,8 +214,22 @@ export async function upsertTalentOffering(
       return { ok: false, error: "Set the price in Mexican pesos (MXN) or US dollars (USD)." };
     }
 
+    // TUL-1633: fail closed; the talent path is never a curator (offering-server-owned.ts).
+    const owned = await resolveServerOwnedOfferingFields(admin as SupabaseClient, {
+      offeringId: offering.id || null,
+      scope: { talent_profile_id: talentProfileId },
+      requested: { moderation_state: offering.moderationState, is_featured: offering.isFeatured, visibility: offering.visibility },
+      curation: "ignore",
+      insertSeed,
+    });
+    if (!owned.ok) {
+      if (owned.code === "read_failed") logServerError("talent.offerings.serverOwned", owned.code);
+      return { ok: false, error: owned.error };
+    }
+
     const patch = {
       ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }, auth.primaryLocale),
+      ...owned.fields,
       talent_profile_id: talentProfileId,
       owner_kind: "talent",
       updated_at: new Date().toISOString(),
@@ -360,7 +386,12 @@ export async function duplicateTalentOffering(
     inventoryQty: null,
     capacityPoolId: null,
   };
-  const saved = await upsertTalentOffering(talentProfileId, copy);
+  // TUL-1633: the copy keeps its source's DB-read moderation and visibility (no rejected-to-live copy).
+  const saved = await saveTalentOffering(talentProfileId, copy, {
+    moderation_state: item.moderationState,
+    visibility: item.visibility,
+    is_featured: false,
+  });
   if (!saved.ok) return saved;
   if (item.imageAssets?.length) {
     const ids = item.imageAssets.map((asset) => asset.id);
