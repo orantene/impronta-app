@@ -15,17 +15,12 @@ export type TouchpointCopy = { label: string; description: string; ctaLabel: str
 export type TrustCopy = {
   title: string;
   noProfile: string;
-  backToProfile: string;
   heading: string;
   lede: string;
   signalsEarned: (earned: number, total: number) => string;
   startWithId: string;
   earnedOn: (date: string) => string;
   active: string;
-  rolloutBold: string;
-  rolloutBefore: string;
-  settingsAccount: string;
-  rolloutAfter: string;
   touchpoints: Record<TrustKind, TouchpointCopy>;
 };
 
@@ -33,18 +28,13 @@ const EN: TrustCopy = {
   title: "Trust signals",
   noProfile:
     "You don't have a talent profile yet. Create one first to start earning verification badges.",
-  backToProfile: "← Back to profile",
   heading: "Your trust signals",
   lede:
-    "Verification badges signal trust to clients before they inquire. Some are self-serve (ID, license); others are earned (top-rated, agency-verified) or curated (Tulala featured). Earning more badges typically increases inquiry volume.",
+    "Verification badges signal trust to clients before they inquire. You start ID verification yourself; others are earned (top-rated, agency-verified), confirmed by the Tulala team (background check, union / license) or curated (Tulala featured). Earning more badges typically increases inquiry volume.",
   signalsEarned: (e, t) => `${e} of ${t} signals earned`,
-  startWithId: "· start with ID verification below",
+  startWithId: "Start with ID verification",
   earnedOn: (d) => `Earned ${d}`,
   active: "✓ Active",
-  rolloutBold: "Self-serve verification is rolling out next sprint.",
-  rolloutBefore: "For now, ID verification is started from",
-  settingsAccount: "Settings → Account",
-  rolloutAfter: "and other touchpoints are earned automatically or via agency action.",
   touchpoints: {
     "id-verified": {
       label: "ID verified",
@@ -59,12 +49,12 @@ const EN: TrustCopy = {
     "background-check": {
       label: "Background-checked",
       description: "Optional third-party check. Some clients filter by this badge.",
-      ctaLabel: "Request background check",
+      ctaLabel: "Added by the Tulala team",
     },
     union: {
       label: "Union / license",
-      description: "Upload union card or professional license. Renews yearly.",
-      ctaLabel: "Upload credentials",
+      description: "Union card or professional license, confirmed by the Tulala team. Renews yearly.",
+      ctaLabel: "Added by the Tulala team",
     },
     "agency-verified": {
       label: "Agency-verified",
@@ -89,18 +79,13 @@ const ES: TrustCopy = {
   title: "Señales de confianza",
   noProfile:
     "Aún no tienes un perfil de talento. Crea uno primero para empezar a ganar insignias de verificación.",
-  backToProfile: "← Volver al perfil",
   heading: "Tus señales de confianza",
   lede:
-    "Las insignias de verificación generan confianza en los clientes antes de que consulten. Algunas las gestionas tú (identificación, licencia); otras se ganan (mejor valorado, verificado por agencia) o las elige Tulala (destacado por Tulala). Tener más insignias suele aumentar las consultas.",
+    "Las insignias de verificación generan confianza en los clientes antes de que consulten. Tú inicias la verificación de identidad; otras se ganan (mejor valorado, verificado por agencia), las confirma el equipo de Tulala (antecedentes, sindicato / licencia) o las elige Tulala (destacado por Tulala). Tener más insignias suele aumentar las consultas.",
   signalsEarned: (e, t) => `${e} de ${t} señales obtenidas`,
-  startWithId: "· empieza con la verificación de identidad aquí abajo",
+  startWithId: "Empieza con la verificación de identidad",
   earnedOn: (d) => `Obtenida el ${d}`,
   active: "✓ Activa",
-  rolloutBold: "La verificación autogestionada llegará en el próximo sprint.",
-  rolloutBefore: "Por ahora, la verificación de identidad se inicia desde",
-  settingsAccount: "Ajustes → Cuenta",
-  rolloutAfter: "y las demás señales se obtienen automáticamente o por acción de la agencia.",
   touchpoints: {
     "id-verified": {
       label: "Identidad verificada",
@@ -118,12 +103,12 @@ const ES: TrustCopy = {
       label: "Antecedentes verificados",
       description:
         "Verificación opcional de un tercero. Algunos clientes filtran por esta insignia.",
-      ctaLabel: "Solicitar verificación de antecedentes",
+      ctaLabel: "La agrega el equipo de Tulala",
     },
     union: {
       label: "Sindicato / licencia",
-      description: "Sube tu credencial sindical o licencia profesional. Se renueva cada año.",
-      ctaLabel: "Subir credenciales",
+      description: "Credencial sindical o licencia profesional, confirmada por el equipo de Tulala. Se renueva cada año.",
+      ctaLabel: "La agrega el equipo de Tulala",
     },
     "agency-verified": {
       label: "Verificado por agencia",

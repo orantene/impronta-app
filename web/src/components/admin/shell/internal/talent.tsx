@@ -23,6 +23,7 @@ import { WorkingHoursPanelHost, openWorkingHoursPanel } from "./talent/agenda/Wo
 import { NewBookingPanelHost, openNewBookingPanel } from "./talent/agenda/NewBookingPanel";
 import { SendQuotePanelHost } from "./talent/agenda/SendQuotePanel";
 import { pinNextConversation } from "./messages/conversation-pending";
+import { useCanonicalRouteChildren } from "./canonical-route-children";
 
 // ── Page bodies load ON DEMAND (perf/talent-dev-bundle) ──
 // Every talent page body used to be a static import here, so /talent/today
@@ -318,6 +319,7 @@ function TalentSidebar() {
 // ─── Router ───────────────────────────────────────────────────────
 
 function TalentRouter() {
+  const hostedRoute = useCanonicalRouteChildren();
   const dashboardCopy = useDashboardText();
   const router = useRouter();
   const { state, setTalentPage, bridgeTalentSelfProfile, bridgeTalentAgendaItems, bridgeTalentAgendaHours, bridgeTalentAgendaError, bridgeTalentAgendaV2, toast } = useAdminShell();
@@ -543,6 +545,8 @@ function TalentRouter() {
   // value (e.g. URL race, stale persisted state) `page` would stay null and
   // the body would render blank. Surface a visible loading / unknown-state
   // card instead so the user never sees an empty shell.
+  // TUL-1819: a server page the talent shell hosts (/talent/trust) renders in the body.
+  if (hostedRoute != null) page = hostedRoute;
   if (page === null) {
     page = <TalentRouterFallback talentPage={state.talentPage} />;
   }
