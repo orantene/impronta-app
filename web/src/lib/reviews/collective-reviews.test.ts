@@ -8,7 +8,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 
-import { collectiveTenantIdsForTalent, loadWorkspaceReviews, notInTenantsFilter } from "./collective-reviews";
+import {
+  collectiveTenantIdsForTalent,
+  hubReviewRoutingEnabled,
+  loadWorkspaceReviews,
+  notInTenantsFilter,
+  workspaceReviewedModels,
+  workspaceReviewWithLabel,
+} from "./collective-reviews";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
@@ -87,5 +94,63 @@ describe("wiring", () => {
     assert.match(src, /collectiveTenantIdsForTalent\(/);
     assert.match(src, /notInTenantsFilter\(hidden\)/);
     assert.match(src, /const cachedCount = hidden\.length > 0 \? undefined :/);
+  });
+});
+
+// ── TUL-1591 (b): reviews follow the workspace model ────────────────────────
+// Coordinator agency and friends collective: the public review sits on the workspace
+// entry, the talent keeps it privately. Team studio: on the entry with a "with <talent>"
+// label. Open network and rental studio: on the talent (unchanged). Behind
+// HUB_REVIEW_ROUTING_ENABLED (default OFF): off keeps today's collective-only rule.
+
+describe("TUL-1591 (b): which models take a talent's reviews off her own public page", () => {
+  test("flag OFF (default): only Friends collectives, exactly as before", () => {
+    assert.equal(hubReviewRoutingEnabled({}), false);
+    assert.equal(hubReviewRoutingEnabled({ HUB_REVIEW_ROUTING_ENABLED: "true" }), false);
+    assert.deepEqual(workspaceReviewedModels({}), ["friends_collective"]);
+  });
+  test("flag ON: every model where the workspace is reviewed (coordinator agency, friends collective, team studio); never open network or rental studio", () => {
+    const env = { HUB_REVIEW_ROUTING_ENABLED: "1" };
+    assert.equal(hubReviewRoutingEnabled(env), true);
+    assert.deepEqual([...workspaceReviewedModels(env)].sort(), ["coordinator_agency", "friends_collective", "team_studio"]);
+    for (const m of ["open_network", "rental_studio"]) assert.ok(!workspaceReviewedModels(env).includes(m), m);
+  });
+  test("the tenant lookup asks for exactly those models", async () => {
+    const off = fakeDb({ agency_talent_roster: { data: [{ tenant_id: "t1" }] }, agencies: { data: [{ id: "t1" }] } });
+    await collectiveTenantIdsForTalent(off as never, "tal", {});
+    assert.deepEqual(off.seen.find((s) => s.table === "agencies" && s.op === "in" && s.args[0] === "work_model")?.args, ["work_model", ["friends_collective"]]);
+    const on = fakeDb({ agency_talent_roster: { data: [{ tenant_id: "t1" }] }, agencies: { data: [{ id: "t1" }] } });
+    assert.deepEqual(await collectiveTenantIdsForTalent(on as never, "tal", { HUB_REVIEW_ROUTING_ENABLED: "1" }), ["t1"]);
+    const args = on.seen.find((s) => s.table === "agencies" && s.op === "in" && s.args[0] === "work_model")?.args as [string, string[]];
+    assert.equal(args[0], "work_model");
+    assert.deepEqual([...args[1]].sort(), ["coordinator_agency", "friends_collective", "team_studio"]);
+  });
+});
+
+describe("TUL-1591 (b): the team studio entry reads \"with <talent>\"", () => {
+  test("label in EN and ES; no name, no label", () => {
+    assert.equal(workspaceReviewWithLabel("Ana", "en"), "with Ana");
+    assert.equal(workspaceReviewWithLabel("Ana", "es-MX"), "con Ana");
+    assert.equal(workspaceReviewWithLabel("  ", "en"), null);
+    assert.equal(workspaceReviewWithLabel(null, "es"), null);
+  });
+  test("a team studio's workspace reviews carry the talent's name; other models never do", async () => {
+    const reviews = { data: [{ id: "r1", talent_profile_id: "m1", rating: 5, body: "Great", created_at: "2026-10-01", anon: false, client_user_id: "c1" }] };
+    const studio = fakeDb({ talent_reviews: reviews, talent_profiles: { data: [{ id: "m1", display_name: "Ana" }] } });
+    const rows = await loadWorkspaceReviews(studio as never, "t2", 5, { workModel: "team_studio" });
+    assert.equal(rows[0].withTalentName, "Ana");
+    const agency = fakeDb({ talent_reviews: reviews, talent_profiles: { data: [{ id: "m1", display_name: "Ana" }] } });
+    const plain = await loadWorkspaceReviews(agency as never, "t2", 5, { workModel: "coordinator_agency" });
+    assert.equal(plain[0].withTalentName, null);
+    assert.ok(!agency.seen.some((s) => s.table === "talent_profiles"), "names are not read when no label is shown");
+  });
+  test("an unreadable name list keeps the reviews, without a label", async () => {
+    const db = fakeDb({
+      talent_reviews: { data: [{ id: "r1", talent_profile_id: "m1", rating: 5, body: null, created_at: "2026-10-01", anon: false, client_user_id: "c1" }] },
+      talent_profiles: { data: null, error: { message: "down" } },
+    });
+    const rows = await loadWorkspaceReviews(db as never, "t2", 5, { workModel: "team_studio" });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].withTalentName, null);
   });
 });
