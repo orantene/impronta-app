@@ -26,6 +26,7 @@ export function PrivacyEs() {
       title="Política de privacidad"
       lastUpdated="2026-10-01"
       lastUpdatedLabel="Última actualización"
+      locale="es"
       intro={
         <p>
           {PLATFORM_BRAND.name} es una plataforma donde talentos, agencias y otros negocios

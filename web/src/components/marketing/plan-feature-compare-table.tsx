@@ -19,7 +19,7 @@
 import { loadCompareTable } from "@/lib/pricing/get-compare-table";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
-import { localizeTierName } from "@/lib/marketing/pricing-ladders-copy";
+import { pricingTierName } from "@/lib/marketing/pricing-ladders-copy";
 import {
   COMPARE_CATEGORY_LABEL,
   type CompareTableRow,
@@ -58,7 +58,15 @@ export async function PlanFeatureCompareTable({
   }
 
   const captions = tierCaptions ?? copy.captions;
-  const tierLabel = (slug: string) => localizeTierName(table.tierLabels[slug] ?? slug, locale);
+  // TUL-1799: the plan card and this column header read the SAME catalog name, so a
+  // DB row called "Team (Plan 02)" can never show beside a card called "Studio".
+  const tierLabel = (slug: string) =>
+    pricingTierName(
+      packageSlug === "talent" ? "talent" : "workspace",
+      slug,
+      table.tierLabels[slug] ?? slug,
+      locale,
+    );
   const categoryLabel = (category: string) =>
     copy.categories[category] ?? COMPARE_CATEGORY_LABEL[category] ?? category;
   const columnCount = table.tierSlugs.length;

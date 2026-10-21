@@ -65,6 +65,7 @@ export function CookiesEs() {
       title="Cookies y almacenamiento"
       lastUpdated="2026-10-01"
       lastUpdatedLabel="Última actualización"
+      locale="es"
       intro={
         <p>
           {PLATFORM_BRAND.name} usa cookies y almacenamiento similar del navegador para
