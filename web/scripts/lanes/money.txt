@@ -275,6 +275,9 @@ src/lib/reservations/deposit-currency.test.ts
 src/lib/reservations/reserve-table-deposit.test.ts
 src/lib/resources/session-resource-holds.test.ts
 src/lib/reviews/collective-reviews.test.ts
+src/lib/reviews/private-note-audience.test.ts
+src/lib/reviews/private-note-routing.test.ts
+src/lib/reviews/team-studio-private-notes.static.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
 src/lib/sales/by-item.test.ts

@@ -380,6 +380,8 @@
         "attrStarAria": "{label}: {stars}",
         "stoodOutLabel": "¿Qué destacó? (opcional)",
         "privateNoteLabel": "Nota privada. Solo {name} la ve, para ayudarle a mejorar.",
+        "privateNoteLabelWorkspace": "Nota privada. Solo {name} la ve.",
+        "privateNoteLabelNeutral": "Nota privada, no se muestra públicamente.",
         "privateNotePlaceholder": "¿Algo que compartirías en privado para ayudarle a crecer?",
         "postAnonymously": "Publicar de forma anónima (mostrar como Cliente verificado)",
         "saving": "Guardando…",
@@ -14067,7 +14069,10 @@
       "title": "Reseñas",
       "subtitle": "Reseñas reportadas, integridad de calificaciones y fotos de reseñas de tu espacio.",
       "reviewPhotos": "Fotos de reseñas",
-      "noTenant": "Inicia sesión en un espacio para moderar sus reseñas."
+      "noTenant": "Inicia sesión en un espacio para moderar sus reseñas.",
+      "privateNotesTitle": "Notas privadas de clientes",
+      "privateNotesHint": "Los clientes las escribieron para tu negocio. Tu equipo no las ve.",
+      "privateNotesWith": "Trabajo con {name}"
     },
     "adminAnalytics": {
       "eyebrow": "Analíticas",
