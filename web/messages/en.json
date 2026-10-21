@@ -1764,6 +1764,9 @@
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
       "contactCta": "Send a message",
+      "rosterHeading": "From our team",
+      "rosterNote": "Request a service and the studio will reply with the details.",
+      "rosterRequest": "Request",
       "noTimesRequest": "No online times right now: send us a request and we will confirm.",
       "requestCta": "Send a request"
     },
