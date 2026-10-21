@@ -24,6 +24,7 @@ import { IntegrationsSection } from "./IntegrationsSection";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { RunsEventsCard } from "@/components/admin/settings/runs-events-card";
 import { WorkStyleSettingsRow } from "@/components/admin/settings/work-style-settings-row";
+import { CollectiveSettingsRow } from "@/components/admin/settings/collective-settings-row";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { IndustrySettingsCard } from "@/components/words/IndustrySettingsCard";
@@ -404,6 +405,8 @@ export function WorkspacePageView() {
             {isOwner ? <HowYouWorkCard /> : null}
             {/* TUL-1474: owner AND admin may change the work style (canSetWorkStyle); the row itself re-checks on the server. */}
             {isAdmin ? <WorkStyleSettingsRow /> : null}
+            {/* TUL-1374: door to Settings > Friends collective (page + actions re-check the role). */}
+            {isAdmin ? <CollectiveSettingsRow /> : null}
             {/* Owner-only, and the ONLY caller of `setRunsEvents`. */}
             <RunsEventsCard canEdit={isOwner} />
             <DefaultCurrencySettingsRow />

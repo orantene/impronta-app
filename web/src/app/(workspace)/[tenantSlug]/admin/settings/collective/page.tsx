@@ -11,6 +11,8 @@ import { FRIENDS_COLLECTIVE_MODEL } from "@/lib/service-hub/friends-collective";
 import { loadWorkspaceReviews } from "@/lib/reviews/collective-reviews";
 import { CollectiveSharesCard, type CollectiveMember, type CollectiveReview } from "./CollectiveSharesCard";
 import { logServerError } from "@/lib/server/safe-error";
+import { canSetWorkStyle } from "@/lib/service-hub/work-style";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,19 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
   if (!scope) notFound();
   const locale = (await getRequestLocale()) === "es" ? "es" : "en";
   const admin = createServiceRoleClient();
+
+  // Members' shares and the reviews are for the owner and admins only (an editor or viewer
+  // reads neither); the owner-only actions behind the card re-check on their own.
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
+  if (!guard.ok || guard.tenantId !== scope.tenantId) notFound();
+  if (admin) {
+    const { data: me, error: meErr } = await tenantScopedQuery(admin, "agency_memberships", scope.tenantId)
+      .select("role")
+      .eq("profile_id", guard.user.id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (meErr || !canSetWorkStyle((me as { role?: string } | null)?.role)) notFound();
+  }
 
   let workModel: string | null = null;
   const members: CollectiveMember[] = [];
