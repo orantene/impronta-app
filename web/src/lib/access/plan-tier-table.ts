@@ -16,12 +16,8 @@
  *
  * PURE: no `server-only`, no Supabase. Type-only imports.
  */
-import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import type { CapabilityKey } from "./capabilities";
 import type { PlanKey } from "./plan-catalog";
-
-/** The configured client fee as text; the rate itself lives only in fee-config.ts (TUL-1061). */
-const FEE_LABEL = clientServiceFeePercentLabel();
 import type { TalentEntitlement } from "./talent-entitlements";
 
 export type TierFeatureGate =
@@ -67,7 +63,7 @@ export const APPROVED_TIER_TABLE: readonly TierRow[] = [
       { id: "services_catalog", en: "Services catalog", es: "Catálogo de servicios", gate: UNGATED },
       { id: "booking", en: "Booking", es: "Reservas", gate: UNGATED },
       { id: "chat", en: "Chat with clients", es: "Chat con clientes", gate: UNGATED },
-      { id: "payments", en: `Payments (+${FEE_LABEL} client fee)`, es: `Pagos (+${FEE_LABEL} de cargo al cliente)`, gate: UNGATED },
+      { id: "payments", en: "Payments (+1.5% client fee)", es: "Pagos (+1.5% de cargo al cliente)", gate: UNGATED },
       { id: "subdomain", en: "Tulala subdomain", es: "Subdominio de Tulala", gate: UNGATED },
       { id: "basic_seo", en: "Basic SEO (title and description)", es: "SEO básico (título y descripción)", gate: UNGATED },
     ],
