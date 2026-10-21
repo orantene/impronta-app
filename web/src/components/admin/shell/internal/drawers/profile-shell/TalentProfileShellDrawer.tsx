@@ -6,6 +6,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { isStaleDeploymentError, notifyStaleDeployment } from "@/lib/client/stale-deployment";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
+import { omitUnlessLoaded, PRIVATE_IDENTITY_PAYLOAD_KEYS } from "@/lib/talent/private-fields";
 import { useRouter } from "next/navigation";
 import {
   buildCorePublishRequirements,
@@ -343,6 +344,13 @@ export function TalentProfileShellDrawer() {
   const historyIdxRef = useRef(0);
   const skipHistoryRef = useRef(false);
   const allowMarkDirtyRef = useRef(false);
+  // TUL-1269: true only after the editor hydration loaded phone / date_of_birth /
+  // legal_name. Until then (or when the load failed) the save omits those keys so
+  // it can never write blanks over real values.
+  const privateFieldsLoadedRef = useRef(false);
+  // Same fact as the ref, for rendering: true once hydration finished WITHOUT the private
+  // fields, so the identity editor disables those inputs and says why.
+  const [privateFieldsUnavailable, setPrivateFieldsUnavailable] = useState(false);
   const savedStatusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -681,6 +689,8 @@ export function TalentProfileShellDrawer() {
         }
 
         const d = edRes.data;
+        privateFieldsLoadedRef.current = (d as { private_fields_available?: boolean }).private_fields_available === true;
+        setPrivateFieldsUnavailable(!privateFieldsLoadedRef.current);
         // Multi-tenant identity flags — three fields added by
         // admin-talent-profile-sections.ts. Used by the banner + the future
         // per-field disabled gating. Cast through unknown because the
@@ -1052,7 +1062,7 @@ export function TalentProfileShellDrawer() {
         }
       : undefined;
 
-    const identityPayload = {
+    const identityPayloadFull = {
       talent_profile_id: tid,
       stage_name: id.stageName,
       first_name: id.firstName ?? "",
@@ -1076,6 +1086,7 @@ export function TalentProfileShellDrawer() {
       contact_phone: id.contactPhone ?? "",
       contact_phone_prefix: id.contactPhonePrefix ?? "+1",
     };
+    const identityPayload = omitUnlessLoaded(identityPayloadFull, privateFieldsLoadedRef.current, PRIVATE_IDENTITY_PAYLOAD_KEYS) as typeof identityPayloadFull;
 
     const aboutPayload = {
       talent_profile_id: tid,
@@ -3367,6 +3378,7 @@ export function TalentProfileShellDrawer() {
                 lockReasons={state.fieldLockReasons}
                 workspaceScopeTenantId={workspaceScopeTenantId}
                 disabled={personalProfileLocked}
+                privateFieldsUnavailable={privateFieldsUnavailable}
               />
               <ProfileHeroTextRows tagline={state.tagline} onTagline={(v) => patch({ tagline: v })} talentProfileId={payload.talentId} isSelf={isSelf}
                 workspaceScopeTenantId={workspaceScopeTenantId} disabled={personalProfileLocked} />

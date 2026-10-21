@@ -1,4 +1,5 @@
 "use server";
+import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
 import { improntaLog } from "@/lib/server/structured-log";
 
 // admin-talent-profile-sections.ts
@@ -1307,6 +1308,8 @@ export type ProfileEditorData = {
   display_name: string | null;
   first_name: string | null;
   last_name: string | null;
+  /** False when phone / date_of_birth / legal_name could not be loaded (TUL-1269): the editor must not submit them. */
+  private_fields_available: boolean;
   legal_name: string | null;
   pronouns: string | null;
   pronouns_custom: string | null;
@@ -1379,7 +1382,7 @@ export async function getTalentProfileEditorData(input: {
 
   // Fetch talent_profiles row + the roster row + the Tier-D catalog value
   // rows in parallel.
-  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues, privateFields] = await Promise.all([
     supabase
       .from("talent_profiles")
       // T4 collapse-dedicated-columns: the migrated Tier-A/B/C fields no longer
@@ -1388,10 +1391,10 @@ export async function getTalentProfileEditorData(input: {
       .select(`
         updated_at,
         user_id,
-        display_name, first_name, last_name, legal_name, field_visibility,
-        gender, date_of_birth, nationality, home_country_text,
+        display_name, first_name, last_name, field_visibility,
+        gender, nationality, home_country_text,
         is_discoverable,
-        invitation_email, phone,
+        invitation_email,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
         availability_data,
         social_links, embedded_media,
@@ -1423,6 +1426,9 @@ export async function getTalentProfileEditorData(input: {
     // pronouns_custom + gender) from the catalog value table, falling back to the
     // dedicated column below when absent. DOB stays column-only.
     readIdentityFieldValuesFromCatalog(supabase, input.talent_profile_id),
+    // TUL-1269: phone / date_of_birth / legal_name are not column-granted to
+    // signed-in clients; roster staff (checked above) read them via the RPC.
+    loadTalentPrivateFields(supabase, input.talent_profile_id),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -1431,7 +1437,10 @@ export async function getTalentProfileEditorData(input: {
   }
 
   type Row = Record<string, unknown>;
-  const p = profileRes.data as Row;
+  // `unavailable` leaves phone / date_of_birth / legal_name undefined AND flags the
+  // payload so the editor never saves a blank over values it could not read.
+  const privateFieldsAvailable = privateFields.status === "loaded";
+  const p = { ...(profileRes.data as Row), ...(privateFields.status === "loaded" ? privateFields.fields : {}) } as Row;
   const r = (rosterRes.data ?? {}) as Row;
   const sv = scalarFieldValues;
   const bv = blobFieldValues;
@@ -1476,6 +1485,7 @@ export async function getTalentProfileEditorData(input: {
       display_name: (p.display_name as string | null) ?? null,
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
+      private_fields_available: privateFieldsAvailable,
       legal_name: (p.legal_name as string | null) ?? null,
       // T4 collapse-dedicated-columns: pronouns / pronouns_custom are System-B
       // only now (columns dropped). gender + date_of_birth remain dedicated

@@ -118,6 +118,7 @@ export default async function TalentOnboardingPage() {
         gender: editor?.gender ?? "",
         dateOfBirth: editor?.date_of_birth ?? "",
         phone: editor?.phone ?? "",
+        privateFieldsAvailable: editor?.private_fields_available === true,
         shortBio: englishBio(editor?.bios),
         ratesData: coerceRateRows(editor?.rates_data),
       }}

@@ -1,3 +1,4 @@
+import { loadTalentPrivateFields, privateFieldOrNull } from "@/lib/talent/private-fields";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CitySuggestion, CountrySuggestion } from "@/lib/location-autocomplete";
 
@@ -10,6 +11,8 @@ export type LoadedTalentForAdminUserEdit = {
   phone: string | null;
   gender: string | null;
   date_of_birth: string | null;
+  /** False when phone / date_of_birth could not be loaded: the form must not render or submit them (TUL-1269). */
+  private_fields_available: boolean;
   workflow_status: string;
   visibility: string;
   membership_tier: string | null;
@@ -75,9 +78,7 @@ export async function loadTalentForAdminUserEdit(
       first_name,
       last_name,
       short_bio,
-      phone,
       gender,
-      date_of_birth,
       location_id,
       residence_city_id,
       origin_city_id,
@@ -96,6 +97,9 @@ export async function loadTalentForAdminUserEdit(
   if (!profile) {
     return { data: null, error: "Talent profile not found." };
   }
+
+  // TUL-1269: phone / date_of_birth come from the staff-gated RPC, not the table.
+  const privateFields = await loadTalentPrivateFields(supabase, talentId);
 
   const residenceCityId =
     (profile as { residence_city_id?: string | null }).residence_city_id ??
@@ -132,9 +136,10 @@ export async function loadTalentForAdminUserEdit(
       first_name: (profile.first_name as string | null) ?? null,
       last_name: (profile.last_name as string | null) ?? null,
       short_bio: (profile.short_bio as string | null) ?? null,
-      phone: (profile.phone as string | null) ?? null,
+      phone: privateFieldOrNull(privateFields, "phone"),
       gender: (profile.gender as string | null) ?? null,
-      date_of_birth: (profile.date_of_birth as string | null) ?? null,
+      date_of_birth: privateFieldOrNull(privateFields, "date_of_birth"),
+      private_fields_available: privateFields.status === "loaded",
       workflow_status: profile.workflow_status as string,
       visibility: profile.visibility as string,
       membership_tier: (profile.membership_tier as string | null) ?? null,

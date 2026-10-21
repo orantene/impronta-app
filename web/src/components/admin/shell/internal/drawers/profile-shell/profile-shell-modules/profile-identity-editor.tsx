@@ -236,7 +236,7 @@ function SelectPicker({
   );
 }
 
-export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons, workspaceScopeTenantId, disabled }: {
+export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lockReasons, workspaceScopeTenantId, disabled, privateFieldsUnavailable }: {
   identity: ProfileIdentity;
   onChange: (next: ProfileIdentity) => void;
   isSelf: boolean;
@@ -251,6 +251,9 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
    *  per-path `isFieldLocked` matrix. The drawer banner explains why
    *  separately; this is the safety floor for editing affordances. */
   disabled?: boolean;
+  /** TUL-1269: legal name, date of birth and phone could not be loaded. Those inputs render
+   *  disabled with a note, because the save leaves them out (typing there would be lost). */
+  privateFieldsUnavailable?: boolean;
 }) {
   const dashLocale = useDashboardLocale();
   const copy = useDashboardText();
@@ -291,6 +294,12 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           grid-column: 1 / -1;
         }
       `}</style>
+
+      {privateFieldsUnavailable && (
+        <div data-pshell-identity-full data-pshell-private-unavailable role="status" style={{ fontSize: 12.5, lineHeight: 1.45 }} className="text-admin-ink-muted">
+          {copy.t("Private details could not be loaded. Reload to edit them.")}
+        </div>
+      )}
 
       {/* ── Profile name ────────────────────────────────────────────── */}
       <div data-pshell-identity-full>
@@ -357,8 +366,8 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
             placeholder={`${identity.firstName ?? "Sofia"} ${identity.lastName ?? "García"}`.trim()}
             value={identity.legalName ?? ""}
             onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
-            disabled={isFieldLocked("identity.legalName")}
-            style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") ? 0.55 : 1 }}
+            disabled={isFieldLocked("identity.legalName") || !!privateFieldsUnavailable}
+            style={{ ...inputStyle, opacity: isFieldLocked("identity.legalName") || privateFieldsUnavailable ? 0.55 : 1 }}
           />
           {isFieldLocked("identity.legalName") && <LockedHint reason={lockReasons?.["identity.legalName"]} />}
         </div>
@@ -433,7 +442,8 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           type="date"
           value={identity.dob ?? ""}
           onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
-          style={inputStyle}
+          disabled={!!privateFieldsUnavailable}
+          style={{ ...inputStyle, opacity: privateFieldsUnavailable ? 0.55 : 1 }}
         />
         <DateFormatHint locale={dashLocale} />
       </FieldRow>
@@ -557,7 +567,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           national={identity.contactPhone ?? ""}
           numberPlaceholder={copy.t("55 1234 5678")}
           ariaLabel={copy.t("Phone")}
-          disabled={disabled}
+          disabled={disabled || !!privateFieldsUnavailable}
           copyFrom={{
             prefix: identity.whatsappPrefix ?? identity.contactPhonePrefix ?? "+1",
             national: identity.whatsapp ?? "",
