@@ -13,10 +13,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
  */
 export type OwnedIdsResult = { ok: true } | { ok: false; reason: "wrong_tenant" | "unavailable" };
 
-type AnyAdmin = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => any;
-};
+type AnyAdmin = { from: (table: string) => unknown };
 
 const asClient = (admin: AnyAdmin) => admin as unknown as SupabaseClient;
 
@@ -67,21 +64,42 @@ export async function assertVariantsBelongToTenant(
   );
 }
 
-/** The user holds a live staff membership in this tenant (an instructor must be workspace staff). */
+/**
+ * The user may teach in this tenant (an unclaimed talent with no user_id cannot be an instructor yet): an ACTIVE staff membership, or an ACTIVE roster row for a
+ * talent profile they own (roster talents teach classes too). Anything else is refused.
+ */
 export async function assertUserIsTenantStaff(
   admin: AnyAdmin,
   userId: string | null | undefined,
   tenantId: string,
 ): Promise<OwnedIdsResult> {
   if (!userId || !tenantId) return { ok: false, reason: "wrong_tenant" };
-  const { data, error } = await tenantScopedQuery(asClient(admin), "agency_memberships", tenantId)
+  const staff = await tenantScopedQuery(asClient(admin), "agency_memberships", tenantId)
     .select("id")
     .eq("profile_id", userId)
     .eq("status", "active")
     .limit(1);
-  if (error) {
-    logServerError("tenancy.assertUserIsTenantStaff", error);
+  if (staff.error) {
+    logServerError("tenancy.assertUserIsTenantStaff", staff.error);
     return { ok: false, reason: "unavailable" };
   }
-  return Array.isArray(data) && data.length > 0 ? { ok: true } : { ok: false, reason: "wrong_tenant" };
+  if (Array.isArray(staff.data) && staff.data.length > 0) return { ok: true };
+
+  const profiles = await asClient(admin).from("talent_profiles").select("id").eq("user_id", userId);
+  if (profiles.error) {
+    logServerError("tenancy.assertUserIsTenantStaff.profiles", profiles.error);
+    return { ok: false, reason: "unavailable" };
+  }
+  const profileIds = ((profiles.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  if (profileIds.length === 0) return { ok: false, reason: "wrong_tenant" };
+  const roster = await tenantScopedQuery(asClient(admin), "agency_talent_roster", tenantId)
+    .select("id")
+    .in("talent_profile_id", profileIds)
+    .eq("status", "active")
+    .limit(1);
+  if (roster.error) {
+    logServerError("tenancy.assertUserIsTenantStaff.roster", roster.error);
+    return { ok: false, reason: "unavailable" };
+  }
+  return Array.isArray(roster.data) && roster.data.length > 0 ? { ok: true } : { ok: false, reason: "wrong_tenant" };
 }

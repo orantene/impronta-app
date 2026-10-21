@@ -84,6 +84,16 @@ const world = () => ({
     { id: "m2", tenant_id: B, profile_id: FOREIGN(6), status: "active" },
     { id: "m3", tenant_id: A, profile_id: OWN(8), status: "removed" },
   ],
+  talent_profiles: [
+    { id: "tp-own", user_id: OWN(9) },
+    { id: "tp-foreign", user_id: FOREIGN(7) },
+    { id: "tp-inactive", user_id: OWN(3) },
+  ],
+  agency_talent_roster: [
+    { id: "r1", tenant_id: A, talent_profile_id: "tp-own", status: "active" },
+    { id: "r2", tenant_id: B, talent_profile_id: "tp-foreign", status: "active" },
+    { id: "r3", tenant_id: A, talent_profile_id: "tp-inactive", status: "removed" },
+  ],
 });
 
 test("helpers: own ids pass, foreign / missing ids refuse, nothing leaks which", async () => {
@@ -96,6 +106,10 @@ test("helpers: own ids pass, foreign / missing ids refuse, nothing leaks which",
   assert.deepEqual(await assertUserIsTenantStaff(admin, OWN(7), A), { ok: true });
   assert.deepEqual(await assertUserIsTenantStaff(admin, FOREIGN(6), A), { ok: false, reason: "wrong_tenant" });
   assert.deepEqual(await assertUserIsTenantStaff(admin, OWN(8), A), { ok: false, reason: "wrong_tenant" });
+  // roster talent of the tenant may teach; another tenant's talent or an inactive roster row may not
+  assert.deepEqual(await assertUserIsTenantStaff(admin, OWN(9), A), { ok: true });
+  assert.deepEqual(await assertUserIsTenantStaff(admin, FOREIGN(7), A), { ok: false, reason: "wrong_tenant" });
+  assert.deepEqual(await assertUserIsTenantStaff(admin, OWN(3), A), { ok: false, reason: "wrong_tenant" });
 });
 
 test("helpers: a failing lookup is unavailable, never a pass", async () => {
