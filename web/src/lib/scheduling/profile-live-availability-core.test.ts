@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { PublicOpenTimesResult } from "./public-open-times";
-import { liveSlotsAllEmpty } from "./profile-live-availability-core";
+import { badgeFromLiveDays, liveOpenDays, liveSlotsAllEmpty } from "./profile-live-availability-core";
 
 const empty = (reason?: "no_booking_hours" | "fully_booked"): PublicOpenTimesResult => ({ ok: true, slots: [], reason: reason ?? null });
 // Relative to now, so the fixture never goes stale (test-fixed-dates guard).
@@ -31,5 +31,24 @@ describe("liveSlotsAllEmpty", () => {
 
   it("keeps the badge when there is no service to check", () => {
     assert.equal(liveSlotsAllEmpty([]), false);
+  });
+});
+
+describe("TUL-861: the badge count is the live day count", () => {
+  const base = { nextAvailableDate: "2099-01-01", availableDaysInNext30: 30, availabilityDots14d: null };
+  const at = (daysAhead: number): string => new Date(Date.UTC(2026, 9, 22 + daysAhead, 17, 0)).toISOString();
+  const res = (slots: string[]): PublicOpenTimesResult => ({ ok: true, slots, timezone: "America/Cancun" });
+
+  it("counts distinct days across services, not the matview's 30", () => {
+    const days = liveOpenDays([res([at(0), at(0), at(2)]), res([at(2), at(4)])]);
+    assert.deepEqual(days, ["2026-10-22", "2026-10-24", "2026-10-26"]);
+    const badge = badgeFromLiveDays(base, days ?? [], new Date(Date.UTC(2026, 9, 22, 12, 0)));
+    assert.equal(badge.availableDaysInNext30, 3);
+    assert.equal(badge.nextAvailableDate, "2026-10-22");
+    assert.equal(badge.availabilityDots14d?.length, 14);
+  });
+
+  it("returns null (keep the matview) when no answer was usable", () => {
+    assert.equal(liveOpenDays([failed]), null);
   });
 });
