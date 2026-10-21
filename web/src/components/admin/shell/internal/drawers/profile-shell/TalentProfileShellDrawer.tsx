@@ -348,6 +348,9 @@ export function TalentProfileShellDrawer() {
   // legal_name. Until then (or when the load failed) the save omits those keys so
   // it can never write blanks over real values.
   const privateFieldsLoadedRef = useRef(false);
+  // Same fact as the ref, for rendering: true once hydration finished WITHOUT the private
+  // fields, so the identity editor disables those inputs and says why.
+  const [privateFieldsUnavailable, setPrivateFieldsUnavailable] = useState(false);
   const savedStatusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -687,6 +690,7 @@ export function TalentProfileShellDrawer() {
 
         const d = edRes.data;
         privateFieldsLoadedRef.current = (d as { private_fields_available?: boolean }).private_fields_available === true;
+        setPrivateFieldsUnavailable(!privateFieldsLoadedRef.current);
         // Multi-tenant identity flags — three fields added by
         // admin-talent-profile-sections.ts. Used by the banner + the future
         // per-field disabled gating. Cast through unknown because the
@@ -3374,6 +3378,7 @@ export function TalentProfileShellDrawer() {
                 lockReasons={state.fieldLockReasons}
                 workspaceScopeTenantId={workspaceScopeTenantId}
                 disabled={personalProfileLocked}
+                privateFieldsUnavailable={privateFieldsUnavailable}
               />
               <ProfileHeroTextRows tagline={state.tagline} onTagline={(v) => patch({ tagline: v })} talentProfileId={payload.talentId} isSelf={isSelf}
                 workspaceScopeTenantId={workspaceScopeTenantId} disabled={personalProfileLocked} />

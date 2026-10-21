@@ -134,8 +134,7 @@ export function BasicsStep({
 
       {!privateFieldsAvailable && (
         <p style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8, lineHeight: 1.45 }}>
-          Phone and date of birth could not be loaded right now, so they are not editable here. Reload to try again;
-          nothing you have saved is changed.
+          Private details could not be loaded. Reload to edit them.
         </p>
       )}
       <p style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8, lineHeight: 1.45 }}>

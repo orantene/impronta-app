@@ -14,6 +14,7 @@ src/components/admin/shell/canonical-routes.test.ts
 src/components/admin/shell/internal/page-modules/mobile-bottom-nav.static.test.ts
 src/components/admin/shell/internal/page-modules/pos-mode-switch.static.test.ts
 src/components/admin/shell/internal/page-modules/workspace-nav-groups.test.ts
+src/components/admin/shell/internal/private-fields-unavailable-ui.static.test.ts
 src/components/admin/shell/internal/state/talent-page-segment.test.ts
 src/components/admin/shell/internal/talent-drawers/commission-display.test.ts
 src/components/admin/shell/internal/talent-drawers/no-fixture-fallback.static.test.ts
