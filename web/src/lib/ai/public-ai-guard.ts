@@ -6,12 +6,26 @@
 import { NextResponse } from "next/server";
 import { resolveClientIp } from "@/lib/guest/guest-session";
 import { checkPublicAiByIp, type PublicAiRoute } from "@/lib/rate-limit-kv-public-ai";
+import { getRequestLocale } from "@/i18n/request-locale";
+
+export const PUBLIC_AI_MESSAGES = {
+  en: { limited: "Too many requests. Try again in a few minutes.", unknownNetwork: "Could not identify this network." },
+  es: { limited: "Demasiadas solicitudes, intenta de nuevo en unos minutos", unknownNetwork: "No pudimos identificar esta red." },
+} as const;
+
+async function messagesForRequest() {
+  try {
+    return (await getRequestLocale()) === "es" ? PUBLIC_AI_MESSAGES.es : PUBLIC_AI_MESSAGES.en;
+  } catch {
+    return PUBLIC_AI_MESSAGES.en;
+  }
+}
 
 export async function guardPublicAiRoute(route: PublicAiRoute, extra: Record<string, unknown> = {}): Promise<NextResponse | null> {
   const ip = await resolveClientIp();
-  if (!ip) return NextResponse.json({ error: "Could not identify this network.", ...extra }, { status: 429 });
+  if (!ip) return NextResponse.json({ error: (await messagesForRequest()).unknownNetwork, ...extra }, { status: 429 });
   const limit = await checkPublicAiByIp(route, ip);
   if (limit.ok) return null;
   const retryAfter = Math.max(1, Math.ceil(limit.retryAfterMs / 1000));
-  return NextResponse.json({ error: "Too many requests from this network. Try again in a moment.", ...extra }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+  return NextResponse.json({ error: (await messagesForRequest()).limited, ...extra }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
 }

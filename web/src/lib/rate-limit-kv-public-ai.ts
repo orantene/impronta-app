@@ -12,10 +12,14 @@ import { isMemoryLimiterAllowed, memorySlidingWindow } from "./rate-limit-kv-tul
 export const PUBLIC_AI_ROUTES = ["inquiry-draft", "interpret-search", "search", "refine-suggestions"] as const;
 export type PublicAiRoute = (typeof PUBLIC_AI_ROUTES)[number];
 
-/** Requests per (route, IP) in a 10 minute sliding window. Typing-driven routes get more room than the drafter. */
+/**
+ * Requests per (route, IP) in a 10 minute sliding window. Typing-driven routes get more room than the drafter. The
+ * numbers are generous on purpose: Mexican carriers put many people behind one IP (CGNAT), so a per-IP ceiling that is
+ * too tight locks out real visitors.
+ */
 export const PUBLIC_AI_LIMITS: Readonly<Record<PublicAiRoute, number>> = {
-  "inquiry-draft": 10,
-  "interpret-search": 30,
+  "inquiry-draft": 25,
+  "interpret-search": 40,
   search: 60,
   "refine-suggestions": 40,
 };

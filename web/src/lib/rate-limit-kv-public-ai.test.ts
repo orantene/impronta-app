@@ -88,6 +88,13 @@ describe("wiring: every anonymous AI route calls the guard before any AI work", 
     assert.match(g, /if \(!ip\) return NextResponse\.json\([\s\S]*?status: 429/);
     assert.match(g, /status: 429, headers: \{ "Retry-After"/);
   });
+  test("PM limits: CGNAT-friendly ceilings, and the 429 text exists in Spanish", () => {
+    assert.deepEqual({ ...PUBLIC_AI_LIMITS }, { "inquiry-draft": 25, "interpret-search": 40, search: 60, "refine-suggestions": 40 });
+    const g = read("src/lib/ai/public-ai-guard.ts");
+    assert.match(g, /Demasiadas solicitudes, intenta de nuevo en unos minutos/);
+    assert.match(g, /\(await messagesForRequest\(\)\)\.limited/);
+    assert.match(g, /\(await messagesForRequest\(\)\)\.unknownNetwork/);
+  });
   test("the limiter is fail-closed and has no fail-open path", () => {
     const l = read("src/lib/rate-limit-kv-public-ai.ts");
     assert.match(l, /return PUBLIC_AI_STORE_ERROR;/);
