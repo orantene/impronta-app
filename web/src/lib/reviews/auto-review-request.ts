@@ -4,6 +4,9 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { QA_FIXTURE_TENANT_IDS } from "@/lib/talent/qa-test-service";
+import { parseAutoReviewConfig } from "./auto-review-config";
+import { tenantAutoReviewRequestsEnabled } from "./auto-review-owner-switch";
 import {
   AUTO_REVIEW_MAX_DAYS_AFTER_END,
   AUTO_REVIEW_RECIPIENT_COOLDOWN_DAYS,
@@ -11,7 +14,6 @@ import {
   recipientKey,
   type AutoReviewBooking,
 } from "./auto-review-request-plan";
-import { parseAutoReviewConfig } from "./auto-review-config";
 import { bookingLocaleOf, loadOfferingDisplayTitle, offeringIdForBooking } from "./review-offering";
 import { tenantReviewsEnabled } from "./reviews-entitlement";
 
@@ -51,6 +53,8 @@ export type AutoReviewRunSummary = {
   invited: number;
   alreadyRequested: number;
   skippedNotEntitled: number;
+  /** TUL-1328: tenant has `auto_review_requests_enabled = false`. */
+  skippedOwnerOff: number;
   failed: number;
   /** Rows removed because the invite failed to send; the next run recreates them. */
   retryNextRun: number;
@@ -65,6 +69,7 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
     invited: 0,
     alreadyRequested: 0,
     skippedNotEntitled: 0,
+    skippedOwnerOff: 0,
     failed: 0,
     retryNextRun: 0,
   };
@@ -85,7 +90,9 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
     const cutoffYmd = cutoffIso.slice(0, 10);
     const { data, error } = await svc
       .from("agency_bookings")
-      .select("id, tenant_id, status, ends_at, starts_at, event_date, client_user_id, contact_email, order_id, title")
+      .select(
+        "id, tenant_id, status, payment_status, ends_at, starts_at, event_date, client_user_id, contact_email, order_id, title",
+      )
       .eq("status", "completed")
       .or(
         `ends_at.gte.${cutoffIso},` +
@@ -185,11 +192,13 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
       requestedBookingIds,
       cutoff: config.cutoff,
       recentRecipientKeys,
+      fixtureTenantIds: QA_FIXTURE_TENANT_IDS,
     });
     summary.alreadyRequested = decision.skipped.already_requested;
     summary.deferredByCap = decision.skipped.over_cap;
 
     const entitled = new Map<string, boolean>();
+    const ownerOn = new Map<string, boolean>();
     for (const d of decision.due) {
       const b = d.booking;
       // Set once the row exists, cleared once the invite is out: whatever throws in
@@ -199,6 +208,13 @@ export async function runAutoReviewRequests(now: Date = new Date()): Promise<Aut
         if (!entitled.has(b.tenant_id)) entitled.set(b.tenant_id, await tenantReviewsEnabled(b.tenant_id));
         if (!entitled.get(b.tenant_id)) {
           summary.skippedNotEntitled += 1;
+          continue;
+        }
+        // TUL-1328: distinct from the surface switch above — a business can keep
+        // reviews visible while opting out of the automatic request email itself.
+        if (!ownerOn.has(b.tenant_id)) ownerOn.set(b.tenant_id, await tenantAutoReviewRequestsEnabled(b.tenant_id));
+        if (!ownerOn.get(b.tenant_id)) {
+          summary.skippedOwnerOff += 1;
           continue;
         }
 
