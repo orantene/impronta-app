@@ -65,6 +65,8 @@ function main() {
     process.exit(2);
   }
   console.log(`lane-test: ${run.length} test file(s)`);
+  // LANE_TEST_DRY_RUN=1: resolve and count, run nothing (used by the lane guards and test:wt checks).
+  if (process.env.LANE_TEST_DRY_RUN === "1") process.exit(0);
   const tsx = path.join(WEB_ROOT, "node_modules", ".bin", "tsx");
   const child = spawn(tsx, ["--test", ...flags, ...run], { cwd: WEB_ROOT, env: process.env, stdio: ["inherit", "pipe", "inherit"] });
   let tail = "";
