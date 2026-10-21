@@ -104,9 +104,10 @@ test("every return of the POS route tells the shell it is the point of sale", ()
 });
 
 test("POS actions staff-gate via staff-actor; posAddLine also allows inquiry managers", () => {
-  // Default counter/floor path: workspace staff + booking.payment.request.
+  // Default counter/floor path: workspace staff + operate_venue (editor+, PM 2026-10-21).
   const actor = read("src/lib/pos/staff-actor.ts");
   assert.match(actor, /requireWorkspaceStaffAction/);
+  assert.match(actor, /operate_venue/);
   assert.match(actor, /booking.payment.request/);
   assert.match(actor, /userHasCapability\(capability/);
   // Messages picker path: optional inquiryId → requireInquiryManagerAction.
@@ -117,7 +118,7 @@ test("POS actions staff-gate via staff-actor; posAddLine also allows inquiry man
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
   assert.match(src, /posStaff\(/);
   assert.match(src, /posStaff\("booking.payment.mark_received"\)/);
-  assert.match(src, /posStaffOrInquiryManager\(parsed\.data\.inquiryId\)/);
+  assert.match(src, /posStaffOrInquiryManager\(\s*parsed\.data\.inquiryId,/);
   assert.doesNotMatch(src, /view_dashboard/);
 });
 
@@ -284,4 +285,19 @@ test("TUL-1271: a seat the counter is closed to gets an inline card, never notFo
   assert.doesNotMatch(after.slice(0, after.indexOf("PosNoAccessCard")), /notFound\(\)/);
   const card = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-no-access-card.tsx");
   assert.match(card, /dashboard\.pos\.counter\.gate\.title/);
+});
+
+test("PM 2026-10-21: the counter page and display open on operate_venue; money-moving admin actions keep the manager bar", () => {
+  for (const f of ["page.tsx", "display/page.tsx"]) {
+    const page = code(`src/app/(workspace)/[tenantSlug]/admin/pos/${f}`);
+    assert.match(page, /userHasCapability\("operate_venue", scope\.tenantId\)/, f);
+    assert.doesNotMatch(page, /userHasCapability\("booking\.payment\.request"/, f);
+  }
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
+  for (const fn of ["posCancelSale", "posSetStaffPin", "posSetCustomAmountLimit", "posApproveCustomAmount"]) {
+    const body = src.slice(src.indexOf(`export async function ${fn}`));
+    assert.match(body.slice(0, 400), /posStaff\("booking\.payment\.request"\)/, fn);
+  }
+  // Discounts stay behind the role limits.
+  assert.match(src, /enforceRoleLimit\(/);
 });

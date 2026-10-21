@@ -5,12 +5,18 @@ import { requireInquiryManagerAction, requireWorkspaceStaffAction } from "@/lib/
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 type PosStaffCapability =
+  | "operate_venue"
   | "booking.payment.request"
   | "booking.payment.refund"
   | "booking.payment.mark_received";
 
-/** Counter / floor staff gate (capability + service-role admin). */
-export async function posStaff(capability: PosStaffCapability = "booking.payment.request") {
+/**
+ * Counter / floor staff gate (capability + service-role admin).
+ * PM 2026-10-21: the sale path is `operate_venue` (editor and above), so a cashier seat can take sales.
+ * Voiding a sale, the PIN list and the custom-amount limit pass `booking.payment.request` (manager+) explicitly;
+ * discounts stay behind the TUL-1516 role limits, refunds behind `booking.payment.refund`.
+ */
+export async function posStaff(capability: PosStaffCapability = "operate_venue") {
   const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const allowed = await userHasCapability(capability, guard.tenantId);

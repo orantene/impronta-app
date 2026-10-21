@@ -82,7 +82,11 @@ export async function posAddLine(input: {
     inquiryId: uuid.nullable().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
-  const g = await posStaffOrInquiryManager(parsed.data.inquiryId);
+  const g = await posStaffOrInquiryManager(
+    parsed.data.inquiryId,
+    // The Messages inquiry path keeps the manager bar; the counter (no inquiry) is editor-level.
+    parsed.data.inquiryId ? "booking.payment.request" : "operate_venue",
+  );
   if (!g.ok) return g;
   const refused = await counterAddRefusal(g.admin, g.tenantId, parsed.data); if (refused) return refused;
   return addLine(g.admin, {
@@ -259,7 +263,7 @@ export async function posStartCollection(input: {
 
 export async function posCancelSale(orderId: string, expectedVersion?: number) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   return finalizeOrCancel(g.admin, {
@@ -416,7 +420,7 @@ export async function posAddCustomLine(input: {
 
 export async function posSetStaffPin(input: { userId: string; pin: string }) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({ userId: uuid, pin: z.string().regex(/^[0-9]{4,6}$/) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -437,7 +441,7 @@ export async function posReadCustomAmountLimit() {
 
 export async function posSetCustomAmountLimit(limitCents: number) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.number().int().nonnegative().safeParse(limitCents);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -464,7 +468,7 @@ export async function posApproveCustomAmount(input: {
   approverUserId?: string;
 }) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({
     orderId: uuid,

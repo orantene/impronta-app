@@ -39,7 +39,7 @@ export default async function PosDisplayPage({ params, searchParams }: { params:
   const { tenantSlug } = await params;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
-  const allowed = await userHasCapability("booking.payment.request", scope.tenantId);
+  const allowed = await userHasCapability("operate_venue", scope.tenantId);
   if (!allowed) notFound();
 
   const locale = await getRequestLocale();

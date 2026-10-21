@@ -33,8 +33,8 @@ test("posStaffOrInquiryManager forwards its capability param to requireInquiryMa
   assert.match(fn, /return posStaff\(capability\)/);
 });
 
-test("posStaff / posStaffOrInquiryManager both default to the same PosStaffCapability (booking.payment.request)", () => {
-  assert.match(actor, /export async function posStaff\(capability: PosStaffCapability = "booking\.payment\.request"\)/);
+test("posStaff defaults to operate_venue (PM 2026-10-21: a cashier seat takes sales); the inquiry manager path keeps booking.payment.request", () => {
+  assert.match(actor, /export async function posStaff\(capability: PosStaffCapability = "operate_venue"\)/);
   assert.match(
     actor,
     /export async function posStaffOrInquiryManager\(\s*inquiryId: string \| null \| undefined,\s*capability: PosStaffCapability = "booking\.payment\.request",\s*\)/,

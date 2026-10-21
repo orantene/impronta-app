@@ -103,7 +103,7 @@ export default async function PosPage({
   const { tenantSlug } = await params;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
-  const allowed = await userHasCapability("booking.payment.request", scope.tenantId);
+  const allowed = await userHasCapability("operate_venue", scope.tenantId);
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
   // Inline answer, never `notFound()`: that swap crashes the admin shell client
