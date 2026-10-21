@@ -17,6 +17,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ownerGuard } from "./rent-owner.server";
+import { syncRentAutopayWithPlan } from "./rent-autopay.server";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { currentRentPeriod, validateRentProposal } from "./rent-cycle";
@@ -112,6 +113,8 @@ export async function setRentPlanStatus(input: { planId: string; status: "paused
       logServerError("rent.setStatus", error);
       return { ok: false, reason: "unavailable" };
     }
+    // TUL-1601: the subscription follows the plan (ended: cancelled now; paused: nothing charged; resumed).
+    await syncRentAutopayWithPlan(g.admin, { tenantId: g.tenantId, planId: input.planId, planStatus: input.status });
     await logWorkspaceAudit({
       tenantId: g.tenantId,
       category: "roster",
@@ -255,6 +258,7 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
       return { ok: false, reason: "unavailable" };
     }
     if (!data) return { ok: false, reason: "not_found" };
+    await syncRentAutopayWithPlan(admin, { tenantId: (data as { tenant_id: string }).tenant_id, planId: input.planId, planStatus: "ended" });
     await logWorkspaceAudit({
       tenantId: (data as { tenant_id: string }).tenant_id,
       category: "roster",

@@ -41,6 +41,20 @@ export const WORKSPACE_EN = {
       "{who} asked to join your roster from your public site. Review the request to approve or decline.",
     button: "Review request →",
   },
+  "rent.autopay_failed": {
+    subject: "Your automatic rent payment did not go through",
+    preview: "We could not charge your card for this month's station rent",
+    heading: "Rent payment failed",
+    intro: "We could not charge your card for {period} station rent at {who}. Stripe will try again over the next days. Update your card to avoid missing the payment.",
+    button: "Open my station rent →",
+  },
+  "rent.autopay_canceled": {
+    subject: "Automatic rent payments are off",
+    preview: "Your station rent is no longer charged automatically",
+    heading: "Automatic payments stopped",
+    intro: "Your station rent at {who} is no longer charged automatically. Any month still owed will come as a payment link.",
+    button: "Open my station rent →",
+  },
   "rent.plan_declined": {
     subject: "{who} declined the station rent",
     preview: "{who} declined the station rent",
@@ -216,6 +230,20 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     intro:
       "{who} solicitó unirse a tu roster desde tu sitio público. Revisa la solicitud para aprobarla o rechazarla.",
     button: "Revisar solicitud →",
+  },
+  "rent.autopay_failed": {
+    subject: "Tu pago automático de renta no se completó",
+    preview: "No pudimos cobrar a tu tarjeta la renta de este mes",
+    heading: "Pago de renta fallido",
+    intro: "No pudimos cobrar a tu tarjeta la renta de estación de {period} en {who}. Stripe lo intentará de nuevo en los próximos días. Actualiza tu tarjeta para no perder el pago.",
+    button: "Abrir mi renta de estación →",
+  },
+  "rent.autopay_canceled": {
+    subject: "Los pagos automáticos de renta están desactivados",
+    preview: "Tu renta de estación ya no se cobra automáticamente",
+    heading: "Pagos automáticos detenidos",
+    intro: "Tu renta de estación en {who} ya no se cobra automáticamente. Cualquier mes pendiente llegará como enlace de pago.",
+    button: "Abrir mi renta de estación →",
   },
   "rent.plan_declined": {
     subject: "{who} rechazó la renta del puesto",
