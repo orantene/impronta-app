@@ -263,6 +263,7 @@ src/lib/platform/staff-access-log.test.ts
 src/lib/pos/addons.test.ts
 src/lib/pos/attach-customer.test.ts
 src/lib/pos/booking-shell.static.test.ts
+src/lib/pos/cancel-eligibility.test.ts
 src/lib/pos/cash-outbox.test.ts
 src/lib/pos/classes/checkin.test.ts
 src/lib/pos/classes/day.test.ts

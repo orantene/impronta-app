@@ -117,7 +117,7 @@ test("POS actions staff-gate via staff-actor; posAddLine also allows inquiry man
   assert.match(actor, /export async function posStaffOrInquiryManager/);
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
   assert.match(src, /posStaff\(/);
-  assert.match(src, /posStaff\("booking.payment.mark_received"\)/);
+  assert.match(src, /posStaff\("operate_venue"\)/);
   assert.match(src, /posStaffOrInquiryManager\(\s*parsed\.data\.inquiryId,/);
   assert.doesNotMatch(src, /view_dashboard/);
 });
@@ -294,10 +294,24 @@ test("PM 2026-10-21: the counter page and display open on operate_venue; money-m
     assert.doesNotMatch(page, /userHasCapability\("booking\.payment\.request"/, f);
   }
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
-  for (const fn of ["posCancelSale", "posSetStaffPin", "posSetCustomAmountLimit", "posApproveCustomAmount"]) {
+  for (const fn of ["posSetStaffPin", "posSetCustomAmountLimit", "posApproveCustomAmount"]) {
     const body = src.slice(src.indexOf(`export async function ${fn}`));
     assert.match(body.slice(0, 400), /posStaff\("booking\.payment\.request"\)/, fn);
   }
   // Discounts stay behind the role limits.
   assert.match(src, /enforceRoleLimit\(/);
+});
+
+test("PM 2026-10-21: cash drawer open/close is operate_venue; cancel is operate_venue only for an unpaid draft", () => {
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
+  for (const fn of ["posOpenShift", "posCloseShift"]) {
+    const body = src.slice(src.indexOf(`export async function ${fn}`));
+    assert.match(body.slice(0, 300), /posStaff\("operate_venue"\)/, fn);
+  }
+  const cancel = src.slice(src.indexOf("export async function posCancelSale"), src.indexOf("export async function posSubmitPrep"));
+  assert.match(cancel, /posStaff\("operate_venue"\)/);
+  assert.match(cancel, /userHasCapability\("booking\.payment\.request", g\.tenantId\)/);
+  assert.match(cancel, /cashierMayCancelSale\(/);
+  assert.match(cancel, /error: "not_allowed"/);
+  assert.doesNotMatch(src, /posStaff\("booking\.payment\.mark_received"\)/);
 });

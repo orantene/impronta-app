@@ -23,6 +23,8 @@ import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { saleHoldsNonMenuOffering } from "@/lib/offerings/non-menu-offerings";
 import { scanTarget } from "@/lib/pos/scan-code";
+import { userHasCapability } from "@/lib/access";
+import { cashierMayCancelSale } from "@/lib/pos/cancel-eligibility";
 import { posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -263,9 +265,23 @@ export async function posStartCollection(input: {
 
 export async function posCancelSale(orderId: string, expectedVersion?: number) {
   await requireNotImpersonating();
-  const g = await posStaff("booking.payment.request");
+  const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
+  // PM 2026-10-21: a cashier may cancel only an unpaid draft with no payment in flight; anything
+  // else needs booking.payment.request (manager+). Fails closed on any read error.
+  if (!(await userHasCapability("booking.payment.request", g.tenantId))) {
+    const [orderRes, payRes] = await Promise.all([
+      g.admin.from("orders").select("status").eq("id", orderId).eq("tenant_id", g.tenantId).maybeSingle(),
+      g.admin.from("booking_transactions").select("status").eq("order_id", orderId),
+    ]);
+    const status = (orderRes.data as { status?: string } | null)?.status;
+    const ok =
+      !orderRes.error &&
+      !payRes.error &&
+      cashierMayCancelSale({ status, payments: (payRes.data ?? []) as Array<{ status: string }> });
+    if (!ok) return { ok: false as const, error: "not_allowed" };
+  }
   return finalizeOrCancel(g.admin, {
     tenantId: g.tenantId,
     orderId,
@@ -378,7 +394,7 @@ export async function posCurrentShift() {
 
 export async function posOpenShift(openingCashCents: number) {
   await requireNotImpersonating();
-  const g = await posStaff("booking.payment.mark_received");
+  const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.number().int().nonnegative().safeParse(openingCashCents);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
@@ -506,7 +522,7 @@ export async function posCloseShift(input: {
   handedOverTo?: string;
 }) {
   await requireNotImpersonating();
-  const g = await posStaff("booking.payment.mark_received");
+  const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({
     closingCashCents: z.number().int().nonnegative(),
