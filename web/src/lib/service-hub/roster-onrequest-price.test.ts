@@ -37,7 +37,8 @@ function fakeDb(tables: Record<string, Row[]>) {
       });
       return q;
     },
-    rpc: async () => ({ data: true, error: null }),
+    // the batch sellable function answers with the ids it was asked about (every listing here is sellable)
+    rpc: async (_name: string, args: { p_listing_ids?: string[] }) => ({ data: args?.p_listing_ids ?? true, error: null }),
     storage: { from: () => ({ getPublicUrl: () => ({ data: { publicUrl: "" } }) }) },
   } as never;
 }
