@@ -23,6 +23,7 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
+import { parseReservationStamp } from "@/lib/scheduling/reservation-intent";
 import { EMPTY_ME, meVisitListFields, shapeMeData, type MeData, type MeRow } from "./shape-me";
 
 type BookingJoin = {
@@ -44,6 +45,7 @@ type Row = {
   event_location: string | null;
   created_at: string;
   next_action_by: string | null;
+  source_context?: unknown;
   agency_bookings: BookingJoin | BookingJoin[] | null;
 };
 
@@ -70,7 +72,7 @@ export async function loadMeData(
     const { data, error } = await admin
       .from("inquiries")
       .select(
-        `id, tenant_id, status, company, event_date, event_location, created_at, next_action_by,
+        `id, tenant_id, status, company, event_date, event_location, created_at, next_action_by, source_context,
          agency_bookings!agency_bookings_source_inquiry_id_fkey ( id, title, status, starts_at, total_client_revenue, currency_code, payment_status )`,
       )
       .eq("client_user_id", userId)
@@ -89,7 +91,9 @@ export async function loadMeData(
         ? r.agency_bookings[0]
         : r.agency_bookings;
       // TUL-62: same title / status / when preference as visit detail.
+      const stamp = parseReservationStamp(r.source_context);
       const visit = meVisitListFields({
+        stamp: stamp ? { starts_at: stamp.starts_at, timezone: stamp.timezone } : null,
         company: r.company,
         inquiryStatus: r.status,
         eventDate: r.event_date,
@@ -103,6 +107,7 @@ export async function loadMeData(
         status: visit.status,
         title: visit.title,
         eventDate: visit.eventDate,
+        startsAtZone: visit.startsAtZone,
         eventLocation: r.event_location,
         createdAt: r.created_at,
         nextActionBy: r.next_action_by,

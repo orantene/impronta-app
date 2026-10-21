@@ -1251,6 +1251,7 @@
       "dockLineupShelfSaved": "Guardados",
       "dockLineupEmptyInquiry": "Aún no hay nada en tu solicitud. Pasa algo desde Guardados o elige de la lista.",
       "dockLineupEmptySaved": "Aún no has guardado a nadie. Guarda el talento que te guste y aparecerá aquí.",
+      "dockLineupEmptySavedInInquiry": "Aún no tienes favoritos. El talento que añadiste a tu solicitud está en «En tu solicitud», arriba.",
       "dockLineupMoveToInquiry": "Mover a la solicitud",
       "dockLineupInInquiry": "En la solicitud",
       "dockLoading": "Cargando…",
