@@ -3,6 +3,7 @@
  * Source of truth: `talent_reviews` via `loadTalentReviews`.
  * Never invents quotes; returns [] when none.
  */
+import { collectiveTenantIdsOwnedByTalent, loadWorkspaceReviews, mergeOwnerPageReviews } from "@/lib/reviews/collective-reviews";
 import { loadTalentReviews } from "@/lib/reviews/load-reviews";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -15,7 +16,19 @@ export async function loadReviewsSources(
 ): Promise<{ talentReviews: TalentSiteReview[] }> {
   if (!talentProfileId) return { talentReviews: [] };
   try {
-    const rows = await loadTalentReviews(talentProfileId, limit, 0);
+    const own = await loadTalentReviews(talentProfileId, limit, 0);
+    // TUL-1467: a Friends collective's owner collects the whole group's reviews on her page (quote + rating only).
+    let rows = own;
+    const ownerDb = createServiceRoleClient();
+    if (ownerDb) {
+      const owned = await collectiveTenantIdsOwnedByTalent(ownerDb, talentProfileId);
+      if (owned.length > 0) {
+        const groups = await Promise.all(owned.map((t) => loadWorkspaceReviews(ownerDb, t, limit)));
+        const asOwnerReviews = groups.flat().map((w) => ({ id: w.id, body: w.body, rating: w.rating, createdAt: w.createdAt, clientName: null as string | null }));
+        const own2 = own.map((o) => ({ id: o.id, body: o.body, rating: o.rating, createdAt: o.createdAt, clientName: o.clientName ?? null }));
+        rows = mergeOwnerPageReviews(own2, asOwnerReviews, limit) as unknown as typeof own;
+      }
+    }
     // A demo talent's reviews are labelled as demo on every card.
     let demo = false;
     if (rows.length) {
