@@ -19,11 +19,11 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 // strips type exports from "use server" files → prod build failure); shared
 // types live in @/lib/inquiry/alternates-types.
 //
-// TUL-1708: each writer names "coordinate_inquiry" on the guard. The default guard
+// TUL-1708: each writer names "agency.roster.edit" on the guard. The default guard
 // capability is `agency.workspace.view`, which a `viewer` holds, so a capability-less
 // guard let a viewer add, remove, reorder or promote waitlist alternates on an inquiry.
-// `coordinate_inquiry` (manager+) is the same bar every other inquiry-coordination write
-// in this codebase requires.
+// `agency.roster.edit` (editor+) is the same roster-editing bar this PM revision assigns
+// to alternates management — editor-tier, not manager-tier.
 
 function mapAlternateEngineFailure(res: EngineErr): ActionResult {
   if (res.forbidden) {
@@ -53,7 +53,7 @@ function mapAlternateEngineFailure(res: EngineErr): ActionResult {
 
 export async function addAlternateAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -87,7 +87,7 @@ export async function addAlternateAction(formData: FormData): Promise<ActionResu
 
 export async function removeAlternateAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -116,7 +116,7 @@ export async function removeAlternateAction(formData: FormData): Promise<ActionR
 
 export async function reorderAlternatesAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -164,7 +164,7 @@ export async function reorderAlternatesAction(formData: FormData): Promise<Actio
 
 export async function promoteAlternateAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }

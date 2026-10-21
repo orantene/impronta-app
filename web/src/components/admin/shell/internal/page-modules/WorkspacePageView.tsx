@@ -580,7 +580,7 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? (
           <>
-            <AppointmentsSettingsCard tenantSlug={tenantSlug} />
+            <AppointmentsSettingsCard tenantSlug={tenantSlug} canEdit={isAdmin} />
             <BookingHoursCard
               talentProfileId={bridgeTalentSelfProfile?.id ?? null}
               showTalentPicker

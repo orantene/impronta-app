@@ -43,6 +43,7 @@ src/components/admin/shell/internal/talent/pages/talent-hydration-418.static.tes
 src/components/admin/shell/internal/talent/pages/today-hydration.static.test.ts
 src/components/admin/shell/internal/talent/shared/plan-oficina-web.static.test.ts
 src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
+src/components/appointments/appointments-settings-admin-gate.static.test.ts
 src/components/inquiry/event-date-input-aria.test.tsx
 src/components/inquiry/event-date-input.test.tsx
 src/components/marketing/directory/directory-es-labels.test.ts

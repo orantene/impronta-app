@@ -22,6 +22,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadExceptions, type ExceptionsLoad } from "@/lib/exceptions/read";
 import { resumeException } from "@/lib/exceptions/resume";
@@ -30,6 +31,29 @@ import { RESUME_VERBS, type ResumeVerb } from "@/lib/exceptions/model";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { resolvePaymentFlag } from "@/lib/payments/payment-review-flags";
 import { isPaymentReviewReason } from "@/lib/payments/payment-review-flags-model";
+
+/**
+ * TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer`
+ * holds. Of the five RESUME_VERBS this re-drives, `run_refund_intent` moves money, so
+ * it keeps the `booking.payment.refund` (admin+) bar the money-moving verb in this
+ * queue already needs. The other four are floor operations — re-minting an
+ * admission, retrying an engine effect, requeuing an outbox message, recovering an
+ * unresolved collection — and the PM-decided tier for those is `operate_venue`
+ * (editor+), which does not exist on `main` yet (ships with #4317). Each is pinned to
+ * `coordinate_inquiry` as an interim placeholder, no looser than before, until the
+ * held patch on top of #4317 swaps these four to `operate_venue`.
+ */
+const RESUME_VERB_CAPABILITY: Record<ResumeVerb, CapabilityKey> = {
+  run_refund_intent: "booking.payment.refund",
+  // TUL-1708: swapped to operate_venue once #4317 lands
+  mint_missing_admissions: "coordinate_inquiry",
+  // TUL-1708: swapped to operate_venue once #4317 lands
+  retry_engine_effect: "coordinate_inquiry",
+  // TUL-1708: swapped to operate_venue once #4317 lands
+  requeue_outbox_message: "coordinate_inquiry",
+  // TUL-1708: swapped to operate_venue once #4317 lands
+  recover_unresolved_collection: "coordinate_inquiry",
+};
 
 export type LoadExceptionsResult =
   | { ok: true; load: ExceptionsLoad }
@@ -80,16 +104,18 @@ export async function resumeExceptionAction(input: {
   idempotencyKey: string;
 }): Promise<ResumeExceptionResult> {
   await requireNotImpersonating();
-  // TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer`
-  // holds. One of the RESUME_VERBS this re-drives is `run_refund_intent`, so a
-  // capability-less guard let a viewer re-trigger a refund. `booking.payment.refund`
-  // (admin+) is the same bar the money-moving verb in this queue already needs.
-  const guard = await requireWorkspaceStaffAction({ capability: "booking.payment.refund" });
-  if (!guard.ok) return { ok: false, error: guard.error };
 
+  // The verb must be checked against the closed set before it can pick a
+  // capability — membership in a fixed list of five strings, not a data read,
+  // so refusing an unknown verb here leaks nothing.
   if (!(RESUME_VERBS as readonly string[]).includes(input.verb)) {
     return { ok: false, error: "That is not something this queue can re-drive." };
   }
+  const guard = await requireWorkspaceStaffAction({
+    capability: RESUME_VERB_CAPABILITY[input.verb as ResumeVerb],
+  });
+  if (!guard.ok) return { ok: false, error: guard.error };
+
   if (typeof input.sourceId !== "string" || !/^[0-9a-f-]{36}$/i.test(input.sourceId)) {
     return { ok: false, error: "That is not a valid row." };
   }
