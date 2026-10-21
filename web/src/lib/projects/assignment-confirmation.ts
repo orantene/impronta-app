@@ -166,7 +166,7 @@ export async function setOwnConfirmation(
     }
     if (!ownRes.data) return { ok: false, reason: "not_yours" };
 
-    // Preferred: ONE guarded statement (held migration 20261231422700) that locks the seat and
+    // Preferred: ONE guarded statement (held migration 20261231423200) that locks the seat and
     // writes only if the seat's CURRENT person is the writer, so a replaced person's late write
     // cannot overwrite the new person's answer.
     const rpc = await admin.rpc("answer_assignment_confirmation", {

@@ -84,7 +84,7 @@ export async function answerOwnOfferLine(
     }
     if (!ownRes.data) return { ok: false, reason: "not_yours" };
 
-    // Preferred: one guarded statement (held migration 20261231422700) that locks the line and
+    // Preferred: one guarded statement (held migration 20261231423200) that locks the line and
     // writes only if the line's CURRENT person is the writer.
     const rpc = await admin.rpc("answer_offer_line_confirmation", {
       p_line: line.id,
