@@ -40,8 +40,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { AccessDeniedError, requireCapability } from "@/lib/access/has-capability";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
@@ -106,6 +106,17 @@ const changeSchema = z
   .strict();
 
 const saveSchema = z.array(changeSchema).min(1).max(500);
+
+/**
+ * TUL-1708: `saveRosterRates` called `requireWorkspaceStaffAction()` with no
+ * capability (defaults to `agency.workspace.view`, viewer-held), then checked
+ * `manage_agency_settings` separately via `requireCapability` afterward — not
+ * exploitable, but the capability now goes directly on the guard, matching the
+ * rest of the registry and dropping the redundant second check.
+ */
+const ROSTER_RATES_WRITE_CAPABILITY = {
+  save: "manage_agency_settings",
+} as const satisfies Record<string, CapabilityKey>;
 
 export async function loadRosterRates(): Promise<LoadRosterRatesResult> {
   const auth = await requireWorkspaceStaffAction();
@@ -258,7 +269,9 @@ export async function saveRosterRates(
   changes: { talentProfileId: string; amountCents: number }[],
 ): Promise<SaveRosterRatesResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: ROSTER_RATES_WRITE_CAPABILITY.save,
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 
@@ -268,15 +281,6 @@ export async function saveRosterRates(
       ok: false,
       error: parsed.error.issues[0]?.message ?? "Invalid rate change.",
     };
-  }
-
-  try {
-    await requireCapability("manage_agency_settings", tenantId);
-  } catch (err) {
-    if (err instanceof AccessDeniedError) {
-      return { ok: false, error: "You don't have permission to change this." };
-    }
-    throw err;
   }
 
   const admin = createServiceRoleClient();

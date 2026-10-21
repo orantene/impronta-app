@@ -23,12 +23,23 @@
 import { revalidatePath } from "next/cache";
 import { addTalentToRoster } from "@/lib/inquiry/inquiry-engine";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type AdminAddSuggestedTalentResult =
   | { ok: true }
   | { ok: false; error: string };
+
+/**
+ * TUL-1708: this write called `requireWorkspaceStaffAction()` with no capability
+ * (defaults to `agency.workspace.view`, viewer-held). Adding talent to an
+ * inquiry's lineup is inquiry coordination — `coordinate_inquiry` (manager+),
+ * the same bar as the rest of the lineup/suggestion flow.
+ */
+const SUGGESTED_TALENT_WRITE_CAPABILITY = {
+  add: "coordinate_inquiry",
+} as const satisfies Record<string, CapabilityKey>;
 
 export async function adminAddSuggestedTalent(args: {
   inquiryId: string;
@@ -49,7 +60,9 @@ export async function adminAddSuggestedTalent(args: {
     return { ok: false, error: "Missing inquiry or talent." };
   }
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: SUGGESTED_TALENT_WRITE_CAPABILITY.add,
+  });
   if (!auth.ok) {
     return { ok: false, error: auth.error };
   }

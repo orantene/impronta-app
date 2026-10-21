@@ -25,11 +25,27 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { workspaceOwnedStamp } from "@/lib/media/ownership";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+
+/**
+ * TUL-1708: every write in this file called `requireWorkspaceStaffAction()` with
+ * no capability, which defaults to `agency.workspace.view` — a `viewer` holds that,
+ * so a viewer could remove, restore, or re-photo roster talent. These three actions
+ * mirror the canonical roster actions in
+ * `admin/roster/[id]/extended-actions.ts` (`removeTalentFromRoster`) and
+ * `admin/roster/[id]/actions.ts` (`resolveEditContext` / `registerRosterTalentPhoto`),
+ * both gated on `agency.roster.edit` (editor+) — same bar here, now named on the guard.
+ */
+const ROSTER_WRITE_CAPABILITY = {
+  removeFromRoster: "agency.roster.edit",
+  setTalentCardPhoto: "agency.roster.edit",
+  restoreToRoster: "agency.roster.edit",
+} as const satisfies Record<string, CapabilityKey>;
 
 // ─── Remove from roster (NOT account deletion) ───────────────────────────────
 //
@@ -71,7 +87,9 @@ export async function removeFromRoster(input: {
   talent_profile_id: string;
 }): Promise<RemoveFromRosterResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: ROSTER_WRITE_CAPABILITY.removeFromRoster,
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -178,7 +196,9 @@ export async function setTalentCardPhoto(input: {
 }): Promise<SetCardPhotoResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: ROSTER_WRITE_CAPABILITY.setTalentCardPhoto,
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -278,7 +298,9 @@ export async function restoreToRoster(input: {
   talent_profile_id: string;
 }): Promise<RemoveFromRosterResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: ROSTER_WRITE_CAPABILITY.restoreToRoster,
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
