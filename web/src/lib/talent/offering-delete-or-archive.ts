@@ -5,8 +5,7 @@
  *
  * The history rule is copied 1:1 from the workspace side
  * (`offeringHasHistory` in menu-offerings-actions.ts): published now, or ever
- * published (`first_published_at`), or any `order_lines` / `talent_bookings`
- * row. A hard delete nulls `order_lines.offering_id`, so past orders would lose
+ * published (`first_published_at`), or any `order_lines` row. A hard delete nulls `order_lines.offering_id`, so past orders would lose
  * what they were for. A failed history read fails CLOSED (counts as history).
  * The caller never passes a "force" flag: nothing here accepts one.
  *
@@ -30,15 +29,14 @@ export async function offeringHasHistory(
 ): Promise<boolean> {
   if (row.status === "published" || row.first_published_at) return true;
   try {
-    const [lines, bookings] = await Promise.all([
-      admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-      admin.from("talent_bookings").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-    ]);
-    if (lines.error || bookings.error) {
-      onError?.(lines.error ?? bookings.error);
+    // TUL-1337: `talent_bookings` has no `offering_id` column (the query always errored,
+    // so every delete failed closed); a booking is sold through an order line.
+    const lines = await admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId);
+    if (lines.error) {
+      onError?.(lines.error);
       return true;
     }
-    return (lines.count ?? 0) > 0 || (bookings.count ?? 0) > 0;
+    return (lines.count ?? 0) > 0;
   } catch (err) {
     onError?.(err);
     return true;
