@@ -264,6 +264,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/series-dated-settings.ts", ["loadSeriesDatedSettingsAction"], READ],
   ["lib/server-actions/dated-details.ts", ["loadDatedDetailsAction"], READ],
   ["lib/sessions/date-roster-actions.ts", ["loadDateRoster"], READ],
+  ["lib/server-actions/service-hub-entries.ts", ["loadOwnerHubAction"], READ],
   ["lib/sessions/schedule-actions.ts", ["loadSchedule", "loadSchedulableEvents"], READ],
   ["lib/support/guest-actions.ts", ["getGuestSupportThreadAction", "listGuestSupportThreadsAction"], READ],
   ["lib/support/hq-actions.ts", ["hqLoadTicketDetailAction", "hqSearchTicketsAction"], READ],
