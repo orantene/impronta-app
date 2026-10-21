@@ -79,6 +79,9 @@ EVENTS=(
   invoice.paid
   invoice.payment_succeeded
   checkout.session.expired
+  # Delayed payment methods (SEPA, Bacs, Pay by Bank) settle later: balance top-ups and card settles credit on succeeded (TUL-1747).
+  checkout.session.async_payment_succeeded
+  checkout.session.async_payment_failed
   payment_intent.succeeded
   payment_intent.payment_failed
   # Connect lifecycle

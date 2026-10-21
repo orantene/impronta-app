@@ -370,6 +370,7 @@ src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/recurring-consent.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
+src/lib/stripe/webhook-events-subscription.static.test.ts
 src/lib/stripe/webhook-routing-topup-paid.test.ts
 src/lib/stripe/webhook-script-update.test.ts
 src/lib/stripe/webhook-topup-unpaid-log.test.ts
