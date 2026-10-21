@@ -5,7 +5,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { recordRefundOnOrderLines } from "@/lib/orders/refund-record-lines";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { executeBookingRefund, type RefundBlockedCode, type RefundReason } from "@/lib/payments/refund-execute";
-import { planRefund, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
+import { planRefund, refundableCentsFor, releasesPromoRedemption, type RefundableLine, type PaidTransaction } from "@/lib/orders/refund-plan";
+import { scopeUnitRefund } from "@/lib/orders/refund-unit-scope";
 import { admissionIsRefundable } from "@/lib/orders/refund-admissions";
 import { restoreRefundedLines } from "@/lib/orders/refund-restore";
 import type { PromoScope } from "@/lib/orders/promo-eligibility";
@@ -110,6 +111,17 @@ export async function refundOrderLines(
     note?: string | null;
     /** Cap at this many minor units; omit for the full remaining of the lines. */
     amountCents?: number | null;
+    /**
+     * PER-TICKET refund (TUL-1429/1431). Omit for the whole-line behaviour
+     * (every ticket on the line is voided and the line's remaining money
+     * returns). When set, exactly ONE line is allowed and:
+     *   - non-empty: those tickets are voided and ONLY their share of the line
+     *     is refunded (the amount is derived, see `scopeUnitRefund`, unless
+     *     `amountCents` is given);
+     *   - empty: no ticket is voided; `amountCents` (required) is the whole
+     *     refund, e.g. the price difference of an exchange to a cheaper night.
+     */
+    admissionIds?: readonly string[];
   },
 ): Promise<RefundLinesResult> {
   try {
@@ -227,6 +239,48 @@ export async function refundOrderLines(
     // makes the discount share zero and the line refundable at its full total.
     const scope: PromoScope = {};
 
+    // ── Per-ticket scope, decided BEFORE any money moves.
+    let amountCents = input.amountCents;
+    const perTicket = input.admissionIds !== undefined;
+    if (perTicket) {
+      if (input.lineIds.length !== 1) return { ok: false, reason: "invalid", movedCents: 0 };
+      if (input.admissionIds!.length === 0) {
+        if (!(Number(amountCents) > 0)) return { ok: false, reason: "invalid", movedCents: 0 };
+      } else {
+        const lineId = input.lineIds[0];
+        const target = lines.find((l) => l.id === lineId);
+        if (!target) return { ok: false, reason: "line_not_on_order", movedCents: 0 };
+        const { data: admRows, error: admErr } = await admin
+          .from("admissions")
+          .select("id, admitted_count, status")
+          .eq("order_line_id", lineId);
+        if (admErr) {
+          logServerError("orders.refundLines/unitAdmissions", admErr);
+          return { ok: false, reason: "unavailable", movedCents: 0 };
+        }
+        const remaining = refundableCentsFor(target, lines, scope, Number(order.discount_cents ?? 0));
+        const scoped = scopeUnitRefund({
+          remainingCents: remaining,
+          netCents: remaining + target.refundedCents,
+          admissions: ((admRows ?? []) as Array<{ id: string; admitted_count: number; status: string }>).map((a) => ({
+            id: a.id,
+            admittedCount: Number(a.admitted_count ?? 0),
+            status: a.status,
+          })),
+          selectedIds: input.admissionIds!,
+        });
+        if (!scoped.ok) return { ok: false, reason: scoped.reason, movedCents: 0 };
+        // A comp line (nothing to return) keeps amount unset: the planner treats
+        // it as a free line and only the selected tickets are voided.
+        // The LAST ticket(s) on the line keep it unset too: "the rest of the
+        // line" is what they are owed, and only the planner's no-amount path
+        // caps that at a charge with a kept fee. An explicit amount there
+        // refuses `exceeds_captured` on every retry. The plan is then FULL when
+        // the order is fully refunded, so E3 releases the promo as before.
+        if (amountCents == null && scoped.amountCents > 0 && !scoped.takesRest) amountCents = scoped.amountCents;
+      }
+    }
+
     const plan = planRefund({
       lines,
       lineIds: input.lineIds,
@@ -234,7 +288,7 @@ export async function refundOrderLines(
       discountCents: Number(order.discount_cents ?? 0),
       transactions,
       tipCents: Number(order.tip_cents ?? 0),
-      amountCents: input.amountCents,
+      amountCents,
     });
     if (!plan.ok) return { ok: false, reason: plan.reason, movedCents: 0 };
 
@@ -353,6 +407,7 @@ export async function refundOrderLines(
       wholeLineIds: plan.isFullRefund ? plannedLineIds : [],
       releasePromo: releasesPromoRedemption(plan),
       logScope: "orders.refundLines",
+      ...(perTicket ? { onlyAdmissionIds: input.admissionIds } : {}),
     });
     const stamped = restore.admissionsStamped;
     const stampedAdmissionIds = restore.stampedAdmissionIds;

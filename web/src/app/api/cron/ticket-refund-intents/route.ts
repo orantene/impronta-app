@@ -34,6 +34,7 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
+import { intentRefundScope, type IntentRow } from "@/lib/events/ticket-refund-intent-scope";
 import { eventCancelledMessage, guestRefundMessage, seatLostMessage } from "@/lib/events/ticket-purchase";
 
 export const runtime = "nodejs";
@@ -56,7 +57,9 @@ export async function GET(request: Request) {
 
   const { data: pending, error: pErr } = await admin
     .from("ticket_refund_intents")
-    .select("id, tenant_id, order_id, order_line_id, attempts, reason")
+    // "*" on purpose: `refund_cents` only exists once migration 20261231421400 is
+    // applied, and naming it would fail this whole select before that (code-first).
+    .select("*")
     .is("executed_at", null)
     .is("claimed_at", null)
     .lt("attempts", MAX_ATTEMPTS)
@@ -67,7 +70,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "select_failed" }, { status: 500 });
   }
 
-  const summary = { claimed: 0, refunded: 0, effects_incomplete: 0, refused_retry: 0, partial_failure: 0, other: 0, skipped: 0 };
+  const summary = { claimed: 0, refunded: 0, effects_incomplete: 0, refused_retry: 0, partial_failure: 0, other: 0, skipped: 0, held: 0 };
 
   for (const intent of pending ?? []) {
     const id = intent.id as string;
@@ -82,7 +85,7 @@ export async function GET(request: Request) {
     if (!claimed || claimed.length === 0) { summary.skipped += 1; continue; }
     summary.claimed += 1;
 
-    const [{ data: line, error: lErr }, { data: ev, error: eErr }] = await Promise.all([
+    const [{ error: lErr }, { data: ev, error: eErr }] = await Promise.all([
       admin.from("order_lines").select("id, session_id, amount_cents, total_cents").eq("id", intent.order_line_id as string).maybeSingle(),
       admin.from("order_lines").select("session_id").eq("id", intent.order_line_id as string).maybeSingle()
         .then(async (r) => {
@@ -103,21 +106,44 @@ export async function GET(request: Request) {
     const cancelled = intent.reason === "event_cancelled";
     const guestAsked = intent.reason === "guest_request";
 
+    // WHICH TICKETS, AND HOW MUCH. A guest request and an exchange name ONE
+    // ticket; refunding the line repaid and voided every ticket on it. A scope
+    // that cannot be resolved is held for a person, never widened to the line.
+    const scope = intentRefundScope(intent as unknown as IntentRow);
+    if (scope.kind === "hold") {
+      logServerError(
+        "cron/ticket-refund-intents/HELD_SCOPE_UNKNOWN",
+        `intent ${id} order ${intent.order_id as string} (${intent.reason as string}): ${scope.why}. `
+          + `Not refunded; claimed so the cron skips it. A person decides the amount.`,
+      );
+      const { error: hErr } = await admin.from("ticket_refund_intents")
+        .update({ result: "needs_review", result_detail: { why: scope.why } }).eq("id", id);
+      if (hErr) logServerError("cron/ticket-refund-intents/hold", hErr);
+      summary.held += 1;
+      continue;
+    }
+
     const res = await refundOrderLines(admin, {
       orderId: intent.order_id as string,
       lineIds: [intent.order_line_id as string],
+      ...(scope.kind === "unit" ? { admissionIds: scope.admissionIds } : {}),
+      ...(scope.kind === "amount" ? { admissionIds: scope.admissionIds, amountCents: scope.amountCents } : {}),
       reason: guestAsked ? "requested_by_client" : "service_not_delivered",
       actorUserId: null,
       note: cancelled
         ? "event_cancelled: the venue cancelled the event; every paid line is refunded regardless of the cutoff"
         : guestAsked
-          ? "guest_request: the holder asked from the ticket page while the event had refunds open"
-          : "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
+          ? "guest_request: the holder asked from the ticket page while the event had refunds open; only that holder's ticket is refunded and voided"
+          : intent.reason === "admission_exchange"
+            ? "admission_exchange: one ticket moved to a cheaper night; only the price difference is refunded and the ticket stays valid"
+            : "seat_lost_after_payment: the hold lapsed before the payment settled; refunded automatically",
     });
 
     const now = new Date().toISOString();
     if (res.ok) {
-      const cents = Number((line as { total_cents?: unknown } | null)?.total_cents ?? (line as { amount_cents?: unknown } | null)?.amount_cents ?? 0);
+      // What actually moved, not the line's total: a one-ticket refund is a
+      // fraction of it, and the buyer message must not promise the whole line.
+      const cents = res.refundedCents;
       const say = cancelled ? eventCancelledMessage : guestAsked ? guestRefundMessage : seatLostMessage;
       const message = say({ eventTitle: (ev?.title as string | null) ?? null, amountLabel: (cents / 100).toFixed(2) });
 

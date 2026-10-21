@@ -143,6 +143,7 @@ src/lib/orders/refund-admissions.test.ts
 src/lib/orders/refund-desk-copy.test.ts
 src/lib/orders/refund-effects.test.ts
 src/lib/orders/refund-execute-lines.test.ts
+src/lib/orders/refund-per-unit.test.ts
 src/lib/orders/refund-record-lines.test.ts
 src/lib/orders/refund-resume-effects.test.ts
 src/lib/orders/settle-at-door.test.ts
