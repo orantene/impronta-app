@@ -11,14 +11,14 @@ import { createClientAccount, type NewClientInput } from "./create-client-accoun
 
 const input: NewClientInput = { display_name: "Ana", email: "ana@example.com", company_name: "", phone: "", whatsapp_phone: "", website_url: "", notes: "" };
 
-function fakeAdmin(opts: { inviteError?: boolean; failTable?: "profiles" | "client_profiles"; deleteError?: boolean } = {}) {
+function fakeAdmin(opts: { inviteError?: boolean; failTable?: "profiles" | "client_profiles"; deleteError?: boolean; existingSince?: string } = {}) {
   const calls: { invites: Array<{ email: string; options: unknown }>; deleted: string[]; writes: string[] } = { invites: [], deleted: [], writes: [] };
   const admin = {
     auth: {
       admin: {
         inviteUserByEmail: async (email: string, options: unknown) => {
           calls.invites.push({ email, options });
-          return opts.inviteError ? { data: { user: null }, error: { message: "already registered" } } : { data: { user: { id: "u-new" } }, error: null };
+          return opts.inviteError ? { data: { user: null }, error: { message: "already registered" } } : { data: { user: { id: "u-new", created_at: opts.existingSince ?? new Date().toISOString() } }, error: null };
         },
         deleteUser: async (id: string) => {
           calls.deleted.push(id);
@@ -78,6 +78,33 @@ test("a failed invite created nothing: no delete, no writes, the reason comes ba
   assert.deepEqual(r, { ok: false, step: "invite", message: "already registered" });
   assert.deepEqual(calls.deleted, []);
   assert.deepEqual(calls.writes, []);
+});
+
+test("an existing UNCONFIRMED user (re-invited, created_at long ago) is refused: no profile write, no delete, no attach", async () => {
+  const { admin, calls } = fakeAdmin({ existingSince: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString() });
+  let attached = false;
+  const r = await createClientAccount({ admin, attachToTenant: async () => ((attached = true), true) }, input);
+  assert.deepEqual(r, { ok: false, step: "exists", message: "That email already has an account." });
+  assert.deepEqual(calls.deleted, []);
+  assert.deepEqual(calls.writes, []);
+  assert.equal(attached, false);
+});
+
+test("an invite reply with no readable created_at is treated as not-new (never written to, never deleted)", async () => {
+  const { admin, calls } = fakeAdmin();
+  const a = admin as unknown as { auth: { admin: { inviteUserByEmail: () => Promise<unknown> } } };
+  a.auth.admin.inviteUserByEmail = async () => ({ data: { user: { id: "u-x" } }, error: null });
+  const r = await createClientAccount({ admin, attachToTenant: async () => false }, input);
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.step, "exists");
+  assert.deepEqual(calls.deleted, []);
+});
+
+test("a failure after a FRESH invite deletes only that new id", async () => {
+  const { admin, calls } = fakeAdmin();
+  const r = await createClientAccount({ admin, attachToTenant: async () => false }, input);
+  assert.deepEqual(r, { ok: false, step: "attach" });
+  assert.deepEqual(calls.deleted, ["u-new"]);
 });
 
 test("a failing rollback delete does not hide the original failure", async () => {

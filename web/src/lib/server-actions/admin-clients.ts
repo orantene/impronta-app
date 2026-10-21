@@ -148,7 +148,7 @@ export async function createAdminClient(
     parsed.data,
   );
   if (!created.ok) {
-    return { error: created.step === "invite" ? created.message || CLIENT_ERROR.signUp : CLIENT_ERROR.update };
+    return { error: created.step === "invite" || created.step === "exists" ? created.message || CLIENT_ERROR.signUp : CLIENT_ERROR.update };
   }
   const userId = created.userId;
 
