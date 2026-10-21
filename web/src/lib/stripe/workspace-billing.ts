@@ -47,6 +47,7 @@ import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { applyPendingDowngradeAtTierDrop } from "@/lib/billing/workspace-downgrade-archive";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
@@ -533,6 +534,18 @@ export async function syncStripeSubscriptionToDb(
         currency: item?.price?.currency ?? null,
         occurredOn: new Date().toISOString().slice(0, 10),
       });
+    }
+
+    // TUL-1737: the tier has now actually moved. If the owner chose which talent to keep when they scheduled this
+    // downgrade, archive the overflow NOW (period end), under the same archive_event id. Skipped when the tier write
+    // failed (the retry redoes both) and a no-op unless newPlanTier reached the downgrade's target. A failure here
+    // fails the sync so Stripe retries; the pending row stays until the archive lands.
+    if (!agencyError) {
+      const pending = await applyPendingDowngradeAtTierDrop(sb, { tenantId, newTier: newPlanTier, nowIso: new Date().toISOString() });
+      if (!pending.ok) {
+        logServerError("workspace-billing.syncSubscription.downgradeArchive", pending.error);
+        return { ok: false, error: "Failed to archive the roster for the scheduled downgrade." };
+      }
     }
 
     return { ok: true, data: undefined };

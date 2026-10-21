@@ -43,6 +43,7 @@ import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersona
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { WORKSPACE_MONEY_GATES, isStrictPlanDowngrade } from "@/lib/billing/workspace-money-gates";
 import { applyWorkspaceDowngrade } from "@/lib/billing/plan-change.server";
+import { archiveRosterOverflow } from "@/lib/billing/workspace-downgrade-archive";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -244,34 +245,38 @@ export async function commitPlanDowngrade(input: {
 
   // TUL-1518: tell STRIPE first. With a live subscription the customer keeps being billed the old price until Stripe is
   // told, so a refusal here stops the whole downgrade: nothing is archived and no tier is written.
-  const stripeStep = await applyWorkspaceDowngrade(tenantId, v.target_tier);
+  //
+  // TUL-1737: the roster is NOT archived here when Stripe owns a subscription. The customer paid until the period ends,
+  // so the keep-list is stored with the pending change (before any Stripe write) and the webhook that drops the tier
+  // archives the overflow then, under this same event id. The confirm path therefore only records the schedule + keep-list
+  // and answers "scheduled"; there is no local write left after Stripe succeeds that could fail and invite a duplicate.
+  // Node 19+ ships crypto.randomUUID; this server action runs on Node 22+ per package.json engines.
+  const eventId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const stripeStep = await applyWorkspaceDowngrade(tenantId, v.target_tier, {
+    target_tier: v.target_tier,
+    keep_ids: v.talent_keep_ids,
+    archive_event_id: eventId,
+    requested_by: user.id,
+    requested_at: now,
+  });
   if (!stripeStep.ok) return { ok: false, error: stripeStep.error };
 
-  // Generate the archive event id (groups all rows archived in this commit).
-  // Node 19+ ships crypto.randomUUID; this server action runs on Node 22+
-  // per package.json engines.
-  const eventId = crypto.randomUUID();
-
-  // Archive every active row NOT in keep list.
-  const now = new Date().toISOString();
-  const { error: archiveErr, count: archivedCount } = await supabase
-    .from("agency_talent_roster")
-    .update(
-      {
-        status: "archived_for_downgrade",
-        archived_for_downgrade_at: now,
-        archived_for_downgrade_by: user.id,
-        archived_for_downgrade_event: eventId,
-      },
-      { count: "exact" },
-    )
-    .eq("tenant_id", tenantId)
-    .in("status", ["active", "pending"])
-    .not("talent_profile_id", "in", `(${v.talent_keep_ids.length === 0 ? "''" : v.talent_keep_ids.map((id) => `"${id}"`).join(",")})`);
-
-  if (archiveErr) {
-    logServerError("admin-plan-downgrade.commit.archive", archiveErr);
-    return { ok: false, error: CLIENT_ERROR.update };
+  // No subscription at Stripe (free / comped): nothing is paid-through, so archive now, as before.
+  let archivedCount = 0;
+  if (!stripeStep.hadSubscription) {
+    const archived = await archiveRosterOverflow(supabase, {
+      tenantId,
+      keepIds: v.talent_keep_ids,
+      eventId,
+      actorId: user.id,
+      nowIso: now,
+    });
+    if (!archived.ok) {
+      logServerError("admin-plan-downgrade.commit.archive", archived.error);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+    archivedCount = archived.count;
   }
 
   // Flip the plan tier, but ONLY when Stripe does not own a subscription. With one, Stripe applies the change at the end
@@ -311,7 +316,8 @@ export async function commitPlanDowngrade(input: {
     targetId: tenantId,
     after: { plan_tier: v.target_tier },
     context: {
-      archived_count: archivedCount ?? 0,
+      archived_count: archivedCount,
+      archive_deferred: stripeStep.hadSubscription,
       archive_event_id: eventId,
       stripe_mode: stripeStep.hadSubscription ? stripeStep.mode : "none",
       stripe_effective_at: stripeStep.hadSubscription ? stripeStep.effectiveAt : null,
@@ -320,7 +326,7 @@ export async function commitPlanDowngrade(input: {
 
   return {
     ok: true,
-    archived_count: archivedCount ?? 0,
+    archived_count: archivedCount,
     archive_event_id: eventId,
     new_plan: v.target_tier,
     effective_at: stripeStep.hadSubscription ? stripeStep.effectiveAt : null,

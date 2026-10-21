@@ -43,6 +43,7 @@ function world(over: Parameters<typeof sub>[0] = {}, opts: { failOn?: string } =
   let cancelled = 0;
   const deps: WorkspaceDowngradeDeps = {
     readSubscriptionId: async () => "sub_1",
+    recordPending: async () => ({ ok: true }),
     stripe: () => stripe as ReturnType<WorkspaceDowngradeDeps["stripe"]>,
     resolvePriceId: async (plan) => `price_${plan}`,
     cancelAtPeriodEnd: async () => { cancelled += 1; return { ok: true, effectiveAt: "2033-05-18T03:33:20.000Z" }; },
@@ -151,10 +152,10 @@ describe("fails closed", () => {
 describe("commitPlanDowngrade wiring", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/server-actions/admin-plan-downgrade.ts"), "utf8");
   test("Stripe is told BEFORE the roster is archived or the tier written, and a refusal returns", () => {
-    const call = src.indexOf("applyWorkspaceDowngrade(tenantId, v.target_tier)");
+    const call = src.indexOf("applyWorkspaceDowngrade(tenantId, v.target_tier,");
     assert.ok(call > 0);
-    assert.match(src.slice(call, call + 200), /if \(!stripeStep\.ok\) return \{ ok: false, error: stripeStep\.error \};/);
-    assert.ok(call < src.indexOf('status: "archived_for_downgrade"'), "before the archive");
+    assert.match(src.slice(call, call + 400), /if \(!stripeStep\.ok\) return \{ ok: false, error: stripeStep\.error \};/);
+    assert.ok(call < src.indexOf("archiveRosterOverflow(supabase"), "before the archive");
     assert.ok(call < src.indexOf('.update({ plan_tier: v.target_tier'), "before the plan write");
   });
   test("with a live subscription the tier is NOT written locally (the webhook is the single writer)", () => {
