@@ -23,6 +23,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { CapacityNeed } from "@/lib/orders/capacity-requests";
 import { parseOfferingResourceSet } from "./offering-resource-set";
 import { reserveResourceSet, spaceCapacityPool } from "./reserve-set";
+import { realSessionHoldDeps, sessionResourceKey } from "./session-resource-holds";
 
 type Admin = Pick<SupabaseClient, "rpc" | "from">;
 
@@ -75,14 +76,38 @@ export async function purchaseNeedsWithLinkedResources(
   admin: Pick<SupabaseClient, "from">,
   input: {
     tenantId: string;
-    lines: ReadonlyArray<{ offeringId: string }>;
+    lines: ReadonlyArray<{ offeringId: string; sessionId?: string | null }>;
     capacity?: readonly CapacityNeed[] | null;
     reservation?: { startsAt: string; endsAt: string } | null;
   },
+  /** Injectable for tests. */
+  deps: {
+    /** Does this session already hold its room (TUL-1413)? null = could not read. */
+    sessionHoldsRoom?: (tenantId: string, sessionId: string) => Promise<boolean | null>;
+    loadLinked?: typeof loadLinkedResourcePools;
+  } = {},
 ): Promise<{ ok: true; needs: CapacityNeed[] } | { ok: false; error: string }> {
   const base = [...(input.capacity ?? [])];
   if (!input.reservation) return { ok: true, needs: base };
-  const linked = await loadLinkedResourcePools(admin, input.tenantId, input.lines.map((l) => l.offeringId));
+
+  // TUL-1473: a class's room is held ONCE per session (TUL-1413), not once per attendee. A line
+  // that names a session whose room is already held shares it and holds nothing itself. A session
+  // with NO live hold (scheduled before that existed) keeps the per-attendee hold, and an
+  // unreadable answer refuses rather than sell a room nobody holds.
+  const holdsRoom =
+    deps.sessionHoldsRoom ??
+    (async (tenantId: string, sessionId: string) => {
+      const ids = await realSessionHoldDeps(admin as SupabaseClient).liveAllocationIds(tenantId, sessionResourceKey(sessionId));
+      return ids === null ? null : ids.length > 0;
+    });
+  const sessionCache = new Map<string, boolean | null>();
+  for (const sessionId of new Set(input.lines.map((l) => l.sessionId).filter((v): v is string => !!v))) {
+    sessionCache.set(sessionId, await holdsRoom(input.tenantId, sessionId));
+  }
+  if ([...sessionCache.values()].some((v) => v === null)) return { ok: false, error: "Could not read this class's room." };
+  const lines = input.lines.filter((l) => !l.sessionId || sessionCache.get(l.sessionId) !== true);
+
+  const linked = await (deps.loadLinked ?? loadLinkedResourcePools)(admin, input.tenantId, lines.map((l) => l.offeringId));
   if (!linked.ok) return { ok: false, error: linked.error };
   return {
     ok: true,
