@@ -54,6 +54,7 @@ export type PosSaleRefusalReason =
   | Refused<MutateLineResult>["reason"]
   | Refused<RepriceResult>["reason"]
   | "pin_invalid"
+  | "pin_throttled"
   | "not_manager"
   | "already_approved";
 
@@ -114,6 +115,7 @@ export const SALE_REFUSALS: Readonly<Record<PosSaleRefusalReason, PosRefusalReas
   exceeds_outstanding: "balanceChanged",
   over_limit: "notAllowed",
   pin_invalid: "notAllowed",
+  pin_throttled: "notAllowed",
   not_manager: "notAllowed",
   already_approved: "itemRefused",
   // TUL-1349: the item was unpublished, hidden or switched off after it was added.

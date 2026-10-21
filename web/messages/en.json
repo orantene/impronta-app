@@ -14624,6 +14624,7 @@
         "refusal": {
           "over_limit": "A manager has to approve this amount first.",
           "pin_invalid": "That PIN is not right.",
+          "pin_throttled": "Too many attempts. Wait 5 minutes.",
           "not_manager": "Only a manager can do this.",
           "already_approved": "This amount is already approved.",
           "conflict": "This sale just changed. Reload and try again.",

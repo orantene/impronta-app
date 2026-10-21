@@ -14624,6 +14624,7 @@
         "refusal": {
           "over_limit": "Un gerente tiene que aprobar este monto primero.",
           "pin_invalid": "Ese PIN no es correcto.",
+          "pin_throttled": "Demasiados intentos, espera 5 minutos.",
           "not_manager": "Solo un gerente puede hacer esto.",
           "already_approved": "Este monto ya está aprobado.",
           "conflict": "Esta venta acaba de cambiar. Recarga e inténtalo de nuevo.",

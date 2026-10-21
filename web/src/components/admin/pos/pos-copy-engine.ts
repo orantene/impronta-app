@@ -19,6 +19,7 @@ const E = "dashboard.pos.engine";
 export const ENGINE_REFUSAL_CODES = [
   "over_limit",
   "pin_invalid",
+  "pin_throttled",
   "not_manager",
   "already_approved",
   "conflict",
@@ -53,6 +54,7 @@ export function engineRefusalCopy(t: Translator): Readonly<Record<string, string
   return {
     over_limit: t(`${E}.refusal.over_limit`),
     pin_invalid: t(`${E}.refusal.pin_invalid`),
+    pin_throttled: t(`${E}.refusal.pin_throttled`),
     not_manager: t(`${E}.refusal.not_manager`),
     already_approved: t(`${E}.refusal.already_approved`),
     conflict: t(`${E}.refusal.conflict`),

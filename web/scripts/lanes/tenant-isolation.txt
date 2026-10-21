@@ -93,6 +93,7 @@ src/lib/payments/provider-status.test.ts
 src/lib/people/display-name.test.ts
 src/lib/people/exclusivity.test.ts
 src/lib/people/hats.test.ts
+src/lib/people/pins-store.test.ts
 src/lib/platform/server-safe-constants.static.test.ts
 src/lib/pos/modes.test.ts
 src/lib/pos/pos-modes-persistence.test.ts
@@ -220,6 +221,7 @@ src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
 src/lib/talent/workspace-menu-save-gates.test.ts
+src/lib/team/invite-redeem-guard.test.ts
 src/lib/team/redeem-role.test.ts
 src/lib/workspace/destinations.test.ts
 src/lib/workspace/mobile-more-actions.test.ts
