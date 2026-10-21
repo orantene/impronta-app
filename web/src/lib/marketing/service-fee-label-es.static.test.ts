@@ -46,7 +46,7 @@ test("the ticket table, pricing ladders and bot corpus use only the final Spanis
 
 test("each of the three still says the fee in the final words", () => {
   const ticket = readFileSync(FILES[0], "utf8");
-  assert.match(ticket, /Nuestro cargo por servicio la fija tu plan/);
+  assert.match(ticket, /Nuestro cargo por servicio lo fija tu plan/);
   const ladders = JSON.stringify(getPricingLaddersCopy("es").fee);
   assert.match(ladders, /El mismo cargo por servicio aplica/);
   assert.ok(!OFF_LABEL.test(ladders), "rendered pricing ladder fee card still uses an off-label word");
@@ -77,4 +77,23 @@ test("messages/es.json uses one label for the fee everywhere customers see it", 
   assert.deepEqual(hits, [], `off-label Spanish fee wording in messages/es.json:\n${hits.join("\n")}`);
   assert.ok(labels.length >= 1, 'expected at least one "serviceFee" label in messages/es.json');
   for (const [path, value] of labels) assert.equal(value, "Cargo por servicio", path);
+});
+
+test('"cargo" is masculine: no feminine pronoun is left near it in the Spanish fee copy', () => {
+  // Changing "cuota" (feminine) to "cargo" (masculine) must carry the pronouns with it:
+  // "lo fija", "Lo paga", "lo ve", "el más alto". Looks at the 240 characters after each mention.
+  const FEMININE_LEFTOVER = /\bla fija\b|\bLa paga\b|\bla ve antes\b|\bla más alta\b/;
+  const hits: string[] = [];
+  for (const f of FILES) {
+    const text = readFileSync(f, "utf8");
+    for (const m of text.matchAll(/cargo por servicio/gi)) {
+      const near = text.slice(m.index ?? 0, (m.index ?? 0) + 240);
+      const bad = FEMININE_LEFTOVER.exec(near);
+      if (bad) hits.push(`${f}: "${bad[0]}" near "${near.slice(0, 60).replace(/\n/g, " ")}..."`);
+    }
+  }
+  assert.deepEqual(hits, [], `feminine pronoun left after "cargo por servicio":\n${hits.join("\n")}`);
+  // The sentence itself, spelled out.
+  const ticket = readFileSync(FILES[0], "utf8");
+  assert.match(ticket, /Lo paga el comprador al final, y lo ve antes de pagar\. La tabla usa el más alto\./);
 });
