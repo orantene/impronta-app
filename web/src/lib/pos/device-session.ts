@@ -12,7 +12,12 @@ export type DeviceSessionView = {
 
 export type DeviceSessionResult =
   | { ok: true; session: DeviceSessionView }
-  | { ok: false; reason: "pin_invalid" | "locked" | "no_session" | "conflict" | "not_found" | "unavailable" | "invalid" };
+  | {
+      ok: false;
+      reason: "pin_invalid" | "locked" | "no_session" | "conflict" | "not_found" | "unavailable" | "invalid";
+      /** TUL-1516: too many wrong PINs in the window; the PIN was not even checked. */
+      throttled?: true;
+    };
 
 function mapReply(reply: {
   ok?: boolean;
@@ -21,6 +26,7 @@ function mapReply(reply: {
   operator_user_id?: string;
   shift_id?: string;
   locked_at?: string;
+  throttled?: boolean;
 }): DeviceSessionResult {
   if (reply.ok === true && reply.session_id) {
     return {
@@ -41,7 +47,9 @@ function mapReply(reply: {
     reason === "conflict" ||
     reason === "not_found"
   ) {
-    return { ok: false, reason };
+    return reply.throttled === true && reason === "pin_invalid"
+      ? { ok: false, reason, throttled: true }
+      : { ok: false, reason };
   }
   return { ok: false, reason: "unavailable" };
 }

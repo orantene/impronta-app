@@ -462,6 +462,26 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
       return { ok: false, error: "Couldn't remove member.", reason: "unexpected" };
     }
 
+    // TUL-1516: a removed member must not come back through an invite sent before the removal.
+    // Revoke every still-open invite addressed to this person's email in this workspace.
+    const { data: removedProfile, error: profileErr } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (profileErr) logServerError("team-management.removeTeamMember.profile", profileErr);
+    const removedEmail = (removedProfile as { email?: string | null } | null)?.email?.trim().toLowerCase();
+    if (removedEmail) {
+      const { error: revokeErr } = await admin
+        .from("team_invite_tokens")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("tenant_id", tenantId)
+        .ilike("invited_email", removedEmail)
+        .is("redeemed_at", null)
+        .is("revoked_at", null);
+      if (revokeErr) logServerError("team-management.removeTeamMember.revokeInvites", revokeErr);
+    }
+
     // Clear default coordinator if it pointed to the removed user.
     await admin
       .from("agencies")

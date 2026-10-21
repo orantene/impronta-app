@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { assertRoleLimit, decideApproval, requestApproval } from "./requests";
 
-test("a missing role limit is open; over the cap is over_limit", async () => {
+test("a missing role limit is closed for non-owners and open for the owner; over the cap is over_limit", async () => {
   const open = await assertRoleLimit(
     {
       from: () => ({
@@ -19,7 +19,26 @@ test("a missing role limit is open; over the cap is over_limit", async () => {
     },
     { tenantId: "t1", role: "editor", action: "discount", amountCents: 999999 },
   );
-  assert.equal(open.ok, true);
+  assert.equal(open.ok, false);
+  if (!open.ok) assert.equal(open.reason, "over_limit");
+
+  const ownerOpen = await assertRoleLimit(
+    {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: null, error: null }),
+              }),
+            }),
+          }),
+        }),
+      }),
+    },
+    { tenantId: "t1", role: "owner", action: "refund", amountCents: 999999 },
+  );
+  assert.equal(ownerOpen.ok, true);
 
   const capped = await assertRoleLimit(
     {
