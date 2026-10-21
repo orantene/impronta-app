@@ -251,8 +251,7 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
    *  per-path `isFieldLocked` matrix. The drawer banner explains why
    *  separately; this is the safety floor for editing affordances. */
   disabled?: boolean;
-  /** TUL-1269: legal name, date of birth and phone could not be loaded. Those inputs render
-   *  disabled with a note, because the save leaves them out (typing there would be lost). */
+  /** TUL-1269: legal name, DOB and phone could not be loaded; those inputs render disabled with a note (the save omits them). */
   privateFieldsUnavailable?: boolean;
 }) {
   const dashLocale = useDashboardLocale();
@@ -296,11 +295,10 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
       `}</style>
 
       {privateFieldsUnavailable && (
-        <div data-pshell-identity-full data-pshell-private-unavailable role="status" style={{ fontSize: 12.5, lineHeight: 1.45 }} className="text-admin-ink-muted">
+        <div data-pshell-identity-full data-pshell-private-unavailable role="status" className="text-[12.5px] leading-[1.45] text-admin-ink-muted">
           {copy.t("Private details could not be loaded. Reload to edit them.")}
         </div>
       )}
-
       {/* ── Profile name ────────────────────────────────────────────── */}
       <div data-pshell-identity-full>
         <FieldRow label={copy.t("Stage / professional name")} required hint={copy.t("What clients see on the public profile.")}>
@@ -442,8 +440,8 @@ export function IdentityEditor({ identity, onChange, isSelf, isFieldLocked, lock
           type="date"
           value={identity.dob ?? ""}
           onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
-          disabled={!!privateFieldsUnavailable}
-          style={{ ...inputStyle, opacity: privateFieldsUnavailable ? 0.55 : 1 }}
+          disabled={!!privateFieldsUnavailable} className="disabled:opacity-[0.55]"
+          style={inputStyle}
         />
         <DateFormatHint locale={dashLocale} />
       </FieldRow>

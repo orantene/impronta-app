@@ -129,7 +129,9 @@ describe("TUL-1591 (c): no talent-facing reader exposes the workspace's customer
   test("the reviewed reads are single rows or writes, never a tenant-wide list", () => {
     const one = (rel: string) => readFileSync(path.join(SRC, rel), "utf8");
     const noShow = one("lib/talent-agenda/booking-actions.ts");
-    assert.match(noShow, /\.from\("customers"\)\s*\.select\("no_shows"\)\s*\.eq\("id", row\.customer_id\)\s*\.maybeSingle\(\)/);
+    // TUL-1757 (#4380): the no-show bump is one atomic RPC on the booking's own customer_id.
+    assert.match(noShow, /admin\.rpc\("increment_customer_no_shows" as never, \{\s*p_customer_id: row\.customer_id,\s*\} as never\)/);
+    assert.ok(!/\.from\("customers"\)\s*\.select\(/.test(noShow));
     const cancel = one("lib/promos/redemption/talent-cancel.ts");
     assert.match(cancel, /\.from\("customers"\)\s*\.select\("display_name, user_id"\)\s*\.eq\("id", customerId\)\s*\.eq\("tenant_id", tenantId\)\s*\.maybeSingle\(\)/);
     const link = one("lib/payments/link-checkout.ts");
