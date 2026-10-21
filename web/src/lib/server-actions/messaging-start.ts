@@ -10,11 +10,11 @@ import { fail } from "@/lib/messaging/refusals";
 import { signThreadToken } from "@/lib/messaging/thread-token";
 import type { MessagingChannel } from "@/lib/messaging/types";
 
-import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { messagingInquiryManager, messagingStaff } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 
-import { staff } from "./messaging-engine";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { MESSAGING_EXTRAS_WRITE_CAPABILITY as EXTRAS_CAP } from "@/lib/messaging/extras-write-capabilities";
 
 const scoped = tenantScopedQuery;
 
@@ -32,7 +32,7 @@ export async function messagingStartConversation(input: {
   firstMessage?: string | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.startConversation);
   if (!g.ok) return g;
   const parsed = z
     .object({

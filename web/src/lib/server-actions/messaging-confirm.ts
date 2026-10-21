@@ -11,6 +11,7 @@ import { z } from "zod";
 import { confirmRecord, type ConfirmResult } from "@/lib/messaging/confirm";
 import { messagingStaff } from "@/lib/messaging/staff-guard";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { MESSAGING_EXTRAS_WRITE_CAPABILITY as EXTRAS_CAP } from "@/lib/messaging/extras-write-capabilities";
 
 const uuid = z.string().uuid();
 
@@ -35,7 +36,7 @@ export async function messagingConfirmRecord(input: {
   overrideReason?: string | null;
 }): Promise<ConfirmResult> {
   await requireNotImpersonating();
-  const g = await messagingStaff();
+  const g = await messagingStaff(EXTRAS_CAP.confirmRecord);
   if (!g.ok) return g;
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
