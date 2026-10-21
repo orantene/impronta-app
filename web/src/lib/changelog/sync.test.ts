@@ -201,3 +201,29 @@ test("the stored content type comes from the bytes (a jpeg named png is stored a
   await syncChangelog({ ...base, admin, fetchImpl: lying });
   assert.deepEqual([...files.keys()].sort(), ["page-1/b2.png", "page-1/cover.png"]);
 });
+
+test("an external image on a private or non-https address is never requested; the entry still syncs", async () => {
+  const { admin, rows } = fakeAdmin([]);
+  const calls: string[] = [];
+  const impl = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    calls.push(url);
+    if (url.includes("/query")) {
+      const page = published("page-1", "2026-10-21T15:00:00.000Z");
+      (page.properties as Record<string, unknown>)["Cover image"] = { files: [{ external: { url: "https://169.254.169.254/latest/meta-data" } }] };
+      return Response.json({ results: [page], has_more: false, next_cursor: null });
+    }
+    if (url.includes("/children")) {
+      return Response.json({
+        results: [{ id: "b9", type: "image", image: { type: "external", external: { url: "http://images.example.com/a.png" }, caption: [] } }],
+        has_more: false,
+        next_cursor: null,
+      });
+    }
+    return new Response(PNG_1X1, { headers: { "content-type": "image/png" } });
+  }) as typeof fetch;
+  const result = await syncChangelog({ ...base, admin, fetchImpl: impl });
+  assert.equal(result.synced, 1);
+  assert.equal(calls.some((u) => u.includes("169.254.169.254") || u.startsWith("http://")), false);
+  assert.equal((rows.get("page-1") as Row).cover_image_url, null);
+});
