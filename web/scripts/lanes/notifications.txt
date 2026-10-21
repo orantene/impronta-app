@@ -146,6 +146,7 @@ src/lib/talent/money-home.test.ts
 src/lib/talent/new-service-currency.static.test.ts
 src/lib/talent/offering-missing-translation.test.ts
 src/lib/talent/offering-request-detail.test.ts
+src/lib/talent/offering-server-owned.test.ts
 src/lib/talent/offerings-import-locale.test.ts
 src/lib/talent/offerings-money.test.ts
 src/lib/talent/offerings-types.test.ts
