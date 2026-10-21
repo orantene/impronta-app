@@ -20,11 +20,14 @@ How the list below was produced: every `CREATE POLICY ... FOR ALL` whose stateme
 and prod's count (78 tables) can differ because some policies are created dynamically or were hand-applied. The static test
 `src/lib/rls/for-all-staff-policy-inventory.static.test.ts` fails on any key not listed here.
 
+Follow-ups folded into wave 1 (PR #4316):
+- Consultant audit: every booking_transactions and client_trust_state writer runs on the service role, so both are admin/owner only at the database. `writeClientTrustLevel` now defaults to the service-role client.
+- `booking_transactions_coordinator_all` and `booking_payouts_coordinator_all` (20260615025530) were FOR ALL for inquiry coordinators. They are replaced by SELECT-only policies with the same predicates.
+- `createStaffPayoutAccountAction` lets managers create their own receiver account, so its insert now runs on the service role (role checks and owner values unchanged).
+- `saveHeaderIdentityAction` checks `agency.site_admin.identity.edit` up front (`saveIdentity` already checked it). `updateWorkspaceFields` and its manage_agency_settings guard are PR #4292, not in this branch.
+
 Open product questions:
-- booking_transactions: wave 1 gives writes to admin+ only. Manager-role POS cashiers and order flows that write on a user session would stop working once a manager seat exists. Confirm manager should not write the ledger directly (the alternative is to move those writers to the service role).
-- client_trust_state: the trust evaluator can take a user-session client; confirm it only runs as owner/admin or on the service role.
 - cms_section_comments: should a viewer be able to comment?
-- booking_transactions_coordinator_all (20260615025530) is a separate delegated-access policy, not an is_staff_of_tenant policy, and is out of scope here.
 
 | Table | Policy | Wave | Decision |
 |---|---|---|---|

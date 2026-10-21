@@ -200,10 +200,44 @@ test("wave 1 migration splits each table: SELECT stays staff-wide, writes are na
     );
     const adminWrites = table in ADMIN_WRITES;
     for (const [op, clause] of [["insert", "WITH CHECK"], ["update", "USING"], ["delete", "USING"]] as const) {
-      const re = new RegExp(`CREATE POLICY ${table}_admin_${op} ON public\\.${table}\\s+FOR ${op.toUpperCase()}\\s+${clause}\\s+\\(public\\.is_tenant_admin\\(${col}\\)\\)`);
+      const re = new RegExp(`CREATE POLICY ${table}_admin_${op} ON public\\.${table}\\s+FOR ${op.toUpperCase()}\\s+TO authenticated\\s+${clause}\\s+\\(public\\.is_tenant_admin\\(${col}\\)\\)`);
       assert.equal(re.test(code), adminWrites, `${table}: ${op} policy ${adminWrites ? "expected" : "must be absent (service-role-only)"}`);
     }
   }
+});
+
+test("wave 1 migration: coordinators lose write access to the ledger and payouts, keep their reads", () => {
+  const code = strip(readFileSync(WAVE1, "utf8"));
+  assert.match(code, /DROP POLICY IF EXISTS booking_transactions_coordinator_all ON public\.booking_transactions;/);
+  assert.match(
+    code,
+    /CREATE POLICY booking_transactions_coordinator_select ON public\.booking_transactions\s+FOR SELECT\s+TO authenticated\s+USING \(source_inquiry_id IS NOT NULL AND public\.is_inquiry_coordinator\(source_inquiry_id\)\)/,
+  );
+  assert.match(code, /DROP POLICY IF EXISTS booking_payouts_coordinator_all ON public\.booking_payouts;/);
+  assert.match(
+    code,
+    /CREATE POLICY booking_payouts_coordinator_select ON public\.booking_payouts\s+FOR SELECT\s+TO authenticated\s+USING \(public\.is_booking_coordinator\(booking_id\)\)/,
+  );
+});
+
+test("wave 1 migration: every new write policy is TO authenticated", () => {
+  const code = strip(readFileSync(WAVE1, "utf8"));
+  const writes = code.match(/CREATE POLICY \w+_admin_(?:insert|update|delete) ON [^;]*?;/g) ?? [];
+  assert.equal(writes.length, 12);
+  for (const w of writes) assert.match(w, /\sTO authenticated\s/, w.slice(0, 60));
+});
+
+test("action guards that go with the admin-only policies", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), "src", p), "utf8");
+  const payout = read("app/(workspace)/[tenantSlug]/admin/account/payout-account-actions.ts");
+  assert.match(payout, /service\.from\("payout_accounts"\)\.insert\(/);
+  const staffAction = payout.slice(payout.indexOf("export async function createStaffPayoutAccountAction"));
+  assert.doesNotMatch(staffAction, /supabase\.from\("payout_accounts"\)\.insert\(/);
+  assert.match(read("lib/site-admin/site-header/actions.ts"), /userHasCapability\("agency\.site_admin\.identity\.edit"/);
+  const trust = read("lib/client-trust/evaluator.ts");
+  const writer = trust.slice(trust.indexOf("export async function writeClientTrustLevel"));
+  assert.match(writer, /supabase \?\? createServiceRoleClient\(\)/);
+  assert.doesNotMatch(writer, /createSupabaseServerClient\(\)/);
 });
 
 test("wave 1 tables are in the inventory as grandfathered history, not as new policies", () => {

@@ -11,7 +11,7 @@
 -- require an ACTIVE membership, then for the nine wave-1 tables splits each FOR ALL policy into:
 --   * SELECT, unchanged predicate (is_staff_of_tenant), so reads do not change; plus
 --   * either NO write policy (service-role-only writes; service_role bypasses RLS), or
---   * INSERT / UPDATE / DELETE gated on is_tenant_admin (active owner/admin, or platform admin).
+--   * INSERT / UPDATE / DELETE TO authenticated gated on is_tenant_admin (active owner/admin, or platform admin).
 -- Later waves (content tables on is_tenant_writer, mixed policies per table) each get their own version from the PM.
 --
 -- Role names: agency_memberships.role is owner|admin|manager|editor|viewer|hub_moderator|platform_reviewer
@@ -136,7 +136,7 @@ BEGIN
 END
 $$;
 
--- payout_accounts (admin+ writes): owner/admin manage payout accounts from the account page (user session).
+-- payout_accounts (admin+ writes): owner/admin manage payout accounts; the staff self-payout insert (createStaffPayoutAccountAction) now runs on the service role.
 DO $$
 BEGIN
   IF to_regclass('public.payout_accounts') IS NOT NULL THEN
@@ -149,23 +149,26 @@ BEGIN
     DROP POLICY IF EXISTS payout_accounts_admin_insert ON public.payout_accounts;
     CREATE POLICY payout_accounts_admin_insert ON public.payout_accounts
       FOR INSERT
+      TO authenticated
       WITH CHECK (public.is_tenant_admin(tenant_id));
 
     DROP POLICY IF EXISTS payout_accounts_admin_update ON public.payout_accounts;
     CREATE POLICY payout_accounts_admin_update ON public.payout_accounts
       FOR UPDATE
+      TO authenticated
       USING       (public.is_tenant_admin(tenant_id))
       WITH CHECK  (public.is_tenant_admin(tenant_id));
 
     DROP POLICY IF EXISTS payout_accounts_admin_delete ON public.payout_accounts;
     CREATE POLICY payout_accounts_admin_delete ON public.payout_accounts
       FOR DELETE
+      TO authenticated
       USING (public.is_tenant_admin(tenant_id));
   END IF;
 END
 $$;
 
--- booking_transactions (admin+ writes): money ledger; user-session writers (POS, orders) are admin+ today.
+-- booking_transactions (admin+ writes): money ledger; every app writer runs on the service role (consultant audit), so admin+ only affects direct PostgREST calls.
 DO $$
 BEGIN
   IF to_regclass('public.booking_transactions') IS NOT NULL THEN
@@ -178,23 +181,26 @@ BEGIN
     DROP POLICY IF EXISTS booking_transactions_admin_insert ON public.booking_transactions;
     CREATE POLICY booking_transactions_admin_insert ON public.booking_transactions
       FOR INSERT
+      TO authenticated
       WITH CHECK (public.is_tenant_admin(source_tenant_id));
 
     DROP POLICY IF EXISTS booking_transactions_admin_update ON public.booking_transactions;
     CREATE POLICY booking_transactions_admin_update ON public.booking_transactions
       FOR UPDATE
+      TO authenticated
       USING       (public.is_tenant_admin(source_tenant_id))
       WITH CHECK  (public.is_tenant_admin(source_tenant_id));
 
     DROP POLICY IF EXISTS booking_transactions_admin_delete ON public.booking_transactions;
     CREATE POLICY booking_transactions_admin_delete ON public.booking_transactions
       FOR DELETE
+      TO authenticated
       USING (public.is_tenant_admin(source_tenant_id));
   END IF;
 END
 $$;
 
--- client_trust_state (admin+ writes): trust ladder state; evaluator may write on a user session.
+-- client_trust_state (admin+ writes): trust ladder state; every app writer runs on the service role (writeClientTrustLevel now defaults to it).
 DO $$
 BEGIN
   IF to_regclass('public.client_trust_state') IS NOT NULL THEN
@@ -207,23 +213,26 @@ BEGIN
     DROP POLICY IF EXISTS client_trust_state_admin_insert ON public.client_trust_state;
     CREATE POLICY client_trust_state_admin_insert ON public.client_trust_state
       FOR INSERT
+      TO authenticated
       WITH CHECK (public.is_tenant_admin(tenant_id));
 
     DROP POLICY IF EXISTS client_trust_state_admin_update ON public.client_trust_state;
     CREATE POLICY client_trust_state_admin_update ON public.client_trust_state
       FOR UPDATE
+      TO authenticated
       USING       (public.is_tenant_admin(tenant_id))
       WITH CHECK  (public.is_tenant_admin(tenant_id));
 
     DROP POLICY IF EXISTS client_trust_state_admin_delete ON public.client_trust_state;
     CREATE POLICY client_trust_state_admin_delete ON public.client_trust_state
       FOR DELETE
+      TO authenticated
       USING (public.is_tenant_admin(tenant_id));
   END IF;
 END
 $$;
 
--- agency_business_identity (admin+ writes): workspace identity edited from site-admin identity (user session).
+-- agency_business_identity (admin+ writes): workspace identity is edited from site-admin identity on a user session, gated by the agency.site_admin.identity.edit capability.
 DO $$
 BEGIN
   IF to_regclass('public.agency_business_identity') IS NOT NULL THEN
@@ -236,18 +245,46 @@ BEGIN
     DROP POLICY IF EXISTS agency_business_identity_admin_insert ON public.agency_business_identity;
     CREATE POLICY agency_business_identity_admin_insert ON public.agency_business_identity
       FOR INSERT
+      TO authenticated
       WITH CHECK (public.is_tenant_admin(tenant_id));
 
     DROP POLICY IF EXISTS agency_business_identity_admin_update ON public.agency_business_identity;
     CREATE POLICY agency_business_identity_admin_update ON public.agency_business_identity
       FOR UPDATE
+      TO authenticated
       USING       (public.is_tenant_admin(tenant_id))
       WITH CHECK  (public.is_tenant_admin(tenant_id));
 
     DROP POLICY IF EXISTS agency_business_identity_admin_delete ON public.agency_business_identity;
     CREATE POLICY agency_business_identity_admin_delete ON public.agency_business_identity
       FOR DELETE
+      TO authenticated
       USING (public.is_tenant_admin(tenant_id));
+  END IF;
+END
+$$;
+
+-- booking_transactions / booking_payouts coordinator access: 20260615025530 created FOR ALL policies for inquiry
+-- coordinators, so a coordinator could still write ledger and payout rows directly. Reads stay (same predicates);
+-- writes are removed (the app writes these tables on the service role).
+DO $$
+BEGIN
+  IF to_regclass('public.booking_transactions') IS NOT NULL THEN
+    DROP POLICY IF EXISTS booking_transactions_coordinator_all ON public.booking_transactions;
+    DROP POLICY IF EXISTS booking_transactions_coordinator_select ON public.booking_transactions;
+    CREATE POLICY booking_transactions_coordinator_select ON public.booking_transactions
+      FOR SELECT
+      TO authenticated
+      USING (source_inquiry_id IS NOT NULL AND public.is_inquiry_coordinator(source_inquiry_id));
+  END IF;
+
+  IF to_regclass('public.booking_payouts') IS NOT NULL THEN
+    DROP POLICY IF EXISTS booking_payouts_coordinator_all ON public.booking_payouts;
+    DROP POLICY IF EXISTS booking_payouts_coordinator_select ON public.booking_payouts;
+    CREATE POLICY booking_payouts_coordinator_select ON public.booking_payouts
+      FOR SELECT
+      TO authenticated
+      USING (public.is_booking_coordinator(booking_id));
   END IF;
 END
 $$;
