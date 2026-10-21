@@ -42,6 +42,7 @@ import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audi
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { WORKSPACE_MONEY_GATES, isStrictPlanDowngrade } from "@/lib/billing/workspace-money-gates";
+import { applyWorkspaceDowngrade } from "@/lib/billing/plan-change.server";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
 
@@ -182,6 +183,12 @@ export type CommitDowngradeResult =
       archived_count: number;
       archive_event_id: string;
       new_plan: "free" | "studio" | "agency" | "network";
+      /**
+       * TUL-1518: when the workspace has a live Stripe subscription the plan changes at Stripe's period end (the webhook
+       * writes the tier); this is that date, or null. `stripe_scheduled` is false for a workspace with no subscription.
+       */
+      effective_at: string | null;
+      stripe_scheduled: boolean;
     }
   | { ok: false; error: string };
 
@@ -235,6 +242,11 @@ export async function commitPlanDowngrade(input: {
     };
   }
 
+  // TUL-1518: tell STRIPE first. With a live subscription the customer keeps being billed the old price until Stripe is
+  // told, so a refusal here stops the whole downgrade: nothing is archived and no tier is written.
+  const stripeStep = await applyWorkspaceDowngrade(tenantId, v.target_tier);
+  if (!stripeStep.ok) return { ok: false, error: stripeStep.error };
+
   // Generate the archive event id (groups all rows archived in this commit).
   // Node 19+ ships crypto.randomUUID; this server action runs on Node 22+
   // per package.json engines.
@@ -262,14 +274,18 @@ export async function commitPlanDowngrade(input: {
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  // Flip the plan tier.
-  const { error: planErr } = await admin
-    .from("agencies")
-    .update({ plan_tier: v.target_tier, updated_at: now })
-    .eq("id", tenantId);
-  if (planErr) {
-    logServerError("admin-plan-downgrade.commit.plan", planErr);
-    return { ok: false, error: CLIENT_ERROR.update };
+  // Flip the plan tier, but ONLY when Stripe does not own a subscription. With one, Stripe applies the change at the end
+  // of the period and the webhook is the single writer of plan_tier: a local write now would be put back by the next
+  // subscription webhook (the bug this replaces) and would race the schedule.
+  if (!stripeStep.hadSubscription) {
+    const { error: planErr } = await admin
+      .from("agencies")
+      .update({ plan_tier: v.target_tier, updated_at: now })
+      .eq("id", tenantId);
+    if (planErr) {
+      logServerError("admin-plan-downgrade.commit.plan", planErr);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
   }
 
   // Churn is half of what a funnel means. Counting only upgrades produces a
@@ -297,6 +313,8 @@ export async function commitPlanDowngrade(input: {
     context: {
       archived_count: archivedCount ?? 0,
       archive_event_id: eventId,
+      stripe_mode: stripeStep.hadSubscription ? stripeStep.mode : "none",
+      stripe_effective_at: stripeStep.hadSubscription ? stripeStep.effectiveAt : null,
     },
   });
 
@@ -305,6 +323,8 @@ export async function commitPlanDowngrade(input: {
     archived_count: archivedCount ?? 0,
     archive_event_id: eventId,
     new_plan: v.target_tier,
+    effective_at: stripeStep.hadSubscription ? stripeStep.effectiveAt : null,
+    stripe_scheduled: stripeStep.hadSubscription,
   };
 }
 
