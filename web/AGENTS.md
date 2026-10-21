@@ -80,7 +80,10 @@ keep both sides' lines. Lanes still on a runner without `@file` support
   — if parent 1 is not current `origin/main`, the run is testing stale code.
 - Merging to `main` does NOT deploy. The `production` pointer moves only when a
   release is cut by hand (`promote-production.yml`, workflow_dispatch, batched;
-  P0 hotfix excepted). Do not push it by hand.
+  P0 hotfix excepted), and ONLY after staging QA, the GO/NO-GO report and Oran's
+  explicit GO. Merging does not build staging either: the PM builds staging by
+  hand. A green main means "ready for the next staging build", never "ready for
+  production". Agents never suggest, run or push a production promote.
 
 ## Copy and i18n
 - Every new user-facing string needs **en + es**. `fr.json` has no
