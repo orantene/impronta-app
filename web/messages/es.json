@@ -1749,6 +1749,8 @@
     "instantBook": {
       "guestName": "Tu nombre",
       "guestEmail": "Tu correo",
+      "nameInvalid": "Escribe tu nombre.",
+      "emailInvalid": "Escribe un correo válido para enviarte la confirmación.",
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
