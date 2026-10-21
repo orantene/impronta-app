@@ -8,6 +8,7 @@
 import { useState, useTransition } from "react";
 import { issueRent, proposeRentPlan, setRentPlanStatus } from "@/lib/service-hub/rent/rent-actions";
 import { RENT_COPY, rentRefusalText } from "@/lib/service-hub/rent/rent-copy";
+import { currentRentPeriod } from "@/lib/service-hub/rent/rent-cycle";
 import type { SafetyRow } from "@/lib/service-hub/rent/rent-safety-view";
 
 export type RentMember = { talentProfileId: string; name: string };
@@ -26,6 +27,19 @@ export type RentPlanView = {
 const field = { padding: "7px 9px", borderRadius: 8, border: "1px solid rgba(24,24,27,0.15)" } as const;
 const primary = { padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--color-admin-brand)", color: "#fff", fontWeight: 600 } as const;
 
+/** The last `n` rent months on the Mexico City clock, newest first. */
+function recentPeriods(n: number): string[] {
+  const out: string[] = [];
+  let cur = currentRentPeriod(new Date());
+  for (let k = 0; k < n; k += 1) {
+    out.push(cur);
+    const [y, m] = cur.split("-").map(Number);
+    const d = new Date(Date.UTC(y, m - 2, 1));
+    cur = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  }
+  return out;
+}
+
 function money(cents: number, currency: string, locale: "en" | "es"): string {
   try {
     return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency }).format(cents / 100);
@@ -42,6 +56,10 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
   const [talent, setTalent] = useState(members[0]?.talentProfileId ?? "");
   const [rent, setRent] = useState("");
   const [percent, setPercent] = useState("");
+  const [issuePeriod, setIssuePeriod] = useState<Record<string, string>>({});
+  // The last six Mexico City months, newest first; a percentage plan defaults to the last CLOSED month.
+  const periods = recentPeriods(6);
+  const defaultIssuePeriod = (percentage: boolean) => (percentage ? periods[1] : periods[0]);
   const [currency, setCurrency] = useState("MXN");
   const [startsOn, setStartsOn] = useState(new Date().toISOString().slice(0, 10));
 
@@ -91,9 +109,20 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             {p.status === "active" && (
+              <select
+                data-testid="rent-issue-period"
+                aria-label={c.issueMonth}
+                value={issuePeriod[p.id] ?? defaultIssuePeriod(p.percentBps > 0)}
+                onChange={(e) => setIssuePeriod((st) => ({ ...st, [p.id]: e.target.value }))}
+                style={field}
+              >
+                {periods.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+            )}
+            {p.status === "active" && (
               <button type="button" disabled={pending} style={primary} onClick={() => start(async () => {
                 setMsg(null);
-                const r = await issueRent({ planId: p.id });
+                const r = await issueRent({ planId: p.id, period: issuePeriod[p.id] ?? defaultIssuePeriod(p.percentBps > 0) });
                 if (r.ok) { setLink(r.url); setMsg({ ok: true, text: r.already ? c.already : c.copyLink }); }
                 else setMsg({ ok: false, text: rentRefusalText(r.reason, c) });
               })}>{c.issue}</button>

@@ -111,16 +111,11 @@ describe("the sales base comes from the store and the invoice freezes the result
 
 describe("the sales base query", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/service-hub/rent/rent-sales-base.server.ts"), "utf8");
-  test("counts paid or fulfilled orders of THIS workspace in the plan currency for this month, net of refunds", () => {
-    assert.match(src, /tenantScopedQuery\(admin, "orders", p\.tenantId\)/);
-    assert.match(src, /\.in\("status", \["paid", "fulfilled"\]\)/);
-    assert.match(src, /\.eq\("currency", p\.currency\)/);
+  test("counts paid, fulfilled or partially refunded orders of THIS workspace in the plan currency, net of refunds (details in rent-sales-paging.test.ts)", () => {
+    assert.match(src, /tenantScopedQuery\(admin, "order_lines", p\.tenantId\)/);
+    assert.match(src, /\["paid", "fulfilled", "partially_refunded"\]/);
+    assert.match(src, /\.eq\("orders\.currency", p\.currency\)/);
     assert.match(src, /refunded_cents/);
-    assert.match(src, /\.gte\("created_at"/);
-    assert.match(src, /\.lt\("created_at"/);
-  });
-  test("never counts the rent invoices themselves", () => {
-    assert.match(src, /source_page/);
   });
 });
 

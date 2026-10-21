@@ -51,9 +51,39 @@ export function isRentPeriod(period: string): boolean {
   return /^\d{4}-(0[1-9]|1[0-2])$/.test(period);
 }
 
-/** The rent month a date falls in, in UTC (the same clock the database uses). */
-export function currentRentPeriod(now: Date): string {
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+/** Rent months are Mexico City months (the studios' clock; Mexico has no DST since 2022). */
+export const RENT_TZ = "America/Mexico_City";
+
+function tzParts(utcMs: number, tz: string): { y: number; mo: number; d: number; h: number; mi: number; s: number } {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(utcMs));
+  const g = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return { y: g("year"), mo: g("month"), d: g("day"), h: g("hour") % 24, mi: g("minute"), s: g("second") };
+}
+
+/** The rent month a moment falls in, on the Mexico City clock. */
+export function currentRentPeriod(now: Date, tz: string = RENT_TZ): string {
+  const p = tzParts(now.getTime(), tz);
+  return `${p.y}-${String(p.mo).padStart(2, "0")}`;
+}
+
+/** The month after "YYYY-MM". */
+export function nextRentPeriodOf(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/** The UTC instant a rent month starts: local midnight of its first day. */
+export function zonedMonthStartUtc(period: string, tz: string = RENT_TZ): Date {
+  const [y, m] = period.split("-").map(Number);
+  const wall = Date.UTC(y, m - 1, 1);
+  let guess = wall;
+  for (let i = 0; i < 3; i += 1) {
+    const p = tzParts(guess, tz);
+    const shown = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi, p.s);
+    guess += wall - shown;
+  }
+  return new Date(guess);
 }
 
 export type RentIssueRefusal =
