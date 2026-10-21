@@ -66,6 +66,7 @@ src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
+src/i18n/public-message-namespaces.static.test.ts
 src/lib/ai/ai-master-switch-embed-transcribe.test.ts
 src/lib/ai/ai-master-switch.test.ts
 src/lib/billing/direct-connection-helper.static.test.ts

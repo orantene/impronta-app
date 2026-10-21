@@ -14,16 +14,12 @@
  * fails CI when a key's subtree is missing, which would otherwise render the raw
  * key in the browser and a hydration mismatch.
  */
-export const CLIENT_MESSAGE_SUBTREES = [
-  "admin.account",
-  "admin.payouts",
-  "admin.roster",
-  "admin.talent",
-  "dashboard.adminProfilePages",
+export const PUBLIC_CLIENT_MESSAGE_SUBTREES = [
+  // Shared exceptions (TUL-1773): not public copy, but reachable from a public tree, so they
+  // stay in the root payload. media* / uploadGuard: owner edit chrome mounts on public sites.
+  // adminSupport: the support chat (SupportCardRenderer) mounts from the root layout and
+  // the marketing pages.
   "dashboard.adminSupport",
-  "dashboard.adminTabs",
-  "dashboard.clientHub",
-  "dashboard.clientNav",
   "dashboard.mediaField",
   "dashboard.mediaLibrary",
   "dashboard.mediaPickerLock",
@@ -42,6 +38,25 @@ export const CLIENT_MESSAGE_SUBTREES = [
   "public.slotPicker",
   "public.thread",
 ] as const;
+
+/**
+ * TUL-1773: subtrees read ONLY by client components reachable from the `(workspace)` route
+ * group (workspace admin, talent dashboard, client portal, platform admin). The root layout no
+ * longer inlines them; `app/(workspace)/layout.tsx` adds them for those routes.
+ */
+export const ADMIN_CLIENT_MESSAGE_SUBTREES = [
+  "admin.account",
+  "admin.payouts",
+  "admin.roster",
+  "admin.talent",
+  "dashboard.adminProfilePages",
+  "dashboard.adminTabs",
+  "dashboard.clientHub",
+  "dashboard.clientNav",
+] as const;
+
+/** Both sets: what a direct client translator may read in the browser (guarded by client-subtrees.static.test.ts). */
+export const CLIENT_MESSAGE_SUBTREES = [...PUBLIC_CLIENT_MESSAGE_SUBTREES, ...ADMIN_CLIENT_MESSAGE_SUBTREES] as const;
 
 type Catalog = Record<string, unknown>;
 
@@ -72,10 +87,10 @@ export function missingFrom(base: Catalog, fallback: Catalog): Catalog {
   return out;
 }
 
-/** The listed subtrees of one catalog, nested the same way. */
-export function pickClientSubtrees(catalog: Catalog): Catalog {
+/** The listed subtrees of one catalog (default: the public set), nested the same way. */
+export function pickClientSubtrees(catalog: Catalog, paths: readonly string[] = PUBLIC_CLIENT_MESSAGE_SUBTREES): Catalog {
   const out: Record<string, Record<string, unknown>> = {};
-  for (const path of CLIENT_MESSAGE_SUBTREES) {
+  for (const path of paths) {
     const [ns, sub] = path.split(".");
     const node = (catalog[ns] as Catalog | undefined)?.[sub];
     if (node === undefined) continue;
