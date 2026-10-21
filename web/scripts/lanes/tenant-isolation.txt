@@ -158,6 +158,7 @@ src/lib/seo/llms-txt.test.ts
 src/lib/seo/spanish-named-routes.test.ts
 src/lib/seo/talent-llms-txt.test.ts
 src/lib/seo/title-template.static.test.ts
+src/lib/server/client-tenant-access.test.ts
 src/lib/service-hub/customer-list-talent-audit.static.test.ts
 src/lib/service-hub/roster-chat-request.test.ts
 src/lib/service-hub/roster-request-core.test.ts
