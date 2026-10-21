@@ -5,7 +5,7 @@ import { memberEndRentPlan, respondRentPlan } from "@/lib/service-hub/rent/rent-
 import { startRentAutopay, stopRentAutopay } from "@/lib/service-hub/rent/rent-autopay-actions";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
 
-export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; percentBps: number; currency: string; startsOn: string; autopayStatus: string; autopayOffered: boolean };
+export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; percentBps: number; currency: string; startsOn: string; autopayStatus: string; autopayOffered: boolean; months: Array<{ period: string; status: string; source: string; method: string | null }> };
 
 function money(cents: number, currency: string, locale: "en" | "es"): string {
   try {
@@ -29,6 +29,17 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
           <div style={{ fontSize: 15, margin: "4px 0" }}>{p.monthlyRentCents > 0 ? `${money(p.monthlyRentCents, p.currency, locale)} ${c.perMonth}` : ""}{p.monthlyRentCents > 0 && p.percentBps > 0 ? " + " : ""}{p.percentBps > 0 ? `${p.percentBps / 100}% ${c.ofSales}` : ""}</div>
           <div style={{ fontSize: 12.5, opacity: 0.7 }}>{c.startsOn} {p.startsOn}</div>
           <p style={{ fontSize: 12.5, opacity: 0.75 }}>{c.safetyNote}</p>
+          {p.months.length > 0 && (
+            <ul data-testid="rent-months" style={{ listStyle: "none", padding: 0, margin: "6px 0", fontSize: 12.5 }}>
+              {p.months.map((m) => (
+                <li key={m.period}>
+                  {m.period} · {m.status === "paid"
+                    ? m.source === "outside" ? (m.method === "transfer" ? c.paidViaTransfer : c.paidViaCash) : m.source === "autopay" ? c.paidViaAutopay : c.paidViaLink
+                    : m.status === "failed" ? c.autopayPastDue : m.status === "refunded" ? c.refundedMonth : c.waiting}
+                </li>
+              ))}
+            </ul>
+          )}
           {p.status !== "proposed" && p.autopayOffered && (
             <div data-testid="rent-autopay" style={{ fontSize: 13, margin: "6px 0" }}>
               {["active", "pending", "past_due", "paused"].includes(p.autopayStatus) ? (
