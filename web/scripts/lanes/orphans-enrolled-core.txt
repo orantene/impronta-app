@@ -103,6 +103,7 @@ src/lib/projects/assignment-confirmation.test.ts
 src/lib/projects/project-event-board.test.ts
 src/lib/projects/replace-client-notice.test.ts
 src/lib/projects/replace-with-notice.test.ts
+src/lib/quality/build-staging-workflow.static.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
