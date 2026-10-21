@@ -198,7 +198,7 @@ async function saveTalentOffering(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -339,7 +339,7 @@ export async function deleteTalentOffering(
 ): Promise<{ ok: boolean; error?: string; archived?: boolean }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -413,7 +413,7 @@ export async function deleteTalentOfferingForever(
 ): Promise<{ ok: boolean; error?: string; archived?: boolean }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   // TUL-1335: no bookings pre-check here; deleteTalentOffering archives anything with history.
   return deleteTalentOffering(talentProfileId, offeringId);
@@ -426,7 +426,7 @@ export async function reorderTalentOfferings(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -454,7 +454,7 @@ export async function setOfferingImages(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -599,7 +599,7 @@ export async function setOfferingOptions(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -742,7 +742,7 @@ async function collectLegacySources(
 export async function importLegacyToOfferings(talentProfileId: string): Promise<LoadResult> {
   await requireNotImpersonating();
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
