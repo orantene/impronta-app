@@ -18,7 +18,8 @@ test("TUL-978: dev-only hostnames are recognised", () => {
 
 test("TUL-978: hub landing drops dev rows and renders the searchable list", () => {
   assert.match(landing, /filter\(\(r\) => !isDevOnlyHostname\(r\.hostname\)\)/);
-  assert.match(landing, /<HubAgencyList agencies=/);
+  assert.match(landing, /<HubAgencyList\s+agencies=/);
+  assert.match(landing, /t\("public\.hubLanding\.noAgencies"\)/, "TUL-978: the fixed copy is localized");
 });
 
 test("TUL-978: the list headlines the tenant name and keeps the domain as the sub-line", async () => {

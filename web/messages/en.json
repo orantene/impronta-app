@@ -1787,6 +1787,14 @@
       "dismiss": "No thanks",
       "regionLabel": "Language suggestion"
     },
+    "hubLanding": {
+      "agenciesTitle": "Agencies on the platform",
+      "tagline": "Each agency runs its own storefront at its own domain. Visit one to browse its talent roster and open an inquiry.",
+      "noAgencies": "No active agency domains yet.",
+      "searchAgencies": "Search agencies",
+      "noMatch": "No agencies match your search.",
+      "featured": "Featured on the hub"
+    },
     "menuBoard": {
       "contactRequired": "Name, email, and phone are required.",
       "decrease": "Decrease {item}",
