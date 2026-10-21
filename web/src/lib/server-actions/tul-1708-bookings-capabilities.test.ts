@@ -20,9 +20,9 @@
  * gated per verb, not with one flat capability — see the dedicated block below.
  *
  * `appointments-actions.ts`'s five writers (reschedule/waitlist) are PM-decided
- * `operate_venue` (editor-tier floor operations), but `operate_venue` ships with #4317,
- * not yet on `main` — so that file is untouched here and the swap is a held patch
- * applied on top of #4317's own commit once it lands. This test does not cover it.
+ * `operate_venue` (editor-tier floor operations, #4317 — now on `main`). That swap
+ * landed directly in `scheduling/appointments-actions.ts` itself; this test still
+ * does not cover that file.
  *
  * There is no shared `capabilityless-staff-guard.*` ratchet on `main` yet (it ships with
  * #4288 / #4300, not merged as of this PR) — this test is self-contained so this area does
@@ -203,9 +203,10 @@ test("behaviour on the role matrix: viewer is refused every capability area D no
  * resumeExceptionAction does not fit the generic FILES loop above: its capability
  * depends on `input.verb`, not one fixed guard call. `run_refund_intent` is the one
  * money-moving verb (booking.payment.refund, admin+); the other four are floor
- * operations pinned to `coordinate_inquiry` (manager+, no looser than the flat
- * capability this file used before this PR) as an interim placeholder until a held
- * patch on top of #4317 swaps them to `operate_venue` (editor+) — see the file header.
+ * operations — re-minting an admission, retrying an engine effect, requeuing an
+ * outbox message, recovering an unresolved collection — pinned to `operate_venue`
+ * (editor+, #4317, now on `main`), the same bar day-to-day venue operation requires
+ * elsewhere.
  */
 test("_exceptions-actions.ts: resumeExceptionAction is gated per verb, not with one flat capability", () => {
   const raw = read("src/app/(workspace)/[tenantSlug]/admin/_exceptions-actions.ts");
@@ -227,13 +228,8 @@ test("_exceptions-actions.ts: resumeExceptionAction is gated per verb, not with 
   ]) {
     assert.match(
       src,
-      new RegExp(`${verb}:\\s*"coordinate_inquiry"`),
-      `${verb} must be pinned to coordinate_inquiry pending the operate_venue patch`,
-    );
-    assert.match(
-      raw,
-      new RegExp(`// TUL-1708: swapped to operate_venue once #4317 lands\\s*\\n\\s*${verb}:`),
-      `${verb} must carry the pending-swap comment`,
+      new RegExp(`${verb}:\\s*"operate_venue"`),
+      `${verb} must be pinned to operate_venue (#4317, editor+)`,
     );
   }
 });
