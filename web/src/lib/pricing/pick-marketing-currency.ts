@@ -19,11 +19,13 @@ export const MARKETING_FALLBACK_CURRENCY: DefaultCurrencyCode = "USD";
 
 /**
  * Currencies the marketing price source can actually render. The catalog has
- * USD rows only today; add a code here when its `product_*` price rows (or an
- * approved conversion display) exist. Anything else resolves to USD so the
- * picker value and the displayed amounts always agree (TUL-892).
+ * USD rows only today, so MXN renders as a DISPLAY conversion of the USD price
+ * (live FX, `pricing-ladders-section.tsx`), always with a "charged in USD"
+ * line; if `product_*` MXN rows are added they are used as-is. Anything else
+ * (BRL, ...) resolves to USD so the picker value and the displayed amounts
+ * always agree (TUL-892). MXN is the Spanish-site default (TUL-864).
  */
-export const MARKETING_PRICE_CURRENCIES: readonly DefaultCurrencyCode[] = ["USD"];
+export const MARKETING_PRICE_CURRENCIES: readonly DefaultCurrencyCode[] = ["USD", "MXN"];
 
 export function isMarketingPriceCurrency(
   code: string | null | undefined,
@@ -62,9 +64,8 @@ export function pickMarketingCurrency(input: {
   const fromCookie = normalizeDefaultCurrency(input.cookieCurrency);
   if (fromCookie && isMarketingPriceCurrency(fromCookie)) return { currency: fromCookie, source: "cookie" };
 
-  // TUL-864: Spanish defaults to MXN, but only once the catalog can render MXN
-  // (TUL-892: a currency label over USD amounts is a lie). Until then the
-  // pricing page shows USD plus an approximate MX$ line.
+  // TUL-864: Spanish defaults to MXN. The pricing page converts the USD price
+  // for display and says it is charged in USD, so the chip never lies (TUL-892).
   if (
     input.locale?.trim().toLowerCase().startsWith("es") &&
     isMarketingPriceCurrency("MXN")
