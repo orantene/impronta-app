@@ -21543,6 +21543,26 @@
       "statusNotConnected": "Not connected",
       "capEnabled": "Enabled",
       "capNotYet": "Not yet",
+      "baseFee": {
+        "title": "Booking reservation fee",
+        "body": "An automatic fee added to every booking: a flat amount and/or a percent of the subtotal. It's your workspace revenue, charged on top of the talent's quote (the talent is always paid in full).",
+        "capsLead": "Platform caps:",
+        "capFlat": "{amount} flat",
+        "capFlatNone": "no flat cap",
+        "capPct": "{pct}%",
+        "capPctNone": "no % cap",
+        "flatLabel": "Flat fee ($ USD)",
+        "pctLabel": "Percent of subtotal (%)",
+        "none": "none",
+        "save": "Save fee",
+        "saving": "Saving…",
+        "hint": "Leave both blank for no base fee.",
+        "saved": "Base reservation fee saved. Applies to new bookings.",
+        "errFlat": "Flat fee must be 0 or a positive dollar amount, or blank for none.",
+        "errPct": "Percent fee must be between 0% and 50%, or blank for none.",
+        "errCapFlat": "Flat fee can't exceed the platform cap of {amount}.",
+        "errCapPct": "Percent fee can't exceed the platform cap of {pct}%."
+      },
       "actions": {
         "loading": "Loading…",
         "connectStripe": "Connect Stripe",
@@ -21552,7 +21572,19 @@
         "disconnect": "Disconnect",
         "refreshed": "Status refreshed.",
         "disconnected": "Disconnected.",
-        "disconnectConfirm": "Disconnect Stripe? Future client payments will route to the platform account again until you reconnect. Your Stripe account is NOT deleted."
+        "disconnectConfirm": "Disconnect Stripe? Future client payments will route to the platform account again until you reconnect. Your Stripe account is NOT deleted.",
+        "pickCountryError": "Please choose where you'll receive payouts.",
+        "setupFailed": "Could not start payout setup.",
+        "setupFailedRetry": "Could not start payout setup. Please try again.",
+        "unexpectedError": "Unexpected error.",
+        "notAvailable": "Payouts are not available right now.",
+        "workspaceNotFound": "Workspace not found.",
+        "workspaceMismatch": "Workspace mismatch.",
+        "countryQuestion": "Where will this workspace receive payouts?",
+        "selectCountry": "Select your country…",
+        "continue": "Continue",
+        "cancel": "Cancel",
+        "doneForNow": "Done for now"
       }
     },
     "work": {

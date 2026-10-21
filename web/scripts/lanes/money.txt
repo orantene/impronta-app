@@ -225,6 +225,7 @@ src/lib/payments/payments-method-source.static.test.ts
 src/lib/payments/payout-rail-policy.test.ts
 src/lib/payments/payout-release-gate.test.ts
 src/lib/payments/payout-transfer-retry.test.ts
+src/lib/payments/payouts-admin-es.test.ts
 src/lib/payments/processing-fee.test.ts
 src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts

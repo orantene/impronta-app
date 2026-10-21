@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createTranslator } from "@/i18n/messages";
 import { saveWorkspaceBaseFee, type WorkspaceBaseFeeState } from "./base-fee-actions";
 
 const C = {
@@ -41,10 +42,13 @@ function percentToBps(pct: string): number | null {
 export function BaseFeeClient({
   tenantSlug,
   initial,
+  locale = "en",
 }: {
   tenantSlug: string;
   initial: WorkspaceBaseFeeState;
+  locale?: string;
 }) {
+  const t = createTranslator(locale);
   const [flat, setFlat] = React.useState(centsToDollars(initial.baseFeeCents));
   const [pct, setPct] = React.useState(bpsToPercent(initial.baseFeeBps));
   const [pending, startTransition] = React.useTransition();
@@ -61,7 +65,7 @@ export function BaseFeeClient({
     if (flatRaw !== "") {
       const c = dollarsToCents(flatRaw);
       if (c === null) {
-        setMsg({ tone: "err", text: "Flat fee must be 0 or a positive dollar amount, or blank for none." });
+        setMsg({ tone: "err", text: t("admin.payouts.baseFee.errFlat") });
         return;
       }
       baseFeeCents = c;
@@ -72,25 +76,25 @@ export function BaseFeeClient({
     if (pctRaw !== "") {
       const b = percentToBps(pctRaw);
       if (b === null) {
-        setMsg({ tone: "err", text: "Percent fee must be between 0% and 50%, or blank for none." });
+        setMsg({ tone: "err", text: t("admin.payouts.baseFee.errPct") });
         return;
       }
       baseFeeBps = b;
     }
 
     if (capFlat != null && baseFeeCents != null && baseFeeCents > capFlat) {
-      setMsg({ tone: "err", text: `Flat fee can't exceed the platform cap of $${centsToDollars(capFlat)}.` });
+      setMsg({ tone: "err", text: t("admin.payouts.baseFee.errCapFlat").replace("{amount}", `$${centsToDollars(capFlat)}`) });
       return;
     }
     if (capBps != null && baseFeeBps != null && baseFeeBps > capBps) {
-      setMsg({ tone: "err", text: `Percent fee can't exceed the platform cap of ${bpsToPercent(capBps)}%.` });
+      setMsg({ tone: "err", text: t("admin.payouts.baseFee.errCapPct").replace("{pct}", bpsToPercent(capBps)) });
       return;
     }
 
     startTransition(async () => {
       const res = await saveWorkspaceBaseFee(tenantSlug, { baseFeeCents, baseFeeBps });
       if (res.ok) {
-        setMsg({ tone: "ok", text: "Base reservation fee saved. Applies to new bookings." });
+        setMsg({ tone: "ok", text: t("admin.payouts.baseFee.saved") });
       } else {
         setMsg({ tone: "err", text: res.error });
       }
@@ -122,32 +126,34 @@ export function BaseFeeClient({
       }}
     >
       <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-        Booking reservation fee
+        {t("admin.payouts.baseFee.title")}
       </div>
       <p style={{ fontSize: 12, color: C.inkMuted, margin: "0 0 16px", lineHeight: 1.55 }}>
-        An automatic fee added to every booking — a flat amount and/or a percent of
-        the subtotal. It&apos;s your workspace revenue, charged on top of the talent&apos;s
-        quote (the talent is always paid in full).
+        {t("admin.payouts.baseFee.body")}
         {(capFlat != null || capBps != null) && (
           <>
-            {" "}Platform caps:{" "}
-            {capFlat != null ? `$${centsToDollars(capFlat)} flat` : "no flat cap"}
+            {" "}{t("admin.payouts.baseFee.capsLead")}{" "}
+            {capFlat != null
+              ? t("admin.payouts.baseFee.capFlat").replace("{amount}", `$${centsToDollars(capFlat)}`)
+              : t("admin.payouts.baseFee.capFlatNone")}
             {" · "}
-            {capBps != null ? `${bpsToPercent(capBps)}%` : "no % cap"}.
+            {capBps != null
+              ? t("admin.payouts.baseFee.capPct").replace("{pct}", bpsToPercent(capBps))
+              : t("admin.payouts.baseFee.capPctNone")}.
           </>
         )}
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: C.inkMuted }}>Flat fee ($ USD)</span>
+          <span style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.payouts.baseFee.flatLabel")}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 12, color: C.inkMuted }}>$</span>
             <input
               type="number"
               min={0}
               step={0.01}
-              placeholder="none"
+              placeholder={t("admin.payouts.baseFee.none")}
               value={flat}
               disabled={pending}
               onChange={(e) => setFlat(e.target.value)}
@@ -156,14 +162,14 @@ export function BaseFeeClient({
           </div>
         </label>
         <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 11, color: C.inkMuted }}>Percent of subtotal (%)</span>
+          <span style={{ fontSize: 11, color: C.inkMuted }}>{t("admin.payouts.baseFee.pctLabel")}</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
               type="number"
               min={0}
               max={50}
               step={0.01}
-              placeholder="none"
+              placeholder={t("admin.payouts.baseFee.none")}
               value={pct}
               disabled={pending}
               onChange={(e) => setPct(e.target.value)}
@@ -194,10 +200,10 @@ export function BaseFeeClient({
             fontFamily: FONT,
           }}
         >
-          {pending ? "Saving…" : "Save fee"}
+          {pending ? t("admin.payouts.baseFee.saving") : t("admin.payouts.baseFee.save")}
         </button>
         <span style={{ fontSize: 11.5, color: C.inkDim }}>
-          Leave both blank for no base fee.
+          {t("admin.payouts.baseFee.hint")}
         </span>
       </div>
 
