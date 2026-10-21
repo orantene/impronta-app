@@ -312,6 +312,7 @@ src/lib/service-hub/public-hub.test.ts
 src/lib/service-hub/rent/rent-autopay-apply.test.ts
 src/lib/service-hub/rent/rent-autopay-guards.test.ts
 src/lib/service-hub/rent/rent-autopay-migration.static.test.ts
+src/lib/service-hub/rent/rent-autopay-mx.static.test.ts
 src/lib/service-hub/rent/rent-autopay-routing.test.ts
 src/lib/service-hub/rent/rent-autopay.test.ts
 src/lib/service-hub/rent/rent-cycle.test.ts

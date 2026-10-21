@@ -14,9 +14,20 @@ import type { RentPlan } from "./rent-cycle";
 
 export type RentAutopayGate = { ok: true } | { ok: false; reason: "disabled" | "not_test_mode" };
 
-export function rentAutopayGate(env: Record<string, string | undefined> = process.env): RentAutopayGate {
-  if (env.RENT_AUTOPAY_ENABLED !== "1") return { ok: false, reason: "disabled" };
-  if (!(env.STRIPE_SECRET_KEY ?? "").trim().startsWith("sk_test_")) return { ok: false, reason: "not_test_mode" };
+/** The feature flag alone (what the UI uses to offer the button). */
+export function rentAutopayFlagOn(env: Record<string, string | undefined> = process.env): boolean {
+  return env.RENT_AUTOPAY_ENABLED === "1";
+}
+
+/**
+ * The flag AND a TEST key for the platform that will actually create the subscription: STRIPE_SECRET_KEY for the US
+ * platform, STRIPE_MX_SECRET_KEY for MX. A live (or missing) key of the chosen platform refuses, whatever the other
+ * platform's key is, so a live MX key can never create live subscriptions behind a US test key.
+ */
+export function rentAutopayGate(env: Record<string, string | undefined> = process.env, platform: "us" | "mx" = "us"): RentAutopayGate {
+  if (!rentAutopayFlagOn(env)) return { ok: false, reason: "disabled" };
+  const key = (platform === "mx" ? env.STRIPE_MX_SECRET_KEY : env.STRIPE_SECRET_KEY) ?? "";
+  if (!key.trim().startsWith("sk_test_")) return { ok: false, reason: "not_test_mode" };
   return { ok: true };
 }
 
