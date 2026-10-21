@@ -285,6 +285,10 @@ src/lib/service-hub/entry-photos.test.ts
 src/lib/service-hub/owner-hub-wire.static.test.ts
 src/lib/service-hub/public-hub.server.test.ts
 src/lib/service-hub/public-hub.test.ts
+src/lib/service-hub/rent/rent-cycle.test.ts
+src/lib/service-hub/rent/rent-issue.test.ts
+src/lib/service-hub/rent/rent-safety-view.test.ts
+src/lib/service-hub/rent/rent-wire.static.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
