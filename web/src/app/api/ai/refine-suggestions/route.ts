@@ -3,6 +3,7 @@ import { z } from "zod";
 import { localeSchema } from "@/lib/site-admin/locales";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { getCachedTaxonomyFilterOptions } from "@/lib/directory/taxonomy-filters";
 import { buildDirectoryRefineSuggestions } from "@/lib/ai/refine-suggestions";
 import { canonicalDirectoryQueryForAiSearch } from "@/lib/ai/normalize-search-query";
@@ -78,6 +79,10 @@ export async function POST(request: Request) {
     if (!flags.ai_master_enabled || !flags.ai_refine_enabled) {
       return NextResponse.json({ suggestions: [] });
     }
+
+    // TUL-1630: per-network limit before any AI work; fails closed.
+    const limited = await guardPublicAiRoute("refine-suggestions", { suggestions: [] });
+    if (limited) return limited;
 
     const json = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(json);
