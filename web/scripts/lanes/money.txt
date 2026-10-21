@@ -277,6 +277,7 @@ src/lib/pos/door-tonight-horizon.static.test.ts
 src/lib/pos/engine-refusals.static.test.ts
 src/lib/pos/hold-capacity.test.ts
 src/lib/pos/link-booking.test.ts
+src/lib/pos/order-lines-paid-split-guard.static.test.ts
 src/lib/pos/outbox-replay.test.ts
 src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
