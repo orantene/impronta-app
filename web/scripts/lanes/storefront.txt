@@ -89,6 +89,7 @@ src/lib/service-hub/roster-dock.test.ts
 src/lib/service-hub/roster-grid.test.ts
 src/lib/service-hub/roster-request.test.ts
 src/lib/service-hub/roster-services.test.ts
+src/lib/service-hub/visible-picks.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
 src/lib/services/business-pages/page-model.test.ts
