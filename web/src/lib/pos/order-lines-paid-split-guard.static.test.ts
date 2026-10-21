@@ -23,7 +23,7 @@ test("the frozen predicate is the app's: every status except draft/cancelled/fai
 });
 
 test("every split input and output column is compared on UPDATE", () => {
-  for (const col of ["order_id", "talent_profile_id", "owner_tenant_id", "units", "unit_cents", "total_cents", "talent_cost_cents", "owner_take_cents", "owner_share_snapshot"]) {
+  for (const col of ["order_id", "talent_profile_id", "owner_tenant_id", "units", "unit_cents", "total_cents", "discount_cents", "talent_cost_cents", "owner_take_cents", "owner_share_snapshot"]) {
     assert.match(code, new RegExp(`NEW\\.${col} IS NOT DISTINCT FROM OLD\\.${col}`), `${col} is guarded`);
   }
 });
@@ -43,16 +43,30 @@ test("DELETE of a split line is guarded, but a cascade from a deleted order is n
   assert.match(code, /NOT EXISTS \(SELECT 1 FROM public\.orders o WHERE o\.id = OLD\.order_id\)/);
 });
 
-test("the only bypass is transaction-local AND service role / direct connection", () => {
+test("the only bypass is transaction-local AND service_role or the shared direct-connection helper (no empty-JWT shortcut)", () => {
   assert.match(code, /current_setting\('tulala\.paid_split_adjust', true\) = 'on'/);
-  assert.match(code, /v_role IN \('service_role', ''\)/);
+  assert.match(code, /IF v_role = 'service_role' OR public\.caller_is_direct_connection\(\) THEN/);
+  assert.doesNotMatch(code, /v_role IN \('service_role', ''\)/, "an empty jwt role is not a bypass (TUL-1748)");
   assert.match(SQL, /set_config\('tulala\.paid_split_adjust', 'on', true\)/, "documented as transaction-local (is_local = true)");
 });
 
-test("refusal is a check violation naming the order, and the functions are not callable by anon", () => {
-  assert.match(code, /ERRCODE = '23514'/);
-  assert.match(code, /REVOKE EXECUTE ON FUNCTION public\.order_lines_paid_split_guard\(\) FROM anon/);
+test("both functions are SECURITY DEFINER with a pinned search_path (the guard must not fail open under RLS), read-only", () => {
+  const frozen = code.slice(code.indexOf("CREATE OR REPLACE FUNCTION public.order_is_money_frozen"), code.indexOf("COMMENT ON FUNCTION public.order_is_money_frozen"));
+  assert.match(frozen, /STABLE\s+SECURITY DEFINER\s+SET search_path = public/);
+  const guard = code.slice(code.indexOf("CREATE OR REPLACE FUNCTION public.order_lines_paid_split_guard"), code.indexOf("COMMENT ON FUNCTION public.order_lines_paid_split_guard"));
+  assert.match(guard, /LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = public/);
+  assert.doesNotMatch(code, /INSERT INTO|UPDATE public\.|DELETE FROM/, "read-only helpers");
+});
+
+test("grants: order_is_money_frozen is executable by authenticated and service_role, never anon", () => {
+  assert.match(code, /GRANT EXECUTE ON FUNCTION public\.order_is_money_frozen\(uuid\) TO authenticated, service_role/);
   assert.match(code, /REVOKE EXECUTE ON FUNCTION public\.order_is_money_frozen\(uuid\) FROM anon/);
+  assert.match(code, /REVOKE EXECUTE ON FUNCTION public\.order_lines_paid_split_guard\(\) FROM anon/);
+});
+
+test("refusal is a check violation naming the order; the header says what to apply after", () => {
+  assert.match(code, /ERRCODE = '23514'/);
+  assert.match(SQL, /APPLY AFTER 20261231424700/);
 });
 
 test("the trigger fires after order_lines_owner_split_stale_clear (alphabetical order of BEFORE triggers)", () => {
