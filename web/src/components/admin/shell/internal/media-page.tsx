@@ -819,7 +819,7 @@ function MediaLightbox({
     setDeleteBusy(true);
     const r = await actionDeleteMediaAssets([current.id]);
     setDeleteBusy(false);
-    if (!r.ok) return;
+    if (!r.ok) { toast(r.error); return; }
     queueRouterRefresh();
     onRefresh();
     if (allPhotos.length <= 1) onClose();
