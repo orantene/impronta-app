@@ -9,6 +9,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import { useAdminShellOptional, meetsRole } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { loadIndustrySettings, setBusinessType, setIndustryPreset } from "@/lib/server-actions/industry-settings";
 import { presetPickerModel, presetSummary } from "@/lib/words/picker-options";
@@ -60,6 +61,14 @@ function Row({
 export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "es" }) {
   const dash = useDashboardText();
   const locale: "en" | "es" = localeProp ?? (dash.isSpanish ? "es" : "en");
+  // TUL-1708: setBusinessType/setIndustryPreset/setWordOverride now require
+  // manage_agency_settings (admin+). This card had no role floor at all —
+  // an editor/manager could search a type, pick one and watch it silently
+  // fail against the server. `useAdminShellOptional` because this card can
+  // render outside the admin shell (design QA); missing shell context
+  // defaults to read-only rather than assuming admin.
+  const shell = useAdminShellOptional();
+  const canEdit = shell ? meetsRole(shell.state.role, "admin") : true;
   const [saving, startTransition] = useTransition();
   const [current, setCurrent] = useState<unknown>(undefined);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -92,6 +101,10 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
   const matches = searchBusinessTypes(query).slice(0, 12);
 
   function choosePreset(next: IndustryPresetId) {
+    if (!canEdit) {
+      setError(es ? "Solo un admin o propietario puede cambiar esto." : "Only an admin or owner can change this.");
+      return;
+    }
     setError(null);
     const previous = current;
     setCurrent(next);
@@ -105,6 +118,10 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
   }
 
   function chooseType(nextId: string) {
+    if (!canEdit) {
+      setError(es ? "Solo un admin o propietario puede cambiar esto." : "Only an admin or owner can change this.");
+      return;
+    }
     setError(null);
     const previous = typeId;
     const previousPreset = current;
@@ -147,8 +164,9 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
               aria-label={es ? "Buscar tipo de negocio" : "Search business type"}
               placeholder={es ? "Prueba uñas, restaurante o fotógrafo" : "Try nail salon, restaurant or photographer"}
               value={query}
+              disabled={!canEdit}
               onChange={(e) => setQuery(e.target.value)}
-              style={{ ...inputBoxStyle, minWidth: 260 }}
+              style={{ ...inputBoxStyle, minWidth: 260, cursor: canEdit ? "text" : "not-allowed", opacity: canEdit ? 1 : 0.6 }}
             />
             <div style={{ fontSize: 13, color: "var(--admin-text)" }}>
               {selectedType
@@ -168,7 +186,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
                       type="button"
                       role="option"
                       aria-selected={row.id === typeId}
-                      disabled={saving}
+                      disabled={saving || !canEdit}
                       onClick={() => {
                         chooseType(row.id);
                         setQuery("");
@@ -177,7 +195,8 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
                         ...inputBoxStyle,
                         width: "100%",
                         textAlign: "left",
-                        cursor: saving ? "wait" : "pointer",
+                        cursor: !canEdit ? "not-allowed" : saving ? "wait" : "pointer",
+                        opacity: canEdit ? 1 : 0.6,
                         minHeight: 44,
                         marginBottom: 4,
                       }}
@@ -189,7 +208,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
                 <li>
                   <button
                     type="button"
-                    disabled={saving}
+                    disabled={saving || !canEdit}
                     onClick={() => {
                       chooseType("custom");
                       setQuery("");
@@ -221,9 +240,9 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
           <select
             aria-label={es ? "Tipo de negocio" : "Kind of business"}
             value={selected}
-            disabled={saving}
+            disabled={saving || !canEdit}
             onChange={(e) => choosePreset(e.target.value as IndustryPresetId)}
-            style={{ ...inputBoxStyle, minWidth: 220, cursor: saving ? "wait" : "pointer" }}
+            style={{ ...inputBoxStyle, minWidth: 220, cursor: !canEdit ? "not-allowed" : saving ? "wait" : "pointer", opacity: canEdit ? 1 : 0.6 }}
           >
             {options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -254,6 +273,11 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
           {" · "}
           <strong>{previewItem}</strong>
         </div>
+        {!canEdit ? (
+          <div style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
+            {es ? "Solo un admin o propietario puede cambiar esto." : "Only an admin or owner can change this."}
+          </div>
+        ) : null}
         {error ? (
           <div role="alert" style={{ fontSize: 13, color: "var(--admin-danger, #b3261e)" }}>
             {error}

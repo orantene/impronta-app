@@ -1096,6 +1096,17 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   const canCustomize = planRules.canFlipPublicInternal;
   const canSetOrder = planRules.canSetRequired;
+  // TUL-1708: setTaxonomyEnabled/setTaxonomyFlags/addCustomSubType/
+  // removeCustomSubType now require manage_field_catalog (admin+). Below
+  // Studio an editor/manager was never shown these controls anyway (plan
+  // floor), but Studio+ has no role floor at all today — a manager would
+  // see a live-looking toggle that round-trips to a 403. Mirrors the
+  // canCustomize/canSetOrder intercept-before-the-server pattern already
+  // used on this drawer for the plan floor.
+  const canManage = meetsRole(state.role, "admin");
+  const roleGateMessage = isSpanish
+    ? "Solo un admin o propietario puede cambiar esto."
+    : "Only an admin or owner can change this.";
   const [tree, setTree] = useState<TaxonomyNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1192,6 +1203,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleToggleEnabled = async (node: TaxonomyNode) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     // Phase 2 (Sub-Task 3) plan-tier floor: Free is read-only.
     if (!canCustomize) {
       toast(t("dashboard.adminDrawers.taxonomyUpgradeStudioEnable"));
@@ -1246,6 +1261,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleFlag = async (node: TaxonomyNode, key: keyof TaxonomyNode, val: boolean) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     markSaving(node.id, true);
     const before = node[key] as boolean;
     patchNode(node.id, { [key]: val } as Partial<TaxonomyNode>);
@@ -1269,6 +1288,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
     locale: "en" | "es",
     raw: string,
   ) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     if (!canCustomize) {
       toast(t("dashboard.adminDrawers.taxonomyUpgradeStudioRename"));
       return;
@@ -1352,6 +1375,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const reorderParentSubTypes = (parentId: string, orderedSubTypeIds: string[]) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
     if (!canSetOrder) {
       toast(t("dashboard.adminDrawers.taxonomyUpgradeAgencyReorderSub"));
@@ -1385,6 +1412,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const dropRootCategory = (target: TaxonomyNode) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     // Phase 2 (Sub-Task 3) plan-tier floor: ordering requires Agency+.
     if (!canSetOrder) {
       toast(t("dashboard.adminDrawers.taxonomyUpgradeAgencyReorderCat"));
@@ -1414,6 +1445,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleAddCustom = async (parent: TaxonomyNode) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     const name = newSubName.trim();
     if (!name) {
       toast(t("dashboard.adminDrawers.taxonomyEnterNameFirst"));
@@ -1436,6 +1471,10 @@ export function LiveTalentTypesDrawer({ open, onClose }: { open: boolean; onClos
   };
 
   const handleRemoveCustom = async (node: TaxonomyNode) => {
+    if (!canManage) {
+      toast(roleGateMessage);
+      return;
+    }
     const shownName = taxonomyDisplayName(node, isSpanish);
     if (!confirm(interpolate(t("dashboard.adminDrawers.taxonomyRemoveConfirm"), { name: shownName }))) return;
     const res = await removeCustomSubType({ id: node.id });

@@ -21896,6 +21896,7 @@
           "noHat": "Elige al menos un sombrero para continuar.",
           "noName": "Hace falta un nombre antes de añadir a alguien.",
           "noEmailForAccess": "Hace falta un correo para invitar a alguien a iniciar sesión.",
+          "noAccessPermission": "Solo un admin o propietario puede dar acceso a alguien.",
           "bookableOnly": "Todavía no se puede añadir a una persona con solo el sombrero Reservable: no existe invitación para contratistas. Añádela con un perfil público, o dale acceso, y activa Reservable desde su ficha.",
           "bookableWithAccess": "Reservable se activa desde la ficha de la persona una vez que está aquí; la invitación concede primero el acceso."
         },

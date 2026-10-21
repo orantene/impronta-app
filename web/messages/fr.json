@@ -8926,6 +8926,7 @@
           "noHat": "Choisissez au moins une casquette pour continuer.",
           "noName": "Un nom est nécessaire avant d'ajouter quelqu'un.",
           "noEmailForAccess": "Une adresse e-mail est nécessaire pour inviter quelqu'un à se connecter.",
+          "noAccessPermission": "Seul un administrateur ou le propriétaire peut donner accès à quelqu'un.",
           "bookableOnly": "Une personne qui ne porte que la casquette Réservable ne peut pas encore être ajoutée : il n'existe pas d'invitation pour un prestataire. Ajoutez-la avec un profil public, ou donnez-lui l'accès, puis activez Réservable depuis sa fiche.",
           "bookableWithAccess": "Réservable s'active depuis la fiche de la personne une fois qu'elle est ici ; l'invitation accorde d'abord l'accès."
         },
