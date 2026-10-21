@@ -37,6 +37,7 @@ const base = (): Record<string, Row[]> => ({
   workspace_service_listings: [listing("a", "e1")],
   talent_offerings: [{ id: "o-a", title: "Massage", category: "massage", duration_minutes: 60, amount_cents: 50000, currency: "USD", status: "published", moderation_state: "approved", visibility: "public" }],
   talent_profiles: [PUBLIC_TALENT("a")],
+  agency_talent_roster: [{ tenant_id: T, talent_profile_id: "p-a", status: "active" }, { tenant_id: T, talent_profile_id: "p-b", status: "active" }],
   talent_offering_media: [{ offering_id: "o-a", sort_order: 0, media_asset_id: "m1", media_assets: { public_url: "https://img/m1.jpg", bucket_id: null, storage_path: null } }],
 });
 
@@ -131,4 +132,26 @@ test("the database check runs only for listings that passed the cheap checks", a
   db.rpc = async (fn, a) => (calls.push(a.p_listing_id), orig(fn, a));
   await loadPublicHubEntries(db as never, T);
   assert.deepEqual(calls, ["a"]);
+});
+
+test("TUL-1591 (a): a talent who left the workspace (no ACTIVE roster row) has her listings hidden", async () => {
+  for (const roster of [[{ tenant_id: T, talent_profile_id: "p-a", status: "removed" }], [{ tenant_id: T, talent_profile_id: "p-a", status: "inactive" }], [], [{ tenant_id: "other", talent_profile_id: "p-a", status: "active" }]]) {
+    const t = base();
+    t.agency_talent_roster = roster;
+    assert.equal((await loadPublicHubEntries(fakeDb(t, { sellable: { a: true } }), T)).length, 0, JSON.stringify(roster));
+  }
+});
+
+test("TUL-1591 (a): an unreadable roster shows nothing (fail closed)", async () => {
+  assert.equal((await loadPublicHubEntries(fakeDb(base(), { sellable: { a: true }, failTable: "agency_talent_roster" }), T)).length, 0);
+});
+
+test("TUL-1591 (a): a member who left disappears while the workspace's own service on the same entry stays", async () => {
+  const t = base();
+  t.workspace_service_entries = [entry("e1", { own_offering_id: "own-1" })];
+  t.talent_offerings = [...t.talent_offerings, { id: "own-1", tenant_id: T, status: "published", moderation_state: "approved", visibility: "public" }];
+  t.agency_talent_roster = [{ tenant_id: T, talent_profile_id: "p-a", status: "removed" }];
+  const out = await loadPublicHubEntries(fakeDb(t, { sellable: { a: true } }), T);
+  assert.equal(out.length, 1);
+  assert.deepEqual(out[0].who, []);
 });
