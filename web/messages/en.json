@@ -2525,6 +2525,7 @@
       "appleFailed": "Apple didn't finish. Try again or use your email.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again."
     },
+    "pageLoading": "Loading page",
     "pricingInterval": {
       "groupLabel": "Billing period",
       "monthly": "Monthly",
