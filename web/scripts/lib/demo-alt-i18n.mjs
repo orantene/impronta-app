@@ -6,8 +6,8 @@
  * per-language alt. The renderer (src/lib/site-admin/builder-node/portfolio-i18n.ts resolvePortfolioAlt)
  * reads `media_assets.metadata.alt_i18n` as a `{ es?: string, en?: string }` map, visitor locale first.
  * This core plans the additive write of exactly that shape. Nothing here is machine-translated: the
- * Spanish and English strings are built from stored facts (display name, city, taxonomy term name_es /
- * name_en) with fixed templates, or the English string reuses the photo's own human `alt` column.
+ * Spanish and English strings are built from stored facts (display name, city, taxonomy term name_i18n es /
+ * en) with fixed templates, or the English string reuses the photo's own human `alt` column.
  *
  * Write surface (enforced by checkWritePlan): table media_assets, column metadata, rows whose owner is an
  * allow-listed demo talent. Merge is additive (`alt_i18n` locales only; every other metadata key kept).
@@ -235,7 +235,10 @@ export function planRow(row, { allowed, forceLocales = [] }) {
   const current = {};
   for (const l of LOCALES) current[l] = txt(metadata.alt_i18n?.[l]);
 
-  const gen = generateAlt({ name: row.display_name, city: row.city, tradeEn: row.trade_en, tradeEs: row.trade_es }, String(row.variant_kind ?? ""));
+  // taxonomy_terms.name_i18n ->> 'en' / 'es' (aliased trade_en / trade_es): each falls back to the other, then to no trade phrase.
+  const tradeEn = txt(row.trade_en) || txt(row.trade_es);
+  const tradeEs = txt(row.trade_es) || txt(row.trade_en);
+  const gen = generateAlt({ name: row.display_name, city: row.city, tradeEn, tradeEs }, String(row.variant_kind ?? ""));
   const planned = { en: gen.en, es: gen.es };
   const reuse = reusableAlt(row.alt);
   if (reuse) planned[guessLocale(reuse)] = reuse;

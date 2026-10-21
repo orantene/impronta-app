@@ -71,9 +71,9 @@ const q = (text: string, params: unknown[] = []) => client.query(text, params);
 const SELECT = `
   select m.id::text id, m.owner_talent_profile_id::text owner_talent_profile_id, tp.profile_code, tp.display_name,
          tp.home_city_text city, m.variant_kind::text variant_kind, m.sort_order, m.alt, m.metadata,
-         (select t.name_en from public.talent_profile_taxonomy x join public.taxonomy_terms t on t.id = x.taxonomy_term_id
+         (select nullif(btrim(t.name_i18n ->> 'en'), '') from public.talent_profile_taxonomy x join public.taxonomy_terms t on t.id = x.taxonomy_term_id
            where x.talent_profile_id = tp.id and x.is_primary order by x.display_order limit 1) trade_en,
-         (select t.name_es from public.talent_profile_taxonomy x join public.taxonomy_terms t on t.id = x.taxonomy_term_id
+         (select nullif(btrim(t.name_i18n ->> 'es'), '') from public.talent_profile_taxonomy x join public.taxonomy_terms t on t.id = x.taxonomy_term_id
            where x.talent_profile_id = tp.id and x.is_primary order by x.display_order limit 1) trade_es
     from public.media_assets m
     join public.talent_profiles tp on tp.id = m.owner_talent_profile_id

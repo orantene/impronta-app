@@ -170,3 +170,16 @@ test("backup shape and restore: pre-image recorded, restore only where metadata 
   assert.equal(planRestore(b, new Map())[0].status, "skipped");
   assert.ok(sameJson({ a: 1, b: { c: 2 } }, { b: { c: 2 }, a: 1 }));
 });
+
+test("trade comes from taxonomy_terms.name_i18n: each locale falls back to the other, then no trade phrase", () => {
+  const onlyEn = planRow(row({ trade_en: "Photographer", trade_es: null }), { allowed });
+  assert.equal(onlyEn.set.en, "Work by Diego Navarro, photographer, in Cancún");
+  assert.equal(onlyEn.set.es, "Trabajo de Diego Navarro, photographer, en Cancún");
+  const onlyEs = planRow(row({ trade_en: null, trade_es: "Fotógrafo" }), { allowed });
+  assert.equal(onlyEs.set.en, "Work by Diego Navarro, fotógrafo, in Cancún");
+  assert.equal(onlyEs.set.es, "Trabajo de Diego Navarro, fotógrafo, en Cancún");
+  const none = planRow(row({ trade_en: null, trade_es: "  " }), { allowed });
+  assert.equal(none.status, "will-set");
+  assert.equal(none.set.en, "Work by Diego Navarro, in Cancún");
+  assert.equal(none.set.es, "Trabajo de Diego Navarro, en Cancún");
+});
