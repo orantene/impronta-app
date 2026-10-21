@@ -14,10 +14,10 @@ import type { CapabilityKey } from "@/lib/access";
  * surface — the admin shell's roster/[id] actions, extended-actions and
  * media-release files all use it, and the drawers that call every action
  * below (`src/components/admin/shell/internal/**`) sit behind the same
- * roster editor. `agency.roster.invite` (manager and above) is used only
- * for the two actions that send a claim-invite communication on the
- * agency's behalf, matching the bar `agency.roster.invite` already sets
- * for outbound roster invitations.
+ * roster editor, including the two actions that send a claim-invite
+ * communication on the agency's behalf: those are an editor-level write
+ * against the roster, not a manager-tier action, so they use
+ * `agency.roster.edit` like every other writer here — just not a viewer.
  *
  * One map per source file, grouped under this single shared module per
  * `web/src/lib/server-actions`'s existing convention of one small
@@ -41,9 +41,9 @@ export const PROFILE_SECTIONS_WRITE_CAPABILITY = {
   removeTalentTaxonomyBySlug: "agency.roster.edit",
   emitProfileEvent: "agency.roster.edit",
   // Sends/resends a claim-invite email or SMS on the agency's behalf —
-  // the same bar as inviting talent onto the roster in the first place.
-  sendTalentClaimInvite: "agency.roster.invite",
-  resendTalentClaimInvite: "agency.roster.invite",
+  // an editor-level roster write, same bar as the other actions here.
+  sendTalentClaimInvite: "agency.roster.edit",
+  resendTalentClaimInvite: "agency.roster.edit",
 } as const satisfies Record<string, CapabilityKey>;
 
 export const SKILLS_WRITE_CAPABILITY = {

@@ -9,9 +9,8 @@
  *   1. static — every listed WRITE function's body contains the wired
  *      `requireWorkspaceStaffAction({ capability: <MAP>.<fn> })` call and not a bare
  *      `requireWorkspaceStaffAction()` call.
- *   2. role-matrix — for every capability actually used in the map, a viewer (and, for the
- *      manager+ `agency.roster.invite` capability, an editor too) is refused; every role at or
- *      above the capability's tier is allowed.
+ *   2. role-matrix — for every capability actually used in the map, a viewer is refused; every
+ *      role at or above the capability's tier is allowed.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -122,18 +121,7 @@ test("agency.roster.edit (the content-edit capability): viewer refused, editor a
   }
 });
 
-test("agency.roster.invite (the claim-invite capability): viewer and editor refused, manager and up allowed", () => {
-  const cap: CapabilityKey = "agency.roster.invite";
-  const usedSomewhere = FILES.some(({ map }) => Object.values(map).includes(cap));
-  assert.ok(usedSomewhere, "expected agency.roster.invite to be used by at least one writer in this area");
-  const expected: Record<TenantRoleKey, boolean> = {
-    viewer: false,
-    editor: false,
-    manager: true,
-    admin: true,
-    owner: true,
-  };
-  for (const role of TENANT_ROLE_KEYS) {
-    assert.equal(roleGrantsCapability(role, cap), expected[role], `${role} x ${cap}`);
-  }
+test("sendTalentClaimInvite/resendTalentClaimInvite use agency.roster.edit (editor+), not a manager-tier invite capability", () => {
+  assert.equal(PROFILE_SECTIONS_WRITE_CAPABILITY.sendTalentClaimInvite, "agency.roster.edit");
+  assert.equal(PROFILE_SECTIONS_WRITE_CAPABILITY.resendTalentClaimInvite, "agency.roster.edit");
 });
