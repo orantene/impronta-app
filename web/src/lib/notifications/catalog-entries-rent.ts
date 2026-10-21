@@ -2,8 +2,9 @@ import "server-only";
 
 import * as React from "react";
 import RentPlanMemberResponse from "../../../emails/workspace/RentPlanMemberResponse";
+import RentAutopayNotice from "../../../emails/workspace/RentAutopayNotice";
 import type { CatalogEntry } from "./types";
-import { str, workspaceOwner } from "./catalog-audiences";
+import { eventUser, str, workspaceOwner } from "./catalog-audiences";
 import { pageUrl } from "./catalog-render";
 
 /**
@@ -59,4 +60,69 @@ function rentEntry(outcome: "declined" | "ended"): CatalogEntry {
   };
 }
 
-export const RENT_CATALOG_ENTRIES: CatalogEntry[] = [rentEntry("declined"), rentEntry("ended")];
+/**
+ * TUL-1601: the MEMBER (the renting talent, `event.userId`) is told when an automatic monthly rent charge fails,
+ * or when automatic payments stop. Dispatched by the rent subscription webhook; eventId = Stripe id + kind.
+ */
+function autopayEntry(kind: "failed" | "canceled"): CatalogEntry {
+  const event = kind === "failed" ? "rent.autopay_failed" : "rent.autopay_canceled";
+  const isEs = (l: string | null | undefined) => (l ?? "").toLowerCase().startsWith("es");
+  const title = (es: boolean) =>
+    kind === "failed"
+      ? es ? "Tu pago automático de renta no se completó" : "Your automatic rent payment did not go through"
+      : es ? "Los pagos automáticos de renta están desactivados" : "Automatic rent payments are off";
+  return {
+    id: `${event}.talent`,
+    category: "billing",
+    defaultChannels: ["email", "in_app"],
+    required: kind === "failed",
+    triggers: [event],
+    resolveAudience: eventUser("talent"),
+    in_app: {
+      kind: "system",
+      surface: "talent",
+      title: (_e, recipient) => title(isEs(recipient.locale)),
+      body: (_e, recipient) => (isEs(recipient.locale) ? "Revisa tu renta de estación." : "Check your station rent."),
+    },
+    email: {
+      templateId: event,
+      subject: (_e, recipient) => title(isEs(recipient.locale)),
+      render: ({ event: e, recipient, brand, unsubscribeUrl }) =>
+        React.createElement(RentAutopayNotice, {
+          kind,
+          recipientName: recipient.displayName,
+          workspaceName: str(e.payload.workspaceName),
+          period: str(e.payload.period),
+          rentUrl: str(e.payload.rentUrl) ?? pageUrl(brand, "/talent/rent-proposals"),
+          brand,
+          unsubscribeUrl,
+          categoryLabel: "billing",
+        }),
+    },
+  };
+}
+
+/** TUL-1611: the workspace OWNER is told (bell) when a member's automatic rent charge is disputed with the bank. */
+const AUTOPAY_DISPUTED: CatalogEntry = {
+  id: "rent.autopay_disputed.workspace",
+  category: "billing",
+  defaultChannels: ["in_app"],
+  required: true,
+  triggers: ["rent.autopay_disputed"],
+  resolveAudience: workspaceOwner,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: (e, recipient) => {
+      const es = (recipient.locale ?? "").toLowerCase().startsWith("es");
+      const period = str(e.payload.period) ?? "";
+      return es ? `Disputa bancaria en la renta de ${period}` : `Bank dispute on the ${period} rent`;
+    },
+    body: (_e, recipient) =>
+      (recipient.locale ?? "").toLowerCase().startsWith("es")
+        ? "Un miembro disputó un cobro automático de renta. Si la disputa se pierde, tu parte se revierte."
+        : "A member disputed an automatic rent charge. If the dispute is lost, your share is reversed.",
+  },
+};
+
+export const RENT_CATALOG_ENTRIES: CatalogEntry[] = [rentEntry("declined"), rentEntry("ended"), autopayEntry("failed"), autopayEntry("canceled"), AUTOPAY_DISPUTED];

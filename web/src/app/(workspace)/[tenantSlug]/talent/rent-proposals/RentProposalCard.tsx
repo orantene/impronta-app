@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { memberEndRentPlan, respondRentPlan } from "@/lib/service-hub/rent/rent-actions";
+import { startRentAutopay, stopRentAutopay } from "@/lib/service-hub/rent/rent-autopay-actions";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
 
-export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; currency: string; startsOn: string };
+export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; percentBps: number; currency: string; startsOn: string; autopayStatus: string; autopayOffered: boolean; months: Array<{ period: string; status: string; source: string; method: string | null }> };
 
 function money(cents: number, currency: string, locale: "en" | "es"): string {
   try {
@@ -25,9 +26,42 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
       {open.map((p) => (
         <div key={p.id} data-testid="rent-proposal" style={{ padding: "14px 0", borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
           <div style={{ fontWeight: 600 }}>{p.workspaceName}</div>
-          <div style={{ fontSize: 15, margin: "4px 0" }}>{money(p.monthlyRentCents, p.currency, locale)} {c.perMonth}</div>
+          <div style={{ fontSize: 15, margin: "4px 0" }}>{p.monthlyRentCents > 0 ? `${money(p.monthlyRentCents, p.currency, locale)} ${c.perMonth}` : ""}{p.monthlyRentCents > 0 && p.percentBps > 0 ? " + " : ""}{p.percentBps > 0 ? `${p.percentBps / 100}% ${c.ofSales}` : ""}</div>
           <div style={{ fontSize: 12.5, opacity: 0.7 }}>{c.startsOn} {p.startsOn}</div>
           <p style={{ fontSize: 12.5, opacity: 0.75 }}>{c.safetyNote}</p>
+          {p.months.length > 0 && (
+            <ul data-testid="rent-months" style={{ listStyle: "none", padding: 0, margin: "6px 0", fontSize: 12.5 }}>
+              {p.months.map((m) => (
+                <li key={m.period}>
+                  {m.period} · {m.status === "paid"
+                    ? m.source === "outside" ? (m.method === "transfer" ? c.paidViaTransfer : c.paidViaCash) : m.source === "autopay" ? c.paidViaAutopay : c.paidViaLink
+                    : m.status === "failed" ? c.autopayPastDue : m.status === "refunded" ? c.refundedMonth : c.waiting}
+                </li>
+              ))}
+            </ul>
+          )}
+          {p.status !== "proposed" && p.autopayOffered && (
+            <div data-testid="rent-autopay" style={{ fontSize: 13, margin: "6px 0" }}>
+              {["active", "pending", "past_due", "paused"].includes(p.autopayStatus) ? (
+                <>
+                  <span>{p.autopayStatus === "past_due" ? c.autopayPastDue : c.autopayOn}</span>{" "}
+                  <button type="button" disabled={pending} onClick={() => start(async () => {
+                    const r = await stopRentAutopay({ planId: p.id });
+                    setDone((d) => ({ ...d, [p.id]: r.ok ? c.autopayStopped : c.unavailable }));
+                  })}>{c.autopayStop}</button>
+                </>
+              ) : p.status === "active" ? (
+                <>
+                  <span style={{ display: "block", opacity: 0.75, marginBottom: 4 }}>{c.autopayExplain}</span>
+                  <button type="button" disabled={pending} onClick={() => start(async () => {
+                    const r = await startRentAutopay({ planId: p.id });
+                    if (r.ok) window.location.assign(r.url);
+                    else setDone((d) => ({ ...d, [p.id]: c.unavailable }));
+                  })}>{c.autopayStart}</button>
+                </>
+              ) : null}
+            </div>
+          )}
           {p.status !== "proposed" ? (
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" disabled={pending} onClick={() => start(async () => {
@@ -43,7 +77,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
                 type="button"
                 disabled={pending}
                 onClick={() => start(async () => {
-                  const r = await respondRentPlan({ planId: p.id, accept: k === "accept", seenAmountCents: p.monthlyRentCents });
+                  const r = await respondRentPlan({ planId: p.id, accept: k === "accept", seenAmountCents: p.monthlyRentCents, seenPercentBps: p.percentBps });
                   setDone((d) => ({ ...d, [p.id]: r.ok ? c.saved : c.unavailable }));
                 })}
               >{c[k]}</button>

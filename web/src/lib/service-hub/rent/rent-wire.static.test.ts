@@ -11,8 +11,9 @@ const sources = readdirSync(dir)
 const code = (text: string) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("rent billing wiring (TUL-1376)", () => {
-  test("rent never talks to Stripe directly and never computes or sets a fee", () => {
-    for (const { f, text } of sources) {
+  test("the manual rent path never talks to Stripe directly and never computes or sets a fee", () => {
+    // TUL-1601: only the autopay files (subscription on the platform account, flag + TEST gated) touch Stripe and the fee.
+    for (const { f, text } of sources.filter((s) => !s.f.startsWith("rent-autopay"))) {
       const c = code(text);
       assert.doesNotMatch(c, /from "stripe"|getStripe|application_fee|service_fee|commission|feeBps|fee_bps/i, `${f} must not touch Stripe or fees`);
     }
@@ -67,5 +68,22 @@ describe("rent billing wiring (TUL-1376)", () => {
     const store = code(sources.find((s) => s.f === "rent-store.server.ts")!.text);
     assert.match(store, /\.is\("order_id", null\)\s*\.select\("id"\)/);
     assert.match(store, /data\.length === 1/);
+  });
+
+  test("TUL-1601: autopay is gated, consent-collecting, and the webhook handles it before the plan routing", () => {
+    const actions = code(sources.find((s) => s.f === "rent-autopay-actions.ts")!.text);
+    assert.match(actions, /rentAutopayFlagOn\(\)/);
+    assert.ok(actions.indexOf("rentAutopayFlagOn()") < actions.indexOf("createServiceRoleClient()"), "flag before any read");
+    assert.match(actions, /rentAutopayGate\(process\.env, platform\)/);
+    assert.match(actions, /recurringConsentParams\(/);
+    assert.match(actions, /idempotencyKey: `rent_sub_/);
+    const handler = readFileSync(join(dir, "../../stripe/webhook-handler.ts"), "utf8");
+    assert.ok(handler.indexOf("const rent = classifyRentSubscriptionEvent(event)") < handler.indexOf("const action = classifyStripeEvent(event)"));
+    const routing = readFileSync(join(dir, "../../stripe/webhook-routing.ts"), "utf8");
+    assert.doesNotMatch(routing, /rent-autopay/, "the plan routing stays a pure leaf module");
+  });
+  test("TUL-1601: ending or pausing the plan moves the subscription with it", () => {
+    const actions = code(sources.find((s) => s.f === "rent-actions.ts")!.text);
+    assert.equal((actions.match(/syncRentAutopayWithPlan\(/g) ?? []).length, 2);
   });
 });
