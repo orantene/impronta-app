@@ -114,6 +114,7 @@ test("answering twice writes the same row (idempotent upsert on the seat)", asyn
 
 test("TUL-1606: readOwnSeat returns only the signed-in person's own seat and their own answer", async () => {
   const tables = {
+    agency_bookings: [{ id: B, order_id: null, source_inquiry_id: "inq1", calendar_lane: null, title: "Boda" }],
     talent_profiles: [{ id: "p-me", user_id: "u1" }, { id: "p-other", user_id: "u2" }],
     booking_talent: [
       { id: "s-other", booking_id: B, talent_profile_id: "p-other", role_label: "Cook" },
@@ -127,9 +128,20 @@ test("TUL-1606: readOwnSeat returns only the signed-in person's own seat and the
   // an answer left by the previous person on the same seat does not count
   const stale = fakeAdmin({ ...tables, project_assignment_confirmations: [{ booking_talent_id: "s-me", talent_profile_id: "p-before", status: "confirmed" }] });
   assert.equal((await readOwnSeat(stale.admin, { userId: "u1", bookingId: B }))?.status, "awaiting");
-  // migration not applied: awaiting, buttons still usable
-  const missing = fakeAdmin(tables, { project_assignment_confirmations: { code: "42P01", message: "x" } });
-  assert.equal((await readOwnSeat(missing.admin, { userId: "u1", bookingId: B }))?.status, "awaiting");
+  // migration not applied: no card at all (every click would fail); any other answers error fails closed too
+  for (const code of ["42P01", "42703", "PGRST205", "57014"]) {
+    const bad = fakeAdmin(tables, { project_assignment_confirmations: { code, message: "x" } });
+    assert.equal(await readOwnSeat(bad.admin, { userId: "u1", bookingId: B }), null, code);
+  }
+  // no answer row yet (table present): awaiting
+  const none = fakeAdmin({ ...tables, project_assignment_confirmations: [] });
+  assert.equal((await readOwnSeat(none.admin, { userId: "u1", bookingId: B }))?.status, "awaiting");
+  // not a project: a counter-sale shell, or a missing booking, shows no card
+  const shell = fakeAdmin({ ...tables, agency_bookings: [{ id: B, order_id: "o1", source_inquiry_id: null, calendar_lane: null, title: "x" }] });
+  assert.equal(await readOwnSeat(shell.admin, { userId: "u1", bookingId: B }), null);
+  const lane = fakeAdmin({ ...tables, agency_bookings: [{ id: B, order_id: null, source_inquiry_id: "inq1", calendar_lane: "order", title: "x" }] });
+  assert.equal(await readOwnSeat(lane.admin, { userId: "u1", bookingId: B }), null);
+  assert.equal(await readOwnSeat(fakeAdmin({ ...tables, agency_bookings: [] }).admin, { userId: "u1", bookingId: B }), null);
   // a failed seat read is no seat
   const broken = fakeAdmin(tables, { booking_talent: { code: "57014", message: "x" } });
   assert.equal(await readOwnSeat(broken.admin, { userId: "u1", bookingId: B }), null);

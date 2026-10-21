@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { isOrderShellBooking } from "./project-record";
 
 /**
  * TUL-1603: each person's own answer to "are you on this job?". One row per
@@ -82,6 +83,18 @@ export type OwnSeat = { assignmentId: string; roleLabel: string | null; status: 
 export async function readOwnSeat(admin: SupabaseClient, input: { userId: string; bookingId: string }): Promise<OwnSeat | null> {
   if (!input.userId || !input.bookingId) return null;
   try {
+    // Only a PROJECT booking carries this card: the same rule the Projects reader uses (not an order shell).
+    const bk = await admin
+      .from("agency_bookings")
+      .select("order_id, source_inquiry_id, calendar_lane, title")
+      .eq("id", input.bookingId)
+      .maybeSingle();
+    if (bk.error) {
+      logServerError("projects.readOwnSeat.booking", bk.error);
+      return null;
+    }
+    const b = bk.data as { order_id: string | null; source_inquiry_id: string | null; calendar_lane: string | null; title: string | null } | null;
+    if (!b || isOrderShellBooking({ order_id: b.order_id ?? null, source_inquiry_id: b.source_inquiry_id ?? null, calendar_lane: b.calendar_lane ?? null, title: b.title })) return null;
     const mine = await admin.from("talent_profiles").select("id").eq("user_id", input.userId);
     if (mine.error) {
       logServerError("projects.readOwnSeat.profiles", mine.error);
@@ -102,8 +115,12 @@ export async function readOwnSeat(admin: SupabaseClient, input: { userId: string
     );
     if (!seat || !seat.talent_profile_id) return null;
     const ansRes = await admin.from(TABLE).select("status, talent_profile_id").eq("booking_talent_id", seat.id).maybeSingle();
-    if (ansRes.error && !isMissingSchemaError(ansRes.error)) logServerError("projects.readOwnSeat.answer", ansRes.error);
-    const ans = ansRes.error ? null : (ansRes.data as { status?: unknown; talent_profile_id?: unknown } | null);
+    if (ansRes.error) {
+      // Table missing (migration not applied): no card, since every click would fail. Any other error: fail closed too.
+      if (!isMissingSchemaError(ansRes.error)) logServerError("projects.readOwnSeat.answer", ansRes.error);
+      return null;
+    }
+    const ans = ansRes.data as { status?: unknown; talent_profile_id?: unknown } | null;
     const status =
       ans && ans.talent_profile_id === seat.talent_profile_id && (ans.status === "confirmed" || ans.status === "declined") ? ans.status : "awaiting";
     return { assignmentId: seat.id, roleLabel: seat.role_label, status };
