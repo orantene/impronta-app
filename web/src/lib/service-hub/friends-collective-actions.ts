@@ -28,6 +28,10 @@ export type ApplyPresetResult =
 export async function applyFriendsCollectivePreset(): Promise<ApplyPresetResult> {
   await requireNotImpersonating();
   try {
+    // TUL-1708 audit: the staff check below is on the default guard capability (viewer-held), but
+    // decideFriendsCollectivePreset() (friends-collective.ts) refuses with "owner_only" unless `role`
+    // read from agency_memberships below is literally "owner" — the strictest tier there is. Not
+    // vulnerable to a viewer/editor/manager/admin write; left on the default on purpose.
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
@@ -108,6 +112,9 @@ export async function setMemberOwnerShare(input: {
 }): Promise<SetMemberShareResult> {
   await requireNotImpersonating();
   try {
+    // TUL-1708 audit: same shape as applyFriendsCollectivePreset above — decideMemberShareUpdate()
+    // refuses with "owner_only" unless `role` below is literally "owner". Not vulnerable to a lesser
+    // role's write; left on the default guard capability on purpose.
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;

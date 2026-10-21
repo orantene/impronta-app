@@ -45,7 +45,10 @@ export async function setReviewMediaApprovalState(
     return { ok: false, error: "Invalid state." };
   }
 
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: the default guard capability (`agency.workspace.view`) is held by a `viewer`, so a viewer
+  // could hide or restore a client's review photos. This mirrors actionSetApprovalState's media-moderation
+  // bar in admin/media/actions.ts (manager+), not the viewer default.
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 

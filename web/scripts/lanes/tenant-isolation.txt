@@ -34,6 +34,7 @@ src/lib/access/talent-flags-off-parity.test.ts
 src/lib/access/talent-maison-theme.test.ts
 src/lib/access/talent-site-capabilities.test.ts
 src/lib/access/talent-tier-label-rename.static.test.ts
+src/lib/access/tul-1708-area-h-capability-guards.static.test.ts
 src/lib/ai/ai-image-quota.test.ts
 src/lib/analytics/consent-banner-suppression.test.ts
 src/lib/analytics/consent-snippet-minify.test.ts
