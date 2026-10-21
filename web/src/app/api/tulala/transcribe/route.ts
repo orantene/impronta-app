@@ -27,6 +27,7 @@ import {
 } from "@/lib/rate-limit-kv-tulala";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 import { isAcceptedAudioType, transcribeAudio } from "@/lib/ai/transcribe.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -69,7 +70,8 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
-  const gate = await assertAiInvocationAllowed();
+  const aiTenantId = await resolveAiBillingTenantId();
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     return NextResponse.json({ error: "Unavailable right now." }, { status: 503 });
   }
@@ -113,7 +115,7 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Could not read that recording." });
   }
 
-  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
+  afterResponse(() => recordAiUsageEstimate(aiTenantId).catch(() => {}));
 
   return NextResponse.json({ ok: true, text: result.text });
 }

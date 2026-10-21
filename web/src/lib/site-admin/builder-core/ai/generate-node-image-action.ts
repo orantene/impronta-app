@@ -27,6 +27,11 @@ import {
 } from "@/lib/ai/ai-image-generation";
 import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
+import { gateAiCall } from "@/lib/ai/metered-ai";
+import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+
+/** Flat estimate for one generated image (medium quality), until real image cost is measured (follow-up card). */
+const IMAGE_ESTIMATE_CENTS = 4;
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GenerateNodeImageState =
@@ -56,6 +61,11 @@ export async function generateNodeImageAction(input: {
     return { ok: false, error: "Describe the image in a few words.", code: "BRIEF_TOO_SHORT" };
   }
 
+  // TUL-1624: the workspace's AI spend ceiling and request limits, checked BEFORE the paid call (the image quota below
+  // is a separate count; neither one replaces the other).
+  const aiGate = await gateAiCall(tenantId);
+  if (!aiGate.ok) return { ok: false, error: aiGate.error, code: aiGate.code };
+
   // Cost fuse #1 — the monthly cap, checked BEFORE the paid call.
   const quota = await checkImageQuota(tenantId);
   if (!quota.allowed) {
@@ -79,6 +89,8 @@ export async function generateNodeImageAction(input: {
       return { ok: false, error: "Made the image but couldn't save it. Try again.", code: "UPLOAD_FAILED" };
     }
     await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true });
+    // The spend ceiling must SEE this image: roll its cost into the workspace's monthly AI spend.
+    await recordAiUsageEstimate(tenantId, IMAGE_ESTIMATE_CENTS);
     return {
       ok: true,
       url: uploaded.url,

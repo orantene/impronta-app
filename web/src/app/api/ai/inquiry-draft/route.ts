@@ -7,6 +7,7 @@ import {
   sanitizeInquiryDraftOutput,
 } from "@/lib/ai/inquiry-draft-guardrails";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 import { completeInquiryDraft } from "@/lib/ai/inquiry-draft-model";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -53,7 +54,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const gate = await assertAiInvocationAllowed();
+    const aiTenantId = await resolveAiBillingTenantId();
+    const gate = await assertAiInvocationAllowed(aiTenantId);
     if (!gate.ok) {
       return NextResponse.json(
         { error: gate.message, draft: null },
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     const safe = sanitizeInquiryDraftOutput(draft).slice(0, INQUIRY_DRAFT_MAX_CHARS);
-    recordAiUsageEstimate().catch((err) =>
+    recordAiUsageEstimate(aiTenantId).catch((err) =>
       logServerError("api/ai/inquiry-draft/recordAiUsageEstimate", err),
     );
     return NextResponse.json({ draft: safe || draft.slice(0, INQUIRY_DRAFT_MAX_CHARS) });

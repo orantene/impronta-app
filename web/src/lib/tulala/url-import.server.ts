@@ -37,6 +37,7 @@ import { assertPublicHttpUrl } from "@/lib/ssrf-guard";
 import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 
 import { recordFacts, type BriefOwner } from "./brief-store.server";
 import type { Brief, FactInput } from "./brief-store";
@@ -96,9 +97,10 @@ export async function importFromUrl(input: {
   const facts: FactInput[] = handleFacts(page);
 
   if (isWorthExtracting(page)) {
-    const gate = await assertAiInvocationAllowed();
+    const aiTenantId = await resolveAiBillingTenantId();
+    const gate = await assertAiInvocationAllowed(aiTenantId);
     if (gate.ok) {
-      facts.push(...(await extractFromPage(page, input.brief, input.locale)));
+      facts.push(...(await extractFromPage(page, input.brief, input.locale, aiTenantId)));
     }
     // A closed gate is not an error for the caller: the handles are already
     // worth having, and "the assistant is at its limit" is not something the
@@ -214,6 +216,7 @@ async function extractFromPage(
   page: ImportedPage,
   brief: Brief,
   locale: "en" | "es",
+  aiTenantId: string,
 ): Promise<FactInput[]> {
   try {
     const adapter = await resolveAiChatAdapter();
@@ -230,7 +233,7 @@ async function extractFromPage(
       return [];
     }
 
-    afterResponse(() => recordAiUsageEstimate().catch(() => {}));
+    afterResponse(() => recordAiUsageEstimate(aiTenantId).catch(() => {}));
 
     const parsed = parseExtraction(completion.text, {
       // No question produced these, so there is no question to attribute the

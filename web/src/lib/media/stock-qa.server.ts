@@ -18,6 +18,8 @@ import sharp from "sharp";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
+import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import type { StockRole } from "./platform-stock";
 
 export const STOCK_QA_VERSION = "qa@v1";
@@ -76,6 +78,8 @@ export interface StockQaInput {
   typeLabel: string | null;
   /** Vision model id; null/empty = vision checks skipped. */
   visionModel?: string | null;
+  /** The workspace the QA is for (per-site images); omitted = the platform stock pool. TUL-1624: gated and metered against it. */
+  tenantId?: string | null;
 }
 
 export async function runStockQa(input: StockQaInput): Promise<StockQaResult> {
@@ -111,6 +115,11 @@ async function visionChecks(input: StockQaInput): Promise<StockQaResult["checks"
   if (!(await isAiMasterEnabled())) return skipped;
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) return skipped;
+  // TUL-1624: the vision call is paid: the spend ceiling is checked first (skipped, not failed, when it is closed) and
+  // the call is recorded against the same tenant.
+  const aiTenantId = input.tenantId || DEFAULT_AI_TENANT_ID;
+  const gate = await assertAiInvocationAllowed(aiTenantId);
+  if (!gate.ok) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `AI limit: ${gate.code}` }]));
   try {
     const small = await sharp(input.bytes).resize({ width: 768, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
     const question =
@@ -127,6 +136,7 @@ async function visionChecks(input: StockQaInput): Promise<StockQaResult["checks"
         messages: [{ role: "user", content: [{ type: "text", text: question }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${small.toString("base64")}`, detail: "low" } }] }],
       }),
     });
+    await recordAiUsageEstimate(aiTenantId).catch(() => {});
     if (!res.ok) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `vision HTTP ${res.status}` }]));
     const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const raw = json.choices?.[0]?.message?.content ?? "";
