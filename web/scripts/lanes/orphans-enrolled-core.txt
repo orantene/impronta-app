@@ -126,6 +126,7 @@ src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts
 src/lib/talent-agenda/booking-reminder-due.test.ts
 src/lib/talent-agenda/hours-display-format.test.ts
+src/lib/talent-agenda/no-show-count.static.test.ts
 src/lib/talent-agenda/today-payouts-setup.static.test.ts
 src/lib/talent-agenda/today-primary-action.test.ts
 src/lib/talent-taxonomy-service.test.ts
