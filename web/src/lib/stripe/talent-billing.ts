@@ -288,7 +288,7 @@ export async function createTalentCheckoutSession(opts: {
     // only when the winner is the same plan, else a retryable error.
     const settled =
       trialDays != null
-        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError })
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError, locale: opts.locale })
         : { url: session.url };
     if ("error" in settled) return { ok: false, error: settled.error };
     return { ok: true, data: { url: settled.url } };

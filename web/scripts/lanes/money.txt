@@ -48,6 +48,7 @@ src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
 src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
+src/lib/billing/trial-race-retry-locale.test.ts
 src/lib/billing/trial-session-reconcile.test.ts
 src/lib/billing/workspace-money-gates.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
