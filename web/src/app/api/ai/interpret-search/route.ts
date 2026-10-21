@@ -8,6 +8,7 @@ import {
   type RawModelIntent,
 } from "@/lib/ai/validate-interpret-intent";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { finalizeInterpretFilters } from "@/lib/ai/finalize-interpret-filters";
 import { pruneInterpretTermsToTenantRoster } from "@/lib/ai/prune-interpret-terms";
@@ -96,7 +97,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "query_too_long" }, { status: 400 });
   }
 
-  const gate = await assertAiInvocationAllowed();
+  // TUL-1624: billed to the workspace the request came from (host, or the path tenant), else the platform.
+  const aiTenantId = tenantId ?? DEFAULT_AI_TENANT_ID;
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     return NextResponse.json(
       { error: gate.code, message: gate.message },
@@ -199,7 +202,7 @@ export async function POST(request: Request) {
     }).catch((err) => logServerError("api/ai/interpret-search/insertAiSearchLog", err));
 
     if (usedModel) {
-      recordAiUsageEstimate().catch((err) =>
+      recordAiUsageEstimate(aiTenantId).catch((err) =>
         logServerError("api/ai/interpret-search/recordAiUsageEstimate", err),
       );
     }

@@ -11,6 +11,9 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { embedTextForSearch, embeddingCacheKey } from "@/lib/ai/openai-embeddings";
+import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { afterResponse } from "@/lib/server/after-response";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { directoryCardToSearchResult, type SearchResult } from "@/lib/ai/search-result";
 import { cosineDistanceToSimilarity01 } from "@/lib/ai/vector-retrieval";
@@ -311,6 +314,10 @@ async function runAiDirectorySearchOnce(
       if (!emb) {
         fallbackReason = "embedding_failed";
       } else {
+        // TUL-1624: the embedding is a paid call. Recorded against the workspace the search ran for (platform when none)
+        // so the spend ceiling sees it; deliberately NOT gated here: a capped workspace degrades to classic search only
+        // through the gated AI routes, never by breaking the public directory.
+        afterResponse(() => recordAiUsageEstimate(tenantScopeId ?? DEFAULT_AI_TENANT_ID), "run-ai-directory-search/embedding-usage");
         const matchCount = getMaxVectorNeighbors();
         const matchResult = await matchTalentEmbeddingsCached(
           svc,
