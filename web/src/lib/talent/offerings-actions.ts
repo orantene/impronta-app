@@ -198,7 +198,8 @@ export async function upsertTalentOffering(
     // row is one of the two, so this refuses nothing that exists today; it
     // stops a third currency reaching checkout, where it was never priced.
     // TUL-1634: the same rule the workspace Menu save uses (offeringCurrencyRefusal).
-    const currencyRefusal = offeringCurrencyRefusal(offering.currency);
+    // Locale: `auth.primaryLocale` is already in scope from authorizeForTalent above.
+    const currencyRefusal = offeringCurrencyRefusal(offering.currency, auth.primaryLocale);
     if (currencyRefusal) return { ok: false, error: currencyRefusal };
 
     const patch = {
