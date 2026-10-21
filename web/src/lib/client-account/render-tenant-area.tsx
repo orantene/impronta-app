@@ -1,6 +1,7 @@
 import { loadMyReviews } from "./my-reviews.server";
 import { loadSavedTalent } from "./saved-talent.server";
 import { loadMyMatchRequests } from "@/lib/match-me/match-views.server";
+import { matchMeEnabled } from "@/lib/match-me/flag";
 import { notFound } from "next/navigation";
 
 import { GoogleFontsLink } from "@/app/google-fonts-link";
@@ -31,7 +32,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * header, never the URL or the browser); every read is scoped by the session
  * user id AND that tenant, and only for a client account. Flag off: 404.
  */
-export async function renderTenantAccountPage(view: AccountView, hostContext: string | null) {
+export async function renderTenantAccountPage(requestedView: AccountView, hostContext: string | null) {
+  // TUL-1464: match-me is dark until MATCH_ME_ENABLED is "true"; ?tab=match then falls back to Visits.
+  const matchOn = matchMeEnabled();
+  const view: AccountView = requestedView.kind === "home" && requestedView.tab === "match" && !matchOn ? { kind: "home", tab: "visits" } : requestedView;
   const flagKind = accountFlagKindForHost(hostContext);
   // TUL-64: agency / hub / app / marketing each use their own CLIENT_ACCOUNT_HOSTS
   // kind (from x-impronta-host-context). Collapsing them onto `app` bounced
@@ -60,7 +64,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
     else if (view.tab === "saved") data.saved = await loadSavedTalent(userId, hostContext === "hub" ? null : tenantId);
     else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
-    else if (view.tab === "match") data.match = await loadMyMatchRequests(userId, tenantId);
+    else if (view.tab === "match" && matchOn) data.match = await loadMyMatchRequests(userId, tenantId);
     else if (view.tab === "payments") {
       [data.summary, data.payLinks, data.receipts] = await Promise.all([
         loadClientAccountSummary({ userId, tenantId, timeZone: tenant.timeZone, locale }),
@@ -85,7 +89,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
         timeZone={tenant.timeZone}
         data={data}
         bookHere={hostHasPublicBooking(hostContext)}
-        matchEnabled
+        matchEnabled={matchOn}
         extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, userId, appRole })}
       />
     </>

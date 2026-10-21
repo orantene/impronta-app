@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import { findCatalogEntries } from "@/lib/notifications/catalog";
+import { matchOfferSummary } from "./views";
 
 const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
 const actions = read("src/lib/match-me/match-me-actions.ts");
@@ -56,4 +57,25 @@ test("the producers dedupe per request + person and never put contact details in
   assert.match(src, /`match-taken:\$\{p\.requestId\}:\$\{talentId\}`/);
   assert.match(src, /`match-accepted:\$\{p\.requestId\}`/);
   assert.doesNotMatch(src, /\b(email|phone|contactEmail)\s*:/i);
+});
+
+test("P1 privacy: the match.offered bell never carries the client's email, phone or links", () => {
+  const raw = "Wedding photos. Text me 984 123 4567 or +1 (305) 555-0199, ana.lopez@gmail.com, https://ana.site/me, instagram.com/ana_ph, @ana_ph";
+  // The producer masks before dispatch: the payload is built from matchOfferSummary, never the raw text.
+  const src = read("src/lib/notifications/producers/match-notify.ts");
+  assert.match(src, /const summary = matchOfferSummary\(p\.summary\);/);
+  assert.doesNotMatch(src, /summary: p\.summary|p\.summary\.replace/);
+  const payload = { requestId: "r1", summary: matchOfferSummary(raw) };
+  assert.ok(!/984|305|555|ana\.lopez|gmail|https?:|ana\.site|instagram|@/.test(payload.summary), payload.summary);
+  assert.match(payload.summary, /\[phone hidden\]/);
+  assert.match(payload.summary, /\[email hidden\]/);
+  assert.match(payload.summary, /\[link hidden\]/);
+  // And the bell masks again at render, so an unmasked payload written earlier cannot leak either.
+  const [e] = findCatalogEntries("match.offered");
+  const ev = { type: "match.offered", tenantId: "t", eventId: "e", payload: { requestId: "r1", summary: raw } } as never;
+  for (const locale of ["en", "es"]) {
+    const body = e!.in_app!.body!(ev, { locale, displayName: "X" } as never)!;
+    assert.ok(!/984|305|555|ana\.lopez|gmail|https?:|ana\.site|instagram|@/.test(body), body);
+    assert.match(body, /Wedding photos\./);
+  }
 });

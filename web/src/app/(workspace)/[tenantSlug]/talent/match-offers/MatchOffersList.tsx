@@ -25,7 +25,7 @@ export function MatchOffersList({ locale, offers }: { locale: "en" | "es"; offer
             style={{ marginTop: 8, minHeight: 44, padding: "0 16px" }}
             onClick={() => start(async () => {
               const r = await acceptMatchAsTalent({ requestId: o.requestId });
-              const text = r.ok ? c.accepted : r.reason === "already_taken" ? c.taken : r.reason === "forbidden" ? c.forbidden : r.reason === "closed" || r.reason === "not_offered" ? c.closed : c.error;
+              const text = r.ok ? c.accepted : r.reason === "already_taken" ? c.taken : r.reason === "forbidden" ? c.forbidden : r.reason === "closed" || r.reason === "not_offered" ? c.closed : r.reason === "off" ? c.off : c.error;
               setDone((d) => ({ ...d, [o.requestId]: text }));
             })}
           >{pending ? c.accepting : c.accept}</button>

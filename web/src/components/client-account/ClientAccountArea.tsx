@@ -272,7 +272,9 @@ export function ClientAccountArea(props: Props) {
   }
 
   // ── Home: tabs ──────────────────────────────────────────────────────────
-  const tab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
+  const requestedTab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
+  // TUL-1464: with match-me off (or on a talent site) ?tab=match is plain Visits, never a blank page.
+  const tab: AccountTab = requestedTab === "match" && !props.matchEnabled ? "visits" : requestedTab;
   const tabLabel: Record<AccountTab, string> = {
     visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), saved: a("tabSaved"), reviews: a("tabReviews"), match: a("tabMatch"), settings: a("tabSettings"), help: a("tabHelp"),
   };
@@ -367,13 +369,13 @@ export function ClientAccountArea(props: Props) {
         <h2 style={{ ...heading, fontSize: 18, marginBottom: 6 }}>{a("matchHeading")}</h2>
         <p style={{ color: MUTED, marginTop: 0 }}>{a("matchHint")}</p>
         <MatchRequestForm
-          copy={{ describe: a("matchDescribe"), where: a("matchWhere"), send: a("matchSend"), sending: a("matchSending"), sent: a("matchSent"), nobody: a("matchNobody"), rateLimited: a("matchRateLimited"), generic: a("errGeneric") }}
+          copy={{ describe: a("matchDescribe"), where: a("matchWhere"), send: a("matchSend"), sending: a("matchSending"), sent: a("matchSent"), nobody: a("matchNobody"), rateLimited: a("matchRateLimited"), off: a("matchOff"), generic: a("errGeneric") }}
         />
         {list.length === 0 ? <p>{a("matchNone")}</p> : (
           <ul data-testid="client-match-requests" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
             {list.map((r) => (
               <li key={r.id} style={{ ...card, listStyle: "none" }}>
-                <strong>{r.status === "accepted" ? interpolate(a("matchAccepted"), { name: r.proName ?? a("matchAProfessional") }) : r.status === "cancelled" ? a("matchCancelled") : a("matchWaiting")}</strong>
+                <strong>{r.status === "accepted" ? interpolate(a("matchAccepted"), { name: r.proName ?? a("matchAProfessional") }) : r.status === "cancelled" ? a("matchCancelled") : r.noneAvailable ? a("matchNoneAvailable") : a("matchWaiting")}</strong>
                 <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{r.description}</p>
                 {r.zone ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{r.zone}</span> : null}
               </li>

@@ -1,5 +1,8 @@
 // Talent → Jobs for you (TUL-1598). Open "match me" jobs offered to this professional; first to accept wins.
+import { notFound } from "next/navigation";
+
 import { getRequestLocale } from "@/i18n/request-locale";
+import { matchMeEnabled } from "@/lib/match-me/flag";
 import { loadMyMatchOffers } from "@/lib/match-me/match-views.server";
 import { MATCH_OFFERS_COPY } from "@/lib/match-me/match-me-copy";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
@@ -8,6 +11,8 @@ import { MatchOffersList } from "./MatchOffersList";
 export const dynamic = "force-dynamic";
 
 export default async function MatchOffersPage() {
+  // TUL-1464: dark until MATCH_ME_ENABLED is "true" (the held match-me migration must be applied first).
+  if (!matchMeEnabled()) notFound();
   const locale = (await getRequestLocale()) === "es" ? "es" : "en";
   const c = MATCH_OFFERS_COPY[locale];
   const me = await requireTalentSelf();

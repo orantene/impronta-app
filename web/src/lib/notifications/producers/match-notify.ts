@@ -4,10 +4,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { logServerError } from "@/lib/server/safe-error";
 import { afterResponse } from "@/lib/server/after-response";
+import { matchOfferSummary } from "@/lib/match-me/views";
 
 /**
  * TUL-1464: bells for match-me. Fire-and-forget, deduped by eventId (request + person + kind),
- * never throws. The client's name, phone and email are never in a payload.
+ * never throws. The client's name, phone and email are never in a payload: the job summary is
+ * the client's free text, so it is masked (phones, emails, links, handles) and cut to 140 chars
+ * by `matchOfferSummary` before it leaves this file.
  */
 async function userIds(admin: SupabaseClient, talentIds: readonly string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
@@ -30,7 +33,7 @@ function send(type: string, tenantId: string, eventId: string, userId: string, p
 export async function notifyMatchOffered(p: { admin: SupabaseClient; tenantId: string; requestId: string; talentIds: readonly string[]; summary: string }): Promise<void> {
   try {
     const users = await userIds(p.admin, p.talentIds);
-    const summary = p.summary.replace(/\s+/g, " ").trim().slice(0, 140);
+    const summary = matchOfferSummary(p.summary);
     for (const [talentId, userId] of users) send("match.offered", p.tenantId, `match-offered:${p.requestId}:${talentId}`, userId, { requestId: p.requestId, summary });
   } catch (err) {
     logServerError("notifyMatchOffered", err);

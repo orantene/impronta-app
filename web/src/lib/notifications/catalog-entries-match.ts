@@ -2,6 +2,7 @@ import "server-only";
 
 import type { CatalogEntry } from "./types";
 import { eventUser, str } from "./catalog-audiences";
+import { matchOfferSummary } from "@/lib/match-me/views";
 
 /**
  * TUL-1464: bells for "Match me with a professional". In-app only; each is dispatched directly
@@ -38,7 +39,8 @@ export const MATCH_CATALOG_ENTRIES: CatalogEntry[] = [
     surface: "talent",
     title: (es) => (es ? "Nuevo trabajo para ti" : "A new job for you"),
     body: (es, p) => {
-      const d = str(p.summary) ?? "";
+      // Masked again at render: a payload written before the producer masked must not leak either.
+      const d = matchOfferSummary(str(p.summary) ?? "");
       return es ? `Un cliente busca un profesional. ${d} El primero en aceptar se queda con el trabajo.` : `A client is looking for a professional. ${d} The first to accept gets the job.`;
     },
   }),

@@ -2339,6 +2339,8 @@
       "matchRateLimited": "You have sent several requests. Try again later.",
       "matchNone": "No requests yet.",
       "matchWaiting": "Waiting for a professional",
+      "matchNoneAvailable": "No one is available for this right now",
+      "matchOff": "Matching with a professional is not available yet.",
       "matchAccepted": "{name} accepted",
       "matchAProfessional": "A professional",
       "matchCancelled": "Cancelled",

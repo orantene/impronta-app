@@ -12,6 +12,7 @@ export type MatchFormCopy = {
   sent: string; // contains {n}
   nobody: string;
   rateLimited: string;
+  off: string;
   generic: string;
 };
 
@@ -33,7 +34,7 @@ export function MatchRequestForm({ copy }: { copy: MatchFormCopy }) {
             // Reload so the new request shows in the list below (server-rendered).
             window.setTimeout(() => window.location.reload(), 1200);
           } else {
-            setMessage(r.reason === "nobody_matches" ? copy.nobody : r.reason === "rate_limited" ? copy.rateLimited : copy.generic);
+            setMessage(r.reason === "nobody_matches" ? copy.nobody : r.reason === "rate_limited" ? copy.rateLimited : r.reason === "off" ? copy.off : copy.generic);
           }
         });
       }}

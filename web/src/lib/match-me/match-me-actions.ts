@@ -7,7 +7,8 @@
  *  - `acceptMatchAsTalent`: the signed-in professional accepts; the first one wins, the rest
  *    are told, and the client is told someone accepted (never any contact detail).
  * The decisions live in `rules.ts` / `match-me.server.ts`; this file only authenticates,
- * rate-limits and notifies.
+ * rate-limits and notifies. Both refuse with reason "off" (before any read) while MATCH_ME_ENABLED
+ * is not "true" (`flag.ts`).
  */
 import { z } from "zod";
 
@@ -21,17 +22,19 @@ import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
+import { matchMeEnabled } from "./flag";
 import { loadMatchCandidates } from "./match-candidates.server";
 import { acceptMatch, createMatchRequest } from "./match-me.server";
 
 export type RequestMatchResult =
   | { ok: true; requestId: string; offered: number }
-  | { ok: false; reason: "invalid" | "unavailable" | "not_signed_in" | "not_client" | "rate_limited" | "nobody_matches" };
+  | { ok: false; reason: "off" | "invalid" | "unavailable" | "not_signed_in" | "not_client" | "rate_limited" | "nobody_matches" };
 
 const REQUEST_WINDOW_MS = 60 * 60 * 1000;
 const REQUESTS_PER_CLIENT = 5;
 
 export async function requestMatch(input: { description: string; zone?: string | null }): Promise<RequestMatchResult> {
+  if (!matchMeEnabled()) return { ok: false, reason: "off" };
   if (!(await assertNotImpersonating()).ok) return { ok: false, reason: "unavailable" };
   const parsed = z
     .object({ description: z.string().trim().min(1).max(2000), zone: z.string().trim().max(120).nullish() })
@@ -63,9 +66,10 @@ export async function requestMatch(input: { description: string; zone?: string |
 
 export type AcceptMatchResult =
   | { ok: true }
-  | { ok: false; reason: "unavailable" | "not_signed_in" | "forbidden" | "already_taken" | "not_offered" | "closed" };
+  | { ok: false; reason: "off" | "unavailable" | "not_signed_in" | "forbidden" | "already_taken" | "not_offered" | "closed" };
 
 export async function acceptMatchAsTalent(input: { requestId: string }): Promise<AcceptMatchResult> {
+  if (!matchMeEnabled()) return { ok: false, reason: "off" };
   if (!(await assertNotImpersonating()).ok) return { ok: false, reason: "unavailable" };
   const parsed = z.object({ requestId: z.string().uuid() }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "unavailable" };

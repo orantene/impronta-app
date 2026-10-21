@@ -16,8 +16,8 @@ import type { MyMatchRequest } from "./views";
 
 const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
 const mine: MyMatchRequest[] = [
-  { id: "r1", description: "Clean my flat", zone: "Tulum", status: "accepted", createdAt: "2026-10-20T10:00:00Z", offeredCount: 5, proName: "Ana" },
-  { id: "r2", description: "Photos for a party", zone: null, status: "open", createdAt: "2026-10-19T10:00:00Z", offeredCount: 5, proName: null },
+  { id: "r1", description: "Clean my flat", zone: "Tulum", status: "accepted", createdAt: "2026-10-20T10:00:00Z", offeredCount: 5, proName: "Ana", noneAvailable: false },
+  { id: "r2", description: "Photos for a party", zone: null, status: "open", createdAt: "2026-10-19T10:00:00Z", offeredCount: 5, proName: null, noneAvailable: false },
 ];
 const area = (locale: "en" | "es", over: Record<string, unknown> = {}) =>
   renderToStaticMarkup(
@@ -73,4 +73,24 @@ test("lazy widen: no cron; any list read widens due open requests, scoped to the
   assert.match(mineFn, /await widenDueRequests\(/);
   const tenant = read("src/lib/client-account/render-tenant-area.tsx");
   assert.match(tenant, /view\.tab === "match"[\s\S]{0,80}loadMyMatchRequests\(userId, tenantId\)/);
+});
+
+test("no one available: the client sees an honest state (EN + ES, no em dash), not \"Waiting\"", () => {
+  const none: MyMatchRequest[] = [{ id: "r3", description: "Fix my boat", zone: "Holbox", status: "open", createdAt: "2026-10-20T11:00:00Z", offeredCount: 0, proName: null, noneAvailable: true }];
+  const en = area("en", { data: { match: none, profile: { name: "Cli", phone: "", locale: "en", marketingOptIn: false } } });
+  assert.match(en, /No one is available for this right now/);
+  assert.doesNotMatch(en, /Waiting for a professional/);
+  const es = area("es", { data: { match: none, profile: { name: "Cli", phone: "", locale: "es", marketingOptIn: false } } });
+  assert.match(es, /Nadie está disponible para esto por ahora/);
+  assert.doesNotMatch(es, /Esperando a un profesional/);
+  for (const f of ["messages/en.json", "messages/es.json"]) {
+    const m = JSON.parse(read(f)) as { clientAccount?: Record<string, unknown> };
+    const blob = JSON.stringify(m);
+    assert.ok(!/"match(NoneAvailable|Off)":"[^"]*—/.test(blob), f);
+  }
+  // The server-side widen also refuses a request nobody was ever offered.
+  const server = read("src/lib/match-me/match-me.server.ts");
+  assert.match(server, /offeredCount: priorIds\.length/);
+  const loader = read("src/lib/match-me/match-views.server.ts");
+  assert.match(loader, /widenDueRequests\(admin, rows, before\.error \? undefined : tally\(before\.data\)\)/);
 });

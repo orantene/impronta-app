@@ -6,6 +6,7 @@ import { notifyMatchOffered } from "@/lib/notifications/producers/match-notify";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
+import { matchMeEnabled } from "./flag";
 import { loadMatchCandidates } from "./match-candidates.server";
 import { widenIfDue } from "./match-me.server";
 import { shouldWiden, type MatchStatus } from "./rules";
@@ -18,10 +19,13 @@ type DueRow = { id: string; tenant_id: string; status: string; round_started_at:
 /**
  * Lazy 2-hour widen: no cron. Whenever a request list is read, any OPEN request whose round is
  * older than 2 hours offers its next 5 (widenIfDue is idempotent and conditional on the round).
+ * `offeredCounts` (when known) keeps a request nobody was ever offered out of the widen.
  */
-async function widenDueRequests(admin: SupabaseClient, rows: readonly DueRow[]): Promise<void> {
+async function widenDueRequests(admin: SupabaseClient, rows: readonly DueRow[], offeredCounts?: Readonly<Record<string, number>>): Promise<void> {
   const nowMs = Date.now();
-  const due = rows.filter((r) => shouldWiden({ status: r.status as MatchStatus, roundStartedAtMs: Date.parse(r.round_started_at) }, nowMs));
+  const due = rows.filter((r) =>
+    shouldWiden({ status: r.status as MatchStatus, roundStartedAtMs: Date.parse(r.round_started_at), offeredCount: offeredCounts ? (offeredCounts[r.id] ?? 0) : undefined }, nowMs),
+  );
   if (due.length === 0) return;
   const candidatesByTenant = new Map<string, Awaited<ReturnType<typeof loadMatchCandidates>>>();
   for (const r of due) {
@@ -34,7 +38,7 @@ async function widenDueRequests(admin: SupabaseClient, rows: readonly DueRow[]):
 /** The signed-in client's own requests on THIS site's workspace. */
 export async function loadMyMatchRequests(userId: string, tenantId: string): Promise<MyMatchRequest[]> {
   const admin = createServiceRoleClient();
-  if (!admin || !userId || !tenantId) return [];
+  if (!matchMeEnabled() || !admin || !userId || !tenantId) return [];
   const reqs = await admin
     .from("match_requests")
     .select("id, tenant_id, description, zone, status, created_at, winner_talent_id, round_started_at")
@@ -47,26 +51,35 @@ export async function loadMyMatchRequests(userId: string, tenantId: string): Pro
     return [];
   }
   const rows = (reqs.data ?? []) as unknown as Array<RequestRow & { tenant_id: string; round_started_at: string }>;
-  await widenDueRequests(admin, rows);
   const ids = rows.map((r) => r.id);
+  const countRecipients = () =>
+    ids.length ? admin.from("match_request_recipients").select("request_id").in("request_id", ids) : Promise.resolve({ data: [], error: null });
+  const tally = (data: unknown[] | null) => {
+    const out: Record<string, number> = {};
+    for (const r of (data ?? []) as Array<{ request_id: string }>) out[r.request_id] = (out[r.request_id] ?? 0) + 1;
+    return out;
+  };
+  // Counts first: a request nobody was ever offered stays out of the widen ("no one is available").
+  const before = await countRecipients();
+  if (before.error) logServerError("matchMe.mine.recipients", before.error);
+  await widenDueRequests(admin, rows, before.error ? undefined : tally(before.data));
   const winners = [...new Set(rows.map((r) => r.winner_talent_id).filter((x): x is string => !!x))];
   const [recs, names] = await Promise.all([
-    ids.length ? admin.from("match_request_recipients").select("request_id").in("request_id", ids) : Promise.resolve({ data: [], error: null }),
+    countRecipients(),
     winners.length ? admin.from("talent_profiles").select("id, display_name").in("id", winners) : Promise.resolve({ data: [], error: null }),
   ]);
   if (recs.error) logServerError("matchMe.mine.recipients", recs.error);
   if (names.error) logServerError("matchMe.mine.names", names.error);
-  const offeredCounts: Record<string, number> = {};
-  for (const r of (recs.data ?? []) as Array<{ request_id: string }>) offeredCounts[r.request_id] = (offeredCounts[r.request_id] ?? 0) + 1;
+  const offeredCounts = tally(recs.data);
   const winnerNames: Record<string, string | null> = {};
   for (const n of (names.data ?? []) as Array<{ id: string; display_name: string | null }>) winnerNames[n.id] = n.display_name;
-  return shapeMyRequests({ requests: rows, offeredCounts, winnerNames });
+  return shapeMyRequests({ requests: rows, offeredCounts, winnerNames, countsKnown: !recs.error });
 }
 
 /** The jobs offered to THIS professional and still open. The client's contact is never selected. */
 export async function loadMyMatchOffers(talentProfileId: string): Promise<MatchOffer[]> {
   const admin = createServiceRoleClient();
-  if (!admin || !talentProfileId) return [];
+  if (!matchMeEnabled() || !admin || !talentProfileId) return [];
   const offers = await admin
     .from("match_request_recipients")
     .select("request_id, offered_at, status")
