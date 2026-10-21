@@ -250,7 +250,7 @@ export function offeringOps(fx, key, spec) {
       kind: spec.kind ?? "service",
       title: spec.title,
       description: spec.description,
-      price_type: spec.amountCents == null ? "custom" : "fixed",
+      price_type: spec.amountCents == null ? "custom" : "flat_package",
       price_display: spec.amountCents == null ? "quote" : "exact",
       amount_cents: spec.amountCents,
       currency: "MXN",
