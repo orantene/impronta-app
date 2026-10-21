@@ -44,10 +44,12 @@ describe("the public AI sites gate AND record against the same resolved tenant",
 });
 
 describe("the bypass sites close", () => {
-  test("generate-node-image: the workspace ceiling BEFORE the paid call, the cost recorded AFTER", () => {
+  test("generate-node-image: the workspace ceiling BEFORE the paid call; its cost is rolled into the monthly spend ONCE (by recordImageGenerationUsage, not again here)", () => {
     const s = strip(read("src/lib/site-admin/builder-core/ai/generate-node-image-action.ts"));
     assert.ok(s.indexOf("assertAiInvocationAllowed(tenantId)") > 0 && s.indexOf("assertAiInvocationAllowed(tenantId)") < s.indexOf("generateImageBytesFromPrompt(subject)"));
-    assert.ok(s.indexOf("recordAiUsageEstimate(tenantId, IMAGE_ESTIMATE_CENTS)") > s.indexOf("recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true })"));
+    assert.doesNotMatch(s, /recordAiUsageEstimate\(/, "no second record: it would double count every image");
+    const img = strip(read("src/lib/ai/ai-image-generation.ts"));
+    assert.match(img, /export async function recordImageGenerationUsage[\s\S]*?recordAiUsageEstimate\(input\.tenantId/);
   });
   test("stock engine (platform pool and per-site tenant images): gated before the paid call, for the tenant it bills", () => {
     const s = strip(read("src/lib/media/stock-engine.server.ts"));
