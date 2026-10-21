@@ -81,6 +81,7 @@ src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
+src/lib/service-hub/leaver-redirect.test.ts
 src/lib/service-hub/roster-catalog.test.ts
 src/lib/service-hub/roster-dock.test.ts
 src/lib/service-hub/roster-grid.test.ts
