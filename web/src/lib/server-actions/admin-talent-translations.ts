@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requirePlatformAdmin } from "@/lib/server/action-guards";
 import { getTenantScope } from "@/lib/saas/scope";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -30,15 +30,10 @@ export type TranslationActionResult = ServerActionResult;
 
 /**
  * Phase 2b identity floor for the Translation Center. Bio EN/ES are personal-
- * profile data. This surface authenticates with requireStaff() (no tenant
- * scope) and is platform-admin-facing, so the lock is a NO-OP for a platform
- * super_admin with no workspace selected (god-mode preserved), and a floor for
- * any agency-scoped staff: a Tulala-native talent's bio cannot be rewritten
- * unless the agency relationship is 'confirmed' exclusive.
- *
- * NOTE: this surface still lacks a per-tenant roster check — a separate,
- * pre-existing cross-tenant concern tracked as a follow-up. This guard adds the
- * identity floor only.
+ * profile data. This surface is platform-admin-only (TUL-1733): `requirePlatformAdmin()`, not the global
+ * `requireStaff()` that every self-serve studio owner passes. The lock below is therefore a NO-OP for a
+ * platform super_admin with no workspace selected (god-mode preserved), and a floor when one is selected:
+ * a Tulala-native talent's bio cannot be rewritten unless the agency relationship is 'confirmed' exclusive.
  */
 async function assertBioPersonalEditable(
   supabase: SupabaseClient,
@@ -53,7 +48,7 @@ export async function adminAiFillMissingSpanishBio(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
@@ -76,7 +71,7 @@ export async function adminAiFillMissingSpanishBio(
 
 export async function adminAiUpdateSpanishBio(input: z.infer<typeof idSchema>): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
@@ -100,7 +95,7 @@ export async function adminSaveManualSpanishBio(
   input: z.infer<typeof manualSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = manualSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
@@ -126,7 +121,7 @@ export async function adminApproveSpanishBioDraft(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
@@ -151,7 +146,7 @@ export async function adminApproveEnglishBioDraft(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
@@ -189,7 +184,7 @@ export async function adminSaveTalentBioQuickEdit(
   input: z.infer<typeof quickBioSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = quickBioSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
@@ -216,7 +211,7 @@ export async function adminSaveTalentBioTranslationCenterLive(
   input: z.infer<typeof translationCenterBioLiveSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = translationCenterBioLiveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
@@ -242,7 +237,7 @@ export async function adminMarkSpanishBioReviewed(
   input: z.infer<typeof idSchema>,
 ): Promise<TranslationActionResult> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
@@ -276,7 +271,7 @@ export type BioTranslationPanelPayload = {
 export async function adminLoadBioTranslationPanelData(
   input: z.infer<typeof idSchema>,
 ): Promise<ServerActionResult<BioTranslationPanelPayload>> {
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid profile." };
