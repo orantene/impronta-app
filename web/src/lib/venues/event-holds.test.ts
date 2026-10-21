@@ -44,9 +44,29 @@ test("hold seats maps seat_taken", async () => {
   assert.equal(result.reason, "seat_taken");
 });
 
+// TUL-1517: a comp proves the tier variant hangs off this tenant's offering before the RPC runs.
+function compAdmin(handler: (fn: string, args: Record<string, unknown>) => unknown) {
+  return {
+    from: (table: string) => {
+      const b: Record<string, unknown> = {
+        select: () => b,
+        eq: () => b,
+        in: () => b,
+        then: (resolve: (v: unknown) => void) =>
+          resolve({
+            data: table === "talent_offering_variants" ? [{ id: "v1", offering_id: "o1" }] : [{ id: "o1" }],
+            error: null,
+          }),
+      };
+      return b;
+    },
+    rpc: async (fn: string, args: Record<string, unknown>) => ({ data: handler(fn, args), error: null }),
+  };
+}
+
 test("comp maps needs_approval", async () => {
   const result = await admissionComp(
-    rpcAdmin(() => ({ ok: false, reason: "needs_approval" })),
+    compAdmin(() => ({ ok: false, reason: "needs_approval" })),
     {
       tenantId: "t1",
       sessionId: "s1",
@@ -156,7 +176,7 @@ test("20261231238000 consumes holds, keeps a converted seat taken, and frees it 
 test("comp hands the holder's customer to the RPC and reads the receipt code back", async () => {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const result = await admissionComp(
-    rpcAdmin((fn, args) => {
+    compAdmin((fn, args) => {
       calls.push({ fn, args });
       return { ok: true, id: "adm-1", order_id: "ord-1", line_id: "line-1", receipt_code: "cmp0123456789abcdef0123" };
     }),

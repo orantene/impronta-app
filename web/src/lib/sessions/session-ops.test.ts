@@ -7,6 +7,16 @@ import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "./s
 test("instructor scope is passed through and a cancelled session refuses", async () => {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const admin = {
+    // TUL-1517: the instructor is proven to be this tenant's staff before the RPC runs.
+    from: () => {
+      const b: Record<string, unknown> = {
+        select: () => b,
+        eq: () => b,
+        limit: () => b,
+        then: (resolve: (v: unknown) => void) => resolve({ data: [{ id: "m1" }], error: null }),
+      };
+      return b;
+    },
     rpc: async (fn: string, args: Record<string, unknown>) => {
       calls.push({ fn, args });
       return { data: { ok: false, reason: "already_cancelled" }, error: null };
