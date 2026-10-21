@@ -59,7 +59,9 @@ export async function applyPosCollectiveSplit(admin: Admin, input: { tenantId: s
       .select("id")
       .eq("order_id", input.orderId)
       .eq("source_tenant_id", input.tenantId)
-      .not("status", "in", `(${NON_MONEY_TRANSACTION_STATUSES.join(",")})`)
+      // Also frozen when paid_at is set whatever the status says: a sale can go paid -> payout_pending -> failed with paid_at
+      // still stamped, and that must read as PAID, never as "never paid".
+      .or(`status.not.in.(${NON_MONEY_TRANSACTION_STATUSES.join(",")}),paid_at.not.is.null`)
       .limit(1);
     if (tErr) return refuse(tErr);
     if ((taken ?? []).length > 0) return { ok: true, changed: 0 };

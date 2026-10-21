@@ -29,9 +29,12 @@ function fakeAdmin(tables: Record<string, Row[]>, opts: { failUpdate?: boolean }
         },
         limit: (n: number) => ((rows = rows.slice(0, n)), q),
         in: (c: string, vs: unknown[]) => ((rows = rows.filter((r) => vs.includes(r[c]))), q),
-        not: (c: string, op: string, v: string) => {
-          const set = v.replace(/^\(|\)$/g, "").split(",");
-          rows = rows.filter((r) => (op === "in" ? !set.includes(String(r[c])) : r[c] !== v));
+        or: (expr: string) => {
+          // status.not.in.(a,b,c),paid_at.not.is.null  (the only shape the freeze uses)
+          const m = expr.match(/^status\.not\.in\.\(([^)]*)\),paid_at\.not\.is\.null$/);
+          if (!m) throw new Error(`unsupported or(): ${expr}`);
+          const set = m[1]!.split(",");
+          rows = rows.filter((r) => !set.includes(String(r.status)) || r.paid_at != null);
           return q;
         },
         neq: (c: string, v: unknown) => ((rows = rows.filter((r) => r[c] !== v)), q),
@@ -138,6 +141,22 @@ describe("POS counter sales split like online ones (TUL-1467)", () => {
     }
   });
 
+  test("TUL-1718 P1: paid -> payout_pending -> failed with paid_at STILL SET reads as paid: frozen (a failed payout must not unfreeze a paid sale)", async () => {
+    const t = world();
+    t.booking_transactions = [{ id: "x1", order_id: "o1", source_tenant_id: "t1", status: "failed", paid_at: "2026-10-20T12:00:00Z" }];
+    const w = fakeAdmin(t);
+    assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 0 });
+    assert.equal(w.updates.length, 0);
+    for (const status of ["draft", "cancelled"]) {
+      const u = world();
+      u.booking_transactions = [{ id: "x2", order_id: "o1", source_tenant_id: "t1", status, paid_at: "2026-10-20T12:00:00Z" }];
+      assert.deepEqual(await applyPosCollectiveSplit(fakeAdmin(u).admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 0 }, `${status} with paid_at`);
+    }
+    const never = world();
+    never.booking_transactions = [{ id: "x3", order_id: "o1", source_tenant_id: "t1", status: "failed", paid_at: null }];
+    assert.deepEqual(await applyPosCollectiveSplit(fakeAdmin(never).admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 }, "failed and never paid: splits");
+  });
+
   test("TUL-1718: a cancelled attempt next to a paid one still freezes (one money row is enough); another sale's money never freezes this one", async () => {
     const t = world();
     t.booking_transactions = [
@@ -153,7 +172,7 @@ describe("POS counter sales split like online ones (TUL-1467)", () => {
   test("TUL-1703: a failed read of the payments refuses the collection (never splits blind)", async () => {
     const t = world();
     const w = fakeAdmin({ ...t, booking_transactions: undefined as never });
-    const failing = { from: (tb: string) => (tb === "booking_transactions" ? ({ select: () => ({ eq: () => ({ eq: () => ({ not: () => ({ limit: async () => ({ data: null, error: { message: "x" } }) }) }) }) }) }) : (w.admin as { from: (t: string) => unknown }).from(tb)) } as never;
+    const failing = { from: (tb: string) => (tb === "booking_transactions" ? ({ select: () => ({ eq: () => ({ eq: () => ({ or: () => ({ limit: async () => ({ data: null, error: { message: "x" } }) }) }) }) }) }) : (w.admin as { from: (t: string) => unknown }).from(tb)) } as never;
     assert.equal((await applyPosCollectiveSplit(failing, { tenantId: "t1", orderId: "o1" })).ok, false);
   });
 
