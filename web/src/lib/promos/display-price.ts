@@ -64,6 +64,8 @@ export function displayPrice(
   if (list <= 0 || promos.length === 0) return NONE(list, currency);
 
   const q = quote({
+    // A public price is for a bookable service page; the waiver only ever shows as a booking.
+    channel: "booking",
     cart: [{ id: offering.id, kind: offering.kind ?? "service", target_id: offering.id, list_cents: list, qty: 1, currency }],
     // A public price is for anyone browsing: a first-time visitor.
     client: { status: "new" },

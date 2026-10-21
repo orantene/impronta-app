@@ -1,3 +1,4 @@
+src/app/(public)/_services/business-service-view-dated.render.test.tsx
 src/app/(public)/_services/business-service-view.render.test.tsx
 src/app/(public)/book/book-availability.test.ts
 src/app/(public)/book/book-no-times.test.tsx
@@ -42,13 +43,16 @@ src/lib/client-account/flag.test.ts
 src/lib/client-account/guest-activate-pay-only.test.ts
 src/lib/client-account/guest-activate.test.ts
 src/lib/client-account/merge_verified_client_customers.migration.test.ts
+src/lib/client-account/my-reviews.test.ts
 src/lib/client-account/published-shell-account-chrome.test.ts
+src/lib/client-account/saved-talent.test.ts
 src/lib/client-account/signin-apple.static.test.ts
 src/lib/client-account/signin-methods.static.test.ts
 src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/events/venue-address.test.ts
+src/lib/match-me/rules.test.ts
 src/lib/offerings/business-catalog-scope.test.ts
 src/lib/offerings/business-catalog.test.ts
 src/lib/offerings/contract.test.ts
@@ -79,6 +83,11 @@ src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
 src/lib/service-hub/hub-rules.test.ts
 src/lib/service-hub/roster-visibility.test.ts
+src/lib/service-hub/roster-catalog.test.ts
+src/lib/service-hub/roster-dock.test.ts
+src/lib/service-hub/roster-grid.test.ts
+src/lib/service-hub/roster-request.test.ts
+src/lib/service-hub/roster-services.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
 src/lib/services/business-pages/page-model.test.ts
@@ -91,8 +100,10 @@ src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
+src/lib/site-admin/builder-node/roster-services-grid.render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
+src/lib/site-admin/sections/contact_form/strip-image-metadata.test.ts
 src/lib/site-admin/server/annotate-open-times.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts

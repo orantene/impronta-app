@@ -60,12 +60,13 @@ export function removeModeFor(o: Pick<TalentOffering, "status" | "firstPublished
 }
 
 /** The status pill: published, draft, or incomplete (a save would refuse). */
-export type CatalogStatus = "published" | "draft" | "incomplete";
+export type CatalogStatus = "published" | "draft" | "stopped" | "incomplete";
 
 export function itemStatus(o: TalentOffering): { status: CatalogStatus; problems: string[] } {
   const problems = validateOffering(o);
   if (problems.length > 0) return { status: "incomplete", problems };
-  return { status: o.status === "published" ? "published" : "draft", problems };
+  if (o.status === "published") return { status: "published", problems };
+  return { status: o.attributes?.stopped === true ? "stopped" : "draft", problems };
 }
 
 export type ListFilters = {

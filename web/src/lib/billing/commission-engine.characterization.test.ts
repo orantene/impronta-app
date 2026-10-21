@@ -36,6 +36,12 @@ import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// TUL-1366: the 1.5% customer-only model is the default now. This file
+// characterizes the LEGACY "included" call sequence, so it runs with the
+// explicit kill switch. The default-on path is covered by hub-fee.test.ts and
+// purchase-pass-through-collect.test.ts.
+process.env.COMMISSION_PROCESSING_PASS_THROUGH = "0";
+
 import {
   persistBookingCommissionSnapshot,
   loadBookingCommissionSnapshot,

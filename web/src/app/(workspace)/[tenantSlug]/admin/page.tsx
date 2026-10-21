@@ -10,7 +10,10 @@
  *
  * Read-only. Nothing here writes.
  */
+import { Suspense } from "react";
 import { headers } from "next/headers";
+
+import { WhatsNewCard } from "@/components/changelog/WhatsNewCard";
 
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -47,6 +50,12 @@ export default async function AdminPage({
     <>
       <OverviewSnapshotSyncer snapshot={snapshot} />
       <PageRouteSyncer page="overview" />
+      {/* TUL-1395: private dashboard only, streamed so it never blocks the Overview. */}
+      {scope && canView ? (
+        <Suspense fallback={null}>
+          <WhatsNewCard kind="business" tenantId={scope.tenantId} />
+        </Suspense>
+      ) : null}
     </>
   );
 }

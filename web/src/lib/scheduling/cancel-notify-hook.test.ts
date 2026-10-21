@@ -100,7 +100,10 @@ test("amounts unchanged: the result and every table touched are identical with a
   const quiet = await cancelBookingSet(b.admin, { ...base, by: "staff", nowMs: 1, notify: () => {} });
   assert.deepEqual(withHook, quiet);
   assert.equal(withHook.ok && withHook.refundableCents, 7300);
-  assert.deepEqual(a.writes, [], "the notice writes nothing to money or booking tables");
+  // The notice writes nothing; the writes are the owed-refund record (MONEY BUG 4)
+  // and the booking's service_fee_refundable flag (TUL-1366, decided once at cancel),
+  // never a ledger or order row and never an amount.
+  assert.deepEqual(a.writes, ["booking_refund_intents.insert", "agency_bookings.update"]);
   assert.deepEqual(a.reads, b.reads);
 });
 

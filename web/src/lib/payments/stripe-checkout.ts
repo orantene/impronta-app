@@ -49,6 +49,7 @@ import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccount
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
 import { checkTransactionConnectedAccount, type ConnectedAccountCheck } from "@/lib/payments/connected-account-guard";
+import { belowMinimumMessage, checkChargeMinimum } from "@/lib/payments/charge-minimums";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
@@ -228,6 +229,12 @@ export async function createCheckoutSessionForTransaction(
 
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
+    }
+    // P-10 / TUL-1549: an amount Stripe will refuse is refused HERE with a sentence, never
+    // waived to free. (Only a booking is ever free below the minimum, decided in the quote.)
+    const floor = checkChargeMinimum(input.amountCents, input.currency);
+    if (!floor.ok && floor.reason === "below_minimum") {
+      return { ok: false, error: belowMinimumMessage(floor.minimumMinor, floor.currency, input.locale), uncertain: false };
     }
 
     // TUL-483: refuse before Stripe work when the seller's connected account

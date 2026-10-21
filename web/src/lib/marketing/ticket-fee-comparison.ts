@@ -36,26 +36,6 @@ const EB_SERVICE_RATE = 0.037;
 const EB_SERVICE_FLAT = 1.79;
 const EB_PROCESSING_RATE = 0.029; // fee-config-ok: Eventbrite's published rate, not ours
 
-/**
- * Ours: one rate, every plan, card processing inside it.
- *
- * FALLBACK ONLY. This page must state the rate the platform actually charges,
- * which lives in `platform_commission_config.default_take_bps`, and callers
- * pass it in. This constant is what renders when that read fails, so a
- * config outage degrades to a slightly stale number rather than a blank
- * pricing page or a thrown error on a public route.
- *
- * It exists at all because a typed fee already shipped here once: the standing
- * rule is that every displayed price or fee reads from
- * `platform_commission_config` and never from a literal, and this page violated
- * it on the day the rule was made. `check-compare-table-drift` now fails if
- * this constant stops matching the live config, so the fallback cannot silently
- * become the wrong answer.
- */
-export const TULALA_RATE_FALLBACK = 0.06;
-/** The half added to the buyer. The seller carries the rest. */
-export const TULALA_BUYER_SHARE = 0.03;
-
 export type FeeRow = {
   faceValue: number;
   /** Total the ticket carries on Eventbrite, in dollars. */
@@ -76,11 +56,11 @@ function round2(n: number): number {
 }
 
 /**
- * @param tulalaRate the LIVE platform take as a fraction (0.06 for 600 bps).
- * Callers resolve it from `platform_commission_config`; omitting it falls back
- * to the constant above.
+ * @param tulalaRate the LIVE platform take as a fraction (a fraction, bps / 10000).
+ * Callers resolve it from the live fee decision (ticket-fee-rates.ts); there is
+ * no built-in default, a caller with no rate renders no table.
  */
-export function ticketFeeRows(tulalaRate: number = TULALA_RATE_FALLBACK): FeeRow[] {
+export function ticketFeeRows(tulalaRate: number): FeeRow[] {
   const ratePct = Math.round(tulalaRate * 1000) / 10;
   return [5, 10, 20, 50, 100].map((faceValue) => {
     const eventbrite = round2(

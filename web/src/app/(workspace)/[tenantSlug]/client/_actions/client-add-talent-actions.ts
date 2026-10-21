@@ -25,6 +25,7 @@ import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import { addTalentToRoster } from "@/lib/inquiry/inquiry-engine-roster";
 import { isMutablePhase } from "@/lib/inquiry/inquiry-lifecycle";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 export type ClientAddTalentResult = { ok: true } | { ok: false; error: string };
 
@@ -111,7 +112,7 @@ export async function clientAddTalentToInquiryAction(
         .eq("id", inqAfter.current_offer_id as string)
         .maybeSingle();
       if (off && (off.status === "invalidated" || off.status === "sent")) {
-        await admin.from("inquiry_messages").insert({
+        await insertInquiryMessage(admin, {
           inquiry_id: inquiryId,
           tenant_id: tenantId,
           thread_type: "private",

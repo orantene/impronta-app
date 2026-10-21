@@ -14,6 +14,7 @@ import { userHasCapability } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 export type SendAdminInquiryMessageResult = ServerActionResult<{
   id: string;
@@ -60,19 +61,15 @@ export async function sendAdminInquiryMessage(
     return { ok: false, error: "Inquiry not found in this workspace." };
   }
 
-  const { data, error: insertError } = await supabase
-    .from("inquiry_messages")
-    .insert({
-      inquiry_id: inquiryId,
-      thread_type: "private",
-      sender_user_id: user.id,
-      body: trimmed,
-      tenant_id: scope.tenantId,
-    })
-    .select("id, created_at")
-    .single();
+  const sent = await insertInquiryMessage(
+    supabase,
+    { inquiry_id: inquiryId, thread_type: "private", sender_user_id: user.id, body: trimmed, tenant_id: scope.tenantId },
+    { select: "id, created_at" },
+  );
+  const data = sent.data as { id: string; created_at: string } | null;
+  const insertError = sent.error;
 
-  if (insertError) {
+  if (insertError || !data) {
     logServerError("admin.thread.send", insertError);
     return { ok: false, error: "Could not send message." };
   }

@@ -24,6 +24,7 @@ import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link
 import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -137,21 +138,28 @@ export async function messagingCancelPaymentLink(input: { linkId: string }) {
  * engine answers `policy_keeps` / `not_cancellable` as a sentence; nothing
  * is refunded by itself. Reschedule needs a slot and lives on Appointments.
  */
-export async function messagingCancelBooking(input: { inquiryId: string; bookingId: string; reason: string }) {
+export async function messagingCancelBooking(input: {
+  inquiryId: string;
+  bookingId: string;
+  reason: string;
+  /** Who asked for the cancel (TUL-1366): a client who asked the desk is recorded as the CLIENT, never as staff. Default: the seller side. */
+  requestedBy?: "client" | "seller";
+}) {
   await requireNotImpersonating();
   const g = await staff();
   if (!g.ok) return g;
-  const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200) }).safeParse(input);
+  const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200), requestedBy: z.enum(["client", "seller"]).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const result = await cancelBookingSet(g.admin, {
     tenantId: g.tenantId,
     bookingId: parsed.data.bookingId,
     operationKey: `msg-cancel-${parsed.data.inquiryId}-${parsed.data.bookingId}`,
     reason: parsed.data.reason,
-    by: "staff",
+    by: parsed.data.requestedBy === "client" ? "client" : "staff",
     actorUserId: g.userId,
   });
   if (!result.ok) return { ok: false as const, reason: result.reason };
+  await settleCancelledBookingMoney(g.admin, { tenantId: g.tenantId, bookingId: parsed.data.bookingId, orderId: result.orderId });
   return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };
 }
 

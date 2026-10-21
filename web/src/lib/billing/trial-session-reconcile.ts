@@ -27,11 +27,17 @@
  * another trial session is already known open, otherwise keep it and log.
  */
 
+import { createTranslator } from "@/i18n/messages";
 import { TRIAL_SESSION_MARKER } from "./trial-checkout-session";
 import { TRIAL_PRICE_IDENTITY } from "./trial-price-identity";
 
 /** Shown when the race leaves this request without a usable checkout; a retry succeeds. */
 export const TRIAL_RACE_RETRY_ERROR = "Another checkout was opened at the same time. Please try again.";
+
+/** TUL-1412: the same message in the buyer's locale (catalog key admin.account.billing.trialRaceRetry). EN stays TRIAL_RACE_RETRY_ERROR. */
+export function trialRaceRetryError(locale?: string | null): string {
+  return createTranslator(locale ?? "en")("admin.account.billing.trialRaceRetry");
+}
 
 export type ReconcileSession = {
   id: string;
@@ -87,7 +93,7 @@ export async function reconcileTrialSession(
   stripe: ReconcileStripe | null,
   customerId: string,
   own: { id: string; url: string },
-  opts: { otherTrialKnownOpen: boolean; requestedPriceIdentity?: string | null; onError: OnError },
+  opts: { otherTrialKnownOpen: boolean; requestedPriceIdentity?: string | null; onError: OnError; locale?: string | null },
 ): Promise<{ url: string } | { error: string }> {
   if (!stripe) return { url: own.url };
 
@@ -98,7 +104,7 @@ export async function reconcileTrialSession(
     opts.onError("billing.trialSession.reconcileList", err);
     if (!opts.otherTrialKnownOpen) return { url: own.url };
     await expireWithRetry(stripe, own.id, opts.onError);
-    return { error: TRIAL_RACE_RETRY_ERROR };
+    return { error: trialRaceRetryError(opts.locale) };
   }
 
   const winner = pickTrialWinner(open);
@@ -110,9 +116,9 @@ export async function reconcileTrialSession(
   }
   // Not the winner (or already expired, e.g. a replayed idempotency key).
   if (open.some((s) => s.id === own.id)) await expireWithRetry(stripe, own.id, opts.onError);
-  if (!winner?.url) return { error: TRIAL_RACE_RETRY_ERROR };
+  if (!winner?.url) return { error: trialRaceRetryError(opts.locale) };
   // Wrong-price guard: a winner without an identity (older session) counts as a mismatch.
   const winnerIdentity = winner.metadata?.[TRIAL_PRICE_IDENTITY] ?? null;
-  if (opts.requestedPriceIdentity && winnerIdentity !== opts.requestedPriceIdentity) return { error: TRIAL_RACE_RETRY_ERROR };
+  if (opts.requestedPriceIdentity && winnerIdentity !== opts.requestedPriceIdentity) return { error: trialRaceRetryError(opts.locale) };
   return { url: winner.url };
 }

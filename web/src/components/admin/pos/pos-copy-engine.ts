@@ -46,6 +46,7 @@ export const ENGINE_REFUSAL_CODES = [
   "not_allowed",
   "no_customer",
   "item_unavailable",
+  "payment_required",
 ] as const;
 
 export function engineRefusalCopy(t: Translator): Readonly<Record<string, string>> {
@@ -81,6 +82,7 @@ export function engineRefusalCopy(t: Translator): Readonly<Record<string, string
     not_allowed: t(`${E}.refusal.not_allowed`),
     no_customer: t(`${E}.refusal.no_customer`),
     item_unavailable: t(`${E}.refusal.item_unavailable`),
+    payment_required: t(`${E}.refusal.payment_required`),
   };
 }
 

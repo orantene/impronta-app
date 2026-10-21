@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { FeeUnavailableError } from "@/lib/billing/pass-through-arming";
 import { collectForOrderPrincipal, resolveCheckoutCollectCents, resolveCollectForPrincipal } from "./purchase-collect";
 
 const MX = { percent: 0.036, fixed_cents: 300, tax_on_fee: 0.16 };
@@ -69,9 +70,12 @@ test("a deposit link (a part of the order) is inflated on ITS principal, not on 
   });
 });
 
-test("a failed order-lines read never guesses a fee: the link charges the principal", async () => {
+test("a failed order-lines read never guesses a fee: the link REFUSES (TUL-1366 fail closed)", async () => {
   await withEnv(true, async () => {
-    assert.equal(await collectForOrderPrincipal(admin("pass_through", { linesError: true }), { tenantId: "t", orderId: "o", orderCurrency: "MXN", principalCents: 100_000, subtotalCents: 100_000 }), 100_000);
+    await assert.rejects(
+      collectForOrderPrincipal(admin("pass_through", { linesError: true }), { tenantId: "t", orderId: "o", orderCurrency: "MXN", principalCents: 100_000, subtotalCents: 100_000 }),
+      FeeUnavailableError,
+    );
   });
 });
 

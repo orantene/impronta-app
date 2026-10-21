@@ -302,6 +302,18 @@ async function check_migration_drift() {
   }
 }
 
+// 7a) Held migrations (supabase/migrations/_pending_pm), TUL-1457. WARN only, never fails
+//     smoke: the folder is invisible to check-migrations-applied. Full table:
+//     node scripts/ci/held-migrations-report.mjs
+async function check_held_migrations() {
+  const { spawnSync } = await import("node:child_process");
+  const r = spawnSync("node", ["scripts/ci/held-migrations-report.mjs", "--summary"], { encoding: "utf8" });
+  const line = (r.stdout || "").trim().split("\n").pop();
+  if (r.status !== 0 || !line) return warn("held migrations", "report could not run");
+  if (/held migrations: 0$/.test(line)) return pass("no held migrations");
+  warn("held migrations", `${line.replace("held migrations: ", "")} (full table: node scripts/ci/held-migrations-report.mjs)`);
+}
+
 // 7b) Tenant taxonomy / directory data consistency. Two of the four root causes
 //     behind the 2026-08-09 "I save and nothing changes" incident were pure DATA
 //     states — talent holding services their own workspace had switched off, and
@@ -805,6 +817,7 @@ for (const check of [
   check_edge_region,
   check_alias_drift,
   check_migration_drift,
+  check_held_migrations,
   check_taxonomy_consistency,
   check_notification_routes,
   check_notification_crons,

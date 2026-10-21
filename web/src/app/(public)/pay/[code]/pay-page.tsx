@@ -20,6 +20,7 @@ import { payCalendarEvent } from "@/lib/payments/pay-calendar-event";
 import { resolvePaidLinkDisplayStatus } from "@/lib/payments/pay-refund-status";
 import { loadPayLinkFeeLines } from "@/lib/payments/pay-link-fee-lines";
 import { collectForOrderPrincipal } from "@/lib/orders/purchase-collect";
+import { FeeUnavailableError } from "@/lib/billing/pass-through-arming";
 import { resolveOrderPayeeName } from "@/lib/payments/payee-name";
 import { interpolate } from "@/i18n/interpolate";
 import { createTranslator } from "@/i18n/messages";
@@ -466,15 +467,40 @@ export async function PayByCodePage({
 
   // What the card will be charged: the SAME helper the checkout uses (never a second computation).
   // The part above the principal is the client service fee, shown as its own line.
-  const collectCents = loaded.tenantId
-    ? await collectForOrderPrincipal(admin, {
+  let collectCents = loaded.amountCents;
+  if (loaded.tenantId) {
+    try {
+      collectCents = await collectForOrderPrincipal(admin, {
         tenantId: loaded.tenantId,
         orderId: loaded.orderId,
         orderCurrency: orderRow?.currency ?? "",
         principalCents: loaded.amountCents,
         subtotalCents: Number(orderRow?.total_cents ?? 0),
-      })
-    : loaded.amountCents;
+      });
+    } catch (err) {
+      // TUL-1366: the service fee could not be confirmed. Show the "try again"
+      // state; never a pay button without the fee line.
+      if (!(err instanceof FeeUnavailableError)) throw err;
+      return (
+        <CheckoutView
+          code={code}
+          locale={uiLocale}
+          pathPrefix={pathPrefix}
+          slotKind={slotKind}
+          amountCents={loaded.amountCents}
+          currency={orderRow?.currency ?? ""}
+          expiresAt={expiresAtLabel}
+          zoneName={zoneName}
+          status="unknown"
+          lines={[]}
+          holdUntil={null}
+          stripeUrl={null}
+          threadHref={threadHref}
+          receiptHref={null}
+        />
+      );
+    }
+  }
   const serviceFeeCents = Math.max(0, collectCents - loaded.amountCents);
   const feeLines = await loadPayLinkFeeLines(admin, loaded.orderId, collectCents);
   return (

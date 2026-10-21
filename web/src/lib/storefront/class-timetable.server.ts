@@ -43,7 +43,15 @@ async function bind(locale: string | null | undefined): Promise<ClassTimetableDe
     createPurchase: (client, input) => createPurchase(client as SupabaseClient, input),
     createCheckout: (input) => createCheckoutSessionForTransaction(input),
     joinWaitlist: (client, input) => joinWaitlist(client as SupabaseClient, input),
-    acceptWaitlistOffer: (client, input) => acceptWaitlistOffer(client as SupabaseClient, input),
+    // TUL-1552: a paid session's place is bought (pending order + Checkout), never committed unpaid.
+    acceptWaitlistOffer: (client, input) =>
+      acceptWaitlistOffer(client as SupabaseClient, input, {
+        createPurchase: (c, purchase) => createPurchase(c as SupabaseClient, purchase),
+        createCheckout: (checkout) => createCheckoutSessionForTransaction(checkout),
+        origin,
+        locale: lang,
+        channel: "guest",
+      }),
   };
 }
 

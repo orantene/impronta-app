@@ -11,6 +11,7 @@ import {
   type WhatsAppWebhookMessage,
   type WhatsAppWebhookSession,
 } from "./types";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -221,9 +222,7 @@ async function handleMessage(admin: Admin, body: WhatsAppWebhookMessage): Promis
       });
   if (!inquiry) return { ok: false, reason: "unavailable" };
 
-  const { data: inserted, error } = await admin
-    .from("inquiry_messages")
-    .insert({
+  const { data: inserted, error } = await insertInquiryMessage(admin, {
       inquiry_id: inquiry.id,
       tenant_id: body.tenantId,
       thread_type: "group",
@@ -238,9 +237,7 @@ async function handleMessage(admin: Admin, body: WhatsAppWebhookMessage): Promis
       // Backfilled history would otherwise all default to now() and a decade
       // of chat would collapse into one timestamp, out of order.
       ...(body.sentAt ? { created_at: body.sentAt } : null),
-    })
-    .select("id")
-    .single();
+    });
   if (error || !inserted) {
     logServerError("channels.whatsapp.message", error);
     return { ok: false, reason: "unavailable" };
@@ -336,18 +333,14 @@ export async function handleWhatsAppWebhook(
   if ("kind" in raw && raw.kind === "ack") return handleAck(admin, raw);
   if ("kind" in raw && raw.kind === "session") return handleSession(admin, raw);
   if ("inquiryId" in raw && raw.inquiryId && raw.tenantId && raw.text) {
-    const { data, error } = await admin
-      .from("inquiry_messages")
-      .insert({
-        inquiry_id: raw.inquiryId,
-        tenant_id: raw.tenantId,
-        thread_type: "group",
-        message_kind: "text",
-        body: raw.text,
-        sender_user_id: null,
-      })
-      .select("id")
-      .single();
+    const { data, error } = await insertInquiryMessage(admin, {
+      inquiry_id: raw.inquiryId,
+      tenant_id: raw.tenantId,
+      thread_type: "group",
+      message_kind: "text",
+      body: raw.text,
+      sender_user_id: null,
+    });
     if (error || !data) return { ok: false, reason: "unavailable" };
     if (raw.providerRef) {
       await admin.from("message_delivery").upsert(
