@@ -18,7 +18,7 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 export async function POST(req: NextRequest) {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return Response.json({ error: readOnly.error }, { status: 403 });
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) {
     return NextResponse.json({ ok: false, error: auth.error }, { status: 401 });
   }

@@ -80,7 +80,7 @@ export async function actionCreateMediaFolder(
   shootDate?: string | null,
 ): Promise<ActionResult<MediaFolder>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const trimmed = name.trim();
@@ -132,7 +132,7 @@ export async function actionRenameMediaFolder(
   shootDate?: string | null,
 ): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const trimmed = name.trim();
@@ -172,7 +172,7 @@ export async function actionRenameMediaFolder(
 
 export async function actionDeleteMediaFolder(folderId: string): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -211,7 +211,7 @@ export async function actionAddAssetsToFolder(
   await requireNotImpersonating();
   if (assetIds.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -256,7 +256,7 @@ export async function actionRemoveAssetsFromFolder(
   await requireNotImpersonating();
   if (assetIds.length === 0) return { ok: true, data: null };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -308,7 +308,7 @@ export async function actionCreateFolderShareLink(
   expiryDays?: number,
 ): Promise<ActionResult<{ shareUrl: string; sharePath: string; token: string }>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -352,7 +352,7 @@ export async function actionCreateFolderShareLink(
 
 export async function actionRevokeFolderShareLink(folderId: string): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
@@ -388,7 +388,7 @@ export async function actionSetAssetTags(
   tags: string[],
 ): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const clean = [...new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
@@ -494,7 +494,7 @@ export async function actionSetAssetNote(
   note: string,
 ): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();
