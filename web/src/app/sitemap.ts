@@ -18,6 +18,7 @@ import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
 import { isChangelogPublicLaunch } from "@/lib/changelog/public-read";
+import { HELP_ARTICLES } from "@/lib/support/help-articles";
 import {
   FEATURE_HUB_PATHS,
   MARKETING_FEATURES,
@@ -351,6 +352,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       "/integrations",
       "/discover-agencies",
       "/help",
+      ...HELP_ARTICLES.map((a) => `/help/articles/${a.slug}`),
       "/legal/privacy",
       "/legal/terms",
       "/legal/cookies",
