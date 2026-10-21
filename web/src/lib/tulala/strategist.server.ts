@@ -18,6 +18,7 @@ import "server-only";
 
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { sanitizeAgentReply } from "./agent-guardrails";
@@ -71,7 +72,8 @@ export async function runStrategistTurn(
     return { ok: false, error: "No brief yet. Start with the Tulala Agent first." };
   }
 
-  const gate = await assertAiInvocationAllowed();
+  const aiTenantId = await resolveAiBillingTenantId();
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     return { ok: false, error: "Unavailable right now." };
   }
@@ -125,7 +127,7 @@ export async function runStrategistTurn(
     justLearned: learned.map((l) => ({ factKey: l.factKey, value: l.value })),
   });
 
-  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
+  afterResponse(() => recordAiUsageEstimate(aiTenantId).catch(() => {}));
 
   return {
     ok: true,

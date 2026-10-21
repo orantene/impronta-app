@@ -27,6 +27,9 @@ import {
 } from "@/lib/ai/ai-image-generation";
 import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GenerateNodeImageState =
@@ -56,6 +59,11 @@ export async function generateNodeImageAction(input: {
     return { ok: false, error: "Describe the image in a few words.", code: "BRIEF_TOO_SHORT" };
   }
 
+  // TUL-1624: the workspace's AI spend ceiling and request limits, checked BEFORE the paid call (the image quota below
+  // is a separate count; neither one replaces the other).
+  const aiGate = await assertAiInvocationAllowed(tenantId);
+  if (!aiGate.ok) return { ok: false, error: aiGate.message, code: aiGate.code === "rate_limit" ? "RATE_LIMITED" : aiGate.code.toUpperCase() };
+
   // Cost fuse #1 — the monthly cap, checked BEFORE the paid call.
   const quota = await checkImageQuota(tenantId);
   if (!quota.allowed) {
@@ -79,6 +87,8 @@ export async function generateNodeImageAction(input: {
       return { ok: false, error: "Made the image but couldn't save it. Try again.", code: "UPLOAD_FAILED" };
     }
     await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true });
+    // The spend ceiling already sees this image: recordImageGenerationUsage (above) rolls its cost into the workspace's
+    // monthly AI spend. Recording it again here would count every image twice.
     return {
       ok: true,
       url: uploaded.url,

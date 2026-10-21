@@ -26,6 +26,7 @@ import "server-only";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { streamOrFallback } from "@/lib/ai/stream";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { loadBrief, type BriefOwner } from "./brief-store.server";
@@ -109,7 +110,8 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
     return;
   }
 
-  const gate = await assertAiInvocationAllowed();
+  const aiTenantId = await resolveAiBillingTenantId();
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     yield {
       type: "error",
@@ -243,7 +245,7 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
     streamFailed = { code: "stream_failed", message: "The reply was interrupted." };
   }
 
-  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
+  afterResponse(() => recordAiUsageEstimate(aiTenantId).catch(() => {}));
 
   const guarded = sanitizeAgentReply(raw, { locale, move: move.kind });
 
