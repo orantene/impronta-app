@@ -42,8 +42,11 @@ describe("business service pages pass the host gate (TUL-1272 #5)", () => {
 
   it("flag ON: a nested CMS page under /services (no id8) still rewrites to the CMS", () => {
     process.env[FLAG] = "1";
-    assert.equal(isPathAllowedForHostKind("agency", "/services/photography"), false);
-    assert.equal(cmsRewrite("/services/photography"), "/p/services/photography");
+    // TUL-1594: a plain two-segment slug now reaches the business route as an old-slug candidate;
+    // the route redirects an old service slug or hands it to the CMS page it always was.
+    assert.equal(isPathAllowedForHostKind("agency", "/services/photography"), true);
+    // The proxy no longer rewrites it; business-service-route.tsx renders the CMS page when no old slug matches.
+    assert.equal(cmsRewrite("/services/photography"), null);
   });
 
   it("ruling 2026-10-19: business hosts only, never the hub; never other host kinds", () => {

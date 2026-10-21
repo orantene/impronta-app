@@ -105,6 +105,7 @@ src/lib/server-actions/admin-bookings-role-label.static.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts
+src/lib/service-hub/public-hub-request.test.ts
 src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts
