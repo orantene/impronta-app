@@ -15,7 +15,7 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { isStaffRole } from "@/lib/auth-flow";
+import { talentOnWorkspaceRoster } from "@/lib/scheduling/hours-roster-guard";
 import {
   parseBookingHours,
   parseHoursExceptions,
@@ -90,17 +90,22 @@ async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
 
   const isOwner = tp.user_id === session.user.id;
   const staff = await requireWorkspaceStaffAction();
-  const isStaff = staff.ok || (!!session.profile && isStaffRole(session.profile.app_role));
-  if (!isOwner && !staff.ok && !isStaff) return { ok: false, error: "Forbidden." };
+  // Staff act only on a talent of THEIR OWN workspace's roster; there is no platform-role fallback.
+  let staffOnRoster = false;
+  if (staff.ok) {
+    const admin = createServiceRoleClient();
+    staffOnRoster = !!admin && (await talentOnWorkspaceRoster(admin, staff.tenantId, talentProfileId));
+  }
+  if (!isOwner && !staffOnRoster) return { ok: false, error: "Forbidden." };
 
   return {
     ok: true,
     userId: session.user.id,
     isOwner,
-    isStaff: staff.ok,
-    staffTenantId: staff.ok ? staff.tenantId : null,
+    isStaff: staffOnRoster,
+    staffTenantId: staffOnRoster && staff.ok ? staff.tenantId : null,
     canEditHours: actorMayWriteHours(
-      { isOwner, isStaff: staff.ok },
+      { isOwner, isStaff: staffOnRoster },
       {
         profileKind: typeof tp.profile_kind === "string" ? tp.profile_kind : "person",
         userId: typeof tp.user_id === "string" ? tp.user_id : null,
