@@ -262,6 +262,7 @@ src/lib/scheduling/waitlist-offers.test.ts
 src/lib/scheduling/waitlist-paid-accept.test.ts
 src/lib/service-hub/work-style.server.test.ts
 src/lib/service-hub/work-style.test.ts
+src/lib/service-hub/listing-sellable-batch.server.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
