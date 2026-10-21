@@ -29,6 +29,9 @@ export type RentPlan = {
   acceptedCurrency: string | null;
   termsVersion: number;
   acceptedTermsVersion: number | null;
+  /** TUL-1601: automatic payments (absent = off) and the first month they charge. */
+  autopayStatus?: string;
+  autopayFirstPeriod?: string | null;
 };
 
 export type RentProposal = { monthlyRentCents: number; percentBps?: number; currency: string; startsOn: string };
@@ -87,6 +90,7 @@ export function zonedMonthStartUtc(period: string, tz: string = RENT_TZ): Date {
 }
 
 export type RentIssueRefusal =
+  | "autopay_on"
   | "month_not_closed"
   | "sales_unavailable"
   | "nothing_due"
@@ -123,6 +127,10 @@ export function decideRentIssue(input: {
 }): { ok: true; amountCents: number; currency: string } | { ok: false; reason: RentIssueRefusal } {
   const { plan, period, now } = input;
   if (!isRentPeriod(period)) return { ok: false, reason: "bad_period" };
+  // A month the subscription charges is never ALSO sent as a payment link (no double charge).
+  // 'pending' (Checkout opened, not completed) has no subscription yet and never blocks a link.
+  const autopayLive = ["active", "past_due", "paused"].includes(plan.autopayStatus ?? "off");
+  if (autopayLive && plan.autopayFirstPeriod && period >= plan.autopayFirstPeriod) return { ok: false, reason: "autopay_on" };
   if (plan.acceptedAt == null) return { ok: false, reason: "not_accepted" };
   if (plan.status !== "active") return { ok: false, reason: "not_active" };
   if (!validateRentProposal({ monthlyRentCents: plan.monthlyRentCents, percentBps: plan.percentBps, currency: plan.currency, startsOn: plan.startsOn }).ok) {

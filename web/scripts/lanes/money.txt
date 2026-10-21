@@ -298,6 +298,11 @@ src/lib/service-hub/listing.test.ts
 src/lib/service-hub/owner-hub-wire.static.test.ts
 src/lib/service-hub/public-hub.server.test.ts
 src/lib/service-hub/public-hub.test.ts
+src/lib/service-hub/rent/rent-autopay-apply.test.ts
+src/lib/service-hub/rent/rent-autopay-guards.test.ts
+src/lib/service-hub/rent/rent-autopay-migration.static.test.ts
+src/lib/service-hub/rent/rent-autopay-routing.test.ts
+src/lib/service-hub/rent/rent-autopay.test.ts
 src/lib/service-hub/rent/rent-cycle.test.ts
 src/lib/service-hub/rent/rent-issue.test.ts
 src/lib/service-hub/rent/rent-percent.test.ts
