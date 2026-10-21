@@ -5,7 +5,8 @@
  * capability })` (and `requireStaffTenantAction({ capability })`) do on a miss, which
  * would audit-spam every non-editor's Settings page.
  *
- * Behaviour is exercised through the `LoadVisiblePicksLinkDeps` injection seam (same
+ * Behaviour is exercised through the `LoadVisiblePicksLinkDeps` injection seam (now on the plain
+ * module `service-hub/load-visible-picks-link.ts`, TUL-1744, not on the exported server action) (same
  * pattern as `load-representation.test.ts`'s `LoadRepresentationDeps`): fakes for
  * `requireSession` / `getAdminWorkspaceScope` / `userHasCapability`. Production never
  * passes `deps`. The "never audits" guarantee itself is pinned at the source level in
@@ -18,7 +19,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
-import { loadVisiblePicksLink } from "./admin-visible-picks-link";
+import { loadVisiblePicksLinkWith as loadVisiblePicksLink } from "@/lib/service-hub/load-visible-picks-link";
 
 const TENANT_ID = "11111111-2222-3333-4444-555555555555";
 
@@ -54,7 +55,7 @@ test("a user WITHOUT agency.roster.edit gets no link, and the loader never impor
   // Source-level proof the capability miss above cannot reach an audit writer: this
   // module imports neither of the two functions in the codebase that write a
   // "permission denied" row.
-  const src = readFileSync(path.join(process.cwd(), "src/lib/server-actions/admin-visible-picks-link.ts"), "utf8");
+  const src = readFileSync(path.join(process.cwd(), "src/lib/service-hub/load-visible-picks-link.ts"), "utf8");
   assert.doesNotMatch(src, /requireWorkspaceStaffAction/);
   assert.doesNotMatch(src, /auditFailure/);
 });
