@@ -110,3 +110,12 @@ describe("no unverified fee is user-visible", () => {
     assert.deepEqual(hits, [], hits.join("\n"));
   });
 });
+
+describe("TUL-1061 follow-up: the plan feature list reads the fee from fee-config", () => {
+  it("renders the same words as before, from the configured rate", async () => {
+    const { APPROVED_TIER_TABLE } = await import("../access/plan-tier-table");
+    const text = JSON.stringify(APPROVED_TIER_TABLE);
+    assert.match(text, /Payments \(\+1\.5% client fee\)/);
+    assert.match(text, /Pagos \(\+1\.5% de cargo al cliente\)/);
+  });
+});
