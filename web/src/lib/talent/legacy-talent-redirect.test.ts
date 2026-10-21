@@ -54,6 +54,8 @@ test("every /talent/<segment> page has a tenant-branded /<slug>/talent/<segment>
   const root = join(process.cwd(), "src/app/(workspace)");
   const missing: string[] = [];
   for (const seg of readdirSync(join(root, "talent"))) {
+    // A catch-all folder (`[...missing]`) is not a segment of its own.
+    if (seg.startsWith("[...")) continue;
     if (!existsSync(join(root, "talent", seg, "page.tsx"))) continue;
     if (!existsSync(join(root, "[tenantSlug]/talent", seg, "page.tsx"))) missing.push(seg);
   }
