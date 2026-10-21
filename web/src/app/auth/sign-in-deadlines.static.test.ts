@@ -19,10 +19,12 @@ test("the password check is bounded and a timeout is a visible, translated error
 });
 
 test("every follow-up on the sign-in path is bounded", () => {
-  for (const name of ["claimAndActivateVerifiedClient", "loadAccessProfile", "resetLocaleOnSignIn", "claimGuestSupportOnAuth", "claimTulalaBriefOnAuth"]) {
+  for (const name of ["claimAndActivateVerifiedClient", "loadAccessProfile", "resetLocaleOnSignIn", "claimGuestSupportOnAuth", "claimTulalaBriefOnAuth", "auditTenantId", "postAuthContextForNext"]) {
     assert.match(signIn, new RegExp(`bounded\\(\\s*"${name}"`), `${name} is bounded`);
   }
   assert.doesNotMatch(signIn, /await claimAndActivateVerifiedClient\(/, "no bare await left");
+  assert.doesNotMatch(signIn, /await auditTenantId\(\)/, "no bare audit-tenant read left");
+  assert.doesNotMatch(signIn, /await postAuthContextForNext\(/, "no bare post-auth context read left");
 });
 
 test("a use-server file exports only async functions: the deadline constants stay private", () => {
@@ -31,8 +33,11 @@ test("a use-server file exports only async functions: the deadline constants sta
   assert.match(actions, /const SIGN_IN_FOLLOW_UP_DEADLINE_MS = 6_000/);
 });
 
-test("a timed-out profile read falls back to the no-profile route, never blocks the redirect", () => {
-  assert.match(signIn, /profileRead === TIMED_OUT \? null : profileRead/);
+test("a timed-out profile read is NOT treated as no profile: it goes to next or /, never to /onboarding/role", () => {
+  assert.match(signIn, /const profileTimedOut = profileRead === TIMED_OUT;/);
+  assert.match(signIn, /const profileData = profileTimedOut \? null : profileRead;/);
+  assert.match(signIn, /profileTimedOut\s*\? signInTimeoutDestination\(nextPath\)\s*: resolvePostAuthDestination\(profileData, nextPath, postAuthCtx\)/);
+  assert.match(signIn, /postAuthRead === TIMED_OUT \? \{\} : postAuthRead/, "a timed-out post-auth context means no extra context");
 });
 
 test("the form shows a slow-sign-in notice while pending, in both languages", () => {

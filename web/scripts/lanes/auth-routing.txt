@@ -26,6 +26,7 @@ src/lib/auth/otp-flow.test.ts
 src/lib/auth/post-auth-return.test.ts
 src/lib/auth/register-intent.test.ts
 src/lib/auth/return-host-kind.test.ts
+src/lib/auth/sign-in-timeout-destination.test.ts
 src/lib/auth/sign-out-audit.test.ts
 src/lib/auth/sign-out-clears-all-scopes.test.ts
 src/lib/auth/sign-out-order.test.ts

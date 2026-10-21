@@ -38,6 +38,7 @@ import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { withTimeout } from "@/lib/tulala/with-timeout";
+import { signInTimeoutDestination } from "@/lib/auth/sign-in-timeout-destination";
 import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 
@@ -195,7 +196,8 @@ export async function signInWithEmail(
       logServerError("auth/signInWithPassword", error);
     }
     if (isRejectedCredentials(error)) {
-      const tenantId = await auditTenantId();
+      const tenantRead = await bounded("auditTenantId", auditTenantId(), SIGN_IN_FOLLOW_UP_DEADLINE_MS);
+      const tenantId = tenantRead === TIMED_OUT ? null : tenantRead;
       if (tenantId) {
         scheduleWorkspaceAudit({
           tenantId,
@@ -239,11 +241,15 @@ export async function signInWithEmail(
     user ? bounded("claimGuestSupportOnAuth", claimGuestSupportOnAuth(user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
     user ? bounded("claimTulalaBriefOnAuth", claimTulalaBriefOnAuth(supabase, user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
   ]);
-  // A profile read that timed out routes like "no profile yet" (the same fallback as a missing row), never blocks sign-in.
-  const profileData = profileRead === TIMED_OUT ? null : profileRead;
+  // A profile read that timed out is "we do not know", NOT "no profile": it must not send a returning talent or staff
+  // member to /onboarding/role. It goes to the requested next (or "/"), which re-resolves. Only a read that ANSWERED
+  // with no row (null) keeps the no-profile routing.
+  const profileTimedOut = profileRead === TIMED_OUT;
+  const profileData = profileTimedOut ? null : profileRead;
 
   if (user) {
-    const tenantId = await auditTenantId();
+    const tenantRead = await bounded("auditTenantId", auditTenantId(), SIGN_IN_FOLLOW_UP_DEADLINE_MS);
+    const tenantId = tenantRead === TIMED_OUT ? null : tenantRead;
     if (tenantId) {
       scheduleWorkspaceAudit({
         tenantId,
@@ -263,15 +269,16 @@ export async function signInWithEmail(
   // does not exist on the marketing apex or the hub, where this form is also
   // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
-  const postAuthCtx = user ? await postAuthContextForNext(supabase, user.id, nextPath) : {};
-  redirect(
-    await hostSafeRedirectDestination(
-      supportDeskPostAuthDestination(
-        resolvePostAuthDestination(profileData, nextPath, postAuthCtx),
-        deskHost,
-      ),
-    ),
-  );
+  // Bounded like the rest: a timeout means "no extra context" ({}), the destination still resolves.
+  const postAuthRead =
+    user && !profileTimedOut
+      ? await bounded("postAuthContextForNext", postAuthContextForNext(supabase, user.id, nextPath), SIGN_IN_FOLLOW_UP_DEADLINE_MS)
+      : {};
+  const postAuthCtx = postAuthRead === TIMED_OUT ? {} : postAuthRead;
+  const destination = profileTimedOut
+    ? signInTimeoutDestination(nextPath)
+    : resolvePostAuthDestination(profileData, nextPath, postAuthCtx);
+  redirect(await hostSafeRedirectDestination(supportDeskPostAuthDestination(destination, deskHost)));
 }
 
 export type SignInModalState = { ok: true } | { ok: false; error: string } | null;
