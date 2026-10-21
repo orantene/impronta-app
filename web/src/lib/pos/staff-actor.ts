@@ -29,7 +29,12 @@ export async function posStaffOrInquiryManager(
   capability: PosStaffCapability = "booking.payment.request",
 ) {
   if (inquiryId) {
-    const mgr = await requireInquiryManagerAction(inquiryId);
+    // TUL-1742: forward the caller's capability to the staff fast-path only
+    // (requireInquiryManagerAction never applies it to the appointed-
+    // coordinator branch) — a bare call here let any staff member with just
+    // `agency.workspace.view` slip through as "staff" and add POS lines,
+    // the same bug class as TUL-1708's requireInquiryManagerAction P1 fix.
+    const mgr = await requireInquiryManagerAction(inquiryId, { capability });
     if (mgr.ok) {
       const admin = createServiceRoleClient();
       if (!admin) return { ok: false as const, error: "unavailable" as const };

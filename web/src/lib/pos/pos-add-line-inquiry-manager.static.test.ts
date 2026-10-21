@@ -20,6 +20,8 @@ test("posAddLine accepts inquiryId and gates via posStaffOrInquiryManager", () =
   assert.match(body, /inquiryId\?:/);
   assert.match(body, /inquiryId: uuid\.nullable\(\)\.optional\(\)/);
   assert.match(body, /posStaffOrInquiryManager\(parsed\.data\.inquiryId\)/);
-  assert.match(actor, /requireInquiryManagerAction\(inquiryId\)/);
+  // TUL-1742: the staff fast-path now takes the caller's capability instead
+  // of a bare call (the appointed-coordinator path below stays untouched).
+  assert.match(actor, /requireInquiryManagerAction\(inquiryId, \{ capability \}\)/);
   assert.match(actor, /return posStaff\(/);
 });

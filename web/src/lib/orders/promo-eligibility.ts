@@ -15,9 +15,10 @@
  * `orders.discount_cents` is the order-level total and IS the truth — it is
  * what the CHECK constraint balances (`total = subtotal - discount + tax`) and
  * what the customer was charged. Per-line eligibility is an INPUT to it, never
- * a second copy. `order_lines` has no discount column and this does not add
- * one; a line's share is DERIVED on demand by `apportionDiscount` so the two
- * can never disagree.
+ * a second copy. A line may also carry its OWN discount (`order_lines.discount_cents`,
+ * already part of the order-level figure): `lineNetCents` takes that off the line
+ * first and spreads only what is left, with `apportionDiscount`, so the two can
+ * never disagree. A line's share is DERIVED on demand, never stored.
  */
 
 export type PromoScope = {
@@ -34,6 +35,8 @@ export type PromoScope = {
 export type EligibleLine = {
   id: string;
   totalCents: number;
+  /** The line's OWN discount (order_lines.discount_cents), taken off this line before the order discount is spread. */
+  discountCents?: number;
   eventId?: string | null;
   variantId?: string | null;
   /**
@@ -115,4 +118,23 @@ export function apportionDiscount(
 
   const shares = new Map(floors.map((f) => [f.id, f.share]));
   return all.map((l) => ({ id: l.id, shareCents: shares.get(l.id) ?? 0 }));
+}
+
+/**
+ * What each line actually cost the customer, NET of discounts (before refunds). THE shared netting rule (refunds and the
+ * rent sales base both use it, so they can never disagree): a line's own `discountCents` comes off that line first (never
+ * more than the line); only what is LEFT of the order discount (`orders.discount_cents` minus the sum of the lines' own
+ * discounts, never below zero) is spread over the lines with `apportionDiscount` (largest remainder, scope-aware).
+ * The nets of all lines add up to the order's subtotal minus its discount, to the cent.
+ */
+export function lineNetCents(
+  lines: readonly EligibleLine[],
+  scope: PromoScope,
+  orderDiscountCents: number,
+): Map<string, number> {
+  const own = (l: EligibleLine) => Math.min(Math.max(0, l.discountCents ?? 0), Math.max(0, l.totalCents));
+  const afterOwn = lines.map((l) => ({ ...l, totalCents: l.totalCents - own(l) }));
+  const leftover = Math.max(0, Math.max(0, orderDiscountCents) - lines.reduce((sum, l) => sum + own(l), 0));
+  const shares = new Map(apportionDiscount(afterOwn, scope, leftover).map((x) => [x.id, x.shareCents]));
+  return new Map(lines.map((l) => [l.id, Math.max(0, l.totalCents - own(l) - (shares.get(l.id) ?? 0))]));
 }

@@ -30,7 +30,10 @@ function sliceExport(src: string, name: string, nextNames: string[]) {
 }
 
 function assertSellerFallbackGate(body: string) {
-  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId\)/);
+  // TUL-1742: reads stay bare (viewer default); writes now pass the
+  // capability they need (same bug class as TUL-1708's
+  // requireInquiryManagerAction P1 fix) — accept either form here.
+  assert.match(body, /messagingInquiryManager\(parsed\.data\.inquiryId(?:, WRITE_CAP\.\w+)?\)/);
   assert.match(body, /talentSellerPaymentActor\(parsed\.data\.inquiryId\)/);
   assert.doesNotMatch(body, /const g = await staff\(\)/);
 }

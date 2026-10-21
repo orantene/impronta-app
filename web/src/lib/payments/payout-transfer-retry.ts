@@ -53,6 +53,37 @@ export type LegTransferResult =
   | { kind: "unverified" } // the list could not be read, or the leg was flagged reversed: not retried
   | { kind: "failed"; message: string; note: string };
 
+export type ExistingLegTransfer =
+  | { kind: "none" }
+  | { kind: "existing"; transferId: string }
+  | { kind: "reversed"; transferId: string }
+  | { kind: "unreadable" };
+
+/**
+ * Is there already a Stripe transfer for this leg? Matched by the booking's transfer_group (`booking_<id>`)
+ * plus metadata participant_id / party, which every transfer path has written since Money P3. A transfer Stripe
+ * made but our ledger never recorded (a crash between the two) is found here, whatever amount it was made for and
+ * whether or not Stripe's 24h idempotency window has lapsed (TUL-1746). A reversed one (fully or partly) still
+ * counts as existing; an unreadable list is "unreadable", never "none". A client without `transfers.list` (a test
+ * double) reads as none: the real Stripe client always has it.
+ */
+export async function findExistingLegTransfer(
+  stripe: Pick<Stripe, "transfers">,
+  ref: { bookingId: string; participantId: string; party: string },
+): Promise<ExistingLegTransfer> {
+  if (typeof stripe.transfers.list !== "function") return { kind: "none" };
+  try {
+    const listed = await stripe.transfers.list({ transfer_group: `booking_${ref.bookingId}`, limit: 100 });
+    const found = listed.data.find((t) => t.metadata?.participant_id === ref.participantId && t.metadata?.party === ref.party);
+    if (!found) return { kind: "none" };
+    return found.reversed || (found.amount_reversed ?? 0) > 0
+      ? { kind: "reversed", transferId: found.id }
+      : { kind: "existing", transferId: found.id };
+  } catch {
+    return { kind: "unreadable" };
+  }
+}
+
 export async function attemptLegTransfer(
   stripe: Pick<Stripe, "transfers">,
   leg: {
@@ -71,20 +102,15 @@ export async function attemptLegTransfer(
   // Flagged earlier: a person decides, not the cron.
   if ((leg.lastError ?? "").includes(REVERSED_NOTE)) return { kind: "unverified" };
   const attempt = keyAttemptOf(leg.lastError);
-  if (attempt > 0) {
-    // A new key could duplicate a transfer made under an older key: look first.
-    try {
-      const listed = await stripe.transfers.list({ transfer_group: `booking_${leg.bookingId}`, limit: 100 });
-      const found = listed.data.find((t) => t.metadata?.participant_id === leg.participantId && t.metadata?.party === leg.party);
-      if (found && (found.reversed || (found.amount_reversed ?? 0) > 0)) {
-        const message = `a transfer for this leg (${found.id}) was reversed on Stripe; not paid again`;
-        return { kind: "failed", message, note: `${message} [${REVERSED_NOTE}]` };
-      }
-      if (found) return { kind: "existing", transferId: found.id };
-    } catch {
-      return { kind: "unverified" };
-    }
+  // Look BEFORE every create, not only after a refusal (TUL-1746): the first attempt can also follow a transfer
+  // Stripe made and our ledger lost, and a changed amount or a lapsed key window would otherwise pay it twice.
+  const existing = await findExistingLegTransfer(stripe, leg);
+  if (existing.kind === "reversed") {
+    const message = `a transfer for this leg (${existing.transferId}) was reversed on Stripe; not paid again`;
+    return { kind: "failed", message, note: `${message} [${REVERSED_NOTE}]` };
   }
+  if (existing.kind === "existing") return { kind: "existing", transferId: existing.transferId };
+  if (existing.kind === "unreadable") return { kind: "unverified" };
   try {
     const transfer = await stripe.transfers.create(
       {

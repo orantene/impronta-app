@@ -22,13 +22,28 @@ const bodyOf = (src: string, name: string) => {
   return src.slice(ex[i]!.at, i + 1 < ex.length ? ex[i + 1]!.at : src.length);
 };
 
-const MODULES: Array<{ file: string; writers: Record<string, keyof typeof MESSAGING_EXTRAS_WRITE_CAPABILITY>; reads: string[]; gatedByPermission?: string[] }> = [
+const MODULES: Array<{
+  file: string;
+  writers: Record<string, keyof typeof MESSAGING_EXTRAS_WRITE_CAPABILITY>;
+  reads: string[];
+  gatedByPermission?: string[];
+  /** Writers gated by the shared messaging WRITE_CAP map (@/lib/messaging/write-capabilities), not EXTRAS_CAP. */
+  gatedByMessagingWriteCapability?: string[];
+}> = [
   {
     file: "src/lib/server-actions/messaging-sheets.ts",
     writers: { messagingRetryDelivery: "retryDelivery", messagingReviseOffer: "reviseOffer", messagingCancelPaymentLink: "cancelPaymentLink", messagingCancelBooking: "cancelBooking", messagingThreadLink: "threadLink" },
     reads: ["messagingLoadHandOverTargets", "messagingLoadDelivery", "messagingLoadSnapshots", "messagingLoadOffers", "messagingLoadBasketDiff", "messagingLoadContextLines"],
   },
-  { file: "src/lib/server-actions/messaging-start.ts", writers: { messagingStartConversation: "startConversation" }, reads: [/* messagingCreateClientForThread is owned by TUL-1742 (edit_client_relationship) */ "messagingCreateClientForThread"] },
+  {
+    file: "src/lib/server-actions/messaging-start.ts",
+    writers: { messagingStartConversation: "startConversation" },
+    reads: [],
+    // messagingCreateClientForThread (TUL-1742): creates a client record + sets
+    // identity, gated via messagingInquiryManager(id, WRITE_CAP.createClient) —
+    // the shared messaging-engine capability map, not this file's EXTRAS_CAP.
+    gatedByMessagingWriteCapability: ["messagingCreateClientForThread"],
+  },
   { file: "src/lib/server-actions/messaging-confirm.ts", writers: { messagingConfirmRecord: "confirmRecord" }, reads: [] },
   {
     file: "src/lib/server-actions/messaging-money-actions.ts",
@@ -42,14 +57,21 @@ const MODULES: Array<{ file: string; writers: Record<string, keyof typeof MESSAG
 test("every writer in these modules requires its capability; every export is classified", () => {
   for (const m of MODULES) {
     const src = read(m.file);
-    const known = new Set([...Object.keys(m.writers), ...m.reads, ...(m.gatedByPermission ?? [])]);
+    const known = new Set([...Object.keys(m.writers), ...m.reads, ...(m.gatedByPermission ?? []), ...(m.gatedByMessagingWriteCapability ?? [])]);
     const unknown = exportsIn(src).map((e) => e.name).filter((n) => !known.has(n));
-    assert.deepEqual(unknown, [], `${m.file}: classify these exports (writer with a capability, read, or permission-gated)`);
+    assert.deepEqual(unknown, [], `${m.file}: classify these exports (writer with a capability, read, permission-gated, or gated by the shared messaging WRITE_CAP map)`);
     for (const [fn, key] of Object.entries(m.writers)) {
       const body = bodyOf(src, fn);
       assert.match(body, new RegExp(`EXTRAS_CAP\\.${key}\\b`), `${fn} must require MESSAGING_EXTRAS_WRITE_CAPABILITY.${key}`);
     }
     for (const fn of m.gatedByPermission ?? []) assert.match(bodyOf(src, fn), /requirePermission\(/, `${fn} keeps its requirePermission gate`);
+    for (const fn of m.gatedByMessagingWriteCapability ?? []) {
+      assert.match(
+        bodyOf(src, fn),
+        /WRITE_CAP\.\w+/,
+        `${fn} must source its capability from the shared messaging WRITE_CAP map (TUL-1742), not EXTRAS_CAP`,
+      );
+    }
   }
 });
 

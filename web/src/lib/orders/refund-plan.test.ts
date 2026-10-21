@@ -277,3 +277,80 @@ test("TUL-469: tip that does not fit must not refuse the line remainder", () => 
   assert.equal(plan.totalCents, 70_000);
   assert.deepEqual(plan.steps, [{ transactionId: "t1", amountCents: 70_000 }]);
 });
+
+// ── Line-level discounts (the shared netting rule, also used by the rent sales base) ─────────────────────────────────
+
+const lineD = (id: string, total: number, discountCents: number, refunded = 0) =>
+  ({ id, totalCents: total, refundedCents: refunded, discountCents, variantId: null, eventId: null });
+
+test("TWO-LINE EXAMPLE: a line's own discount comes off that line first, the order discount spreads only what is left", () => {
+  // A 10,000 with its own 1,000 off; B 10,000 with none; order discount 3,000 in total.
+  // leftover = 3,000 - 1,000 = 2,000, spread over the after-own totals 9,000 and 10,000 (largest remainder): 947 and 1,053.
+  const lines = [lineD("a", 10_000, 1_000), lineD("b", 10_000, 0)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 3_000), 8_053);
+  assert.equal(refundableCentsFor(lines[1], lines, {}, 3_000), 8_947);
+  // the two nets add up to what the customer paid: 20,000 - 3,000
+  assert.equal(8_053 + 8_947, 20_000 - 3_000);
+});
+
+test("the old behaviour (whole order discount spread, own discount ignored) is NOT what refunds do any more", () => {
+  const lines = [lineD("a", 10_000, 1_000), lineD("b", 10_000, 0)];
+  // spreading all 3,000 over 10,000/10,000 would give 8,500 each; line a really cost 8,053
+  assert.notEqual(refundableCentsFor(lines[0], lines, {}, 3_000), 8_500);
+});
+
+test("a refund plan on a discounted two-line order refunds per line what each line cost, and a full refund returns exactly what was paid", () => {
+  const lines = [lineD("a", 10_000, 1_000), lineD("b", 10_000, 0)];
+  const plan = planRefund({ lines, lineIds: ["a", "b"], scope: {}, discountCents: 3_000, transactions: [txn("t1", 17_000)] });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.equal(plan.totalCents, 17_000);
+});
+
+test("partial refunds reduce the NET line, and never go below zero", () => {
+  const lines = [lineD("a", 10_000, 1_000, 3_000), lineD("b", 10_000, 0)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 3_000), 8_053 - 3_000);
+  assert.equal(refundableCentsFor(lineD("a", 10_000, 1_000, 99_999), [lineD("a", 10_000, 1_000, 99_999)], {}, 0), 0);
+});
+
+test("no line discounts: unchanged from before (the order discount spreads over the lines)", () => {
+  const lines = [line("a", 10_000), line("b", 10_000)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 3_000), 8_500);
+  assert.equal(refundableCentsFor(lines[1], lines, {}, 3_000), 8_500);
+});
+
+test("LEGACY partly refunded order (refunded under the old rule): the remainder is clamped to the charge, never refused, nothing left behind", () => {
+  // a 10,000 (own discount 1,000) already refunded 8,500 under the OLD rule (whole 3,000 spread over 10,000/10,000);
+  // exact net of a is now 8,053, b nets 8,947; the charge was 17,000 and 8,500 of it has already gone back.
+  const lines = [lineD("a", 10_000, 1_000, 8_500), lineD("b", 10_000, 0)];
+  const plan = planRefund({ lines, lineIds: ["b"], scope: {}, discountCents: 3_000, transactions: [txn("t1", 17_000, 8_500)] });
+  assert.equal(plan.ok, true, "never refused with exceeds_captured");
+  if (!plan.ok) return;
+  assert.equal(plan.totalCents, 8_500, "b gets exactly what is left on the charge");
+  assert.deepEqual(plan.steps, [{ transactionId: "t1", amountCents: 8_500 }]);
+  assert.equal(plan.isFullRefund, true, "the capture is drained: the order counts as fully refunded");
+});
+
+test("LEGACY clamp includes the tip: a drained charge leaves nothing to refund on top, and nothing is refused", () => {
+  const lines = [lineD("a", 10_000, 1_000, 8_500), lineD("b", 10_000, 0)];
+  const plan = planRefund({ lines, lineIds: ["b"], scope: {}, discountCents: 3_000, tipCents: 500, transactions: [txn("t1", 17_500, 8_500)] });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  // lines + tip were captured (17,500): the remaining 9,000 = b's clamped 8,500 line share... the tip rides along when fully refunded
+  assert.ok(plan.totalCents <= 17_500 - 8_500);
+  assert.ok(plan.totalCents >= 8_500);
+});
+
+test("a shortfall the old rule does NOT explain is still a charge/line mismatch (exceeds_captured)", () => {
+  const lines = [lineD("a", 10_000, 1_000, 0), lineD("b", 10_000, 0)];
+  const plan = planRefund({ lines, lineIds: ["b"], scope: {}, discountCents: 3_000, transactions: [txn("t1", 17_000, 12_000)] });
+  assert.equal(plan.ok, false);
+  assert.equal(!plan.ok && plan.reason, "exceeds_captured");
+});
+
+test("scope plus a line discount: a tier-scoped code spreads only over the covered lines, after the line's own discount", () => {
+  const vip = { id: "vip", totalCents: 10_000, refundedCents: 0, discountCents: 1_000, variantId: "v", eventId: null };
+  const ga = { id: "ga", totalCents: 5_000, refundedCents: 0, discountCents: 0, variantId: "g", eventId: null };
+  assert.equal(refundableCentsFor(vip, [vip, ga], { variantId: "v" }, 3_000), 10_000 - 1_000 - 2_000);
+  assert.equal(refundableCentsFor(ga, [vip, ga], { variantId: "v" }, 3_000), 5_000);
+});

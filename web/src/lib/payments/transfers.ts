@@ -20,8 +20,8 @@
  * Until then this runs harmlessly in skip/mock mode.
  */
 
-import { bookingRefundTotals, legCentsNetOfRefunds, type BookingTxnRow } from "./balance-payout-refund-net";
-import { holdChannelReferralLeg, legAlreadyTransferred, refundInFlightReason } from "./transfer-guards";
+import { LEDGER_UNREADABLE_ERROR_PREFIX, bookingRefundTotals, legCentsNetOfRefunds, type BookingTxnRow } from "./balance-payout-refund-net";
+import { holdChannelReferralLeg, readLegLedgerState, refundInFlightReason } from "./transfer-guards";
 import { legLastError } from "./connect-lane-attention";
 import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
 import { decideLegPlatform } from "@/lib/stripe/account-routing";
@@ -412,8 +412,11 @@ export async function executeBookingTransfers(
       const feeHeld = isPassThrough && ppFeeHoldReason !== null;
       // Why this snapshot's legs are held instead of paid: a refund in flight (TUL-1746) or an unknown
       // processing fee. Both record zero-amount held legs that the retry cron re-runs from scratch.
-      const legHoldReason: string | null = refundHoldReason ?? (feeHeld ? ppFeeHoldReason : null);
-      const legHoldStatus = refundHoldReason ? ("skipped_refund_pending" as const) : ("skipped_fee_unknown" as const);
+      // An unreadable ledger holds too (retryable prefix), so nothing is paid blind and nothing strands.
+      const ledger = await readLegLedgerState(sb, bookingId, snap.participant_id);
+      const ledgerHold = ledger.unreadable ? `${LEDGER_UNREADABLE_ERROR_PREFIX}: payout ledger could not be read; payout held and retried` : null;
+      const legHoldReason: string | null = ledgerHold ?? refundHoldReason ?? (feeHeld ? ppFeeHoldReason : null);
+      const legHoldStatus = ledgerHold ? ("skipped_ledger_unreadable" as const) : refundHoldReason ? ("skipped_refund_pending" as const) : ("skipped_fee_unknown" as const);
       let talentAmountCents = snap.talent_net_cents;
       let workspaceAmountCents = snap.workspace_fee_cents;
       let legFeeCents: number | null = null;
@@ -578,7 +581,7 @@ export async function executeBookingTransfers(
       if (
         legHoldReason !== null &&
         snap.talent_net_cents > 0 &&
-        !(await legAlreadyTransferred(sb, bookingId, snap.participant_id, "talent"))
+        !ledger.transferred.has("talent")
       ) {
         outcomes.push({
           party: "talent",
@@ -609,7 +612,7 @@ export async function executeBookingTransfers(
         });
       } else if (
         talentAmountCents > 0 &&
-        !(await legAlreadyTransferred(sb, bookingId, snap.participant_id, "talent"))
+        !ledger.transferred.has("talent")
       ) {
         const rail: PayoutRail = talentRail;
         let route: DisburseRoute;
@@ -668,7 +671,7 @@ export async function executeBookingTransfers(
         legHoldReason !== null &&
         isWorkspaceOwned &&
         snap.workspace_fee_cents > 0 &&
-        !(await legAlreadyTransferred(sb, bookingId, snap.participant_id, "workspace"))
+        !ledger.transferred.has("workspace")
       ) {
         outcomes.push({
           party: "workspace",
@@ -700,7 +703,7 @@ export async function executeBookingTransfers(
       } else if (
         isWorkspaceOwned &&
         workspaceAmountCents > 0 &&
-        !(await legAlreadyTransferred(sb, bookingId, snap.participant_id, "workspace"))
+        !ledger.transferred.has("workspace")
       ) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
         const outcome = await payLeg(
@@ -745,18 +748,18 @@ export async function executeBookingTransfers(
       const channelReferralCents = snap.channel_referral_cents ?? 0;
       const channelReferralPartyId = snap.channel_referral_party_id ?? null;
       if (
-        refundHoldReason !== null &&
+        (ledgerHold ?? refundHoldReason) !== null &&
         channelReferralCents > 0 &&
         channelReferralPartyId &&
-        !(await legAlreadyTransferred(sb, bookingId, snap.participant_id, "channel_referral"))
+        !ledger.transferred.has("channel_referral")
       ) {
         outcomes.push(
-          await holdChannelReferralLeg(sb, { bookingId, transactionId, participantId: snap.participant_id, owningPartyType: snap.owning_party_type, owningPartyId: snap.owning_party_id, channelPartyId: channelReferralPartyId, currency, reason: refundHoldReason }),
+          await holdChannelReferralLeg(sb, { bookingId, transactionId, participantId: snap.participant_id, owningPartyType: snap.owning_party_type, owningPartyId: snap.owning_party_id, channelPartyId: channelReferralPartyId, currency, reason: (ledgerHold ?? refundHoldReason)!, status: ledgerHold ? "skipped_ledger_unreadable" : "skipped_refund_pending" }),
         );
       } else if (
         channelReferralCents > 0 &&
         channelReferralPartyId &&
-        !(await legAlreadyTransferred(sb, bookingId, snap.participant_id, "channel_referral"))
+        !ledger.transferred.has("channel_referral")
       ) {
         const accountId = await resolveWorkspaceAccount(channelReferralPartyId);
         const outcome = await payLeg(
@@ -810,7 +813,8 @@ export async function executeBookingTransfers(
         o.status === "skipped_no_account" ||
         o.status === "skipped_live_disabled" ||
         o.status === "skipped_fee_unknown" ||
-        o.status === "skipped_refund_pending",
+        o.status === "skipped_refund_pending" ||
+        o.status === "skipped_ledger_unreadable",
     );
     if (pending.length) {
       logServerError(

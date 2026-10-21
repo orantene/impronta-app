@@ -281,6 +281,7 @@ src/lib/pos/reprice-item-availability.test.ts
 src/lib/pos/scan-code.test.ts
 src/lib/pos/shift-movements.test.ts
 src/lib/pos/shift.test.ts
+src/lib/pos/staff-actor.static.test.ts
 src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
