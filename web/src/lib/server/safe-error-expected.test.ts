@@ -24,7 +24,8 @@ test("logServerExpected never captures to Sentry and never emits server_error", 
 
 test("a rejected password is logged as expected, other sign-in errors stay errors", () => {
   const fn = actions.slice(actions.indexOf("supabase.auth.signInWithPassword("));
-  const block = fn.slice(0, fn.indexOf("return {"));
+  // TUL-1784: the call is bounded and may return early on a timeout, so the block runs to the follow-up audit read.
+  const block = fn.slice(0, fn.indexOf('bounded("auditTenantId"'));
   assert.ok(block.includes('logServerExpected("auth/signInWithPassword", error)'));
   assert.ok(block.includes('logServerError("auth/signInWithPassword", error)'));
   assert.ok(

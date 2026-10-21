@@ -59,6 +59,11 @@ export function catalogWordForLocale(id: CatalogWordId, locale: string): string 
   return isSpanish(locale) ? w.es : w.en;
 }
 
+/** True when `segment` is one of the catalog words in either language (`servicios`, `services`, `tours` ...). */
+export function isCatalogWordSegment(segment: string | null | undefined): boolean {
+  return !!segment && wordFromSegment(segment) !== null;
+}
+
 /** Every spelling of every word: all of them are reserved against slugs. */
 export function reservedCatalogWords(): string[] {
   return [...new Set(CATALOG_WORDS.flatMap((w) => [w.en, w.es]))];

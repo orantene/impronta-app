@@ -1,3 +1,4 @@
+import { offeringWhereFromAttributes, type OfferingDeliveryWhere } from "@/lib/talent/offering-request-detail";
 import type {
   OfferingReserveMode,
   TalentOffering,
@@ -17,6 +18,11 @@ export type BookableOffering = {
    */
   reserveMode?: OfferingReserveMode;
   allowPayInPerson?: boolean;
+  /**
+   * TUL-841: where the service happens (`attributes.where`). "client" means the
+   * server will demand an address, so the composer must ask for it too.
+   */
+  where?: OfferingDeliveryWhere[];
 };
 
 /** An offering that can actually produce public slots (duration + not a product). */
@@ -44,5 +50,6 @@ export function pickBookableOffering(
     requireAccountToBook: pick.requireAccountToBook === true,
     reserveMode: pick.reserveMode,
     allowPayInPerson: pick.allowPayInPerson === true,
+    where: offeringWhereFromAttributes(pick.attributes),
   };
 }

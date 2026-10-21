@@ -31,6 +31,7 @@ src/lib/ai/booking-assistant/model.test.ts
 src/lib/ai/booking-assistant/price-label.test.ts
 src/lib/ai/booking-assistant/resolve-talent-id.test.ts
 src/lib/ai/booking-assistant/schedule.static.test.ts
+src/lib/ai/booking-assistant/solo-roster-talent.test.ts
 src/lib/ai/booking-assistant/spend.test.ts
 src/lib/ai/booking-assistant/tools/availability.test.ts
 src/lib/ai/booking-assistant/tools/contract.test.ts

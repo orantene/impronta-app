@@ -5,6 +5,7 @@ src/app/(workspace)/talent/talent-not-found.test.ts
 src/app/(workspace)/talent/talent-support-alias.test.ts
 src/app/api/dev/signin/fixture-session.test.ts
 src/app/api/dev/signin/guard.test.ts
+src/app/auth/sign-in-deadlines.static.test.ts
 src/app/client/client-root-loading.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
@@ -25,6 +26,7 @@ src/lib/auth/otp-flow.test.ts
 src/lib/auth/post-auth-return.test.ts
 src/lib/auth/register-intent.test.ts
 src/lib/auth/return-host-kind.test.ts
+src/lib/auth/sign-in-timeout-destination.test.ts
 src/lib/auth/sign-out-audit.test.ts
 src/lib/auth/sign-out-clears-all-scopes.test.ts
 src/lib/auth/sign-out-order.test.ts

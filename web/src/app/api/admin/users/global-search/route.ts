@@ -8,6 +8,7 @@ import type {
 import { isStaffRole } from "@/lib/auth-flow";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getTenantScope } from "@/lib/saas/scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 const MAX_ROWS = 100;
 const FETCH_CAP = 220;
@@ -188,7 +189,11 @@ export async function GET(request: Request) {
 
   // --- Talent ---
   if (roleParam === "all" || roleParam === "talent") {
-    let talentQuery = supabase
+    // TUL-1269: `phone` is not column-granted to signed-in clients. This branch
+    // is reachable only by a platform admin (non-admins are 403d above unless
+    // role=client), so read talent with the service role.
+    const talentReader = createServiceRoleClient() ?? supabase;
+    let talentQuery = talentReader
       .from("talent_profiles")
       .select(
         `
@@ -221,7 +226,7 @@ export async function GET(request: Request) {
     const { data: talentRows, error: talentErr } = await talentQuery;
 
     if (talentErr) {
-      let fb = supabase
+      let fb = talentReader
         .from("talent_profiles")
         .select(
           "id, user_id, profile_code, display_name, workflow_status, visibility, profile_completeness_score, phone, deleted_at, updated_at, profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_i18n))",

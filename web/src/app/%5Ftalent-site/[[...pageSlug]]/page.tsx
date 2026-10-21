@@ -45,6 +45,7 @@ import { needsRouteLookup, needsServiceLookup, serviceRouteVerdict, talentRouteV
 import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
 import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
 import { resolveTalentOldServiceRedirect } from "@/lib/talent-site/server/old-service-slug.server";
+import { resolveTalentServiceRoute } from "@/lib/talent-site/server/service-canonical-route.server";
 import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
@@ -157,7 +158,11 @@ export async function generateMetadata({
     getRequestLocale(),
     resolveCanonicalOrigin(),
   ]);
-  const seg = firstSegment(pageSlug);
+  // TUL-1324: `/<word>/<slug>` (and the legacy id8 form) resolve through the offering slugs: serve = render that
+  // service under its readable canonical; redirect/missing are decided by the page (metadata falls to not-found).
+  const serviceRoute = await resolveTalentServiceRoute(talentProfileId, (pageSlug ?? []).join("/"), locale);
+  if (serviceRoute.kind === "redirect" || serviceRoute.kind === "missing") return talentNotFoundMetadata();
+  const seg = serviceRoute.kind === "serve" ? serviceRoute.serviceSlug : firstSegment(pageSlug);
   const result = await renderTalentMaxSite({
     talentProfileId,
     pageSlug: seg,
@@ -168,7 +173,7 @@ export async function generateMetadata({
     hrefMode: "host-root",
     previewDraft: preview === "draft",
     canonicalOrigin,
-    canonicalPath: apexPath(seg),
+    canonicalPath: serviceRoute.kind === "serve" ? serviceRoute.canonicalPath : apexPath(seg),
   });
   if (result.kind !== "render") return talentNotFoundMetadata();
   return maxSiteSeoToMetadata(result.seo, { ogLocale: result.locale });
@@ -198,17 +203,26 @@ export default async function TalentSiteHostPage({
     resolveCanonicalOrigin(),
     resolveServedHost(),
   ]);
+  // TUL-1324: the readable canonical `/<word>/<slug>` is the service page. A history slug or the legacy id8 form
+  // permanently redirects TO it (308: a Server Component cannot send a 301; same permanence); a `<word>/<slug>` that
+  // names no public service is a real 404; a hit renders that service with the readable path as its canonical.
+  const serviceRoute = await resolveTalentServiceRoute(talentProfileId, (pageSlug ?? []).join("/"), locale);
+  if (serviceRoute.kind === "redirect") permanentRedirect(serviceRoute.to);
+  if (serviceRoute.kind === "missing") notFound();
   // TUL-586 defense-in-depth: /servicios|services/<slug> -> canonical service URL
   // (308, locale prefix kept; also handled in the proxy).
-  if (pageSlug && pageSlug.length > 1) {
+  if (serviceRoute.kind === "none" && pageSlug && pageSlug.length > 1) {
     const serviceAlias = talentGuestServiceAlias(`/${pageSlug.join("/")}`, {
       localePrefix: await originalLocalePrefix(locale),
     });
     if (serviceAlias?.kind === "redirect") permanentRedirect(serviceAlias.path);
   }
-  const seg = firstSegment(pageSlug);
+  // The proxy only rewrites a multi-segment path here for `<word>/<slug>`: if the resolver could not place it, it is a 404.
+  if (serviceRoute.kind === "none" && pageSlug && pageSlug.length > 1) notFound();
+  const seg = serviceRoute.kind === "serve" ? serviceRoute.serviceSlug : firstSegment(pageSlug);
+  const canonicalPathOverride = serviceRoute.kind === "serve" ? serviceRoute.canonicalPath : undefined;
   // GRK-028 defense-in-depth: guest path aliases (also handled in the proxy).
-  const guestAlias = talentGuestAliasTarget(seg);
+  const guestAlias = serviceRoute.kind === "serve" ? null : talentGuestAliasTarget(seg);
   if (guestAlias) redirect(guestAlias);
 
   // TUL-857: an unknown first segment is a real HTTP 404. The slow render sits behind a
@@ -222,8 +236,9 @@ export default async function TalentSiteHostPage({
     });
     // TUL-1594: a slug nothing else owns may be a service slug kept in `offering_slugs`: 308 to the page it renders at, else the 404.
     if (verdict === "check-old-slug") {
-      const to = await resolveTalentOldServiceRedirect({ talentProfileId, slug: seg, locale });
-      if (to) permanentRedirect(serviceRedirectPath(await originalLocalePrefix(locale), to));
+      // TUL-1324: canonicalPath asks for the readable `/<word>/<slug>`; no readable slug yet = the id8 slug as before.
+      const to = await resolveTalentOldServiceRedirect({ talentProfileId, slug: seg, locale, canonicalPath: true });
+      if (to) permanentRedirect(to.startsWith("/") ? to : serviceRedirectPath(await originalLocalePrefix(locale), to));
       notFound();
     }
     // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
@@ -251,6 +266,7 @@ export default async function TalentSiteHostPage({
         order={order}
         canonicalOrigin={canonicalOrigin}
         servedHost={servedHost}
+        canonicalPathOverride={canonicalPathOverride}
       />
     </Suspense>
   );
@@ -264,6 +280,7 @@ async function TalentSiteBody({
   order,
   canonicalOrigin,
   servedHost,
+  canonicalPathOverride,
 }: {
   talentProfileId: string;
   seg: string | null;
@@ -272,6 +289,7 @@ async function TalentSiteBody({
   order: string | undefined;
   canonicalOrigin: string | undefined;
   servedHost: string | undefined;
+  canonicalPathOverride: string | undefined;
 }) {
   const result = await renderTalentMaxSite({
     talentProfileId,
@@ -283,7 +301,7 @@ async function TalentSiteBody({
     hrefMode: "host-root",
     previewDraft: preview === "draft",
     canonicalOrigin,
-    canonicalPath: apexPath(seg),
+    canonicalPath: canonicalPathOverride ?? apexPath(seg),
   });
   // `/privacy` is the English word talents and footers guess; it used to 404
   // unless authored. The policy page lives at `/privacidad`.

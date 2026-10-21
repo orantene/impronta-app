@@ -72,6 +72,7 @@
         "google": "Continue with Google",
         "emailSubmit": "Log in",
         "pending": "Signing in…",
+        "slow": "Still working. If this does not finish in a few seconds, reload the page and try again.",
         "forgot": "Forgot password?",
         "remember": "Keep me signed in for 30 days",
         "noAccount": "No account?",
@@ -172,7 +173,8 @@
         "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
         "emailNotConfirmed": "Your email isn't verified yet. Choose Email me a code below to verify it and sign in.",
         "tooManyAttempts": "Too many attempts, please wait a minute and try again.",
-        "network": "Connection issue, check your network and try again."
+        "network": "Connection issue, check your network and try again.",
+        "timeout": "Signing in is taking longer than usual. Please try again."
       },
       "claim": {
         "eyebrow": "Claim profile",
@@ -1354,7 +1356,8 @@
       "catalogRemoveFailed": "Could not remove that right now. Try again.",
       "dockTrayLabel": "Inquiry · {n}",
       "dockTrayRemove": "Remove",
-      "dockTrayOpenLineup": "Open the Items tab",
+      "dockTrayOpenLineup": "Browse and add more",
+      "guestPlaceholderName": "Guest",
       "dockTrayOpen": "Review",
       "dockTraySend": "Send inquiry",
       "catalogAddInvalid": "This one cannot be added to an inquiry (it may be in a different currency). Ask about it in the chat.",
@@ -1749,6 +1752,8 @@
     "instantBook": {
       "guestName": "Your name",
       "guestEmail": "Your email",
+      "nameInvalid": "Enter your name.",
+      "emailInvalid": "Enter a valid email so we can send your confirmation.",
       "signInToBook": "Sign in to book",
       "refusal": {
         "requestOnly": "This one is booked by request. Send a message to ask for a time.",
@@ -11326,6 +11331,9 @@
         "changesOn": "Your plan changes to {plan} on {date}. Nothing is charged today.",
         "cancelPending": "Keep your current plan and cancel the change you scheduled.",
         "noChange": "You are already on this plan.",
+        "switchYearlyNow": "Switch to yearly billing: {price} per year. You pay {amount} today.",
+        "switchYearlyAt": "Switch to yearly billing: {price} per year, starting {date}. Nothing is charged today.",
+        "switchMonthlyAt": "Switch to monthly billing: {price} per month, starting {date}. Nothing is charged today.",
         "confirm": "Confirm change",
         "cancel": "Not now",
         "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."

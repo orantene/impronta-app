@@ -40,6 +40,7 @@ function fakeStripe(sub: Stripe.Subscription, calls: Call[]): PlanChangeStripe {
       update: rec("subscriptions.update", sub),
     },
     invoices: { createPreview: rec("invoices.createPreview", { amount_due: 1234, currency: "usd" }) },
+    prices: { retrieve: rec("prices.retrieve", { unit_amount: 900, currency: "usd" }) },
     subscriptionSchedules: {
       create: rec("schedules.create", { id: "sub_sched_new", phases: [{ start_date: 900 }] }),
       update: rec("schedules.update", { id: "sub_sched_new" }),

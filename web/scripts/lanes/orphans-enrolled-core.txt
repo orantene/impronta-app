@@ -10,6 +10,7 @@ src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
 src/app/(workspace)/talent/talent-layout-frame.render.test.tsx
 src/app/(workspace)/talent/talent-layout-perf-trace.static.test.ts
+src/app/(workspace)/talent/trust/trust-page-i18n.static.test.ts
 src/app/start/layout-landmark.static.test.ts
 src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
@@ -129,6 +130,7 @@ src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts
 src/lib/talent-agenda/booking-reminder-due.test.ts
 src/lib/talent-agenda/hours-display-format.test.ts
+src/lib/talent-agenda/no-show-count.static.test.ts
 src/lib/talent-agenda/today-payouts-setup.static.test.ts
 src/lib/talent-agenda/today-primary-action.test.ts
 src/lib/talent-taxonomy-service.test.ts

@@ -6,6 +6,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { isStaleDeploymentError, notifyStaleDeployment } from "@/lib/client/stale-deployment";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
+import { usePrivateFieldsGate } from "./profile-shell-modules/use-private-fields-gate";
 import { useRouter } from "next/navigation";
 import {
   buildCorePublishRequirements,
@@ -343,6 +344,7 @@ export function TalentProfileShellDrawer() {
   const historyIdxRef = useRef(0);
   const skipHistoryRef = useRef(false);
   const allowMarkDirtyRef = useRef(false);
+  const privateFields = usePrivateFieldsGate(); // TUL-1269
   const savedStatusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -680,7 +682,7 @@ export function TalentProfileShellDrawer() {
           return;
         }
 
-        const d = edRes.data;
+        const d = privateFields.markHydrated(edRes.data);
         // Multi-tenant identity flags — three fields added by
         // admin-talent-profile-sections.ts. Used by the banner + the future
         // per-field disabled gating. Cast through unknown because the
@@ -1052,7 +1054,7 @@ export function TalentProfileShellDrawer() {
         }
       : undefined;
 
-    const identityPayload = {
+    const identityPayload = privateFields.scrub({
       talent_profile_id: tid,
       stage_name: id.stageName,
       first_name: id.firstName ?? "",
@@ -1075,7 +1077,7 @@ export function TalentProfileShellDrawer() {
       contact_email: id.contactEmail ?? "",
       contact_phone: id.contactPhone ?? "",
       contact_phone_prefix: id.contactPhonePrefix ?? "+1",
-    };
+    });
 
     const aboutPayload = {
       talent_profile_id: tid,
@@ -3366,7 +3368,7 @@ export function TalentProfileShellDrawer() {
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
                 lockReasons={state.fieldLockReasons}
                 workspaceScopeTenantId={workspaceScopeTenantId}
-                disabled={personalProfileLocked}
+                disabled={personalProfileLocked} privateFieldsUnavailable={privateFields.unavailable}
               />
               <ProfileHeroTextRows tagline={state.tagline} onTagline={(v) => patch({ tagline: v })} talentProfileId={payload.talentId} isSelf={isSelf}
                 workspaceScopeTenantId={workspaceScopeTenantId} disabled={personalProfileLocked} />

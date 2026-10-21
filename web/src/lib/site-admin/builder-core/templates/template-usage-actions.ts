@@ -29,6 +29,8 @@
  * raw-row fold) stays exported + unit-tested but is OFF the SQL path now.
  */
 
+import { requireEditSurfaceTenantScope } from "@/lib/saas";
+import { requireSession } from "@/lib/server/action-guards";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -45,8 +47,8 @@ export type { TemplateUsageTotals } from "./template-usage-shape";
 export interface RecordTemplateUsageInput {
   /** Raw builder_templates.id (the `__sourceTemplateId` stamped at insert). */
   templateId: string | null | undefined;
-  /** Tenant whose tree received the insert (null when unresolved). */
-  tenantId?: string | null;
+  // No tenant field: the workspace comes from the caller's own session scope (TUL-1758). A client-supplied tenant
+  // let anyone tally template usage against any workspace.
   /** Builder surface (homepage | cms_page | talent_page | talent_site | …). */
   surface?: string | null;
   /** Opaque page/slug reference for the inserted-into page. */
@@ -63,11 +65,15 @@ export async function recordTemplateUsage(
   await requireNotImpersonating();
   try {
     if (!input.templateId) return;
+    // Signed in, and the workspace is the caller's own edit scope (null when there is none).
+    const auth = await requireSession();
+    if (!auth.ok) return;
+    const scope = await requireEditSurfaceTenantScope().catch(() => null);
     const sb = createServiceRoleClient();
     if (!sb) return;
     const { error } = await sb.from("builder_template_usage").insert({
       template_id: input.templateId,
-      tenant_id: input.tenantId ?? null,
+      tenant_id: scope?.tenantId ?? null,
       surface: input.surface ?? null,
       page_ref: input.pageRef ?? null,
     } as never);

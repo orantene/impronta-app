@@ -23,6 +23,8 @@ import { attachTalentSiteGuestIdentity } from "@/lib/saas/talent-site-guest-iden
 import { resolveTalentSiteCanonicalRedirectHost } from "@/lib/saas/talent-site-canonical-redirect";
 import { isTalentSiteHostPathAllowed, talentSiteHostRewritePath } from "@/lib/saas/talent-site-host-routing";
 import { PUBLIC_PATH_PREFIX_HEADER, TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { isCatalogWordSegment } from "@/lib/offerings/offering-paths";
+import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
 import { talentDemoBareHostRedirectHost } from "@/lib/talent-site/site-public-url";
 import { loadTalentLocaleSettingsForProxy } from "@/lib/talent-site/talent-site-locale-proxy";
@@ -125,7 +127,11 @@ export async function talentSiteHostResponse(
     const guestSeg = localeStripped.replace(/^\/+/, "").split("/")[0] ?? "";
     const localePrefix =
       talentLocale.locale !== talentLocales.defaultLocale ? talentLocale.locale : null;
-    const serviceAlias = talentGuestServiceAlias(localeStripped, { localePrefix });
+    // TUL-1324: with the presentation resolver on, `/<word>/<slug>` is the CANONICAL service page, so it is neither
+    // redirected to the guessed `servicio-...` form nor sent to the home anchor: the host page resolves it.
+    const innerSegs = localeStripped.split("/").filter(Boolean);
+    const canonicalServicePath = servicePresentationResolverEnabled() && innerSegs.length === 2 && isCatalogWordSegment(innerSegs[0]);
+    const serviceAlias = canonicalServicePath ? null : talentGuestServiceAlias(localeStripped, { localePrefix });
     const isRead = request.method === "GET" || request.method === "HEAD";
     if (serviceAlias?.kind === "redirect" && isRead) {
       const target = new URL(serviceAlias.path, request.nextUrl.origin);
@@ -139,7 +145,7 @@ export async function talentSiteHostResponse(
     }
     // A second segment that is not a service slug is a miss, not the home anchor.
     const guestTarget = serviceAlias ? null : talentGuestAliasTarget(guestSeg, { localePrefix });
-    if (guestTarget && (request.method === "GET" || request.method === "HEAD")) {
+    if (guestTarget && !canonicalServicePath && (request.method === "GET" || request.method === "HEAD")) {
       const target = new URL(guestTarget, request.nextUrl.origin);
       const res = NextResponse.redirect(target, 302);
       if (talentLocale.explicit) {
@@ -150,7 +156,7 @@ export async function talentSiteHostResponse(
     }
   }
 
-  const decision = isTalentSiteHostPathAllowed(localeStripped);
+  const decision = isTalentSiteHostPathAllowed(localeStripped, { serviceCanonical: servicePresentationResolverEnabled() });
   // Posts v1: legacy `/posts/<slug>` → 301 `/blog/<slug>`, keeping the locale prefix.
   if (decision?.kind === "redirect" && (request.method === "GET" || request.method === "HEAD")) {
     const target = request.nextUrl.clone();

@@ -175,4 +175,6 @@ export const TALENT_EDITORS_ES_TEXT: Record<string, string> = {
   "Publish your profile to get a public address you can share.": "Publica tu perfil para obtener una dirección pública que puedas compartir.",
   // TUL-1335 talent service delete archives
   "Archived instead: it was published or sold": "Archivado en su lugar: se publicó o se vendió",
+  // TUL-1269: private fields (legal name, date of birth, phone) could not be loaded
+  "Private details could not be loaded. Reload to edit them.": "No se pudieron cargar los datos privados. Recarga para editarlos.",
 };

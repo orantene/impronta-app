@@ -5,6 +5,7 @@ import {
   approxCurrencyForLocale,
   formatApproxLocal,
   fxRateFor,
+  formatConvertedLocal,
 } from "./approx-local-price";
 
 describe("approx-local-price", () => {
@@ -33,5 +34,10 @@ describe("approx-local-price", () => {
       fxRateFor({ ok: true, base: "USD", fetchedAt: "", rateDate: "", rates: { MXN: 18.5 } }, "MXN"),
       18.5,
     );
+  });
+
+  it("converted primary price has no approx sign (TUL-864)", () => {
+    assert.equal(formatConvertedLocal(900, 18, "MXN"), "MX$ 162");
+    assert.equal(formatConvertedLocal(900, null, "MXN"), null);
   });
 });

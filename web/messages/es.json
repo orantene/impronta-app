@@ -72,6 +72,7 @@
         "google": "Continuar con Google",
         "emailSubmit": "Iniciar sesión",
         "pending": "Iniciando sesión…",
+        "slow": "Seguimos trabajando. Si no termina en unos segundos, recarga la página e inténtalo de nuevo.",
         "forgot": "¿Olvidaste tu contraseña?",
         "remember": "Mantener mi sesión activa por 30 días",
         "noAccount": "¿No tienes cuenta?",
@@ -172,7 +173,8 @@
         "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
         "emailNotConfirmed": "Tu correo aún no está verificado. Elige Envíame un código abajo para verificarlo e iniciar sesión.",
         "tooManyAttempts": "Demasiados intentos; espera un minuto e inténtalo de nuevo.",
-        "network": "Problema de conexión; revisa tu red e inténtalo de nuevo."
+        "network": "Problema de conexión; revisa tu red e inténtalo de nuevo.",
+        "timeout": "Iniciar sesión está tardando más de lo normal. Inténtalo de nuevo."
       },
       "claim": {
         "eyebrow": "Reclamar perfil",
@@ -1354,7 +1356,8 @@
       "catalogRemoveFailed": "No se pudo quitar ahora. Intenta de nuevo.",
       "dockTrayLabel": "Solicitud · {n}",
       "dockTrayRemove": "Quitar",
-      "dockTrayOpenLineup": "Abrir Artículos",
+      "dockTrayOpenLineup": "Explora y añade más",
+      "guestPlaceholderName": "Invitado",
       "dockTrayOpen": "Revisar",
       "dockTraySend": "Enviar solicitud",
       "catalogAddInvalid": "Este no se puede agregar a una consulta (puede estar en otra moneda). Pregunta por él en el chat.",
@@ -1749,6 +1752,8 @@
     "instantBook": {
       "guestName": "Tu nombre",
       "guestEmail": "Tu correo",
+      "nameInvalid": "Escribe tu nombre.",
+      "emailInvalid": "Escribe un correo válido para enviarte la confirmación.",
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
@@ -11326,6 +11331,9 @@
         "changesOn": "Tu plan cambia a {plan} el {date}. Hoy no se cobra nada.",
         "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
         "noChange": "Ya tienes este plan.",
+        "switchYearlyNow": "Cambiar a facturación anual: {price} al año. Pagas {amount} hoy.",
+        "switchYearlyAt": "Cambiar a facturación anual: {price} al año, a partir del {date}. Hoy no se cobra nada.",
+        "switchMonthlyAt": "Cambiar a facturación mensual: {price} al mes, a partir del {date}. Hoy no se cobra nada.",
         "confirm": "Confirmar cambio",
         "cancel": "Ahora no",
         "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
