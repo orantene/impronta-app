@@ -114,3 +114,40 @@ test("TUL-1788: stale-error detection and ES/EN reconnect copy", () => {
   assert.match(payoutSetupErrorText(PAYOUT_RECONNECT_REQUIRED, true), /Vuelve a conectarla/);
   assert.match(payoutSetupErrorText(PAYOUT_RECONNECT_REQUIRED, false), /Reconnect it/);
 });
+
+test("TUL-1788: session publishable key is the same platform's, and null on a test/live mismatch", async () => {
+  const { publishableKeyForSession } = await import("./connected-account-client");
+  const names = ["NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", "STRIPE_SECRET_KEY", "STRIPE_MX_PUBLISHABLE_KEY", "NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY", "STRIPE_MX_SECRET_KEY", "STRIPE_FORCE_TEST_MODE"];
+  const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]));
+  try {
+    delete process.env.STRIPE_FORCE_TEST_MODE;
+    delete process.env.NEXT_PUBLIC_STRIPE_MX_PUBLISHABLE_KEY;
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = "pk_test_us";
+    process.env.STRIPE_SECRET_KEY = "sk_test_us";
+    process.env.STRIPE_MX_PUBLISHABLE_KEY = "pk_test_mx";
+    process.env.STRIPE_MX_SECRET_KEY = "sk_test_mx";
+    assert.equal(publishableKeyForSession("mx"), "pk_test_mx");
+    assert.equal(publishableKeyForSession("us"), "pk_test_us");
+    process.env.STRIPE_MX_PUBLISHABLE_KEY = "pk_live_mx";
+    assert.equal(publishableKeyForSession("mx"), null);
+    delete process.env.STRIPE_MX_PUBLISHABLE_KEY;
+    assert.equal(publishableKeyForSession("mx"), null);
+  } finally {
+    for (const n of names) {
+      if (saved[n] === undefined) delete process.env[n];
+      else process.env[n] = saved[n];
+    }
+  }
+});
+
+test("TUL-1788: refresh always stamps stripe_account_synced_at and revalidates the page", async () => {
+  const { readFileSync } = await import("node:fs");
+  const read = (f: string) => readFileSync(new URL(f, import.meta.url), "utf8");
+  const agency = read("../payments/stripe-connect.ts");
+  const talent = read("../payments/stripe-connect-talent.ts");
+  assert.match(agency.slice(agency.indexOf("export async function persistAccountSnapshot")), /stripe_account_synced_at: syncedAt/);
+  assert.match(talent.slice(talent.indexOf("export async function persistTalentAccountSnapshot")), /stripe_account_synced_at: syncedAt/);
+  const actions = read("../server-actions/admin-stripe-connect.ts");
+  const refresh = actions.slice(actions.indexOf("export async function refreshConnectStatusAction"));
+  assert.match(refresh.slice(0, refresh.indexOf("getConnectSnapshotAction")), /revalidatePath\(`\/\$\{tenantSlug\}\/admin\/payouts`\)/);
+});

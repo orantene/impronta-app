@@ -19,8 +19,8 @@ import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
-import { getStripe, getStripePublishableKeyFor } from "@/lib/stripe/client";
-import { resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
+import { getStripe } from "@/lib/stripe/client";
+import { publishableKeyForSession, resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import {
   createOrGetConnectedAccount,
   createOnboardingLink,
@@ -188,7 +188,7 @@ export async function getConnectAccountSessionAction(
     revalidatePath(`/${tenantSlug}/admin/payouts`);
     return {
       ok: true,
-      data: { clientSecret: session.client_secret, publishableKey: getStripePublishableKeyFor(platform) },
+      data: { clientSecret: session.client_secret, publishableKey: publishableKeyForSession(platform) },
     };
   } catch (err) {
     logServerError("admin-stripe-connect.getConnectAccountSessionAction", err);

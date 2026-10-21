@@ -154,7 +154,10 @@ export function ConnectEmbeddedOnboarding({
   return (
     <div data-testid="connect-embedded-onboarding" data-tulala-privacy="block">
       <ConnectComponentsProvider connectInstance={connectInstance}>
-        <ConnectAccountOnboarding onExit={() => onExit?.()} />
+        <ConnectAccountOnboarding
+          onExit={() => onExit?.()}
+          onLoadError={() => setInitError("Could not load payout setup. Please refresh and try again.")}
+        />
       </ConnectComponentsProvider>
       <div
         style={{

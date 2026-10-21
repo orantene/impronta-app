@@ -18,8 +18,8 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { headers } from "next/headers";
-import { getStripe, getStripePublishableKeyFor, isStripeConfigured } from "@/lib/stripe/client";
-import { resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { publishableKeyForSession, resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import {
   createOrGetTalentConnectedAccount,
   createTalentOnboardingLink,
@@ -150,7 +150,7 @@ export async function createTalentAccountSession(
       },
     });
 
-    return { ok: true, clientSecret: session.client_secret, publishableKey: getStripePublishableKeyFor(platform) };
+    return { ok: true, clientSecret: session.client_secret, publishableKey: publishableKeyForSession(platform) };
   } catch (err) {
     logServerError("talent-payouts.accountSession", err);
     return { ok: false, error: "Could not start payout setup. Please try again." };

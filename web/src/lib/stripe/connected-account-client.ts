@@ -3,7 +3,9 @@ import type Stripe from "stripe";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadAccountPlatform } from "./account-platform";
-import { getStripeFor, type StripeAccountKey } from "./client";
+import { getStripeFor, getStripePublishableKeyFor, type StripeAccountKey } from "./client";
+import { stripeEnv } from "./env-keys";
+import { stripeKeyMode } from "./key-mode";
 import { PAYOUT_RECONNECT_REQUIRED } from "@/lib/payments/connect-account-setup";
 
 /**
@@ -85,4 +87,20 @@ export async function resolveConnectedAccountClient(
       if (error) logServerError("stripe.connected-account-client.heal", error);
     },
   });
+}
+
+/**
+ * TUL-1788: the publishable key for the embedded Connect component, from the
+ * SAME platform that minted the account session. Returns null (caller refuses
+ * with a clear error instead of a forever-spinning iframe) when the key is
+ * unset or its test/live mode differs from that platform's secret key.
+ */
+export function publishableKeyForSession(platform: StripeAccountKey): string | null {
+  const pk = getStripePublishableKeyFor(platform);
+  if (!pk) return null;
+  const sk = stripeEnv(platform === "mx" ? "STRIPE_MX_SECRET_KEY" : "STRIPE_SECRET_KEY");
+  const pkMode = stripeKeyMode(pk);
+  const skMode = stripeKeyMode(sk);
+  if (pkMode && skMode && pkMode !== skMode) return null;
+  return pk;
 }
