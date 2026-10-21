@@ -275,3 +275,13 @@ test("D-156: the hold after a write is bounded and released by the re-read, not 
   assert.match(settling, /router\.refresh\(\)/, "and asks for the re-read it never got");
   assert.match(settling, /writeHoldSettling\(held, current\)/);
 });
+
+test("TUL-1271: a seat the counter is closed to gets an inline card, never notFound() (React #310 'This page couldn't load')", () => {
+  const page = code("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  const allowedAt = page.indexOf("userHasCapability(");
+  const after = page.slice(allowedAt, allowedAt + 700);
+  assert.match(after, /PosNoAccessCard/);
+  assert.doesNotMatch(after.slice(0, after.indexOf("PosNoAccessCard")), /notFound\(\)/);
+  const card = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-no-access-card.tsx");
+  assert.match(card, /dashboard\.pos\.counter\.gate\.title/);
+});
