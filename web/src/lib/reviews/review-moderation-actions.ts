@@ -31,7 +31,9 @@ type ActionResult<T = null> = { ok: true; data: T } | { ok: false; error: string
 
 /**
  * Set one review photo's approval_state. `"approved"` doubles as RESTORE (bring
- * a previously rejected photo back to public). Staff of the media row's tenant
+ * a previously rejected photo back to public). TUL-1708: hide/restore here is
+ * reversible, not a delete, so it needs `agency.site_admin.media.upload`
+ * (editor+), not the stricter `media.delete`. Staff of the media row's tenant
  * only; tenant-scoped write.
  */
 export async function setReviewMediaApprovalState(
@@ -48,7 +50,7 @@ export async function setReviewMediaApprovalState(
   // TUL-1708: the default guard capability (`agency.workspace.view`) is held by a `viewer`, so a viewer
   // could hide or restore a client's review photos. This mirrors actionSetApprovalState's media-moderation
   // bar in admin/media/actions.ts (manager+), not the viewer default.
-  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 

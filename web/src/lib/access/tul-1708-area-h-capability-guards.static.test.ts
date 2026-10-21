@@ -105,16 +105,16 @@ test("offering-resources-actions.ts: setOfferingResourcesAction requires edit_ta
   assert.doesNotMatch(loadFn, /WRITE_CAPABILITY/);
 });
 
-test("review-moderation-actions.ts: setReviewMediaApprovalState requires agency.site_admin.media.delete", () => {
+test("review-moderation-actions.ts: setReviewMediaApprovalState requires agency.site_admin.media.upload", () => {
   const src = read("lib/reviews/review-moderation-actions.ts");
-  assert.match(src, /requireWorkspaceStaffAction\(\{ capability: "agency\.site_admin\.media\.delete" \}\)/);
+  assert.match(src, /requireWorkspaceStaffAction\(\{ capability: "agency\.site_admin\.media\.upload" \}\)/);
   assert.equal(bareGuardCount(src), 0, "no capability-less guard should remain in this file");
 });
 
 // ── 2. Role matrix: viewer refused, the role the writer actually needs is allowed ──
 
 test("role matrix: a viewer is refused every capability the three fixes now require", () => {
-  for (const cap of ["agency.site_admin.sections.edit", "edit_talent_overlay", "agency.site_admin.media.delete"]) {
+  for (const cap of ["agency.site_admin.sections.edit", "edit_talent_overlay", "agency.site_admin.media.upload"]) {
     assert.equal(roleGrantsCapability("viewer", cap as never), false, `viewer must NOT hold ${cap}`);
     assert.equal(roleGrantsCapability("owner", cap as never), true, `owner must hold ${cap}`);
   }
@@ -127,9 +127,9 @@ test("role matrix: menu/resource edits are editor+ (unchanged bar for an already
   assert.equal(roleGrantsCapability("viewer", "edit_talent_overlay"), false);
 });
 
-test("role matrix: review-photo moderation is manager+ (the admin/media/actions.ts delete bar)", () => {
-  assert.equal(roleGrantsCapability("manager", "agency.site_admin.media.delete"), true);
-  assert.equal(roleGrantsCapability("editor", "agency.site_admin.media.delete"), false);
+test("role matrix: review-photo hide/restore is editor+ (reversible, so the media.upload bar, not the stricter delete one)", () => {
+  assert.equal(roleGrantsCapability("editor", "agency.site_admin.media.upload"), true);
+  assert.equal(roleGrantsCapability("viewer", "agency.site_admin.media.upload"), false);
 });
 
 test("the viewer default itself still reads: agency.workspace.view stays viewer-held", () => {
@@ -149,7 +149,7 @@ const AREA_H_FILES: Record<string, number> = {
   "lib/service-hub/friends-collective-actions.ts": 2, // NOT vulnerable: role==='owner' re-check below each
   "lib/server-actions/service-hub-entries.ts": 1, // NOT vulnerable: local HubRole re-check in entries.server.ts
   "lib/resources/offering-resources-actions.ts": 0, // FIXED: write passes edit_talent_overlay
-  "lib/reviews/review-moderation-actions.ts": 0, // FIXED: write passes agency.site_admin.media.delete
+  "lib/reviews/review-moderation-actions.ts": 0, // FIXED: write passes agency.site_admin.media.upload
   "lib/media/talent-media-read-auth.server.ts": 1, // READ helper: default is correct
   "lib/talent/menu-offerings-actions.ts": 0, // FIXED: writers pass WRITE_CAPABILITY, readers keep default
   "lib/talent/offerings-auth.server.ts": 1, // shared helper used by readers + writers outside this area
