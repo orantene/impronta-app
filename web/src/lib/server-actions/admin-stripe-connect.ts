@@ -19,8 +19,8 @@ import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
-import { getStripe, getStripeFor, getStripePublishableKeyFor } from "@/lib/stripe/client";
-import { loadAccountPlatform } from "@/lib/stripe/account-platform";
+import { getStripe, getStripePublishableKeyFor } from "@/lib/stripe/client";
+import { resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import {
   createOrGetConnectedAccount,
   createOnboardingLink,
@@ -173,9 +173,10 @@ export async function getConnectAccountSessionAction(
     if (!ensure.ok) return ensure;
 
     // The account may live on the MX platform; its session must be minted there.
-    const platform = await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug });
-    const owningStripe = getStripeFor(platform) ?? stripe;
-    const session = await owningStripe.accountSessions.create({
+    const owning = await resolveConnectedAccountClient("agencies", { column: "slug", value: tenantSlug }, ensure.data.stripeAccountId);
+    if (!owning.ok) return { ok: false, error: owning.error };
+    const platform = owning.platform;
+    const session = await owning.stripe.accountSessions.create({
       account: ensure.data.stripeAccountId,
       components: {
         account_onboarding: {

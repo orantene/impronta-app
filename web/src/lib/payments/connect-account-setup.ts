@@ -35,6 +35,8 @@ export function connectAccountTermsFor(
 /** Server-side error codes; the payouts page renders them with
  *  `payoutSetupErrorText` in the viewer's language. */
 export const MX_PLATFORM_UNCONFIGURED = "payout_setup:mx_platform_unconfigured";
+/** TUL-1788: the stored account no longer exists on any configured platform. */
+export const PAYOUT_RECONNECT_REQUIRED = "payout_setup:reconnect_required";
 const COUNTRY_PREFIX = "payout_setup:country_unavailable:";
 const COMING_SOON_PREFIX = "payout_setup:coming_soon:";
 
@@ -70,6 +72,11 @@ export function payoutSetupErrorText(message: string, isSpanish: boolean): strin
     return isSpanish
       ? "Los pagos en México aún no están activados. Escríbenos a soporte y te ayudamos."
       : "Payouts in Mexico are not switched on yet. Please contact support and we will help.";
+  }
+  if (message === PAYOUT_RECONNECT_REQUIRED) {
+    return isSpanish
+      ? "No encontramos tu cuenta de pagos en Stripe. Vuelve a conectarla para continuar, o escríbenos a soporte."
+      : "We can't find your Stripe payout account. Reconnect it to continue, or contact support.";
   }
   if (message.startsWith(COMING_SOON_PREFIX)) {
     return payoutCountryComingSoonText(message.slice(COMING_SOON_PREFIX.length), isSpanish ? "es" : "en");

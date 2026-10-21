@@ -388,6 +388,7 @@ src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/sessions/sessions-public-read-visibility.static.test.ts
 src/lib/staff-permissions/read.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
+src/lib/stripe/connected-account-client.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
