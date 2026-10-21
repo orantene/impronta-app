@@ -6,9 +6,7 @@ import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/
 import { early } from "@/lib/server/early";
 import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { resolveOldServiceSlug } from "@/lib/offerings/offering-index";
-import { loadOfferingIndex } from "@/lib/offerings/offering-index.server";
+import { resolveTalentOldServiceRedirect } from "@/lib/talent-site/server/old-service-slug.server";
 import { loadMaxSiteAcceptingBookings, loadMaxSiteIsDemo } from "./render-max-site-demo";
 import { hasRenderableBuilderNodes } from "@/lib/site-admin/builder-node";
 import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
@@ -284,22 +282,15 @@ async function renderTalentMaxSiteUnguarded(
       input.pageSlug &&
       !pages.some((p) => p.slug === input.pageSlug)
     ) {
-      const primary = localeCtx.settings.defaultLocale;
-      const index = await loadOfferingIndex(createServiceRoleClient(), { owner: { kind: "talent", talentProfileId }, primaryLocale: primary });
-      const oldId = index
-        ? resolveOldServiceSlug({
-            slug: input.pageSlug,
-            locale,
-            publicLocales: localeCtx.settings.supportedLocales,
-            hostKind: "talent",
-            index,
-          })
-        : null;
-      if (oldId) {
-        const offers = await loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []);
-        const target = offers.find((o) => o.id === oldId);
-        if (target) return { kind: "redirect", slug: serviceSlug(target) };
-      }
+      const to = await resolveTalentOldServiceRedirect({
+        talentProfileId,
+        slug: input.pageSlug,
+        locale,
+        primaryLocale: localeCtx.settings.defaultLocale,
+        publicLocales: localeCtx.settings.supportedLocales,
+        bypassCache,
+      });
+      if (to) return { kind: "redirect", slug: to };
     }
     const externalMain = input.mainOverride ?? null;
     const page = selectMaxSitePage(pages, {

@@ -12,6 +12,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 
+import CmsPublicPage, { generateMetadata as cmsPageMetadata } from "@/app/(public)/p/[[...slug]]/page";
 import { loadDatedPicker } from "@/app/(public)/_dated/dated-picker-actions";
 import { DatedPlacesMount } from "@/components/public-booking/DatedPlacesMount";
 import { shouldMountDatedStep } from "@/lib/sessions/dated-mount";
@@ -30,6 +31,7 @@ import { buildBusinessServiceJsonLd, businessServiceBookHref, businessServiceFac
 import {
   businessServicePathWithoutLocale,
   businessServiceRoute,
+  parseBusinessServiceSlug,
   type BusinessServiceSegment,
 } from "@/lib/services/business-pages/paths";
 import { loadOfferingImageUrls } from "@/lib/storefront/catalog-images";
@@ -104,6 +106,8 @@ async function localePath(locale: string, pathWithoutLocale: string): Promise<st
 
 export async function businessServiceMetadata(segment: BusinessServiceSegment, { params }: BusinessServiceParams): Promise<Metadata> {
   const { slug } = await params;
+  // TUL-1594: no id8 = not a service page URL; it is the CMS page this path always was (the gate lets it through).
+  if (parseBusinessServiceSlug(slug) === null) return cmsPageMetadata({ params: Promise.resolve({ slug: [segment, slug] }) });
   const loaded = await load(slug);
   if (!loaded || loaded.res.status !== "ok") return { robots: { index: false } };
   const { offering } = loaded.res;
@@ -122,6 +126,15 @@ export async function businessServiceMetadata(segment: BusinessServiceSegment, {
 
 export async function BusinessServicePage({ segment, params }: { segment: BusinessServiceSegment } & BusinessServiceParams) {
   const { slug } = await params;
+  // TUL-1594: a plain slug (no id8) is an old service slug (301) or the CMS page this path always was.
+  if (parseBusinessServiceSlug(slug) === null) {
+    const scope = await getPublicTenantScope();
+    if (scope) {
+      const to = await oldSlugRedirectPath(segment, slug, scope.tenantId, await getRequestLocale());
+      if (to) permanentRedirect(await localePath(await getRequestLocale(), to));
+    }
+    return <CmsPublicPage params={Promise.resolve({ slug: [segment, slug] })} />;
+  }
   const loaded = await load(slug);
   if (!loaded) {
     logServerError("business-service-page", new Error("no public tenant scope or service client"));

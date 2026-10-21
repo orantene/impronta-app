@@ -10,6 +10,15 @@ test("TUL-1140: an unknown slug is a not-found verdict, a slug a page owns rende
   assert.equal(talentRouteVerdict("galeria", ["galeria", "contacto"]), "render");
 });
 
+// TUL-1594: with the presentation flag on, a slug nothing else owns gets one old-slug check before the 404.
+test("TUL-1594: oldSlugCheck turns the 404 into check-old-slug; pages and /privacy still win; flag off is unchanged", () => {
+  assert.equal(talentRouteVerdict("old-haircut", ["galeria"], { oldSlugCheck: true }), "check-old-slug");
+  assert.equal(talentRouteVerdict("old-haircut", ["galeria"], { oldSlugCheck: false }), "not-found");
+  assert.equal(talentRouteVerdict("old-haircut", ["galeria"]), "not-found");
+  assert.equal(talentRouteVerdict("galeria", ["galeria"], { oldSlugCheck: true }), "render");
+  assert.equal(talentRouteVerdict(LEGACY_PRIVACY_SLUG, ["galeria"], { oldSlugCheck: true }), "privacy-redirect");
+});
+
 test("TUL-857: /privacy redirects unless the talent authored a page with that slug", () => {
   assert.equal(talentRouteVerdict(LEGACY_PRIVACY_SLUG, ["galeria"]), "privacy-redirect");
   assert.equal(talentRouteVerdict(LEGACY_PRIVACY_SLUG, [LEGACY_PRIVACY_SLUG]), "render");
