@@ -36,6 +36,9 @@ export function dependencies(ops) {
       const c = made.get(op.id);
       if (c !== undefined && c !== i) deps.add(c);
       if (op.userId && made.has(op.userId)) deps.add(made.get(op.userId));
+      if (op.actorId && made.has(op.actorId)) deps.add(made.get(op.actorId));
+      if (op.tenantId && made.has(op.tenantId)) deps.add(made.get(op.tenantId));
+      for (const id of op.after ?? []) if (made.has(id)) deps.add(made.get(id));
       for (const v of Object.values(op.set ?? {})) {
         const c = isId(v) ? made.get(v) : undefined;
         if (c !== undefined && c !== i) deps.add(c);

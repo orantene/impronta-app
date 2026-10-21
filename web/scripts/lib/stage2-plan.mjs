@@ -28,6 +28,14 @@ export const NOT_BUILT = [
   { id: "BOGO", what: "a true 2x1 / buy-X-get-Y rule", why: "no column on main or in _pending_pm (Phase 3 G3.2/G3.1); the happy-hour story uses 50% off non-alcoholic items" },
 ];
 
+/** Live-schema probe for the table the PIN function writes (migration 20261231423900, _pending_pm). */
+export const PIN_TABLE_COLUMN = "staff_pin_hashes.pin_hash";
+export const BLOCKED_PIN_TABLE = {
+  item: "T1 manager PIN (staff_pin_hashes via rpc pos_set_staff_pin)",
+  version: "20261231423900",
+  file: "supabase/migrations/_pending_pm/20261231423900_staff_pin_hashes_and_throttle_tul1516.sql",
+};
+
 export function resolveStage2(only) {
   const want = new Set(only?.length ? only : S2_FIXTURES);
   for (let changed = true; changed; ) {
@@ -45,8 +53,10 @@ export function buildStage2Plan(sets, ctx) {
   if (wanted.has("T1")) {
     const cat = planT1Catalog(ctx);
     // Order matters: the workspace and venues exist before anything that names them.
-    ops.push(...planT1Core(ctx.now), ...planT1Floor(ctx.now), ...planT1Devices(ctx.now), ...cat.ops);
+    const hasPinTable = ctx.has(PIN_TABLE_COLUMN);
+    ops.push(...planT1Core(ctx.now, hasPinTable), ...planT1Floor(ctx.now), ...planT1Devices(ctx.now), ...cat.ops);
     blocked.push(...cat.blocked);
+    if (!hasPinTable) blocked.push(BLOCKED_PIN_TABLE);
   }
   if (wanted.has("T2")) ops.push(...planT2(ctx.now));
   if (wanted.has("T3")) {

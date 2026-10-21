@@ -71,6 +71,14 @@ export function checkS2Plan(ops, { fixtureIds = new Set(), tenantIds = new Set()
       if (!refs && !natural) problems.push(`${where}: row without an id does not reference a fixture row (or name an @example.test natural key)`);
     }
     if (op.id && op.kind !== "update" && op.kind !== "pin" && op.kind !== "authUser" && op.id !== s2Id(op.key)) problems.push(`${where}: id is not s2Id(key)`);
+    if (op.kind === "pin") {
+      // The PIN goes through pos_set_staff_pin for a fixture manager, by a fixture actor, in a fixture workspace. Never a direct settings write.
+      if (op.via !== "pos_set_staff_pin") problems.push(`${where}: a PIN must be set through pos_set_staff_pin`);
+      if (!tenantIds.has(op.tenantId)) problems.push(`${where}: PIN workspace is not a fixture workspace`);
+      for (const k of ["actorId", "userId"]) if (!fixtureIds.has(op[k])) problems.push(`${where}: PIN ${k} is not a fixture user`);
+      if (op.table !== "public.staff_pin_hashes") problems.push(`${where}: a PIN op writes staff_pin_hashes only`);
+    }
+    if (JSON.stringify(op.set ?? {}).includes("pins") || JSON.stringify(op.merge ?? {}).includes("pins") || JSON.stringify(op.row ?? {}).includes('"pins"')) problems.push(`${where}: writes settings.people.pins directly (TUL-1516: use pos_set_staff_pin)`);
     const values = { ...(op.row ?? {}), ...(op.set ?? {}), ...(op.merge ?? {}) };
     const t = values.tenant_id;
     if (op.touchesExisting) {
@@ -160,8 +168,21 @@ export function summarise(ops) {
   const out = {};
   for (const op of ops) {
     const t = (out[op.table] ??= { insert: 0, update: 0 });
-    if (op.kind === "update" || op.kind === "pin") t.update += 1;
+    if (op.kind === "update") t.update += 1;
     else t.insert += 1;
+  }
+  return out;
+}
+
+/**
+ * --repair guard: only the seed's own workspaces (id = s2Id("workspace:*") of this plan, slug s2-*) may be touched.
+ * `rows` = [{ id, slug }] as read from the database; returns the reasons to refuse (empty = ok).
+ */
+export function repairTargetProblems(rows, fixtureWorkspaceIds) {
+  const out = [];
+  for (const r of rows) {
+    if (!fixtureWorkspaceIds.has(r.id)) out.push(`workspace ${r.id} is not one of this seed's fixture workspaces`);
+    if (!String(r.slug ?? "").startsWith(S2_SLUG_PREFIX)) out.push(`workspace ${r.id} (${r.slug}) does not have an ${S2_SLUG_PREFIX} slug`);
   }
   return out;
 }
@@ -178,6 +199,7 @@ export function triggerSideEffects(ops) {
   return [
     { table: "auth.identities", rows: users, note: "written explicitly by the seed with each login" },
     { table: "public.profiles", rows: users, note: "made by the signup trigger; the seed then UPDATES these rows (its own)" },
+    { table: "public.staff_pin_hashes", rows: ops.filter((o) => o.kind === "pin").length, note: "FUNCTION-made: rpc pos_set_staff_pin writes the manager's PIN hash (only when the table exists; idempotent)" },
     { table: "public.agency_talent_roster", rows: talents, note: "hub roster auto-enroll, one per new talent (the selftest delta of +6 for 3 talents = 3 explicit roster rows + 3 trigger rows); cleanup removes them through the talent" },
     { table: "public.agencies (takes_reservations flag)", rows: reservationTenants, note: "trigger on venue_service_rules flips the flag on the seed's own workspace" },
   ];

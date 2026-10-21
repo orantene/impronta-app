@@ -37,7 +37,7 @@ export const VENUES = [
   { tag: "c", name: "Sucursal Nueva York", slug: "s2-cantina-nyc", tz: "America/New_York", country: "US", city: "New York" },
 ];
 
-export function planT1Core(at) {
+export function planT1Core(at, hasPinTable = true) {
   const fx = "T1";
   const ws = workspaceOps(fx, T1_KEY, {
     slug: T1_SLUG, name: "La Cantina del Puerto", tagline: "Cocina mexicana y bar en Cancún", businessType: "restaurant", ownerKey: "t1-owner", at,
@@ -53,8 +53,16 @@ export function planT1Core(at) {
   for (const r of T1_ROLE_LIMITS) {
     ops.push(insert(fx, "public.role_limits", `rolelimit:t1-${r.role}-${r.action}`, { id: s2Id(`rolelimit:t1-${r.role}-${r.action}`), tenant_id: ws.ws, role: r.role, action: r.action, limit_cents: r.cents }));
   }
-  // The manager's PIN: a bcrypt hash under agencies.settings.people.pins (this seed's own workspace row). The PIN comes from the local seed config.
-  ops.push({ fx, kind: "pin", table: "public.agencies", key: "pin:t1-manager", id: ws.ws, userId: s2Id("user:t1-manager"), secretKey: "t1-manager" });
+  // The manager's PIN goes through the APP path, never a direct write: rpc pos_set_staff_pin(tenant, actor = the T1 owner, user = the manager, pin)
+  // (migration 20261231423900, _pending_pm), which writes public.staff_pin_hashes. It needs the staff_pin_hashes table, so it is planned only
+  // when the live schema has it. The PIN itself is generated into the local seed config and is never in the plan.
+  if (hasPinTable) {
+    ops.push({
+      fx, kind: "pin", via: "pos_set_staff_pin", table: "public.staff_pin_hashes", key: "pin:t1-manager", id: ws.ws, tenantId: ws.ws,
+      actorId: s2Id("user:t1-owner"), userId: s2Id("user:t1-manager"), secretKey: "t1-manager",
+      after: [s2Id("membership:t1-owner"), s2Id("membership:t1-manager")], // the function checks the actor's membership
+    });
+  }
   return ops;
 }
 

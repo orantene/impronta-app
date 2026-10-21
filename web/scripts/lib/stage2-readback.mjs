@@ -17,7 +17,8 @@ export const CHECKS = {
     ["QR: 4 table codes + 1 generic menu code; 1 open and 1 closed visit", "select (select count(*) from public.links where tenant_id = $1 and code like 's2-cantina-%')::int + (select count(*) from public.visits where tenant_id = $1 and ((status = 'open') or (status = 'closed' and closed_at is not null)))::int n", [T1], 7],
     ["devices: 2 POS, 1 kitchen board, 2 door; one open cash shift of MXN 500", "select (select count(*) from public.pos_devices where tenant_id = $1)::int + (select count(*) from public.pos_shifts where tenant_id = $1 and status = 'open' and opening_cash_cents = 50000)::int n", [T1], 6],
     ["staff: 9 active (owner/admin/manager/editor/viewer + cashier/kitchen/door/host), 1 pending invitee, 1 suspended", "select (select count(*) from public.agency_memberships where tenant_id = $1 and status = 'active')::int * 100 + (select count(*) from public.agency_memberships where tenant_id = $1 and status = 'invited')::int * 10 + (select count(*) from public.agency_memberships where tenant_id = $1 and status = 'suspended')::int n", [T1], 911],
-    ["cashier holds no refund-capable role (editor), manager has a PIN hash", "select count(*)::int n from public.agency_memberships m join public.agencies a on a.id = m.tenant_id where m.tenant_id = $1 and m.profile_id = $2 and m.role = 'editor' and a.settings #>> array['people','pins', $3::text] is null and a.settings #>> array['people','pins', $4::text] is not null", [T1, s2Id("user:t1-cashier"), s2Id("user:t1-cashier"), s2Id("user:t1-manager")], 1],
+    ["cashier holds no refund-capable role (editor)", "select count(*)::int n from public.agency_memberships where tenant_id = $1 and profile_id = $2 and role = 'editor'", [T1, s2Id("user:t1-cashier")], 1],
+    ["manager PIN: one staff_pin_hashes row for the manager (made by pos_set_staff_pin), none for the cashier, no settings.people.pins key", "select (select count(*) from public.staff_pin_hashes where tenant_id = $1 and user_id = $2)::int * 10 + (select count(*) from public.staff_pin_hashes where tenant_id = $1 and user_id = $3)::int + (select count(*) from public.agencies where id = $1 and settings #> array['people','pins'] is not null)::int * 100 n", [T1, s2Id("user:t1-manager"), s2Id("user:t1-cashier")], 10, { requires: "public.staff_pin_hashes" }],
     ["role limits: 3 set rows (viewer/admin/owner unset)", "select count(*)::int n from public.role_limits where tenant_id = $1", [T1], 3],
     ["catalog: bar controls are alcoholic and excluded; 2 non-alcoholic deal items", "select (select count(*) from public.talent_offerings where tenant_id = $1 and attributes->>'alcohol' = 'true' and attributes->>'excluded_from_deals' = 'true')::int * 10 + (select count(*) from public.talent_offerings where tenant_id = $1 and attributes->>'deal' = 'true' and attributes->>'alcohol' = 'false')::int n", [T1], 32],
     ["stock: margarita pool 5, last piece 1, sold-out 0", "select count(*)::int n from public.talent_offerings o join public.capacity_pools p on p.id = o.capacity_pool_id where o.id = any($1::uuid[]) and p.units_total = o.inventory_qty and ((o.id = $2 and p.units_total = 5) or (o.id = $3 and p.units_total = 1) or (o.id = $4 and p.units_total = 0))", [[o("t1-margarita"), o("t1-ultima"), o("t1-agotado")], o("t1-margarita"), o("t1-ultima"), o("t1-agotado")], 3],
@@ -89,7 +90,11 @@ export async function readBack(q, sets) {
   const lines = [];
   let failures = 0;
   for (const f of sets) {
-    for (const [label, sql, params, want] of CHECKS[f] ?? []) {
+    for (const [label, sql, params, want, opts] of CHECKS[f] ?? []) {
+      if (opts?.requires && !(await q("select to_regclass($1) is not null e", [opts.requires])).rows[0].e) {
+        lines.push(`SKIP ${f.padEnd(3)} ${label} (${opts.requires} does not exist on this database: migration 20261231423900 not applied)`);
+        continue;
+      }
       const n = (await q(sql, params)).rows[0]?.n ?? 0;
       const ok = n === want;
       if (!ok) failures += 1;

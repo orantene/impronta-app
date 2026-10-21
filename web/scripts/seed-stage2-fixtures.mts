@@ -19,14 +19,14 @@ import { homedir } from "node:os";
 
 import { STAGING_MARKER_AGENCY_ID, checkKeyFileMode, checkStripeKey, parseEnvText, parseKeyFileText } from "./lib/group6-fixtures.mjs";
 import { G6_REQUIRED, HUB_TENANT_ID } from "./lib/failed-cards-ops.mjs";
-import { checkS2Target, s2Id, summarise, triggerSideEffects } from "./lib/stage2-guards.mjs";
+import { checkS2Target, repairTargetProblems, s2Id, summarise, triggerSideEffects } from "./lib/stage2-guards.mjs";
 import { S2_FIXTURES, buildStage2Plan, resolveStage2, verifyS2Plan } from "./lib/stage2-plan.mjs";
 import { readBack } from "./lib/stage2-readback.mjs";
 import { checkStripeSteps, describeS2Stripe, openTestStripe, runS2Stripe } from "./lib/stage2-stripe.mjs";
 import { SEED_CONFIG_PATH, loadSeedConfig, pinName, pwName, resolveSecrets, writeSeedConfig } from "./lib/stage2-secrets.mjs";
 
 type Row = Record<string, unknown>;
-type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; userId?: string; secretKey?: string; touchesExisting?: string; natural?: string };
+type Op = { fx: string; kind: string; table: string; key: string; id: string | null; row?: Row; set?: Row; merge?: Row; conflict?: string[] | null; template?: Row; userId?: string; secretKey?: string; touchesExisting?: string; natural?: string; tenantId?: string; actorId?: string };
 type PgClient = { connect(): Promise<void>; query(text: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>; end(): Promise<void> };
 const PG_MODULE = "pg";
 const pgMod = (await import(PG_MODULE)) as { default: { Client: new (cfg: { connectionString?: string; ssl?: unknown }) => PgClient } };
@@ -45,10 +45,10 @@ const val = (n: string) => {
   const v = i >= 0 ? argv[i + 1] : undefined;
   return v && !v.startsWith("--") ? v : null;
 };
-const KNOWN = new Set(["--apply", "--cleanup", "--selftest", "--help", "-h", "--env-file", "--backup-file", "--only", "--stripe", "--stripe-key-file", "--stripe-mx-key-file"]);
+const KNOWN = new Set(["--apply", "--cleanup", "--selftest", "--help", "-h", "--env-file", "--backup-file", "--only", "--stripe", "--stripe-key-file", "--stripe-mx-key-file", "--repair"]);
 const unknown = argv.filter((a) => a.startsWith("-") && !KNOWN.has(a));
 if (flag("--help") || flag("-h")) {
-  console.log("usage: seed-stage2-fixtures.mts [--env-file p] [--only T1,T2] [--selftest | --apply --backup-file p | --cleanup [--apply --backup-file p]]");
+  console.log("usage: seed-stage2-fixtures.mts [--env-file p] [--only T1,T2] [--selftest | --apply --backup-file p | --cleanup [--apply --backup-file p] | --repair [--apply --backup-file p]]");
   process.exit(0);
 }
 if (unknown.length) die(`unknown argument ${unknown.join(" ")}`, 2);
@@ -74,7 +74,9 @@ if (envFile) Object.assign(env, parseEnvText(readFileSync(envFile, "utf8")));
 const targetVerdict = checkS2Target(env);
 if (!targetVerdict.ok) die(`refusing to run:\n  - ${targetVerdict.reasons.join("\n  - ")}`, 2);
 
-const mode = cleanupMode ? (apply ? "cleanup-apply" : "cleanup-plan") : selftest ? "selftest" : apply ? "apply" : "plan";
+const repairMode = flag("--repair");
+if (repairMode && (selftest || cleanupMode || val("--stripe"))) die("--repair cannot be combined with --selftest, --cleanup or --stripe", 2);
+const mode = repairMode ? (apply ? "repair-apply" : "repair-plan") : cleanupMode ? (apply ? "cleanup-apply" : "cleanup-plan") : selftest ? "selftest" : apply ? "apply" : "plan";
 const sets = resolveStage2(only);
 // ------------------------------------------------------------------ Stripe TEST keys (only with --stripe; never printed)
 function readKeyFile(path: string | null, fallback: string | undefined, label: string): string | null {
@@ -118,7 +120,7 @@ const saveBackup = () => {
 let secrets = new Map<string, string>();
 
 // ------------------------------------------------------------------ guards (run before EVERY write batch)
-const LIVE_COLUMNS = ["talent_offerings.pos_enabled"];
+const LIVE_COLUMNS = ["talent_offerings.pos_enabled", "staff_pin_hashes.pin_hash"];
 /** Pre-existing talent facts, resolved read-only in context(): the hub talent TAL-93900 (additive rows only) and the ids no op may name. */
 let hubCtx: { talentId: string; tenantId: string; hasPayout: boolean } | null = null;
 let forbiddenTalentIds: string[] = [];
@@ -244,23 +246,26 @@ async function updateOwned(table: string, id: string, set: Row) {
   bump(table, "updated");
 }
 
-/** The manager's PIN: a bcrypt hash at agencies.settings.people.pins.<user id> of this seed's own workspace row. Set once. */
+/**
+ * The manager's PIN, set the way the app sets it: rpc pos_set_staff_pin(tenant, actor = the T1 owner, user = the manager, pin) with the
+ * service role (migration 20261231423900). The function is SECURITY DEFINER, takes no auth.uid() context and only requires that the actor is
+ * an active manager-or-above member of the tenant (pos_membership_is_manager), which the owner membership inserted earlier in this same
+ * plan satisfies. It writes public.staff_pin_hashes; this seed never inserts there and never writes settings.people.pins (TUL-1516).
+ * Idempotent: skipped, read-only, when a staff_pin_hashes row already exists for that tenant + user. It runs inside the same transaction as
+ * the other writes (a plain function call on this connection), so --selftest includes it and rolls it back with everything else.
+ */
 async function execPin(op: Op) {
   const pin = secrets.get(pinName(op.secretKey as string));
   if (!pin) throw new Error(`${op.fx} ${op.key}: no generated PIN`);
-  if (!created.has(op.id as string)) {
-    const cur = await q("select settings from public.agencies where id = $1", [op.id]);
-    backup.updated.push({ table: "public.agencies", id: op.id as string, before: { settings: cur.rows[0]?.settings ?? null } });
-    saveBackup();
+  const have = await q("select 1 from public.staff_pin_hashes where tenant_id = $1 and user_id = $2", [op.tenantId, op.userId]);
+  if (have.rowCount) {
+    bump("public.staff_pin_hashes", "existed");
+    return;
   }
-  const r = await q(
-    `update public.agencies set settings = jsonb_set(coalesce(settings, '{}'::jsonb), '{people}',
-       coalesce(settings->'people', '{}'::jsonb) || jsonb_build_object('pins', coalesce(settings #> '{people,pins}', '{}'::jsonb) ||
-       jsonb_build_object($2::text, extensions.crypt($3::text, extensions.gen_salt('bf')))))
-     where id = $1 and (settings #>> array['people','pins',$2::text]) is null`,
-    [op.id, op.userId, pin],
-  );
-  bump("public.agencies", (r.rowCount ?? 0) > 0 ? "updated" : "existed");
+  const r = await q("select public.pos_set_staff_pin($1::uuid, $2::uuid, $3::uuid, $4::text) as reply", [op.tenantId, op.actorId, op.userId, pin]);
+  const reply = r.rows[0]?.reply as { ok?: boolean; reason?: string } | null;
+  if (!reply?.ok) throw new Error(`${op.fx} ${op.key}: pos_set_staff_pin refused (${reply?.reason ?? "no reply"})`);
+  bump("public.staff_pin_hashes", "created");
 }
 
 async function runOps(ops: Op[]) {
@@ -386,13 +391,16 @@ const COUNT_TABLES = [
   "public.links", "public.visits", "public.pos_devices", "public.pos_shifts", "public.capacity_pools", "public.talent_offerings", "public.talent_offering_variants",
   "public.talent_offering_addons", "public.offering_components", "public.events", "public.tenant_promo_codes",
   "public.sessions", "public.session_series", "public.offering_price_phases", "public.talent_profiles", "public.agency_talent_roster",
-  "public.talent_booking_hours", "public.payout_accounts", "public.space_group_members", "public.promo_targets", "public.customers",
+  "public.talent_booking_hours", "public.payout_accounts", "public.space_group_members", "public.staff_pin_hashes", "public.promo_targets", "public.customers",
   "public.guest_email_unsubscribes", "public.account_deletion_requests", "public.inquiries", "public.inquiry_requirement_groups",
   "public.inquiry_participants", "public.inquiry_offers", "public.inquiry_offer_line_items",
 ];
 async function tableCounts() {
   const out: Record<string, number> = {};
-  for (const t of COUNT_TABLES) out[t] = (await q(`select count(*)::int n from ${t}`)).rows[0].n as number;
+  for (const t of COUNT_TABLES) {
+    if (!(await q("select to_regclass($1) is not null e", [t])).rows[0].e) continue; // e.g. staff_pin_hashes before its migration
+    out[t] = (await q(`select count(*)::int n from ${t}`)).rows[0].n as number;
+  }
   return out;
 }
 
@@ -481,13 +489,36 @@ async function stripeApply() {
 // ------------------------------------------------------------------ main
 async function main() {
   console.log(`${TAG} target OK (staging fxlankepwnvelxjrahwk). mode=${mode} clusters=${sets.join(",")}`);
-  await q(mode === "plan" || mode === "cleanup-plan" ? "begin read only" : mode === "selftest" ? "begin isolation level repeatable read" : "begin");
+  await q(mode === "plan" || mode === "cleanup-plan" || mode === "repair-plan" ? "begin read only" : mode === "selftest" ? "begin isolation level repeatable read" : "begin");
   const ctx = await context();
   const plan = buildStage2Plan(sets, ctx);
   const ops = plan.ops as Op[];
   const v = verifyS2Plan(ops, guardCtx());
   if (!v.ok) throw new Error(`plan refused:\n  - ${v.problems.join("\n  - ")}`);
   console.log(`${TAG} plan guards OK: ${ops.length} ops across ${v.tenantIds.size} fixture workspaces`);
+
+  if (mode === "repair-plan" || mode === "repair-apply") {
+    // --repair (TUL-1516): remove a direct settings.people.pins key from the seed's OWN workspaces only (s2 ids, s2- slugs), whatever --only says.
+    const fixtureWs = verifyS2Plan(buildStage2Plan(S2_FIXTURES, ctx).ops as Op[], guardCtx()).tenantIds;
+    const rows = (await q("select id::text id, slug, to_jsonb(a) j from public.agencies a where id = any($1::uuid[]) and settings #> '{people,pins}' is not null", [[...fixtureWs]])).rows;
+    const bad = repairTargetProblems(rows as Array<{ id: string; slug: string }>, fixtureWs as Set<string>);
+    if (bad.length) throw new Error(`repair refused:\n  - ${bad.join("\n  - ")}`);
+    console.log(`${TAG} repair: ${rows.length} of ${fixtureWs.size} fixture workspaces carry settings.people.pins (values never printed)`);
+    if (mode === "repair-plan" || !rows.length) {
+      await q("rollback");
+      console.log(rows.length ? `${TAG} REPAIR PLAN only: nothing written (re-run with --apply --backup-file <path>).` : `${TAG} nothing to repair: no-op.`);
+      return;
+    }
+    await assertBatchGuards("repair batch", ops);
+    for (const r of rows) {
+      backup.updated.push({ table: "public.agencies", id: r.id as string, before: r.j as Row });
+      await q("update public.agencies set settings = settings #- '{people,pins}' where id = $1 and settings #> '{people,pins}' is not null", [r.id]);
+    }
+    saveBackup();
+    await q("commit");
+    console.log(`${TAG} REPAIRED ${rows.length} workspace(s); pre-images in the backup file (it holds the old hash: keep it local, mode 600).`);
+    return;
+  }
 
   if (mode === "plan" || mode === "cleanup-plan") {
     console.log(`${TAG} rows by table (insert / update of this seed's own rows):`);
