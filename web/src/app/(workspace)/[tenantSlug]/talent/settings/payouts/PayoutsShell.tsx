@@ -22,6 +22,7 @@ import { PayoutAttentionPanel } from "@/components/payments/PayoutAttentionPanel
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { GlobalPayoutsBankCard } from "./GlobalPayoutsBankCard";
 import { StablecoinPayoutCard } from "./StablecoinPayoutCard";
+import { ManualBankReferenceCard } from "./ManualBankReferenceCard";
 import type { TalentConnectedAccountSnapshot } from "@/lib/payments/stripe-connect-talent";
 import type { ActivePayoutSystem } from "@/lib/payments/active-payout-system";
 import type { TalentPayoutAttention } from "@/lib/payments/talent-payout-attention-types";
@@ -377,6 +378,9 @@ export function PayoutsShell({
           {!showOnboarding && !needCountry && <StablecoinPayoutCard />}
             </>
           )}
+
+          {/* Manual payout accounts: the talent's own masked bank reference. The owner verifies it. */}
+          <ManualBankReferenceCard />
 
           <div style={{ marginTop: 24, fontSize: 11.5, lineHeight: 1.55, color: C.inkDim }}>
             {copy.t(
