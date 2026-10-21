@@ -1251,6 +1251,7 @@
       "dockLineupShelfSaved": "Saved",
       "dockLineupEmptyInquiry": "Nothing in your inquiry yet. Move something over from Saved, or pick from the list.",
       "dockLineupEmptySaved": "Nothing saved yet. Save talent you like and they will appear here.",
+      "dockLineupEmptySavedInInquiry": "Nothing in your favorites yet. Talent you added to your inquiry is under In your inquiry, above.",
       "dockLineupMoveToInquiry": "Move to inquiry",
       "dockLineupInInquiry": "In inquiry",
       "dockLoading": "Loading…",
