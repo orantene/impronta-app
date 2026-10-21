@@ -36,6 +36,7 @@ import {
   isValidRating,
 } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
+import { loadExistingReviewsByKey } from "./review-existing-load";
 import { offeringIdForBooking, stampReviewOffering } from "./review-offering";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -56,22 +57,6 @@ type BookingTalentRow = {
   booking_id: string;
   talent_profile_id: string | null;
   talent_name_snapshot: string | null;
-};
-
-type ExistingReviewRow = {
-  booking_id: string | null;
-  talent_profile_id: string;
-  rating: number;
-  body: string | null;
-  would_book_again: boolean | null;
-  attr_professionalism: number | null;
-  attr_skill: number | null;
-  attr_communication: number | null;
-  attr_reliability: number | null;
-  traits: string[] | null;
-  private_note: string | null;
-  anon: boolean | null;
-  published_at: string | null;
 };
 
 /** The STANDING signal a client may attach to a talent review (all optional). */
@@ -371,34 +356,14 @@ export async function loadReviewableBookingsAction(
     .in("booking_id", bookingIds)
     .returns<BookingTalentRow[]>();
 
-  const { data: existing } = await supabase
-    .from("talent_reviews")
-    .select(
-      "booking_id, talent_profile_id, rating, body, would_book_again, attr_professionalism, attr_skill, attr_communication, attr_reliability, traits, private_note, anon, published_at",
-    )
-    .in("booking_id", bookingIds)
-    .eq("client_user_id", user.id)
-    .returns<ExistingReviewRow[]>();
-
-  const existingByKey = new Map<
-    string,
-    NonNullable<ReviewableBooking["existingReview"]>
-  >();
-  for (const e of existing ?? []) {
-    existingByKey.set(`${e.booking_id}:${e.talent_profile_id}`, {
-      rating: e.rating,
-      body: e.body,
-      wouldBookAgain: e.would_book_again ?? null,
-      attrProfessionalism: e.attr_professionalism ?? null,
-      attrSkill: e.attr_skill ?? null,
-      attrCommunication: e.attr_communication ?? null,
-      attrReliability: e.attr_reliability ?? null,
-      traits: Array.isArray(e.traits) ? e.traits : null,
-      privateNote: e.private_note ?? null,
-      anon: e.anon ?? false,
-      publishedAt: e.published_at ?? null,
-    });
-  }
+  // private_note is NOT selectable by the user session (column privilege);
+  // the helper reads it separately via service role, scoped to this user.
+  const existingByKey = await loadExistingReviewsByKey(
+    supabase,
+    createServiceRoleClient(),
+    user.id,
+    bookingIds,
+  );
 
   const byId = new Map(reviewable.map((b) => [b.id, b] as const));
   const out: ReviewableBooking[] = [];
