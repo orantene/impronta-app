@@ -142,7 +142,8 @@ test("TUL-1516: a removed or inactive member's correct PIN gives pin_invalid, be
 test("TUL-1516: removing a member deletes their PIN hash and legacy settings entry", () => {
   const src = readFileSync(join(WEB, "src/lib/server-actions/team-management.ts"), "utf8");
   const fn = src.slice(src.indexOf("export async function removeTeamMember"));
-  assert.match(fn, /from\("staff_pin_hashes"\)\.delete\(\)\.eq\("tenant_id", tenantId\)\.eq\("user_id", profileId\)/);
+  // Tenant-scoped either explicitly or through tenantScopedQuery (which prefilters tenant_id).
+  assert.match(fn, /from\("staff_pin_hashes"\)\.delete\(\)\.eq\("tenant_id", tenantId\)\.eq\("user_id", profileId\)|tenantScopedQuery\(admin, "staff_pin_hashes", tenantId\)\.delete\(\)\.eq\("user_id", profileId\)/);
   assert.match(fn, /restPins/);
 });
 

@@ -464,6 +464,7 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
 
     // TUL-1516: a removed member must not come back through an invite sent before the removal.
     // Revoke every still-open invite addressed to this person's email in this workspace.
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profiles is the global user table (no tenant column); one row by the member's id
     const { data: removedProfile, error: profileErr } = await admin
       .from("profiles")
       .select("email")
@@ -472,10 +473,8 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
     if (profileErr) logServerError("team-management.removeTeamMember.profile", profileErr);
     const removedEmail = (removedProfile as { email?: string | null } | null)?.email?.trim().toLowerCase();
     if (removedEmail) {
-      const { error: revokeErr } = await admin
-        .from("team_invite_tokens")
+      const { error: revokeErr } = await tenantScopedQuery(admin, "team_invite_tokens", tenantId)
         .update({ revoked_at: new Date().toISOString() })
-        .eq("tenant_id", tenantId)
         .ilike("invited_email", removedEmail)
         .is("redeemed_at", null)
         .is("revoked_at", null);
@@ -483,7 +482,7 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
     }
 
     // TUL-1516: a removed member keeps no PIN. Drop the hash row and any legacy settings.people.pins entry.
-    const { error: pinErr } = await admin.from("staff_pin_hashes").delete().eq("tenant_id", tenantId).eq("user_id", profileId);
+    const { error: pinErr } = await tenantScopedQuery(admin, "staff_pin_hashes", tenantId).delete().eq("user_id", profileId);
     if (pinErr) logServerError("team-management.removeTeamMember.pinHash", pinErr);
     const { data: agencyRow, error: settingsReadErr } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
     if (settingsReadErr) logServerError("team-management.removeTeamMember.settings", settingsReadErr);
