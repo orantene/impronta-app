@@ -114,7 +114,7 @@ describe("the sales base query", () => {
   test("counts paid, fulfilled or partially refunded orders of THIS workspace in the plan currency, net of refunds (details in rent-sales-paging.test.ts)", () => {
     assert.match(src, /tenantScopedQuery\(admin, "order_lines", p\.tenantId\)/);
     assert.match(src, /\["paid", "fulfilled", "partially_refunded"\]/);
-    assert.match(src, /\.eq\("orders\.currency", p\.currency\)/);
+    assert.match(src, /\.eq\("currency", p\.currency\)/);
     assert.match(src, /refunded_cents/);
   });
 });
