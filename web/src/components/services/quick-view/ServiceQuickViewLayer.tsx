@@ -13,10 +13,12 @@ import type { TalentOffering } from "@/lib/talent/offerings-types";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 import type { ServiceCardTarget } from "@/lib/services/presentation/card-target";
 
+import { SaveServiceButton } from "@/components/client-account/SaveServiceButton";
+
 import { ServiceQuickViewHost } from "./ServiceQuickViewHost";
 import { SERVICE_QUICK_VIEW_CSS } from "./quick-view-css";
 
-function QuickViewDialog({ v }: { v: ServiceQuickView }) {
+function QuickViewDialog({ v, saveEnabled }: { v: ServiceQuickView; saveEnabled: boolean }) {
   const c = serviceQuickViewCopy(v.locale);
   const faqCopy = serviceFaqCopy(v.locale);
   const rc = serviceReviewsCopy(v.locale);
@@ -26,6 +28,8 @@ function QuickViewDialog({ v }: { v: ServiceQuickView }) {
     <dialog id={v.domId} className="sqv" aria-labelledby={titleId} data-sqv-key={v.id} data-service-quick-view={v.offeringId}>
       <div className="sqv-head">
         <h2 id={titleId} className="sqv-title">{v.title}</h2>
+        {/* TUL-1463: save this service (a guest is asked to sign in, right here). */}
+        {saveEnabled ? <SaveServiceButton offeringId={v.offeringId} title={v.title} locale={v.locale} /> : null}
         <button type="button" className="sqv-close" aria-label={c.close} data-sqv-close="">
           <span aria-hidden>×</span>
         </button>
@@ -103,6 +107,7 @@ export function ServiceQuickViewLayer({
   offerings,
   confirmsByHand = true,
   bookingPosture,
+  saveEnabled = false,
 }: {
   /** The services widget node: the host only reacts to links inside it. */
   nodeId: string;
@@ -113,6 +118,8 @@ export function ServiceQuickViewLayer({
   offerings?: readonly TalentOffering[];
   confirmsByHand?: boolean;
   bookingPosture?: TalentBookingPosture;
+  /** TUL-1463: show the save (heart) button; the published site only, client account on for this host. */
+  saveEnabled?: boolean;
 }) {
   const hasBook = targets ? Object.values(targets).some((t) => t.opens === "book") : false;
   if (views.length === 0 && !hasBook) return null;
@@ -120,7 +127,7 @@ export function ServiceQuickViewLayer({
     <>
       {views.length > 0 ? <style>{SERVICE_QUICK_VIEW_CSS}</style> : null}
       {views.map((v) => (
-        <QuickViewDialog key={v.domId} v={v} />
+        <QuickViewDialog key={v.domId} v={v} saveEnabled={saveEnabled} />
       ))}
       <ServiceQuickViewHost
         nodeId={nodeId}

@@ -15,6 +15,8 @@ import {
 } from "./area-data.server";
 import { loadSavedTalent } from "./saved-talent.server";
 import { loadMyReviews } from "./my-reviews.server";
+import { loadSavedServices } from "./saved-services.server";
+import { loadVisitReviewState } from "./visit-review.server";
 import { clientAccountEnabledFor } from "./flag";
 import { loadClientAccountSummary } from "./summary.server";
 import { renderTenantAccountPage } from "./render-tenant-area";
@@ -52,12 +54,17 @@ export async function renderClientAccountPage(view: AccountView) {
   const data: AreaData = {};
   if (audience === "client" && userId) {
     const tenantId = tenant.tenantId;
-    if (view.kind === "visit") data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
+    if (view.kind === "visit") {
+      data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
+      data.visitReview = data.visit ? await loadVisitReviewState(userId, tenantId, data.visit.bookingId) : null;
+    }
     else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id);
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
-    else if (view.tab === "saved") data.saved = await loadSavedTalent(userId, tenantId);
+    else if (view.tab === "saved") {
+      [data.saved, data.savedServices] = await Promise.all([loadSavedTalent(userId, tenantId), loadSavedServices(userId, tenantId, locale, { hostKind: host.hostContext, hostTalentProfileId: talentProfileId })]);
+    }
     else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
     else if (view.tab === "payments") {
       [data.summary, data.payLinks, data.receipts] = await Promise.all([
