@@ -63,8 +63,9 @@ export type RefundPlanRefusal =
  *
  * `orders.discount_cents` is the order-level truth; a line's OWN
  * `order_lines.discount_cents` comes off that line first and only what is left
- * of the order discount is spread (`lineNetCents`, the one shared rule, also
- * used by the rent sales base), largest-remainder, so the nets sum exactly.
+ * of the order discount is spread (`lineNetCents`, the one netting rule),
+ * largest-remainder, so the nets sum exactly. (The rent sales base nets the same
+ * way and moves onto `lineNetCents` once both are on main.)
  * Refunding a discounted line GROSS returns more than the customer paid, and
  * spreading the whole order discount without the lines' own discounts refunds
  * the wrong amount per line and per payee: real money that reconciles wrong
@@ -134,6 +135,8 @@ export function planRefund(input: {
   const captureLeft = input.transactions.reduce((s, t) => s + txnRefundableCents(t), 0);
   let perLine = perLineFull;
   let totalCents = lineLeft;
+  const nets0 = lineNetCents(input.lines, input.scope, input.discountCents);
+  let legacyClamped = false;
 
   function allocateToLines(capCents: number): Array<{ id: string; amountCents: number }> {
     let left = capCents;
@@ -176,7 +179,13 @@ export function planRefund(input: {
       0,
     );
     const shortfall = lineLeft - captureLeft;
-    if (captureLeft > 0 && feesKept > 0 && shortfall <= feesKept) {
+    // LEGACY orders: refunded under the old rule (the whole order discount spread, a line's own discount ignored) some
+    // lines were refunded MORE than the exact net. That surplus already left the charge, so the other lines' remainder
+    // can exceed what the charge still holds by exactly that amount. Clamp to the capture instead of refusing, and treat
+    // the order as fully refunded once the capture is drained: never exceeds_captured, never money left behind.
+    const legacyOver = input.lines.reduce((sum, l) => sum + Math.max(0, l.refundedCents - (nets0.get(l.id) ?? 0)), 0);
+    if (captureLeft > 0 && shortfall <= feesKept + legacyOver) {
+      legacyClamped = legacyOver > 0 && shortfall > feesKept ? true : legacyClamped;
       perLine = allocateToLines(captureLeft);
       totalCents = captureLeft;
     } else {
@@ -208,11 +217,12 @@ export function planRefund(input: {
   if (left > 0) return { ok: false, reason: "exceeds_captured" };
 
   const refundedAfter = new Map(perLine.map((p) => [p.id, p.amountCents]));
-  const nets = lineNetCents(input.lines, input.scope, input.discountCents);
-  const isFullRefund = input.lines.every((l) => {
-    const net = nets.get(l.id) ?? 0;
-    return l.refundedCents + (refundedAfter.get(l.id) ?? 0) >= net;
-  });
+  const isFullRefund =
+    legacyClamped ||
+    input.lines.every((l) => {
+      const net = nets0.get(l.id) ?? 0;
+      return l.refundedCents + (refundedAfter.get(l.id) ?? 0) >= net;
+    });
 
   const tipCents = Math.max(0, Math.trunc(input.tipCents ?? 0));
   if (isFullRefund && tipCents > 0) {
