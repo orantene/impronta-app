@@ -291,3 +291,32 @@ function valueLabel(field: ChangeField, key: string, locale: WorkStyleLocale): s
 export function describeChanges(changes: readonly Change[], locale: WorkStyleLocale): string[] {
   return changes.map((c) => `${FIELD_LABEL[c.field][locale]}: ${valueLabel(c.field, c.from, locale)} → ${valueLabel(c.field, c.to, locale)}`);
 }
+
+const TRADE_WORDS: Record<ExampleTrade, RegExp> = {
+  chefs: /\b(chef|chefs|cocin\w*|cook\w*|catering|banquet\w*|comida|food|menu|menú)\b/i,
+  cleaners: /\b(clean\w*|limpi\w*|maid|housekeep\w*|janitor\w*|aseo)\b/i,
+  nails: /\b(nail\w*|u[ñn]as?|manicur\w*|pedicur\w*|beauty|salon|salón|belleza|hair|cabello)\b/i,
+  guides: /\b(tour\w*|guid\w*|gu[ií]as?|excursi\w*|travel|viaje\w*|experienc\w*)\b/i,
+  models: /\b(model\w*|modelos?|talent|talento|photograph\w*|fot[oó]graf\w*|casting)\b/i,
+};
+
+/**
+ * The trade the examples should speak, read from the workspace's own service categories and
+ * titles (TUL-1474). The trade with the most matching services wins; a tie or no match is null
+ * (the caller falls back to a stable pick). Never a client value.
+ */
+export function tradeFromCategories(texts: readonly (string | null | undefined)[]): ExampleTrade | null {
+  const score = new Map<ExampleTrade, number>();
+  for (const t of texts) {
+    if (!t) continue;
+    for (const trade of EXAMPLE_TRADES) if (TRADE_WORDS[trade].test(t)) score.set(trade, (score.get(trade) ?? 0) + 1);
+  }
+  let best: ExampleTrade | null = null;
+  let bestN = 0;
+  let tie = false;
+  for (const trade of EXAMPLE_TRADES) {
+    const n = score.get(trade) ?? 0;
+    if (n > bestN) { best = trade; bestN = n; tie = false; } else if (n === bestN && n > 0) tie = true;
+  }
+  return tie ? null : best;
+}
