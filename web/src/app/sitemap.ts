@@ -17,6 +17,7 @@ import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
+import { isChangelogPublicLaunch } from "@/lib/changelog/public-read";
 import {
   FEATURE_HUB_PATHS,
   MARKETING_FEATURES,
@@ -360,6 +361,8 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       // Resource hub, glossary, and each article, derived the same way.
       "/resources",
       "/resources/glossary",
+      // Changelog is noindex and out of the sitemap until the public launch flag flips.
+      ...(isChangelogPublicLaunch() ? ["/changelog", "/novedades"] : []),
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
     ];
     // The feature hub is emitted separately from `marketingPaths`, because the
