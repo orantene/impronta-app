@@ -6,8 +6,8 @@
  *    written for a guest). A signed-in client saves only a service visible on THIS site
  *    (the one sellable rule, `guest_request`: published + approved + public / on request)
  *    and owned by this site's tenant. The tenant stored is the offering's, never the request's.
- *  - `shapeSavedServices`: the Saved tab list. Only this site's tenant, only services still
- *    visible; each links to a page that always shows that service (`savedServiceHref`).
+ *  - `shapeSavedServices`: the Saved tab list. Only this site's tenant (on a talent site,
+ *    only the host talent's: TUL-1692), only services still visible; each links to a page that always shows that service (`savedServiceHref`).
  */
 import { isSellable } from "@/lib/offerings/sellable";
 import { bookAgainHref } from "@/lib/client-account/book-again";
@@ -19,6 +19,7 @@ import { localizedServiceTitle } from "./localized-service-title";
 export type SaveableOffering = {
   id: string;
   tenant_id: string | null;
+  talent_profile_id?: string | null;
   status?: unknown;
   moderation_state?: unknown;
   visibility?: unknown;
@@ -31,6 +32,8 @@ export type ServiceSaveDecision = { ok: true; tenantId: string } | { ok: false; 
 export function decideServiceSave(input: {
   sessionUserId: string | null | undefined;
   siteTenantId: string | null | undefined;
+  /** TUL-1692: set on any talent site (hub or agency tenant): only the host talent's services save. */
+  hubTalentProfileId?: string | null;
   offering: SaveableOffering | null | undefined;
 }): ServiceSaveDecision {
   if (!input.sessionUserId) return { ok: false, reason: "sign_in" };
@@ -38,6 +41,9 @@ export function decideServiceSave(input: {
   // Another tenant's service, a hidden one or a missing one all read the same: not found.
   if (!o || !o.tenant_id || !input.siteTenantId || o.tenant_id !== input.siteTenantId) return { ok: false, reason: "not_found" };
   if (!isSellable(o, "guest_request")) return { ok: false, reason: "not_found" };
+  // TUL-1692: on a talent site the tenant (hub or agency) holds many talents; another talent's
+  // service (or a house row) is not on this talent's site.
+  if (input.hubTalentProfileId && o.talent_profile_id !== input.hubTalentProfileId) return { ok: false, reason: "not_found" };
   return { ok: true, tenantId: o.tenant_id };
 }
 
@@ -46,7 +52,6 @@ export type SavedServiceOffering = SaveableOffering & {
   title_i18n?: unknown;
   kind?: string | null;
   owner_kind?: string | null;
-  talent_profile_id?: string | null;
   attributes?: Record<string, unknown> | null;
 };
 
@@ -66,6 +71,8 @@ export type SavedServiceSite = {
   hostKind: string | null;
   /** The talent of a talent-site host. */
   hostTalentProfileId: string | null;
+  /** TUL-1692: the host talent on her own site (hub or agency tenant); the list is scoped to her. */
+  hubTalentProfileId?: string | null;
   /** The workspace's plan and flag allow business service pages (`businessServicePagesOn`). */
   businessPagesOn: boolean;
   /** Event-backing and reservation rows: never get a business page. */
@@ -114,6 +121,7 @@ export function shapeSavedServices(rows: readonly SavedServiceRow[], siteTenantI
       const o = r.talent_offerings;
       if (r.tenant_id !== siteTenantId || !o || o.tenant_id !== siteTenantId) return [];
       if (!isSellable(o, "guest_request")) return [];
+      if (site.hubTalentProfileId && o.talent_profile_id !== site.hubTalentProfileId) return [];
       const stored = o.title?.trim();
       if (!stored) return [];
       return [{ title: localizedServiceTitle(o, locale, stored), href: savedServiceHref(o, site, locale) }];
