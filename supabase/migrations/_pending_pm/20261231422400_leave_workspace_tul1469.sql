@@ -60,7 +60,7 @@ BEGIN
    LIMIT 1
    FOR UPDATE;
 
-  IF v_roster_id IS NOT NULL AND v_status IN ('pending', 'active', 'inactive', 'archived_for_downgrade') THEN
+  IF v_roster_id IS NOT NULL AND v_status IN ('pending', 'active', 'inactive') THEN
     IF v_is_primary THEN
       RETURN 'not_allowed_primary';
     END IF;
@@ -68,9 +68,6 @@ BEGIN
        SET status = 'removed',
            removed_at = now(),
            removed_by = (SELECT auth.uid()),
-           archived_for_downgrade_at = NULL,
-           archived_for_downgrade_by = NULL,
-           archived_for_downgrade_event = NULL,
            updated_at = now()
      WHERE id = v_roster_id;
     v_changed := true;

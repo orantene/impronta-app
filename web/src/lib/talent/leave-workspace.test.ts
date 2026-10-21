@@ -78,8 +78,11 @@ test("the real MoneyHomePage carries the Where you appear link", () => {
   assert.match(src, /<WhereYouAppearLink \/>/);
 });
 
-test("an archived_for_downgrade member who leaves becomes removed (a later upgrade cannot reactivate her)", () => {
-  const code = sql.replace(/--.*$/gm, "");
+test("an archived_for_downgrade member who leaves becomes removed (a later upgrade cannot reactivate her): in its OWN migration, 422400 stays as approved", () => {
+  const next = readFileSync(join(root, "supabase", "migrations", "_pending_pm", "20261231423400_leave_workspace_archived_for_downgrade_tul1699.sql"), "utf8");
+  assert.doesNotMatch(sql, /archived_for_downgrade/, "422400 is frozen: it must not mention the downgrade status");
+  assert.match(next, /Rollback: re-run the function body of 20261231422400/);
+  const code = next.replace(/--.*$/gm, "");
   assert.match(code, /v_status IN \('pending', 'active', 'inactive', 'archived_for_downgrade'\)/);
   assert.match(code, /archived_for_downgrade_at = NULL/);
 });
