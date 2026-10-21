@@ -29,6 +29,11 @@ function fakeAdmin(tables: Record<string, Row[]>, opts: { failUpdate?: boolean }
         },
         limit: (n: number) => ((rows = rows.slice(0, n)), q),
         in: (c: string, vs: unknown[]) => ((rows = rows.filter((r) => vs.includes(r[c]))), q),
+        not: (c: string, op: string, v: string) => {
+          const set = v.replace(/^\(|\)$/g, "").split(",");
+          rows = rows.filter((r) => (op === "in" ? !set.includes(String(r[c])) : r[c] !== v));
+          return q;
+        },
         neq: (c: string, v: unknown) => ((rows = rows.filter((r) => r[c] !== v)), q),
         maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
         then: (res: (v: { data: Row[]; error: null }) => unknown) => Promise.resolve({ data: rows, error: null }).then(res),
@@ -114,8 +119,8 @@ describe("POS counter sales split like online ones (TUL-1467)", () => {
     assert.ok(!w.reads.includes("agency_talent_roster"));
   });
 
-  test("TUL-1703 split tender: once a payment is taken or in flight the split is frozen (no re-split, no write)", async () => {
-    for (const status of ["payment_requested", "paid"]) {
+  test("TUL-1718: ANY status except draft, cancelled and failed freezes the split (no re-split, no write)", async () => {
+    for (const status of ["payment_requested", "pending", "paid", "partially_refunded", "refunded", "payout_pending", "payout_sent", "disputed", "void", "expired"]) {
       const t = world();
       t.booking_transactions = [{ id: "x1", order_id: "o1", source_tenant_id: "t1", status }];
       const w = fakeAdmin(t);
@@ -124,17 +129,31 @@ describe("POS counter sales split like online ones (TUL-1467)", () => {
     }
   });
 
-  test("TUL-1703: a draft (not yet paid) transaction does not freeze it; the sale is split normally", async () => {
+  test("TUL-1718: draft, cancelled and failed transactions never took money, so they do NOT freeze the split", async () => {
+    for (const status of ["draft", "cancelled", "failed"]) {
+      const t = world();
+      t.booking_transactions = [{ id: "x1", order_id: "o1", source_tenant_id: "t1", status }];
+      const w = fakeAdmin(t);
+      assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 }, status);
+    }
+  });
+
+  test("TUL-1718: a cancelled attempt next to a paid one still freezes (one money row is enough); another sale's money never freezes this one", async () => {
     const t = world();
-    t.booking_transactions = [{ id: "x1", order_id: "o1", source_tenant_id: "t1", status: "draft" }];
-    const w = fakeAdmin(t);
-    assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 });
+    t.booking_transactions = [
+      { id: "x1", order_id: "o1", source_tenant_id: "t1", status: "cancelled" },
+      { id: "x2", order_id: "o1", source_tenant_id: "t1", status: "paid" },
+    ];
+    assert.deepEqual(await applyPosCollectiveSplit(fakeAdmin(t).admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 0 });
+    const other = world();
+    other.booking_transactions = [{ id: "x3", order_id: "o-other", source_tenant_id: "t1", status: "paid" }];
+    assert.deepEqual(await applyPosCollectiveSplit(fakeAdmin(other).admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 });
   });
 
   test("TUL-1703: a failed read of the payments refuses the collection (never splits blind)", async () => {
     const t = world();
     const w = fakeAdmin({ ...t, booking_transactions: undefined as never });
-    const failing = { from: (tb: string) => (tb === "booking_transactions" ? ({ select: () => ({ eq: () => ({ eq: () => ({ in: () => ({ limit: async () => ({ data: null, error: { message: "x" } }) }) }) }) }) }) : (w.admin as { from: (t: string) => unknown }).from(tb)) } as never;
+    const failing = { from: (tb: string) => (tb === "booking_transactions" ? ({ select: () => ({ eq: () => ({ eq: () => ({ not: () => ({ limit: async () => ({ data: null, error: { message: "x" } }) }) }) }) }) }) : (w.admin as { from: (t: string) => unknown }).from(tb)) } as never;
     assert.equal((await applyPosCollectiveSplit(failing, { tenantId: "t1", orderId: "o1" })).ok, false);
   });
 
