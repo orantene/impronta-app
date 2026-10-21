@@ -181,4 +181,20 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "The payment was collected in a different country than this account. It is released automatically once the business connects its account there.":
     "El pago se cobró en un país distinto al de esta cuenta. Se libera solo cuando el negocio conecta su cuenta allí.",
   "More info": "Más información",
+  // Talent manual payout bank reference (ManualBankReferenceCard).
+  "Bank details for manual payouts": "Datos bancarios para pagos manuales",
+  "Add the bank name, the account holder and only the last 4 digits. Never enter your full account number. The workspace owner verifies it before payouts can start.":
+    "Agrega el nombre del banco, el titular de la cuenta y solo los últimos 4 dígitos. Nunca escribas tu número de cuenta completo. El propietario del espacio lo verifica antes de que puedan empezar los pagos.",
+  "Enter the account holder name.": "Escribe el nombre del titular de la cuenta.",
+  "Enter the bank name.": "Escribe el nombre del banco.",
+  "Enter exactly the last 4 digits. Never enter the full account number.": "Escribe exactamente los últimos 4 dígitos. Nunca escribas el número de cuenta completo.",
+  "Saved. Because the details changed, the owner needs to verify them again.": "Guardado. Como los datos cambiaron, el propietario debe verificarlos de nuevo.",
+  "Saved. The workspace owner will verify it.": "Guardado. El propietario del espacio lo verificará.",
+  "Waiting for the owner to verify": "Esperando la verificación del propietario",
+  "Account holder": "Titular de la cuenta",
+  "Bank": "Banco",
+  "Last 4 digits": "Últimos 4 dígitos",
+  "Save bank details": "Guardar datos bancarios",
+  "Add a manual payout account": "Agregar una cuenta de pago manual",
+  "You are not on this workspace's roster.": "No estás en el equipo de este espacio.",
 };
