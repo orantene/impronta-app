@@ -36,7 +36,7 @@ export function isMoneyRecordKind(kind: RecordKind): kind is MoneyRecordKind {
 }
 
 type OrderRow = { id: string; tenant_id: string; inquiry_id: string | null; status: string; discount_cents: number; tip_cents: number };
-type LineRow = { id: string; order_id: string; total_cents: number; refunded_cents: number; variant_id: string | null; offering_id: string | null };
+type LineRow = { id: string; order_id: string; total_cents: number; refunded_cents: number; variant_id: string | null; offering_id: string | null; discount_cents?: number | null };
 type AdmissionRow = { id: string; order_line_id: string | null; starts_at: string | null; status: string };
 
 /** Resolve the order + every one of its lines the tenant owns. */
@@ -55,7 +55,7 @@ async function loadOrderAndLines(
   if (!row || row.tenant_id !== tenantId) return null;
   const { data: lines, error: linesErr } = await admin
     .from("order_lines")
-    .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id")
+    .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id, discount_cents")
     .eq("order_id", orderId);
   if (linesErr) return null;
   return { order: row, lines: ((lines ?? []) as LineRow[]) };
@@ -100,7 +100,7 @@ async function loadPaidTransactions(admin: Admin, orderId: string): Promise<Paid
 }
 
 function toRefundableLines(lines: readonly LineRow[]): RefundableLine[] {
-  return lines.map((l) => ({ id: l.id, totalCents: Number(l.total_cents), refundedCents: Number(l.refunded_cents ?? 0), variantId: l.variant_id, eventId: null }));
+  return lines.map((l) => ({ id: l.id, totalCents: Number(l.total_cents), refundedCents: Number(l.refunded_cents ?? 0), discountCents: Number(l.discount_cents ?? 0), variantId: l.variant_id, eventId: null }));
 }
 
 async function cancellationWindowForLines(
@@ -182,7 +182,7 @@ export async function messagingPreviewCancelRead(
     if (!admission || !admission.order_line_id) return { ok: false, reason: "not_found" };
     const { data: lineRow, error: lineErr } = await admin
       .from("order_lines")
-      .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id")
+      .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id, discount_cents")
       .eq("id", admission.order_line_id)
       .maybeSingle();
     if (lineErr) return { ok: false, reason: "not_found" };
@@ -196,13 +196,26 @@ export async function messagingPreviewCancelRead(
   const oc = orderCurrency as { currency: string; discount_cents: number; tip_cents: number } | null;
   currency = oc?.currency ?? "USD";
 
-  const refundable = toRefundableLines(lines);
+  // The preview must equal the refund that will actually happen, and the actual refund (refundOrderLines) nets every line
+  // of the ORDER (lineNetCents via planRefund): so plan over ALL the order's lines and refund only the target ones. For an
+  // admission the target is one line, but the order discount still divides over every line.
+  let orderLines = lines;
+  if (input.recordKind !== "order") {
+    const { data: all, error: allErr } = await admin
+      .from("order_lines")
+      .select("id, order_id, total_cents, refunded_cents, variant_id, offering_id, discount_cents")
+      .eq("order_id", orderId);
+    if (allErr) return { ok: false, reason: "not_found" };
+    orderLines = (all ?? []) as LineRow[];
+  }
+  const refundable = toRefundableLines(orderLines);
+  const targetIds = new Set(lines.map((l) => l.id));
   const transactions = await loadPaidTransactions(admin, orderId);
   if (transactions == null) return { ok: false, reason: "not_found" };
   const scope: PromoScope = {};
   const plan = planRefund({
     lines: refundable,
-    lineIds: refundable.map((l) => l.id),
+    lineIds: refundable.filter((l) => targetIds.has(l.id)).map((l) => l.id),
     scope,
     discountCents: Number(oc?.discount_cents ?? 0),
     transactions,

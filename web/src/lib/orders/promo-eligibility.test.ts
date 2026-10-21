@@ -105,3 +105,27 @@ test("a tier code does NOT reach the same tier at a different event", () => {
     "Saturday's VIP must not be discounted by Friday's code",
   );
 });
+
+import { lineNetCents } from "./promo-eligibility";
+
+test("lineNetCents: the nets add up to the subtotal minus the order discount, to the cent, with line discounts present", () => {
+  const lines = [
+    { id: "a", totalCents: 10_000, discountCents: 1_000 },
+    { id: "b", totalCents: 7_001, discountCents: 0 },
+    { id: "c", totalCents: 333, discountCents: 33 },
+  ];
+  const orderDiscount = 2_500;
+  const nets = lineNetCents(lines, {}, orderDiscount);
+  const sum = [...nets.values()].reduce((s, n) => s + n, 0);
+  assert.equal(sum, 10_000 + 7_001 + 333 - orderDiscount);
+});
+
+test("lineNetCents: a scoped code spreads the leftover only over the covered lines", () => {
+  const lines = [
+    { id: "vip", totalCents: 10_000, discountCents: 1_000, variantId: "v" },
+    { id: "ga", totalCents: 5_000, discountCents: 0, variantId: "g" },
+  ];
+  const nets = lineNetCents(lines, { eventId: null, variantId: "v" }, 3_000);
+  assert.equal(nets.get("ga"), 5_000, "an uncovered line keeps its full value");
+  assert.equal(nets.get("vip"), 10_000 - 1_000 - 2_000);
+});

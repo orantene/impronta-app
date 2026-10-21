@@ -139,7 +139,7 @@ export async function refundOrderLines(
 
     const { data: lineRows, error: lineErr } = await admin
       .from("order_lines")
-      .select("id, total_cents, refunded_cents, variant_id")
+      .select("id, total_cents, refunded_cents, variant_id, discount_cents")
       .eq("order_id", input.orderId);
     if (lineErr) {
       logServerError("orders.refundLines/lines", lineErr);
@@ -147,11 +147,12 @@ export async function refundOrderLines(
     }
 
     const lines: RefundableLine[] = (lineRows ?? []).map((l) => {
-      const r = l as { id: string; total_cents: number; refunded_cents: number; variant_id: string | null };
+      const r = l as { id: string; total_cents: number; refunded_cents: number; variant_id: string | null; discount_cents?: number | null };
       return {
         id: r.id,
         totalCents: Number(r.total_cents),
         refundedCents: Number(r.refunded_cents ?? 0),
+        discountCents: Number(r.discount_cents ?? 0),
         variantId: r.variant_id,
         eventId: null,
       };
