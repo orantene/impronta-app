@@ -58,7 +58,10 @@ export function accountHomeMode(input: {
 
 /**
  * Old client entry points (`/me`, `/client`, `/{slug}/client`) become `/account`
- * on agency and hub hosts when the flag is on. The app host is left alone: its
+ * on agency and hub hosts when the flag is on. TUL-782 (PM 2026-10-21): `/account`
+ * is the single client home, so a SIGNED-IN client on the app host goes there too
+ * (client1 used to land in an agency shell, client2 on /account). The app host
+ * stays as-is for signed-out visitors and every non-client role, because its
  * `/client` is the post-sign-in target for every role. Staff and talent are
  * never redirected into a client area.
  */
@@ -69,6 +72,9 @@ export function legacyClientEntryRedirect(input: {
   appRole: string | null | undefined;
 }): "account" | "stay" {
   if (!input.flagOn) return "stay";
+  if (input.hostContext === "app") {
+    return input.userId && input.appRole === "client" ? "account" : "stay";
+  }
   if (input.hostContext !== "agency" && input.hostContext !== "hub") return "stay";
   if (!input.userId) return "account";
   return isClientAccountEligible(input.appRole) ? "account" : "stay";

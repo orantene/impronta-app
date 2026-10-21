@@ -54,10 +54,13 @@ test("legacy redirect: flag off never redirects", () => {
   }
 });
 
-test("legacy redirect: only agency and hub hosts, only clients or signed out", () => {
+test("legacy redirect: agency/hub (clients or signed out) and the app host (signed-in clients)", () => {
   assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "agency", userId: null, appRole: null }), "account");
   assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "hub", userId: "u", appRole: "client" }), "account");
-  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: "u", appRole: "client" }), "stay");
+  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: "u", appRole: "client" }), "account");
+  // TUL-782: the app host only redirects a signed-in client; signed-out and other roles stay.
+  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: null, appRole: null }), "stay");
+  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: "u", appRole: "talent" }), "stay");
   assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "marketing", userId: null, appRole: null }), "stay");
   for (const appRole of ["talent", "agency_staff", "super_admin"]) {
     assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "agency", userId: "u", appRole }), "stay");
