@@ -22,7 +22,9 @@ import { insertMessage, recordDelivery } from "@/lib/messaging/insert-message";
 import { mergeInquiries } from "@/lib/messaging/merge";
 import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { fail } from "@/lib/messaging/refusals";
+import type { CapabilityKey } from "@/lib/access";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { MESSAGING_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/messaging/write-capabilities";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
 import { renameInquiry } from "@/lib/messaging/rename";
 import { searchMessaging } from "@/lib/messaging/search";
@@ -35,8 +37,9 @@ const uuid = z.string().uuid();
 const version = z.number().int().nonnegative();
 const scoped = tenantScopedQuery;
 
-export async function staff() { // exported for messaging-offers.ts (L6)
-  const guard = await requireWorkspaceStaffAction();
+export async function staff(capability?: CapabilityKey) { // exported for messaging-offers.ts (L6)
+  // TUL-1629: a WRITE passes the capability it needs (see write-capabilities.ts); no argument = read access.
+  const guard = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
@@ -123,7 +126,7 @@ export async function messagingLoadEssentials(input: { inquiryId: string }) {
 
 export async function messagingRename(input: { inquiryId: string; name: string; expectedVersion: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.rename);
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, name: z.string().trim().min(1).max(120), expectedVersion: version })
@@ -150,7 +153,7 @@ export async function loadConversationHistory(
 
 export async function messagingMerge(input: { duplicateInquiryId: string; intoInquiryId: string; expectedVersion: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.merge);
   if (!g.ok) return g;
   const parsed = z
     .object({ duplicateInquiryId: uuid, intoInquiryId: uuid, expectedVersion: version })
@@ -172,7 +175,7 @@ export async function messagingReply(input: {
   channel?: MessagingChannel;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.reply);
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000), expectedVersion: version })
@@ -214,7 +217,7 @@ export async function messagingReply(input: {
 
 export async function messagingInternalNote(input: { inquiryId: string; body: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.internalNote);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, body: z.string().trim().min(1).max(8000) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -246,7 +249,7 @@ async function assignOwnerCore(
   input: { inquiryId: string; ownerUserId: string | null; expectedVersion: number },
   handover: boolean,
 ) {
-  const g = await staff();
+  const g = await staff(WRITE_CAP.assignOwner);
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, ownerUserId: uuid.nullable(), expectedVersion: version })
@@ -293,7 +296,7 @@ async function setConversationState(
   input: { inquiryId: string; expectedVersion: number },
   state: "needs_reply" | "awaiting_customer" | "resolved",
 ) {
-  const g = await staff();
+  const g = await staff(WRITE_CAP.handOver);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -317,7 +320,7 @@ export async function messagingLinkRecord(input: {
   expectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.linkRecord);
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -344,7 +347,7 @@ export async function messagingUnlinkRecord(input: {
   expectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.unlinkRecord);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, linkId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -380,7 +383,7 @@ export async function messagingSendOptions(input: {
   addToDraft?: { orderId: string; offeringId: string; units: number; expectedVersion: number };
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.sendOptions);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, kind: z.string().min(3) }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -413,7 +416,7 @@ export async function messagingEnsureSharedDraft(input: { inquiryId: string; cur
   await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, currency: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.ensureSharedDraft);
   if (!g.ok) return g;
   const { data: existing } = await scoped(g.admin, "orders", g.tenantId)
     .select("id, version")
@@ -460,7 +463,7 @@ export async function messagingRequestPayment(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const gated = await staff();
+  const gated = await staff(WRITE_CAP.requestPayment);
   // A talent is not workspace staff. She may request payment only when she
   // is the seller (the inquiry's tenant is the platform hub). An agency sale
   // answers not_her_sale. The mint below is the same writer.
@@ -586,7 +589,7 @@ export async function messagingRequestPayment(input: {
 
 export async function messagingCloseLost(input: { inquiryId: string; reason: string; expectedVersion: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.closeLost);
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, reason: z.string().trim().min(2).max(400), expectedVersion: version })
@@ -616,7 +619,7 @@ export async function messagingScheduleReminder(input: {
   recordId?: string | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.scheduleReminder);
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -644,7 +647,7 @@ export async function messagingScheduleReminder(input: {
 
 export async function messagingCancelReminder(input: { reminderId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.cancelReminder);
   if (!g.ok) return g;
   const parsed = z.object({ reminderId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -679,7 +682,7 @@ export async function messagingSendOffer(input: { inquiryId: string; offerId: st
   await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.sendOffer);
   if (!g.ok) return g;
   const { data: inquiry } = await scoped(g.admin, "inquiries", g.tenantId)
     .select("version")

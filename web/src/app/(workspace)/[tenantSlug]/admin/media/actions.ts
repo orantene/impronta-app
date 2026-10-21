@@ -379,7 +379,7 @@ export async function actionDeleteMediaAssets(
   await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
