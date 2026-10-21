@@ -81,6 +81,15 @@ export async function confirmPlanChangeFor(
   if ("error" in req) return { ok: false, error: req.error, code: req.code };
   const out = await confirmPlanChange(stripe, req, prorationDate);
   if (!out.ok) logServerError("billing.planChange.confirm", out.error);
+  else if (kind === "workspace") {
+    // TUL-1737: any confirmed in-app plan change supersedes a stored downgrade keep-list (best effort; the webhook also
+    // clears it on a tier increase).
+    const sb = createServiceRoleClient();
+    if (sb) {
+      const cleared = await clearPendingDowngrade(sb, subjectId);
+      if (!cleared.ok) logServerError("billing.planChange.clearPending", cleared.error);
+    }
+  }
   return out;
 }
 

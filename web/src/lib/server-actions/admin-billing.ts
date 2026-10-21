@@ -9,6 +9,7 @@ import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { clearPendingDowngrade } from "@/lib/billing/workspace-downgrade-archive";
 import { WORKSPACE_MONEY_GATES } from "@/lib/billing/workspace-money-gates";
 
 const PAID_PLANS = new Set<WorkspacePlan>([
@@ -63,6 +64,10 @@ export async function changeWorkspacePlan(
     logServerError("admin/changeWorkspacePlan", error);
     return { ok: false, error: "Could not update plan. Try again." };
   }
+
+  // TUL-1737: a stored keep-list from an earlier scheduled downgrade must never archive anyone after this plan change.
+  const cleared = await clearPendingDowngrade(admin, auth.tenantId);
+  if (!cleared.ok) logServerError("admin/changeWorkspacePlan.clearPending", cleared.error);
 
   // Refresh every admin surface that reads the plan — top-bar tier-chip,
   // AccountBillingPanels, capability catalog gates.

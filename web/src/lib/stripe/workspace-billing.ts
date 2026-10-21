@@ -48,7 +48,7 @@ import {
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
 import { isDefiniteStripeFailure } from "@/lib/billing/stripe-failure";
-import { applyPendingDowngradeAtTierDrop } from "@/lib/billing/workspace-downgrade-archive";
+import { applyPendingDowngradeAtTierDrop, clearPendingOnTierIncrease } from "@/lib/billing/workspace-downgrade-archive";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
@@ -542,6 +542,12 @@ export async function syncStripeSubscriptionToDb(
     // failed (the retry redoes both) and a no-op unless newPlanTier reached the downgrade's target. A failure here
     // fails the sync so Stripe retries; the pending row stays until the archive lands.
     if (!agencyError) {
+      // An upgrade since the downgrade was scheduled supersedes it: drop the stale keep-list first (TUL-1737).
+      const superseded = await clearPendingOnTierIncrease(sb, { tenantId, priorTier: priorPlanTier, newTier: newPlanTier });
+      if (!superseded.ok) {
+        logServerError("workspace-billing.syncSubscription.clearPending", superseded.error);
+        return { ok: false, error: "Failed to clear the superseded downgrade." };
+      }
       const pending = await applyPendingDowngradeAtTierDrop(sb, { tenantId, newTier: newPlanTier, nowIso: new Date().toISOString() });
       if (!pending.ok) {
         logServerError("workspace-billing.syncSubscription.downgradeArchive", pending.error);

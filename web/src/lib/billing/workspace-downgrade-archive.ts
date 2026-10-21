@@ -13,6 +13,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { planRank } from "./plan-change-policy";
+
 export type PendingDowngrade = {
   target_tier: string;
   keep_ids: string[];
@@ -40,9 +42,9 @@ export function parsePendingDowngrade(raw: unknown): PendingDowngrade | null {
   };
 }
 
-/** PostgREST `not.in` value for the keep-list. An empty keep-list archives everyone (matches the previous behaviour). */
+/** PostgREST `not.in` value for a NON-empty keep-list (callers skip the filter when the list is empty). */
 export function keepListFilter(keepIds: string[]): string {
-  return `(${keepIds.length === 0 ? "''" : keepIds.map((id) => `"${id}"`).join(",")})`;
+  return `(${keepIds.map((id) => `"${id}"`).join(",")})`;
 }
 
 export type ArchiveResult = { ok: true; count: number } | { ok: false; error: unknown };
@@ -52,7 +54,7 @@ export async function archiveRosterOverflow(
   client: SupabaseClient,
   args: { tenantId: string; keepIds: string[]; eventId: string; actorId: string; nowIso: string },
 ): Promise<ArchiveResult> {
-  const { error, count } = await client
+  let query = client
     .from("agency_talent_roster")
     .update(
       {
@@ -64,8 +66,11 @@ export async function archiveRosterOverflow(
       { count: "exact" },
     )
     .eq("tenant_id", args.tenantId)
-    .in("status", ["active", "pending"])
-    .not("talent_profile_id", "in", keepListFilter(args.keepIds));
+    .in("status", ["active", "pending"]);
+  // An EMPTY keep-list means "keep nobody": archive every active/pending row. Building NOT IN ('') against a uuid column
+  // is a Postgres 22P02 error (Stripe would retry the webhook for days), so the filter is only added with ids to keep.
+  if (args.keepIds.length > 0) query = query.not("talent_profile_id", "in", keepListFilter(args.keepIds));
+  const { error, count } = await query;
   if (error) return { ok: false, error };
   return { ok: true, count: count ?? 0 };
 }
@@ -89,6 +94,19 @@ export async function recordPendingDowngrade(
 export async function clearPendingDowngrade(client: SupabaseClient, tenantId: string): Promise<{ ok: true } | { ok: false; error: unknown }> {
   const { error } = await client.from("workspace_subscriptions").update({ pending_downgrade: null }).eq("tenant_id", tenantId);
   return error ? { ok: false, error } : { ok: true };
+}
+
+/**
+ * A tier INCREASE (checkout, in-app upgrade, any path) supersedes a pending downgrade: drop the stored keep-list so it can
+ * never archive anyone later. Returns true when it cleared. Failure to clear is reported so the caller can fail loudly.
+ */
+export async function clearPendingOnTierIncrease(
+  client: SupabaseClient,
+  args: { tenantId: string; priorTier: string | null; newTier: string },
+): Promise<{ ok: true; cleared: boolean } | { ok: false; error: unknown }> {
+  if (planRank(args.newTier) <= planRank(args.priorTier ?? "")) return { ok: true, cleared: false };
+  const r = await clearPendingDowngrade(client, args.tenantId);
+  return r.ok ? { ok: true, cleared: true } : r;
 }
 
 export type PendingDowngradeOutcome =

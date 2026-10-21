@@ -16,6 +16,8 @@ import { isDefiniteStripeFailure } from "./stripe-failure";
 import {
   applyPendingDowngradeAtTierDrop,
   clearPendingDowngrade,
+  clearPendingOnTierIncrease,
+  archiveRosterOverflow,
   keepListFilter,
   parsePendingDowngrade,
   recordPendingDowngrade,
@@ -46,6 +48,7 @@ class FakeQuery implements PromiseLike<Result> {
   eq(col: string, val: unknown): this { this.filters.push({ kind: "eq", col, val }); return this; }
   in(col: string, val: unknown[]): this { this.filters.push({ kind: "in", col, val }); return this; }
   not(col: string, _op: string, raw: string): this {
+    this.db.notCalls.push(raw);
     const ids = raw.slice(1, -1).split(",").map((s) => s.replace(/"/g, "")).filter((s) => s.length > 0 && s !== "''");
     this.filters.push({ kind: "notin", col, val: ids });
     return this;
@@ -79,6 +82,7 @@ class FakeAdmin {
   tables: Record<string, Row[]> = { workspace_subscriptions: [{ tenant_id: TENANT, pending_downgrade: null }], agency_talent_roster: [] };
   writes: Array<{ table: string; patch: Row; count: number }> = [];
   failures = new Set<string>();
+  notCalls: string[] = [];
   from(table: string): FakeQuery { return new FakeQuery(this, table); }
   rows(table: string): Row[] { return this.tables[table] ?? []; }
   failure(table: string, op: string): string | null { return this.failures.has(`${table}:${op}`) ? `${table} ${op} failed` : null; }
@@ -306,6 +310,38 @@ describe("webhook: archive only when the tier actually drops, once", () => {
     assert.equal(admin.archived().length, 0);
   });
 
+  test("an EMPTY keep-list builds NO `not` filter (no NOT IN ('') on a uuid column) and archives every active row without error", async () => {
+    const admin = new FakeAdmin();
+    admin.seedRoster(3);
+    const out = await archiveRosterOverflow(admin.asClient(), { tenantId: TENANT, keepIds: [], eventId: EVENT, actorId: OWNER, nowIso: "2026-11-21T00:00:00.000Z" });
+    assert.deepEqual(out, { ok: true, count: 3 });
+    assert.deepEqual(admin.notCalls, []);
+    // with ids the filter IS built
+    const admin2 = new FakeAdmin();
+    admin2.seedRoster(3);
+    await archiveRosterOverflow(admin2.asClient(), { tenantId: TENANT, keepIds: KEEP, eventId: EVENT, actorId: OWNER, nowIso: "x" });
+    assert.equal(admin2.notCalls.length, 1);
+  });
+
+  test("an UPGRADE after the downgrade was scheduled clears the keep-list: a later drop to the old target archives nothing", async () => {
+    const admin = pendingWorld(5); // pending: target studio, from agency
+    assert.deepEqual(await clearPendingOnTierIncrease(admin.asClient(), { tenantId: TENANT, priorTier: "agency", newTier: "network" }), { ok: true, cleared: true });
+    assert.equal(admin.pending(), null);
+    assert.deepEqual(await drop(admin, "studio"), { ok: true, kind: "none" });
+    assert.equal(admin.archived().length, 0);
+  });
+
+  test("tier unchanged or lower does NOT clear the keep-list; a failed clear is reported", async () => {
+    const admin = pendingWorld(5);
+    for (const [prior, next] of [["agency", "agency"], ["agency", "studio"], ["studio", "free"]] as const) {
+      assert.deepEqual(await clearPendingOnTierIncrease(admin.asClient(), { tenantId: TENANT, priorTier: prior, newTier: next }), { ok: true, cleared: false });
+    }
+    assert.notEqual(admin.pending(), null);
+    admin.failures.add("workspace_subscriptions:update");
+    const r = await clearPendingOnTierIncrease(admin.asClient(), { tenantId: TENANT, priorTier: "studio", newTier: "agency" });
+    assert.equal(r.ok, false);
+  });
+
   test("going to FREE archives everyone outside the keep-list at the cancel (empty keep-list archives all)", async () => {
     const admin = new FakeAdmin();
     admin.seedRoster(3);
@@ -330,7 +366,6 @@ describe("webhook: archive only when the tier actually drops, once", () => {
   test("parse + filter helpers", () => {
     assert.equal(parsePendingDowngrade(null), null);
     assert.deepEqual(parsePendingDowngrade(intent())?.keep_ids, KEEP);
-    assert.equal(keepListFilter([]), "('')");
     assert.equal(keepListFilter(KEEP), `("${KEEP[0]}","${KEEP[1]}")`);
   });
 });
@@ -480,6 +515,12 @@ describe("wiring", () => {
     const idx = s.indexOf("archiveRosterOverflow(supabase");
     assert.ok(idx > 0);
     assert.match(s.slice(idx - 80, idx), /if \(!stripeStep\.hadSubscription\) \{\s+const archived = await $/);
+  });
+  test("every plan-change path clears the stored keep-list", () => {
+    assert.match(src("src/lib/server-actions/admin-billing.ts"), /clearPendingDowngrade\(admin, auth\.tenantId\)/);
+    assert.match(src("src/lib/billing/plan-change.server.ts"), /else if \(kind === "workspace"\)[\s\S]*clearPendingDowngrade\(sb, subjectId\)/);
+    const w = src("src/lib/stripe/workspace-billing.ts");
+    assert.ok(w.indexOf("clearPendingOnTierIncrease(sb") < w.indexOf("applyPendingDowngradeAtTierDrop(sb"));
   });
   test("the migration is additive and parked", () => {
     const m = src("../supabase/migrations/_pending_pm/20261231424400_workspace_pending_downgrade.sql");
