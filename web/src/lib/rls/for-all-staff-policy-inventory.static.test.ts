@@ -14,6 +14,7 @@ import { test } from "node:test";
 
 const MIG = join(process.cwd(), "..", "supabase", "migrations");
 const WAVE1 = join(MIG, "_pending_pm", "20261231424000_rls_tenant_writer_wave1.sql");
+const MEDIA_ASSETS_MIGRATION = join(MIG, "_pending_pm", "20261231425100_rls_tenant_writer_media_assets_tul1720.sql");
 
 /** table.policy -> wave decision. Grandfathered; the list may only shrink. */
 const INVENTORY: Record<string, string> = {
@@ -244,4 +245,38 @@ test("wave 1 tables are in the inventory as grandfathered history, not as new po
   for (const policy of [...Object.values(SERVICE_ONLY), ...Object.values(ADMIN_WRITES).map((v) => v[0])]) {
     assert.ok(Object.keys(INVENTORY).some((k) => k.endsWith(`.${policy}`)), policy);
   }
+});
+
+test("TUL-1720 media_assets migration: held, idempotent, drops both viewer-writable FOR ALL policies", () => {
+  const raw = readFileSync(MEDIA_ASSETS_MIGRATION, "utf8");
+  const code = strip(raw);
+  assert.match(raw, /HELD: lives in _pending_pm/);
+  assert.match(code, /DROP POLICY IF EXISTS media_assets_tenant_staff_all ON public\.media_assets;/);
+  assert.match(code, /DROP POLICY IF EXISTS media_write_staff ON public\.media_assets;/);
+  assert.doesNotMatch(code, /FOR\s+ALL/i, "the fix must not create any FOR ALL policy");
+});
+
+test("TUL-1720 media_assets migration: a viewer (is_staff_of_tenant) can no longer write; an editor (is_tenant_writer) can", () => {
+  const code = strip(readFileSync(MEDIA_ASSETS_MIGRATION, "utf8"));
+  for (const [op, clause] of [
+    ["INSERT", "WITH CHECK"],
+    ["UPDATE", "USING"],
+    ["DELETE", "USING"],
+  ] as const) {
+    const re = new RegExp(
+      `CREATE POLICY media_assets_staff_${op.toLowerCase()} ON public\\.media_assets\\s+FOR ${op}\\s+TO authenticated\\s+${clause}\\s+\\(public\\.is_tenant_writer\\(tenant_id\\)\\)`,
+    );
+    assert.match(code, re, `${op}: must require is_tenant_writer, not is_staff_of_tenant`);
+  }
+  // The update policy must also re-check on write (not just on the row being targeted), same
+  // pattern as wave 1's admin writes, so a viewer can't flip tenant_id to escape the guard.
+  assert.match(
+    code,
+    /CREATE POLICY media_assets_staff_update ON public\.media_assets\s+FOR UPDATE\s+TO authenticated\s+USING\s+\(public\.is_tenant_writer\(tenant_id\)\)\s+WITH CHECK\s+\(public\.is_tenant_writer\(tenant_id\)\)/,
+  );
+  assert.doesNotMatch(
+    code,
+    /CREATE POLICY media_assets_staff_(?:insert|update|delete)[\s\S]{0,200}is_staff_of_tenant/,
+    "a viewer (is_staff_of_tenant) must not satisfy any of the new write policies",
+  );
 });
