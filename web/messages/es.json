@@ -14335,9 +14335,21 @@
       "viewActivity": "Actividad",
       "viewItems": "Por artículo",
       "periodLabel": "Período",
-      "period": { "all": "Todo el tiempo", "today": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días", "month": "Este mes" },
+      "period": {
+        "all": "Todo el tiempo",
+        "today": "Hoy",
+        "7d": "Últimos 7 días",
+        "30d": "Últimos 30 días",
+        "month": "Este mes"
+      },
       "methodLabel": "Método de pago",
-      "method": { "any": "Cualquiera", "cash": "Efectivo", "card": "Tarjeta en mostrador", "online": "En línea", "other": "Otro" },
+      "method": {
+        "any": "Cualquiera",
+        "cash": "Efectivo",
+        "card": "Tarjeta en mostrador",
+        "online": "En línea",
+        "other": "Otro"
+      },
       "colItem": "Artículo",
       "colQuantity": "Cant.",
       "colGross": "Bruto",
@@ -18300,7 +18312,9 @@
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
       "itemProviderOwnedLink": "Abrir Servicios",
-      "duplicate": { "copySuffix": "copia" },
+      "duplicate": {
+        "copySuffix": "copia"
+      },
       "type": {
         "product": "Producto",
         "service": "Servicio",
@@ -20835,6 +20849,14 @@
       "seoAltsOk": "Las fotos tienen descripción",
       "seoAltsFix": "A algunas fotos les falta la descripción",
       "planPerk": "Blog y posts con SEO para Google e IA"
+    },
+    "adminNewClientSheet": {
+      "invitedTitle": "Invitación enviada",
+      "invitedBody": "Enviamos una invitación a {email}. La persona elige su propia contraseña al aceptarla.",
+      "invitedHint": "El correo puede tardar un minuto en llegar. Si no llega, pide que revise la carpeta de spam.",
+      "inviteNote": "Enviamos al cliente una invitación para que elija su propia contraseña. Tú nunca ves ni compartes una contraseña.",
+      "submit": "Enviar invitación",
+      "sending": "Enviando..."
     }
   },
   "admin": {
