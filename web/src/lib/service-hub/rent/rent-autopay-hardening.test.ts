@@ -32,6 +32,7 @@ function deps(over: Partial<RentAutopayApplyDeps> & { plan?: Awaited<ReturnType<
     setAutopay: async () => true,
     loadInvoice: async () => over.invoice ?? null,
     writeInvoice: async () => { calls.push("write"); return true; },
+    voidIssuedLink: async () => "cancelled",
     cancelSubscription: async () => { calls.push("cancel"); return true; },
     notify: async () => {},
     alert: (m) => { calls.push(`alert:${m.slice(0, 20)}`); },
@@ -75,9 +76,10 @@ describe("3: stray and unlinked subscriptions", () => {
 });
 
 describe("7: a link or outside row is never overwritten", () => {
-  for (const source of ["link", "outside"]) {
-    test(`an automatic payment on a month that has a ${source} row alerts and writes nothing`, async () => {
-      const x = deps({ invoice: { status: "issued", stripeInvoiceId: null, source } });
+  // (TUL-1719: an ISSUED, UNPAID link row is the one exception: it is voided and replaced; see rent-link-void.test.ts.)
+  for (const [source, status] of [["link", "paid"], ["link", "failed"], ["outside", "paid"]] as const) {
+    test(`an automatic payment on a month that has a ${source} row (${status}) alerts and writes nothing`, async () => {
+      const x = deps({ invoice: { status, stripeInvoiceId: null, source } });
       assert.equal(await applyRentSubscriptionEvent(paid(), x.d), "double_payment_alert");
       assert.ok(!x.calls.includes("write"));
     });
