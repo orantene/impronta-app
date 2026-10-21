@@ -68,7 +68,7 @@ test("the held function refuses hub, home and primary (fail closed) and still cl
 
 test("a collective order for a talent who left is refused, never priced without the owner's cut", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/service-hub/collective-split.ts"), "utf8");
-  assert.match(src, /removed roster member on a collective order/);
+  assert.match(src, /talent_no_longer_sells|TALENT_NO_LONGER_SELLS/);
   assert.doesNotMatch(src, /\.neq\("status", "removed"\)/);
 });
 
@@ -76,4 +76,10 @@ test("the real MoneyHomePage carries the Where you appear link", () => {
   const src = readFileSync(join(process.cwd(), "src/components/talent/money/MoneyHomePage.tsx"), "utf8");
   assert.match(src, /import \{ WhereYouAppearLink \}/);
   assert.match(src, /<WhereYouAppearLink \/>/);
+});
+
+test("an archived_for_downgrade member who leaves becomes removed (a later upgrade cannot reactivate her)", () => {
+  const code = sql.replace(/--.*$/gm, "");
+  assert.match(code, /v_status IN \('pending', 'active', 'inactive', 'archived_for_downgrade'\)/);
+  assert.match(code, /archived_for_downgrade_at = NULL/);
 });

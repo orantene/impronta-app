@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { applyCollectiveOwnerShares, applySharesToLines, collectiveSplitEnabled, parseOwnerShareRow } from "./collective-split";
+import { applyCollectiveOwnerShares, applySharesToLines, collectiveSplitEnabled, parseOwnerShareRow, talentNoLongerSellsCopy } from "./collective-split";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 type TestLine = { talentProfileId: string | null; totalCents: number; talentCostCents: number; ownerTenantId: null; label: string; ownerTakeCents?: number; ownerShareSnapshot?: Record<string, unknown> };
@@ -160,18 +160,40 @@ describe("loading the workspace's model and shares (fails closed)", () => {
       if (prev !== undefined) process.env.COLLECTIVE_SPLIT_ENABLED = prev;
     }
   });
-  test("a member who left the workspace (removed row, no live row) REFUSES the order: the owner's cut is never skipped", async () => {
-    const r = await applyCollectiveOwnerShares(
-      fakeAdmin({
-        agencies: { data: { work_model: "friends_collective" }, error: null },
-        agency_talent_roster: { data: [{ talent_profile_id: "a", status: "removed", owner_share_kind: "percent", owner_share_bps: 2500, owner_share_version: 1 }], error: null },
-        talent_profiles: { data: [{ id: "a", display_name: "Ana" }], error: null },
-      }),
-      "t1",
-      "MXN",
-      lines(),
-    );
+  const collectiveWith = (rosterRows: unknown[]) =>
+    fakeAdmin({
+      agencies: { data: { work_model: "friends_collective" }, error: null },
+      agency_talent_roster: { data: rosterRows, error: null },
+      talent_profiles: { data: [{ id: "a", display_name: "Ana" }], error: null },
+    });
+  const pct = (status: string, bps: number) => ({ talent_profile_id: "a", status, owner_share_kind: "percent", owner_share_bps: bps, owner_share_version: 1 });
+
+  test("removed + live row for the same talent: the LIVE share wins", async () => {
+    for (const rows of [[pct("removed", 1000), pct("active", 2500)], [pct("active", 2500), pct("removed", 1000)]]) {
+      const r = await applyCollectiveOwnerShares(collectiveWith(rows), "t1", "MXN", lines());
+      assert.equal(r.ok && r.lines[0].talentCostCents, 7500);
+    }
+  });
+  test("removed-only with a recorded share applies that last accepted share (same cut as live)", async () => {
+    const r = await applyCollectiveOwnerShares(collectiveWith([pct("removed", 2500)]), "t1", "MXN", lines());
+    assert.equal(r.ok && r.lines[0].talentCostCents, 7500);
+    assert.equal(r.ok && r.lines[0].ownerTakeCents, 2500);
+  });
+  test("removed-only with NO share on record refuses with its own code and copy", async () => {
+    const r = await applyCollectiveOwnerShares(collectiveWith([{ talent_profile_id: "a", status: "removed" }]), "t1", "MXN", lines());
     assert.equal(r.ok, false);
+    if (r.ok) return;
+    assert.equal(r.code, "talent_no_longer_sells");
+    assert.equal(r.error, "This professional no longer sells here");
+    assert.equal(talentNoLongerSellsCopy("es-MX"), "Esta persona ya no vende aquí");
+    assert.equal(talentNoLongerSellsCopy("en"), "This professional no longer sells here");
+    assert.doesNotMatch(talentNoLongerSellsCopy("es") + talentNoLongerSellsCopy("en"), /[—–]/);
+  });
+  test("a read error still fails closed with the generic copy", async () => {
+    const r = await applyCollectiveOwnerShares(
+      fakeAdmin({ agencies: { data: { work_model: "friends_collective" }, error: null }, agency_talent_roster: { data: null, error: { code: "XX000", message: "down" } } }),
+      "t1", "MXN", lines());
+    assert.deepEqual(r, { ok: false, error: "We could not confirm the split for this order. Nothing was charged. Try again." });
   });
   test("any other read failure REFUSES the order (never prices a collective sale without its split)", async () => {
     const down = await applyCollectiveOwnerShares(fakeAdmin({ agencies: { data: null, error: { code: "XX000", message: "db down" } } }), "t1", "MXN", lines());
@@ -193,7 +215,7 @@ describe("wiring", () => {
     assert.ok(split > 0);
     assert.ok(split < src.search(/await resolveCheckoutCollect(Cents|OrRefuse)\(/), "before the fee and collect");
     assert.ok(split < src.indexOf("talent_cost_cents: l.talentCostCents"));
-    assert.match(src, /if \(!split\.ok\) return \{ ok: false, reason: "engine_error", error: split\.error \}/);
+    assert.match(src, /if \(!split\.ok\) return \{ ok: false, reason: "engine_error", error: split\.code \? talentNoLongerSellsCopy\(input\.locale\) : split\.error \}/);
   });
   test("the held migration adds the per-member share to the roster, capped at 90%", () => {
     const sql = read("../../../../supabase/migrations/_pending_pm/20261231420200_agencies_work_model_tul1374.sql");
