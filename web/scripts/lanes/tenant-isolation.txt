@@ -157,6 +157,7 @@ src/lib/seo/llms-txt.test.ts
 src/lib/seo/spanish-named-routes.test.ts
 src/lib/seo/talent-llms-txt.test.ts
 src/lib/seo/title-template.static.test.ts
+src/lib/service-hub/customer-list-talent-audit.static.test.ts
 src/lib/service-hub/roster-chat-request.test.ts
 src/lib/settings/role-members.test.ts
 src/lib/site-admin/builder-node/builder-node-editor-published-parity.test.ts
