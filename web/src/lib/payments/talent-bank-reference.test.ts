@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { loadOwnManualPayoutAccounts, saveOwnBankReference } from "./talent-bank-reference";
+import { addOwnManualPayoutAccount, loadAddablePayoutWorkspaces, loadOwnManualPayoutAccounts, saveOwnBankReference } from "./talent-bank-reference";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row[]>;
@@ -28,6 +28,12 @@ function fakeDb(tables: Tables, opts: { failTable?: string } = {}) {
       };
       q.select = () => q;
       q.update = (p: Row) => ((patch = p), q);
+      q.neq = (c: string, v: unknown) => ((rows = rows.filter((r) => r[c] !== v)), q);
+      q.insert = async (row: Row) => {
+        (tables[table] ??= []).push({ id: `new-${(tables[table] ?? []).length}`, ...row });
+        writes.push({ table, patch: row });
+        return { error: null };
+      };
       q.eq = (c: string, v: unknown) => ((rows = rows.filter((r) => r[c] === v)), q);
       q.in = (c: string, v: unknown[]) => ((rows = rows.filter((r) => v.includes(r[c]))), q);
       q.maybeSingle = async () => {
@@ -129,6 +135,58 @@ describe("saveOwnBankReference", () => {
   });
 });
 
+const withRoster = (): Tables => {
+  const t = base();
+  t.agencies = [{ id: "t1", display_name: "Studio One" }, { id: "t2", display_name: "Studio Two" }, { id: "t3", display_name: "Studio Three" }];
+  t.agency_talent_roster = [
+    { tenant_id: "t1", talent_profile_id: TP, status: "active" },
+    { tenant_id: "t2", talent_profile_id: TP, status: "active" },
+    { tenant_id: "t3", talent_profile_id: TP, status: "removed" },
+    { tenant_id: "t2", talent_profile_id: "tp-2", status: "active" },
+  ];
+  return t;
+};
+
+describe("Add a manual payout account (per rostered workspace)", () => {
+  it("offers only workspaces where she is rostered and has no account yet", async () => {
+    // pa1 is her account in t1; t2 is rostered with none; t3 was removed.
+    const list = await loadAddablePayoutWorkspaces(fakeDb(withRoster()).db, U);
+    assert.deepEqual(list, [{ tenantId: "t2", workspaceName: "Studio Two" }]);
+  });
+
+  it("offers nothing to a user with no profile, and nothing on a failed read", async () => {
+    assert.deepEqual(await loadAddablePayoutWorkspaces(fakeDb(withRoster()).db, "nobody"), []);
+    assert.deepEqual(await loadAddablePayoutWorkspaces(fakeDb(withRoster(), { failTable: "agency_talent_roster" }).db, U), []);
+  });
+
+  it("creates the account PENDING for a rostered workspace, owned by her own profile", async () => {
+    const t = withRoster();
+    const { db, writes } = fakeDb(t);
+    assert.deepEqual(await addOwnManualPayoutAccount(db, { userId: U, userEmail: "a@b.c", tenantId: "t2" }), { ok: true, existed: false });
+    const ins = writes.find((w) => w.table === "payout_accounts")!.patch;
+    assert.equal(ins.status, "pending_verification");
+    assert.equal(ins.owner_type, "talent");
+    assert.equal(ins.owner_id, TP);
+    assert.equal(ins.tenant_id, "t2");
+    assert.equal(ins.connected_at, undefined);
+  });
+
+  it("refuses a workspace where she is not rostered (or was removed), and a user with no profile", async () => {
+    const t = withRoster();
+    const { db, writes } = fakeDb(t);
+    assert.deepEqual(await addOwnManualPayoutAccount(db, { userId: U, tenantId: "t3" }), { ok: false, reason: "not_rostered" });
+    assert.deepEqual(await addOwnManualPayoutAccount(db, { userId: U, tenantId: "t9" }), { ok: false, reason: "not_rostered" });
+    assert.deepEqual(await addOwnManualPayoutAccount(db, { userId: "nobody", tenantId: "t2" }), { ok: false, reason: "forbidden" });
+    assert.equal(writes.length, 0);
+  });
+
+  it("a second click reuses the existing account instead of adding another", async () => {
+    const { db, writes } = fakeDb(withRoster());
+    assert.deepEqual(await addOwnManualPayoutAccount(db, { userId: U, tenantId: "t1" }), { ok: true, existed: true });
+    assert.equal(writes.length, 0);
+  });
+});
+
 describe("talent surface wiring", () => {
   const src = join(__dirname, "..", "..");
   const read = (rel: string) => readFileSync(join(src, rel), "utf8");
@@ -141,6 +199,17 @@ describe("talent surface wiring", () => {
     assert.match(s, /userId: session\.user\.id/);
     assert.ok(!/userId: input\./.test(s));
     assert.ok(!/markPayoutAccountVerified/.test(s));
+  });
+
+  it("the add button calls the action, which uses the session user and the shared connect path", () => {
+    const a = read(`${dir}/manual-bank-actions.ts`);
+    assert.match(a, /addOwnManualPayoutAccount\(admin, \{ userId: session\.user\.id/);
+    assert.match(a, /export async function addMyManualPayoutAccount[\s\S]{0,200}assertNotImpersonating\(\)/);
+    const card = read(`${dir}/ManualBankReferenceCard.tsx`);
+    assert.match(card, /addMyManualPayoutAccount\(\{ tenantId \}\)/);
+    assert.match(card, /addable\.map/);
+    const lib = read("lib/payments/talent-bank-reference.ts");
+    assert.match(lib, /connectTalentPayoutAccount\(admin, \{[^}]*talentProfileId: tp/);
   });
 
   it("the card is mounted in the talent payouts shell and has ES text for every string", () => {

@@ -195,4 +195,6 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "Bank": "Banco",
   "Last 4 digits": "Últimos 4 dígitos",
   "Save bank details": "Guardar datos bancarios",
+  "Add a manual payout account": "Agregar una cuenta de pago manual",
+  "You are not on this workspace's roster.": "No estás en el equipo de este espacio.",
 };

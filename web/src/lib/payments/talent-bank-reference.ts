@@ -15,6 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 import type { BankReference } from "@/lib/payments/payout-account-verification";
+import { connectTalentPayoutAccount, type ConnectTalentPayoutResult } from "@/lib/payments/talent-payout-connect";
 
 export type OwnManualPayoutAccount = {
   id: string;
@@ -125,4 +126,51 @@ export async function saveOwnBankReference(
     return { ok: false, reason: "failed" };
   }
   return { ok: true, backToPending };
+}
+
+// ── Add a manual payout account per rostered workspace ──────────────────────
+
+export type AddablePayoutWorkspace = { tenantId: string; workspaceName: string };
+
+/**
+ * Workspaces where the talent is rostered (not removed) and has NO active payout account yet: the
+ * only places the "Add a manual payout account" button shows. A workspace where she is not
+ * rostered, or already has an account, never appears.
+ */
+export async function loadAddablePayoutWorkspaces(admin: SupabaseClient, userId: string): Promise<AddablePayoutWorkspace[]> {
+  const tp = await ownTalentProfileId(admin, userId);
+  if (!tp) return [];
+  const [roster, accounts] = await Promise.all([
+    admin.from("agency_talent_roster").select("tenant_id").eq("talent_profile_id", tp).neq("status", "removed"),
+    admin
+      .from("payout_accounts")
+      .select("tenant_id")
+      .eq("owner_type", "talent")
+      .eq("owner_id", tp)
+      .in("status", ["pending_verification", "connected"]),
+  ]);
+  if (roster.error || accounts.error) {
+    logServerError("talent-bank-reference.addable", roster.error ?? accounts.error);
+    return [];
+  }
+  const have = new Set(((accounts.data ?? []) as { tenant_id: string }[]).map((a) => a.tenant_id));
+  const open = [...new Set(((roster.data ?? []) as { tenant_id: string }[]).map((r) => r.tenant_id))].filter((id) => !have.has(id));
+  if (open.length === 0) return [];
+  const names = await admin.from("agencies").select("id, display_name").in("id", open);
+  const byId = new Map(((names.data ?? []) as { id: string; display_name: string | null }[]).map((a) => [a.id, a.display_name ?? ""]));
+  return open.map((tenantId) => ({ tenantId, workspaceName: byId.get(tenantId) || "Workspace" }));
+}
+
+/**
+ * The talent adds a manual payout account in a workspace where she is rostered. Creates it PENDING
+ * (connectTalentPayoutAccount, the same path as the settings action, which re-proves ownership and
+ * the roster). The user is the signed-in one; only the workspace comes from the caller.
+ */
+export async function addOwnManualPayoutAccount(
+  admin: SupabaseClient,
+  input: { userId: string; userEmail?: string | null; tenantId: string },
+): Promise<ConnectTalentPayoutResult> {
+  const tp = await ownTalentProfileId(admin, input.userId);
+  if (!tp) return { ok: false, reason: "forbidden" };
+  return connectTalentPayoutAccount(admin, { userId: input.userId, userEmail: input.userEmail, tenantId: input.tenantId, talentProfileId: tp });
 }

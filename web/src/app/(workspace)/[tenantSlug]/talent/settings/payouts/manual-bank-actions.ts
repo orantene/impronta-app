@@ -8,20 +8,43 @@
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { parseBankReference } from "@/lib/payments/payout-account-verification";
 import {
+  addOwnManualPayoutAccount,
+  loadAddablePayoutWorkspaces,
   loadOwnManualPayoutAccounts,
   saveOwnBankReference,
+  type AddablePayoutWorkspace,
   type OwnManualPayoutAccount,
 } from "@/lib/payments/talent-bank-reference";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-export type LoadManualAccountsResult = { ok: true; accounts: OwnManualPayoutAccount[] } | { ok: false };
+export type LoadManualAccountsResult =
+  | { ok: true; accounts: OwnManualPayoutAccount[]; addable: AddablePayoutWorkspace[] }
+  | { ok: false };
 
 export async function loadMyManualPayoutAccounts(): Promise<LoadManualAccountsResult> {
   const session = await getCachedActorSession();
   const admin = createServiceRoleClient();
   if (!session.user || !admin) return { ok: false };
-  return { ok: true, accounts: await loadOwnManualPayoutAccounts(admin, session.user.id) };
+  const [accounts, addable] = await Promise.all([
+    loadOwnManualPayoutAccounts(admin, session.user.id),
+    loadAddablePayoutWorkspaces(admin, session.user.id),
+  ]);
+  return { ok: true, accounts, addable };
+}
+
+export type AddMyManualPayoutAccountResult = { ok: true } | { ok: false; code: "not_rostered" | "failed" };
+
+/** "Add a manual payout account" for one rostered workspace. Created pending; the owner verifies. */
+export async function addMyManualPayoutAccount(input: { tenantId: string }): Promise<AddMyManualPayoutAccountResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, code: "failed" };
+  const session = await getCachedActorSession();
+  const admin = createServiceRoleClient();
+  if (!session.user || !admin) return { ok: false, code: "failed" };
+  const r = await addOwnManualPayoutAccount(admin, { userId: session.user.id, userEmail: session.user.email, tenantId: input.tenantId });
+  if (r.ok) return { ok: true };
+  return { ok: false, code: r.reason === "not_rostered" ? "not_rostered" : "failed" };
 }
 
 export type SaveMyBankReferenceResult =

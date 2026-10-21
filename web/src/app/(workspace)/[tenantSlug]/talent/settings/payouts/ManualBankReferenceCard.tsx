@@ -4,8 +4,8 @@ import { useEffect, useState, useTransition, type CSSProperties } from "react";
 
 import { COLORS, FONTS } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
-import type { OwnManualPayoutAccount } from "@/lib/payments/talent-bank-reference";
-import { loadMyManualPayoutAccounts, saveMyBankReference } from "./manual-bank-actions";
+import type { AddablePayoutWorkspace, OwnManualPayoutAccount } from "@/lib/payments/talent-bank-reference";
+import { addMyManualPayoutAccount, loadMyManualPayoutAccounts, saveMyBankReference } from "./manual-bank-actions";
 
 const field: CSSProperties = {
   height: 36,
@@ -26,18 +26,38 @@ const field: CSSProperties = {
 export function ManualBankReferenceCard() {
   const copy = useDashboardText();
   const [accounts, setAccounts] = useState<OwnManualPayoutAccount[] | null>(null);
+  const [addable, setAddable] = useState<AddablePayoutWorkspace[]>([]);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const reload = () =>
+    loadMyManualPayoutAccounts().then((r) => {
+      setAccounts(r.ok ? r.accounts : []);
+      setAddable(r.ok ? r.addable : []);
+    });
 
   useEffect(() => {
     let cancelled = false;
     loadMyManualPayoutAccounts().then((r) => {
-      if (!cancelled) setAccounts(r.ok ? r.accounts : []);
+      if (cancelled) return;
+      setAccounts(r.ok ? r.accounts : []);
+      setAddable(r.ok ? r.addable : []);
     });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!accounts || accounts.length === 0) return null;
+  const add = async (tenantId: string) => {
+    setBusyId(tenantId);
+    setAddError(null);
+    const r = await addMyManualPayoutAccount({ tenantId });
+    if (!r.ok) setAddError(r.code === "not_rostered" ? copy.t("You are not on this workspace's roster.") : copy.t("Could not save. Try again."));
+    await reload();
+    setBusyId(null);
+  };
+
+  if (!accounts || (accounts.length === 0 && addable.length === 0)) return null;
   return (
     <div style={{ marginTop: 26 }} data-manual-bank-reference>
       <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, textTransform: "uppercase", color: COLORS.inkDim, marginBottom: 6 }}>
@@ -50,7 +70,20 @@ export function ManualBankReferenceCard() {
         {accounts.map((a) => (
           <BankReferenceForm key={a.id} account={a} onSaved={(next) => setAccounts((cur) => (cur ?? []).map((x) => (x.id === next.id ? next : x)))} />
         ))}
+        {addable.map((w) => (
+          <div key={w.tenantId} data-add-manual-payout style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", border: `1px dashed ${COLORS.border}`, borderRadius: 12, padding: 14 }}>
+            <strong style={{ fontSize: 13, fontFamily: FONTS.body }}>{w.workspaceName}</strong>
+            <button type="button" onClick={() => add(w.tenantId)} disabled={busyId === w.tenantId} style={{ ...field, fontWeight: 600, cursor: busyId === w.tenantId ? "wait" : "pointer" }}>
+              {copy.t("Add a manual payout account")}
+            </button>
+          </div>
+        ))}
       </div>
+      {addError ? (
+        <p role="alert" style={{ margin: "8px 0 0", fontSize: 12.5, color: COLORS.coralDeep }}>
+          {addError}
+        </p>
+      ) : null}
     </div>
   );
 }
