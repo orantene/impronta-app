@@ -27,6 +27,26 @@ describe("net of discount and refunds", () => {
   });
 });
 
+describe("a line's own discount (TUL-1702 P1)", () => {
+  const withDisc = (id: string, orderId: string, who: string, total: number, discountCents: number) => ({ ...L(id, orderId, who, total), discountCents });
+  test("the line's own discount comes off that line only; the order discount spreads only what is left", () => {
+    // line a 10,000 with its own 1,000 off; line b 10,000 no own discount; order discount 3,000 in total
+    // leftover = 3,000 - 1,000 = 2,000 spread over the after-own totals 9,000 and 10,000
+    const lines = [withDisc("a", "o1", ME, 10_000, 1_000), withDisc("b", "o1", "tp-other", 10_000, 0)];
+    const a = netSalesCents({ orders: [{ id: "o1", discountCents: 3_000 }], lines, talentProfileId: ME });
+    assert.equal(a, 9_000 - Math.round((9_000 * 2_000) / 19_000)); // 9,000 - 947 = 8,053
+    assert.equal(a, 8_053);
+  });
+  test("when the order discount is only the sum of the line discounts, nothing more is taken", () => {
+    const lines = [withDisc("a", "o1", ME, 10_000, 1_000), withDisc("b", "o1", ME, 5_000, 500)];
+    assert.equal(netSalesCents({ orders: [{ id: "o1", discountCents: 1_500 }], lines, talentProfileId: ME }), 13_500);
+  });
+  test("never below zero: a line discount larger than the line, or larger than the order discount", () => {
+    assert.equal(netSalesCents({ orders: [{ id: "o1", discountCents: 100 }], lines: [withDisc("a", "o1", ME, 1_000, 5_000)], talentProfileId: ME }), 0);
+    assert.equal(netSalesCents({ orders: [{ id: "o1", discountCents: 0 }], lines: [withDisc("a", "o1", ME, 1_000, 400)], talentProfileId: ME }), 600);
+  });
+});
+
 describe("paid time, not created time", () => {
   const from = "2026-11-01T06:00:00.000Z";
   const to = "2026-12-01T06:00:00.000Z";
@@ -91,6 +111,23 @@ describe("loadMemberSalesBase (fake database)", () => {
   const args = { tenantId: "t", talentProfileId: ME, period: "2026-11", currency: "MXN" };
   test("November = the discounted November order (net 9,000) + the order created in October but PAID in November (net 4,000); December's order is out", async () => {
     assert.equal(await loadMemberSalesBase(fakeAdmin(world()), args), 13_000);
+  });
+  test("payout_pending and payout_sent are PAID (money reached the platform); a first payment that was later refunded still fixes the month", async () => {
+    const w = world();
+    (w.booking_transactions[0] as Record<string, unknown>).status = "payout_sent";
+    (w.booking_transactions[1] as Record<string, unknown>).status = "payout_pending";
+    assert.equal(await loadMemberSalesBase(fakeAdmin(w), args), 13_000);
+    // o-nov first paid (and refunded) in October, a second payment in November: it belongs to October
+    const w2 = world();
+    w2.booking_transactions.push({ id: "x0", source_tenant_id: "t", order_id: "o-nov", status: "refunded", paid_at: "2026-10-20T12:00:00Z" });
+    assert.equal(await loadMemberSalesBase(fakeAdmin(w2), args), 4_000);
+  });
+  test("a member line's own discount is subtracted (order_lines.discount_cents)", async () => {
+    const w = world();
+    (w.order_lines[2] as Record<string, unknown>).discount_cents = 1_000;
+    (w.orders[1] as Record<string, unknown>).discount_cents = 1_000;
+    // l3: 5,000 - 1,000 own - 0 spread - 1,000 refunded = 3,000; l1: 10,000 net of the 2,000 order discount over 20,000 = 9,000
+    assert.equal(await loadMemberSalesBase(fakeAdmin(w), args), 12_000);
   });
   test("a rent invoice order (source_page rent) is never part of the base", async () => {
     const w = world();

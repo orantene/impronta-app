@@ -60,8 +60,10 @@ export type RefundPlanRefusal =
 /**
  * What a line is worth back, NET of its share of any order-level discount.
  *
- * `orders.discount_cents` is the truth and lines carry no discount column, so a
- * line's share is derived — the same `apportionDiscount` 0.9 uses, which is
+ * `orders.discount_cents` is the order-level truth, so a line's share of it is
+ * derived — the same `apportionDiscount` 0.9 uses (a line's OWN
+ * `order_lines.discount_cents`, where set, is separate and is not handled here;
+ * the rent sales base subtracts it first, see rent-sales-net.ts) — which is
  * largest-remainder and therefore sums to exactly the discount. Refunding a
  * discounted line GROSS returns more than the customer paid, which is real
  * money and reconciles wrong quietly.

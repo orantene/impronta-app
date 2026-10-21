@@ -14,6 +14,10 @@ import { nextRentPeriodOf, zonedMonthStartUtc } from "./rent-cycle";
 import { netSalesCents, ordersPaidInWindow, type NetLine, type NetOrder } from "./rent-sales-net";
 import { PAGE_SIZE, readAllPages } from "./rent-sales-paging";
 
+/** Money has reached the platform. A payment that was later refunded or disputed still fixes WHEN the order was first paid. */
+const PAID_STATES = ["paid", "payout_pending", "payout_sent"];
+const FIRST_PAYMENT_STATES = [...PAID_STATES, "refunded", "disputed"];
+
 const CHUNK = 150;
 const chunks = <T,>(xs: T[]): T[][] => Array.from({ length: Math.ceil(xs.length / CHUNK) }, (_, i) => xs.slice(i * CHUNK, (i + 1) * CHUNK));
 
@@ -35,7 +39,7 @@ export async function loadMemberSalesBase(
         .from("booking_transactions")
         .select("order_id")
         .eq("source_tenant_id", p.tenantId)
-        .eq("status", "paid")
+        .in("status", PAID_STATES)
         .not("order_id", "is", null)
         .gte("paid_at", from)
         .lt("paid_at", to)
@@ -55,7 +59,7 @@ export async function loadMemberSalesBase(
           .from("booking_transactions")
           .select("order_id, paid_at")
           .eq("source_tenant_id", p.tenantId)
-          .eq("status", "paid")
+          .in("status", FIRST_PAYMENT_STATES)
           .in("order_id", ids)
           .order("id", { ascending: true })
           .range(a, Math.min(b, a + PAGE_SIZE - 1));
@@ -80,16 +84,16 @@ export async function loadMemberSalesBase(
       for (const o of keep) orders.push({ id: o.id, discountCents: Number(o.discount_cents) || 0 });
       const keepIds = keep.map((o) => o.id);
       if (keepIds.length === 0) continue;
-      const lRows = await readAllPages<{ id: string; order_id: string; talent_profile_id: string | null; total_cents: number | string; refunded_cents: number | string | null }>(async (a, b) => {
+      const lRows = await readAllPages<{ id: string; order_id: string; talent_profile_id: string | null; total_cents: number | string; refunded_cents: number | string | null; discount_cents: number | string | null }>(async (a, b) => {
         const { data, error } = await tenantScopedQuery(admin, "order_lines", p.tenantId)
-          .select("id, order_id, talent_profile_id, total_cents, refunded_cents")
+          .select("id, order_id, talent_profile_id, total_cents, refunded_cents, discount_cents")
           .in("order_id", keepIds)
           .order("id", { ascending: true })
           .range(a, Math.min(b, a + PAGE_SIZE - 1));
         return Array.isArray(data) ? { rows: data as never, error: false } : { rows: null, error: true };
       });
       if (!lRows) return fail("lines", "unreadable");
-      for (const l of lRows) lines.push({ id: l.id, orderId: l.order_id, talentProfileId: l.talent_profile_id, totalCents: Number(l.total_cents) || 0, refundedCents: Number(l.refunded_cents) || 0 });
+      for (const l of lRows) lines.push({ id: l.id, orderId: l.order_id, talentProfileId: l.talent_profile_id, totalCents: Number(l.total_cents) || 0, refundedCents: Number(l.refunded_cents) || 0, discountCents: Number(l.discount_cents) || 0 });
     }
     const total = netSalesCents({ orders, lines, talentProfileId: p.talentProfileId });
     return Number.isSafeInteger(total) ? total : null;
