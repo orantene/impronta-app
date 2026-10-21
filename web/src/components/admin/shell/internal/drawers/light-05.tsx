@@ -111,7 +111,7 @@ export function IdentityDrawer() {
             onChange={(e) => setDisplayName(e.target.value)}
           />
         </FieldRow>
-        <FieldRow label="Workspace slug" hint="Used in URLs. Slug change is a separate flow (URL redirect mapping required) — coming next iteration.">
+        <FieldRow label="Workspace web address" hint="Used in URLs. Changing the address is a separate flow (URL redirect mapping required) — coming next iteration.">
           <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`, fontSize: 13, fontFamily: FONTS.body }} className="bg-admin-surface-alt text-admin-ink-muted">tulala.app/{effectiveTenant.slug}</div>
         </FieldRow>
         <FieldRow label="Contact email">

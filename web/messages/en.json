@@ -5478,8 +5478,8 @@
       "requiresStudio": "Requires Studio or above",
       "requiresAgency": "Requires Agency or above",
       "accountLabel": "Account",
-      "accountDesc": "Workspace name, slug, and contact info.",
-      "accountRowMeta": "Name · Slug · Contact email",
+      "accountDesc": "Workspace name, web address, and contact info.",
+      "accountRowMeta": "Name · Web address · Contact email",
       "takeBookingsTitle": "Want to take bookings yourself?",
       "takeBookingsDesc": "Create your Talent page. It becomes visible on your workspace roster.",
       "planLabel": "Plan & billing",
@@ -11926,7 +11926,7 @@
         "pages": {
           "purpose": "Static pages on your storefront: About, Press, Contact, Terms, etc.",
           "b0": "Create a new page from a template or blank canvas",
-          "b1": "Set the URL slug, SEO title, and OG image per page",
+          "b1": "Set the web address, SEO title, and sharing image per page",
           "b2": "Publish, unpublish, or schedule a page for later"
         },
         "posts": {
@@ -21453,7 +21453,7 @@
       "accessUntil": "Access until",
       "nextRenewal": "Next renewal",
       "trialEnds": "Trial ends",
-      "workspaceSlug": "Workspace slug",
+      "workspaceSlug": "Workspace web address",
       "rosterLabel": "Roster",
       "ofUnlimited": "of unlimited",
       "of": "of",

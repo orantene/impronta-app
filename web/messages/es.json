@@ -5478,8 +5478,8 @@
       "requiresStudio": "Requiere Studio o superior",
       "requiresAgency": "Requiere Agency o superior",
       "accountLabel": "Cuenta",
-      "accountDesc": "Nombre del espacio, slug e información de contacto.",
-      "accountRowMeta": "Nombre · Slug · Correo de contacto",
+      "accountDesc": "Nombre del espacio, dirección web e información de contacto.",
+      "accountRowMeta": "Nombre · Dirección web · Correo de contacto",
       "takeBookingsTitle": "¿Quieres recibir reservas tú mismo?",
       "takeBookingsDesc": "Crea tu página de Talent. Se hará visible en la lista de tu espacio.",
       "planLabel": "Plan y facturación",
@@ -11926,7 +11926,7 @@
         "pages": {
           "purpose": "Páginas fijas de tu vitrina: Nosotros, Prensa, Contacto, Términos, etc.",
           "b0": "Crea una página nueva desde una plantilla o desde cero",
-          "b1": "Define el slug, el título SEO y la imagen OG de cada página",
+          "b1": "Define la dirección web, el título SEO y la imagen para compartir de cada página",
           "b2": "Publica, despublica o programa una página para después"
         },
         "posts": {
@@ -12239,7 +12239,7 @@
           "b2": "Mira lo que otro talento ha construido con Portfolio"
         },
         "talent-personal-page": {
-          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-slug>.",
+          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-dirección>.",
           "b0": "Elige una plantilla de diseño",
           "b1": "Decide qué créditos, fotos y enlaces destacar",
           "b2": "Conecta un dominio propio (nivel Portfolio)"
@@ -21453,7 +21453,7 @@
       "accessUntil": "Acceso hasta",
       "nextRenewal": "Próxima renovación",
       "trialEnds": "Prueba termina",
-      "workspaceSlug": "Slug del espacio",
+      "workspaceSlug": "Dirección web del espacio",
       "rosterLabel": "Lista",
       "ofUnlimited": "de ilimitado",
       "of": "de",
