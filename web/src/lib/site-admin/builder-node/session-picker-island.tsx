@@ -28,7 +28,7 @@
  * wrong one thinks the studio is full when the studio is fine.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 import type { PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
 import { money } from "./ticket-picker-copy";
@@ -180,6 +180,45 @@ function formatWhen(iso: string, timeZone: string, locale: Locale): string | nul
     return null;
   }
 }
+
+/**
+ * TUL-1810: the block shipped with browser-default controls, so on a phone the
+ * inputs had no visible border, "Reservar y pagar" read as plain text and the
+ * refusal was grey body copy. These use the site's design tokens (ink / line /
+ * background), so the block follows the site's theme.
+ */
+const FIELD_STYLE: CSSProperties = {
+  boxSizing: "border-box",
+  marginLeft: 8,
+  minHeight: 44,
+  padding: "8px 12px",
+  font: "inherit",
+  color: "var(--token-color-ink)",
+  background: "var(--token-color-surface-raised, var(--token-color-background))",
+  border: "1px solid var(--token-color-line)",
+  borderRadius: 10,
+};
+const BUTTON_STYLE: CSSProperties = {
+  marginTop: 12,
+  minHeight: 48,
+  width: "100%",
+  padding: "12px 20px",
+  font: "inherit",
+  fontWeight: 600,
+  cursor: "pointer",
+  color: "var(--token-color-background)",
+  background: "var(--token-color-ink)",
+  border: "1px solid var(--token-color-ink)",
+  borderRadius: 999,
+};
+const REFUSAL_STYLE: CSSProperties = {
+  marginTop: 12,
+  padding: "10px 14px",
+  color: "var(--token-color-danger, firebrick)",
+  background: "color-mix(in srgb, var(--token-color-danger, firebrick) 8%, var(--token-color-background, white))",
+  border: "1px solid color-mix(in srgb, var(--token-color-danger, firebrick) 45%, transparent)",
+  borderRadius: 10,
+};
 
 export function SessionPickerIsland({
   tenantId,
@@ -394,7 +433,7 @@ export function SessionPickerIsland({
             max={20}
             value={seats}
             onChange={(e) => setSeats(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-            style={{ marginLeft: 8, width: 64 }}
+            style={{ ...FIELD_STYLE, width: 80 }}
           />
         </label>
         <label style={{ display: "block", marginTop: 8 }}>
@@ -403,7 +442,7 @@ export function SessionPickerIsland({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{ marginLeft: 8 }}
+            style={FIELD_STYLE}
           />
         </label>
         <label style={{ display: "block", marginTop: 8 }}>
@@ -412,7 +451,7 @@ export function SessionPickerIsland({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{ marginLeft: 8 }}
+            style={FIELD_STYLE}
           />
         </label>
       </div>
@@ -429,7 +468,7 @@ export function SessionPickerIsland({
       ) : null}
 
       {refusal ? (
-        <div data-session-picker="refusal" style={{ marginTop: 12 }}>
+        <div data-session-picker="refusal" role="alert" style={REFUSAL_STYLE}>
           {refusal}
         </div>
       ) : null}
@@ -438,7 +477,7 @@ export function SessionPickerIsland({
         type="button"
         onClick={() => void book()}
         disabled={!chosen || busy || redirecting}
-        style={{ marginTop: 12 }}
+        style={{ ...BUTTON_STYLE, opacity: !chosen || busy || redirecting ? 0.55 : 1 }}
       >
         {redirecting
           ? t("redirecting")

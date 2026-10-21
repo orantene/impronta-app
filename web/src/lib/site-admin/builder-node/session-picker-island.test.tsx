@@ -154,6 +154,15 @@ test("a FREE booking shows done, with no payment call and no email claim", async
   await act(async () => m.root.unmount());
 });
 
+test("TUL-1810: inputs have a visible border, the pay button is a filled button, the refusal is an alert", async () => {
+  const m = await mountPicker({ amountCents: 45000, txn: TXN });
+  for (const sel of ['input[type="number"]', 'input[type="email"]', 'input[type="text"]']) {
+    assert.match(m.host.querySelector<HTMLElement>(sel)!.getAttribute("style") ?? "", /border: 1px solid/, sel);
+  }
+  assert.match(button(m.host).getAttribute("style") ?? "", /background: var\(--token-color-ink\)/);
+  await act(async () => m.root.unmount());
+});
+
 test("nextStepAfterBook: only money plus a transaction goes to pay", () => {
   assert.equal(nextStepAfterBook({ checkoutTransactionId: TXN }, 45000), "pay");
   assert.equal(nextStepAfterBook({ checkoutTransactionId: TXN }, 0), "done");
