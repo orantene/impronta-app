@@ -37,7 +37,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
   let safety: Awaited<ReturnType<typeof loadRentSafetyView>> = [];
   if (admin && gate.ok) {
     const { data: planRows } = await tenantScopedQuery(admin, "studio_rent_plans", scope.tenantId)
-      .select("id, talent_profile_id, monthly_rent_cents, rent_percent_bps, currency, status, ended_by, updated_at, station_resource_id, talent_profiles!inner(display_name)")
+      .select("id, talent_profile_id, monthly_rent_cents, rent_percent_bps, currency, status, ended_by, updated_at, station_resource_id, autopay_status, talent_profiles!inner(display_name)")
       .order("updated_at", { ascending: false })
       .limit(60);
     const { data: invRows } = await tenantScopedQuery(admin, "studio_rent_invoices", scope.tenantId)
@@ -67,6 +67,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
         status: r.status,
         endedBy: r.ended_by,
         stationId: r.station_resource_id,
+        autopayStatus: r.autopay_status ?? "off",
         invoice: inv ? { period: inv.period, state: rentLinkState(inv.status, inv.code ? (linkStatus.get(inv.code) ?? null) : null) } : null,
       });
     }

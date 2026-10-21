@@ -53,6 +53,11 @@ export const RENT_COPY = {
     issueMonth: "Month to issue",
     percentOfSales: "% of their sales",
     autopayStart: "Pay automatically each month",
+    ownerAutopayOn: "Pays automatically each month. No payment link needed.",
+    ownerAutopayPending: "Setting up automatic payments.",
+    ownerAutopayPaused: "Automatic payments paused while the plan is paused.",
+    ownerAutopayPastDue: "The last automatic payment failed. Stripe is retrying.",
+    autopayOnRefusal: "This month is paid automatically. No payment link is needed.",
     autopayExplain: "Your card is charged on the 1st of each month, starting next month. The Tulala service fee is shown before you agree.",
     autopayOn: "Paid automatically each month.",
     autopayPastDue: "Your last automatic payment failed. Update your card.",
@@ -115,6 +120,11 @@ export const RENT_COPY = {
     issueMonth: "Mes a emitir",
     percentOfSales: "% de sus ventas",
     autopayStart: "Pagar automáticamente cada mes",
+    ownerAutopayOn: "Paga automáticamente cada mes. No hace falta enlace de pago.",
+    ownerAutopayPending: "Configurando los pagos automáticos.",
+    ownerAutopayPaused: "Pagos automáticos en pausa mientras el plan está en pausa.",
+    ownerAutopayPastDue: "El último pago automático falló. Stripe lo está reintentando.",
+    autopayOnRefusal: "Este mes se paga automáticamente. No hace falta enlace de pago.",
     autopayExplain: "Se cobra a tu tarjeta el día 1 de cada mes, a partir del próximo mes. El cargo por servicio de Tulala se muestra antes de que aceptes.",
     autopayOn: "Se paga automáticamente cada mes.",
     autopayPastDue: "Tu último pago automático falló. Actualiza tu tarjeta.",
@@ -137,6 +147,7 @@ export function rentRefusalText(reason: string, c: RentCopy): string {
     case "month_not_closed": return c.monthNotClosed;
     case "sales_unavailable": return c.salesUnavailable;
     case "nothing_due": return c.nothingDue;
+    case "autopay_on": return c.autopayOnRefusal;
     default: return c.unavailable;
   }
 }

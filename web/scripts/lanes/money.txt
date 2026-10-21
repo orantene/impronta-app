@@ -316,6 +316,7 @@ src/lib/service-hub/rent/rent-autopay-routing.test.ts
 src/lib/service-hub/rent/rent-autopay.test.ts
 src/lib/service-hub/rent/rent-cycle.test.ts
 src/lib/service-hub/rent/rent-issue.test.ts
+src/lib/service-hub/rent/rent-owner-autopay.static.test.ts
 src/lib/service-hub/rent/rent-percent.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts
 src/lib/service-hub/rent/rent-station-pool.test.ts
