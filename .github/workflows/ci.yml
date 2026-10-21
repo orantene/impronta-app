@@ -179,6 +179,20 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=11264
         run: npx next build
 
+      # TUL-1769: boot the production build the way Vercel runs it (Node with
+      # --no-experimental-require-module) and prove pages serve. On 2026-10-21
+      # every page 500'd on Vercel (a CJS dep require()-ing an ESM-only one)
+      # while tsc, lint and `next build` were green. Reuses the build above
+      # (--skip-build), so it adds seconds, not a second build. Required via
+      # the aggregator; same policy as every other gate step.
+      - name: runtime boot smoke (next start with --no-experimental-require-module)
+        if: success()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          RUNTIME_SMOKE_LOG: ${{ runner.temp }}/runtime-boot-smoke.log
+        run: node scripts/ci/runtime-boot-smoke.mjs --skip-build
+
       # Cheap file-only check (no second build): every client chunk a route's
       # client-reference manifest names must exist in .next/static/chunks.
       - name: build — no phantom client chunks
