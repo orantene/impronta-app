@@ -21113,6 +21113,7 @@
         },
         "mediaGallery": {
           "dialogLabel": "Photo gallery",
+          "actionFailed": "That didn't work. Try again.",
           "title": "Photo gallery",
           "loadMore": "Load more",
           "loadMoreLoading": "Loading...",

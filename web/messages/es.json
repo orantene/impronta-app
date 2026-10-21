@@ -21113,6 +21113,7 @@
         },
         "mediaGallery": {
           "dialogLabel": "Galería de fotos",
+          "actionFailed": "No se pudo completar. Inténtalo de nuevo.",
           "title": "Galería de fotos",
           "loadMore": "Cargar más",
           "loadMoreLoading": "Cargando...",
