@@ -128,7 +128,8 @@ export function decideRentIssue(input: {
   const { plan, period, now } = input;
   if (!isRentPeriod(period)) return { ok: false, reason: "bad_period" };
   // A month the subscription charges is never ALSO sent as a payment link (no double charge).
-  const autopayLive = ["pending", "active", "past_due", "paused"].includes(plan.autopayStatus ?? "off");
+  // 'pending' (Checkout opened, not completed) has no subscription yet and never blocks a link.
+  const autopayLive = ["active", "past_due", "paused"].includes(plan.autopayStatus ?? "off");
   if (autopayLive && plan.autopayFirstPeriod && period >= plan.autopayFirstPeriod) return { ok: false, reason: "autopay_on" };
   if (plan.acceptedAt == null) return { ok: false, reason: "not_accepted" };
   if (plan.status !== "active") return { ok: false, reason: "not_active" };

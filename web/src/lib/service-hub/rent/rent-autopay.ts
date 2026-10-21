@@ -71,7 +71,8 @@ export function decideRentAutopay(input: {
   if (input.feeBps == null) return { ok: false, reason: "fee_unavailable" };
   const amounts = rentAutopayAmounts(plan.monthlyRentCents, input.feeBps);
   if (!amounts || !checkChargeMinimum(amounts.totalCents, plan.currency).ok) return { ok: false, reason: "below_minimum" };
-  if (input.autopayStatus !== "off" && input.autopayStatus !== "canceled") return { ok: false, reason: "already_on" };
+  // 'pending' may start again (an abandoned Checkout); the same session is reused by its idempotency key.
+  if (input.autopayStatus !== "off" && input.autopayStatus !== "canceled" && input.autopayStatus !== "pending") return { ok: false, reason: "already_on" };
   return { ok: true };
 }
 

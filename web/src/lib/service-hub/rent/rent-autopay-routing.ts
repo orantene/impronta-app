@@ -7,6 +7,8 @@
 import type Stripe from "stripe";
 
 export type RentSubscriptionEvent =
+  /** An abandoned Checkout: the member never subscribed (TUL-1601 fix). */
+  | { type: "expired"; planId: string; tenantId: string }
   | { type: "started"; planId: string; tenantId: string; subscriptionId: string; customerId: string | null }
   | { type: "status"; planId: string; tenantId: string; subscriptionId: string; stripeStatus: string; paused: boolean; deleted: boolean }
   | { type: "paid"; planId: string; tenantId: string; subscriptionId: string; invoiceId: string; periodStart: number; amountPaid: number; currency: string; rentCents: number }
@@ -37,6 +39,12 @@ export function classifyRentSubscriptionEvent(event: Stripe.Event): RentSubscrip
       const subscriptionId = id(s.subscription as string | Stripe.Subscription | null);
       if (!m || s.mode !== "subscription" || !subscriptionId) return null;
       return { type: "started", planId: m.planId, tenantId: m.tenantId, subscriptionId, customerId: id(s.customer as string | null) };
+    }
+    case "checkout.session.expired": {
+      const s = event.data.object as Stripe.Checkout.Session;
+      const m = rentMeta(s.metadata);
+      if (!m || s.mode !== "subscription") return null;
+      return { type: "expired", planId: m.planId, tenantId: m.tenantId };
     }
     case "customer.subscription.created":
     case "customer.subscription.updated":

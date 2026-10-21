@@ -6,6 +6,7 @@ import "server-only";
  * (an MX studio is refused at start). Every call is tenant-scoped and fail-soft toward NOT charging.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type Stripe from "stripe";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { afterResponse } from "@/lib/server/after-response";
@@ -44,6 +45,7 @@ function buildApplyDeps(admin: SupabaseClient): RentAutopayApplyDeps {
         .update({
           autopay_status: patch.autopayStatus,
           ...(patch.subscriptionId !== undefined ? { stripe_subscription_id: patch.subscriptionId } : {}),
+          ...(patch.clearFirstPeriod ? { autopay_first_period: null } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq("id", planId);
@@ -120,32 +122,36 @@ export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: Ren
 }
 
 /**
- * Keep the subscription in step with the plan. ended: cancelled now. paused: collection paused (invoices voided,
- * nothing charged). active: collection resumed. A plan with no live subscription is left alone.
+ * Keep the subscription in step with the plan, and tell Stripe FIRST: the caller changes the plan only when this
+ * returns ok, so a Stripe failure can never leave a plan ended while the member keeps being charged.
+ * ended: cancelled now. paused: collection paused (invoices voided, nothing charged). active: collection resumed.
+ * A plan with no live subscription is ok. A live subscription with no Stripe client is NOT ok.
  */
 export async function syncRentAutopayWithPlan(
   admin: SupabaseClient,
   p: { tenantId: string; planId: string; planStatus: "active" | "paused" | "ended" },
-): Promise<void> {
+  deps: { stripeFor?: (k: StripeAccountKey) => Stripe | null } = {},
+): Promise<{ ok: boolean }> {
   try {
     const { data } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId)
       .select("stripe_subscription_id, autopay_status")
       .eq("id", p.planId)
       .maybeSingle();
     const r = data as { stripe_subscription_id: string | null; autopay_status: string } | null;
-    if (!r?.stripe_subscription_id || r.autopay_status === "off" || r.autopay_status === "canceled") return;
+    if (!r?.stripe_subscription_id || r.autopay_status === "off" || r.autopay_status === "canceled") return { ok: true };
+    const stripe = (deps.stripeFor ?? getStripeFor)("us");
+    if (!stripe) return { ok: false };
     if (p.planStatus === "ended") {
-      if (await cancelRentSubscription(r.stripe_subscription_id)) {
-        await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).update({ autopay_status: "canceled" }).eq("id", p.planId);
-      }
-      return;
+      await stripe.subscriptions.cancel(r.stripe_subscription_id, { invoice_now: false, prorate: false });
+      await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).update({ autopay_status: "canceled" }).eq("id", p.planId);
+      return { ok: true };
     }
-    const stripe = getStripeFor("us");
-    if (!stripe) return;
     await stripe.subscriptions.update(r.stripe_subscription_id, {
       pause_collection: p.planStatus === "paused" ? { behavior: "void" } : "",
     });
+    return { ok: true };
   } catch (err) {
     logServerError("rent.autopay.sync", err);
+    return { ok: false };
   }
 }

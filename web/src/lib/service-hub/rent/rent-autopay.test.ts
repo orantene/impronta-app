@@ -65,7 +65,8 @@ describe("who may turn on automatic payments", () => {
     assert.deepEqual(decideRentAutopay({ ...ok, studio: { accountId: "acct", chargesEnabled: false } }), { ok: false, reason: "studio_not_ready" });
     assert.deepEqual(decideRentAutopay({ ...ok, feeBps: null }), { ok: false, reason: "fee_unavailable" });
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ monthlyRentCents: 500, acceptedAmountCents: 500 }) }), { ok: false, reason: "below_minimum" });
-    for (const s of ["pending", "active", "past_due", "paused"]) assert.deepEqual(decideRentAutopay({ ...ok, autopayStatus: s }), { ok: false, reason: "already_on" });
+    for (const s of ["active", "past_due", "paused"]) assert.deepEqual(decideRentAutopay({ ...ok, autopayStatus: s }), { ok: false, reason: "already_on" });
+    assert.deepEqual(decideRentAutopay({ ...ok, autopayStatus: "pending" }), { ok: true }, "an abandoned Checkout can be started again");
   });
 });
 

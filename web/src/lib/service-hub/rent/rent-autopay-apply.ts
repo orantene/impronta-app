@@ -10,7 +10,7 @@ export type AutopayInvoiceRow = { status: string; stripeInvoiceId: string | null
 
 export type RentAutopayApplyDeps = {
   loadPlan(planId: string, tenantId: string): Promise<AutopayPlanRow | null>;
-  setAutopay(planId: string, tenantId: string, patch: { autopayStatus: string; subscriptionId?: string | null }): Promise<boolean>;
+  setAutopay(planId: string, tenantId: string, patch: { autopayStatus: string; subscriptionId?: string | null; clearFirstPeriod?: boolean }): Promise<boolean>;
   loadInvoice(planId: string, tenantId: string, period: string): Promise<AutopayInvoiceRow | null>;
   /** Insert-or-update the (plan, period) row as an automatic payment. */
   writeInvoice(row: { planId: string; tenantId: string; talentProfileId: string; period: string; amountCents: number; currency: string; status: "paid" | "failed"; stripeInvoiceId: string }): Promise<boolean>;
@@ -34,6 +34,12 @@ export type ApplyOutcome =
 export async function applyRentSubscriptionEvent(ev: RentSubscriptionEvent, deps: RentAutopayApplyDeps): Promise<ApplyOutcome> {
   const plan = await deps.loadPlan(ev.planId, ev.tenantId);
   if (!plan) return "plan_not_found";
+
+  if (ev.type === "expired") {
+    // Only a plan that never got a subscription goes back to off; a live one is never touched by a stale session.
+    if (plan.subscriptionId || plan.autopayStatus !== "pending") return "duplicate";
+    return (await deps.setAutopay(ev.planId, ev.tenantId, { autopayStatus: "off", clearFirstPeriod: true })) ? "status_set" : "unavailable";
+  }
 
   if (ev.type === "started") {
     if (plan.subscriptionId === ev.subscriptionId) return "duplicate";
@@ -61,6 +67,11 @@ export async function applyRentSubscriptionEvent(ev: RentSubscriptionEvent, deps
   if (existing?.stripeInvoiceId === ev.invoiceId && (existing.status === "paid" || ev.type === "failed")) return "duplicate";
 
   if (ev.type === "paid") {
+    if (plan.status === "ended") {
+      // Money was taken for a plan that has ended: shout, stop the subscription, and still record the month honestly.
+      deps.alert(`rent plan ${ev.planId} is ended but subscription ${ev.subscriptionId} was paid (invoice ${ev.invoiceId})`);
+      await deps.cancelSubscription(ev.subscriptionId);
+    }
     if (existing && existing.status === "paid" && existing.stripeInvoiceId !== ev.invoiceId) {
       // The month was already paid another way (a payment link): money taken twice. Loud, never silent.
       deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid on top of an already paid month`);
