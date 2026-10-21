@@ -59,12 +59,12 @@ test("key attempt note: round trip, new key only after a deterministic failure",
   assert.equal(failureNote(failureNote("x", 0, true), 1, true).match(/\[key_a:/g)?.length, 1);
 });
 
-test("first attempt: the stable key, no listing", async () => {
+test("first attempt: the stable key, after one lookup for an existing transfer (TUL-1746)", async () => {
   const f = fakeStripe({});
   const res = await attemptLegTransfer(f.stripe, { ...LEG, lastError: null });
   assert.deepEqual(res, { kind: "transferred", transferId: "tr_1" });
   assert.equal(f.created[0].key, BASE);
-  assert.equal(f.listedCount(), 0);
+  assert.equal(f.listedCount(), 1);
 });
 
 test("a DETERMINISTIC refusal records a note that makes the NEXT attempt use a new key", async () => {
@@ -89,7 +89,7 @@ test("an AMBIGUOUS failure keeps the SAME key on the next attempt", async () => 
   const g = fakeStripe({});
   await attemptLegTransfer(g.stripe, { ...LEG, lastError: (res as { note: string }).note });
   assert.equal(g.created[0].key, BASE, "same key, so a transfer that did succeed is replayed, never repeated");
-  assert.equal(g.listedCount(), 0);
+  assert.equal(g.listedCount(), 1, "and the lookup runs on every attempt (TUL-1746)");
 });
 
 test("an existing transfer for the leg found before a new-key attempt: no new transfer", async () => {

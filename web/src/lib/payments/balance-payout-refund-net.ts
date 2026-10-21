@@ -30,6 +30,9 @@ export type BookingTxnRow = {
 /** last_error prefix a refund-pending payout hold is recorded with; the held-payout retry reads it. */
 export const REFUND_PENDING_ERROR_PREFIX = "refund pending";
 
+/** last_error prefix of a hold written because the payout ledger could not be read; the held-payout retry reads it. */
+export const LEDGER_UNREADABLE_ERROR_PREFIX = "ledger unreadable";
+
 /** Charge rows that count toward what the client paid on the booking. */
 const CHARGE_STATUSES = new Set(["paid", "payout_pending", "payout_sent", "disputed", "refunded"]);
 

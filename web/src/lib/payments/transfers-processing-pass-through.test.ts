@@ -72,6 +72,17 @@ function makeSupabase(opts: {
         }
         return Promise.resolve({ data: null, error: null });
       },
+      // Awaited list reads. The ledger read (TUL-1746) lists this participant's legs.
+      then: (resolve: (v: { data: unknown; error: null }) => unknown) =>
+        resolve({
+          data:
+            table === "booking_payouts"
+              ? (opts.transferredLegs ?? [])
+                  .filter((k) => k.startsWith(`${eqs["participant_id"]}:`))
+                  .map((k) => ({ party: k.split(":")[1], status: "transferred" }))
+              : [],
+          error: null,
+        }),
     };
     return chain;
   };
