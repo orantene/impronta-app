@@ -230,6 +230,7 @@ src/lib/talent/load-representation.test.ts
 src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
 src/lib/talent/offering-delete-or-archive.test.ts
+src/lib/talent/offering-moderation.test.ts
 src/lib/talent/offerings-auth-staff-capabilities.test.ts
 src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/private-fields.test.ts
