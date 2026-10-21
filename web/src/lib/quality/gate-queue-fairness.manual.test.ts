@@ -85,16 +85,28 @@ test("with CAP slots, CAP jobs run AT ONCE — fairness must not serialise the l
     // would read A-in, A-out, B-in. A fixed sleep decided this by wall clock, which a loaded runner
     // (slow bash startup, slow polling) turned into a flaky "CAP" failure.
     const flag = join(dir, "b-started");
-    const a = start("A", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo A-in >> ${out}; i=0; while [ ! -e ${flag} ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done; echo A-out >> ${out}` });
-    const b = start("B", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo B-in >> ${out}; touch ${flag}` });
+    // DISTINCT checkouts, as in the arrival-order test: the queue keys a claim on the cwd, and the
+    // newer of two spawns in the SAME cwd displaces the older by design. Sharing WEB_ROOT here made
+    // B displace A whenever it won the race (the log read just "B-in"), which is what looked flaky.
+    const cwds = ["a", "b"].map((n) => {
+      const d = join(dir, `co-${n}`);
+      mkdirSync(d, { recursive: true });
+      return d;
+    });
+    const a = start("A", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo A-in >> ${out}; i=0; while [ ! -e ${flag} ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done; echo A-out >> ${out}`, cwd: cwds[0] });
+    const b = start("B", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo B-in >> ${out}; touch ${flag}`, cwd: cwds[1] });
     await Promise.all([waitOk(a, "A"), waitOk(b, "B")]);
 
     const order = readFileSync(out, "utf8").trim().split("\n");
+    // Both jobs must START before A finishes, in EITHER order: with 2 slots, which of the two spawned
+    // queues acquires first is a race and not the property under test. The property is concurrency.
+    assert.equal(order.length, 3, `expected 3 events; got ${order.join(",")}\n\n${diagnostics()}`);
     assert.deepEqual(
-      order,
-      ["A-in", "B-in", "A-out"],
+      [...order.slice(0, 2)].sort(),
+      ["A-in", "B-in"],
       `B must start while A still holds the other slot; got ${order.join(",")}\n\n${diagnostics()}`,
     );
+    assert.equal(order[2], "A-out", `A must finish last; got ${order.join(",")}\n\n${diagnostics()}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
