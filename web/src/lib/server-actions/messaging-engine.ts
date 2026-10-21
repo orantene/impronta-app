@@ -193,8 +193,8 @@ export async function messagingReply(input: {
       tenantId: g.tenantId,
       inquiryId: parsed.data.inquiryId,
       messageId: inserted.messageId,
-      body: parsed.data.body,
-      smsText: parsed.data.body,
+      body: inserted.storedBody,
+      smsText: inserted.storedBody,
       to: await contactForChannel(g.admin, parsed.data.inquiryId, channelId),
     });
     await recordDelivery(g.admin, {
