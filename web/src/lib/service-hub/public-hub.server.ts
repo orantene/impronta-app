@@ -48,7 +48,24 @@ export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: 
     if (entryRows.length === 0) return [];
     const loaded = await loadListings(admin, hostTenantId);
     if (!loaded) return [];
-    const accepted = loaded.listings.filter((l) => l.talentAccepted && l.entryId);
+    const acceptedAll = loaded.listings.filter((l) => l.talentAccepted && l.entryId);
+
+    // (a0) TUL-1591: a talent who LEFT this workspace (no ACTIVE roster row here) leaves the
+    // hub with her listings. Open bookings are not touched; this is the public list only.
+    const memberIds = [...new Set(acceptedAll.map((l) => l.talentProfileId))];
+    const activeMembers = new Set<string>();
+    for (let i = 0; i < memberIds.length; i += ID_CHUNK) {
+      const { data: roster, error: rErr } = await tenantScopedQuery(admin, "agency_talent_roster", hostTenantId)
+        .select("tenant_id, talent_profile_id, status")
+        .eq("status", "active")
+        .in("talent_profile_id", memberIds.slice(i, i + ID_CHUNK));
+      if (rErr) {
+        logServerError("serviceHub.public.roster", rErr);
+        return [];
+      }
+      for (const r of (roster ?? []) as Raw[]) if (r.tenant_id === hostTenantId && r.status === "active") activeMembers.add(String(r.talent_profile_id));
+    }
+    const accepted = acceptedAll.filter((l) => activeMembers.has(l.talentProfileId));
     const offeringOf = (listingId: string) => loaded.offeringByListing.get(listingId) ?? "";
 
     // (b) Only a PUBLIC talent's services appear: the directory's own rule (not deleted, not

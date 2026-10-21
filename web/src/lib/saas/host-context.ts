@@ -6,6 +6,7 @@ import { createBoundedFetch, SUPABASE_EDGE_LOOKUP_TIMEOUT_MS } from "@/lib/supab
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
 import { splitTalentSiteHost } from "@/lib/talent-site/site-public-url";
 import { talentSiteCanonicalFieldsFromLookup } from "@/lib/saas/talent-site-canonical-redirect";
+import { talentLeftWorkspace } from "@/lib/service-hub/leaver-redirect";
 
 /**
  * SaaS unified host resolver — THE single source of truth for
@@ -407,6 +408,34 @@ export async function isProfileCodeOnTenantRoster(
   } catch {
     return true; // fail open
   }
+}
+
+/**
+ * TUL-1591 (a): is this profile code a FORMER member of the tenant (she left: roster row
+ * `removed`, no active row)? Asked only after the roster check above missed, so a normal
+ * request never pays for it. The anon edge client cannot read removed roster rows, so the
+ * database answers yes/no (`talent_left_workspace`, SECURITY DEFINER). Cached on the same
+ * 60s TTL. Fails CLOSED to the old 404: a redirect is never sent on doubt.
+ */
+export async function isFormerRosterMemberCode(
+  request: NextRequest,
+  tenantId: string,
+  profileCode: string,
+): Promise<boolean> {
+  const key = `${tenantId}/_left/${profileCode.toLowerCase()}`;
+  const cached = cacheGet(key);
+  if (cached) return cached.kind !== "not_found";
+
+  const supabase = buildEdgeSupabase(request);
+  if (!supabase) return false;
+  const left = await talentLeftWorkspace({ rpc: (fn, args) => supabase.rpc(fn, args) }, tenantId, profileCode);
+  cacheSet(
+    key,
+    left
+      ? { kind: "app", tenantId: null, hostname: key }
+      : { kind: "not_found", tenantId: null, hostname: key },
+  );
+  return left;
 }
 
 /**
