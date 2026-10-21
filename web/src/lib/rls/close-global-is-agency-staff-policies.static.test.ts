@@ -99,10 +99,20 @@ test("global reference tables: writes need is_platform_admin() in USING and WITH
 });
 
 test("staff_permissions: tenant staff with an active owner/admin role only", () => {
-  const b = last("staff_permissions", "staff_permissions_staff").body;
-  assert.match(b, /TO\s+authenticated/i);
-  assert.match(b, /USING\s*\(\s*public\.staff_is_admin_of_user_tenant\(user_id\)\s*\)/i);
-  assert.match(b, /WITH\s+CHECK\s*\(\s*public\.staff_is_admin_of_user_tenant\(user_id\)\s*\)/i);
+  // TUL-1813 (425800) supersedes 425600's single staff_permissions_staff policy with
+  // per-command tenant-admin policies; the final state is what must hold.
+  const superseded = events().some((e) => e.table === "staff_permissions" && e.name === "staff_permissions_select_tenant_admin");
+  if (superseded) {
+    assert.equal(last("staff_permissions", "staff_permissions_staff").body, "", "425800 drops the 425600 policy");
+    for (const name of ["select", "insert", "update", "delete"].map((c) => `staff_permissions_${c}_tenant_admin`)) {
+      assert.match(last("staff_permissions", name).body, /TO\s+authenticated/i, name);
+    }
+  } else {
+    const b = last("staff_permissions", "staff_permissions_staff").body;
+    assert.match(b, /TO\s+authenticated/i);
+    assert.match(b, /USING\s*\(\s*public\.staff_is_admin_of_user_tenant\(user_id\)\s*\)/i);
+    assert.match(b, /WITH\s+CHECK\s*\(\s*public\.staff_is_admin_of_user_tenant\(user_id\)\s*\)/i);
+  }
   const sql = strip(readFileSync(FIX_FILE, "utf8"));
   const fn = /FUNCTION public\.staff_is_admin_of_user_tenant[\s\S]*?\$\$;/i.exec(sql);
   assert.ok(fn, "helper defined in the migration");
