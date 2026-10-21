@@ -37,6 +37,10 @@ import {
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { normalizeWorkspaceLocale } from "@/lib/talent/workspace-primary-locale";
 import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
+import { workspaceOfferingSaveGate } from "@/lib/talent/offering-save-gate.server";
+import { runMenuWriteSideEffects, type MenuSideEffectDeps, type MenuWriteKind } from "@/lib/talent/workspace-menu-side-effects";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
@@ -57,6 +61,38 @@ async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFai
 
 function offeringsTable(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>) {
   return admin.from("talent_offerings");
+}
+
+/** TUL-1634: the real side effects (the same helpers the talent service writes call). */
+const MENU_SIDE_EFFECTS: MenuSideEffectDeps = {
+  revalidatePath: (path) => revalidatePath(path),
+  bustTalentSiteCache,
+  scheduleRebuildAiSearchDocument,
+  logServerError,
+};
+
+/** The workspace OWNER's talent profile (plan, default posture, talent site, AI document); null when none. */
+async function ownerTalentIdOf(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<string | null> {
+  const ids = await fetchOwnerTalentIds(admin, tenantId);
+  return ids.values().next().value ?? null;
+}
+
+/** TUL-1634: cache bust + AI search rebuild after a stored write. Logs and continues; never loses the write. */
+async function afterMenuWrite(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  kind: MenuWriteKind,
+  ownerTalentId?: string | null,
+): Promise<void> {
+  try {
+    const owner = ownerTalentId === undefined ? await ownerTalentIdOf(admin, tenantId) : ownerTalentId;
+    await runMenuWriteSideEffects(admin, { kind, ownerTalentId: owner }, MENU_SIDE_EFFECTS);
+  } catch (err) {
+    logServerError(`menu.offerings.sideEffects.${kind}`, err);
+  }
 }
 
 /** The workspace's primary language (business identity default_locale); "en" when unset or unreadable. */
@@ -186,6 +222,10 @@ export async function upsertWorkspaceMenuItem(
 
     const errors = validateOffering(offering);
     if (errors.length > 0) return { ok: false, error: errors[0] };
+    // TUL-1634: the same publish-readiness + plan gate and MXN/USD rule as upsertTalentOffering.
+    const ownerTalentId = await ownerTalentIdOf(admin, tenantId);
+    const gate = await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering);
+    if (!gate.ok) return gate;
 
     if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
@@ -246,7 +286,7 @@ export async function upsertWorkspaceMenuItem(
       saved = data as TalentOfferingRow | null;
     }
     if (!saved) return { ok: false, error: "Failed to save." };
-    revalidatePath("/");
+    await afterMenuWrite(admin, tenantId, "save", ownerTalentId);
     return { ok: true, item: rowToOffering(saved, primaryLocale, offering.imageUrls ?? [], [primaryLocale]) };
   } catch (err) {
     logServerError("menu.offerings.upsert", err);
@@ -323,7 +363,7 @@ export async function deleteWorkspaceMenuItem(
   if (!gone || gone.length === 0) {
     return { ok: false, code: "not_found", error: "This item was already removed. Reload the list." };
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "delete");
   return { ok: true };
 }
 
@@ -355,7 +395,7 @@ export async function setWorkspaceMenuItemArchived(
   if (!data || data.length === 0) {
     return { ok: false, error: "This item is not part of the workspace menu. Change it under Services." };
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "archive");
   return { ok: true };
 }
 
@@ -410,7 +450,7 @@ export async function reorderWorkspaceMenuItems(
       return { ok: false, error: "Failed to reorder." };
     }
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "reorder");
   return { ok: true };
 }
 
@@ -443,7 +483,7 @@ export async function setWorkspaceMenuItemOptions(
     }
     const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings", await workspacePrimaryLocale(admin, tenantId));
     if (!saved.ok) return saved;
-    revalidatePath("/");
+    await afterMenuWrite(admin, tenantId, "options");
     return saved;
   } catch (err) {
     logServerError("menu.offerings.setOptions", err);
@@ -615,7 +655,7 @@ export async function setWorkspaceItemPhotos(
       logServerError("menu.offerings.photoClear", delErr);
       return { ok: false, error: "Failed to update photos." };
     }
-    revalidatePath("/admin/menu");
+    await afterMenuWrite(admin, tenantId, "photos");
     const assets = (await loadOfferingImageAssets(admin as unknown as SupabaseClient, [offeringId])).get(offeringId) ?? [];
     return { ok: true, assets };
   } catch (err) {
