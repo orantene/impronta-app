@@ -258,7 +258,13 @@
       "appleOpening": "Abriendo Apple…",
       "appleFailed": "No se pudo iniciar sesión con Apple.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo.",
-      "appleUnableToStart": "No se pudo iniciar el acceso con Apple."
+      "appleUnableToStart": "No se pudo iniciar el acceso con Apple.",
+      "confirmConflict": {
+        "title": "Ya tienes una sesión abierta",
+        "body": "Tienes la sesión abierta como {email}. Este enlace es de otra cuenta. Cierra sesión y continúa con la cuenta nueva, o conserva tu sesión.",
+        "continue": "Cerrar sesión y continuar",
+        "stay": "Mantener la sesión"
+      }
     },
     "profile": {
       "about": "Acerca de",

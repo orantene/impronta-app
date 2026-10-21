@@ -258,7 +258,13 @@
       "appleOpening": "Opening Apple…",
       "appleFailed": "Apple sign-in failed.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again.",
-      "appleUnableToStart": "Could not start Apple sign-in."
+      "appleUnableToStart": "Could not start Apple sign-in.",
+      "confirmConflict": {
+        "title": "You're already signed in",
+        "body": "You're signed in as {email}. This link is for another account. Sign out and continue with the new account, or stay signed in.",
+        "continue": "Sign out and continue",
+        "stay": "Stay signed in"
+      }
     },
     "profile": {
       "about": "About",

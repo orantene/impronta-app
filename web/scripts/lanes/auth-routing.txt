@@ -20,6 +20,7 @@ src/lib/auth/access-profile-refresh.test.ts
 src/lib/auth/auth-labels.static.test.ts
 src/lib/auth/client-ip.test.ts
 src/lib/auth/code-step-url.test.ts
+src/lib/auth/confirm-conflict.test.ts
 src/lib/auth/cross-tab-sign-out.test.ts
 src/lib/auth/email-not-confirmed.test.ts
 src/lib/auth/onboarding-bounce.test.ts

@@ -359,6 +359,7 @@ export function EmailCodeForm({
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
         {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
+        {allowCreate && clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
         {stepError ? <AuthNotice tone="error" id="email-step-error">{stepError}</AuthNotice> : null}

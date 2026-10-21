@@ -217,7 +217,11 @@ export async function requestEmailCode(
         nextPath,
         lang: otpLang(formData),
       }),
-      newUserData: { lang: otpLang(formData) },
+      newUserData: {
+        lang: otpLang(formData),
+        // TUL-910: the confirm email says "client account" for a client sign-up.
+        ...(String(formData.get("signup_as") ?? "") === "client" ? { signup_as: "client" } : {}),
+      },
       logError: logServerError,
     },
   );

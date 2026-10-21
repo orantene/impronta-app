@@ -63,7 +63,7 @@ type EmailData = {
 };
 
 type HookPayload = {
-  user?: { id?: string; email?: string; new_email?: string; user_metadata?: { lang?: unknown } };
+  user?: { id?: string; email?: string; new_email?: string; user_metadata?: { lang?: unknown; signup_as?: unknown } };
   email_data?: EmailData;
 };
 
@@ -113,6 +113,7 @@ function renderTemplate(
    * that show a code box. Password reset and email change stay link-only.
    */
   code?: string,
+  audience?: "client",
 ) {
   // Platform brand carries the locale so the templates render in EN/ES.
   const brand = { ...platformBrand(), locale };
@@ -127,7 +128,7 @@ function renderTemplate(
     case "signup":
     case "invite":
     default:
-      return React.createElement(SignupConfirm, { confirmUrl: url, code, brand });
+      return React.createElement(SignupConfirm, { confirmUrl: url, code, audience, brand });
   }
 }
 
@@ -175,7 +176,14 @@ export async function POST(req: NextRequest) {
   let html: string;
   try {
     html = await renderEmailHtml(
-      renderTemplate(action, url, newEmail, locale, data.token),
+      renderTemplate(
+        action,
+        url,
+        newEmail,
+        locale,
+        data.token,
+        payload.user?.user_metadata?.signup_as === "client" ? "client" : undefined,
+      ),
     );
   } catch (err) {
     logServerError("hooks.auth-email.render", err);

@@ -122,6 +122,7 @@ export function RegisterForm({
     >
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
+      {clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
 
       {state?.error ? <AuthNotice tone="error" id="register-form-error">{state.error}</AuthNotice> : null}
       {state?.message ? (
