@@ -16,17 +16,48 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 
 export const LISTING_SELLABLE_CHUNK = 500;
+const SINGLE_FALLBACK_BATCH = 8;
+const SINGLE_FALLBACK_MAX = 200;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+/** PostgREST "no such function with these arguments" (PGRST202) or Postgres undefined_function (42883). */
+function isMissingBatchFunction(error: { code?: string } | null): boolean {
+  return error?.code === "PGRST202" || error?.code === "42883";
+}
+
+async function askOneByOne(admin: SupabaseClient, ids: readonly string[]): Promise<string[] | null> {
+  const capped = ids.slice(0, SINGLE_FALLBACK_MAX);
+  const yes: string[] = [];
+  for (let i = 0; i < capped.length; i += SINGLE_FALLBACK_BATCH) {
+    const results = await Promise.all(
+      capped.slice(i, i + SINGLE_FALLBACK_BATCH).map(async (id) => {
+        const { data, error } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: id });
+        // An error on the single function is unknown, not "no": the whole answer becomes unknown.
+        return error ? null : data === true;
+      }),
+    );
+    if (results.some((r) => r === null)) return null;
+    capped.slice(i, i + SINGLE_FALLBACK_BATCH).forEach((id, j) => results[j] && yes.push(id));
+  }
+  return yes;
+}
 
 export async function sellableListingIds(admin: SupabaseClient, listingIds: readonly string[]): Promise<Set<string> | null> {
-  const ids = [...new Set(listingIds)].filter((id) => UUID.test(id));
+  // Ids come from our own listing rows; the database casts them to uuid (a bad one errors, which is "unknown").
+  const ids = [...new Set(listingIds)].filter((id) => typeof id === "string" && id.length > 0 && id.length <= 64);
   const out = new Set<string>();
   if (ids.length === 0) return out;
   try {
     for (let i = 0; i < ids.length; i += LISTING_SELLABLE_CHUNK) {
       const chunk = ids.slice(i, i + LISTING_SELLABLE_CHUNK);
       const { data, error } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_ids: chunk });
+      if (error && isMissingBatchFunction(error)) {
+        // The batch migration (421200) is not applied yet: ask the single-id function instead,
+        // a few at a time. Same rule, same fail-closed answers; only slower.
+        const single = await askOneByOne(admin, chunk);
+        if (single === null) return null;
+        for (const id of single) out.add(id);
+        continue;
+      }
       if (error || !Array.isArray(data)) {
         if (error) logServerError("serviceHub.listingSellableBatch", error);
         return null;

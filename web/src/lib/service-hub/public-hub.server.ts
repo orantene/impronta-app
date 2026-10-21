@@ -7,6 +7,7 @@ import { isSellable, scopeToSellableOfferings } from "@/lib/offerings/sellable";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { loadListings } from "./entries.server";
+import { sellableListingIds } from "./listing-sellable-batch.server";
 import { choicesForEntry } from "./entry-photos";
 import { loadOfferingPhotoChoices } from "./entry-photos.server";
 import { shapePublicEntries, type PublicEntry, type PublicEntryInput } from "./public-hub";
@@ -14,21 +15,9 @@ import { shapePublicEntries, type PublicEntry, type PublicEntryInput } from "./p
 type Raw = Record<string, unknown>;
 
 const ID_CHUNK = 100;
-const RPC_BATCH = 8;
 const MAX_RPC_LISTINGS = 200;
 
 const missing = (e: { code?: string | null } | null | undefined) => !!e && (e.code === "42P01" || e.code === "PGRST205" || e.code === "42703");
-
-/** Is this listing sellable right now? Only an explicit `true` from the database counts. */
-async function isSellable_rpc(admin: SupabaseClient, listingId: string): Promise<boolean> {
-  try {
-    const { data, error } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: listingId });
-    if (error) return false;
-    return data === true;
-  } catch {
-    return false;
-  }
-}
 
 /**
  * The hub entries a visitor of THIS workspace's site may see (request-only). Scoped to the
@@ -78,12 +67,11 @@ export async function loadPublicHubEntries(admin: SupabaseClient, hostTenantId: 
       }
     }
 
-    // The database's sellable check runs only for what already passed the cheap checks, a few at a time.
+    // The database's sellable check runs only for what already passed the cheap checks, in ONE call
+    // (TUL-1475). Unknown (null) is the same as nothing sellable.
     const candidates = accepted.filter((l) => publicTalent.has(l.talentProfileId) && offeringOk.has(offeringOf(l.listingId))).slice(0, MAX_RPC_LISTINGS);
-    const sellable = new Map<string, boolean>();
-    for (let i = 0; i < candidates.length; i += RPC_BATCH) {
-      await Promise.all(candidates.slice(i, i + RPC_BATCH).map(async (l) => sellable.set(l.listingId, await isSellable_rpc(admin, l.listingId))));
-    }
+    const sellableIds = (await sellableListingIds(admin, candidates.map((l) => l.listingId))) ?? new Set<string>();
+    const sellable = new Map<string, boolean>(candidates.map((l) => [l.listingId, sellableIds.has(l.listingId)]));
     const liveMembers = accepted.filter((l) => sellable.get(l.listingId) === true);
 
     const offeringsOf = (entryId: string, own: string | null, withMembers: boolean) =>

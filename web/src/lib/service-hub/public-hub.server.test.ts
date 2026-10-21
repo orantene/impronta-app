@@ -19,9 +19,14 @@ function fakeDb(tables: Record<string, Row[]>, opts: { sellable?: Record<string,
     b.then = (ok: (v: unknown) => unknown) => Promise.resolve(run()).then(ok);
     return b;
   };
-  const rpc = async (fn: string, args: { p_listing_id: string }) => {
+  const rpc = async (fn: string, args: { p_listing_id?: string; p_listing_ids?: string[] }) => {
     if (fn !== "workspace_service_listing_is_sellable") return { data: null, error: { message: "nope" } };
-    const v = opts.sellable?.[args.p_listing_id];
+    if (args.p_listing_ids) {
+      const ids = args.p_listing_ids;
+      if (ids.some((i) => opts.sellable?.[i] === "error")) return { data: null, error: { code: "XX000", message: "boom" } };
+      return { data: ids.filter((i) => opts.sellable?.[i] === true), error: null };
+    }
+    const v = opts.sellable?.[args.p_listing_id as string];
     if (v === "error") return { data: null, error: { code: "42883", message: "missing" } };
     return { data: v === true, error: null };
   };
@@ -126,9 +131,10 @@ test("the database check runs only for listings that passed the cheap checks", a
     { id: "o-b", title: "x", amount_cents: 100, currency: "USD", status: "published", moderation_state: "approved", visibility: "public" },
   ];
   const calls: string[] = [];
-  const db = fakeDb(t, { sellable: { a: true, b: true } }) as unknown as { rpc: (fn: string, a: { p_listing_id: string }) => Promise<unknown> };
+  const db = fakeDb(t, { sellable: { a: true, b: true } }) as unknown as { rpc: (fn: string, a: { p_listing_ids: string[] }) => Promise<unknown> };
   const orig = db.rpc;
-  db.rpc = async (fn, a) => (calls.push(a.p_listing_id), orig(fn, a));
+  db.rpc = async (fn, a) => (calls.push(...a.p_listing_ids), orig(fn, a));
   await loadPublicHubEntries(db as never, T);
   assert.deepEqual(calls, ["a"]);
+  assert.equal(calls.length, 1, "one call for the page");
 });
