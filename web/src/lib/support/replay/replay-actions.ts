@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 
-import { requireCapability, AccessDeniedError } from "@/lib/access/has-capability";
 import { logPlatformAdminAction } from "@/lib/platform/audit";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { requireAdmin, requireSession } from "@/lib/server/action-guards";
@@ -44,14 +43,11 @@ export async function saveSupportReplayBufferSetting(raw: {
   if (!readOnly.ok) return readOnly;
   const parsed = z.object({ enabled: z.boolean() }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const auth = await requireWorkspaceStaffAction();
-  if (!auth.ok) return { ok: false, error: auth.error };
-  try {
-    await requireCapability("manage_agency_settings", auth.tenantId);
-  } catch (err) {
-    if (err instanceof AccessDeniedError) return { ok: false, error: "You don't have permission to change this." };
-    throw err;
-  }
+  // TUL-1708: was a bare guard (viewer-held default) followed by a separate
+  // requireCapability check below — folded into the guard itself, one gate
+  // instead of two, same bar (manage_agency_settings).
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
+  if (!auth.ok) return { ok: false, error: "You don't have permission to change this." };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Not configured." };
   const { data } = await admin.from("agencies").select("settings").eq("id", auth.tenantId).maybeSingle();

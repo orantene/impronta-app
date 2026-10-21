@@ -61,7 +61,12 @@ export async function updateAgencyDefaultCurrency(
 ): Promise<UpdateAgencyDefaultCurrencyResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: the guard itself defaulted to `agency.workspace.view` (viewer-
+  // held); the real `manage_agency_settings` check below never ran until a
+  // viewer/editor/manager had already passed the guard. Wiring the
+  // capability into the guard stops them here instead — the check below is
+  // now redundant but kept as defense-in-depth.
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId, tenantSlug } = auth;
 

@@ -57,7 +57,7 @@ export type LoadEventPageLinkResult = { ok: true; view: EventPageLinkView } | { 
  * first (ONE DESIGN PER PAGE: the primary row is the document).
  */
 export async function loadEventPageLink(input: { eventId: string }): Promise<LoadEventPageLinkResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
   const parsed = z.object({ eventId: z.string().uuid() }).safeParse(input);

@@ -9,7 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { verifyReelStat, verifyStoredObjectType } from "@/lib/server/verify-stored-object-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
-import { listProtectedBrandAssetIds } from "@/lib/site-admin/server/brand-library";
+import { describeAssetUsageRefusal, findAssetUsage } from "@/lib/media/asset-usage.server";
 import {
   extractImageMetadata,
   isSafeImageMime,
@@ -386,15 +386,13 @@ export async function actionDeleteMediaAssets(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  // In-use guard: refuse to delete assets currently serving as the workspace
-  // wordmark or favicon (Settings → Brand identity) — deleting one would 404
-  // the storefront header logo / browser-tab icon.
-  const blocked = await listProtectedBrandAssetIds(admin, tenantId, ids);
-  if (blocked.length > 0) {
-    return {
-      ok: false,
-      error: `${blocked.length} selected image(s) are in use as your wordmark or favicon (Settings → Brand identity). Pick a replacement there first.`,
-    };
+  // In-use guard (TUL-1637): refuse to delete an asset that is still the workspace wordmark or
+  // favicon, sits in a page section or share image, or is a service or product photo. The delete
+  // is a soft delete, so nothing cascades and a used image would turn into a broken one. If the
+  // check itself cannot finish, the delete is refused too.
+  const usage = await findAssetUsage(admin, tenantId, ids);
+  if (usage.blocked.length > 0) {
+    return { ok: false, error: describeAssetUsageRefusal(usage) };
   }
 
   const now = new Date().toISOString();

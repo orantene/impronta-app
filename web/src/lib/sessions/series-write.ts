@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { assertIdsBelongToTenant, assertUserIsTenantStaff } from "@/lib/supabase/tenant-owned-ids";
 import {
   decideMaterialisation,
   type ExistingOccurrence,
@@ -87,6 +88,15 @@ export async function upsertSessionSeries(
   if (!Number.isInteger(input.seats) || input.seats < 0) return { ok: false, reason: "invalid" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startsOn)) return { ok: false, reason: "invalid" };
   if (input.endsOn && input.endsOn < input.startsOn) return { ok: false, reason: "past" };
+
+  // TUL-1517: venue, offering and instructor are ids the caller typed. Each must belong to this
+  // tenant before the series is written (or the venue clash check reads anything).
+  const ownedVenue = await assertIdsBelongToTenant(admin, "venues", [input.venueId], input.tenantId);
+  if (!ownedVenue.ok) return { ok: false, reason: ownedVenue.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
+  const ownedOffering = await assertIdsBelongToTenant(admin, "talent_offerings", [input.offeringId], input.tenantId);
+  if (!ownedOffering.ok) return { ok: false, reason: ownedOffering.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
+  const ownedInstructor = await assertUserIsTenantStaff(admin, input.instructorUserId, input.tenantId);
+  if (!ownedInstructor.ok) return { ok: false, reason: ownedInstructor.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
 
   const localTime = input.localTime.trim().length === 5 ? `${input.localTime.trim()}:00` : input.localTime.trim();
   if (input.venueId) {

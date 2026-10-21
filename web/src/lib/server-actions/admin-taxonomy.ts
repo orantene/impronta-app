@@ -487,7 +487,7 @@ export async function setTaxonomyEnabled(input: {
 }): Promise<SetTaxonomyEnabledResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -616,7 +616,7 @@ export async function setTaxonomyFlags(
 ): Promise<SetTaxonomyEnabledResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -760,7 +760,7 @@ export async function addCustomSubType(input: {
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -843,7 +843,7 @@ export async function removeCustomSubType(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 

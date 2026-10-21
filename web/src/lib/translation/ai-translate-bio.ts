@@ -4,6 +4,7 @@ import {
   resolveAiChatAdapter,
 } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { gateAiCall, meterAiCall } from "@/lib/ai/metered-ai";
 
 export type BioTranslateFailureCode = "no_key" | "quota" | "api_error" | "empty_response";
 
@@ -26,7 +27,10 @@ export function isOpenAiConfigured(): boolean {
 /**
  * Translate EN bio → ES via configured chat provider. Never throws.
  */
-export async function translateBioEnToEs(text: string): Promise<BioTranslateResult> {
+/**
+ * `opts.tenantId`: the workspace the translation is done for (TUL-1623); omitted = platform-level work, billed to the platform.
+ */
+export async function translateBioEnToEs(text: string, opts: { tenantId?: string | null } = {}): Promise<BioTranslateResult> {
   const trimmed = text.trim();
   if (!trimmed) {
     return { ok: true, text: "" };
@@ -51,12 +55,17 @@ export async function translateBioEnToEs(text: string): Promise<BioTranslateResu
     };
   }
 
+  // TUL-1623: gated and metered against the workspace it was done for (the platform tenant when there is none).
+  const gate = await gateAiCall(opts.tenantId);
+  if (!gate.ok) return { ok: false, code: "quota", message: gate.error };
   const adapter = await resolveAiChatAdapter();
+  const startedAt = Date.now();
   const result = await adapter.chatCompletion({
     systemPrompt: `You translate short professional talent bios from English to Spanish for a fashion/modeling agency site. ${glossaryPromptBlock()} Output only the Spanish translation, no quotes or preamble.`,
     userMessage: trimmed,
     temperature: 0.3,
   });
+  meterAiCall({ tenantId: opts.tenantId, feature: "translate_bio_en_es", provider: adapter.id, model: null, result, startedAt });
 
   if (!result.ok) {
     if (result.code === "quota") {

@@ -15,6 +15,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 export async function authorizeTalentMediaRead(
   talentProfileId: string,
 ): Promise<{ ok: true; admin: SupabaseClient } | { ok: false; error: string }> {
+  // TUL-1708 audit: this is a READ helper (see the doc comment above) — every caller is a media
+  // loader, never a write. The default guard capability (agency.workspace.view, viewer-held) is
+  // correct here; a write-tier capability must not be forced onto a read path. Left unchanged.
   const staff = await requireWorkspaceStaffAction();
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };

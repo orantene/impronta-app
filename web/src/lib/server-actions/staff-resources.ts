@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import type { CapabilityKey } from "@/lib/access";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -24,8 +25,13 @@ type AuthBusiness =
   | { ok: true; tenantId: string; tenantSlug: string; userId: string }
   | { ok: false; error: string };
 
-async function requireBusinessWorkspace(): Promise<AuthBusiness> {
-  const auth = await requireWorkspaceStaffAction();
+/**
+ * TUL-1708: the default guard capability (agency.workspace.view) is
+ * viewer-held; a write passes the capability it needs, reads keep the
+ * default by calling with no argument.
+ */
+async function requireBusinessWorkspace(capability?: CapabilityKey): Promise<AuthBusiness> {
+  const auth = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { data: agency, error } = await auth.supabase
@@ -87,7 +93,7 @@ type CreateResult = { ok: true; resource: StaffResource } | { ok: false; error: 
 export async function createStaffResource(name: string): Promise<CreateResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireBusinessWorkspace();
+  const auth = await requireBusinessWorkspace("manage_talent_roster");
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = createSchema.safeParse({ name });
   if (!parsed.success) return { ok: false, error: "Enter a name." };
@@ -132,7 +138,7 @@ type ArchiveResult = { ok: true } | { ok: false; error: string };
 export async function archiveStaffResource(resourceId: string): Promise<ArchiveResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireBusinessWorkspace();
+  const auth = await requireBusinessWorkspace("manage_talent_roster");
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!/^[0-9a-f-]{36}$/i.test(resourceId)) return { ok: false, error: "Invalid resource." };
 

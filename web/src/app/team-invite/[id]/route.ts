@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { checkTeamSeatAvailability } from "@/lib/saas/team-seat-limit";
 import { logServerError } from "@/lib/server/safe-error";
 import { roleAfterRedeem } from "@/lib/team/redeem-role";
+import { inviteRedeemBlock } from "@/lib/team/invite-redeem-guard";
 
 /**
  * F.1 — Team-invite redemption route.
@@ -33,6 +34,7 @@ type InviteRow = {
   expires_at: string;
   redeemed_at: string | null;
   revoked_at: string | null;
+  created_at: string | null;
 };
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -44,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { data: invite, error: inviteErr } = await admin
     .from("team_invite_tokens")
-    .select("id, tenant_id, invited_email, target_role, expires_at, redeemed_at, revoked_at")
+    .select("id, tenant_id, invited_email, target_role, expires_at, redeemed_at, revoked_at, created_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -85,13 +87,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Create the membership row + mark token redeemed in a single transaction-ish flow.
   try {
     // Avoid duplicate membership rows: check for existing.
-    const { data: existing } = await admin
+    // TUL-1516: `removed` rows are looked up too, so a removed member's old link is judged
+    // (and refused) instead of silently creating a second row.
+    const { data: existing, error: existingErr } = await admin
       .from("agency_memberships")
-      .select("id, status, role")
+      .select("id, status, role, removed_at")
       .eq("tenant_id", row.tenant_id)
       .eq("profile_id", session.user.id)
-      .in("status", ["active", "invited", "pending_acceptance", "suspended"])
+      .in("status", ["active", "invited", "pending_acceptance", "suspended", "removed"])
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
+    if (existingErr) {
+      logServerError("team-invite.redeem.membership", existingErr);
+      return NextResponse.redirect(`${origin}/?team_invite=error`);
+    }
+
+    const blocked = inviteRedeemBlock({
+      membershipStatus: (existing as { status?: string | null } | null)?.status,
+      removedAt: (existing as { removed_at?: string | null } | null)?.removed_at,
+      inviteCreatedAt: row.created_at,
+    });
+    if (blocked) return NextResponse.redirect(`${origin}/?team_invite=revoked`);
 
     if (!existing) {
       // Team-seat cap, re-checked at REDEEM time: an invite can outlive a
@@ -111,7 +128,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const nextRole = roleAfterRedeem((existing as { role?: string | null }).role, row.target_role);
       await admin
         .from("agency_memberships")
-        .update({ role: nextRole, status: "active", accepted_at: new Date().toISOString() })
+        .update({
+          role: nextRole,
+          status: "active",
+          accepted_at: new Date().toISOString(),
+          removed_at: null,
+          removed_by: null,
+        })
         .eq("id", (existing as { id: string }).id);
     } else {
       await admin.from("agency_memberships").insert({

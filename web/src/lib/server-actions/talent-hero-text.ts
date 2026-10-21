@@ -13,6 +13,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireTalentSelfAction, requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
@@ -43,14 +44,26 @@ type Result<T> = ({ ok: true } & T) | { ok: false; error: string };
 
 const HERO_HEADLINE_MAX = 80;
 
+/**
+ * TUL-1708: the staff branch called `requireWorkspaceStaffAction()` with no
+ * capability (defaults to `agency.workspace.view`, viewer-held). `resolveWriter`
+ * serves BOTH the read (`loadHeroTextFields`) and the write (`saveHeroTextFields`),
+ * so the capability is an optional param — omitted (default) for the read,
+ * named (`edit_talent_overlay`, editor+, same bar as other hero/editorial copy)
+ * for the write.
+ */
+const HERO_TEXT_WRITE_CAPABILITY = {
+  save: "edit_talent_overlay",
+} as const satisfies Record<string, CapabilityKey>;
+
 /** Who is calling: the talent herself, else staff on her roster. */
-async function resolveWriter(talentProfileId: string, mode: "self" | "staff") {
+async function resolveWriter(talentProfileId: string, mode: "self" | "staff", capability?: CapabilityKey) {
   if (mode === "self") {
     const auth = await requireTalentSelfAction(talentProfileId);
     if (!auth.ok) return auth;
     return { ok: true as const, supabase: auth.supabase, tenantId: auth.tenantId, path: `/t/${auth.profileCode}` };
   }
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability });
   if (!auth.ok) return auth;
   const { supabase, tenantId, tenantSlug } = auth;
   const { data: roster, error } = await tenantScopedQuery(supabase, "agency_talent_roster", tenantId)
@@ -88,7 +101,7 @@ export async function saveHeroTextFields(input: {
 }): Promise<Result<{ fields: HeroTextFields }>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const who = await resolveWriter(input.talent_profile_id, input.mode);
+  const who = await resolveWriter(input.talent_profile_id, input.mode, HERO_TEXT_WRITE_CAPABILITY.save);
   if (!who.ok) return { ok: false, error: who.error };
   const headline = input.headline === undefined ? undefined : input.headline?.trim().slice(0, HERO_HEADLINE_MAX) || null;
   const years =

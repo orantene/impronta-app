@@ -440,7 +440,10 @@ export function WorkspacePageView() {
         desc: t("dashboard.adminWorkspace.venue.desc"),
         visible: !!tenantSlug,
         rows: [],
-        extra: tenantSlug ? <VenueSettingsCard tenantSlug={tenantSlug} /> : null,
+        // TUL-1708: updateVenueSettings requires manage_agency_settings
+        // (admin+) server-side; hide the dead edit control for non-admins
+        // rather than let them fill the form and have Save silently refuse.
+        extra: tenantSlug ? <VenueSettingsCard tenantSlug={tenantSlug} canEdit={isAdmin} /> : null,
         extraSearch: [
           {
             title: t("dashboard.adminWorkspace.venue.label"),
@@ -581,7 +584,7 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? (
           <>
-            <AppointmentsSettingsCard tenantSlug={tenantSlug} />
+            <AppointmentsSettingsCard tenantSlug={tenantSlug} canEdit={isAdmin} />
             <BookingHoursCard
               talentProfileId={bridgeTalentSelfProfile?.id ?? null}
               showTalentPicker

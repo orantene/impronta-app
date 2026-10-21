@@ -14,6 +14,7 @@ export type ApproveCustomAmountResult =
       reason:
         | "over_limit"
         | "pin_invalid"
+        | "pin_throttled"
         | "not_manager"
         | "already_approved"
         | "conflict"
@@ -21,6 +22,8 @@ export type ApproveCustomAmountResult =
         | "wrong_tenant"
         | "invalid"
         | "unavailable";
+      /** TUL-1516: too many wrong PINs in the window; the PIN was not even checked. */
+      throttled?: true;
     };
 
 export async function approveCustomAmount(
@@ -53,7 +56,13 @@ export async function approveCustomAmount(
     logServerError("pos.approveCustomAmount", error);
     return { ok: false, reason: "unavailable" };
   }
-  const reply = (data ?? {}) as { ok?: boolean; reason?: string; approval_id?: string; already?: boolean };
+  const reply = (data ?? {}) as {
+    ok?: boolean;
+    reason?: string;
+    approval_id?: string;
+    already?: boolean;
+    throttled?: boolean;
+  };
   if (reply.ok === true && reply.approval_id) {
     return { ok: true, approvalId: reply.approval_id, already: reply.already === true };
   }
@@ -67,7 +76,9 @@ export async function approveCustomAmount(
     reason === "wrong_tenant" ||
     reason === "invalid"
   ) {
-    return { ok: false, reason };
+    return reply.throttled === true && reason === "pin_invalid"
+      ? { ok: false, reason: "pin_throttled", throttled: true }
+      : { ok: false, reason };
   }
   return { ok: false, reason: "unavailable" };
 }

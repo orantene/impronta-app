@@ -25,6 +25,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { auditTalentEvent } from "@/lib/audit/emit";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
@@ -43,12 +44,24 @@ export type UpdateTalentIdentityResult =
   | { ok: true; talent_profile_id: string }
   | { ok: false; error: string };
 
+/**
+ * TUL-1708: this write called `requireWorkspaceStaffAction()` with no capability
+ * (defaults to `agency.workspace.view`, viewer-held). Identity (legal name,
+ * pronouns, etc.) is talent editorial copy, same bar as the rest of the
+ * profile shell — `edit_talent_overlay` (editor+).
+ */
+const TALENT_IDENTITY_WRITE_CAPABILITY = {
+  update: "edit_talent_overlay",
+} as const satisfies Record<string, CapabilityKey>;
+
 export async function updateTalentIdentity(
   input: UpdateTalentIdentityInput,
 ): Promise<UpdateTalentIdentityResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: TALENT_IDENTITY_WRITE_CAPABILITY.update,
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

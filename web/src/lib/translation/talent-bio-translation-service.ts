@@ -154,6 +154,8 @@ export async function aiFillMissingSpanishBio(
   supabase: SupabaseClient,
   talentProfileId: string,
   actorId: string | null,
+  /** TUL-1623: the workspace the AI call is billed to (null = platform). */
+  billingTenantId: string | null = null,
 ): Promise<{ error: string | null }> {
   const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
@@ -166,7 +168,7 @@ export async function aiFillMissingSpanishBio(
   if (esPublished) return { error: "Spanish bio already exists; use refresh draft for approved profiles." };
 
   const prevStatus = (row.bio_es_status ?? "missing") as BioEsStatus;
-  const tr = await translateBioEnToEs(en);
+  const tr = await translateBioEnToEs(en, { tenantId: billingTenantId });
   if (!tr.ok) {
     return { error: tr.message };
   }
@@ -203,6 +205,8 @@ export async function aiRefreshSpanishBioDraft(
   supabase: SupabaseClient,
   talentProfileId: string,
   actorId: string | null,
+  /** TUL-1623: the workspace the AI call is billed to (null = platform). */
+  billingTenantId: string | null = null,
 ): Promise<{ error: string | null }> {
   const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
@@ -216,7 +220,7 @@ export async function aiRefreshSpanishBioDraft(
   const en = (row.bio_en ?? row.short_bio ?? "").trim();
   if (!en) return { error: "English bio is empty." };
 
-  const tr = await translateBioEnToEs(en);
+  const tr = await translateBioEnToEs(en, { tenantId: billingTenantId });
   if (!tr.ok) {
     return { error: tr.message };
   }
@@ -251,6 +255,8 @@ export async function aiRefreshSpanishBioLive(
   supabase: SupabaseClient,
   talentProfileId: string,
   actorId: string | null,
+  /** TUL-1623: the workspace the AI call is billed to (null = platform). */
+  billingTenantId: string | null = null,
 ): Promise<{ error: string | null }> {
   const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
@@ -259,7 +265,7 @@ export async function aiRefreshSpanishBioLive(
   const en = (row.bio_en ?? row.short_bio ?? "").trim();
   if (!en) return { error: "English bio is empty." };
 
-  const tr = await translateBioEnToEs(en);
+  const tr = await translateBioEnToEs(en, { tenantId: billingTenantId });
   if (!tr.ok) {
     return { error: tr.message };
   }
@@ -298,6 +304,8 @@ export async function aiRefreshSpanishBioPublishedWhenNotApproved(
   supabase: SupabaseClient,
   talentProfileId: string,
   actorId: string | null,
+  /** TUL-1623: the workspace the AI call is billed to (null = platform). */
+  billingTenantId: string | null = null,
 ): Promise<{ error: string | null }> {
   const { row, raw, error: loadErr } = await loadTalentBioRow(supabase, talentProfileId);
   if (loadErr) return { error: loadErr };
@@ -311,7 +319,7 @@ export async function aiRefreshSpanishBioPublishedWhenNotApproved(
   const en = (row.bio_en ?? row.short_bio ?? "").trim();
   if (!en) return { error: "English bio is empty." };
 
-  const tr = await translateBioEnToEs(en);
+  const tr = await translateBioEnToEs(en, { tenantId: billingTenantId });
   if (!tr.ok) {
     return { error: tr.message };
   }

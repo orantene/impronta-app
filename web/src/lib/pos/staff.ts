@@ -2,8 +2,8 @@ import "server-only";
 
 /**
  * The people a till can name: the workspace's active members, with whether
- * each one has a register PIN (`agencies.settings.people.pins[userId]`, the
- * hash written by `pos_set_staff_pin`; the hash itself never leaves here).
+ * each one has a register PIN (`staff_pin_hashes`, written by
+ * `pos_set_staff_pin`; the hash itself never leaves SQL).
  *
  * Read by the lock screen (`POSLock`: who can unlock this till), the
  * manager-approval dialog (`POSManagerApproval`: which managers can
@@ -11,6 +11,7 @@ import "server-only";
  * hand-over card (`POSCashMovements`).
  */
 
+import { loadPinHolderIds, pinHolderIdsFromSettings } from "@/lib/people/pins-store";
 import { logServerError } from "@/lib/server/safe-error";
 import type { Admin } from "./sale-rows";
 
@@ -24,38 +25,25 @@ export type PosStaffMember = {
 
 const MANAGER_ROLES = new Set(["owner", "admin", "manager"]);
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** The user ids that hold a register PIN, from the settings blob. */
-export function pinHolderIdsFromSettings(settings: unknown): Set<string> {
-  if (!isPlainRecord(settings)) return new Set();
-  const people = isPlainRecord(settings.people) ? settings.people : null;
-  const pins = people && isPlainRecord(people.pins) ? people.pins : null;
-  if (!pins) return new Set();
-  return new Set(Object.entries(pins).filter(([, hash]) => typeof hash === "string" && hash.length > 0).map(([id]) => id));
-}
+export { pinHolderIdsFromSettings };
 
 export async function listPosStaff(
   admin: Admin,
   tenantId: string,
 ): Promise<{ ok: true; staff: PosStaffMember[] } | { ok: false; reason: "unavailable" }> {
-  const [members, agency] = await Promise.all([
+  const [members, holders] = await Promise.all([
     admin
       .from("agency_memberships")
       .select("profile_id, role, status, profiles:profile_id(display_name)")
       .eq("tenant_id", tenantId)
       .eq("status", "active")
       .order("created_at", { ascending: true }),
-    admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle(),
+    loadPinHolderIds(admin, tenantId),
   ]);
   if (members.error) {
     logServerError("pos.staff.members", members.error);
     return { ok: false, reason: "unavailable" };
   }
-  if (agency.error) logServerError("pos.staff.settings", agency.error);
-  const holders = pinHolderIdsFromSettings((agency.data as { settings?: unknown } | null)?.settings);
 
   type Row = {
     profile_id: string;

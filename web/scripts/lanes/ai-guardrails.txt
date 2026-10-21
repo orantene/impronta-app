@@ -42,6 +42,8 @@ src/lib/ai/build-ai-search-document-offerings.test.ts
 src/lib/ai/deterministic-gender-taxonomy.test.ts
 src/lib/ai/inquiry-draft-guardrails.test.ts
 src/lib/ai/interpret-taxonomy-synonyms.test.ts
+src/lib/ai/load-ai-search-document-offerings.test.ts
+src/lib/ai/metered-ai.test.ts
 src/lib/ai/providers/anthropic-adapter.test.ts
 src/lib/ai/providers/thinking-default.test.ts
 src/lib/ai/resolve-api-keys-env-fallback.test.ts
@@ -60,6 +62,7 @@ src/lib/quality/commerce-tab-alias.static.test.ts
 src/lib/quality/guest-chat-no-hardcoded-copy.static.test.ts
 src/lib/quality/no-conflict-markers.static.test.ts
 src/lib/rate-limit-kv-guest-ai.test.ts
+src/lib/rate-limit-kv-public-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
 src/lib/security/redact-display.test.ts
 src/lib/seo/robots-ai-policy.test.ts

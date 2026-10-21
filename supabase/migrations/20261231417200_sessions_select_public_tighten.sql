@@ -1,7 +1,7 @@
 -- 20261231417200_sessions_select_public_tighten.sql
 --
--- HELD FILE (supabase/migrations/_pending_pm/). NOT applied by the author.
--- PROPOSAL for the Production Migration Manager (TUL-1269 #12, package H2).
+-- APPLIED on fxlank and prod (in schema_migrations on both); moved here from _pending_pm/.
+-- Same policy is restated by 20261231423800 (TUL-1486), a no-op history row. (TUL-1269 #12, package H2).
 --
 -- WHY: sessions_select_public is `status = 'scheduled'` and nothing else, so
 -- anon can read every scheduled occurrence of every tenant, including sessions

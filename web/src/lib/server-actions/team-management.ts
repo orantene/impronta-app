@@ -79,7 +79,7 @@ export async function inviteTeamMember(
 ): Promise<InviteTeamMemberResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
     if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
@@ -224,7 +224,7 @@ export async function promoteRosterTalentToAdmin(
 ): Promise<ServerActionResult<{ membershipId: string }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId } = auth;
     if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
@@ -354,7 +354,7 @@ export async function setDefaultCoordinator(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -425,7 +425,7 @@ export async function setDefaultCoordinator(
 export async function removeTeamMember(profileId: string): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
     if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
@@ -462,6 +462,41 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
       return { ok: false, error: "Couldn't remove member.", reason: "unexpected" };
     }
 
+    // TUL-1516: a removed member must not come back through an invite sent before the removal.
+    // Revoke every still-open invite addressed to this person's email in this workspace.
+    // eslint-disable-next-line ratchet/no-untenanted-from -- profiles is the global user table (no tenant column); one row by the member's id
+    const { data: removedProfile, error: profileErr } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (profileErr) logServerError("team-management.removeTeamMember.profile", profileErr);
+    const removedEmail = (removedProfile as { email?: string | null } | null)?.email?.trim().toLowerCase();
+    if (removedEmail) {
+      const { error: revokeErr } = await tenantScopedQuery(admin, "team_invite_tokens", tenantId)
+        .update({ revoked_at: new Date().toISOString() })
+        .ilike("invited_email", removedEmail)
+        .is("redeemed_at", null)
+        .is("revoked_at", null);
+      if (revokeErr) logServerError("team-management.removeTeamMember.revokeInvites", revokeErr);
+    }
+
+    // TUL-1516: a removed member keeps no PIN. Drop the hash row and any legacy settings.people.pins entry.
+    const { error: pinErr } = await tenantScopedQuery(admin, "staff_pin_hashes", tenantId).delete().eq("user_id", profileId);
+    if (pinErr) logServerError("team-management.removeTeamMember.pinHash", pinErr);
+    const { data: agencyRow, error: settingsReadErr } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
+    if (settingsReadErr) logServerError("team-management.removeTeamMember.settings", settingsReadErr);
+    const legacySettings = (agencyRow as { settings?: Record<string, unknown> | null } | null)?.settings;
+    const legacyPins = (legacySettings?.people as { pins?: Record<string, unknown> } | undefined)?.pins;
+    if (legacySettings && legacyPins && profileId in legacyPins) {
+      const { [profileId]: _gone, ...restPins } = legacyPins;
+      const { error: settingsErr } = await admin
+        .from("agencies")
+        .update({ settings: { ...legacySettings, people: { ...(legacySettings.people as object), pins: restPins } } })
+        .eq("id", tenantId);
+      if (settingsErr) logServerError("team-management.removeTeamMember.settingsWrite", settingsErr);
+    }
+
     // Clear default coordinator if it pointed to the removed user.
     await admin
       .from("agencies")
@@ -492,7 +527,7 @@ export async function changeTeamMemberRole(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
     // Same gate as the other team actions (TUL-1269): the manage_memberships capability.
@@ -573,7 +608,7 @@ export async function setInquiryCoordinatorTalent(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 

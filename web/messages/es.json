@@ -5495,6 +5495,7 @@
         "desc": "Activa las reservas, elige la palabra pública y define horarios.",
         "masterTitle": "Activar citas",
         "masterDesc": "Apagado por defecto. Los espacios actuales siguen en modo solicitud hasta que lo actives.",
+        "adminOnlyNote": "Solo los administradores del espacio de trabajo pueden cambiar esta configuración.",
         "terminologyTitle": "Palabra pública",
         "terminologyDesc": "La palabra que ven los invitados. Las pantallas internas siguen diciendo Citas.",
         "term": {
@@ -5953,6 +5954,7 @@
         "save": "Guardar sede",
         "saving": "Guardando…",
         "saved": "Guardado",
+        "readOnly": "Solo los administradores pueden editar la sede. Pide a un administrador que haga cambios.",
         "roomsTitle": "Salas",
         "roomsHint": "Las partes de tu sede donde se sienta la gente. Una barra cuenta como sala.",
         "noRoomsYet": "Aún no hay salas. Agrega una para empezar a poner mesas.",
@@ -14624,6 +14626,7 @@
         "refusal": {
           "over_limit": "Un gerente tiene que aprobar este monto primero.",
           "pin_invalid": "Ese PIN no es correcto.",
+          "pin_throttled": "Demasiados intentos, espera 5 minutos.",
           "not_manager": "Solo un gerente puede hacer esto.",
           "already_approved": "Este monto ya está aprobado.",
           "conflict": "Esta venta acaba de cambiar. Recarga e inténtalo de nuevo.",
@@ -21894,6 +21897,7 @@
           "noHat": "Elige al menos un sombrero para continuar.",
           "noName": "Hace falta un nombre antes de añadir a alguien.",
           "noEmailForAccess": "Hace falta un correo para invitar a alguien a iniciar sesión.",
+          "noAccessPermission": "Solo un admin o propietario puede dar acceso a alguien.",
           "bookableOnly": "Todavía no se puede añadir a una persona con solo el sombrero Reservable: no existe invitación para contratistas. Añádela con un perfil público, o dale acceso, y activa Reservable desde su ficha.",
           "bookableWithAccess": "Reservable se activa desde la ficha de la persona una vez que está aquí; la invitación concede primero el acceso."
         },

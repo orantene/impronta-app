@@ -45,7 +45,7 @@ export async function rethemeSiteAfterLogo(
       const { data: b, error: bErr } = await admin.from("agency_branding").select("logo_media_asset_id").eq("tenant_id", input.tenantId).maybeSingle<{ logo_media_asset_id: string | null }>();
       if (bErr) return { outcome: "failed", note: bErr.message };
       if (b?.logo_media_asset_id) {
-        const { data: a, error: aErr } = await admin.from("media_assets").select("storage_path, bucket_id").eq("id", b.logo_media_asset_id).maybeSingle<{ storage_path: string | null; bucket_id: string | null }>();
+        const { data: a, error: aErr } = await admin.from("media_assets").select("storage_path, bucket_id").eq("tenant_id", input.tenantId).eq("id", b.logo_media_asset_id).maybeSingle<{ storage_path: string | null; bucket_id: string | null }>();
         if (aErr) return { outcome: "failed", note: aErr.message };
         if (a?.storage_path) logoUrl = admin.storage.from(a.bucket_id ?? "media-public").getPublicUrl(a.storage_path).data.publicUrl;
       }

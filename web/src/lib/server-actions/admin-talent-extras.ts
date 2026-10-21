@@ -19,6 +19,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { EXTRAS_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -61,7 +62,7 @@ export async function createTrustBadge(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.createTrustBadge });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -109,7 +110,7 @@ export async function updateTrustBadge(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.updateTrustBadge });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -196,7 +197,7 @@ export async function createPermissionRequest(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.createPermissionRequest });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -256,7 +257,7 @@ export async function respondToPermissionRequest(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.respondToPermissionRequest });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user } = auth;
 
@@ -336,7 +337,7 @@ export async function revokeDataGrant(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.revokeDataGrant });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -367,7 +368,7 @@ export async function addExternalCalendar(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.addExternalCalendar });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -412,7 +413,7 @@ export async function removeExternalCalendar(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.removeExternalCalendar });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -480,7 +481,7 @@ export async function addAgencyMedia(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.addAgencyMedia });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -521,7 +522,7 @@ export async function removeAgencyMedia(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.removeAgencyMedia });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -550,7 +551,7 @@ export async function reorderAgencyMedia(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.reorderAgencyMedia });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -598,7 +599,7 @@ export async function computeProfileCompleteness(input: {
 }): Promise<{ ok: true; pct: number } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.computeProfileCompleteness });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -686,7 +687,7 @@ export async function touchTalentLastActive(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: EXTRAS_WRITE_CAPABILITY.touchTalentLastActive });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 

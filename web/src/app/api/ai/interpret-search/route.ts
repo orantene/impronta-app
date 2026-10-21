@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai/validate-interpret-intent";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { finalizeInterpretFilters } from "@/lib/ai/finalize-interpret-filters";
 import { pruneInterpretTermsToTenantRoster } from "@/lib/ai/prune-interpret-terms";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -47,6 +48,10 @@ export async function POST(request: Request) {
   if (!flags.ai_master_enabled || !flags.ai_search_enabled) {
     return NextResponse.json({ error: "ai_search_disabled" }, { status: 403 });
   }
+
+  // TUL-1630: per-network limit before any DB or model work; fails closed.
+  const limited = await guardPublicAiRoute("interpret-search");
+  if (limited) return limited;
 
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
