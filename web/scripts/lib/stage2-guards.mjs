@@ -48,7 +48,7 @@ const COPY_COLS = ["title", "description", "category", "label", "name", "display
  * Tables whose slug is unique PER SCOPE (service scope / tenant + locale), not across the platform, so they carry readable slugs instead of the
  * `s2-` prefix. They get stricter rules of their own in contentRowProblems: a fixture scope, a URL-safe shape, and no QA / test / E2E word.
  */
-export const SCOPED_SLUG_TABLES = new Set(["public.offering_slugs", "public.cms_posts", "public.cms_post_categories"]);
+export const SCOPED_SLUG_TABLES = new Set(["public.offering_slugs", "public.cms_posts", "public.cms_post_categories", "public.talent_pages"]);
 const URL_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const SCOPE = /^(t|w):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
@@ -76,6 +76,12 @@ export function contentRowProblems(op, { fixtureIds, tenantIds, existingTalentId
     if (!["en", "es"].includes(r.locale)) out.push(`${where}: locale must be en or es`);
     if (r.translation_of != null && !fixtureIds.has(r.translation_of)) out.push(`${where}: translation_of is not a fixture post`);
     if (r.taken_down_at != null) out.push(`${where}: a seeded post is never taken down (platform-admin field)`);
+  }
+  if (op.table === "public.talent_sites" || op.table === "public.talent_pages") {
+    // A talent site is only ever created for one of the seed's OWN talents (never a pre-existing one), and its address is an s2- label.
+    if (!fixtureIds.has(r.talent_profile_id) || existingTalentIds.has(r.talent_profile_id)) out.push(`${where}: talent_profile_id is not one of the seed's own talents`);
+    if (op.table === "public.talent_sites" && !String(r.site_slug ?? "").startsWith(S2_SLUG_PREFIX)) out.push(`${where}: site_slug must start with ${S2_SLUG_PREFIX}`);
+    if (op.table === "public.talent_sites" && TEST_WORD.test(String(r.site_slug ?? ""))) out.push(`${where}: site_slug contains QA/test/E2E`);
   }
   if (op.table === "public.agency_bookings") {
     if (!String(r.internal_notes ?? "").startsWith("Pre-made history")) out.push(`${where}: a seeded booking must be marked "Pre-made history" in internal_notes`);
@@ -197,6 +203,7 @@ export function labelCollisions(ops) {
   for (const op of ops) {
     const r = op.row ?? {};
     if (op.table === "public.agencies" && r.slug) claim(r.slug, `ws:${op.id}`);
+    if (op.table === "public.talent_sites" && r.site_slug) claim(r.site_slug, `talent:${r.talent_profile_id}`);
     if (op.table === "public.agency_domains" && r.kind === "subdomain") claim(String(r.hostname).split(".")[0], `ws:${r.tenant_id}`);
   }
   return clashes;

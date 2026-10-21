@@ -19,6 +19,7 @@ import { homedir } from "node:os";
 
 import { STAGING_MARKER_AGENCY_ID, checkKeyFileMode, checkStripeKey, parseEnvText, parseKeyFileText } from "./lib/group6-fixtures.mjs";
 import { G6_REQUIRED, HUB_TENANT_ID } from "./lib/failed-cards-ops.mjs";
+import { buildDefaultShellTree, buildStarterHomePageTree } from "../src/lib/talent-site/default-max-site-trees";
 import { checkS2Target, repairTargetProblems, s2Id, summarise, triggerSideEffects } from "./lib/stage2-guards.mjs";
 import { S2_FIXTURES, buildStage2Plan, resolveStage2, verifyS2Plan } from "./lib/stage2-plan.mjs";
 import { readBack } from "./lib/stage2-readback.mjs";
@@ -165,7 +166,12 @@ async function context() {
     const pay = await q("select 1 from public.payout_accounts where tenant_id = $1 and owner_type = 'talent' and owner_id = $2 and status in ('pending_verification','connected')", [HUB_TENANT_ID, talentId]);
     hubCtx = { talentId, tenantId: HUB_TENANT_ID, hasPayout: Boolean(pay.rowCount) };
   }
-  return { now: new Date(), has: (c: string) => have.has(c), hub: hubCtx };
+  // The app's own default site trees (same builders #4048 uses) for the one talent site (SL cluster).
+  const trees = {
+    shell: (displayName: string) => buildDefaultShellTree({ displayName }),
+    home: (displayName: string, tagline: string) => buildStarterHomePageTree({ displayName, tagline }),
+  };
+  return { now: new Date(), has: (c: string) => have.has(c), hub: hubCtx, trees };
 }
 
 // ------------------------------------------------------------------ executors
@@ -396,6 +402,7 @@ const COUNT_TABLES = [
   "public.guest_email_unsubscribes", "public.account_deletion_requests", "public.inquiries", "public.inquiry_requirement_groups",
   "public.inquiry_participants", "public.inquiry_offers", "public.inquiry_offer_line_items",
   "public.offering_slugs", "public.agency_bookings", "public.booking_talent", "public.client_reviews", "public.cms_post_categories", "public.cms_posts",
+  "public.talent_sites", "public.talent_pages",
 ];
 async function tableCounts() {
   const out: Record<string, number> = {};
@@ -443,6 +450,15 @@ async function schemaAndCollisions(ops: Op[]) {
         problems += 1;
         console.log(`  COLLISION ${label} ${String(op.row?.slug)} (${String(op.row?.locale)}) is held by a non-fixture row`);
       }
+    }
+  }
+  // A talent site address shares one DNS label space with workspace slugs and hosts: ask the platform's own predicate (excluding the seed's own talent).
+  for (const op of ops.filter((o) => o.table === "public.talent_sites")) {
+    const r = await q("select public.platform_subdomain_label_taken($1, $2::uuid, null) taken", [op.row?.site_slug, op.row?.talent_profile_id]);
+    const own = await q("select 1 from public.talent_sites where id = $1", [op.id]);
+    if (r.rows[0].taken && !own.rowCount) {
+      problems += 1;
+      console.log(`  COLLISION talent site address ${String(op.row?.site_slug)} is taken by another site, workspace or host`);
     }
   }
   for (const op of ops.filter((o) => o.table === "public.links")) {

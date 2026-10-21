@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { HUB_TENANT_ID, G6 } from "./failed-cards-ops.mjs";
 import { REPAIR_SCOPE, TEST_WORD, publicCopyProblems, triggerSideEffects, verifyS2Plan, s2Id } from "./stage2-guards.mjs";
-import { POSTS_HOST, POST_TOPICS, REVIEW_BOOKINGS, SLUG_ROWS, planPosts, planReviews, planSlugs, postUrls } from "./stage2-plan-content.mjs";
+import { NEW_SLUG_PATH, OLD_SLUG_URL, POSTS_HOST, POST_TOPICS, REVIEW_BOOKINGS, SLUG_ROWS, TALENT_SITE_HOST, TALENT_SITE_SLUG, planPosts, planReviews, planSlugs, postUrls } from "./stage2-plan-content.mjs";
 import { buildStage2Plan, resolveStage2 } from "./stage2-plan.mjs";
 
 const NOW = new Date("2026-10-21T12:00:00Z");
@@ -51,10 +51,53 @@ test("SL: every slug row is readable, scoped to the owner of its service, unique
       current.add(c);
     }
   }
-  assert.equal(slugs.filter((s) => !s.row.is_current).length, 1, "one history row (the old address of a renamed service)");
-  const old = slugs.find((s) => !s.row.is_current);
-  assert.ok(slugs.some((s) => s.row.is_current && s.row.offering_id === old.row.offering_id && s.row.locale === old.row.locale), "the history row has a current slug to redirect to");
+  const history = slugs.filter((s) => !s.row.is_current);
+  assert.equal(history.length, 2, "two history rows (the old address of a renamed service)");
+  for (const old of history) assert.ok(slugs.some((s) => s.row.is_current && s.row.offering_id === old.row.offering_id && s.row.locale === old.row.locale), `${old.key}: the history row has a current slug to redirect to`);
   assert.ok(new Set(slugs.map((s) => s.row.offering_id)).size >= 8, "slugs for services across T1, T3, T4, T5");
+});
+
+test("SL site: a history row sits on a talent WITH a published site, so the old-slug redirect is served on a real staging host", () => {
+  const list = ops(["SL"]);
+  assert.deepEqual(verifyS2Plan(list, GUARD).problems, []);
+  const site = list.find((o) => o.table === "public.talent_sites");
+  const page = list.find((o) => o.table === "public.talent_pages");
+  const valeria = s2Id("talent:t3-valeria");
+  // talent_site_subdomain_lookup: site_slug set, site_published_at set, talent visible + not deleted, label = site_slug (non-demo).
+  assert.equal(site.row.talent_profile_id, valeria);
+  assert.equal(site.row.site_slug, TALENT_SITE_SLUG);
+  assert.equal(TALENT_SITE_HOST, "s2-valeria-costa.staging.tulala.digital");
+  assert.equal(site.row.status, "published");
+  assert.ok(site.row.site_published_at && site.row.published_at);
+  assert.deepEqual(site.conflict, ["talent_profile_id"]);
+  assert.equal(page.row.slug, "home");
+  assert.equal(page.row.status, "published");
+  const talent = list.find((o) => o.table === "public.talent_profiles" && o.id === valeria).row;
+  assert.deepEqual([talent.visibility, talent.is_publicly_hidden, talent.is_demo, talent.workflow_status], ["public", false, false, "published"]);
+  assert.equal(talent.profile_code, "TAL-96201");
+  const old = list.find((o) => o.key === "slug:t3-sesion-old");
+  assert.equal(old.row.is_current, false);
+  assert.equal(old.row.owner_scope, `t:${valeria}`);
+  assert.deepEqual([old.row.locale, old.row.slug], ["es", "sesion-de-fotos-clasica"]);
+  assert.equal(TEST_WORD.test(old.row.slug), false);
+  const cur = list.find((o) => o.table === "public.offering_slugs" && o.row.is_current && o.row.offering_id === old.row.offering_id && o.row.locale === "es");
+  assert.equal(cur.row.slug, "sesion-de-fotos");
+  assert.equal(OLD_SLUG_URL, "https://s2-valeria-costa.staging.tulala.digital/sesion-de-fotos-clasica");
+  assert.equal(NEW_SLUG_PATH, `/${cur.row.slug}`);
+  // order: talent before site/page; the site's label is unique in the shared DNS label space
+  assert.ok(list.indexOf(site) > list.findIndex((o) => o.id === valeria));
+  // The runner passes the app's real trees, never the test placeholder.
+  const src = readFileSync(join(REPO, "web/scripts/seed-stage2-fixtures.mts"), "utf8");
+  assert.match(src, /buildDefaultShellTree/);
+  assert.match(src, /hub: hubCtx, trees/);
+  // guards: a site for a pre-existing talent, a non-s2 label or a QA label is refused; a clashing label is caught
+  const at = list.findIndex((o) => o.table === "public.talent_sites");
+  const mut = (patch) => list.map((o, i) => (i === at ? { ...o, row: { ...o.row, ...patch } } : o));
+  assert.equal(verifyS2Plan(mut({ talent_profile_id: HUB.talentId }), GUARD).ok, false);
+  assert.equal(verifyS2Plan(mut({ site_slug: "valeria-costa" }), GUARD).ok, false);
+  assert.equal(verifyS2Plan(mut({ site_slug: "s2-qa-valeria" }), GUARD).ok, false);
+  const clash = [...list, { ...list.find((o) => o.key === "workspace:t3"), id: s2Id("workspace:clash"), row: { ...list.find((o) => o.key === "workspace:t3").row, id: s2Id("workspace:clash"), slug: TALENT_SITE_SLUG } }];
+  assert.ok(verifyS2Plan(clash, GUARD).problems.some((p) => p.includes("claimed twice")));
 });
 
 test("SL: without the held migration 20261231418800 the rows are not built and the plan names the exact version and file", () => {
@@ -236,6 +279,9 @@ const LITERALS = [
   { table: "public.client_reviews", col: "status", values: ["published"], file: "20260603234910_client_reviews_two_sided.sql" },
   { table: "public.agency_bookings", col: "status", values: ["completed"], file: "20250409140000_bookings_guest_rpcs.sql" },
   { table: "public.agency_bookings", col: "payment_status", values: ["paid"], file: "20260411120000_commercial_accounts_bookings.sql" },
+  { table: "public.talent_sites", col: "status", values: ["published"], file: "20261001000000_talent_sites.sql" },
+  { table: "public.talent_sites", col: "site_kind", values: ["talent_personal"], file: "20261001000000_talent_sites.sql" },
+  { table: "public.talent_pages", col: "status", values: ["published"], file: "20260611174629_talent_pages.sql" },
   { table: "public.cms_posts", col: "status", values: ["published"], file: "20260416120000_cms_pages_and_redirects.sql" },
   { table: "public.cms_posts", col: "locale", values: ["en", "es"], file: "20260420190000_cms_posts_navigation.sql" },
   { table: "public.cms_post_categories", col: "locale", values: ["en", "es"], file: "20261231400700_posts_v1_blocks_categories_takedown.sql" },
@@ -263,7 +309,7 @@ test("every enum-ish literal the content rows write appears in the migration tha
 
 // ------------------------------------------------------------------------------------------------ trigger audit
 test("trigger audit: every BEFORE INSERT trigger on the tables this addendum writes is known, and the rows satisfy it", () => {
-  const TABLES = ["agency_bookings", "booking_talent", "client_reviews", "offering_slugs", "cms_posts", "cms_post_categories", "agency_domains"];
+  const TABLES = ["agency_bookings", "booking_talent", "client_reviews", "offering_slugs", "cms_posts", "cms_post_categories", "agency_domains", "talent_sites", "talent_pages"];
   // Expected BEFORE INSERT triggers (name -> what the plan does about it). A new trigger on any of these tables fails this test.
   const EXPECTED = {
     "public.agency_bookings": ["trg_tenant_autofill_agency_bookings"], // only acts with source_inquiry_id; history bookings set tenant_id and have none
@@ -272,6 +318,8 @@ test("trigger audit: every BEFORE INSERT trigger on the tables this addendum wri
     "public.offering_slugs": [], // RLS only; service-role writes
     "public.cms_posts": ["cms_posts_guard_talent_publish"], // returns at once for talent_profile_id IS NULL (workspace posts)
     "public.cms_post_categories": [],
+    "public.talent_sites": ["talent_sites_subdomain_guard"], // label must be free in the shared DNS namespace: s2-valeria-costa is checked by the dry run + labelCollisions
+    "public.talent_pages": [],
     "public.agency_domains": [], // no domain row is added by this addendum (T1 already has its host from workspaceOps)
   };
   const found = Object.fromEntries(TABLES.map((t) => [`public.${t}`, new Set()]));

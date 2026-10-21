@@ -66,6 +66,7 @@ const FK = {
   // Content (SL / RV / PO). Constraints: 20261231418800 (offering_slugs, _pending_pm), 20260603234910 (client_reviews), 20260411120000 (booking_talent),
   // 20261231400700 (cms_posts, cms_post_categories). offering_slugs.owner_scope is a "t:<uuid>"/"w:<uuid>" text with no FK, so it is never an id.
   "public.offering_slugs.offering_id": "public.talent_offerings",
+  "public.talent_sites.talent_profile_id": "public.talent_profiles", "public.talent_pages.talent_profile_id": "public.talent_profiles",
   "public.agency_bookings.tenant_id": "public.agencies", "public.agency_bookings.client_user_id": "auth.users",
   "public.booking_talent.tenant_id": "public.agencies", "public.booking_talent.booking_id": "public.agency_bookings",
   "public.booking_talent.talent_profile_id": "public.talent_profiles",

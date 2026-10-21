@@ -6,7 +6,7 @@
  */
 import { verifyS2Plan } from "./stage2-guards.mjs";
 import { orderOps } from "./stage2-order.mjs";
-import { HELD_SLUGS, POSTS_V1, planPosts, planReviews, planSlugs } from "./stage2-plan-content.mjs";
+import { HELD_SLUGS, POSTS_V1, planPosts, planReviews, planSlugs, planTalentSite } from "./stage2-plan-content.mjs";
 import { BLOCKED_WHATSAPP, planCustomers } from "./stage2-plan-customers.mjs";
 import { planEvents } from "./stage2-plan-events.mjs";
 import { planMoney } from "./stage2-plan-money.mjs";
@@ -17,6 +17,9 @@ import { planT2 } from "./stage2-plan-t2.mjs";
 import { HUB_TALENT_CODE, planHub, planT3 } from "./stage2-plan-t3.mjs";
 import { planT4 } from "./stage2-plan-t4.mjs";
 import { planT5 } from "./stage2-plan-t5.mjs";
+
+/** Test-only stand-in for the app's site trees; the runner (seed-stage2-fixtures.mts) ALWAYS passes the real builders in ctx.trees (a test pins that). */
+const PLACEHOLDER_TREES = { shell: (name) => ({ placeholder: "shell", name }), home: (name, tagline) => ({ placeholder: "home", name, tagline }) };
 
 /**
  * Built clusters. EV = the events on T1; T5 = workspace, class, drink deal, tour, beach club; PR = promos; CU = customers; MO = the catering offer;
@@ -83,7 +86,7 @@ export function buildStage2Plan(sets, ctx) {
   }
   if (wanted.has("MO")) ops.push(...planMoney(ctx.now));
   if (wanted.has("SL")) {
-    if (ctx.has(HELD_SLUGS.probe)) ops.push(...planSlugs());
+    if (ctx.has(HELD_SLUGS.probe)) ops.push(...planSlugs(), ...planTalentSite(ctx.now, ctx.trees ?? PLACEHOLDER_TREES));
     else blocked.push({ item: HELD_SLUGS.item, version: HELD_SLUGS.version, file: HELD_SLUGS.file });
   }
   if (wanted.has("RV")) ops.push(...planReviews(ctx.now));

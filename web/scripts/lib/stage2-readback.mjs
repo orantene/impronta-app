@@ -3,7 +3,7 @@
  * Counts and states only; never a credential.
  */
 import { s2Id } from "./stage2-guards.mjs";
-import { POSTS_HOST, POST_TOPICS, REVIEW_BOOKINGS, SLUG_ROWS } from "./stage2-plan-content.mjs";
+import { POSTS_HOST, POST_TOPICS, REVIEW_BOOKINGS, SLUG_ROWS, TALENT_SITE_SLUG } from "./stage2-plan-content.mjs";
 
 const T1 = s2Id("workspace:t1");
 const T2 = s2Id("workspace:t2");
@@ -94,12 +94,15 @@ const postIds = POST_TOPICS.flatMap((t) => ["es", "en"].map((l) => s2Id(`post:${
 const enPostIds = POST_TOPICS.map((t) => s2Id(`post:${t.key}:en`));
 const bookingIds = ids("booking", REVIEW_BOOKINGS.map((b) => b.key));
 const reviewIds = ids("review", REVIEW_BOOKINGS.map((b) => b.key));
+const HISTORY = SLUG_ROWS.filter((r) => r.current === false).length;
 const SLUGS_HELD = { requires: "public.offering_slugs", migration: "20261231418800" };
 
 // Every content check is scoped to this seed's own ids (never "all rows of the tenant"), so a tester's extra row cannot move a count.
 CHECKS.SL = [
   ["service slugs: every seeded row exists (current + one history row)", "select count(*)::int n from public.offering_slugs where id = any($1::uuid[])", [slugIds], SLUG_ROWS.length, SLUGS_HELD],
-  ["service slugs: exactly one history (not current) row, the rest current", "select (select count(*) from public.offering_slugs where id = any($1::uuid[]) and not is_current)::int * 100 + (select count(*) from public.offering_slugs where id = any($1::uuid[]) and is_current)::int n", [slugIds], 100 + SLUG_ROWS.length - 1, SLUGS_HELD],
+  ["service slugs: two history (not current) rows, the rest current", "select (select count(*) from public.offering_slugs where id = any($1::uuid[]) and not is_current)::int * 100 + (select count(*) from public.offering_slugs where id = any($1::uuid[]) and is_current)::int n", [slugIds], HISTORY * 100 + SLUG_ROWS.length - HISTORY, SLUGS_HELD],
+  ["talent site: Valeria Costa's site resolves through talent_site_subdomain_lookup (published, visible talent), non-demo", `select count(*)::int n from public.talent_site_subdomain_lookup('${TALENT_SITE_SLUG}') l where l.talent_profile_id = $1 and l.is_demo = false`, [s2Id("talent:t3-valeria")], 1, SLUGS_HELD],
+  ["talent site: a published home page and the old slug has a current slug to redirect to", "select (select count(*) from public.talent_pages where talent_profile_id = $1 and slug = 'home' and status = 'published')::int * 10 + (select count(*) from public.offering_slugs o join public.offering_slugs c on c.offering_id = o.offering_id and c.locale = o.locale and c.is_current where o.id = $2 and not o.is_current and c.slug = 'sesion-de-fotos')::int n", [s2Id("talent:t3-valeria"), s2Id("slug:t3-sesion-old")], 11, SLUGS_HELD],
   ["service slugs: each row's scope is the owner of the service it points at", "select count(*)::int n from public.offering_slugs s join public.talent_offerings o on o.id = s.offering_id where s.id = any($1::uuid[]) and (s.owner_scope = 't:' || o.talent_profile_id::text or s.owner_scope = 'w:' || o.tenant_id::text)", [slugIds], SLUG_ROWS.length, SLUGS_HELD],
 ];
 CHECKS.RV = [

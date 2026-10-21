@@ -88,7 +88,7 @@ test("@example.test mailboxes only, and every slug / host / link code / event sl
   assert.ok(emails.every(isExampleTestEmail));
   assert.ok(JSON.stringify(list).match(/@[a-z0-9.-]+/g).every((m) => m === "@example.test"));
   // Service slugs, posts and post categories are unique per scope and have their own rules (stage2-content.test.mjs), not the s2- prefix.
-  const slugs = list.filter((o) => !["public.offering_slugs", "public.cms_posts", "public.cms_post_categories"].includes(o.table)).flatMap((o) => ["slug", "hostname", "tenant_slug", "code"].map((c) => (o.table === "public.links" || c !== "code" ? o.row?.[c] : undefined)).filter(Boolean));
+  const slugs = list.filter((o) => !["public.offering_slugs", "public.cms_posts", "public.cms_post_categories", "public.talent_pages"].includes(o.table)).flatMap((o) => ["slug", "hostname", "tenant_slug", "code"].map((c) => (o.table === "public.links" || c !== "code" ? o.row?.[c] : undefined)).filter(Boolean));
   assert.ok(slugs.length > 15 && slugs.every((s) => String(s).startsWith("s2-")), slugs.filter((s) => !String(s).startsWith("s2-")).join(","));
   const mutated = list.map((o) => (o.key === "workspace:t1" ? { ...o, row: { ...o.row, slug: "impronta" } } : o));
   assert.equal(verify(mutated).ok, false);

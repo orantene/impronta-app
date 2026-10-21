@@ -47,6 +47,9 @@ export const SLUG_ROWS = [
   // T3 agency: the roster photographer's session, talent-owned
   { key: "t3-sesion", offering: "t3-sesion", scope: scopeT("t3-valeria"), locale: "es", slug: "sesion-de-fotos" },
   { key: "t3-sesion-en", offering: "t3-sesion", scope: scopeT("t3-valeria"), locale: "en", slug: "photo-session" },
+  // The history row that is actually SERVED: Valeria Costa (TAL-96201) has a published talent site (planTalentSite), so
+  // https://s2-valeria-costa.staging.tulala.digital/sesion-de-fotos-clasica answers 308 -> /sesion-de-fotos (the T4 history row sits on a talent with no site).
+  { key: "t3-sesion-old", offering: "t3-sesion", scope: scopeT("t3-valeria"), locale: "es", slug: "sesion-de-fotos-clasica", current: false },
   // T1 restaurant and T5 studio: workspace-owned packages / services
   { key: "t1-cena-show", offering: "t1-cena-show", scope: scopeW("t1"), locale: "es", slug: "cena-y-show" },
   { key: "t1-cena-show-en", offering: "t1-cena-show", scope: scopeW("t1"), locale: "en", slug: "dinner-and-show" },
@@ -65,6 +68,36 @@ export function planSlugs() {
       id: s2Id(`slug:${r.key}`), offering_id: oid(r.offering), owner_scope: r.scope, locale: r.locale, slug: r.slug, is_current: r.current !== false,
     }),
   );
+}
+
+/**
+ * One published talent site, so a talent-host redirect can be tested: T3's roster photographer Valeria Costa (TAL-96201, a seed-owned talent).
+ * Mirrors the #4048 F3 talent sites (talent_sites + a home talent_pages row). Host resolution is talent_site_subdomain_lookup(label): a PUBLISHED
+ * site (site_published_at set) of a visible, not-deleted talent resolves at <site_slug>.staging.tulala.digital (non-demo: no -demo suffix, no 308).
+ * `trees` = { shell(name), home(name, tagline) }; the runner passes the app's own default-max-site-trees builders.
+ */
+export const TALENT_SITE_SLUG = "s2-valeria-costa";
+export const TALENT_SITE_HOST = `${TALENT_SITE_SLUG}.staging.tulala.digital`;
+export const OLD_SLUG_URL = `https://${TALENT_SITE_HOST}/sesion-de-fotos-clasica`;
+export const NEW_SLUG_PATH = "/sesion-de-fotos";
+
+export function planTalentSite(at, trees) {
+  const fx = "SL";
+  const tid = s2Id("talent:t3-valeria");
+  const iso = at.toISOString();
+  const shell = trees.shell("Valeria Costa");
+  const home = trees.home("Valeria Costa", "Fotografía de retrato y eventos");
+  return [
+    insert(fx, "public.talent_sites", "site:t3-valeria", {
+      id: s2Id("site:t3-valeria"), talent_profile_id: tid, site_kind: "talent_personal", status: "published", site_slug: TALENT_SITE_SLUG,
+      shell_tree: J(shell), shell_published: J(shell), published_at: iso, site_published_at: iso, version: 1, draft_updated_at: iso,
+      accepting_bookings: true, accepting_inquiries: true,
+    }, ["talent_profile_id"]),
+    insert(fx, "public.talent_pages", "page:t3-valeria:home", {
+      id: s2Id("page:t3-valeria:home"), talent_profile_id: tid, slug: "home", title: "Valeria Costa", status: "published", blocks: J(home), blocks_published: J(home),
+      theme: J({}), is_home: true, sort_order: 0, nav_label: "Inicio", published_at: iso,
+    }, ["talent_profile_id", "slug"]),
+  ];
 }
 
 /**
