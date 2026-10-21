@@ -298,6 +298,8 @@ src/lib/service-hub/rent/rent-wire.static.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/server-actions/admin-tier-service-fee.test.ts
+src/lib/service-hub/terms-wire.static.test.ts
+src/lib/service-hub/terms.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
