@@ -667,7 +667,7 @@ export async function messagingSearch(input: { query: string }) {
 
 export async function messagingRecoverSnapshot(input: { snapshotId: string; orderId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.recoverSnapshot);
   if (!g.ok) return g;
   const parsed = z.object({ snapshotId: uuid, orderId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");

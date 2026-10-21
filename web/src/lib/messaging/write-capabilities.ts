@@ -18,6 +18,7 @@ export const MESSAGING_WRITE_CAPABILITY = {
   closeLost: "coordinate_inquiry",
   scheduleReminder: "coordinate_inquiry",
   cancelReminder: "coordinate_inquiry",
+  recoverSnapshot: "coordinate_inquiry",
   sendOptions: "send_client_offer",
   sendOffer: "send_client_offer",
   ensureSharedDraft: "send_client_offer",

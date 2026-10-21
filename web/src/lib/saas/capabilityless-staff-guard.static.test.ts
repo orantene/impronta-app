@@ -19,7 +19,8 @@ import { MESSAGING_WRITE_CAPABILITY } from "@/lib/messaging/write-capabilities";
 
 import baseline from "./capabilityless-staff-guard.baseline.json";
 
-const GUARD = /\brequireWorkspaceStaffAction\(\s*\)|\bmessagingStaff\(\s*\)/g;
+// `await staff()` is the local alias several modules give the same guard (messaging-engine, pos, venue...).
+const GUARD = /\brequireWorkspaceStaffAction\(\s*\)|\bmessagingStaff\(\s*\)|\bawait staff\(\s*\)/g;
 
 function files(): string[] {
   const out = execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" });
@@ -57,7 +58,7 @@ test("the writers fixed in TUL-1629 have no capability-less guard left", () => {
     "src/lib/talent/menu-offerings-actions.ts",
   ]) {
     // media/actions.ts and admin-workspace-settings.ts still have other (baselined) read/edit guards; the specific writers are pinned below
-    if (f.endsWith("messaging-engine.ts") || f.endsWith("messaging-offers.ts") || f.endsWith("menu-offerings-actions.ts")) assert.equal(found[f] ?? 0, 0, f);
+    if (f.endsWith("messaging-offers.ts") || f.endsWith("menu-offerings-actions.ts")) assert.equal(found[f] ?? 0, 0, f);
   }
   const media = readFileSync(join(process.cwd(), "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts"), "utf8");
   const del = media.slice(media.indexOf("export async function actionDeleteMediaAssets"));
@@ -92,6 +93,33 @@ test("every Messages writer passes its capability from the one map; reads pass n
     const next = body.indexOf("export async function", 10);
     assert.match(next > 0 ? body.slice(0, next) : body, /WRITE_CAP\.offerDraft/, fn);
   }
+});
+
+// Every exported Messages function that still calls the guard with NO capability must be a READ. A writer that does
+// (messagingRecoverSnapshot was one) fails here by name. Adding a new reader means adding it to this list on purpose.
+const ENGINE_READS = [
+  "loadConversationHistory",
+  "messagingLoadEssentials",
+  "messagingLoadInbox",
+  "messagingLoadThread",
+  "messagingRelinkImpact",
+  "messagingResolveOrderThread",
+  "messagingSearch",
+];
+
+test("messaging-engine: the only functions left on the capability-less guard are the known reads", () => {
+  const engine = readFileSync(join(process.cwd(), "src/lib/server-actions/messaging-engine.ts"), "utf8");
+  const bare: string[] = [];
+  const re = /export async function (\w+)/g;
+  const starts = [...engine.matchAll(re)].map((m) => ({ name: m[1]!, at: m.index! }));
+  starts.forEach((st, i) => {
+    const body = engine.slice(st.at, i + 1 < starts.length ? starts[i + 1]!.at : engine.length);
+    if (/await staff\(\s*\)/.test(body)) bare.push(st.name);
+  });
+  assert.deepEqual(bare.sort(), [...ENGINE_READS].sort(), "a writer is on the viewer default: pass WRITE_CAP.<action> (see write-capabilities.ts)");
+  const recover = engine.slice(engine.indexOf("export async function messagingRecoverSnapshot"), engine.indexOf("export async function messagingSendOffer"));
+  assert.match(recover, /staff\(WRITE_CAP\.recoverSnapshot\)/);
+  assert.equal(MESSAGING_WRITE_CAPABILITY.recoverSnapshot, "coordinate_inquiry");
 });
 
 test("behaviour on the role matrix: a viewer is refused every capability these writers require; owner and manager are allowed", () => {
