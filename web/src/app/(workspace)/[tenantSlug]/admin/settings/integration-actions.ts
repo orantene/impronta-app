@@ -17,7 +17,6 @@
  */
 
 import { revalidatePath } from "next/cache";
-
 import { isConnectionOAuthConfigured } from "@/lib/connection-oauth/providers";
 import { revokeUpstreamGrant } from "@/lib/integrations/disconnect-upstream";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
@@ -47,10 +46,7 @@ import {
   tenantHasCustomDomain,
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
-import {
-  applyWorkspaceYouTubePublishState,
-  clearWorkspaceYouTubeIdentity,
-} from "@/lib/integrations/workspace-social-sync";
+import { applyWorkspaceYouTubePublishState, clearWorkspaceYouTubeIdentity } from "@/lib/integrations/workspace-social-sync";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // ── Shared types ────────────────────────────────────────────────────────────

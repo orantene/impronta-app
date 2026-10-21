@@ -100,7 +100,7 @@ describe("choke points check the master switch", () => {
     const at = src.indexOf("isAiMasterEnabled()");
     assert.ok(at > 0);
     assert.ok(at < src.indexOf("await checkImageQuota(tenantId)"));
-    assert.ok(at < src.indexOf("generateImageBytesFromPrompt(subject)"));
+    assert.ok(at < src.indexOf("generateImageBytesFromPrompt(subject"));
     assert.ok(at < src.indexOf("await recordImageGenerationUsage("));
   });
 

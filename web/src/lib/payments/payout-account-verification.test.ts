@@ -23,7 +23,7 @@ function fakeDb(initial: Row[], opts: { failRead?: boolean; failUpdate?: boolean
   const db = {
     from(table: string) {
       assert.equal(table, "payout_accounts");
-      let filters: Array<(r: Row) => boolean> = [];
+      const filters: Array<(r: Row) => boolean> = [];
       let patch: Row | null = null;
       const q: Record<string, unknown> = {};
       q.select = () => q;

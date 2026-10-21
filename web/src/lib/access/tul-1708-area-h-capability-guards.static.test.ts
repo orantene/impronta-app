@@ -153,7 +153,7 @@ const AREA_H_FILES: Record<string, number> = {
   "lib/media/talent-media-read-auth.server.ts": 1, // READ helper: default is correct
   "lib/talent/menu-offerings-actions.ts": 0, // FIXED: writers pass WRITE_CAPABILITY, readers keep default
   "lib/talent/offerings-auth.server.ts": 0, // TUL-1727 (#4336) threads a capability parameter through it: no bare call left
-  "lib/server-actions/spaces-editor.ts": 1, // GAP: pending the operate_venue capability (separate DEV PR)
+  "lib/server-actions/spaces-editor.ts": 0, // FIXED: room/table writers pass the ops-writer capability (TUL-1708 #4357)
 };
 
 test("area H: bare-guard count per file matches exactly what this PR intends (fixed, justified, or flagged)", () => {
