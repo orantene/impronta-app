@@ -6,7 +6,7 @@
 
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { confirmationTotalRows, generateBookingConfirmationPdf } from "./booking-confirmation-pdf";
+import { confirmationTotalRows, generateBookingConfirmationPdf, RECEIPT_FEE_FOOTNOTE } from "./booking-confirmation-pdf";
 
 describe("generateBookingConfirmationPdf", () => {
   it("produces a valid, non-trivial PDF for the canonical booking", async () => {
@@ -83,7 +83,7 @@ describe("confirmationTotalRows", () => {
     });
     assert.deepEqual(rows, [
       { label: "Service", value: "$100.00" },
-      { label: "Platform fee (1.5%)", value: "$1.50" },
+      { label: "Tulala service fee", value: "$1.50" },
     ]);
   });
   it("includes card processing when the client pays it", () => {
@@ -103,7 +103,7 @@ describe("confirmationTotalRows", () => {
   it("falls back to Subtotal and Service fee when lines are absent or do not sum", () => {
     const fallback = [
       { label: "Subtotal", value: "$100" },
-      { label: "Service fee", value: "$2" },
+      { label: "Tulala service fee", value: "$2" },
     ];
     assert.deepEqual(confirmationTotalRows({ ...base, feeLines: null }), fallback);
     assert.deepEqual(
@@ -115,6 +115,29 @@ describe("confirmationTotalRows", () => {
         ],
       }),
       fallback,
+    );
+  });
+});
+
+describe("TUL-1468: the receipt names the Tulala service fee", () => {
+  const base = { currency: "USD", subtotalCents: 10_000, serviceFeeCents: 150, totalPaidCents: 10_150, feeLines: null };
+  it("labels the fee row 'Tulala service fee' (no number) in both the breakdown and the fallback", () => {
+    const rows = confirmationTotalRows({
+      ...base,
+      feeLines: [
+        { code: "service_subtotal", cents: 10_000 },
+        { code: "platform_fee", cents: 150 },
+        { code: "total_charged", cents: 10_150 },
+      ],
+      totalPaidCents: 10_150,
+    });
+    assert.equal(rows.find((r) => /service fee/i.test(r.label))?.label, "Tulala service fee");
+    assert.ok(!rows.some((r) => /platform fee|%/i.test(r.label)), "no 'Platform fee' and no typed percentage");
+  });
+  it("carries the approved footnote", () => {
+    assert.equal(
+      RECEIPT_FEE_FOOTNOTE,
+      "The Tulala service fee is paid by the customer and charged on the price after discounts. It is not charged on tips.",
     );
   });
 });

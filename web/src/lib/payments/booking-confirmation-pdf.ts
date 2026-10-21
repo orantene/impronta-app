@@ -16,7 +16,6 @@
 
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 
-import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "./fee-lines-payload";
 
@@ -88,9 +87,14 @@ function fmtMoneyExact(cents: number, currency: string): string {
 const PDF_FEE_LABELS: Record<string, string> = {
   service_subtotal: "Service",
   base_reservation_fee: "Reservation fee",
-  platform_fee: `Platform fee (${clientServiceFeePercentLabel()})`,
+  // TUL-1468 / F1: the receipt names the fee without a number (the amount is on the row).
+  platform_fee: "Tulala service fee",
   processing_fee: "Card processing",
 };
+
+/** Receipt footnote (docs/plans/fee-copy-en-es-2026-10-20.md section 3, final: F3). */
+export const RECEIPT_FEE_FOOTNOTE =
+  "The Tulala service fee is paid by the customer and charged on the price after discounts. It is not charged on tips.";
 
 /** Rows above "Total paid": the fee breakdown when it sums, else Subtotal + Service fee. */
 export function confirmationTotalRows(
@@ -105,7 +109,7 @@ export function confirmationTotalRows(
   }
   return [
     { label: "Subtotal", value: fmtMoney(input.subtotalCents, currency) },
-    { label: "Service fee", value: fmtMoney(input.serviceFeeCents, currency) },
+    { label: "Tulala service fee", value: fmtMoney(input.serviceFeeCents, currency) },
   ];
 }
 
@@ -249,6 +253,10 @@ export async function generateBookingConfirmationPdf(
     text("Fees are non-refundable.", { size: 8, color: muted, x: ML, maxWidth: CW, align: "right" });
     cursor += 12;
   }
+  // TODO(TUL-1468, F6): "Fees are non-refundable." above conflicts with the service-fee refund on a business
+  // cancel (copy R2/R3). Left as is until the legal brief settles F6; then add the refunded-fee footnote.
+  text(RECEIPT_FEE_FOOTNOTE, { size: 8, color: muted, x: ML, maxWidth: CW, align: "right" });
+  cursor += 12;
 
   cursor += 8;
   text("PAID", { size: 9, bold: true, color: brandGreen });
