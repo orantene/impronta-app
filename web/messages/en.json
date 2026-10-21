@@ -17723,7 +17723,7 @@
         "impactOutgoing": "Outgoing",
         "impactOutgoingValue": "Kept on the line for the record · nothing earned",
         "impactClient": "Client",
-        "impactClientValue": "Not notified from here · no approval required",
+        "impactClientValue": "Told once in their thread, only if they were shown by name · no approval required",
         "boardTitle": "Event board",
         "boardSummary": "{confirmed} of {needed} confirmed",
         "boardRole": "{confirmed} of {needed} confirmed",

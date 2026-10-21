@@ -267,6 +267,8 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/search/global-search.ts", ["globalSearch"], READ],
   ["lib/sessions/roster-actions.ts", ["loadSessionParticipants"], READ],
   ["lib/server-actions/work-style.ts", ["loadWorkStyleAction"], READ],
+  // The talent reads their OWN seat on a booking (session identity); writes nothing.
+  ["lib/server-actions/project-assignment-confirmation.ts", ["readMyAssignmentAction"], READ],
   ["app/(public)/_dated/dated-picker-actions.ts", ["loadDatedPicker"], READ],
   ["lib/server-actions/series-dated-settings.ts", ["loadSeriesDatedSettingsAction"], READ],
   ["lib/server-actions/dated-details.ts", ["loadDatedDetailsAction"], READ],

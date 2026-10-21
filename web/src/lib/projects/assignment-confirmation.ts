@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { isOrderShellBooking } from "./project-record";
 
 /**
  * TUL-1603: each person's own answer to "are you on this job?". One row per
@@ -69,6 +70,64 @@ export async function loadConfirmations(tenantId: string, bookingId: string): Pr
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unknown" };
   return readConfirmations(admin, { tenantId, bookingId });
+}
+
+export type OwnSeat = { assignmentId: string; roleLabel: string | null; status: "confirmed" | "declined" | "awaiting" };
+
+/**
+ * TUL-1606: the signed-in person's OWN seat on a booking, with their own answer. Only a seat whose
+ * profile belongs to `userId` is returned; no seat (or any read problem) is `null`, so the UI
+ * shows no buttons rather than buttons that cannot work. An answer given by someone else on the
+ * same seat (before a replacement) does not count.
+ */
+export async function readOwnSeat(admin: SupabaseClient, input: { userId: string; bookingId: string }): Promise<OwnSeat | null> {
+  if (!input.userId || !input.bookingId) return null;
+  try {
+    // Only a PROJECT booking carries this card: the same rule the Projects reader uses (not an order shell).
+    const bk = await admin
+      .from("agency_bookings")
+      .select("order_id, source_inquiry_id, calendar_lane, title")
+      .eq("id", input.bookingId)
+      .maybeSingle();
+    if (bk.error) {
+      logServerError("projects.readOwnSeat.booking", bk.error);
+      return null;
+    }
+    const b = bk.data as { order_id: string | null; source_inquiry_id: string | null; calendar_lane: string | null; title: string | null } | null;
+    if (!b || isOrderShellBooking({ order_id: b.order_id ?? null, source_inquiry_id: b.source_inquiry_id ?? null, calendar_lane: b.calendar_lane ?? null, title: b.title })) return null;
+    const mine = await admin.from("talent_profiles").select("id").eq("user_id", input.userId);
+    if (mine.error) {
+      logServerError("projects.readOwnSeat.profiles", mine.error);
+      return null;
+    }
+    const ids = ((mine.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+    if (ids.length === 0) return null;
+    const seatRes = await admin
+      .from("booking_talent")
+      .select("id, talent_profile_id, role_label")
+      .eq("booking_id", input.bookingId);
+    if (seatRes.error) {
+      logServerError("projects.readOwnSeat.seat", seatRes.error);
+      return null;
+    }
+    const seat = ((seatRes.data ?? []) as Array<{ id: string; talent_profile_id: string | null; role_label: string | null }>).find(
+      (s) => s.talent_profile_id && ids.includes(s.talent_profile_id),
+    );
+    if (!seat || !seat.talent_profile_id) return null;
+    const ansRes = await admin.from(TABLE).select("status, talent_profile_id").eq("booking_talent_id", seat.id).maybeSingle();
+    if (ansRes.error) {
+      // Table missing (migration not applied): no card, since every click would fail. Any other error: fail closed too.
+      if (!isMissingSchemaError(ansRes.error)) logServerError("projects.readOwnSeat.answer", ansRes.error);
+      return null;
+    }
+    const ans = ansRes.data as { status?: unknown; talent_profile_id?: unknown } | null;
+    const status =
+      ans && ans.talent_profile_id === seat.talent_profile_id && (ans.status === "confirmed" || ans.status === "declined") ? ans.status : "awaiting";
+    return { assignmentId: seat.id, roleLabel: seat.role_label, status };
+  } catch (err) {
+    logServerError("projects.readOwnSeat", err);
+    return null;
+  }
 }
 
 export type SetConfirmationResult =
