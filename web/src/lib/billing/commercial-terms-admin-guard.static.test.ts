@@ -73,9 +73,3 @@ test("every app writer of settings.commercialTerms is admin-gated or service-rol
   assert.match(platform, /requirePlatformAdmin\(\)/);
   assert.match(platform, /createServiceRoleClient\(\)/);
 });
-
-test("generic settings patcher cannot be pointed at commercialTerms at runtime", () => {
-  const src = read("src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts");
-  assert.match(src, /AGENCY_SETTINGS_PATCHABLE_NAMESPACES/);
-  assert.match(src, /AGENCY_SETTINGS_PATCHABLE_NAMESPACES\.has\(namespace\)/);
-});

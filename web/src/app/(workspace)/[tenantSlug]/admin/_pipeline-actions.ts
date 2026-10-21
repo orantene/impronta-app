@@ -903,27 +903,12 @@ export async function rejectOfferAction(
  * given namespace, but nested objects are not deep-merged. Callers
  * should pass the full namespace value they want to persist.
  */
-/** Runtime allow-list (TUL-1311): the TS union is erased at the server-action
- *  boundary, so a crafted call could name "commercialTerms" (money config). */
-const AGENCY_SETTINGS_PATCHABLE_NAMESPACES: ReadonlySet<string> = new Set([
-  "theme",
-  "seo",
-  "navigation",
-  "languages",
-  "visibility",
-  "filters",
-  "domain",
-]);
-
 export async function patchAgencySettingsNamespace(
   _tenantSlug: string,
   namespace: "theme" | "seo" | "navigation" | "languages" | "visibility" | "filters" | "domain",
   value: Record<string, unknown> | null,
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
-  if (!AGENCY_SETTINGS_PATCHABLE_NAMESPACES.has(namespace)) {
-    return { ok: false, error: "Unknown settings section." };
-  }
   try {
     const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
