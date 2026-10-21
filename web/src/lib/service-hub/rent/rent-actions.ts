@@ -19,6 +19,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { notifyRentPlanMemberResponse } from "@/lib/notifications/producers/rent-notify";
 import { ownerGuard } from "./rent-owner.server";
 import { releaseStationHold } from "./rent-station.server";
+import { syncRentAutopayWithPlan } from "./rent-autopay.server";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { currentRentPeriod, validateRentProposal } from "./rent-cycle";
@@ -85,7 +86,7 @@ export async function proposeRentPlan(input: {
   }
 }
 
-export type SetRentStatusResult = { ok: true } | Fail<"unauthenticated" | "owner_only" | "not_found" | "invalid" | "unavailable">;
+export type SetRentStatusResult = { ok: true } | Fail<"unauthenticated" | "owner_only" | "not_found" | "invalid" | "autopay_unavailable" | "unavailable">;
 
 /** Owner: pause, resume or end an accepted plan. (A plan cannot be activated here: only the member does that.) */
 export async function setRentPlanStatus(input: { planId: string; status: "paused" | "active" | "ended" }): Promise<SetRentStatusResult> {
@@ -102,6 +103,10 @@ export async function setRentPlanStatus(input: { planId: string; status: "paused
       (input.status === "active" && from === "paused" && row.accepted_at != null) ||
       (input.status === "ended" && (from === "active" || from === "paused" || from === "proposed"));
     if (!allowed) return { ok: false, reason: "invalid" };
+    // TUL-1601: Stripe FIRST (ended: cancelled now; paused: nothing charged; resumed). If it fails the plan does not change.
+    if (!(await syncRentAutopayWithPlan(g.admin, { tenantId: g.tenantId, planId: input.planId, planStatus: input.status })).ok) {
+      return { ok: false, reason: "autopay_unavailable" };
+    }
     const { error } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId)
       .update({
         status: input.status,
@@ -174,7 +179,7 @@ export async function issueRent(input: { planId: string; period?: string }): Pro
   }
 }
 
-export type RespondRentResult = { ok: true } | Fail<"unauthenticated" | "not_found" | "unavailable">;
+export type RespondRentResult = { ok: true } | Fail<"unauthenticated" | "not_found" | "autopay_unavailable" | "unavailable">;
 
 /**
  * The member answers a proposal. Accepting is the consent to be charged and records exactly what
@@ -252,6 +257,18 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
     if (!me.ok) return { ok: false, reason: "unauthenticated" };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, reason: "unavailable" };
+    // Stripe FIRST: if the subscription cannot be stopped the plan does not end (TUL-1601).
+    const { data: live } = await admin
+      .from("studio_rent_plans")
+      .select("id, tenant_id")
+      .eq("id", input.planId)
+      .eq("talent_profile_id", me.talentProfile.id)
+      .in("status", ["active", "paused"])
+      .maybeSingle();
+    if (!live) return { ok: false, reason: "not_found" };
+    if (!(await syncRentAutopayWithPlan(admin, { tenantId: (live as { tenant_id: string }).tenant_id, planId: input.planId, planStatus: "ended" })).ok) {
+      return { ok: false, reason: "autopay_unavailable" };
+    }
     const now = new Date().toISOString();
     const { data, error } = await admin
       .from("studio_rent_plans")
