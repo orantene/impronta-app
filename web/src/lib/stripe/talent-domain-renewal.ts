@@ -176,7 +176,7 @@ async function recordPaid(
   sb: SupabaseClient,
   row: DomainRow,
   paid: { paymentIntentId: string | null; sessionId: string | null },
-  deps: { setAutoRenew: typeof setDomainAutoRenew },
+  deps: { setAutoRenew: typeof setDomainAutoRenew; nowMs?: number },
 ): Promise<void> {
   const nowIso = new Date().toISOString();
   const wasOff = row.renewal_state === "unpaid_autorenew_off" || row.registrar_auto_renew === false;
@@ -188,7 +188,7 @@ async function recordPaid(
     renewal_checkout_session_id: paid.sessionId,
   });
   const expires = row.registrar_expires_at ? Date.parse(row.registrar_expires_at) : 0;
-  if (wasOff && expires > Date.now()) {
+  if (wasOff && expires > (deps.nowMs ?? Date.now())) {
     const back = await deps.setAutoRenew(row.domain, true);
     if (back.attempted && !back.updated) {
       logServerError("domain-renewal.reenable", `${row.domain}: ${back.errorCode ?? ""} ${back.errorMessage ?? ""}`);
@@ -456,7 +456,7 @@ export async function fulfillTalentDomainRenewal(
     currency: string | null;
     paymentIntentId: string | null;
   },
-  deps: { setAutoRenew?: typeof setDomainAutoRenew } = {},
+  deps: { setAutoRenew?: typeof setDomainAutoRenew; nowMs?: () => number } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data, error } = await sb.from("talent_site_domains").select(COLUMNS + ", renewal_payment_intent_id").eq("id", opts.domainRowId).maybeSingle();
   if (error) {
@@ -480,7 +480,7 @@ export async function fulfillTalentDomainRenewal(
     await markState(sb, row, { renewal_state: "needs_attention", renewal_payment_intent_id: opts.paymentIntentId });
     return { ok: true };
   }
-  await recordPaid(sb, row, { paymentIntentId: opts.paymentIntentId, sessionId: opts.sessionId }, { setAutoRenew: deps.setAutoRenew ?? setDomainAutoRenew });
+  await recordPaid(sb, row, { paymentIntentId: opts.paymentIntentId, sessionId: opts.sessionId }, { setAutoRenew: deps.setAutoRenew ?? setDomainAutoRenew, nowMs: (deps.nowMs ?? Date.now)() });
   return { ok: true };
 }
 
