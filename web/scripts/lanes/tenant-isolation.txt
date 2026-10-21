@@ -216,6 +216,7 @@ src/lib/supabase/auth-cookie-variants.security.test.ts
 src/lib/supabase/cookie-domain.test.ts
 src/lib/supabase/talent-profiles-anon-grants.static.test.ts
 src/lib/supabase/talent-profiles-private-columns.static.test.ts
+src/lib/supabase/tenant-column-hardening.static.test.ts
 src/lib/supabase/tenant-owned-ids.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
@@ -226,6 +227,7 @@ src/lib/talent-agenda/resolve-record-target.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts
 src/lib/talent/hub-profile-offerings.test.ts
+src/lib/talent/invitation-email.test.ts
 src/lib/talent/load-representation.test.ts
 src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts

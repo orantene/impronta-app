@@ -95,6 +95,20 @@
       "reason": "TUL-1269 (held 20261231424900): SECURITY DEFINER, search_path ''; returns the seven private talent_profiles columns ONLY when tp.user_id = auth.uid() or staff_can_access_talent_profile(p_talent_id); else no row. Anon has no EXECUTE"
     },
     {
+      "signature": "talent_invitation_email(uuid)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "TUL-1791 (held 20261231426400): SECURITY DEFINER, search_path ''; returns talent_profiles.invitation_email ONLY when tp.user_id = auth.uid() or staff_can_access_talent_profile(p_talent_id); else null. Anon has no EXECUTE"
+    },
+    {
+      "signature": "talent_seed_invitation_email(uuid, text)",
+      "roles": [
+        "authenticated"
+      ],
+      "reason": "TUL-1791 (held 20261231426400): SECURITY DEFINER, search_path ''; fills an EMPTY invitation_email only, and only where tp.user_id = auth.uid() (own profile). Anon has no EXECUTE"
+    },
+    {
       "signature": "is_agency_staff()",
       "roles": [
         "authenticated"
