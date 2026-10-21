@@ -6,9 +6,11 @@ import {
   INQUIRY_DRAFT_MAX_CHARS,
   sanitizeInquiryDraftOutput,
 } from "@/lib/ai/inquiry-draft-guardrails";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
-import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { afterResponse } from "@/lib/server/after-response";
 import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { completeInquiryDraft } from "@/lib/ai/inquiry-draft-model";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
       );
     }
 
+    let spendUsd = 0;
     const draft = await completeInquiryDraft({
       action,
       locale: loc ?? "en",
@@ -104,6 +107,8 @@ export async function POST(request: Request) {
       eventDate: eventDate ?? "",
       quantity: quantity ?? "",
       currentMessage: currentMessage ?? "",
+    }, (u) => {
+      spendUsd = chatSpendUsd(u.model, u.usage);
     });
 
     if (!draft) {
@@ -114,9 +119,8 @@ export async function POST(request: Request) {
     }
 
     const safe = sanitizeInquiryDraftOutput(draft).slice(0, INQUIRY_DRAFT_MAX_CHARS);
-    recordAiUsageEstimate(aiTenantId).catch((err) =>
-      logServerError("api/ai/inquiry-draft/recordAiUsageEstimate", err),
-    );
+    // TUL-1731: the REAL cost of this call (tokens x the served model's rate), not a flat cent.
+    afterResponse(() => recordMeasuredAiSpend(aiTenantId, spendUsd), "api/ai/inquiry-draft/spend");
     return NextResponse.json({ draft: safe || draft.slice(0, INQUIRY_DRAFT_MAX_CHARS) });
   } catch (e) {
     logServerError("api/ai/inquiry-draft", e);

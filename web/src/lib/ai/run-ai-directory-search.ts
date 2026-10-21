@@ -10,8 +10,8 @@ import { computeHybridContextStamp } from "@/lib/directory/hybrid-context-stamp"
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
-import { embedTextForSearch, embeddingCacheKey } from "@/lib/ai/openai-embeddings";
-import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { OPENAI_EMBEDDING_MODEL_ID, embedTextForSearch, embeddingCacheKey } from "@/lib/ai/openai-embeddings";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
 import { afterResponse } from "@/lib/server/after-response";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
@@ -310,14 +310,16 @@ async function runAiDirectorySearchOnce(
     } else if (!(await resolveOpenAiApiKey())?.trim()) {
       fallbackReason = "openai_key_missing";
     } else {
-      const emb = await embedTextForSearch(normalizedForEmbedding!);
+      // TUL-1731: the embedding is priced by the tokens OpenAI billed, and only when a real request was made.
+      const emb = await embedTextForSearch(normalizedForEmbedding!, (inputTokens) => {
+        afterResponse(
+          () => recordMeasuredAiSpend(tenantScopeId ?? DEFAULT_AI_TENANT_ID, chatSpendUsd(OPENAI_EMBEDDING_MODEL_ID, { inputTokens }), 0),
+          "run-ai-directory-search/embedding-usage",
+        );
+      });
       if (!emb) {
         fallbackReason = "embedding_failed";
       } else {
-        // TUL-1624: the embedding is a paid call. Recorded against the workspace the search ran for (platform when none)
-        // so the spend ceiling sees it; deliberately NOT gated here: a capped workspace degrades to classic search only
-        // through the gated AI routes, never by breaking the public directory.
-        afterResponse(() => recordAiUsageEstimate(tenantScopeId ?? DEFAULT_AI_TENANT_ID), "run-ai-directory-search/embedding-usage");
         const matchCount = getMaxVectorNeighbors();
         const matchResult = await matchTalentEmbeddingsCached(
           svc,

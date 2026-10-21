@@ -61,7 +61,11 @@ function currentMonthKey(): string {
  * (no real-person likeness, text, logos, or nudity) — mirrors the shipped
  * taxonomy promo-image generator, but takes a caller subject.
  */
-export async function generateImageBytesFromPrompt(subject: string): Promise<Buffer> {
+export async function generateImageBytesFromPrompt(
+  subject: string,
+  /** TUL-1731: called with the cost measured from the reply's token usage, so the spend counter sees the real price. */
+  onMeasuredCostUsd?: (usd: number) => void,
+): Promise<Buffer> {
   const safeSubject = subject.trim().slice(0, 400) || "an abstract editorial image";
   return requestOpenAiImage(
     [
@@ -70,6 +74,7 @@ export async function generateImageBytesFromPrompt(subject: string): Promise<Buf
       "No text, no logos, no watermarks. No recognizable real person, face, or celebrity. No nudity.",
       `Subject (interpret tastefully): "${safeSubject}".`,
     ].join(" "),
+    onMeasuredCostUsd,
   );
 }
 
@@ -184,8 +189,9 @@ export async function generateStockImage(input: {
 }
 
 /** Legacy single-image path (builder node image, taxonomy promo). Uses the stored model; square, medium. */
-async function requestOpenAiImage(prompt: string): Promise<Buffer> {
+async function requestOpenAiImage(prompt: string, onMeasuredCostUsd?: (usd: number) => void): Promise<Buffer> {
   const out = await generateStockImage({ prompt, size: "1024x1024", quality: "medium" });
+  onMeasuredCostUsd?.(out.costUsd);
   return out.bytes;
 }
 
@@ -317,11 +323,13 @@ export async function recordImageGenerationUsage(input: {
   tenantId: string;
   userId: string;
   ok: boolean;
+  /** TUL-1731: the cost measured from the reply's usage. Absent or 0 = the flat estimate (a reply with no usage block). */
+  measuredCostUsd?: number;
 }): Promise<void> {
   try {
     const supabase = createServiceRoleClient();
     if (!supabase) return;
-    const costUsd = input.ok ? estimateImageCostUsd() : 0;
+    const costUsd = input.ok ? (input.measuredCostUsd && input.measuredCostUsd > 0 ? input.measuredCostUsd : estimateImageCostUsd()) : 0;
     await supabase.from("cms_ai_usage_log").insert({
       tenant_id: input.tenantId,
       action: "generate_section", // reuse the allowed action value; feature marks images

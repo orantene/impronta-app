@@ -73,7 +73,10 @@ export async function generateNodeImageAction(input: {
   }
 
   try {
-    const bytes = await generateImageBytesFromPrompt(subject);
+    let measuredCostUsd = 0;
+    const bytes = await generateImageBytesFromPrompt(subject, (usd) => {
+      measuredCostUsd = usd;
+    });
     const uploaded = await uploadGeneratedImageBytes({
       tenantId,
       userId: auth.user.id,
@@ -84,7 +87,7 @@ export async function generateNodeImageAction(input: {
       await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: false });
       return { ok: false, error: "Made the image but couldn't save it. Try again.", code: "UPLOAD_FAILED" };
     }
-    await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true });
+    await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true, measuredCostUsd });
     // The spend ceiling already sees this image: recordImageGenerationUsage (above) rolls its cost into the workspace's
     // monthly AI spend. Recording it again here would count every image twice.
     return {
