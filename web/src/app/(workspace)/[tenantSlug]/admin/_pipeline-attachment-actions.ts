@@ -12,6 +12,7 @@ import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/
 import { logServerError } from "@/lib/server/safe-error";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { readGuardedAttachment } from "@/lib/media/guarded-upload.server";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 import type {
   PipelineActionResult,
@@ -104,7 +105,7 @@ export async function uploadInquiryAttachment(
     if (file.size === 0) return { ok: false, error: "File is empty." };
     if (file.size > 100 * 1024 * 1024) return { ok: false, error: "File exceeds 100 MB cap." };
 
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.uploadInquiryAttachment });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -186,7 +187,7 @@ export async function deleteInquiryAttachment(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.deleteInquiryAttachment });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 

@@ -24,6 +24,7 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 export type CallSheetFields = {
   eventDate?: string | null;        // YYYY-MM-DD
@@ -48,7 +49,7 @@ export async function updateCallSheetAsAdmin(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.updateCallSheet });
     if (!auth.ok) return { ok: false, error: "Not authorised." };
     const { supabase, tenantId, user } = auth;
 

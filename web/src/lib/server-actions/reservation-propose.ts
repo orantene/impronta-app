@@ -24,6 +24,7 @@ import { normalizeTenantAppointmentsSettings } from "@/lib/scheduling/appointmen
 import { terminologyCopy } from "@/lib/scheduling/terminology";
 import { assertTalentReservationAllowed } from "@/lib/scheduling/booking-surface";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,7 +82,7 @@ export async function proposeReservationTimeAction(raw: {
 }): Promise<ReservationProposeResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: WRITE_CAP.proposeReservationTime });
   if (!staff.ok) return { ok: false, error: "Not allowed." };
   if (staff.tenantSlug !== raw.tenantSlug.trim().toLowerCase()) {
     return { ok: false, error: "Not allowed." };
