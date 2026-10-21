@@ -298,7 +298,7 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/drawers/light-10.tsx": 806,
   "src/lib/server-actions/admin-workspace-settings.ts": 812,
   "src/lib/payments/transfers.ts": 836,
-  "src/lib/stripe/webhook-routing.test.ts": 806,
+  "src/lib/stripe/webhook-routing.test.ts": 810,
   // 2026-08-18 Website pages data enrichment (P1-B): +29 for the bridge merge
   // projecting locale / SEO flags / page roles / 30d visits onto WebsitePageRow,
   // plus the null-honest visit mapping. The merge is the seam between the data
