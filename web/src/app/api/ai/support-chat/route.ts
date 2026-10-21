@@ -13,6 +13,13 @@ import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
 import { insightRowsToCorpus } from "@/lib/support/help-corpus";
 import { retrieveHelpEntriesForLocale } from "@/lib/support/help-corpus-locale";
+import {
+  CHANGELOG_SYSTEM_RULE,
+  asksAboutChanges,
+  audienceForSurface,
+  loadChangelogGroundingRows,
+  selectChangelogGrounding,
+} from "@/lib/changelog/support-grounding";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { shouldOfferHumanInsteadOfEscalating, supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
 import { decideAiTurn } from "@/lib/support/support-ai-turn";
@@ -52,6 +59,7 @@ const SYSTEM_PROMPT = [
   "Write the answer AND suggested_subject in the same language as the user's latest message (never default to English). Keep suggested_subject short, with no dates.",
   "Keep the answer under 1200 characters.",
   "Entries labeled past confirmed resolution are owner-confirmed prior fixes.",
+  CHANGELOG_SYSTEM_RULE,
 ].join(" ");
 
 const parseModel = parseSupportChatModel;
@@ -170,6 +178,16 @@ export async function POST(request: Request) {
       extraCorpus: insightRowsToCorpus(confirmed),
     });
 
+    // TUL-1396: Published changelog entries ground "what's new" and "is this fixed" questions.
+    const askText = latestRequester?.body ?? access.ticket.subject;
+    const changelog = asksAboutChanges(askText)
+      ? selectChangelogGrounding(await loadChangelogGroundingRows(), {
+          question: askText,
+          locale: reqLocale,
+          audience: audienceForSurface(access.ticket.surface),
+        })
+      : [];
+
     const adapter = await resolveAiChatAdapter();
     const appLocale = reqLocale;
     const userMessage = JSON.stringify({
@@ -193,6 +211,7 @@ export async function POST(request: Request) {
         category: g.ticketCategory,
         label: g.category,
       })),
+      changelog,
     });
 
     const completion = await Promise.race([
@@ -234,7 +253,7 @@ export async function POST(request: Request) {
       aiMeta: {
         model: completion.model ?? null,
         confidence,
-        grounding_slugs: grounding.map((g) => g.slug),
+        grounding_slugs: [...grounding.map((g) => g.slug), ...changelog.map((c) => c.slug)],
         sentiment: model.sentiment,
       },
       skipNotify: true,
