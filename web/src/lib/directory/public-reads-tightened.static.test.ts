@@ -27,7 +27,8 @@ test("the public ticket page limits lookups per caller before it reads", () => {
 });
 
 test("a held migration tightens sessions_select_public to sellable offerings and published events", () => {
-  const dir = resolve(process.cwd(), "../supabase/migrations/_pending_pm");
+  // applied on fxlank and prod, so it lives in supabase/migrations (not _pending_pm)
+  const dir = resolve(process.cwd(), "../supabase/migrations");
   const file = readdirSync(dir).find((f) => /sessions_select_public_tighten/.test(f));
   assert.ok(file, "held migration missing");
   const sql = readFileSync(resolve(dir, file!), "utf8");
