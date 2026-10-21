@@ -27,6 +27,18 @@ import {
 } from "./drawer-shared";
 import { byLabel, byName } from "@/lib/field-engine/sort-comparators";
 import { useDashboardText } from "../dashboard-i18n";
+import { useT } from "@/i18n/use-t";
+
+/**
+ * Mutable facades over the server actions these two drawers call. Exported
+ * so render tests can substitute a spy for one call without a module-mocking
+ * framework — this repo's component unit tests run under `tsx --test`
+ * (Node's built-in runner), which has no `jest.mock`/`vi.mock` equivalent on
+ * Node 20. Call sites below go through these objects rather than the bare
+ * imports so a test can reassign a property on them directly.
+ */
+export const fieldCatalogActions = { getWorkspaceFieldCatalog, setWorkspaceFieldCatalog, setWorkspaceFieldGroup };
+export const fieldPrivacyActions = { getFieldPrivacyCatalog, setWorkspaceFieldVisibility, resetWorkspaceFieldVisibility };
 
 // Phase 1d (remediation §4): 2 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -46,6 +58,7 @@ export function FieldCatalogDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
+  const t = useT();
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   const canCustomize = rules.canFlipPublicInternal; // studio+: enable/disable + relabel
@@ -56,7 +69,7 @@ export function FieldCatalogDrawer() {
   // intercept here the same way canCustomize/canRequire already do for the
   // plan floor, so the toggle never round-trips to a 403.
   const canManage = meetsRole(state.role, "admin");
-  const roleGateMessage = tt("Only an admin or owner can change this.");
+  const roleGateMessage = t("dashboard.adminWorkspace.roleGateOnlyAdmin");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +84,7 @@ export function FieldCatalogDrawer() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    const res = await getWorkspaceFieldCatalog();
+    const res = await fieldCatalogActions.getWorkspaceFieldCatalog();
     if (!res.ok) { setError(res.error); setLoading(false); return; }
     setGroups(res.groups as CatGroup[]);
     setFields(res.fields as CatField[]);
@@ -92,7 +105,7 @@ export function FieldCatalogDrawer() {
     const snap = fields;
     setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, enabled: next } : x));
     mark(f.field_definition_id, true);
-    const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, enabled: next });
+    const res = await fieldCatalogActions.setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, enabled: next });
     mark(f.field_definition_id, false);
     if (!res.ok) { setFields(snap); toast(res.error || tt("Couldn't save the field")); return; }
     toast(next ? tt("Field captured for this workspace") : tt("Field hidden from this workspace"));
@@ -106,7 +119,7 @@ export function FieldCatalogDrawer() {
     const snap = fields;
     setFields((fs) => fs.map((x) => x.field_definition_id === f.field_definition_id ? { ...x, required_override: next } : x));
     mark(f.field_definition_id, true);
-    const res = await setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, required: next });
+    const res = await fieldCatalogActions.setWorkspaceFieldCatalog({ field_definition_id: f.field_definition_id, required: next });
     mark(f.field_definition_id, false);
     if (!res.ok) { setFields(snap); toast(res.error || tt("Couldn't save the field")); return; }
     toast(next ? tt("Marked required to publish") : tt("No longer required"));
@@ -127,7 +140,7 @@ export function FieldCatalogDrawer() {
       ? { ...x, custom_label: nextLabel, custom_helper: nextHelper } : x));
     setRenaming(null);
     mark(f.field_definition_id, true);
-    const res = await setWorkspaceFieldCatalog({
+    const res = await fieldCatalogActions.setWorkspaceFieldCatalog({
       field_definition_id: f.field_definition_id,
       ...(labelChanged ? { custom_label: nextLabel } : {}),
       ...(helperChanged ? { helper: nextHelper } : {}),
@@ -148,7 +161,7 @@ export function FieldCatalogDrawer() {
     for (let index = 0; index < nextItems.length; index += 1) {
       const field = nextItems[index];
       const displayOrder = (index + 1) * 10;
-      const res = await setWorkspaceFieldCatalog({
+      const res = await fieldCatalogActions.setWorkspaceFieldCatalog({
         field_definition_id: field.field_definition_id,
         display_order: displayOrder,
       });
@@ -201,7 +214,7 @@ export function FieldCatalogDrawer() {
     const snap = groups;
     setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, enabled: next } : x));
     mark(g.id, true);
-    const res = await setWorkspaceFieldGroup({ field_group_id: g.id, is_enabled: next });
+    const res = await fieldCatalogActions.setWorkspaceFieldGroup({ field_group_id: g.id, is_enabled: next });
     mark(g.id, false);
     if (!res.ok) { setGroups(snap); toast(res.error || tt("Couldn't save the section")); return; }
     toast(next ? tt("Section enabled") : tt("Section hidden from this workspace"));
@@ -217,7 +230,7 @@ export function FieldCatalogDrawer() {
     setGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, custom_label: nextLabel } : x));
     setRenaming(null);
     mark(g.id, true);
-    const res = await setWorkspaceFieldGroup({ field_group_id: g.id, custom_label: nextLabel });
+    const res = await fieldCatalogActions.setWorkspaceFieldGroup({ field_group_id: g.id, custom_label: nextLabel });
     mark(g.id, false);
     if (!res.ok) { setGroups(snap); toast(res.error || tt("Couldn't rename the section")); return; }
     toast(nextLabel ? tt("Section renamed for your workspace") : tt("Reset to the network name"));
@@ -230,7 +243,7 @@ export function FieldCatalogDrawer() {
     for (let index = 0; index < nextGroups.length; index += 1) {
       const group = nextGroups[index];
       const displayOrder = (index + 1) * 10;
-      const res = await setWorkspaceFieldGroup({
+      const res = await fieldCatalogActions.setWorkspaceFieldGroup({
         field_group_id: group.id,
         display_order: displayOrder,
       });
@@ -625,6 +638,7 @@ export function FieldPrivacyDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
+  const t = useT();
   const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
     ?? FIELD_PRIVACY_PLAN_RULES.free;
   // TUL-1708: setWorkspaceFieldVisibility/resetWorkspaceFieldVisibility now
@@ -632,7 +646,7 @@ export function FieldPrivacyDrawer() {
   // plan-tier rules above already do, so the control never round-trips to
   // a 403 for an editor/manager.
   const canManage = meetsRole(state.role, "admin");
-  const roleGateMessage = tt("Only an admin or owner can change this.");
+  const roleGateMessage = t("dashboard.adminWorkspace.roleGateOnlyAdmin");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -642,7 +656,7 @@ export function FieldPrivacyDrawer() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
-    const res = await getFieldPrivacyCatalog();
+    const res = await fieldPrivacyActions.getFieldPrivacyCatalog();
     if (!res.ok) { setError(res.error); setLoading(false); return; }
     setGroups(res.groups as Grp[]);
     setFields(res.fields as Entry[]);
@@ -671,8 +685,8 @@ export function FieldPrivacyDrawer() {
     }
     setPending(p => ({ ...p, [f.field_definition_id]: target }));
     const res = target === f.platform_default
-      ? await resetWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id })
-      : await setWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id, visibility: target });
+      ? await fieldPrivacyActions.resetWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id })
+      : await fieldPrivacyActions.setWorkspaceFieldVisibility({ field_definition_id: f.field_definition_id, visibility: target });
     if (!res.ok) {
       setPending(p => { const n = { ...p }; delete n[f.field_definition_id]; return n; });
       toast(res.error || tt("Couldn't save the field setting")); return;
