@@ -1,7 +1,9 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
 scripts/ci/held-migrations-report.test.mjs
+scripts/demo-talents/demo-alt-allowlist.test.ts
 scripts/e2e-web-server-command.test.ts
+scripts/lib/demo-alt-i18n.test.mjs
 scripts/lib/failed-cards-fixtures.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
