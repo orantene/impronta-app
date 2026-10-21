@@ -2534,6 +2534,16 @@
       "declined": "Terms declined. Your current terms stay in force.",
       "error": "We could not save your answer. Try again."
     },
+    "serviceHubListing": {
+      "status_offered": "Waiting for the talent",
+      "status_accepted": "On sale",
+      "status_hidden": "Hidden",
+      "belowFloor": "This price is below what the talent accepts plus the workspace minimum ({floor}).",
+      "exclusiveOnly": "This talent is exclusive to another workspace. Only that workspace and the Tulala hub can sell this service.",
+      "needsConsent": "The talent has to accept before this service is sold here.",
+      "floorBreached": "The talent raised the price. Update this listing; open offers keep their price.",
+      "error": "We could not save the listing. Try again."
+    },
     "uploadGuard": {
       "notAnImage": "This file is not a supported image. Use JPEG, PNG, WebP or GIF.",
       "typeNotAllowed": "This image type is not supported here. Use JPEG, PNG, WebP or GIF.",

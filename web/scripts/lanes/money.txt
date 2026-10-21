@@ -300,6 +300,8 @@ src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/server-actions/admin-tier-service-fee.test.ts
 src/lib/service-hub/terms-wire.static.test.ts
 src/lib/service-hub/terms.test.ts
+src/lib/service-hub/listing-wire.static.test.ts
+src/lib/service-hub/listing.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
