@@ -174,7 +174,7 @@ export async function messagingCancelBooking(input: {
  */
 export async function messagingThreadLink(input: { inquiryId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.threadLink);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");

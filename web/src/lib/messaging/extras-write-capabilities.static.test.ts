@@ -1,5 +1,5 @@
 /**
- * TUL-1708 (messaging extras): the remaining Messages writers (start a conversation, create a client for a thread,
+ * TUL-1708 (messaging extras): the remaining Messages writers (start a conversation, mint a thread link,
  * confirm a record, retry delivery, revise an offer, cancel a payment link, cancel a booking) require their capability
  * so a `viewer` is refused. Static wiring + the role matrix. The money writers (refund, discount, cancel record) keep
  * their existing `requirePermission` gate. No baseline: an export of these modules that is neither a listed writer nor
@@ -25,10 +25,10 @@ const bodyOf = (src: string, name: string) => {
 const MODULES: Array<{ file: string; writers: Record<string, keyof typeof MESSAGING_EXTRAS_WRITE_CAPABILITY>; reads: string[]; gatedByPermission?: string[] }> = [
   {
     file: "src/lib/server-actions/messaging-sheets.ts",
-    writers: { messagingRetryDelivery: "retryDelivery", messagingReviseOffer: "reviseOffer", messagingCancelPaymentLink: "cancelPaymentLink", messagingCancelBooking: "cancelBooking" },
-    reads: ["messagingLoadHandOverTargets", "messagingLoadDelivery", "messagingLoadSnapshots", "messagingLoadOffers", "messagingLoadBasketDiff", "messagingThreadLink", "messagingLoadContextLines"],
+    writers: { messagingRetryDelivery: "retryDelivery", messagingReviseOffer: "reviseOffer", messagingCancelPaymentLink: "cancelPaymentLink", messagingCancelBooking: "cancelBooking", messagingThreadLink: "threadLink" },
+    reads: ["messagingLoadHandOverTargets", "messagingLoadDelivery", "messagingLoadSnapshots", "messagingLoadOffers", "messagingLoadBasketDiff", "messagingLoadContextLines"],
   },
-  { file: "src/lib/server-actions/messaging-start.ts", writers: { messagingStartConversation: "startConversation", messagingCreateClientForThread: "createClientForThread" }, reads: [] },
+  { file: "src/lib/server-actions/messaging-start.ts", writers: { messagingStartConversation: "startConversation" }, reads: [/* messagingCreateClientForThread is owned by TUL-1742 (edit_client_relationship) */ "messagingCreateClientForThread"] },
   { file: "src/lib/server-actions/messaging-confirm.ts", writers: { messagingConfirmRecord: "confirmRecord" }, reads: [] },
   {
     file: "src/lib/server-actions/messaging-money-actions.ts",

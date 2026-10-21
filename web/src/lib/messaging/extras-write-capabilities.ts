@@ -8,7 +8,7 @@ import type { CapabilityKey } from "@/lib/access";
  */
 export const MESSAGING_EXTRAS_WRITE_CAPABILITY = {
   startConversation: "create_inquiry",
-  createClientForThread: "create_inquiry",
+  threadLink: "coordinate_inquiry",
   confirmRecord: "coordinate_inquiry",
   retryDelivery: "coordinate_inquiry",
   reviseOffer: "send_client_offer",

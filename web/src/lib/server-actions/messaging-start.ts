@@ -127,7 +127,7 @@ export async function messagingCreateClientForThread(input: {
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
   if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
-  const gated = await messagingInquiryManager(parsed.data.inquiryId, EXTRAS_CAP.createClientForThread);
+  const gated = await messagingInquiryManager(parsed.data.inquiryId);
   // Seller path: talent-owned customer pool. Manager path: agency pool (null).
   let g: Awaited<ReturnType<typeof messagingInquiryManager>> | Awaited<ReturnType<typeof talentSellerPaymentActor>>;
   let ownerTalentProfileId: string | null = null;
