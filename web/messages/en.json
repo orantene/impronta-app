@@ -14320,9 +14320,21 @@
       "viewActivity": "Activity",
       "viewItems": "By item",
       "periodLabel": "Period",
-      "period": { "all": "All time", "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days", "month": "This month" },
+      "period": {
+        "all": "All time",
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "month": "This month"
+      },
       "methodLabel": "Payment method",
-      "method": { "any": "Any", "cash": "Cash", "card": "Card at the counter", "online": "Online", "other": "Other" },
+      "method": {
+        "any": "Any",
+        "cash": "Cash",
+        "card": "Card at the counter",
+        "online": "Online",
+        "other": "Other"
+      },
       "colItem": "Item",
       "colQuantity": "Qty",
       "colGross": "Gross",
@@ -18285,7 +18297,9 @@
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
       "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
       "itemProviderOwnedLink": "Open Services",
-      "duplicate": { "copySuffix": "copy" },
+      "duplicate": {
+        "copySuffix": "copy"
+      },
       "type": {
         "product": "Product",
         "service": "Service",
@@ -20820,6 +20834,14 @@
       "seoAltsOk": "Photos have descriptions",
       "seoAltsFix": "Some photos are missing a description",
       "planPerk": "Blog and posts with SEO for Google and AI"
+    },
+    "adminNewClientSheet": {
+      "invitedTitle": "Invitation sent",
+      "invitedBody": "We emailed {email} an invitation. They choose their own password when they accept it.",
+      "invitedHint": "The email can take a minute to arrive. If it does not, ask them to check spam.",
+      "inviteNote": "We email the client an invitation to set their own password. You never see or share a password.",
+      "submit": "Send invitation",
+      "sending": "Sending..."
     }
   },
   "admin": {
