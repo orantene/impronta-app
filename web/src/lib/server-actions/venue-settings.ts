@@ -95,7 +95,10 @@ export async function updateVenueSettings(
 ): Promise<SaveVenueSettingsResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const staff = await requireWorkspaceStaffAction();
+  // TUL-1708: the default guard capability (agency.workspace.view) is
+  // viewer-held; venue settings is a workspace-settings write, same bar as
+  // admin-workspace-settings.ts.
+  const staff = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!staff.ok) return { ok: false, error: "Not allowed." };
   if (staff.tenantSlug !== tenantSlug.trim().toLowerCase()) {
     return { ok: false, error: "Not allowed." };
