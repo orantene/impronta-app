@@ -2,7 +2,7 @@
 
 /**
  * TUL-1591 (e): "Who stays visible". One toggle per publicly shown member; the pick is the
- * roster's featured setting. The server action re-checks everything (role, active member,
+ * roster's own keep_visible (TUL-1693), never featured. The server action re-checks everything (role, active member,
  * already public, flag on); this screen only reflects it.
  */
 import Link from "next/link";
@@ -29,7 +29,7 @@ function MemberRow({ locale, id, name, picked }: { locale: "en" | "es"; id: stri
         setOn(keep);
         setMsg({ ok: true, text: c.kept });
       } else {
-        setMsg({ ok: false, text: r.reason === "not_public" ? c.notPublic : c.saveError });
+        setMsg({ ok: false, text: r.reason === "not_public" ? c.notPublic : r.reason === "not_ready" ? c.notReady : c.saveError });
       }
     });
   };
@@ -76,6 +76,7 @@ export function VisiblePicksPanel({ locale, tenantSlug, picks }: Props) {
       <h1 className="mt-4 text-xl font-semibold">{c.title}</h1>
       <p className="mt-2 text-sm opacity-80">{c.intro}</p>
       <p data-testid="visible-picks-status" className="mt-4 text-sm font-medium">{status}</p>
+      {!picks.pickAvailable && !s.unlimited && <p role="note" data-testid="visible-picks-not-ready" className="mt-2 text-sm">{c.notReady}</p>}
       {s.tooManyPicks && picks.cap != null && <p role="note" className="mt-2 text-sm">{c.tooManyPicks(picks.cap)}</p>}
       {!s.unlimited && (
         picks.members.length === 0 ? (
