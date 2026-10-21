@@ -5,9 +5,11 @@
  * the accepted share of each member's catalog line (max 90%), written as the line's talent cost, owner take and
  * accepted-share snapshot. Nothing about price, fee or what the client pays changes.
  *
- * Flag COLLECTIVE_SPLIT_ENABLED (default OFF): with it off nothing is read. Idempotent: a line that already carries
- * its snapshot is left alone, so a retried or second collection on the same sale cannot split twice. Any read or
- * write problem refuses the collection (a collective sale is never taken half split).
+ * Flag COLLECTIVE_SPLIT_ENABLED (default OFF): with it off nothing is read. Recomputed from the lines as they are on
+ * EVERY call (the result depends only on the line total and the accepted share, and the member-name label suffix is
+ * idempotent), so a quantity change after an earlier attempt is re-split, and a line whose member no longer has an
+ * accepted share is cleared back to the POS convention (talent cost = unit price). Any read or write problem refuses
+ * the collection (a collective sale is never taken half split).
  */
 import { collectiveSplitEnabled, applyCollectiveOwnerShares, SPLIT_UNAVAILABLE_MESSAGE } from "@/lib/service-hub/collective-split";
 import { logServerError } from "@/lib/server/safe-error";
@@ -19,6 +21,8 @@ type DbLine = {
   talent_profile_id: string | null;
   total_cents: number | string;
   talent_cost_cents: number | string | null;
+  unit_cents: number | string | null;
+  owner_take_cents: number | string | null;
   label: string;
   owner_share_snapshot: unknown;
 };
@@ -37,11 +41,11 @@ export async function applyPosCollectiveSplit(admin: Admin, input: { tenantId: s
     if (!order) return { ok: true, changed: 0 };
     const { data: rows, error: lErr } = await admin
       .from("order_lines")
-      .select("id, kind, talent_profile_id, total_cents, talent_cost_cents, label, owner_share_snapshot")
+      .select("id, kind, talent_profile_id, total_cents, talent_cost_cents, unit_cents, owner_take_cents, label, owner_share_snapshot")
       .eq("order_id", input.orderId)
       .eq("tenant_id", input.tenantId);
     if (lErr) return refuse(lErr);
-    const todo = ((rows ?? []) as DbLine[]).filter((l) => l.kind !== "custom" && l.talent_profile_id && !l.owner_share_snapshot);
+    const todo = ((rows ?? []) as DbLine[]).filter((l) => l.kind !== "custom" && l.talent_profile_id);
     if (todo.length === 0) return { ok: true, changed: 0 };
 
     const lines = todo.map((l) => ({
@@ -55,8 +59,22 @@ export async function applyPosCollectiveSplit(admin: Admin, input: { tenantId: s
     if (!applied.ok) return { ok: false, error: applied.error };
 
     let changed = 0;
+    const byId = new Map(todo.map((d) => [d.id, d]));
     for (const l of lines) {
-      if (!l.ownerShareSnapshot) continue; // not a collective, or the member has no accepted share
+      const before = byId.get(l.id);
+      if (!l.ownerShareSnapshot) {
+        // Not a collective / no accepted share now: undo a split an earlier attempt froze on this line.
+        if (before?.owner_share_snapshot) {
+          const { error } = await admin
+            .from("order_lines")
+            .update({ talent_cost_cents: Number(before.unit_cents) || 0, owner_take_cents: null, owner_share_snapshot: null })
+            .eq("id", l.id);
+          if (error) return refuse(error);
+          changed += 1;
+        }
+        continue;
+      }
+      if (before && before.owner_share_snapshot && Number(before.talent_cost_cents) === l.talentCostCents && Number(before.owner_take_cents) === l.ownerTakeCents && before.label === l.label) continue; // already exact
       const { error } = await admin
         .from("order_lines")
         .update({ talent_cost_cents: l.talentCostCents, owner_take_cents: l.ownerTakeCents, owner_share_snapshot: l.ownerShareSnapshot, label: l.label })

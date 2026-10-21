@@ -237,9 +237,6 @@ export async function startCollection(
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };
   }
-  const split = await applyPosCollectiveSplit(admin, { tenantId: input.tenantId, orderId: row.id }); // TUL-1467, flag-gated
-  if (!split.ok) return { ok: false, reason: "unavailable", error: split.error };
-
   const operationKey = (input.idempotencyKey ?? "").trim();
   if (operationKey.length < 8) {
     // Not a refusal an operator can act on, so it does not get operator words.
@@ -319,6 +316,9 @@ export async function startCollection(
     }
   }
 
+  // TUL-1467: split just before reserving, after every refusal/key check, from the lines as they are now. Flag-gated.
+  const split = await applyPosCollectiveSplit(admin, { tenantId: input.tenantId, orderId: row.id });
+  if (!split.ok) return { ok: false, reason: "unavailable", error: split.error };
   let reservationId: string | null = null;
   let reservationExpiresAt: string | null = null;
   /**

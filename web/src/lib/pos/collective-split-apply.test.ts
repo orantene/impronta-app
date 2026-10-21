@@ -80,12 +80,30 @@ describe("POS counter sales split like online ones (TUL-1467)", () => {
     assert.equal(u.patch.label, "Gel manicure · Ana");
   });
 
-  test("running again (a retried collection) changes nothing: a line with a snapshot is already split", async () => {
+  test("running again (a retried collection) changes nothing: a line already exactly split is left alone", async () => {
     const t = world();
-    (t.order_lines[0] as Row).owner_share_snapshot = { kind: "percent", bps: 2500, version: 2 };
+    Object.assign(t.order_lines[0] as Row, { owner_share_snapshot: { kind: "percent", bps: 2500, version: 2 }, talent_cost_cents: 7_500, owner_take_cents: 2_500, label: "Gel manicure · Ana" });
     const w = fakeAdmin(t);
     assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 0 });
     assert.equal(w.updates.length, 0);
+  });
+
+  test("a quantity change after an earlier split is RE-split from the new total (the frozen snapshot does not go stale)", async () => {
+    const t = world();
+    Object.assign(t.order_lines[0] as Row, { owner_share_snapshot: { kind: "percent", bps: 2500, version: 2 }, talent_cost_cents: 7_500, owner_take_cents: 2_500, label: "Gel manicure · Ana", total_cents: 20_000 });
+    const w = fakeAdmin(t);
+    assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 });
+    assert.equal(w.updates[0].patch.talent_cost_cents, 15_000);
+    assert.equal(w.updates[0].patch.owner_take_cents, 5_000);
+  });
+
+  test("a member who no longer has an accepted share: the frozen split is cleared back to the POS convention", async () => {
+    const t = world();
+    Object.assign(t.order_lines[0] as Row, { owner_share_snapshot: { kind: "percent", bps: 2500, version: 2 }, talent_cost_cents: 7_500, owner_take_cents: 2_500, unit_cents: 10_000 });
+    t.agency_talent_roster = [{ tenant_id: "t1", talent_profile_id: "a", status: "active", owner_share_kind: null, owner_share_version: 2 }];
+    const w = fakeAdmin(t);
+    assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 });
+    assert.deepEqual(w.updates[0].patch, { talent_cost_cents: 10_000, owner_take_cents: null, owner_share_snapshot: null });
   });
 
   test("a failed write refuses the collection, so a sale is never taken half split", async () => {
@@ -108,6 +126,8 @@ describe("wiring", () => {
     const call = src.indexOf("applyPosCollectiveSplit(");
     assert.ok(call > 0);
     assert.ok(call < src.indexOf("let reservationId"), "before a reservation or transaction exists");
+    assert.ok(call > src.indexOf("const operationKey ="), "after the idempotency-key refusal: a refused collection splits nothing");
+    assert.ok(call > src.indexOf("lockedCustomLineIds("), "after the manager-approval refusal");
     assert.ok(src.trimEnd().split("\n").length <= 800, "collection.ts stays under the 800-line cap");
   });
 });
