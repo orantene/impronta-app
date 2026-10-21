@@ -21241,6 +21241,7 @@
       "planPriceWebsite": "$12/mes",
       "billing": {
         "redirecting": "Redirigiendo…",
+        "trialRaceRetry": "Se abrió otro pago al mismo tiempo. Inténtalo de nuevo.",
         "pastDueTitle": "Pago fallido.",
         "pastDueGraceBody": {
           "one": "Tu pago no pasó. Las funciones de pago siguen activas {count} día más. Actualiza tu tarjeta para conservarlas.",
