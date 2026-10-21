@@ -9,6 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 // ─────────────────────────────────────────────────────────────────────
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useTalentTierState } from "./talent-tier-sync";
 import { TalentStudioFlagProvider } from "@/components/talent/studio/flag";
 import { devSetTalentPlanTierForSelfAction } from "@/lib/talent-site/server/dev-plan";
 // Client-safe (no `server-only`): resolves the workspace's REAL public address
@@ -1199,9 +1200,8 @@ export function AdminShellProvider({
   // Talent personal subscription tier (Free / Pro / Max). Live bridge data
   // reads talent_profiles.talent_plan_key; prototype mode uses the demo
   // fixture tier. Switchable in dev via the Compare-plans drawer.
-  const [talentTier, setTalentTierState] = useState<TalentSubscriptionTier>(
-    initialBridgeData?.talentSelfProfile?.talentTier ?? MY_TALENT_PROFILE.subscription.tier,
-  );
+  // TUL-1820: seeded from the server bridge and follows a changed server tier (Stripe upgrade / downgrade).
+  const [talentTier, setTalentTierState] = useTalentTierState(initialBridgeData?.talentSelfProfile?.talentTier ?? null, MY_TALENT_PROFILE.subscription.tier);
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
   const [clientProfile, setClientProfile] = useState<ClientProfileId>("martina");
