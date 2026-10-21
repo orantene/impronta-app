@@ -16,6 +16,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -172,7 +173,9 @@ export async function writeClientTrustLevel(
   supabase?: SupabaseClient,
 ): Promise<{ trustLevel: ClientTrustLevel } | null> {
   try {
-    const sb = supabase ?? (await createSupabaseServerClient());
+    // client_trust_state writes are admin/owner or service-role at the database: default to the service role,
+    // never the user-session client.
+    const sb = supabase ?? createServiceRoleClient();
     if (!sb) return null;
 
     const trustLevel = deriveClientTrustLevel(signals);
