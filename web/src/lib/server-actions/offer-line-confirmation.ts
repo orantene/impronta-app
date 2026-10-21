@@ -52,8 +52,11 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
 
     // Defence in depth: identity FIRST. A caller who is neither a manager of this inquiry nor the
     // owner of a talent profile never makes the service role read an offer or its lines.
+    // The bail below checks "has any talent profile", not "has a line here": the per-line filter further
+    // down is what narrows a talent to their own lines.
     const [guard, mineRes] = await Promise.all([
       requireInquiryManagerAction(parsed.data.inquiryId),
+      // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is global: the signed-in person's own profiles, by their user id
       admin.from("talent_profiles").select("id").eq("user_id", user.id),
     ]);
     const ownProfileIds = ((mineRes.data ?? []) as Array<{ id: string }>).map((p) => p.id);
@@ -79,10 +82,10 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     if (offer.status === "draft") return { ok: false as const };
 
     const [linesRes, read] = await Promise.all([
-      // eslint-disable-next-line ratchet/no-untenanted-from -- line items carry no tenant_id; scoped by offer_id of the tenant-checked offer above
       admin
         .from("inquiry_offer_line_items")
         .select("id, label, talent_profile_id, sort_order, talent_profiles ( display_name )")
+        .eq("tenant_id", offer.tenant_id)
         .eq("offer_id", offer.id)
         .order("sort_order", { ascending: true }),
       readOfferLineAnswers(admin, { tenantId: offer.tenant_id, offerId: offer.id }),
