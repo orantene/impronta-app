@@ -41,6 +41,14 @@ export type LoadSpacesResult =
 const MAX_BULK = 60;
 
 async function staffAndVenue(tenantSlug: string) {
+  // TUL-1708 audit: addRoomAction / addTablesAction are genuine viewer-write gaps on the default
+  // guard capability (agency.workspace.view) — this is NOT a false positive like the service-hub /
+  // rent files. But per the PM decision for TUL-1708 (2026-10-21), operational writers (POS, tables,
+  // floor, door, classes, scheduling, venue, customers) are meant to use a new `operate_venue`
+  // capability that DEV is adding in its own small PR; `operate_venue` does not exist in
+  // web/src/lib/access/capabilities.ts yet. Inventing a substitute capability here would conflict with
+  // that incoming work, so this is left on the default on purpose and flagged for a fast follow-up
+  // once `operate_venue` lands.
   const staff = await requireWorkspaceStaffAction();
   if (!staff.ok) return { ok: false as const, error: "Not allowed." };
   if (staff.tenantSlug !== tenantSlug.trim().toLowerCase()) {

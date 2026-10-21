@@ -37,6 +37,16 @@ export function normalizePrimaryLocale(raw: unknown): string {
   return /^[a-z]{2,3}$/.test(code) ? code : "en";
 }
 
+/**
+ * TUL-1708 audit: this is a shared auth helper, not a single-purpose write guard — it is called from
+ * both read and write server actions across offerings-actions.ts, offering-variants-actions.ts,
+ * offering-booking-rules-action.ts, talent-booking-terms-actions.ts, instant-plan-entitlement-action.ts
+ * and services-menu-actions.ts (none of them in this sweep's area). The inner
+ * `requireWorkspaceStaffAction()` stays on the default guard capability (viewer-held) here on purpose:
+ * forcing a write-tier capability onto it would wrongly gate the readers among those six callers too.
+ * Fixing this properly means threading a capability parameter through every one of those call sites,
+ * which is out of scope for this area; flagging for a follow-up that covers all six together.
+ */
 export async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> {
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
