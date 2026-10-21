@@ -41,6 +41,7 @@ src/lib/billing/invoice-display.test.ts
 src/lib/billing/pass-through-arming.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
+src/lib/billing/plan-change-interval.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
@@ -48,6 +49,7 @@ src/lib/billing/receipt-notice.test.ts
 src/lib/billing/refunded-charge-net.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
+src/lib/billing/talent-plan-card-cancel.test.ts
 src/lib/billing/talent-seller-earnings-policy.test.ts
 src/lib/billing/talent-upgrade-promo-box.static.test.ts
 src/lib/billing/trial-eligibility-stripe.test.ts
@@ -67,6 +69,7 @@ src/lib/bookings/fee-display.test.ts
 src/lib/bookings/fee-netted-order-guard.test.ts
 src/lib/bookings/gallery-selection.test.ts
 src/lib/bookings/lesson-package.test.ts
+src/lib/bookings/manage-token.test.ts
 src/lib/bookings/mark-refunded-plan.test.ts
 src/lib/bookings/payment-booking.test.ts
 src/lib/bookings/policy-overrides.test.ts
@@ -275,6 +278,7 @@ src/lib/pos/link-booking.test.ts
 src/lib/pos/outbox-replay.test.ts
 src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
+src/lib/pos/pos-rpc-hardening.static.test.ts
 src/lib/pos/recover-collections.test.ts
 src/lib/pos/refusal-reason.test.ts
 src/lib/pos/reprice-item-availability.test.ts

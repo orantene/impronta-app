@@ -210,6 +210,14 @@ export type PlanChangePreview =
       effectiveAt: string | null;
       /** True when a period-end change is already scheduled and this confirm cancels it. */
       cancelsPendingChange: boolean;
+      /** TUL-1297: the subscription's current and requested billing interval. */
+      fromInterval: BillingInterval;
+      toInterval: BillingInterval;
+      /**
+       * TUL-1297: the target price (minor units + the Stripe price's own currency) for an interval change;
+       * null for every other kind. Read from the same catalog price id checkout uses, never invented.
+       */
+      newPrice: { amount: number; currency: string } | null;
     }
   | { ok: false; error: string; code?: PlanChangeErrorCode };
 
@@ -221,11 +229,23 @@ export type PlanChangeConfirm =
   | { ok: false; error: string; code?: PlanChangeErrorCode; definite?: boolean };
 
 /** Which confirm sentence the modal shows (keys under `planChange` in messages). */
-export function planChangeCopyKey(p: { kind: PlanChangeKind; timing: PlanChangeTiming; cancelsPendingChange?: boolean }):
+export function planChangeCopyKey(p: {
+  kind: PlanChangeKind;
+  timing: PlanChangeTiming;
+  cancelsPendingChange?: boolean;
+  amountDueToday?: number;
+  effectiveAt?: string | null;
+}):
   | "payToday"
   | "changesOn"
   | "cancelPending"
-  | "noChange" {
+  | "noChange"
+  | "switchYearlyNow"
+  | "switchYearlyAt"
+  | "switchMonthlyAt" {
   if (p.kind === "noop") return p.cancelsPendingChange ? "cancelPending" : "noChange";
+  // TUL-1297: an interval change names the new billing interval and its price.
+  if (p.kind === "interval_down") return "switchMonthlyAt";
+  if (p.kind === "interval_up") return (p.amountDueToday ?? 0) > 0 || !p.effectiveAt ? "switchYearlyNow" : "switchYearlyAt";
   return p.timing === "now" ? "payToday" : "changesOn";
 }

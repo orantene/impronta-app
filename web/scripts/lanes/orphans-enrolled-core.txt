@@ -10,6 +10,7 @@ src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
 src/app/(workspace)/talent/talent-layout-frame.render.test.tsx
 src/app/(workspace)/talent/talent-layout-perf-trace.static.test.ts
+src/app/(workspace)/talent/trust/trust-page-i18n.static.test.ts
 src/app/start/layout-landmark.static.test.ts
 src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts

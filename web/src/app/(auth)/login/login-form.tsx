@@ -17,6 +17,7 @@ import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 
 const REMEMBER_STORAGE_KEY = "tulala.login.remember";
+const SLOW_SIGN_IN_MS = 12_000;
 
 function friendlyAuthError(
   raw: string | undefined,
@@ -58,6 +59,17 @@ export function LoginForm({
     FormData
   >(signInWithEmail, undefined);
   const [remember, setRemember] = useState(true);
+  // TUL-1784: the server bounds every call, but a stalled connection can still leave the button on "Signing in…".
+  // After SLOW_SIGN_IN_MS say so plainly instead of leaving the visitor staring at a spinner.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => setSlow(true), SLOW_SIGN_IN_MS);
+    return () => {
+      clearTimeout(timer);
+      setSlow(false);
+    };
+  }, [pending]);
   // TUL-768: React resets uncontrolled fields after a form action, so a failed login wiped the typed email.
   const [email, setEmail] = useState(pickAuthEmail(readAuthEmailDraft(), defaultEmail));
 
@@ -159,6 +171,11 @@ export function LoginForm({
         idle={t("public.auth.login.emailSubmit")}
         busy={t("public.auth.login.pending")}
       />
+      {pending && slow ? (
+        <p role="status" className="text-center text-xs" style={{ color: "var(--plt-ink-soft, inherit)" }}>
+          {t("public.auth.login.slow")}
+        </p>
+      ) : null}
     </form>
   );
 }

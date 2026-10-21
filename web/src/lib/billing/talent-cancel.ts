@@ -77,6 +77,20 @@ export function isLiveTalentSubscriptionStatus(status: string | null | undefined
   return status != null && LIVE.has(status);
 }
 
+/**
+ * TUL-1356: what the in-app plan card shows for cancel / resume. Only a PAID plan with a live
+ * subscription gets either; a subscription already set to end at period end gets Resume.
+ * Free talents (`talent_basic`) and talents with no live subscription get neither.
+ */
+export function talentPlanCancelBlock(
+  planKey: string | null | undefined,
+  subscription: { status: string; cancelAtPeriodEnd: boolean } | null | undefined,
+): "none" | "cancel" | "resume" {
+  if (!planKey || planKey === "talent_basic" || !subscription) return "none";
+  if (!isLiveTalentSubscriptionStatus(subscription.status)) return "none";
+  return subscription.cancelAtPeriodEnd ? "resume" : "cancel";
+}
+
 export type Bi = { en: string; es: string };
 
 export const TALENT_CANCEL_COPY = {
