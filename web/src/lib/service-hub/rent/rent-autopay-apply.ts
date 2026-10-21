@@ -45,14 +45,32 @@ export async function applyRentSubscriptionEvent(ev: Exclude<RentSubscriptionEve
     if (plan.subscriptionId === ev.subscriptionId) return "duplicate";
     const live = plan.subscriptionId && plan.autopayStatus !== "canceled" && plan.autopayStatus !== "off";
     if (live || plan.status !== "active") {
-      // Never two live subscriptions (or one on a plan that is no longer active): cancel the newcomer.
-      await deps.cancelSubscription(ev.subscriptionId);
+      // Never two live subscriptions (or one on a plan that is no longer active): cancel the newcomer. A cancel that
+      // fails is retried, never acked: the stray subscription would keep charging.
+      if (!(await deps.cancelSubscription(ev.subscriptionId))) {
+        deps.alert(`rent plan ${ev.planId}: could not cancel stray subscription ${ev.subscriptionId}`);
+        return "unavailable";
+      }
       return "cancelled_second_subscription";
     }
     return (await deps.setAutopay(ev.planId, ev.tenantId, { autopayStatus: "active", subscriptionId: ev.subscriptionId })) ? "linked" : "unavailable";
   }
 
-  if (plan.subscriptionId !== ev.subscriptionId) return "ignored_other_subscription";
+  if (plan.subscriptionId !== ev.subscriptionId) {
+    // The plan is not linked to any subscription yet: the 'started' event may simply not have been applied. A PAID
+    // invoice is retried (and shouted about) until it links; failed or status events from a stranger are ignored.
+    if (!plan.subscriptionId) {
+      if (ev.type !== "paid") return "ignored_other_subscription";
+      deps.alert(`rent plan ${ev.planId}: invoice ${ev.invoiceId} was PAID by subscription ${ev.subscriptionId} before the plan was linked`);
+      return "unavailable";
+    }
+    if (ev.type === "paid") {
+      // Money was taken by a rent subscription this plan does not know: shout, stop it, retry until it is stopped.
+      deps.alert(`rent plan ${ev.planId}: invoice ${ev.invoiceId} was PAID by unlinked subscription ${ev.subscriptionId}`);
+      if (!(await deps.cancelSubscription(ev.subscriptionId))) return "unavailable";
+    }
+    return "ignored_other_subscription";
+  }
 
   if (ev.type === "status") {
     const next = autopayStatusOf(ev);
@@ -72,6 +90,11 @@ export async function applyRentSubscriptionEvent(ev: Exclude<RentSubscriptionEve
       deps.alert(`rent plan ${ev.planId} is ended but subscription ${ev.subscriptionId} was paid (invoice ${ev.invoiceId})`);
       await deps.cancelSubscription(ev.subscriptionId);
     }
+    if (existing && existing.source !== "autopay" && existing.stripeInvoiceId !== ev.invoiceId) {
+      // A payment-link or outside row already owns this month (any status): never overwritten, never touched.
+      deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid but the month has a ${existing.source} row (${existing.status}); reconcile by hand`);
+      return "double_payment_alert";
+    }
     if (existing && existing.status === "paid" && existing.stripeInvoiceId !== ev.invoiceId) {
       // The month was already paid another way (a payment link): money taken twice. Loud, never silent.
       deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid on top of an already paid month`);
@@ -85,6 +108,7 @@ export async function applyRentSubscriptionEvent(ev: Exclude<RentSubscriptionEve
 
   // failed
   if (existing?.status === "paid") return "duplicate"; // a later retry succeeded first
+  if (existing && existing.source !== "autopay") return "duplicate"; // never overwrite a link or outside row
   const ok = await deps.writeInvoice({ planId: ev.planId, tenantId: ev.tenantId, talentProfileId: plan.talentProfileId, period, amountCents: ev.rentCents, currency: ev.currency.toUpperCase(), status: "failed", stripeInvoiceId: ev.invoiceId });
   if (!ok) return "unavailable";
   await deps.notify("autopay_failed", { planId: ev.planId, tenantId: ev.tenantId, talentProfileId: plan.talentProfileId, period });

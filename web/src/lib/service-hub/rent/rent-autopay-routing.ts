@@ -99,6 +99,16 @@ export function classifyRentSubscriptionEvent(event: Stripe.Event): RentSubscrip
   }
 }
 
+/**
+ * `invoice.payment_succeeded` of a RENT subscription (TUL-1700): `invoice.paid` already records it, so the Plans
+ * routing must not see it (no plan receipt email, no unknown_type log).
+ */
+export function isRentPaymentSucceeded(event: Stripe.Event): boolean {
+  if (event.type !== "invoice.payment_succeeded") return false;
+  const inv = event.data.object as Stripe.Invoice;
+  return rentMeta(inv.parent?.subscription_details?.metadata ?? null) != null;
+}
+
 /** UTC month "YYYY-MM" of a unix-seconds timestamp: the rent period an invoice pays for. */
 export function periodOfSeconds(seconds: number): string {
   const d = new Date(seconds * 1000);

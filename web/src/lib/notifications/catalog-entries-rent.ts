@@ -120,8 +120,8 @@ const AUTOPAY_DISPUTED: CatalogEntry = {
     },
     body: (_e, recipient) =>
       (recipient.locale ?? "").toLowerCase().startsWith("es")
-        ? "Un miembro disputó un cobro automático de renta. Si la disputa se pierde, tu parte se revierte."
-        : "A member disputed an automatic rent charge. If the dispute is lost, your share is reversed.",
+        ? "Un miembro disputó un cobro automático de renta. Si la disputa se pierde, o si hay un reembolso, tu estudio devuelve la parte de ese cobro que recibió. Tulala no absorbe esa pérdida."
+        : "A member disputed an automatic rent charge. If the dispute is lost, or the charge is refunded, your studio returns the part of it that you received. Tulala does not absorb that loss.",
   },
 };
 

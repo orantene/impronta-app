@@ -108,12 +108,18 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     // One session per plan and terms version: a double click reuses it.
     const session = await stripe.checkout.sessions.create(params, { idempotencyKey: `rent_sub_${plan.id}_v${plan.termsVersion}_${amounts.totalCents}` });
     if (!session.url) return { ok: false, reason: "unavailable" };
-    await admin
+    // The pending/first-period write must land BEFORE the member is sent to Stripe: without it the webhook cannot tell
+    // the first automatic month, and an abandoned checkout could not be cleaned up. A failed write refuses the start.
+    const { error: pendErr } = await admin
       .from("studio_rent_plans")
       .update({ autopay_status: "pending", autopay_first_period: periodOfSeconds(anchor), autopay_platform: platform, autopay_customer_id: customer.data, updated_at: new Date().toISOString() })
       .eq("id", plan.id)
       .eq("talent_profile_id", me.talentProfile.id)
-      .in("autopay_status", ["off", "canceled"]);
+      .in("autopay_status", ["off", "canceled", "pending"]);
+    if (pendErr) {
+      logServerError("rent.autopay.start.pending", pendErr);
+      return { ok: false, reason: "unavailable" };
+    }
     await logWorkspaceAudit({
       tenantId: plan.tenantId,
       category: "billing",

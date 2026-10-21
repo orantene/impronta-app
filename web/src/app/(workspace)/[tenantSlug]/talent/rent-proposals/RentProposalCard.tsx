@@ -44,7 +44,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
             <div data-testid="rent-autopay" style={{ fontSize: 13, margin: "6px 0" }}>
               {["active", "pending", "past_due", "paused"].includes(p.autopayStatus) ? (
                 <>
-                  <span>{p.autopayStatus === "past_due" ? c.autopayPastDue : c.autopayOn}</span>{" "}
+                  <span>{p.autopayStatus === "past_due" ? c.autopayPastDue : p.autopayStatus === "pending" ? c.autopayPending : c.autopayOn}</span>{" "}
                   <button type="button" disabled={pending} onClick={() => start(async () => {
                     const r = await stopRentAutopay({ planId: p.id });
                     setDone((d) => ({ ...d, [p.id]: r.ok ? c.autopayStopped : c.unavailable }));
@@ -56,7 +56,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
                   <button type="button" disabled={pending} onClick={() => start(async () => {
                     const r = await startRentAutopay({ planId: p.id });
                     if (r.ok) window.location.assign(r.url);
-                    else setDone((d) => ({ ...d, [p.id]: c.unavailable }));
+                    else setDone((d) => ({ ...d, [p.id]: r.reason === "disabled" || r.reason === "not_test_mode" || r.reason === "percent_unavailable" ? c.autopayNotAvailable : r.reason === "studio_not_ready" ? c.autopayStudioNotReady : c.unavailable }));
                   })}>{c.autopayStart}</button>
                 </>
               ) : null}
