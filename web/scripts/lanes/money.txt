@@ -70,6 +70,7 @@ src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
 src/lib/catalog/tax.test.ts
+src/lib/coordinator/card-text-keys-guard.static.test.ts
 src/lib/coordinator/contact-masking-wire.test.ts
 src/lib/coordinator/contact-masking.test.ts
 src/lib/coordinator/event-board.test.ts
