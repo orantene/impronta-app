@@ -77,6 +77,8 @@ import { defaultCancelNoticeDeps } from "@/lib/billing/cancel-state-notice-deps"
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { classifyRentSubscriptionEvent } from "@/lib/service-hub/rent/rent-autopay-routing";
+import { handleRentSubscriptionEvent } from "@/lib/service-hub/rent/rent-autopay.server";
 import { logServerError } from "@/lib/server/safe-error";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -333,6 +335,14 @@ export async function processStripeEvent(
   /** Platform account this event arrived on; threaded to settle so the charge platform is recorded. */
   account: StripeAccountKey = "us",
 ): Promise<void> {
+  // TUL-1601: a studio rent subscription is handled before the plan-subscription routing (kept a pure leaf module).
+  const rent = classifyRentSubscriptionEvent(event);
+  if (rent) {
+    const sb = createServiceRoleClient();
+    if (!sb) throw new TransientWebhookError("rent_subscription: no service-role client");
+    if ((await handleRentSubscriptionEvent(sb, rent)) === "unavailable") throw new TransientWebhookError("rent_subscription: write failed");
+    return;
+  }
   const action = classifyStripeEvent(event);
 
   switch (action.kind) {

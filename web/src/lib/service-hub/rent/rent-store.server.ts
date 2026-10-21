@@ -30,6 +30,8 @@ type PlanDbRow = {
   accepted_currency: string | null;
   terms_version: number;
   accepted_terms_version: number | null;
+  autopay_status?: string | null;
+  autopay_first_period?: string | null;
 };
 type InvoiceDbRow = {
   id: string;
@@ -42,7 +44,7 @@ type InvoiceDbRow = {
   status: RentInvoiceRow["status"];
 };
 
-export const PLAN_COLUMNS = "id, tenant_id, talent_profile_id, monthly_rent_cents, rent_percent_bps, currency, starts_on, status, accepted_at, accepted_amount_cents, accepted_percent_bps, accepted_currency, terms_version, accepted_terms_version";
+export const PLAN_COLUMNS = "id, tenant_id, talent_profile_id, monthly_rent_cents, rent_percent_bps, currency, starts_on, status, accepted_at, accepted_amount_cents, accepted_percent_bps, accepted_currency, terms_version, accepted_terms_version, autopay_status, autopay_first_period";
 const INVOICE_COLUMNS = "id, plan_id, period, amount_cents, currency, order_id, payment_link_code, status";
 
 export function planFromRow(r: PlanDbRow): RentPlan {
@@ -61,6 +63,8 @@ export function planFromRow(r: PlanDbRow): RentPlan {
     acceptedCurrency: r.accepted_currency,
     termsVersion: r.terms_version,
     acceptedTermsVersion: r.accepted_terms_version,
+    autopayStatus: r.autopay_status ?? "off",
+    autopayFirstPeriod: r.autopay_first_period ?? null,
   };
 }
 
