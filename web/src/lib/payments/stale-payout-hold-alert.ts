@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * stale-payout-hold-alert.ts — a refund-pending payout hold that stays held raises an alert (TUL-1746).
+ * stale-payout-hold-alert.ts — a retryable payout hold (refund pending, fee unknown, ledger unreadable) that stays held raises an alert (TUL-1746, TUL-1776).
  *
  * executeBookingTransfers holds a payout while Stripe shows a refund our ledger has not recorded. The
  * reconcile cron re-runs those holds; one that is STILL held after STALE_HOLD_DAYS means the refund never
@@ -14,15 +14,22 @@ import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { REFUND_PENDING_ERROR_PREFIX } from "./balance-payout-refund-net";
+import { FEE_UNKNOWN_ERROR_PREFIX, LEDGER_UNREADABLE_ERROR_PREFIX, REFUND_PENDING_ERROR_PREFIX } from "./balance-payout-refund-net";
 
 export const STALE_HOLD_DAYS = 3;
+/** Category kept from TUL-1746 so existing alert rows and dashboards stay valid; it now covers every retryable hold. */
 export const STALE_HOLD_CATEGORY = "payout_refund_pending_stale";
+/**
+ * Every retryable zero-amount hold reason (TUL-1776): refund pending, processing fee unknown, payout ledger
+ * unreadable. These are the holds the reconcile cron re-runs; one that persists past STALE_HOLD_DAYS needs a human.
+ * Holds that wait on the talent (account not enabled yet) are deliberately NOT here: they are expected to last.
+ */
+export const STALE_HOLD_REASON_PREFIXES = [REFUND_PENDING_ERROR_PREFIX, FEE_UNKNOWN_ERROR_PREFIX, LEDGER_UNREADABLE_ERROR_PREFIX] as const;
 const MAX_LEGS = 200;
 
 type StaleLeg = { id: string; booking_id: string; created_at: string; last_error: string | null };
 
-export async function alertStaleRefundPendingHolds(
+export async function alertStaleHeldPayouts(
   sb: SupabaseClient,
   deps: {
     now?: Date;
@@ -37,19 +44,19 @@ export async function alertStaleRefundPendingHolds(
     .select("id, booking_id, created_at, last_error")
     .eq("status", "held")
     .eq("amount_cents", 0)
-    .like("last_error", `${REFUND_PENDING_ERROR_PREFIX}%`)
+    .or(STALE_HOLD_REASON_PREFIXES.map((p) => `last_error.like."${p}%"`).join(","))
     .lt("created_at", cutoff)
     .order("created_at", { ascending: true })
     .limit(MAX_LEGS);
   if (error) {
-    logServerError("payouts.staleRefundHold.read", error);
+    logServerError("payouts.staleHold.read", error);
     return { stale: 0 };
   }
   const legs = (data ?? []) as StaleLeg[];
   if (legs.length === 0) return { stale: 0 };
 
-  const message = `${legs.length} payout hold${legs.length === 1 ? "" : "s"} waiting on a refund to be recorded for more than ${STALE_HOLD_DAYS} days`;
-  logServerError("payouts.staleRefundHold", new Error(`${message}: ${legs.map((l) => `${l.id} (booking ${l.booking_id})`).join(", ")}`));
+  const message = `${legs.length} payout hold${legs.length === 1 ? "" : "s"} (refund pending, fee unknown or ledger unreadable) still held after ${STALE_HOLD_DAYS} days`;
+  logServerError("payouts.staleHold", new Error(`${message}: ${legs.map((l) => `${l.id} (booking ${l.booking_id})`).join(", ")}`));
 
   const hash = createHash("sha256").update(legs.map((l) => l.id).sort().join(",")).digest("hex").slice(0, 32);
   const { error: insertError } = await sb.from("platform_alerts").upsert(
@@ -65,7 +72,7 @@ export async function alertStaleRefundPendingHolds(
     ],
     { onConflict: "audit_date,category,content_hash", ignoreDuplicates: true },
   );
-  if (insertError) logServerError("payouts.staleRefundHold.insert", insertError);
+  if (insertError) logServerError("payouts.staleHold.insert", insertError);
 
   const to = deps.recipient ?? (process.env.USAGE_AUDIT_EMAIL_TO?.trim() || process.env.EMAIL_REPLY_TO?.trim() || null);
   if (to) {
@@ -74,8 +81,11 @@ export async function alertStaleRefundPendingHolds(
       const lines = legs.map((l) => `leg ${l.id} (booking ${l.booking_id}) held since ${l.created_at}`).join("\n");
       await send({ to, subject: `[Tulala] ${message}`, html: `<pre>${message}\n\n${lines}</pre>` });
     } catch (err) {
-      logServerError("payouts.staleRefundHold.email", err);
+      logServerError("payouts.staleHold.email", err);
     }
   }
   return { stale: legs.length };
 }
+
+/** TUL-1746 name, kept so existing imports keep working. */
+export const alertStaleRefundPendingHolds = alertStaleHeldPayouts;

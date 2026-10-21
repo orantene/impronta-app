@@ -65,7 +65,6 @@ const BASELINE: Record<string, number> = {
   "src/lib/seo/talent-json-ld.ts": 1,
   "src/lib/server-actions/admin-roster-rates.ts": 2,
   "src/lib/site-admin/builder-node/portfolio-sources.ts": 1,
-  "src/lib/site-admin/server/native-data-block-sources.ts": 2,
   "src/lib/talent-site/server/load-starter-data.ts": 1,
   "src/lib/talent-site/service-page.ts": 1,
 };

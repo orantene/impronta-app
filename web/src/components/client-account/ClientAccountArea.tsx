@@ -355,7 +355,7 @@ export function ClientAccountArea(props: Props) {
         <Link href={`/account/visits/${v.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
           <strong>{v.title || a("service")}</strong>
           <span style={{ display: "block", color: MUTED, fontSize: 14 }}>
-            {when ? [when.date, when.time].filter(Boolean).join(", ") : a("noDate")} · {statusLabel(v.status)}
+            {when ? [when.date, [when.time, when.tzLabel].filter(Boolean).join(" ")].filter(Boolean).join(", ") : a("noDate")} · {statusLabel(v.status)}
           </span>
         </Link>
       </li>

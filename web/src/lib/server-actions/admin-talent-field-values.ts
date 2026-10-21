@@ -44,7 +44,7 @@ export async function getTalentFieldValues(input: {
   | { ok: true; values: TalentFieldValueRow[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -414,7 +414,7 @@ export async function getTalentFieldValueHistory(input: {
   | { ok: true; rows: TalentFieldHistoryRow[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

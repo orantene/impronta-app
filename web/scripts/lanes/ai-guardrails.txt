@@ -43,6 +43,7 @@ src/lib/ai/booking-assistant/usage-format.test.ts
 src/lib/ai/booking-assistant/usage-wiring.static.test.ts
 src/lib/ai/build-ai-search-document-offerings.test.ts
 src/lib/ai/deterministic-gender-taxonomy.test.ts
+src/lib/ai/hub-talent-subcap.test.ts
 src/lib/ai/inquiry-draft-guardrails.test.ts
 src/lib/ai/interpret-taxonomy-synonyms.test.ts
 src/lib/ai/load-ai-search-document-offerings.test.ts
@@ -71,6 +72,7 @@ src/lib/rate-limit-kv-public-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
 src/lib/scheduling/instant-book-unclaimed-copy.test.ts
 src/lib/security/redact-display.test.ts
+src/lib/security/redact-secrets.test.ts
 src/lib/seo/robots-ai-policy.test.ts
 src/lib/seo/robots-per-environment.test.ts
 src/lib/seo/staging-noindex.static.test.ts

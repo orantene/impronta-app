@@ -130,6 +130,7 @@ src/lib/server-actions/admin-talent-taxonomy-capabilities.test.ts
 src/lib/server-actions/admin-visible-picks-link.test.ts
 src/lib/server-actions/tul-1708-bookings-capabilities.test.ts
 src/lib/server-actions/tul-1708-venue-capability-patch.test.ts
+src/lib/server-actions/tul1708-area-g-discovery-content-capabilities.static.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts
@@ -159,6 +160,7 @@ src/lib/talent/profile-quality-mode.test.ts
 src/lib/talent/publish-readiness.test.ts
 src/lib/talent/service-share-link.test.ts
 src/lib/talent/signed-in-inquiry-accepting-gate.static.test.ts
+src/lib/talent/today-attention-count.test.ts
 src/lib/talent/website-published-truth.test.ts
 src/lib/words/business-types-everyday-words.test.ts
 src/lib/words/no-voseo.static.test.ts

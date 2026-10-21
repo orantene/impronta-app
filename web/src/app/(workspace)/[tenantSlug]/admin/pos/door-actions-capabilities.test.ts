@@ -44,7 +44,7 @@ test("the local staff() guard never calls requireWorkspaceStaffAction with no ca
   assert.doesNotMatch(src, /\brequireWorkspaceStaffAction\(action \? [^:]+: undefined\)/);
   assert.match(
     src,
-    /requireWorkspaceStaffAction\(\{\s*capability: action \? DOOR_WRITE_CAPABILITY\[action\] : "booking\.payment\.request",?\s*\}\)/,
+    /requireWorkspaceStaffAction\(\{\s*capability: action === "read" \? "booking\.payment\.request" : DOOR_WRITE_CAPABILITY\[action\],?\s*\}\)/,
   );
 });
 
@@ -56,16 +56,17 @@ test("every writer passes its own key from DOOR_WRITE_CAPABILITY", () => {
   }
 });
 
-test("the three reads call staff() with no action, same as the writers' underlying guard requires booking.payment.request", () => {
+test("the three reads call staff(\"read\"), same as the writers' underlying guard requires booking.payment.request", () => {
   for (const fn of READERS) {
     const body = bodyOf(fn);
-    assert.match(body.slice(0, 300), /await staff\(\);/, fn);
+    assert.match(body.slice(0, 300), /await staff\("read"\);/, fn);
   }
 });
 
 test("no capability-less guard call remains: reads fall through to booking.payment.request, same as every writer", () => {
-  const bare = (src.match(/\bawait staff\(\s*\)/g) ?? []).length;
-  assert.equal(bare, READERS.length, "only the known reads call staff() with no action, and staff() itself now requires a capability either way");
+  assert.doesNotMatch(src, /\bawait staff\(\s*\)/);
+  const reads = (src.match(/\bawait staff\("read"\)/g) ?? []).length;
+  assert.equal(reads, READERS.length, "only the known reads call staff(\"read\"), and staff() itself requires a capability either way");
 });
 
 test("a viewer is refused every capability a door writer requires, including the reads' booking.payment.request; manager, admin and owner are allowed", () => {

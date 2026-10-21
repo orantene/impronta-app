@@ -40,6 +40,7 @@ import { modesForPerson, POS_MODE_META, type PosMode } from "@/lib/pos/modes";
 import { groupMembersByRole, SETTINGS_ROLE_ORDER, type RoleMember } from "@/lib/settings/role-members";
 import { CustomAmountLimit } from "./custom-amount-limit";
 import { RoleLimitsEditor } from "./role-limits-editor";
+import { StaffLimitsStep } from "./staff-limits-step";
 
 export type RolesLimitsMember = RoleMember;
 
@@ -76,6 +77,7 @@ export function RolesLimitsCard({
   onInvite,
   currency,
   canEditLimits,
+  isOwner = false,
 }: {
   members: readonly RolesLimitsMember[];
   workspacePosModes: readonly PosMode[];
@@ -85,6 +87,8 @@ export function RolesLimitsCard({
   currency: string;
   /** Owner or admin: the only roles that may set a limit. */
   canEditLimits: boolean;
+  /** TUL-1722: the owner alone sees the step that opens manager / admin limits. */
+  isOwner?: boolean;
 }) {
   const t = useT();
   const tPlural = useTPlural();
@@ -230,6 +234,7 @@ export function RolesLimitsCard({
         })}
       </div>
 
+      <StaffLimitsStep currency={currency} isOwner={isOwner} />
       <CustomAmountLimit />
       <RoleLimitsEditor currency={currency} canEdit={canEditLimits} />
     </div>

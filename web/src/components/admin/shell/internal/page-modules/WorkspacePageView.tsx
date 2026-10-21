@@ -761,6 +761,7 @@ export function WorkspacePageView() {
             // Limits are typed in the platform currency (USD only, by ruling).
             currency="USD"
             canEditLimits={isAdmin}
+            isOwner={isOwner}
           />
         ),
         extraSearch: [

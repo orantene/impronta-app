@@ -54,7 +54,14 @@ export type RentIssueDeps = {
     amountCents: number;
     idempotencyKey: string;
   }): Promise<{ ok: true; code: string; url: string } | { ok: false; reason: string }>;
-  markIssued(invoiceId: string, code: string): Promise<boolean>;
+  /**
+   * issuing -> issued with the link code, ONLY while the row is still a link row that is not paid (TUL-1750).
+   * "lost_race" = 0 rows updated: a paid automatic payment (or an outside entry) took the month between the mint and now.
+   * "error" = the write itself failed (retryable; the idempotent mint hands back the same link).
+   */
+  markIssued(invoiceId: string, code: string): Promise<"issued" | "lost_race" | "error">;
+  /** Cancel the link just minted for a month that is no longer ours. true = no live link remains. */
+  voidMintedLink(tenantId: string, code: string): Promise<boolean>;
 };
 
 export type RentIssueResult =
@@ -134,6 +141,13 @@ export async function issueRentInvoice(
     idempotencyKey: rentLinkKey(invoice.id),
   });
   if (!link.ok) return { ok: false, reason: "unavailable" };
-  if (!(await deps.markIssued(invoice.id, link.code))) return { ok: false, reason: "unavailable" };
+  const marked = await deps.markIssued(invoice.id, link.code);
+  if (marked === "lost_race") {
+    // An automatic payment (or an outside entry) took this month while the link was being minted: the row is no longer a
+    // link row, so the link must not live. Cancel it; if that cannot be confirmed, the store logs it for the owner.
+    await deps.voidMintedLink(plan.tenantId, link.code);
+    return { ok: false, reason: "unavailable" };
+  }
+  if (marked !== "issued") return { ok: false, reason: "unavailable" };
   return { ok: true, invoiceId: invoice.id, code: link.code, url: link.url, already: invoice.status === "issued" };
 }

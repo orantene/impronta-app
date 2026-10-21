@@ -55,7 +55,7 @@ export async function reservationsSeatBooking(input: {
   partySize: number;
 }): Promise<DeskSeatResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { ok: false, reason: "not_allowed" };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);
   if (!allowed) return { ok: false, reason: "not_allowed" };
@@ -112,7 +112,7 @@ export async function reservationsTakeWalkIn(input: {
   partySize: number;
 }): Promise<DeskWalkInResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { ok: false, reason: "not_allowed" };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);
   if (!allowed) return { ok: false, reason: "not_allowed" };

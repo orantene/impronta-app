@@ -1251,6 +1251,7 @@
       "dockLineupShelfSaved": "Saved",
       "dockLineupEmptyInquiry": "Nothing in your inquiry yet. Move something over from Saved, or pick from the list.",
       "dockLineupEmptySaved": "Nothing saved yet. Save talent you like and they will appear here.",
+      "dockLineupEmptySavedInInquiry": "Nothing in your favorites yet. Talent you added to your inquiry is under In your inquiry, above.",
       "dockLineupMoveToInquiry": "Move to inquiry",
       "dockLineupInInquiry": "In inquiry",
       "dockLoading": "Loading…",
@@ -6281,6 +6282,20 @@
           "saved": "Limit saved."
         },
         "saveReason": "Every cell saves as it changes; there is nothing left to press.",
+        "staffStep": {
+          "title": "Set what managers and admins can refund and discount",
+          "intro": "Until you set a limit, only you can refund or discount on your own. Managers and admins have to send you an approval request every time.",
+          "amountLabel": "Highest amount they can do alone ({currency})",
+          "save": "Save limits",
+          "saving": "Saving…",
+          "saved": "Limits saved.",
+          "skip": "Skip for now",
+          "skipped": "Skipped. Managers and admins stay closed: every refund or discount goes to you for approval. You can set the limits any time in the table below.",
+          "closedNote": "Left blank means closed: that role cannot refund or discount without your approval.",
+          "ownerOnly": "Only the owner sets these limits.",
+          "invalid": "Enter a number that is 0 or more.",
+          "failed": "The limits could not be saved. Try again."
+        },
         "limits": {
           "intro": "Above the limit, the till asks a manager to approve. A blank cell is no limit.",
           "discount": "Manual discount",
@@ -14674,7 +14689,7 @@
         "refusal": {
           "over_limit": "A manager has to approve this amount first.",
           "pin_invalid": "That PIN is not right.",
-          "pin_throttled": "Too many attempts. Wait 5 minutes.",
+          "pin_throttled": "Too many wrong PINs, so PIN entry is locked. Try again in {minutes} min.",
           "not_manager": "Only a manager can do this.",
           "already_approved": "This amount is already approved.",
           "conflict": "This sale just changed. Reload and try again.",
@@ -19585,6 +19600,7 @@
         "invalid": "Keep it under 600 characters, no dashes.",
         "tryAgain": "That didn't work. Try again.",
         "capReached": "You've used today's writing help. It resets tomorrow.",
+        "personalCapReached": "You've used your share of AI help for now. Try again in a few minutes. Your monthly allowance resets on the 1st.",
         "aiOff": "Writing help is off right now."
       }
     },

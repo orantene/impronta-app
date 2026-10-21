@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { depositCentsForParty } from "@/lib/reservations";
 import { floorDepositQuote } from "@/lib/reservations/deposit-currency";
 import { createReservation, findOfferedTime, workspaceCurrency } from "@/lib/reservations/reserve";
@@ -33,8 +33,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { FloorReserveResult, FloorReserveTimes } from "@/components/admin/floor/floor-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: every caller names the capability it needs.
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);
   if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
@@ -48,7 +49,7 @@ const timesInput = z.object({
 
 /** R01's availability column: the block's own times for this party on this date. */
 export async function floorLoadReserveTimes(input: { onDate: string | null; partySize: number }): Promise<FloorReserveTimes> {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return { ok: false, reason: g.reason, dates: [] };
   const parsed = timesInput.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid", dates: [] };
@@ -108,7 +109,7 @@ export async function floorCreateReservation(input: {
   phone: string;
 }): Promise<FloorReserveResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = createInput.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };

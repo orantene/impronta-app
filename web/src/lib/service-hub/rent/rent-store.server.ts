@@ -8,7 +8,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addCustomLine } from "@/lib/pos/custom-line";
 import { createDraftOrder } from "@/lib/pos/draft";
-import { createPaymentLink } from "@/lib/payments/links";
+import { cancelPaymentLink, createPaymentLink } from "@/lib/payments/links";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { RentPlan, RentPlanStatus } from "./rent-cycle";
@@ -75,7 +75,7 @@ function invoiceFromRow(r: InvoiceDbRow): RentInvoiceRow {
 export function buildRentIssueDeps(
   admin: SupabaseClient,
   ctx: { actorUserId: string; publicOrigin: string },
-): Pick<RentIssueDeps, "loadPlan" | "loadSalesBase" | "claimInvoice" | "createOrder" | "saveOrder" | "readOrderId" | "mintLink" | "markIssued"> {
+): Pick<RentIssueDeps, "loadPlan" | "loadSalesBase" | "claimInvoice" | "createOrder" | "saveOrder" | "readOrderId" | "mintLink" | "markIssued" | "voidMintedLink"> {
   return {
     async loadPlan(planId, tenantId) {
       const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", tenantId).select(PLAN_COLUMNS).eq("id", planId).maybeSingle();
@@ -190,13 +190,35 @@ export function buildRentIssueDeps(
     },
 
     async markIssued(invoiceId, code) {
-      const { error } = await admin
+      // TUL-1750: write only while the row is still a LINK row that is not paid. A paid automatic payment that landed between the
+      // mint and this write has made the row its own ('autopay'); writing here would revive a link on a month paid by card.
+      const { data, error } = await admin
         .from("studio_rent_invoices")
         .update({ status: "issued", payment_link_code: code, issued_at: new Date().toISOString() })
         .eq("id", invoiceId)
-        .in("status", ["issuing", "issued"]);
-      if (error) logServerError("rent.markIssued", error);
-      return !error;
+        .eq("source", "link")
+        .in("status", ["issuing", "issued"])
+        .select("id");
+      if (error) {
+        logServerError("rent.markIssued", error);
+        return "error";
+      }
+      return Array.isArray(data) && data.length === 1 ? "issued" : "lost_race";
+    },
+
+    async voidMintedLink(tenantId, code) {
+      try {
+        const { data, error } = await tenantScopedQuery(admin, "payment_links", tenantId).select("id, status").eq("code", code).maybeSingle();
+        if (error) throw error;
+        const l = data as { id: string; status: string } | null;
+        if (!l) return true;
+        if (l.status !== "open") return l.status !== "paid"; // already cancelled / expired = fine; paid = a real double payment, not "voided"
+        const closed = await cancelPaymentLink(admin, { tenantId, linkId: l.id });
+        return closed.ok || closed.reason === "not_found";
+      } catch (err) {
+        logServerError("rent.voidMintedLink", err);
+        return false;
+      }
     },
   };
 }

@@ -27,6 +27,8 @@ export type MeRow = {
   readonly eventDate: string | null;
   readonly eventLocation: string | null;
   readonly createdAt: string;
+  /** TUL-1089: zone the request stamp named for `eventDate` (only when `eventDate` came from the stamp). */
+  readonly startsAtZone?: string | null;
   readonly nextActionBy: string | null;
   readonly booking: {
     readonly id: string | null;
@@ -50,13 +52,16 @@ export function meVisitListFields(input: {
     readonly status?: string | null;
     readonly starts_at?: string | null;
   } | null | undefined;
-}): { title: string | null; status: string | null; eventDate: string | null } {
+  /** TUL-1089: the request's own start (reservation stamp), used when there is no booking yet. */
+  readonly stamp?: { readonly starts_at: string; readonly timezone: string } | null;
+}): { title: string | null; status: string | null; eventDate: string | null; startsAtZone: string | null } {
   const bookingTitle = input.booking?.title?.trim() || null;
   const company = input.company?.trim() || null;
   return {
     title: bookingTitle || company,
     status: (input.booking?.status ?? input.inquiryStatus) ?? null,
-    eventDate: input.booking?.starts_at ?? input.eventDate ?? null,
+    eventDate: input.booking?.starts_at ?? (input.booking ? null : input.stamp?.starts_at ?? null) ?? input.eventDate ?? null,
+    startsAtZone: !input.booking?.starts_at && !input.booking && input.stamp ? input.stamp.timezone : null,
   };
 }
 

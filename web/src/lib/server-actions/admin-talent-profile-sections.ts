@@ -1,4 +1,5 @@
 "use server";
+import { loadTalentInvitationEmail } from "@/lib/talent/invitation-email";
 import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
 import { improntaLog } from "@/lib/server/structured-log";
 
@@ -884,7 +885,7 @@ export async function getTalentPublishReadiness(input: {
   | { ok: true; missing: Array<{ id: string; label: string; groupKey?: string }>; deleted: boolean }
   | ErrResult
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -916,7 +917,7 @@ export async function getTalentPublishReadiness(input: {
 export async function getTalentProfileDynFieldValuesForShell(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; values: Record<string, string> } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -942,7 +943,7 @@ export async function getTalentProfileActivity(input: {
   talent_profile_id: string;
   limit?: number;
 }): Promise<{ ok: true; entries: ProfileActivityEntry[] } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1172,12 +1173,8 @@ export async function resendTalentClaimInvite(
   const phone = (previous as { invited_phone?: string | null } | null)?.invited_phone ?? null;
 
   if (!email && !phone) {
-    const { data: talent } = await supabase
-      .from("talent_profiles")
-      .select("invitation_email")
-      .eq("id", talent_profile_id)
-      .maybeSingle();
-    email = (talent as { invitation_email?: string | null } | null)?.invitation_email ?? null;
+    // TUL-1791: not column-granted to authenticated; staff read it through the RPC.
+    email = await loadTalentInvitationEmail(supabase, talent_profile_id);
   }
 
   if (!email && !phone) {
@@ -1373,12 +1370,14 @@ export type ProfileEditorData = {
 export async function getTalentProfileEditorData(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
+  // TUL-1791: invitation_email is read through the RPC, not the column.
+  const invitationEmailP = loadTalentInvitationEmail(supabase, input.talent_profile_id);
 
   // Fetch talent_profiles row + the roster row + the Tier-D catalog value
   // rows in parallel.
@@ -1394,7 +1393,6 @@ export async function getTalentProfileEditorData(input: {
         display_name, first_name, last_name, field_visibility,
         gender, nationality, home_country_text,
         is_discoverable,
-        invitation_email,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
         availability_data,
         social_links, embedded_media,
@@ -1504,7 +1502,7 @@ export async function getTalentProfileEditorData(input: {
       response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
-      invitation_email: (p.invitation_email as string | null) ?? null,
+      invitation_email: await invitationEmailP,
       phone: (p.phone as string | null) ?? null,
       bios,
       bio_tone: sv.bio_tone ?? null,

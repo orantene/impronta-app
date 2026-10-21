@@ -79,7 +79,7 @@ test("no source file builds the bypass secret into a URL or reads it from anywhe
   for (const f of walk(SRC)) {
     const src = readFileSync(f, "utf8");
     if (/protection-bypass=/.test(src) && !/redact|scrub/i.test(relative(SRC, f))) offenders.push(`${relative(SRC, f)}: bypass in a query string`);
-    if (/VERCEL_AUTOMATION_BYPASS_SECRET/.test(src)) {
+    if (/VERCEL_AUTOMATION_BYPASS_SECRET/.test(src) && !/redact/i.test(relative(SRC, f))) {
       // The one allowed consumer sends it as a HEADER, from env.
       if (!/"x-vercel-protection-bypass":/.test(src) || !/process\.env\.VERCEL_AUTOMATION_BYPASS_SECRET/.test(src)) offenders.push(`${relative(SRC, f)}: not env-to-header`);
     }

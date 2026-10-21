@@ -34,7 +34,7 @@ test("only stripe-health.ts lists Stripe webhook endpoints", () => {
 
 test("the Vercel protection-bypass header appears only where it is sent or redacted", () => {
   const hits = FILES.filter((f) => /protection-bypass/i.test(readFileSync(f, "utf8"))).map(rel).sort();
-  assert.deepEqual(hits, ["lib/onboarding/verify-live.ts", "lib/pricing/stripe-health-redact.ts", "lib/security/redact-display.ts"]);
+  assert.deepEqual(hits, ["lib/onboarding/verify-live.ts", "lib/pricing/stripe-health-redact.ts", "lib/security/redact-secrets.ts"]);
 });
 
 test("no UI file renders VERCEL_AUTOMATION_BYPASS_SECRET", () => {

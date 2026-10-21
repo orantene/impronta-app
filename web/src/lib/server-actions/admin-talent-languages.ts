@@ -237,7 +237,7 @@ export async function setTalentLanguages(input: {
 export async function getTalentLanguages(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; languages: TalentLanguageInput[] } | { ok: false; error: string }> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 

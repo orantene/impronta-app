@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 type Search = { searchParams: Promise<{ session?: string }> };
 
 export default async function DoorPage({ searchParams }: Search) {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) notFound();
 
   const { session } = await searchParams;

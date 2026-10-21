@@ -25,7 +25,7 @@ import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { startCollection, type StartCollectionResult } from "@/lib/pos/collection";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import {
@@ -43,10 +43,11 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: the capability is named at every call (collecting and receipt lookup both handle money).
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, error: guard.error };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
+  const allowed = await userHasCapability(capability, guard.tenantId);
   if (!allowed) return { ok: false as const, error: "not_allowed" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
@@ -92,7 +93,7 @@ export async function projectsCollect(input: {
   expectedVersion: number;
 }): Promise<ProjectsCollectResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return { ok: false, kind: "action", error: g.error };
   const parsed = z
     .object({
@@ -195,7 +196,7 @@ export type ProjectsReceiptResult =
 
 /** A receipt by its public code, inside this workspace. */
 export async function projectsFindReceipt(rawCode: string): Promise<ProjectsReceiptResult> {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) {
     return g.error === "not_allowed"
       ? { ok: false, reason: "not_allowed" }

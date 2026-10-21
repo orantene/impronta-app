@@ -12,6 +12,7 @@ src/components/edit-chrome/client-builder-canvas-bridge.test.ts
 src/components/edit-chrome/edit-chrome-overlay-invariant.static.test.ts
 src/components/edit-chrome/invariant-guard.static.test.ts
 src/components/edit-chrome/kit/drawer-modal-inert.static.test.ts
+src/components/edit-chrome/page-edit-href.test.ts
 src/components/edit-chrome/publish-menu.test.tsx
 src/components/talent/site/maison-setup/explore-slug.test.ts
 src/components/talent/site/maison-setup/theme-detail-model.test.ts
@@ -31,6 +32,7 @@ src/lib/analytics/website-analytics-group.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
+src/lib/site-admin/add-gallery/search-widen.test.ts
 src/lib/site-admin/builder-node/book-page-client-boundary.static.test.ts
 src/lib/site-admin/builder-node/builder-node-editor-published-parity.test.ts
 src/lib/site-admin/builder-node/builder-node-role-bindings.test.ts

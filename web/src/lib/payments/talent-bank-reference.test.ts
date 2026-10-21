@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { addOwnManualPayoutAccount, loadAddablePayoutWorkspaces, loadOwnManualPayoutAccounts, saveOwnBankReference } from "./talent-bank-reference";
+import { addOwnManualPayoutAccount, resolveTenantFromOwnRoster, loadAddablePayoutWorkspaces, loadOwnManualPayoutAccounts, saveOwnBankReference } from "./talent-bank-reference";
 
 type Row = Record<string, unknown>;
 type Tables = Record<string, Row[]>;
@@ -184,6 +184,34 @@ describe("Add a manual payout account (per rostered workspace)", () => {
     const { db, writes } = fakeDb(withRoster());
     assert.deepEqual(await addOwnManualPayoutAccount(db, { userId: U, tenantId: "t1" }), { ok: true, existed: true });
     assert.equal(writes.length, 0);
+  });
+});
+
+describe("resolveTenantFromOwnRoster (TUL-1808)", () => {
+  it("resolves a workspace where she is rostered, including one she already has an account in", async () => {
+    const { db } = fakeDb(withRoster());
+    assert.deepEqual(await resolveTenantFromOwnRoster(db, { userId: U, requestedTenantId: "t2" }), { ok: true, tenantId: "t2" });
+    assert.deepEqual(await resolveTenantFromOwnRoster(db, { userId: U, requestedTenantId: "t1" }), { ok: true, tenantId: "t1" });
+  });
+
+  it("refuses a workspace she is not on the roster of, a removed one, someone else's, and a user with no profile", async () => {
+    const { db } = fakeDb(withRoster());
+    assert.deepEqual(await resolveTenantFromOwnRoster(db, { userId: U, requestedTenantId: "t3" }), { ok: false, reason: "not_rostered" });
+    assert.deepEqual(await resolveTenantFromOwnRoster(db, { userId: U, requestedTenantId: "t-other" }), { ok: false, reason: "not_rostered" });
+    assert.deepEqual(await resolveTenantFromOwnRoster(db, { userId: "nobody", requestedTenantId: "t2" }), { ok: false, reason: "not_rostered" });
+  });
+
+  it("fails closed on a failed roster read", async () => {
+    const { db } = fakeDb(withRoster(), { failTable: "agency_talent_roster" });
+    assert.deepEqual(await resolveTenantFromOwnRoster(db, { userId: U, requestedTenantId: "t2" }), { ok: false, reason: "failed" });
+  });
+
+  it("the action resolves the workspace through it and passes the resolved id on", () => {
+    const a = readFileSync(join(__dirname, "..", "..", "app/(workspace)/[tenantSlug]/talent/settings/payouts/manual-bank-actions.ts"), "utf8");
+    const fn = a.slice(a.indexOf("export async function addMyManualPayoutAccount"), a.indexOf("export type SaveMyBankReferenceResult"));
+    assert.match(fn, /await resolveTenantFromOwnRoster\(admin,/);
+    assert.match(fn, /tenantId: scope\.tenantId/);
+    assert.ok(!/tenantId: input\.tenantId/.test(fn));
   });
 });
 

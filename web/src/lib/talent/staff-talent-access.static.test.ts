@@ -11,9 +11,12 @@ for (const file of ["src/lib/talent/services-menu-actions.ts", "src/lib/talent/t
   test(`${file} authorizes staff through the roster, not a global app_role`, () => {
     const src = read(file);
     assert.doesNotMatch(src, /isStaffRole/, "no app_role staff check");
-    const fn = src.slice(src.indexOf("async function authorizeForTalent"));
-    assert.match(fn, /staffMayEditTalent\(talentProfileId\)/);
-    assert.match(fn, /if \(!isOwner && !isStaff\) return \{ ok: false, error: "Forbidden\." \}/);
+    // TUL-1735: the decision moved into the shared seam; the file wires the real staff check into it.
+    assert.match(src, /staffMayEdit: staffMayEditTalent,/);
+    assert.match(src, /authorizeTalentProfileAccess</);
+    const seam = read("src/lib/talent/talent-profile-access.ts");
+    assert.match(seam, /deps\.staffMayEdit\(talentProfileId\)/);
+    assert.match(seam, /if \(!isOwner && !isStaff\) return \{ ok: false, error: "Forbidden\." \}/);
   });
 }
 

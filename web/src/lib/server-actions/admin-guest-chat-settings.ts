@@ -89,7 +89,9 @@ export async function saveGuestChatSettings(
 ): Promise<SaveGuestChatSettingsResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: write (guest-chat display config, public-facing) requires
+  // manage_storefront_settings (admin+); the default is viewer-held.
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_storefront_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user, tenantSlug } = auth;
 

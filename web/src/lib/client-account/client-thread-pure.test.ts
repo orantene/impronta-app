@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { buildClientThread, clientThreadBody } from "./client-thread-pure";
+import { buildClientThread, clientRequestLeadBody, clientThreadBody } from "./client-thread-pure";
 
 const ME = "user-1";
 const inquiry = { id: "inq-1", message: "Hola, busco fotógrafo para el sábado", created_at: "2026-10-01T10:00:00Z" };
@@ -53,4 +53,12 @@ test("loadThread uses the pure builder and selects the fields it needs", () => {
   assert.match(src, /buildClientThread\(/);
   assert.match(src, /select\("id, company, message, created_at"\)/);
   assert.match(src, /message_kind, card_payload/);
+});
+
+test("TUL-1258: workspace thread leads with the request unless the client's own message already holds it", () => {
+  assert.equal(clientRequestLeadBody([], { message: "  Need a stylist  " }), "Need a stylist");
+  assert.equal(clientRequestLeadBody([{ body: "", is_mine: false }], { message: "Need a stylist" }), "Need a stylist");
+  assert.equal(clientRequestLeadBody([{ body: "Need a stylist", is_mine: true }], { message: "Need a stylist" }), null);
+  assert.equal(clientRequestLeadBody([], { message: "   " }), null);
+  assert.equal(clientRequestLeadBody([], {}), null);
 });

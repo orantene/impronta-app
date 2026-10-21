@@ -119,6 +119,8 @@ const MANAGER_CAPS: readonly CapabilityKey[] = [
   // Phase 9 — pitch curation (compose, send, cancel pitches)
   "agency.pitch.manage",
   "publish_cms_pages",
+  // TUL-1715: curation of what is sold (Favorites, the Website switch)
+  "curate_catalog",
   // Booking transactions (manual provider v1)
   "booking.payment.select_receiver",
   "booking.payment.request",

@@ -107,11 +107,13 @@ export const PIPELINE_WRITE_CAPABILITY = {
   createInquiryTransactionDraft: "booking.payment.request",
   requestInquiryPayment: "booking.payment.request",
   setInquiryPayoutReceiver: "booking.payment.select_receiver",
-  markInquiryPaymentReceived: "booking.payment.mark_received",
+  // TUL-1708 slice 3 (PM): recording a payment that arrived outside the platform is money handling at
+  // MANAGER level (same key as requesting a payment). Refunds stay admin-only (booking.payment.refund).
+  markInquiryPaymentReceived: "booking.payment.request",
   markInquiryPaymentPending: "booking.payment.mark_received",
   markInquiryPaymentDisputed: "booking.payment.mark_received",
   markInquiryPaymentFailed: "booking.payment.mark_received",
-  markInquiryPaidInCash: "booking.payment.mark_received",
+  markInquiryPaidInCash: "booking.payment.request",
   // TUL-1708: this only voids a payment REQUEST and moves no money (same bar
   // as main's cancelTransactionAction) — not a refund of money already paid.
   cancelInquiryTransaction: "booking.payment.request",

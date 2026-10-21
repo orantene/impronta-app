@@ -25,6 +25,8 @@ export async function loadVisitGroups(userId: string, tenantId: string) {
   const rows = [...me.upcoming, ...me.waitingOnYou, ...me.past];
   // Each row shows in its booking talent's zone (visit-zone.ts); gaps fall back to the host zone.
   const zones = await loadVisitZones(tenantId, rows.map((r) => r.id));
+  // TUL-1089: a request with no booking yet reads in the zone its own stamp named (as the detail does).
+  for (const r of rows) if (!zones[r.id] && r.startsAtZone) zones[r.id] = r.startsAtZone;
   return { ...groupVisits(rows, Date.now()), zones };
 }
 

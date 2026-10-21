@@ -518,7 +518,16 @@ export function GuestDockLineupView({
           {t("public.guestChat.dockLoading")}
         </div>
       ) : savedTiles.length === 0 ? (
-        <EmptyShelfNote text={t("public.guestChat.dockLineupEmptySaved")} C={C} />
+        <EmptyShelfNote
+          text={
+            // TUL-1239: talent added from a profile lives on the inquiry shelf above, so an
+            // empty favorites shelf must not read as if that add was lost.
+            inquiryCount > 0
+              ? t("public.guestChat.dockLineupEmptySavedInInquiry")
+              : t("public.guestChat.dockLineupEmptySaved")
+          }
+          C={C}
+        />
       ) : (
         <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {savedTiles.map((tile) => {
