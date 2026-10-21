@@ -112,6 +112,7 @@ src/lib/promos/widgets/load.server.test.ts
 src/lib/promos/widgets/model.test.ts
 src/lib/quality/orphan-gate.static.test.ts
 src/lib/server-actions/messaging-money-actions.static.test.ts
+src/lib/service-hub/roster-onrequest-price.test.ts
 src/lib/stripe/account-routing.test.ts
 src/lib/stripe/client-subscription-webhook.test.ts
 src/lib/stripe/portal-params.test.ts
