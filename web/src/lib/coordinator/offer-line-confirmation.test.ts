@@ -67,11 +67,16 @@ function fakeAdmin(
   const upserts: Row[] = [];
   const deletes: Array<Array<[string, unknown]>> = [];
   const rpcs: Array<{ name: string; args: Row }> = [];
+  const reads: string[] = [];
   const from = (table: string) => {
+    reads.push(table);
     const filters: Array<[string, unknown]> = [];
+    const ins: Array<[string, unknown[]]> = [];
     let del = false;
-    const rows = () => (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
+    const rows = () =>
+      (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v) && ins.every(([k, vs]) => vs.includes(r[k])));
     const q = {
+      in: (k: string, vs: unknown[]) => (ins.push([k, vs]), q),
       select: () => q,
       delete: () => ((del = true), q),
       eq: (k: string, v: unknown) => (filters.push([k, v]), q),
@@ -96,8 +101,27 @@ function fakeAdmin(
     rpcs.push({ name, args });
     return opts.rpc ? opts.rpc() : { data: null, error: { code: "PGRST202", message: "missing" } };
   };
-  return { admin: { from, rpc } as unknown as SupabaseClient, upserts, deletes, rpcs };
+  return { admin: { from, rpc } as unknown as SupabaseClient, upserts, deletes, rpcs, reads };
 }
+
+test("a non-participant (no talent profile) triggers NO read of inquiry_offer_line_items", async () => {
+  const { admin, reads, upserts } = fakeAdmin(world());
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "stranger", lineId: "l1", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.equal(reads.includes("inquiry_offer_line_items"), false);
+  assert.equal(upserts.length, 0);
+});
+
+test("the line read is scoped to the caller's own profiles, so another person's line is never returned", async () => {
+  const { admin, reads } = fakeAdmin(world());
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u1", lineId: "l2", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.ok(reads.indexOf("talent_profiles") < reads.indexOf("inquiry_offer_line_items"));
+});
+
+test("a participant still answers their own line", async () => {
+  const { admin, upserts } = fakeAdmin(world());
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u2", lineId: "l2", status: "confirmed" }), { ok: true });
+  assert.equal(upserts[0].talent_profile_id, "p2");
+});
 
 const world = () => ({
   inquiry_offer_line_items: [
