@@ -260,6 +260,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/site-admin/collections/actions.ts", ["listCollectionsAction", "getCollectionAction"], READ],
   ["lib/search/global-search.ts", ["globalSearch"], READ],
   ["lib/sessions/roster-actions.ts", ["loadSessionParticipants"], READ],
+  ["app/(public)/_dated/dated-picker-actions.ts", ["loadDatedPicker"], READ],
   ["lib/server-actions/series-dated-settings.ts", ["loadSeriesDatedSettingsAction"], READ],
   ["lib/server-actions/dated-details.ts", ["loadDatedDetailsAction"], READ],
   ["lib/sessions/date-roster-actions.ts", ["loadDateRoster"], READ],
