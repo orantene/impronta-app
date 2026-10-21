@@ -14,6 +14,7 @@
  * unchanged server value never overrides a local value (the dev-only plan
  * switcher keeps working); a missing server value (prototype mode) is ignored.
  */
+import { useState, type Dispatch, type SetStateAction } from "react";
 import type { TalentSubscriptionTier } from "./types";
 
 export function nextTalentTier(
@@ -24,4 +25,22 @@ export function nextTalentTier(
   if (bridgeTier == null) return current;
   if (bridgeTier === previousBridgeTier) return current;
   return bridgeTier;
+}
+
+/**
+ * The shell's talent tier state: seeded from the server bridge, then adopting a
+ * changed server tier during render (see `nextTalentTier`). Lives here so the
+ * provider stays within its file-size budget.
+ */
+export function useTalentTierState(
+  bridgeTier: TalentSubscriptionTier | null,
+  fallback: TalentSubscriptionTier,
+): [TalentSubscriptionTier, Dispatch<SetStateAction<TalentSubscriptionTier>>] {
+  const [talentTier, setTalentTier] = useState<TalentSubscriptionTier>(bridgeTier ?? fallback);
+  const [seenBridgeTier, setSeenBridgeTier] = useState(bridgeTier);
+  if (seenBridgeTier !== bridgeTier) {
+    setSeenBridgeTier(bridgeTier);
+    setTalentTier(nextTalentTier(talentTier, seenBridgeTier, bridgeTier));
+  }
+  return [talentTier, setTalentTier];
 }
