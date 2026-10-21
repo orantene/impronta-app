@@ -357,7 +357,7 @@ function LanguageRow({
                 aria-label={meta.label}
                 className={`rounded px-2 py-0.5 transition-colors ${
                   active
-                    ? "bg-muted text-foreground"
+                    ? "bg-foreground font-semibold text-background"
                     : "text-muted-foreground hover:text-foreground"
                   }`}
               >

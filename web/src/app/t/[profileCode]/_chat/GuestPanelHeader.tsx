@@ -304,8 +304,11 @@ function BrandIdentity({
             letterSpacing: 0.1,
             color: C.ink,
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            overflowWrap: "anywhere",
+            lineHeight: 1.2,
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
           }}
         >
           {brand.agencyName}
@@ -362,8 +365,11 @@ function BrandIdentity({
           letterSpacing: 0.1,
           color: C.ink,
           overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          overflowWrap: "anywhere",
+          lineHeight: 1.2,
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
         }}
       >
         {brand.agencyName}
