@@ -4,8 +4,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  CONNECT_EVENTS,
   CONNECT_ONLY_EVENTS,
   ENABLED_EVENTS,
+  endpointKind,
   STRIPE_API_VERSION,
   MANAGED_BY,
   checkBalanceLivemode,
@@ -119,4 +121,107 @@ test("endpoint api_version equals the app client's pinned apiVersion", () => {
   const pins = [...client.matchAll(/apiVersion:\s*"([^"]+)"/g)].map((m) => m[1]);
   assert.ok(pins.length >= 1);
   for (const v of pins) assert.equal(v, STRIPE_API_VERSION);
+});
+
+test("connect lanes: same route as their account lane, CONNECT secret var, connect kind", () => {
+  const usc = laneConfig("us-connect");
+  assert.equal(usc.ok, true);
+  assert.equal(usc.url, "https://pay.staging.tulala.digital/api/webhooks/stripe");
+  assert.equal(usc.secretVar, "STRIPE_WEBHOOK_SECRET_CONNECT_TEST");
+  assert.equal(usc.kind, "connect");
+  assert.equal(usc.account, "us");
+  assert.deepEqual(usc.events, CONNECT_EVENTS);
+  assert.equal(usc.otherUrl, "https://pay.staging.tulala.digital/api/webhooks/stripe-mx");
+  const mxc = laneConfig("mx-connect");
+  assert.equal(mxc.url, "https://pay.staging.tulala.digital/api/webhooks/stripe-mx");
+  assert.equal(mxc.secretVar, "STRIPE_MX_WEBHOOK_SECRET_CONNECT_TEST");
+  assert.equal(mxc.account, "mx");
+  assert.equal(mxc.otherUrl, "https://pay.staging.tulala.digital/api/webhooks/stripe");
+  const us = laneConfig("us");
+  assert.equal(us.kind, "account");
+  assert.deepEqual(us.events, ENABLED_EVENTS);
+  assert.equal(laneConfig("mx").account, "mx");
+});
+
+test("endpoint kind: Connect when Stripe marks an application or our lane metadata says so", () => {
+  assert.equal(endpointKind({ id: "we", url: "u" }), "account");
+  assert.equal(endpointKind({ id: "we", url: "u", application: null }), "account");
+  assert.equal(endpointKind({ id: "we", url: "u", application: "ca_123" }), "connect");
+  assert.equal(endpointKind({ id: "we", url: "u", metadata: { lane: "us-connect" } }), "connect");
+  assert.equal(endpointKind({ id: "we", url: "u", metadata: { lane: "us" } }), "account");
+});
+
+test("endpoint plan is per kind: an account endpoint and a Connect endpoint share one URL", () => {
+  const url = "https://pay.staging.tulala.digital/api/webhooks/stripe";
+  const otherUrl = "https://pay.staging.tulala.digital/api/webhooks/stripe-mx";
+  const acct = { id: "we_a", url, metadata: { managed_by: MANAGED_BY, lane: "us" } };
+  const conn = { id: "we_c", url, application: "ca_1", metadata: { managed_by: MANAGED_BY, lane: "us-connect" } };
+  // The account lane ignores the Connect endpoint and vice versa.
+  assert.equal(planEndpoint({ endpoints: [acct, conn], url, otherUrl, varExists: true }).endpointId, "we_a");
+  assert.equal(planEndpoint({ endpoints: [acct], url, otherUrl, varExists: false, kind: "connect" }).action, "create");
+  assert.equal(planEndpoint({ endpoints: [acct, conn], url, otherUrl, varExists: true, kind: "connect" }).endpointId, "we_c");
+  assert.equal(
+    planEndpoint({ endpoints: [conn], url, otherUrl, varExists: false, kind: "connect", recreate: true }).action,
+    "recreate",
+  );
+  // A Connect endpoint on the other lane's URL refuses the Connect lane, not the account lane.
+  const connOther = { id: "we_o", url: otherUrl, application: "ca_1" };
+  assert.equal(planEndpoint({ endpoints: [connOther], url, otherUrl, varExists: false, kind: "connect" }).action, "refuse");
+  assert.equal(planEndpoint({ endpoints: [connOther], url, otherUrl, varExists: false }).action, "create");
+});
+
+test("unmarked endpoint + missing var: refuse without replaceUnmarked; with it, create marked then disable the old", () => {
+  const url = "https://pay.staging.tulala.digital/api/webhooks/stripe-mx";
+  const otherUrl = "https://pay.staging.tulala.digital/api/webhooks/stripe";
+  const unmarked = { id: "we_old", url, metadata: {} };
+  // Without the flag: today's refusal, unchanged.
+  const refused = planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: false });
+  assert.equal(refused.action, "refuse");
+  // recreate alone still never touches an unmarked endpoint.
+  assert.equal(planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: false, recreate: true }).action, "refuse");
+  // With the flag: create a marked endpoint first, then disable (never delete) the old one.
+  assert.deepEqual(planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: false, replaceUnmarked: true }), {
+    action: "replace-unmarked",
+    disableIds: ["we_old"],
+  });
+  // Several unmarked endpoints on the URL: all are disabled after the new one exists.
+  const two = [unmarked, { ...unmarked, id: "we_old2" }];
+  assert.deepEqual(planEndpoint({ endpoints: two, url, otherUrl, varExists: false, replaceUnmarked: true }).disableIds, ["we_old", "we_old2"]);
+  // Without the flag, several is still the duplicate refusal.
+  assert.equal(planEndpoint({ endpoints: two, url, otherUrl, varExists: false }).action, "refuse");
+  // A marked endpoint is ours: the flag does not apply (recreate path / reuse as before).
+  const ours = { id: "we_ours", url, metadata: { managed_by: MANAGED_BY } };
+  assert.equal(planEndpoint({ endpoints: [ours], url, otherUrl, varExists: false, replaceUnmarked: true }).action, "refuse");
+  assert.equal(planEndpoint({ endpoints: [ours], url, otherUrl, varExists: true, replaceUnmarked: true }).action, "reuse");
+  // Var present + unmarked endpoint: plain reuse, nothing replaced.
+  assert.equal(planEndpoint({ endpoints: [unmarked], url, otherUrl, varExists: true, replaceUnmarked: true }).action, "reuse");
+  // Already-disabled endpoints are not counted or disabled again.
+  const disabled = { id: "we_dis", url, status: "disabled", metadata: {} };
+  assert.deepEqual(planEndpoint({ endpoints: [unmarked, disabled], url, otherUrl, varExists: false, replaceUnmarked: true }).disableIds, ["we_old"]);
+  // Mixed marked + unmarked on one URL with the var missing: ambiguous, refuse.
+  assert.equal(planEndpoint({ endpoints: [unmarked, ours], url, otherUrl, varExists: false, replaceUnmarked: true }).action, "refuse");
+});
+
+test("Connect endpoint events = every routed event a connected account delivers, nothing else", () => {
+  const routing = readFileSync(join(WEB, "src/lib/stripe/webhook-routing.ts"), "utf8");
+  // Group fall-through labels with the block that follows them.
+  const labels = [...routing.matchAll(/case "([a-z_]+(?:\.[a-z_]+)+)":/g)];
+  const blockOf = new Map();
+  let pending = [];
+  labels.forEach((m, i) => {
+    pending.push(m[1]);
+    const start = m.index + m[0].length;
+    const end = i + 1 < labels.length ? labels[i + 1].index : routing.length;
+    const seg = routing.slice(start, end);
+    if (seg.trim().length === 0) return;
+    for (const l of pending) blockOf.set(l, seg);
+    pending = [];
+  });
+  const readsConnectedAccount = [...blockOf].filter(([, seg]) => seg.includes("event.account")).map(([l]) => l);
+  assert.ok(readsConnectedAccount.includes("capability.updated"));
+  assert.ok(readsConnectedAccount.includes("payout.paid"));
+  const expected = new Set([...CONNECT_ONLY_EVENTS, ...readsConnectedAccount]);
+  assert.deepEqual([...CONNECT_EVENTS].sort(), [...expected].sort());
+  assert.equal(new Set(CONNECT_EVENTS).size, CONNECT_EVENTS.length);
+  for (const e of CONNECT_EVENTS) assert.ok(blockOf.has(e), `connect event not routed: ${e}`);
 });

@@ -20,10 +20,11 @@
  * Usage: node scripts/seed-stripe-portal-config.mjs [--dry-run | --apply]
  */
 import Stripe from "stripe";
+import { LOOKUP_KEYS, SEED_TAG, buildPortalConfiguration } from "./lib/stripe-portal-config.mjs";
 
-export const SEED_TAG = "portal-config-v1";
-const PLAN_KEYS = ["talent_pro", "talent_portfolio", "website", "studio", "agency"];
-export const LOOKUP_KEYS = PLAN_KEYS.flatMap((p) => ["month", "year"].map((i) => `tulala_${p}_${i}_usd`));
+// The body lives in lib/stripe-portal-config.mjs (shared with the staging
+// workflow runner); re-exported so existing importers keep working.
+export { LOOKUP_KEYS, SEED_TAG, buildPortalConfiguration };
 
 export function assertTestKey(name, key) {
   if (!key) return null;
@@ -31,28 +32,6 @@ export function assertTestKey(name, key) {
     throw new Error(`${name} is not a TEST key (must start with sk_test_). Refusing.`);
   }
   return key;
-}
-
-/** Pure: the portal configuration body, given the resolved products. */
-export function buildPortalConfiguration(products) {
-  return {
-    name: "Tulala billing portal",
-    metadata: { tulala_seed: SEED_TAG },
-    business_profile: { headline: "Manage your Tulala plan" },
-    features: {
-      invoice_history: { enabled: true },
-      payment_method_update: { enabled: true },
-      customer_update: { enabled: false },
-      subscription_cancel: { enabled: true, mode: "at_period_end", proration_behavior: "none" },
-      subscription_update: {
-        enabled: true,
-        default_allowed_updates: ["price"],
-        proration_behavior: "create_prorations",
-        products,
-      },
-      subscription_pause: { enabled: false },
-    },
-  };
 }
 
 async function resolveProducts(stripe) {
