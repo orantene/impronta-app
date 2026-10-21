@@ -68,6 +68,7 @@ src/lib/rate-limit-kv-guest-ai.test.ts
 src/lib/rate-limit-kv-public-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
 src/lib/security/redact-display.test.ts
+src/lib/security/redact-secrets.test.ts
 src/lib/seo/robots-ai-policy.test.ts
 src/lib/seo/robots-per-environment.test.ts
 src/lib/seo/staging-noindex.static.test.ts

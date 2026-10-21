@@ -1,49 +1,18 @@
 /**
- * Display-side redaction for admin surfaces (P0, Commerce health).
- *
- * Admin pages may show WHERE something points, never the secrets inside it:
- *   - URLs: `https://host/path` only. Every query param and fragment is dropped
- *     (e.g. `x-vercel-protection-bypass`), as are userinfo credentials.
- *   - Keys/secrets: `…` + last 4 chars, never a prefix such as sk_live_.
- * Pure and dependency-free so it can run on the server before data reaches
- * a client component.
+ * Display-side redaction for admin surfaces (P0, Commerce health). Thin names
+ * over the shared helper in `./redact-secrets` (TUL-1049) so existing imports
+ * keep working; all logic lives there.
  */
+import { maskSecret, redactSecretsInText, redactUrl } from "./redact-secrets";
+
+export { maskSecret };
 
 /** `https://host/path`; malformed input yields a fixed placeholder, never the raw string. */
 export function redactUrlForDisplay(raw: string | null | undefined): string {
-  if (!raw) return "";
-  try {
-    const u = new URL(raw.trim());
-    if (u.protocol !== "http:" && u.protocol !== "https:") return "[redacted url]";
-    return `${u.protocol}//${u.host}${u.pathname}`;
-  } catch {
-    return "[redacted url]";
-  }
+  return redactUrl(raw);
 }
-
-/** `…abcd` for any secret; short or empty values reveal nothing. */
-export function maskSecret(raw: string | null | undefined): string {
-  const s = (raw ?? "").trim();
-  if (s.length < 12) return "…";
-  return `…${s.slice(-4)}`;
-}
-
-const URL_RE = /\bhttps?:\/\/[^\s"'<>)]+/gi;
-// Stripe secret/restricted/publishable keys, webhook signing secrets, masked forms (sk_test_****abcd).
-const SECRET_RE = /\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9*]+|\bwhsec_[A-Za-z0-9*+/=]+/g;
-
-// A Vercel bypass secret quoted as `x-vercel-protection-bypass=<v>` / `: <v>` outside a URL (error text, logs).
-const BYPASS_PAIR_RE = /x-vercel-(?:protection-bypass|set-bypass-cookie)\s*[=:]\s*[^\s"'<>&,;)]+/gi;
-
-// `Authorization: Bearer <token>` / `Bearer <token>` quoted in error text.
-const BEARER_RE = /\b(?:Authorization\s*:\s*)?Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi;
 
 /** Scrub free text (error messages, details): URLs reduced, secret tokens masked. */
 export function scrubSecretsInText(text: string | null | undefined): string {
-  if (!text) return "";
-  return text
-    .replace(URL_RE, (m) => redactUrlForDisplay(m))
-    .replace(BYPASS_PAIR_RE, "[redacted bypass]")
-    .replace(BEARER_RE, "[redacted bearer]")
-    .replace(SECRET_RE, (m) => maskSecret(m.replace(/\*/g, "")));
+  return redactSecretsInText(text);
 }
