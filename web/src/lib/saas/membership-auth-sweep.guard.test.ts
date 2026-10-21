@@ -133,38 +133,10 @@ const REQUIRE_STAFF_ALLOW_LIST: ReadonlyArray<readonly [string, string]> = [
     "src/lib/server/roster-scoped-staff.ts",
     "PR 0b-1 guard: calls requireStaff() only as the first step, then narrows non-platform staff to the talent's roster tenants (the scoping this guard exists to add)",
   ],
-  [
-    "src/app/api/admin/translations/export/route.ts",
-    "exports the shared platform translation catalog — cross-tenant by construction, no tenant to scope to",
-  ],
   ["src/app/api/dev/reset-guest/route.ts", "dev-only fixture reset; not reachable in production"],
-  [
-    "src/lib/analytics/admin-talent-data.ts",
-    "cross-tenant platform aggregates (saved_talent / talent_profiles totals), deliberately not tenant-filtered",
-  ],
-  [
-    "src/lib/dashboard/admin-dashboard-data.ts",
-    "loadAdminTranslationHealth only — global translation-bootstrap health, no tenant dimension",
-  ],
   [
     "src/lib/server-actions/admin-clients.ts",
     "writes global client_profiles rows + provisions auth users; has no tenant scope to prove (own lane)",
-  ],
-  [
-    "src/lib/server-actions/admin-talent-translations.ts",
-    "global talent bio translations, same untenanted talent_profiles surface as admin-talent.ts (own lane)",
-  ],
-  [
-    "src/lib/server-actions/admin-translation-quick-edit.ts",
-    "shared platform translation catalog",
-  ],
-  [
-    "src/lib/server-actions/admin-translations-tax-loc.ts",
-    "shared platform taxonomy + location label catalogs",
-  ],
-  [
-    "src/lib/site-admin/edit-mode/workspace-templates-action.ts",
-    "promoteWorkspaceTemplate only — publishes a template to the PLATFORM library; carries its own explicit super_admin check",
   ],
 ];
 

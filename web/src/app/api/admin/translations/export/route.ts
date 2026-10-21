@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { requireStaff } from "@/lib/server/action-guards";
+import { requirePlatformAdmin } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 
 const PAGE = 1000;
@@ -24,7 +24,7 @@ function exportIncludesStale(searchParams: URLSearchParams): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: 403 });
   }
