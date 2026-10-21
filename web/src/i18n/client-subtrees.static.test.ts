@@ -54,7 +54,7 @@ test("every literal key in a direct client translator file is under a listed sub
 });
 
 test("every listed subtree exists in en.json", () => {
-  const picked = pickClientSubtrees(en as Record<string, unknown>) as Record<string, Record<string, unknown>>;
+  const picked = pickClientSubtrees(en as Record<string, unknown>, CLIENT_MESSAGE_SUBTREES) as Record<string, Record<string, unknown>>;
   for (const path of CLIENT_MESSAGE_SUBTREES) {
     const [ns, sub] = path.split(".");
     assert.ok(picked[ns]?.[sub] !== undefined, `${path} is not in en.json`);
