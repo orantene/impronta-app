@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { FIELD_VALUES_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { resolveTalentFields } from "@/lib/field-engine/resolve-talent-fields";
@@ -233,7 +234,7 @@ export async function setTalentFieldValue(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: FIELD_VALUES_WRITE_CAPABILITY.setTalentFieldValue });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -352,7 +353,7 @@ export async function setTalentFieldVisibility(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: FIELD_VALUES_WRITE_CAPABILITY.setTalentFieldVisibility });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
