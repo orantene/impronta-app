@@ -62,6 +62,7 @@ src/lib/pricing/stripe-health-redact.test.ts
 src/lib/quality/commerce-tab-alias.static.test.ts
 src/lib/quality/guest-chat-no-hardcoded-copy.static.test.ts
 src/lib/quality/no-conflict-markers.static.test.ts
+src/lib/quality/runtime-boot-smoke.static.test.ts
 src/lib/rate-limit-kv-guest-ai.test.ts
 src/lib/rate-limit-kv-public-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
