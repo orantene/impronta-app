@@ -110,7 +110,9 @@ test("POS actions staff-gate via staff-actor; posAddLine also allows inquiry man
   assert.match(actor, /booking.payment.request/);
   assert.match(actor, /userHasCapability\(capability/);
   // Messages picker path: optional inquiryId → requireInquiryManagerAction.
-  assert.match(actor, /requireInquiryManagerAction\(inquiryId\)/);
+  // TUL-1742: the staff fast-path now takes the caller's capability instead
+  // of a bare call (the appointed-coordinator path stays untouched).
+  assert.match(actor, /requireInquiryManagerAction\(inquiryId, \{ capability \}\)/);
   assert.match(actor, /export async function posStaffOrInquiryManager/);
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
   assert.match(src, /posStaff\(/);
