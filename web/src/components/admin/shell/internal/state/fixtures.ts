@@ -1580,12 +1580,12 @@ export const PLAN_LADDER: PlanLadderRow[] = [
   },
   {
     dimension: "Platform fee",
-    why: "Tulala's cut of every payment processed through the platform.",
+    why: "The Tulala service fee on a paid booking. It is added on top for the client and set per plan in Platform Admin.",
     values: {
-      free: "6.5% + $0.50 per booking",
-      website: "6% per booking",
-      studio: "4.5% + $0.50 · faster payout",
-      agency: "3.5% + $0.50 · custom receipts",
+      free: "Tulala service fee · set by your plan",
+      website: "Tulala service fee · set by your plan",
+      studio: "Tulala service fee · faster payout",
+      agency: "Tulala service fee · custom receipts",
       network: "Negotiated · per-brand schedule",
     },
   },
@@ -1746,25 +1746,25 @@ export const PLAN_FEE_META: Record<
   free: {
     pct: 6.5,
     flat: "$0.50",
-    label: "6.5% + $0.50",
+    label: "Tulala service fee",
     controlsHint: "Single payout receiver. Standard payout schedule.",
   },
   website: {
     pct: 6,
     flat: "$0",
-    label: "6% per booking",
+    label: "Tulala service fee",
     controlsHint: "Single payout receiver. Standard payout schedule.",
   },
   studio: {
     pct: 4.5,
     flat: "$0.50",
-    label: "4.5% + $0.50",
+    label: "Tulala service fee",
     controlsHint: "Receiver presets per client. Faster payout schedule.",
   },
   agency: {
     pct: 3.5,
     flat: "$0.50",
-    label: "3.5% + $0.50",
+    label: "Tulala service fee",
     controlsHint: "Coordinator-assigned receivers. Custom receipts. Talent self-payout request.",
   },
   network: {
