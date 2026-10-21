@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 const sql = readFileSync(
-  join(process.cwd(), "..", "supabase", "migrations", "_pending_pm", "20261231421700_pos_rpc_hardening_tul1550.sql"),
+  join(process.cwd(), "..", "supabase", "migrations", "_pending_pm", "20261231425900_pos_rpc_hardening_tul1550.sql"),
   "utf8",
 );
 const fn = (name: string) => {
