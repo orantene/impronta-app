@@ -484,8 +484,12 @@ async function check_guest_chat_antispam() {
       warn("guest-chat anti-spam", `health route returned non-JSON — could not verify Upstash floor`);
       return;
     }
-    if (body.rateLimitFloor === "active") {
-      pass("Upstash KV env vars present in deployed runtime (guest-chat rate-limit floor enabled)");
+    if (body.store === "error") {
+      // TUL-1342: the vars exist but the runtime cannot reach the store, so every limiter fails open (or, for the
+      // public catalog and slots on a deployed env, drops to a per-instance floor that does not bound clients).
+      fail("guest-chat anti-spam", "Upstash env vars are present but the deployed runtime cannot reach the store (ping failed): the shared rate limits are NOT enforced");
+    } else if (body.rateLimitFloor === "active") {
+      pass(`Upstash KV reachable from the deployed runtime (store ${body.store ?? "n/a"}, public limiter ${body.publicLimiter ?? "n/a"}, ${body.failOpenCount ?? 0} fail-opens on this instance)`);
     } else {
       warn(
         "guest-chat anti-spam",
