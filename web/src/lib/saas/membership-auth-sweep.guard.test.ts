@@ -147,10 +147,6 @@ const REQUIRE_STAFF_ALLOW_LIST: ReadonlyArray<readonly [string, string]> = [
     "loadAdminTranslationHealth only — global translation-bootstrap health, no tenant dimension",
   ],
   [
-    "src/lib/server-actions/admin-clients.ts",
-    "writes global client_profiles rows + provisions auth users; has no tenant scope to prove (own lane)",
-  ],
-  [
     "src/lib/server-actions/admin-talent-translations.ts",
     "global talent bio translations, same untenanted talent_profiles surface as admin-talent.ts (own lane)",
   ],

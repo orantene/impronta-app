@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseWithSchema, trimmedString } from "@/lib/admin/validation";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { clientBelongsToTenant } from "@/lib/server/client-tenant-access";
+import { ensureTenantClientRelationship } from "@/lib/client-account/relationship.server";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -52,7 +54,9 @@ export async function updateAdminClientProfile(
   formData: FormData,
 ): Promise<AdminClientProfileActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  // TUL-1733: a WORKSPACE action. The old global `requireStaff()` admitted every self-serve studio owner
+  // to ANY client's profile (and the RLS policy on client_profiles is just as global).
+  const auth = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!auth.ok) return { error: auth.error };
 
   const { supabase } = auth;
@@ -74,6 +78,10 @@ export async function updateAdminClientProfile(
     website_url,
     notes,
   } = parsed.data;
+
+  if (!(await clientBelongsToTenant(supabase, auth.tenantId, userId))) {
+    return { error: CLIENT_ERROR.update };
+  }
 
   const { error } = await supabase
     .from("client_profiles")
@@ -102,7 +110,9 @@ export async function createAdminClient(
   formData: FormData,
 ): Promise<AdminClientProfileActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  // TUL-1733: a WORKSPACE action (editor and above). The new client is attached to the caller's workspace
+  // below; the old global `requireStaff()` let any studio owner mint confirmed accounts platform-wide.
+  const auth = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!auth.ok) return { error: auth.error };
 
   const parsed = parseWithSchema(adminCreateClientSchema, {
@@ -178,6 +188,13 @@ export async function createAdminClient(
 
   if (clientProfileErr) {
     logServerError("admin/createAdminClient/clientProfile", clientProfileErr);
+    return { error: CLIENT_ERROR.update };
+  }
+
+  // Attach the new client to THIS workspace, so it is scoped like every other client of it.
+  const attached = await ensureTenantClientRelationship({ userId, tenantId: auth.tenantId, originDomain: null });
+  if (!attached) {
+    logServerError("admin/createAdminClient/relationship", "could not attach the new client to the workspace");
     return { error: CLIENT_ERROR.update };
   }
 
