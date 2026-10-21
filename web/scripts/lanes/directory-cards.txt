@@ -11,6 +11,7 @@ src/lib/directory/directory-page-waterfall.static.test.ts
 src/lib/directory/directory-scope.test.ts
 src/lib/directory/discoverable-default-migration.static.test.ts
 src/lib/directory/facet-search-parity.static.test.ts
+src/lib/directory/hub-city-backfill-guards.static.test.ts
 src/lib/directory/headline-price.test.ts
 src/lib/directory/location-facets.test.ts
 src/lib/directory/pagination.test.ts
