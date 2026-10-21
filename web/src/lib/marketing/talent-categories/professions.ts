@@ -65,7 +65,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid commission the fee is six percent, three from the client and three from you, with card processing included. The same on every plan.",
+          a: "The page is free. On a paid commission, a Tulala service fee applies, added on top for the client and set per plan.",
         },
       ],
     },
@@ -109,7 +109,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En un encargo pagado la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En un encargo pagado se aplica un cargo por servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
       ],
     },
@@ -159,7 +159,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "What does it cost?",
-          a: "The page is free. On a paid booking the fee is six percent, three from the client and three from you, with card processing included. The same on every plan.",
+          a: "The page is free. On a paid booking, a Tulala service fee applies, added on top for the client and set per plan.",
         },
       ],
     },
@@ -203,7 +203,7 @@ export const PROFESSION_CATEGORIES: TalentCategory[] = [
         },
         {
           q: "¿Cuánto cuesta?",
-          a: "La página es gratis. En una cita pagada la tarifa es seis por ciento, tres del cliente y tres tuyos, con el procesamiento incluido. Igual en todos los planes.",
+          a: "La página es gratis. En una cita pagada se aplica un cargo por servicio de Tulala, que se suma por encima para el cliente y se define por plan.",
         },
       ],
     },
