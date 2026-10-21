@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, test } from "node:test";
 import { issueRentInvoice, rentLinkKey, type RentInvoiceRow, type RentIssueDeps } from "./rent-issue";
 import type { RentPlan } from "./rent-cycle";
@@ -21,7 +23,8 @@ const PLAN: RentPlan = {
 };
 
 function world(over: { plan?: RentPlan | null; mintFails?: boolean; needsApproval?: boolean; gate?: boolean } = {}) {
-  const state = { mintFails: over.mintFails === true, loseRace: false };
+  const state = { mintFails: over.mintFails === true, loseRace: false, autopayWins: false };
+  const voided: Array<{ tenantId: string; code: string }> = [];
   const created: Array<{ matches: boolean; invoiceId: string }> = [];
   const invoices = new Map<string, RentInvoiceRow>();
   const orders: Array<{ label: string; amountCents: number; currency: string; tenantId: string }> = [];
@@ -73,11 +76,22 @@ function world(over: { plan?: RentPlan | null; mintFails?: boolean; needsApprova
       return { ok: true, code, url: `https://pay.test/${code}` };
     },
     async markIssued(invoiceId, code) {
-      for (const inv of invoices.values()) if (inv.id === invoiceId) { inv.status = "issued"; void code; }
+      for (const inv of invoices.values()) {
+        if (inv.id !== invoiceId) continue;
+        // The real write is `.eq("source","link").in("status",["issuing","issued"])`: 0 rows once a paid automatic payment owns the month.
+        if (state.autopayWins) { inv.status = "paid"; return "lost_race"; }
+        inv.status = "issued";
+        void code;
+        return "issued";
+      }
+      return "lost_race";
+    },
+    async voidMintedLink(tenantId, code) {
+      voided.push({ tenantId, code });
       return true;
     },
   };
-  return { deps, invoices, orders, links, calls, state, created };
+  return { deps, invoices, orders, links, calls, state, created, voided };
 }
 const ARGS = { tenantId: "t-1", planId: "plan-1", period: "2026-10", locale: "en" as const };
 
@@ -185,5 +199,39 @@ describe("issue one month of rent", () => {
     const edited = world({ plan: { ...PLAN, monthlyRentCents: 150000 } });
     await issueRentInvoice(ARGS, edited.deps);
     assert.equal(edited.created[0].matches, false, "a changed amount still goes through approval");
+  });
+});
+
+describe("markIssued only writes while the row is still a link row (TUL-1750)", () => {
+  test("RACE: a paid autopay won the month between the mint and the write -> nothing revived, the freshly minted link is cancelled, reported unavailable", async () => {
+    const w = world();
+    w.state.autopayWins = true;
+    assert.deepEqual(await issueRentInvoice(ARGS, w.deps), { ok: false, reason: "unavailable" });
+    assert.equal([...w.invoices.values()][0].status, "paid", "the automatic payment's row is untouched");
+    assert.deepEqual(w.voided, [{ tenantId: "t-1", code: "code-1" }], "exactly the link just minted is cancelled");
+  });
+
+  test("a failed write (not a lost race) is retryable: the link is NOT cancelled, because the idempotent mint would hand the dead link back", async () => {
+    const w = world();
+    w.deps.markIssued = async () => "error";
+    assert.deepEqual(await issueRentInvoice(ARGS, w.deps), { ok: false, reason: "unavailable" });
+    assert.deepEqual(w.voided, []);
+  });
+
+  test("normal path unchanged: issued, nothing cancelled", async () => {
+    const w = world();
+    const r = await issueRentInvoice(ARGS, w.deps);
+    assert.equal(r.ok, true);
+    assert.deepEqual(w.voided, []);
+  });
+
+  test("the store's write is conditional: link rows only, issuing/issued only, rows counted", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/service-hub/rent/rent-store.server.ts"), "utf8");
+    const body = src.slice(src.indexOf("async markIssued"), src.indexOf("async voidMintedLink"));
+    assert.match(body, /\.eq\("source", "link"\)/);
+    assert.match(body, /\.in\("status", \["issuing", "issued"\]\)/);
+    assert.match(body, /\.select\("id"\)/);
+    assert.match(body, /"lost_race"/);
+    assert.match(src.slice(src.indexOf("async voidMintedLink")), /cancelPaymentLink\(admin, \{ tenantId, linkId: l\.id \}\)/);
   });
 });

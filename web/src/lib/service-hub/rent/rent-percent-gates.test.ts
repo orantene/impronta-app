@@ -23,11 +23,22 @@ function fakeAdmin(opts: { plan?: Record<string, unknown> | null; readError?: bo
     maybeSingle: async () => (opts.readError ? { data: null, error: { message: "db down" } } : { data: opts.plan === undefined ? base : opts.plan, error: null }),
     then: (res: (v: unknown) => unknown) => Promise.resolve({ error: mode === "update" && opts.updateError ? { message: "write failed" } : null }).then(res),
   });
-  return { admin: { from: () => q } as never, updates };
+  // TUL-1751: the marker is the atomic rent_mark_percent_missed RPC. This fake behaves like the SQL function over the plan's array.
+  const rpc = async (name: string, args: { p_month: string }) => {
+    assert.equal(name, "rent_mark_percent_missed");
+    if (opts.readError || opts.updateError) return { data: null, error: { message: "rpc failed" } };
+    const plan = opts.plan === undefined ? base : opts.plan;
+    if (!plan) return { data: "not_found", error: null };
+    const current = ((plan as { autopay_percent_missed?: string[] }).autopay_percent_missed ?? []) as string[];
+    if (current.includes(args.p_month)) return { data: "already", error: null };
+    updates.push({ autopay_percent_missed: [...current, args.p_month] });
+    return { data: "marked", error: null };
+  };
+  return { admin: { from: () => q, rpc } as never, updates };
 }
 
 describe("markPercentMissed never swallows a failed read", () => {
-  test("a plan read error is 'error' and NOTHING is written (it must not overwrite the months already marked)", async () => {
+  test("an RPC error is 'error' and NOTHING is written (the webhook retries)", async () => {
     const f = fakeAdmin({ readError: true });
     assert.equal(await markPercentMissed(f.admin, { tenantId: "t", planId: "p", month: "2026-11", reason: "finalized" }), "error");
     assert.deepEqual(f.updates, []);

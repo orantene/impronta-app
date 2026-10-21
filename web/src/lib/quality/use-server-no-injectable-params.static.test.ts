@@ -161,8 +161,6 @@ describe('exported "use server" functions take no injectable parameters (TUL-174
  * the review that proved it. Key = "rel:action", value = the proof.
  */
 const REVIEWED_CLIENT_TENANT_ACTIONS: Record<string, string> = {
-  "app/(workspace)/[tenantSlug]/talent/settings/payouts/manual-bank-actions.ts:addMyManualPayoutAccount":
-    "Reviewed TUL-1743 (#4376): tenantId is the talent's chosen workspace; connectTalentPayoutAccount requires own talent_profile + agency_talent_roster row in that tenant (not_rostered otherwise).",
   "lib/talent/fulfillment-actions.ts:markBookingFulfillment":
     "Reviewed TUL-1756 (#4373) in integ b14: scope is re-resolved in markBookingFulfillmentCore via deps.authorize (authorizeForBooking derives the tenant from agency_bookings and requires owner or requireWorkspaceStaffAction on that tenant) and the handoff gate; input.tenantId is never used for scoping.",
 };

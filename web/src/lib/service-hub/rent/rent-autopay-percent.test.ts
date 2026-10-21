@@ -102,7 +102,8 @@ describe("TUL-1609 consultant fixes", () => {
     Object.assign(q, { select: () => q, eq: () => q, update: () => q, maybeSingle: async () => ({ data: { ...planRow, autopay_percent_missed: [] }, error: null }), then: (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res) });
     const created: string[] = [];
     const stripe = { invoices: { retrieve: async () => invoice, update: async () => ({}) }, invoiceItems: { create: async () => { created.push("item"); return {}; } } } as never;
-    return { admin: { from: () => q } as never, stripe, created };
+    const rpc = async () => ({ data: "marked", error: null });
+    return { admin: { from: () => q, rpc } as never, stripe, created };
   }
   test("flag off: nothing is added", async () => {
     delete process.env.RENT_AUTOPAY_PERCENT_ENABLED;
