@@ -47,6 +47,7 @@ import {
   type MediaLibraryOwnershipFilter,
 } from "@/lib/media/library-item";
 import { requireSession } from "@/lib/server/action-guards";
+import { mediaUploadDenied } from "@/lib/media/upload-capability";
 import { requireTenantScope } from "@/lib/saas";
 import { getCurrentUserTenants } from "@/lib/saas/tenant";
 import { decideLibraryTenant } from "@/lib/media/library-tenant-decision";
@@ -217,6 +218,8 @@ export async function PATCH(req: Request) {
     );
   }
   const scope = { tenantId: decision.tenantId };
+  const denied = await mediaUploadDenied(scope.tenantId);
+  if (denied) return denied;
 
   const assetId = typeof body.id === "string" ? body.id : "";
   if (!UUID_RE.test(assetId)) {
