@@ -52,3 +52,16 @@ describe("TUL-861: the badge count is the live day count", () => {
     assert.equal(liveOpenDays([failed]), null);
   });
 });
+
+describe("TUL-861: request link and no double services (static)", () => {
+  const { readFileSync } = require("node:fs") as typeof import("node:fs");
+  it("the slot picker keeps the request link when times exist", () => {
+    const src = readFileSync("src/components/public-booking/SlotPicker.tsx", "utf8");
+    assert.match(src, /data-testid="slot-picker-request"/);
+    assert.match(src, /public\.slotPicker\.sendRequest/);
+  });
+  it("the book page drops request rows already in the bookable list", () => {
+    const src = readFileSync("src/app/(public)/book/page.tsx", "utf8");
+    assert.match(src, /bookableIds\.has\(i\.offeringId\)/);
+  });
+});

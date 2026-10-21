@@ -751,6 +751,7 @@
       "submit": "Envoyer la commande"
     },
     "slotPicker": {
+      "sendRequest": "Envoyer une demande",
       "noHours": "Personne n'a encore defini les horaires de reservation de ce service, il n'y a donc rien a reserver en ligne ici. Envoyez une demande a la place.",
       "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
       "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
