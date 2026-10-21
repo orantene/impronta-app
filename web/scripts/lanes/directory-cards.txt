@@ -1,3 +1,4 @@
+src/app/(marketing)/legal/legal-index.static.test.ts
 src/app/t/?profileCode?/_chat/use-launcher-scroll-collapse.test.ts
 src/components/directory/directory-talent-type-bar.grk055.static.test.ts
 src/components/directory/discovery-state-sync.test.ts
