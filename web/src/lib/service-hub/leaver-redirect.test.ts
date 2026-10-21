@@ -6,7 +6,7 @@
  * to the group while it exists, and on the group's own host it always does.
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, test } from "node:test";
 
@@ -94,3 +94,68 @@ describe("wiring", () => {
     assert.match(src, /\.eq\("status", "active"\)/);
   });
 });
+
+// P1 (#4235 review): profile codes are sequential, so the function must answer yes ONLY for a
+// removal that was already public. Each condition below must be ANDed into the removed-row
+// branch; dropping any one of them fails its own case. Anything else is false = the 404 stays.
+describe("talent_left_workspace says yes only for a PUBLIC removal (no enumeration)", () => {
+  const file = path.join(WEB, "../supabase/migrations/_pending_pm/20261231422800_talent_left_workspace_tul1591.sql");
+  const sql = readFileSync(file, "utf8");
+  const body = sql.slice(sql.indexOf("AS $$"), sql.indexOf("$$;"));
+  // the removed-row branch: from its EXISTS to the NOT EXISTS that follows
+  const removedBranch = body.slice(body.indexOf("AND EXISTS"), body.indexOf("AND NOT EXISTS"));
+  const code = removedBranch.replace(/--[^\n]*/g, "");
+
+  const conditions: Array<[string, RegExp]> = [
+    ["the row on this workspace is removed", /AND r\.status = 'removed'/],
+    ["the roster eye was on when she left", /AND r\.agency_visibility IN \('site_visible', 'featured'\)/],
+    ["her site was not hidden by this workspace", /AND r\.talent_site_hidden = false/],
+    ["the profile is not deleted", /AND tp\.deleted_at IS NULL/],
+    ["the profile is not hidden", /AND tp\.is_publicly_hidden = false/],
+    ["the profile is publicly listed", /AND tp\.is_publicly_listed = true/],
+    ["the profile visibility is public", /AND tp\.visibility = 'public'/],
+    ["the profile is a person", /AND tp\.profile_kind = 'person'/],
+    ["the row is this workspace's", /WHERE r\.tenant_id = p_tenant_id/],
+  ];
+  for (const [label, re] of conditions) {
+    test(`requires: ${label}`, () => assert.match(code, re));
+  }
+  test("the conditions are only ANDed: no OR can widen the yes", () => {
+    assert.doesNotMatch(body.replace(/--[^\n]*/g, ""), /\bOR\b/i);
+  });
+  test("the public-profile conditions match the repo's public-listing gate (isPublicCatalogProfile)", () => {
+    const gate = read("src/lib/offerings/business-catalog.ts");
+    const fn = gate.slice(gate.indexOf("export function isPublicCatalogProfile"));
+    for (const col of ["deleted_at == null", "is_publicly_hidden === false", "is_publicly_listed === true", 'visibility === "public"']) {
+      assert.ok(fn.includes(col), `gate still checks ${col}`);
+    }
+  });
+});
+
+// The hub listing filter ("hide unless an ACTIVE member") ships with no flag. It is safe only
+// because a listing cannot exist without an active roster row on the same workspace: the one
+// creation path (upsert_workspace_service_listing, #4159) refuses otherwise, and hub talents
+// sell through their hub roster row (auto-enrolled). If a second creation path appears, this
+// fails and the filter must be revisited.
+describe("every hub listing is created for an ACTIVE roster member of that workspace", () => {
+  test("the only insert into workspace_service_listings requires an active roster row", () => {
+    const dir = path.join(WEB, "../supabase/migrations");
+    const files = [
+      ...readdirSync(dir).filter((f) => f.endsWith(".sql")).map((f) => path.join(dir, f)),
+      ...readdirSync(path.join(dir, "_pending_pm")).filter((f) => f.endsWith(".sql")).map((f) => path.join(dir, "_pending_pm", f)),
+    ];
+    const inserters = files.filter((f) => /INSERT INTO public\.workspace_service_listings\b/.test(readFileSync(f, "utf8")));
+    assert.deepEqual(inserters.map((f) => path.basename(f)), ["20261231419300_workspace_service_listings_tul1367.sql"]);
+    const sql = readFileSync(inserters[0], "utf8");
+    const fn = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.upsert_workspace_service_listing"));
+    const guard = fn.slice(0, fn.indexOf("INSERT INTO public.workspace_service_listings"));
+    assert.match(guard, /OR NOT EXISTS \(\s*SELECT 1 FROM public\.agency_talent_roster r\s*WHERE r\.tenant_id = p_tenant_id AND r\.talent_profile_id = v_talent\s*AND r\.status = 'active'/);
+    assert.match(guard, /RAISE EXCEPTION 'not allowed'/);
+  });
+  test("the app never inserts listings directly (only through that function)", () => {
+    for (const rel of ["src/lib/service-hub/listing-actions.ts", "src/lib/service-hub/entries.server.ts"]) {
+      assert.doesNotMatch(read(rel), /workspace_service_listings"\)\s*\.(insert|upsert)\(/, rel);
+    }
+  });
+});
+

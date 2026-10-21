@@ -9,15 +9,23 @@
 -- anon can read only site-visible ACTIVE roster rows, so it cannot tell "left" from "never
 -- here". This answers that one question and nothing else.
 --
--- Returns true only when the code (live code or retired alias, same resolver the public
--- profile uses) names a person profile whose roster row on THIS workspace is `removed`
--- AND who has no active row on it. Never returns a row, an id, a date or a reason.
+-- Returns true only when ALL hold, else false (the visitor keeps the real 404):
+--   - the code (live code or retired alias, same resolver the public profile uses) names
+--     a profile whose roster row on THIS workspace is `removed`;
+--   - that row was public when she left: agency_visibility IN ('site_visible','featured')
+--     AND talent_site_hidden = false;
+--   - the profile is still public now (the repo's public-listing gate,
+--     isPublicCatalogProfile): deleted_at IS NULL, is_publicly_hidden = false,
+--     is_publicly_listed = true, visibility = 'public', profile_kind = 'person';
+--   - she has no other (non-removed) row on this workspace.
+-- Never returns a row, an id, a date or a reason.
 -- Read-only, STABLE, SECURITY DEFINER with a pinned search_path. Callers treat an error or
 -- a missing function as "no" (the visitor keeps the real 404).
 --
--- Disclosure: anyone can learn "this public profile code was once on this workspace's
--- roster". The workspace showed that profile publicly while she was a member, so this is
--- public history, not new information. Listed in PUBLIC_SURFACE_FUNCTIONS
+-- Disclosure (P1 review on #4235): profile codes are sequential, so without the public
+-- conditions above anyone could list everyone a workspace removed. With them, the only
+-- yes is for a profile that is public today AND that this workspace was showing publicly
+-- when she left: public history, not new information. Listed in PUBLIC_SURFACE_FUNCTIONS
 -- (web/src/lib/saas/public-surface-functions.ts) because the anon edge client calls it.
 --
 -- Rollback:
@@ -45,6 +53,18 @@ AS $$
          JOIN public.agency_talent_roster r ON r.talent_profile_id = tp.id
         WHERE r.tenant_id = p_tenant_id
           AND r.status = 'removed'
+          -- Only someone this workspace SHOWED publicly when she left (the roster eye was
+          -- on and her site was not hidden): their removal is not a secret. A row that was
+          -- never public stays a plain 404, so the removed list cannot be enumerated.
+          AND r.agency_visibility IN ('site_visible', 'featured')
+          AND r.talent_site_hidden = false
+          -- And she is still a public profile today: the repo's public-listing gate
+          -- (isPublicCatalogProfile in web/src/lib/offerings/business-catalog.ts):
+          -- not deleted, not hidden, publicly listed, visibility public, a person.
+          AND tp.deleted_at IS NULL
+          AND tp.is_publicly_hidden = false
+          AND tp.is_publicly_listed = true
+          AND tp.visibility = 'public'
           AND tp.profile_kind = 'person'
      )
      AND NOT EXISTS (
@@ -57,7 +77,7 @@ AS $$
 $$;
 
 COMMENT ON FUNCTION public.talent_left_workspace(uuid, text) IS
-  'TUL-1591: true only when the profile code names a person removed from this workspace roster with no other row on it. Yes/no only, for the edge leaver redirect.';
+  'TUL-1591: true only when the profile code names a still-public person whose PUBLIC roster row on this workspace was removed, with no other row on it. Yes/no only, for the edge leaver redirect.';
 
 REVOKE ALL ON FUNCTION public.talent_left_workspace(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.talent_left_workspace(uuid, text) TO anon, authenticated, service_role;
