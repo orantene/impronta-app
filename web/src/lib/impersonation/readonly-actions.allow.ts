@@ -44,7 +44,6 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/admin-tier-service-fee.ts", ["loadTierServiceFees"], READ],
   ["lib/resources/offering-resources-actions.ts", ["loadOfferingResourcesAction"], READ],
   ["lib/service-hub/terms-actions.ts", ["respondToHubTermsFormAction"], "form wrapper: its only effect is calling respondToHubTermsAction, which is guarded"],
-  ["app/t/[profileCode]/_actions/roster-request-actions.ts", ["buildRosterRequestFromSentence"], "public front-door chat: builds a prefilled contact message from the host's public roster, writes nothing, no user session"],
   ["lib/server-actions/messaging-money-actions.ts", ["messagingPreviewCancel", "messagingLoadRefundableTransaction", "messagingCanReadNotes"], READ],
   ["lib/server-actions/messaging-offers.ts", ["messagingLoadOfferForEditor", "messagingListOffers"], READ],
   ["lib/server-actions/messaging-sheets.ts", ["messagingLoadHandOverTargets", "messagingLoadDelivery", "messagingLoadSnapshots", "messagingLoadOffers", "messagingLoadBasketDiff", "messagingLoadContextLines"], READ],
@@ -270,6 +269,8 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/work-style.ts", ["loadWorkStyleAction"], READ],
   // The talent reads their OWN seat on a booking (session identity); writes nothing.
   ["lib/server-actions/project-assignment-confirmation.ts", ["readMyAssignmentAction"], READ],
+  // Public visitor read: builds a prefilled contact message from the host workspace's roster, writes nothing.
+  ["lib/server-actions/roster-request.ts", ["buildRosterRequestFromSentence"], READ],
   ["app/(public)/_dated/dated-picker-actions.ts", ["loadDatedPicker"], READ],
   ["lib/server-actions/series-dated-settings.ts", ["loadSeriesDatedSettingsAction"], READ],
   ["lib/server-actions/dated-details.ts", ["loadDatedDetailsAction"], READ],
