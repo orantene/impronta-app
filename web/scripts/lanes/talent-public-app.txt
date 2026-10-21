@@ -17,6 +17,7 @@ src/app/t/?profileCode?/_chat/guest-name-split.test.ts
 src/app/t/?profileCode?/_chat/guest-paid-sync.test.ts
 src/app/t/?profileCode?/_chat/instant-answer-all-offerings.test.ts
 src/app/t/?profileCode?/_chat/launcher-open.static.test.ts
+src/app/t/?profileCode?/_chat/launcher-yields-to-cta.static.test.ts
 src/app/t/?profileCode?/_chat/retry-same-inquiry.test.ts
 src/app/t/?profileCode?/_chat/skin-parity.render.test.tsx
 src/app/t/?profileCode?/_chat/solo-talent-voice.static.test.ts

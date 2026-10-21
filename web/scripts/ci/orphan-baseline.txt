@@ -159,7 +159,6 @@ src/lib/quality/reviews-ask-load-timeout.static.test.ts
 src/lib/quality/talent-site-vary-cookie.static.test.ts
 src/lib/quality/today-edit-site-opens-builder.static.test.ts
 src/lib/quality/vercel-ignore-command.static.test.ts
-src/lib/rate-limit-kv-public-fallback.test.ts
 src/lib/reviews/reviews-page-copy.static.test.ts
 src/lib/saas/guest-roster-scope.static.test.ts
 src/lib/saas/hub-search-redirect.test.ts

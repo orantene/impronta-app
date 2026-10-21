@@ -15,6 +15,8 @@ src/components/edit-chrome/mobile-health-message-es.test.ts
 src/components/edit-chrome/section-display-name-i18n.test.ts
 src/components/edit-chrome/selection-focus.test.ts
 src/components/marketing/footer-tap-targets.static.test.ts
+src/components/public-booking/slot-picker-zone.test.ts
+src/components/public-header-mobile-menu-lock.test.ts
 src/components/services/quick-view/service-quick-view-host.test.tsx
 src/components/services/quick-view/service-quick-view.render.test.tsx
 src/components/talent/services/services-home-save-draft.static.test.ts

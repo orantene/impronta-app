@@ -149,7 +149,7 @@ src/lib/talent/clients-initial.test.ts
 src/lib/talent/dashboard-mount-reads.static.test.ts
 src/lib/talent/dashboard-reads.test.ts
 src/lib/talent/format-count.test.ts
-src/lib/talent/fulfillment-actions.static.test.ts
+src/lib/talent/fulfillment-actions.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/instant-plan-gate.test.ts
 src/lib/talent/offering-photo-links.test.ts

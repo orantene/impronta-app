@@ -116,6 +116,7 @@ src/lib/pricing/pick-marketing-currency.test.ts
 src/lib/pricing/plan-claim-audit.test.ts
 src/lib/quality/commerce-drawer-deeplink.static.test.ts
 src/lib/quality/upgrade-flow-wiring.static.test.ts
+src/lib/reviews/auto-review-request-plan.test.ts
 src/lib/reviews/g2-reviews-service.test.tsx
 src/lib/reviews/review-existing-load.test.ts
 src/lib/scheduling/cancel-notify-hook.test.ts
