@@ -24,6 +24,7 @@ import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
 import { resolveStaffCreatedInquiryClient } from "@/lib/inquiry/guest-client";
 import { createInquiryFromIntent } from "@/lib/inquiry/inquiry-intent-engine";
 import { emitFieldChange } from "@/lib/inquiry/audit-field-emit";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 // Type-only import + re-export. Combined into one statement so Turbopack
 // doesn't emit a runtime reference for `AdminActionState` (it was throwing
@@ -75,7 +76,7 @@ export async function createAgencyInquiry(
 ): Promise<CreateAgencyInquiryResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.createAgencyInquiry });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -241,7 +242,7 @@ export async function updateInquiry(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.updateInquiry });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -403,7 +404,7 @@ export async function updateInquiryClientInfo(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.updateInquiryClientInfo });
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -496,7 +497,7 @@ export async function updateInquiryLocation(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.updateInquiryLocation });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -591,7 +592,7 @@ export async function updateInquiryRequestDetails(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.updateInquiryRequestDetails });
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -708,7 +709,7 @@ export async function patchInquiryEntityLinks(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.patchInquiryEntityLinks });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -829,7 +830,7 @@ export async function createBooking(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.createBooking });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -954,7 +955,7 @@ export async function createClientAccount(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.createClientAccount });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1172,7 +1173,7 @@ export async function updateClientLocation(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.updateClientLocation });
   if (!auth.ok) return { error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1298,7 +1299,7 @@ export async function createClientAccountContact(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.createClientAccountContact });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1448,7 +1449,7 @@ export async function assignInquiryToCurrentStaff(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.assignInquiryToCurrentStaff });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1522,7 +1523,7 @@ export async function createManualInquiry(
   formData: FormData,
 ): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.createManualInquiry });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1735,7 +1736,7 @@ const quickInquiryStatusPeekSchema = z.object({
 /** Status-only patch for inquiry list rows / quick actions (no navigation). */
 export async function quickPatchInquiryStatus(formData: FormData): Promise<AdminActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.quickPatchInquiryStatus });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -1839,7 +1840,7 @@ type InquiryRow = {
 
 export async function duplicateInquiry(formData: FormData): Promise<void> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.duplicateInquiry });
   if (!auth.ok) redirect("/admin/inquiries");
   const { supabase, user, tenantId } = auth;
 
@@ -1983,7 +1984,7 @@ export async function sendInquiryMessageAsAdmin(
     if (trimmed.length > 10_000) return { ok: false, error: "Message is too long." };
     if (!["private", "group"].includes(threadType)) return { ok: false, error: "Invalid thread." };
 
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.sendInquiryMessageAsAdmin });
     if (!auth.ok) return { ok: false, error: "Not authenticated." };
     const { supabase, tenantId, user } = auth;
 

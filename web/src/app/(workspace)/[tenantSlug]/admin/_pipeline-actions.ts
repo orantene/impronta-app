@@ -115,6 +115,7 @@ export type {
   SecondaryCoordinatorRow,
 } from "./_pipeline-types";
 import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 // ─── convertInquiryToBookingAction ────────────────────────────────────────────
 
@@ -910,7 +911,7 @@ export async function patchAgencySettingsNamespace(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.patchAgencySettingsNamespace });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1010,7 +1011,7 @@ export async function rescheduleInquiry(
         return { ok: false, error: "Date must be YYYY-MM-DD." };
       }
     }
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.rescheduleInquiry });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1296,7 +1297,7 @@ async function setInquiryUserFlag(
   value: boolean,
 ): Promise<PipelineActionResult> {
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.setInquiryUserFlag });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1365,7 +1366,7 @@ export async function duplicateInquiryBooking(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.duplicateInquiryBooking });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1999,7 +2000,7 @@ export async function bulkNudgeInquiries(
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.bulkNudgeInquiries });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2051,7 +2052,7 @@ export async function bulkReassignInquiriesToMe(
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.bulkReassignInquiriesToMe });
     if (!auth.ok) return { ok: false, error: auth.error };
 
     const { assignInquiryToCurrentStaff } = await import("@/lib/server-actions/admin-inquiries");
@@ -2086,7 +2087,7 @@ export async function bulkSetInquiryArchived(
 ): Promise<PipelineActionResult<{ ok: number; failed: number }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.bulkSetInquiryArchived });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2724,7 +2725,7 @@ export async function markBookingPaymentMethodAction(
     if (!VALID_PAYMENT_METHODS.includes(method)) {
       return { ok: false, error: "Invalid payment method." };
     }
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.markBookingPaymentMethodAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId, tenantSlug } = auth;
 
@@ -2906,7 +2907,7 @@ export async function requestPlatformRateOverrideAction(
     if (!note || note.trim().length < 10) {
       return { ok: false, error: "Please explain the rate request (at least 10 characters)." };
     }
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.requestPlatformRateOverrideAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -3071,7 +3072,7 @@ export async function cancelBookingAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.cancelBookingAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -3185,7 +3186,7 @@ export async function rescheduleBookingAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.rescheduleBookingAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -3300,7 +3301,7 @@ export async function closeBookingAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.closeBookingAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 

@@ -13,6 +13,7 @@ import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { Database } from "@/lib/supabase/database.types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 // T2b Phase C batch 1 — narrow inquiry_participants row type, sourced from
 // the canonical generated schema (Phase A). The tenantScopedQuery helper's
@@ -111,7 +112,7 @@ export async function rosterRemoveParticipant(formData: FormData): Promise<Actio
 
 export async function rosterMoveParticipant(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.rosterMoveParticipant });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
