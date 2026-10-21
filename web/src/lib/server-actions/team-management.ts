@@ -79,7 +79,7 @@ export async function inviteTeamMember(
 ): Promise<InviteTeamMemberResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
     if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
@@ -224,7 +224,7 @@ export async function promoteRosterTalentToAdmin(
 ): Promise<ServerActionResult<{ membershipId: string }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId } = auth;
     if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
@@ -354,7 +354,7 @@ export async function setDefaultCoordinator(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -425,7 +425,7 @@ export async function setDefaultCoordinator(
 export async function removeTeamMember(profileId: string): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
     if (await lacksMembershipCapability(tenantId)) return NOT_ALLOWED;
@@ -492,7 +492,7 @@ export async function changeTeamMemberRole(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
     // Same gate as the other team actions (TUL-1269): the manage_memberships capability.
@@ -573,7 +573,7 @@ export async function setInquiryCoordinatorTalent(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_memberships" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
