@@ -34,11 +34,11 @@ export type AdminAddSuggestedTalentResult =
 /**
  * TUL-1708: this write called `requireWorkspaceStaffAction()` with no capability
  * (defaults to `agency.workspace.view`, viewer-held). Adding talent to an
- * inquiry's lineup is inquiry coordination — `coordinate_inquiry` (manager+),
- * the same bar as the rest of the lineup/suggestion flow.
+ * inquiry's lineup is a roster write — `agency.roster.edit` (editor+), the
+ * lowest bar that still blocks viewers.
  */
 const SUGGESTED_TALENT_WRITE_CAPABILITY = {
-  add: "coordinate_inquiry",
+  add: "agency.roster.edit",
 } as const satisfies Record<string, CapabilityKey>;
 
 export async function adminAddSuggestedTalent(args: {

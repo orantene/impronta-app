@@ -69,7 +69,7 @@ const FILES: Array<{
   },
   {
     path: "server-actions/admin-suggested-talent.ts",
-    caps: { add: "coordinate_inquiry" },
+    caps: { add: "agency.roster.edit" },
     wiredPatterns: [/capability: SUGGESTED_TALENT_WRITE_CAPABILITY\.add,/],
   },
   {
