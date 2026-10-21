@@ -4,7 +4,7 @@ import { applyRentSubscriptionEvent, type AutopayInvoiceRow, type AutopayPlanRow
 import type { RentSubscriptionEvent } from "./rent-autopay-routing";
 
 /** The events this applier takes (a draft invoice goes to the percentage step, not here). */
-type AppliedEvent = Exclude<RentSubscriptionEvent, { type: "draft" }>;
+type AppliedEvent = Exclude<RentSubscriptionEvent, { type: "draft" | "past_draft" }>;
 
 const OCT1 = Date.UTC(2026, 9, 1) / 1000;
 function world(plan: Partial<AutopayPlanRow> | null = {}) {

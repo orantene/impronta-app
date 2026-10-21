@@ -25,8 +25,14 @@ describe("rent billing wiring (TUL-1376)", () => {
     assert.ok(issue.indexOf("rentBillingGate") < issue.indexOf("deps.loadPlan"), "the gate runs before any read");
     const store = code(sources.find((s) => s.f === "rent-store.server.ts")!.text);
     const callers = sources.filter((s) => /\bmintLink\b|createPaymentLink/.test(code(s.text))).map((s) => s.f).sort();
-    assert.deepEqual(callers, ["rent-issue.ts", "rent-store.server.ts"]);
+    // TUL-1717: the missed-percentage catch-up is the only other door, behind the SAME gate and reusing the store's link minting.
+    assert.deepEqual(callers, ["rent-issue.ts", "rent-percent-catchup.server.ts", "rent-percent-catchup.ts", "rent-store.server.ts"]);
     assert.match(store, /createPaymentLink\(admin/);
+    const catchup = code(sources.find((s) => s.f === "rent-percent-catchup.ts")!.text);
+    assert.match(catchup, /\(deps\.gate \?\? rentBillingGate\)\(\)/);
+    assert.ok(catchup.indexOf("rentBillingGate") < catchup.indexOf("deps.loadPlan"), "the catch-up gate runs before any read");
+    const catchupServer = code(sources.find((s) => s.f === "rent-percent-catchup.server.ts")!.text);
+    assert.doesNotMatch(catchupServer, /createPaymentLink\(/, "the catch-up reuses the store's mintLink; it never mints a link itself");
   });
 
   test("only the member can make a plan active; the owner cannot activate a proposal", () => {
