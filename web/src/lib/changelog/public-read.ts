@@ -55,12 +55,76 @@ const COLUMNS =
   "notion_page_id,status,kind,release_date,tier,badge,title_en,title_es,summary_en,summary_es,body_en_html,body_es_html,audience,plans,categories,help_url,cover_image_url,published_at";
 
 /**
- * Off until the public launch. While off, the pages carry noindex and stay out
- * of the sitemap; flipping CHANGELOG_PUBLIC_LAUNCH=1 indexes them.
+ * The launch switch. Off until the public launch: while off, the pages carry
+ * noindex and stay out of the sitemap. Only the exact value "1" turns it on
+ * ("true", "yes" and anything else stay off, which is the safe direction).
+ * The pages and feeds do not read this directly: they read `isChangelogLive`
+ * below, which also refuses to go public with placeholder copy (TUL-1586).
  */
 export function isChangelogPublicLaunch(env: Record<string, string | undefined> = process.env): boolean {
-  const v = (env.CHANGELOG_PUBLIC_LAUNCH ?? "").trim().toLowerCase();
-  return v === "1" || v === "true";
+  return (env.CHANGELOG_PUBLIC_LAUNCH ?? "").trim() === "1";
+}
+
+/**
+ * Markers that must never reach a public page. Specific on purpose: a real entry
+ * about "placeholders in forms" must not block the launch forever.
+ */
+const PLACEHOLDER_COPY = /needs oran sign-?off|requiere visto bueno|placeholder copy|texto provisional|\[placeholder\]/i;
+/** Case-sensitive and colon-terminated: "todo" is an everyday Spanish word. */
+const TODO_MARKER = /\bTODO:/;
+
+export type LaunchBlock = "flag_off" | "no_launch_edition" | "placeholder_copy";
+
+export type ChangelogLaunchState =
+  | { live: true; edition: ChangelogRow }
+  | { live: false; reason: LaunchBlock; offenders: string[] };
+
+export function hasPlaceholderCopy(row: ChangelogRow): boolean {
+  const text = [row.title_en, row.title_es, row.summary_en, row.summary_es, row.body_en_html, row.body_es_html].join("\n");
+  return PLACEHOLDER_COPY.test(text) || TODO_MARKER.test(text);
+}
+
+/** The newest published Edition (Notion Kind "Edition") that has a title in both languages. */
+export function pickLaunchEdition(rows: readonly ChangelogRow[]): ChangelogRow | null {
+  const when = (r: ChangelogRow) => Date.parse(r.published_at ?? r.release_date ?? "") || 0;
+  const editions = rows
+    .filter((r) => r.status === "published" && r.kind === "Edition" && r.title_en.trim() !== "" && r.title_es.trim() !== "")
+    .sort((a, b) => when(b) - when(a));
+  return editions[0] ?? null;
+}
+
+/**
+ * Fails closed. The changelog goes public only when the flag is "1" AND no
+ * published entry carries placeholder copy AND a Launch Edition is published.
+ * Any other combination behaves exactly like flag off.
+ */
+export function changelogLaunchState(flagOn: boolean, rows: readonly ChangelogRow[]): ChangelogLaunchState {
+  if (!flagOn) return { live: false, reason: "flag_off", offenders: [] };
+  const offenders = rows.filter(hasPlaceholderCopy).map((r) => r.notion_page_id);
+  if (offenders.length > 0) return { live: false, reason: "placeholder_copy", offenders };
+  const edition = pickLaunchEdition(rows);
+  if (!edition) return { live: false, reason: "no_launch_edition", offenders: [] };
+  return { live: true, edition };
+}
+
+const loggedBlocks = new Set<string>();
+
+/** Reads the table only when the flag is on, so a flag-off site pays nothing. */
+export async function getChangelogLaunchState(env: Record<string, string | undefined> = process.env): Promise<ChangelogLaunchState> {
+  if (!isChangelogPublicLaunch(env)) return { live: false, reason: "flag_off", offenders: [] };
+  const state = changelogLaunchState(true, await loadChangelogRows());
+  if (!state.live && !loggedBlocks.has(state.reason)) {
+    loggedBlocks.add(state.reason);
+    logServerError(
+      "changelog.launch-guard",
+      `CHANGELOG_PUBLIC_LAUNCH is on but the changelog stays OFF: ${state.reason}${state.offenders.length ? ` (${state.offenders.join(", ")})` : ""}`,
+    );
+  }
+  return state;
+}
+
+export async function isChangelogLive(env: Record<string, string | undefined> = process.env): Promise<boolean> {
+  return (await getChangelogLaunchState(env)).live;
 }
 
 /** Only https image URLs from the changelog bucket or other https hosts reach an <img>. */

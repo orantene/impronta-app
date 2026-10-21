@@ -9,6 +9,7 @@ import { FaqSection } from "./faq-section";
 import { FinalCtaSection } from "./final-cta-section";
 import { FlagshipSection } from "./flagship-section";
 import { HeroSection } from "./hero-section";
+import { LaunchEditionStrip } from "./launch-edition-strip";
 import { MarketingAnalyticsTracker } from "./analytics-tracker";
 import { NetworkSection } from "./network-section";
 import { PricingTeaserSection } from "./pricing-teaser-section";
@@ -43,6 +44,7 @@ export async function MarketingHomePage() {
   return (
     <FeatureHubProvider payloads={allPopupPayloads(locale)} locale={locale}>
     <MarketingAnalyticsTracker sourcePage="home">
+      <LaunchEditionStrip locale={locale} />
       <div data-mkt-section="hero">
         <HeroSection locale={locale} />
       </div>
