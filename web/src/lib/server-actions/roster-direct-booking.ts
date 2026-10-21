@@ -115,7 +115,10 @@ export async function setRosterDirectBooking(
 ): Promise<SetResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer` holds. This
+  // toggles roster-overlay availability (whether direct booking shows on this workspace's own pages),
+  // the same tier `agency.roster.edit` already covers for a rostered talent.
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = schema.safeParse({ talentProfileId, enabled });
   if (!parsed.success) return { ok: false, error: "Invalid request." };

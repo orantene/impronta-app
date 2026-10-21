@@ -11,6 +11,7 @@ import { hasAvailabilityPattern } from "@/lib/talent/website-eligibility-facts";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -70,7 +71,19 @@ type HoursAuth =
     }
   | { ok: false; error: string };
 
-async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
+/**
+ * TUL-1708: `capability` is omitted for reads (the default guard capability,
+ * `agency.workspace.view`, which every staff role including `viewer` holds — a read
+ * must stay open to any staff member). Every WRITE below passes
+ * `"agency.roster.edit"`: hours are roster-overlay availability data, the same tier
+ * that capability already covers for a rostered talent. A capability-less guard here
+ * previously let a `viewer` write hours for any resource / unclaimed-person profile,
+ * since `actorMayWriteHours` only checks `isStaff` + profile kind, never role tier.
+ */
+async function authorizeHours(
+  talentProfileId: string,
+  capability?: CapabilityKey,
+): Promise<HoursAuth> {
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -89,7 +102,7 @@ async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
   }
 
   const isOwner = tp.user_id === session.user.id;
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   const isStaff = staff.ok || (!!session.profile && isStaffRole(session.profile.app_role));
   if (!isOwner && !staff.ok && !isStaff) return { ok: false, error: "Forbidden." };
 
@@ -319,7 +332,7 @@ export async function acceptBookingHoursProposal(
 ): Promise<AcceptProposalResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeHours(talentProfileId);
+  const auth = await authorizeHours(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
     return { ok: false, error: "This person sets their own hours." };
@@ -361,7 +374,7 @@ export async function saveBookingHours(
 ): Promise<SaveHoursResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeHours(talentProfileId);
+  const auth = await authorizeHours(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
     return { ok: false, error: "This person sets their own hours." };
@@ -442,7 +455,7 @@ export async function setTalentDirectBookingOptIn(
 ): Promise<OptInResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeHours(talentProfileId);
+  const auth = await authorizeHours(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };

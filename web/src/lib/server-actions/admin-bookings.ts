@@ -26,6 +26,25 @@ import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { emitFieldChange, type FieldVisibility } from "@/lib/inquiry/audit-field-emit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import type { CapabilityKey } from "@/lib/access";
+
+/**
+ * TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer` holds, so these
+ * day-to-day booking writers must each name their own. `coordinate_inquiry` is the manager+ bar the
+ * role matrix already describes as "run inquiries and bookings end-to-end" — the same bar every one of
+ * these actions always implicitly required.
+ */
+const ADMIN_BOOKINGS_CAPABILITY = {
+  updateBooking: "coordinate_inquiry",
+  quickUpdateBookingPeek: "coordinate_inquiry",
+  assignBookingToCurrentStaff: "coordinate_inquiry",
+  patchBookingEntityLinks: "coordinate_inquiry",
+  saveBookingTalentRow: "coordinate_inquiry",
+  addBookingTalentRow: "coordinate_inquiry",
+  deleteBookingTalentRow: "coordinate_inquiry",
+  createManualBooking: "coordinate_inquiry",
+  duplicateBooking: "coordinate_inquiry",
+} as const satisfies Record<string, CapabilityKey>;
 
 /** Details v3 §4.3 — per-field audit emit visibility map for the
  *  `agency_bookings` columns that admin edit surfaces touch. Each entry
@@ -108,7 +127,7 @@ export async function updateBooking(
   formData: FormData,
 ): Promise<BookingActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.updateBooking });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -396,7 +415,7 @@ const quickPeekBookingSchema = z.object({
 /** Minimal booking patch from list/peek panels (status + manager only). */
 export async function quickUpdateBookingPeek(formData: FormData): Promise<BookingActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.quickUpdateBookingPeek });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -467,7 +486,7 @@ const assignBookingToMeSchema = z.object({
 
 export async function assignBookingToCurrentStaff(formData: FormData): Promise<void> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.assignBookingToCurrentStaff });
   if (!auth.ok) return;
   const { supabase, user, tenantId } = auth;
 
@@ -538,7 +557,7 @@ export async function patchBookingEntityLinks(
   formData: FormData,
 ): Promise<BookingActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.patchBookingEntityLinks });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -698,7 +717,7 @@ export async function saveBookingTalentRow(
   formData: FormData,
 ): Promise<BookingActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.saveBookingTalentRow });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -781,7 +800,7 @@ export async function addBookingTalentRow(
   formData: FormData,
 ): Promise<BookingActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.addBookingTalentRow });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -893,7 +912,7 @@ export async function deleteBookingTalentRow(
   formData: FormData,
 ): Promise<BookingActionState> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.deleteBookingTalentRow });
   if (!auth.ok) return { error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -960,7 +979,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   // SaaS P1.B STEP 1: manual bookings have no source inquiry, so tenant_id
   // must come from the admin's active workspace (switcher cookie / primary
   // membership). Refuse if no scope is resolvable.
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.createManualBooking });
   if (!auth.ok) {
     redirect(`${returnTo}?err=${encodeURIComponent(auth.error)}`);
   }
@@ -1193,7 +1212,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
 
 export async function duplicateBooking(formData: FormData): Promise<void> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: ADMIN_BOOKINGS_CAPABILITY.duplicateBooking });
   if (!auth.ok) redirect("/admin/bookings");
   const { supabase, user, tenantId } = auth;
 

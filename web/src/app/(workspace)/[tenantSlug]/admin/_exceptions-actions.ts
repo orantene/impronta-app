@@ -80,7 +80,11 @@ export async function resumeExceptionAction(input: {
   idempotencyKey: string;
 }): Promise<ResumeExceptionResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer`
+  // holds. One of the RESUME_VERBS this re-drives is `run_refund_intent`, so a
+  // capability-less guard let a viewer re-trigger a refund. `booking.payment.refund`
+  // (admin+) is the same bar the money-moving verb in this queue already needs.
+  const guard = await requireWorkspaceStaffAction({ capability: "booking.payment.refund" });
   if (!guard.ok) return { ok: false, error: guard.error };
 
   if (!(RESUME_VERBS as readonly string[]).includes(input.verb)) {

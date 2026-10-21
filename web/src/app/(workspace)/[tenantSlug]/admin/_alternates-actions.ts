@@ -18,6 +18,12 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 // revalidate the admin work path. NO type exports from this module (Turbopack
 // strips type exports from "use server" files → prod build failure); shared
 // types live in @/lib/inquiry/alternates-types.
+//
+// TUL-1708: each writer names "coordinate_inquiry" on the guard. The default guard
+// capability is `agency.workspace.view`, which a `viewer` holds, so a capability-less
+// guard let a viewer add, remove, reorder or promote waitlist alternates on an inquiry.
+// `coordinate_inquiry` (manager+) is the same bar every other inquiry-coordination write
+// in this codebase requires.
 
 function mapAlternateEngineFailure(res: EngineErr): ActionResult {
   if (res.forbidden) {
@@ -47,7 +53,7 @@ function mapAlternateEngineFailure(res: EngineErr): ActionResult {
 
 export async function addAlternateAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -81,7 +87,7 @@ export async function addAlternateAction(formData: FormData): Promise<ActionResu
 
 export async function removeAlternateAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -110,7 +116,7 @@ export async function removeAlternateAction(formData: FormData): Promise<ActionR
 
 export async function reorderAlternatesAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -158,7 +164,7 @@ export async function reorderAlternatesAction(formData: FormData): Promise<Actio
 
 export async function promoteAlternateAction(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "coordinate_inquiry" });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
