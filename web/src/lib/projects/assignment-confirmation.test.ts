@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { readConfirmations, setOwnConfirmation } from "./assignment-confirmation";
+import { readConfirmations, readOwnSeat, setOwnConfirmation } from "./assignment-confirmation";
 
 type Err = { code?: string; message: string } | null;
 type Row = Record<string, unknown>;
@@ -110,4 +110,27 @@ test("answering twice writes the same row (idempotent upsert on the seat)", asyn
   await setOwnConfirmation(admin, { userId: "u1", assignmentId: "a1", status: "confirmed" });
   assert.equal(upserts.length, 2);
   assert.deepEqual({ ...upserts[0], responded_at: 0 }, { ...upserts[1], responded_at: 0 });
+});
+
+test("TUL-1606: readOwnSeat returns only the signed-in person's own seat and their own answer", async () => {
+  const tables = {
+    talent_profiles: [{ id: "p-me", user_id: "u1" }, { id: "p-other", user_id: "u2" }],
+    booking_talent: [
+      { id: "s-other", booking_id: B, talent_profile_id: "p-other", role_label: "Cook" },
+      { id: "s-me", booking_id: B, talent_profile_id: "p-me", role_label: "Waiter" },
+    ],
+    project_assignment_confirmations: [{ booking_talent_id: "s-me", talent_profile_id: "p-me", status: "confirmed" }],
+  };
+  const { admin } = fakeAdmin(tables);
+  assert.deepEqual(await readOwnSeat(admin, { userId: "u1", bookingId: B }), { assignmentId: "s-me", roleLabel: "Waiter", status: "confirmed" });
+  assert.equal(await readOwnSeat(admin, { userId: "u3", bookingId: B }), null);
+  // an answer left by the previous person on the same seat does not count
+  const stale = fakeAdmin({ ...tables, project_assignment_confirmations: [{ booking_talent_id: "s-me", talent_profile_id: "p-before", status: "confirmed" }] });
+  assert.equal((await readOwnSeat(stale.admin, { userId: "u1", bookingId: B }))?.status, "awaiting");
+  // migration not applied: awaiting, buttons still usable
+  const missing = fakeAdmin(tables, { project_assignment_confirmations: { code: "42P01", message: "x" } });
+  assert.equal((await readOwnSeat(missing.admin, { userId: "u1", bookingId: B }))?.status, "awaiting");
+  // a failed seat read is no seat
+  const broken = fakeAdmin(tables, { booking_talent: { code: "57014", message: "x" } });
+  assert.equal(await readOwnSeat(broken.admin, { userId: "u1", bookingId: B }), null);
 });

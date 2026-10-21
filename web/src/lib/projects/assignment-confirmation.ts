@@ -71,6 +71,48 @@ export async function loadConfirmations(tenantId: string, bookingId: string): Pr
   return readConfirmations(admin, { tenantId, bookingId });
 }
 
+export type OwnSeat = { assignmentId: string; roleLabel: string | null; status: "confirmed" | "declined" | "awaiting" };
+
+/**
+ * TUL-1606: the signed-in person's OWN seat on a booking, with their own answer. Only a seat whose
+ * profile belongs to `userId` is returned; no seat (or any read problem) is `null`, so the UI
+ * shows no buttons rather than buttons that cannot work. An answer given by someone else on the
+ * same seat (before a replacement) does not count.
+ */
+export async function readOwnSeat(admin: SupabaseClient, input: { userId: string; bookingId: string }): Promise<OwnSeat | null> {
+  if (!input.userId || !input.bookingId) return null;
+  try {
+    const mine = await admin.from("talent_profiles").select("id").eq("user_id", input.userId);
+    if (mine.error) {
+      logServerError("projects.readOwnSeat.profiles", mine.error);
+      return null;
+    }
+    const ids = ((mine.data ?? []) as Array<{ id: string }>).map((r) => r.id);
+    if (ids.length === 0) return null;
+    const seatRes = await admin
+      .from("booking_talent")
+      .select("id, talent_profile_id, role_label")
+      .eq("booking_id", input.bookingId);
+    if (seatRes.error) {
+      logServerError("projects.readOwnSeat.seat", seatRes.error);
+      return null;
+    }
+    const seat = ((seatRes.data ?? []) as Array<{ id: string; talent_profile_id: string | null; role_label: string | null }>).find(
+      (s) => s.talent_profile_id && ids.includes(s.talent_profile_id),
+    );
+    if (!seat || !seat.talent_profile_id) return null;
+    const ansRes = await admin.from(TABLE).select("status, talent_profile_id").eq("booking_talent_id", seat.id).maybeSingle();
+    if (ansRes.error && !isMissingSchemaError(ansRes.error)) logServerError("projects.readOwnSeat.answer", ansRes.error);
+    const ans = ansRes.error ? null : (ansRes.data as { status?: unknown; talent_profile_id?: unknown } | null);
+    const status =
+      ans && ans.talent_profile_id === seat.talent_profile_id && (ans.status === "confirmed" || ans.status === "declined") ? ans.status : "awaiting";
+    return { assignmentId: seat.id, roleLabel: seat.role_label, status };
+  } catch (err) {
+    logServerError("projects.readOwnSeat", err);
+    return null;
+  }
+}
+
 export type SetConfirmationResult =
   | { ok: true }
   | { ok: false; reason: "invalid" | "not_yours" | "unavailable" };
