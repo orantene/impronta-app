@@ -308,3 +308,66 @@ test("RESCHEDULE RACE: two bookings moving into the same free time: exactly one 
   ]);
   assert.equal([x, y].filter((r) => r.ok).length, 1);
 });
+
+// ── TUL-1473: attendees of a class share the room the session holds ──────────
+import { purchaseNeedsWithLinkedResources } from "./booking-resources";
+
+const WIN = { startsAt: "2026-10-20T15:00:00Z", endsAt: "2026-10-20T16:00:00Z" };
+const linkedStub = (seen: string[][]) =>
+  (async (_a: unknown, _t: string, ids: readonly string[]) => {
+    seen.push([...ids]);
+    return { ok: true as const, poolsByOffering: new Map(ids.map((id) => [id, [`pool-${id}`]])) };
+  }) as never;
+
+test("two attendees of one class: neither holds the room again because the session already holds it", async () => {
+  const seen: string[][] = [];
+  const res = await purchaseNeedsWithLinkedResources(
+    {} as never,
+    { tenantId: "t", reservation: WIN, lines: [{ offeringId: "class", sessionId: "s1" }, { offeringId: "class", sessionId: "s1" }] },
+    { sessionHoldsRoom: async () => true, loadLinked: linkedStub(seen) },
+  );
+  assert.deepEqual(res, { ok: true, needs: [] });
+  assert.deepEqual(seen, [[]]);
+});
+
+test("a session with NO live room hold keeps the per-attendee hold (scheduled before the session hold existed)", async () => {
+  const seen: string[][] = [];
+  const res = await purchaseNeedsWithLinkedResources(
+    {} as never,
+    { tenantId: "t", reservation: WIN, lines: [{ offeringId: "class", sessionId: "s1" }] },
+    { sessionHoldsRoom: async () => false, loadLinked: linkedStub(seen) },
+  );
+  assert.equal(res.ok && res.needs.length, 1);
+  assert.deepEqual(seen, [["class"]]);
+});
+
+test("an unreadable session hold refuses (fail closed), never sells an unheld room", async () => {
+  const res = await purchaseNeedsWithLinkedResources(
+    {} as never,
+    { tenantId: "t", reservation: WIN, lines: [{ offeringId: "class", sessionId: "s1" }] },
+    { sessionHoldsRoom: async () => null, loadLinked: linkedStub([]) },
+  );
+  assert.equal(res.ok, false);
+});
+
+test("a line with no session (a chair, a one-to-one) still holds its own resource; mixed carts split correctly", async () => {
+  const seen: string[][] = [];
+  const res = await purchaseNeedsWithLinkedResources(
+    {} as never,
+    { tenantId: "t", reservation: WIN, lines: [{ offeringId: "class", sessionId: "s1" }, { offeringId: "haircut" }] },
+    { sessionHoldsRoom: async () => true, loadLinked: linkedStub(seen) },
+  );
+  assert.deepEqual(seen, [["haircut"]]);
+  assert.equal(res.ok && res.needs.length, 1);
+});
+
+test("no time window: nothing is held and the session is not even looked up", async () => {
+  let looked = 0;
+  const res = await purchaseNeedsWithLinkedResources(
+    {} as never,
+    { tenantId: "t", lines: [{ offeringId: "class", sessionId: "s1" }] },
+    { sessionHoldsRoom: async () => (looked++, true), loadLinked: linkedStub([]) },
+  );
+  assert.deepEqual(res, { ok: true, needs: [] });
+  assert.equal(looked, 0);
+});
