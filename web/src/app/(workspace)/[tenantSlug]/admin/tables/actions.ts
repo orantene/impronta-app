@@ -13,7 +13,7 @@ import { z } from "zod";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { closeVisit, moveVisitToSpace, openVisit, resetTable } from "@/lib/visits/commands";
 import { markReservationSeated, type SeatReservationReason } from "@/lib/visits/seat-reservation";
 import {
@@ -26,8 +26,9 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: every caller names the capability it needs (writers: operate_venue).
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   // The guard's `error` is an English sentence; to the floor "not signed in"
   // and "not staff here" are the same instruction, said in the host's language.
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
@@ -40,7 +41,7 @@ async function staff() {
 
 export async function tablesOpenVisit(spaceId: string, serviceKind?: "table" | "tab") {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(spaceId).success) return { ok: false as const, reason: "invalid" as const };
   const r = await openVisit(g.admin, {
@@ -82,7 +83,7 @@ export async function tablesSeatParty(input: {
   admissionId?: string;
 }): Promise<SeatPartyResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = seatPartyInput.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
@@ -112,7 +113,7 @@ export async function tablesSeatParty(input: {
 
 export async function tablesCloseVisit(input: { visitId: string; expectedVersion?: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({ visitId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -122,7 +123,7 @@ export async function tablesCloseVisit(input: { visitId: string; expectedVersion
 
 export async function tablesMoveVisit(input: { visitId: string; spaceId: string; expectedVersion?: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = z
     .object({ visitId: uuid, spaceId: uuid, expectedVersion: z.number().int().optional() })
@@ -135,7 +136,7 @@ export async function tablesMoveVisit(input: { visitId: string; spaceId: string;
 /** T24 — clear "Needs reset" once a table has actually been bussed. */
 export async function tablesResetTable(spaceId: string) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(spaceId).success) return { ok: false as const, reason: "invalid" as const };
   const r = await resetTable(g.admin, { tenantId: g.tenantId, spaceId });
@@ -149,7 +150,7 @@ export async function visitTransfer(input: {
   expectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({
     visitId: uuid,
@@ -179,7 +180,7 @@ export async function visitSplitCheck(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({
     visitId: uuid,
@@ -196,7 +197,7 @@ export async function visitMergeChecks(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({
     fromVisitId: uuid,
@@ -209,7 +210,7 @@ export async function visitMergeChecks(input: {
 
 export async function visitChangeServer(input: { visitId: string; userId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({ visitId: uuid, userId: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };

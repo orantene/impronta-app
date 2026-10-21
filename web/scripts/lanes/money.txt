@@ -298,6 +298,7 @@ src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/media-area-writers-capability.static.test.ts
 src/lib/saas/media-writers-capability.static.test.ts
 src/lib/saas/ops-writers-capability.static.test.ts
+src/lib/saas/tul1708-venue-ops-writers-capability.static.test.ts
 src/lib/saas/vercel-domains-registrar.test.ts
 src/lib/saas/workspace-settings-writers-capability.static.test.ts
 src/lib/sales/activity-shape.test.ts
