@@ -295,7 +295,7 @@ const BUDGETS: Record<string, number> = {
   // Admin shell internals. The largest concentration of god files outside the
   // builder, and the one with no decomposition program running today.
   "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5649,
-  "src/components/admin/shell/internal/drawers/light-10.tsx": 806,
+  "src/components/admin/shell/internal/drawers/light-10.tsx": 820,
   "src/lib/server-actions/admin-workspace-settings.ts": 812,
   "src/lib/payments/transfers.ts": 836,
   "src/lib/stripe/webhook-routing.test.ts": 810,
@@ -602,7 +602,7 @@ const BUDGETS: Record<string, number> = {
   // 2026-09-25: +3 — preserve agendaNow QA clock across shell URL rewrites.
   // 2026-10-10 TUL-392: +5 — thread bridgeTalentAttentionSignals (type, read,
   // value, deps); the signal logic lives in lib/notifications.
-  "src/components/admin/shell/internal/state/context.tsx": 2501,
+  "src/components/admin/shell/internal/state/context.tsx": 2509,
 
   // Workspace routes and server actions.
   "src/app/(workspace)/[tenantSlug]/client/messages/ClientMessagesShell.tsx": 3769,

@@ -784,6 +784,16 @@ function shortInitialsForBridge(name: string): string {
 
 const AdminShellContext = createContext<Ctx | null>(null);
 
+/**
+ * Test-only escape hatch: `<AdminShellContextForTests.Provider value={...}>`
+ * lets a unit test supply a minimal fake Ctx (e.g. just `state.role` and
+ * `toast`) without mounting the full `AdminShellProvider`, which needs a
+ * live Next.js router and is too heavy for a component-level render test.
+ * Not re-exported by the `./state.tsx` barrel's public surface — import
+ * this file directly: `@/components/admin/shell/internal/state/context`.
+ */
+export const AdminShellContextForTests = AdminShellContext;
+
 // ── Client-safe profile-editor layout fallback ──────────────────────────────
 // Mirror of `deriveLayoutFromHardcoded()` (src/lib/profile-editor/section-layout.ts)
 // and the drawer's former RAIL_GROUPS / SECTION_META. We can't import the server

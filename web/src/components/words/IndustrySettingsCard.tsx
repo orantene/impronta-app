@@ -11,10 +11,21 @@ import { useEffect, useState, useTransition } from "react";
 
 import { useAdminShellOptional, meetsRole } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { useT } from "@/i18n/use-t";
 import { loadIndustrySettings, setBusinessType, setIndustryPreset } from "@/lib/server-actions/industry-settings";
 import { presetPickerModel, presetSummary } from "@/lib/words/picker-options";
 import { resolveWords, type IndustryPresetId } from "@/lib/words";
 import { businessTypeById, searchBusinessTypes } from "@/lib/words/business-types";
+
+/**
+ * Mutable facade over the server actions this card calls. Exported so
+ * render tests can substitute a spy for one call without a module-mocking
+ * framework — this repo's component unit tests run under `tsx --test`
+ * (Node's built-in runner), which has no `jest.mock`/`vi.mock` equivalent
+ * on Node 20. Call sites below go through this object rather than the
+ * bare imports so a test can reassign a property on it directly.
+ */
+export const industrySettingsActions = { loadIndustrySettings, setBusinessType, setIndustryPreset };
 
 const inputBoxStyle: React.CSSProperties = {
   borderRadius: 10,
@@ -60,15 +71,18 @@ function Row({
 /** `locale` overrides; without it the card follows the dashboard language (TUL-702). */
 export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "es" }) {
   const dash = useDashboardText();
+  const t = useT();
   const locale: "en" | "es" = localeProp ?? (dash.isSpanish ? "es" : "en");
   // TUL-1708: setBusinessType/setIndustryPreset/setWordOverride now require
   // manage_agency_settings (admin+). This card had no role floor at all —
   // an editor/manager could search a type, pick one and watch it silently
   // fail against the server. `useAdminShellOptional` because this card can
-  // render outside the admin shell (design QA); missing shell context
-  // defaults to read-only rather than assuming admin.
+  // render outside the admin shell (design QA); missing shell context fails
+  // CLOSED (read-only) rather than assuming admin — a card rendered without
+  // the shell mounted has no role to check, so it must not default to editable.
   const shell = useAdminShellOptional();
-  const canEdit = shell ? meetsRole(shell.state.role, "admin") : true;
+  const canEdit = shell ? meetsRole(shell.state.role, "admin") : false;
+  const roleGateMessage = t("dashboard.adminWorkspace.roleGateOnlyAdmin");
   const [saving, startTransition] = useTransition();
   const [current, setCurrent] = useState<unknown>(undefined);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -78,7 +92,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
 
   useEffect(() => {
     let alive = true;
-    void loadIndustrySettings().then((result) => {
+    void industrySettingsActions.loadIndustrySettings().then((result) => {
       if (!alive) return;
       if (result.ok) {
         setCurrent(result.rawPresetId);
@@ -102,14 +116,14 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
 
   function choosePreset(next: IndustryPresetId) {
     if (!canEdit) {
-      setError(es ? "Solo un admin o propietario puede cambiar esto." : "Only an admin or owner can change this.");
+      setError(roleGateMessage);
       return;
     }
     setError(null);
     const previous = current;
     setCurrent(next);
     startTransition(async () => {
-      const result = await setIndustryPreset({ presetId: next });
+      const result = await industrySettingsActions.setIndustryPreset({ presetId: next });
       if (!result.ok) {
         setCurrent(previous);
         setError(result.error);
@@ -119,7 +133,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
 
   function chooseType(nextId: string) {
     if (!canEdit) {
-      setError(es ? "Solo un admin o propietario puede cambiar esto." : "Only an admin or owner can change this.");
+      setError(roleGateMessage);
       return;
     }
     setError(null);
@@ -129,7 +143,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
     setTypeId(nextId);
     if (next) setCurrent(next.preset);
     startTransition(async () => {
-      const result = await setBusinessType({ typeId: nextId });
+      const result = await industrySettingsActions.setBusinessType({ typeId: nextId });
       if (!result.ok) {
         setTypeId(previous);
         setCurrent(previousPreset);
@@ -275,7 +289,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
         </div>
         {!canEdit ? (
           <div style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
-            {es ? "Solo un admin o propietario puede cambiar esto." : "Only an admin or owner can change this."}
+            {roleGateMessage}
           </div>
         ) : null}
         {error ? (

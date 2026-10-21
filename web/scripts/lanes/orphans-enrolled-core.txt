@@ -15,6 +15,7 @@ src/app/(workspace)/talent/talent-layout-perf-trace.static.test.ts
 src/app/(workspace)/talent/trust/trust-page-i18n.static.test.ts
 src/app/start/layout-landmark.static.test.ts
 src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
+src/components/admin/shell/internal/drawers/light-10.render.test.tsx
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
 src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
 src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
@@ -66,6 +67,7 @@ src/components/talent/services/legacy-services-editor-retired.static.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/components/words/IndustrySettingsCard.render.test.tsx
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts

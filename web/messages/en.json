@@ -5484,6 +5484,7 @@
       "planLabel": "Plan & billing",
       "planDesc": "Your current plan, usage, and invoices.",
       "ownersOnlyBilling": "Only owners can change billing",
+      "roleGateOnlyAdmin": "Only an admin or owner can change this.",
       "workspaceLabel": "Workspace",
       "workspaceDesc": "Timezone, locale, currency, and workspace defaults.",
       "wsGeneralTitle": "General",

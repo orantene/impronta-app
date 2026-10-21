@@ -5484,6 +5484,7 @@
       "planLabel": "Plan y facturación",
       "planDesc": "Tu plan actual, uso y facturas.",
       "ownersOnlyBilling": "Solo los propietarios pueden cambiar la facturación",
+      "roleGateOnlyAdmin": "Solo un admin o propietario puede cambiar esto.",
       "workspaceLabel": "Espacio",
       "workspaceDesc": "Zona horaria, idioma, moneda y valores predeterminados del espacio.",
       "wsGeneralTitle": "General",

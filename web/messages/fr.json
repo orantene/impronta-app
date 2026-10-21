@@ -1206,6 +1206,7 @@
       "replayBufferDesc": "Conserver un enregistrement glissant prive des dernieres minutes dans cet espace pour que l'equipe puisse le joindre a un ticket. Desactive par defaut. Les saisies restent masquees.",
       "replayBufferToggle": "Activer le buffer",
       "replayBufferSaving": "Enregistrement",
+      "roleGateOnlyAdmin": "Seul un administrateur ou le propriétaire peut modifier ceci.",
       "posModes": {
         "title": "Modes à cet emplacement",
         "desc": "Les parties du point de vente que cet espace de travail a activees.",
