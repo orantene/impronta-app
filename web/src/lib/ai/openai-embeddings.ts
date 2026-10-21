@@ -1,4 +1,5 @@
 import { normalizeSearchQueryForEmbedding } from "@/lib/ai/normalize-search-query";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 
 /**
@@ -67,6 +68,9 @@ export async function embedTextForSearch(text: string): Promise<number[] | null>
 }
 
 async function embedTextForSearchUncached(text: string): Promise<number[] | null> {
+  // Defence in depth (TUL-1622): the search route already checks the master switch; this keeps a
+  // future caller from reaching the paid embeddings API with the switch off.
+  if (!(await isAiMasterEnabled())) return null;
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) return null;
   const input = text.trim().slice(0, 8000);
