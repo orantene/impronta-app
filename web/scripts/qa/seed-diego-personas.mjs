@@ -226,13 +226,19 @@ async function main() {
       note("reused", `membership ${u.email} (${mem.role})`, mem.id);
       continue;
     }
+    // A workspace seeded earlier (stage-2) already has its one owner: this persona joins as admin.
+    let role = u.membership;
+    if (role === "owner") {
+      const { data: existingOwner } = await sb.from("agency_memberships").select("id").eq("tenant_id", tenantId).eq("role", "owner").limit(1).maybeSingle();
+      if (existingOwner) role = "admin";
+    }
     const { data, error } = await sb
       .from("agency_memberships")
-      .insert({ tenant_id: tenantId, profile_id: profileId, role: u.membership, status: "active", accepted_at: now })
+      .insert({ tenant_id: tenantId, profile_id: profileId, role, status: "active", accepted_at: now })
       .select("id")
       .single();
     if (error) fail(`membership insert failed for ${u.email}: ${error.message}`);
-    note("created", `membership ${u.email} -> ${u.membership}`, data.id);
+    note("created", `membership ${u.email} -> ${role}`, data.id);
   }
 
   // 4. talents + roster
