@@ -476,7 +476,7 @@ export async function loadSchedulableEvents(
   tenantId: string,
 ): Promise<{ ok: true; events: ScheduleEventOption[] } | { ok: false; message: string }> {
   try {
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
     if (!staff.ok || staff.tenantId !== tenantId) {
       return { ok: false, message: "Not authorized for this workspace." };
     }
@@ -552,7 +552,7 @@ export async function scheduleSession(
 ): Promise<ScheduleSessionResult> {
   await requireNotImpersonating();
   try {
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffAction({ capability: "operate_venue" });
     if (!staff.ok || staff.tenantId !== input.tenantId) {
       return { ok: false, message: "Not authorized for this workspace." };
     }

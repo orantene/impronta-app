@@ -16,7 +16,7 @@ export type DateRosterResult = { ok: true; summary: DateRosterSummary } | { ok: 
 
 export async function loadDateRoster(tenantId: string, sessionId: string): Promise<DateRosterResult> {
   try {
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
     if (!staff.ok) return { ok: false, error: staff.error };
     if (staff.tenantId !== tenantId) return { ok: false, error: "Not authorized for this workspace." };
     if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: "That is not a date." };
