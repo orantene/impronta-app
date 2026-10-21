@@ -121,6 +121,8 @@ src/lib/quality/projects-loading-skeleton.static.test.ts
 src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/quality/use-server-no-injectable-params.static.test.ts
+src/lib/rate-limit-kv-public-fallback.test.ts
+src/lib/rate-limit-public-deployed.test.ts
 src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/server-actions/admin-bookings-role-label.static.test.ts

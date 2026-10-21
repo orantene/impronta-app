@@ -43,7 +43,7 @@
  *   BEFORE the engine sendMessage; return code 'rate_limited' on failure.
  */
 
-import { tryConsumeRateLimit } from "@/lib/rate-limit";
+import { publicLimitWithoutStore, runPublicLimiter } from "@/lib/rate-limit-public-floor";
 import { runLimiter } from "@/lib/rate-limit-run";
 import type { GuestChatErrorCode } from "@/lib/inquiry/guest-chat-contract";
 
@@ -308,28 +308,12 @@ const noopLimiter: KvLimiter = {
   // Upstash env is missing, instead of becoming unlimited. The key already
   // carries the trusted client IP; the table is the bounded H3 one.
   async checkBookingSlots(key: string) {
-    return inMemoryPublicLimit("checkBookingSlots", key, 60);
+    return publicLimitWithoutStore("checkBookingSlots", key, 60);
   },
   async checkPublicCatalog(key: string) {
-    return inMemoryPublicLimit("checkPublicCatalog", key, 30);
+    return publicLimitWithoutStore("checkPublicCatalog", key, 30);
   },
 };
-
-const PUBLIC_WINDOW_MS = 60_000;
-const _warnedInMemory = new Set<string>();
-
-function inMemoryPublicLimit(name: string, key: string, max: number): KvRateLimitResult {
-  if (!_warnedInMemory.has(name)) {
-    _warnedInMemory.add(name);
-    // eslint-disable-next-line no-console
-    console.error(
-      `[rate-limit-kv] ${name}: Upstash env is UNSET, using the per-instance in-memory limiter ` +
-        `(${max}/min/IP, not shared across instances). Provision UPSTASH_REDIS_REST_URL/TOKEN.`,
-    );
-  }
-  if (tryConsumeRateLimit(key, max, PUBLIC_WINDOW_MS)) return { ok: true };
-  return { ok: false, code: "rate_limited", retryAfterMs: PUBLIC_WINDOW_MS };
-}
 
 /**
  * One-time loud warning when the limiter falls back to noop in production. The
@@ -589,11 +573,11 @@ async function getLimiter(): Promise<KvLimiter> {
       },
 
       async checkBookingSlots(key: string): Promise<KvRateLimitResult> {
-        return runLimiter("checkBookingSlots", bookingSlotsLimiter, key);
+        return runPublicLimiter("checkBookingSlots", bookingSlotsLimiter, key, 60);
       },
 
       async checkPublicCatalog(key: string): Promise<KvRateLimitResult> {
-        return runLimiter("checkPublicCatalog", publicCatalogLimiter, key);
+        return runPublicLimiter("checkPublicCatalog", publicCatalogLimiter, key, 30);
       },
     };
   } catch {
