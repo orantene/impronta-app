@@ -210,6 +210,7 @@ src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/supabase/auth-cookie-variants.security.test.ts
 src/lib/supabase/cookie-domain.test.ts
 src/lib/supabase/talent-profiles-anon-grants.static.test.ts
+src/lib/supabase/talent-profiles-private-columns.static.test.ts
 src/lib/supabase/tenant-owned-ids.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
@@ -226,6 +227,7 @@ src/lib/talent/menu-tenant-isolation.static.test.ts
 src/lib/talent/offering-delete-or-archive.test.ts
 src/lib/talent/offerings-auth-staff-capabilities.test.ts
 src/lib/talent/offerings-public-rows.test.ts
+src/lib/talent/private-fields.test.ts
 src/lib/talent/staff-talent-access.static.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { getTenantScope } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 /**
  * Staff-only talent snapshot for inspector (detail page + optional future list selection).
@@ -42,7 +43,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "This talent was removed from your roster.", removed: true }, { status: 404 });
   }
 
-  const { data: profile, error: pErr } = await supabase
+  // TUL-1269: `phone` is not column-granted to signed-in clients. The caller is
+  // staff (requireStaffApi) and the talent is on THIS tenant's active roster
+  // (checked above), so read the row with the service role.
+  const profileReader = createServiceRoleClient() ?? supabase;
+  const { data: profile, error: pErr } = await profileReader
     .from("talent_profiles")
     .select(
       `

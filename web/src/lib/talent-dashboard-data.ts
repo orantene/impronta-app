@@ -1,3 +1,4 @@
+import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
 import { cache } from "react";
 import {
   buildTalentChecklist,
@@ -328,9 +329,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
         last_name,
         short_bio,
         bio_i18n,
-        phone,
         gender,
-        date_of_birth,
         location_id,
         residence_country_id,
         residence_city_id,
@@ -347,7 +346,10 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
 
     if (error || !profile) return { ok: false, reason: "no_profile" };
 
-    const typedProfile = profile as TalentDashboardProfileRow;
+    // TUL-1269: phone / date_of_birth are not column-granted to signed-in clients;
+    // the owner reads them through the talent_private_fields RPC.
+    const privateFields = await loadTalentPrivateFields(supabase, (profile as { id: string }).id);
+    const typedProfile = { ...profile, phone: privateFields?.phone ?? null, date_of_birth: privateFields?.date_of_birth ?? null } as unknown as TalentDashboardProfileRow;
 
     const [
       { data: revisions },
