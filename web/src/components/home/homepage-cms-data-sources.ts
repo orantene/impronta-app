@@ -15,7 +15,7 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
-import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
+import { loadRosterServicesWithHub } from "@/lib/service-hub/hub-roster.server";
 import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
@@ -405,7 +405,7 @@ export async function loadBuilderNodeDataSources(
           const admin = createServiceRoleClient();
           // The shared hub is a network, not one workspace: it never lists roster services.
           const hub = await getPlatformHubTenant();
-          const rosterServices = admin && hub?.tenantId !== dataTenantId ? await loadWorkspaceRosterServices(admin, dataTenantId) : [];
+          const rosterServices = admin && hub?.tenantId !== dataTenantId ? await loadRosterServicesWithHub(admin, dataTenantId) : [];
           return rosterServices.length > 0 ? { rosterServices } : {};
         })()
       : {}),
