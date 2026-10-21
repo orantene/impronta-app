@@ -336,15 +336,15 @@ async function offeringHasHistory(
   row: { status: string | null; first_published_at: string | null },
 ): Promise<boolean> {
   if (row.status === "published" || row.first_published_at) return true;
-  const [lines, bookings] = await Promise.all([
-    admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-    admin.from("talent_bookings").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-  ]);
-  if (lines.error || bookings.error) {
-    logServerError("menu.offerings.history", lines.error ?? bookings.error);
+  // TUL-1337: a booking is sold through an order line; `talent_bookings` has no
+  // `offering_id` column, and querying it errored on every call, so the fail-closed
+  // branch turned every delete into "cannot be deleted".
+  const lines = await admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId);
+  if (lines.error) {
+    logServerError("menu.offerings.history", lines.error);
     return true;
   }
-  return (lines.count ?? 0) > 0 || (bookings.count ?? 0) > 0;
+  return (lines.count ?? 0) > 0;
 }
 
 export type DeleteMenuItemResult = { ok: boolean; error?: string; code?: "has_history" | "not_found" };

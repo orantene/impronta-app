@@ -14,7 +14,6 @@ type Row = { id: string; status: string | null; first_published_at: string | nul
 type Fixture = {
   row: Row | null;
   orderLines?: number;
-  bookings?: number;
   historyError?: boolean;
   rowError?: boolean;
 };
@@ -51,7 +50,7 @@ function makeFake(fx: Fixture) {
           calls.push(`${table}.${op}`);
           if (head) {
             if (fx.historyError) return resolveFn({ count: null, error: { message: "boom" } });
-            const count = table === "order_lines" ? fx.orderLines ?? 0 : fx.bookings ?? 0;
+            const count = table === "order_lines" ? fx.orderLines ?? 0 : Number.NaN;
             return resolveFn({ count, error: null });
           }
           return resolveFn({ data: null, error: null });
@@ -70,13 +69,6 @@ test("an offering with an order line is archived, never deleted", async () => {
   const res = await deleteOrArchiveTalentOffering(f.admin, "t1", "o1");
   assert.deepEqual(res, { ok: true, outcome: "archived" });
   assert.equal(f.updates[0]?.status, "archived");
-  assert.ok(!f.calls.includes("talent_offerings.delete"));
-});
-
-test("an offering with a booking is archived, never deleted", async () => {
-  const f = makeFake({ row: base, bookings: 1 });
-  const res = await deleteOrArchiveTalentOffering(f.admin, "t1", "o1");
-  assert.deepEqual(res, { ok: true, outcome: "archived" });
   assert.ok(!f.calls.includes("talent_offerings.delete"));
 });
 
@@ -135,7 +127,6 @@ test("the talent action routes through the shared rule and the workspace rule is
   for (const needle of [
     'row.status === "published" || row.first_published_at',
     'from("order_lines")',
-    'from("talent_bookings")',
   ]) {
     assert.ok(ws.includes(needle), `workspace rule lost: ${needle}`);
     assert.ok(mine.includes(needle), `talent rule drifted: ${needle}`);
@@ -161,4 +152,15 @@ test("deleteTalentOfferingForever has no old bookings pre-check: a booked servic
   assert.equal(body.includes("talent_bookings"), false);
   assert.equal(body.includes("has bookings"), false);
   assert.ok(body.includes("deleteTalentOffering("));
+});
+
+test("TUL-1337: the history check never queries talent_bookings (no offering_id column), so a plain draft deletes", async () => {
+  const f = makeFake({ row: base });
+  const res = await deleteOrArchiveTalentOffering(f.admin, "t1", "o1");
+  assert.deepEqual(res, { ok: true, outcome: "deleted" });
+  assert.ok(!f.calls.some((c) => c.startsWith("talent_bookings")));
+  const SRC = resolve(process.cwd(), "src/lib/talent");
+  for (const file of ["menu-offerings-actions.ts", "offering-delete-or-archive.ts"]) {
+    assert.equal(/from\("talent_bookings"\)[^;]*offering_id/.test(readFileSync(join(SRC, file), "utf8")), false, file);
+  }
 });
