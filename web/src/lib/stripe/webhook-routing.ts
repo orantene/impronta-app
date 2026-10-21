@@ -196,7 +196,12 @@ export type StripeAction =
    *  invoice events remain `invoice_payment_succeeded` / `invoice_payment_failed`. */
   | { kind: "invoice_recorded"; invoiceId: string; eventType: string }
   | { kind: "invalid"; reason: string }
-  | { kind: "ignore" };
+  | {
+      kind: "ignore";
+      /** Optional INFO-level breadcrumb for an event that is deliberately not acted on
+       *  yet (e.g. a delayed-method top-up awaiting `async_payment_succeeded`). */
+      info?: { event: string; sessionId: string; paymentStatus: string };
+    };
 
 // ─── Pure helpers ───────────────────────────────────────────────────────────────
 
@@ -238,7 +243,17 @@ export const WORKSPACE_PLAN_KEYS = new Set(["studio", "agency", "network"]);
  * credit waits for `async_payment_succeeded`.
  */
 function classifyBalanceTopup(session: Stripe.Checkout.Session, userId: string, tenantId: string): StripeAction {
-  if (session.payment_status !== "paid") return { kind: "ignore" };
+  if (session.payment_status !== "paid") {
+    // Not an error: a delayed method is simply still in flight. Only ids/status, no PII.
+    return {
+      kind: "ignore",
+      info: {
+        event: "client_balance_topup_not_paid",
+        sessionId: session.id,
+        paymentStatus: String(session.payment_status ?? "unknown"),
+      },
+    };
+  }
   const requestedCents = parseInt(session.metadata?.amount_cents ?? "0", 10);
   if (!requestedCents) {
     return { kind: "invalid", reason: "client_balance_topup missing/zero amount_cents" };
