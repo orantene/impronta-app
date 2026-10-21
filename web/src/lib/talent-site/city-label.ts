@@ -34,6 +34,22 @@ export function localizePlaceCity(city: string, locale: string): string {
   return text;
 }
 
+/**
+ * TUL-847: when no `locations` row carries the accent (the row itself is
+ * ASCII-folded) and no hint does, these well-known Mexican cities still read
+ * with their proper spelling ("Cancun" -> "Cancún"). Keyed by `citySlug`.
+ */
+const KNOWN_ACCENTED_CITIES: Readonly<Record<string, string>> = {
+  cancun: "Cancún",
+  merida: "Mérida",
+  queretaro: "Querétaro",
+  leon: "León",
+  culiacan: "Culiacán",
+  mazatlan: "Mazatlán",
+  "san-luis-potosi": "San Luis Potosí",
+  mexico: "México",
+};
+
 type NameMap = Readonly<Record<string, string | null | undefined>> | null | undefined;
 
 /**
@@ -57,5 +73,6 @@ export function canonicalCityName(
   // the talent's place text has the accent, so an accented spelling anywhere wins.
   const all = [...maps.map((m) => m?.[lang]), ...maps.flatMap((m) => Object.values(m ?? {})), ...hints];
   const accented = all.find((n) => same(n) && hasAccent(n!));
-  return accented ? accented.trim() : text;
+  if (accented) return accented.trim();
+  return !hasAccent(text) ? (KNOWN_ACCENTED_CITIES[slug] ?? text) : text;
 }
