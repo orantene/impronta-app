@@ -8,7 +8,7 @@ import {
   categoriesOf,
   filterByCategory,
   formatEntryDate,
-  isChangelogPublicLaunch,
+  isChangelogLive,
   loadChangelogRow,
   loadChangelogRows,
   shareText,
@@ -64,9 +64,9 @@ const COPY = {
   },
 } as const;
 
-export function changelogIndexMetadata(locale: ChangelogLocale): Metadata {
+export async function changelogIndexMetadata(locale: ChangelogLocale): Promise<Metadata> {
   const c = COPY[locale];
-  const launched = isChangelogPublicLaunch();
+  const launched = await isChangelogLive();
   return {
     title: `${c.title} · Tulala`,
     description: c.lede,
@@ -83,7 +83,7 @@ export function changelogIndexMetadata(locale: ChangelogLocale): Metadata {
 
 export async function changelogEntryMetadata(id: string, locale: ChangelogLocale): Promise<Metadata> {
   const row = await loadChangelogRow(id);
-  const launched = isChangelogPublicLaunch();
+  const launched = await isChangelogLive();
   const robots = launched ? { index: true, follow: true } : { index: false, follow: true };
   if (!row) return { title: `${COPY[locale].title} · Tulala`, robots: { index: false, follow: false } };
   const e = toEntryView(row, locale);
