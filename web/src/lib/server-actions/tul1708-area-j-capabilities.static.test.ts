@@ -104,7 +104,7 @@ test("menu-import: preview reads with the default guard, apply names its capabil
 test("roster-import: enqueue names manage_talent_roster, the list read keeps the default", () => {
   assert.match(rosterImport, /requireWorkspaceStaffAction\(\{ capability: "manage_talent_roster" \}\)/);
   const listBody = rosterImport.slice(rosterImport.indexOf("export async function listRosterImportJobs"));
-  assert.match(listBody, /await requireWorkspaceStaffAction\(\);/);
+  assert.match(listBody, /await requireWorkspaceStaffAction\((?:\{ capability: "agency\.workspace\.view" \})?\);/);
 });
 
 test("roster-import API route: POST names manage_talent_roster", () => {
@@ -119,7 +119,7 @@ test("refund-actions: refundOrderAtDesk names manage_billing in the guard itself
     refundActions.indexOf("export async function loadOrderLinesForDesk"),
     refundActions.indexOf("export async function refundOrderAtDesk"),
   );
-  assert.match(readBody, /await requireWorkspaceStaffAction\(\);/);
+  assert.match(readBody, /await requireWorkspaceStaffAction\((?:\{ capability: "agency\.workspace\.view" \})?\);/);
 });
 
 test("retry-starter-prepare: the retry action names agency.site_admin.design.publish, the load read keeps the default", () => {
@@ -128,7 +128,7 @@ test("retry-starter-prepare: the retry action names agency.site_admin.design.pub
     retryStarterPrepare.indexOf("export async function loadStarterPrepareStateAction"),
     retryStarterPrepare.indexOf("export async function retryStarterPrepareAction"),
   );
-  assert.match(loadBody, /await requireWorkspaceStaffAction\(\);/);
+  assert.match(loadBody, /await requireWorkspaceStaffAction\((?:\{ capability: "agency\.workspace\.view" \})?\);/);
 });
 
 test("REGRESSION GUARD: collections/actions.ts mutations still all name agency.site_admin.pages.edit", () => {
@@ -157,7 +157,7 @@ test("REGRESSION GUARD: collections/actions.ts mutations still all name agency.s
     const start = collectionsActions.indexOf(`export async function ${name}`);
     const nextExport = collectionsActions.indexOf("\nexport async function", start + 1);
     const body = collectionsActions.slice(start, nextExport < 0 ? undefined : nextExport);
-    assert.match(body, /await requireWorkspaceStaffAction\(\);/);
+    assert.match(body, /await requireWorkspaceStaffAction\((?:\{ capability: "agency\.workspace\.view" \})?\);/);
   }
 });
 
@@ -168,7 +168,7 @@ test("REGRESSION GUARD: runs-events.ts setRunsEvents still names manage_billing,
     runsEvents.indexOf("export async function getRunsEvents"),
     runsEvents.indexOf("export async function setRunsEvents"),
   );
-  assert.match(getBody, /await requireWorkspaceStaffAction\(\);/);
+  assert.match(getBody, /await requireWorkspaceStaffAction\((?:\{ capability: "agency\.workspace\.view" \})?\);/);
 });
 
 // ── Acceptance (from TUL-1708) ────────────────────────────────────────────

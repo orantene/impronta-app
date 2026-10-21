@@ -152,7 +152,7 @@ const AREA_H_FILES: Record<string, number> = {
   "lib/reviews/review-moderation-actions.ts": 0, // FIXED: write passes agency.site_admin.media.upload
   "lib/media/talent-media-read-auth.server.ts": 1, // READ helper: default is correct
   "lib/talent/menu-offerings-actions.ts": 0, // FIXED: writers pass WRITE_CAPABILITY, readers keep default
-  "lib/talent/offerings-auth.server.ts": 1, // shared helper used by readers + writers outside this area
+  "lib/talent/offerings-auth.server.ts": 0, // TUL-1727 (#4336) threads a capability parameter through it: no bare call left
   "lib/server-actions/spaces-editor.ts": 1, // GAP: pending the operate_venue capability (separate DEV PR)
 };
 
