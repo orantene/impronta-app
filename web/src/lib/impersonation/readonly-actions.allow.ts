@@ -41,7 +41,6 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/admin-tier-service-fee.ts", ["loadTierServiceFees"], READ],
   ["lib/resources/offering-resources-actions.ts", ["loadOfferingResourcesAction"], READ],
   ["lib/service-hub/terms-actions.ts", ["respondToHubTermsFormAction"], "form wrapper: its only effect is calling respondToHubTermsAction, which is guarded"],
-  ["app/t/[profileCode]/_actions/roster-request-actions.ts", ["buildRosterRequestFromSentence"], "public front-door chat: builds a prefilled contact message from the host's public roster, writes nothing, no user session"],
   ["lib/server-actions/messaging-money-actions.ts", ["messagingPreviewCancel", "messagingLoadRefundableTransaction", "messagingCanReadNotes"], READ],
   ["lib/server-actions/messaging-offers.ts", ["messagingLoadOfferForEditor", "messagingListOffers"], READ],
   ["lib/server-actions/messaging-sheets.ts", ["messagingLoadHandOverTargets", "messagingLoadDelivery", "messagingLoadSnapshots", "messagingLoadOffers", "messagingLoadBasketDiff", "messagingLoadContextLines"], READ],
