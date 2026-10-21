@@ -50,6 +50,7 @@ src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
 src/lib/billing/trial-race-retry-locale.test.ts
 src/lib/billing/trial-session-reconcile.test.ts
+src/lib/billing/workspace-downgrade-stripe.test.ts
 src/lib/billing/workspace-money-gates.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
