@@ -18,9 +18,9 @@ import {
   attachDeliverableFile,
   projectArchive,
   projectReopen,
-  projectReplaceTalent,
   setDeliverableAmount,
 } from "@/lib/projects/project-ops";
+import { replaceTalentOnProject } from "@/lib/projects/replace-with-notice.server";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
@@ -304,7 +304,8 @@ export async function projectReplaceTalentAction(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return projectReplaceTalent(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  // TUL-1603: the swap, then the new person's bell, the client notice (only for a person shown by name) and the payout plan.
+  return replaceTalentOnProject(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
 export async function amendmentSend(input: {
