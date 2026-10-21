@@ -30,6 +30,7 @@ import {
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
 import { resolveServerOwnedOfferingFields, type ServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
+import { replaceOfferingPhotoLinks } from "@/lib/talent/offering-photo-links";
 import { deleteOrArchiveTalentOffering } from "@/lib/talent/offering-delete-or-archive";
 import { afterResponse } from "@/lib/server/after-response";
 import { notifyListingsBelowMinimum } from "@/lib/notifications/producers/listing-below-minimum-notify";
@@ -489,22 +490,11 @@ export async function setOfferingImages(
     }
   }
 
-  const { error: delErr } = await offeringMediaTable(admin).delete().eq("offering_id", offeringId);
-  if (delErr) {
-    logServerError("talent.offerings.mediaClear", delErr);
+  // Insert-then-remove (TUL-1632): a failed write leaves the old photos in place instead of none.
+  const linked = await replaceOfferingPhotoLinks(admin, offeringId, wanted);
+  if (!linked.ok) {
+    logServerError(linked.stage === "write" ? "talent.offerings.mediaSet" : "talent.offerings.mediaClear", linked.error);
     return { ok: false, error: "Failed to update photos." };
-  }
-  if (wanted.length > 0) {
-    const rows = wanted.map((mid, i) => ({
-      offering_id: offeringId,
-      media_asset_id: mid,
-      sort_order: i,
-    }));
-    const { error: insErr } = await offeringMediaTable(admin).insert(rows);
-    if (insErr) {
-      logServerError("talent.offerings.mediaSet", insErr);
-      return { ok: false, error: "Failed to update photos." };
-    }
   }
   revalidatePath("/talent/services");
   bustTalentSiteCache(talentProfileId, null);
