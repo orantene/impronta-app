@@ -91,7 +91,7 @@ test("TUL-62: signed-in booking form prefill wires chrome.client into InquiryDra
 
 /** TUL-452: studio Live booking band must not inherit English cookie / light-on-white. */
 test("studio Live booking passes page locale and isolates ink + overflow", () => {
-  const band = readFileSync(join(SRC, "lib/site-admin/builder-node/live-booking-bands.tsx"), "utf8");
+  const band = readFileSync(join(SRC, "lib/site-admin/builder-node/live-booking-band.tsx"), "utf8");
   const render = readFileSync(join(SRC, "lib/site-admin/builder-node/render.tsx"), "utf8");
   const contact = readFileSync(join(SRC, "components/public-booking/GuestInstantContact.tsx"), "utf8");
   const bookClient = readFileSync(join(SRC, "app/(public)/book/BookPageClient.tsx"), "utf8");
@@ -99,8 +99,8 @@ test("studio Live booking passes page locale and isolates ink + overflow", () =>
   assert.match(band, /locale=\{locale\}/, "LiveBookingBand must forward locale into BookPageClient");
   assert.match(
     render,
-    /locale=\{options\.contentLocale\?\.locale \?\? options\.visitorLocale\}/,
-    "renderer must pass page locale into LiveBookingBand",
+    /locale: options\.contentLocale\?\.locale \?\? options\.visitorLocale/,
+    "renderer must pass page locale into the injected live booking band",
   );
   assert.match(band, /overflow:\s*"visible"/, "studio booking chrome must not clip Turnstile");
   assert.match(band, /token-color-ink/, "studio booking chrome must set readable ink");

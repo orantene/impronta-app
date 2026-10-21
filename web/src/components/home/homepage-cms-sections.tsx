@@ -45,6 +45,7 @@ import {
   collectBuilderSectionEmbedNodes,
   makeSectionEmbedRenderer,
 } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { renderLiveBookingBand } from "@/lib/site-admin/builder-node/live-booking-band";
 import { makeNativeLiveBlockRenderer } from "@/lib/site-admin/builder-node/native-live-block-renderer";
 import { ClientBuilderCanvas } from "@/components/edit-chrome/client-builder-canvas";
 import { ClientSectionChildren } from "@/components/edit-chrome/client-section-children";
@@ -338,6 +339,7 @@ export async function HomepageCmsSections({
       visibilityContext,
       renderSectionEmbed: sectionEmbedRenderer,
       renderNativeLiveBlock: nativeLiveBlockRenderer,
+      renderLiveBookingBand,
     });
   }
 
@@ -441,6 +443,7 @@ export async function HomepageCmsSections({
             componentStyleDefaults,
             renderSectionEmbed: freeformSectionEmbedRenderer,
             renderNativeLiveBlock: nativeLiveBlockRenderer,
+            renderLiveBookingBand,
           })}
         </>
       );
@@ -715,6 +718,7 @@ export async function HomepageCmsSections({
               componentStyleDefaults,
               renderSectionEmbed: sectionEmbedRendererForChildren,
               renderNativeLiveBlock: nativeLiveBlockRenderer,
+              renderLiveBookingBand,
               captcha: captchaConfig,
               visitorLocale: locale,
             });
@@ -771,6 +775,7 @@ export async function HomepageCmsSections({
               publicPathPrefix,
             }),
             renderNativeLiveBlock: nativeLiveBlockRenderer,
+            renderLiveBookingBand,
           })}
     </>
   );

@@ -74,6 +74,14 @@ import type { BuilderSectionEmbedRenderer } from "./section-embed-renderer";
 export type BuilderNativeLiveBlockRenderer = (
   node: BuilderNode,
 ) => ReactNode | null;
+
+/** TUL-1613: renders a marked "Live booking" band; injected by public server callers only. */
+export type BuilderLiveBookingBandRenderer = (args: {
+  nodeId: string;
+  surface: LiveBookingSurface;
+  tenantId: string;
+  locale?: string;
+}) => ReactNode;
 import { resolveBuilderNodeRole } from "./role-bindings";
 import {
   resolveInstanceChildren,
@@ -164,7 +172,7 @@ import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
 import { isLiveBookingLabel, isLiveServicesLabel, type LiveBookingSurface } from "./live-booking-markers";
-import { LiveBookingBand, LiveServicesBand } from "./live-booking-bands";
+import { LiveServicesBand } from "./live-booking-bands";
 import { TicketPickerIsland } from "./ticket-picker-island";
 import { EventProgramIsland } from "./event-program-island";
 import { QrCodeBlock } from "./qr-code-block";
@@ -579,6 +587,13 @@ export interface BuilderNodeRenderOptions {
    */
   renderNativeLiveBlock?: BuilderNativeLiveBlockRenderer | null;
   /**
+   * TUL-1613: the real booking flow for a "Live booking" band, injected by a PUBLIC server caller
+   * (`renderLiveBookingBand` in `live-booking-band.tsx`). Injected, not imported, so this module
+   * (bundled by the admin builder canvas) does not pull `BookPageClient` and the public booking
+   * chain into the admin bundle. Omitted (admin, previews, tests): the authored fallback renders.
+   */
+  renderLiveBookingBand?: BuilderLiveBookingBandRenderer | null;
+  /**
    * TUL-1178 step 2: the real promo renderer (`renderPromoBlock` in `promo-block.tsx`), injected
    * by a SERVER caller that holds promo data (the live site and the My content preview). It is
    * injected, not imported here, so the builder canvas (browser) does not bundle the promo
@@ -707,6 +722,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
     | "currentPath"
     | "availableLocales"
     | "renderNativeLiveBlock"
+    | "renderLiveBookingBand"
     | "renderPromoBlock"
   >
 > & {
@@ -718,6 +734,7 @@ type NormalizedBuilderNodeRenderOptions = Required<
   // BUILDER 2027 · P2A — null when no server caller injected a live engine;
   // the three delegating kinds then render their self-contained native markup.
   renderNativeLiveBlock: BuilderNativeLiveBlockRenderer | null;
+  renderLiveBookingBand: BuilderLiveBookingBandRenderer | null;
   renderPromoBlock: BuilderPromoBlockRenderer | null;
   // ABTEST-1 — undefined/null seed → control always renders, no tracking.
   experimentSeed: string | null | undefined;
@@ -4788,15 +4805,16 @@ function renderBuilderNodeElement(
       // when the tenant has something published; otherwise it falls through to
       // the authored fallback children below.
       const liveSurface = options.dataSources.liveBooking;
-      if (liveSurface && isLiveBookingLabel(node.props.layerLabel) && liveSurface.offerings.length > 0) {
+      if (liveSurface && options.renderLiveBookingBand && isLiveBookingLabel(node.props.layerLabel) && liveSurface.offerings.length > 0) {
         return (
-          <LiveBookingBand
-            key={node.id}
-            nodeId={node.id}
-            surface={liveSurface}
-            tenantId={options.dataSources.tenantId ?? ""}
-            locale={options.contentLocale?.locale ?? options.visitorLocale}
-          />
+          <Fragment key={node.id}>
+            {options.renderLiveBookingBand({
+              nodeId: node.id,
+              surface: liveSurface,
+              tenantId: options.dataSources.tenantId ?? "",
+              locale: options.contentLocale?.locale ?? options.visitorLocale,
+            })}
+          </Fragment>
         );
       }
       if (liveSurface && isLiveServicesLabel(node.props.layerLabel) && liveSurface.services.length > 0) {
@@ -9353,6 +9371,7 @@ function normalizeBuilderNodeRenderOptions(
     visibilityContext: options.visibilityContext,
     renderSectionEmbed: options.renderSectionEmbed ?? null,
     renderNativeLiveBlock: options.renderNativeLiveBlock ?? null,
+    renderLiveBookingBand: options.renderLiveBookingBand ?? null,
     renderPromoBlock: options.renderPromoBlock ?? null,
     animateLayout: options.animateLayout ?? false,
     componentStyleDefaults: options.componentStyleDefaults ?? {},

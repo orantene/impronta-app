@@ -36,6 +36,7 @@ import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/ex
 import { resolveTenantCaptcha } from "@/lib/integrations/resolve";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { renderLiveBookingBand } from "@/lib/site-admin/builder-node/live-booking-band";
 import { makeNativeLiveBlockRenderer } from "@/lib/site-admin/builder-node/native-live-block-renderer";
 import { buildInEditorCanvasRenderData } from "@/lib/site-admin/builder-core/in-editor-canvas-render-data";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
@@ -692,6 +693,7 @@ export default async function CmsPublicPage({
                 // sidebar, map, AI interpret) instead of its static fallback
                 // grid. `editorMode` keeps the canvas on the static grid, which
                 // is what an operator needs there: selectable and offline.
+                renderLiveBookingBand,
                 renderNativeLiveBlock: makeNativeLiveBlockRenderer({
                   tenantId: publicScope.tenantId,
                   locale,

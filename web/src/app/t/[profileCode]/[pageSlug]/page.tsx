@@ -44,6 +44,7 @@ import {
   hasRenderableBuilderNodes,
 } from "@/lib/site-admin/builder-node/render";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { renderLiveBookingBand } from "@/lib/site-admin/builder-node/live-booking-band";
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPublicComponentStyleDefaults } from "@/lib/site-admin/server/reads";
@@ -303,6 +304,7 @@ export default async function PublicTalentFreeformPage({
           bookingCaptcha: bookingCaptchaConfig,
           visitorLocale: locale,
           renderSectionEmbed,
+          renderLiveBookingBand,
         })}
       </main>
     </div>
