@@ -16,8 +16,8 @@ export type AccountView =
   | { kind: "thread"; id: string }
   | { kind: "receipt"; code: string };
 
-export type AccountTab = "visits" | "messages" | "payments" | "saved" | "reviews" | "settings" | "help";
-export const ACCOUNT_TABS: readonly AccountTab[] = ["visits", "messages", "payments", "saved", "reviews", "settings", "help"];
+export type AccountTab = "visits" | "messages" | "payments" | "saved" | "reviews" | "match" | "settings" | "help";
+export const ACCOUNT_TABS: readonly AccountTab[] = ["visits", "messages", "payments", "saved", "reviews", "match", "settings", "help"];
 
 export function parseAccountTab(raw: string | null | undefined): AccountTab {
   return ACCOUNT_TABS.find((t) => t === raw) ?? "visits";

@@ -1,5 +1,6 @@
 import { loadMyReviews } from "./my-reviews.server";
 import { loadSavedTalent } from "./saved-talent.server";
+import { loadMyMatchRequests } from "@/lib/match-me/match-views.server";
 import { notFound } from "next/navigation";
 
 import { GoogleFontsLink } from "@/app/google-fonts-link";
@@ -59,6 +60,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
     else if (view.tab === "saved") data.saved = await loadSavedTalent(userId, hostContext === "hub" ? null : tenantId);
     else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
+    else if (view.tab === "match") data.match = await loadMyMatchRequests(userId, tenantId);
     else if (view.tab === "payments") {
       [data.summary, data.payLinks, data.receipts] = await Promise.all([
         loadClientAccountSummary({ userId, tenantId, timeZone: tenant.timeZone, locale }),
@@ -83,6 +85,7 @@ export async function renderTenantAccountPage(view: AccountView, hostContext: st
         timeZone={tenant.timeZone}
         data={data}
         bookHere={hostHasPublicBooking(hostContext)}
+        matchEnabled
         extraTabs={agencyAccountTabs({ hostContext, tenantSlug: tenant.slug, userId, appRole })}
       />
     </>
