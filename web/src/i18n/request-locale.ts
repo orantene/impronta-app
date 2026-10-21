@@ -13,6 +13,9 @@ import {
 
 const LOCALE_HEADER = "x-impronta-locale";
 
+/** Same string as `HOST_CONTEXT_HEADER` (saas/host-context.ts); inlined to keep this module light. */
+const HOST_CONTEXT_HEADER_NAME = "x-impronta-host-context";
+
 /** Browser pathname (e.g. `/es/directory`) — set in middleware before rewrite so locale does not depend on stale cookies in the same request. */
 export const ORIGINAL_PATHNAME_HEADER = "x-impronta-original-pathname";
 
@@ -80,6 +83,8 @@ export async function getRequestLocale(): Promise<Locale> {
     cookieLocale: jar.get(LOCALE_COOKIE)?.value,
     publicLocales: settings.publicLocales,
     defaultLocale: settings.defaultLocale ?? defaultLocale,
+    // TUL-1798: marketing hosts do not let a stale locale cookie re-skin the English URLs.
+    cookieBeatsUnprefixedPath: h.get(HOST_CONTEXT_HEADER_NAME) !== "marketing",
   }) as Locale;
 }
 
