@@ -50,7 +50,7 @@ test("an unreadable answer fails closed", async () => {
 test("the actions use the workspace guard, prove the relationship, and attach a new client to the workspace", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/server-actions/admin-clients.ts"), "utf8").replace(/\/\/.*$/gm, "");
   assert.doesNotMatch(src, /\brequireStaff\(\)/);
-  assert.equal((src.match(/requireStaffTenantAction\(\{ capability: "edit_client_relationship" \}\)/g) ?? []).length, 2);
+  assert.equal((src.match(/requireWorkspaceStaffAction\(\{ capability: "edit_client_relationship" \}\)/g) ?? []).length, 2);
   assert.match(src, /clientBelongsToTenant\(supabase, auth\.tenantId, userId\)/);
   assert.match(src, /ensureTenantClientRelationship\(\{ userId, tenantId: auth\.tenantId/);
 });

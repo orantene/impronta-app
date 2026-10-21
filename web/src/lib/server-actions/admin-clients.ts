@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseWithSchema, trimmedString } from "@/lib/admin/validation";
-import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { clientBelongsToTenant } from "@/lib/server/client-tenant-access";
 import { ensureTenantClientRelationship } from "@/lib/client-account/relationship.server";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -56,7 +56,7 @@ export async function updateAdminClientProfile(
   await requireNotImpersonating();
   // TUL-1733: a WORKSPACE action. The old global `requireStaff()` admitted every self-serve studio owner
   // to ANY client's profile (and the RLS policy on client_profiles is just as global).
-  const auth = await requireStaffTenantAction({ capability: "edit_client_relationship" });
+  const auth = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!auth.ok) return { error: auth.error };
 
   const { supabase } = auth;
@@ -112,7 +112,7 @@ export async function createAdminClient(
   await requireNotImpersonating();
   // TUL-1733: a WORKSPACE action (editor and above). The new client is attached to the caller's workspace
   // below; the old global `requireStaff()` let any studio owner mint confirmed accounts platform-wide.
-  const auth = await requireStaffTenantAction({ capability: "edit_client_relationship" });
+  const auth = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!auth.ok) return { error: auth.error };
 
   const parsed = parseWithSchema(adminCreateClientSchema, {
