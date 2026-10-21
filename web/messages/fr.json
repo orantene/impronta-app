@@ -91,6 +91,8 @@
         "attrStarAria": "{label} : {stars}",
         "stoodOutLabel": "Qu'est-ce qui vous a marqué ? (facultatif)",
         "privateNoteLabel": "Note privée. Seul {name} la voit, pour l'aider à progresser.",
+        "privateNoteLabelWorkspace": "Note privée. Seul {name} la voit.",
+        "privateNoteLabelNeutral": "Note privée, non affichée publiquement.",
         "privateNotePlaceholder": "Quelque chose à partager en privé pour l'aider à progresser ?",
         "postAnonymously": "Publier de façon anonyme (afficher comme Client vérifié)",
         "saving": "Enregistrement…",

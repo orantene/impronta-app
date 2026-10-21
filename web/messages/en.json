@@ -380,6 +380,8 @@
         "attrStarAria": "{label}: {stars}",
         "stoodOutLabel": "What stood out? (optional)",
         "privateNoteLabel": "Private note. Only {name} sees this, to help them improve.",
+        "privateNoteLabelWorkspace": "Private note. Only {name} sees this.",
+        "privateNoteLabelNeutral": "Private note, not shown publicly.",
         "privateNotePlaceholder": "Anything you'd share privately to help them grow?",
         "postAnonymously": "Post anonymously (show as Verified client)",
         "saving": "Saving…",
@@ -14041,7 +14043,10 @@
       "title": "Reviews",
       "subtitle": "Reported reviews, rating integrity, and review photos across your workspace.",
       "reviewPhotos": "Review photos",
-      "noTenant": "Sign in to a workspace to moderate its reviews."
+      "noTenant": "Sign in to a workspace to moderate its reviews.",
+      "privateNotesTitle": "Private notes from clients",
+      "privateNotesHint": "Clients wrote these for your business. Your team members do not see them.",
+      "privateNotesWith": "Job with {name}"
     },
     "adminAnalytics": {
       "eyebrow": "Analytics",

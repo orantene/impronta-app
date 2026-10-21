@@ -37,6 +37,8 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadWorkspacePrivateNotes, type WorkspacePrivateNote } from "./private-note-routing";
 
 /** A single moderation-audit event on a review (immutable trail row). */
 export type ReviewModerationEvent = {
@@ -493,4 +495,28 @@ async function readIntegritySignals(
 
   out.sort((a, b) => b.gap - a.gap);
   return out;
+}
+
+/** A client's private note that belongs to the workspace (team studio, TUL-1686). */
+export type WorkspaceReviewPrivateNote = WorkspacePrivateNote & { talentName: string | null };
+
+/**
+ * TUL-1686: in a team studio the client's private review note goes to the
+ * workspace, not the talent. Staff of THIS tenant (same gate as the queue) read
+ * them here; any other work model returns [] (those notes stay the talent's).
+ * The DB reader enforces staff + team studio as the signed-in caller; while its
+ * migration is held the service-role fallback applies the same rule.
+ */
+export async function loadWorkspaceReviewPrivateNotes(
+  tenantId: string,
+  limit = 20,
+): Promise<WorkspaceReviewPrivateNote[]> {
+  const gate = await gateModeration(tenantId);
+  if (!gate) return [];
+  const session = await getCachedServerSupabase();
+  if (!session) return [];
+  const notes = await loadWorkspacePrivateNotes(session, gate.svc, gate.tid, limit);
+  if (notes.length === 0) return [];
+  const names = await resolveTalentNames(gate.svc, notes.map((n) => n.talentProfileId));
+  return notes.map((n) => ({ ...n, talentName: names.get(n.talentProfileId) ?? null }));
 }

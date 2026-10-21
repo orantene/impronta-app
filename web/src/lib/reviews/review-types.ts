@@ -7,6 +7,8 @@
  * Contract owner: Agent 1. Kept identical across all agents in this wave.
  */
 
+import type { NoteWorkspace } from "./private-note-audience";
+
 /** A single approved photo attached to a review (STANDING v3 item 5). */
 export type ReviewMediaItem = {
   id: string;
@@ -84,6 +86,12 @@ export type ReviewableBooking = {
   talentName: string | null;
   eventTitle: string | null;
   eventDate: string | null;
+  /**
+   * TUL-1686: the booking's workspace, so the private-note label names who reads
+   * it (team studio: the workspace; else the talent). null/absent = could not be
+   * read, and the label names no one.
+   */
+  noteWorkspace?: NoteWorkspace;
   /**
    * The caller-client's existing review of this talent on this booking, with the
    * full STANDING signal so the form prefills in edit mode. `publishedAt` anchors

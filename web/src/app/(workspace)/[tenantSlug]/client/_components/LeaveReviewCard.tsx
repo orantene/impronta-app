@@ -31,6 +31,7 @@ import {
   type TalentReviewStanding,
 } from "@/lib/reviews/review-actions";
 import type { ReviewableBooking } from "@/lib/reviews/review-types";
+import { privateNoteAudience, privateNoteLabelKey } from "@/lib/reviews/private-note-audience";
 import { ReviewPhotoUploader } from "./ReviewPhotoUploader";
 import { useT } from "@/i18n/use-t";
 import { withInterpolation } from "@/i18n/interpolate";
@@ -152,6 +153,8 @@ export function LeaveReviewCard({
   const isEdit = existing != null;
   const groupId = useId();
   const talentLabel = booking.talentName ?? tt("public.reviews.form.talentFallback");
+  // TUL-1686: say who reads the private note (team studio: the workspace, by name).
+  const noteLabel = privateNoteLabelKey(privateNoteAudience(booking.noteWorkspace, talentLabel));
   const starAria = (n: number) =>
     tt(n > 1 ? "public.reviews.form.starMany" : "public.reviews.form.starOne", { count: n });
 
@@ -651,13 +654,13 @@ export function LeaveReviewCard({
         </div>
       </div>
 
-      {/* Private note — talent-only */}
+      {/* Private note: the talent, or the workspace in a team studio (TUL-1686) */}
       <div style={{ marginTop: 18 }}>
         <label
           htmlFor={`${groupId}-private`}
           style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}
         >
-          {tt("public.reviews.form.privateNoteLabel", { name: talentLabel })}
+          {tt(noteLabel.key, { name: noteLabel.name ?? "" })}
         </label>
         <textarea
           id={`${groupId}-private`}
