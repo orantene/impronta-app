@@ -146,3 +146,33 @@ for (const [relPath, expectedBare] of Object.entries(EXPECTED_BARE_MANAGER_READS
     }
   });
 }
+
+/**
+ * Consultant P1 (delta on #4332): `PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY[namespace]`
+ * returns `undefined` for a namespace outside the map, and
+ * `requireWorkspaceStaffAction({ capability: undefined })` falls back to the
+ * viewer-held default — so an unlisted namespace let a viewer write any key.
+ * `patchAgencySettingsNamespace` must refuse before the guard runs.
+ */
+test("patchAgencySettingsNamespace: refuses an unknown namespace before the capability lookup / guard", () => {
+  const code = src("src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts");
+  const fnStart = code.indexOf("export async function patchAgencySettingsNamespace");
+  assert.ok(fnStart >= 0, "patchAgencySettingsNamespace not found");
+  const guardIdx = code.indexOf("requireWorkspaceStaffAction({", fnStart);
+  const checkIdx = code.indexOf(
+    "Object.hasOwn(PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY, namespace)",
+    fnStart,
+  );
+  assert.ok(checkIdx >= 0, "missing the Object.hasOwn namespace guard");
+  assert.ok(checkIdx < guardIdx, "the namespace guard must run BEFORE the capability lookup / staff guard");
+});
+
+test("cancelInquiryTransaction: voids a payment request (no money moves), so it uses booking.payment.request, not booking.payment.refund", () => {
+  const code = src("src/lib/inquiry/pipeline-write-capabilities.ts");
+  assert.match(code, /cancelInquiryTransaction:\s*"booking\.payment\.request"/);
+  assert.doesNotMatch(
+    code,
+    /cancelInquiryTransaction:\s*"booking\.payment\.refund"/,
+    "cancelInquiryTransaction only voids a payment REQUEST, same bar as main's cancelTransactionAction — it must not require the refund capability",
+  );
+});

@@ -918,6 +918,15 @@ export async function patchAgencySettingsNamespace(
     // site-admin edit, `domain` is OWNER-tier (same bar as manage_agency_domains
     // — domains are OWNER per the PM's final role scope), and the rest sit at
     // ADMIN. A single flat capability for every namespace over-granted.
+    //
+    // Fail closed on a namespace the map doesn't know: TypeScript's literal
+    // union normally stops this, but the map lookup itself returns undefined
+    // for anything outside it, and the staff guard below falls back to its
+    // viewer-held default when no capability is supplied — a viewer could
+    // then write any key by naming an unlisted namespace at the call boundary.
+    if (!Object.hasOwn(PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY, namespace)) {
+      return { ok: false, error: "Unknown settings section." };
+    }
     const auth = await requireWorkspaceStaffAction({
       capability: PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY[namespace],
     });

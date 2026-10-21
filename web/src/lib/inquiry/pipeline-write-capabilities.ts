@@ -112,7 +112,9 @@ export const PIPELINE_WRITE_CAPABILITY = {
   markInquiryPaymentDisputed: "booking.payment.mark_received",
   markInquiryPaymentFailed: "booking.payment.mark_received",
   markInquiryPaidInCash: "booking.payment.mark_received",
-  cancelInquiryTransaction: "booking.payment.refund",
+  // TUL-1708: this only voids a payment REQUEST and moves no money (same bar
+  // as main's cancelTransactionAction) — not a refund of money already paid.
+  cancelInquiryTransaction: "booking.payment.request",
   initiateInquiryPayout: "booking.payment.payout_mark_external",
   markInquiryPayoutSent: "booking.payment.payout_mark_external",
 
