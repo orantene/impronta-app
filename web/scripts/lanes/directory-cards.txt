@@ -7,6 +7,7 @@ src/components/home/default-storefront-links.static.test.ts
 src/components/marketing/marketing-loading.static.test.ts
 src/components/marketing/mkt-b-mobile-polish.static.test.ts
 src/lib/directory/caption-norms.test.ts
+src/lib/directory/card-role-line.test.ts
 src/lib/directory/demand-score.test.ts
 src/lib/directory/directory-attribution.test.ts
 src/lib/directory/directory-page-waterfall.static.test.ts
