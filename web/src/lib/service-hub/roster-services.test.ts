@@ -34,10 +34,12 @@ function fakeAdmin(tables: Record<string, Row[]>, sellable: (id: string) => bool
         });
         return q;
       },
-      rpc: async (name: string, args: { p_listing_id: string }) => {
-        rpcCalls.push(`${name}:${args.p_listing_id}`);
-        const r = sellable(args.p_listing_id);
-        return r === "error" ? { data: null, error: { message: "boom" } } : { data: r, error: null };
+      rpc: async (name: string, args: { p_listing_ids: string[] }) => {
+        // One batch call per page (TUL-1475): the call is logged as the ids it asked about.
+        rpcCalls.push(`${name}:${args.p_listing_ids.join(",")}`);
+        const rs = args.p_listing_ids.map((id) => [id, sellable(id)] as const);
+        if (rs.some(([, r]) => r === "error")) return { data: null, error: { code: "XX000", message: "boom" } };
+        return { data: rs.filter(([, r]) => r === true).map(([id]) => id), error: null };
       },
     } as never,
   };
@@ -96,7 +98,7 @@ test("only ACCEPTED listings are read, and each must pass the database sellable 
   ];
   const admin = fakeAdmin(world, (id) => (id === "L4" ? false : true));
   assert.deepEqual(await loadWorkspaceRosterServices(admin.client, A), [], "offered, hidden and not-sellable are all out");
-  assert.deepEqual(admin.rpcCalls, ["workspace_service_listing_is_sellable:L4"], "only the accepted listing is checked");
+  assert.deepEqual(admin.rpcCalls, ["workspace_service_listing_is_sellable:L4"], "only the accepted listing is checked, in one call");
   const errored = fakeAdmin(WORLD(), () => "error");
   assert.deepEqual(await loadWorkspaceRosterServices(errored.client, A), [], "an RPC error shows nothing");
 });
@@ -189,12 +191,12 @@ test("PRIVACY: a talent hidden from the public directory is never named, whateve
   assert.equal(anon!.talentProfileId, null);
 });
 
-test("sellable checks run in parallel and are cached, so a public page does not repeat them", async () => {
+test("sellable checks are ONE call for the page and cached, so a public page does not repeat them", async () => {
   const w = WORLD();
   w.workspace_service_listings = [listing({ id: "La", offering_id: "S1" }), listing({ id: "Lb", offering_id: "S1" })];
   const admin = fakeAdmin(w);
   await loadWorkspaceRosterServices(admin.client, A);
-  assert.equal(admin.rpcCalls.length, 2);
+  assert.equal(admin.rpcCalls.length, 1, "both listings in one call");
   await loadWorkspaceRosterServices(admin.client, A);
-  assert.equal(admin.rpcCalls.length, 2, "the second render reuses the cached verdicts");
+  assert.equal(admin.rpcCalls.length, 1, "the second render reuses the cached verdicts");
 });
