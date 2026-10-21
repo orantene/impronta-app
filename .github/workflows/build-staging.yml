@@ -1,20 +1,23 @@
-# "Build staging" BUTTON. MANUAL ONLY (workflow_dispatch). Builds a main SHA as a Vercel PREVIEW
-# deployment and points the STAGING hosts at it. It NEVER creates, promotes or aliases anything
-# production: no `target: production`, no `vercel promote`, no tulala.digital / app.tulala.digital /
-# impronta.tulala.digital alias, and it does not touch the production alias guard.
+# "Build staging" BUTTON. MANUAL ONLY (workflow_dispatch). Moves the `staging` POINTER branch to a main
+# commit whose structural gate is green, then waits for the Vercel Git build of the `staging` ref (a
+# PREVIEW deployment, target null) and points the STAGING hosts at it. It NEVER creates, promotes or
+# aliases anything production: no `target: production`, no `vercel promote`, no tulala.digital /
+# app.tulala.digital / impronta.tulala.digital alias, and it does not touch the production alias guard.
 #
-# Why it exists: web/vercel.json `ignoreCommand` skips every Git build of `main` unless the project env
-# STAGING_BUILD=1 is present for Preview (branch main), so staging is an on-demand build (cost rule).
-# The PM used to do this by hand (docs: web/docs/vercel-staging-build.md). Steps:
+# Why a pointer (TUL-1765 / TUL-1768): web/vercel.json `ignoreCommand` builds only the `production` and
+# `staging` refs, so a merge to `main` builds nothing. Moving `staging` is the ONE trigger and costs ONE
+# build; there is no on/off env switch (STAGING_BUILD is gone) and no flag that could auto-build every merge.
+# The pointer is moved only by this workflow, the way promote-production.yml moves `production`:
 #   1. resolve the SHA (input, else head of origin/main) and refuse anything not an ancestor of origin/main
-#   2. upsert STAGING_BUILD=1 (plain, preview, gitBranch main)
-#   3. POST /v13/deployments with gitSource {github, ref main, sha}; no `target` (= preview)
-#   4. remove the flag as soon as the build starts, and AGAIN in an always() step (no flag left behind,
-#      so later merges to main never auto-build)
+#   2. require a SUCCESSFUL `CI — structural quality gate` run on that exact SHA (a red or unknown gate is refused)
+#   3. fast-forward `staging` to the SHA: a plain push, never forced, never backwards. The push is what makes
+#      Vercel build; a SHA the pointer is already at builds nothing and re-uses its existing deployment
+#   4. find the Vercel deployment for that SHA on the `staging` ref (bounded wait), refuse a production target
 #   5. wait for READY (bounded), fail loudly on ERROR / CANCELED
 #   6. alias the staging hosts (STAGING_HOSTS below, staging only) to that deployment
 #   7. probe the live bundle: fxlank staging DB ref present; pluhda (prod) ref and pk_live_ absent; / is 200
 #   8. npm run deploy:smoke -- --staging (staging mode of the smoke script)
+# Setup (Vercel env scope, branch protection): web/docs/vercel-staging-build.md.
 #
 # Secrets: VERCEL_TOKEN and STAGING_GATE_CI_TOKEN (both required; the gate page returns 200 for
 # everyone, the app bundle is only reachable with the token). Optional:
@@ -32,13 +35,15 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 concurrency:
   group: build-staging
   cancel-in-progress: false
 
 env:
+  GATE_WORKFLOW: "CI — structural quality gate"
   VERCEL_TEAM_ID: team_otRX11wclvw89c5ls7A7UsZd
   VERCEL_PROJECT_ID: prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2
   VERCEL_PROJECT_NAME: tulala
@@ -98,74 +103,78 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "Building $SHA (main head is $HEAD_SHA)" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Set STAGING_BUILD=1 for Preview (branch main)
+      - name: Require a green structural gate on that SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
-          code="$(curl -sS -o /tmp/env-set.json -w '%{http_code}' -X POST \
-            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_TEAM_ID}&upsert=true" \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" -H 'Content-Type: application/json' \
-            --data '{"key":"STAGING_BUILD","value":"1","type":"plain","target":["preview"],"gitBranch":"main"}')"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            echo "::error::Vercel refused to set STAGING_BUILD (HTTP $code)"
+          OK="$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=$SHA&status=success&per_page=100" \
+            --jq "[.workflow_runs[] | select(.name == \"$GATE_WORKFLOW\")] | length")"
+          if [ "$OK" = "0" ]; then
+            echo "::error::Refusing to build $SHA: the structural quality gate has not succeeded on it."
             exit 1
           fi
-          echo "STAGING_BUILD=1 set for preview/main"
+          echo "gate green on $SHA" | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Create the main preview deployment
+      - name: Fast-forward the staging pointer (this push is the one build trigger)
+        id: pointer
+        env:
+          SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          set -euo pipefail
+          if git fetch origin staging 2>/dev/null; then
+            if [ "$(git rev-parse origin/staging)" = "$SHA" ]; then
+              echo "moved=false" >> "$GITHUB_OUTPUT"
+              echo "staging already at $SHA: no push, no new build; re-using its deployment" | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if git merge-base --is-ancestor "$SHA" origin/staging; then
+              echo "::error::staging is already past $SHA. The pointer never moves backwards."
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor origin/staging "$SHA"; then
+              echo "::error::$SHA is not a fast-forward of staging. Refusing to move the pointer."
+              exit 1
+            fi
+          else
+            echo "::notice::staging does not exist yet: creating it at $SHA"
+          fi
+          # Plain push, no force: git rejects anything but a fast-forward.
+          git push origin "$SHA:refs/heads/staging"
+          echo "moved=true" >> "$GITHUB_OUTPUT"
+          echo "staging -> $SHA (green gate)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Find the Vercel build of the staging ref
         id: deploy
         env:
           SHA: ${{ steps.sha.outputs.sha }}
-          REPO_ID: ${{ github.repository_id }}
+          MOVED: ${{ steps.pointer.outputs.moved }}
         run: |
           set -euo pipefail
-          body="$(jq -nc --arg name "$VERCEL_PROJECT_NAME" --arg project "$VERCEL_PROJECT_ID" \
-            --arg sha "$SHA" --argjson repoId "$REPO_ID" \
-            '{name:$name, project:$project, gitSource:{type:"github", repoId:$repoId, ref:"main", sha:$sha}}')"
-          code="$(curl -sS -o /tmp/deploy.json -w '%{http_code}' -X POST \
-            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_TEAM_ID}&forceNew=1&skipAutoDetectionConfirmation=1" \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" -H 'Content-Type: application/json' --data "$body")"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            echo "::error::Vercel refused to create the deployment (HTTP $code): $(jq -r '.error.message // empty' /tmp/deploy.json)"
+          tries=40
+          if [ "$MOVED" != "true" ]; then tries=2; fi
+          for i in $(seq 1 "$tries"); do
+            curl -sS "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_TEAM_ID}&meta-githubCommitSha=${SHA}&limit=20" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" -o /tmp/list.json
+            id="$(jq -r --arg sha "$SHA" '[.deployments[]? | select(.meta.githubCommitRef=="staging" and .meta.githubCommitSha==$sha)] | sort_by(.created) | last | .uid // empty' /tmp/list.json)"
+            if [ -n "$id" ]; then break; fi
+            echo "no staging deployment for $SHA yet ($i/$tries)"
+            sleep 15
+          done
+          if [ -z "${id:-}" ]; then
+            echo "::error::No Vercel deployment of the staging ref for $SHA. Check that the commit carries the ignoreCommand that builds staging and that the staging Preview env is scoped to branch staging (web/docs/vercel-staging-build.md)."
             exit 1
           fi
-          id="$(jq -r '.id' /tmp/deploy.json)"
+          curl -sS "https://api.vercel.com/v13/deployments/${id}?teamId=${VERCEL_TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" -o /tmp/deploy.json
           tgt="$(jq -r '.target // "preview"' /tmp/deploy.json)"
           if [ "$tgt" = "production" ]; then
             echo "::error::Deployment $id came back as production. Refusing to continue."
             exit 1
           fi
           echo "id=$id" >> "$GITHUB_OUTPUT"
-          echo "Deployment $id created (target: $tgt)" | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Wait for the build to start, then remove the flag
-        env:
-          DEPLOYMENT_ID: ${{ steps.deploy.outputs.id }}
-        run: |
-          set -euo pipefail
-          for i in $(seq 1 60); do
-            state="$(curl -sS "https://api.vercel.com/v13/deployments/${DEPLOYMENT_ID}?teamId=${VERCEL_TEAM_ID}" \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}" | jq -r '.readyState // "UNKNOWN"')"
-            echo "state: $state"
-            case "$state" in
-              BUILDING|READY) break ;;
-              ERROR|CANCELED) echo "::error::Deployment ended as $state before building (ignoreCommand skipped it?)"; exit 1 ;;
-            esac
-            sleep 10
-          done
-          ids="$(curl -sS "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_TEAM_ID}" \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-            | jq -r '.envs[]? | select(.key=="STAGING_BUILD" and .gitBranch=="main" and (.target|tostring|contains("preview"))) | .id')"
-          for id in $ids; do
-            code="$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE \
-              "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env/${id}?teamId=${VERCEL_TEAM_ID}" \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}")"
-            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-              echo "::error::COULD NOT REMOVE STAGING_BUILD (HTTP $code). Remove it by hand in Vercel NOW or every merge to main will build."
-              exit 1
-            fi
-            echo "removed STAGING_BUILD ($id)"
-          done
-          echo "STAGING_BUILD flag is not set"
+          echo "Deployment $id found (target: $tgt)" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Wait for READY
         env:
@@ -260,22 +269,3 @@ jobs:
           SMOKE_EXPECT_SHA: ${{ steps.sha.outputs.sha }}
         working-directory: web
         run: npm run deploy:smoke -- --staging --host "https://${STAGING_PRIMARY_HOST}"
-
-      - name: Remove the STAGING_BUILD flag (always)
-        if: always()
-        run: |
-          set -uo pipefail
-          ids="$(curl -sS "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_TEAM_ID}" \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-            | jq -r '.envs[]? | select(.key=="STAGING_BUILD" and .gitBranch=="main" and (.target|tostring|contains("preview"))) | .id')"
-          for id in $ids; do
-            code="$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE \
-              "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env/${id}?teamId=${VERCEL_TEAM_ID}" \
-              -H "Authorization: Bearer ${VERCEL_TOKEN}")"
-            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-              echo "::error::COULD NOT REMOVE STAGING_BUILD (HTTP $code). Remove it by hand in Vercel NOW or every merge to main will build."
-              exit 1
-            fi
-            echo "removed STAGING_BUILD ($id)"
-          done
-          echo "STAGING_BUILD flag is not set"

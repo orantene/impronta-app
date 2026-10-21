@@ -9,8 +9,9 @@ const cfg = JSON.parse(readFileSync(join(process.cwd(), "vercel.json"), "utf8"))
 };
 const cmd = cfg.ignoreCommand ?? "";
 
-test("ignoreCommand builds the production branch", () => {
+test("ignoreCommand names exactly the production and staging refs", () => {
   assert.match(cmd, /\[ "\$VERCEL_GIT_COMMIT_REF" != "production" \]/);
+  assert.match(cmd, /\[ "\$VERCEL_GIT_COMMIT_REF" != "staging" \]/);
 });
 
 // Exit 0 = SKIP the build, non-zero = build (Vercel's ignoreCommand contract).
@@ -23,24 +24,29 @@ function skips(ref: string, env: Record<string, string> = {}): boolean {
 }
 
 // Oct 15: main no longer builds on push (every main merge was a paid build).
-// Only the `production` release pointer builds, unless the PM turns STAGING_BUILD=1 on for a staging
-// build of main (CLI deploys skip this check but lose the branch-scoped Preview(main) env).
+// TUL-1765/1768: only the `production` and `staging` POINTER branches build. Both are moved only by a
+// workflow a human dispatches, so one trigger = one build. The temporary STAGING_BUILD env switch is gone.
 test("production always builds", () => {
   assert.equal(skips("production"), false);
-  assert.equal(skips("production", { STAGING_BUILD: "1" }), false);
 });
 
-test("main is skipped by default (cost rule, Oct 15)", () => {
+test("staging (the pointer branch) always builds", () => {
+  assert.equal(skips("staging"), false);
+});
+
+test("main is skipped (cost rule, Oct 15), whatever the environment says", () => {
   assert.equal(skips("main"), true);
-  assert.equal(skips("main", { STAGING_BUILD: "0" }), true);
+  assert.equal(skips("main", { STAGING_BUILD: "1" }), true);
 });
 
-test("main builds only while the STAGING_BUILD=1 flag is on", () => {
-  assert.equal(skips("main", { STAGING_BUILD: "1" }), false);
+test("every other branch is skipped, including look-alikes", () => {
+  for (const ref of ["feature/x", "integ/2026-10-21-b14", "staging-2", "xstaging", "staging/x", "production-old", "Staging", "release/production", ""]) {
+    assert.equal(skips(ref), true, `${JSON.stringify(ref)} must be skipped`);
+  }
 });
 
-test("the flag does not turn on builds for other branches", () => {
-  assert.equal(skips("feature/x", { STAGING_BUILD: "1" }), true);
+test("the STAGING_BUILD switch is gone from the ignoreCommand", () => {
+  assert.ok(!cmd.includes("STAGING_BUILD"));
 });
 
 test("ignoreCommand no longer builds the retired program/journeys-2026-09 branch", () => {

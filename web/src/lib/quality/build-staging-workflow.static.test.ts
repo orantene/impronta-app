@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 // Pins .github/workflows/build-staging.yml (the "Build staging" button): manual only, preview only,
-// never production, the STAGING_BUILD flag always removed, staging hosts only, bundle probe, secrets via secrets.
+// never production, moves the `staging` pointer by fast-forward only after a green gate on that SHA (TUL-1765/1768:
+// no STAGING_BUILD env switch), staging hosts only, bundle probe, secrets via secrets.
 const raw = readFileSync(join(process.cwd(), "..", ".github", "workflows", "build-staging.yml"), "utf8");
 const code = raw
   .split("\n")
@@ -15,7 +16,7 @@ test("only the workflow_dispatch trigger", () => {
   const on = /^on:\n((?: {2,}.*\n|\n)+)/m.exec(code)?.[1] ?? "";
   assert.match(on, /^ {2}workflow_dispatch:/m);
   assert.doesNotMatch(on, /push:|schedule:|pull_request|workflow_run|repository_dispatch|deployment_status/);
-  assert.match(code, /^permissions:\n {2}contents: read\n/m);
+  assert.match(code, /^permissions:\n {2}contents: write\n {2}actions: read\n/m);
   assert.match(code, /^concurrency:\n {2}group: build-staging\n {2}cancel-in-progress: false/m);
   assert.match(code, /timeout-minutes: \d+/);
 });
@@ -36,20 +37,33 @@ test("never production: no --prod, target production, promote or production alia
   }
 });
 
-test("creates a main git deployment pinned to the SHA and requires it on main", () => {
-  assert.match(code, /\/v13\/deployments/);
-  assert.match(code, /type:"github"[^}]*ref:"main"[^}]*sha:\$sha/);
+test("requires the SHA on main and a green structural gate on that exact SHA", () => {
   assert.match(code, /git merge-base --is-ancestor "\$SHA" origin\/main/);
-  assert.match(code, /"key":"STAGING_BUILD","value":"1","type":"plain","target":\["preview"\],"gitBranch":"main"/);
+  assert.match(code, /GATE_WORKFLOW: "CI — structural quality gate"/);
+  assert.match(code, /actions\/workflows\/ci\.yml\/runs\?head_sha=\$SHA&status=success/);
+  assert.match(code, /the structural quality gate has not succeeded on it/);
+  const steps = code.split(/\n {6}- /);
+  const gate = steps.findIndex((s) => /Require a green structural gate/.test(s));
+  const push = steps.findIndex((s) => /git push origin/.test(s));
+  assert.ok(gate > 0 && push > gate, "the gate check must run BEFORE the pointer push");
 });
 
-test("the STAGING_BUILD flag is removed after the build starts and in an always() step", () => {
-  const steps = code.split(/\n {6}- /);
-  const always = steps.find((s) => /if: always\(\)/.test(s) && /-X DELETE/.test(s) && /STAGING_BUILD/.test(s));
-  assert.ok(always, "always() flag-removal step missing");
-  const started = steps.find((s) => /BUILDING\|READY/.test(s) && /-X DELETE/.test(s));
-  assert.ok(started, "flag must be removed as soon as the build is BUILDING");
-  assert.equal(steps[steps.length - 1], always, "the always() step must be last so it runs after every failure path");
+test("moves staging by plain fast-forward push only, never forced, never backwards", () => {
+  assert.match(code, /git push origin "\$SHA:refs\/heads\/staging"/);
+  assert.doesNotMatch(code, /--force|-f\b.*push|push.*\s\+|--force-with-lease|push --delete|push origin :/);
+  assert.match(code, /git merge-base --is-ancestor origin\/staging "\$SHA"/);
+  assert.match(code, /pointer never moves backwards/);
+  // exactly one push in the file: one trigger = one build
+  assert.equal((code.match(/git push /g) ?? []).length, 1);
+});
+
+test("one trigger = one build: no API-created deployment, no env switch, no ref other than staging", () => {
+  assert.doesNotMatch(code, /POST[^\n]*\/v13\/deployments|\/v13\/deployments\?teamId=\$\{VERCEL_TEAM_ID\}&forceNew/);
+  assert.doesNotMatch(code, /gitSource|forceNew/);
+  assert.doesNotMatch(code, /STAGING_BUILD/);
+  assert.doesNotMatch(code, /\/env\?teamId|\/env\/\$\{id\}|-X DELETE/);
+  assert.match(code, /select\(\.meta\.githubCommitRef=="staging" and \.meta\.githubCommitSha==\$sha\)/);
+  assert.match(code, /MOVED[^\n]*\n[\s\S]*tries=2/);
 });
 
 test("aliases exactly the 14 PM-approved staging hosts and no production host", () => {

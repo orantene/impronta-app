@@ -64,7 +64,9 @@ and only the first is yours:
    `🔴 MAIN IS RED` issue (see §10).
 3. **Staging is built by hand, then a release is cut by hand.** Merging to
    `main` builds NOTHING (ignoreCommand, #3872). The PM builds staging manually
-   (one build per trigger; `web/docs/vercel-staging-build.md`). Once staging has
+   with `gh workflow run build-staging.yml` (it fast-forwards the `staging` pointer
+   branch to a green-gate `main` commit; one trigger = one build; setup and the
+   Vercel steps in `web/docs/vercel-staging-build.md`). Once staging has
    been tested, the PM sends the GO/NO-GO report and **Oran gives an explicit GO**;
    only then run `gh workflow run promote-production.yml
    -f release_note="<what is in this release>" [-f sha=<sha>]`. It
