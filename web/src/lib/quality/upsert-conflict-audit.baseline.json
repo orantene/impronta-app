@@ -5,6 +5,8 @@
   "src/lib/match-me/match-me.server.ts:39": "unknown",
   "src/lib/projects/assignment-confirmation.ts:169": "unknown",
   "src/lib/server-actions/role-limits-settings.ts:102": "unknown",
+  "src/lib/service-hub/rent/rent-autopay.server.ts:71": "unknown",
+  "src/lib/service-hub/rent/rent-outside-actions.ts:79": "unknown",
   "src/lib/talent-site/demos/content-state.server.ts:290": "unknown",
   "src/lib/talent-site/theme-releases/theme-versions.server.ts:58": "unknown"
 }

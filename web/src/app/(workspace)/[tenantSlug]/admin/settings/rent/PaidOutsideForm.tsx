@@ -63,7 +63,7 @@ export function PaidOutsideForm({ planId, startsOn, defaultAmountCents, locale }
         </button>
         <button type="button" onClick={() => setOpen(false)}>{c.cancel}</button>
       </div>
-      {msg && <p role="status" style={{ fontSize: 12.5, color: msg.ok ? "#1A7348" : "var(--color-admin-red)" }}>{msg.text}</p>}
+      {msg && <p role="status" style={{ fontSize: 12.5, color: msg.ok ? "var(--color-admin-green)" : "var(--color-admin-red)" }}>{msg.text}</p>}
     </div>
   );
 }

@@ -258,13 +258,14 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, reason: "unavailable" };
     // Stripe FIRST: if the subscription cannot be stopped the plan does not end (TUL-1601).
-    const { data: live } = await admin
+    const { data: live, error: liveErr } = await admin
       .from("studio_rent_plans")
       .select("id, tenant_id")
       .eq("id", input.planId)
       .eq("talent_profile_id", me.talentProfile.id)
       .in("status", ["active", "paused"])
       .maybeSingle();
+    if (liveErr) logServerError("rent-actions.live", liveErr);
     if (!live) return { ok: false, reason: "not_found" };
     if (!(await syncRentAutopayWithPlan(admin, { tenantId: (live as { tenant_id: string }).tenant_id, planId: input.planId, planStatus: "ended" })).ok) {
       return { ok: false, reason: "autopay_unavailable" };

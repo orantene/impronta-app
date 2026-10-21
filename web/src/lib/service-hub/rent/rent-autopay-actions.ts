@@ -41,12 +41,13 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, reason: "unavailable" };
 
-    const { data: row } = await admin
+    const { data: row, error: rowErr } = await admin
       .from("studio_rent_plans")
       .select(PLAN_COLUMNS)
       .eq("id", input.planId)
       .eq("talent_profile_id", me.talentProfile.id)
       .maybeSingle();
+    if (rowErr) logServerError("rent-autopay-actions.row", rowErr);
     if (!row) return { ok: false, reason: "not_found" };
     const plan = planFromRow(row as Parameters<typeof planFromRow>[0]);
     const autopayStatus = plan.autopayStatus ?? "off";
@@ -58,7 +59,8 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     if (!gate.ok) return gate;
     const stripe = getStripeFor(platform);
     if (!stripe) return { ok: false, reason: "unavailable" };
-    const { data: ag } = await admin.from("agencies").select("stripe_account_id, stripe_charges_enabled").eq("id", plan.tenantId).maybeSingle();
+    const { data: ag, error: agErr } = await admin.from("agencies").select("stripe_account_id, stripe_charges_enabled").eq("id", plan.tenantId).maybeSingle();
+    if (agErr) logServerError("rent-autopay-actions.ag", agErr);
     const studio = {
       accountId: (ag as { stripe_account_id?: string | null } | null)?.stripe_account_id ?? null,
       chargesEnabled: (ag as { stripe_charges_enabled?: boolean } | null)?.stripe_charges_enabled === true,
@@ -77,7 +79,8 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     if (!amounts) return { ok: false, reason: "fee_unavailable" };
 
     const email = me.session.user.email ?? "";
-    const { data: tp } = await admin.from("talent_profiles").select("display_name").eq("id", me.talentProfile.id).maybeSingle();
+    const { data: tp, error: tpErr } = await admin.from("talent_profiles").select("display_name").eq("id", me.talentProfile.id).maybeSingle();
+    if (tpErr) logServerError("rent-autopay-actions.tp", tpErr);
     const displayName = (tp as { display_name?: string | null } | null)?.display_name ?? "";
     const customer =
       platform === "us"
@@ -137,12 +140,13 @@ export async function stopRentAutopay(input: { planId: string }): Promise<StopAu
     if (!me.ok) return { ok: false, reason: "unauthenticated" };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, reason: "unavailable" };
-    const { data } = await admin
+    const { data, error: readErr } = await admin
       .from("studio_rent_plans")
       .select("id, tenant_id, stripe_subscription_id, autopay_status, autopay_platform")
       .eq("id", input.planId)
       .eq("talent_profile_id", me.talentProfile.id)
       .maybeSingle();
+    if (readErr) logServerError("rent-autopay-actions.data", readErr);
     const r = data as { id: string; tenant_id: string; stripe_subscription_id: string | null; autopay_status: string; autopay_platform: StripeAccountKey | null } | null;
     if (!r) return { ok: false, reason: "not_found" };
     if (r.stripe_subscription_id && r.autopay_status !== "canceled" && !(await cancelRentSubscription(r.stripe_subscription_id, r.autopay_platform === "mx" ? "mx" : "us"))) {

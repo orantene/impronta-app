@@ -26,13 +26,14 @@ export default async function RentProposalsPage() {
     const planIds = ((rows ?? []) as Array<{ id: string }>).map((r) => r.id);
     const monthsByPlan = new Map<string, RentProposal["months"]>();
     if (planIds.length > 0) {
-      const { data: invs } = await admin
+      const { data: invs, error: invsErr } = await admin
         .from("studio_rent_invoices")
         .select("plan_id, period, status, source, paid_outside_method")
         .in("plan_id", planIds)
         .eq("talent_profile_id", me.talentProfile.id)
         .order("period", { ascending: false })
         .limit(60);
+      if (invsErr) logServerError("rent-proposals.invs", invsErr);
       for (const i of (invs ?? []) as Array<{ plan_id: string; period: string; status: string; source: string; paid_outside_method: string | null }>) {
         const list = monthsByPlan.get(i.plan_id) ?? [];
         if (list.length < 6) list.push({ period: i.period, status: i.status, source: i.source, method: i.paid_outside_method });

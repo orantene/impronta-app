@@ -102,7 +102,7 @@ export function RentCard({ locale, gate, plans, members, stations, safety }: { l
             {p.status === "proposed" ? c.waiting : p.status === "active" ? c.active : p.status === "paused" ? c.paused : p.status === "declined" ? c.declinedByMember : p.endedBy === "member" ? c.endedByMember : c.endedByOwner}
           </div>
           {["pending", "active", "paused", "past_due"].includes(p.autopayStatus) && (
-            <div data-testid="rent-autopay-state" style={{ fontSize: 12.5, marginTop: 4, color: p.autopayStatus === "past_due" ? "#A8471B" : "inherit" }}>
+            <div data-testid="rent-autopay-state" style={{ fontSize: 12.5, marginTop: 4, color: p.autopayStatus === "past_due" ? "var(--color-admin-red)" : "inherit" }}>
               {p.autopayStatus === "past_due" ? c.ownerAutopayPastDue : p.autopayStatus === "paused" ? c.ownerAutopayPaused : p.autopayStatus === "pending" ? c.ownerAutopayPending : c.ownerAutopayOn}
             </div>
           )}

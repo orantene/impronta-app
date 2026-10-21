@@ -3,6 +3,9 @@ import { describe, test } from "node:test";
 import { applyRentSubscriptionEvent, type AutopayInvoiceRow, type AutopayPlanRow, type RentAutopayApplyDeps } from "./rent-autopay-apply";
 import type { RentSubscriptionEvent } from "./rent-autopay-routing";
 
+/** The events this applier takes (a draft invoice goes to the percentage step, not here). */
+type AppliedEvent = Exclude<RentSubscriptionEvent, { type: "draft" }>;
+
 const OCT1 = Date.UTC(2026, 9, 1) / 1000;
 function world(plan: Partial<AutopayPlanRow> | null = {}) {
   const state = {
@@ -28,9 +31,9 @@ function world(plan: Partial<AutopayPlanRow> | null = {}) {
   return { deps, state };
 }
 const base = { planId: "plan-1", tenantId: "t-1", subscriptionId: "sub_1" };
-const started: RentSubscriptionEvent = { type: "started", ...base, customerId: "cus_1" };
-const paid = (invoiceId = "in_1"): RentSubscriptionEvent => ({ type: "paid", ...base, invoiceId, periodStart: OCT1, amountPaid: 121_800, currency: "mxn", rentCents: 120_000 });
-const failed: RentSubscriptionEvent = { type: "failed", ...base, invoiceId: "in_1", periodStart: OCT1, attempt: 1, currency: "mxn", rentCents: 120_000 };
+const started: AppliedEvent = { type: "started", ...base, customerId: "cus_1" };
+const paid = (invoiceId = "in_1"): AppliedEvent => ({ type: "paid", ...base, invoiceId, periodStart: OCT1, amountPaid: 121_800, currency: "mxn", rentCents: 120_000 });
+const failed: AppliedEvent = { type: "failed", ...base, invoiceId: "in_1", periodStart: OCT1, attempt: 1, currency: "mxn", rentCents: 120_000 };
 
 describe("starting", () => {
   test("links the subscription to the plan; a replay is a no-op", async () => {

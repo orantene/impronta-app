@@ -171,7 +171,7 @@ export function buildRentSubscriptionParams(input: {
     fee_bps: String(input.feeBps),
     terms_version: String(plan.termsVersion),
   };
-  const line = (name: string, unitAmount: number): Stripe.Checkout.SessionCreateParams.LineItem => ({
+  const line = (name: string, unitAmount: number): NonNullable<Stripe.Checkout.SessionCreateParams["line_items"]>[number] => ({
     quantity: 1,
     price_data: { currency, unit_amount: unitAmount, recurring: { interval: "month" }, product_data: { name } },
   });
@@ -200,7 +200,7 @@ export function buildRentSubscriptionParams(input: {
                 (input.locale === "es"
                   ? `Además, cada mes se cobra el ${plan.percentBps / 100}% de tus ventas del mes anterior en este estudio, más el cargo por servicio de Tulala. `
                   : `Each month also charges ${plan.percentBps / 100}% of your sales in this studio the month before, plus the Tulala service fee. `) +
-                (input.consent.custom_text?.submit?.message ?? ""),
+                (typeof input.consent.custom_text?.submit === "object" ? input.consent.custom_text.submit.message : ""),
             },
           },
         }
