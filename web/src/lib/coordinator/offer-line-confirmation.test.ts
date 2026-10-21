@@ -58,26 +58,70 @@ test("labels exist in ES and EN with no em dashes", () => {
 });
 
 type Row = Record<string, unknown>;
-function fakeAdmin(tables: Record<string, Row[]>, errors: Record<string, { code?: string; message: string }> = {}) {
+type RpcResult = { data: unknown; error: { code?: string; message: string } | null };
+function fakeAdmin(
+  tables: Record<string, Row[]>,
+  errors: Record<string, { code?: string; message: string }> = {},
+  opts: { rpc?: () => RpcResult; onUpsert?: (t: Record<string, Row[]>) => void } = {},
+) {
   const upserts: Row[] = [];
+  const deletes: Array<Array<[string, unknown]>> = [];
+  const rpcs: Array<{ name: string; args: Row }> = [];
+  const reads: string[] = [];
   const from = (table: string) => {
+    reads.push(table);
     const filters: Array<[string, unknown]> = [];
-    const rows = () => (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
+    const ins: Array<[string, unknown[]]> = [];
+    let del = false;
+    const rows = () =>
+      (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v) && ins.every(([k, vs]) => vs.includes(r[k])));
     const q = {
+      in: (k: string, vs: unknown[]) => (ins.push([k, vs]), q),
       select: () => q,
+      delete: () => ((del = true), q),
       eq: (k: string, v: unknown) => (filters.push([k, v]), q),
-      maybeSingle: async () => ({ data: rows()[0] ?? null, error: errors[table] ?? null }),
+      maybeSingle: async () => ({ data: rows()[0] ? { ...rows()[0] } : null, error: errors[table] ?? null }),
       upsert: async (row: Row) => {
         if (errors[table]) return { error: errors[table] };
         upserts.push(row);
+        opts.onUpsert?.(tables);
         return { error: null };
       },
-      then: (resolve: (v: { data: Row[]; error: unknown }) => unknown) => resolve({ data: rows(), error: errors[table] ?? null }),
+      then: (resolve: (v: { data: Row[]; error: unknown }) => unknown) => {
+        if (del) {
+          deletes.push([...filters]);
+          return resolve({ data: [], error: errors[table] ?? null });
+        }
+        return resolve({ data: rows(), error: errors[table] ?? null });
+      },
     };
     return q;
   };
-  return { admin: { from } as unknown as SupabaseClient, upserts };
+  const rpc = async (name: string, args: Row): Promise<RpcResult> => {
+    rpcs.push({ name, args });
+    return opts.rpc ? opts.rpc() : { data: null, error: { code: "PGRST202", message: "missing" } };
+  };
+  return { admin: { from, rpc } as unknown as SupabaseClient, upserts, deletes, rpcs, reads };
 }
+
+test("a non-participant (no talent profile) triggers NO read of inquiry_offer_line_items", async () => {
+  const { admin, reads, upserts } = fakeAdmin(world());
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "stranger", lineId: "l1", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.equal(reads.includes("inquiry_offer_line_items"), false);
+  assert.equal(upserts.length, 0);
+});
+
+test("the line read is scoped to the caller's own profiles, so another person's line is never returned", async () => {
+  const { admin, reads } = fakeAdmin(world());
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u1", lineId: "l2", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.ok(reads.indexOf("talent_profiles") < reads.indexOf("inquiry_offer_line_items"));
+});
+
+test("a participant still answers their own line", async () => {
+  const { admin, upserts } = fakeAdmin(world());
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u2", lineId: "l2", status: "confirmed" }), { ok: true });
+  assert.equal(upserts[0].talent_profile_id, "p2");
+});
 
 const world = () => ({
   inquiry_offer_line_items: [
@@ -130,4 +174,25 @@ test("read keeps only well-formed answers", async () => {
     ok: true,
     answers: [{ lineId: "l1", talentProfileId: "p1", status: "confirmed" }],
   });
+});
+
+test("with the guarded RPC, a late write by the previous person is refused and changes nothing", async () => {
+  const { admin, upserts, rpcs } = fakeAdmin(world(), {}, { rpc: () => ({ data: "stale", error: null }) });
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u1", lineId: "l1", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.equal(rpcs[0].name, "answer_offer_line_confirmation");
+  assert.deepEqual(rpcs[0].args, { p_line: "l1", p_talent: "p1", p_status: "confirmed" });
+  assert.equal(upserts.length, 0);
+});
+
+test("with the guarded RPC, an ok answer is one statement and no separate upsert", async () => {
+  const { admin, upserts } = fakeAdmin(world(), {}, { rpc: () => ({ data: "ok", error: null }) });
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u1", lineId: "l1", status: "declined" }), { ok: true });
+  assert.equal(upserts.length, 0);
+});
+
+test("fallback: a person swapped out mid-write has their row removed and is refused", async () => {
+  const tables = world();
+  const { admin, deletes } = fakeAdmin(tables, {}, { onUpsert: (t) => void (t.inquiry_offer_line_items[0].talent_profile_id = "p2") });
+  assert.deepEqual(await answerOwnOfferLine(admin, { userId: "u1", lineId: "l1", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.deepEqual(deletes[0], [["offer_line_id", "l1"], ["talent_profile_id", "p1"]]);
 });
