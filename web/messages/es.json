@@ -17675,7 +17675,7 @@
         "impactOutgoing": "Saliente",
         "impactOutgoingValue": "Se conserva en la línea para el registro · nada ganado",
         "impactClient": "Cliente",
-        "impactClientValue": "No se avisa desde aquí · no requiere aprobación",
+        "impactClientValue": "Se avisa una vez en su conversación, solo si se mostraba por nombre · no requiere aprobación",
         "boardTitle": "Tablero del evento",
         "boardSummary": "{confirmed} de {needed} confirmados",
         "boardRole": "{confirmed} de {needed} confirmados",

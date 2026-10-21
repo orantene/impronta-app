@@ -7,6 +7,7 @@ import { minorUnitDivisor } from "@/lib/orders/money-format";
 import { notifyCoordinatorRoleAssigned } from "@/lib/notifications/producers/coordinator-role-notify";
 import { afterResponse } from "@/lib/server/after-response";
 import { logServerError } from "@/lib/server/safe-error";
+import { sendPersonChangedNotice, type ClientNoticeResult } from "./replace-client-notice.server";
 import { projectReplaceTalent, type ProjectOpsReason } from "./project-ops";
 
 /**
@@ -14,7 +15,7 @@ import { projectReplaceTalent, type ProjectOpsReason } from "./project-ops";
  * (`planReplacement`) models, each one fail-closed:
  *
  *  - The NEW person gets their own bell (role, event, call time; nothing else).
- *  - The CLIENT is told only if the dropped person was shown by name
+ *  - The CLIENT (TUL-1606: one idempotent inquiry-thread note, see replace-client-notice.server) is told only if the dropped person was shown by name
  *    (`workspace_service_listings.show_who = 'name'`). Portfolio, hidden, no
  *    listing, or a read that fails all mean "do not tell": a person the client
  *    never saw by name stays invisible.
@@ -83,6 +84,8 @@ export type ReplaceDeps = {
   }) => Promise<{ ok: true; bookingId: string } | { ok: false; reason: ProjectOpsReason }>;
   notify: (params: NotifyParams) => Promise<boolean>;
   movePayout?: (input: PayoutMoveInput) => Promise<PayoutMoveResult>;
+  /** TUL-1606: the one client message. Defaults to the inquiry thread system note. */
+  sendClientNotice?: (input: { tenantId: string; bookingId: string; operationKey: string; eventTitle: string }) => Promise<ClientNoticeResult>;
 };
 
 export type ReplaceOutcome =
@@ -90,6 +93,8 @@ export type ReplaceOutcome =
       ok: true;
       bookingId: string;
       clientNotice: "none" | "person_changed";
+      /** True only when the client message went out (or already had). A failed send never undoes the swap. */
+      clientNoticeSent: boolean;
       changedSeatIds: string[];
       payoutPlan: PayoutMove[];
       payout: { status: "not_wired" | "moved" | "already" | "failed" | "skipped"; key: string };
@@ -113,6 +118,7 @@ export async function replaceTalentOnProject(
     ok: true,
     bookingId: swapped.bookingId,
     clientNotice: "none",
+    clientNoticeSent: false,
     changedSeatIds: [],
     payoutPlan: [],
     payout: { status: "skipped", key },
@@ -184,8 +190,20 @@ export async function replaceTalentOnProject(
       logServerError("projects.replaceTalentOnProject.payout", err);
     }
 
+    let clientNoticeSent = false;
+    if (plan.clientNotice === "person_changed") {
+      try {
+        const sendNotice = d.sendClientNotice ?? ((i) => sendPersonChangedNotice(admin, i));
+        const res = await sendNotice({ tenantId: input.tenantId, bookingId: input.bookingId, operationKey: input.operationKey, eventTitle: booking.title ?? "" });
+        clientNoticeSent = res.sent;
+      } catch (err) {
+        logServerError("projects.replaceTalentOnProject.clientNotice", err);
+      }
+    }
+
     return done({
       clientNotice: plan.clientNotice,
+      clientNoticeSent,
       changedSeatIds: plan.changedLineIds,
       payoutPlan: plan.payoutMoves,
       payout: { status: payoutStatus, key },
