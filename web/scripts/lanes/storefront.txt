@@ -100,6 +100,7 @@ src/lib/service-hub/roster-grid.test.ts
 src/lib/service-hub/roster-request.test.ts
 src/lib/service-hub/roster-services.test.ts
 src/lib/service-hub/roster-visibility.test.ts
+src/lib/service-hub/visible-picks-labels.test.ts
 src/lib/service-hub/visible-picks-link.test.ts
 src/lib/service-hub/visible-picks.test.ts
 src/lib/services/business-pages/gate.test.ts

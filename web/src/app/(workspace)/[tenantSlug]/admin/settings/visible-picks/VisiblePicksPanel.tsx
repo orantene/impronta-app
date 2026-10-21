@@ -2,20 +2,40 @@
 
 /**
  * TUL-1591 (e): "Who stays visible". One toggle per publicly shown member; the pick is the
- * roster's own keep_visible (TUL-1693), never featured. The server action re-checks everything (role, active member,
+ * roster's own keep_visible (TUL-1693), never featured. TUL-1687: each row also says whether
+ * that person is visible or hidden by the plan's limit, from the directory's own rule. The server action re-checks everything (role, active member,
  * already public, flag on); this screen only reflects it.
  */
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
-import { VISIBLE_PICKS_COPY, picksSummary } from "@/lib/service-hub/visible-picks";
+import { VISIBLE_PICKS_COPY, picksSummary, type PickVisibility } from "@/lib/service-hub/visible-picks";
 import type { VisiblePicks } from "@/lib/service-hub/visible-picks.server";
 
 import { setVisiblePick } from "./actions";
 
 type Props = { locale: "en" | "es"; tenantSlug: string; picks: VisiblePicks | null };
 
-function MemberRow({ locale, id, name, picked }: { locale: "en" | "es"; id: string; name: string; picked: boolean }) {
+function StateLabel({ locale, state }: { locale: "en" | "es"; state: PickVisibility | undefined }) {
+  // TUL-1687: no state (no restriction or a read error) means no label, never "hidden".
+  if (!state) return null;
+  const c = VISIBLE_PICKS_COPY[locale];
+  return (
+    <span
+      data-testid="visible-pick-state"
+      data-state={state}
+      className={
+        state === "visible"
+          ? "rounded-full border border-[var(--color-admin-border)] px-2 py-0.5 text-xs text-[var(--color-admin-green)]"
+          : "rounded-full border border-[var(--color-admin-border)] px-2 py-0.5 text-xs opacity-70"
+      }
+    >
+      {state === "visible" ? c.stateVisible : c.stateHidden}
+    </span>
+  );
+}
+
+function MemberRow({ locale, id, name, picked, state }: { locale: "en" | "es"; id: string; name: string; picked: boolean; state: PickVisibility | undefined }) {
   const c = VISIBLE_PICKS_COPY[locale];
   const [on, setOn] = useState(picked);
   const [pending, start] = useTransition();
@@ -35,7 +55,10 @@ function MemberRow({ locale, id, name, picked }: { locale: "en" | "es"; id: stri
   };
   return (
     <li data-testid="visible-pick-row" className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-admin-border)] py-3">
-      <span className="text-sm font-semibold">{name || "·"}</span>
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold">{name || "·"}</span>
+        <StateLabel locale={locale} state={state} />
+      </span>
       <span className="flex items-center gap-3">
         {msg && (
           <span role="status" className={msg.ok ? "text-xs text-[var(--color-admin-green)]" : "text-xs text-[var(--color-admin-red)]"}>
@@ -84,7 +107,7 @@ export function VisiblePicksPanel({ locale, tenantSlug, picks }: Props) {
         ) : (
           <ul className="mt-4">
             {picks.members.map((m) => (
-              <MemberRow key={m.talentProfileId} locale={locale} id={m.talentProfileId} name={m.name} picked={m.picked} />
+              <MemberRow key={m.talentProfileId} locale={locale} id={m.talentProfileId} name={m.name} picked={m.picked} state={picks.visibility[m.talentProfileId]} />
             ))}
           </ul>
         )

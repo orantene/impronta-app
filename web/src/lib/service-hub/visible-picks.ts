@@ -24,6 +24,33 @@ export function visiblePicksLinkShown(input: { flagOn: boolean; canEditRoster: b
   return input.flagOn === true && input.canEditRoster === true;
 }
 
+export type PickVisibility = "visible" | "hidden";
+
+/**
+ * TUL-1687: the label each listed member gets. `visibleIds` is what the public directory
+ * keeps over the cap (#4178's visibleRosterIdsWithinCap: keep_visible picks, or 'featured'
+ * while keep_visible is not migrated, then the longest-standing). `publicRosterIds` is the
+ * roster the directory starts from. null `visibleIds` (no restriction, flag off, or a read
+ * error) labels nobody, so nobody is wrongly shown as hidden. A member the directory never
+ * considered (not in `publicRosterIds`) gets no label either: the cap is not why they are
+ * off the site.
+ */
+export function visibilityByMember(
+  memberIds: readonly string[],
+  publicRosterIds: readonly string[],
+  visibleIds: readonly string[] | null,
+): Record<string, PickVisibility> {
+  const out: Record<string, PickVisibility> = {};
+  if (!visibleIds) return out;
+  const visible = new Set(visibleIds);
+  const considered = new Set(publicRosterIds);
+  for (const id of memberIds) {
+    if (visible.has(id)) out[id] = "visible";
+    else if (considered.has(id)) out[id] = "hidden";
+  }
+  return out;
+}
+
 export type KeepVisibleDecision = { ok: true; next: boolean | null } | { ok: false; reason: "not_public" };
 
 /**
@@ -67,6 +94,8 @@ type Copy = {
   empty: string;
   settingsLinkDesc: string;
   open: string;
+  stateVisible: string;
+  stateHidden: string;
 };
 
 export const VISIBLE_PICKS_COPY: Record<"en" | "es", Copy> = {
@@ -87,6 +116,8 @@ export const VISIBLE_PICKS_COPY: Record<"en" | "es", Copy> = {
     empty: "Nobody is shown on your public site yet.",
     settingsLinkDesc: "Pick who stays on your public site when your team is over your plan's limit.",
     open: "Open",
+    stateVisible: "Visible",
+    stateHidden: "Hidden by your plan's limit",
   },
   es: {
     title: "Quién se queda visible",
@@ -105,5 +136,7 @@ export const VISIBLE_PICKS_COPY: Record<"en" | "es", Copy> = {
     empty: "Todavía no hay nadie visible en tu sitio público.",
     settingsLinkDesc: "Elige quién se queda en tu sitio público cuando tu equipo pasa el límite de tu plan.",
     open: "Abrir",
+    stateVisible: "Visible",
+    stateHidden: "Oculto por el límite del plan",
   },
 };
