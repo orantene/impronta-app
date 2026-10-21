@@ -89,6 +89,29 @@ function asAiProvider(value: unknown): AiProviderId {
 }
 
 /**
+ * The master switch alone, read for the provider choke points (TUL-1622): `resolveAiChatAdapter`,
+ * the routed adapters and the image generators call this, so no caller can forget the gate.
+ * One key, one small query. An absent row means ON (the shipped default); an unreadable row means
+ * OFF, because a kill switch that cannot be read must not leave paid calls running.
+ */
+export async function isAiMasterEnabled(): Promise<boolean> {
+  const supabase = createServiceRoleClient();
+  if (!supabase) return decideAiMaster({ hasClient: false });
+  const { data, error } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", "ai_master_enabled")
+    .maybeSingle();
+  return decideAiMaster({ hasClient: true, failed: Boolean(error), row: data as { value: unknown } | null });
+}
+
+/** Pure decision behind `isAiMasterEnabled`: no client or a failed read is OFF, no row is ON. */
+export function decideAiMaster(input: { hasClient: boolean; failed?: boolean; row?: { value: unknown } | null }): boolean {
+  if (!input.hasClient || input.failed) return false;
+  return input.row ? asFlag(input.row.value) : true;
+}
+
+/**
  * Reads AI toggles from `public.settings`. Uses service role so keys stay off the public RLS allowlist.
  * When the service role key is missing, returns all **false** (safe default).
  */

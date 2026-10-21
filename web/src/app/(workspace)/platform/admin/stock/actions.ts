@@ -114,7 +114,7 @@ export async function actionGenerateStockImage(fd: FormData): Promise<Result<{ i
   const parsed = generateSchema.safeParse({ family: fd.get("family"), businessType: fd.get("businessType") ?? "", slot: fd.get("slot"), direction: fd.get("direction"), quality: fd.get("quality") ?? "medium" });
   if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
   const r = await generateStockAsset(admin, { family: parsed.data.family, typeId: parsed.data.businessType, slot: parsed.data.slot, direction: parsed.data.direction, quality: parsed.data.quality, createdBy: g.userId });
-  if (!r.ok) return { ok: false, error: r.code === "not_configured" ? "Image provider not configured. Add the OpenAI key under AI providers, or upload a licensed photo instead." : `${r.code}: ${r.error}` };
+  if (!r.ok) return { ok: false, error: r.code === "ai_off" ? "AI is turned off for this platform. Turn the AI master switch back on, or upload a licensed photo instead." : r.code === "not_configured" ? "Image provider not configured. Add the OpenAI key under AI providers, or upload a licensed photo instead." : `${r.code}: ${r.error}` };
   revalidatePath(PATH);
   return { ok: true, data: { id: r.id, approval: r.approval, costUsd: r.costUsd, qa: r.qa } };
 }
@@ -137,7 +137,7 @@ export async function actionSeedHeroesForType(family: string, businessType: stri
       if (r.approval === "qa_passed") out.passed += 1;
     } else {
       out.errors.push(`${direction}: ${r.code}`);
-      if (r.code === "not_configured" || r.code === "daily_cap" || r.code === "insufficient_quota") break;
+      if (r.code === "ai_off" || r.code === "not_configured" || r.code === "daily_cap" || r.code === "insufficient_quota") break;
     }
   }
   revalidatePath(PATH);

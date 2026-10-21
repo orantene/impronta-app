@@ -3,6 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { imageCostFromUsage, resolveImageEngineSettings, type ImageEngineSettings, type ImageQuality, type ImageUsage } from "@/lib/ai/ai-image-model";
 import { buildOpenAiImageRequestBody, isDallEModel } from "@/lib/ai/openai-image-request";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -94,7 +96,7 @@ export async function generateLifestyleStockBytes(input: {
   return { bytes: await requestOpenAiImage(prompt), prompt };
 }
 
-export type ImageProviderErrorCode = "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error";
+export type ImageProviderErrorCode = "ai_off" | "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error";
 
 /** A provider refusal the pipeline treats as a STATE (03 §4), not a crash. */
 export class ImageProviderError extends Error {
@@ -131,6 +133,9 @@ export async function generateStockImage(input: {
   quality?: ImageQuality;
   settings?: ImageEngineSettings;
 }): Promise<GeneratedStockImage> {
+  // Every image path (builder node image, stock engine, lifestyle stock) goes through here, so the
+  // master switch is checked once, before any key is read or paid call is made (TUL-1622).
+  if (!(await isAiMasterEnabled())) throw new ImageProviderError("ai_off", AI_OFF_MESSAGE);
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) throw new ImageProviderError("not_configured", "OpenAI API key is not configured.");
   const settings = input.settings ?? (await resolveImageEngineSettings());

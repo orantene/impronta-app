@@ -2,6 +2,7 @@ import type { AiProviderAdapter, AiProviderId } from "@/lib/ai/provider";
 import { createAnthropicChatAdapter } from "@/lib/ai/providers/anthropic-adapter";
 import { createDisabledChatAdapter } from "@/lib/ai/providers/disabled-chat-adapter";
 import { createOpenAiChatAdapter } from "@/lib/ai/providers/openai-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { resolveAnthropicApiKey, resolveDefaultRegistryKind, resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 
 export type ResolvedAiChatKind = "openai" | "anthropic" | "none" | "custom";
@@ -40,6 +41,9 @@ export function adapterForProvider(id: AiProviderId, apiKey?: string | null): Ai
 }
 
 export async function resolveAiChatAdapter(): Promise<AiProviderAdapter> {
+  // The master switch is checked HERE, so every caller (builder, edit mode, writing helper,
+  // site composition, signup draft, support) is stopped even if it forgets its own flag (TUL-1622).
+  if (!(await isAiMasterEnabled())) return createDisabledChatAdapter("off");
   const kind = await getResolvedAiChatKind();
   if (kind === "none" || kind === "custom") {
     return createDisabledChatAdapter(kind);

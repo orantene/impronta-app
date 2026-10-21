@@ -2,12 +2,15 @@ import "server-only";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { requestOpenAiImageBytes } from "@/lib/ai/openai-image-request";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 
 /**
  * Calls OpenAI Images API and returns PNG (or model-native) bytes for upload to storage.
  * Uses conservative prompts (abstract / typographic mood — no real-person likeness).
  */
 export async function fetchOpenAiTaxonomyPromoImageBytes(labelEn: string): Promise<Buffer> {
+  if (!(await isAiMasterEnabled())) throw new Error(AI_OFF_MESSAGE);
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) {
     throw new Error("OpenAI API key is not configured.");

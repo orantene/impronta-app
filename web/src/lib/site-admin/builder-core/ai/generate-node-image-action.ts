@@ -25,6 +25,8 @@ import {
   recordImageGenerationUsage,
   uploadGeneratedImageBytes,
 } from "@/lib/ai/ai-image-generation";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GenerateNodeImageState =
@@ -45,6 +47,9 @@ export async function generateNodeImageAction(input: {
   } catch {
     return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };
   }
+
+  // AI master switch (TUL-1622): refuse before the quota read, the paid call or any usage row.
+  if (!(await isAiMasterEnabled())) return { ok: false, error: AI_OFF_MESSAGE, code: "AI_OFF" };
 
   const subject = (input.subject ?? "").trim();
   if (subject.length < 2) {
