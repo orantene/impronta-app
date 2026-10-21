@@ -16,7 +16,8 @@
 #   7. probe the live bundle: fxlank staging DB ref present; pluhda (prod) ref and pk_live_ absent; / is 200
 #   8. npm run deploy:smoke -- --staging (staging mode of the smoke script)
 #
-# Secrets: VERCEL_TOKEN (required). Optional: STAGING_GATE_CI_TOKEN (staging gate header) and
+# Secrets: VERCEL_TOKEN and STAGING_GATE_CI_TOKEN (both required; the gate page returns 200 for
+# everyone, the app bundle is only reachable with the token). Optional:
 # VERCEL_AUTOMATION_BYPASS_SECRET (Vercel deployment protection bypass). Secrets are only passed through
 # `env:`, masked, and sent as request headers; never echoed. Pinned by
 # web/src/lib/quality/build-staging-workflow.static.test.ts.
@@ -42,7 +43,7 @@ env:
   VERCEL_PROJECT_ID: prj_oM9OZ4CLewpMPxpKfkacWs9nRcA2
   VERCEL_PROJECT_NAME: tulala
   # Staging hosts ONLY. The test pins that every entry is a staging host.
-  STAGING_HOSTS: "staging.tulala.digital app.staging.tulala.digital pay.staging.tulala.digital hub.staging.tulala.digital staging-qa-journeys.tulala.digital staging-qa-journeys-b.tulala.digital"
+  STAGING_HOSTS: "staging.tulala.digital www.staging.tulala.digital app.staging.tulala.digital hub.staging.tulala.digital pay.staging.tulala.digital marketing.staging.tulala.digital support.staging.tulala.digital impronta.staging.tulala.digital taqueria.staging.tulala.digital qa-branded-agency.staging.tulala.digital staging-qa-app.tulala.digital staging-qa-journeys.tulala.digital staging-qa-journeys-b.tulala.digital staging-qa-marketing.tulala.digital"
   STAGING_PRIMARY_HOST: staging.tulala.digital
   # Supabase project refs (docs/plans/live-qa-runbook.md, OPERATING.md).
   FXLANK_REF: fxlankepwnvelxjrahwk
@@ -208,8 +209,11 @@ jobs:
       - name: Probe the built bundle (staging DB only, no prod ref, no live key)
         run: |
           set -euo pipefail
-          hdr=()
-          if [ -n "$STAGING_GATE_CI_TOKEN" ]; then hdr+=(-H "x-staging-gate-token: ${STAGING_GATE_CI_TOKEN}"); fi
+          if [ -z "$STAGING_GATE_CI_TOKEN" ]; then
+            echo "::error::STAGING_GATE_CI_TOKEN repo secret is required for the bundle probe (without it only the gate page is reachable, which proves nothing)"
+            exit 1
+          fi
+          hdr=(-H "x-staging-gate-token: ${STAGING_GATE_CI_TOKEN}")
           if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then hdr+=(-H "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}"); fi
           base="https://${STAGING_PRIMARY_HOST}"
           code="$(curl -sS -o /tmp/root.html -w '%{http_code}' "${hdr[@]}" "$base/")"
@@ -218,19 +222,23 @@ jobs:
             exit 1
           fi
           : > /tmp/bundle.txt
-          cat /tmp/root.html >> /tmp/bundle.txt
           grep -Eo '/_next/static/[^"'"'"' )]+\.js' /tmp/root.html | sort -u | head -80 > /tmp/chunks.txt
           n="$(wc -l < /tmp/chunks.txt | tr -d ' ')"
           if [ "$n" -eq 0 ]; then
-            echo "::error::No JS chunks found on the staging root; cannot probe the bundle"
+            echo "::error::No JS chunks found on the staging root: gate page or wrong deployment. A 200 gate page is NOT a pass."
             exit 1
           fi
           while read -r path; do
-            curl -sS "${hdr[@]}" "${base}${path}" >> /tmp/bundle.txt
+            ccode="$(curl -sS -o /tmp/chunk.js -w '%{http_code}' "${hdr[@]}" "${base}${path}")"
+            if [ "$ccode" != "200" ]; then
+              echo "::error::chunk ${path} returned $ccode (token rejected or deployment broken)"
+              exit 1
+            fi
+            cat /tmp/chunk.js >> /tmp/bundle.txt
           done < /tmp/chunks.txt
           echo "probed $n chunks"
           if ! grep -q "$FXLANK_REF" /tmp/bundle.txt; then
-            echo "::error::fxlank staging Supabase ref ($FXLANK_REF) NOT found in the bundle: wrong env?"
+            echo "::error::fxlank staging Supabase ref ($FXLANK_REF) NOT found in any JS chunk fetched with the gate token: wrong env or gate page only"
             exit 1
           fi
           if grep -q "$PLUHDA_REF" /tmp/bundle.txt; then
