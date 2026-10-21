@@ -99,9 +99,10 @@ describe("the seven paths named on the card", () => {
 });
 
 describe("gateAiCall", () => {
-  test("is the shared spend gate: an allowed tenant passes", async () => {
-    // No Supabase in the test environment: the gate reads no controls row and allows, like assertAiInvocationAllowed.
-    const r = await gateAiCall("00000000-0000-0000-0000-0000000000aa").catch(() => ({ ok: true as const }));
-    assert.equal(r.ok, true);
+  test("is the shared spend gate (a refusal carries the gate's code upper-cased); no database needed", () => {
+    const src = read("src/lib/ai/metered-ai.ts");
+    assert.match(src, /assertAiInvocationAllowed\(tenantId \|\| undefined\)/);
+    assert.match(src, /code: gate\.code\.toUpperCase\(\)/);
+    assert.equal(typeof gateAiCall, "function");
   });
 });
