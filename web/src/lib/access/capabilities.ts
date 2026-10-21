@@ -277,6 +277,17 @@ export const CAPABILITIES = {
     scope: "tenant",
     deprecated: false,
   }),
+  // TUL-1715: curate what the workspace sells (Favorites, the Website switch on a Menu / Catalog
+  // item). Role scope: manager = deals + money + curation of what is sold; the setup of the site
+  // itself (`manage_storefront_settings`) stays admin+. No plan row: a plan miss fails open.
+  curate_catalog: define({
+    key: "curate_catalog",
+    displayName: "Curate the catalog",
+    description: "Choose which services and menu items are Favorites and which show on the website.",
+    category: "site",
+    scope: "tenant",
+    deprecated: false,
+  }),
   manage_agency_domains: define({
     key: "manage_agency_domains",
     displayName: "Manage workspace domains",

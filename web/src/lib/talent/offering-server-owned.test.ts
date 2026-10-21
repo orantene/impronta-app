@@ -173,22 +173,21 @@ test("wiring: the talent save writes the server fields after the client patch, i
   assert.doesNotMatch(src, /export async function saveTalentOffering/);
 });
 
-test("role matrix: manager, editor and viewer lack the curation capability; admin and owner have it", () => {
-  // TUL-1633 follow-up: Favorites/Website stay gated on manage_storefront_settings
-  // (admin and owner only). There is no existing role-granted capability that
-  // cleanly covers "manager and above, storefront/catalog day-to-day" without
-  // also granting it to editor/viewer or inventing a new one, so the gate is
-  // unchanged. This pins that the role grants still match that decision.
+test("role matrix: viewer and editor lack the curation capability; manager, admin and owner have it", () => {
+  // TUL-1715: curation of what is sold is a manager-level duty (role scope: editor = content,
+  // manager = deals + money + curation, admin = config), so it has its own key instead of
+  // borrowing the admin-only manage_storefront_settings.
   assert.equal(ROLE_CAPABILITIES.viewer.has(OFFERING_CURATION_CAPABILITY), false);
   assert.equal(ROLE_CAPABILITIES.editor.has(OFFERING_CURATION_CAPABILITY), false);
-  assert.equal(ROLE_CAPABILITIES.manager.has(OFFERING_CURATION_CAPABILITY), false);
+  assert.equal(ROLE_CAPABILITIES.manager.has(OFFERING_CURATION_CAPABILITY), true);
   assert.equal(ROLE_CAPABILITIES.admin.has(OFFERING_CURATION_CAPABILITY), true);
   assert.equal(ROLE_CAPABILITIES.owner.has(OFFERING_CURATION_CAPABILITY), true);
+  assert.equal(ROLE_CAPABILITIES.manager.has("manage_storefront_settings"), false, "site setup stays admin+");
 });
 
-test("wiring: the workspace save gates curation on the admin capability and writes the server fields", () => {
+test("wiring: the workspace save gates curation on the curation capability and writes the server fields", () => {
   const src = read("menu-offerings-actions.ts");
-  assert.equal(OFFERING_CURATION_CAPABILITY, "manage_storefront_settings");
+  assert.equal(OFFERING_CURATION_CAPABILITY, "curate_catalog");
   assert.match(src, /userHasCapability\(OFFERING_CURATION_CAPABILITY, tenantId\)/);
   assert.match(src, /curation: curator \? "curator" : "refuse_change"/);
   assert.match(src, /primaryLocale\), \/\/[^\n]*\n\s*\.\.\.owned\.fields,/);

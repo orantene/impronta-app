@@ -15,8 +15,8 @@
  *     unless the caller is a curator. The talent path is never a curator: the
  *     talent Services editor has no Favorites or website control. The workspace
  *     catalog is the curation path (Favorites, the Website switch) and needs
- *     the admin capability `manage_storefront_settings`; a workspace member
- *     without it who tries to change either is refused.
+ *     `curate_catalog` (TUL-1715: manager and above, the role scope's "curation of what is
+ *     sold"); a workspace member without it who tries to change either is refused.
  *
  * Fails closed: when the current row cannot be read the save is refused, never
  * written with the client's values.
@@ -38,13 +38,13 @@ export const NEW_OFFERING_SERVER_OWNED: Readonly<ServerOwnedOfferingFields> = Ob
   visibility: "public",
 });
 
-/** The admin capability that may change Favorites and website visibility on the workspace catalog. */
-export const OFFERING_CURATION_CAPABILITY = "manage_storefront_settings";
+/** The capability (manager and above) that may change Favorites and website visibility on the workspace catalog. */
+export const OFFERING_CURATION_CAPABILITY = "curate_catalog";
 
 /**
  * - "ignore": client values for featured and visibility are dropped (talent path).
  * - "refuse_change": a client value that differs from the server's is refused (workspace member without the capability).
- * - "curator": client featured and visibility are applied (workspace admin). Moderation stays server-owned.
+ * - "curator": client featured and visibility are applied (manager and above). Moderation stays server-owned.
  */
 export type OfferingCuration = "ignore" | "refuse_change" | "curator";
 
@@ -138,7 +138,7 @@ export async function resolveServerOwnedOfferingFields(
       return {
         ok: false,
         code: "forbidden",
-        error: "Only a workspace admin can change Favorites or where an item shows.",
+        error: "Only a manager or admin can change Favorites or where an item shows.",
       };
     }
   }
