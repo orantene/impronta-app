@@ -118,3 +118,9 @@ test("no screen or loader reads the originals table", () => {
     assert.ok(!readFileSync(join(process.cwd(), f), "utf8").includes("inquiry_message_originals"), f);
   }
 });
+
+test("TUL-1597: the masking writer masks card payload text, not only the body", () => {
+  const w = readFileSync(join(process.cwd(), "src/lib/coordinator/masked-message-write.server.ts"), "utf8");
+  assert.match(w, /maskCardPayloadText\(row\.card_payload/);
+  assert.match(w, /card_payload: maskedCard\.payload/);
+});
