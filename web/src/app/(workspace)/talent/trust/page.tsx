@@ -20,6 +20,8 @@ import { loadTrustBadgesForTalents, type LoadedTrustBadge }
   from "@/app/(workspace)/[tenantSlug]/_data-bridge/talent-trust-badges";
 import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
 import { logServerError } from "@/lib/server/safe-error";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { trustCopy, type TrustKind } from "./_trust-copy";
 
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug?: string }>;
@@ -43,72 +45,29 @@ const C = {
 
 /**
  * Canonical set of trust touchpoints a talent CAN earn. Indexed by the
- * UI kind so we can show "earned" vs "not earned" for each.
+ * UI kind so we can show "earned" vs "not earned" for each. User-facing
+ * text lives in ./_trust-copy.ts (en + es).
  */
 type TouchpointDescriptor = {
-  kind: LoadedTrustBadge["kind"];
-  label: string;
-  description: string;
-  /** Action copy when not yet earned. */
-  ctaLabel: string;
-  /** Tone — used to grey out non-actionable rows. */
+  kind: LoadedTrustBadge["kind"] & TrustKind;
+  /** Tone: used to grey out non-actionable rows. */
   selfActionable: boolean;
 };
 
 const TOUCHPOINTS: TouchpointDescriptor[] = [
-  {
-    kind: "id-verified",
-    label: "ID verified",
-    description: "Government-issued ID confirmed by Stripe Identity. Required for paid bookings.",
-    ctaLabel: "Start ID verification",
-    selfActionable: true,
-  },
-  {
-    kind: "age-verified",
-    label: "Age verified",
-    description: "Confirmed via ID verification + date of birth. Automatic side-effect of ID step.",
-    ctaLabel: "Earned via ID verification",
-    selfActionable: false,
-  },
-  {
-    kind: "background-check",
-    label: "Background-checked",
-    description: "Optional third-party check. Some clients filter by this badge.",
-    ctaLabel: "Request background check",
-    selfActionable: true,
-  },
-  {
-    kind: "union",
-    label: "Union / license",
-    description: "Upload union card or professional license. Renews yearly.",
-    ctaLabel: "Upload credentials",
-    selfActionable: true,
-  },
-  {
-    kind: "agency-verified",
-    label: "Agency-verified",
-    description: "Your primary agency has confirmed your roster status. Auto-set when an Agency-plan workspace adds you with exclusivity confirmed.",
-    ctaLabel: "Agency-driven (no action needed)",
-    selfActionable: false,
-  },
-  {
-    kind: "top-rated",
-    label: "Top-rated",
-    description: "Awarded after 10+ booked-and-completed jobs with 4.7+ avg client rating.",
-    ctaLabel: "Earn via booked work",
-    selfActionable: false,
-  },
-  {
-    kind: "tulala-featured",
-    label: "Tulala featured",
-    description: "Editorial pick — talent showcased on the Tulala discovery surface.",
-    ctaLabel: "Curated by Tulala team",
-    selfActionable: false,
-  },
+  { kind: "id-verified", selfActionable: true },
+  { kind: "age-verified", selfActionable: false },
+  { kind: "background-check", selfActionable: true },
+  { kind: "union", selfActionable: true },
+  { kind: "agency-verified", selfActionable: false },
+  { kind: "top-rated", selfActionable: false },
+  { kind: "tulala-featured", selfActionable: false },
 ];
 
 export default async function PlatformTalentTrustPage() {
   const { tenantSlug, tenantId } = await resolveTalentPageScope(Promise.resolve({}));
+  const locale = await getRequestLocale();
+  const c = trustCopy(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
 
@@ -126,11 +85,10 @@ export default async function PlatformTalentTrustPage() {
     return (
       <div style={{ fontFamily: FONT, padding: "32px 28px", maxWidth: 720 }}>
         <h1 style={{ margin: 0, fontSize: 24, color: C.ink, fontWeight: 600 }}>
-          Trust signals
+          {c.title}
         </h1>
         <div style={{ marginTop: 12, fontSize: 13.5, color: C.inkMuted, lineHeight: 1.55 }}>
-          You don&apos;t have a talent profile yet. Create one first to start
-          earning verification badges.
+          {c.noProfile}
         </div>
       </div>
     );
@@ -153,19 +111,16 @@ export default async function PlatformTalentTrustPage() {
           href={`/${tenantSlug}/talent/profile`}
           style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}
         >
-          ← Back to profile
+          {c.backToProfile}
         </Link>
       </div>
 
       <div style={{ marginBottom: 22 }}>
         <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: C.ink, letterSpacing: -0.3 }}>
-          Your trust signals
+          {c.heading}
         </h1>
         <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 6, lineHeight: 1.5, maxWidth: 620 }}>
-          Verification badges signal trust to clients before they
-          inquire. Some are self-serve (ID, license); others are earned
-          (top-rated, agency-verified) or curated (Tulala featured).
-          Earning more badges typically increases inquiry volume.
+          {c.lede}
         </div>
       </div>
 
@@ -178,11 +133,11 @@ export default async function PlatformTalentTrustPage() {
       }}>
         <span style={{ fontSize: 16 }} aria-hidden>✓</span>
         <span style={{ color: C.ink, fontWeight: 600 }}>
-          {earnedCount} of {totalEarnable} signals earned
+          {c.signalsEarned(earnedCount, totalEarnable)}
         </span>
         {earnedCount === 0 && (
           <span style={{ color: C.inkMuted, fontWeight: 500 }}>
-            · start with ID verification below
+            {c.startWithId}
           </span>
         )}
       </div>
@@ -195,6 +150,7 @@ export default async function PlatformTalentTrustPage() {
       }}>
         {TOUCHPOINTS.map((t, i) => {
           const isEarned = earnedByKind.has(t.kind);
+          const tp = c.touchpoints[t.kind];
           const earnedBadge = earnedByKind.get(t.kind);
           return (
             <div
@@ -216,7 +172,7 @@ export default async function PlatformTalentTrustPage() {
                   <span style={{
                     fontSize: 14, fontWeight: 600, color: C.ink,
                   }}>
-                    {t.label}
+                    {tp.label}
                   </span>
                   {isEarned && earnedBadge && (
                     <span style={{
@@ -224,12 +180,12 @@ export default async function PlatformTalentTrustPage() {
                       padding: "2px 7px", borderRadius: 999,
                       background: "rgba(26,115,72,0.10)",
                     }}>
-                      Earned {new Date(earnedBadge.earnedAt).toLocaleDateString()}
+                      {c.earnedOn(new Date(earnedBadge.earnedAt).toLocaleDateString(locale))}
                     </span>
                   )}
                 </div>
                 <div style={{ fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5, paddingLeft: 22 }}>
-                  {t.description}
+                  {tp.description}
                 </div>
               </div>
               <div className="flex items-center">
@@ -237,7 +193,7 @@ export default async function PlatformTalentTrustPage() {
                   <span style={{
                     fontSize: 11.5, color: C.success, fontWeight: 600,
                   }}>
-                    ✓ Active
+                    {c.active}
                   </span>
                 ) : t.selfActionable ? (
                   <span style={{
@@ -245,13 +201,13 @@ export default async function PlatformTalentTrustPage() {
                     padding: "4px 10px", borderRadius: 6,
                     background: C.accentSoft, border: `1px solid ${C.accent}33`,
                   }}>
-                    {t.ctaLabel} →
+                    {tp.ctaLabel} →
                   </span>
                 ) : (
                   <span style={{
                     fontSize: 11, color: C.inkDim, fontStyle: "italic",
                   }}>
-                    {t.ctaLabel}
+                    {tp.ctaLabel}
                   </span>
                 )}
               </div>
@@ -265,12 +221,12 @@ export default async function PlatformTalentTrustPage() {
         border: `1px solid ${C.amber}33`, borderRadius: 10,
         fontSize: 12, color: C.ink, lineHeight: 1.55,
       }}>
-        <strong>Self-serve verification is rolling out next sprint.</strong>{" "}
-        For now, ID verification is started from{" "}
+        <strong>{c.rolloutBold}</strong>{" "}
+        {c.rolloutBefore}{" "}
         <Link href={`/${tenantSlug}/talent/settings`} style={{ color: C.accent, textDecoration: "underline" }}>
-          Settings → Account
-        </Link>{" "}— other touchpoints are earned automatically or via
-        agency action.
+          {c.settingsAccount}
+        </Link>{" "}
+        {c.rolloutAfter}
       </div>
     </div>
   );
