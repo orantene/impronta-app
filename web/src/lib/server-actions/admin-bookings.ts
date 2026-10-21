@@ -838,7 +838,7 @@ export async function addBookingTalentRow(
     client_charge_total: t.client_charge_total,
     gross_profit: t.gross_profit,
     })
-    .select("id")
+    .select("id, role_label")
     .maybeSingle();
 
   if (error) {
@@ -855,6 +855,8 @@ export async function addBookingTalentRow(
 
   // TUL-1603: tell the person their own part (after the write, fire-and-forget, never throws).
   const seatId = (inserted as { id?: string } | null)?.id;
+  // TUL-1606: the seat's real role label; empty falls back to a localized "Equipo"/"Team" in the message.
+  const seatRole = (inserted as { role_label?: string | null } | null)?.role_label?.trim() ?? "";
   const serviceAdmin = createServiceRoleClient();
   if (seatId && serviceAdmin) {
     const b = bookingRow as { title: string | null; starts_at: string | null; timezone: string | null };
@@ -865,7 +867,7 @@ export async function addBookingTalentRow(
           tenantId,
           jobId: booking_id,
           roleId: seatId,
-          role: "Team",
+          role: seatRole,
           eventTitle: b.title ?? "",
           startsAt: b.starts_at,
           timeZone: b.timezone ?? "UTC",

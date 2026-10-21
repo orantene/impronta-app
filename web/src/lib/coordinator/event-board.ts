@@ -68,12 +68,14 @@ const COPY = {
     role: (r: string) => `Your role: ${r}.`,
     call: (when: string) => `Your call: ${when}.`,
     noCall: "Your call time will follow.",
+    noRole: "Team",
   },
   es: {
     intro: (event: string) => `Estás en ${event}.`,
     role: (r: string) => `Tu rol: ${r}.`,
     call: (when: string) => `Tu llamado: ${when}.`,
     noCall: "Te avisaremos tu hora de llamado.",
+    noRole: "Equipo",
   },
 } as const;
 
@@ -95,5 +97,5 @@ export function roleMessage(input: {
       when = null;
     }
   }
-  return [c.intro(input.eventTitle), c.role(input.role.role), when ? c.call(when) : c.noCall].join(" ");
+  return [c.intro(input.eventTitle), c.role(input.role.role.trim() || c.noRole), when ? c.call(when) : c.noCall].join(" ");
 }
