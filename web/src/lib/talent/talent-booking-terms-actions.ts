@@ -28,6 +28,7 @@ import { revalidatePath } from "next/cache";
 import type { RefundPolicyKey, TalentBookingTerms } from "@/lib/billing/commercial-terms-types";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { staffMayEditTalent } from "@/lib/talent/staff-talent-access";
+import { authorizeTalentProfileAccess } from "@/lib/talent/talent-profile-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -98,22 +99,20 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, error: "Database unavailable." };
 
-  const { data: tp, error } = await supabase
-    .from("talent_profiles")
-    .select("id, user_id")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-
-  if (error || !tp) {
-    if (error) logServerError("talent.bookingTerms.authorize", error);
-    return { ok: false, error: "Profile not found." };
-  }
-
-  const isStaff = tp.user_id === session.user.id ? false : await staffMayEditTalent(talentProfileId);
-  const isOwner = tp.user_id === session.user.id;
-  if (!isOwner && !isStaff) return { ok: false, error: "Forbidden." };
-
-  return { ok: true, supabase, userId: session.user.id, isStaff };
+  const access = await authorizeTalentProfileAccess<{ id: string; user_id: string | null }>(
+    {
+      getUserId: async () => session.user?.id ?? null,
+      loadProfile: async (id) => {
+        const { data, error } = await supabase.from("talent_profiles").select("id, user_id").eq("id", id).maybeSingle();
+        return { row: data ?? null, error };
+      },
+      staffMayEdit: staffMayEditTalent,
+      onReadError: (error) => logServerError("talent.bookingTerms.authorize", error),
+    },
+    talentProfileId,
+  );
+  if (!access.ok) return { ok: false, error: access.error };
+  return { ok: true, supabase, userId: access.userId, isStaff: access.isStaff };
 }
 
 type LoadTalentBookingTermsResult =

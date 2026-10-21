@@ -18,6 +18,7 @@ import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCrea
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
+import { resolveOwnerTalentProfileIds } from "@/lib/saas/ensure-self-roster";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { OFFERING_MEDIA_EMBED, imagesFromEmbed, loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
 import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
@@ -232,7 +233,15 @@ export async function upsertWorkspaceMenuItem(
     // just hoisted earlier so the gate's refusal can be in the workspace's own language.
     const ownerTalentId = await ownerTalentIdOf(admin, tenantId);
     const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
-    const gate = await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering, undefined, primaryLocale);
+    const gate = await workspaceOfferingSaveGate(
+      admin,
+      tenantId,
+      ownerTalentId,
+      offering,
+      undefined,
+      primaryLocale,
+      await resolveOwnerTalentProfileIds(admin as SupabaseClient, tenantId),
+    );
     if (!gate.ok) return gate;
 
     if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
