@@ -7,7 +7,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-import { buildLaunchEditionLink, launchEditionPath, loadLaunchEditionLink } from "./launch-edition-link";
+import { buildLaunchEmail } from "@/lib/email/product-update/template";
+
+import {
+  buildLaunchEditionEmailInput,
+  buildLaunchEditionLink,
+  launchEditionEmailUrl,
+  launchEditionPath,
+  loadLaunchEditionLink,
+} from "./launch-edition-link";
 import { changelogLaunchState, type ChangelogRow } from "./public-read";
 
 function edition(over: Partial<ChangelogRow> = {}): ChangelogRow {
@@ -80,4 +88,39 @@ test("the home page mounts the strip, and the strip reads only the guarded loade
   assert.match(strip, /loadLaunchEditionLink\(/);
   assert.match(strip, /if \(!link\) return null;/);
   assert.doesNotMatch(strip, /isChangelogPublicLaunch|process\.env/);
+});
+
+test("launch email: no input until the changelog is live, so it can never link to a page that is not public", () => {
+  const e = edition();
+  assert.equal(buildLaunchEditionEmailInput(changelogLaunchState(false, [e]), "es", "https://x.test/u"), null);
+  assert.equal(buildLaunchEditionEmailInput(changelogLaunchState(true, []), "en", "https://x.test/u"), null);
+  assert.equal(
+    buildLaunchEditionEmailInput(changelogLaunchState(true, [edition({ summary_en: "texto provisional" })]), "en", "https://x.test/u"),
+    null,
+  );
+});
+
+test("launch email: headline, summary and button link come from the signed-off entry, in the recipient's language", () => {
+  const e = edition();
+  const state = changelogLaunchState(true, [e]);
+  const en = buildLaunchEditionEmailInput(state, "en", "https://x.test/u");
+  const es = buildLaunchEditionEmailInput(state, "es", "https://x.test/u");
+  assert.equal(en?.headline, "Tulala Fall 2026");
+  assert.equal(es?.headline, "Tulala Otoño 2026");
+  assert.equal(es?.summary, "Todo lo nuevo.");
+  const id = e.notion_page_id;
+  const utm = "utm_source=email&utm_medium=email&utm_campaign=launch-edition";
+  assert.equal(en?.ctaUrl, `https://tulala.digital/changelog/${id}?${utm}`);
+  assert.equal(es?.ctaUrl, `https://tulala.digital/es/novedades/${id}?${utm}`);
+  assert.equal(launchEditionEmailUrl(id, "en"), en?.ctaUrl);
+  assert.equal(en?.unsubscribeUrl, "https://x.test/u");
+});
+
+test("launch email: the input renders through the real template with the link and unsubscribe intact", () => {
+  const input = buildLaunchEditionEmailInput(changelogLaunchState(true, [edition()]), "es", "https://x.test/u");
+  assert.ok(input);
+  const out = buildLaunchEmail(input);
+  assert.equal(out.subject, "Tulala Otoño 2026");
+  assert.ok(out.html.includes("https://tulala.digital/es/novedades/3fe2c5ee-9743-8135-b034-edc2c0d6a40a?utm_source=email&amp;utm_medium=email&amp;utm_campaign=launch-edition"));
+  assert.ok(out.html.includes('href="https://x.test/u"'));
 });
