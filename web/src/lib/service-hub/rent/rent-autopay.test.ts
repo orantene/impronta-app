@@ -59,8 +59,8 @@ describe("who may turn on automatic payments", () => {
   test("refusals, each fail closed", () => {
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ acceptedAt: null }) }), { ok: false, reason: "not_accepted" });
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ status: "paused" }) }), { ok: false, reason: "not_active" });
-    assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ percentBps: 1_000, acceptedPercentBps: 1_000 }) }), { ok: true }, "TUL-1609: a percentage plan can pay automatically");
-    assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ percentBps: 1_000, acceptedPercentBps: 500 }) }), { ok: false, reason: "terms_changed" });
+    assert.deepEqual(decideRentAutopay({ ...ok, percentEnabled: true, plan: plan({ percentBps: 1_000, acceptedPercentBps: 1_000 }) }), { ok: true }, "TUL-1609: a percentage plan can pay automatically");
+    assert.deepEqual(decideRentAutopay({ ...ok, percentEnabled: true, plan: plan({ percentBps: 1_000, acceptedPercentBps: 500 }) }), { ok: false, reason: "terms_changed" });
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ termsVersion: 2 }) }), { ok: false, reason: "terms_changed" });
     assert.deepEqual(decideRentAutopay({ ...ok, studio: { accountId: null, chargesEnabled: false } }), { ok: false, reason: "studio_not_ready" });
     assert.deepEqual(decideRentAutopay({ ...ok, studio: { accountId: "acct", chargesEnabled: false } }), { ok: false, reason: "studio_not_ready" });

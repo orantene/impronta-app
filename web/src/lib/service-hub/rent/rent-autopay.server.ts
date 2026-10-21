@@ -7,7 +7,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
-import { rentAutopayFlagOn } from "./rent-autopay";
+import { rentAutopayFlagOn, rentAutopayPercentFlagOn } from "./rent-autopay";
 import { rentReversalCents } from "./rent-autopay-refunds";
 import { percentMonthForInvoice, percentRentLines } from "./rent-autopay";
 import { periodOfSeconds } from "./rent-autopay-routing";
@@ -271,7 +271,7 @@ export type PercentDraftOutcome = "added" | "nothing_owed" | "skipped" | "retry"
  */
 export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, ev: Extract<RentSubscriptionEvent, { type: "draft" }>): Promise<PercentDraftOutcome> {
   try {
-    if (ev.percentAdded) return "skipped";
+    if (ev.percentAdded || !rentAutopayPercentFlagOn()) return "skipped";
     const { data } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId)
       .select("stripe_subscription_id, rent_percent_bps, accepted_percent_bps, currency, talent_profile_id, autopay_first_period")
       .eq("id", ev.planId)
@@ -283,6 +283,9 @@ export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, e
     if (percentBps <= 0 || plan.accepted_percent_bps !== percentBps) return "skipped";
     const month = percentMonthForInvoice({ invoicePeriod: periodOfSeconds(ev.periodStart), autopayFirstPeriod: plan.autopay_first_period });
     if (!month || ev.feeBps == null || !ev.customerId) return "skipped";
+    // Re-read the LIVE invoice: the event may be old. Still a draft and not yet stamped, or nothing is added.
+    const live = await stripe.invoices.retrieve(ev.invoiceId);
+    if (live.status !== "draft" || live.metadata?.rent_percent_cents != null) return "skipped";
     const base = await loadMemberSalesBase(admin, { tenantId: ev.tenantId, talentProfileId: plan.talent_profile_id, period: month, currency: plan.currency });
     const lines = percentRentLines({ salesBaseCents: base, percentBps, feeBps: ev.feeBps });
     if (!lines) return "retry";

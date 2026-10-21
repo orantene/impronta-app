@@ -2,9 +2,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, test } from "node:test";
+import { afterEach, beforeEach, describe, test } from "node:test";
 import type Stripe from "stripe";
-import { buildRentSubscriptionParams, percentMonthForInvoice, percentRentLines, previousPeriod, rentAutopayAmounts, transferPercentForFeeBps } from "./rent-autopay";
+import { addPercentToDraft } from "./rent-autopay.server";
+import { buildRentSubscriptionParams, decideRentAutopay, percentMonthForInvoice, percentRentLines, previousPeriod, rentAutopayAmounts, transferPercentForFeeBps } from "./rent-autopay";
 import { classifyRentSubscriptionEvent } from "./rent-autopay-routing";
 import type { RentPlan } from "./rent-cycle";
 
@@ -71,5 +72,48 @@ describe("consent and wiring", () => {
     assert.match(server, /plan\.accepted_percent_bps !== percentBps/);
     const handler = readFileSync(join(process.cwd(), "src/lib/stripe/webhook-handler.ts"), "utf8");
     assert.match(handler, /if \(rent\.type === "draft"\)/);
+  });
+});
+
+describe("TUL-1609 consultant fixes", () => {
+  const pplan = { id: "plan-1", tenantId: "t-1", talentProfileId: "tp-1", monthlyRentCents: 50_000, percentBps: 1_000, currency: "MXN", startsOn: "2026-09-01", status: "active", acceptedAt: "x", acceptedAmountCents: 50_000, acceptedPercentBps: 1_000, acceptedCurrency: "MXN", termsVersion: 1, acceptedTermsVersion: 1 } as RentPlan;
+  const studio = { accountId: "acct_1", chargesEnabled: true };
+  test("a percentage plan cannot start automatic charging while RENT_AUTOPAY_PERCENT_ENABLED is off (fixed-only plans are unaffected)", () => {
+    assert.deepEqual(decideRentAutopay({ plan: pplan, studio, feeBps: 150, autopayStatus: "off", percentEnabled: false }), { ok: false, reason: "percent_unavailable" });
+    assert.deepEqual(decideRentAutopay({ plan: pplan, studio, feeBps: 150, autopayStatus: "off", percentEnabled: true }), { ok: true });
+    const fixedOnly = { ...pplan, percentBps: 0, acceptedPercentBps: 0 } as RentPlan;
+    assert.deepEqual(decideRentAutopay({ plan: fixedOnly, studio, feeBps: 150, autopayStatus: "off", percentEnabled: false }), { ok: true });
+  });
+  test("a failed percentage-only charge records what was owed, never 0 (amount_cents > 0)", () => {
+    const failed = classifyRentSubscriptionEvent(ev("invoice.payment_failed", { id: "in_1", amount_due: 101_501, currency: "mxn", period_start: DEC1, metadata: { rent_percent_cents: "100001" }, parent: { subscription_details: { subscription: "sub_1", metadata: md } } }));
+    assert.equal(failed?.type === "failed" && failed.rentCents, 100_001);
+    const noStamp = classifyRentSubscriptionEvent(ev("invoice.payment_failed", { id: "in_2", amount_due: 5_000, currency: "mxn", period_start: DEC1, parent: { subscription_details: { subscription: "sub_1", metadata: md } } }));
+    assert.equal(noStamp?.type === "failed" && noStamp.rentCents, 5_000);
+  });
+
+  const prev = process.env.RENT_AUTOPAY_PERCENT_ENABLED;
+  beforeEach(() => { process.env.RENT_AUTOPAY_PERCENT_ENABLED = "1"; });
+  afterEach(() => { if (prev === undefined) delete process.env.RENT_AUTOPAY_PERCENT_ENABLED; else process.env.RENT_AUTOPAY_PERCENT_ENABLED = prev; });
+  const draft = { type: "draft", planId: "plan-1", tenantId: "t-1", subscriptionId: "sub_1", invoiceId: "in_1", customerId: "cus_1", periodStart: DEC1, currency: "mxn", percentAdded: false, feeBps: 150 } as const;
+  const planRow = { stripe_subscription_id: "sub_1", rent_percent_bps: 1_000, accepted_percent_bps: 1_000, currency: "MXN", talent_profile_id: "tp-1", autopay_first_period: "2026-11" };
+  function fake(invoice: Record<string, unknown>) {
+    const q: Record<string, unknown> = {};
+    Object.assign(q, { select: () => q, eq: () => q, maybeSingle: async () => ({ data: planRow, error: null }) });
+    const created: string[] = [];
+    const stripe = { invoices: { retrieve: async () => invoice, update: async () => ({}) }, invoiceItems: { create: async () => { created.push("item"); return {}; } } } as never;
+    return { admin: { from: () => q } as never, stripe, created };
+  }
+  test("flag off: nothing is added", async () => {
+    delete process.env.RENT_AUTOPAY_PERCENT_ENABLED;
+    const f = fake({ status: "draft", metadata: {} });
+    assert.equal(await addPercentToDraft(f.admin, f.stripe, draft), "skipped");
+    assert.deepEqual(f.created, []);
+  });
+  test("the LIVE invoice is re-read: no longer a draft, or already stamped, adds nothing", async () => {
+    for (const live of [{ status: "open", metadata: {} }, { status: "draft", metadata: { rent_percent_cents: "0" } }]) {
+      const f = fake(live);
+      assert.equal(await addPercentToDraft(f.admin, f.stripe, draft), "skipped");
+      assert.deepEqual(f.created, []);
+    }
   });
 });

@@ -88,7 +88,11 @@ export function classifyRentSubscriptionEvent(event: Stripe.Event): RentSubscrip
         const rentCents = m.rentCents + (Number.isInteger(percent) && percent > 0 ? percent : 0);
         return { type: "paid", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), amountPaid: inv.amount_paid, currency: inv.currency, rentCents };
       }
-      return { type: "failed", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), attempt: inv.attempt_count ?? 1, currency: inv.currency ?? "", rentCents: m.rentCents };
+      // A failed charge records what was owed: fixed part + percentage added, else the invoice amount (never 0, the row needs amount_cents > 0).
+      const pctFailed = Number(inv.metadata?.rent_percent_cents ?? 0);
+      const owed = m.rentCents + (Number.isInteger(pctFailed) && pctFailed > 0 ? pctFailed : 0);
+      const failedRent = owed > 0 ? owed : Math.max(inv.amount_due ?? 0, 0);
+      return { type: "failed", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), attempt: inv.attempt_count ?? 1, currency: inv.currency ?? "", rentCents: failedRent };
     }
     default:
       return null;

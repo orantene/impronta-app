@@ -21,6 +21,14 @@ export function rentAutopayFlagOn(env: Record<string, string | undefined> = proc
 }
 
 /**
+ * TUL-1609: percentage-of-sales autopay has its own flag (OFF by default). It needs `invoice.created` subscribed on
+ * the US and MX webhook endpoints; without it a percentage plan would bill only its fixed part.
+ */
+export function rentAutopayPercentFlagOn(env: Record<string, string | undefined> = process.env): boolean {
+  return env.RENT_AUTOPAY_PERCENT_ENABLED === "1";
+}
+
+/**
  * The flag AND a TEST key for the platform that will actually create the subscription: STRIPE_SECRET_KEY for the US
  * platform, STRIPE_MX_SECRET_KEY for MX. A live (or missing) key of the chosen platform refuses, whatever the other
  * platform's key is, so a live MX key can never create live subscriptions behind a US test key.
@@ -94,6 +102,7 @@ export type RentAutopayRefusal =
   | "studio_not_ready"
   | "fee_unavailable"
   | "below_minimum"
+  | "percent_unavailable"
   | "already_on";
 
 export function decideRentAutopay(input: {
@@ -102,6 +111,8 @@ export function decideRentAutopay(input: {
   /** The studio's current Tulala service fee (null = could not be confirmed). */
   feeBps: number | null;
   autopayStatus: string;
+  /** Defaults to the RENT_AUTOPAY_PERCENT_ENABLED flag. */
+  percentEnabled?: boolean;
 }): { ok: true } | { ok: false; reason: RentAutopayRefusal } {
   const { plan } = input;
   if (plan.acceptedAt == null) return { ok: false, reason: "not_accepted" };
@@ -120,6 +131,7 @@ export function decideRentAutopay(input: {
   // A fixed part must clear the card minimum; a percentage-only plan charges each month what is owed (TUL-1609).
   if (plan.monthlyRentCents > 0 && !checkChargeMinimum(amounts.totalCents, plan.currency).ok) return { ok: false, reason: "below_minimum" };
   if (plan.acceptedPercentBps !== plan.percentBps) return { ok: false, reason: "terms_changed" };
+  if (plan.percentBps > 0 && !(input.percentEnabled ?? rentAutopayPercentFlagOn())) return { ok: false, reason: "percent_unavailable" };
   // 'pending' may start again (an abandoned Checkout); the same session is reused by its idempotency key.
   if (input.autopayStatus !== "off" && input.autopayStatus !== "canceled" && input.autopayStatus !== "pending") return { ok: false, reason: "already_on" };
   return { ok: true };
