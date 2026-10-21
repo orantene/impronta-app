@@ -55,7 +55,11 @@ function slugifyTitle(title: string): string {
 }
 
 /** A catalog entry that gets its own page: a public service or package. */
-export function isServicePageEligible(o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title">): boolean {
+export function isServicePageEligible(
+  o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title"> & { attributes?: Record<string, unknown> | null },
+): boolean {
+  // "In lists only" (Catalog website control): shown in lists and cards, no page of its own.
+  if (o.attributes?.presence === "lists_only") return false;
   return (o.kind === "service" || o.kind === "package") && o.visibility !== "agency_only" && o.title.trim() !== "";
 }
 

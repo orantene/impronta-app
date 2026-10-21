@@ -15,6 +15,8 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { talentOffersInstantBooking } from "@/lib/scheduling/talent-booking-mode";
 import { parseSellingBookingSettings } from "@/lib/talent/selling-booking-settings";
+import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
+import { getPlatformHubTenant } from "@/lib/saas/platform-hub";
 import { needsUsdRates, showsUsdEquivalent } from "@/lib/pricing/usd-equivalent";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import {
@@ -396,6 +398,17 @@ export async function loadBuilderNodeDataSources(
     ...(featuredTalentProfilesByNodeId === undefined
       ? {}
       : { featuredTalentProfilesByNodeId }),
+    // TUL-1372: on a TENANT (workspace) page with no talent, the Services widget also shows the
+    // workspace's roster services (accepted listings), request-only. Tenant-strict reader; fail closed.
+    ...(nativeNeeds.servicesCatalog && !catalogTalentId && tenantId
+      ? await (async () => {
+          const admin = createServiceRoleClient();
+          // The shared hub is a network, not one workspace: it never lists roster services.
+          const hub = await getPlatformHubTenant();
+          const rosterServices = admin && hub?.tenantId !== dataTenantId ? await loadWorkspaceRosterServices(admin, dataTenantId) : [];
+          return rosterServices.length > 0 ? { rosterServices } : {};
+        })()
+      : {}),
     ...(nativeNeeds.servicesCatalog && catalogTalentId
       ? await loadServicesCatalogSources(
           catalogTalentId,

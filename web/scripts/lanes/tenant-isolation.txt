@@ -84,6 +84,7 @@ src/lib/marketing/pricing-tier-localize.test.ts
 src/lib/marketing/spanish-path-alias.test.ts
 src/lib/marketing/ticket-fee-comparison.test.ts
 src/lib/marketing/ticket-fee-qualifier.static.test.ts
+src/lib/marketing/ticket-fee-rates.test.ts
 src/lib/media/talent-storage-path.test.ts
 src/lib/onboarding/start-door-redirect.test.ts
 src/lib/payments/provider-status.test.ts
@@ -156,6 +157,7 @@ src/lib/seo/llms-txt.test.ts
 src/lib/seo/spanish-named-routes.test.ts
 src/lib/seo/talent-llms-txt.test.ts
 src/lib/seo/title-template.static.test.ts
+src/lib/service-hub/roster-chat-request.test.ts
 src/lib/settings/role-members.test.ts
 src/lib/site-admin/builder-node/builder-node-editor-published-parity.test.ts
 src/lib/site-admin/builder-node/builder-node-role-bindings.test.ts

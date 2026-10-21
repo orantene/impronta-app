@@ -140,6 +140,8 @@ export async function proposeReservationTimeAction(raw: {
       admin,
     ),
     createdByUserId: staff.user.id,
+    // TUL-1375: holds the chair/room/station the service needs with the person.
+    offeringId,
   });
   if (!hold.ok) return { ok: false, error: hold.error };
 

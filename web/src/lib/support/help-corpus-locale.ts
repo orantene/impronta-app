@@ -1,6 +1,7 @@
 import { SUPPORT_HELP_REGISTRY, flattenHelpCorpus, retrieveHelpEntries } from "./help-corpus";
 import type { HelpCorpusEntry } from "./help-corpus";
 import { TALENT_HELP_ES } from "./help-corpus-es";
+import { TALENT_EDITION_HELP_ES } from "./help-corpus-es-edition";
 
 /** True for "es", "es-MX", "es_419" and similar. */
 export function isSpanishLocale(locale: string | null | undefined): boolean {
@@ -8,7 +9,7 @@ export function isSpanishLocale(locale: string | null | undefined): boolean {
 }
 
 const CORPUS_EN = flattenHelpCorpus();
-const CORPUS_ES = flattenHelpCorpus({ ...SUPPORT_HELP_REGISTRY, ...TALENT_HELP_ES });
+const CORPUS_ES = flattenHelpCorpus({ ...SUPPORT_HELP_REGISTRY, ...TALENT_HELP_ES, ...TALENT_EDITION_HELP_ES });
 
 /** The corpus for a locale: Spanish twins replace the talent entries when the user is on es. */
 export function helpCorpusForLocale(locale: string | null | undefined): HelpCorpusEntry[] {

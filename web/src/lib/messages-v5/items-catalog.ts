@@ -41,6 +41,8 @@ import { applySellingTimeToHours, clampPublicSlotDays, computePublicSlots, parse
 import { addUtcDays, utcToZonedYmd, zonedLocalToUtc } from "@/lib/scheduling/tz";
 import { readSessionSeats, type WaitlistSeats } from "@/lib/scheduling/waitlist-desk";
 import { logServerError } from "@/lib/server/safe-error";
+import { rosterItemsToCatalogRows } from "@/lib/service-hub/roster-catalog";
+import { loadWorkspaceRosterServices, type RosterServiceItem } from "@/lib/service-hub/roster-services";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 
@@ -82,7 +84,7 @@ export function pickScopedTalentId(input: { forcedTalentId: string | null | unde
   return input.talentOwned && input.contextTalentIds.length === 1 ? input.contextTalentIds[0] : null;
 }
 
-export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date; scope?: CatalogScope }): Promise<ItemsCatalog> {
+export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date; includeRoster?: boolean; scope?: CatalogScope }): Promise<ItemsCatalog> {
   const now = input.now ?? new Date();
   const [inqRes, tenantRes, tz] = await Promise.all([
     admin.from("inquiries").select("event_date, event_timezone, source_context").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
@@ -116,6 +118,9 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
     now,
     date,
     reservations: Boolean(preset.features.reservations),
+    // TUL-1372: the workspace's roster services (request-only) reach the GUEST dock only, and only on
+    // a tenant-wide catalog. `input.tenantId` is authorized by the caller (the host-resolved tenant).
+    roster: input.includeRoster && !talentProfileId ? await loadWorkspaceRosterServices(admin, input.tenantId) : undefined,
     scope: input.scope,
   });
 
@@ -133,7 +138,7 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
  */
 export async function loadCatalogRowsForScope(
   admin: Admin,
-  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean; scope?: CatalogScope },
+  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean; roster?: readonly RosterServiceItem[]; scope?: CatalogScope },
 ): Promise<CatalogRow[]> {
   const { tenantId, talentProfileId, forcedTalent, window, now, date, reservations, scope } = input;
   if (forcedTalent && talentProfileId) {
@@ -147,7 +152,8 @@ export async function loadCatalogRowsForScope(
     loadSessionRows(admin, tenantId, now, scope),
     date && reservations ? loadTableRows(tenantId, date) : Promise.resolve([] as CatalogRow[]),
   ]);
-  return [...talent, ...offerings, ...sessions, ...tables];
+  const roster = !talentProfileId && input.roster ? rosterItemsToCatalogRows(input.roster) : [];
+  return [...talent, ...offerings, ...sessions, ...tables, ...roster];
 }
 
 /** Talent that may surface to a guest (mirrors `default-storefront-roster` PUBLISHED_STATUSES). */

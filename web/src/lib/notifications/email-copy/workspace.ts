@@ -41,6 +41,20 @@ export const WORKSPACE_EN = {
       "{who} asked to join your roster from your public site. Review the request to approve or decline.",
     button: "Review request →",
   },
+  "rent.plan_declined": {
+    subject: "{who} declined the station rent",
+    preview: "{who} declined the station rent",
+    heading: "Station rent declined",
+    intro: "{who} declined the monthly station rent you proposed. No rent will be charged for this plan.",
+    button: "Open Station rent →",
+  },
+  "rent.plan_ended": {
+    subject: "{who} ended their station rent",
+    preview: "{who} ended their station rent",
+    heading: "Station rent ended",
+    intro: "{who} ended their monthly station rent. No further rent will be invoiced for this plan.",
+    button: "Open Station rent →",
+  },
   "workspace.unclaimed_talent_booking": {
     subject: "A booking needs you: the talent has not claimed their profile",
     preview: "A booking for an unclaimed talent profile",
@@ -202,6 +216,20 @@ export const WORKSPACE_ES: typeof WORKSPACE_EN = {
     intro:
       "{who} solicitó unirse a tu roster desde tu sitio público. Revisa la solicitud para aprobarla o rechazarla.",
     button: "Revisar solicitud →",
+  },
+  "rent.plan_declined": {
+    subject: "{who} rechazó la renta del puesto",
+    preview: "{who} rechazó la renta del puesto",
+    heading: "Renta de puesto rechazada",
+    intro: "{who} rechazó la renta mensual del puesto que propusiste. No se cobrará renta por este plan.",
+    button: "Abrir renta de puestos →",
+  },
+  "rent.plan_ended": {
+    subject: "{who} terminó su renta del puesto",
+    preview: "{who} terminó su renta del puesto",
+    heading: "Renta de puesto terminada",
+    intro: "{who} terminó su renta mensual del puesto. Ya no se facturará más renta por este plan.",
+    button: "Abrir renta de puestos →",
   },
   "workspace.unclaimed_talent_booking": {
     subject: "Una reserva te necesita: el talento no ha reclamado su perfil",

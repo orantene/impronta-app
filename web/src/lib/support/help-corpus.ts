@@ -5,6 +5,7 @@
 import { DRAWER_HELP, type HelpEntry } from "@/components/admin/shell/internal/help-registry";
 import { SCHEDULING_HELP } from "@/components/admin/shell/internal/help-registry-scheduling";
 import { TALENT_HELP } from "@/components/admin/shell/internal/help-registry-talent";
+import { TALENT_EDITION_HELP } from "@/components/admin/shell/internal/help-registry-talent-edition";
 
 /**
  * What the in-product assistant is allowed to know.
@@ -18,6 +19,7 @@ export const SUPPORT_HELP_REGISTRY: Partial<Record<string, HelpEntry>> = {
   ...DRAWER_HELP,
   ...SCHEDULING_HELP,
   ...TALENT_HELP,
+  ...TALENT_EDITION_HELP,
 };
 
 export type HelpCorpusEntry = {

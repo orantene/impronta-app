@@ -46,6 +46,7 @@ export const COMMERCE_AUDIT = {
   PRICE_UPDATED: "platform.commerce.price.updated",
   PRICE_ARCHIVED: "platform.commerce.price.archived",
   TIER_DISPLAY_UPDATED: "platform.commerce.tier.display_updated",
+  TIER_SERVICE_FEE_UPDATED: "platform.commerce.tier.service_fee_updated",
   FEATURE_ADDED: "platform.commerce.feature.added",
   FEATURE_UPDATED: "platform.commerce.feature.updated",
   FEATURE_ARCHIVED: "platform.commerce.feature.archived",

@@ -567,6 +567,11 @@ export const MARKETING_PAGE_PREFIXES = [
   "/for",
   // Educational resource articles + glossary (`/resources/*`).
   "/resources",
+  // Public changelog (TUL-1394) and its Spanish-slugged twin; noindex until the launch flag.
+  "/changelog",
+  "/novedades",
+  // Tulala product blog (TUL-1399): marketing-host /blog and /blog/<slug>. 404s unless PLATFORM_BLOG_TENANT_ID is set.
+  "/blog",
   // The feature hub: the index, every `/features/{slug}`, and its
   // `opengraph-image` route.
   "/features",

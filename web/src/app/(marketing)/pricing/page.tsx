@@ -16,7 +16,7 @@ import { parsePricingAudience } from "@/lib/pricing/pricing-audience";
 import { pricingPlanRedirect, pricingQueryHasPlan } from "@/lib/pricing/pricing-plan-redirect";
 import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
-import { loadPlatformTakeBps } from "@/lib/billing/platform-take-rate";
+import { loadTicketFeeRate } from "@/lib/marketing/ticket-fee-rates.server";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
@@ -73,7 +73,7 @@ export default async function PricingPage({
   // shipped on this page once; the standing rule is that no displayed price or
   // fee is a literal, because every hardcoded one in this codebase has
   // eventually drifted from what the card is actually charged.
-  const ticketRate = (await loadPlatformTakeBps(null)) / 10_000;
+  const ticketRate = await loadTicketFeeRate();
   const c = pickLocale(locale, {
     en: {
       heroEyebrow: "Pricing",
@@ -202,7 +202,7 @@ export default async function PricingPage({
           The rate comes from platform_commission_config, never a literal. */}
       <MarketingSection>
         <MarketingContainer size="wide">
-          <TicketFeeTable locale={locale} tulalaRate={ticketRate} />
+          <TicketFeeTable locale={locale} rate={ticketRate} />
         </MarketingContainer>
       </MarketingSection>
 

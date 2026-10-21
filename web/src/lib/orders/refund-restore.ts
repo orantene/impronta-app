@@ -52,6 +52,14 @@ export async function restoreRefundedLines(
     /** Void the order's promo redemption (a FULL refund only; see `releasesPromoRedemption`). */
     releasePromo: boolean;
     logScope: string;
+    /**
+     * Per-ticket refunds (TUL-1429/1431): void ONLY these admissions, not every
+     * ticket on the line. Undefined = every refundable ticket on `lineIds`
+     * (the whole-line behaviour); an empty array voids none (a price
+     * difference refund where the ticket stays valid). A set value never frees
+     * non-ticket capacity, because the line is not refunded whole.
+     */
+    onlyAdmissionIds?: readonly string[];
   },
 ): Promise<RestoreRefundedLinesResult> {
   const out: RestoreRefundedLinesResult = {
@@ -61,7 +69,8 @@ export async function restoreRefundedLines(
     allocationsReleased: 0,
     releasedPromoRedemption: false,
   };
-  let wholeLineIds = input.wholeLineIds;
+  let wholeLineIds = input.onlyAdmissionIds ? [] : input.wholeLineIds;
+  const only = input.onlyAdmissionIds ? new Set(input.onlyAdmissionIds) : null;
   try {
     // ── Tickets and their seats, one operation each. `refund_admission` stamps
     // the admission and releases its allocation under one row lock: releasing
@@ -90,6 +99,7 @@ export async function restoreRefundedLines(
       // and an RPC error is an outcome (see `classifyAdmissionEffect`).
       for (const a of (admRows ?? []) as Array<{ id: string; order_line_id: string; admitted_count: number; status: string }>) {
         linesWithAdmissions.add(a.order_line_id);
+        if (only && !only.has(a.id)) continue;
         if (!admissionIsRefundable({ admittedCount: a.admitted_count, status: a.status })) continue;
         const { data: res, error } = await admin.rpc("refund_admission", { p_admission_id: a.id });
         const effect = classifyAdmissionEffect(res as { ok?: boolean; reason?: string } | null, error);

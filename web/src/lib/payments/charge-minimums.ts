@@ -77,3 +77,23 @@ export function chargeMinimumMinor(currency: string): number | null {
 }
 
 export const SUPPORTED_MINIMUM_CURRENCIES = Object.keys(MINIMUM_MINOR).sort();
+
+const ZERO_DECIMAL = new Set(["JPY", "KRW"]);
+
+/** The refusal shown (ES/EN) when a card charge is under Stripe's minimum. Nothing was charged. */
+export function belowMinimumMessage(minimumMinor: number, currency: string, locale?: string | null): string {
+  const code = currency.toUpperCase();
+  const major = ZERO_DECIMAL.has(code) ? minimumMinor : minimumMinor / 100;
+  const money = (l: string) => {
+    try {
+      return new Intl.NumberFormat(l, { style: "currency", currency: code }).format(major);
+    } catch {
+      return `${major} ${code}`;
+    }
+  };
+  const es = `El total es menor al mínimo de pago con tarjeta (${money("es-MX")}). No se cobró nada. Paga en efectivo o agrega algo a la compra.`;
+  const en = `This total is under the card payment minimum (${money("en-US")}). Nothing was charged. Pay in cash or add something to the order.`;
+  const l = (locale ?? "").toLowerCase();
+  // A caller that does not know the language gets both, never a guess.
+  return l.startsWith("es") ? es : l.startsWith("en") ? en : `${en} / ${es}`;
+}

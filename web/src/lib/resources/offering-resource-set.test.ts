@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { parseOfferingResourceSet } from "./offering-resource-set";
 
 test("empty or missing attributes is an empty set, not a throw", () => {
-  assert.deepEqual(parseOfferingResourceSet(null), { companionTalentIds: [], spaceId: null });
-  assert.deepEqual(parseOfferingResourceSet({}), { companionTalentIds: [], spaceId: null });
+  assert.deepEqual(parseOfferingResourceSet(null), { companionTalentIds: [], spaceIds: [], spaceId: null });
+  assert.deepEqual(parseOfferingResourceSet({}), { companionTalentIds: [], spaceIds: [], spaceId: null });
 });
 
 test("couples set keeps two companion ids and the room", () => {
@@ -15,7 +15,7 @@ test("couples set keeps two companion ids and the room", () => {
     parseOfferingResourceSet({
       resourceSet: { companionTalentIds: [t2, t2], spaceId: room },
     }),
-    { companionTalentIds: [t2], spaceId: room },
+    { companionTalentIds: [t2], spaceIds: [room], spaceId: room },
   );
 });
 
@@ -24,6 +24,6 @@ test("junk ids are dropped rather than stored", () => {
     parseOfferingResourceSet({
       resourceSet: { companionTalentIds: ["nope", ""], spaceId: "room" },
     }),
-    { companionTalentIds: [], spaceId: null },
+    { companionTalentIds: [], spaceIds: [], spaceId: null },
   );
 });

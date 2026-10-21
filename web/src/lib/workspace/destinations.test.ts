@@ -270,6 +270,7 @@ test("every real admin route is either a destination or a declared deep page", (
     setup: "the first-run checklist (W55), reached from the Overview's setup readiness bar",
     "site-settings": "reached from Website",
     triage: "a focused queue, reached from Messages",
+    "work-style": "the one 'how you work with people' question (TUL-1442), reached from onboarding right after the workspace is created",
   };
   const unaccounted = [...adminRouteDirs()].filter(
     (dir) => resolveDestination(dir) === null && !(dir in DEEP_PAGES),

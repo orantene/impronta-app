@@ -39,6 +39,7 @@ import {
   bookingAssistantMonthlyCapReached,
 } from "./credits";
 import { improntaLog } from "@/lib/server/structured-log";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
@@ -132,9 +133,9 @@ async function insertSystemEvent(input: {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const disclosure = bookingAssistantDisclosureLabel(input.locale);
-  const { data: row, error } = await admin
-    .from("inquiry_messages")
-    .insert({
+  const { data: row, error } = await insertInquiryMessage(
+    admin,
+    {
       inquiry_id: input.inquiryId,
       tenant_id: input.tenantId,
       thread_type: "private",
@@ -149,9 +150,9 @@ async function insertSystemEvent(input: {
         disclosure_label: disclosure,
         ...(input.reason ? { handoff_reason: input.reason } : {}),
       },
-    })
-    .select("id, created_at")
-    .single();
+    },
+    { select: "id, created_at" },
+  );
   if (error || !row) {
     if (error) logServerError("booking-assistant/insert", error);
     return null;

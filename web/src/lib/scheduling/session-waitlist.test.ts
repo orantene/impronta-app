@@ -233,11 +233,18 @@ test("every reason the RPC can return has a sentence in all three languages", ()
 
 /* ── accepting, declining, cancelling (D-105) ──────────────────────────────── */
 
-/** One-method stub for whichever of the three RPCs is under test. */
+/**
+ * Stub for whichever of the three RPCs is under test. TUL-1552: accepting first
+ * reads the entry to tell a paid session from a free one; this stub answers
+ * "no such row", which leaves the decision to the RPC exactly as before. The
+ * paid path has its own tests in `waitlist-paid-accept.test.ts`.
+ */
 function stubRpc(expected: string, reply: unknown, capture?: { args?: Record<string, unknown> }) {
+  type Read = { select: () => Read; eq: () => Read; maybeSingle: () => Promise<{ data: null; error: null }> };
+  const read: Read = { select: () => read, eq: () => read, maybeSingle: async () => ({ data: null, error: null }) };
   return {
     from() {
-      throw new Error("these functions must not read tables directly");
+      return read;
     },
     async rpc(name: string, args: Record<string, unknown>) {
       assert.equal(name, expected);

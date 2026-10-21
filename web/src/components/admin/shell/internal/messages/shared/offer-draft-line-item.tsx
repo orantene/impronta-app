@@ -2,6 +2,8 @@
 
 import { OFFER_LINE_ROW_CLASS, OFFER_LINE_LABEL_CLASS, OFFER_LINE_CONTROL_CLASS } from "@/components/admin/offer/offer-money-split";
 import { interpolate } from "@/i18n/interpolate";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { lineLabelHint } from "@/lib/coordinator/line-label-hint";
 import { LineServicePicker } from "./line-service-picker";
 import { planServicePick } from "@/lib/inquiry/offer-service-pick";
 import type { ServicePricingType } from "@/lib/talent/services-menu-types";
@@ -29,6 +31,7 @@ export function OfferDraftLineItem({
   onLabelTouched: (id: string) => void;
   onSwitchCurrency: (code: string) => void;
 }) {
+  const labelHint = lineLabelHint(useDashboardLocale());
   const talentGetsLabel = solo
     ? t("dashboard.adminTabs.lineup.colYouGet")
     : t("dashboard.adminTabs.lineup.colTalentGets");
@@ -158,6 +161,10 @@ export function OfferDraftLineItem({
           placeholder={t("dashboard.adminTabs.lineup.lineNotePlaceholder")}
           className="min-w-[12rem] flex-1 rounded border border-admin-border bg-white px-1.5 py-1 text-[11px] text-admin-ink-muted"
         />
+        {/* The label can reach the client: ask, never block. */}
+        <p data-testid="line-label-hint" className="col-span-full m-0 w-full text-[10.5px] text-admin-ink-muted">
+          {labelHint}
+        </p>
       </div>
     </div>
   );

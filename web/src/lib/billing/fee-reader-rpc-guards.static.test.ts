@@ -10,7 +10,7 @@
  * failures (base fee -> 0, split -> even), which would silently change money.
  *
  * Pins the HELD migration
- *   supabase/migrations/_pending_pm/20261231418200_fee_reader_rpc_caller_guards.sql
+ *   supabase/migrations/20261231418200_fee_reader_rpc_caller_guards.sql
  *
  * Run: npx tsx --test src/lib/billing/fee-reader-rpc-guards.static.test.ts
  */
@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = join(HERE, "..", "..", "..", "..", "supabase", "migrations");
-const FILE = join(MIGRATIONS, "_pending_pm", "20261231418200_fee_reader_rpc_caller_guards.sql");
+const FILE = join(MIGRATIONS, "20261231418200_fee_reader_rpc_caller_guards.sql");
 const sql = readFileSync(FILE, "utf8");
 const PRIOR_CONTEXT = readFileSync(
   join(MIGRATIONS, "20261231341000_commission_context_order_backed.sql"),

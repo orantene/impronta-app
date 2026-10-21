@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { interpolate } from "@/i18n/interpolate";
+import { candidateTag } from "@/lib/coordinator/replacement-availability";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { ProjectRecord } from "@/lib/projects/project-record";
 import type { ReplacementCandidatesLoad } from "@/lib/projects/projects-reader";
@@ -60,7 +61,15 @@ export function TeamTab({
         ) : (
           <TeamRows
             bookingId={project.id}
-            candidates={candidates.ok ? candidates.candidates.map((c) => ({ talentProfileId: c.talentProfileId, name: c.name })) : []}
+            candidates={
+              candidates.ok
+                ? candidates.candidates.map((c) => {
+                    // Rating and availability for the job's time, after the name (free and unrated adds nothing).
+                    const tag = candidateTag(c, locale);
+                    return { talentProfileId: c.talentProfileId, name: tag ? `${c.name} · ${tag}` : c.name };
+                  })
+                : []
+            }
             rows={project.assignments.map((a) => ({
               id: a.id,
               talentProfileId: a.talentProfileId,

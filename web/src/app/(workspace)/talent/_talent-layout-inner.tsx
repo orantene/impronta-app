@@ -76,6 +76,8 @@ import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersona
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
 import { TalentShellSkeleton } from "./_talent-shell-skeleton";
+import { Suspense } from "react";
+import { HubTermsPrompt } from "@/components/talent/service-hub/HubTermsPrompt";
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
@@ -612,6 +614,13 @@ export async function TalentLayoutInner({
           chip → Switch-agency drawer (in-place cookie switch + refresh). The
           old raw <select> strip that rendered here duplicated that control
           and sat as an unstyled band above the shell chrome. */}
+      {/* TUL-1368: workspace terms waiting for the talent's answer. Renders nothing when
+          there are none or while an admin is acting as the talent (read-only). */}
+      {actingAs ? null : (
+        <Suspense fallback={null}>
+          <HubTermsPrompt talentProfileId={talentSelfProfile.id} locale={requestLocale} />
+        </Suspense>
+      )}
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>

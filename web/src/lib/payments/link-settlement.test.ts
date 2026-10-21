@@ -16,6 +16,12 @@ import { fakeAdmin, makeStore, type Row } from "@/lib/pos/__fixtures__/pos-store
  * link, and mock money is refused on production.
  */
 
+// These tests are about link settlement, not the service fee, and their fake
+// admin has no fee settings. The fee now fails closed (TUL-1366), so they run
+// with the explicit kill switch; the fee itself is covered in
+// link-collect-matches-checkout.test.ts and fee-fail-closed.test.ts.
+process.env.COMMISSION_PROCESSING_PASS_THROUGH = "0";
+
 const STRIPE_ENV = { STRIPE_SECRET_KEY: "sk_test_fixture" };
 const SUCCESS = "https://qa.example/pay/CODE?status=paid";
 const CANCEL = "https://qa.example/pay/CODE";
