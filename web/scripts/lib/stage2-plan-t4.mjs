@@ -1,6 +1,6 @@
 /**
  * T4: US salon. USD, America/New_York, English first. Its own workspace, staff, two roster stylists with booking hours and public
- * services priced in USD. Its Stripe Connect TEST account is the separate --stripe step (push 3); no payout row is seeded here.
+ * services priced in USD (four exact prices and one "from" price). Its Stripe Connect TEST account is the separate --stripe step (push 3); no payout row is seeded here.
  */
 import { email, membershipOp, s2Id, userOps, workspaceOps } from "./stage2-ops.mjs";
 import { talentOps, talentServiceOp } from "./stage2-ops-talent.mjs";
@@ -14,6 +14,8 @@ const SERVICES = [
   { key: "t4-color", talent: "t4-maya", title: "Full color", titleEn: "Full color", description: "Single-process color with toner.", descriptionEn: "Single-process color with toner.", cents: 12000, minutes: 120 },
   { key: "t4-blowout", talent: "t4-jordan", title: "Blowout", titleEn: "Blowout", description: "Wash and blowout.", descriptionEn: "Wash and blowout.", cents: 3500, minutes: 30 },
   { key: "t4-kids", talent: "t4-jordan", title: "Kids haircut", titleEn: "Kids haircut", description: "For children under twelve.", descriptionEn: "For children under twelve.", cents: 3000, minutes: 30 },
+  // TUL-1327: the one "Desde" (from-price) service. price_display 'from' + booking_mode 'request' (the pricing tab sets both; a CHECK forbids instant booking unless the price is exact).
+  { key: "t4-bridal-trial", talent: "t4-maya", title: "Bridal hair trial", titleEn: "Bridal hair trial", description: "A styling session to plan your wedding-day look. The final price depends on length and style.", descriptionEn: "A styling session to plan your wedding-day look. The final price depends on length and style.", cents: 15000, minutes: 90, priceDisplay: "from", bookingMode: "request" },
 ];
 
 export function planT4(at) {
@@ -40,7 +42,7 @@ export function planT4(at) {
     ops.push(...made.ops);
   }
   for (const s of SERVICES) {
-    ops.push(talentServiceOp(fx, s.key, tids[s.talent], ws, { title: s.title, titleEn: s.titleEn, description: s.description, descriptionEn: s.descriptionEn, cents: s.cents, minutes: s.minutes, currency: "USD", category: "Hair" }));
+    ops.push(talentServiceOp(fx, s.key, tids[s.talent], ws, { title: s.title, titleEn: s.titleEn, description: s.description, descriptionEn: s.descriptionEn, cents: s.cents, minutes: s.minutes, currency: "USD", category: "Hair", ...(s.priceDisplay ? { priceDisplay: s.priceDisplay, bookingMode: s.bookingMode } : {}) }));
   }
   return ops;
 }

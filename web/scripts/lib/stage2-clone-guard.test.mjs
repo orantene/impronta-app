@@ -49,6 +49,7 @@ test("tenant_autofill_* triggers: a child row carries exactly its parent's tenan
     "public.inquiry_requirement_groups": ["inquiry_id", "public.inquiries"],
     "public.inquiry_offers": ["inquiry_id", "public.inquiries"],
     "public.inquiry_offer_line_items": ["offer_id", "public.inquiry_offers"],
+    "public.booking_talent": ["booking_id", "public.agency_bookings"], // tenant_autofill_booking_talent (SL/RV/PO content cluster)
   };
   let checked = 0;
   for (const o of list) {
@@ -69,7 +70,10 @@ test("tenant_autofill_* triggers: a child row carries exactly its parent's tenan
     for (const m of sql.matchAll(/CREATE TRIGGER\s+\w*autofill\w*\s+BEFORE INSERT ON\s+(public\.\w+)/gi)) found.add(m[1]);
   }
   assert.ok(found.has("public.inquiry_offers"), "the migration scan found the trigger from the selftest failure");
-  for (const t of found) if (planned.has(t)) assert.ok(CHILD[t], `${t} has a tenant_autofill trigger but no rule in this test`);
+  // agency_bookings derives its tenant ONLY from source_inquiry_id; the history bookings have none and set tenant_id explicitly (guard: contentRowProblems).
+  const SELF_TENANT = new Set(["public.agency_bookings"]);
+  for (const o of list.filter((x) => x.table === "public.agency_bookings")) assert.ok(o.row.source_inquiry_id == null && typeof o.row.tenant_id === "string", `${o.key} sets its own tenant`);
+  for (const t of found) if (planned.has(t) && !SELF_TENANT.has(t)) assert.ok(CHILD[t], `${t} has a tenant_autofill trigger but no rule in this test`);
 });
 
 test("trg_inquiries_status_offer_pair (20260520103600): a sent offer pairs with status offer_pending, never with the cloned 'coordination'", () => {

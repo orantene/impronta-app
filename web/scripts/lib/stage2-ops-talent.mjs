@@ -32,12 +32,13 @@ export function talentOps(fx, key, spec, at) {
 
 /**
  * A talent-owned catalog row (owner_kind 'talent'). `tenantId` is the workspace (or the hub tenant for TAL-93900).
- * spec: title, titleEn, description, descriptionEn, cents, minutes, kind, category, status, bookingMode, currency, touchesExisting.
+ * spec: title, titleEn, description, descriptionEn, cents, minutes, kind, category, status, bookingMode, currency, touchesExisting,
+ * priceDisplay ("exact" default | "from" = the "Desde" price: a CHECK requires booking_mode request for anything but exact).
  */
 export function talentServiceOp(fx, key, talentId, tenantId, spec) {
   const op = insert(fx, "public.talent_offerings", `offering:${key}`, {
     id: s2Id(`offering:${key}`), talent_profile_id: talentId, tenant_id: tenantId, owner_kind: "talent", kind: spec.kind ?? "service",
-    title: spec.title, description: spec.description, price_type: "flat_package", price_display: "exact", amount_cents: spec.cents,
+    title: spec.title, description: spec.description, price_type: "flat_package", price_display: spec.priceDisplay ?? "exact", amount_cents: spec.cents,
     currency: spec.currency ?? "MXN", booking_mode: spec.bookingMode ?? "instant", allow_pay_in_person: true, duration_minutes: spec.minutes ?? null,
     category: spec.category ?? "Servicios", status: spec.status ?? "published", visibility: "public", moderation_state: "approved", is_featured: false,
     sort_order: spec.sort ?? 0, attributes: J({ where: ["client"] }), title_i18n: J({ es: spec.title, en: spec.titleEn }),

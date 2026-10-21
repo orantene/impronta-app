@@ -5,6 +5,7 @@ scripts/e2e-web-server-command.test.ts
 scripts/lib/failed-cards-fixtures.test.mjs
 scripts/lib/stage2-2b.test.mjs
 scripts/lib/stage2-clone-guard.test.mjs
+scripts/lib/stage2-content.test.mjs
 scripts/lib/stage2-events.test.mjs
 scripts/lib/stage2-fixtures.test.mjs
 scripts/lib/stage2-order.test.mjs

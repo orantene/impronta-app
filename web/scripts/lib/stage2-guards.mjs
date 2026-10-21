@@ -40,9 +40,55 @@ const SLUG_COLS = new Set(["slug", "site_slug", "tenant_slug", "hostname"]);
 export const PUBLIC_COPY_TABLES = new Set([
   "public.talent_offerings", "public.talent_offering_variants", "public.talent_offering_addons", "public.events", "public.venues",
   "public.spaces", "public.space_groups", "public.agencies", "public.agency_business_identity", "public.links", "public.prep_stations",
-  "public.profiles", "public.talent_profiles",
+  "public.profiles", "public.talent_profiles", "public.cms_posts", "public.cms_post_categories",
 ]);
-const COPY_COLS = ["title", "description", "category", "label", "name", "display_name", "public_name", "tagline"];
+const COPY_COLS = ["title", "description", "category", "label", "name", "display_name", "public_name", "tagline", "excerpt", "meta_title", "meta_description"];
+
+/**
+ * Tables whose slug is unique PER SCOPE (service scope / tenant + locale), not across the platform, so they carry readable slugs instead of the
+ * `s2-` prefix. They get stricter rules of their own in contentRowProblems: a fixture scope, a URL-safe shape, and no QA / test / E2E word.
+ */
+export const SCOPED_SLUG_TABLES = new Set(["public.offering_slugs", "public.cms_posts", "public.cms_post_categories"]);
+const URL_SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const SCOPE = /^(t|w):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+
+/** Rules for the content tables (service slugs, blog posts, pre-made history bookings, reviews). Returns problem strings. */
+export function contentRowProblems(op, { fixtureIds, tenantIds, existingTalentIds }) {
+  const out = [];
+  const r = op.row ?? {};
+  const where = `${op.fx} ${op.table} ${op.key ?? op.id}`;
+  if (SCOPED_SLUG_TABLES.has(op.table)) {
+    const slug = String(r.slug ?? "");
+    if (!URL_SLUG.test(slug) || slug.length > 96) out.push(`${where}: slug "${slug}" is not a readable URL slug`);
+    if (TEST_WORD.test(slug)) out.push(`${where}: slug "${slug}" contains QA/test/E2E`);
+    if (QA_POOL_HOST.test(slug)) out.push(`${where}: slug names a qa-1..qa-6 pool row`);
+  }
+  if (op.table === "public.offering_slugs") {
+    const m = SCOPE.exec(String(r.owner_scope ?? ""));
+    if (!m) out.push(`${where}: owner_scope is not t:<uuid> or w:<uuid>`);
+    else if (m[1] === "t" ? !fixtureIds.has(m[2]) || existingTalentIds.has(m[2]) : !tenantIds.has(m[2])) out.push(`${where}: owner_scope ${r.owner_scope} is not a fixture ${m[1] === "t" ? "talent" : "workspace"}`);
+    if (!fixtureIds.has(r.offering_id)) out.push(`${where}: offering_id is not a fixture offering`);
+    if (typeof r.is_current !== "boolean") out.push(`${where}: is_current must be set`);
+  }
+  if (op.table === "public.cms_posts") {
+    if (!tenantIds.has(r.tenant_id)) out.push(`${where}: a post must belong to a fixture workspace (a null-tenant post would show on the platform blog)`);
+    if (r.talent_profile_id != null) out.push(`${where}: workspace-scope posts only (no talent_profile_id)`);
+    if (!["en", "es"].includes(r.locale)) out.push(`${where}: locale must be en or es`);
+    if (r.translation_of != null && !fixtureIds.has(r.translation_of)) out.push(`${where}: translation_of is not a fixture post`);
+    if (r.taken_down_at != null) out.push(`${where}: a seeded post is never taken down (platform-admin field)`);
+  }
+  if (op.table === "public.agency_bookings") {
+    if (!String(r.internal_notes ?? "").startsWith("Pre-made history")) out.push(`${where}: a seeded booking must be marked "Pre-made history" in internal_notes`);
+    if (r.source_inquiry_id != null) out.push(`${where}: a history booking must have no source inquiry (an accepted offer would make the trigger write an order)`);
+    if (!tenantIds.has(r.tenant_id)) out.push(`${where}: booking tenant is not a fixture workspace`);
+  }
+  if (op.table === "public.client_reviews") {
+    for (const c of ["booking_id", "author_user_id", "client_user_id"]) if (!fixtureIds.has(r[c])) out.push(`${where}: ${c} is not a fixture row`);
+    if (!Number.isInteger(r.rating) || r.rating < 1 || r.rating > 5) out.push(`${where}: rating must be 1..5`);
+    if (!["published", "hidden"].includes(r.status)) out.push(`${where}: status must be published or hidden`);
+  }
+  return out;
+}
 
 function* walk(v) {
   if (v == null) return;
@@ -98,8 +144,9 @@ export function checkS2Plan(ops, { fixtureIds = new Set(), tenantIds = new Set()
     }
     for (const [col, v] of Object.entries(values)) {
       if (EMAIL_COLS.has(col) && v != null && !isExampleTestEmail(v)) problems.push(`${where}: ${col} is not an ${EMAIL_DOMAIN} mailbox`);
-      if (SLUG_COLS.has(col) && v != null && !String(v).startsWith(S2_SLUG_PREFIX)) problems.push(`${where}: ${col} must start with ${S2_SLUG_PREFIX}`);
+      if (SLUG_COLS.has(col) && v != null && !SCOPED_SLUG_TABLES.has(op.table) && !String(v).startsWith(S2_SLUG_PREFIX)) problems.push(`${where}: ${col} must start with ${S2_SLUG_PREFIX}`);
     }
+    problems.push(...contentRowProblems(op, { fixtureIds, tenantIds, existingTalentIds }));
     if (op.table === "public.links" && !String(op.row?.code ?? "").startsWith(S2_SLUG_PREFIX)) problems.push(`${where}: link code must start with ${S2_SLUG_PREFIX}`);
     if (op.table === "public.talent_profiles" && !FIXTURE_TALENT_CODE.test(String(op.row?.profile_code ?? ""))) problems.push(`${where}: a talent profile that is not one of the seed's own TAL-962xx`);
   }
@@ -196,11 +243,24 @@ export function triggerSideEffects(ops) {
   const users = ops.filter((o) => o.kind === "authUser").length;
   const talents = ops.filter((o) => o.table === "public.talent_profiles" && o.kind === "insert").length;
   const reservationTenants = new Set(ops.filter((o) => o.table === "public.venue_service_rules" && o.row?.is_active).map((o) => o.row.tenant_id)).size;
+  const completed = new Set(ops.filter((o) => o.table === "public.agency_bookings" && o.row?.status === "completed").map((o) => o.id));
+  const completedTalents = new Set(ops.filter((o) => o.table === "public.booking_talent" && completed.has(o.row?.booking_id)).map((o) => o.row.talent_profile_id)).size;
+  const historyBookings = completed.size;
   return [
     { table: "auth.identities", rows: users, note: "written explicitly by the seed with each login" },
     { table: "public.profiles", rows: users, note: "made by the signup trigger; the seed then UPDATES these rows (its own)" },
     { table: "public.staff_pin_hashes", rows: ops.filter((o) => o.kind === "pin").length, note: "FUNCTION-made: rpc pos_set_staff_pin writes the manager's PIN hash (only when the table exists; idempotent)" },
     { table: "public.agency_talent_roster", rows: talents, note: "hub roster auto-enroll, one per new talent (the selftest delta of +6 for 3 talents = 3 explicit roster rows + 3 trigger rows); cleanup removes them through the talent" },
+    { table: "public.talent_profiles (total_completed_bookings)", rows: completedTalents, note: "UPDATE of the seed's own stylist TAL-96202 by AFTER INSERT triggers when a completed history booking and its booking_talent line are inserted; no new row" },
+    { table: "public.orders", rows: 0, note: `NONE: bookings_write_order returns early because the ${historyBookings} history bookings have no source inquiry (so no order, no payment, no ledger row)` },
+    { table: "public.client_reviews (published_at)", rows: 0, note: "BEFORE INSERT trigger sets published_at on the review row itself; no extra row" },
     { table: "public.agencies (takes_reservations flag)", rows: reservationTenants, note: "trigger on venue_service_rules flips the flag on the seed's own workspace" },
   ];
 }
+
+/**
+ * What --repair may touch. It undoes ONLY what an earlier version of this seed wrote and later learned was wrong (the direct settings.people.pins
+ * key, TUL-1516). Content added after that (service slugs, history bookings, reviews, posts, the from-price service) was never written by an
+ * earlier version, so there is nothing to undo: --repair leaves those tables alone and is a no-op for them.
+ */
+export const REPAIR_SCOPE = Object.freeze({ "public.agencies": "settings #- '{people,pins}'" });

@@ -13,6 +13,7 @@ export const NOT_FK = new Set([
   "public.offering_price_phases.variant_id", // plain uuid, no constraint
   "public.promo_targets.target_id", // polymorphic (service / product / addon)
   "public.inquiry_participants.owning_party_id", // polymorphic (workspace / agency)
+  "public.cms_posts.related_offering_id", // plain uuid (the post's "related service"), no constraint
   "public.account_deletion_requests.user_id", // no FK on purpose: the row outlives the auth user
 ]);
 

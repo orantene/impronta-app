@@ -63,8 +63,21 @@ const FK = {
   "public.inquiry_offer_line_items.tenant_id": "public.agencies",
   "public.inquiry_offer_line_items.offer_id": "public.inquiry_offers", "public.inquiry_offer_line_items.owner_tenant_id": "public.agencies",
   "public.inquiry_offer_line_items.source_service_id": "public.talent_offerings",
+  // Content (SL / RV / PO). Constraints: 20261231418800 (offering_slugs, _pending_pm), 20260603234910 (client_reviews), 20260411120000 (booking_talent),
+  // 20261231400700 (cms_posts, cms_post_categories). offering_slugs.owner_scope is a "t:<uuid>"/"w:<uuid>" text with no FK, so it is never an id.
+  "public.offering_slugs.offering_id": "public.talent_offerings",
+  "public.agency_bookings.tenant_id": "public.agencies", "public.agency_bookings.client_user_id": "auth.users",
+  "public.booking_talent.tenant_id": "public.agencies", "public.booking_talent.booking_id": "public.agency_bookings",
+  "public.booking_talent.talent_profile_id": "public.talent_profiles",
+  "public.client_reviews.tenant_id": "public.agencies", "public.client_reviews.booking_id": "public.agency_bookings",
+  "public.client_reviews.author_user_id": "auth.users", "public.client_reviews.author_talent_profile_id": "public.talent_profiles",
+  "public.client_reviews.client_user_id": "auth.users",
+  "public.cms_post_categories.tenant_id": "public.agencies",
+  "public.cms_posts.tenant_id": "public.agencies", "public.cms_posts.created_by": "auth.users", "public.cms_posts.updated_by": "auth.users",
+  "public.cms_posts.author_profile_id": "auth.users", "public.cms_posts.category_id": "public.cms_post_categories",
+  "public.cms_posts.translation_of": "public.cms_posts",
 };
-const CLUSTERS = [["T1"], ["T2"], ["T3"], ["T4"], ["T5"], ["EV"], ["PR"], ["CU"], ["MO"], null];
+const CLUSTERS = [["T1"], ["T2"], ["T3"], ["T4"], ["T5"], ["EV"], ["PR"], ["CU"], ["MO"], ["SL"], ["RV"], ["PO"], null];
 
 test("every cluster, alone and together, inserts the row a foreign key points at BEFORE the row that points at it", () => {
   for (const only of CLUSTERS) {

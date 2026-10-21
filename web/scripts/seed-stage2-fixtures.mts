@@ -120,7 +120,7 @@ const saveBackup = () => {
 let secrets = new Map<string, string>();
 
 // ------------------------------------------------------------------ guards (run before EVERY write batch)
-const LIVE_COLUMNS = ["talent_offerings.pos_enabled", "staff_pin_hashes.pin_hash"];
+const LIVE_COLUMNS = ["talent_offerings.pos_enabled", "staff_pin_hashes.pin_hash", "offering_slugs.slug", "cms_posts.tags"];
 /** Pre-existing talent facts, resolved read-only in context(): the hub talent TAL-93900 (additive rows only) and the ids no op may name. */
 let hubCtx: { talentId: string; tenantId: string; hasPayout: boolean } | null = null;
 let forbiddenTalentIds: string[] = [];
@@ -318,6 +318,7 @@ async function assertNoSalesHistory(ops: Op[]) {
     ["orders", "select count(*)::int n from public.orders where tenant_id = any($1::uuid[])", tenants],
     ["order lines", "select count(*)::int n from public.order_lines where offering_id = any($1::uuid[])", ids("public.talent_offerings")],
     ["tickets (admissions)", "select count(*)::int n from public.admissions where tenant_id = any($1::uuid[])", tenants],
+    ["payments on history bookings", "select count(*)::int n from public.booking_transactions where booking_id = any($1::uuid[])", ids("public.agency_bookings")],
     ["promo redemptions", "select count(*)::int n from public.tenant_promo_redemptions where promo_code_id = any($1::uuid[])", ids("public.tenant_promo_codes")],
     ["committed seats/units", "select count(*)::int n from public.capacity_allocations where pool_id = any($1::uuid[]) and state = 'committed'", ids("public.capacity_pools")],
   ];
@@ -394,6 +395,7 @@ const COUNT_TABLES = [
   "public.talent_booking_hours", "public.payout_accounts", "public.space_group_members", "public.staff_pin_hashes", "public.promo_targets", "public.customers",
   "public.guest_email_unsubscribes", "public.account_deletion_requests", "public.inquiries", "public.inquiry_requirement_groups",
   "public.inquiry_participants", "public.inquiry_offers", "public.inquiry_offer_line_items",
+  "public.offering_slugs", "public.agency_bookings", "public.booking_talent", "public.client_reviews", "public.cms_post_categories", "public.cms_posts",
 ];
 async function tableCounts() {
   const out: Record<string, number> = {};
@@ -424,6 +426,22 @@ async function schemaAndCollisions(ops: Op[]) {
       if (r.rows.find((x) => x.id !== op.id)) {
         problems += 1;
         console.log(`  COLLISION ${table}.${col} = ${String(op.row?.[col])} is held by a non-fixture row`);
+      }
+    }
+  }
+  // Content rows: a slug is unique per scope (service) or per tenant + locale (posts, categories); refuse one held by a row that is not this seed's.
+  const slugChecks: Array<[string, string, (o: Op) => unknown[], string]> = [
+    ["public.offering_slugs", "owner_scope = $1 and locale = $2 and slug = $3", (o) => [o.row?.owner_scope, o.row?.locale, o.row?.slug], "service slug"],
+    ["public.cms_posts", "tenant_id = $1 and locale = $2 and slug = $3", (o) => [o.row?.tenant_id, o.row?.locale, o.row?.slug], "post slug"],
+    ["public.cms_post_categories", "tenant_id = $1 and locale = $2 and slug = $3", (o) => [o.row?.tenant_id, o.row?.locale, o.row?.slug], "post category slug"],
+  ];
+  for (const [table, where, params, label] of slugChecks) {
+    if (!(await q("select to_regclass($1) is not null e", [table])).rows[0].e) continue; // held migration not applied: the plan has no such rows
+    for (const op of ops.filter((o) => o.table === table)) {
+      const r = await q(`select id::text id from ${table} where ${where}`, params(op));
+      if (r.rows.find((x) => x.id !== op.id)) {
+        problems += 1;
+        console.log(`  COLLISION ${label} ${String(op.row?.slug)} (${String(op.row?.locale)}) is held by a non-fixture row`);
       }
     }
   }

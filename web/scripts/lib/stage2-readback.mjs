@@ -3,6 +3,7 @@
  * Counts and states only; never a credential.
  */
 import { s2Id } from "./stage2-guards.mjs";
+import { POSTS_HOST, POST_TOPICS, REVIEW_BOOKINGS, SLUG_ROWS } from "./stage2-plan-content.mjs";
 
 const T1 = s2Id("workspace:t1");
 const T2 = s2Id("workspace:t2");
@@ -48,7 +49,8 @@ CHECKS.T5 = [
 const T4 = s2Id("workspace:t4");
 CHECKS.T4 = [
   ["US salon: USD, New York, English first, owner + reception, 2 roster stylists (one with a login) with Mon-Sat hours", "select (select count(*) from public.agencies where id = $1 and default_currency = 'USD' and timezone = 'America/New_York' and settings->>'display_currency' = 'USD')::int * 10000 + (select count(*) from public.agency_memberships where tenant_id = $1 and status = 'active')::int * 1000 + (select count(*) from public.agency_talent_roster r join public.talent_profiles t on t.id = r.talent_profile_id where r.tenant_id = $1 and t.profile_code in ('TAL-96202','TAL-96203'))::int * 100 + (select count(*) from public.talent_booking_hours where tenant_id = $1 and timezone = 'America/New_York')::int * 10 + (select count(*) from public.talent_profiles where id = $2 and user_id is not null)::int n", [T4, s2Id("talent:t4-maya")], 12221],
-  ["US salon: 4 public services priced in USD", "select count(*)::int n from public.talent_offerings where tenant_id = $1 and owner_kind = 'talent' and currency = 'USD' and status = 'published' and visibility = 'public' and amount_cents > 0", [T4], 4],
+  ["US salon: 5 public services priced in USD (4 exact + 1 from-price)", "select count(*)::int n from public.talent_offerings where tenant_id = $1 and owner_kind = 'talent' and currency = 'USD' and status = 'published' and visibility = 'public' and amount_cents > 0", [T4], 5],
+  ["from-price service: price_display 'from', request booking (a CHECK forbids instant), USD 150", "select count(*)::int n from public.talent_offerings where id = $1 and price_display = 'from' and booking_mode = 'request' and amount_cents = 15000 and currency = 'USD'", [o("t4-bridal-trial")], 1],
 ];
 CHECKS.T5X = [
   ["drink deal: 2 non-alcoholic deal items + the class + smoothie package with 2 components", "select (select count(*) from public.talent_offerings where tenant_id = $1 and attributes->>'deal' = 'true' and attributes->>'alcohol' = 'false')::int * 10 + (select count(*) from public.offering_components where offering_id = $2)::int n", [T5, s2Id("offering:clase-smoothie")], 32],
@@ -86,13 +88,40 @@ CHECKS.MO = [
   ["catering inquiry: offer sent with a 30% deposit, a catalog house line, a client and a house participant", "select (select count(*) from public.inquiries i join public.inquiry_offers o on o.id = i.current_offer_id where i.id = $1 and i.tenant_id = $2 and o.status = 'sent' and o.deposit_pct = 30 and o.deposit_amount_cents = 149400)::int * 100 + (select count(*) from public.inquiry_offer_line_items where offer_id = $3 and owner_tenant_id = $2 and talent_profile_id is null and source_service_id = $4)::int * 10 + (select count(*) from public.inquiry_participants where inquiry_id = $1 and role::text in ('house','client'))::int n", [s2Id("inquiry:t1-catering"), T1, s2Id("offer:t1-catering"), s2Id("offering:t1-tacos-exp")], 112],
 ];
 
+const ids = (prefix, keys) => keys.map((k) => s2Id(`${prefix}:${k}`));
+const slugIds = ids("slug", SLUG_ROWS.map((r) => r.key));
+const postIds = POST_TOPICS.flatMap((t) => ["es", "en"].map((l) => s2Id(`post:${t.key}:${l}`)));
+const enPostIds = POST_TOPICS.map((t) => s2Id(`post:${t.key}:en`));
+const bookingIds = ids("booking", REVIEW_BOOKINGS.map((b) => b.key));
+const reviewIds = ids("review", REVIEW_BOOKINGS.map((b) => b.key));
+const SLUGS_HELD = { requires: "public.offering_slugs", migration: "20261231418800" };
+
+// Every content check is scoped to this seed's own ids (never "all rows of the tenant"), so a tester's extra row cannot move a count.
+CHECKS.SL = [
+  ["service slugs: every seeded row exists (current + one history row)", "select count(*)::int n from public.offering_slugs where id = any($1::uuid[])", [slugIds], SLUG_ROWS.length, SLUGS_HELD],
+  ["service slugs: exactly one history (not current) row, the rest current", "select (select count(*) from public.offering_slugs where id = any($1::uuid[]) and not is_current)::int * 100 + (select count(*) from public.offering_slugs where id = any($1::uuid[]) and is_current)::int n", [slugIds], 100 + SLUG_ROWS.length - 1, SLUGS_HELD],
+  ["service slugs: each row's scope is the owner of the service it points at", "select count(*)::int n from public.offering_slugs s join public.talent_offerings o on o.id = s.offering_id where s.id = any($1::uuid[]) and (s.owner_scope = 't:' || o.talent_profile_id::text or s.owner_scope = 'w:' || o.tenant_id::text)", [slugIds], SLUG_ROWS.length, SLUGS_HELD],
+];
+CHECKS.RV = [
+  ["history bookings: 3 completed + paid, marked pre-made, no source inquiry, no order", "select count(*)::int n from public.agency_bookings where id = any($1::uuid[]) and tenant_id = $2 and status = 'completed' and payment_status = 'paid' and source_inquiry_id is null and order_id is null and internal_notes like 'Pre-made history%'", [bookingIds, T4], 3],
+  ["history bookings carry no payment or transaction row", "select count(*)::int n from public.booking_transactions where booking_id = any($1::uuid[])", [bookingIds], 0],
+  ["client reviews: 3 published (ratings 5, 4, 5), written by the stylist's login about the seed client", "select (select count(*) from public.client_reviews where id = any($1::uuid[]) and status = 'published' and author_user_id = $2 and author_talent_profile_id = $3 and client_user_id = $4)::int * 100 + (select coalesce(sum(rating), 0) from public.client_reviews where id = any($1::uuid[]))::int n", [reviewIds, s2Id("user:t4-stylist"), s2Id("talent:t4-maya"), s2Id("user:rv-client")], 314],
+  ["client reviews: each history booking has exactly one booking_talent line for the reviewed stylist", "select count(*)::int n from public.booking_talent where booking_id = any($1::uuid[]) and talent_profile_id = $2", [bookingIds, s2Id("talent:t4-maya")], 3],
+];
+CHECKS.PO = [
+  ["blog posts: 8 published on T1 (4 ES + 4 EN), listed, not taken down, and T1 has its active staging host", `select (select count(*) from public.cms_posts where id = any($1::uuid[]) and tenant_id = $2 and status = 'published' and taken_down_at is null and not is_unlisted and published_at <= now())::int * 10 + (select count(*) from public.agency_domains where tenant_id = $2 and hostname = '${POSTS_HOST}' and status = 'active')::int n`, [postIds, T1], 81],
+  ["blog posts: each EN twin links to its ES original (hreflang)", "select count(*)::int n from public.cms_posts p join public.cms_posts es on es.id = p.translation_of where p.id = any($1::uuid[]) and p.locale = 'en' and es.locale = 'es' and es.tenant_id = p.tenant_id", [enPostIds], 4],
+  ["blog posts: an FAQ block in each booking-guide post, a service block in each music post", `select (select count(*) from public.cms_posts where id = any($1::uuid[]) and body_blocks @> '[{"type":"faq"}]'::jsonb)::int * 10 + (select count(*) from public.cms_posts where id = any($1::uuid[]) and body_blocks @> '[{"type":"service"}]'::jsonb)::int n`, [postIds], 22],
+  ["blog posts: every post has a category and tags; no slug says QA / test / E2E", "select count(*)::int n from public.cms_posts where id = any($1::uuid[]) and category_id is not null and cardinality(tags) > 0 and slug !~* '(qa|test|e2e)'", [postIds], 8],
+];
+
 export async function readBack(q, sets) {
   const lines = [];
   let failures = 0;
   for (const f of sets) {
     for (const [label, sql, params, want, opts] of CHECKS[f] ?? []) {
       if (opts?.requires && !(await q("select to_regclass($1) is not null e", [opts.requires])).rows[0].e) {
-        lines.push(`SKIP ${f.padEnd(3)} ${label} (${opts.requires} does not exist on this database: migration 20261231423900 not applied)`);
+        lines.push(`SKIP ${f.padEnd(3)} ${label} (${opts.requires} does not exist on this database: migration ${opts.migration ?? "20261231423900"} not applied)`);
         continue;
       }
       const n = (await q(sql, params)).rows[0]?.n ?? 0;

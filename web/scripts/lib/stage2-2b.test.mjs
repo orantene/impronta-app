@@ -42,8 +42,8 @@ test("T4 US salon: USD, New York, English first, staff, two stylists with hours,
   assert.equal(hours.length, 2);
   assert.ok(hours.every((h) => h.timezone === "America/New_York"));
   const services = rows(list, "public.talent_offerings");
-  assert.equal(services.length, 4);
-  assert.deepEqual(services.map((s) => s.amount_cents).sort((a, b) => a - b), [3000, 3500, 4500, 12000]);
+  assert.equal(services.length, 5, "four exact prices + the one from-price service");
+  assert.deepEqual(services.map((s) => s.amount_cents).sort((a, b) => a - b), [3000, 3500, 4500, 12000, 15000]);
   assert.ok(services.every((s) => s.currency === "USD" && s.owner_kind === "talent" && s.status === "published" && s.visibility === "public" && s.tenant_id === s2Id("workspace:t4")));
   assert.ok(services.every((s) => !TEST_WORD.test(`${s.title} ${s.description} ${s.category}`)));
   assert.equal(list.some((o) => ["public.payout_accounts", "public.workspace_subscriptions", "public.talent_subscriptions"].includes(o.table)), false, "the Connect account is the --stripe step");
