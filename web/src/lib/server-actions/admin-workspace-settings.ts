@@ -22,6 +22,8 @@ import {
   syncBrandSettingsToTheme,
 } from "@/lib/site-admin/server/brand-library";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { assertWorkspaceAssetUrl } from "@/lib/media/workspace-asset-url";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import {
@@ -99,6 +101,19 @@ export async function updateAgencyBranding(
     };
   }
   const v = parsed.data;
+
+  // TUL-1635: a logo or favicon must be this workspace's own image (its Media Gallery, or its own
+  // logo upload), never an arbitrary URL that every storefront page would then load. `null` clears
+  // and `undefined` leaves it alone, so only a string is checked.
+  const newImages = [v.logo_url, v.favicon_url].filter((u): u is string => typeof u === "string");
+  if (newImages.length > 0) {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, error: CLIENT_ERROR.update };
+    for (const url of newImages) {
+      const owned = await assertWorkspaceAssetUrl(admin, tenantId, url);
+      if (!owned.ok) return { ok: false, error: owned.error };
+    }
+  }
 
   // Read current settings so we can merge the branding subset (don't
   // clobber other settings keys that may exist alongside).
