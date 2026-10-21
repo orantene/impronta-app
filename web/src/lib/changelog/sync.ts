@@ -14,7 +14,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { readGuardedImage } from "@/lib/media/guarded-upload.server";
 import { LIBRARY_RASTER_MIMES, readResponseCapped } from "@/lib/media/upload-guards";
+import { safeFetch } from "@/lib/security/safe-fetch";
 
+import { checkChangelogImageUrl } from "./image-url";
 import {
   blocksToHtml,
   coverImageSource,
@@ -116,6 +118,21 @@ async function listBlocks(deps: ChangelogSyncDeps, pageId: string): Promise<Noti
 }
 
 /**
+ * Production fetches go through `safeFetch` (vetted + pinned address, every redirect re-checked,
+ * body capped). `deps.fetchImpl` is the test seam only; a caller that injects it owns the policy.
+ */
+async function fetchImageBytes(deps: ChangelogSyncDeps, url: string): Promise<Uint8Array | null> {
+  if (deps.fetchImpl) {
+    const res = await deps.fetchImpl(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), cache: "no-store" });
+    if (!res.ok) return null;
+    const read = await readResponseCapped(res, MAX_IMAGE_BYTES);
+    return read.ok ? read.bytes : null;
+  }
+  const res = await safeFetch(url, { maxBytes: MAX_IMAGE_BYTES, timeoutMs: FETCH_TIMEOUT_MS });
+  return res.ok && res.status >= 200 && res.status < 300 ? res.body : null;
+}
+
+/**
  * Download an image and store it in the changelog bucket. Returns the public URL,
  * or null when the image is skipped (unreachable, too big, or not a real raster
  * image). The bytes go through the H1 upload guards, not the Content-Type header:
@@ -123,12 +140,12 @@ async function listBlocks(deps: ChangelogSyncDeps, pageId: string): Promise<Noti
  * 100 MP pixel cap, and EXIF/GPS stripped.
  */
 async function copyImage(deps: ChangelogSyncDeps, pageId: string, key: string, src: string): Promise<string | null> {
-  const fetchImpl = deps.fetchImpl ?? fetch;
-  const res = await fetchImpl(src, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), cache: "no-store" });
-  if (!res.ok) return null;
-  const read = await readResponseCapped(res, MAX_IMAGE_BYTES);
-  if (!read.ok) return null;
-  const guarded = await readGuardedImage(new Blob([new Uint8Array(read.bytes)]), {
+  // TUL-1584: https only and never a private / link-local / loopback host, before any request.
+  const checked = checkChangelogImageUrl(src);
+  if (!checked.ok) return null;
+  const bytes = await fetchImageBytes(deps, checked.url);
+  if (!bytes) return null;
+  const guarded = await readGuardedImage(new Blob([new Uint8Array(bytes)]), {
     maxBytes: MAX_IMAGE_BYTES,
     allowed: LIBRARY_RASTER_MIMES,
   });
