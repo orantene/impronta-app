@@ -53,10 +53,12 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     // The talent surface has no offer id, so it passes none: use the inquiry's current offer.
     let offerId = parsed.data.offerId;
     if (!offerId) {
+      // eslint-disable-next-line ratchet/no-untenanted-from -- resolves the inquiry's own current offer by its id; access is gated by requireInquiryManagerAction / own-line filtering below
       const inqRes = await admin.from("inquiries").select("current_offer_id").eq("id", parsed.data.inquiryId).maybeSingle();
       offerId = ((inqRes.data as { current_offer_id?: string | null } | null)?.current_offer_id ?? undefined) || undefined;
       if (inqRes.error || !offerId) return { ok: false as const };
     }
+    // eslint-disable-next-line ratchet/no-untenanted-from -- the tenant comes FROM this offer row (checked against the inquiry id)
     const offerRes = await admin
       .from("inquiry_offers")
       .select("id, inquiry_id, tenant_id, status")
@@ -69,7 +71,9 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
 
     const [guard, mineRes, linesRes, read] = await Promise.all([
       requireInquiryManagerAction(parsed.data.inquiryId),
+      // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is global: the signed-in person's own profiles, by their user id
       admin.from("talent_profiles").select("id").eq("user_id", user.id),
+      // eslint-disable-next-line ratchet/no-untenanted-from -- line items carry no tenant_id; scoped by offer_id of the tenant-checked offer above
       admin
         .from("inquiry_offer_line_items")
         .select("id, label, talent_profile_id, sort_order, talent_profiles ( display_name )")
