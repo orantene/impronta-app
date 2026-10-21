@@ -80,3 +80,38 @@ export async function assertWorkspaceAssetUrl(
   if (byUrl.error || byPath.error) return { ok: false, error: "Could not check that image. Try again." };
   return (byUrl.data ?? []).length + (byPath.data ?? []).length > 0 ? { ok: true } : refuse;
 }
+
+/** The URL without its query string or fragment, so a tracking or cache-busting suffix is never stored. */
+export function canonicalStorageUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+/**
+ * Every non-null id must be a LIVE media asset of THIS tenant. `saveBranding` stores
+ * logo / dark logo / favicon / share-image asset ids sent by the client; a uuid shape check let
+ * workspace A point its logo at workspace B's asset. A read error refuses.
+ */
+export async function assertOwnedAssetIds(
+  db: SupabaseClient,
+  tenantId: string,
+  ids: ReadonlyArray<string | null | undefined>,
+): Promise<WorkspaceAssetUrlCheck> {
+  const wanted = [...new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0))];
+  if (wanted.length === 0) return { ok: true };
+  const { data, error } = await db
+    .from("media_assets")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .is("deleted_at", null)
+    .in("id", wanted);
+  if (error) return { ok: false, error: "Could not check those images. Try again." };
+  const found = new Set((data ?? []).map((r) => (r as { id: string }).id));
+  return wanted.every((id) => found.has(id)) ? { ok: true } : { ok: false, error: WORKSPACE_ASSET_URL_ERROR };
+}

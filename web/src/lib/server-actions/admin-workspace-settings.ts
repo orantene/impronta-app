@@ -22,7 +22,7 @@ import {
   syncBrandSettingsToTheme,
 } from "@/lib/site-admin/server/brand-library";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { assertWorkspaceAssetUrl } from "@/lib/media/workspace-asset-url";
+import { assertWorkspaceAssetUrl, canonicalStorageUrl } from "@/lib/media/workspace-asset-url";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -100,7 +100,12 @@ export async function updateAgencyBranding(
       error: parsed.error.issues[0]?.message ?? "Invalid branding payload.",
     };
   }
-  const v = parsed.data;
+  // Stored without any query string or fragment (TUL-1635): the canonical object URL only.
+  const v = {
+    ...parsed.data,
+    ...(typeof parsed.data.logo_url === "string" ? { logo_url: canonicalStorageUrl(parsed.data.logo_url) } : {}),
+    ...(typeof parsed.data.favicon_url === "string" ? { favicon_url: canonicalStorageUrl(parsed.data.favicon_url) } : {}),
+  };
 
   // TUL-1635: a logo or favicon must be this workspace's own image (its Media Gallery, or its own
   // logo upload), never an arbitrary URL that every storefront page would then load. `null` clears
