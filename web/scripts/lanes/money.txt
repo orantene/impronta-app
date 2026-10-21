@@ -246,6 +246,7 @@ src/lib/pos/classes/checkin.test.ts
 src/lib/pos/classes/day.test.ts
 src/lib/pos/classes/refusals.test.ts
 src/lib/pos/collection.split.test.ts
+src/lib/pos/collective-split-apply.test.ts
 src/lib/pos/commands-collection.test.ts
 src/lib/pos/commands-draft.test.ts
 src/lib/pos/custom-line.test.ts

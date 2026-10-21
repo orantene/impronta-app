@@ -36,6 +36,7 @@ import {
 } from "./collection-reservations";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
+import { applyPosCollectiveSplit } from "./collective-split-apply";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
@@ -236,6 +237,8 @@ export async function startCollection(
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };
   }
+  const split = await applyPosCollectiveSplit(admin, { tenantId: input.tenantId, orderId: row.id }); // TUL-1467, flag-gated
+  if (!split.ok) return { ok: false, reason: "unavailable", error: split.error };
 
   const operationKey = (input.idempotencyKey ?? "").trim();
   if (operationKey.length < 8) {
@@ -794,5 +797,4 @@ export async function recordVerifiedCollection(
 
 /** Re-exported from `./finalize` so POS imports one module for take or cancel. */
 export { finalizeOrCancel, type FinalizeResult } from "./finalize";
-
 export { reportTerminalAvailability };
