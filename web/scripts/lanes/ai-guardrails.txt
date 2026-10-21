@@ -21,8 +21,8 @@ src/i18n/locale-default-prefix-strip.test.ts
 src/lib/ai/ai-bypass-metering.test.ts
 src/lib/ai/ai-model-costs.test.ts
 src/lib/ai/ai-search-document-offerings-wiring.static.test.ts
-src/lib/ai/ai-usage-gate.test.ts
 src/lib/ai/ai-usage-controls-rls.static.test.ts
+src/lib/ai/ai-usage-gate.test.ts
 src/lib/ai/booking-assistant/catalog-tenant.test.ts
 src/lib/ai/booking-assistant/credits.test.ts
 src/lib/ai/booking-assistant/decide.test.ts
