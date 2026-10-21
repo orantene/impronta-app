@@ -8,6 +8,8 @@
 
 import { useState } from "react";
 
+import { useFavorites } from "@/lib/talent-cards/use-favorites";
+
 import type { paletteFor } from "./mini-chat-styles";
 import { GuestInquiryTrayList, useInquiryTrayCount } from "./GuestInquiryTray";
 import { inquiryTrayVisible } from "./guest-dock-inquiry-tray";
@@ -30,15 +32,19 @@ export function GuestDockInquiryTray({
   onRemoveCartTalent?: (talentProfileId: string) => void;
 }) {
   const count = useInquiryTrayCount();
+  const savedCount = useFavorites().favoriteIds.length;
   const [open, setOpen] = useState(false);
-  if (!inquiryTrayVisible({ count, activeView, enabled })) return null;
+  if (!inquiryTrayVisible({ count, activeView, enabled, savedCount })) return null;
   return (
     <>
     <div
       data-guest-inquiry-tray=""
       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 14px", borderBottom: `1px solid ${C.borderSoft}`, background: `${accent}10` }}
     >
-      <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{t("public.guestChat.dockTrayLabel").replace("{n}", String(count))}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
+        {count > 0 ? t("public.guestChat.dockTrayLabel").replace("{n}", String(count)) : null}
+        {savedCount > 0 ? <span data-guest-tray-saved="" style={{ fontWeight: 500, color: C.inkDim }}>{`${count > 0 ? " · " : ""}${t("public.guestChat.dockLineupShelfSaved")} ${savedCount}`}</span> : null}
+      </span>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
