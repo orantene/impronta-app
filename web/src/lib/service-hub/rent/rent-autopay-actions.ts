@@ -25,11 +25,13 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { buildRentSubscriptionParams, decideRentAutopay, nextMonthAnchorSeconds, rentAutopayAmounts, rentAutopayFlagOn, rentAutopayGate, type RentAutopayRefusal } from "./rent-autopay";
 import { cancelRentSubscription } from "./rent-autopay.server";
 import { periodOfSeconds } from "./rent-autopay-routing";
+import { SELLER_CURRENCY_UNREADABLE } from "@/lib/inquiry/offer-currency-seller";
+import { checkTenantChargeCurrency } from "@/lib/payments/seller-currency-guard";
 import { planFromRow, PLAN_COLUMNS } from "./rent-store.server";
 
 export type StartAutopayResult =
   | { ok: true; url: string }
-  | { ok: false; reason: RentAutopayRefusal | "disabled" | "not_test_mode" | "unauthenticated" | "not_found" | "unavailable" };
+  | { ok: false; reason: RentAutopayRefusal | "disabled" | "not_test_mode" | "unauthenticated" | "not_found" | "currency_unsupported" | "unavailable" };
 
 export async function startRentAutopay(input: { planId: string }): Promise<StartAutopayResult> {
   await requireNotImpersonating();
@@ -77,6 +79,10 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     if (!verdict.ok) return verdict;
     const amounts = rentAutopayAmounts(plan.monthlyRentCents, feeBps as number);
     if (!amounts) return { ok: false, reason: "fee_unavailable" };
+
+    // TUL-284/1700: the plan currency must be one the studio's Stripe lane settles, checked before any Stripe work.
+    const currencyOk = await checkTenantChargeCurrency(admin, { tenantId: plan.tenantId, currency: plan.currency });
+    if (!currencyOk.ok) return { ok: false, reason: currencyOk.code === SELLER_CURRENCY_UNREADABLE ? "unavailable" : "currency_unsupported" };
 
     const email = me.session.user.email ?? "";
     const { data: tp, error: tpErr } = await admin.from("talent_profiles").select("display_name").eq("id", me.talentProfile.id).maybeSingle();

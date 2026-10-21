@@ -56,7 +56,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
                   <button type="button" disabled={pending} onClick={() => start(async () => {
                     const r = await startRentAutopay({ planId: p.id });
                     if (r.ok) window.location.assign(r.url);
-                    else setDone((d) => ({ ...d, [p.id]: r.reason === "disabled" || r.reason === "not_test_mode" || r.reason === "percent_unavailable" ? c.autopayNotAvailable : r.reason === "studio_not_ready" ? c.autopayStudioNotReady : c.unavailable }));
+                    else setDone((d) => ({ ...d, [p.id]: r.reason === "disabled" || r.reason === "not_test_mode" || r.reason === "percent_unavailable" || r.reason === "currency_unsupported" ? c.autopayNotAvailable : r.reason === "studio_not_ready" ? c.autopayStudioNotReady : c.unavailable }));
                   })}>{c.autopayStart}</button>
                 </>
               ) : null}
