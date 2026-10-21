@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { createTranslator } from "@/i18n/messages";
 import { formatPrice } from "@/lib/money/format-price";
 
+import { LiveBookingClientIsland } from "./LiveBookingClientIsland";
 import type { LiveBookingSurface, LiveServiceCard } from "./live-booking-markers";
 
 /**
@@ -97,7 +98,7 @@ export function LiveServicesBand({
  * overflow:hidden on ancestors; slot buttons/fields then vanish on white, and
  * Turnstile's challenge expand is clipped (Confirm dead-ends with no widget).
  */
-export async function LiveBookingBand({
+export function LiveBookingBand({
   nodeId,
   surface,
   tenantId,
@@ -108,7 +109,6 @@ export async function LiveBookingBand({
   tenantId: string;
   locale?: string;
 }) {
-  const { BookPageClient } = await import("@/app/(public)/book/BookPageClient");
   return (
     <div
       data-builder-node-id={nodeId}
@@ -127,7 +127,7 @@ export async function LiveBookingBand({
         borderRadius: 12,
       }}
     >
-      <BookPageClient
+      <LiveBookingClientIsland
         tenantSlug={surface.tenantSlug}
         tenantId={tenantId}
         agencyName={surface.agencyName}

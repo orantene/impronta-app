@@ -31,6 +31,7 @@ src/lib/analytics/website-analytics-group.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
+src/lib/site-admin/builder-node/book-page-client-boundary.static.test.ts
 src/lib/site-admin/builder-node/builder-node-editor-published-parity.test.ts
 src/lib/site-admin/builder-node/builder-node-role-bindings.test.ts
 src/lib/site-admin/builder-node/builder-node-undo-transaction.test.ts
