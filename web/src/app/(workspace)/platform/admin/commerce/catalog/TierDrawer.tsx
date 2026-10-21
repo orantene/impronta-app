@@ -26,6 +26,7 @@ import { PricingTab } from "./drawer/PricingTab";
 import { FeaturesTab } from "./drawer/FeaturesTab";
 import { DisplayTab } from "./drawer/DisplayTab";
 import { StripeTab } from "./drawer/StripeTab";
+import { ServiceFeeField } from "./drawer/ServiceFeeField";
 
 type TabKey = "pricing" | "features" | "display" | "stripe";
 
@@ -34,12 +35,15 @@ export function TierDrawer({
   pkg,
   stripeConfigured,
   testMode,
+  serviceFeeBps,
   onClose,
 }: {
   tier: PricingTierRow;
   pkg: PricingPackageRow;
   stripeConfigured: boolean;
   testMode: boolean;
+  /** Tulala service fee for this plan (bps); null until the migration is applied. */
+  serviceFeeBps: number | null;
   onClose: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<TabKey>("pricing");
@@ -104,7 +108,10 @@ export function TierDrawer({
         </div>
 
         {activeTab === "pricing" && (
-          <PricingTab tier={tier} stripeConfigured={stripeConfigured} />
+          <>
+            <PricingTab tier={tier} stripeConfigured={stripeConfigured} />
+            {pkg.family !== "client" && <ServiceFeeField tierId={tier.id} feeBps={serviceFeeBps} />}
+          </>
         )}
         {activeTab === "features" && <FeaturesTab tier={tier} />}
         {activeTab === "display" && <DisplayTab tier={tier} />}

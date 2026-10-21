@@ -7,6 +7,8 @@ import { PrimaryButton } from "@/components/admin/shell/internal/primitives";
 import { SectionHeader } from "@/components/admin/shell/internal/talent/shared/today-2";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
 import { formatMoneyCents } from "@/lib/talent/earnings-view";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { channelCopy } from "@/lib/talent/service-hub-channels";
 import { useResolvedTalentEarnings } from "./use-resolved-talent-earnings";
 
 function planLabel(plan: string): string {
@@ -54,6 +56,7 @@ export function MoneyAgencyCards() {
   const { openDrawer, bridgeTalentAgencies, bridgeTalentSelfProfile } = useAdminShell();
   const earnings = useResolvedTalentEarnings();
   const currency = earnings.totals.currency;
+  const channels = channelCopy(useDashboardLocale());
 
   const agencies =
     bridgeTalentAgencies !== null
@@ -85,6 +88,14 @@ export function MoneyAgencyCards() {
         title={`Your agencies${agencies.length > 0 ? ` · ${agencies.length}` : ""}`}
         subtitle="Earnings, commission and roster status, per workspace."
       />
+      {/* TUL-1371: one place for every channel, what each pays and the earnings by channel. */}
+      <Link
+        href="/talent/where-you-appear"
+        data-testid="where-you-appear-link"
+        style={{ display: "inline-block", margin: "0 0 12px", fontSize: 12.5, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}
+      >
+        {`${channels.whereAppear} · ${channels.earningsByChannel}`}
+      </Link>
 
       {agencies.length === 0 ? (
         <div

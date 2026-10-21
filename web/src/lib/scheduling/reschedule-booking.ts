@@ -37,6 +37,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { moveInquiryBookingResources } from "@/lib/resources/booking-resources";
 
 /** The end when nothing else says otherwise. Matches the public slot default. */
 export const RESCHEDULE_DEFAULT_MINUTES = 60;
@@ -382,6 +383,25 @@ export async function rescheduleBooking(
   const operationKey =
     input.operationKey?.trim() || `reschedule:${input.bookingId}:${input.newStartsAt}`;
 
+  // TUL-1375: a request-sourced booking's chair, room or station (held under the
+  // inquiry, not an order line) moves too: secured for the new time FIRST (taken refuses
+  // the reschedule), the old time given back only after the calendar moved, the new one
+  // given back if it did not. Order-line resources move inside the RPC itself.
+  const resourceMove =
+    // With an order, its resources sit on the order line and the RPC moves them.
+    booking.source_inquiry_id && !booking.order_id && booking.starts_at && booking.ends_at
+      ? await moveInquiryBookingResources(admin as never, {
+          tenantId: input.tenantId,
+          inquiryId: booking.source_inquiry_id,
+          from: { startsAt: booking.starts_at, endsAt: booking.ends_at },
+          to: { startsAt: input.newStartsAt, endsAt },
+          actorUserId: input.actorUserId || null,
+        })
+      : null;
+  if (resourceMove && !resourceMove.ok) {
+    return fail(resourceMove.reason === "taken" ? "slot_taken" : "unavailable");
+  }
+
   const { data, error } = await admin.rpc("reschedule_booking_set", {
     p_tenant_id: input.tenantId,
     p_booking_id: input.bookingId,
@@ -401,6 +421,7 @@ export async function rescheduleBooking(
   });
   if (error) {
     logServerError("scheduling.rescheduleBooking/rpc", error);
+    if (resourceMove?.ok) await resourceMove.finish(false);
     return fail("unavailable");
   }
 
@@ -419,11 +440,14 @@ export async function rescheduleBooking(
   };
 
   if (reply.ok !== true) {
+    if (resourceMove?.ok) await resourceMove.finish(false);
     return fail(toReason(reply.reason), {
       failedPoolId: reply.failed_pool_id ?? null,
       failedTalentId: reply.failed_talent_id ?? null,
     });
   }
+
+  if (resourceMove?.ok) await resourceMove.finish(true);
 
   return {
     ok: true,

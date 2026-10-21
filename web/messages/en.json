@@ -1764,6 +1764,9 @@
       "studioFallback": "the studio",
       "noServices": "Nothing is open for online booking yet. Send the studio a message and they will reply.",
       "contactCta": "Send a message",
+      "rosterHeading": "From our team",
+      "rosterNote": "Request a service and the studio will reply with the details.",
+      "rosterRequest": "Request",
       "noTimesRequest": "No online times right now: send us a request and we will confirm.",
       "requestCta": "Send a request"
     },
@@ -1826,14 +1829,14 @@
       "note": "Rescheduling checks the person and the room first; your booking stays until a new time is confirmed.",
       "cancelTitle": "Cancel this booking?",
       "cancelPolicy": "Policy",
-      "cancelRefund": "{amount} comes back the way it was paid, once the bank confirms.",
+      "cancelRefund": "Under the cancellation policy, {amount} is owed back to you. The business processes the refund.",
       "cancelNoRefund": "The payment stays; the free cancellation window has passed.",
       "reason": "Reason",
       "reasonPlaceholder": "Optional",
       "keep": "Keep the booking",
       "cancelConfirm": "Cancel booking{amount}",
       "cancelled": "Your booking is cancelled.",
-      "cancelledRefund": "Your booking is cancelled. {amount} comes back the way it was paid.",
+      "cancelledRefund": "Your booking is cancelled. The business is processing your refund of {amount}.",
       "rescheduleTitle": "Pick a new time",
       "newTime": "New time",
       "rescheduleConfirm": "Confirm the new time",
@@ -2316,6 +2319,14 @@
       "tabPayments": "Payments",
       "tabSettings": "Settings",
       "tabHelp": "Help",
+      "tabSaved": "Saved",
+      "tabReviews": "My reviews",
+      "noSaved": "You have not saved anyone yet. Tap the heart on a profile to keep it here.",
+      "viewProfile": "View profile",
+      "noReviews": "No reviews yet. After a visit, the business can ask you for one and it will show up here.",
+      "reviewsToLeave": "Waiting for your review",
+      "leaveReview": "Leave a review",
+      "reviewsWritten": "Your reviews",
       "helpTitle": "How can we help?",
       "helpPayQ": "How do I pay a balance?",
       "helpPayA": "Open Payments and choose Pay now next to the booking.",
@@ -2362,7 +2373,7 @@
       "loadingSlots": "Looking for free times",
       "confirmNewTime": "Confirm new time",
       "cancelled": "Your visit is cancelled.",
-      "cancelledRefund": "Your visit is cancelled. Refund on its way: {amount}.",
+      "cancelledRefund": "Your visit is cancelled. The business is processing your refund of {amount}.",
       "rescheduled": "Your visit is moved.",
       "errNotAllowed": "This visit cannot be changed from this account.",
       "errSlotTaken": "That time was just taken. Pick another.",
@@ -2478,6 +2489,61 @@
     }
   },
   "dashboard": {
+    "serviceHubTerms": {
+      "title": "Terms from {workspace}",
+      "titleChanged": "{workspace} changed its terms",
+      "intro": "Read how {workspace} will sell your services. Nothing changes until you accept.",
+      "introChanged": "Until you accept, your current terms stay in force.",
+      "labelModel": "How it works",
+      "labelShare": "Workspace share",
+      "labelClientPrice": "Price clients see",
+      "labelIdentity": "Your name",
+      "labelContact": "Your contact details",
+      "labelClientContact": "Who talks to clients",
+      "labelExclusive": "Exclusive",
+      "labelNoPoaching": "No going around",
+      "model_coordinator_agency": "Agency: the agency takes requests and assigns jobs",
+      "model_open_network": "Open network: clients book you directly",
+      "model_team_studio": "Team studio: the studio sells and schedules",
+      "model_rental_studio": "Rental studio: you rent a space and sell your own work",
+      "model_friends_collective": "Collective: the owner takes requests and assigns jobs",
+      "share_percent": "of each sale",
+      "share_margin": "added on top of your price",
+      "share_fixed": "per job",
+      "share_per_hour": "per hour",
+      "share_rent": "rent per month",
+      "price_talent_price": "Your price",
+      "price_talent_plus_margin": "Your price plus the workspace margin",
+      "price_fixed": "A fixed price set by the workspace",
+      "price_from": "A starting price (from)",
+      "identity_name": "Shown with your name",
+      "identity_portfolio": "Shown as part of a portfolio",
+      "identity_hidden": "Hidden: clients see the workspace",
+      "contactShown": "Shown to clients",
+      "contactHidden": "Hidden until a job is booked",
+      "talks_workspace": "The workspace",
+      "talks_talent": "You",
+      "exclusiveYes": "Yes: only this workspace represents you",
+      "exclusiveNo": "No",
+      "exclusiveNotice": "Only this workspace and your own site can sell your services",
+      "noPoachingLine": "You agree not to take this workspace's clients directly.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "version": "Version {version}",
+      "accepted": "Terms accepted.",
+      "declined": "Terms declined. Your current terms stay in force.",
+      "error": "We could not save your answer. Try again."
+    },
+    "serviceHubListing": {
+      "status_offered": "Waiting for the talent",
+      "status_accepted": "On sale",
+      "status_hidden": "Hidden",
+      "belowFloor": "This price is below what the talent accepts plus the workspace minimum ({floor}).",
+      "exclusiveOnly": "This talent is exclusive to another workspace. Only that workspace and the Tulala hub can sell this service.",
+      "needsConsent": "The talent has to accept before this service is sold here.",
+      "floorBreached": "The talent raised the price. Update this listing; open offers keep their price.",
+      "error": "We could not save the listing. Try again."
+    },
     "uploadGuard": {
       "notAnImage": "This file is not a supported image. Use JPEG, PNG, WebP or GIF.",
       "typeNotAllowed": "This image type is not supported here. Use JPEG, PNG, WebP or GIF.",
@@ -5837,6 +5903,7 @@
         "roomNamePlaceholder": "Main room",
         "addRoom": "Add room",
         "tablesWord": "tables",
+        "bookableAtATime": "Bookable, {n} at a time",
         "addTablesTitle": "Add tables",
         "addTablesHint": "Add several at once. You never have to draw a floor plan to take reservations.",
         "addWord": "Add",
@@ -7510,6 +7577,7 @@
         "integrations": "Integrations",
         "aiProviders": "AI",
         "email": "Email",
+        "changelog": "Changelog",
         "catalog": "Profile Fields",
         "taxonomy": "Taxonomy",
         "languages": "Languages",
@@ -8588,7 +8656,17 @@
           "tabPricing": "Pricing",
           "tabFeatures": "Features",
           "tabDisplay": "Display",
-          "tabStripe": "Stripe"
+          "tabStripe": "Stripe",
+          "serviceFee": {
+            "label": "Tulala service fee",
+            "help": "Paid by the customer on top of the booking price, shown before payment. Applies to bookings sold by a seller on this plan. A change affects checkouts quoted from now on; orders already priced keep the fee they were quoted with.",
+            "field": "Fee (%)",
+            "save": "Save fee",
+            "saving": "Saving...",
+            "saved": "Saved. New checkouts use this fee.",
+            "range": "Enter a fee between 0% and 20%.",
+            "notReady": "The service fee setting is not available yet. It turns on when the fee migration is applied."
+          }
         },
         "pricingTab": {
           "activePricesTitle": "Active prices",
@@ -8811,7 +8889,7 @@
           "clientSurcharge": "Client surcharge (% of subtotal)",
           "clientSurchargePlaceholder": "even split",
           "clientSurchargeEven": "even",
-          "clientSurchargeHint": "The client-side half, added on top of the subtotal. Blank = even split. With a 6% take, 3% here = 3% client + 3% seller. The talent is never charged.",
+          "clientSurchargeHint": "The client-side half, added on top of the subtotal. Blank = even split. Whatever is left of the take after this share comes out of the seller's side. The talent is never charged.",
           "baseCapsTitle": "Base reservation fee. Platform caps",
           "baseCapsBody": "A workspace may add an automatic base reservation fee (flat and/or % of subtotal) on every booking. These are the upper bounds it can set. Blank = uncapped. The fee is workspace revenue and is never taken from the talent.",
           "maxFlatFee": "Max flat base fee ($ USD)",
@@ -14513,7 +14591,8 @@
           "already_closed": "That shift is already closed.",
           "not_allowed": "You do not have permission to do this.",
           "no_customer": "Attach a customer to this sale first.",
-          "item_unavailable": "This item is no longer available."
+          "item_unavailable": "This item is no longer available.",
+          "payment_required": "This class is paid, so the place cannot be confirmed before payment. To give it to them, decline this offer, then sell the place at the counter so it is paid."
         }
       },
       "newSale": "New sale",
@@ -17138,6 +17217,8 @@
         "accept": "They took it",
         "accepting": "Taking the place...",
         "accepted": "{name} has the place. That seat is off this class now.",
+        "acceptedPayPending": "{name}'s place is held until {when}. It is theirs once they pay. Pay link (copied): {url}",
+        "acceptedPayPendingNoLink": "{name}'s place is held until {when}. It is theirs once they pay. The pay link could not be made yet: accept again to retry.",
         "alreadyHasPlace": "{name} already has this place. Nothing changed.",
         "decline": "They said no",
         "declining": "Giving it back...",
@@ -18115,6 +18196,14 @@
       }
     },
     "catalog": {
+      "resources": {
+        "title": "Resources this service uses",
+        "intro": "The chair, room or station a booking holds. Two bookings can never use the same one at the same time.",
+        "none": "Add your chairs, rooms or stations in space settings first.",
+        "saveFirst": "Save the item first, then choose its resources.",
+        "saved": "Saved.",
+        "error": "We could not save the resources. Try again."
+      },
       "loading": "Loading the catalog",
       "saving": "Saving",
       "saved": "Saved",
@@ -18183,6 +18272,32 @@
       },
       "preparation": {
         "reason": "No station or preparation time is recorded on an item yet."
+      },
+      "websiteControl": {
+        "statusLabel": "Status",
+        "presenceLabel": "On the website",
+        "status": {
+          "draft": "Draft",
+          "published": "Published",
+          "stopped": "Stopped",
+          "archived": "Archived"
+        },
+        "statusHint": {
+          "draft": "Not on sale yet.",
+          "published": "On sale.",
+          "stopped": "Not for sale. Bookings already made are honoured.",
+          "archived": "Kept for history, off every list."
+        },
+        "presence": {
+          "own_page": "Own page",
+          "lists_only": "In lists only",
+          "hidden": "Not on the site"
+        },
+        "presenceHint": {
+          "own_page": "Shown in lists and on its own page.",
+          "lists_only": "Shown in lists and cards, no page of its own.",
+          "hidden": "Not shown on the website."
+        }
       },
       "usedIn": {
         "label": "Used in",
@@ -21241,6 +21356,7 @@
       "planPriceWebsite": "$12/mo",
       "billing": {
         "redirecting": "Redirecting…",
+        "trialRaceRetry": "Another checkout was opened at the same time. Please try again.",
         "pastDueTitle": "Payment failed.",
         "pastDueGraceBody": {
           "one": "Your payment didn't go through. Paid features stay on for {count} more day. Update your card to keep them.",

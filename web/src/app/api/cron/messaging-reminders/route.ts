@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
   let sent = 0;
   let failed = 0;
   for (const row of (data ?? []) as { id: string; tenant_id: string; inquiry_id: string; body: string; card_kind: string | null }[]) {
-    const inserted = await admin.from("inquiry_messages").insert({
+    const inserted = await insertInquiryMessage(admin, {
       inquiry_id: row.inquiry_id,
       tenant_id: row.tenant_id,
       thread_type: "group",

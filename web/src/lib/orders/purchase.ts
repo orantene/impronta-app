@@ -1,5 +1,6 @@
 import "server-only";
 
+import { applyCollectiveOwnerShares } from "@/lib/service-hub/collective-split";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
@@ -22,23 +23,19 @@ import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
+import { purchaseNeedsWithLinkedResources } from "@/lib/resources/booking-resources";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
 import { expandEventSeriesLines } from "@/lib/venues/event-series";
 import { keepsStockUntilVisit, withOfferingStockNeeds } from "@/lib/orders/purchase-stock";
 import { findKeyedOrder, isClientKeyConflict, replayKeyedPurchase } from "@/lib/orders/purchase-idempotency";
-import type {
-  PurchaseInput,
-  PurchaseLineInput,
-  PurchaseRefusalReason,
-  PurchaseResult,
-} from "@/lib/orders/purchase-types";
+import type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult } from "@/lib/orders/purchase-types";
 
 export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
 import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
-import { resolveCheckoutCollectCents } from "@/lib/orders/purchase-collect";
+import { resolveCheckoutCollectOrRefuse } from "@/lib/orders/purchase-collect";
 
 /**
  * ONE purchase pipeline.
@@ -228,9 +225,9 @@ export async function createPurchase(
       logServerError("orders.createPurchase/lineAlignment", `${priced.lines.length}/${input.lines.length}`);
       return { ok: false, reason: "engine_error", error: "Could not price the order." };
     }
-    if (!priced.ok) {
-      return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
-    }
+    if (!priced.ok) return { ok: false, reason: priced.reason, offeringId: priced.offeringId };
+    const split = await applyCollectiveOwnerShares(admin, input.tenantId, orderCurrency, priced.lines);
+    if (!split.ok) return { ok: false, reason: "engine_error", error: split.error };
 
     // ── 4. Buyer before promo (per-customer) and before pass-through collect.
     const buyer = await resolvePurchaseBuyer(admin, {
@@ -296,19 +293,19 @@ export async function createPurchase(
     // Settle + insert must agree; `orders_total_is_derived` refuses drift.
     const totalCents = priced.subtotalCents - promoDiscountCents;
 
-    const { baseCollectCents, collectCents } = await resolveCheckoutCollectCents(
-      admin,
-      {
-        tenantId: input.tenantId,
-        orderCurrency,
-        lines: priced.lines,
-        subtotalCents: priced.subtotalCents,
-        totalCents,
-        collect: policy.collect,
-        depositPct: policy.depositPct,
-        payInPerson: policy.payInPerson,
-      },
-    );
+    const collect = await resolveCheckoutCollectOrRefuse(admin, {
+      tenantId: input.tenantId,
+      orderCurrency,
+      lines: priced.lines,
+      subtotalCents: priced.subtotalCents,
+      totalCents,
+      collect: policy.collect,
+      depositPct: policy.depositPct,
+      payInPerson: policy.payInPerson,
+      sourceChannel: input.sourceChannel,
+    });
+    if (!collect.ok) return { ok: false, reason: "engine_error", error: collect.error };
+    const { baseCollectCents, collectCents, serviceFeeBpsByParty } = collect;
 
     // ── 5. Create the order. `draft` until capacity is held and payment decided.
 
@@ -339,6 +336,8 @@ export async function createPurchase(
         payout_release_rule: "immediate",
         created_by: input.actorUserId,
         ...(input.policyVersionId ? { policy_version_id: input.policyVersionId } : {}),
+        // TUL-1366: the service fee frozen at quote time; a later fee change never moves this order.
+        ...(Object.keys(serviceFeeBpsByParty).length > 0 ? { service_fee_by_party: serviceFeeBpsByParty } : {}),
         // The age gate as it was at the moment of sale, and what the buyer said
         // about it. Stored on the ORDER rather than derived later because both
         // halves can move: a venue can lower the gate next week, and the
@@ -403,8 +402,8 @@ export async function createPurchase(
       talent_profile_id: l.talentProfileId,
       owner_tenant_id: l.ownerTenantId,
       talent_cost_cents: l.talentCostCents,
-      // Never `orders.session_id` (a box-office convenience); this is what
-      // `mint-on-paid` filters on.
+      ...(l.ownerTakeCents != null ? { owner_take_cents: l.ownerTakeCents, owner_share_snapshot: l.ownerShareSnapshot } : {}),
+      // Never `orders.session_id` (a box-office convenience); `mint-on-paid` filters on this.
       session_id: input.lines[i]?.sessionId ?? null,
       sort_order: i,
     }));
@@ -427,11 +426,12 @@ export async function createPurchase(
     }
 
     let shortestTtlSeconds: number | null = null;
-    const needs = withOfferingStockNeeds(input.capacity ?? [], input.lines, catalog.stockPools);
-    const slotHolds = [
-      ...(input.holds ?? []),
-      ...(input.reservation ? [input.reservation] : []),
-    ];
+    // Stock first (it skips lines the CALLER already pooled), then TUL-1375 linked chair/room/station.
+    const stockNeeds = withOfferingStockNeeds(input.capacity ?? [], input.lines, catalog.stockPools);
+    const linkedNeeds = await purchaseNeedsWithLinkedResources(admin, { ...input, capacity: stockNeeds });
+    if (!linkedNeeds.ok) { await unwind("linked resources unreadable"); return { ok: false, reason: "capacity_unavailable", error: linkedNeeds.error }; }
+    const needs = linkedNeeds.needs;
+    const slotHolds = [...(input.holds ?? []), ...(input.reservation ? [input.reservation] : [])];
 
     if (needs.length > 0 || slotHolds.length > 0) {
       // ONE atomic batch for the whole cart (`orderLineId` is per request since
@@ -446,8 +446,7 @@ export async function createPurchase(
       // thing rather than in pieces — and it is why the order's
       // `hold_expires_at` matches the first allocation to lapse.
       for (const need of needs) {
-        const poolTtl = await capacityHoldTtlSeconds(need.poolId, admin);
-        const ttl = poolTtl ?? FALLBACK_HOLD_TTL_SECONDS;
+        const ttl = need.ttlSeconds ?? (await capacityHoldTtlSeconds(need.poolId, admin)) ?? FALLBACK_HOLD_TTL_SECONDS; // leg TTL wins (TUL-1552)
         shortestTtlSeconds = shortestTtlSeconds == null ? ttl : Math.min(shortestTtlSeconds, ttl);
       }
       if (input.reservation?.poolId) {

@@ -12,6 +12,9 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 
+import { loadDatedPicker } from "@/app/(public)/_dated/dated-picker-actions";
+import { DatedPlacesMount } from "@/components/public-booking/DatedPlacesMount";
+import { shouldMountDatedStep } from "@/lib/sessions/dated-mount";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -115,6 +118,19 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
   const jsonLd = canonical
     ? buildBusinessServiceJsonLd({ offering, canonicalUrl: canonical, businessName: identity?.public_name ?? null, locale: loaded.locale, faq })
     : null;
+  // TUL-1411: an item that sells dated places books through the dated step, here in the
+  // protected booking panel. Items with no upcoming date keep the generic booking link.
+  const picker = offering.publicCtaHidden ? null : await loadDatedPicker({ tenantId: loaded.tenantId, offeringId: offering.id });
+  const bookingSlot =
+    picker && picker.ok && shouldMountDatedStep(picker) ? (
+      <DatedPlacesMount
+        tenantId={loaded.tenantId}
+        offeringId={offering.id}
+        locale={loaded.locale}
+        picker={picker}
+        returnPath={await localePath(loaded.locale, businessServicePathWithoutLocale(loaded.locale, route.slug))}
+      />
+    ) : null;
   return (
     <>
       {jsonLd ? <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScriptString(jsonLd) }} /> : null}
@@ -127,6 +143,7 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
         faq={faq}
         homeHref={homeHref}
         bookHref={offering.publicCtaHidden ? null : bookHref}
+        bookingSlot={bookingSlot}
       />
       <PublicFooter />
     </>

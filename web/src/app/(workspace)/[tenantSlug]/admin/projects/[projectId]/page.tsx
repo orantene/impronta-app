@@ -133,7 +133,7 @@ export default async function ProjectRecordPage({
   const [contact, activity, candidates] = await Promise.all([
     loadProjectContact(scope.tenantId, project.customerId),
     loadProjectActivity(scope.tenantId, project.id),
-    tab === "team" ? loadReplacementCandidates(scope.tenantId) : Promise.resolve<Awaited<ReturnType<typeof loadReplacementCandidates>>>({ ok: true, candidates: [] }),
+    tab === "team" ? loadReplacementCandidates(scope.tenantId, { startsAt: project.startsAt, endsAt: project.endsAt }) : Promise.resolve<Awaited<ReturnType<typeof loadReplacementCandidates>>>({ ok: true, candidates: [] }),
   ]);
   const money = projectMoney(project);
   const accepted = acceptedAgreement(project);

@@ -28,6 +28,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine-approvals";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { readGuardedAttachment } from "@/lib/media/guarded-upload.server";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 // A.4 INTENTIONAL DIVERGENCE: align with canonical `ServerActionResult<T>` — currently kept
 // as a structurally compatible local type so `withInquiryContext` can return
@@ -283,15 +284,13 @@ export async function sendInquiryMessageAsTalent(
       return { ok: false, error: "You're no longer on this inquiry." };
     }
 
-    const { error } = await supabase
-      .from("inquiry_messages")
-      .insert({
-        inquiry_id: inquiryId,
-        thread_type: "group",
-        sender_user_id: user.id,
-        body: trimmed,
-        tenant_id: inq.tenant_id as string,
-      });
+    const { error } = await insertInquiryMessage(supabase, {
+      inquiry_id: inquiryId,
+      thread_type: "group",
+      sender_user_id: user.id,
+      body: trimmed,
+      tenant_id: inq.tenant_id as string,
+    });
     if (error) {
       logServerError("talent-pipeline.sendInquiryMessageAsTalent", error);
       return { ok: false, error: "Failed to send message." };

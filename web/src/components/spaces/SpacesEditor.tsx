@@ -69,6 +69,14 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
   }, [tenantSlug]);
 
   const rooms = (snapshot?.spaces ?? []).filter((s) => s.kind === "room");
+  // TUL-1375: a space with nothing inside it and its own pool is held by bookings of the
+  // services linked to it; settings say so plainly (a chair linked to a haircut, etc.).
+  const parents = new Set((snapshot?.spaces ?? []).map((s) => s.parent_id).filter(Boolean));
+  const bookableUnits = (id: string): number | null => {
+    const n = snapshot?.poolUnits?.[id];
+    return typeof n === "number" && n >= 1 && !parents.has(id) ? n : null;
+  };
+  const otherBookable = (snapshot?.spaces ?? []).filter((s) => s.kind !== "room" && s.kind !== "table" && bookableUnits(s.id) !== null);
   const tablesByRoom = new Map<string, number>();
   for (const s of snapshot?.spaces ?? []) {
     if (s.kind === "table" && s.parent_id) {
@@ -122,7 +130,28 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
               >
                 <span style={{ fontWeight: 600 }}>{room.name}</span>
                 <span style={{ color: C.inkMuted }}>
-                  {tablesByRoom.get(room.id) ?? 0} {t(`${K}.tablesWord`)}
+                  {bookableUnits(room.id) !== null
+                    ? t(`${K}.bookableAtATime`).replace("{n}", String(bookableUnits(room.id)))
+                    : `${tablesByRoom.get(room.id) ?? 0} ${t(`${K}.tablesWord`)}`}
+                </span>
+              </li>
+            ))}
+            {otherBookable.map((space) => (
+              <li
+                key={space.id}
+                style={{
+                  border: `1px solid ${C.borderSoft}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{space.name}</span>
+                <span style={{ color: C.inkMuted }}>
+                  {t(`${K}.bookableAtATime`).replace("{n}", String(bookableUnits(space.id)))}
                 </span>
               </li>
             ))}

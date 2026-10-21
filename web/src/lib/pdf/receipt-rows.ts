@@ -5,14 +5,13 @@
  * No DB / PDF IO — unit-testable in isolation.
  */
 
-import { clientServiceFeePercentLabel } from "@/lib/billing/fee-config";
 import type { FeeLine } from "@/lib/billing/processing-fee-payer";
 import { validClientFeeLines } from "@/lib/payments/fee-lines-payload";
 
 const PDF_FEE_LABELS: Record<string, string> = {
   service_subtotal: "Service",
   base_reservation_fee: "Reservation fee",
-  platform_fee: `Platform fee (${clientServiceFeePercentLabel()})`,
+  platform_fee: "Tulala service fee",
   processing_fee: "Card processing",
 };
 

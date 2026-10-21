@@ -127,10 +127,10 @@ export function TermsEs() {
               </p>
               <p>
                 Cargo por servicio: los clientes pagan un cargo por servicio de{" "}
-                {PLATFORM_BRAND.name} de {clientServiceFeePercentLabel()} sobre el precio de la reservación. Se muestra al
+                {PLATFORM_BRAND.name} sobre el precio de la reservación ({clientServiceFeePercentLabel()} por defecto; el cargo depende del plan de quien vende). Se muestra al
                 pagar, antes de que el cliente confirme, y es independiente de la comisión de
-                procesamiento de tarjeta descrita arriba, y no se reembolsa cuando se reembolsa
-                una reservación. Las comisiones y tarifas para talentos
+                procesamiento de tarjeta descrita arriba. Se devuelve completo cuando quien
+                vende cancela la reservación y se conserva cuando cancela el cliente. Las comisiones y tarifas para talentos
                 se indican en los planes.
               </p>
             </>

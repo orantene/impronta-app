@@ -4,6 +4,7 @@ import { provisionWorkspaceFromLead } from "@/lib/saas/workspace-signup.server";
 import { buildWorkspaceRegisterPath } from "@/lib/saas/workspace-signup";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { afterWorkspaceCreatedPath, workStyleOnboardingEnabled } from "@/lib/service-hub/work-style";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -133,7 +134,7 @@ export default async function OnboardingWorkspacePage({
     if (result.checkoutUrl) {
       redirect(result.checkoutUrl);
     }
-    redirect(result.adminPath);
+    redirect(afterWorkspaceCreatedPath(result.adminPath, workStyleOnboardingEnabled(process.env.WORK_STYLE_ONBOARDING_ENABLED)));
   }
 
   // "One free workspace per owner." Not an error the user can retry away:

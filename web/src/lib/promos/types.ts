@@ -104,7 +104,15 @@ export type RejectReason =
 
 export type PromoSource = "personal" | "code" | "link" | "auto";
 
+/**
+ * Where the quote will be charged. REQUIRED, no default: the "free below the Stripe minimum"
+ * waiver (PO decision P-10) is for bookings only. Every other channel charges what the promo
+ * left, and a card tender under the minimum is refused where the charge is made.
+ */
+export type QuoteChannel = "booking" | "pos" | "qr" | "cash" | "web";
+
 export type QuoteInput = {
+  channel: QuoteChannel;
   cart: readonly CartLine[];
   client: Client;
   now: string | Date;

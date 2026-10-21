@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { handleWhatsAppWebhook } from "@/lib/channels/webhook-handler";
 import type { WhatsAppWebhookBody } from "@/lib/channels/types";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,18 +59,14 @@ export async function POST(
   if (!legacy.inquiryId || !legacy.tenantId || !legacy.text) {
     return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 });
   }
-  const { data, error } = await admin
-    .from("inquiry_messages")
-    .insert({
-      inquiry_id: legacy.inquiryId,
-      tenant_id: legacy.tenantId,
-      thread_type: "group",
-      message_kind: "text",
-      body: legacy.text,
-      sender_user_id: null,
-    })
-    .select("id")
-    .single();
+  const { data, error } = await insertInquiryMessage(admin, {
+    inquiry_id: legacy.inquiryId,
+    tenant_id: legacy.tenantId,
+    thread_type: "group",
+    message_kind: "text",
+    body: legacy.text,
+    sender_user_id: null,
+  });
   if (error || !data) return NextResponse.json({ ok: false, reason: "unavailable" }, { status: 503 });
   if (legacy.providerRef) {
     await admin.from("message_delivery").upsert(

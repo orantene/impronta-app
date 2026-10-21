@@ -1,11 +1,19 @@
 import "server-only";
 
+import { serviceFeeRefundableOnCancel } from "@/lib/billing/booking-cancelled-by";
 import { logServerError } from "@/lib/server/safe-error";
+import { releaseInquiryWindowResources } from "@/lib/resources/booking-resources";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { lateCancelRefundCents, type LateCancelRefund } from "@/lib/talent-policies/answers";
 import { notifyBookingSetCancelled, type BookingSetCancelNotifier } from "./cancel-notify";
 import { bookingOfferingId, loadBookingCancelPolicy } from "./booking-cancel-policy";
+import { ledgerPaidCents, ledgerRefundedCents } from "@/lib/talent-agenda/cancel-money";
+import {
+  readBookingRefundIntent,
+  recordBookingRefundIntent,
+  type BookingRefundIntentOutcome,
+} from "./booking-refund-intent";
 
 export { bookingOfferingId };
 
@@ -36,6 +44,10 @@ export type CancelBookingResult =
       ok: true;
       bookingId: string;
       refundableCents: number;
+      /** The booking's order, for the money follow-up (`settleCancelledBookingMoney`). */
+      orderId?: string | null;
+      /** Whether the owed refund was recorded; additive, old callers ignore it. */
+      refundIntent?: BookingRefundIntentOutcome;
       already?: boolean;
       by?: CancelBookingActor | null;
       actorUserId?: string | null;
@@ -118,7 +130,7 @@ export async function cancelBookingSet(
   // page on the isolated database, 2026-09-11.
   const { data: booking, error: loadErr } = await admin
     .from("agency_bookings")
-    .select("id, tenant_id, starts_at, order_id, source_inquiry_id, currency_code")
+    .select("id, tenant_id, starts_at, ends_at, order_id, source_inquiry_id, currency_code")
     .eq("id", input.bookingId)
     .maybeSingle();
   if (loadErr) {
@@ -129,6 +141,7 @@ export async function cancelBookingSet(
   const b = booking as {
     tenant_id: string;
     starts_at?: string | null;
+    ends_at?: string | null;
     order_id?: string | null;
     source_inquiry_id?: string | null;
     currency_code?: string | null;
@@ -168,6 +181,18 @@ export async function cancelBookingSet(
   // cancelled; the conversation chips follow. Additive, non-fatal, and
   // placed before the refund arithmetic so a read failure below cannot hide
   // the cancellation from the thread.
+  // TUL-1375: a request-sourced booking WITHOUT an order holds its chair, room or
+  // station under the inquiry's key; give back only THIS booking's (its window), never
+  // another booking's on the same request. Resources on an order line are released by
+  // the RPC above with the order. Non-fatal and idempotent.
+  if (b.source_inquiry_id && b.starts_at && b.ends_at) {
+    await releaseInquiryWindowResources(admin as never, {
+      tenantId: input.tenantId,
+      inquiryId: b.source_inquiry_id,
+      window: { startsAt: b.starts_at, endsAt: b.ends_at },
+    });
+  }
+
   const orderId = reply.order_id ?? b.order_id;
   await syncConversationRecord(admin, { tenantId: input.tenantId, kind: "appointment", recordId: input.bookingId });
   if (orderId) {
@@ -190,28 +215,29 @@ export async function cancelBookingSet(
     });
   };
 
+  // Paid = the shared ledger rule (`ledgerPaidCents`: paid, payout_pending,
+  // payout_sent), so a booking whose payout is queued or already sent still
+  // owes its refund (TUL-1454). Money already refunded by hand is netted out.
   let paidCents = 0;
+  let alreadyRefundedCents = 0;
   if (orderId) {
-    const { data: txns, error: txnErr } = await admin
-      .from("booking_transactions")
-      .select("gross_amount_cents, status")
-      .eq("order_id", orderId);
-    if (txnErr) {
-      logServerError("scheduling.cancelBookingSet.paid", txnErr);
+    const paid = await ledgerPaidCents(admin, orderId);
+    const refunded = paid === null ? null : await ledgerRefundedCents(admin, orderId);
+    if (paid === null || refunded === null) {
+      logServerError("scheduling.cancelBookingSet.paid", `booking ${input.bookingId}: ledger unreadable`);
       // The cancel is done; still tell everyone, with a generic refund line.
       tell(null, null);
       return { ok: false, reason: "unavailable" };
     }
-    for (const t of (txns ?? []) as Array<{ gross_amount_cents: number; status: string }>) {
-      if (t.status === "paid") paidCents += Number(t.gross_amount_cents) || 0;
-    }
+    paidCents = paid;
+    alreadyRefundedCents = refunded;
   }
 
   // One source for the window and the late-cancel rule (shared with the
   // client manage link), not the overrides table alone.
   const policy = await loadBookingCancelPolicy(admin, { tenantId: input.tenantId, orderId: orderId ?? null });
 
-  const refundableCents = refundableCentsFromPolicy({
+  const policyCents = refundableCentsFromPolicy({
     paidCents,
     cancelFreeHours: policy.cancelFreeHours,
     lateCancelRefund: policy.lateCancelRefund,
@@ -219,8 +245,69 @@ export async function cancelBookingSet(
     startsAt: b.starts_at ?? null,
     nowMs: input.nowMs ?? Date.now(),
   });
+  let refundableCents = Math.max(0, policyCents - alreadyRefundedCents);
+
+  // MONEY BUG 4: the refund the policy owes is recorded, not just computed.
+  // The amount is fixed AT CANCEL TIME. A replay (`already`) reuses the stored
+  // intent and never opens one from a recompute at replay time: by then the
+  // window may have closed or staff may have refunded by hand, so a fresh
+  // amount would be stale or a duplicate. Never fails an accepted cancel.
+  let refundIntent: BookingRefundIntentOutcome;
+  if (reply.already === true) {
+    const stored = await readBookingRefundIntent(admin, input.bookingId);
+    if (stored && stored !== "error") {
+      refundableCents = stored.refundCents;
+      refundIntent = "already";
+    } else if (stored === null && refundableCents <= 0) {
+      refundIntent = "none";
+    } else {
+      if (stored === null) {
+        logServerError(
+          "scheduling.cancelBookingSet.replayNoIntent",
+          `booking ${input.bookingId}: replayed cancel found no stored refund intent; not opening one from a replay-time amount`,
+        );
+      }
+      refundIntent = "unavailable";
+    }
+  } else {
+    refundIntent = await recordBookingRefundIntent(admin, {
+      tenantId: input.tenantId,
+      bookingId: input.bookingId,
+      orderId: orderId ?? null,
+      refundCents: refundableCents,
+      paidCents,
+      currency: b.currency_code ?? null,
+      by,
+    });
+    if (refundIntent === "already") {
+      // A concurrent first cancel wrote it: report the stored amount.
+      const stored = await readBookingRefundIntent(admin, input.bookingId);
+      if (stored && stored !== "error") refundableCents = stored.refundCents;
+    }
+  }
 
   tell(paidCents, refundableCents);
+
+  // TUL-1366: decide ONCE whether the Tulala service fee comes back with the
+  // refund (seller side cancels, or the client cancels inside the free window).
+  // Non-fatal; the refund paths fall back to cancelled_by when this is unset.
+  if (reply.already !== true) {
+    try {
+      const win = resolveCancellationWindow({
+        cancellationHours: policy.cancelFreeHours,
+        startsAt: b.starts_at ?? null,
+        eventDate: null,
+        nowMs: input.nowMs ?? Date.now(),
+      });
+      await admin
+        .from("agency_bookings")
+        .update({ service_fee_refundable: serviceFeeRefundableOnCancel({ by, lateCancel: win.enforceable && win.insideWindow }) })
+        .eq("id", input.bookingId)
+        .eq("tenant_id", input.tenantId);
+    } catch (err) {
+      logServerError("scheduling.cancelBookingSet.feeRefundable", err);
+    }
+  }
 
   const replyBy = reply.by == null ? by : normalizeCancelBy(String(reply.by));
 
@@ -228,6 +315,8 @@ export async function cancelBookingSet(
     ok: true,
     bookingId: reply.booking_id ?? input.bookingId,
     refundableCents,
+    orderId: orderId ?? null,
+    refundIntent,
     already: reply.already === true,
     by: replyBy,
     actorUserId: reply.actor_id ?? actorUserId,

@@ -18,7 +18,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *     because it can carry bank or account details. Agency-owned accounts,
  *     `provider_account_id`, `status` and every id are kept (bookings,
  *     payouts and refunds reference them; Stripe ids are opaque);
- *   - keeps message bodies (they are the other party's record too) but
+ *   - deletes the unmasked ORIGINAL text kept for their messages
+    (`inquiry_message_originals`, TUL-1416);
+  - keeps message bodies (they are the other party's record too) but
  *     removes files the user uploaded (inquiry attachments + voice notes) and
  *     the voice payload on their messages. Sender names are resolved from
  *     `profiles` at read time, so the profile scrub is what makes their
@@ -433,6 +435,45 @@ export async function removeUploadedInquiryFiles(admin: SupabaseClient, userId: 
   return steps;
 }
 
+const ORIGINALS_PAGE = 500;
+const ORIGINALS_CHUNK = 100;
+
+/** The held table is not applied yet (PostgREST: undefined table / not in the schema cache). */
+function isMissingRelation(error: { message: string; code?: string }): boolean {
+  return error.code === "42P01" || error.code === "PGRST205" || /does not exist|schema cache/i.test(error.message);
+}
+
+/**
+ * TUL-1416: delete the ORIGINAL text kept for this person's messages (`inquiry_message_originals`,
+ * TUL-1373 contact masking), for the person who SENT them. Message bodies stay (they are the other
+ * party's record too), but the unmasked original is personal data and must not outlive the account.
+ * Keyed by message id (the table has no author column and no foreign key); the ids come from the
+ * messages this user sent. Runs BEFORE the scrub, while `sender_user_id` still resolves.
+ * Idempotent (deleting gone rows is fine). While the held migration is not applied the table does
+ * not exist: that is a clean no-op, not a failed erasure.
+ */
+export async function purgeMessageOriginals(admin: SupabaseClient, userId: string): Promise<StepResult[]> {
+  const label = "message_originals.purge";
+  for (let from = 0; ; from += ORIGINALS_PAGE) {
+    const { data, error } = await admin
+      .from("inquiry_messages")
+      .select("id")
+      .eq("sender_user_id", userId)
+      .order("id", { ascending: true })
+      .range(from, from + ORIGINALS_PAGE - 1);
+    if (error) return [{ label, ok: false, error: error.message }];
+    const ids = ((data ?? []) as Array<{ id: string }>).map((r) => r.id);
+    for (let i = 0; i < ids.length; i += ORIGINALS_CHUNK) {
+      const { error: delErr } = await admin.from("inquiry_message_originals").delete().in("message_id", ids.slice(i, i + ORIGINALS_CHUNK));
+      if (delErr) {
+        if (isMissingRelation(delErr)) return [{ label, ok: true }];
+        return [{ label, ok: false, error: delErr.message }];
+      }
+    }
+    if (ids.length < ORIGINALS_PAGE) return [{ label, ok: true }];
+  }
+}
+
 /** Public bucket that holds profile pictures at `avatars/{userId}/avatar.<ext>`. */
 export const AVATAR_BUCKET = "media-public";
 const AVATAR_USER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -473,6 +514,8 @@ export async function anonymizeUserData(
   now: Date = new Date(),
 ): Promise<AnonymizeReport> {
   const steps: StepResult[] = [];
+  // TUL-1416: the unmasked originals of their messages go first, while sender_user_id still resolves.
+  steps.push(...(await purgeMessageOriginals(admin, subject.userId)));
   steps.push(...(await removeUploadedInquiryFiles(admin, subject.userId)));
   steps.push(...(await removeUserAvatarFiles(admin, subject.userId)));
   for (const op of buildAnonymizationPlan(subject, now.toISOString(), options)) {
