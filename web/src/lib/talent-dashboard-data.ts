@@ -1,4 +1,4 @@
-import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
+import { loadTalentPrivateFields, privateFieldOrNull } from "@/lib/talent/private-fields";
 import { cache } from "react";
 import {
   buildTalentChecklist,
@@ -349,7 +349,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
     // TUL-1269: phone / date_of_birth are not column-granted to signed-in clients;
     // the owner reads them through the talent_private_fields RPC.
     const privateFields = await loadTalentPrivateFields(supabase, (profile as { id: string }).id);
-    const typedProfile = { ...profile, phone: privateFields?.phone ?? null, date_of_birth: privateFields?.date_of_birth ?? null } as unknown as TalentDashboardProfileRow;
+    const typedProfile = { ...profile, phone: privateFieldOrNull(privateFields, "phone"), date_of_birth: privateFieldOrNull(privateFields, "date_of_birth") } as unknown as TalentDashboardProfileRow;
 
     const [
       { data: revisions },

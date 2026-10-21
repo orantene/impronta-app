@@ -24,8 +24,17 @@ const WEB = process.cwd();
 const SRC = join(WEB, "src");
 const MIGRATIONS = join(WEB, "..", "supabase", "migrations");
 const HELD_DIR = join(MIGRATIONS, "_pending_pm");
-const MIGRATION_FILE = "20261231424900_talent_profiles_private_columns.sql";
-const MIGRATION_VERSION = "20261231424900";
+/** PART A: additive RPC. Applied before the code merges. */
+const PART_A_FILE = "20261231424900_talent_profiles_private_columns.sql";
+/** PART B: the REVOKE + column grants. Applied only after the code is deployed. */
+const PART_B_FILE = "20261231425500_talent_profiles_private_columns_revoke.sql";
+/**
+ * Cutoff of the fail-closed rule = the REVOKE migration (part B). A column added
+ * by a migration versioned AFTER it is not swept into B's apply-time grant list,
+ * so it needs its own GRANT or a "-- private column:" marker. A column added
+ * before B (including between A and B) IS swept in automatically.
+ */
+const CUTOFF_VERSION = "20261231425500";
 
 const PRIVATE_COLUMNS = [
   "phone",
@@ -161,14 +170,60 @@ export function uncoveredNewColumns(sql: string): string[] {
 
 // ─── 1. migration pins ──────────────────────────────────────────────────────
 
-test("migration is held in _pending_pm, not live", () => {
-  assert.ok(readdirSync(HELD_DIR).includes(MIGRATION_FILE), "held file missing");
-  assert.ok(!readdirSync(MIGRATIONS).includes(MIGRATION_FILE), "must not be in the live migrations folder");
+const stripComments = (sql: string) => sql.replace(/^\s*--.*$/gm, "");
+const partA = () => readFileSync(join(HELD_DIR, PART_A_FILE), "utf8");
+const partB = () => readFileSync(join(HELD_DIR, PART_B_FILE), "utf8");
+
+test("both parts are held in _pending_pm, not live, and B sorts after A", () => {
+  const held = readdirSync(HELD_DIR);
+  const live = readdirSync(MIGRATIONS);
+  for (const f of [PART_A_FILE, PART_B_FILE]) {
+    assert.ok(held.includes(f), `${f} must be held`);
+    assert.ok(!live.includes(f), `${f} must not be in the live migrations folder`);
+  }
+  assert.ok(PART_A_FILE.slice(0, 14) < PART_B_FILE.slice(0, 14), "part B must sort after part A");
+  // Exactly one held file per reserved version (no collision).
+  assert.equal(held.filter((f) => f.startsWith("20261231424900")).length, 1);
+  assert.equal(held.filter((f) => f.startsWith("20261231425500")).length, 1);
 });
 
-test("migration revokes table SELECT from authenticated and column-grants the rest", () => {
-  const sql = readFileSync(join(HELD_DIR, MIGRATION_FILE), "utf8");
-  const code = sql.replace(/^\s*--.*$/gm, "");
+test("PART A is additive only: creates the RPC, revokes and alters nothing on talent_profiles", () => {
+  const code = stripComments(partA());
+  assert.doesNotMatch(code, /REVOKE\s+SELECT/i);
+  assert.doesNotMatch(code, /(REVOKE|GRANT)[^;]*ON\s+(TABLE\s+)?(public\.)?talent_profiles/i);
+  assert.doesNotMatch(code, /ALTER\s+TABLE|DROP\s+(TABLE|POLICY|COLUMN)|CREATE\s+POLICY|ALTER\s+DEFAULT/i);
+  assert.doesNotMatch(code, /SET\s+(LOCAL\s+)?ROLE/i);
+  // The only REVOKE is the function ACL.
+  for (const m of code.matchAll(/REVOKE[^;]*;/gi)) {
+    assert.match(m[0], /ON FUNCTION public\.talent_private_fields\(uuid\) FROM PUBLIC, anon;/);
+  }
+  assert.match(partA(), /apply ONLY|AFTER|BEFORE the code merges/i);
+});
+
+test("talent_private_fields is SECURITY DEFINER with an empty search_path and a locked-down ACL", () => {
+  const code = stripComments(partA());
+  const fn = code.match(/CREATE OR REPLACE FUNCTION public\.talent_private_fields\(p_talent_id uuid\)[\s\S]*?\$\$;/)?.[0] ?? "";
+  assert.ok(fn, "function missing");
+  assert.match(fn, /SECURITY DEFINER/);
+  assert.match(fn, /SET search_path = ''/);
+  assert.match(fn, /tp\.user_id = auth\.uid\(\)/);
+  assert.match(fn, /public\.staff_can_access_talent_profile\(p_talent_id\)/);
+  const returns = fn.match(/RETURNS TABLE \(([\s\S]*?)\)\s*LANGUAGE/)?.[1] ?? "";
+  assert.deepEqual(
+    [...returns.matchAll(/^\s*([a-z_0-9]+)\s/gm)].map((m) => m[1]).sort(),
+    [...PRIVATE_COLUMNS].sort(),
+  );
+  assert.match(code, /REVOKE ALL ON FUNCTION public\.talent_private_fields\(uuid\) FROM PUBLIC, anon;/);
+  assert.match(code, /GRANT EXECUTE ON FUNCTION public\.talent_private_fields\(uuid\) TO authenticated;/);
+  assert.doesNotMatch(code, /GRANT EXECUTE ON FUNCTION public\.talent_private_fields[^;]*\banon\b/);
+  // Part A must not itself define the revoke.
+  assert.doesNotMatch(code, /GRANT SELECT \(%s\)/);
+});
+
+test("PART B revokes table SELECT from authenticated and column-grants the rest, after the code deploys", () => {
+  const sql = partB();
+  const code = stripComments(sql);
+  assert.match(sql, /APPLY ONLY AFTER THE #4392 CODE IS DEPLOYED/);
   assert.match(code, /REVOKE SELECT ON public\.talent_profiles FROM authenticated;/);
   assert.match(code, /GRANT SELECT \(%s\) ON public\.talent_profiles TO authenticated/);
   assert.match(code, /information_schema\.columns/);
@@ -179,37 +234,19 @@ test("migration revokes table SELECT from authenticated and column-grants the re
     [...PRIVATE_COLUMNS].sort(),
     "the excluded set must be exactly the seven private columns",
   );
-  // The table grant goes first; the column grant follows.
   assert.ok(code.indexOf("REVOKE SELECT ON public.talent_profiles FROM authenticated") < code.indexOf("GRANT SELECT (%s)"));
+  // It refuses to run before part A exists.
+  assert.match(code, /to_regprocedure\('public\.talent_private_fields\(uuid\)'\) IS NULL/);
+  assert.match(sql, /version > 20261231425500|AFTER this file \(version > 20261231425500\)/);
 });
 
-test("migration does not widen anon or touch write grants / service_role", () => {
-  const code = readFileSync(join(HELD_DIR, MIGRATION_FILE), "utf8").replace(/^\s*--.*$/gm, "");
+test("PART B does not widen anon or touch write grants / service_role", () => {
+  const code = stripComments(partB());
   assert.doesNotMatch(code, /talent_profiles\s+TO\s+[^;]*\banon\b/);
   assert.doesNotMatch(code, /(REVOKE|GRANT)\s+(INSERT|UPDATE|DELETE|ALL)[^;]*talent_profiles/i);
   assert.doesNotMatch(code, /(REVOKE|GRANT)[^;]*talent_profiles[^;]*service_role/i);
   assert.doesNotMatch(code, /SET\s+(LOCAL\s+)?ROLE/i);
-});
-
-test("talent_private_fields is SECURITY DEFINER with an empty search_path and a locked-down ACL", () => {
-  const code = readFileSync(join(HELD_DIR, MIGRATION_FILE), "utf8").replace(/^\s*--.*$/gm, "");
-  const fn = code.match(/CREATE OR REPLACE FUNCTION public\.talent_private_fields\(p_talent_id uuid\)[\s\S]*?\$\$;/)?.[0] ?? "";
-  assert.ok(fn, "function missing");
-  assert.match(fn, /SECURITY DEFINER/);
-  assert.match(fn, /SET search_path = ''/);
-  assert.match(fn, /tp\.user_id = auth\.uid\(\)/);
-  assert.match(fn, /public\.staff_can_access_talent_profile\(p_talent_id\)/);
-  // Returns only the seven private columns.
-  const returns = fn.match(/RETURNS TABLE \(([\s\S]*?)\)\s*LANGUAGE/)?.[1] ?? "";
-  assert.deepEqual(
-    [...returns.matchAll(/^\s*([a-z_0-9]+)\s/gm)].map((m) => m[1]).sort(),
-    [...PRIVATE_COLUMNS].sort(),
-  );
-  // Everything the body touches is schema-qualified.
-  assert.doesNotMatch(fn.replace(/public\.\w+|auth\.uid/g, ""), /\bFROM\s+(?!public\.)\w+\.?\w*\s+tp\b/);
-  assert.match(code, /REVOKE ALL ON FUNCTION public\.talent_private_fields\(uuid\) FROM PUBLIC, anon;/);
-  assert.match(code, /GRANT EXECUTE ON FUNCTION public\.talent_private_fields\(uuid\) TO authenticated;/);
-  assert.doesNotMatch(code, /GRANT EXECUTE ON FUNCTION public\.talent_private_fields[^;]*\banon\b/);
+  assert.doesNotMatch(code, /CREATE OR REPLACE FUNCTION/i);
 });
 
 test("the reviewed-function allow-list lists talent_private_fields for authenticated only", () => {
@@ -278,12 +315,12 @@ function migrationFiles(): Array<{ name: string; path: string }> {
   return out;
 }
 
-test("migrations after 424900 that add a talent_profiles column grant it or mark it private", () => {
+test("migrations after the revoke (425500) that add a talent_profiles column grant it or mark it private", () => {
   const files = migrationFiles();
   assert.ok(files.length > 200, "migration scan went blind");
   const offenders: string[] = [];
   for (const f of files) {
-    if (f.name.slice(0, 14) <= MIGRATION_VERSION) continue;
+    if (f.name.slice(0, 14) <= CUTOFF_VERSION) continue;
     for (const c of uncoveredNewColumns(readFileSync(f.path, "utf8"))) {
       offenders.push(`${f.name}: adds talent_profiles.${c} without GRANT SELECT (${c}) ... TO authenticated or "-- private column: ${c}"`);
     }

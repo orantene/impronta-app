@@ -242,6 +242,7 @@ export function TalentOnboardingWizard(props: {
                 initialPhone={prefill.phone}
                 initialGender={prefill.gender}
                 initialDob={prefill.dateOfBirth}
+                privateFieldsAvailable={prefill.privateFieldsAvailable}
                 onSaved={refresh}
               />
             )}

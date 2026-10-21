@@ -93,7 +93,10 @@ export async function loadSelfProfileEditorData(input: {
   }
 
   type Row = Record<string, unknown>;
-  const p = { ...(profileRes.data as Row), ...(privateFields ?? {}) } as Row;
+  // `unavailable` leaves phone / date_of_birth / legal_name undefined AND flags the
+  // payload so the editor never saves a blank over values it could not read.
+  const privateFieldsAvailable = privateFields.status === "loaded";
+  const p = { ...(profileRes.data as Row), ...(privateFields.status === "loaded" ? privateFields.fields : {}) } as Row;
   const r = (rosterRes.data ?? {}) as Row;
   const sv = scalarFieldValues;
   const bv = blobFieldValues;
@@ -122,6 +125,7 @@ export async function loadSelfProfileEditorData(input: {
       display_name: (p.display_name as string | null) ?? null,
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
+      private_fields_available: privateFieldsAvailable,
       legal_name: (p.legal_name as string | null) ?? null,
       // T4: pronouns / pronouns_custom are System-B only. gender + DOB remain
       // dedicated carve-out columns; gender prefers B, falls back to the column.

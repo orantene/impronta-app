@@ -24,6 +24,16 @@ export type TalentPrivateColumn = (typeof TALENT_PRIVATE_COLUMNS)[number];
 
 export type TalentPrivateFields = Record<TalentPrivateColumn, string | null>;
 
+/**
+ * Outcome of a private-field load. `unavailable` is NOT "the fields are empty":
+ * it means the RPC failed or returned no row, so the values are UNKNOWN. A save
+ * path must then leave these fields out of its payload (see
+ * {@link omitUnlessLoaded}); writing a default would blank real data.
+ */
+export type TalentPrivateFieldsResult =
+  | { status: "loaded"; fields: TalentPrivateFields }
+  | { status: "unavailable"; reason: "rpc_error" | "no_row" };
+
 export const EMPTY_TALENT_PRIVATE_FIELDS: TalentPrivateFields = {
   phone: null,
   phone_e164: null,
@@ -41,19 +51,56 @@ function asString(v: unknown): string | null {
 }
 
 /**
- * Load the private fields of one talent for the signed-in caller. Returns null
- * when the caller is neither the owner nor staff of the talent (the RPC returns
- * no row) and on any RPC error, so callers fail closed to "no private data".
+ * Load the private fields of one talent for the signed-in caller. Never returns
+ * a blank stand-in: an RPC error or a missing row (caller is neither the owner
+ * nor staff) is the explicit `unavailable` state.
  */
 export async function loadTalentPrivateFields(
   supabase: RpcCaller,
   talentProfileId: string,
-): Promise<TalentPrivateFields | null> {
+): Promise<TalentPrivateFieldsResult> {
   const { data, error } = await supabase.rpc("talent_private_fields", { p_talent_id: talentProfileId });
-  if (error || data == null) return null;
-  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | undefined;
-  if (!row) return null;
-  const out: TalentPrivateFields = { ...EMPTY_TALENT_PRIVATE_FIELDS };
-  for (const c of TALENT_PRIVATE_COLUMNS) out[c] = asString(row[c]);
+  if (error) return { status: "unavailable", reason: "rpc_error" };
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null | undefined;
+  if (!row) return { status: "unavailable", reason: "no_row" };
+  const fields: TalentPrivateFields = { ...EMPTY_TALENT_PRIVATE_FIELDS };
+  for (const c of TALENT_PRIVATE_COLUMNS) fields[c] = asString(row[c]);
+  return { status: "loaded", fields };
+}
+
+export function privateFieldsLoaded(r: TalentPrivateFieldsResult): boolean {
+  return r.status === "loaded";
+}
+
+/** Value of one private field, or null when the load was unavailable (display only, never for writes). */
+export function privateFieldOrNull(r: TalentPrivateFieldsResult, col: TalentPrivateColumn): string | null {
+  return r.status === "loaded" ? r.fields[col] : null;
+}
+
+/**
+ * Drop the given private keys from a save payload unless the private fields were
+ * loaded. A loaded-but-empty value (null phone) keeps its key, so it stays
+ * writable; an unavailable load removes the keys so nothing is overwritten.
+ */
+export function omitUnlessLoaded<T extends Record<string, unknown>>(
+  payload: T,
+  loaded: boolean,
+  keys: ReadonlyArray<keyof T & string>,
+): Partial<T> {
+  if (loaded) return payload;
+  const out: Partial<T> = { ...payload };
+  for (const k of keys) delete out[k];
   return out;
 }
+
+/**
+ * Keys of the identity save payload (`updateTalentIdentitySchema`) that carry a
+ * private column: legal_name, date_of_birth and the phone pair
+ * (`contact_phone` + `contact_phone_prefix` -> talent_profiles.phone).
+ */
+export const PRIVATE_IDENTITY_PAYLOAD_KEYS = [
+  "legal_name",
+  "date_of_birth",
+  "contact_phone",
+  "contact_phone_prefix",
+] as const;

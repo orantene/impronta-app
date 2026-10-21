@@ -1,4 +1,4 @@
-import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
+import { loadTalentPrivateFields, privateFieldOrNull } from "@/lib/talent/private-fields";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAiSearchDocFields } from "@/lib/field-engine/read-source-ai-search-doc";
 
@@ -33,7 +33,7 @@ export async function loadAiSearchDocumentDebug(
 
   // TUL-1269: ai_search_document is not column-granted to signed-in clients; admins read it via the RPC.
   const privateFields = await loadTalentPrivateFields(supabase, talentProfileId);
-  const storedDocument = privateFields?.ai_search_document ?? null;
+  const storedDocument = privateFieldOrNull(privateFields, "ai_search_document");
 
   const { data: embRow } = await supabase
     .from("talent_embeddings")
