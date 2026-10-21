@@ -32,6 +32,7 @@ src/lib/ai/booking-assistant/spend.test.ts
 src/lib/ai/booking-assistant/tools/contract.test.ts
 src/lib/ai/booking-assistant/tools/quote.test.ts
 src/lib/ai/booking-assistant/tools/availability.test.ts
+src/lib/ai/booking-assistant/tools/handoff-context.test.ts
 src/lib/ai/booking-assistant/usage-format.test.ts
 src/lib/ai/booking-assistant/usage-wiring.static.test.ts
 src/lib/ai/build-ai-search-document-offerings.test.ts
