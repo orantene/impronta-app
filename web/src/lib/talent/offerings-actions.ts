@@ -14,7 +14,6 @@
  */
 
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
-import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
@@ -46,7 +45,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { setOfferingStock, stockChanged } from "@/lib/capacity";
-import { offeringSaveGate } from "@/lib/talent/offering-save-gate.server"; // TUL-1270 #11/#12
+import { offeringCurrencyRefusal, offeringSaveGate } from "@/lib/talent/offering-save-gate.server"; // TUL-1270 #11/#12, TUL-1634
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
@@ -198,9 +197,9 @@ export async function upsertTalentOffering(
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it
     // stops a third currency reaching checkout, where it was never priced.
-    if (!isTalentCurrency(offering.currency)) {
-      return { ok: false, error: "Set the price in Mexican pesos (MXN) or US dollars (USD)." };
-    }
+    // TUL-1634: the same rule the workspace Menu save uses (offeringCurrencyRefusal).
+    const currencyRefusal = offeringCurrencyRefusal(offering.currency);
+    if (currencyRefusal) return { ok: false, error: currencyRefusal };
 
     const patch = {
       ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }, auth.primaryLocale),
