@@ -39,3 +39,17 @@ export function formatApproxLocal(
   const symbol = currency === "MXN" ? "MX$" : currency;
   return `≈ ${symbol} ${grouped}`;
 }
+
+/**
+ * "MX$ 160": the converted PRIMARY price when a visitor views the USD catalog
+ * in pesos (TUL-864). Same rounding as the approx line, no leading "≈".
+ * Null when the rate or amount is unusable (caller keeps the USD price).
+ */
+export function formatConvertedLocal(
+  usdMinor: number | null | undefined,
+  rate: number | null,
+  currency: "MXN",
+): string | null {
+  const approx = formatApproxLocal(usdMinor, rate, currency);
+  return approx ? approx.replace(/^≈ /, "") : null;
+}
