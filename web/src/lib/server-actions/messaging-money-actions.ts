@@ -114,7 +114,7 @@ export async function messagingPreviewCancel(input: {
   recordKind: RecordKind;
   recordId: string;
 }): Promise<ActionResult<{ preview: CancelPreview }>> {
-  const g = await messagingStaff();
+  const g = await messagingStaff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z
     .object({ inquiryId: uuid, recordKind: z.enum(RECORD_KINDS), recordId: uuid })
@@ -146,7 +146,7 @@ export async function messagingCancelRecord(input: {
   expectedVersion: number;
 }): Promise<ActionResult<{ recordKind: RecordKind; recordId: string; refundedCents: number }>> {
   await requireNotImpersonating();
-  const g = await messagingStaff();
+  const g = await messagingStaff("cancel_inquiry");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -321,7 +321,7 @@ export async function messagingLoadRefundableTransaction(input: {
   recordKind: RecordKind;
   recordId: string;
 }): Promise<ActionResult<{ paymentId: string | null; refundableCents: number; currencyCode: string | null }>> {
-  const g = await messagingStaff();
+  const g = await messagingStaff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ recordKind: z.enum(RECORD_KINDS), recordId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -340,7 +340,7 @@ export async function messagingRefund(input: {
   expectedVersion: number;
 }): Promise<ActionResult<{ refundedCents: number }>> {
   await requireNotImpersonating();
-  const g = await messagingStaff();
+  const g = await messagingStaff("booking.payment.refund");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -445,7 +445,7 @@ export async function messagingRecordOutsidePayment(input: {
   amountKind?: "deposit" | "full";
 }): Promise<ActionResult<{ recordId: string }>> {
   await requireNotImpersonating();
-  const g = await messagingStaff();
+  const g = await messagingStaff("booking.payment.mark_received");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -568,7 +568,7 @@ async function recordOutsidePaymentFollowUp(
 // ─── permission-gated read paths (D-MSG-40, item 5) ────────────────────────
 
 export async function messagingCanReadNotes(): Promise<ActionResult<{ allowed: boolean }>> {
-  const g = await messagingStaff();
+  const g = await messagingStaff("agency.workspace.view");
   if (!g.ok) return g;
   const allowed = await hasMessagingMoneyPermission(g.admin, {
     tenantId: g.tenantId,

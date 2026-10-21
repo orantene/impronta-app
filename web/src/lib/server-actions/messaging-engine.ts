@@ -68,7 +68,7 @@ async function callRpc(
 }
 
 export async function messagingLoadInbox(input: { locationSlug: string; filter: InboxFilter }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const locationSlug = input.locationSlug.trim() || "default";
   return loadMessagingInbox(g.admin, {
@@ -89,7 +89,7 @@ export async function messagingLoadInbox(input: { locationSlug: string; filter: 
  * `conversation_records`, the same table the chips come from. Reader only.
  */
 export async function messagingResolveOrderThread(input: { orderId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ orderId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -109,7 +109,7 @@ export async function messagingResolveOrderThread(input: { orderId: string }) {
 }
 
 export async function messagingLoadThread(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -117,7 +117,7 @@ export async function messagingLoadThread(input: { inquiryId: string }) {
 }
 
 export async function messagingLoadEssentials(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -144,7 +144,7 @@ export async function messagingRename(input: { inquiryId: string; name: string; 
 export async function loadConversationHistory(
   input: { inquiryId: string },
 ): Promise<{ ok: true; entries: ConversationHistoryEntry[] } | { ok: false; reason: string }> {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -360,7 +360,7 @@ export async function messagingUnlinkRecord(input: {
 }
 
 export async function messagingRelinkImpact(input: { inquiryId: string; recordKind: RecordKind; recordId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const essentials = await loadMessagingEssentials(g.admin, { tenantId: g.tenantId, inquiryId: input.inquiryId });
   if (!essentials.ok) return essentials;
@@ -660,7 +660,7 @@ export async function messagingCancelReminder(input: { reminderId: string }) {
 }
 
 export async function messagingSearch(input: { query: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   return searchMessaging(g.admin, { tenantId: g.tenantId, query: input.query });
 }
