@@ -75,6 +75,7 @@ src/lib/billing/direct-connection-helper.static.test.ts
 src/lib/changelog/launch-edition-link.test.ts
 src/lib/changelog/launch-guard.test.ts
 src/lib/changelog/public-read.test.ts
+src/lib/changelog/request-origin.test.ts
 src/lib/changelog/whats-new.test.ts
 src/lib/cms/platform-blog.test.ts
 src/lib/coordinator/offer-line-confirmation-view.test.ts

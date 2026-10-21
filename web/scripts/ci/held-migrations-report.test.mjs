@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseFilename, deriveTitle, extractPr, ageDays, renderApplied, summaryLine, checkTargets } from "./held-migrations-report.mjs";
+import { parseFilename, deriveTitle, headerTitle, extractPr, ageDays, renderApplied, summaryLine, checkTargets } from "./held-migrations-report.mjs";
 
 test("parseFilename splits version and slug, rejects others", () => {
   assert.deepEqual(parseFilename("20261231415400_profiles_no_self.sql"), { version: "20261231415400", slug: "profiles_no_self" });
@@ -8,11 +8,27 @@ test("parseFilename splits version and slug, rejects others", () => {
   assert.equal(parseFilename("2026_x.sql"), null);
 });
 
-test("deriveTitle prefers a header comment, skips HELD lines, falls back to slug", () => {
-  assert.equal(deriveTitle("a_b", "-- TUL-1344 slice 0: dated places\n--\n-- HELD: x"), "TUL-1344 slice 0: dated places");
-  assert.equal(deriveTitle("dated_places", "-- HELD: parked\nselect 1;"), "dated places");
+test("deriveTitle uses the humanised filename slug, never a comment line (TUL-1794)", () => {
+  // Real header samples from supabase/migrations/_pending_pm (first comment line was printed as the title).
+  const samples = [
+    ["talent_profiles_anon_column_grants", "-- PM applies: mv to supabase/migrations/, then `cd web && npm run db:push`.\nselect 1;", "talent profiles anon column grants"],
+    ["directory_search_offerings", "-- Adds ONE leg to public.directory_search_public_talent_ids(text): talents whose\n-- offerings match.", "directory search offerings"],
+    ["payout_accounts_masked_ref", "-- Payout accounts: a masked bank reference and who verified a manual account.\n", "payout accounts masked ref"],
+    ["divider_first", "-- ==========================================\n-- Real title\n", "divider first"],
+    ["rls_fix", "-- TUL (security, P1): wave 1 of the \"FOR ALL is_staff_of_tenant\" RLS fix. Money and access t", "rls fix"],
+  ];
+  for (const [slug, sql, want] of samples) assert.equal(deriveTitle(slug, sql), want);
   assert.equal(deriveTitle("plain_slug", "select 1;"), "plain slug");
-  assert.equal(deriveTitle("x_y", "-- 20261231415500_x_y.sql\nselect 1;"), "x y");
+  assert.equal(deriveTitle("a-b_c", ""), "a b c");
+  assert.equal(deriveTitle("x".repeat(200)).length, 90);
+});
+
+test("headerTitle only returns a clean single-line title", () => {
+  assert.equal(headerTitle("-- ======\n--\n-- Real title. More text here.\nselect 1;"), "Real title.");
+  assert.equal(headerTitle("-- HELD: parked\n-- 20261231415500_x.sql\n--\nselect 1;"), null);
+  assert.equal(headerTitle("-- ------\n-- ======\n"), null);
+  assert.equal(headerTitle("select 1;\n-- late comment"), null);
+  assert.ok(headerTitle("-- " + "word ".repeat(40)).length <= 90);
 });
 
 test("extractPr takes the last (#N) in a subject", () => {

@@ -17,14 +17,17 @@ import {
   type ChangelogEntryView,
   type ChangelogLocale,
 } from "@/lib/changelog/public-read";
-import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { changelogOrigin } from "@/lib/changelog/request-origin";
+import { publicOrigin } from "@/lib/storefront/request-context";
 
 /**
  * Server components for tulala.digital/changelog (EN) and /es/novedades (ES)
  * (TUL-1394). Both routes render these. Reads the synced table only.
  */
 
-const ORIGIN = `https://${PLATFORM_BRAND.domain}`;
+async function requestOrigin(): Promise<string> {
+  return changelogOrigin(await publicOrigin());
+}
 
 /** The two URL families. Index and entry paths per language. */
 export function changelogPaths(locale: ChangelogLocale) {
@@ -67,11 +70,12 @@ const COPY = {
 export async function changelogIndexMetadata(locale: ChangelogLocale): Promise<Metadata> {
   const c = COPY[locale];
   const launched = await isChangelogLive();
+  const origin = await requestOrigin();
   return {
     // TUL-1799: the root layout title template already appends "· Tulala"; the index title says Tulala itself.
     title: { absolute: c.title },
     description: c.lede,
-    metadataBase: new URL(ORIGIN),
+    metadataBase: new URL(origin),
     alternates: {
       canonical: locale === "es" ? "/es/novedades" : "/changelog",
       languages: { en: "/changelog", es: "/es/novedades" },
@@ -85,13 +89,14 @@ export async function changelogIndexMetadata(locale: ChangelogLocale): Promise<M
 export async function changelogEntryMetadata(id: string, locale: ChangelogLocale): Promise<Metadata> {
   const row = await loadChangelogRow(id);
   const launched = await isChangelogLive();
+  const origin = await requestOrigin();
   const robots = launched ? { index: true, follow: true } : { index: false, follow: true };
   if (!row) return { title: { absolute: COPY[locale].title }, robots: { index: false, follow: false } };
   const e = toEntryView(row, locale);
   return {
     title: e.title, // the layout template adds the single "· Tulala" suffix
     description: e.summary.slice(0, 200),
-    metadataBase: new URL(ORIGIN),
+    metadataBase: new URL(origin),
     alternates: {
       canonical: locale === "es" ? `/es/novedades/${id}` : `/changelog/${id}`,
       languages: { en: `/changelog/${id}`, es: `/es/novedades/${id}` },
@@ -234,7 +239,7 @@ export async function ChangelogEntryPage({ id, locale }: { id: string; locale: C
   const c = COPY[locale];
   const paths = changelogPaths(locale);
   const e = toEntryView(row, locale);
-  const url = `${ORIGIN}${locale === "es" ? "/es" : ""}${paths.entry(e.id)}`;
+  const url = `${await requestOrigin()}${locale === "es" ? "/es" : ""}${paths.entry(e.id)}`;
 
   return (
     <MarketingSection spacing="tight">

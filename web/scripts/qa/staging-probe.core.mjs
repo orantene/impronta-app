@@ -22,7 +22,8 @@ export const DEFAULTS = {
   coldMs: 2500,
   ttfbMs: 1500,
   bundlePage: "/login",
-  maxScripts: 40,
+  // Runaway guard only (TUL-1794): a 68-chunk page was cut at 40 and the staging ref lives in the rest.
+  maxScripts: 500,
   demoLabels: ["karla-beltran-demo", "mateo-ferrer-demo", "saul-tapia-ortega-demo"],
 };
 const PROD_HOSTS = new Set(["tulala.digital", "www.tulala.digital", "app.tulala.digital", "impronta.tulala.digital", "hub.tulala.digital"]);
@@ -265,7 +266,8 @@ export async function runProbe({ opts, fetchImpl, now = () => Date.now(), gateTo
   // ---- cut checks: served bundle + served release ----
   const shell = await page(`${app}${o.bundlePage}`).catch(() => ({ status: 0, text: "" }));
   await guarded("CUT", "bundle scan", async () => {
-    const urls = scriptUrls(shell.text, app).slice(0, o.maxScripts);
+    const allUrls = scriptUrls(shell.text, app);
+    const urls = allUrls.slice(0, o.maxScripts);
     if (!urls.length) {
       add("CUT", "bundle names fxlank, never prod ref", false, `no /_next/static scripts found (page status ${shell.status})`);
       add("CUT", "bundle has no pk_live_ key", false, "no scripts to scan");
@@ -274,16 +276,21 @@ export async function runProbe({ opts, fetchImpl, now = () => Date.now(), gateTo
     let stagingSeen = false;
     const prodHits = [];
     const liveHits = [];
+    let unreadable = 0;
     for (const u of urls) {
       const r = await get(u);
-      if (r.status !== 200) continue;
+      if (r.status !== 200) {
+        unreadable += 1;
+        continue;
+      }
       if (r.text.includes(QA_JOURNEYS_PROJECT_REF)) stagingSeen = true;
       if (r.text.includes(PRODUCTION_PROJECT_REF)) prodHits.push(new URL(u).pathname);
       if (PK_LIVE.test(r.text)) liveHits.push(new URL(u).pathname);
     }
+    const scope = `${urls.length - unreadable} of ${allUrls.length} scripts scanned${unreadable ? ` (${unreadable} unreadable)` : ""}`;
     add("CUT", "bundle names fxlank, never prod ref", stagingSeen && prodHits.length === 0,
-      `${urls.length} scripts; staging ref ${stagingSeen ? "present" : "ABSENT"}; prod ref ${prodHits.length ? `FOUND in ${prodHits.join(", ")}` : "absent"}`);
-    add("CUT", "bundle has no pk_live_ key", liveHits.length === 0, liveHits.length ? `pk_live_**** found in ${liveHits.join(", ")}` : `${urls.length} scripts clean`);
+      `${scope}; staging ref ${stagingSeen ? "present" : "ABSENT"}; prod ref ${prodHits.length ? `FOUND in ${prodHits.join(", ")}` : "absent"}`);
+    add("CUT", "bundle has no pk_live_ key", liveHits.length === 0, liveHits.length ? `pk_live_**** found in ${liveHits.join(", ")}` : `${scope}, clean`);
   });
   const served = /sentry-release=([0-9a-f]{40})/.exec(shell.text ?? "")?.[1];
   if (!o.expectSha) add("CUT", "served sentry-release equals --expect-sha", null, "no --expect-sha given");
