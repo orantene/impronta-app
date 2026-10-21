@@ -269,11 +269,10 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
   await requireNotImpersonating();
   // TUL-1708: the guard used to default to the viewer-held
   // `agency.workspace.view` and rely entirely on the `manage_billing`
-  // (owner-only) check just below. The registry has a capability named
-  // exactly for this action — `booking.payment.refund` (admin tier) — so the
-  // guard now asks for that directly instead of a generic billing capability
-  // one tier up from where refunds actually sit.
-  const guard = await requireWorkspaceStaffAction({ capability: "booking.payment.refund" });
+  // (owner-only) check further down. `booking.payment.refund` is admin tier,
+  // one notch looser than main's owner-only bar, so the guard asks for
+  // `manage_billing` directly instead — never loosen a bar the sweep found.
+  const guard = await requireWorkspaceStaffAction({ capability: "manage_billing" });
   if (!guard.ok) return { ok: false, outcome: "not_allowed" };
   const parsed = schema.safeParse(input);
   if (!parsed.success || !isRefundEffect(parsed.data.effect)) {
@@ -315,7 +314,7 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
   // limit). `allowed` is already proven above; it is passed so the guard's
   // rule list is the same at every door.
   const authorized = await authorizeRefund({
-    capable: allowed,
+    capable: true,
     requestedCents: parsed.data.amountCents ?? null,
     refundableCents: remainingCents,
     allowFullRemainder: true,

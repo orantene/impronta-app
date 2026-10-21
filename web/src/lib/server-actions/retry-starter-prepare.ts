@@ -16,6 +16,7 @@ import {
   readAgencySettings,
 } from "@/lib/onboarding/starter-prepare.server";
 import { needsStarterPrepareRetry, planStarterPrepareRetry } from "@/lib/onboarding/starter-prepare";
+import { userHasCapability } from "@/lib/access";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
@@ -25,7 +26,7 @@ import { onboardStarterContent } from "@/lib/site-admin/server/onboard-starter-c
 import { loadBriefForTenant } from "@/lib/tulala/brief-store-tenant.server";
 
 export type LoadStarterPrepareStateResult =
-  | { ok: true; needsRetry: boolean }
+  | { ok: true; needsRetry: boolean; canRetry: boolean }
   | { ok: false; error: string };
 
 export type RetryStarterPrepareResult =
@@ -39,7 +40,10 @@ export async function loadStarterPrepareStateAction(): Promise<LoadStarterPrepar
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };
     const needsRetry = await agencyNeedsStarterPrepareRetry(admin, auth.tenantId);
-    return { ok: true, needsRetry };
+    // TUL-1708: the retry button itself is now admin+ (agency.site_admin.design.publish);
+    // tell the client so it can hide the control for a role that would only see it refuse.
+    const canRetry = await userHasCapability("agency.site_admin.design.publish", auth.tenantId);
+    return { ok: true, needsRetry, canRetry };
   } catch (err) {
     logServerError("starter-prepare.load", err);
     return { ok: false, error: "Could not load site prepare state." };

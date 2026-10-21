@@ -29,7 +29,7 @@ import { roleGrantsCapability } from "@/lib/access/roles";
  *   - menu-import/import-actions.ts        apply: agency.site_admin.sections.edit (editor+)
  *   - server-actions/roster-import.ts      enqueue: manage_talent_roster (manager+)
  *   - api/admin/roster-import/route.ts     POST: manage_talent_roster (manager+)
- *   - admin/orders/refund-actions.ts       refund: booking.payment.refund (admin+)
+ *   - admin/orders/refund-actions.ts       refund: manage_billing (owner only — main's existing bar, never loosened)
  *   - server-actions/retry-starter-prepare.ts retry: agency.site_admin.design.publish (admin+)
  */
 
@@ -62,12 +62,12 @@ test("manage_talent_roster (roster import) is manager and above, not viewer or e
   assert.equal(roleGrantsCapability("admin", "manage_talent_roster"), true);
 });
 
-test("booking.payment.refund (refund desk) is admin and above, not viewer, editor or manager", () => {
-  assert.equal(roleGrantsCapability("viewer", "booking.payment.refund"), false);
-  assert.equal(roleGrantsCapability("editor", "booking.payment.refund"), false);
-  assert.equal(roleGrantsCapability("manager", "booking.payment.refund"), false);
-  assert.equal(roleGrantsCapability("admin", "booking.payment.refund"), true);
-  assert.equal(roleGrantsCapability("owner", "booking.payment.refund"), true);
+test("manage_billing (refund desk) is owner only, not viewer, editor, manager or admin — never loosen main's bar", () => {
+  assert.equal(roleGrantsCapability("viewer", "manage_billing"), false);
+  assert.equal(roleGrantsCapability("editor", "manage_billing"), false);
+  assert.equal(roleGrantsCapability("manager", "manage_billing"), false);
+  assert.equal(roleGrantsCapability("admin", "manage_billing"), false);
+  assert.equal(roleGrantsCapability("owner", "manage_billing"), true);
 });
 
 test("agency.site_admin.design.publish (starter-prepare retry) is admin and above, not viewer, editor or manager", () => {
@@ -111,12 +111,10 @@ test("roster-import API route: POST names manage_talent_roster", () => {
   assert.match(rosterImportRoute, /requireWorkspaceStaffAction\(\{ capability: "manage_talent_roster" \}\)/);
 });
 
-test("refund-actions: refundOrderAtDesk names booking.payment.refund in the guard itself, loadOrderLinesForDesk keeps the default", () => {
-  assert.match(refundActions, /requireWorkspaceStaffAction\(\{ capability: "booking\.payment\.refund" \}\)/);
-  // The old pattern checked `manage_billing` via a second userHasCapability call
-  // AFTER a bare guard — that pattern, and the import it needed, are gone.
-  assert.doesNotMatch(refundActions, /userHasCapability\("manage_billing"/);
-  assert.doesNotMatch(refundActions, /from "@\/lib\/access"/);
+test("refund-actions: refundOrderAtDesk names manage_billing in the guard itself (never booking.payment.refund, which would loosen main's owner-only bar), loadOrderLinesForDesk keeps the default", () => {
+  assert.match(refundActions, /requireWorkspaceStaffAction\(\{ capability: "manage_billing" \}\)/);
+  assert.doesNotMatch(refundActions, /capability: "booking\.payment\.refund"/);
+  assert.match(refundActions, /capable: true/);
   const readBody = refundActions.slice(
     refundActions.indexOf("export async function loadOrderLinesForDesk"),
     refundActions.indexOf("export async function refundOrderAtDesk"),

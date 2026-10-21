@@ -45,7 +45,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // role check below is a stricter, pre-existing gate layered on top.
   const auth = await requireWorkspaceStaffAction({ capability: "manage_talent_roster" });
   if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
+    // TUL-1708: a capability refusal is authenticated-but-forbidden, not
+    // unauthenticated — 403, not 401.
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
   const { tenantId, user } = auth;
 
