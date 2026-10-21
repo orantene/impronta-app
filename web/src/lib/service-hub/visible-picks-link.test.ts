@@ -47,13 +47,18 @@ describe("wiring", () => {
   test("the server check: flag first, then the session's workspace, then agency.roster.edit", () => {
     assert.match(action, /^"use server";/);
     const flag = action.indexOf("if (!visiblePicksEnabled()) return { show: false };");
-    const guard = action.indexOf("await requireWorkspaceStaffAction()");
-    const cap = action.indexOf('userHasCapability("agency.roster.edit", guard.tenantId)');
-    assert.ok(flag > 0 && guard > flag && cap > guard, "flag, then guard, then capability");
-    assert.match(action, /if \(!guard\.ok\) return \{ show: false \};/);
+    const session = action.indexOf("await resolveSession()");
+    const scope = action.indexOf("await resolveScope()");
+    const cap = action.indexOf('await hasCapability("agency.roster.edit", scope.tenantId)');
+    assert.ok(flag > 0 && session > flag && scope > session && cap > scope, "flag, then session, then scope, then capability");
+    assert.match(action, /if \(!session\.ok\) return \{ show: false \};/);
+    assert.match(action, /if \(!scope\) return \{ show: false \};/);
     assert.match(action, /visiblePicksLinkShown\(\{ flagOn: true, canEditRoster \}\)/);
-    // a miss must not write a permission-denied audit row on every Settings open
-    assert.doesNotMatch(action, /requireWorkspaceStaffAction\(\{/);
+    // TUL-1716: no step in this file may route through a guard that writes an audit row on
+    // refusal (requireWorkspaceStaffAction, with or without a capability) — this loader runs
+    // on every Settings open, so a non-editor would audit-spam on every visit.
+    assert.doesNotMatch(action, /requireWorkspaceStaffAction/);
+    assert.doesNotMatch(action, /auditFailure/);
     // any error hides the link
     assert.match(action, /catch \(err\) \{[\s\S]*return \{ show: false \};/);
   });
