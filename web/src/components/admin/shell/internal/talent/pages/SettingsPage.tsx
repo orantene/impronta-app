@@ -280,24 +280,19 @@ export function SettingsPage() {
       sub: copy.t("A copy of the information Tulala holds about you, as a file."),
       panel: <AccountExportLinks es={copy.isSpanish} />,
     },
-    bridgeTalentSelfProfile
-      ? {
-          key: "plan",
-          label: tx("Plan"),
-          value: copy.t(TALENT_TIER_META[state.talentTier].label),
-          panel: (
-            <TalentPlanCard
-              onCompare={() => openDrawer("talent-tier-compare")}
-              onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-plan-card" })}
-            />
-          ),
-        }
-      : {
-          key: "plan",
-          label: tx("Plan"),
-          value: copy.t(TALENT_TIER_META[state.talentTier].label),
-          onOpen: () => openDrawer("talent-tier-compare"),
-        },
+    {
+      // TUL-1356: the card loads its own session-scoped summary, so EVERY talent (hub talents,
+      // who have no self-profile bridge, included) gets the plan card with cancel / resume.
+      key: "plan",
+      label: tx("Plan"),
+      value: copy.t(TALENT_TIER_META[state.talentTier].label),
+      panel: (
+        <TalentPlanCard
+          onCompare={() => openDrawer("talent-tier-compare")}
+          onUpgrade={() => openUpgrade({ feature: "generic", from: "settings-plan-card" })}
+        />
+      ),
+    },
     ...(bridgeTalentSelfProfile && tenantSlug
       ? [
           {

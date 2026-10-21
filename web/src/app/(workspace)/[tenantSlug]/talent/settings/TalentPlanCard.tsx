@@ -27,7 +27,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { TalentCancelBlock } from "./TalentCancelBlock";
-import { isLiveTalentSubscriptionStatus } from "@/lib/billing/talent-cancel";
+import { talentPlanCancelBlock } from "@/lib/billing/talent-cancel";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import {
   loadTalentPlanSummary,
@@ -387,17 +387,15 @@ export function TalentPlanCard({
       {showPromo && <PromoBlock offer={data.upgradeOffer!} onUpgrade={onUpgrade} />}
 
       {/* TUL-832: cancel / resume for a live paid subscription */}
-      {data.subscription &&
-        data.planKey !== "talent_basic" &&
-        isLiveTalentSubscriptionStatus(data.subscription.status) && (
-          <TalentCancelBlock
-            es={copy.isSpanish}
-            cancelAtPeriodEnd={data.subscription.cancelAtPeriodEnd}
-            currentPeriodEnd={data.subscription.currentPeriodEnd}
-            onCompare={onCompare}
-            onChanged={() => setReloadTick((n) => n + 1)}
-          />
-        )}
+      {data.subscription && talentPlanCancelBlock(data.planKey, data.subscription) !== "none" && (
+        <TalentCancelBlock
+          es={copy.isSpanish}
+          cancelAtPeriodEnd={data.subscription.cancelAtPeriodEnd}
+          currentPeriodEnd={data.subscription.currentPeriodEnd}
+          onCompare={onCompare}
+          onChanged={() => setReloadTick((n) => n + 1)}
+        />
+      )}
 
       {/* Footer — always offer Compare plans */}
       <button
