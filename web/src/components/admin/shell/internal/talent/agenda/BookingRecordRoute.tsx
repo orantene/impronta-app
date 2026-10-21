@@ -8,6 +8,7 @@ import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 
 import { useAgendaCopy } from "./use-agenda-copy";
 import { AgendaBookingRecord } from "./AgendaBookingRecord";
+import { MyAssignmentAnswer } from "./MyAssignmentAnswer";
 import { buildAgendaListItemFromAgendaItem } from "./view-model";
 import { RECORD_SLOW_AFTER_MS, readRecordInParallel, recordViewState } from "./booking-record-state";
 
@@ -106,6 +107,8 @@ export function BookingRecordRoute({
   }
 
   return (
+    <>
+    <MyAssignmentAnswer bookingId={bookingId} locale={copy.locale} />
     <AgendaBookingRecord
       bookingId={bookingId || undefined}
       isAgency={Boolean(agendaItem?.managedBy)}
@@ -120,5 +123,6 @@ export function BookingRecordRoute({
       onBack={onBack}
       onMessage={onMessage}
     />
+    </>
   );
 }

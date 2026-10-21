@@ -5065,7 +5065,7 @@
         "impactOutgoing": "Sortant",
         "impactOutgoingValue": "Conservé sur la ligne pour l'historique · rien de gagné",
         "impactClient": "Client",
-        "impactClientValue": "Non prévenu d'ici · aucune approbation requise",
+        "impactClientValue": "Prévenu une fois dans sa conversation, seulement si la personne était montrée par son nom · aucune approbation requise",
         "replaceConfirm": "Remplacer et inviter {name}",
         "replaceNoProfile": "Cette personne a été saisie sur l'offre et n'a pas de profil à remplacer.",
         "replacementPick": "Choisir une personne",
