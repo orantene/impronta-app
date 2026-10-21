@@ -37,6 +37,8 @@ import { isAgeAndTermsConfirmed } from "@/lib/legal/acceptances.core";
 import { recordSignupAcceptance } from "@/lib/legal/acceptances";
 import { resetLocaleOnSignIn } from "@/lib/auth/reset-locale-on-sign-in";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { withTimeout } from "@/lib/tulala/with-timeout";
+import { signInTimeoutDestination } from "@/lib/auth/sign-in-timeout-destination";
 import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verified-sign-in.server";
 import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 
@@ -153,6 +155,20 @@ export async function requestPasswordReset(
   };
 }
 
+/**
+ * TUL-1784: a sign-in that never answers is worse than one that fails. Every remote call on this path gets a wall
+ * clock: the password check itself ends in a visible error, and the best-effort follow-ups (claims, locale reset,
+ * profile read) are logged and skipped so a slow side table can never hold the visitor on "Signing in…".
+ */
+const SIGN_IN_PASSWORD_DEADLINE_MS = 15_000;
+const SIGN_IN_FOLLOW_UP_DEADLINE_MS = 6_000;
+const TIMED_OUT = Symbol("sign-in-timed-out");
+async function bounded<T>(label: string, p: Promise<T>, ms: number): Promise<T | typeof TIMED_OUT> {
+  const out = await withTimeout<T | typeof TIMED_OUT>(p, ms, TIMED_OUT);
+  if (out === TIMED_OUT) logServerError(`auth/signIn.timeout.${label}`, new Error(`${label} exceeded ${ms} ms`));
+  return out;
+}
+
 export async function signInWithEmail(
   _prev: AuthActionState,
   formData: FormData,
@@ -169,7 +185,9 @@ export async function signInWithEmail(
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
-  const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
+  const signedIn = await bounded("signInWithPassword", supabase.auth.signInWithPassword({ email, password }), SIGN_IN_PASSWORD_DEADLINE_MS);
+  if (signedIn === TIMED_OUT) return { error: t("public.auth.errors.timeout") };
+  const { data: signInData, error } = signedIn;
   if (error) {
     // A wrong password is the user's outcome, not ours: warn, audit, no Sentry.
     if (isRejectedCredentials(error)) {
@@ -178,7 +196,8 @@ export async function signInWithEmail(
       logServerError("auth/signInWithPassword", error);
     }
     if (isRejectedCredentials(error)) {
-      const tenantId = await auditTenantId();
+      const tenantRead = await bounded("auditTenantId", auditTenantId(), SIGN_IN_FOLLOW_UP_DEADLINE_MS);
+      const tenantId = tenantRead === TIMED_OUT ? null : tenantRead;
       if (tenantId) {
         scheduleWorkspaceAudit({
           tenantId,
@@ -206,21 +225,31 @@ export async function signInWithEmail(
   const user = signInData?.user ?? null;
   // G3: a confirmed client who signs in by password claims + activates first.
   if (user) {
-    await claimAndActivateVerifiedClient({
-      userId: user.id,
-      email: user.email,
-      emailProven: isAuthEmailConfirmedForClaim(user),
-    });
+    await bounded(
+      "claimAndActivateVerifiedClient",
+      claimAndActivateVerifiedClient({
+        userId: user.id,
+        email: user.email,
+        emailProven: isAuthEmailConfirmedForClaim(user),
+      }),
+      SIGN_IN_FOLLOW_UP_DEADLINE_MS,
+    );
   }
-  const [profileData] = await Promise.all([
-    user ? loadAccessProfile(supabase, user.id) : Promise.resolve(null),
-    user ? resetLocaleOnSignIn(user.id) : Promise.resolve(),
-    user ? claimGuestSupportOnAuth(user.id) : Promise.resolve(),
-    user ? claimTulalaBriefOnAuth(supabase, user.id) : Promise.resolve(),
+  const [profileRead] = await Promise.all([
+    user ? bounded("loadAccessProfile", loadAccessProfile(supabase, user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(null),
+    user ? bounded("resetLocaleOnSignIn", resetLocaleOnSignIn(user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
+    user ? bounded("claimGuestSupportOnAuth", claimGuestSupportOnAuth(user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
+    user ? bounded("claimTulalaBriefOnAuth", claimTulalaBriefOnAuth(supabase, user.id), SIGN_IN_FOLLOW_UP_DEADLINE_MS) : Promise.resolve(),
   ]);
+  // A profile read that timed out is "we do not know", NOT "no profile": it must not send a returning talent or staff
+  // member to /onboarding/role. It goes to the requested next (or "/"), which re-resolves. Only a read that ANSWERED
+  // with no row (null) keeps the no-profile routing.
+  const profileTimedOut = profileRead === TIMED_OUT;
+  const profileData = profileTimedOut ? null : profileRead;
 
   if (user) {
-    const tenantId = await auditTenantId();
+    const tenantRead = await bounded("auditTenantId", auditTenantId(), SIGN_IN_FOLLOW_UP_DEADLINE_MS);
+    const tenantId = tenantRead === TIMED_OUT ? null : tenantRead;
     if (tenantId) {
       scheduleWorkspaceAudit({
         tenantId,
@@ -240,15 +269,16 @@ export async function signInWithEmail(
   // does not exist on the marketing apex or the hub, where this form is also
   // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
-  const postAuthCtx = user ? await postAuthContextForNext(supabase, user.id, nextPath) : {};
-  redirect(
-    await hostSafeRedirectDestination(
-      supportDeskPostAuthDestination(
-        resolvePostAuthDestination(profileData, nextPath, postAuthCtx),
-        deskHost,
-      ),
-    ),
-  );
+  // Bounded like the rest: a timeout means "no extra context" ({}), the destination still resolves.
+  const postAuthRead =
+    user && !profileTimedOut
+      ? await bounded("postAuthContextForNext", postAuthContextForNext(supabase, user.id, nextPath), SIGN_IN_FOLLOW_UP_DEADLINE_MS)
+      : {};
+  const postAuthCtx = postAuthRead === TIMED_OUT ? {} : postAuthRead;
+  const destination = profileTimedOut
+    ? signInTimeoutDestination(nextPath)
+    : resolvePostAuthDestination(profileData, nextPath, postAuthCtx);
+  redirect(await hostSafeRedirectDestination(supportDeskPostAuthDestination(destination, deskHost)));
 }
 
 export type SignInModalState = { ok: true } | { ok: false; error: string } | null;
