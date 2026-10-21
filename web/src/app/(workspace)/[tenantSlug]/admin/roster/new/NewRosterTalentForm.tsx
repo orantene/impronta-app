@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import { type CreateRosterTalentState, createRosterTalent } from "./actions";
 import { createTranslator } from "@/i18n/messages";
+import { JoinTermsStep } from "@/components/admin/service-hub/JoinTermsStep";
+import type { JoinTermsInput } from "@/lib/service-hub/join-terms";
 
 const C = {
   ink:         "#0B0B0D",
@@ -132,6 +134,8 @@ export function NewRosterTalentForm({
 }) {
   const t = createTranslator(locale);
   const [method, setMethod] = useState<ManagementMethod>("agency");
+  // TUL-1476: the owner's proposed terms, sent as `terms_*` fields with the form.
+  const [terms, setTerms] = useState<JoinTermsInput | null>(null);
   const boundAction = createRosterTalent.bind(null, tenantSlug);
   const [state, action, pending] = useActionState<CreateRosterTalentState, FormData>(
     boundAction,
@@ -310,6 +314,9 @@ export function NewRosterTalentForm({
           />
         </div>
       </div>
+
+      {/* ── Terms (TUL-1476) ── */}
+      <JoinTermsStep tenantSlug={tenantSlug} locale={locale} value={terms} onChange={setTerms} asFormFields />
 
       {/* ── Actions ── */}
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
