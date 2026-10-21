@@ -21,6 +21,7 @@ src/lib/directory/search-offerings-migration.static.test.ts
 src/lib/directory/starting-price-rows.test.ts
 src/lib/directory/talent-type-labels.test.ts
 src/lib/fields/height-plausibility.test.ts
+src/lib/marketing/public-polish-j11.test.ts
 src/lib/quality/guest-session-minting.static.test.ts
 src/lib/quality/inquiry-provider-reachability.static.test.ts
 src/lib/quality/taxonomy-conflict-target.static.test.ts
