@@ -126,7 +126,8 @@ test("both actions are workspace-scoped, not cookie-scoped", () => {
   // credential for whichever tenant a preference cookie points at — and a
   // calendar feed is a credential whose misdirection would go unnoticed for
   // months.
-  const guards = actions.match(/requireWorkspaceStaffAction\(\)/g) ?? [];
+  // With or without a capability (TUL-1708 #4326 passes one); either way the workspace guard, never the cookie one.
+  const guards = actions.match(/requireWorkspaceStaffAction\((?:\{[^}]*\})?\)/g) ?? [];
   assert.equal(guards.length, 2);
   assert.doesNotMatch(actions, /requireStaffTenantAction/);
 });

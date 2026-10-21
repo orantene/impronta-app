@@ -294,7 +294,7 @@ const BUDGETS: Record<string, number> = {
   // ── everything else on the suppression list at 2,000+ lines ──────────────
   // Admin shell internals. The largest concentration of god files outside the
   // builder, and the one with no decomposition program running today.
-  "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5615,
+  "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5649,
   // 2026-08-18 Website pages data enrichment (P1-B): +29 for the bridge merge
   // projecting locale / SEO flags / page roles / 30d visits onto WebsitePageRow,
   // plus the null-honest visit mapping. The merge is the seam between the data

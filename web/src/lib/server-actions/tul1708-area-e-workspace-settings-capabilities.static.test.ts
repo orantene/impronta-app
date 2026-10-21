@@ -148,7 +148,8 @@ for (const file of FILES) {
 test("admin-scope.ts: the two generic staff-identity helpers are untouched (shared across many non-area-E callers)", () => {
   const src = readSrc("lib/saas/admin-scope.ts");
   const bareCount = [...src.matchAll(new RegExp(BARE_GUARD, "g"))].length;
-  assert.equal(bareCount, 2, "admin-scope.ts's bare-guard count changed; re-check whether this sweep still leaves it alone");
+  // main narrowed one of the two (batch 5+6+7, #4299); one generic bare helper is left.
+  assert.equal(bareCount, 1, "admin-scope.ts's bare-guard count changed; re-check whether this sweep still leaves it alone");
 });
 
 test("role matrix: viewer is refused every TUL-1708 area-E capability; owner is allowed every one", () => {
