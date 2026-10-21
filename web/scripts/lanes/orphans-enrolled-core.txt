@@ -122,6 +122,7 @@ src/lib/talent/dashboard-reads.test.ts
 src/lib/talent/format-count.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/instant-plan-gate.test.ts
+src/lib/talent/offering-photo-links.test.ts
 src/lib/talent/offerings-load-parallel.static.test.ts
 src/lib/talent/profile-left-count.test.ts
 src/lib/talent/profile-quality-mode.test.ts
