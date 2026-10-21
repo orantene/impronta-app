@@ -13,6 +13,7 @@ src/components/admin/service-hub/owner-hub-screen.render.test.tsx
 src/components/storefront/public-hub-entries.render.test.tsx
 src/components/talent/money/ledger-clients-state.test.ts
 src/components/talent/service-hub/channel-panels.render.test.tsx
+src/lib/access/tul-1708-area-i-capability.static.test.ts
 src/lib/account/export-bundle.test.ts
 src/lib/account/export-scoping.test.ts
 src/lib/ai/booking-assistant/tools/order-pay-link.server.test.ts
