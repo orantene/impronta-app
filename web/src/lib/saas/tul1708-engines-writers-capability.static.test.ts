@@ -57,3 +57,15 @@ test("role matrix: viewer and editor are refused the money capabilities; manager
     assert.equal(roleGrantsCapability("owner", cap), true, cap);
   }
 });
+
+test("recording a received/cash payment is one manager key end to end; pending/disputed/failed and refunds stay admin", async () => {
+  const { PIPELINE_WRITE_CAPABILITY: W } = await import("@/lib/inquiry/pipeline-write-capabilities");
+  assert.equal(W.markInquiryPaidInCash, "booking.payment.request");
+  assert.equal(W.markInquiryPaymentReceived, "booking.payment.request");
+  for (const k of ["markInquiryPaymentPending", "markInquiryPaymentDisputed", "markInquiryPaymentFailed"] as const) {
+    assert.equal(W[k], "booking.payment.mark_received", k);
+  }
+  assert.equal(roleGrantsCapability("manager", W.markInquiryPaidInCash), true);
+  assert.equal(roleGrantsCapability("editor", W.markInquiryPaidInCash), false);
+  assert.equal(roleGrantsCapability("manager", "booking.payment.refund"), false);
+});
