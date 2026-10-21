@@ -89,6 +89,15 @@ BEGIN
   -- One check at a time per person, so two parallel guesses cannot both slip under the limit.
   PERFORM pg_advisory_xact_lock(hashtextextended(p_tenant_id::text || ':' || p_user_id::text, 0));
 
+  -- A person who is not an ACTIVE member of this workspace has no usable PIN, whatever hash is
+  -- left behind (removed, suspended, pending). Covers unlock, switch operator and approvals.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agency_memberships m
+     WHERE m.tenant_id = p_tenant_id AND m.profile_id = p_user_id AND m.status = 'active'
+  ) THEN
+    RETURN 'pin_invalid';
+  END IF;
+
   DELETE FROM public.staff_pin_attempts
    WHERE tenant_id = p_tenant_id AND user_id = p_user_id
      AND attempted_at < now() - interval '1 day';

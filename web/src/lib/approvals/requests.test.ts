@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { assertRoleLimit, decideApproval, requestApproval } from "./requests";
 
-test("a missing role limit is closed for non-owners and open for the owner; over the cap is over_limit", async () => {
+test("a missing role limit is closed for manager and below and open for owner and admin; over the cap is over_limit", async () => {
   const open = await assertRoleLimit(
     {
       from: () => ({

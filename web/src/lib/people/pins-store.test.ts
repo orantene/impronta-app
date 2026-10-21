@@ -74,7 +74,7 @@ test("TUL-1516: a throttled reply carries throttled:true through the till and ap
     rpc: async () => ({ data: { ok: false, reason: "pin_invalid", throttled: true }, error: null }),
   };
   const unlock = await unlockTill(rpcAdmin, { tenantId: "t", deviceKey: "device-key-1", userId: "u", pin: "1234" });
-  assert.deepEqual(unlock, { ok: false, reason: "pin_invalid", throttled: true });
+  assert.deepEqual(unlock, { ok: false, reason: "pin_throttled", throttled: true });
   const approve = await approveCustomAmount(rpcAdmin, {
     tenantId: "t",
     orderId: "o",
@@ -83,7 +83,7 @@ test("TUL-1516: a throttled reply carries throttled:true through the till and ap
     approverUserId: "u",
     pin: "1234",
   });
-  assert.deepEqual(approve, { ok: false, reason: "pin_invalid", throttled: true });
+  assert.deepEqual(approve, { ok: false, reason: "pin_throttled", throttled: true });
 
   const typo = await unlockTill(
     { ...rpcAdmin, rpc: async () => ({ data: { ok: false, reason: "pin_invalid" }, error: null }) },
@@ -129,4 +129,28 @@ test("TUL-1516: the app readers no longer select the settings blob for PIN holde
   assert.match(staff, /loadPinHolderIds/);
   assert.doesNotMatch(page, /select\("settings"\)/);
   assert.doesNotMatch(staff, /select\("settings"\)/);
+});
+
+test("TUL-1516: a removed or inactive member's correct PIN gives pin_invalid, before any hash is compared", () => {
+  const check = MIGRATION.slice(MIGRATION.indexOf("FUNCTION public.pos_check_staff_pin"), MIGRATION.indexOf("-- ── PIN setter"));
+  const gate = check.search(/IF NOT EXISTS \(\s+SELECT 1 FROM public\.agency_memberships m[\s\S]*?m\.status = 'active'\s+\) THEN\s+RETURN 'pin_invalid'/);
+  assert.ok(gate > 0, "an active membership is required");
+  assert.ok(gate < check.indexOf("staff_pin_hashes h"), "the membership gate runs before the hash is read");
+  assert.ok(gate < check.indexOf("extensions.crypt"), "and before the PIN is compared");
+});
+
+test("TUL-1516: removing a member deletes their PIN hash and legacy settings entry", () => {
+  const src = readFileSync(join(WEB, "src/lib/server-actions/team-management.ts"), "utf8");
+  const fn = src.slice(src.indexOf("export async function removeTeamMember"));
+  assert.match(fn, /from\("staff_pin_hashes"\)\.delete\(\)\.eq\("tenant_id", tenantId\)\.eq\("user_id", profileId\)/);
+  assert.match(fn, /restPins/);
+});
+
+test("TUL-1516: a throttled reply reaches the till as pin_throttled with its own copy in en, es and fr", () => {
+  for (const lang of ["en", "es", "fr"]) {
+    const msgs = JSON.parse(readFileSync(join(WEB, `messages/${lang}.json`), "utf8"));
+    assert.equal(typeof msgs.dashboard.pos.engine.refusal.pin_throttled, "string", lang);
+  }
+  const es = JSON.parse(readFileSync(join(WEB, "messages/es.json"), "utf8"));
+  assert.equal(es.dashboard.pos.engine.refusal.pin_throttled, "Demasiados intentos, espera 5 minutos.");
 });

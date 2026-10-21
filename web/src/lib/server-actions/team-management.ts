@@ -482,6 +482,22 @@ export async function removeTeamMember(profileId: string): Promise<ServerActionR
       if (revokeErr) logServerError("team-management.removeTeamMember.revokeInvites", revokeErr);
     }
 
+    // TUL-1516: a removed member keeps no PIN. Drop the hash row and any legacy settings.people.pins entry.
+    const { error: pinErr } = await admin.from("staff_pin_hashes").delete().eq("tenant_id", tenantId).eq("user_id", profileId);
+    if (pinErr) logServerError("team-management.removeTeamMember.pinHash", pinErr);
+    const { data: agencyRow, error: settingsReadErr } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
+    if (settingsReadErr) logServerError("team-management.removeTeamMember.settings", settingsReadErr);
+    const legacySettings = (agencyRow as { settings?: Record<string, unknown> | null } | null)?.settings;
+    const legacyPins = (legacySettings?.people as { pins?: Record<string, unknown> } | undefined)?.pins;
+    if (legacySettings && legacyPins && profileId in legacyPins) {
+      const { [profileId]: _gone, ...restPins } = legacyPins;
+      const { error: settingsErr } = await admin
+        .from("agencies")
+        .update({ settings: { ...legacySettings, people: { ...(legacySettings.people as object), pins: restPins } } })
+        .eq("id", tenantId);
+      if (settingsErr) logServerError("team-management.removeTeamMember.settingsWrite", settingsErr);
+    }
+
     // Clear default coordinator if it pointed to the removed user.
     await admin
       .from("agencies")

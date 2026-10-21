@@ -37,11 +37,11 @@ export async function assertRoleLimit(
 ): Promise<{ ok: true } | { ok: false; reason: "over_limit" | "unavailable" }> {
   const loaded = await roleLimitCents(admin, input);
   if (!loaded.ok) return loaded;
-  // TUL-1516 (decision O4): an UNSET limit is CLOSED. Only the workspace owner moves money
-  // without a written limit; every other role is refused (and files an approval request)
-  // until an owner grants it a limit in Settings > Roles & limits.
+  // TUL-1516 (decision O4, revised): an UNSET limit is CLOSED for manager and below. Owner and
+  // admin keep moving money as before (admins refund today); every other role is refused (and
+  // files an approval request) until an owner grants it a limit in Settings > Roles & limits.
   if (loaded.limitCents == null) {
-    return input.role === "owner" ? { ok: true } : { ok: false, reason: "over_limit" };
+    return input.role === "owner" || input.role === "admin" ? { ok: true } : { ok: false, reason: "over_limit" };
   }
   if (input.amountCents > loaded.limitCents) return { ok: false, reason: "over_limit" };
   return { ok: true };

@@ -14,6 +14,7 @@ export type ApproveCustomAmountResult =
       reason:
         | "over_limit"
         | "pin_invalid"
+        | "pin_throttled"
         | "not_manager"
         | "already_approved"
         | "conflict"
@@ -76,7 +77,7 @@ export async function approveCustomAmount(
     reason === "invalid"
   ) {
     return reply.throttled === true && reason === "pin_invalid"
-      ? { ok: false, reason, throttled: true }
+      ? { ok: false, reason: "pin_throttled", throttled: true }
       : { ok: false, reason };
   }
   return { ok: false, reason: "unavailable" };
