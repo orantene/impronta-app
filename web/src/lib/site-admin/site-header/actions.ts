@@ -24,6 +24,7 @@ import { revalidateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireSession } from "@/lib/server/action-guards";
+import { userHasCapability } from "@/lib/access";
 import { requireTenantScope } from "@/lib/saas";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
@@ -602,6 +603,11 @@ export async function saveHeaderIdentityAction(
 
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) return { ok: false, error: "No tenant in scope." };
+
+  // agency_business_identity writes are admin+ at the database; gate on the capability here too.
+  if (!(await userHasCapability("agency.site_admin.identity.edit", scope.tenantId))) {
+    return { ok: false, error: "You do not have permission to edit the business identity." };
+  }
 
   const current = await loadIdentityForStaff(auth.supabase, scope.tenantId);
 

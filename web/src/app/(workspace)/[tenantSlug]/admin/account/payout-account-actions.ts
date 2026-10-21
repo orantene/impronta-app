@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { findTenantMembership } from "@/lib/saas/tenant";
@@ -138,7 +139,14 @@ export async function createStaffPayoutAccountAction(formData: FormData): Promis
       session.user.email ||
       "Staff payout account";
 
-    const { error } = await supabase.from("payout_accounts").insert({
+    // payout_accounts writes are admin/owner only at the database, but managers may create their own receiver
+    // account (role check above), so the insert runs on the service role with the same owner values.
+    const service = createServiceRoleClient();
+    if (!service) {
+      const p = new URLSearchParams({ perr: "Database unavailable." });
+      backToAccount(tenantSlug, p);
+    }
+    const { error } = await service.from("payout_accounts").insert({
       tenant_id: scope.tenantId,
       owner_type: "profile",
       owner_id: session.user.id,
