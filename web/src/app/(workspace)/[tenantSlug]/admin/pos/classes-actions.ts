@@ -20,11 +20,12 @@
 
 import { z } from "zod";
 
-import { userHasCapability } from "@/lib/access";
+import type { CapabilityKey } from "@/lib/access";
 import { checkInAppointment } from "@/lib/pos/classes/checkin";
 import { appointmentState } from "@/lib/pos/classes/day";
 import { loadMoveSlots } from "@/lib/pos/classes/move";
 import { bookWalkInAppointment, loadWalkInServices, loadWalkInSlots, type WalkInService } from "@/lib/pos/classes/walkin";
+import { CLASSES_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/pos/classes/write-capabilities";
 import { addLine, createDraftOrder, loadPosSale } from "@/lib/pos/draft";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { markAttendance } from "@/lib/sessions/attendance";
@@ -36,11 +37,13 @@ const uuid = z.string().uuid();
 
 type Refused = { ok: false; reason: string };
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: every call site passes its own capability from CLASSES_WRITE_CAPABILITY — the guard itself used
+// to default to `agency.workspace.view` (which `viewer` holds) and rely on a second, manual
+// `userHasCapability("booking.payment.request", ...)` check afterward. That check is now redundant: the
+// primary guard enforces the same capability directly.
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
-  if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
   return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, admin };
@@ -53,7 +56,7 @@ export async function classesCheckIn(input: {
   expectedState: string;
 }): Promise<ClassesCheckInResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.checkIn);
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, expectedState: z.string().min(1).max(20) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
@@ -71,7 +74,7 @@ export type ClassesAttendanceResult = { ok: true; admittedCount: number } | Refu
 
 export async function classesMarkAttendance(input: { admissionId: string }): Promise<ClassesAttendanceResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.markAttendance);
   if (!g.ok) return g;
   const parsed = z.object({ admissionId: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
@@ -92,7 +95,7 @@ export async function classesWalkInSlots(input: {
   offeringId: string;
   dayOffset: number;
 }): Promise<ClassesSlotsResult> {
-  const g = await staff();
+  const g = await staff(WRITE_CAP.walkInSlots);
   if (!g.ok) return g;
   const parsed = z.object({ offeringId: uuid, dayOffset: z.number().int().min(-14).max(14) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
@@ -119,7 +122,7 @@ export type ClassesServicesResult =
  * disagree on what can be booked.
  */
 export async function classesServices(): Promise<ClassesServicesResult> {
-  const g = await staff();
+  const g = await staff(WRITE_CAP.services);
   if (!g.ok) return g;
   const [services, venue, { timezone }] = await Promise.all([
     loadWalkInServices(g.admin, g.tenantId),
@@ -140,7 +143,7 @@ export async function classesMoveSlots(input: {
   dayOffset: number;
 }): Promise<ClassesMoveSlotsResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.moveSlots);
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, dayOffset: z.number().int().min(-14).max(14) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
@@ -208,7 +211,7 @@ export async function classesBookWalkIn(input: {
   attemptKey: string;
 }): Promise<ClassesWalkInResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.bookWalkIn);
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -250,7 +253,7 @@ export async function classesHoldSeat(input: {
   variantId: string | null;
 }): Promise<ClassesWalkInResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.holdSeat);
   if (!g.ok) return g;
   const parsed = z
     .object({ sessionId: uuid, offeringId: uuid, variantId: uuid.nullable() })
@@ -292,7 +295,7 @@ export async function classesNameSeatHolders(input: {
   name: string;
 }): Promise<{ ok: true; named: number } | Refused> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff(WRITE_CAP.nameSeatHolders);
   if (!g.ok) return g;
   const parsed = z.object({ orderId: uuid, name: z.string().trim().min(1).max(120) }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
