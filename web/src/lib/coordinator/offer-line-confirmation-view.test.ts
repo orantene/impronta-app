@@ -116,8 +116,8 @@ test("defence in depth: identity (manager guard + own profiles) comes BEFORE any
   const bail = view.indexOf("ownProfileIds.length === 0");
   const offers = view.indexOf('from("inquiry_offers")');
   const inquiries = view.indexOf('from("inquiries")');
-  const lines = view.indexOf('from("inquiry_offer_line_items")');
-  assert.ok(guard > -1 && mine > -1 && bail > -1);
+  const lines = view.indexOf('tenantScopedQuery(admin, "inquiry_offer_line_items"');
+  assert.ok(guard > -1 && mine > -1 && bail > -1 && lines > -1);
   for (const read of [offers, inquiries, lines]) {
     assert.ok(read > bail, "a non-participant is turned away before this read");
     assert.ok(read > guard && read > mine);
