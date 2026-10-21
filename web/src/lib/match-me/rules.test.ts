@@ -73,3 +73,27 @@ test("contact details stay masked until the pro accepts; only the winner sees th
   assert.deepEqual(maskedContact(client, { status: "accepted", winnerId: "a" }, "b"), { name: "Sam" });
   assert.deepEqual(maskedContact(client, { status: "accepted", winnerId: "a" }, "a"), client);
 });
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { authorizeAccept } from "./rules";
+
+test("authorizeAccept: caller must own the talent profile, on this tenant's roster, request in this tenant", () => {
+  const ok = { requestTenantId: "t1", ctxTenantId: "t1", talentUserId: "u1", callerUserId: "u1", onRoster: true };
+  assert.equal(authorizeAccept(ok), true);
+  assert.equal(authorizeAccept({ ...ok, ctxTenantId: "t2" }), false, "request in another tenant");
+  assert.equal(authorizeAccept({ ...ok, callerUserId: "u2" }), false, "caller is not that talent");
+  assert.equal(authorizeAccept({ ...ok, callerUserId: null }), false, "signed out");
+  assert.equal(authorizeAccept({ ...ok, talentUserId: null, callerUserId: null }), false, "unclaimed profile");
+  assert.equal(authorizeAccept({ ...ok, onRoster: false }), false, "not on the roster");
+});
+
+test("server: accept is gated by authorizeAccept; widen writes the offer BEFORE it advances the round", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/match-me/match-me.server.ts"), "utf8");
+  assert.match(src, /export async function acceptMatch\(requestId: string, talentId: string, ctx: \{ tenantId: string; callerUserId: string \| null \}\)/);
+  assert.match(src, /authorizeAccept\(/);
+  assert.ok(src.indexOf("authorizeAccept(") < src.indexOf('.update({ status: "accepted"'), "authorized before the winning update");
+  const widen = src.slice(src.indexOf("export async function widenIfDue"));
+  assert.ok(widen.indexOf("offerTo(") < widen.indexOf("round: req.data.round + 1"), "offer written first, round advanced after");
+  assert.match(widen, /tenantId/);
+});

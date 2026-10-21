@@ -72,3 +72,19 @@ export function maskedContact(
 ): ClientContact {
   return req.status === "accepted" && req.winnerId === viewerTalentId ? client : { name: client.name };
 }
+
+/**
+ * Who may accept a job: the signed-in owner of the professional profile that was offered it,
+ * while that profile is on the roster of the SAME tenant the request belongs to.
+ */
+export function authorizeAccept(input: {
+  requestTenantId: string;
+  ctxTenantId: string;
+  talentUserId: string | null;
+  callerUserId: string | null;
+  onRoster: boolean;
+}): boolean {
+  if (input.requestTenantId !== input.ctxTenantId) return false;
+  if (!input.callerUserId || input.talentUserId !== input.callerUserId) return false;
+  return input.onRoster;
+}
