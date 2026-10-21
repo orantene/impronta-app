@@ -21,6 +21,7 @@ src/lib/approvals/requests.test.ts
 src/lib/approvals/role-limits-wire.static.test.ts
 src/lib/billing/checkout-session-key.test.ts
 src/lib/billing/checkout-session-reopen.test.ts
+src/lib/billing/commercial-terms-admin-guard.static.test.ts
 src/lib/billing/commission-engine-xtenant.test.ts
 src/lib/billing/commission-engine.characterization.test.ts
 src/lib/billing/commission-house-lane.characterization.test.ts
