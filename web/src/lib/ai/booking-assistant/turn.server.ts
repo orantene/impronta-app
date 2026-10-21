@@ -375,7 +375,8 @@ async function soloRosterTalentId(tenantId: string): Promise<string | null> {
     .from("agency_talent_roster")
     .select("talent_profile_id, status")
     .eq("tenant_id", tenantId)
-    .neq("status", "removed")
+    // TUL-1816: only an ACTIVE talent speaks; a pending invitee has not accepted yet.
+    .eq("status", "active")
     .limit(3);
   if (error) {
     logServerError("booking-assistant/soloRoster", error);
