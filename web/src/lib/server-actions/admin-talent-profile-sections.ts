@@ -883,7 +883,7 @@ export async function getTalentPublishReadiness(input: {
   | { ok: true; missing: Array<{ id: string; label: string; groupKey?: string }>; deleted: boolean }
   | ErrResult
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -915,7 +915,7 @@ export async function getTalentPublishReadiness(input: {
 export async function getTalentProfileDynFieldValuesForShell(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; values: Record<string, string> } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -941,7 +941,7 @@ export async function getTalentProfileActivity(input: {
   talent_profile_id: string;
   limit?: number;
 }): Promise<{ ok: true; entries: ProfileActivityEntry[] } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1370,7 +1370,7 @@ export type ProfileEditorData = {
 export async function getTalentProfileEditorData(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

@@ -45,7 +45,7 @@ const ROLES: readonly RoleLimitRole[] = ["viewer", "editor", "manager", "admin",
 const ACTIONS: readonly RoleLimitAction[] = ["discount", "refund"];
 
 async function guard(write: boolean) {
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: write ? "manage_memberships" : "agency.workspace.view" });
   if (!staff.ok) return { ok: false as const, reason: "not_allowed" as const };
   if (write) {
     const allowed = await userHasCapability("manage_memberships", staff.tenantId);

@@ -151,7 +151,7 @@ export async function updateTrustBadge(
 export async function getTrustBadges(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; badges: TrustBadge[] } | { ok: false; error: string }> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -447,7 +447,7 @@ export async function getAgencyMediaForTenant(input: {
   | { ok: true; rows: AgencyMediaRow[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

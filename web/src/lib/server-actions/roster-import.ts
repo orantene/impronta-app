@@ -202,7 +202,7 @@ export type RosterImportJobSummary = {
 
 export async function listRosterImportJobs(): Promise<RosterImportJobSummary[]> {
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
     if (!auth.ok) return [];
     const { tenantId, supabase } = auth;
 

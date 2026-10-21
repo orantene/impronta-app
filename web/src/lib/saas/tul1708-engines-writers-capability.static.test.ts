@@ -69,3 +69,15 @@ test("recording a received/cash payment is one manager key end to end; pending/d
   assert.equal(roleGrantsCapability("editor", W.markInquiryPaidInCash), false);
   assert.equal(roleGrantsCapability("manager", "booking.payment.refund"), false);
 });
+
+test("slice 3: promos, rent, talent albums, role limits and the POS staff gate name their capability", () => {
+  const promos = read("src/app/(workspace)/[tenantSlug]/admin/discounts/actions.ts");
+  assert.equal((promos.match(/requireWorkspaceStaffAction\(\{ capability: "manage_billing" \}\)/g) ?? []).length, 2);
+  assert.match(read("src/lib/service-hub/rent/rent-actions.ts"), /requireWorkspaceStaffAction\(\{ capability: "booking\.payment\.request" \}\)/);
+  assert.match(read("src/lib/site-admin/builder-node/portfolio-albums-actions.ts"), /requireWorkspaceStaffAction\(\{ capability: "agency\.roster\.edit" \}\)/);
+  assert.match(read("src/lib/server-actions/role-limits-settings.ts"), /capability: write \? "manage_memberships" : "agency\.workspace\.view"/);
+  assert.match(read("src/lib/pos/staff-actor.ts"), /requireWorkspaceStaffAction\(\{ capability \}\)/);
+  assert.equal(roleGrantsCapability("viewer", "manage_billing"), false);
+  assert.equal(roleGrantsCapability("viewer", "agency.roster.edit"), false);
+  assert.equal(roleGrantsCapability("editor", "agency.roster.edit"), true);
+});
