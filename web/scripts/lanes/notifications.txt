@@ -83,6 +83,7 @@ src/lib/notifications/digest.test.ts
 src/lib/notifications/dispatcher-outcome.test.ts
 src/lib/notifications/email-copies/kinds.test.ts
 src/lib/notifications/guest-unsubscribe-token.test.ts
+src/lib/notifications/rent-notify.test.ts
 src/lib/notifications/reply-ready-copy.test.ts
 src/lib/notifications/resend-webhook.test.ts
 src/lib/notifications/suppression-conflict-target.static.test.ts
