@@ -21535,6 +21535,26 @@
       "statusNotConnected": "No conectado",
       "capEnabled": "Habilitado",
       "capNotYet": "Aún no",
+      "baseFee": {
+        "title": "Cargo de reservación",
+        "body": "Un cargo automático que se suma a cada reserva: un monto fijo y/o un porcentaje del subtotal. Es ingreso de tu espacio, se cobra encima de la cotización del talento (al talento siempre se le paga completo).",
+        "capsLead": "Topes de la plataforma:",
+        "capFlat": "{amount} fijo",
+        "capFlatNone": "sin tope fijo",
+        "capPct": "{pct}%",
+        "capPctNone": "sin tope en %",
+        "flatLabel": "Monto fijo ($ USD)",
+        "pctLabel": "Porcentaje del subtotal (%)",
+        "none": "ninguno",
+        "save": "Guardar cargo",
+        "saving": "Guardando…",
+        "hint": "Deja ambos vacíos si no quieres cargo base.",
+        "saved": "Cargo de reservación guardado. Aplica a las nuevas reservas.",
+        "errFlat": "El monto fijo debe ser 0 o un monto positivo en dólares, o déjalo vacío.",
+        "errPct": "El porcentaje debe estar entre 0% y 50%, o déjalo vacío.",
+        "errCapFlat": "El monto fijo no puede superar el tope de la plataforma de {amount}.",
+        "errCapPct": "El porcentaje no puede superar el tope de la plataforma de {pct}%."
+      },
       "actions": {
         "loading": "Cargando…",
         "connectStripe": "Conectar Stripe",
@@ -21544,7 +21564,19 @@
         "disconnect": "Desconectar",
         "refreshed": "Estado actualizado.",
         "disconnected": "Desconectado.",
-        "disconnectConfirm": "¿Desconectar Stripe? Los futuros pagos de clientes se dirigirán a la cuenta de la plataforma nuevamente hasta que vuelvas a conectar. Tu cuenta Stripe NO se elimina."
+        "disconnectConfirm": "¿Desconectar Stripe? Los futuros pagos de clientes se dirigirán a la cuenta de la plataforma nuevamente hasta que vuelvas a conectar. Tu cuenta Stripe NO se elimina.",
+        "pickCountryError": "Elige dónde vas a recibir tus pagos.",
+        "setupFailed": "No se pudo iniciar la configuración de pagos.",
+        "setupFailedRetry": "No se pudo iniciar la configuración de pagos. Inténtalo de nuevo.",
+        "unexpectedError": "Error inesperado.",
+        "notAvailable": "Los pagos no están disponibles en este momento.",
+        "workspaceNotFound": "No se encontró el espacio.",
+        "workspaceMismatch": "El espacio no coincide.",
+        "countryQuestion": "¿Dónde recibirá los pagos este espacio?",
+        "selectCountry": "Elige tu país…",
+        "continue": "Continuar",
+        "cancel": "Cancelar",
+        "doneForNow": "Listo por ahora"
       }
     },
     "work": {

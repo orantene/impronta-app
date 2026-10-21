@@ -37,6 +37,7 @@ import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { publicPriceLine } from "@/lib/talent/public-price-line";
+import { lowestOptionCents, menuBoardLocale } from "./menu-board-price";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -6482,25 +6483,34 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const emptyMessage =
         text("emptyMessage", p.emptyMessage) || "Menu items are not published yet.";
+      // TUL-1801: a board rendered without a content locale spoke English on the Spanish
+      // site; the visitor's locale is the next signal before English.
+      const menuLocale = menuBoardLocale(options.contentLocale?.locale, options.visitorLocale);
       const formatPriceLabel = (item: {
         amountCents: number | null;
         currency: string;
         priceType: string;
         priceDisplay: string;
         visibility?: string | null;
+        options?: ReadonlyArray<{ amountCents: number | null }>;
       }): string => {
+        const locale = menuLocale;
+        const es = locale.toLowerCase().startsWith("es");
         // D-10a: an on_request service stays listed, its price is withheld.
         if (item.visibility === "on_request") {
-          return (options.contentLocale?.locale ?? "en").toLowerCase().startsWith("es") ? "Bajo consulta" : "On request";
+          return es ? "Bajo consulta" : "On request";
         }
         // `amountCents == null` is already a quote per offeringIsQuote; the
         // explicit check also narrows the type for formatMoney below.
         if (item.amountCents == null || offeringIsQuote(item)) {
-          return "Quote on request";
+          // TUL-1801: a dish priced only by its options shows "from <lowest option>", not a quote.
+          const low = lowestOptionCents(item.options);
+          if (low != null) {
+            return publicPriceLine({ ...item, amountCents: low, priceDisplay: "from" }, locale) ?? formatMoney(low, item.currency, locale);
+          }
+          return es ? "Cotización a pedido" : "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
-        const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
         // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
         if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
         return (
@@ -6524,6 +6534,7 @@ function renderBuilderNodeElement(
         priceType: string;
         priceDisplay: string;
         visibility?: string | null;
+        options?: ReadonlyArray<{ amountCents: number | null }>;
       }) => {
         const usd = item.visibility === "on_request" ? null : usdLine(item);
         return (
@@ -6626,7 +6637,7 @@ function renderBuilderNodeElement(
           <MenuBoardIsland
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
-            copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
+            copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords, menuLocale)}
             locale={options.contentLocale?.locale ?? options.visitorLocale}
             usdRates={options.dataSources.usdRates ?? null}
           />

@@ -16,6 +16,7 @@ import {
   shouldPayInPerson,
 } from "./menu-board-stock";
 import { choiceFor, lineChoiceMissing, optionPriceLabel, type MenuChoice, type MenuChoiceOption } from "./menu-board-choices";
+import { lowestOptionCents } from "./menu-board-price";
 
 // Do NOT statically import menu-order-actions or menu-board-actions — those
 // files are "use server" and pull server-only into render.tsx → fidelity/perf
@@ -526,7 +527,11 @@ export function MenuBoardIsland({
                   {offering.amountCents == null ||
                   offering.priceDisplay === "quote" ||
                   offering.priceType === "custom"
-                    ? copy.quoteOnRequest
+                    ? lowestOptionCents(offering.options) != null
+                      ? fill(copy.from, {
+                          price: formatMenuMoney(lowestOptionCents(offering.options) as number, offering.currency),
+                        })
+                      : copy.quoteOnRequest
                     : offering.priceDisplay === "from"
                       ? fill(copy.from, {
                           price: formatMenuMoney(offering.amountCents, offering.currency),
