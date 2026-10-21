@@ -62,25 +62,57 @@ test("a hidden booking button mounts nothing", () => {
 });
 
 const okPicker = { ok: true as const, title: "Class", currency: "MXN", defaultAmountCents: 50000, tiers: [], dates: [{ sessionId: "s1", startsAt: "2026-11-01T10:00:00Z", endsAt: "2026-11-01T11:00:00Z", timeZone: null, state: "open", seatsLeft: 5, sellableVariantIds: [], payAtPlaceOffered: false }], privateOnRequest: false };
-const base = { tenantId: "t1", offeringId: A.id, locale: "en", returnPath: "/servicio-x" };
+const base = { tenantId: "t1", talentProfileId: "tp1", offeringId: A.id, locale: "en", returnPath: "/servicio-x" };
+const openGate = async () => ({ ok: true as const, talentProfileId: "tp1" });
 
 test("serviceDatedSlot: mounts only when the picker has upcoming dates; otherwise null", async () => {
-  assert.notEqual(await serviceDatedSlot(base, async () => okPicker as never), null);
-  assert.equal(await serviceDatedSlot(base, async () => ({ ...okPicker, dates: [] }) as never), null);
-  assert.equal(await serviceDatedSlot(base, async () => ({ ok: false, reason: "not_sellable" })), null);
+  assert.notEqual(await serviceDatedSlot(base, async () => okPicker as never, openGate), null);
+  assert.equal(await serviceDatedSlot(base, async () => ({ ...okPicker, dates: [] }) as never, openGate), null);
+  assert.equal(await serviceDatedSlot(base, async () => ({ ok: false, reason: "not_sellable" }), openGate), null);
 });
 
-test("serviceDatedSlot fails closed: no tenant, hidden CTA or a throwing loader is null and never throws", async () => {
+test("serviceDatedSlot fails closed: no tenant, no talent, hidden CTA or a throwing loader is null and never throws", async () => {
   let called = 0;
   const counting = async () => (called++, okPicker as never);
-  assert.equal(await serviceDatedSlot({ ...base, tenantId: null }, counting), null);
-  assert.equal(await serviceDatedSlot({ ...base, publicCtaHidden: true }, counting), null);
+  assert.equal(await serviceDatedSlot({ ...base, tenantId: null }, counting, openGate), null);
+  assert.equal(await serviceDatedSlot({ ...base, talentProfileId: null }, counting, openGate), null);
+  assert.equal(await serviceDatedSlot({ ...base, publicCtaHidden: true }, counting, openGate), null);
   assert.equal(called, 0, "never even asks");
-  assert.equal(await serviceDatedSlot(base, async () => { throw new Error("x"); }), null);
+  assert.equal(await serviceDatedSlot(base, async () => { throw new Error("x"); }, openGate), null);
+  assert.equal(await serviceDatedSlot(base, async () => okPicker as never, async () => { throw new Error("x"); }), null);
 });
 
 test("the picker is asked for the site's tenant and this offering only", async () => {
   const seen: unknown[] = [];
-  await serviceDatedSlot(base, async (i) => (seen.push(i), okPicker as never));
+  await serviceDatedSlot(base, async (i) => (seen.push(i), okPicker as never), openGate);
   assert.deepEqual(seen, [{ tenantId: "t1", offeringId: A.id }]);
+});
+
+test("P1-1: a paused talent, a request posture or an unreadable setting mounts no step", async () => {
+  for (const reason of ["not_accepting_bookings", "request_only", "inquiry_only", "unreadable"] as const) {
+    let pickerAsked = 0;
+    const out = await serviceDatedSlot(
+      base,
+      async () => (pickerAsked++, okPicker as never),
+      async () => ({ ok: false as const, reason }),
+    );
+    assert.equal(out, null, reason);
+    assert.equal(pickerAsked, 0, "the picker is not even loaded");
+  }
+});
+
+test("P1-1: the gate is asked about THIS site's talent", async () => {
+  const seen: unknown[] = [];
+  await serviceDatedSlot(base, async () => okPicker as never, async (i) => (seen.push(i), { ok: true as const, talentProfileId: "tp1" }));
+  assert.deepEqual(seen, [{ tenantId: "t1", offeringId: A.id, expectedTalentProfileId: "tp1" }]);
+});
+
+test("P2: the return path keeps the site's path prefix; the talent-site channel is set on the mount", async () => {
+  const el = (await serviceDatedSlot({ ...base, publicPathPrefix: "/t/site/jor/" }, async () => okPicker as never, openGate)) as {
+    props: { returnPath: string; channel?: string };
+  };
+  assert.equal(el.props.returnPath, "/t/site/jor/servicio-x");
+  assert.equal(el.props.channel, "talent_site");
+  const bare = (await serviceDatedSlot(base, async () => okPicker as never, openGate)) as { props: { returnPath: string } };
+  assert.equal(bare.props.returnPath, "/servicio-x");
 });

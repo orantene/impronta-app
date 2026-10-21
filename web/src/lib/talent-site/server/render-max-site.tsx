@@ -392,6 +392,8 @@ async function renderTalentMaxSiteUnguarded(
       serviceOffering && servicePath
         ? await serviceDatedSlot({
             tenantId: tenantId ?? null,
+            talentProfileId: talentProfileId ?? null,
+            publicPathPrefix,
             offeringId: serviceOffering.id,
             locale,
             returnPath: talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),

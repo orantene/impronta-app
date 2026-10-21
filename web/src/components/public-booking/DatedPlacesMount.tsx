@@ -17,7 +17,13 @@ export function DatedPlacesMount(props: {
   picker: Extract<DatedPicker, { ok: true }>;
   /** Same-site path the card page returns to if the guest backs out. */
   returnPath: string;
+  /** TUL-1472: "talent_site" turns on the talent's booking gate and promo in the action. */
+  channel?: "talent_site";
 }) {
+  const channel = props.channel;
+  const onBook: typeof startDatedPurchase = channel
+    ? (input) => startDatedPurchase({ ...(input as object), channel })
+    : startDatedPurchase;
   return (
     <DatedPlacesStep
       tenantId={props.tenantId}
@@ -25,7 +31,7 @@ export function DatedPlacesMount(props: {
       locale={props.locale}
       picker={props.picker}
       returnPath={props.returnPath}
-      onBook={startDatedPurchase}
+      onBook={onBook}
     />
   );
 }
