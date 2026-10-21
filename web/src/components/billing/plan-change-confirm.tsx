@@ -84,6 +84,7 @@ export function PlanChangeConfirm({
     sentence = interpolate(t(`dashboard.adminShared.planChange.${key}`), {
       plan: planName,
       amount: money(p.amountDueToday, p.currency),
+      price: p.newPrice ? money(p.newPrice.amount, p.newPrice.currency) : "",
       date: p.effectiveAt
         ? new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" }).format(new Date(p.effectiveAt))
         : "",

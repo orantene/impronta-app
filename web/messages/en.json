@@ -11331,6 +11331,9 @@
         "changesOn": "Your plan changes to {plan} on {date}. Nothing is charged today.",
         "cancelPending": "Keep your current plan and cancel the change you scheduled.",
         "noChange": "You are already on this plan.",
+        "switchYearlyNow": "Switch to yearly billing: {price} per year. You pay {amount} today.",
+        "switchYearlyAt": "Switch to yearly billing: {price} per year, starting {date}. Nothing is charged today.",
+        "switchMonthlyAt": "Switch to monthly billing: {price} per month, starting {date}. Nothing is charged today.",
         "confirm": "Confirm change",
         "cancel": "Not now",
         "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."
