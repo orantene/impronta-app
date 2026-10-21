@@ -12,8 +12,10 @@ import type Stripe from "stripe";
 
 import type { PlanChangeStripe } from "./plan-change";
 import { isActionableSubscriptionStatus, isExistingSubscriptionStatus } from "./subscription-live-status";
+import { isDefiniteStripeFailure } from "./stripe-failure";
 import {
   applyPendingDowngradeAtTierDrop,
+  clearPendingDowngrade,
   keepListFilter,
   parsePendingDowngrade,
   recordPendingDowngrade,
@@ -111,12 +113,26 @@ function sub(over: { plan?: string; status?: string; schedule?: string | null } 
   } as unknown as Stripe.Subscription;
 }
 
-function world(over: Parameters<typeof sub>[0] = {}, admin = new FakeAdmin()) {
+class StripeLikeError extends Error {
+  constructor(readonly type: string) { super(type); }
+}
+const PRIOR_SCHEDULE = {
+  id: "sub_sched_old",
+  end_behavior: "release",
+  current_phase: { start_date: 950 },
+  phases: [
+    { start_date: 950, end_date: PERIOD_END, items: [{ price: "price_cur", quantity: 1 }], metadata: { plan_key: "studio" } },
+    { start_date: PERIOD_END, end_date: PERIOD_END + 2_592_000, items: [{ price: "price_website", quantity: 1 }], metadata: { plan_key: "website" } },
+  ],
+};
+
+function world(over: Parameters<typeof sub>[0] = {}, admin = new FakeAdmin(), stripeFails: Record<string, string> = {}) {
   const log: string[] = [];
   const calls: Call[] = [];
   const rec = (method: string, ret: unknown) => async (...args: unknown[]) => {
     calls.push({ method, args });
     log.push(method);
+    if (stripeFails[method]) throw new StripeLikeError(stripeFails[method]);
     return ret;
   };
   const stripe = {
@@ -126,10 +142,13 @@ function world(over: Parameters<typeof sub>[0] = {}, admin = new FakeAdmin()) {
       create: rec("schedules.create", { id: "sub_sched_new", phases: [{ start_date: 900 }] }),
       update: rec("schedules.update", { id: "sub_sched_new" }),
       release: rec("schedules.release", { id: "sub_sched_old" }),
-      retrieve: rec("schedules.retrieve", { id: "sub_sched_old", current_phase: { start_date: 950 }, phases: [] }),
+      retrieve: rec("schedules.retrieve", PRIOR_SCHEDULE),
     },
   } as unknown as PlanChangeStripe;
   let cancels = 0;
+  const cancelOutcome: { value: { ok: true; effectiveAt: string | null } | { ok: false; error: string; definite?: boolean } } = {
+    value: { ok: true, effectiveAt: "2033-05-18T03:33:20.000Z" },
+  };
   const deps: WorkspaceDowngradeDeps = {
     readSubscriptionId: async () => "sub_1",
     recordPending: async (id) => {
@@ -139,10 +158,11 @@ function world(over: Parameters<typeof sub>[0] = {}, admin = new FakeAdmin()) {
     },
     stripe: () => stripe as ReturnType<WorkspaceDowngradeDeps["stripe"]>,
     resolvePriceId: async (plan) => `price_${plan}`,
-    cancelAtPeriodEnd: async () => { cancels += 1; log.push("cancel"); return { ok: true, effectiveAt: "2033-05-18T03:33:20.000Z" }; },
+    clearPending: async (id) => { log.push("clearPending"); await clearPendingDowngrade(admin.asClient(), id); },
+    cancelAtPeriodEnd: async () => { cancels += 1; log.push("cancel"); return cancelOutcome.value; },
     now: () => 1_700_000_000_000,
   };
-  return { admin, calls, log, deps, cancels: () => cancels };
+  return { admin, calls, log, deps, cancelOutcome, cancels: () => cancels };
 }
 const stripeWrites = (calls: Call[]) => calls.filter((c) => /subscriptions\.update|schedules\.(create|update|release)/.test(c.method)).map((c) => c.method);
 
@@ -186,6 +206,38 @@ describe("confirm path: records the schedule + keep-list, archives nobody", () =
     const r = await applyWorkspaceDowngradeAtStripe(TENANT, "studio", { ...w.deps, readSubscriptionId: async () => null });
     assert.deepEqual(r, { ok: true, hadSubscription: false });
     assert.equal(w.admin.pending(), null);
+  });
+});
+
+describe("compensating clear after a Stripe failure", () => {
+  test("a DEFINITE Stripe refusal of the schedule deletes the saved keep-list in the same action", async () => {
+    const w = world({ plan: "agency" }, new FakeAdmin(), { "schedules.create": "StripeInvalidRequestError" });
+    // confirmPlanChange swallows the throw into { ok:false, definite } via its own catch
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "studio", w.deps);
+    assert.equal(r.ok, false);
+    assert.equal(w.admin.pending(), null);
+  });
+  test("an AMBIGUOUS failure (connection error / 5xx / unknown error) keeps the keep-list: Stripe may have applied it", async () => {
+    for (const type of ["StripeConnectionError", "StripeAPIError", "Error"]) {
+      const w = world({ plan: "agency" }, new FakeAdmin(), { "schedules.create": type });
+      const r = await applyWorkspaceDowngradeAtStripe(TENANT, "studio", w.deps);
+      assert.equal(r.ok, false, type);
+      assert.notEqual(w.admin.pending(), null, type);
+    }
+  });
+  test("to FREE with no schedule: a definite cancel failure clears, an ambiguous one keeps", async () => {
+    const a = world({ plan: "studio" });
+    a.cancelOutcome.value = { ok: false, error: "no" };
+    await applyWorkspaceDowngradeAtStripe(TENANT, "free", a.deps);
+    assert.equal(a.admin.pending(), null);
+    const b = world({ plan: "studio" });
+    b.cancelOutcome.value = { ok: false, error: "timeout", definite: false };
+    await applyWorkspaceDowngradeAtStripe(TENANT, "free", b.deps);
+    assert.notEqual(b.admin.pending(), null);
+  });
+  test("which errors count as definite", () => {
+    for (const t of ["StripeInvalidRequestError", "StripeAuthenticationError", "StripePermissionError", "StripeRateLimitError", "StripeCardError", "StripeIdempotencyError"]) assert.equal(isDefiniteStripeFailure({ type: t }), true, t);
+    for (const e of [{ type: "StripeConnectionError" }, { type: "StripeAPIError" }, new Error("x"), null, undefined, "boom"]) assert.equal(isDefiniteStripeFailure(e), false);
   });
 });
 
@@ -305,10 +357,64 @@ describe("to FREE while a plan-change schedule is pending", () => {
     assert.equal(w.cancels(), 1);
   });
 
-  test("a failed cancel after the release fails the call (owner sees an error, nothing is reported as scheduled)", async () => {
+  test("cancel fails (definite): the schedule is RE-CREATED with the same phases, the saved keep-list is cleared, the owner sees the error", async () => {
     const w = world({ plan: "studio", schedule: "sub_sched_old" });
-    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", { ...w.deps, cancelAtPeriodEnd: async () => ({ ok: false, error: "no" }) });
+    w.cancelOutcome.value = { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", w.deps);
     assert.equal(r.ok, false);
+    assert.deepEqual(w.log.filter((m) => ["schedules.release", "cancel", "schedules.create", "schedules.update", "clearPending"].includes(m)), ["schedules.release", "cancel", "schedules.create", "schedules.update", "clearPending"]);
+    const upd = w.calls.find((c) => c.method === "schedules.update")!;
+    const params = upd.args[1] as { end_behavior: string; phases: Array<{ start_date?: number; end_date: number; items: Array<{ price: string }> }> };
+    assert.equal(params.end_behavior, "release");
+    assert.deepEqual(params.phases.map((p) => p.items[0].price), ["price_cur", "price_website"]);
+    assert.equal(params.phases[0].start_date, 900, "first phase starts where the re-created schedule starts");
+    assert.equal(params.phases[1].start_date, undefined);
+    assert.equal(w.admin.pending(), null, "nothing left behind after a definite failure");
+  });
+
+  test("cancel fails AND the schedule cannot be re-created: a plain error, the keep-list is kept, no false 'scheduled'", async () => {
+    const w = world({ plan: "studio", schedule: "sub_sched_old" }, new FakeAdmin(), { "schedules.create": "StripeInvalidRequestError" });
+    w.cancelOutcome.value = { ok: false, error: "no" };
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", w.deps);
+    assert.equal(r.ok, false);
+    assert.match(!r.ok ? r.error : "", /schedule it again/);
+    assert.ok(!w.log.includes("clearPending"));
+  });
+
+  test("cancel fails AMBIGUOUSLY (may have landed): no schedule is put back on top of it and the keep-list is kept", async () => {
+    const w = world({ plan: "studio", schedule: "sub_sched_old" });
+    w.cancelOutcome.value = { ok: false, error: "timeout", definite: false };
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", w.deps);
+    assert.equal(r.ok, false);
+    assert.ok(!w.log.includes("schedules.create"));
+    assert.ok(!w.log.includes("clearPending"));
+    assert.notEqual(w.admin.pending(), null);
+  });
+
+  test("release fails (definite): the cancel is never attempted, the schedule is untouched, the keep-list is cleared", async () => {
+    const w = world({ plan: "studio", schedule: "sub_sched_old" }, new FakeAdmin(), { "schedules.release": "StripeInvalidRequestError" });
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", w.deps);
+    assert.equal(r.ok, false);
+    assert.equal(w.cancels(), 0);
+    assert.ok(!w.log.includes("schedules.create"));
+    assert.equal(w.admin.pending(), null);
+  });
+
+  test("release fails AMBIGUOUSLY (timeout): no cancel, no clear, no guess", async () => {
+    const w = world({ plan: "studio", schedule: "sub_sched_old" }, new FakeAdmin(), { "schedules.release": "StripeConnectionError" });
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", w.deps);
+    assert.equal(r.ok, false);
+    assert.equal(w.cancels(), 0);
+    assert.ok(!w.log.includes("clearPending"));
+    assert.notEqual(w.admin.pending(), null);
+  });
+
+  test("a pending schedule that cannot be read back is never released", async () => {
+    const w = world({ plan: "studio", schedule: "sub_sched_old" });
+    const bad = { ...w.deps, stripe: () => ({ ...(w.deps.stripe() as object), subscriptionSchedules: { ...(w.deps.stripe()!.subscriptionSchedules), retrieve: async () => ({ ...PRIOR_SCHEDULE, phases: [] }) } }) as ReturnType<WorkspaceDowngradeDeps["stripe"]> };
+    const r = await applyWorkspaceDowngradeAtStripe(TENANT, "free", bad);
+    assert.equal(r.ok, false);
+    assert.deepEqual(stripeWrites(w.calls), []);
   });
 
   test("the free keep-list replaces the earlier paid-downgrade keep-list (single pending state)", async () => {

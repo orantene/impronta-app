@@ -85,6 +85,12 @@ export async function recordPendingDowngrade(
   return { ok: true };
 }
 
+/** Compensating delete (definite Stripe failure only). Idempotent. */
+export async function clearPendingDowngrade(client: SupabaseClient, tenantId: string): Promise<{ ok: true } | { ok: false; error: unknown }> {
+  const { error } = await client.from("workspace_subscriptions").update({ pending_downgrade: null }).eq("tenant_id", tenantId);
+  return error ? { ok: false, error } : { ok: true };
+}
+
 export type PendingDowngradeOutcome =
   | { ok: true; kind: "none" | "not_yet" | "archived"; archived?: number; eventId?: string }
   | { ok: false; error: unknown };

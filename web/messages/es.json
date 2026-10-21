@@ -11327,7 +11327,8 @@
         "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
         "noChange": "Ya tienes este plan.",
         "confirm": "Confirmar cambio",
-        "cancel": "Ahora no"
+        "cancel": "Ahora no",
+        "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
       }
     },
     "adminIntegrationsCatalog": {

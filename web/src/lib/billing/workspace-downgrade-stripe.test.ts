@@ -44,6 +44,7 @@ function world(over: Parameters<typeof sub>[0] = {}, opts: { failOn?: string } =
   const deps: WorkspaceDowngradeDeps = {
     readSubscriptionId: async () => "sub_1",
     recordPending: async () => ({ ok: true }),
+    clearPending: async () => {},
     stripe: () => stripe as ReturnType<WorkspaceDowngradeDeps["stripe"]>,
     resolvePriceId: async (plan) => `price_${plan}`,
     cancelAtPeriodEnd: async () => { cancelled += 1; return { ok: true, effectiveAt: "2033-05-18T03:33:20.000Z" }; },

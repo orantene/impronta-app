@@ -15,7 +15,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { confirmPlanChange, previewPlanChange, type PlanChangeRequest } from "./plan-change";
 import type { PlanChangeConfirm, PlanChangePreview } from "./plan-change-policy";
 import { isExistingSubscriptionStatus } from "./subscription-live-status";
-import { recordPendingDowngrade, type PendingDowngrade } from "./workspace-downgrade-archive";
+import { clearPendingDowngrade, recordPendingDowngrade, type PendingDowngrade } from "./workspace-downgrade-archive";
 import { cancelWorkspaceSubscriptionAtPeriodEnd } from "@/lib/stripe/workspace-billing";
 import {
   applyWorkspaceDowngradeAtStripe,
@@ -115,7 +115,13 @@ export async function applyWorkspaceDowngrade(
     },
     async cancelAtPeriodEnd(id) {
       const r = await cancelWorkspaceSubscriptionAtPeriodEnd(id);
-      return r.ok ? { ok: true, effectiveAt: r.data.effectiveAt } : { ok: false, error: r.error };
+      return r.ok ? { ok: true, effectiveAt: r.data.effectiveAt } : { ok: false, error: r.error, definite: r.definite };
+    },
+    async clearPending(id) {
+      const sb = createServiceRoleClient();
+      if (!sb) return;
+      const r = await clearPendingDowngrade(sb, id);
+      if (!r.ok) logServerError("billing.workspaceDowngrade.clearPending", r.error);
     },
     now: () => Date.now(),
   });

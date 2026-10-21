@@ -47,6 +47,7 @@ import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { isDefiniteStripeFailure } from "@/lib/billing/stripe-failure";
 import { applyPendingDowngradeAtTierDrop } from "@/lib/billing/workspace-downgrade-archive";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
@@ -55,7 +56,7 @@ import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
 export type BillingResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; /** false = Stripe may still have applied the write (TUL-1737); omitted = definite */ definite?: boolean };
 
 export type { WorkspaceSubscriptionState } from "@/lib/stripe/workspace-subscription-reads";
 export { hasLiveWorkspaceSubscription, loadWorkspaceSubscriptionState } from "@/lib/stripe/workspace-subscription-reads";
@@ -721,7 +722,7 @@ export async function cancelWorkspaceSubscriptionAtPeriodEnd(
     return { ok: true, data: { effectiveAt, hadSubscription: true } };
   } catch (err) {
     logServerError("workspace-billing.cancelAtPeriodEnd", err);
-    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed.", definite: isDefiniteStripeFailure(err) };
   }
 }
 

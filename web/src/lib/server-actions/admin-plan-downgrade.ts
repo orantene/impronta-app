@@ -190,6 +190,8 @@ export type CommitDowngradeResult =
        */
       effective_at: string | null;
       stripe_scheduled: boolean;
+      /** TUL-1737: true when the roster is archived at period end by the webhook (UI: planChange.archivesAtPeriodEnd with effective_at). */
+      archives_at_period_end: boolean;
     }
   | { ok: false; error: string };
 
@@ -331,6 +333,7 @@ export async function commitPlanDowngrade(input: {
     new_plan: v.target_tier,
     effective_at: stripeStep.hadSubscription ? stripeStep.effectiveAt : null,
     stripe_scheduled: stripeStep.hadSubscription,
+    archives_at_period_end: stripeStep.hadSubscription,
   };
 }
 

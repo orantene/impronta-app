@@ -217,7 +217,8 @@ export type PlanChangeErrorCode = "no_subscription" | "stale_preview" | "no_pric
 
 export type PlanChangeConfirm =
   | { ok: true; kind: PlanChangeKind; timing: PlanChangeTiming; effectiveAt: string | null }
-  | { ok: false; error: string; code?: PlanChangeErrorCode };
+  /** `definite` is false only when Stripe may still have applied the change (timeout / network / 5xx); omitted = definite. */
+  | { ok: false; error: string; code?: PlanChangeErrorCode; definite?: boolean };
 
 /** Which confirm sentence the modal shows (keys under `planChange` in messages). */
 export function planChangeCopyKey(p: { kind: PlanChangeKind; timing: PlanChangeTiming; cancelsPendingChange?: boolean }):
