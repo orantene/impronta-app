@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { INSTANT_PLAN_REFUSAL_EN } from "@/lib/talent/instant-plan-gate";
 import {
   OFFERING_CURRENCY_REFUSAL_EN,
+  OFFERING_CURRENCY_REFUSAL_ES,
   offeringCurrencyRefusal,
   offeringSaveGate,
   workspaceOfferingSaveGate,
@@ -160,6 +161,29 @@ test("a currency other than MXN or USD is refused, never defaulted", async () =>
   assert.equal(OFFERING_CURRENCY_REFUSAL_EN, "Set the price in Mexican pesos (MXN) or US dollars (USD).");
 });
 
+// ---- TUL-1634 follow-up: the Spanish text, picked by locale ----------------
+
+test("offeringCurrencyRefusal picks EN for en/undefined and ES for a locale starting with 'es'", () => {
+  assert.equal(OFFERING_CURRENCY_REFUSAL_ES, "Pon el precio en pesos mexicanos (MXN) o dólares (USD).");
+  for (const locale of [undefined, "en", "en-US", "fr", ""]) {
+    assert.equal(offeringCurrencyRefusal("EUR", locale), OFFERING_CURRENCY_REFUSAL_EN, String(locale));
+  }
+  for (const locale of ["es", "es-MX", "es-ES"]) {
+    assert.equal(offeringCurrencyRefusal("EUR", locale), OFFERING_CURRENCY_REFUSAL_ES, locale);
+  }
+  // A valid currency is still null regardless of locale.
+  assert.equal(offeringCurrencyRefusal("MXN", "es-MX"), null);
+});
+
+test("workspaceOfferingSaveGate threads the locale param into the currency refusal", async () => {
+  const en = await workspaceOfferingSaveGate(fakeDb([]).client, "t1", null, menuItem({ status: "draft", currency: "EUR" }), gateDeps(), "en");
+  assert.deepEqual(en, { ok: false, error: OFFERING_CURRENCY_REFUSAL_EN });
+  const es = await workspaceOfferingSaveGate(fakeDb([]).client, "t1", null, menuItem({ status: "draft", currency: "EUR" }), gateDeps(), "es-MX");
+  assert.deepEqual(es, { ok: false, error: OFFERING_CURRENCY_REFUSAL_ES });
+  const noLocale = await workspaceOfferingSaveGate(fakeDb([]).client, "t1", null, menuItem({ status: "draft", currency: "EUR" }), gateDeps());
+  assert.deepEqual(noLocale, { ok: false, error: OFFERING_CURRENCY_REFUSAL_EN });
+});
+
 // ---- side effects -----------------------------------------------------------
 
 function effects(fail: { bust?: boolean; rebuild?: boolean; revalidate?: boolean } = {}) {
@@ -240,7 +264,7 @@ function body(name: string): string {
 
 test("upsertWorkspaceMenuItem gates before any write and runs the side effects only after the row is stored", () => {
   const upsert = body("upsertWorkspaceMenuItem");
-  const gate = upsert.indexOf("await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering)");
+  const gate = upsert.indexOf("await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering, undefined, primaryLocale)");
   assert.ok(gate > -1);
   assert.ok(gate < upsert.indexOf(".update(patch)") && gate < upsert.indexOf(".insert(patch)"));
   assert.match(upsert, /if \(!gate\.ok\) return gate;/);
@@ -273,7 +297,7 @@ test("afterMenuWrite wires the talent helpers and swallows failures", () => {
   assert.match(helper, /try \{[\s\S]*runMenuWriteSideEffects\([\s\S]*\} catch \(err\) \{\s*logServerError/);
 });
 
-test("the talent save uses the same currency rule (one refusal text)", () => {
-  assert.match(TALENT, /const currencyRefusal = offeringCurrencyRefusal\(offering\.currency\);/);
+test("the talent save uses the same currency rule (one refusal text), locale resolved from auth", () => {
+  assert.match(TALENT, /const currencyRefusal = offeringCurrencyRefusal\(offering\.currency, auth\.primaryLocale\);/);
   assert.doesNotMatch(TALENT, /isTalentCurrency/);
 });

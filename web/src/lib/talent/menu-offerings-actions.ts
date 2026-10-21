@@ -228,8 +228,11 @@ export async function upsertWorkspaceMenuItem(
     const errors = validateOffering(offering);
     if (errors.length > 0) return { ok: false, error: errors[0] };
     // TUL-1634: the same publish-readiness + plan gate and MXN/USD rule as upsertTalentOffering.
+    // Locale: resolved the same way the save below already does (workspacePrimaryLocale),
+    // just hoisted earlier so the gate's refusal can be in the workspace's own language.
     const ownerTalentId = await ownerTalentIdOf(admin, tenantId);
-    const gate = await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering);
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    const gate = await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering, undefined, primaryLocale);
     if (!gate.ok) return gate;
 
     if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
@@ -265,7 +268,6 @@ export async function upsertWorkspaceMenuItem(
       return { ok: false, error: owned.error };
     }
 
-    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
     const patch = {
       ...offeringToRowPatch({
         ...offering,
