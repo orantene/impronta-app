@@ -18,9 +18,11 @@
  *  - `_door-actions.ts`: `admitAtDoor`, `sellAtDoor`, `settleHeldOrderAtDoor`
  *    are operational writers. Per the TUL-1708 PM decision, operational
  *    writers (POS/door/floor/classes/etc.) take the new `operate_venue`
- *    capability, which DEV is adding in a separate PR not yet on `main`.
- *    Inventing a capability is explicitly out of scope, so these three keep
- *    the bare guard until `operate_venue` lands.
+ *    capability, which DEV is adding in a separate PR (#4317) not yet on
+ *    `main`. Inventing a capability is explicitly out of scope, so these
+ *    three stay on the bare/default guard for now — this is a KNOWN GAP
+ *    (a viewer can still call them), not an endorsed-safe default. The test
+ *    below documents the gap pending #4317; do not read it as approval.
  *  - `admin-cms-revisions.ts`: every exported function is a read (list
  *    revisions, fetch a snapshot for a restore preview — nothing here
  *    persists). Reads keep the default per the sweep's own rule, so no
@@ -141,14 +143,25 @@ test("admin-cms-revisions.ts has no writer: every export stays on the default gu
   }
 });
 
-test("_door-actions.ts: operational writers are left on the default guard (operate_venue not yet on main)", () => {
+test("_door-actions.ts: KNOWN GAP — operational writers are still bare, pending operate_venue from #4317", () => {
+  // This is NOT asserting that the bare/default guard is the correct or
+  // permanent state for these three writers. A viewer today can call
+  // admitAtDoor / sellAtDoor / settleHeldOrderAtDoor, which is the same
+  // class of bug this sweep fixed elsewhere in this file. It is left bare
+  // here only because fixing it means wiring the `operate_venue` capability,
+  // and that capability doesn't exist on `main` yet — it's landing in a
+  // separate PR (#4317). Inventing a capability in this sweep is out of
+  // scope, so this test exists to DOCUMENT the gap, not to endorse it.
+  // Once #4317 merges, this test (and the three functions) must be updated
+  // to require `operate_venue`, and this test should start asserting the
+  // capability is present instead of asserting the bare default.
   const src = read("src/app/(workspace)/[tenantSlug]/admin/_door-actions.ts");
   for (const fn of ["admitAtDoor", "sellAtDoor", "settleHeldOrderAtDoor"] as const) {
     const body = fnBody(src, fn);
     assert.match(
       body,
       /requireWorkspaceStaffAction\(\s*\)/,
-      `${fn} intentionally kept bare: blocked on the operate_venue capability (separate DEV PR)`,
+      `${fn} is still on the bare guard — KNOWN GAP, blocked on operate_venue (#4317), not a confirmed-safe default`,
     );
   }
 });
