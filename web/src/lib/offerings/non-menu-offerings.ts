@@ -12,7 +12,8 @@ type Row = Record<string, unknown>;
 type Result = PromiseLike<{ data: unknown; error: unknown }>;
 type Admin = { from: (table: string) => any }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-export type NonMenuOfferingIds = { ids: Set<string>; error: unknown | null };
+/** `reservationIds` is the subset of `ids` that backs the venue's table reservation (listed in the Catalog, marked Reserva; never sold as a dish). */
+export type NonMenuOfferingIds = { ids: Set<string>; reservationIds: Set<string>; error: unknown | null };
 
 function collect(rows: unknown, column: string, into: Set<string>) {
   for (const row of (Array.isArray(rows) ? rows : []) as Row[]) {
@@ -36,7 +37,9 @@ export async function loadNonMenuOfferingIds(admin: Admin, tenantId: string): Pr
   const ids = new Set<string>();
   collect(eventRows, "offering_id", ids);
   collect(ruleRows, "reservation_offering_id", ids);
-  return { ids, error: eventsError ?? rulesError ?? null };
+  const reservationIds = new Set<string>();
+  collect(ruleRows, "reservation_offering_id", reservationIds);
+  return { ids, reservationIds, error: eventsError ?? rulesError ?? null };
 }
 
 export function withoutNonMenuOfferings<T extends { id: string }>(rows: readonly T[], excluded: ReadonlySet<string>): T[] {

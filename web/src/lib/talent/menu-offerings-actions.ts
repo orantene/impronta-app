@@ -180,7 +180,9 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       logServerError("menu.offerings.eventIds", nonMenu.error);
       return { ok: false, error: "Could not load the menu." };
     }
-    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], nonMenu.ids);
+    // TUL-1262: the Catalog LISTS the table reservation (marked Reserva); only ticketed-event rows stay out.
+    const eventOnly = new Set([...nonMenu.ids].filter((id) => !nonMenu.reservationIds.has(id)));
+    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], eventOnly);
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     // B5: one stage, not three: the children beside the defaults started above.
@@ -193,6 +195,7 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
+      if (nonMenu.reservationIds.has(r.id)) item.reservation = true;
       return item;
     });
     // TUL-77 (#36): defaults from business family + country, not one
