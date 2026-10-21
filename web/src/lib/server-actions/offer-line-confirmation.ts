@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { answerOwnOfferLine, readOfferLineAnswers } from "@/lib/coordinator/offer-line-confirmation.server";
 import { buildOfferLineConfirmationView } from "@/lib/coordinator/offer-line-confirmation-view";
@@ -82,10 +83,8 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     if (offer.status === "draft") return { ok: false as const };
 
     const [linesRes, read] = await Promise.all([
-      admin
-        .from("inquiry_offer_line_items")
+      tenantScopedQuery(admin, "inquiry_offer_line_items", offer.tenant_id)
         .select("id, label, talent_profile_id, sort_order, talent_profiles ( display_name )")
-        .eq("tenant_id", offer.tenant_id)
         .eq("offer_id", offer.id)
         .order("sort_order", { ascending: true }),
       readOfferLineAnswers(admin, { tenantId: offer.tenant_id, offerId: offer.id }),
