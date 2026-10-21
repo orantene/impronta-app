@@ -29,6 +29,13 @@ export function serviceMetaLine(card: LiveServiceCard, locale: string | undefine
   return parts.join(" · ");
 }
 
+/** TUL-1812: each card's Book link pins ITS service, so /book opens on the one tapped. */
+export function serviceBookHref(bookHref: string, serviceId: string): string {
+  const [path, hash = ""] = bookHref.split("#", 2);
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}service=${encodeURIComponent(serviceId)}${hash ? `#${hash}` : ""}`;
+}
+
 const cardStyle: CSSProperties = {
   border: "1px solid color-mix(in srgb, currentColor 14%, transparent)",
   borderRadius: 12,
@@ -75,7 +82,7 @@ export function LiveServicesBand({
               {meta ? <p style={{ margin: 0, color: MUTED }}>{meta}</p> : null}
               {s.description ? <p style={{ margin: 0 }}>{s.description}</p> : null}
               {s.bookable ? (
-                <a href={bookHref} style={{ marginTop: 8, fontWeight: 600 }}>
+                <a href={serviceBookHref(bookHref, s.id)} style={{ marginTop: 8, fontWeight: 600 }}>
                   {t("public.bookPage.bookCta")}
                 </a>
               ) : null}
