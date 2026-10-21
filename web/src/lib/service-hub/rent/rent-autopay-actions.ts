@@ -91,6 +91,7 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     const params = buildRentSubscriptionParams({
       plan,
       amounts,
+      feeBps: feeBps as number,
       customerId: customer.data,
       studioAccountId: studio.accountId as string,
       successUrl: `${base}?autopay=started`,

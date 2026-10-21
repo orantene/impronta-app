@@ -303,6 +303,7 @@ src/lib/service-hub/rent/rent-autopay-charge-events.test.ts
 src/lib/service-hub/rent/rent-autopay-guards.test.ts
 src/lib/service-hub/rent/rent-autopay-migration.static.test.ts
 src/lib/service-hub/rent/rent-autopay-mx.static.test.ts
+src/lib/service-hub/rent/rent-autopay-percent.test.ts
 src/lib/service-hub/rent/rent-autopay-refunds.test.ts
 src/lib/service-hub/rent/rent-autopay-routing.test.ts
 src/lib/service-hub/rent/rent-autopay.test.ts
