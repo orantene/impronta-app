@@ -17,7 +17,7 @@ import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
-import { isChangelogPublicLaunch } from "@/lib/changelog/public-read";
+import { isChangelogLive } from "@/lib/changelog/public-read";
 import { HELP_ARTICLES } from "@/lib/support/help-articles";
 import {
   FEATURE_HUB_PATHS,
@@ -311,6 +311,8 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     // redirect: Search Console reports those as "Page with redirect" and
     // discounts the whole file. Advertise it only while it renders a page.
     const getStartedIsRedirect = (await getOnboardingFlags()).onboarding_module_enabled;
+    // Public only when the launch flag is on AND the launch copy is real (TUL-1586).
+    const changelogLive = await isChangelogLive();
     const marketingPaths = [
       "/",
       ...(getStartedIsRedirect ? [] : ["/get-started"]),
@@ -366,7 +368,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       "/resources",
       "/resources/glossary",
       // Changelog is noindex and out of the sitemap until the public launch flag flips.
-      ...(isChangelogPublicLaunch() ? ["/changelog", "/novedades"] : []),
+      ...(changelogLive ? ["/changelog", "/novedades"] : []),
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
     ];
     // The feature hub is emitted separately from `marketingPaths`, because the

@@ -1,4 +1,4 @@
-import { isChangelogPublicLaunch, loadChangelogRows, viewEntries, type ChangelogEntryView, type ChangelogLocale } from "@/lib/changelog/public-read";
+import { isChangelogLive, loadChangelogRows, viewEntries, type ChangelogEntryView, type ChangelogLocale } from "@/lib/changelog/public-read";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 /** RSS 2.0 for the changelog (TUL-1394). Pattern: /resources/feed.xml. */
@@ -54,7 +54,7 @@ export async function changelogFeedResponse(locale: ChangelogLocale): Promise<Re
       "Content-Type": "application/rss+xml; charset=utf-8",
       "Cache-Control": "public, max-age=300, s-maxage=300",
       // Stays out of search until the public launch, like the pages.
-      "X-Robots-Tag": isChangelogPublicLaunch() ? "all" : "noindex",
+      "X-Robots-Tag": (await isChangelogLive()) ? "all" : "noindex",
     },
   });
 }

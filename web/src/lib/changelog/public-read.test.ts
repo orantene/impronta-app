@@ -71,10 +71,14 @@ test("TUL-1394: noindex until the launch flag flips", () => {
   assert.equal(isChangelogPublicLaunch({}), false);
   assert.equal(isChangelogPublicLaunch({ CHANGELOG_PUBLIC_LAUNCH: "0" }), false);
   assert.equal(isChangelogPublicLaunch({ CHANGELOG_PUBLIC_LAUNCH: "1" }), true);
+  // Only the exact value "1" turns it on (TUL-1586): "true" and friends stay off.
+  for (const v of ["true", "TRUE", "yes", "on", "2", ""]) {
+    assert.equal(isChangelogPublicLaunch({ CHANGELOG_PUBLIC_LAUNCH: v }), false, v);
+  }
   const views = readFileSync(join(process.cwd(), "src/components/marketing/changelog/changelog-views.tsx"), "utf8");
   assert.match(views, /index: false, follow: true/);
   const sitemap = readFileSync(join(process.cwd(), "src/app/sitemap.ts"), "utf8");
-  assert.match(sitemap, /isChangelogPublicLaunch\(\) \? \["\/changelog", "\/novedades"\]/);
+  assert.match(sitemap, /changelogLive \? \["\/changelog", "\/novedades"\]/);
 });
 
 test("TUL-1394: only https images reach the page; share text carries the link", () => {
