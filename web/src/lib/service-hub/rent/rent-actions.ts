@@ -16,6 +16,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { notifyRentPlanMemberResponse } from "@/lib/notifications/producers/rent-notify";
 import { ownerGuard } from "./rent-owner.server";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -221,6 +222,10 @@ export async function respondRentPlan(input: { planId: string; accept: boolean; 
       targetId: input.planId,
       metadata: { terms_version: row.terms_version, amount_cents: row.monthly_rent_cents, currency: row.currency },
     });
+    if (!input.accept) {
+      // The owner hears about a decline (email + bell). Never throws; deduped on plan id + outcome.
+      await notifyRentPlanMemberResponse({ admin, tenantId: row.tenant_id, planId: row.id, talentProfileId: me.talentProfile.id, outcome: "declined" });
+    }
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
@@ -259,6 +264,13 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
       targetType: "studio_rent_plan",
       targetId: input.planId,
       metadata: {},
+    });
+    await notifyRentPlanMemberResponse({
+      admin,
+      tenantId: (data as { tenant_id: string }).tenant_id,
+      planId: input.planId,
+      talentProfileId: me.talentProfile.id,
+      outcome: "ended",
     });
     revalidatePath("/", "layout");
     return { ok: true };
