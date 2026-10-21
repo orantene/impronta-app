@@ -84,6 +84,8 @@ export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string)
     // (c) Each member offering must still be published + approved + public/on request.
     const memberOfferingIds = [...new Set(accepted.map((l) => offeringOf(l.listingId)).filter(Boolean))];
     const offeringOk = new Set<string>();
+    // D-10a: a price shows only for a public offering; an on-request member contributes no price.
+    const onRequest = new Set<string>();
     for (let i = 0; i < memberOfferingIds.length; i += ID_CHUNK) {
       const { data: offs, error: oErr } = await admin.from("talent_offerings").select("id, status, moderation_state, visibility").in("id", memberOfferingIds.slice(i, i + ID_CHUNK));
       if (oErr) {
@@ -91,6 +93,7 @@ export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string)
         return EMPTY_HUB();
       }
       for (const o of (offs ?? []) as Raw[]) {
+        if (o.visibility === "on_request") onRequest.add(String(o.id));
         if (isSellable({ status: o.status as string | null, moderation_state: o.moderation_state as string | null, visibility: o.visibility as string | null }, "guest_request")) offeringOk.add(String(o.id));
       }
     }
@@ -144,7 +147,7 @@ export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string)
         ownOfferingId: own,
         members: accepted
           .filter((l) => l.entryId === String(r.id) && sellable.get(l.listingId) === true)
-          .map((l) => ({ listingId: l.listingId, talentName: l.talentName, priceCents: l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),
+          .map((l) => ({ listingId: l.listingId, talentName: l.talentName, priceCents: onRequest.has(offeringOf(l.listingId)) ? null : l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),
       };
     });
     const entries = shapePublicEntries(inputs);

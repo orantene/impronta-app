@@ -19,7 +19,12 @@ test("an entry becomes a request-only item with opaque ids and no talent id", ()
 test("a hidden-who entry carries no names; a quote-only entry has no price and no 'from'", () => {
   const [i] = hubEntriesToRosterItems([entry({ who: [], priceCents: null, from: true, currency: null })]);
   assert.equal(i.talentName, null);
-  assert.deepEqual([i.priceCents, i.priceIsFrom, i.currency], [null, false, "USD"]);
+  assert.deepEqual([i.priceCents, i.priceIsFrom, i.currency], [null, false, ""]);
+});
+
+test("an entry with a price but no currency shows no price (never a guessed currency)", () => {
+  const [i] = hubEntriesToRosterItems([entry({ priceCents: 50000, from: false, currency: null })]);
+  assert.deepEqual([i.priceCents, i.priceIsFrom, i.currency], [null, false, ""]);
 });
 
 test("covered loose rows are dropped, review-queue rows stay, and an empty covered set changes nothing", () => {

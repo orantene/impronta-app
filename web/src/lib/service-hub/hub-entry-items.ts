@@ -21,9 +21,10 @@ export function hubEntriesToRosterItems(entries: readonly PublicEntry[]): Roster
     title: e.name.trim(),
     talentProfileId: null,
     talentName: e.who.length > 0 ? e.who.join(", ") : null,
-    priceCents: e.priceCents,
-    priceIsFrom: e.priceCents != null && e.from,
-    currency: e.currency ?? "USD",
+    // No currency means no honest label for the number: show a quote, never a guessed currency.
+    priceCents: e.currency ? e.priceCents : null,
+    priceIsFrom: !!e.currency && e.priceCents != null && e.from,
+    currency: e.currency ?? "",
     bookingType: "request" as const,
     clientContact: "workspace" as const,
   }));

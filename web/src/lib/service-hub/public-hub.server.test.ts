@@ -148,3 +148,19 @@ test("TUL-1599: an unreadable read covers nothing", async () => {
   const hub = await loadPublicHub(fakeDb(base(), { sellable: { a: true }, failTable: "talent_profiles" }), T);
   assert.deepEqual([hub.entries.length, hub.coveredListingIds.size], [0, 0]);
 });
+
+test("TUL-1599 (D-10a): an on-request member contributes no price; public members still do", async () => {
+  const t = base();
+  t.workspace_service_listings = [listing("a", "e1", { price_cents: 50000 }), listing("b", "e1", { price_cents: 30000 })];
+  t.talent_offerings = [
+    { id: "o-a", amount_cents: 50000, currency: "USD", status: "published", moderation_state: "approved", visibility: "on_request" },
+    { id: "o-b", amount_cents: 30000, currency: "USD", status: "published", moderation_state: "approved", visibility: "public" },
+  ];
+  t.talent_profiles = [PUBLIC_TALENT("a"), PUBLIC_TALENT("b")];
+  const out = await loadPublicHubEntries(fakeDb(t, { sellable: { a: true, b: true } }), T);
+  assert.deepEqual([out[0].priceCents, out[0].from], [30000, true]);
+  const only = base();
+  only.talent_offerings = [{ id: "o-a", amount_cents: 50000, currency: "USD", status: "published", moderation_state: "approved", visibility: "on_request" }];
+  const none = await loadPublicHubEntries(fakeDb(only, { sellable: { a: true } }), T);
+  assert.equal(none[0].priceCents, null);
+});
