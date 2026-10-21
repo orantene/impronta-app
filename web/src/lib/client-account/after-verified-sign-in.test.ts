@@ -80,7 +80,8 @@ test("G3/G9: every client sign-in path runs claim then activation before routing
   ];
   for (const { file, before } of paths) {
     const src = read(file);
-    const call = src.indexOf("await claimAndActivateVerifiedClient(");
+    // TUL-1784: the password path wraps the call in bounded("claimAndActivateVerifiedClient", ...).
+    const call = src.search(/await (bounded\(\s*"claimAndActivateVerifiedClient",\s*)?claimAndActivateVerifiedClient\(/);
     assert.ok(call > 0, `${file} must call claimAndActivateVerifiedClient`);
     if (before) assert.ok(call < src.indexOf(before), `${file}: claim must run before the destination profile read`);
   }

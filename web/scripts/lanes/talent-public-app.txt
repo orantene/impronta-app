@@ -3,6 +3,7 @@ src/app/t/?profileCode?/_chat/OfferingQuickPicker.test.ts
 src/app/t/?profileCode?/_chat/category-chip-label.test.ts
 src/app/t/?profileCode?/_chat/cluster-system-rows.test.ts
 src/app/t/?profileCode?/_chat/composer-key-action.test.ts
+src/app/t/?profileCode?/_chat/concierge-1238.static.test.ts
 src/app/t/?profileCode?/_chat/guest-chat-no-hardcoded-english.static.test.ts
 src/app/t/?profileCode?/_chat/guest-composer-placeholder.test.ts
 src/app/t/?profileCode?/_chat/guest-detail-progress.test.ts
