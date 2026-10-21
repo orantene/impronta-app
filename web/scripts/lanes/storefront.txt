@@ -97,6 +97,7 @@ src/lib/service-hub/leaver-redirect.test.ts
 src/lib/service-hub/roster-catalog.test.ts
 src/lib/service-hub/roster-dock.test.ts
 src/lib/service-hub/roster-grid.test.ts
+src/lib/service-hub/roster-keep-visible-grant.static.test.ts
 src/lib/service-hub/roster-request.test.ts
 src/lib/service-hub/roster-services.test.ts
 src/lib/service-hub/roster-visibility.test.ts
