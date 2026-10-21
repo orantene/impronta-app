@@ -5,6 +5,11 @@
   "engines": {
     "node": "22.x"
   },
+  "overrides": {
+    "isomorphic-dompurify": {
+      "jsdom": "26.0.0"
+    }
+  },
   "scripts": {
     "apps:sync-nail-studio": "node scripts/sync-nail-studio.mjs",
     "predev": "node scripts/check-migrations-applied.mjs --warn-only",
