@@ -29,6 +29,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(workspace)/[tenantSlug]/admin/media/profile-shell-media-actions.ts", ["actionLoadProfileShellMedia", "actionLoadProfileShellAlbumPage"], READ],
   ["app/(workspace)/platform/admin/integrations/captcha-override-actions.ts", ["loadWorkspaceCaptchaOverrides"], READ],
   ["lib/server-actions/how-you-work.ts", ["loadHowYouWork"], READ],
+  ["lib/server-actions/join-terms.ts", ["loadJoinTermsDefaultsAction"], READ],
   ["lib/server-actions/retry-starter-prepare.ts", ["loadStarterPrepareStateAction"], READ],
   ["lib/site-admin/media/photo-caption-actions.ts", ["loadTalentPhotoCaptionLocalesAction"], READ],
   ["lib/site-admin/add-gallery/workspace-copy-type-action.ts", ["fetchWorkspaceTypeForCopy"], READ],

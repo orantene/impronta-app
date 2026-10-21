@@ -15,6 +15,10 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { decideJoinRequest } from "@/app/(workspace)/[tenantSlug]/admin/roster/registration/actions";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { JoinTermsStep } from "@/components/admin/service-hub/JoinTermsStep";
+import type { JoinTermsInput } from "@/lib/service-hub/join-terms";
+import { joinTermsCopy, joinTermsOutcomeNotice, joinTermsLocale } from "@/lib/service-hub/join-terms-copy";
 
 type JoinRequest = { id: string; talentName: string; requestedAt: string };
 
@@ -63,15 +67,23 @@ export function JoinRequestsList({
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // TUL-1476: Approve first opens the owner's terms step for that request.
+  const locale = joinTermsLocale(useDashboardLocale());
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [terms, setTerms] = useState<JoinTermsInput | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   function decide(id: string, decision: "approve" | "reject") {
     if (!canManage) return;
     setError(null);
+    setNotice(null);
     setBusyId(id);
     startTransition(async () => {
-      const res = await decideJoinRequest(tenantSlug, id, decision);
+      const res = await decideJoinRequest(tenantSlug, id, decision, decision === "approve" ? terms : null);
       setBusyId(null);
       if (res.ok) {
+        setReviewId(null);
+        setNotice(joinTermsOutcomeNotice(res.terms, locale));
         if (onChanged) onChanged();
         else router.refresh();
       } else {
@@ -98,6 +110,9 @@ export function JoinRequestsList({
       {error ? (
         <p style={{ margin: 0, fontSize: 12.5, color: C.rust }}>{error}</p>
       ) : null}
+      {notice ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: C.green }}>{notice}</p>
+      ) : null}
 
       {requests.length === 0 ? (
         <p style={{ margin: 0, fontSize: 12.5, color: C.inkMuted }}>
@@ -114,6 +129,7 @@ export function JoinRequestsList({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  flexWrap: "wrap",
                   gap: 12,
                   padding: "12px 14px",
                   borderRadius: 12,
@@ -153,7 +169,14 @@ export function JoinRequestsList({
                     </button>
                     <button
                       type="button"
-                      onClick={() => decide(r.id, "approve")}
+                      onClick={() => {
+                        if (reviewId === r.id) {
+                          decide(r.id, "approve");
+                          return;
+                        }
+                        setTerms(null);
+                        setReviewId(r.id);
+                      }}
                       disabled={rowBusy}
                       style={{
                         padding: "7px 16px",
@@ -167,8 +190,17 @@ export function JoinRequestsList({
                         fontFamily: FONT,
                       }}
                     >
-                      {rowBusy ? "…" : t("dashboard.adminWorkspace.registration.approve")}
+                      {rowBusy
+                        ? "…"
+                        : reviewId === r.id && terms?.send
+                          ? joinTermsCopy(locale).confirmApprove
+                          : t("dashboard.adminWorkspace.registration.approve")}
                     </button>
+                  </div>
+                ) : null}
+                {canManage && reviewId === r.id ? (
+                  <div style={{ flexBasis: "100%" }}>
+                    <JoinTermsStep tenantSlug={tenantSlug} locale={locale} value={terms} onChange={setTerms} />
                   </div>
                 ) : null}
               </li>

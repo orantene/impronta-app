@@ -37,6 +37,9 @@ import {
 } from "@/lib/notifications/producers/roster-join-notify";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { afterResponse } from "@/lib/server/after-response";
+import { createClient } from "@/lib/supabase/server";
+import { readJoinTerms, type JoinTermsInput, type JoinTermsOutcome } from "@/lib/service-hub/join-terms";
+import { loadJoinTermsContext, proposeTermsOnJoin } from "@/lib/service-hub/join-terms.server";
 
 export type RegistrationManageData =
   | {
@@ -226,7 +229,9 @@ export async function saveRegistrationSettings(
   return { ok: true };
 }
 
-export type DecideJoinRequestResult = { ok: true } | { ok: false; error: string };
+export type DecideJoinRequestResult =
+  | { ok: true; terms?: JoinTermsOutcome }
+  | { ok: false; error: string };
 
 /**
  * Approve or decline a pending roster join request (Manager+). Approve flips the
@@ -238,6 +243,8 @@ export async function decideJoinRequest(
   tenantSlug: string,
   rosterRowId: string,
   decision: "approve" | "reject",
+  // TUL-1476: the owner's terms step on approve. Omitted = no terms sent.
+  terms?: JoinTermsInput | null,
 ): Promise<DecideJoinRequestResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
@@ -285,6 +292,12 @@ export async function decideJoinRequest(
     return { ok: true };
   }
 
+  // TUL-1476: check the owner's terms before approving, so a typo is fixed first.
+  const termsCtx = terms ? await loadJoinTermsContext(admin, scope.tenantId, auth.user.id) : null;
+  if (terms && termsCtx && readJoinTerms(terms, termsCtx.defaultModel).kind === "invalid") {
+    return { ok: false, error: "Check the terms: the share or rent is not valid." };
+  }
+
   // Approve → active, with exclusivity when the workspace is in exclusive mode.
   const settings = await loadRegistrationSettings(scope.tenantId);
   const update: Record<string, unknown> = {
@@ -311,7 +324,19 @@ export async function decideJoinRequest(
     logServerError("registration/decide.approve", error);
     return { ok: false, error: error.message };
   }
+  // TUL-1476: propose terms on the now-active row of THIS workspace (the row's tenant was
+  // checked against the scope above). Pending until the talent accepts; never blocks approval.
+  let termsOutcome: JoinTermsOutcome = "skipped";
+  if (terms && termsCtx) {
+    termsOutcome = await proposeTermsOnJoin(await createClient(), {
+      tenantId: scope.tenantId,
+      talentProfileId,
+      path: "discover_join",
+      input: terms,
+      defaultModel: termsCtx.defaultModel,
+    });
+  }
   afterResponse(() => notifyRosterJoinApproved({ admin, tenantId: scope.tenantId, talentProfileId }));
   revalidatePath(`/${tenantSlug}/admin/roster/registration`);
-  return { ok: true };
+  return { ok: true, terms: termsOutcome };
 }

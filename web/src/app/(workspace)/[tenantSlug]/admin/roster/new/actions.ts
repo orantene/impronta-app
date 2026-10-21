@@ -13,6 +13,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { createClient } from "@/lib/supabase/server";
+import { joinTermsFromFormData, joinTermsRedirectFlag, readJoinTerms, type JoinTermsOutcome } from "@/lib/service-hub/join-terms";
+import { loadJoinTermsContext, proposeTermsOnJoin } from "@/lib/service-hub/join-terms.server";
 
 export type CreateRosterTalentState =
   | { error: string }
@@ -139,6 +142,13 @@ export async function createRosterTalent(
     return { error: "Server configuration error (service role key missing)." };
   }
 
+  // ── TUL-1476: the owner's terms step, checked before anything is written ──
+  const terms = joinTermsFromFormData(formData);
+  const termsCtx = terms ? await loadJoinTermsContext(admin, scope.tenantId, session.user.id) : null;
+  if (terms && termsCtx && readJoinTerms(terms, termsCtx.defaultModel).kind === "invalid") {
+    return { error: "Check the terms: the share or rent is not valid." };
+  }
+
   // ── Seat-limit check ───────────────────────────────────────────────────────
   const seats = await checkRosterSeatAvailability(admin, scope.tenantId, 1);
   if (!seats.ok) return { error: seats.message };
@@ -233,7 +243,28 @@ export async function createRosterTalent(
     }
   }
 
+  // ── TUL-1476: propose terms now the roster row exists. Pending until the talent
+  // accepts them on their terms card; nothing is sold before that. Never blocks the add.
+  let termsOutcome: JoinTermsOutcome = "skipped";
+  if (terms && termsCtx) {
+    termsOutcome = await proposeTermsOnJoin(await createClient(), {
+      tenantId: scope.tenantId,
+      talentProfileId,
+      path: "direct_add",
+      input: terms,
+      defaultModel: termsCtx.defaultModel,
+    });
+  }
+
   revalidatePath(`/${tenantSlug}/admin/roster`);
+
+  // The talent is saved but the terms did not go out: land on the roster with a flag
+  // so the owner sees a short notice there (the profile route redirects to the roster
+  // anyway and would drop the flag).
+  const termsFlag = joinTermsRedirectFlag(termsOutcome);
+  if (termsFlag) {
+    redirect(`/${tenantSlug}/admin/roster?joinTerms=${termsFlag}`);
+  }
 
   // When admin fills the profile themselves, go straight to the edit page.
   if (d.management_method === "agency") {
