@@ -62,6 +62,7 @@ src/lib/offerings/dated-filters.test.ts
 src/lib/offerings/dated-schema.test.ts
 src/lib/offerings/offering-paths.test.ts
 src/lib/offerings/offering-slug-rename.test.ts
+src/lib/offerings/offering-index.test.ts
 src/lib/offerings/offering-slugs-migration.static.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts

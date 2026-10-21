@@ -18,6 +18,9 @@ import { shouldMountDatedStep } from "@/lib/sessions/dated-mount";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { resolveOldServiceSlug } from "@/lib/offerings/offering-index";
+import { loadOfferingIndex } from "@/lib/offerings/offering-index.server";
+import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { jsonLdScriptString } from "@/lib/cms/posts-public-model";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -54,6 +57,33 @@ const load = cache(async (slug: string) => {
   });
   return { res, locale, tenantId: scope.tenantId };
 });
+
+/**
+ * TUL-1594: a slug no row answers to (loader "missing", or an id8 that matches nothing) may be an
+ * OLD slug kept in `offering_slugs`. Flag off, table missing, any read error, or no match = null,
+ * i.e. exactly today's 404. A match is re-run through the page's own loader by id8 and sent to the
+ * path this route already renders, so the redirect can never land on a 404.
+ */
+async function oldSlugRedirectPath(segment: BusinessServiceSegment, slug: string, tenantId: string, locale: string): Promise<string | null> {
+  if (!servicePresentationResolverEnabled()) return null;
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const index = await loadOfferingIndex(admin, { owner: { kind: "workspace", tenantId }, primaryLocale: locale });
+  if (!index) return null;
+  const offeringId = resolveOldServiceSlug({ slug, locale, publicLocales: [locale], hostKind: "business", index });
+  if (!offeringId) return null;
+  const id8 = offeringId.replace(/-/g, "").slice(0, 8).toLowerCase();
+  const res = await loadBusinessServicePage({
+    db: admin,
+    tenantId,
+    slug: id8,
+    locale,
+    loadImages: async () => new Map<string, string[]>(),
+  });
+  if (res.status !== "ok") return null;
+  const route = businessServiceRoute({ requested: { segment, slug: id8 }, locale, offering: { id: res.offering.id, title: res.slugTitle } });
+  return route.kind === "redirect" ? route.pathWithoutLocale : null;
+}
 
 function alternatesFor(locale: string, slug: string) {
   return buildTenantLocaleAlternates(locale, businessServicePathWithoutLocale(locale, slug), {
@@ -97,10 +127,20 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
     logServerError("business-service-page", new Error("no public tenant scope or service client"));
     notFound();
   }
-  if (loaded.res.status !== "ok") notFound();
+  if (loaded.res.status !== "ok") {
+    if (loaded.res.status === "missing") {
+      const to = await oldSlugRedirectPath(segment, slug, loaded.tenantId, loaded.locale);
+      if (to) permanentRedirect(await localePath(loaded.locale, to));
+    }
+    notFound();
+  }
   const { offering } = loaded.res;
   const route = businessServiceRoute({ requested: { segment, slug }, locale: loaded.locale, offering: { id: offering.id, title: loaded.res.slugTitle } });
-  if (route.kind === "missing") notFound();
+  if (route.kind === "missing") {
+    const to = await oldSlugRedirectPath(segment, slug, loaded.tenantId, loaded.locale);
+    if (to) permanentRedirect(await localePath(loaded.locale, to));
+    notFound();
+  }
   if (route.kind === "redirect") permanentRedirect(await localePath(loaded.locale, route.pathWithoutLocale));
 
   const [identity, alternates, homeHref, bookPath] = await Promise.all([

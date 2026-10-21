@@ -6,6 +6,9 @@ import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/
 import { early } from "@/lib/server/early";
 import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { resolveOldServiceSlug } from "@/lib/offerings/offering-index";
+import { loadOfferingIndex } from "@/lib/offerings/offering-index.server";
 import { loadMaxSiteAcceptingBookings, loadMaxSiteIsDemo } from "./render-max-site-demo";
 import { hasRenderableBuilderNodes } from "@/lib/site-admin/builder-node";
 import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
@@ -269,6 +272,35 @@ async function renderTalentMaxSiteUnguarded(
     // TUL-586: `servicio-<title>-<id8>` is a platform page too (a talent's own page of that slug wins).
     const isServiceSlug =
       !policyDoc && parseServiceSlug(input.pageSlug) !== null && !pages.some((p) => p.slug === input.pageSlug);
+    // TUL-1594: a slug with no id8 that no page owns may be a service slug kept in `offering_slugs`
+    // (current or old): 301 to the page this route renders for that offering. Flag off, table
+    // missing, any read error, or no match = nothing here runs past the flag check (today's flow).
+    if (
+      servicePresentationResolverEnabled() &&
+      !isOwnerDraftPreview &&
+      !policyDoc &&
+      !isServiceSlug &&
+      !input.mainOverride &&
+      input.pageSlug &&
+      !pages.some((p) => p.slug === input.pageSlug)
+    ) {
+      const primary = localeCtx.settings.defaultLocale;
+      const index = await loadOfferingIndex(createServiceRoleClient(), { owner: { kind: "talent", talentProfileId }, primaryLocale: primary });
+      const oldId = index
+        ? resolveOldServiceSlug({
+            slug: input.pageSlug,
+            locale,
+            publicLocales: localeCtx.settings.supportedLocales,
+            hostKind: "talent",
+            index,
+          })
+        : null;
+      if (oldId) {
+        const offers = await loadPublicOfferingsForProfile(talentProfileId, primary, null, { bypassCache }).catch(() => []);
+        const target = offers.find((o) => o.id === oldId);
+        if (target) return { kind: "redirect", slug: serviceSlug(target) };
+      }
+    }
     const externalMain = input.mainOverride ?? null;
     const page = selectMaxSitePage(pages, {
       pageSlug: policyDoc || isServiceSlug || externalMain ? null : input.pageSlug,
