@@ -5,11 +5,14 @@
 import { cookies } from "next/headers";
 
 import { dismissCookieName } from "@/lib/changelog/whats-new";
+import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 const ONE_YEAR_S = 60 * 60 * 24 * 365;
 
 export async function dismissWhatsNewAction(formData: FormData): Promise<void> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return;
   const session = await getCachedActorSession();
   if (!session.user) return;
   const upTo = Number(formData.get("upTo"));

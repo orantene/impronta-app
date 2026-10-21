@@ -60,6 +60,8 @@ export async function setOfferingResourcesAction(
   offeringId: string,
   spaceIds: string[],
 ): Promise<{ ok: true; linked: string[] } | { ok: false; error: string }> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return { ok: false, error: readOnly.error };
   const auth = await authorize(tenantId);
   if (!auth.ok) return auth;
   if (!UUID.test(offeringId) || !Array.isArray(spaceIds) || spaceIds.some((id) => !UUID.test(id)) || spaceIds.length > 20) {

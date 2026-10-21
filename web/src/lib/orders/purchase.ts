@@ -30,12 +30,7 @@ import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
 import { expandEventSeriesLines } from "@/lib/venues/event-series";
 import { keepsStockUntilVisit, withOfferingStockNeeds } from "@/lib/orders/purchase-stock";
 import { findKeyedOrder, isClientKeyConflict, replayKeyedPurchase } from "@/lib/orders/purchase-idempotency";
-import type {
-  PurchaseInput,
-  PurchaseLineInput,
-  PurchaseRefusalReason,
-  PurchaseResult,
-} from "@/lib/orders/purchase-types";
+import type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult } from "@/lib/orders/purchase-types";
 
 export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";

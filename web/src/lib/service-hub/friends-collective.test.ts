@@ -214,7 +214,7 @@ describe("the apply action and its held migration", () => {
     assert.match(sql, /Rollback/);
   });
   test("non-owner staff cannot change work_model or default_coordinator_user_id directly (the 418000 policies alone do NOT cover these columns)", () => {
-    const rls = readFileSync(new URL("../../../../supabase/migrations/_pending_pm/20261231418000_tenant_admin_tables_role_aware_rls.sql", import.meta.url), "utf8");
+    const rls = readFileSync(new URL("../../../../supabase/migrations/20261231418000_tenant_admin_tables_role_aware_rls.sql", import.meta.url), "utf8");
     // 418000 lets any ACTIVE non-viewer member UPDATE agencies and narrows only the 418100 platform columns.
     assert.match(rls, /agencies: UPDATE by ACTIVE non-viewer members/);
     assert.doesNotMatch(rls, /work_model|default_coordinator_user_id/);
