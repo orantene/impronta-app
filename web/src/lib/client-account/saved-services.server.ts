@@ -10,11 +10,12 @@ import { isMissingTable, shapeSavedServices, type SavedService, type SavedServic
 const OFFERING_COLUMNS = "id, tenant_id, title, title_i18n, status, moderation_state, visibility, kind, owner_kind, talent_profile_id, attributes";
 
 /** The account's host, from the proxy-set headers the renderer already read. */
-export type SavedServicesHost = { hostKind: string | null; hostTalentProfileId: string | null };
+export type SavedServicesHost = { hostKind: string | null; hostTalentProfileId: string | null; hubTalentProfileId?: string | null };
 
 /**
  * The signed-in client's saved services on THIS site: `client_user_id = userId` (the session
- * user, never a request value) AND `tenant_id = tenantId` (the host's tenant). Degrades to an
+ * user, never a request value) AND `tenant_id = tenantId` (the host's tenant); on a talent
+ * site only the host talent's services are shown (TUL-1692, `shapeSavedServices`). Degrades to an
  * empty list, including while the held table (20261231422300) is not applied.
  */
 export async function loadSavedServices(userId: string, tenantId: string, locale: string, host: SavedServicesHost): Promise<SavedService[]> {
