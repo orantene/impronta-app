@@ -76,8 +76,8 @@ test("the Saved tab lists the client's talent with a link, ES and EN; no ids or 
 });
 
 test("empty Saved says how to save one, ES and EN", () => {
-  assert.match(area("saved", "en", []), /You have not saved anyone yet/);
-  assert.match(area("saved", "es", []), /Aún no has guardado a nadie/);
+  assert.match(area("saved", "en", []), /You have not saved anything yet/);
+  assert.match(area("saved", "es", []), /Aún no has guardado nada/);
 });
 
 test("wiring: the page loads the list for the signed-in client only, from the one favourites table", () => {

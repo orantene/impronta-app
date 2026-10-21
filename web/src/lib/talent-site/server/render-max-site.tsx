@@ -6,6 +6,7 @@ import { loadThemeUpdatePreviewSnapshot } from "../theme-releases/talent-update/
 import { early } from "@/lib/server/early";
 import { perfMark, perfStart, timed } from "@/lib/server/perf-trace";
 import { failOnReadTimeout } from "@/lib/supabase/bounded-fetch-scope";
+import { resolveTalentOldServiceRedirect } from "@/lib/talent-site/server/old-service-slug.server";
 import { loadMaxSiteAcceptingBookings, loadMaxSiteIsDemo } from "./render-max-site-demo";
 import { hasRenderableBuilderNodes } from "@/lib/site-admin/builder-node";
 import { prepareTalentSiteTrees } from "./talent-site-render-fixups.server";
@@ -61,6 +62,7 @@ import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { SERVICE_REVIEWS_MAX, shownServiceReviews, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
+import { serviceDatedSlot } from "./service-dated-slot";
 import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { renderMaxSiteDocument } from "./render-max-site-document";
@@ -269,6 +271,28 @@ async function renderTalentMaxSiteUnguarded(
     // TUL-586: `servicio-<title>-<id8>` is a platform page too (a talent's own page of that slug wins).
     const isServiceSlug =
       !policyDoc && parseServiceSlug(input.pageSlug) !== null && !pages.some((p) => p.slug === input.pageSlug);
+    // TUL-1594: a slug with no id8 that no page owns may be a service slug kept in `offering_slugs`
+    // (current or old): 301 to the page this route renders for that offering. Flag off, table
+    // missing, any read error, or no match = nothing here runs past the flag check (today's flow).
+    if (
+      servicePresentationResolverEnabled() &&
+      !isOwnerDraftPreview &&
+      !policyDoc &&
+      !isServiceSlug &&
+      !input.mainOverride &&
+      input.pageSlug &&
+      !pages.some((p) => p.slug === input.pageSlug)
+    ) {
+      const to = await resolveTalentOldServiceRedirect({
+        talentProfileId,
+        slug: input.pageSlug,
+        locale,
+        primaryLocale: localeCtx.settings.defaultLocale,
+        publicLocales: localeCtx.settings.supportedLocales,
+        bypassCache,
+      });
+      if (to) return { kind: "redirect", slug: to };
+    }
     const externalMain = input.mainOverride ?? null;
     const page = selectMaxSitePage(pages, {
       pageSlug: policyDoc || isServiceSlug || externalMain ? null : input.pageSlug,
@@ -385,6 +409,20 @@ async function renderTalentMaxSiteUnguarded(
     const serviceCanonical = servicePath ? servicePageCanonical({ flagOn: presentationFlag, planKey, servicePath }) : null;
     // Resolved here: the document callback below is not async. pSeoFacts never throws.
     const serviceCity = serviceOffering ? ((await pSeoFacts).addressLocality ?? null) : null;
+    // TUL-1472: an item with upcoming dates books through the dated step on its own service page.
+    const serviceHomePath = talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales);
+    const serviceBookingSlot =
+      serviceOffering && servicePath
+        ? await serviceDatedSlot({
+            tenantId: tenantId ?? null,
+            talentProfileId: talentProfileId ?? null,
+            publicPathPrefix,
+            offeringId: serviceOffering.id,
+            locale,
+            returnPath: talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+            publicCtaHidden: serviceOffering.publicCtaHidden,
+          })
+        : null;
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
         servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
@@ -401,7 +439,8 @@ async function renderTalentMaxSiteUnguarded(
                 promo: servicePromo,
                 talentName: identity?.name ?? null,
                 city: serviceCity,
-                homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+                homePath: serviceHomePath,
+                bookingSlot: serviceBookingSlot,
               })
             : undefined,
         siteTokens,

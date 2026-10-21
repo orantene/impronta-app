@@ -19,6 +19,7 @@
  */
 
 import { collectiveTenantIdsForTalent, notInTenantsFilter } from "./collective-reviews";
+import { loadTalentPrivateNotes } from "./private-note-routing";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -602,12 +603,6 @@ export type OwnerPrivateNote = {
   createdAt: string;
 };
 
-type PrivateNoteRow = {
-  id: string;
-  private_note: string | null;
-  created_at: string;
-};
-
 /**
  * Recent non-empty `private_note` values on the talent's OWN received reviews,
  * newest first. private_note is column-privilege protected (migration
@@ -615,6 +610,8 @@ type PrivateNoteRow = {
  * runs on the SERVICE-ROLE client AFTER an explicit ownership check — the
  * authed caller must be the profile's owner (owner-only by contract: the UI
  * promises "Only you can see these"). Returns [] when none (or unauthorized).
+ * TUL-1686: reviews earned in a team-studio workspace are never included; those
+ * notes belong to the workspace (see ./private-note-routing).
  */
 export async function loadOwnerPrivateNoteThemes(
   talentProfileId: string,
@@ -641,22 +638,8 @@ export async function loadOwnerPrivateNoteThemes(
     .maybeSingle();
   if (!profileRow?.user_id || profileRow.user_id !== user.id) return [];
 
-  const { data, error } = await svc
-    .from("talent_reviews")
-    .select("id, private_note, created_at")
-    .eq("talent_profile_id", talentProfileId)
-    .not("private_note", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(limit)
-    .returns<PrivateNoteRow[]>();
-
-  if (error || !data || data.length === 0) return [];
-
-  return data
-    .map((r) => ({
-      reviewId: r.id,
-      note: (r.private_note ?? "").trim(),
-      createdAt: r.created_at,
-    }))
-    .filter((n) => n.note.length > 0);
+  // TUL-1686: notes on reviews earned in a team studio go to the workspace, never
+  // the talent. The DB reader (as the signed-in owner) enforces it; the fallback
+  // applies the same rule in code while that migration is held.
+  return loadTalentPrivateNotes(supabase, svc, talentProfileId, limit);
 }

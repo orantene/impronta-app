@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { LOCALE_HEADER } from "@/i18n/request-locale";
 
-import { isProfileCodeOnTenantRoster, talentProfileCodeExists } from "./host-context";
+import { leaverRedirectPath } from "@/lib/service-hub/leaver-redirect";
+
+import { isFormerRosterMemberCode, isProfileCodeOnTenantRoster, talentProfileCodeExists } from "./host-context";
 
 /** Matches `/t/<code>` and `/<locale>/t/<code>`, with or without a trailing slash. */
 const TALENT_PATH = /^\/(?:([a-z]{2})\/)?t\/([^/]+)\/?$/;
@@ -64,6 +66,12 @@ export async function offRosterTalentResponse(
     decodeURIComponent(code),
   );
   if (onRoster) return null;
+
+  // TUL-1591 (a): she LEFT this workspace. Her old link goes to the group (its home), not
+  // a dead page. 307: temporary, she may rejoin. Anyone else keeps the real 404.
+  if (await isFormerRosterMemberCode(request, tenantId, decodeURIComponent(code))) {
+    return NextResponse.redirect(new URL(leaverRedirectPath(locale), request.url), 307);
+  }
 
   return pageNotFound(request, locale, inboundHeaders);
 }

@@ -8,6 +8,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { SaveServiceButton } from "@/components/client-account/SaveServiceButton";
 import type { ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
 import { serviceFaqCopy } from "@/lib/talent-site/service-page-faq";
 import { datedAnchorHref, DATED_STEP_ANCHOR_ID } from "@/lib/sessions/dated-mount";
@@ -25,6 +26,7 @@ export const BUSINESS_SERVICE_PAGE_CSS = `
 .bsp-back { margin: 0 0 16px; font-size: 14px; }
 .bsp-back a { color: inherit; text-underline-offset: 3px; }
 .bsp h1 { margin: 0 0 8px; font-family: var(--site-heading-font, inherit); font-size: 30px; line-height: 1.15; }
+.bsp-save { margin: 0 0 12px; }
 .bsp-facts { margin: 0 0 20px; color: ${SOFT}; }
 .bsp-photos { display: flex; gap: 8px; margin: 0 0 24px; overflow-x: auto; scroll-snap-type: x mandatory; }
 .bsp-photos img { flex: none; width: 78%; max-width: 420px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 12px; scroll-snap-align: start; }
@@ -58,6 +60,8 @@ export function BusinessServiceView(props: {
   bookHref: string | null;
   /** The dated booking step (TUL-1411). Replaces the generic link inside the booking panel. */
   bookingSlot?: ReactNode;
+  /** TUL-1463: the save (heart) button for this service; null when the client account is off on this host. */
+  saveOfferingId?: string | null;
 }) {
   const c = businessServicePageCopy(props.locale);
   const { facts } = props;
@@ -72,6 +76,11 @@ export function BusinessServiceView(props: {
       <div className="bsp-grid">
         <div>
           <h1>{props.title}</h1>
+          {props.saveOfferingId ? (
+            <p className="bsp-save">
+              <SaveServiceButton offeringId={props.saveOfferingId} title={props.title} locale={props.locale} showLabel />
+            </p>
+          ) : null}
           {line ? <p className="bsp-facts">{line}</p> : null}
           {facts.photos.length > 0 ? (
             <div className="bsp-photos" role="group" aria-label={c.photos}>

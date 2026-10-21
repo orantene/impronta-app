@@ -16,7 +16,9 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { notifyRentPlanMemberResponse } from "@/lib/notifications/producers/rent-notify";
 import { ownerGuard } from "./rent-owner.server";
+import { releaseStationHold } from "./rent-station.server";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { currentRentPeriod, validateRentProposal } from "./rent-cycle";
@@ -108,6 +110,11 @@ export async function setRentPlanStatus(input: { planId: string; status: "paused
     if (error) {
       logServerError("rent.setStatus", error);
       return { ok: false, reason: "unavailable" };
+    }
+    if (input.status === "ended") {
+      const { data: ended } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId).select("talent_profile_id").eq("id", input.planId).maybeSingle();
+      const tp = (ended as { talent_profile_id?: string } | null)?.talent_profile_id;
+      if (tp) await releaseStationHold(g.admin, { tenantId: g.tenantId, planId: input.planId, talentProfileId: tp });
     }
     await logWorkspaceAudit({
       tenantId: g.tenantId,
@@ -221,6 +228,10 @@ export async function respondRentPlan(input: { planId: string; accept: boolean; 
       targetId: input.planId,
       metadata: { terms_version: row.terms_version, amount_cents: row.monthly_rent_cents, currency: row.currency },
     });
+    if (!input.accept) {
+      // The owner hears about a decline (email + bell). Never throws; deduped on plan id + outcome.
+      await notifyRentPlanMemberResponse({ admin, tenantId: row.tenant_id, planId: row.id, talentProfileId: me.talentProfile.id, outcome: "declined" });
+    }
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
@@ -251,6 +262,7 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
       return { ok: false, reason: "unavailable" };
     }
     if (!data) return { ok: false, reason: "not_found" };
+    await releaseStationHold(admin, { tenantId: (data as { tenant_id: string }).tenant_id, planId: input.planId, talentProfileId: me.talentProfile.id });
     await logWorkspaceAudit({
       tenantId: (data as { tenant_id: string }).tenant_id,
       category: "roster",
@@ -259,6 +271,13 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
       targetType: "studio_rent_plan",
       targetId: input.planId,
       metadata: {},
+    });
+    await notifyRentPlanMemberResponse({
+      admin,
+      tenantId: (data as { tenant_id: string }).tenant_id,
+      planId: input.planId,
+      talentProfileId: me.talentProfile.id,
+      outcome: "ended",
     });
     revalidatePath("/", "layout");
     return { ok: true };

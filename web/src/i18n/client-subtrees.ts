@@ -38,6 +38,7 @@ export const CLIENT_MESSAGE_SUBTREES = [
   "public.onboarding",
   "public.guestChat",
   "public.profileCta",
+  "public.saveService",
   "public.slotPicker",
   "public.thread",
 ] as const;

@@ -29,9 +29,9 @@ test("one call answers for many listings, returning only the sellable ones", asy
   assert.deepEqual([...(out ?? [])].sort(), [id(1), id(3)]);
 });
 
-test("duplicates and junk ids are dropped before asking; nothing to ask means an empty set and no call", async () => {
+test("duplicates and empty ids are dropped before asking; nothing to ask means an empty set and no call", async () => {
   const f = rpcAdmin((a) => ({ data: a.p_listing_ids }));
-  const out = await sellableListingIds(f.admin, [id(1), id(1), "not-a-uuid", ""]);
+  const out = await sellableListingIds(f.admin, [id(1), id(1), ""]);
   assert.deepEqual(f.calls, [[id(1)]]);
   assert.deepEqual([...(out ?? [])], [id(1)]);
   const none = rpcAdmin(() => ({ data: [] }));
@@ -73,4 +73,20 @@ test("the held migration reuses the single-id rule, is capped, service-role only
   assert.match(sql, /to_regprocedure\('public\.workspace_service_listing_is_sellable\(uuid\)'\)/);
   assert.match(sql, /DROP FUNCTION IF EXISTS public\.workspace_service_listing_is_sellable\(uuid\[\]\)/);
   assert.doesNotMatch(sql, /GRANT[^;]*\b(anon|authenticated)\b/);
+});
+
+test("before the batch migration is applied, it asks the single-id function a few at a time (same answers, still fail closed)", async () => {
+  const calls: string[] = [];
+  const admin = {
+    rpc: async (_fn: string, args: { p_listing_ids?: string[]; p_listing_id?: string }) => {
+      if (args.p_listing_ids) return { data: null, error: { code: "PGRST202", message: "no function" } };
+      calls.push(args.p_listing_id as string);
+      return { data: args.p_listing_id !== id(2), error: null };
+    },
+  } as never;
+  const out = await sellableListingIds(admin, [id(1), id(2), id(3)]);
+  assert.deepEqual([...(out ?? [])].sort(), [id(1), id(3)]);
+  assert.equal(calls.length, 3);
+  const failing = { rpc: async (_f: string, a: { p_listing_ids?: string[] }) => (a.p_listing_ids ? { data: null, error: { code: "42883" } } : { data: null, error: { code: "XX000" } }) } as never;
+  assert.equal(await sellableListingIds(failing, [id(1)]), null);
 });

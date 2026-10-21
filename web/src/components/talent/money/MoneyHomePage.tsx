@@ -36,6 +36,7 @@ import { AgendaMoneyLine } from "./AgendaMoneyLine";
 import { FeePayerCard } from "./FeePayerCard";
 import { PayoutBreakdownCard } from "./PayoutBreakdownCard";
 import { MoneySentOffers } from "./MoneySentOffers";
+import { WhereYouAppearLink } from "@/components/talent/service-hub/WhereYouAppearLink";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 import { ledgerClientsForSummary } from "./ledger-clients-state";
 import { useTalentLedgerClients } from "./use-talent-ledger-clients";
@@ -658,6 +659,7 @@ export function MoneyHomePage() {
       />
       <FeePayerCard currency={fallbackCurrency} showTip={false} />
       <MoneySentOffers />
+      <WhereYouAppearLink />
       {loadError ? (
         <p className="rounded-[12px] border border-admin-border-soft bg-admin-critical-soft px-4 py-3 font-admin-body text-[13.5px] text-admin-critical">
           {t("Could not load Money.")} {t("Refresh the page and try again.")}

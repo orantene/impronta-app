@@ -31,6 +31,8 @@ import {
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
 import { deleteOrArchiveTalentOffering } from "@/lib/talent/offering-delete-or-archive";
+import { afterResponse } from "@/lib/server/after-response";
+import { notifyListingsBelowMinimum } from "@/lib/notifications/producers/listing-below-minimum-notify";
 import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
@@ -224,6 +226,8 @@ export async function upsertTalentOffering(
       saved = data as TalentOfferingRow | null;
       // Only when the talent-scoped UPDATE matched a row (a foreign id returns saved = null).
       if (slugRename && saved) await commitServiceSlugHistory(admin, slugRename);
+      // TUL-1469: a price raise that put a workspace's listing below its minimum tells that workspace.
+      if (saved) afterResponse(() => notifyListingsBelowMinimum({ admin, offeringId: offering.id as string, talentProfileId, serviceTitle: offering.title ?? null }));
     } else {
       // Count BEFORE the insert so a zero here means this row is the first
       // offering this profile has ever had. Counting afterwards would race

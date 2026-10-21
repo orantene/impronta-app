@@ -76,6 +76,32 @@ export function maskContactDetails(input: string): MaskResult {
   return { text, maskedCount: count };
 }
 
+/**
+ * TUL-1597: free text a person types INSIDE a card (a quote note, an item description, a media
+ * caption) is masked like a message body. Only these keys are text; ids, amounts, dates and
+ * references are never touched, so a long number in a structured field is not mangled.
+ */
+const CARD_TEXT_KEYS = new Set(["title", "summary", "note", "notes", "description", "message", "caption", "text", "label", "name"]);
+
+export function maskCardPayloadText(payload: unknown): { payload: unknown; maskedCount: number } {
+  let count = 0;
+  const walk = (value: unknown, key: string | null): unknown => {
+    if (typeof value === "string") {
+      if (key === null || !CARD_TEXT_KEYS.has(key)) return value;
+      const masked = maskContactDetails(value);
+      count += masked.maskedCount;
+      return masked.text;
+    }
+    if (Array.isArray(value)) return value.map((v) => walk(v, key));
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, walk(v, k)]));
+    }
+    return value;
+  };
+  const out = walk(payload, null);
+  return { payload: count === 0 ? payload : out, maskedCount: count };
+}
+
 export type TermsForMasking = {
   /** Whether the terms let the client see the person's contact details. */
   showContact: boolean;

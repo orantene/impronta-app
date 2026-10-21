@@ -3,7 +3,7 @@
  * Request-only; hidden entries expose no talent id or name; ids are opaque.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -124,14 +124,18 @@ test("model proposals: only allow-listed opaque ids survive; titles come from th
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 test("wiring: host tenant only, agency host only, tenant-strict reader, request-only, no money code", () => {
-  const src = read("src/app/t/[profileCode]/_actions/roster-request-actions.ts");
-  assert.match(src, /^"use server";/);
-  assert.match(src, /host\.kind !== "agency" \|\| !host\.tenantId/);
-  assert.match(src, /loadWorkspaceRosterServices\(admin, host\.tenantId\)/);
-  assert.match(src, /checkPublicCatalog/);
-  const input = src.slice(src.indexOf("const inputSchema"), src.indexOf("export type BuildRosterRequestResult"));
-  assert.doesNotMatch(input, /tenant|talent|offering/i, "no client-supplied tenant, talent or offering");
+  const act = read("src/lib/server-actions/roster-request.ts");
+  const core = read("src/lib/service-hub/roster-request-core.ts");
+  assert.match(act, /^"use server";/);
+  assert.match(core, /host\.kind !== "agency" \|\| !host\.tenantId/);
+  assert.match(act, /loadRosterServicesWithHub\(admin, tenantId\)/);
+  assert.match(act, /checkPublicCatalog/);
+  assert.equal(existsSync(join(process.cwd(), "src/app/t/[profileCode]/_actions/roster-request-actions.ts")), false, "moved out of the profile route folder");
+  const input = core.slice(core.indexOf("export async function buildRosterRequestWith"), core.indexOf("try {"));
+  assert.doesNotMatch(input, /tenantId|talent|offering/i, "no client-supplied tenant, talent or offering");
   const lib = read("src/lib/service-hub/roster-chat-request.ts");
-  assert.doesNotMatch(src.replace(/^[\s\S]*?\*\/\n/, "") + lib.replace(/^[\s\S]*?\*\/\n/, ""), /createPurchase|createPaymentLink|stripe|checkout|guest_sellable/i);
+  const strip = (x: string) => x.replace(/^[\s\S]*?\*\/\n/, "");
+  assert.doesNotMatch(strip(act) + strip(core) + strip(lib), /createPurchase|createPaymentLink|stripe|checkout|guest_sellable/i);
   assert.doesNotMatch(lib, /import "server-only"/);
 });
+

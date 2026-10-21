@@ -295,6 +295,7 @@ export default async function ReviewInvitePage({
         talentProfileId={invite.talentProfileId}
         t={t}
         serviceName={invite.serviceName}
+        noteWorkspace={invite.noteWorkspace}
       />
     </Shell>
   );

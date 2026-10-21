@@ -68,6 +68,9 @@ export function ClientAccountButton({
   accountHref = "/account",
   appleSignInEnabled = false,
   hideTrigger = false,
+  defaultOpen = false,
+  onSignedIn,
+  onClose,
 }: {
   variant: "dock" | "header";
   locale: string;
@@ -77,10 +80,16 @@ export function ClientAccountButton({
   appleSignInEnabled?: boolean;
   /** Render only the popover; the caller supplies the trigger and fires CLIENT_ACCOUNT_OPEN_EVENT. */
   hideTrigger?: boolean;
+  /** TUL-1463: mount already open (a save button's own sign-in sheet). */
+  defaultOpen?: boolean;
+  /** TUL-1463: called once the visitor is signed in here, so the caller can finish what they started. */
+  onSignedIn?: () => void;
+  /** TUL-1463: called when the sheet closes. */
+  onClose?: () => void;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [hubHost, setHubHost] = useState(false);
   useEffect(() => {
     setHubHost(/^hub\./i.test(window.location.hostname));
@@ -140,15 +149,17 @@ export function ClientAccountButton({
   const close = useCallback(() => {
     setOpen(false);
     triggerRef.current?.focus();
-  }, []);
+    onClose?.();
+  }, [onClose]);
 
   const afterSignIn = useCallback(
     async (firstSignIn: boolean) => {
       await refresh();
+      onSignedIn?.();
       if (firstSignIn) setStep("consent");
       else close();
     },
-    [close, refresh],
+    [close, refresh, onSignedIn],
   );
 
   useEffect(() => {

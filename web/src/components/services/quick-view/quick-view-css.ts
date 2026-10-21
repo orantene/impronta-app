@@ -29,7 +29,7 @@ dialog.sqv[open] { display: flex; }
 dialog.sqv::backdrop { background: color-mix(in srgb, ${INK} 45%, transparent); }
 .sqv-scroll { overflow-y: auto; overscroll-behavior: contain; padding: 0 24px 24px; }
 .sqv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 24px 8px; }
-.sqv-title { margin: 0; font-family: var(--site-heading-font, inherit); font-size: 22px; line-height: 1.2; }
+.sqv-title { flex: 1 1 auto; min-width: 0; margin: 0; font-family: var(--site-heading-font, inherit); font-size: 22px; line-height: 1.2; }
 .sqv-close {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; border-radius: 999px; border: 1px solid ${LINE};

@@ -17,6 +17,7 @@ src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.t
 src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/catalog-list-columns.test.ts
+src/components/admin/shell/internal/page-modules/catalog/catalog-service-hub-link.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/catalog-website-control.test.ts
 src/components/admin/shell/internal/page-modules/catalog/catalog-website-switch.test.ts
 src/components/admin/shell/internal/palette-help-key.static.test.ts
@@ -25,6 +26,7 @@ src/components/admin/shell/internal/shell-hydration.static.test.ts
 src/components/admin/shell/internal/talent-counts-from-inbox.static.test.ts
 src/components/admin/shell/internal/talent-inbox-i18n.static.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-bounds.test.ts
+src/components/admin/shell/internal/talent/agenda/my-assignment-answer.render.test.tsx
 src/components/admin/shell/internal/talent/agenda/timezone-city-es.test.ts
 src/components/admin/shell/internal/talent/agenda/timezone-picker-qa1054.test.ts
 src/components/admin/shell/internal/talent/agenda/timezone-suggestion.test.ts
@@ -55,6 +57,7 @@ src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/public-booking/catalog-who-contact-1236.test.tsx
 src/components/support/support-qa1054.static.test.ts
 src/components/talent/get-found/get-found-text-contrast.static.test.ts
+src/components/talent/service-hub/where-you-appear-link.render.test.tsx
 src/components/talent/services/legacy-services-editor-retired.static.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
@@ -62,9 +65,13 @@ src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
+src/lib/changelog/launch-edition-link.test.ts
+src/lib/changelog/launch-guard.test.ts
 src/lib/changelog/public-read.test.ts
 src/lib/changelog/whats-new.test.ts
 src/lib/cms/platform-blog.test.ts
+src/lib/coordinator/offer-line-confirmation-view.test.ts
+src/lib/coordinator/offer-line-confirmation.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
 src/lib/events/zone-time-label.test.ts
@@ -76,10 +83,16 @@ src/lib/locale-time.test.ts
 src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
 src/lib/notifications/appointment-label.test.ts
+src/lib/notifications/coordinator-role-notify.test.ts
+src/lib/notifications/hub-listing-below-minimum.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
 src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
+src/lib/projects/assignment-confirmation.test.ts
+src/lib/projects/project-event-board.test.ts
+src/lib/projects/replace-client-notice.test.ts
+src/lib/projects/replace-with-notice.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
@@ -88,7 +101,11 @@ src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
+src/lib/server-actions/admin-bookings-role-label.static.test.ts
 src/lib/server/sniff-upload-type.test.ts
+src/lib/service-hub/hub-entry-items.test.ts
+src/lib/service-hub/hub-roster.server.test.ts
+src/lib/service-hub/public-hub-request.test.ts
 src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts
 src/lib/support/support-ai-language.test.ts

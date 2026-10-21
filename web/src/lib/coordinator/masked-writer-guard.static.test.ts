@@ -26,6 +26,11 @@ const SYSTEM_WRITES: Record<string, number> = {
   "src/lib/inquiry/guest-auto-ack.ts": 1,
   "src/lib/inquiry/inquiry-engine-approvals.ts": 1,
   "src/lib/inquiry/inquiry-engine-offers.ts": 5,
+  // TUL-1589: the writers reached through tenantScopedQuery(admin, "inquiry_messages", tenantId), which the
+  // from("inquiry_messages") pattern alone could not see.
+  "src/app/t/[profileCode]/_actions/guest-detail-chips-actions.ts": 1, // the "Added: ..." chip bubble, built from a sanitized summary
+  "src/lib/inquiry/lineup-note-writer.ts": 2, // the platform lineup note: one insert, one body repair (platform text)
+  "src/lib/messaging/insert-message.ts": 1, // internal notes ONLY (staff-only, never shown to the client); every other kind goes through the helper
   "src/lib/inquiry/inquiry-system-messages.ts": 2,
   "src/lib/messaging/post-payment-cards.ts": 2,
   "src/lib/orders/purchase-thread.ts": 2,
@@ -38,7 +43,8 @@ const SYSTEM_WRITES: Record<string, number> = {
 };
 
 // insert, upsert, or an update that sets the body, on inquiry_messages (single or multi line chains)
-const RAW_WRITE = /from\("inquiry_messages"\)\s*\.(?:insert|upsert)\(|from\("inquiry_messages"\)\s*\.update\(\{\s*body/g;
+const RAW_WRITE =
+  /from\("inquiry_messages"\)\s*\.(?:insert|upsert)\(|from\("inquiry_messages"\)\s*\.update\(\{\s*body|tenantScopedQuery\(\s*[\w.]+,\s*"inquiry_messages"\s*,\s*[\w.]+\s*\)\s*\.(?:insert|upsert)\(|tenantScopedQuery\(\s*[\w.]+,\s*"inquiry_messages"\s*,\s*[\w.]+\s*\)\s*\.update\(\{\s*body/g;
 
 function files(): string[] {
   const out = execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" });
@@ -66,6 +72,13 @@ test("the matcher catches insert, upsert and update-of-body, single and multi li
   assert.equal(re('x.from("inquiry_messages")\n.update({\n body: b })'), 1);
   assert.equal(re('x.from("inquiry_messages").update({ metadata: m })'), 0);
   assert.equal(re('x.from("inquiry_messages").select("id")'), 0);
+  // TUL-1589: the tenant-scoped wrapper is a writer too
+  assert.equal(re('await tenantScopedQuery(admin, "inquiry_messages", tenantId).insert({'), 1);
+  assert.equal(re('await tenantScopedQuery(admin, "inquiry_messages", input.tenantId)\n    .insert({'), 1);
+  assert.equal(re('tenantScopedQuery(admin, "inquiry_messages", tenantId).upsert(rows)'), 1);
+  assert.equal(re('tenantScopedQuery(admin, "inquiry_messages", tenantId)\n .update({ body: noteBody })'), 1);
+  assert.equal(re('tenantScopedQuery(admin, "inquiry_messages", t).update({ metadata: m })'), 0);
+  assert.equal(re('tenantScopedQuery(admin, "inquiry_messages", t).select("id")'), 0);
 });
 
 test("the human-text writers use the helper", () => {
@@ -81,6 +94,7 @@ test("the human-text writers use the helper", () => {
     "src/lib/ai/booking-assistant/turn.server.ts",
     "src/lib/server-actions/client-pipeline.ts",
     "src/lib/server-actions/talent-pipeline.ts",
+    "src/lib/messaging/insert-message.ts", // TUL-1589: staff replies, cards, first messages
   ]) {
     assert.match(readFileSync(join(process.cwd(), f), "utf8"), /insertInquiryMessage\(/, f);
   }
@@ -117,4 +131,21 @@ test("no screen or loader reads the originals table", () => {
     if (f in ORIGINALS_TABLE_ALLOWED) continue;
     assert.ok(!readFileSync(join(process.cwd(), f), "utf8").includes("inquiry_message_originals"), f);
   }
+});
+
+test("TUL-1589: staff replies send the STORED (masked) text to the channel, never the typed text", () => {
+  const ins = readFileSync(join(process.cwd(), "src/lib/messaging/insert-message.ts"), "utf8");
+  assert.match(ins, /kind === INTERNAL_NOTE_KIND/);
+  assert.match(ins, /storedBody/);
+  const engine = readFileSync(join(process.cwd(), "src/lib/server-actions/messaging-engine.ts"), "utf8");
+  const reply = engine.slice(engine.indexOf("export async function messagingReply"), engine.indexOf("export async function messagingInternalNote"));
+  assert.match(reply, /body: inserted\.storedBody/);
+  assert.match(reply, /smsText: inserted\.storedBody/);
+  assert.doesNotMatch(reply, /body: parsed\.data\.body,\s*smsText: parsed\.data\.body/);
+});
+
+test("TUL-1597: the masking writer masks card payload text, not only the body", () => {
+  const w = readFileSync(join(process.cwd(), "src/lib/coordinator/masked-message-write.server.ts"), "utf8");
+  assert.match(w, /maskCardPayloadText\(row\.card_payload/);
+  assert.match(w, /card_payload: maskedCard\.payload/);
 });

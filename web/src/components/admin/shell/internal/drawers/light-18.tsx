@@ -22,6 +22,9 @@ import {
   useSaveAndClose
 } from "./drawer-shared";
 import { useDashboardText } from "../dashboard-i18n";
+import { JoinTermsStep } from "@/components/admin/service-hub/JoinTermsStep";
+import type { JoinTermsInput, JoinTermsOutcome } from "@/lib/service-hub/join-terms";
+import { joinTermsOutcomeNotice } from "@/lib/service-hub/join-terms-copy";
 
 // Phase 1d (remediation §4): 6 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -467,6 +470,10 @@ export function InviteFlowDrawer() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // TUL-1476: the owner's proposed terms (null = send none) and what happened to them.
+  const [terms, setTerms] = useState<JoinTermsInput | null>(null);
+  const [termsOutcome, setTermsOutcome] = useState<JoinTermsOutcome | null>(null);
+  const termsLocale = copy.isSpanish ? "es" : "en";
   const pathname = usePathname();
   const tenantSlug = pathname?.split("/").filter(Boolean)[0] ?? "";
 
@@ -491,8 +498,9 @@ export function InviteFlowDrawer() {
       const { inviteRosterTalent } = await import(
         "@/lib/server-actions/roster-invite"
       );
-      const res = await inviteRosterTalent(tenantSlug, name, email);
+      const res = await inviteRosterTalent(tenantSlug, name, email, terms);
       if (res.ok) {
+        setTermsOutcome(res.terms);
         setSent(true);
         toast(copy.isSpanish ? `Invitación enviada a ${email}` : `Invite sent to ${email}`);
       } else {
@@ -548,6 +556,11 @@ export function InviteFlowDrawer() {
                 ? `${name ? name : email} se añadió a tu lista como Invitado. Enviamos a ${email} un enlace para reclamar su perfil.`
                 : `${name ? name : email} has been added to your roster as Invited. We've emailed ${email} a link to claim their profile.`}
             </div>
+            {joinTermsOutcomeNotice(termsOutcome ?? undefined, termsLocale) ? (
+              <div className="text-admin-success-deep text-admin-12h">
+                {joinTermsOutcomeNotice(termsOutcome ?? undefined, termsLocale)}
+              </div>
+            ) : null}
           </div>
         ) : (
           <>
@@ -587,6 +600,10 @@ export function InviteFlowDrawer() {
             <FieldRow label={tt("Email address")}>
               <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tabMeta[tab].placeholder} />
             </FieldRow>
+
+            {tab === "talent" && tenantSlug ? (
+              <JoinTermsStep tenantSlug={tenantSlug} locale={termsLocale} value={terms} onChange={setTerms} />
+            ) : null}
 
             <div style={{ padding: "10px 14px", border: `1px solid rgba(91,107,160,0.2)`, fontSize: 11.5, lineHeight: 1.5 }} className="bg-admin-indigo-soft rounded-admin-md text-admin-indigo-deep">
               {tabMeta[tab].note}

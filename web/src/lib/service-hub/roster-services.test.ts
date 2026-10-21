@@ -8,6 +8,7 @@
  * Run: NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' npx tsx --test src/lib/service-hub/roster-services.test.ts
  */
 import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
 import { beforeEach, test } from "node:test";
 
 import { _resetRosterSellableCacheForTests, loadWorkspaceRosterServices, rosterServicePriceCents } from "./roster-services";
@@ -34,10 +35,12 @@ function fakeAdmin(tables: Record<string, Row[]>, sellable: (id: string) => bool
         });
         return q;
       },
-      rpc: async (name: string, args: { p_listing_id: string }) => {
-        rpcCalls.push(`${name}:${args.p_listing_id}`);
-        const r = sellable(args.p_listing_id);
-        return r === "error" ? { data: null, error: { message: "boom" } } : { data: r, error: null };
+      rpc: async (name: string, args: { p_listing_ids: string[] }) => {
+        // One batch call per page (TUL-1475): the call is logged as the ids it asked about.
+        rpcCalls.push(`${name}:${args.p_listing_ids.join(",")}`);
+        const rs = args.p_listing_ids.map((id) => [id, sellable(id)] as const);
+        if (rs.some(([, r]) => r === "error")) return { data: null, error: { code: "XX000", message: "boom" } };
+        return { data: rs.filter(([, r]) => r === true).map(([id]) => id), error: null };
       },
     } as never,
   };
@@ -59,9 +62,9 @@ const WORLD = (): Record<string, Row[]> => ({
     listing({ id: "L2", tenant_id: B, offering_id: "S2" }),
   ],
   talent_offerings: [
-    { id: "S1", talent_profile_id: TALENT, title: "Chef for dinners", amount_cents: 150000, currency: "MXN", status: "published", moderation_state: "approved" },
-    { id: "S2", talent_profile_id: TALENT, title: "Waiter service", amount_cents: 80000, currency: "MXN", status: "published", moderation_state: "approved" },
-    { id: "S3", talent_profile_id: TALENT, title: "Private lessons (never listed)", amount_cents: 50000, currency: "MXN", status: "published", moderation_state: "approved" },
+    { id: "S1", talent_profile_id: TALENT, title: "Chef for dinners", amount_cents: 150000, currency: "MXN", status: "published", moderation_state: "approved", visibility: "public" },
+    { id: "S2", talent_profile_id: TALENT, title: "Waiter service", amount_cents: 80000, currency: "MXN", status: "published", moderation_state: "approved", visibility: "public" },
+    { id: "S3", talent_profile_id: TALENT, title: "Private lessons (never listed)", amount_cents: 50000, currency: "MXN", status: "published", moderation_state: "approved", visibility: "public" },
   ],
   agency_talent_roster: [
     { tenant_id: A, talent_profile_id: TALENT, status: "active" },
@@ -96,7 +99,7 @@ test("only ACCEPTED listings are read, and each must pass the database sellable 
   ];
   const admin = fakeAdmin(world, (id) => (id === "L4" ? false : true));
   assert.deepEqual(await loadWorkspaceRosterServices(admin.client, A), [], "offered, hidden and not-sellable are all out");
-  assert.deepEqual(admin.rpcCalls, ["workspace_service_listing_is_sellable:L4"], "only the accepted listing is checked");
+  assert.deepEqual(admin.rpcCalls, ["workspace_service_listing_is_sellable:L4"], "only the accepted listing is checked, in one call");
   const errored = fakeAdmin(WORLD(), () => "error");
   assert.deepEqual(await loadWorkspaceRosterServices(errored.client, A), [], "an RPC error shows nothing");
 });
@@ -189,12 +192,61 @@ test("PRIVACY: a talent hidden from the public directory is never named, whateve
   assert.equal(anon!.talentProfileId, null);
 });
 
-test("sellable checks run in parallel and are cached, so a public page does not repeat them", async () => {
+test("sellable checks are ONE call for the page and cached, so a public page does not repeat them", async () => {
   const w = WORLD();
   w.workspace_service_listings = [listing({ id: "La", offering_id: "S1" }), listing({ id: "Lb", offering_id: "S1" })];
   const admin = fakeAdmin(w);
   await loadWorkspaceRosterServices(admin.client, A);
-  assert.equal(admin.rpcCalls.length, 2);
+  assert.equal(admin.rpcCalls.length, 1, "both listings in one call");
   await loadWorkspaceRosterServices(admin.client, A);
-  assert.equal(admin.rpcCalls.length, 2, "the second render reuses the cached verdicts");
+  assert.equal(admin.rpcCalls.length, 1, "the second render reuses the cached verdicts");
+});
+
+
+// ── PUBLIC surfaces use guest_request; staff keeps staff_quote ───────────────
+const withVisibility = (visibility: string | null) => {
+  const w = WORLD();
+  w.talent_offerings = w.talent_offerings!.map((o) => (o.id === "S1" ? { ...o, visibility } : o));
+  return w;
+};
+
+test("PUBLIC (default): an agency-only, private, hidden or unknown-visibility service is never listed", async () => {
+  for (const visibility of ["agency_only", "private", "hidden", "", null, "weird"]) {
+    const items = await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A);
+    assert.deepEqual(items, [], String(visibility));
+  }
+});
+
+test("PUBLIC: public and on-request services are listed (request-only), explicit guest_request gives the same", async () => {
+  for (const visibility of ["public", "on_request"]) {
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A)).length, 1, visibility);
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A, "guest_request")).length, 1, visibility);
+  }
+});
+
+test("STAFF (staff_quote): published + approved is enough, whatever the visibility; unpublished or unapproved still out", async () => {
+  for (const visibility of ["agency_only", "private", "hidden", null]) {
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A, "staff_quote")).length, 1, String(visibility));
+  }
+  for (const bad of [{ status: "draft" }, { moderation_state: "pending" }]) {
+    const w = WORLD();
+    w.talent_offerings = w.talent_offerings!.map((o) => (o.id === "S1" ? { ...o, ...bad } : o));
+    assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A, "staff_quote"), [], JSON.stringify(bad));
+  }
+});
+
+test("every caller of the loader today is a public surface and none passes staff_quote", () => {
+  const out = execSync(`git grep -n "loadWorkspaceRosterServices(" -- src ':!*.test.*' ':!src/lib/service-hub/roster-services.ts'`, { cwd: process.cwd(), encoding: "utf8" });
+  assert.doesNotMatch(out, /staff_quote/);
+});
+
+test("TUL-1599 (D-10a): an on-request service shows no price; a public one keeps it", async () => {
+  const world = WORLD();
+  world.talent_offerings = [{ ...world.talent_offerings[0], visibility: "on_request" }];
+  const [item] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
+  assert.equal(item.priceCents, null);
+  world.talent_offerings = [{ ...world.talent_offerings[0], visibility: "public" }];
+  _resetRosterSellableCacheForTests();
+  const [pub] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
+  assert.equal(pub.priceCents, 150000);
 });

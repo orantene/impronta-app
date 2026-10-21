@@ -66,3 +66,12 @@ test("a person without a language gets English", () => {
   const msg = roleMessage({ role: roles[2], person: { ...roles[2].people[0], locale: "" }, eventTitle: "E", startsAt: null, timeZone: "UTC" });
   assert.match(msg, /Your call|Your role/);
 });
+
+test("TUL-1606: a seat with a real role shows it; a seat without one falls back to Equipo/Team by the recipient's language", () => {
+  const base = { eventTitle: "E", startsAt: null, timeZone: "UTC" };
+  assert.match(roleMessage({ ...base, role: { role: "Waiter" }, person: { locale: "en" } }), /Your role: Waiter\./);
+  assert.match(roleMessage({ ...base, role: { role: "Mesero" }, person: { locale: "es" } }), /Tu rol: Mesero\./);
+  assert.match(roleMessage({ ...base, role: { role: "" }, person: { locale: "es" } }), /Tu rol: Equipo\./);
+  assert.match(roleMessage({ ...base, role: { role: "  " }, person: { locale: "en" } }), /Your role: Team\./);
+  assert.match(roleMessage({ ...base, role: { role: "" }, person: { locale: "" } }), /Your role: Team\./);
+});

@@ -149,3 +149,15 @@ test("a stored row maps back to a preset and an unknown row is null", () => {
   assert.equal(storedToPreset({ ...row, split_kind: "weird" }), null);
   assert.equal(storedToPreset(null), null);
 });
+
+import { tradeFromCategories } from "./work-style";
+
+test("the workspace's real trade is read from its own services; a tie or no match is unknown", () => {
+  assert.equal(tradeFromCategories(["Chef a domicilio", "Catering", "Masaje"]), "chefs");
+  assert.equal(tradeFromCategories(["Limpieza profunda", "Deep cleaning"]), "cleaners");
+  assert.equal(tradeFromCategories(["Manicura", "Uñas acrílicas"]), "nails");
+  assert.equal(tradeFromCategories(["City tour", "Guía privado"]), "guides");
+  assert.equal(tradeFromCategories(["Chef", "Limpieza"]), null, "a tie is not a guess");
+  assert.equal(tradeFromCategories(["Masaje", null, undefined]), null);
+  assert.equal(tradeFromCategories([]), null);
+});

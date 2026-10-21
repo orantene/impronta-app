@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATALOG_PROFILE_COLUMNS, isPublicCatalogProfile, type CatalogProfileRow } from "@/lib/offerings/business-catalog";
 import { isSellable } from "@/lib/offerings/sellable";
 import { logServerError } from "@/lib/server/safe-error";
+import { sellableListingIds } from "./listing-sellable-batch.server";
 
 /**
  * TUL-1372 (slice 1): the READER for roster services on a workspace's public site.
@@ -97,21 +98,43 @@ export function _resetRosterSellableCacheForTests(): void {
   sellableCache.clear();
 }
 
-async function sellableVerdict(admin: Admin, listingId: string): Promise<boolean> {
-  const hit = sellableCache.get(listingId);
-  if (hit && Date.now() - hit.at < SELLABLE_TTL_MS) return hit.ok;
-  const { data, error } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: listingId });
-  if (error) {
-    logServerError("serviceHub.rosterServices.sellable", error);
-    return false; // an error is never cached: the next render asks again
+/**
+ * One database call for every listing not answered in the last SELLABLE_TTL_MS
+ * (`sellableListingIds`, TUL-1475). null = could not ask: every uncached listing is hidden
+ * and nothing is cached, so the next render asks again.
+ */
+async function sellableVerdicts(admin: Admin, listingIds: readonly string[]): Promise<Set<string>> {
+  const now = Date.now();
+  const yes = new Set<string>();
+  const ask: string[] = [];
+  for (const id of listingIds) {
+    const hit = sellableCache.get(id);
+    if (hit && now - hit.at < SELLABLE_TTL_MS) {
+      if (hit.ok) yes.add(id);
+    } else ask.push(id);
   }
-  const ok = data === true;
-  if (sellableCache.size >= SELLABLE_CACHE_MAX) sellableCache.clear();
-  sellableCache.set(listingId, { ok, at: Date.now() });
-  return ok;
+  if (ask.length === 0) return yes;
+  const answered = await sellableListingIds(admin as never, ask);
+  if (answered === null) return yes;
+  if (sellableCache.size + ask.length >= SELLABLE_CACHE_MAX) sellableCache.clear();
+  for (const id of ask) {
+    const ok = answered.has(id);
+    sellableCache.set(id, { ok, at: now });
+    if (ok) yes.add(id);
+  }
+  return yes;
 }
 
-export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string): Promise<RosterServiceItem[]> {
+/**
+ * Which sell rule decides if a roster service may be listed. PUBLIC surfaces (the site, /book, the
+ * widget, the catalog API, the guest dock and chat) use `guest_request`: published + approved AND
+ * public or on request, so an agency-only or hidden service never reaches a visitor. A STAFF
+ * surface (quoting from Messages) passes `staff_quote`, which only needs published + approved.
+ * The default is the strict public rule, so a caller that forgets to say gets the safe one.
+ */
+export type RosterSellContext = "guest_request" | "staff_quote";
+
+export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string, context: RosterSellContext = "guest_request"): Promise<RosterServiceItem[]> {
   if (!tenantId) return [];
 
   const { data: raw, error } = await admin
@@ -129,12 +152,10 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   const listings = ((raw ?? []) as ListingRow[]).filter((l) => l.tenant_id === tenantId && l.status === "accepted");
   if (listings.length === 0) return [];
 
-  // The database decides sellable. Any error or false hides the entry. The checks run in parallel
-  // and verdicts are cached briefly per listing (SELLABLE_TTL_MS), so a public page render does not
-  // repeat one RPC per listing on every visit. A revoked listing can therefore linger up to the TTL.
-  // TODO(TUL-1372): replace with one set-returning sellable RPC once the listing table is applied.
-  const verdicts = await Promise.all(listings.map(async (l) => [l.id, await sellableVerdict(admin, l.id)] as const));
-  const sellable = new Set(verdicts.filter(([, ok]) => ok).map(([id]) => id));
+  // The database decides sellable, in ONE call for the page (TUL-1475). Any error or false hides
+  // the entry. Verdicts are cached briefly per listing (SELLABLE_TTL_MS), so a public page render
+  // does not ask again on every visit. A revoked listing can therefore linger up to the TTL.
+  const sellable = await sellableVerdicts(admin, listings.map((l) => l.id));
   const live = listings.filter((l) => sellable.has(l.id));
   if (live.length === 0) return [];
 
@@ -155,14 +176,14 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   const offeringIds = [...new Set(live.map((l) => l.offering_id))];
   const { data: offerings, error: offErr } = await admin
     .from("talent_offerings")
-    .select("id, talent_profile_id, title, amount_cents, currency, status, moderation_state")
+    .select("id, talent_profile_id, title, amount_cents, currency, status, moderation_state, visibility")
     .in("id", offeringIds);
   if (offErr) {
     logServerError("serviceHub.rosterServices.offerings", offErr);
     return [];
   }
   const offeringById = new Map(
-    ((offerings ?? []) as Array<{ id: string; talent_profile_id: string | null; title: string | null; amount_cents: number | null; currency: string | null; status: string; moderation_state: string }>).map((o) => [o.id, o]),
+    ((offerings ?? []) as Array<{ id: string; talent_profile_id: string | null; title: string | null; amount_cents: number | null; currency: string | null; status: string; moderation_state: string; visibility?: string | null }>).map((o) => [o.id, o]),
   );
 
   // PRIVACY: EVERY entry is shown only while its talent passes the same public-directory predicate the
@@ -192,8 +213,8 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   for (const l of live) {
     const o = offeringById.get(l.offering_id);
     if (!o || o.talent_profile_id !== l.talent_profile_id) continue; // the service must belong to the listing's talent
-    // Published + approved via the one sell rule (no visibility filter, unchanged from #4171; see PM note).
-    if (!isSellable(o, "staff_quote")) continue;
+    // The one sell rule, in the caller's context (public by default; see RosterSellContext).
+    if (!isSellable(o, context)) continue;
     if (!active.has(l.talent_profile_id)) continue;
     // Show-who only controls the NAME: anonymous selling of a hidden talent is not allowed either.
     if (!publicTalent.has(l.talent_profile_id)) continue;
@@ -206,10 +227,11 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
       title: o.title?.trim() || "Service",
       talentProfileId: l.show_who === "hidden" ? null : l.talent_profile_id,
       talentName: l.show_who === "name" ? names.get(l.talent_profile_id) ?? null : null,
-      priceCents: rosterServicePriceCents(
-        { priceMode: l.price_mode, marginBps: l.margin_bps, priceCents: l.price_cents },
-        o.amount_cents,
-      ),
+      // D-10a: an on-request service shows no price (a quote), whatever its listing price mode.
+      priceCents:
+        o.visibility === "on_request"
+          ? null
+          : rosterServicePriceCents({ priceMode: l.price_mode, marginBps: l.margin_bps, priceCents: l.price_cents }, o.amount_cents),
       priceIsFrom: l.price_mode === "from",
       currency,
       bookingType: l.booking_type,

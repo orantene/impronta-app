@@ -34,6 +34,7 @@ export const APP_ROOT_SEGMENTS = [
   "contact",
   "desk",
   "dev",
+  "developers",
   "directory",
   "embed",
   "embed.js",

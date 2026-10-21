@@ -44,6 +44,8 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { needsRouteLookup, needsServiceLookup, serviceRouteVerdict, talentRouteVerdict } from "@/lib/talent-site/route-verdict";
 import { TalentSitePaintSkeleton } from "@/components/talent-site/TalentSitePaintSkeleton";
 import { loadMaxSitePages } from "@/lib/talent-site/server/load-max-site";
+import { resolveTalentOldServiceRedirect } from "@/lib/talent-site/server/old-service-slug.server";
+import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { talentGuestAliasTarget, talentGuestServiceAlias } from "@/lib/talent-site/guest-path-aliases";
 import { talentNotFoundCopy } from "@/lib/talent-site/talent-not-found-copy";
@@ -215,7 +217,15 @@ export default async function TalentSiteHostPage({
   // equality, policy slugs and service slugs only, so we 404 only when the slug is in
   // none of those and in no page row at all (draft or published).
   if (needsRouteLookup(seg, preview)) {
-    const verdict = talentRouteVerdict(seg, (await loadMaxSitePages(talentProfileId)).map((p) => p.slug));
+    const verdict = talentRouteVerdict(seg, (await loadMaxSitePages(talentProfileId)).map((p) => p.slug), {
+      oldSlugCheck: servicePresentationResolverEnabled() && preview !== "draft",
+    });
+    // TUL-1594: a slug nothing else owns may be a service slug kept in `offering_slugs`: 308 to the page it renders at, else the 404.
+    if (verdict === "check-old-slug") {
+      const to = await resolveTalentOldServiceRedirect({ talentProfileId, slug: seg, locale });
+      if (to) permanentRedirect(serviceRedirectPath(await originalLocalePrefix(locale), to));
+      notFound();
+    }
     // `/privacy` is the English word talents and footers guess: a real 308 to the policy page (not a streamed redirect).
     if (verdict === "privacy-redirect") permanentRedirect(`/${POLICY_SLUG.privacy}`);
     if (verdict === "not-found") notFound();

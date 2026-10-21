@@ -23,6 +23,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { CapacityNeed } from "@/lib/orders/capacity-requests";
 import { parseOfferingResourceSet } from "./offering-resource-set";
 import { reserveResourceSet, spaceCapacityPool } from "./reserve-set";
+import { realSessionHoldDeps, sessionResourceKey } from "./session-resource-holds";
 
 type Admin = Pick<SupabaseClient, "rpc" | "from">;
 
@@ -75,14 +76,38 @@ export async function purchaseNeedsWithLinkedResources(
   admin: Pick<SupabaseClient, "from">,
   input: {
     tenantId: string;
-    lines: ReadonlyArray<{ offeringId: string }>;
+    lines: ReadonlyArray<{ offeringId: string; sessionId?: string | null }>;
     capacity?: readonly CapacityNeed[] | null;
     reservation?: { startsAt: string; endsAt: string } | null;
   },
+  /** Injectable for tests. */
+  deps: {
+    /** Does this session already hold its room (TUL-1413)? null = could not read. */
+    sessionHoldsRoom?: (tenantId: string, sessionId: string) => Promise<boolean | null>;
+    loadLinked?: typeof loadLinkedResourcePools;
+  } = {},
 ): Promise<{ ok: true; needs: CapacityNeed[] } | { ok: false; error: string }> {
   const base = [...(input.capacity ?? [])];
   if (!input.reservation) return { ok: true, needs: base };
-  const linked = await loadLinkedResourcePools(admin, input.tenantId, input.lines.map((l) => l.offeringId));
+
+  // TUL-1473: a class's room is held ONCE per session (TUL-1413), not once per attendee. A line
+  // that names a session whose room is already held shares it and holds nothing itself. A session
+  // with NO live hold (scheduled before that existed) keeps the per-attendee hold, and an
+  // unreadable answer refuses rather than sell a room nobody holds.
+  const holdsRoom =
+    deps.sessionHoldsRoom ??
+    (async (tenantId: string, sessionId: string) => {
+      const ids = await realSessionHoldDeps(admin as SupabaseClient).liveAllocationIds(tenantId, sessionResourceKey(sessionId));
+      return ids === null ? null : ids.length > 0;
+    });
+  const sessionCache = new Map<string, boolean | null>();
+  for (const sessionId of new Set(input.lines.map((l) => l.sessionId).filter((v): v is string => !!v))) {
+    sessionCache.set(sessionId, await holdsRoom(input.tenantId, sessionId));
+  }
+  if ([...sessionCache.values()].some((v) => v === null)) return { ok: false, error: "Could not read this class's room." };
+  const lines = input.lines.filter((l) => !l.sessionId || sessionCache.get(l.sessionId) !== true);
+
+  const linked = await (deps.loadLinked ?? loadLinkedResourcePools)(admin, input.tenantId, lines.map((l) => l.offeringId));
   if (!linked.ok) return { ok: false, error: linked.error };
   return {
     ok: true,
@@ -255,8 +280,11 @@ export type MoveResourcesResult =
  * window first ("taken" refuses the reschedule), then `finish(true)` gives the old window
  * back, or `finish(false)` (the calendar move failed) gives the new one back. Resources on
  * an order line are moved by `reschedule_booking_set` itself and are skipped here.
- * Known limit: a new window overlapping the old one on a 1-unit pool reads as taken
- * (no self-exclusion outside the engine's reschedule).
+ * FALLBACK ONLY (TUL-1480): `rescheduleBooking` calls
+ * `reschedule_inquiry_booking_with_resources` (held migration 20261231422200), which moves
+ * these allocations and the calendar in one transaction with self-exclusion. This path runs
+ * only while that function is missing; it cannot self-exclude, so a new window overlapping
+ * the old one on a 1-unit pool is refused as taken (never a double booking).
  */
 export async function moveInquiryBookingResources(
   admin: Admin,

@@ -37,6 +37,8 @@
 import { requireSession } from "@/lib/server/action-guards";
 import { userHasCapability } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadWorkspacePrivateNotes, type WorkspacePrivateNote } from "./private-note-routing";
 
 /** A single moderation-audit event on a review (immutable trail row). */
 export type ReviewModerationEvent = {
@@ -172,7 +174,7 @@ type ServiceClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
  */
 async function gateModeration(
   tenantId: string,
-): Promise<{ svc: ServiceClient; tid: string } | null> {
+): Promise<{ svc: ServiceClient; tid: string; userId: string } | null> {
   const auth = await requireSession();
   if (!auth.ok) return null;
   const tid = (tenantId ?? "").trim();
@@ -180,7 +182,7 @@ async function gateModeration(
   if (!(await userHasCapability("agency.workspace.view", tid))) return null;
   const svc = createServiceRoleClient();
   if (!svc) return null;
-  return { svc, tid };
+  return { svc, tid, userId: auth.user.id };
 }
 
 /** Resolve talent display names for a set of profile ids (service-role). */
@@ -493,4 +495,30 @@ async function readIntegritySignals(
 
   out.sort((a, b) => b.gap - a.gap);
   return out;
+}
+
+/** A client's private note that belongs to the workspace (team studio, TUL-1686). */
+export type WorkspaceReviewPrivateNote = WorkspacePrivateNote & { talentName: string | null };
+
+/**
+ * TUL-1686: in a team studio the client's private review note goes to the
+ * workspace, not the talent. Past the queue's gate, ONLY an active owner or admin
+ * of THIS tenant reads them (viewer/editor/manager seats and pending members are
+ * denied: a talent with a viewer seat must not read notes about herself). Any
+ * other work model returns [] (those notes stay the talent's). The DB reader
+ * enforces the same as the signed-in caller; while its migration is held the
+ * service-role fallback applies the same rule.
+ */
+export async function loadWorkspaceReviewPrivateNotes(
+  tenantId: string,
+  limit = 20,
+): Promise<WorkspaceReviewPrivateNote[]> {
+  const gate = await gateModeration(tenantId);
+  if (!gate) return [];
+  const session = await getCachedServerSupabase();
+  if (!session) return [];
+  const notes = await loadWorkspacePrivateNotes(session, gate.svc, gate.tid, gate.userId, limit);
+  if (notes.length === 0) return [];
+  const names = await resolveTalentNames(gate.svc, notes.map((n) => n.talentProfileId));
+  return notes.map((n) => ({ ...n, talentName: names.get(n.talentProfileId) ?? null }));
 }
