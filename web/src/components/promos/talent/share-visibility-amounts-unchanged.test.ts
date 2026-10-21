@@ -45,7 +45,7 @@ const BEFORE: Record<string, [string, string, number, number, number, number]> =
   draft: ["10% menos", "10% off", 3000, 27000, 405, 30000],
   scheduled: ["15% menos", "15% off", 4500, 25500, 383, 30000],
   live: ["20% menos", "20% off", 6000, 24000, 360, 30000],
-  personal: ["$50 menos","MX$50 off", 5000, 25000, 375, 30000],
+  personal: ["$50 MXN menos", "$50 MXN off", 5000, 25000, 375, 30000],
 };
 
 for (const f of FIXTURES) {

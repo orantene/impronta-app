@@ -32,12 +32,12 @@ const REPO = join(WEB, "..");
 const TEST_RE = /\.test\.(?:tsx?|mjs|cjs|js)$/;
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "dist", "build", "coverage", ".vercel"]);
 
-function walk(dir, out = []) {
+function walk(dir, out = [], base = dir) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory()) {
-      if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name), out);
+      if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name), out, base);
     } else if (e.isFile() && TEST_RE.test(e.name)) {
-      out.push(relative(WEB, join(dir, e.name)).split(sep).join("/"));
+      out.push(relative(base, join(dir, e.name)).split(sep).join("/"));
     }
   }
   return out;
@@ -61,8 +61,8 @@ function globToRegExp(glob) {
   return new RegExp(`^${re}$`);
 }
 
-export function computeOrphans({ extraCovered = [] } = {}) {
-  const all = walk(WEB).sort();
+export function computeOrphans({ extraCovered = [], root = WEB } = {}) {
+  const all = walk(root).sort();
   const covered = new Set(extraCovered);
 
   const texts = [];
