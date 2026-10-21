@@ -43,6 +43,7 @@ import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersona
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { WORKSPACE_MONEY_GATES, isStrictPlanDowngrade } from "@/lib/billing/workspace-money-gates";
 import { applyWorkspaceDowngrade } from "@/lib/billing/plan-change.server";
+import { resolveKeepList } from "@/lib/billing/downgrade-keep-list";
 import { archiveRosterOverflow } from "@/lib/billing/workspace-downgrade-archive";
 
 const PLAN_TIER = z.enum(["free", "studio", "agency", "network"]);
@@ -238,12 +239,25 @@ export async function commitPlanDowngrade(input: {
     .eq("plan_tier", v.target_tier)
     .single();
   if (!caps) return { ok: false, error: "Plan caps not available." };
-  if (v.talent_keep_ids.length > caps.talent_seats) {
-    return {
-      ok: false,
-      error: `${v.target_tier} plan allows up to ${caps.talent_seats} talent. You selected ${v.talent_keep_ids.length}.`,
-    };
+  // TUL-1291: the keep-list is validated against THIS tenant's roster, read server-side. A client id that is not on the
+  // roster is refused, more than the cap is refused, and a roster that already fits keeps everyone.
+  const { data: rosterRows, error: rosterErr } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .in("status", ["active", "pending"])
+    .order("created_at", { ascending: true });
+  if (rosterErr) {
+    logServerError("admin-plan-downgrade.commit.roster", rosterErr);
+    return { ok: false, error: CLIENT_ERROR.update };
   }
+  const resolved = resolveKeepList({
+    rosterIds: ((rosterRows ?? []) as Array<{ talent_profile_id: string }>).map((r) => r.talent_profile_id),
+    requestedKeepIds: v.talent_keep_ids,
+    cap: caps.talent_seats,
+  });
+  if (!resolved.ok) return { ok: false, error: resolved.error };
+  const keepIds = resolved.keep;
 
   // TUL-1518: tell STRIPE first. With a live subscription the customer keeps being billed the old price until Stripe is
   // told, so a refusal here stops the whole downgrade: nothing is archived and no tier is written.
@@ -257,7 +271,7 @@ export async function commitPlanDowngrade(input: {
   const now = new Date().toISOString();
   const stripeStep = await applyWorkspaceDowngrade(tenantId, v.target_tier, {
     target_tier: v.target_tier,
-    keep_ids: v.talent_keep_ids,
+    keep_ids: keepIds,
     archive_event_id: eventId,
     requested_by: user.id,
     requested_at: now,
@@ -269,7 +283,7 @@ export async function commitPlanDowngrade(input: {
   if (!stripeStep.hadSubscription) {
     const archived = await archiveRosterOverflow(supabase, {
       tenantId,
-      keepIds: v.talent_keep_ids,
+      keepIds,
       eventId,
       actorId: user.id,
       nowIso: now,

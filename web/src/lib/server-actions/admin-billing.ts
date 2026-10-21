@@ -26,7 +26,10 @@ export type ChangeWorkspacePlanResult = ServerActionResult<{
   /** TUL-1291: true when the workspace has a Stripe subscription, so Free starts at the end of the paid period. */
   scheduledForPeriodEnd: boolean;
   effectiveAt: string | null;
-}>;
+}> & {
+  /** TUL-1291: the roster is above the Free cap, so the OWNER must pick who stays visible (picker -> commitPlanDowngrade). */
+  needsKeepList?: boolean;
+};
 
 /**
  * Free downgrade only. Paid upgrades go through Stripe Checkout
@@ -91,7 +94,7 @@ export async function changeWorkspacePlan(
       return { ok: true };
     },
   });
-  if (!outcome.ok) return { ok: false, error: outcome.error };
+  if (!outcome.ok) return { ok: false, error: outcome.error, ...(outcome.needsKeepList ? { needsKeepList: true } : {}) };
 
   // TUL-1737: a stored keep-list from an earlier scheduled downgrade must never archive anyone after this plan change.
   // Only on the immediate path: with a Stripe schedule the pending row IS the change and the webhook consumes it.

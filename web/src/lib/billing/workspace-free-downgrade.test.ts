@@ -41,17 +41,23 @@ test("a workspace with a live Stripe subscription is downgraded AT STRIPE and no
   assert.equal(h.calls.stripe[0].pending.requested_by, "u1");
 });
 
-test("the stored keep-list is the oldest roster rows up to the Free cap, never everyone, never no-one", async () => {
-  const roster = ["r1", "r2", "r3", "r4", "r5", "r6", "r7"];
-  const over = harness({ roster, cap: 5, stripe: { ok: true, hadSubscription: true, mode: "cancel_at_period_end", effectiveAt: null } });
-  await downgradeWorkspaceToFree("t1", "u1", over.deps);
-  assert.deepEqual(over.calls.stripe[0].pending.keep_ids, ["r1", "r2", "r3", "r4", "r5"]);
-  const under = harness({ roster: ["r1", "r2"], cap: 5, stripe: { ok: true, hadSubscription: true, mode: "cancel_at_period_end", effectiveAt: null } });
+test("a roster that fits the Free cap keeps everyone; unlimited cap keeps everyone", async () => {
+  const sub = { ok: true as const, hadSubscription: true as const, mode: "cancel_at_period_end" as const, effectiveAt: null };
+  const under = harness({ roster: ["r1", "r2"], cap: 5, stripe: sub });
   await downgradeWorkspaceToFree("t1", "u1", under.deps);
   assert.deepEqual(under.calls.stripe[0].pending.keep_ids, ["r1", "r2"]);
-  const unlimited = harness({ roster, cap: null, stripe: { ok: true, hadSubscription: true, mode: "cancel_at_period_end", effectiveAt: null } });
+  const unlimited = harness({ roster: ["r1", "r2", "r3", "r4", "r5", "r6", "r7"], cap: null, stripe: sub });
   await downgradeWorkspaceToFree("t1", "u1", unlimited.deps);
   assert.equal(unlimited.calls.stripe[0].pending.keep_ids.length, 7);
+});
+
+test("a roster above the Free cap is refused here (the owner picks who stays) and Stripe is never contacted", async () => {
+  const h = harness({ roster: ["r1", "r2", "r3", "r4", "r5", "r6", "r7"], cap: 5 });
+  const r = await downgradeWorkspaceToFree("t1", "u1", h.deps);
+  assert.equal(r.ok, false);
+  assert.equal(r.ok === false && r.needsKeepList, true);
+  assert.equal(h.calls.stripe.length, 0);
+  assert.deepEqual(h.calls.writes, []);
 });
 
 test("no live subscription (free, comped, ended at Stripe): the direct write, as before", async () => {

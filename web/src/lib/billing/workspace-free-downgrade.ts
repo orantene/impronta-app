@@ -5,8 +5,8 @@
  * uses (applyWorkspaceDowngrade: cancel at period end, schedule released first, idempotent keys, fail closed):
  *   - live Stripe subscription: Stripe is told first and the caller writes NOTHING local. The webhook is the single
  *     writer of plan_tier, and archives the overflow roster at period end under the keep-list stored with the pending
- *     change. The keep-list is the oldest rows up to the Free cap (the modal has no picker; people who want to choose use
- *     the downgrade flow), so the webhook never archives more than the overflow.
+ *     change. This door only runs when the roster fits the Free cap (keep-list = everyone); an overflowing roster is
+ *     refused here and goes through the owner's keep-list picker (commitPlanDowngrade), so nobody is hidden by a guess.
  *   - no live subscription (free, comped, ended at Stripe): the direct write the action always did.
  * A Stripe refusal stops everything: the plan is not changed and the user is told, never silently "downgraded".
  */
@@ -28,10 +28,12 @@ export type FreeDowngradeDeps = {
   writeFreeNow(tenantId: string): Promise<{ ok: true } | { ok: false }>;
 };
 
+import { resolveKeepList } from "./downgrade-keep-list";
+
 export type FreeDowngradeOutcome =
   | { ok: true; applied: "now" }
   | { ok: true; applied: "period_end"; effectiveAt: string | null }
-  | { ok: false; error: string };
+  | { ok: false; error: string; needsKeepList?: boolean };
 
 const FAIL = { ok: false as const, error: "Could not update plan. Try again." };
 
@@ -46,8 +48,11 @@ export async function downgradeWorkspaceToFree(
   } catch {
     return FAIL;
   }
-  const cap = deps.freeSeatCap();
-  const keep = cap == null ? ids : ids.slice(0, Math.max(0, cap));
+  // TUL-1291: a roster above the Free cap needs the OWNER's keep-list (commitPlanDowngrade, from the picker). This door
+  // never guesses who to hide: with an overflow it refuses and the UI opens the picker.
+  const resolved = resolveKeepList({ rosterIds: ids, cap: deps.freeSeatCap() });
+  if (!resolved.ok) return { ok: false, error: resolved.error, needsKeepList: resolved.code === "needs_selection" };
+  const keep = resolved.keep;
 
   const stripe = await deps.applyAtStripe(tenantId, {
     target_tier: "free",

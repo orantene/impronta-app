@@ -9,6 +9,9 @@ import { UpgradeModal } from "./upgrade-modal";
 import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
+import { commitPlanDowngrade, getDowngradePreflight, type DowngradePreflight } from "@/lib/server-actions/admin-plan-downgrade";
+import { DowngradeKeepPicker } from "./downgrade-keep-picker";
+import { useT } from "@/i18n/use-t";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -47,6 +50,42 @@ export function GlobalUpgradeModal({
   const { open, reason, setOpen } = useUpgradeModal();
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
+  const t = useT();
+  // TUL-1291: owner keep-list picker (opens only when changeWorkspacePlan says the roster is above the Free cap).
+  const [picker, setPicker] = React.useState<{ open: boolean; loading: boolean; preflight: DowngradePreflight | null }>({
+    open: false,
+    loading: false,
+    preflight: null,
+  });
+
+  function openKeepPicker() {
+    setPicker({ open: true, loading: true, preflight: null });
+    void getDowngradePreflight({ target_tier: "free" }).then((r) => {
+      if (r.ok) {
+        setPicker({ open: true, loading: false, preflight: r.preflight });
+      } else {
+        setPicker({ open: false, loading: false, preflight: null });
+        toast.error(t("dashboard.adminShared.planChange.keepLoadFailed"));
+      }
+    });
+  }
+
+  function handleKeepConfirm(keepIds: string[]) {
+    startTransition(async () => {
+      const result = await commitPlanDowngrade({ target_tier: "free", talent_keep_ids: keepIds });
+      if (result.ok) {
+        toast.success(
+          result.stripe_scheduled
+            ? `Your paid plan ends${result.effective_at ? ` on ${new Date(result.effective_at).toLocaleDateString()}` : " at the end of this billing period"}, then your workspace moves to free.`
+            : "Workspace plan set to free.",
+        );
+        setPicker({ open: false, loading: false, preflight: null });
+        queueRouterRefresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
 
   const activePlan: Plan = activePlanOverride ?? workspace?.plan ?? "free";
   const slug = tenantSlug ?? workspace?.slug;
@@ -119,6 +158,8 @@ export function GlobalUpgradeModal({
             : `Workspace plan set to ${plan}.`,
         );
         queueRouterRefresh();
+      } else if (result.needsKeepList) {
+        openKeepPicker();
       } else {
         toast.error(result.error);
       }
@@ -126,6 +167,7 @@ export function GlobalUpgradeModal({
   }
 
   return (
+    <>
     <UpgradeModal
       open={open}
       onOpenChange={setOpen}
@@ -135,5 +177,14 @@ export function GlobalUpgradeModal({
       doorPending={pending}
       onDoorStart={handleDoorStart}
     />
+    <DowngradeKeepPicker
+      open={picker.open}
+      preflight={picker.preflight}
+      loading={picker.loading}
+      pending={pending}
+      onConfirm={handleKeepConfirm}
+      onCancel={() => setPicker({ open: false, loading: false, preflight: null })}
+    />
+    </>
   );
 }

@@ -416,3 +416,4 @@ src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
 src/lib/visits/restaurant-screens.render.test.ts
 src/lib/visits/seat-reservation.test.ts
+src/lib/billing/downgrade-keep-list.test.ts
