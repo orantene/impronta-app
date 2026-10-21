@@ -217,6 +217,7 @@ src/lib/payments/refund-authority.test.ts
 src/lib/payments/refund-charge-share-fail-closed.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
+src/lib/payments/refund-fee-claims.static.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts
