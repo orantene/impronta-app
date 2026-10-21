@@ -38,10 +38,10 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { mintAdmissionsForPaidOrder } from "@/lib/events/mint-on-paid";
 import { addLine, createDraftOrder, loadPosSale } from "@/lib/pos/draft";
+import { DOOR_WRITE_CAPABILITY, type DoorWriteAction } from "@/lib/pos/door-write-capabilities";
 import { finalizeOrCancel } from "@/lib/pos/finalize";
 import { startCollection } from "@/lib/pos/collection";
 import { loadDoorTonight, type DoorTonightResult } from "@/lib/pos/door-tonight";
@@ -53,11 +53,17 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+/**
+ * TUL-1708: `action` names the capability a WRITE needs, from DOOR_WRITE_CAPABILITY, passed straight into
+ * the guard. Reads (tonight's list, reading a sale, the tickets issued on an order) call `staff()` with no
+ * action, but still need `booking.payment.request`, same as main today: the door shows sales figures and
+ * ticket holder names, which the guard's bare default (`agency.workspace.view`) would hand to any viewer.
+ */
+async function staff(action?: DoorWriteAction) {
+  const guard = await requireWorkspaceStaffAction({
+    capability: action ? DOOR_WRITE_CAPABILITY[action] : "booking.payment.request",
+  });
   if (!guard.ok) return { ok: false as const, error: guard.error };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
-  if (!allowed) return { ok: false as const, error: "not_allowed" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
   return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, admin };
@@ -101,7 +107,7 @@ export async function posDoorOpenTicketSale(input: {
   units?: number;
 }): Promise<OpenTicketSaleResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("openTicketSale");
   if (!g.ok) return g;
   const parsed = z
     .object({ sessionId: uuid, variantId: uuid, units: z.number().int().positive().max(50).optional() })
@@ -178,7 +184,7 @@ export async function posDoorAddTicketLine(input: {
   expectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("addTicketLine");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -257,7 +263,7 @@ export async function posDoorReadSale(orderId: string): Promise<{ ok: true; sale
  */
 export async function posDoorNameTicket(input: { admissionId: string; holderName: string; replace?: boolean }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("nameTicket");
   if (!g.ok) return g;
   const parsed = z
     .object({ admissionId: uuid, holderName: z.string().trim().min(1).max(120), replace: z.boolean().optional() })
@@ -357,7 +363,7 @@ export async function posDoorIssuedTickets(orderId: string) {
 
 export async function posDoorCancelTicketSale(orderId: string, expectedVersion?: number) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("cancelTicketSale");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   return finalizeOrCancel(g.admin, { tenantId: g.tenantId, orderId, expectedVersion });
@@ -418,7 +424,7 @@ export async function posDoorCollectTicket(input: {
   admitNow: boolean;
 }): Promise<CollectTicketResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("collectTicket");
   if (!g.ok) return g;
   const parsed = z
     .object({
