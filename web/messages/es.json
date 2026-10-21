@@ -14513,7 +14513,8 @@
           "already_closed": "Ese turno ya está cerrado.",
           "not_allowed": "No tienes permiso para hacer esto.",
           "no_customer": "Primero asigna un cliente a esta venta.",
-          "item_unavailable": "Este artículo ya no está disponible."
+          "item_unavailable": "Este artículo ya no está disponible.",
+          "payment_required": "Esta clase es de pago, asi que el lugar no se puede confirmar antes del pago. Para darselo, rechaza esta oferta y luego vende el lugar en caja para cobrarlo."
         }
       },
       "newSale": "Nueva venta",

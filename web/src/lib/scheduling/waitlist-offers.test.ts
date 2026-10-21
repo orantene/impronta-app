@@ -17,7 +17,27 @@ test("place maps a reserve refusal to no_place", async () => {
 
 test("two accepts of one offer: the RPC decides the winner", async () => {
   let n = 0;
+  // A FREE class: accepting first prices the place (P1 release gate; paid
+  // classes are covered in waitlist-offers-paid.test.ts).
+  const rows: Record<string, Record<string, unknown> | Array<Record<string, unknown>>> = {
+    waitlist_offers: { id: "off1", waitlist_entry_id: "e1", accepted_at: null },
+    session_waitlist_entries: { id: "e1", session_id: "s1" },
+    sessions: { id: "s1", offering_id: "o1" },
+    talent_offerings: { id: "o1", amount_cents: 0 },
+    talent_offering_variants: [],
+  };
+  type Q = { select: () => Q; eq: () => Q; maybeSingle: () => Promise<{ data: unknown; error: null }>; then: (r: (v: { data: unknown; error: null }) => unknown) => unknown };
+  const query = (table: string): Q => {
+    const q: Q = {
+      select: () => q,
+      eq: () => q,
+      maybeSingle: async () => ({ data: rows[table] ?? null, error: null }),
+      then: (r) => r({ data: rows[table] ?? [], error: null }),
+    };
+    return q;
+  };
   const admin = {
+    from: query,
     rpc: async () => {
       n += 1;
       return n === 1

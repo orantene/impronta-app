@@ -2186,7 +2186,8 @@
           "already_closed": "Ce service est deja cloture.",
           "not_allowed": "Vous n'avez pas la permission de faire cela.",
           "no_customer": "Associez d'abord un client à cette vente.",
-          "item_unavailable": "Cet article n'est plus disponible."
+          "item_unavailable": "Cet article n'est plus disponible.",
+          "payment_required": "Ce cours est payant : la place ne peut pas etre confirmee avant le paiement. Pour la lui donner, refusez cette offre, puis vendez la place a la caisse pour l encaisser."
         }
       },
       "newSale": "Nouvelle vente",
