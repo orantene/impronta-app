@@ -8,7 +8,10 @@
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<Response> {
-  const key = process.env.INDEXNOW_API_KEY ?? "";
+  const key = process.env.INDEXNOW_API_KEY;
+  // Unconfigured: nothing to verify, and pingIndexNow() no-ops anyway (see
+  // indexNowPingAllowed) — an empty 200 would just be a confusing stray file.
+  if (!key) return new Response("Not found", { status: 404 });
   return new Response(key, {
     headers: { "content-type": "text/plain; charset=utf-8" },
   });

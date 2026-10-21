@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { indexNowPingAllowed, pingIndexNow, pingIndexNowUrl, INDEXNOW_KEY_LOCATION_PATH } from "./indexnow";
+import { indexNowPingAllowed, pingIndexNow, pingIndexNowUrl, INDEXNOW_KEY_LOCATION_PATH, INDEXNOW_TIMEOUT_MS } from "./indexnow";
 
 const PROD_ENV = { VERCEL_ENV: "production", INDEXNOW_API_KEY: "test-key-123" };
 
@@ -85,6 +85,34 @@ test("pingIndexNow: refuses (no fetch) when the urls don't share one host", asyn
   try {
     await pingIndexNow(["https://a.tulala.digital/x", "https://b.tulala.digital/y"], PROD_ENV);
     assert.equal(fetchCalled, false, "IndexNow requires every url in one submission to share a host");
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("pingIndexNow: passes an AbortSignal timing out at INDEXNOW_TIMEOUT_MS, so a slow api.indexnow.org can never hang a publish click", async () => {
+  let capturedSignal: AbortSignal | undefined;
+  const originalFetch = global.fetch;
+  global.fetch = (async (_url: string | URL, init?: RequestInit) => {
+    capturedSignal = init?.signal ?? undefined;
+    return new Response(null, { status: 202 });
+  }) as typeof fetch;
+  try {
+    await pingIndexNow(["https://example.tulala.digital/x"], PROD_ENV);
+    assert.ok(capturedSignal instanceof AbortSignal, "fetch must receive an AbortSignal");
+    assert.equal(INDEXNOW_TIMEOUT_MS, 3000);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("pingIndexNow: swallows an aborted (timed-out) request instead of throwing", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = (async () => {
+    throw new DOMException("The operation timed out.", "TimeoutError");
+  }) as typeof fetch;
+  try {
+    await assert.doesNotReject(() => pingIndexNow(["https://example.tulala.digital/x"], PROD_ENV));
   } finally {
     global.fetch = originalFetch;
   }

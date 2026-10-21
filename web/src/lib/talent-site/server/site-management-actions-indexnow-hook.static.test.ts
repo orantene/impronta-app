@@ -14,17 +14,18 @@ import test from "node:test";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SRC = readFileSync(join(HERE, "site-management-actions.ts"), "utf8");
 
-test("publishMaxSiteAction: pings IndexNow after the site is marked published, before returning ok", () => {
+test("publishMaxSiteAction: fires the IndexNow hook via afterResponse (not awaited) after the site is marked published, before returning ok", () => {
   const start = SRC.indexOf("export async function publishMaxSiteAction(");
   assert.ok(start >= 0, "publishMaxSiteAction must exist");
   const next = SRC.indexOf("\nexport async function", start + 10);
   const fn = SRC.slice(start, next < 0 ? undefined : next);
 
   const siteUpdateIdx = fn.indexOf('status: "published"');
-  const pingIdx = fn.indexOf("await pingIndexNowUrl(");
+  const pingIdx = fn.indexOf("afterResponse(() => pingIndexNowUrl(");
   const returnIdx = fn.indexOf("return { ok: true, data: { publishedAt: now } };");
   assert.ok(siteUpdateIdx >= 0 && pingIdx >= 0 && returnIdx >= 0, "all three must be present");
-  assert.ok(siteUpdateIdx < pingIdx, "the ping must run after the site row is marked published");
-  assert.ok(pingIdx < returnIdx, "the ping must run before the success return");
+  assert.ok(siteUpdateIdx < pingIdx, "the hook must fire after the site row is marked published");
+  assert.ok(pingIdx < returnIdx, "the hook must fire before the success return");
   assert.match(fn, /is_demo/, "must skip the ping for a demo profile");
+  assert.doesNotMatch(fn, /await pingIndexNowUrl\(/, "the hook must never be awaited on the request path — a slow api.indexnow.org must not hang this Publish click");
 });

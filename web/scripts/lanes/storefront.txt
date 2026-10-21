@@ -4,6 +4,7 @@ src/app/(public)/book/book-availability.test.ts
 src/app/(public)/book/book-no-times.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
+src/app/indexnow-key.txt/route.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
 src/components/admin/shell/internal/page-modules/active-locale-pill.test.ts
 src/components/admin/shell/internal/talent-surface-no-clip.static.test.ts

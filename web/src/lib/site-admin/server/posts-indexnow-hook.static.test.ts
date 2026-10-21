@@ -23,24 +23,26 @@ function body(fn: string): string {
   return SRC.slice(start, next < 0 ? undefined : next);
 }
 
-test("publishPost: pings IndexNow after the revision write, before returning ok", () => {
+test("publishPost: fires the IndexNow hook via afterResponse (not awaited) after the revision write, before returning ok", () => {
   const fn = body("publishPost");
   const revisionIdx = fn.indexOf("await writePostRevision(");
-  const pingIdx = fn.indexOf("await pingIndexNowForPost(");
+  const pingIdx = fn.indexOf("afterResponse(() => pingIndexNowForPost(");
   const returnIdx = fn.indexOf("return { ok: true,");
   assert.ok(revisionIdx >= 0 && pingIdx >= 0 && returnIdx >= 0, "all three calls must be present");
-  assert.ok(revisionIdx < pingIdx, "the ping must run after the revision is written");
-  assert.ok(pingIdx < returnIdx, "the ping must run before the success return");
+  assert.ok(revisionIdx < pingIdx, "the hook must fire after the revision is written");
+  assert.ok(pingIdx < returnIdx, "the hook must fire before the success return");
+  assert.doesNotMatch(fn, /await pingIndexNowForPost\(/, "the hook must never be awaited on the request path — a slow api.indexnow.org must not hang this click");
 });
 
-test("unpublishPost: pings IndexNow after confirming the row updated, before returning ok", () => {
+test("unpublishPost: fires the IndexNow hook via afterResponse (not awaited) after confirming the row updated, before returning ok", () => {
   const fn = body("unpublishPost");
   const notFoundIdx = fn.indexOf('code: "NOT_FOUND"');
-  const pingIdx = fn.indexOf("await pingIndexNowForPost(");
+  const pingIdx = fn.indexOf("afterResponse(() => pingIndexNowForPost(");
   const returnIdx = fn.indexOf("return { ok: true,");
   assert.ok(notFoundIdx >= 0 && pingIdx >= 0 && returnIdx >= 0, "all three must be present");
-  assert.ok(notFoundIdx < pingIdx, "the ping must run after the not-found guard");
-  assert.ok(pingIdx < returnIdx, "the ping must run before the success return");
+  assert.ok(notFoundIdx < pingIdx, "the hook must fire after the not-found guard");
+  assert.ok(pingIdx < returnIdx, "the hook must fire before the success return");
+  assert.doesNotMatch(fn, /await pingIndexNowForPost\(/, "the hook must never be awaited on the request path");
 });
 
 test("pingIndexNowForPost: resolves the tenant's own origin, never the platform default", () => {

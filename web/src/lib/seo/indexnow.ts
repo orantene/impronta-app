@@ -21,6 +21,8 @@ export function indexNowPingAllowed(env: IndexNowEnv = process.env): boolean {
 }
 
 const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
+/** A slow api.indexnow.org must never hang a publish click (TUL-589 fix round). */
+export const INDEXNOW_TIMEOUT_MS = 3000;
 /** Matches the route at web/src/app/indexnow-key.txt/route.ts. */
 export const INDEXNOW_KEY_LOCATION_PATH = "/indexnow-key.txt";
 
@@ -67,6 +69,7 @@ export async function pingIndexNow(urls: string[], env: IndexNowEnv = process.en
       method: "POST",
       headers: { "content-type": "application/json; charset=utf-8" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),
     });
     // IndexNow returns 200/202 on success; treat anything else as a failure to log.
     if (!res.ok && res.status !== 202) {

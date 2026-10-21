@@ -42,6 +42,7 @@ import {
 } from "@/lib/cms/posts-shared";
 import { pingIndexNowUrl } from "@/lib/seo/indexnow";
 import { resolveTenantPublicOriginForIndexNow } from "@/lib/seo/indexnow-tenant-origin";
+import { afterResponse } from "@/lib/server/after-response";
 
 // ---- shapes ----------------------------------------------------------------
 
@@ -329,7 +330,8 @@ export async function publishPost(
     row: data,
     actorProfileId: params.actorProfileId,
   });
-  await pingIndexNowForPost(supabase, params.tenantId, data.slug);
+  // Not awaited: a slow api.indexnow.org must never hang this Publish click.
+  afterResponse(() => pingIndexNowForPost(supabase, params.tenantId, data.slug), "posts.publish.indexnow");
   return { ok: true, data: { id: data.id } };
 }
 
@@ -363,7 +365,8 @@ export async function unpublishPost(
   }
   // IndexNow means "recrawl this", not "this now exists" — unpublishing still
   // pings, so the engine learns the URL is gone as fast as it learned it existed.
-  await pingIndexNowForPost(supabase, params.tenantId, data.slug);
+  // Not awaited: a slow api.indexnow.org must never hang this click either.
+  afterResponse(() => pingIndexNowForPost(supabase, params.tenantId, data.slug), "posts.unpublish.indexnow");
   return { ok: true, data: { id: data.id } };
 }
 
