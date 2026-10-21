@@ -8,6 +8,7 @@
  * Run: NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' npx tsx --test src/lib/service-hub/roster-services.test.ts
  */
 import assert from "node:assert/strict";
+import { execSync } from "node:child_process";
 import { beforeEach, test } from "node:test";
 
 import { _resetRosterSellableCacheForTests, loadWorkspaceRosterServices, rosterServicePriceCents } from "./roster-services";
@@ -61,9 +62,9 @@ const WORLD = (): Record<string, Row[]> => ({
     listing({ id: "L2", tenant_id: B, offering_id: "S2" }),
   ],
   talent_offerings: [
-    { id: "S1", talent_profile_id: TALENT, title: "Chef for dinners", amount_cents: 150000, currency: "MXN", status: "published", moderation_state: "approved" },
-    { id: "S2", talent_profile_id: TALENT, title: "Waiter service", amount_cents: 80000, currency: "MXN", status: "published", moderation_state: "approved" },
-    { id: "S3", talent_profile_id: TALENT, title: "Private lessons (never listed)", amount_cents: 50000, currency: "MXN", status: "published", moderation_state: "approved" },
+    { id: "S1", talent_profile_id: TALENT, title: "Chef for dinners", amount_cents: 150000, currency: "MXN", status: "published", moderation_state: "approved", visibility: "public" },
+    { id: "S2", talent_profile_id: TALENT, title: "Waiter service", amount_cents: 80000, currency: "MXN", status: "published", moderation_state: "approved", visibility: "public" },
+    { id: "S3", talent_profile_id: TALENT, title: "Private lessons (never listed)", amount_cents: 50000, currency: "MXN", status: "published", moderation_state: "approved", visibility: "public" },
   ],
   agency_talent_roster: [
     { tenant_id: A, talent_profile_id: TALENT, status: "active" },
@@ -199,4 +200,42 @@ test("sellable checks are ONE call for the page and cached, so a public page doe
   assert.equal(admin.rpcCalls.length, 1, "both listings in one call");
   await loadWorkspaceRosterServices(admin.client, A);
   assert.equal(admin.rpcCalls.length, 1, "the second render reuses the cached verdicts");
+});
+
+
+// ── PUBLIC surfaces use guest_request; staff keeps staff_quote ───────────────
+const withVisibility = (visibility: string | null) => {
+  const w = WORLD();
+  w.talent_offerings = w.talent_offerings!.map((o) => (o.id === "S1" ? { ...o, visibility } : o));
+  return w;
+};
+
+test("PUBLIC (default): an agency-only, private, hidden or unknown-visibility service is never listed", async () => {
+  for (const visibility of ["agency_only", "private", "hidden", "", null, "weird"]) {
+    const items = await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A);
+    assert.deepEqual(items, [], String(visibility));
+  }
+});
+
+test("PUBLIC: public and on-request services are listed (request-only), explicit guest_request gives the same", async () => {
+  for (const visibility of ["public", "on_request"]) {
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A)).length, 1, visibility);
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A, "guest_request")).length, 1, visibility);
+  }
+});
+
+test("STAFF (staff_quote): published + approved is enough, whatever the visibility; unpublished or unapproved still out", async () => {
+  for (const visibility of ["agency_only", "private", "hidden", null]) {
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A, "staff_quote")).length, 1, String(visibility));
+  }
+  for (const bad of [{ status: "draft" }, { moderation_state: "pending" }]) {
+    const w = WORLD();
+    w.talent_offerings = w.talent_offerings!.map((o) => (o.id === "S1" ? { ...o, ...bad } : o));
+    assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A, "staff_quote"), [], JSON.stringify(bad));
+  }
+});
+
+test("every caller of the loader today is a public surface and none passes staff_quote", () => {
+  const out = execSync(`git grep -n "loadWorkspaceRosterServices(" -- src ':!*.test.*' ':!src/lib/service-hub/roster-services.ts'`, { cwd: process.cwd(), encoding: "utf8" });
+  assert.doesNotMatch(out, /staff_quote/);
 });
