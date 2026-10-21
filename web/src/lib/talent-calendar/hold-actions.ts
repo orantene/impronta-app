@@ -17,7 +17,7 @@
  */
 
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { assertRowBelongsToTenant, requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { unexpiredHoldOrFilter } from "@/lib/scheduling/hold-expiry";
@@ -97,6 +97,22 @@ export async function placeTalentHold(
     // this just catches a confused caller.)
     if (input.tenantSlug && input.tenantSlug !== tenantSlug) {
       return { ok: false, error: "Tenant slug mismatch." };
+    }
+
+    // The talent and the inquiry are client-chosen ids. RLS on talent_holds only checks that the caller is staff of
+    // `tenant_id`, so without this a staff member of workspace A could park a hold on workspace B's talent (and it
+    // would show on that talent's own calendar). Both must belong to the tenant resolved from membership above.
+    const { data: rosterRow, error: rosterErr } = await supabase
+      .from("agency_talent_roster")
+      .select("talent_profile_id")
+      .eq("tenant_id", tenantId)
+      .eq("talent_profile_id", input.talentProfileId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (rosterErr || !rosterRow) return { ok: false, error: "That talent is not on this workspace's roster." };
+    if (input.inquiryId && !(await assertRowBelongsToTenant(supabase, "inquiries", input.inquiryId, tenantId))) {
+      return { ok: false, error: "That inquiry is not in this workspace." };
     }
 
     const strength: HoldStrength = input.holdStrength ?? "soft";

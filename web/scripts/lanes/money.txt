@@ -119,6 +119,7 @@ src/lib/inquiry/offer-money-format.test.ts
 src/lib/inquiry/offer-solo-fee.test.ts
 src/lib/inquiry/owning-party-own-workspace.test.ts
 src/lib/inquiry/retry-failed-engine-effects.test.ts
+src/lib/inquiry/tenant-param-money-inquiries.static.test.ts
 src/lib/ledger/project.test.ts
 src/lib/ledger/run-projection.test.ts
 src/lib/ledger/transfer-settlement.test.ts

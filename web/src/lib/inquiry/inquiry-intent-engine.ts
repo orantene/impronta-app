@@ -304,7 +304,8 @@ export async function saveInquiryDraft(
         requester_email: ctx.requester_email ?? null,
       })
       .eq("id", draftId)
-      .eq("tenant_id", ctx.tenant_id);
+      .eq("tenant_id", ctx.tenant_id)
+      .eq("requester_user_id", ctx.requester_user_id);
     if (error) return { ok: false, error: error.message };
     return { ok: true, draftId };
   }
