@@ -142,3 +142,22 @@ test("TUL-62: list falls back to inquiry when there is no booking", () => {
   assert.equal(fields.status, "new");
   assert.equal(fields.eventDate, "2026-11-01");
 });
+
+test("TUL-1089: a request with no booking lists at its stamp's time and zone", () => {
+  const stamp = { starts_at: "2026-10-20T16:00:00.000Z", timezone: "America/Cancun" };
+  const f = meVisitListFields({ company: "Consulta", inquiryStatus: "new", eventDate: "2026-10-20", booking: null, stamp });
+  assert.equal(f.eventDate, stamp.starts_at);
+  assert.equal(f.startsAtZone, "America/Cancun");
+});
+
+test("TUL-1089: a booking's own start wins over the stamp and leaves no stamp zone", () => {
+  const f = meVisitListFields({
+    company: null,
+    inquiryStatus: "new",
+    eventDate: "2026-10-20",
+    booking: { title: "x", status: "confirmed", starts_at: "2026-10-21T10:00:00.000Z" },
+    stamp: { starts_at: "2026-10-20T16:00:00.000Z", timezone: "America/Cancun" },
+  });
+  assert.equal(f.eventDate, "2026-10-21T10:00:00.000Z");
+  assert.equal(f.startsAtZone, null);
+});
