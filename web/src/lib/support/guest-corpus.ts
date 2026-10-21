@@ -50,7 +50,7 @@ function salesEntries(locale: GuestCorpusLocale): HelpCorpusEntry[] {
           "Tulala cobra un cargo por servicio sobre una reserva pagada. Se suma por encima del precio para el cliente, se define por plan y se muestra en el checkout antes de pagar. No se cobra nada hasta que una reserva se paga.",
         youCanHere: [
           "Ver el cargo por servicio de Tulala en /pricing",
-          "La misma tarifa desde el hub o desde el sitio de la agencia",
+          "El mismo cargo por servicio desde el hub o desde el sitio de la agencia",
         ],
         faqs: [
           {
