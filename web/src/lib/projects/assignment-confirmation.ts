@@ -166,6 +166,23 @@ export async function setOwnConfirmation(
     }
     if (!ownRes.data) return { ok: false, reason: "not_yours" };
 
+    // Preferred: ONE guarded statement (held migration 20261231422700) that locks the seat and
+    // writes only if the seat's CURRENT person is the writer, so a replaced person's late write
+    // cannot overwrite the new person's answer.
+    const rpc = await admin.rpc("answer_assignment_confirmation", {
+      p_seat: seat.id,
+      p_talent: seat.talent_profile_id,
+      p_status: input.status,
+    });
+    if (!rpc.error) {
+      return rpc.data === "ok" ? { ok: true } : { ok: false, reason: "not_yours" };
+    }
+    // Only a missing function falls back; any other error fails closed.
+    if (rpc.error.code !== "PGRST202" && rpc.error.code !== "42883") {
+      logServerError("projects.setOwnConfirmation.rpc", rpc.error);
+      return { ok: false, reason: "unavailable" };
+    }
+
     const { error } = await admin.from(TABLE).upsert(
       {
         tenant_id: seat.tenant_id,
@@ -180,6 +197,15 @@ export async function setOwnConfirmation(
     if (error) {
       if (!isMissingSchemaError(error)) logServerError("projects.setOwnConfirmation.write", error);
       return { ok: false, reason: "unavailable" };
+    }
+    // Fallback only: re-check the seat after the write. If the person changed meanwhile, remove
+    // the row we just wrote (conditioned on OUR profile, so a newer row by someone else stays).
+    const after = await admin.from("booking_talent").select("talent_profile_id").eq("id", seat.id).maybeSingle();
+    const still = (after.data as { talent_profile_id: string | null } | null)?.talent_profile_id;
+    if (after.error || still !== seat.talent_profile_id) {
+      const del = await admin.from(TABLE).delete().eq("booking_talent_id", seat.id).eq("talent_profile_id", seat.talent_profile_id);
+      if (del.error) logServerError("projects.setOwnConfirmation.undo", del.error);
+      return { ok: false, reason: after.error ? "unavailable" : "not_yours" };
     }
     return { ok: true };
   } catch (err) {

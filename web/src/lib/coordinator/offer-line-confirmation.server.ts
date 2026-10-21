@@ -84,6 +84,21 @@ export async function answerOwnOfferLine(
     }
     if (!ownRes.data) return { ok: false, reason: "not_yours" };
 
+    // Preferred: one guarded statement (held migration 20261231422700) that locks the line and
+    // writes only if the line's CURRENT person is the writer.
+    const rpc = await admin.rpc("answer_offer_line_confirmation", {
+      p_line: line.id,
+      p_talent: line.talent_profile_id,
+      p_status: input.status,
+    });
+    if (!rpc.error) {
+      return rpc.data === "ok" ? { ok: true } : { ok: false, reason: "not_yours" };
+    }
+    if (rpc.error.code !== "PGRST202" && rpc.error.code !== "42883") {
+      logServerError("offerLines.answer.rpc", rpc.error);
+      return { ok: false, reason: "unavailable" };
+    }
+
     const { error } = await admin.from(TABLE).upsert(
       {
         offer_line_id: line.id,
@@ -98,6 +113,14 @@ export async function answerOwnOfferLine(
     if (error) {
       if (!isMissing(error)) logServerError("offerLines.answer.write", error);
       return { ok: false, reason: "unavailable" };
+    }
+    // Fallback only: re-check the line; if its person changed meanwhile, undo our row (conditioned on our profile).
+    const after = await admin.from("inquiry_offer_line_items").select("talent_profile_id").eq("id", line.id).maybeSingle();
+    const still = (after.data as { talent_profile_id: string | null } | null)?.talent_profile_id;
+    if (after.error || still !== line.talent_profile_id) {
+      const del = await admin.from(TABLE).delete().eq("offer_line_id", line.id).eq("talent_profile_id", line.talent_profile_id);
+      if (del.error) logServerError("offerLines.answer.undo", del.error);
+      return { ok: false, reason: after.error ? "unavailable" : "not_yours" };
     }
     return { ok: true };
   } catch (err) {
