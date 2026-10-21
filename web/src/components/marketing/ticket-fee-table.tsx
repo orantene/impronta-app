@@ -78,7 +78,7 @@ export function TicketFeeTable({
         us: "Carga aquí",
         share: "del precio",
         ours: feeRate.customerOnly
-          ? `Nuestra cuota de servicio la fija tu plan${range ? `, entre ${range}` : `: ${pctText}`}. La paga el comprador al final, y la ve antes de pagar. La tabla usa la más alta. En un boleto de $10 eso es hasta $${tenTotal}.`
+          ? `Nuestro cargo por servicio la fija tu plan${range ? `, entre ${range}` : `: ${pctText}`}. La paga el comprador al final, y la ve antes de pagar. La tabla usa la más alta. En un boleto de $10 eso es hasta $${tenTotal}.`
           : `Nuestro ${pctText} incluye el procesamiento de tarjeta y es igual en todos los planes, incluido el gratis. En un boleto de $10 eso es $${tenTotal} en total: $${tenHalf} que se le suman al comprador y $${tenHalf} que salen del vendedor.`,
         theirs: `Eventbrite, boletos pagados en Estados Unidos, revisado el ${formatCheckedOn(locale)}: ${EVENTBRITE_TERMS.es}`,
         verify: "Revisa su página de precios",
