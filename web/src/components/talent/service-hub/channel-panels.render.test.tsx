@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup as renderBare } from "react-dom/server";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 import { whereItsSold } from "@/lib/talent/service-hub-channels";
 import { soldListingsFromRows } from "@/lib/talent/service-hub-channels-rows";
 import { CalendarByChannelPanel, EarningsByChannelCard, WhereItsSoldPanel, WhereYouAppearPanel } from "./ChannelPanels";
+
+// The Leave button reads the router; the panels render inside the app router in production.
+const router = { push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} } as never;
+const renderToStaticMarkup = (node: React.ReactElement) =>
+  renderBare(<AppRouterContext.Provider value={router}>{node}</AppRouterContext.Provider>);
 
 const names = new Map([["t-1", "Blue Oar"]]);
 const rows = whereItsSold(
@@ -122,5 +128,17 @@ describe("fee note on earnings", () => {
     assert.match(en, /data-testid="fee-note"/);
     assert.match(en, /Tulala&#x27;s fee is added on top for the client\./);
     assert.match(renderToStaticMarkup(<EarningsByChannelCard items={items} currency="USD" locale="es" />), /La comisión de Tulala se suma encima para el cliente\./);
+  });
+});
+
+describe("Leave workspace (TUL-1469)", () => {
+  it("each workspace has a Leave button, in both languages, and the page says jobs stay", () => {
+    const items = [{ tenantId: "t-1", name: "Blue Oar", state: "active", workModel: "coordinator_agency", shareKind: "percent", shareBps: 2000 }] as never;
+    const en = renderToStaticMarkup(<WhereYouAppearPanel items={items} locale="en" />);
+    assert.match(en, /data-testid="leave-t-1"/);
+    assert.match(en, />Leave</);
+    assert.match(en, /Jobs already booked stay/);
+    const es = renderToStaticMarkup(<WhereYouAppearPanel items={items} locale="es" />);
+    assert.match(es, />Salir</);
   });
 });

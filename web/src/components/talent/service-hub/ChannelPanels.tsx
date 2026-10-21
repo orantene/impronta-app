@@ -3,6 +3,7 @@ import type { ChannelCalendarRow } from "@/lib/talent/service-hub-calendar";
 import { shareLine, workModelLabel, type Appearance } from "@/lib/talent/service-hub-channels-rows";
 import type { ServiceChannels } from "@/lib/talent/service-hub-channels.server";
 
+import { LeaveWorkspaceButton } from "./LeaveWorkspaceButton";
 import { LowestPriceField } from "./LowestPriceField";
 
 function money(cents: number | null, currency: string, locale: string): string {
@@ -79,6 +80,7 @@ export function WhereYouAppearPanel(props: { items: readonly Appearance[]; local
             <span className="text-sm">
               {workModelLabel(a.workModel, props.locale)} · {shareLine(a, props.locale)}
             </span>
+            <LeaveWorkspaceButton tenantId={a.tenantId} name={a.name} locale={props.locale} />
           </li>
         ))}
       </ul>
