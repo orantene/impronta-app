@@ -48,12 +48,12 @@ const base = (): Tables => ({
 const input = { userId: U, userEmail: "ana@example.com", tenantId: T, talentProfileId: TP };
 
 describe("connectTalentPayoutAccount", () => {
-  it("inserts a connected talent account for the rostered owner, in the shape the readers expect", async () => {
+  it("inserts a PENDING talent account (no connected_at) for the rostered owner, in the shape the readers expect", async () => {
     const { admin, inserts } = fakeAdmin(base());
     assert.deepEqual(await connectTalentPayoutAccount(admin, input), { ok: true, existed: false });
     assert.equal(inserts.length, 1);
-    assert.deepEqual({ ...inserts[0], connected_at: "x" }, {
-      tenant_id: T, owner_type: "talent", owner_id: TP, display_name: "Ana Ruiz", provider: "manual_bank", status: "connected", connected_at: "x",
+    assert.deepEqual(inserts[0], {
+      tenant_id: T, owner_type: "talent", owner_id: TP, display_name: "Ana Ruiz", provider: "manual_bank", status: "pending_verification",
     });
   });
 
