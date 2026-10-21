@@ -10,7 +10,8 @@ import {
 import { ACTOR_SIG_HEADER, actorSecret, signActorFields } from "@/lib/saas/actor-signature";
 import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { authCoordinationOptions } from "@/lib/supabase/auth-coordination";
-import { cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
+import { LOGIN_FORWARD_MARKER_COOKIE, LOGIN_FORWARD_MARKER_MAX_AGE_S } from "@/lib/auth-login-loop-guard";
+import { authCookieExpiryHeaders, cookieDomainForHost, isSupabaseAuthCookie, scopeAuthCookieOptions } from "@/lib/supabase/cookie-domain";
 import { isSignOutPath } from "@/lib/auth/sign-out-paths";
 import { loadAccessProfile } from "@/lib/access-profile";
 import {
@@ -343,9 +344,12 @@ export async function updateSession(
     .getAll()
     .some((c) => isSupabaseAuthCookie(c.name));
   const shouldClearStaleAuth = !user && isAuthEntryRoute && hasStaleAuthCookie;
+  // TUL-1818: set once the routing decision says the signed-in session is
+  // unusable on /login (loop guard); sweeps every scope, not just no-user cases.
+  let forceClearAuth = false;
   const clearStaleAuthCookies = (res: NextResponse): NextResponse => {
     applyRefreshCacheHeaders(res, refreshCacheHeaders);
-    if (!shouldClearStaleAuth) return res;
+    if (!shouldClearStaleAuth && !forceClearAuth) return res;
     const names = new Set<string>();
     for (const c of request.cookies.getAll()) {
       if (isSupabaseAuthCookie(c.name)) names.add(c.name);
@@ -383,6 +387,11 @@ export async function updateSession(
         // Host-only hosts (custom domains, localhost): one host-only deletion.
         res.cookies.set(name, "", { maxAge: 0, path: "/" });
       }
+    }
+    if (forceClearAuth) {
+      // Every scope (host-only, intermediate parents, shared root) and chunk.
+      for (const h of authCookieExpiryHeaders(names, requestHost)) res.headers.append("set-cookie", h);
+      res.cookies.set(LOGIN_FORWARD_MARKER_COOKIE, "", { maxAge: 0, path: "/" });
     }
     return res;
   };
@@ -536,7 +545,10 @@ export async function updateSession(
     // existing dashboard.
     nextParam: request.nextUrl.searchParams.get("next"),
     hostKind: options?.hostKind ?? null,
+    reasonParam: request.nextUrl.searchParams.get("reason"),
+    loginForwardMarker: request.cookies.get(LOGIN_FORWARD_MARKER_COOKIE)?.value ?? null,
   });
+  if (decision.clearAuthCookies) forceClearAuth = true;
 
   const isServerActionRequest =
     request.method === "POST" && request.headers.has("next-action");
@@ -616,10 +628,19 @@ export async function updateSession(
       }
     }
 
+    const forwardedResponse = NextResponse.redirect(redirectUrl);
+    if (decision.forwardedFromLogin) {
+      forwardedResponse.cookies.set(LOGIN_FORWARD_MARKER_COOKIE, decision.forwardedFromLogin, {
+        path: "/",
+        maxAge: LOGIN_FORWARD_MARKER_MAX_AGE_S,
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    }
     return {
       response: clearStaleAuthCookies(
         applyImpersonationCookieClear(
-          attachAuthDebug(attachGuestCookie(NextResponse.redirect(redirectUrl))),
+          attachAuthDebug(attachGuestCookie(forwardedResponse)),
         ),
       ),
       requestHeaders: forwardedHeaders,

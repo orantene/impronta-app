@@ -5,6 +5,7 @@ import {
   resolveAuthenticatedDestination,
   type AccessProfile,
 } from "@/lib/auth-flow";
+import { resolveLoginLoopGuard } from "@/lib/auth-login-loop-guard";
 import {
   isPathAllowedForHostKind,
   isSurfaceHostKind,
@@ -46,6 +47,10 @@ export type AuthRoutingInput = {
    * middleware always passes it.
    */
   hostKind?: string | null | undefined;
+  /** TUL-1818: `?reason=` on the current request (login loop guard). */
+  reasonParam?: string | null | undefined;
+  /** TUL-1818: value of the login-forward marker cookie (login loop guard). */
+  loginForwardMarker?: string | null | undefined;
 };
 
 export type AuthRoutingDecision = {
@@ -59,6 +64,10 @@ export type AuthRoutingDecision = {
     | "/"
     | "/login";
   isDashboardPath: boolean;
+  /** TUL-1818: expire every sb-* auth cookie (all scopes) on this response. */
+  clearAuthCookies?: boolean;
+  /** TUL-1818: this redirect forwards a signed-in visitor off /login; the proxy stamps the loop marker. */
+  forwardedFromLogin?: string;
 };
 
 function isAuthFlowPath(pathname: string): boolean {
@@ -128,6 +137,8 @@ export function resolveAuthRoutingDecision({
   isImpersonating,
   nextParam,
   hostKind,
+  reasonParam,
+  loginForwardMarker,
 }: AuthRoutingInput): AuthRoutingDecision {
   const authFlowPath = isAuthFlowPath(pathname);
   const dashboardDestination = userId
@@ -180,6 +191,29 @@ export function resolveAuthRoutingDecision({
       pathname === "/talent/register" ||
       pathname === "/client/register")
   ) {
+    const loop = resolveLoginLoopGuard({
+      reasonParam,
+      nextPath: safeNextPath,
+      forwardMarker: loginForwardMarker,
+    });
+    if (loop.kind === "show-form-clear") {
+      return {
+        redirectTo: null,
+        loginNext: null,
+        dashboardDestination,
+        isDashboardPath,
+        clearAuthCookies: true,
+      };
+    }
+    if (loop.kind === "break") {
+      return {
+        redirectTo: loop.redirectTo,
+        loginNext: null,
+        dashboardDestination,
+        isDashboardPath,
+        clearAuthCookies: true,
+      };
+    }
     return {
       // If `?next=<safe>` was on the URL, honor it. This is the
       // get-started → "Sign in and continue to checkout" path: the user
@@ -190,6 +224,7 @@ export function resolveAuthRoutingDecision({
       loginNext: null,
       dashboardDestination,
       isDashboardPath,
+      forwardedFromLogin: safeNextPath ?? undefined,
     };
   }
 
