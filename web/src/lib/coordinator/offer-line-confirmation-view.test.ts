@@ -105,3 +105,23 @@ test("approval and money code paths never import or read the confirmation model"
     assert.ok(!/offer-line-confirmation|offer_line_confirmations|offerConfirmation/.test(src), `${f} must not read the confirmation model`);
   }
 });
+
+test("defence in depth: identity (manager guard + own profiles) comes BEFORE any service-role read of the offer or its lines", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const src = readFileSync(join(process.cwd(), "src/lib/server-actions/offer-line-confirmation.ts"), "utf8");
+  const view = src.slice(src.indexOf("export async function loadOfferLineConfirmationViewAction"));
+  const guard = view.indexOf("requireInquiryManagerAction(");
+  const mine = view.indexOf('from("talent_profiles")');
+  const bail = view.indexOf("ownProfileIds.length === 0");
+  const offers = view.indexOf('from("inquiry_offers")');
+  const inquiries = view.indexOf('from("inquiries")');
+  const lines = view.indexOf('from("inquiry_offer_line_items")');
+  assert.ok(guard > -1 && mine > -1 && bail > -1);
+  for (const read of [offers, inquiries, lines]) {
+    assert.ok(read > bail, "a non-participant is turned away before this read");
+    assert.ok(read > guard && read > mine);
+  }
+  // The guard is not re-run later in parallel with the lines read.
+  assert.equal(view.split("requireInquiryManagerAction(").length - 1, 1);
+});

@@ -50,6 +50,15 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false as const };
 
+    // Defence in depth: identity FIRST. A caller who is neither a manager of this inquiry nor the
+    // owner of a talent profile never makes the service role read an offer or its lines.
+    const [guard, mineRes] = await Promise.all([
+      requireInquiryManagerAction(parsed.data.inquiryId),
+      admin.from("talent_profiles").select("id").eq("user_id", user.id),
+    ]);
+    const ownProfileIds = ((mineRes.data ?? []) as Array<{ id: string }>).map((p) => p.id);
+    if (!guard.ok && (mineRes.error || ownProfileIds.length === 0)) return { ok: false as const };
+
     // The talent surface has no offer id, so it passes none: use the inquiry's current offer.
     let offerId = parsed.data.offerId;
     if (!offerId) {
@@ -69,10 +78,7 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     // Readiness is shown on sent offers only, never on a draft.
     if (offer.status === "draft") return { ok: false as const };
 
-    const [guard, mineRes, linesRes, read] = await Promise.all([
-      requireInquiryManagerAction(parsed.data.inquiryId),
-      // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is global: the signed-in person's own profiles, by their user id
-      admin.from("talent_profiles").select("id").eq("user_id", user.id),
+    const [linesRes, read] = await Promise.all([
       // eslint-disable-next-line ratchet/no-untenanted-from -- line items carry no tenant_id; scoped by offer_id of the tenant-checked offer above
       admin
         .from("inquiry_offer_line_items")
@@ -97,7 +103,6 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
       talentProfileId: r.talent_profile_id,
       label: r.talent_profiles?.display_name ?? r.label ?? "",
     }));
-    const ownProfileIds = ((mineRes.data ?? []) as Array<{ id: string }>).map((p) => p.id);
 
     const view = buildOfferLineConfirmationView({ lines, read, viewer: { manager: guard.ok, ownProfileIds } });
     if (!guard.ok && view.rows.length === 0) return { ok: false as const };
