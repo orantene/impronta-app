@@ -32,7 +32,7 @@ const NOT_A_CALL_SITE: Readonly<Record<string, string>> = {
   "src/lib/ai/interpret-search-model.ts": "called by /api/ai/interpret-search, which gates and records usage",
   "src/lib/tulala/extract-and-record.server.ts": "called by tulala/turn.server.ts, which gates and records usage",
 };
-const METER = /recordAiGenerationUsage|recordAiUsageEstimate|meterAiCall|cms_ai_usage_log/;
+const METER = /recordAiGenerationUsage|recordAiUsageEstimate|recordMeasuredAiSpend|meterAiCall|cms_ai_usage_log/;
 
 describe("the meter is not optional", () => {
   const callers = walk(join(ROOT, "src"))

@@ -9,7 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { verifyReelStat, verifyStoredObjectType } from "@/lib/server/verify-stored-object-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
-import { describeAssetUsageRefusal, findAssetUsage } from "@/lib/media/asset-usage.server";
+import { guardAssetDelete, type AssetDeleteGuard } from "@/lib/media/asset-usage.server";
 import { getRequestLocale } from "@/i18n/request-locale";
 import {
   extractImageMetadata,
@@ -376,7 +376,8 @@ export async function actionAssignMediaToTalent(
 
 export async function actionDeleteMediaAssets(
   ids: string[],
-): Promise<ActionResult<{ count: number }>> {
+  opts?: { allowInUse?: boolean },
+): Promise<ActionResult<{ count: number }> | { ok: false; error: string; usage: AssetDeleteGuard["usage"] }> {
   await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
@@ -387,15 +388,11 @@ export async function actionDeleteMediaAssets(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  // In-use guard (TUL-1637): refuse to delete an asset that is still the workspace wordmark or
-  // favicon, sits in a page section or share image, or is a service or product photo. The delete
-  // is a soft delete, so nothing cascades and a used image would turn into a broken one. If the
-  // check itself cannot finish, the delete is refused too.
-  const usage = await findAssetUsage(admin, tenantId, ids);
-  if (usage.blocked.length > 0) {
-    const locale = (await getRequestLocale().catch(() => "en")) === "es" ? "es" : "en";
-    return { ok: false, error: describeAssetUsageRefusal(usage, locale) };
-  }
+  // In-use guard (TUL-1637/1725): see guardAssetDelete. `allowInUse` is the owner's second confirm and
+  // only lifts page and service/product uses, re-checked server-side; wordmark/favicon never lift.
+  const locale = (await getRequestLocale().catch(() => "en")) === "es" ? "es" : "en";
+  const stop = await guardAssetDelete(admin, tenantId, ids, { allowInUse: opts?.allowInUse === true, locale });
+  if (stop) return { ok: false, ...stop };
 
   const now = new Date().toISOString();
   const { error, count } = await admin

@@ -11327,7 +11327,8 @@
         "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
         "noChange": "Ya tienes este plan.",
         "confirm": "Confirmar cambio",
-        "cancel": "Ahora no"
+        "cancel": "Ahora no",
+        "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
       }
     },
     "adminIntegrationsCatalog": {
@@ -11338,6 +11339,7 @@
         "error": "Necesita atención",
         "locked": "Mejora para desbloquear",
         "setupRequired": "Configuración requerida",
+        "pendingVerification": "Verificación pendiente",
         "reconnect": "Vuelve a conectar"
       },
       "items": {
@@ -13032,6 +13034,19 @@
       "errCouldNotSetCover": "No se pudo poner como foto de portada.",
       "errCropUploadFailed": "Falló la subida del recorte.",
       "errRevertFailed": "No se pudo restaurar la original.",
+      "usageTitle": "Esta imagen está en uso",
+      "usageKindPage": "Página",
+      "usageKindService": "Servicio",
+      "usageKindProduct": "Producto",
+      "usageUnnamed": "Sin título",
+      "usageOpen": "Abrir",
+      "usageCanOverride": "Puedes reemplazar la imagen allí primero. O eliminarla de todos modos: ese lugar mostrará una imagen rota hasta que agregues una nueva.",
+      "usageHardStop": "Tu logotipo, favicon e imágenes de marca no se pueden eliminar mientras estén en uso. Reemplázalos primero en Ajustes, Identidad de marca.",
+      "usageSecondConfirm": "¿Seguro? Esto no se puede deshacer.",
+      "usageKeep": "Conservar imagen",
+      "usageClose": "Cerrar",
+      "usageDeleteAnyway": "Eliminar de todos modos",
+      "usageDeleteConfirm": "Sí, eliminar",
       "errCouldNotReadFolder": "No se pudo leer la carpeta.",
       "errImportFailed": "Falló la importación.",
       "errSvgSkipped": {
@@ -14320,9 +14335,21 @@
       "viewActivity": "Actividad",
       "viewItems": "Por artículo",
       "periodLabel": "Período",
-      "period": { "all": "Todo el tiempo", "today": "Hoy", "7d": "Últimos 7 días", "30d": "Últimos 30 días", "month": "Este mes" },
+      "period": {
+        "all": "Todo el tiempo",
+        "today": "Hoy",
+        "7d": "Últimos 7 días",
+        "30d": "Últimos 30 días",
+        "month": "Este mes"
+      },
       "methodLabel": "Método de pago",
-      "method": { "any": "Cualquiera", "cash": "Efectivo", "card": "Tarjeta en mostrador", "online": "En línea", "other": "Otro" },
+      "method": {
+        "any": "Cualquiera",
+        "cash": "Efectivo",
+        "card": "Tarjeta en mostrador",
+        "online": "En línea",
+        "other": "Otro"
+      },
       "colItem": "Artículo",
       "colQuantity": "Cant.",
       "colGross": "Bruto",
@@ -18285,7 +18312,9 @@
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
       "itemProviderOwnedLink": "Abrir Servicios",
-      "duplicate": { "copySuffix": "copia" },
+      "duplicate": {
+        "copySuffix": "copia"
+      },
       "type": {
         "product": "Producto",
         "service": "Servicio",
@@ -20820,6 +20849,14 @@
       "seoAltsOk": "Las fotos tienen descripción",
       "seoAltsFix": "A algunas fotos les falta la descripción",
       "planPerk": "Blog y posts con SEO para Google e IA"
+    },
+    "adminNewClientSheet": {
+      "invitedTitle": "Invitación enviada",
+      "invitedBody": "Enviamos una invitación a {email}. La persona elige su propia contraseña al aceptarla.",
+      "invitedHint": "El correo puede tardar un minuto en llegar. Si no llega, pide que revise la carpeta de spam.",
+      "inviteNote": "Enviamos al cliente una invitación para que elija su propia contraseña. Tú nunca ves ni compartes una contraseña.",
+      "submit": "Enviar invitación",
+      "sending": "Enviando..."
     }
   },
   "admin": {
@@ -21418,6 +21455,26 @@
       "notConnected": "No conectado",
       "createWorkspacePayout": "Crear cuenta de pago del espacio",
       "connectMyPayout": "Conectar mi cuenta de pago",
+      "payoutVerifyTitle": "Cuentas de pago pendientes",
+      "payoutVerifyHint": "Estas cuentas todavía no pueden recibir pagos. Agrega la referencia bancaria y marca la cuenta como verificada, o conecta Stripe.",
+      "payoutVerifyHolder": "Titular de la cuenta",
+      "payoutVerifyBank": "Banco",
+      "payoutVerifyLast4": "Últimos 4 dígitos",
+      "payoutVerifySaveBank": "Guardar referencia bancaria",
+      "payoutVerifyMark": "Marcar como verificada",
+      "payoutVerifyNeedsBank": "Primero agrega una referencia bancaria.",
+      "payoutVerifyEnding": "cuenta terminada en",
+      "payoutVerifyPending": "Verificación pendiente",
+      "payoutVerifySaved": "Referencia bancaria guardada.",
+      "payoutVerifyDone": "Cuenta de pago verificada. Ya puede recibir pagos.",
+      "payoutVerifyForbidden": "Solo el propietario del espacio puede verificar cuentas de pago.",
+      "payoutVerifyBadHolder": "Escribe el nombre del titular de la cuenta.",
+      "payoutVerifyBadBank": "Escribe el nombre del banco.",
+      "payoutVerifyBadLast4": "Escribe exactamente los últimos 4 dígitos. Nunca escribas el número de cuenta completo.",
+      "payoutVerifyNotFound": "No se encontró la cuenta de pago.",
+      "payoutVerifyNotPending": "Esta cuenta no está esperando verificación.",
+      "payoutVerifyNoBank": "Agrega la referencia bancaria antes de verificar.",
+      "payoutVerifyFailed": "No se pudo guardar. Inténtalo de nuevo.",
       "billingInactive": "Facturación aún no activa. Contacta soporte para actualizar.",
       "planTaglineFree": "Acceso solo por enlace de amigos. No te llevas comisión.",
       "planTaglineWebsite": "Tu propio sitio y dominio. Sin lista de talento.",

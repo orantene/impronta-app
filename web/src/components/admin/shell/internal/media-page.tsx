@@ -32,6 +32,7 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/admin/media/actions";
 import { PhotoCropperDialog } from "@/components/talent/photo-cropper-dialog";
 import { PhotoLightbox } from "@/components/media/photo-lightbox";
+import { MediaUsageDialog, usageBlockOf, type MediaUsageBlock } from "@/components/admin/media/media-usage-dialog";
 import { UploadProgressBar } from "@/components/media/upload-progress-bar";
 import { uploadBrandingMedia } from "@/lib/client/signed-upload";
 import {
@@ -614,6 +615,7 @@ function MediaLightbox({
   const [setCardBusy, setSetCardBusy] = useState(false);
   const [setHeroBusy, setSetHeroBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [usageBlock, setUsageBlock] = useState<MediaUsageBlock | null>(null);
   const [cropMode, setCropMode] = useState<"profile" | "cover" | "free" | null>(null);
   const [cropBusy, setCropBusy] = useState(false);
   const [revertBusy, setRevertBusy] = useState(false);
@@ -813,13 +815,18 @@ function MediaLightbox({
     onRefresh();
   };
 
-  const deletePhoto = async () => {
+  const deletePhoto = async (allowInUse = false) => {
     // Confirmation is owned by PhotoLightbox's in-app modal — no native
     // confirm() here, or it'd double-prompt.
     setDeleteBusy(true);
-    const r = await actionDeleteMediaAssets([current.id]);
+    const r = await actionDeleteMediaAssets([current.id], allowInUse ? { allowInUse: true } : undefined);
     setDeleteBusy(false);
-    if (!r.ok) { toast(r.error); return; }
+    if (!r.ok) {
+      const block = usageBlockOf(r);
+      if (block) { setUsageBlock(block); return; }
+      toast(r.error); return;
+    }
+    setUsageBlock(null);
     queueRouterRefresh();
     onRefresh();
     if (allPhotos.length <= 1) onClose();
@@ -1082,7 +1089,7 @@ function MediaLightbox({
           if (cropBusy) return;
           setCropMode(aspect === 1 ? "profile" : aspect === "free" ? "free" : "cover");
         }}
-        onDelete={deletePhoto}
+        onDelete={() => deletePhoto()}
         onRevertCrop={current.sourceMediaAssetId ? revertToOriginal : undefined}
         labels={{
           setAsProfile: t("dashboard.adminMedia.useAsProfile"),
@@ -1108,6 +1115,9 @@ function MediaLightbox({
         aspect={cropMode === "profile" ? 1 : cropMode === "cover" ? 16 / 9 : "free"}
         onCropConfirm={handleCropConfirm}
       />
+      {usageBlock ? (
+        <MediaUsageDialog block={usageBlock} busy={deleteBusy} onCancel={() => setUsageBlock(null)} onDeleteAnyway={() => void deletePhoto(true)} />
+      ) : null}
     </>
   );
 }
@@ -1700,6 +1710,7 @@ export function WorkspaceMediaPage() {
 
   // ── Mutation state ───────────────────────────────────────────────
   const [isDeleting, setIsDeleting] = useState(false);
+  const [bulkUsageBlock, setBulkUsageBlock] = useState<MediaUsageBlock | null>(null);
   const [isApproving, setIsApproving] = useState(false);
 
   // ── Keyboard help overlay ────────────────────────────────────────
@@ -1971,13 +1982,19 @@ export function WorkspaceMediaPage() {
     setShowAssignModal(true);
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = async (allowInUse = false) => {
     if (selected.size === 0) return;
-    if (!confirm(withPluralization(t)("dashboard.adminMedia.confirmDeletePhotos", selected.size))) return;
+    if (!allowInUse && !confirm(withPluralization(t)("dashboard.adminMedia.confirmDeletePhotos", selected.size))) return;
     setIsDeleting(true);
-    const res = await actionDeleteMediaAssets(Array.from(selected));
+    const res = await actionDeleteMediaAssets(Array.from(selected), allowInUse ? { allowInUse: true } : undefined);
     setIsDeleting(false);
-    if (!res.ok) { setUploadError(res.error); return; }
+    if (!res.ok) {
+      const block = usageBlockOf(res);
+      if (block) { setBulkUsageBlock(block); return; }
+      setUploadError(res.error);
+      return;
+    }
+    setBulkUsageBlock(null);
     setSelected(new Set());
     queueRouterRefresh();
   };
@@ -2722,6 +2739,9 @@ export function WorkspaceMediaPage() {
       )}
 
       {/* Upload / Reassign modal */}
+      {bulkUsageBlock ? (
+        <MediaUsageDialog block={bulkUsageBlock} busy={isDeleting} onCancel={() => setBulkUsageBlock(null)} onDeleteAnyway={() => void handleDeleteSelected(true)} />
+      ) : null}
       {showAssignModal && (
         <UploadModal
           mode={assignMode}

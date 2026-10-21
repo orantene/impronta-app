@@ -1,7 +1,11 @@
-"use server";
+import "server-only";
 
 /**
  * Seeds the default 2026 freeform starter when a new standard page is created.
+ *
+ * A PLAIN server module, not a "use server" file (TUL-1744): `seedNewPageStarterComposition` takes a
+ * Supabase client, a tenant id and an actor id, so as an exported server action any client could
+ * have posted those arguments. Nothing calls it as an action; callers import it on the server.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";

@@ -22,12 +22,12 @@ describe("which workspace a public AI call is billed to", () => {
 
 describe("the public AI sites gate AND record against the same resolved tenant", () => {
   const sites: Array<[string, RegExp, RegExp]> = [
-    ["src/app/api/tulala/transcribe/route.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordAiUsageEstimate\(aiTenantId\)/],
-    ["src/app/api/ai/inquiry-draft/route.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordAiUsageEstimate\(aiTenantId\)/],
-    ["src/app/api/ai/interpret-search/route.ts", /aiTenantId = tenantId \?\? DEFAULT_AI_TENANT_ID[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordAiUsageEstimate\(aiTenantId\)/],
-    ["src/lib/tulala/strategist.server.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordAiUsageEstimate\(aiTenantId\)/],
-    ["src/lib/tulala/turn.server.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordAiUsageEstimate\(aiTenantId\)/],
-    ["src/lib/tulala/url-import.server.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)[\s\S]*extractFromPage\(page, input\.brief, input\.locale, aiTenantId\)/, /recordAiUsageEstimate\(aiTenantId\)/],
+    ["src/app/api/tulala/transcribe/route.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordMeasuredAiSpend\(aiTenantId/],
+    ["src/app/api/ai/inquiry-draft/route.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordMeasuredAiSpend\(aiTenantId/],
+    ["src/app/api/ai/interpret-search/route.ts", /aiTenantId = tenantId \?\? DEFAULT_AI_TENANT_ID[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordMeasuredAiSpend\(aiTenantId/],
+    ["src/lib/tulala/strategist.server.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordMeasuredAiSpend\(aiTenantId/],
+    ["src/lib/tulala/turn.server.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)/, /recordMeasuredAiSpend\(aiTenantId/],
+    ["src/lib/tulala/url-import.server.ts", /resolveAiBillingTenantId\(\)[\s\S]*assertAiInvocationAllowed\(aiTenantId\)[\s\S]*extractFromPage\(page, input\.brief, input\.locale, aiTenantId\)/, /recordMeasuredAiSpend\(aiTenantId/],
   ];
   for (const [file, gate, rec] of sites) {
     test(file, () => {
@@ -46,7 +46,7 @@ describe("the public AI sites gate AND record against the same resolved tenant",
 describe("the bypass sites close", () => {
   test("generate-node-image: the workspace ceiling BEFORE the paid call; its cost is rolled into the monthly spend ONCE (by recordImageGenerationUsage, not again here)", () => {
     const s = strip(read("src/lib/site-admin/builder-core/ai/generate-node-image-action.ts"));
-    assert.ok(s.indexOf("assertAiInvocationAllowed(tenantId)") > 0 && s.indexOf("assertAiInvocationAllowed(tenantId)") < s.indexOf("generateImageBytesFromPrompt(subject)"));
+    assert.ok(s.indexOf("assertAiInvocationAllowed(tenantId)") > 0 && s.indexOf("assertAiInvocationAllowed(tenantId)") < s.indexOf("generateImageBytesFromPrompt(subject"));
     assert.doesNotMatch(s, /recordAiUsageEstimate\(/, "no second record: it would double count every image");
     const img = strip(read("src/lib/ai/ai-image-generation.ts"));
     assert.match(img, /export async function recordImageGenerationUsage[\s\S]*?recordAiUsageEstimate\(input\.tenantId/);
@@ -61,13 +61,13 @@ describe("the bypass sites close", () => {
     const s = strip(read("src/lib/media/stock-qa.server.ts"));
     const gate = s.indexOf("assertAiInvocationAllowed(aiTenantId)");
     assert.ok(gate > 0 && gate < s.indexOf('fetch("https://api.openai.com/v1/chat/completions"'));
-    assert.ok(s.indexOf("recordAiUsageEstimate(aiTenantId)") > s.indexOf('fetch("https://api.openai.com/v1/chat/completions"'));
+    assert.ok(s.indexOf("recordMeasuredAiSpend(aiTenantId") > s.indexOf('fetch("https://api.openai.com/v1/chat/completions"'));
     assert.match(s, /input\.tenantId \|\| DEFAULT_AI_TENANT_ID/);
   });
   test("search embeddings: the paid embedding is recorded against the workspace (recorded, not gated: search must not break)", () => {
     const s = strip(read("src/lib/ai/run-ai-directory-search.ts"));
-    assert.match(s, /afterResponse\(\(\) => recordAiUsageEstimate\(tenantScopeId \?\? DEFAULT_AI_TENANT_ID\)/);
-    assert.ok(s.indexOf("recordAiUsageEstimate(tenantScopeId") > s.indexOf("embedTextForSearch(normalizedForEmbedding!)"));
+    assert.match(s, /afterResponse\(\s*\(\) => recordMeasuredAiSpend\(tenantScopeId \?\? DEFAULT_AI_TENANT_ID/);
+    assert.ok(s.indexOf("recordMeasuredAiSpend(tenantScopeId") > s.indexOf("embedTextForSearch(normalizedForEmbedding!"));
   });
 });
 

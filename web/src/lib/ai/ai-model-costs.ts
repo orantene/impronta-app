@@ -26,6 +26,9 @@ const MODEL_RATES: ReadonlyArray<{ prefix: string; rate: Rate }> = [
   { prefix: "claude-haiku-5-5", rate: { inputPerM: 0.1, outputPerM: 0.5 } },
   { prefix: "claude-haiku", rate: { inputPerM: 1, outputPerM: 5 } },
   { prefix: "claude-fable-5", rate: { inputPerM: 10, outputPerM: 50 } },
+  // OpenAI embeddings (search): input tokens only.
+  { prefix: "text-embedding-3-small", rate: { inputPerM: 0.02, outputPerM: 0 } },
+  { prefix: "text-embedding-3-large", rate: { inputPerM: 0.13, outputPerM: 0 } },
   // OpenAI
   { prefix: "gpt-4o-mini", rate: { inputPerM: 0.15, outputPerM: 0.6 } },
   { prefix: "gpt-4o", rate: { inputPerM: 2.5, outputPerM: 10 } },

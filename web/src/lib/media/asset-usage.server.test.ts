@@ -4,6 +4,8 @@ import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
+  assetIdsStillBlocked,
+  guardAssetDelete,
   ASSET_USAGE_MAX_PAGES,
   ASSET_USAGE_PAGE_SIZE,
   describeAssetUsageRefusal,
@@ -71,16 +73,19 @@ const base = (): Tables => ({
   agencies: [{ id: T, settings: {} }],
   agency_branding: [{ tenant_id: T, logo_media_asset_id: "a-logo", favicon_media_asset_id: null, logo_dark_media_asset_id: "a-dark", theme_json: {} }],
   cms_sections: [
-    { tenant_id: T, status: "published", props_jsonb: { images: [{ url: "https://cdn/tenant/tenant-1/page.jpg" }] } },
+    { tenant_id: T, page_id: "pg-home", status: "published", props_jsonb: { images: [{ url: "https://cdn/tenant/tenant-1/page.jpg" }] } },
     { tenant_id: T, status: "archived", props_jsonb: { images: [{ url: "tenant/tenant-1/other.jpg" }] } },
   ],
-  cms_pages: [{ tenant_id: T, og_image_media_asset_id: "a-share" }],
+  cms_pages: [
+    { id: "pg-home", tenant_id: T, title: "Home", og_image_media_asset_id: null },
+    { id: "pg-about", tenant_id: T, title: "About us", og_image_media_asset_id: "a-share" },
+  ],
   talent_offering_media: [
     { offering_id: "o-mine", media_asset_id: "a-svc" },
     { offering_id: "o-foreign", media_asset_id: "a-other" },
   ],
   talent_offerings: [
-    { id: "o-mine", tenant_id: T },
+    { id: "o-mine", tenant_id: T, title: "Haircut", kind: "service" },
     { id: "o-foreign", tenant_id: "tenant-2" },
   ],
 });
@@ -207,7 +212,7 @@ describe("findAssetUsage (TUL-1637)", () => {
 });
 
 const usage = (over: Partial<Record<string, string[] | boolean>> = {}) => ({
-  brand: [], pages: [], posts: [], services: [], events: [], talent: [], unchecked: false, blocked: [], ...over,
+  brand: [], pages: [], posts: [], services: [], events: [], talent: [], unchecked: false, blocked: [], places: [], ...over,
 }) as Parameters<typeof describeAssetUsageRefusal>[0];
 
 describe("describeAssetUsageRefusal", () => {
@@ -240,9 +245,90 @@ describe("actionDeleteMediaAssets wiring", () => {
     const src = readFileSync("src/app/(workspace)/[tenantSlug]/admin/media/actions.ts", "utf8");
     const fn = src.slice(src.indexOf("export async function actionDeleteMediaAssets"));
     const body = fn.slice(0, fn.indexOf("// ─── Approve / reject"));
-    assert.ok(body.includes("findAssetUsage(admin, tenantId, ids)"));
-    assert.ok(body.indexOf("findAssetUsage") < body.indexOf("deleted_at: now"));
+    assert.ok(body.includes("guardAssetDelete(admin, tenantId, ids,"));
+    assert.ok(body.includes("allowInUse: opts?.allowInUse === true"));
+    assert.ok(body.indexOf("guardAssetDelete") < body.indexOf("deleted_at: now"));
     assert.ok(!body.includes("listProtectedBrandAssetIds"));
-    assert.ok(body.includes("describeAssetUsageRefusal(usage, locale)"));
+  });
+});
+
+describe("usage places and the delete-anyway confirm (TUL-1725)", () => {
+  it("usage entries carry the id, name and admin link of the page and service", async () => {
+    const r = await findAssetUsage(fakeAdmin(base()), T, ["a-page", "a-share", "a-svc"]);
+    const by = (id: string) => r.places.find((p) => p.assetId === id);
+    assert.deepEqual(by("a-page"), { assetId: "a-page", kind: "page", id: "pg-home", name: "Home", href: "/admin/site-settings/content/pages/pg-home" });
+    assert.equal(by("a-share")?.name, "About us");
+    assert.equal(by("a-share")?.id, "pg-about");
+    assert.deepEqual(by("a-svc"), { assetId: "a-svc", kind: "service", id: "o-mine", name: "Haircut", href: "/admin/catalog" });
+  });
+
+  it("an offering of kind product is reported as a product", async () => {
+    const t = base();
+    (t.talent_offerings as Row[])[0].kind = "product";
+    const r = await findAssetUsage(fakeAdmin(t), T, ["a-svc"]);
+    assert.equal(r.places[0].kind, "product");
+  });
+
+  it("the refusal text names the places", async () => {
+    const r = await findAssetUsage(fakeAdmin(base()), T, ["a-page", "a-svc"]);
+    assert.match(describeAssetUsageRefusal(r, "en"), /Used by: "Home", "Haircut"/);
+    assert.match(describeAssetUsageRefusal(r, "es"), /Usadas en: "Home", "Haircut"/);
+  });
+
+  it("no flag still refuses a page or service photo, and offers the override", async () => {
+    const g = await guardAssetDelete(fakeAdmin(base()), T, ["a-page", "a-svc"], { locale: "en" });
+    assert.ok(g);
+    assert.equal(g.usage.canOverride, true);
+    assert.equal(g.usage.places.length, 2);
+  });
+
+  it("a page or service photo is deletable only with the explicit flag", async () => {
+    assert.equal(await guardAssetDelete(fakeAdmin(base()), T, ["a-page", "a-share", "a-svc"], { allowInUse: true }), null);
+    assert.ok(await guardAssetDelete(fakeAdmin(base()), T, ["a-page"], { allowInUse: false }));
+  });
+
+  it("the wordmark and the brand logos are never deletable, even with the flag", async () => {
+    for (const id of ["a-logo", "a-dark"]) {
+      const g = await guardAssetDelete(fakeAdmin(base()), T, [id], { allowInUse: true, locale: "en" });
+      assert.ok(g, id);
+      assert.equal(g.usage.canOverride, false);
+      assert.equal(g.usage.places.length, 0);
+    }
+  });
+
+  it("a favicon is never deletable with the flag", async () => {
+    const t = base();
+    (t.agency_branding as Row[])[0].favicon_media_asset_id = "a-other";
+    const g = await guardAssetDelete(fakeAdmin(t), T, ["a-other"], { allowInUse: true });
+    assert.ok(g);
+    assert.equal(g.usage.canOverride, false);
+  });
+
+  it("a mixed selection with a wordmark stays blocked with the flag, and the message is only about the hard ones", async () => {
+    const g = await guardAssetDelete(fakeAdmin(base()), T, ["a-page", "a-logo"], { allowInUse: true, locale: "en" });
+    assert.ok(g);
+    assert.match(g.error, /1 selected image/);
+    assert.doesNotMatch(g.error, /site pages/);
+    const r = await findAssetUsage(fakeAdmin(base()), T, ["a-page", "a-logo"]);
+    assert.deepEqual(assetIdsStillBlocked(r, true), ["a-logo"]);
+  });
+
+  it("posts, events and talent photos are not lifted by the flag either", async () => {
+    for (const id of ["a-post", "a-event", "a-hero", "a-avatar"]) {
+      assert.ok(await guardAssetDelete(fakeAdmin(base()), T, [id], { allowInUse: true }), id);
+    }
+  });
+
+  it("an unfinished check is never lifted by the flag", async () => {
+    const t = base();
+    t.cms_sections = "error";
+    const g = await guardAssetDelete(fakeAdmin(t), T, ["a-unused"], { allowInUse: true, locale: "en" });
+    assert.ok(g);
+    assert.equal(g.usage.canOverride, false);
+    assert.match(g.error, /could not check/);
+  });
+
+  it("an unused image passes with no flag", async () => {
+    assert.equal(await guardAssetDelete(fakeAdmin(base()), T, ["a-unused"]), null);
   });
 });

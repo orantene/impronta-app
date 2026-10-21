@@ -27,6 +27,7 @@ import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
 import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { MESSAGING_EXTRAS_WRITE_CAPABILITY as EXTRAS_CAP } from "@/lib/messaging/extras-write-capabilities";
 
 const uuid = z.string().uuid();
 const version = z.number().int().positive();
@@ -51,7 +52,7 @@ export async function messagingLoadDelivery(input: { inquiryId: string }) {
 /** Delivery › Retry: the cron's own resend, for one failed row, now. */
 export async function messagingRetryDelivery(input: { deliveryId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.retryDelivery);
   if (!g.ok) return g;
   const parsed = z.object({ deliveryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -91,7 +92,7 @@ export async function messagingLoadOffers(input: { inquiryId: string }) {
  */
 export async function messagingReviseOffer(input: { inquiryId: string; offerId: string; expectedVersion: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.reviseOffer);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -124,7 +125,7 @@ export async function messagingLoadBasketDiff(input: { inquiryId: string }) {
 /** Diff › Take theirs: the open page comes down so the new basket can be requested. */
 export async function messagingCancelPaymentLink(input: { linkId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.cancelPaymentLink);
   if (!g.ok) return g;
   const parsed = z.object({ linkId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -146,7 +147,7 @@ export async function messagingCancelBooking(input: {
   requestedBy?: "client" | "seller";
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.cancelBooking);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200), requestedBy: z.enum(["client", "seller"]).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -173,7 +174,7 @@ export async function messagingCancelBooking(input: {
  */
 export async function messagingThreadLink(input: { inquiryId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.threadLink);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");

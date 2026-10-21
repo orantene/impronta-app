@@ -23,9 +23,8 @@ const uuid = z.string().uuid();
 
 /**
  * TUL-1708: the default guard capability (agency.workspace.view) is
- * viewer-held; every write below passes `coordinate_inquiry` (manager+),
- * the same bar `canPairWhatsApp` already enforces by role string. Reads
- * call with no argument and keep the default.
+ * viewer-held; every write below passes a capability, reads call with no
+ * argument and keep the default.
  */
 async function staff(capability?: CapabilityKey) {
   const guard = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
@@ -161,9 +160,12 @@ export async function unlinkWhatsApp() {
   return { ok: true as const };
 }
 
+// TUL-1708 (PM revision): pinging the owner to connect WhatsApp is a
+// day-to-day operations nudge, not a manager-tier channel action — gate on
+// operate_venue (editor+), not coordinate_inquiry (manager+).
 export async function askOwnerToConnectWhatsApp() {
   await requireNotImpersonating();
-  const g = await staff("coordinate_inquiry");
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
     return { ok: false as const, reason: "unavailable" as const };

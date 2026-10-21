@@ -14,6 +14,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { OPS_WRITER_CAPABILITY } from "@/lib/saas/ops-writer-capabilities";
+import type { CapabilityKey } from "@/lib/access";
 import { loadDefaultVenue } from "@/lib/spaces/venues";
 import {
   addRoom,
@@ -40,16 +42,8 @@ export type LoadSpacesResult =
 
 const MAX_BULK = 60;
 
-async function staffAndVenue(tenantSlug: string) {
-  // TUL-1708 audit: addRoomAction / addTablesAction are genuine viewer-write gaps on the default
-  // guard capability (agency.workspace.view) — this is NOT a false positive like the service-hub /
-  // rent files. But per the PM decision for TUL-1708 (2026-10-21), operational writers (POS, tables,
-  // floor, door, classes, scheduling, venue, customers) are meant to use a new `operate_venue`
-  // capability that DEV is adding in its own small PR; `operate_venue` does not exist in
-  // web/src/lib/access/capabilities.ts yet. Inventing a substitute capability here would conflict with
-  // that incoming work, so this is left on the default on purpose and flagged for a fast follow-up
-  // once `operate_venue` lands.
-  const staff = await requireWorkspaceStaffAction();
+async function staffAndVenue(tenantSlug: string, capability?: CapabilityKey) {
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false as const, error: "Not allowed." };
   if (staff.tenantSlug !== tenantSlug.trim().toLowerCase()) {
     return { ok: false as const, error: "Not allowed." };
@@ -102,7 +96,7 @@ export async function addRoomAction(
 ): Promise<LoadSpacesResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const ctx = await staffAndVenue(tenantSlug);
+  const ctx = await staffAndVenue(tenantSlug, OPS_WRITER_CAPABILITY.addRoomAction);
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const trimmed = name.trim().slice(0, 120);
   if (!trimmed) return { ok: false, error: "Give the room a name." };
@@ -126,7 +120,7 @@ export async function addTablesAction(
 ): Promise<LoadSpacesResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const ctx = await staffAndVenue(tenantSlug);
+  const ctx = await staffAndVenue(tenantSlug, OPS_WRITER_CAPABILITY.addTablesAction);
   if (!ctx.ok) return { ok: false, error: ctx.error };
 
   const count = Math.trunc(input.count);

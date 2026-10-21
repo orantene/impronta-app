@@ -36,7 +36,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { assertPublicHttpUrl } from "@/lib/ssrf-guard";
 import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
 import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 
 import { recordFacts, type BriefOwner } from "./brief-store.server";
@@ -233,7 +234,7 @@ async function extractFromPage(
       return [];
     }
 
-    afterResponse(() => recordAiUsageEstimate(aiTenantId).catch(() => {}));
+    afterResponse(() => recordMeasuredAiSpend(aiTenantId, chatSpendUsd(completion.model, completion.usage)));
 
     const parsed = parseExtraction(completion.text, {
       // No question produced these, so there is no question to attribute the

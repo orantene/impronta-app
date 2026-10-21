@@ -34,25 +34,18 @@ import { isPaymentReviewReason } from "@/lib/payments/payment-review-flags-model
 
 /**
  * TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer`
- * holds. Of the five RESUME_VERBS this re-drives, `run_refund_intent` moves money, so
- * it keeps the `booking.payment.refund` (admin+) bar the money-moving verb in this
- * queue already needs. The other four are floor operations — re-minting an
- * admission, retrying an engine effect, requeuing an outbox message, recovering an
- * unresolved collection — and the PM-decided tier for those is `operate_venue`
- * (editor+), which does not exist on `main` yet (ships with #4317). Each is pinned to
- * `coordinate_inquiry` as an interim placeholder, no looser than before, until the
- * held patch on top of #4317 swaps these four to `operate_venue`.
+ * holds. Of the five RESUME_VERBS this re-drives, `run_refund_intent` moves money, so it
+ * keeps the `booking.payment.refund` (admin+) bar the money-moving verb in this queue
+ * already needs. The other four are floor operations — re-minting an admission, retrying
+ * an engine effect, requeuing an outbox message, recovering an unresolved collection —
+ * the same `operate_venue` (editor+) bar day-to-day venue operation requires elsewhere.
  */
 const RESUME_VERB_CAPABILITY: Record<ResumeVerb, CapabilityKey> = {
   run_refund_intent: "booking.payment.refund",
-  // TUL-1708: swapped to operate_venue once #4317 lands
-  mint_missing_admissions: "coordinate_inquiry",
-  // TUL-1708: swapped to operate_venue once #4317 lands
-  retry_engine_effect: "coordinate_inquiry",
-  // TUL-1708: swapped to operate_venue once #4317 lands
-  requeue_outbox_message: "coordinate_inquiry",
-  // TUL-1708: swapped to operate_venue once #4317 lands
-  recover_unresolved_collection: "coordinate_inquiry",
+  mint_missing_admissions: "operate_venue",
+  retry_engine_effect: "operate_venue",
+  requeue_outbox_message: "operate_venue",
+  recover_unresolved_collection: "operate_venue",
 };
 
 export type LoadExceptionsResult =

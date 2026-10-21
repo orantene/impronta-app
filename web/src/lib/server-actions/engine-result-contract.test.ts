@@ -143,7 +143,6 @@ describe("AdminClientProfileActionState (admin-clients.ts) — useFormState shap
       success: true,
       message: "Client login created.",
       createdUserId: "u1",
-      temporaryPassword: "pw",
       createdDisplayName: "Mara",
       createdCompanyName: null,
       createdEmail: "mara@example.com",

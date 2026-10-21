@@ -644,8 +644,9 @@ export async function createAgencyPayoutAccountAction(formData: FormData): Promi
       owner_id: context.tenantId,
       display_name: displayName,
       provider: "manual_bank",
-      status: "connected",
-      connected_at: new Date().toISOString(),
+      // Starts pending: a manual account has no bank details, so it must not be payout-eligible until
+      // bank details or a Stripe Connect account exist (receiver logic only reads status = connected).
+      status: "pending_verification",
     });
 
     if (error) {
@@ -657,7 +658,7 @@ export async function createAgencyPayoutAccountAction(formData: FormData): Promi
 
   revalidatePath(`/${tenantSlug}/admin/work/${inquiryId}`);
   const p = new URLSearchParams({
-    tx: existing ? "Workspace payout account already exists." : "Workspace payout account created.",
+    tx: existing ? "Workspace payout account already exists." : "Workspace payout account created. It stays pending until bank details or a Stripe account are connected.",
   });
   returnToDetail(tenantSlug, inquiryId, p);
 }

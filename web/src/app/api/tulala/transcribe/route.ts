@@ -26,9 +26,10 @@ import {
   isTulalaKvConfigured,
 } from "@/lib/rate-limit-kv-tulala";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { recordMeasuredAiSpend, transcriptionSpendUsd } from "@/lib/ai/spend-cents";
 import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
-import { isAcceptedAudioType, transcribeAudio } from "@/lib/ai/transcribe.server";
+import { TRANSCRIBE_MODEL, isAcceptedAudioType, transcribeAudio } from "@/lib/ai/transcribe.server";
 import { resolveBriefOwner } from "@/lib/tulala/owner.server";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { afterResponse } from "@/lib/server/after-response";
@@ -115,7 +116,8 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Could not read that recording." });
   }
 
-  afterResponse(() => recordAiUsageEstimate(aiTenantId).catch(() => {}));
+  // TUL-1731: priced by the audio (per minute, duration estimated from the upload size), not a flat cent.
+  afterResponse(() => recordMeasuredAiSpend(aiTenantId, transcriptionSpendUsd(TRANSCRIBE_MODEL, audio.size)));
 
   return NextResponse.json({ ok: true, text: result.text });
 }

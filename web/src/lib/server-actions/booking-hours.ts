@@ -11,6 +11,8 @@ import { hasAvailabilityPattern } from "@/lib/talent/website-eligibility-facts";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { OPS_WRITER_CAPABILITY } from "@/lib/saas/ops-writer-capabilities";
+import type { CapabilityKey } from "@/lib/access";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -70,7 +72,10 @@ type HoursAuth =
     }
   | { ok: false; error: string };
 
-async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
+async function authorizeHours(
+  talentProfileId: string,
+  staffCapability?: CapabilityKey,
+): Promise<HoursAuth> {
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -89,7 +94,9 @@ async function authorizeHours(talentProfileId: string): Promise<HoursAuth> {
   }
 
   const isOwner = tp.user_id === session.user.id;
-  const staff = await requireWorkspaceStaffAction();
+  // TUL-1708: a write passes the staff capability so a viewer is not "staff" here; a talent owner editing their own
+  // hours is unaffected (isOwner), and reads keep the default.
+  const staff = await requireWorkspaceStaffAction(staffCapability ? { capability: staffCapability } : undefined);
   // Staff act only on a talent of THEIR OWN workspace's roster; there is no platform-role fallback.
   let staffOnRoster = false;
   if (staff.ok) {
@@ -324,7 +331,7 @@ export async function acceptBookingHoursProposal(
 ): Promise<AcceptProposalResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeHours(talentProfileId);
+  const auth = await authorizeHours(talentProfileId, OPS_WRITER_CAPABILITY.acceptBookingHoursProposal);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
     return { ok: false, error: "This person sets their own hours." };
@@ -366,7 +373,7 @@ export async function saveBookingHours(
 ): Promise<SaveHoursResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeHours(talentProfileId);
+  const auth = await authorizeHours(talentProfileId, OPS_WRITER_CAPABILITY.saveBookingHours);
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!auth.canEditHours) {
     return { ok: false, error: "This person sets their own hours." };
@@ -447,7 +454,7 @@ export async function setTalentDirectBookingOptIn(
 ): Promise<OptInResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeHours(talentProfileId);
+  const auth = await authorizeHours(talentProfileId, OPS_WRITER_CAPABILITY.setTalentDirectBookingOptIn);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };

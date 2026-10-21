@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import { createAdminClient } from "@/lib/server-actions/admin-clients";
+import { useT } from "@/i18n/use-t";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,12 +36,13 @@ export function AdminNewClientSheet({
     company: string | null;
   }) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(createAdminClient, undefined);
 
   useEffect(() => {
     if (state?.success) {
-      // Keep sheet open to show password and open action.
+      // Keep the sheet open to show the invitation notice and the open action.
     }
   }, [state?.success]);
 
@@ -77,15 +79,12 @@ export function AdminNewClientSheet({
       >
         {state?.success ? (
           <div className="space-y-4">
-            <p className="text-sm text-foreground">{state.message}</p>
+            <p className="text-sm text-foreground">{t("dashboard.adminNewClientSheet.invitedTitle")}</p>
             <div className="rounded-lg border border-border/45 bg-muted/15 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Temporary password</p>
-              <code className="mt-2 block break-all rounded border border-border/50 bg-background/70 px-2 py-2 text-xs">
-                {state.temporaryPassword}
-              </code>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Share this securely with the client and ask them to change it after first login.
+              <p className="text-sm text-foreground">
+                {t("dashboard.adminNewClientSheet.invitedBody").replace("{email}", state.createdEmail ?? "")}
               </p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("dashboard.adminNewClientSheet.invitedHint")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {state.createdUserId ? (
@@ -121,11 +120,7 @@ export function AdminNewClientSheet({
               <Label htmlFor="new_client_email">Email</Label>
               <Input id="new_client_email" name="email" type="email" required autoComplete="email" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="new_client_password">Temporary password</Label>
-              <Input id="new_client_password" name="password" type="text" required minLength={8} autoComplete="new-password" />
-              <p className="text-xs text-muted-foreground">Use at least 8 characters. This will be shown once after create.</p>
-            </div>
+            <p className="text-xs text-muted-foreground">{t("dashboard.adminNewClientSheet.inviteNote")}</p>
             <div className="space-y-2">
               <Label htmlFor="new_client_company_name">Company (optional)</Label>
               <Input id="new_client_company_name" name="company_name" />
@@ -150,7 +145,7 @@ export function AdminNewClientSheet({
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="submit" size="sm" disabled={pending}>
-                {pending ? "Creating…" : "Create client"}
+                {pending ? t("dashboard.adminNewClientSheet.sending") : t("dashboard.adminNewClientSheet.submit")}
               </Button>
               <Button
                 type="button"

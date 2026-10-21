@@ -18,8 +18,9 @@ describe("menu re-import keeps the status of existing dishes (TUL-1331)", () => 
     assert.equal(patch.amount_cents, 12000);
   });
 
-  test("import-actions routes both writes through the helpers", () => {
-    const src = readFileSync(new URL("./import-actions.ts", import.meta.url), "utf8");
+  test("the apply path routes both writes through the helpers", () => {
+    // The write path moved out of the "use server" file (TUL-1744).
+    const src = readFileSync(new URL("./apply-parsed-menu.ts", import.meta.url), "utf8");
     assert.match(src, /\.update\(updatePatch\(patch\)\)/);
     assert.match(src, /\.insert\(insertPatch\(patch\)\)/);
   });

@@ -9,6 +9,7 @@
  */
 import type Stripe from "stripe";
 
+import { isDefiniteStripeFailure } from "./stripe-failure";
 import type { BillingInterval } from "@/lib/pricing/interval-pricing";
 import {
   buildImmediateUpdateParams,
@@ -185,7 +186,7 @@ export async function confirmPlanChange(
       { idempotencyKey: key("schedule_update") },
     );
     return { ok: true, kind: policy.kind, timing: "period_end", effectiveAt: iso(c.item.current_period_end) };
-  } catch {
-    return { ok: false, error: "We could not change your plan. Try again.", code: "stripe" };
+  } catch (err) {
+    return { ok: false, error: "We could not change your plan. Try again.", code: "stripe", definite: isDefiniteStripeFailure(err) };
   }
 }

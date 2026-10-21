@@ -7,9 +7,11 @@ import {
   validateAndMergeInterpretIntent,
   type RawModelIntent,
 } from "@/lib/ai/validate-interpret-intent";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
-import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { afterResponse } from "@/lib/server/after-response";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { finalizeInterpretFilters } from "@/lib/ai/finalize-interpret-filters";
 import { pruneInterpretTermsToTenantRoster } from "@/lib/ai/prune-interpret-terms";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -201,10 +203,9 @@ export async function POST(request: Request) {
       usedInterpreter: usedModel,
     }).catch((err) => logServerError("api/ai/interpret-search/insertAiSearchLog", err));
 
-    if (usedModel) {
-      recordAiUsageEstimate(aiTenantId).catch((err) =>
-        logServerError("api/ai/interpret-search/recordAiUsageEstimate", err),
-      );
+    if (modelRun.ok) {
+      // TUL-1731: the REAL cost of this call (tokens x the served model's rate), not a flat cent.
+      afterResponse(() => recordMeasuredAiSpend(aiTenantId, chatSpendUsd(modelRun.model, modelRun.usage)), "api/ai/interpret-search/spend");
     }
 
     return NextResponse.json({

@@ -11327,7 +11327,8 @@
         "cancelPending": "Keep your current plan and cancel the change you scheduled.",
         "noChange": "You are already on this plan.",
         "confirm": "Confirm change",
-        "cancel": "Not now"
+        "cancel": "Not now",
+        "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."
       }
     },
     "adminIntegrationsCatalog": {
@@ -11338,6 +11339,7 @@
         "error": "Needs attention",
         "locked": "Upgrade to unlock",
         "setupRequired": "Setup required",
+        "pendingVerification": "Pending verification",
         "reconnect": "Reconnect needed"
       },
       "items": {
@@ -13032,6 +13034,19 @@
       "errCouldNotSetCover": "Could not set as cover.",
       "errCropUploadFailed": "Crop upload failed.",
       "errRevertFailed": "Revert failed.",
+      "usageTitle": "This image is in use",
+      "usageKindPage": "Page",
+      "usageKindService": "Service",
+      "usageKindProduct": "Product",
+      "usageUnnamed": "Untitled",
+      "usageOpen": "Open",
+      "usageCanOverride": "You can replace the image there first. Or delete it anyway: the spot will show a broken image until you add a new one.",
+      "usageHardStop": "Your logo, favicon and brand images cannot be deleted while they are in use. Replace them in Settings, Brand identity first.",
+      "usageSecondConfirm": "Are you sure? This cannot be undone.",
+      "usageKeep": "Keep image",
+      "usageClose": "Close",
+      "usageDeleteAnyway": "Delete anyway",
+      "usageDeleteConfirm": "Yes, delete it",
       "errCouldNotReadFolder": "Could not read folder.",
       "errImportFailed": "Import failed.",
       "errSvgSkipped": {
@@ -14320,9 +14335,21 @@
       "viewActivity": "Activity",
       "viewItems": "By item",
       "periodLabel": "Period",
-      "period": { "all": "All time", "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days", "month": "This month" },
+      "period": {
+        "all": "All time",
+        "today": "Today",
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "month": "This month"
+      },
       "methodLabel": "Payment method",
-      "method": { "any": "Any", "cash": "Cash", "card": "Card at the counter", "online": "Online", "other": "Other" },
+      "method": {
+        "any": "Any",
+        "cash": "Cash",
+        "card": "Card at the counter",
+        "online": "Online",
+        "other": "Other"
+      },
       "colItem": "Item",
       "colQuantity": "Qty",
       "colGross": "Gross",
@@ -18285,7 +18312,9 @@
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
       "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
       "itemProviderOwnedLink": "Open Services",
-      "duplicate": { "copySuffix": "copy" },
+      "duplicate": {
+        "copySuffix": "copy"
+      },
       "type": {
         "product": "Product",
         "service": "Service",
@@ -20820,6 +20849,14 @@
       "seoAltsOk": "Photos have descriptions",
       "seoAltsFix": "Some photos are missing a description",
       "planPerk": "Blog and posts with SEO for Google and AI"
+    },
+    "adminNewClientSheet": {
+      "invitedTitle": "Invitation sent",
+      "invitedBody": "We emailed {email} an invitation. They choose their own password when they accept it.",
+      "invitedHint": "The email can take a minute to arrive. If it does not, ask them to check spam.",
+      "inviteNote": "We email the client an invitation to set their own password. You never see or share a password.",
+      "submit": "Send invitation",
+      "sending": "Sending..."
     }
   },
   "admin": {
@@ -21418,6 +21455,26 @@
       "notConnected": "Not connected",
       "createWorkspacePayout": "Create workspace payout account",
       "connectMyPayout": "Connect my payout account",
+      "payoutVerifyTitle": "Pending payout accounts",
+      "payoutVerifyHint": "These accounts cannot receive payouts yet. Add the bank reference and mark the account verified, or connect Stripe.",
+      "payoutVerifyHolder": "Account holder",
+      "payoutVerifyBank": "Bank",
+      "payoutVerifyLast4": "Last 4 digits",
+      "payoutVerifySaveBank": "Save bank reference",
+      "payoutVerifyMark": "Mark verified",
+      "payoutVerifyNeedsBank": "Add a bank reference first.",
+      "payoutVerifyEnding": "account ending in",
+      "payoutVerifyPending": "Pending verification",
+      "payoutVerifySaved": "Bank reference saved.",
+      "payoutVerifyDone": "Payout account verified. It can now receive payouts.",
+      "payoutVerifyForbidden": "Only the workspace owner can verify payout accounts.",
+      "payoutVerifyBadHolder": "Enter the account holder name.",
+      "payoutVerifyBadBank": "Enter the bank name.",
+      "payoutVerifyBadLast4": "Enter exactly the last 4 digits. Never enter the full account number.",
+      "payoutVerifyNotFound": "Payout account not found.",
+      "payoutVerifyNotPending": "This account is not waiting for verification.",
+      "payoutVerifyNoBank": "Add the bank reference before verifying.",
+      "payoutVerifyFailed": "Could not save. Try again.",
       "billingInactive": "Billing not yet active. Contact support to upgrade.",
       "planTaglineFree": "Friend-link access only. You take no cut.",
       "planTaglineWebsite": "Your own site and domain. No talent roster.",

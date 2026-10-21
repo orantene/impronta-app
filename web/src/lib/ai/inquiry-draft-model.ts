@@ -1,5 +1,6 @@
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { pickLocale } from "@/lib/i18n/pick-locale";
+import type { AiUsage } from "@/lib/ai/provider";
 
 export type InquiryDraftAction = "generate" | "polish";
 
@@ -67,6 +68,8 @@ function userPayload(input: InquiryDraftModelInput): string {
  */
 export async function completeInquiryDraft(
   input: InquiryDraftModelInput,
+  /** TUL-1731: called with the provider's reported usage so the caller can record the real cost. */
+  onUsage?: (u: { model: string | null; usage: AiUsage | undefined }) => void,
 ): Promise<string | null> {
   if (input.action === "polish" && !input.currentMessage.trim()) {
     return null;
@@ -81,6 +84,7 @@ export async function completeInquiryDraft(
   });
 
   if (!result.ok) return null;
+  onUsage?.({ model: result.model ?? null, usage: result.usage });
   const text = result.text.trim();
   if (!text) return null;
   return text.slice(0, 4800);

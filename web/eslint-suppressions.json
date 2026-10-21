@@ -1460,7 +1460,7 @@
   },
   "src/lib/server-actions/admin-clients.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 3
+      "count": 1
     }
   },
   "src/lib/server-actions/admin-cms-revisions.ts": {
@@ -1483,7 +1483,7 @@
   },
   "src/lib/server-actions/admin-plan-downgrade.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 5
     }
   },
   "src/lib/server-actions/admin-product-discounts.ts": {
