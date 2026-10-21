@@ -36,6 +36,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 
 /**
@@ -84,6 +85,10 @@ export async function transcribeAudio(input: {
 }): Promise<TranscribeResult> {
   if (input.audio.size === 0) return { ok: false, code: "bad_audio" };
   if (input.audio.size > MAX_AUDIO_BYTES) return { ok: false, code: "too_large" };
+
+  // Defence in depth (TUL-1622): the route checks the master switch; with it off, transcription is
+  // simply unavailable (the caller hides the button), never a paid call.
+  if (!(await isAiMasterEnabled())) return { ok: false, code: "not_configured" };
 
   const apiKey = await resolveOpenAiApiKey();
   if (!apiKey) {
