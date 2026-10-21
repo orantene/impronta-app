@@ -24,7 +24,7 @@ describe("markBookingNoShow counts a no-show once (TUL-1757)", () => {
   });
 
   it("returns before the increment unless exactly one row changed", () => {
-    assert.match(fn, /flipped\.length === 1|flipped\?\.length === 1/);
+    assert.match(fn, /flipped\.length !== 1\) return \{ ok: true, already: true \}/);
     const idx = fn.indexOf("increment_customer_no_shows");
     assert.ok(idx > 0, "uses the atomic RPC");
     const guard = fn.lastIndexOf("!== 1", idx);
