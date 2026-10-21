@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useDashboardText } from "./dashboard-i18n";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { EmptyState, Icon, useRovingTabindex } from "./primitives";
 import { TALENT_SIDEBAR_ICON } from "./talent-nav-icons";
 import { RailModeSwitch } from "./page-modules/RailModeSwitch";
@@ -172,6 +173,7 @@ function TalentSidebar() {
   // default there (same rule as the top-bar eye); hub remains available
   // from the eye chooser / account menu.
   const origin = useCurrentOrigin();
+  const dashboardLocale = useDashboardLocale();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const previewResolved = bridgeTalentSelfProfile?.profileCode
     ? resolveTalentPublicPreviewDestinations({
@@ -181,6 +183,7 @@ function TalentSidebar() {
           ? (siteLoad.state.workspaceSite?.publicUrl ?? siteLoad.state.publicSiteUrl)
           : null,
         currentOrigin: origin,
+        locale: dashboardLocale,
       })
     : null;
   const previewHref = previewResolved

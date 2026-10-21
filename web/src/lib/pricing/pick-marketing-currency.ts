@@ -74,3 +74,19 @@ export function pickMarketingCurrency(input: {
   }
   return { currency: MARKETING_FALLBACK_CURRENCY, source: "fallback" };
 }
+
+/**
+ * TUL-1817: MXN is a DISPLAY conversion of the USD catalog, so it needs a live
+ * FX rate. When the rate is unavailable (`mxnRate == null`), an MXN page would
+ * show USD amounts under an MXN label. Resolve to USD instead so the picker,
+ * the label and the amounts agree.
+ */
+export function fxSafeMarketingCurrency(
+  pick: MarketingCurrencyPick,
+  mxnRate: number | null | undefined,
+): MarketingCurrencyPick {
+  if (pick.currency === "MXN" && (mxnRate == null || !Number.isFinite(mxnRate) || mxnRate <= 0)) {
+    return { currency: MARKETING_FALLBACK_CURRENCY, source: "fallback" };
+  }
+  return pick;
+}
