@@ -19,6 +19,8 @@ import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { pinnedServiceId } from "@/lib/client-account/book-again";
 import { BookPageClient } from "./BookPageClient";
 import { RosterRequestList } from "./RosterRequestList";
+import { PublicHubEntries } from "@/components/storefront/PublicHubEntries";
+import { loadPublicHub } from "@/lib/service-hub/public-hub.server";
 import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -99,7 +101,11 @@ export default async function BookPage({
   // TUL-1372: roster services (accepted listings) of an AGENCY workspace, request-only. The tenant is
   // the public host's resolved tenant, never a request parameter. Fails closed (empty).
   const rosterAdmin = host.kind === "agency" && tenantId ? createServiceRoleClient() : null;
-  const rosterItems = rosterAdmin && host.kind === "agency" ? await loadWorkspaceRosterServices(rosterAdmin, tenantId) : [];
+  const allRosterItems = rosterAdmin && host.kind === "agency" ? await loadWorkspaceRosterServices(rosterAdmin, tenantId) : [];
+  // TUL-1471: the owner's grouped hub entries (request-only) replace the loose rows they contain, so
+  // a service never shows twice. Listings still waiting in the review queue stay as loose rows.
+  const hub = rosterAdmin && host.kind === "agency" ? await loadPublicHub(rosterAdmin, tenantId) : null;
+  const rosterItems = hub ? allRosterItems.filter((i) => !hub.coveredListingIds.has(i.listingId)) : allRosterItems;
 
   return (
     <>
@@ -121,6 +127,7 @@ export default async function BookPage({
           locale={locale}
           contactHref={`${pathPrefix}/contact`}
         />
+        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={() => `${pathPrefix}/contact`} /> : null}
         <RosterRequestList
           items={rosterItems}
           contactHref={`${pathPrefix}/contact`}
