@@ -1,10 +1,11 @@
 import "server-only";
 
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fail } from "./refusals";
-import { threadTypeForStaffMessage } from "./thread-rule";
+import { INTERNAL_NOTE_KIND, threadTypeForStaffMessage } from "./thread-rule";
 import type { ActionResult } from "./types";
 
 /**
@@ -24,22 +25,29 @@ export async function insertMessage(
     payload?: Record<string, unknown>;
     senderUserId: string | null;
   },
-): Promise<ActionResult<{ messageId: string }>> {
-  const { data, error } = await tenantScopedQuery(admin, "inquiry_messages", input.tenantId)
-    .insert({
-      inquiry_id: input.inquiryId,
-      // D-MSG-2: staff replies, cards and internal notes all sit on the client
-      // thread; `message_kind` is what keeps a note from the client.
-      thread_type: threadTypeForStaffMessage(input.kind),
-      message_kind: input.kind,
-      body: input.body,
-      card_payload: input.payload ?? null,
-      sender_user_id: input.senderUserId,
-    })
-    .select("id")
-    .single();
-  if (error || !data) return fail("unavailable");
-  return { ok: true, messageId: (data as { id: string }).id };
+): Promise<ActionResult<{ messageId: string; storedBody: string }>> {
+  const row = {
+    inquiry_id: input.inquiryId,
+    // D-MSG-2: staff replies, cards and internal notes all sit on the client
+    // thread; `message_kind` is what keeps a note from the client.
+    thread_type: threadTypeForStaffMessage(input.kind),
+    message_kind: input.kind,
+    body: input.body,
+    card_payload: input.payload ?? null,
+    sender_user_id: input.senderUserId,
+  };
+  // TUL-1589: an internal note is staff-only and never reaches the client, so it is stored as typed.
+  // EVERY other kind is client-visible and goes through the masking writer (coordinator contact
+  // masking); callers must send/notify `storedBody`, never the text that was typed.
+  if (input.kind === INTERNAL_NOTE_KIND) {
+    const { data, error } = await tenantScopedQuery(admin, "inquiry_messages", input.tenantId).insert(row).select("id").single();
+    if (error || !data) return fail("unavailable");
+    return { ok: true, messageId: (data as { id: string }).id, storedBody: input.body };
+  }
+  const written = await insertInquiryMessage(admin, { ...row, tenant_id: input.tenantId });
+  const id = (written.data as { id?: string } | null)?.id;
+  if (written.error || !id) return fail("unavailable");
+  return { ok: true, messageId: id, storedBody: written.storedBody ?? input.body };
 }
 
 export async function recordDelivery(
