@@ -68,6 +68,7 @@ src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
 src/lib/ai/ai-master-switch-embed-transcribe.test.ts
 src/lib/ai/ai-master-switch.test.ts
+src/lib/billing/direct-connection-helper.static.test.ts
 src/lib/changelog/launch-edition-link.test.ts
 src/lib/changelog/launch-guard.test.ts
 src/lib/changelog/public-read.test.ts
