@@ -239,3 +239,14 @@ test("every caller of the loader today is a public surface and none passes staff
   const out = execSync(`git grep -n "loadWorkspaceRosterServices(" -- src ':!*.test.*' ':!src/lib/service-hub/roster-services.ts'`, { cwd: process.cwd(), encoding: "utf8" });
   assert.doesNotMatch(out, /staff_quote/);
 });
+
+test("TUL-1599 (D-10a): an on-request service shows no price; a public one keeps it", async () => {
+  const world = WORLD();
+  world.talent_offerings = [{ ...world.talent_offerings[0], visibility: "on_request" }];
+  const [item] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
+  assert.equal(item.priceCents, null);
+  world.talent_offerings = [{ ...world.talent_offerings[0], visibility: "public" }];
+  _resetRosterSellableCacheForTests();
+  const [pub] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
+  assert.equal(pub.priceCents, 150000);
+});
