@@ -14,6 +14,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { SERVICE_AREAS_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import {
   getTalentServiceAreas,
@@ -77,7 +78,7 @@ export async function saveTalentServiceAreas(
 ): Promise<WriteResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SERVICE_AREAS_WRITE_CAPABILITY.saveTalentServiceAreas });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
   const LOG = "[setServiceAreas]";

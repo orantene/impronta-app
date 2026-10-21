@@ -14,6 +14,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { PROFILE_SECTIONS_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
@@ -98,7 +99,7 @@ export async function updateTalentAbout(input: {
   tagline?: string | null;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentAbout });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -145,7 +146,7 @@ export async function updateTalentLocation(input: {
   upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentLocation });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -215,7 +216,7 @@ export async function updateTalentRates(input: {
   lodging_included?: boolean;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentRates });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -251,7 +252,7 @@ export async function updateTalentAvailability(input: {
   };
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentAvailability });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -276,7 +277,7 @@ export async function updateTalentCredits(input: {
   credits_data: CreditEntry[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentCredits });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -299,7 +300,7 @@ export async function updateTalentLimits(input: {
   limits_data: { hardLimits?: string[]; softLimits?: string[]; customNote?: string };
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentLimits });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -324,7 +325,7 @@ export async function updateTalentSocialProof(input: {
   social_proof_data: PastClient[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentSocialProof });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -352,7 +353,7 @@ export async function updateTalentMediaAlbums(input: {
   albums: MediaAlbumEntry[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentMediaAlbums });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -392,7 +393,7 @@ export async function updateTalentDocuments(input: {
   documents: TalentDocumentEntry[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentDocuments });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -418,7 +419,7 @@ export async function updateRosterMeta(input: {
   feature_in_directory?: boolean;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateRosterMeta });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -557,7 +558,7 @@ export async function commitTalentProfileShellAdmin(
     tPrev = now;
   };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.commitTalentProfileShellAdmin });
   lap("requireWorkspaceStaffAction");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -1026,7 +1027,7 @@ export async function sendTalentClaimInvite(input: {
   resend?: boolean;
 }): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.sendTalentClaimInvite });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1149,7 +1150,7 @@ export async function resendTalentClaimInvite(
   talent_profile_id: string,
 ): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.resendTalentClaimInvite });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1203,7 +1204,7 @@ export async function assignTalentTaxonomyBySlug(input: {
   relationship_type?: "primary_role" | "secondary_role" | "specialty";
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.assignTalentTaxonomyBySlug });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -1236,7 +1237,7 @@ export async function removeTalentTaxonomyBySlug(input: {
   slug: string;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.removeTalentTaxonomyBySlug });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -1550,7 +1551,7 @@ export async function emitProfileEvent(input: {
   payload?: Record<string, unknown>;
 }): Promise<void> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.emitProfileEvent });
   if (!auth.ok) return;
   const { supabase } = auth;
   await supabase.from("talent_workflow_events").insert({
