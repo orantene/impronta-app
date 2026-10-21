@@ -24,6 +24,10 @@ export const MESSAGING_WRITE_CAPABILITY = {
   ensureSharedDraft: "send_client_offer",
   offerDraft: "send_client_offer",
   requestPayment: "booking.payment.request",
+  // TUL-1742: identity capture / create-client are client-record writes
+  // (editor tier), same bucket as the P1 fix's inquiry-detail-edit re-key.
+  identityCapture: "edit_client_relationship",
+  createClient: "edit_client_relationship",
 } as const satisfies Record<string, CapabilityKey>;
 
 export type MessagingWriteAction = keyof typeof MESSAGING_WRITE_CAPABILITY;

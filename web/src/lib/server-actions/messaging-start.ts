@@ -12,6 +12,7 @@ import type { MessagingChannel } from "@/lib/messaging/types";
 
 import { messagingInquiryManager, messagingStaff } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
+import { MESSAGING_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/messaging/write-capabilities";
 
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { MESSAGING_EXTRAS_WRITE_CAPABILITY as EXTRAS_CAP } from "@/lib/messaging/extras-write-capabilities";
@@ -127,7 +128,10 @@ export async function messagingCreateClientForThread(input: {
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
   if (!parsed.data.email && !parsed.data.phone) return fail("invalid");
-  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  // TUL-1742: creates a client record + sets identity (a write) — a bare
+  // manager call defaulted to the viewer-held `agency.workspace.view`, the
+  // same bug class as TUL-1708's requireInquiryManagerAction P1 fix.
+  const gated = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.createClient);
   // Seller path: talent-owned customer pool. Manager path: agency pool (null).
   let g: Awaited<ReturnType<typeof messagingInquiryManager>> | Awaited<ReturnType<typeof talentSellerPaymentActor>>;
   let ownerTalentProfileId: string | null = null;

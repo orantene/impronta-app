@@ -18,6 +18,7 @@ import { matchCustomers } from "@/lib/messaging/match-customers";
 import { fail } from "@/lib/messaging/refusals";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
 import { talentSellerPaymentActor } from "@/lib/messaging/talent-payment-actor";
+import { MESSAGING_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/messaging/write-capabilities";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { ActionResult } from "@/lib/messaging/types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -120,7 +121,10 @@ export async function messagingCaptureIdentity(input: {
     })
     .safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const gated = await messagingInquiryManager(parsed.data.inquiryId);
+  // TUL-1742: this links/confirms identity (a write) — a bare manager call
+  // defaulted to the viewer-held `agency.workspace.view`, the same bug class
+  // as TUL-1708's requireInquiryManagerAction P1 fix.
+  const gated = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.identityCapture);
   const g = gated.ok ? gated : await talentSellerPaymentActor(parsed.data.inquiryId);
   if (!g.ok) return g;
   // Capture links an already-chosen customerId; pool scoping is enforced on
