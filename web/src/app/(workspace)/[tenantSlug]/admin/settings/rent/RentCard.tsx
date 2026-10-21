@@ -107,7 +107,7 @@ export function RentCard({ locale, gate, plans, members, stations, safety }: { l
             </div>
           )}
           {(p.status === "active" || p.status === "paused") && (
-            <PaidOutsideForm planId={p.id} startsOn={p.startsOn} defaultAmountCents={p.monthlyRentCents} locale={locale} />
+            <PaidOutsideForm planId={p.id} startsOn={p.startsOn} defaultAmountCents={p.monthlyRentCents} locale={locale} autopayOn={p.autopayStatus !== "off" && p.autopayStatus !== "canceled"} />
           )}
           {p.invoice && (p.status === "active" || p.status === "paused") && (
             <div data-testid="rent-invoice-state" style={{ fontSize: 12.5, marginTop: 4, color: p.invoice.state === "needs_new_link" ? "var(--color-admin-red)" : "inherit" }}>

@@ -172,3 +172,32 @@ export async function checkTransactionChargeCurrency(
   }
   return { ok: true };
 }
+
+/**
+ * Charge-mode guard for a charge with NO booking transaction: a studio-rent subscription (TUL-1700). The charge currency
+ * is the plan's; the seller is the studio workspace, so the rule is the lane rule alone: the studio's Stripe lane must
+ * settle that currency (US: USD only, MX: MXN or USD). Fails closed on a read error, a missing client or a missing studio.
+ */
+export async function checkTenantChargeCurrency(
+  sb: SupabaseClient | null,
+  input: { tenantId: string; currency: string | null | undefined; locale?: string | null },
+): Promise<ChargeCurrencyCheck> {
+  if (!sb) return UNREADABLE;
+  const charge = normalizeCurrencyCode(input.currency);
+  if (!charge) {
+    return { ok: false, code: CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE, message: chargeRefusalMessage("no_currency", input.locale) };
+  }
+  let read: Awaited<ReturnType<typeof readLane>>;
+  try {
+    read = await readLane(sb, "agencies", input.tenantId);
+  } catch (err) {
+    logServerError("seller-currency-guard.tenant_read_threw", err);
+    return UNREADABLE;
+  }
+  if (!read.ok || !read.lane) return UNREADABLE;
+  if (!LANE_CURRENCIES[read.lane].includes(charge)) {
+    logServerError("charge.currency_unsupported_for_lane", new Error(`tenant=${input.tenantId} charge=${charge} lane=${read.lane}`));
+    return { ok: false, code: CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE, message: chargeRefusalMessage("lane", input.locale, { charge }) };
+  }
+  return { ok: true };
+}

@@ -42,7 +42,9 @@ function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentA
         .select("status, autopay_status, stripe_subscription_id, talent_profile_id")
         .eq("id", planId)
         .maybeSingle();
-      if (error || !data) return null;
+      // A DB error is not "plan not found": throwing makes handleRentSubscriptionEvent answer "unavailable" (Stripe retries).
+      if (error) throw error;
+      if (!data) return null;
       const r = data as { status: string; autopay_status: string; stripe_subscription_id: string | null; talent_profile_id: string };
       return { status: r.status, autopayStatus: r.autopay_status, subscriptionId: r.stripe_subscription_id, talentProfileId: r.talent_profile_id };
     },
@@ -59,11 +61,13 @@ function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentA
       return !error;
     },
     async loadInvoice(planId, tenantId, period) {
-      const { data } = await tenantScopedQuery(admin, "studio_rent_invoices", tenantId)
+      const { data, error } = await tenantScopedQuery(admin, "studio_rent_invoices", tenantId)
         .select("status, stripe_invoice_id, source")
         .eq("plan_id", planId)
         .eq("period", period)
         .maybeSingle();
+      // A DB error is not "no invoice yet": throwing makes the webhook answer "unavailable" and Stripe retries.
+      if (error) throw error;
       const r = data as { status: string; stripe_invoice_id: string | null; source: string } | null;
       return r ? { status: r.status, stripeInvoiceId: r.stripe_invoice_id, source: r.source } : null;
     },
@@ -140,10 +144,15 @@ export async function syncRentAutopayWithPlan(
   deps: { stripeFor?: (k: StripeAccountKey) => Stripe | null } = {},
 ): Promise<{ ok: boolean }> {
   try {
-    const { data } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId)
+    const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId)
       .select("stripe_subscription_id, autopay_status, autopay_platform")
       .eq("id", p.planId)
       .maybeSingle();
+    // A read we could not make is NOT "no subscription": the plan must not change while a card may still be charged.
+    if (error) {
+      logServerError("rent.autopay.sync.read", error);
+      return { ok: false };
+    }
     const r = data as { stripe_subscription_id: string | null; autopay_status: string; autopay_platform: StripeAccountKey | null } | null;
     const platform: StripeAccountKey = r?.autopay_platform === "mx" ? "mx" : "us";
     if (!r?.stripe_subscription_id || r.autopay_status === "off" || r.autopay_status === "canceled") return { ok: true };
@@ -166,7 +175,15 @@ export async function syncRentAutopayWithPlan(
 
 // ── TUL-1611: refunds and disputes on an automatic rent charge ────────────────────────────────────────────────
 
-export type RentChargeOutcome = "not_rent" | "reversed" | "nothing_to_reverse" | "dispute_flagged" | "retry";
+export type RentChargeOutcome = "not_rent" | "reversed" | "nothing_to_reverse" | "dispute_flagged" | "needs_manual" | "retry";
+
+/** A Stripe refusal that retrying cannot fix (bad request / not found / forbidden), as opposed to a network or 5xx error. */
+export function isPermanentStripeError(err: unknown): boolean {
+  const e = err as { type?: string; statusCode?: number } | null;
+  if (!e) return false;
+  const code = e.statusCode ?? 0;
+  return e.type === "StripeInvalidRequestError" || (code >= 400 && code < 500 && code !== 409 && code !== 429);
+}
 
 /**
  * Runs BEFORE the normal refund/dispute routing (which keeps recording every dispute and ignores untracked refunds).
@@ -181,6 +198,7 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
   if (!rentAutopayFlagOn()) return "not_rent";
   if (event.account) return "not_rent";
   let confirmed = false;
+  let confirmedRow: { id: string; tenantId: string } | null = null;
   try {
     let charge: Stripe.Charge;
     let lostDisputeCents = 0;
@@ -210,9 +228,16 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
       .select("id, tenant_id, plan_id, period, talent_profile_id")
       .eq("stripe_invoice_id", invoiceId)
       .maybeSingle();
-    if (error || !row) return "not_rent";
+    if (error) {
+      // Logged with the event id, never swallowed: on prod before the rent tables exist this is expected and a booking
+      // refund must still record, but a real rent refund hit by a transient error can be found and reconciled.
+      logServerError("rent.autopay.chargeEvent.rentRowLookup", new Error(`event ${event.id} (${event.type}): ${(error as { message?: string }).message ?? "rent row lookup failed"}`));
+      return "not_rent";
+    }
+    if (!row) return "not_rent";
     confirmed = true;
     const r = row as { id: string; tenant_id: string; plan_id: string; period: string; talent_profile_id: string };
+    confirmedRow = { id: r.id, tenantId: r.tenant_id };
 
     if (disputeOpened) {
       await tenantScopedQuery(admin, "studio_rent_invoices", r.tenant_id).update({ disputed_at: new Date().toISOString() }).eq("id", r.id);
@@ -256,7 +281,41 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
     return reversed > 0 ? "reversed" : "nothing_to_reverse";
   } catch (err) {
     logServerError("rent.autopay.chargeEvent", err);
-    return confirmed ? "retry" : "not_rent";
+    if (!confirmed) {
+      // Not (yet) known to be rent: never a 503 for a booking refund. Logged with the event id so a real rent refund can be reconciled by hand.
+      logServerError("rent.autopay.chargeEvent.unconfirmed", new Error(`event ${event.id} (${event.type}) could not be classified as rent or not`));
+      return "not_rent";
+    }
+    if (isPermanentStripeError(err)) {
+      // A confirmed rent charge whose reversal Stripe permanently refuses: mark the row for reconcile and stop the retry loop.
+      logServerError("rent.autopay.chargeEvent.permanent", new Error(`event ${event.id}: reversal permanently failed, reconcile rent row`));
+      if (confirmedRow) {
+        const { error: markErr } = await tenantScopedQuery(admin, "studio_rent_invoices", confirmedRow.tenantId).update({ reversal_failed_at: new Date().toISOString() }).eq("id", confirmedRow.id);
+        if (markErr) logServerError("rent.autopay.chargeEvent.markFailed", markErr);
+      }
+      return "needs_manual";
+    }
+    return "retry";
+  }
+}
+
+/**
+ * TUL-1700: the support / reconcile read for refunds and lost disputes whose share reversal Stripe permanently refused
+ * (rows marked `reversal_failed_at`). Newest first. null = unreadable (never an empty list that hides a problem).
+ */
+export async function listRentReversalsToReconcile(admin: SupabaseClient, p: { tenantId?: string; limit?: number } = {}): Promise<Array<{ id: string; tenantId: string; planId: string; period: string; failedAt: string }> | null> {
+  try {
+    let q = admin.from("studio_rent_invoices").select("id, tenant_id, plan_id, period, reversal_failed_at").not("reversal_failed_at", "is", null);
+    if (p.tenantId) q = q.eq("tenant_id", p.tenantId);
+    const { data, error } = await q.order("reversal_failed_at", { ascending: false }).limit(Math.min(Math.max(p.limit ?? 50, 1), 200));
+    if (error || !Array.isArray(data)) {
+      logServerError("rent.autopay.reconcileList", error);
+      return null;
+    }
+    return (data as Array<{ id: string; tenant_id: string; plan_id: string; period: string; reversal_failed_at: string }>).map((r) => ({ id: r.id, tenantId: r.tenant_id, planId: r.plan_id, period: r.period, failedAt: r.reversal_failed_at }));
+  } catch (err) {
+    logServerError("rent.autopay.reconcileList", err);
+    return null;
   }
 }
 
@@ -365,7 +424,12 @@ export async function voidSubscriptionInvoicesForPeriod(
  */
 export async function handleRentDraft(admin: SupabaseClient, stripe: Stripe, ev: Extract<RentSubscriptionEvent, { type: "draft" }>): Promise<PercentDraftOutcome | "voided"> {
   try {
-    const { data } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId).select("autopay_skip_periods, stripe_subscription_id").eq("id", ev.planId).maybeSingle();
+    const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId).select("autopay_skip_periods, stripe_subscription_id").eq("id", ev.planId).maybeSingle();
+    // An unreadable plan must not fall through to billing a month the owner may have recorded as paid outside.
+    if (error) {
+      logServerError("rent.autopay.handleDraft.read", error);
+      return "retry";
+    }
     const plan = data as { autopay_skip_periods: string[] | null; stripe_subscription_id: string | null } | null;
     if (plan?.stripe_subscription_id === ev.subscriptionId && shouldSkipAutopayInvoice(plan.autopay_skip_periods ?? [], periodOfSeconds(ev.periodStart))) {
       return (await voidRentInvoice(stripe, { id: ev.invoiceId, status: "draft" })) ? "voided" : "retry";
