@@ -10,7 +10,8 @@ import { loadRentSafetyView } from "@/lib/service-hub/rent/rent-safety-view.serv
 import { ownerGuard } from "@/lib/service-hub/rent/rent-owner.server";
 import { rentLinkState } from "@/lib/service-hub/rent/rent-cycle";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
-import { RentCard, type RentMember, type RentPlanView } from "./RentCard";
+import { isPooledKind, type SpaceKind } from "@/lib/spaces/tree";
+import { RentCard, type RentMember, type RentPlanView, type RentStationOption } from "./RentCard";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,11 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
   const gate = rentBillingGate();
   const plans: RentPlanView[] = [];
   const members: RentMember[] = [];
+  const stations: RentStationOption[] = [];
   let safety: Awaited<ReturnType<typeof loadRentSafetyView>> = [];
   if (admin && gate.ok) {
     const { data: planRows } = await tenantScopedQuery(admin, "studio_rent_plans", scope.tenantId)
-      .select("id, talent_profile_id, monthly_rent_cents, currency, status, ended_by, updated_at, talent_profiles!inner(display_name)")
+      .select("id, talent_profile_id, monthly_rent_cents, currency, status, ended_by, updated_at, station_resource_id, talent_profiles!inner(display_name)")
       .order("updated_at", { ascending: false })
       .limit(60);
     const { data: invRows } = await tenantScopedQuery(admin, "studio_rent_invoices", scope.tenantId)
@@ -52,7 +54,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
       const { data: links } = await tenantScopedQuery(admin, "payment_links", scope.tenantId).select("code, status").in("code", codes);
       for (const l of (links ?? []) as Array<{ code: string; status: string }>) linkStatus.set(l.code, l.status);
     }
-    for (const r of (planRows ?? []) as Array<{ id: string; talent_profile_id: string; monthly_rent_cents: number; currency: string; status: string; ended_by: string | null; talent_profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
+    for (const r of (planRows ?? []) as Array<{ id: string; talent_profile_id: string; monthly_rent_cents: number; currency: string; status: string; ended_by: string | null; station_resource_id: string | null; talent_profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
       const tp = Array.isArray(r.talent_profiles) ? r.talent_profiles[0] : r.talent_profiles;
       // A live plan always shows; a declined or ended one shows so the owner learns the member's answer.
       const inv = latest.get(r.id);
@@ -63,6 +65,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
         currency: r.currency,
         status: r.status,
         endedBy: r.ended_by,
+        stationId: r.station_resource_id,
         invoice: inv ? { period: inv.period, state: rentLinkState(inv.status, inv.code ? (linkStatus.get(inv.code) ?? null) : null) } : null,
       });
     }
@@ -73,11 +76,15 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
       const tp = Array.isArray(r.talent_profiles) ? r.talent_profiles[0] : r.talent_profiles;
       members.push({ talentProfileId: r.talent_profile_id, name: tp?.display_name ?? "" });
     }
+    const { data: spaceRows } = await tenantScopedQuery(admin, "spaces", scope.tenantId).select("id, name, kind").order("name", { ascending: true });
+    for (const s of (spaceRows ?? []) as Array<{ id: string; name: string; kind: SpaceKind }>) {
+      if (isPooledKind(s.kind)) stations.push({ id: s.id, name: s.name });
+    }
     safety = await loadRentSafetyView(admin, scope.tenantId);
   }
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
-      <RentCard locale={locale} gate={gate.ok ? "on" : gate.reason} plans={plans} members={members} safety={safety} />
+      <RentCard locale={locale} gate={gate.ok ? "on" : gate.reason} plans={plans} members={members} stations={stations} safety={safety} />
     </main>
   );
 }

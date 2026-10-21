@@ -7,9 +7,11 @@
  */
 import { useState, useTransition } from "react";
 import { issueRent, proposeRentPlan, setRentPlanStatus } from "@/lib/service-hub/rent/rent-actions";
+import { setRentPlanStation } from "@/lib/service-hub/rent/rent-station-actions";
 import { RENT_COPY, rentRefusalText } from "@/lib/service-hub/rent/rent-copy";
 import type { SafetyRow } from "@/lib/service-hub/rent/rent-safety-view";
 
+export type RentStationOption = { id: string; name: string };
 export type RentMember = { talentProfileId: string; name: string };
 export type RentPlanView = {
   id: string;
@@ -18,6 +20,7 @@ export type RentPlanView = {
   currency: string;
   status: string;
   endedBy: string | null;
+  stationId: string | null;
   /** The latest month's invoice and what its payment link is doing. */
   invoice: { period: string; state: "none" | "waiting" | "paid" | "needs_new_link" } | null;
 };
@@ -33,7 +36,7 @@ function money(cents: number, currency: string, locale: "en" | "es"): string {
   }
 }
 
-export function RentCard({ locale, gate, plans, members, safety }: { locale: "en" | "es"; gate: "on" | "disabled" | "not_test_mode"; plans: RentPlanView[]; members: RentMember[]; safety: SafetyRow[] }) {
+export function RentCard({ locale, gate, plans, members, stations, safety }: { locale: "en" | "es"; gate: "on" | "disabled" | "not_test_mode"; plans: RentPlanView[]; members: RentMember[]; stations: RentStationOption[]; safety: SafetyRow[] }) {
   const c = RENT_COPY[locale];
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -86,6 +89,24 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
                 })}>{c.sendNewLink}</button>
               )}
             </div>
+          )}
+          {(p.status === "active" || p.status === "paused") && stations.length > 0 && (
+            <label style={{ display: "block", fontSize: 12.5, marginTop: 6 }}>
+              {c.station}{" "}
+              <select
+                defaultValue={p.stationId ?? ""}
+                disabled={pending}
+                onChange={(e) => start(async () => {
+                  setMsg(null);
+                  const r = await setRentPlanStation({ planId: p.id, spaceId: e.target.value || null });
+                  setMsg(r.ok ? { ok: true, text: c.saved } : { ok: false, text: c.unavailable });
+                })}
+                style={field}
+              >
+                <option value="">{c.noStation}</option>
+                {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
             {p.status === "active" && (

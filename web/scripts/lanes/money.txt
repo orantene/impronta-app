@@ -312,6 +312,7 @@ src/lib/service-hub/public-hub.test.ts
 src/lib/service-hub/rent/rent-cycle.test.ts
 src/lib/service-hub/rent/rent-issue.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts
+src/lib/service-hub/rent/rent-station.test.ts
 src/lib/service-hub/rent/rent-wire.static.test.ts
 src/lib/service-hub/terms-wire.static.test.ts
 src/lib/service-hub/terms.test.ts
