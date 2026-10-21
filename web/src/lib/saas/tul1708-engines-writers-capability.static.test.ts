@@ -33,7 +33,7 @@ test("messaging money actions: cancel, refund and outside payment are keyed; the
   };
   assert.equal(guardOf("messagingCancelRecord"), "cancel_inquiry");
   assert.equal(guardOf("messagingRefund"), "booking.payment.refund");
-  assert.equal(guardOf("messagingRecordOutsidePayment"), "booking.payment.mark_received");
+  assert.equal(guardOf("messagingRecordOutsidePayment"), "booking.payment.request");
   for (const fn of ["messagingPreviewCancel", "messagingLoadRefundableTransaction", "messagingCanReadNotes"]) {
     assert.equal(guardOf(fn), "agency.workspace.view", fn);
   }
@@ -48,13 +48,14 @@ test("messaging engine/sheets readers and the pipeline settings readers are expl
   assert.doesNotMatch(pipe, /\brequireWorkspaceStaffAction\(\s*\)/);
 });
 
-test("role matrix: viewer and editor are refused the money capabilities; manager takes cancel, admin takes refund and mark-received", () => {
+test("role matrix: viewer and editor are refused the money capabilities; manager takes cancel and outside payment, admin takes refund", () => {
   for (const cap of ["booking.payment.request", "cancel_inquiry"] as const) {
     assert.equal(roleGrantsCapability("viewer", cap), false, cap);
     assert.equal(roleGrantsCapability("editor", cap), false, cap);
     assert.equal(roleGrantsCapability("manager", cap), true, cap);
   }
-  for (const cap of ["booking.payment.refund", "booking.payment.mark_received"] as const) {
+  assert.equal(roleGrantsCapability("manager", "booking.payment.refund"), false);
+  for (const cap of ["booking.payment.refund"] as const) {
     assert.equal(roleGrantsCapability("manager", cap), false, cap);
     assert.equal(roleGrantsCapability("admin", cap), true, cap);
     assert.equal(roleGrantsCapability("owner", cap), true, cap);

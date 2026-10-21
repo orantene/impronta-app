@@ -445,7 +445,7 @@ export async function messagingRecordOutsidePayment(input: {
   amountKind?: "deposit" | "full";
 }): Promise<ActionResult<{ recordId: string }>> {
   await requireNotImpersonating();
-  const g = await messagingStaff("booking.payment.mark_received");
+  const g = await messagingStaff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
