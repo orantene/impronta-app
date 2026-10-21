@@ -18,6 +18,7 @@ import { shouldMountDatedStep } from "@/lib/sessions/dated-mount";
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { accountSurfaceEnabledForRequest } from "@/lib/client-account/tenant.server";
 import { jsonLdScriptString } from "@/lib/cms/posts-public-model";
 import { getPublicTenantScope } from "@/lib/saas/scope";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -103,11 +104,12 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
   if (route.kind === "missing") notFound();
   if (route.kind === "redirect") permanentRedirect(await localePath(loaded.locale, route.pathWithoutLocale));
 
-  const [identity, alternates, homeHref, bookPath] = await Promise.all([
+  const [identity, alternates, homeHref, bookPath, saveEnabled] = await Promise.all([
     loadPublicIdentity(loaded.tenantId).catch(() => null),
     alternatesFor(loaded.locale, route.slug),
     localePath(loaded.locale, "/"),
     localePath(loaded.locale, "/book"),
+    accountSurfaceEnabledForRequest().catch(() => false),
   ]);
   // Business homes do not read the talent deep link (?book=...#book): go to the workspace's
   // /book page with this service preselected (`?service=`, read by /book per #4078).
@@ -144,6 +146,7 @@ export async function BusinessServicePage({ segment, params }: { segment: Busine
         homeHref={homeHref}
         bookHref={offering.publicCtaHidden ? null : bookHref}
         bookingSlot={bookingSlot}
+        saveOfferingId={saveEnabled ? offering.id : null}
       />
       <PublicFooter />
     </>

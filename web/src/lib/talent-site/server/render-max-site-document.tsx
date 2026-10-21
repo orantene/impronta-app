@@ -18,6 +18,7 @@ import { collectNativeDataBlockNeeds } from "@/lib/site-admin/builder-node/nativ
 import { pruneEmptyBoundSections } from "@/lib/talent-site/my-content-prune";
 import { pruneDeadSectionLinks } from "@/lib/talent-site/dead-section-links";
 import { headerOverlayAllowed } from "@/lib/talent-site/header-overlay";
+import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { talentSiteLocalePath } from "@/lib/talent-site/talent-site-locale-routing";
 
 import { SkipToContent } from "@/components/accessibility/skip-to-content";
@@ -330,6 +331,7 @@ export async function renderMaxSiteDocument(args: {
             offerings={Object.keys(qv.targets).flatMap((id) => offeringsById.get(id) ?? [])}
             confirmsByHand={pricedDataSources.talentOfferingsConfirmsByHand ?? true}
             bookingPosture={pricedDataSources.talentOfferingsBookingSettings?.bookingPosture}
+            saveEnabled={!draftPreview && clientAccountEnabledFor("talent")}
           />
         ),
       };
