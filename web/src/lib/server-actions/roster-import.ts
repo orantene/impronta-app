@@ -32,7 +32,7 @@ import { processRosterImportRow, type RosterImportRow } from "./roster-import-ro
  * server and it is never an exported server action.
  */
 
-export type { RosterImportRow };
+export type { RosterImportRow } from "./roster-import-row";
 
 export type EnqueueRosterImportInput = {
   /** Storage path under the `roster-imports` bucket (private). */

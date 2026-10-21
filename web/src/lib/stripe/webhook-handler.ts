@@ -791,13 +791,8 @@ export async function processStripeEvent(
     case "ignore":
       if (action.info) {
         // INFO, not error: lets support trace a delayed payment without paging anyone.
-        void improntaLog("stripe_webhook.info", {
-          reason: action.info.event,
-          eventId: event.id,
-          eventType: event.type,
-          sessionId: action.info.sessionId,
-          paymentStatus: action.info.paymentStatus,
-        });
+        void improntaLog("stripe_webhook.info", { reason: action.info.event, eventId: event.id, eventType: event.type,
+          sessionId: action.info.sessionId, paymentStatus: action.info.paymentStatus });
       }
       return;
   }

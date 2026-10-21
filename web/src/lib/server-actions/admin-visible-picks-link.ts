@@ -10,7 +10,7 @@
  */
 import { loadVisiblePicksLinkWith, type VisiblePicksLinkResult } from "@/lib/service-hub/load-visible-picks-link";
 
-export type { VisiblePicksLinkResult };
+export type { VisiblePicksLinkResult } from "@/lib/service-hub/load-visible-picks-link";
 
 export async function loadVisiblePicksLink(): Promise<VisiblePicksLinkResult> {
   return loadVisiblePicksLinkWith();

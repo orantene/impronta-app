@@ -30,8 +30,6 @@ export type PreviewResult =
   | { ok: true; plan: ImportPlan }
   | { ok: false; error: string };
 
-export type { ApplyResult };
-
 type Auth = { ok: true; tenantId: string } | { ok: false; error: string };
 
 /**
