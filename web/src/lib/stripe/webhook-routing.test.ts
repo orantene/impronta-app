@@ -73,6 +73,7 @@ test("checkout payment: client_balance_topup → client_balance_topup with amoun
       id: "cs_2",
       mode: "payment",
       amount_total: 25000,
+      payment_status: "paid",
       currency: "usd",
       payment_intent: "pi_99",
       metadata: {
@@ -96,6 +97,7 @@ test("checkout payment: client_balance_topup with expanded PI object → id extr
       id: "cs_2b",
       mode: "payment",
       amount_total: 10000,
+      payment_status: "paid",
       currency: "usd",
       payment_intent: { id: "pi_obj" },
       metadata: {
@@ -663,6 +665,7 @@ test("all revenue flows are reachable (none silently ignored on happy path)", ()
         mode: "payment",
         amount_total: 100,
         currency: "usd",
+        payment_status: "paid",
         metadata: { checkout_type: "client_balance_topup", user_id: "u", tenant_id: "t", amount_cents: "100" },
       }),
       "client_balance_topup",

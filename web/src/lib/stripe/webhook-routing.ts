@@ -227,6 +227,47 @@ export function checkoutTransactionId(session: Stripe.Checkout.Session): string 
 
 export const WORKSPACE_PLAN_KEYS = new Set(["studio", "agency", "network"]);
 
+/**
+ * Balance top-up credit path, shared by `checkout.session.completed` and
+ * `checkout.session.async_payment_succeeded` so both apply identical amount /
+ * currency rules and carry the SAME idempotency key (the PaymentIntent id): a
+ * completed + async_succeeded pair credits once.
+ *
+ * Credit ONLY when `payment_status === "paid"`. A delayed method (SEPA, Bacs,
+ * Pay by Bank) completes the session `unpaid`; the money arrives later and the
+ * credit waits for `async_payment_succeeded`.
+ */
+function classifyBalanceTopup(session: Stripe.Checkout.Session, userId: string, tenantId: string): StripeAction {
+  if (session.payment_status !== "paid") return { kind: "ignore" };
+  const requestedCents = parseInt(session.metadata?.amount_cents ?? "0", 10);
+  if (!requestedCents) {
+    return { kind: "invalid", reason: "client_balance_topup missing/zero amount_cents" };
+  }
+  // TUL-1307: credit what the customer actually PAID (amount_total is
+  // after promo discounts), never the requested metadata amount. Fail
+  // closed (no credit, logged) when it is missing, zero, or not USD.
+  // Never credit more than requested (tax/fees are not balance). With Adaptive
+  // Pricing the customer's local-currency amount sits in `presentment_details`,
+  // not here; `amount_total` / `currency` stay in the session (USD) currency.
+  if (typeof session.amount_total !== "number" || !Number.isInteger(session.amount_total)) {
+    return { kind: "invalid", reason: "client_balance_topup missing amount_total (paid amount unknown)" };
+  }
+  if (session.currency?.toLowerCase() !== "usd") {
+    return { kind: "invalid", reason: "client_balance_topup session currency is not usd" };
+  }
+  if (session.amount_total <= 0) {
+    return { kind: "invalid", reason: "client_balance_topup paid amount is zero (fully discounted)" };
+  }
+  const amountCents = Math.min(session.amount_total, requestedCents);
+  return {
+    kind: "client_balance_topup",
+    userId,
+    tenantId,
+    amountCents,
+    paymentIntentId: refId(session.payment_intent),
+  };
+}
+
 // ─── The classifier ──────────────────────────────────────────────────────────────
 
 /**
@@ -255,31 +296,7 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
           if (!userId || !tenantId) {
             return { kind: "invalid", reason: "client_balance_topup missing user_id/tenant_id" };
           }
-          const requestedCents = parseInt(session.metadata?.amount_cents ?? "0", 10);
-          if (!requestedCents) {
-            return { kind: "invalid", reason: "client_balance_topup missing/zero amount_cents" };
-          }
-          // TUL-1307: credit what the customer actually PAID (amount_total is
-          // after promo discounts), never the requested metadata amount. Fail
-          // closed (no credit, logged) when it is missing, zero, or not USD.
-          // Never credit more than requested (tax/fees are not balance).
-          if (typeof session.amount_total !== "number" || !Number.isInteger(session.amount_total)) {
-            return { kind: "invalid", reason: "client_balance_topup missing amount_total (paid amount unknown)" };
-          }
-          if (session.currency?.toLowerCase() !== "usd") {
-            return { kind: "invalid", reason: "client_balance_topup session currency is not usd" };
-          }
-          if (session.amount_total <= 0) {
-            return { kind: "invalid", reason: "client_balance_topup paid amount is zero (fully discounted)" };
-          }
-          const amountCents = Math.min(session.amount_total, requestedCents);
-          return {
-            kind: "client_balance_topup",
-            userId,
-            tenantId,
-            amountCents,
-            paymentIntentId: refId(session.payment_intent),
-          };
+          return classifyBalanceTopup(session, userId, tenantId);
         }
 
         if (checkoutType === "talent_domain_renewal") {
@@ -377,6 +394,14 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
     case "checkout.session.async_payment_succeeded": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.mode !== "payment") return { kind: "ignore" };
+      if (session.metadata?.checkout_type === "client_balance_topup") {
+        const userId = session.metadata?.user_id ?? null;
+        const tenantId = session.metadata?.tenant_id ?? null;
+        if (!userId || !tenantId) {
+          return { kind: "invalid", reason: "client_balance_topup missing user_id/tenant_id" };
+        }
+        return classifyBalanceTopup(session, userId, tenantId);
+      }
       const transactionId = checkoutTransactionId(session);
       if (!transactionId) {
         return { kind: "invalid", reason: `async payment succeeded on session ${session.id} with no transaction` };
@@ -388,6 +413,8 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
     case "checkout.session.expired": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.mode !== "payment") return { kind: "ignore" };
+      // A top-up that failed asynchronously was never credited: nothing to undo.
+      if (session.metadata?.checkout_type === "client_balance_topup") return { kind: "ignore" };
       const transactionId = checkoutTransactionId(session);
       // No money row means nothing to close: a payment link's own timer
       // (`reap_payment_links`) already lapses a session-less link.
