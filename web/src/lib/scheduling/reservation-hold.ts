@@ -18,6 +18,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { checkReservationWindowFree } from "./reservation-slot-free";
+import { holdInquiryResources, inquiryResourcesPrefix, releaseBookingResources } from "@/lib/resources/booking-resources";
 import {
   CAPACITY_HOLD_TTL_MAX_SECONDS,
   CAPACITY_HOLD_TTL_MIN_SECONDS,
@@ -219,6 +220,28 @@ export async function placeReservationHold(
       : { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." };
   }
 
+  // TUL-1375: the chair, room or station the service needs is held with the person, in
+  // one engine command; if any is taken the person's hold is given back too.
+  if (input.inquiryId && input.offeringId) {
+    const ttlSeconds = expiresAt ? Math.max(60, Math.round((Date.parse(expiresAt) - Date.now()) / 1000)) : null;
+    const resources = await holdInquiryResources(admin, {
+      tenantId: input.tenantId,
+      inquiryId: input.inquiryId,
+      offeringIds: [input.offeringId],
+      window: { startsAt, endsAt },
+      ttlSeconds,
+      actorUserId: input.createdByUserId ?? null,
+    });
+    if (!resources.ok) {
+      const { error: undoErr } = await admin.from("talent_holds").delete().eq("id", data.id);
+      // Loud, because until its TTL the person stays held for a time that was refused.
+      if (undoErr) logServerError("reservation-hold/undo_after_resources", undoErr);
+      return resources.reason === "taken"
+        ? { ok: false, code: "slot_taken", error: "That time was just taken. Pick another." }
+        : { ok: false, code: "unavailable", error: "Could not hold that time. Try again." };
+    }
+  }
+
   return { ok: true, holdId: data.id as string, expiresAt };
 }
 
@@ -266,5 +289,36 @@ export async function releaseHoldsForInquiry(
     logServerError("reservation-hold/release_inquiry", error);
     return { ok: false, code: "unavailable", error: "Could not release hold." };
   }
+  // TUL-1375: resources still only HELD for this request go back too. Resources an
+  // accepted offer committed to its booking are kept (released on cancel).
+  const { data: inq, error: inqErr } = await admin.from("inquiries").select("tenant_id").eq("id", inquiryId).maybeSingle();
+  // The person's holds are already released; a failed read only leaves held resources
+  // to expire with their TTL (never a double booking).
+  if (inqErr) logServerError("reservation-hold/release_inquiry_resources", inqErr);
+  const tenantId = (inq as { tenant_id?: string } | null)?.tenant_id;
+  if (tenantId) {
+    await releaseBookingResources(admin, { tenantId, operationKey: inquiryResourcesPrefix(inquiryId) });
+  }
   return { ok: true, released: (data ?? []).length };
+}
+
+
+/**
+ * TUL-1375: a request whose chair/room/station was taken keeps no held time. Remove the
+ * reservation stamp from the inquiry so nothing reads the window as held (the person's
+ * hold is released by the caller). Logged, never thrown.
+ */
+export async function clearInquiryReservationStamp(admin: SupabaseClient, inquiryId: string): Promise<void> {
+  const { data, error } = await admin.from("inquiries").select("source_context").eq("id", inquiryId).maybeSingle();
+  if (error || !data) {
+    if (error) logServerError("reservation-hold/clear_stamp_read", error);
+    return;
+  }
+  const ctx = (data as { source_context?: unknown }).source_context;
+  if (!ctx || typeof ctx !== "object" || Array.isArray(ctx)) return;
+  const next = { ...(ctx as Record<string, unknown>) };
+  if (!("reservation" in next)) return;
+  delete next.reservation;
+  const { error: upErr } = await admin.from("inquiries").update({ source_context: next }).eq("id", inquiryId);
+  if (upErr) logServerError("reservation-hold/clear_stamp_write", upErr);
 }

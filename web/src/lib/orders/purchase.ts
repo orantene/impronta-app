@@ -22,6 +22,7 @@ import { resolveOrderCurrency } from "@/lib/orders/display-currency";
 import { generateOpaqueCode } from "@/lib/links/code";
 import { buildCapacityRequests } from "@/lib/orders/capacity-requests";
 import { reserveResourceSet } from "@/lib/resources/reserve-set";
+import { purchaseNeedsWithLinkedResources } from "@/lib/resources/booking-resources";
 import { refuseUnclaimedSellers } from "@/lib/orders/purchase-seller";
 import { ageGateStamp, loadAgeGates, ruleOnAgeGate } from "@/lib/orders/age-gate";
 import { settleOrHoldOrder } from "@/lib/orders/purchase-settlement";
@@ -427,11 +428,12 @@ export async function createPurchase(
     }
 
     let shortestTtlSeconds: number | null = null;
-    const needs = withOfferingStockNeeds(input.capacity ?? [], input.lines, catalog.stockPools);
-    const slotHolds = [
-      ...(input.holds ?? []),
-      ...(input.reservation ? [input.reservation] : []),
-    ];
+    // Stock first (it skips lines the CALLER already pooled), then TUL-1375 linked chair/room/station.
+    const stockNeeds = withOfferingStockNeeds(input.capacity ?? [], input.lines, catalog.stockPools);
+    const linkedNeeds = await purchaseNeedsWithLinkedResources(admin, { ...input, capacity: stockNeeds });
+    if (!linkedNeeds.ok) { await unwind("linked resources unreadable"); return { ok: false, reason: "capacity_unavailable", error: linkedNeeds.error }; }
+    const needs = linkedNeeds.needs;
+    const slotHolds = [...(input.holds ?? []), ...(input.reservation ? [input.reservation] : [])];
 
     if (needs.length > 0 || slotHolds.length > 0) {
       // ONE atomic batch for the whole cart (`orderLineId` is per request since

@@ -45,6 +45,8 @@ function memory(opts: { talent?: string | null; window?: OfferBookingWindow | nu
       if (!b.legs.includes(talentProfileId)) b.legs.push(talentProfileId);
       return true;
     },
+    holdResources: async () => "ok",
+    releaseResources: async () => undefined,
     insertMirror: async ({ bookingId }) => {
       const r = opts.mirror ?? "ok";
       if (r === "ok") bookings.find((x) => x.id === bookingId)!.mirror = true;
