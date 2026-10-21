@@ -81,7 +81,6 @@
     "src/lib/server-actions/cancel-subscription.ts": 3,
     "src/lib/server-actions/catalog-engine-reads.ts": 1,
     "src/lib/server-actions/commercial-terms-tenant.ts": 1,
-    "src/lib/server-actions/dated-details.ts": 3,
     "src/lib/server-actions/industry-settings.ts": 4,
     "src/lib/server-actions/inquiry-attachment-signed.ts": 1,
     "src/lib/server-actions/inquiry-message-edit.ts": 1,
