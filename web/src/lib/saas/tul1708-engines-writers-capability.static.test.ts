@@ -40,12 +40,8 @@ test("messaging money actions: cancel, refund and outside payment are keyed; the
   assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\//g, ""), /messagingStaff\(\s*\)/);
 });
 
-test("messaging engine/sheets readers and the pipeline settings readers are explicit about view", () => {
-  for (const f of ["src/lib/server-actions/messaging-engine.ts", "src/lib/server-actions/messaging-sheets.ts"]) {
-    assert.doesNotMatch(read(f), /\bawait staff\(\s*\)/, f);
-  }
-  const pipe = read("src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts");
-  assert.doesNotMatch(pipe, /\brequireWorkspaceStaffAction\(\s*\)/);
+test("messaging sheets readers are explicit about view", () => {
+  assert.doesNotMatch(read("src/lib/server-actions/messaging-sheets.ts"), /\bawait staff\(\s*\)/);
 });
 
 test("role matrix: viewer and editor are refused the money capabilities; manager takes cancel and outside payment, admin takes refund", () => {

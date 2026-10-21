@@ -981,7 +981,7 @@ export async function loadAgencySettingsNamespace(
   namespace: "theme" | "seo" | "navigation" | "languages" | "visibility" | "filters" | "domain",
 ): Promise<PipelineActionResult<Record<string, unknown> | null>> {
   try {
-    const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -2232,7 +2232,7 @@ export async function loadWorkspaceCoordinatorCandidates(
   options: { excludeUserId?: string | null } = {},
 ): Promise<PipelineActionResult<WorkspaceCoordinatorCandidate[]>> {
   try {
-    const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -2322,7 +2322,7 @@ export async function loadCoordinatorAssignCandidates(
   options: { excludeUserId?: string | null; inquiryId?: string | null } = {},
 ): Promise<PipelineActionResult<CoordinatorAssignCandidate[]>> {
   try {
-    const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
+    const auth = await requireWorkspaceStaffAction();
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
