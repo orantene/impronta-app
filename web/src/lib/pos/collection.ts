@@ -36,6 +36,7 @@ import {
 } from "./collection-reservations";
 import type { PosBuyerContact, PosCollectionMethod } from "./commands";
 import { lockedCustomLineIds } from "./custom-line";
+import { applyPosCollectiveSplit } from "./collective-split-apply";
 
 type Admin = {
   // Tests inject a fake PostgREST builder. Same seam as expire-orders.
@@ -236,7 +237,6 @@ export async function startCollection(
   if (!Number.isInteger(row.total_cents) || row.total_cents < 0) {
     return { ok: false, reason: "unavailable", error: "The total is not collectable." };
   }
-
   const operationKey = (input.idempotencyKey ?? "").trim();
   if (operationKey.length < 8) {
     // Not a refusal an operator can act on, so it does not get operator words.
@@ -316,6 +316,9 @@ export async function startCollection(
     }
   }
 
+  // TUL-1467: split just before reserving, after every refusal/key check, from the lines as they are now. Flag-gated.
+  const split = await applyPosCollectiveSplit(admin, { tenantId: input.tenantId, orderId: row.id });
+  if (!split.ok) return { ok: false, reason: "unavailable", error: split.error };
   let reservationId: string | null = null;
   let reservationExpiresAt: string | null = null;
   /**
@@ -794,5 +797,4 @@ export async function recordVerifiedCollection(
 
 /** Re-exported from `./finalize` so POS imports one module for take or cancel. */
 export { finalizeOrCancel, type FinalizeResult } from "./finalize";
-
 export { reportTerminalAvailability };
