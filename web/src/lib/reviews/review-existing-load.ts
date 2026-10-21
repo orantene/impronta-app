@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ReviewableBooking } from "./review-types";
+import { logServerError } from "@/lib/server/safe-error";
 
 /**
  * Load a client's own existing reviews for edit pre-fill.
@@ -48,13 +49,14 @@ export async function loadExistingReviewsByKey(
   const out = new Map<string, ExistingReview>();
   if (bookingIds.length === 0) return out;
 
-  const { data: existing } = await userClient
+  const { data: existing, error: existingErr } = await userClient
     .from("talent_reviews")
     .select(EXISTING_REVIEW_PUBLIC_COLUMNS)
     .in("booking_id", bookingIds)
     .eq("client_user_id", userId)
     .returns<ExistingReviewRow[]>();
 
+  if (existingErr) logServerError("reviews.loadExistingReviewsByKey", existingErr);
   const rows = existing ?? [];
   if (rows.length === 0) return out;
 

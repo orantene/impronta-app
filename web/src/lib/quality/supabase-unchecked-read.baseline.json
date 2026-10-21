@@ -234,7 +234,7 @@
   "src/lib/platform/workspace-ui.ts": 1,
   "src/lib/public-discovery.ts": 3,
   "src/lib/reviews/load-reviews.ts": 4,
-  "src/lib/reviews/review-actions.ts": 18,
+  "src/lib/reviews/review-actions.ts": 17,
   "src/lib/reviews/review-media-actions.ts": 2,
   "src/lib/reviews/review-moderation-actions.ts": 2,
   "src/lib/reviews/review-moderation-loaders.ts": 5,

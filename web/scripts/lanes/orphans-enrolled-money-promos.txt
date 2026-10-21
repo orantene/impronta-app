@@ -60,6 +60,8 @@ src/lib/ledger/write.test.ts
 src/lib/money/talent-payout-breakdown.test.ts
 src/lib/money/total-client-revenue.test.ts
 src/lib/orders/complete-order-promo.test.ts
+src/lib/orders/menu-order-lines.test.ts
+src/lib/orders/menu-order-prep.test.ts
 src/lib/orders/promo-redemption-status.test.ts
 src/lib/orders/promo-resolve.adapter.test.ts
 src/lib/orders/promo-resolve.client-status.test.ts
