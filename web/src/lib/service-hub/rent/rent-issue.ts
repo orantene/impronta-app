@@ -7,7 +7,7 @@
  * A second click, a retry after a crash or a replay lands on the same invoice row, reuses its
  * order and gets the same link. The amount is the plan's rent frozen on the invoice row.
  */
-import { decideRentIssue, matchesAcceptedTerms, rentLineLabel, type RentIssueRefusal, type RentPlan } from "./rent-cycle";
+import { decideRentIssue, isRentPeriod, matchesAcceptedTerms, rentLineLabel, type RentIssueRefusal, type RentPlan } from "./rent-cycle";
 import { rentBillingGate } from "./rent-gate";
 
 export type RentInvoiceRow = {
@@ -24,6 +24,8 @@ export type RentIssueDeps = {
   gate?: () => ReturnType<typeof rentBillingGate>;
   now?: () => Date;
   loadPlan(planId: string, tenantId: string): Promise<RentPlan | null>;
+  /** The member's net sales in the month in this workspace and currency; null = could not be read. Asked only for a percentage plan. */
+  loadSalesBase(q: { tenantId: string; talentProfileId: string; period: string; currency: string }): Promise<number | null>;
   /** Insert-if-absent on (plan, period); returns the row that now exists (existing wins). */
   claimInvoice(row: {
     planId: string;
@@ -84,7 +86,10 @@ export async function issueRentInvoice(
   const plan = await deps.loadPlan(input.planId, input.tenantId);
   if (!plan || plan.tenantId !== input.tenantId) return { ok: false, reason: "plan_not_found" };
 
-  const decision = decideRentIssue({ plan, period: input.period, now: (deps.now ?? (() => new Date()))() });
+  const salesBaseCents = plan.percentBps > 0 && isRentPeriod(input.period)
+    ? await deps.loadSalesBase({ tenantId: plan.tenantId, talentProfileId: plan.talentProfileId, period: input.period, currency: plan.currency })
+    : null;
+  const decision = decideRentIssue({ plan, period: input.period, now: (deps.now ?? (() => new Date()))(), salesBaseCents });
   if (!decision.ok) return decision;
 
   const invoice = await deps.claimInvoice({

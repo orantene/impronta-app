@@ -12,6 +12,7 @@ import { createPaymentLink } from "@/lib/payments/links";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import type { RentPlan, RentPlanStatus } from "./rent-cycle";
+import { loadMemberSalesBase } from "./rent-sales-base.server";
 import type { RentInvoiceRow, RentIssueDeps } from "./rent-issue";
 
 type PlanDbRow = {
@@ -19,11 +20,13 @@ type PlanDbRow = {
   tenant_id: string;
   talent_profile_id: string;
   monthly_rent_cents: number;
+  rent_percent_bps: number;
   currency: string;
   starts_on: string;
   status: RentPlanStatus;
   accepted_at: string | null;
   accepted_amount_cents: number | null;
+  accepted_percent_bps: number | null;
   accepted_currency: string | null;
   terms_version: number;
   accepted_terms_version: number | null;
@@ -39,7 +42,7 @@ type InvoiceDbRow = {
   status: RentInvoiceRow["status"];
 };
 
-export const PLAN_COLUMNS = "id, tenant_id, talent_profile_id, monthly_rent_cents, currency, starts_on, status, accepted_at, accepted_amount_cents, accepted_currency, terms_version, accepted_terms_version";
+export const PLAN_COLUMNS = "id, tenant_id, talent_profile_id, monthly_rent_cents, rent_percent_bps, currency, starts_on, status, accepted_at, accepted_amount_cents, accepted_percent_bps, accepted_currency, terms_version, accepted_terms_version";
 const INVOICE_COLUMNS = "id, plan_id, period, amount_cents, currency, order_id, payment_link_code, status";
 
 export function planFromRow(r: PlanDbRow): RentPlan {
@@ -48,11 +51,13 @@ export function planFromRow(r: PlanDbRow): RentPlan {
     tenantId: r.tenant_id,
     talentProfileId: r.talent_profile_id,
     monthlyRentCents: r.monthly_rent_cents,
+    percentBps: r.rent_percent_bps ?? 0,
     currency: r.currency,
     startsOn: r.starts_on,
     status: r.status,
     acceptedAt: r.accepted_at,
     acceptedAmountCents: r.accepted_amount_cents,
+    acceptedPercentBps: r.accepted_percent_bps,
     acceptedCurrency: r.accepted_currency,
     termsVersion: r.terms_version,
     acceptedTermsVersion: r.accepted_terms_version,
@@ -66,7 +71,7 @@ function invoiceFromRow(r: InvoiceDbRow): RentInvoiceRow {
 export function buildRentIssueDeps(
   admin: SupabaseClient,
   ctx: { actorUserId: string; publicOrigin: string },
-): Pick<RentIssueDeps, "loadPlan" | "claimInvoice" | "createOrder" | "saveOrder" | "readOrderId" | "mintLink" | "markIssued"> {
+): Pick<RentIssueDeps, "loadPlan" | "loadSalesBase" | "claimInvoice" | "createOrder" | "saveOrder" | "readOrderId" | "mintLink" | "markIssued"> {
   return {
     async loadPlan(planId, tenantId) {
       const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", tenantId).select(PLAN_COLUMNS).eq("id", planId).maybeSingle();
@@ -76,6 +81,8 @@ export function buildRentIssueDeps(
       }
       return data ? planFromRow(data as PlanDbRow) : null;
     },
+
+    loadSalesBase: (q) => loadMemberSalesBase(admin, q),
 
     async claimInvoice(row) {
       const find = async () => {

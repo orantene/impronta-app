@@ -8,11 +8,13 @@ const PLAN: RentPlan = {
   tenantId: "t-1",
   talentProfileId: "tp-1",
   monthlyRentCents: 120000,
+  percentBps: 0,
   currency: "MXN",
   startsOn: "2026-09-01",
   status: "active",
   acceptedAt: "2026-08-30T10:00:00Z",
   acceptedAmountCents: 120000,
+  acceptedPercentBps: 0,
   acceptedCurrency: "MXN",
   termsVersion: 1,
   acceptedTermsVersion: 1,
@@ -28,6 +30,7 @@ function world(over: { plan?: RentPlan | null; mintFails?: boolean; needsApprova
   const deps: RentIssueDeps = {
     gate: () => (over.gate === false ? { ok: false, reason: "disabled" } : { ok: true }),
     now: () => new Date("2026-10-20T12:00:00Z"),
+    async loadSalesBase() { return null; },
     async loadPlan(planId, tenantId) {
       const p = over.plan === undefined ? PLAN : over.plan;
       return p && p.id === planId && p.tenantId === tenantId ? p : null;

@@ -15,6 +15,7 @@ export type RentPlanView = {
   id: string;
   name: string;
   monthlyRentCents: number;
+  percentBps: number;
   currency: string;
   status: string;
   endedBy: string | null;
@@ -40,6 +41,7 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
   const [link, setLink] = useState<string | null>(null);
   const [talent, setTalent] = useState(members[0]?.talentProfileId ?? "");
   const [rent, setRent] = useState("");
+  const [percent, setPercent] = useState("");
   const [currency, setCurrency] = useState("MXN");
   const [startsOn, setStartsOn] = useState(new Date().toISOString().slice(0, 10));
 
@@ -69,7 +71,7 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
       {plans.map((p) => (
         <div key={p.id} data-testid="rent-plan-row" style={{ padding: "12px 0", borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>
-            {p.name} · {money(p.monthlyRentCents, p.currency, locale)} {c.perMonth}
+            {p.name} · {p.monthlyRentCents > 0 ? `${money(p.monthlyRentCents, p.currency, locale)} ${c.perMonth}` : ""}{p.monthlyRentCents > 0 && p.percentBps > 0 ? " + " : ""}{p.percentBps > 0 ? `${p.percentBps / 100}% ${c.ofSales}` : ""}
           </div>
           <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>
             {p.status === "proposed" ? c.waiting : p.status === "active" ? c.active : p.status === "paused" ? c.paused : p.status === "declined" ? c.declinedByMember : p.endedBy === "member" ? c.endedByMember : c.endedByOwner}
@@ -108,9 +110,10 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
           {members.map((m) => <option key={m.talentProfileId} value={m.talentProfileId}>{m.name}</option>)}
         </select>
         <input type="number" min={1} step={1} value={rent} onChange={(e) => setRent(e.target.value)} aria-label={c.rent} placeholder={c.rent} style={{ ...field, width: 120 }} />
+        <input type="number" min={0} max={90} step={0.5} value={percent} onChange={(e) => setPercent(e.target.value)} aria-label={c.percentOfSales} placeholder={c.percentOfSales} style={{ ...field, width: 110 }} />
         <input value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value)} aria-label={c.currency} style={{ ...field, width: 64, textTransform: "uppercase" }} />
         <input type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} aria-label={c.startsOn} style={field} />
-        <button type="button" disabled={pending || !talent} style={primary} onClick={() => run(() => proposeRentPlan({ talentProfileId: talent, monthlyRentCents: Math.round(Number(rent) * 100), currency, startsOn }), c.saved)}>{c.propose}</button>
+        <button type="button" disabled={pending || !talent || (!Number(rent) && !Number(percent))} style={primary} onClick={() => run(() => proposeRentPlan({ talentProfileId: talent, monthlyRentCents: Math.round(Number(rent || 0) * 100), percentBps: Math.round(Number(percent || 0) * 100), currency, startsOn }), c.saved)}>{c.propose}</button>
       </div>
 
       {msg && <p role="status" style={{ fontSize: 13, color: msg.ok ? "var(--color-admin-green)" : "var(--color-admin-red)" }}>{msg.text}{link && msg.ok ? <> <a href={link}>{link}</a></> : null}</p>}
