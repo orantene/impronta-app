@@ -20,36 +20,35 @@ import {
 
 export type LedgerParty = "talent" | "workspace" | "channel_referral";
 
+export type LegLedgerState = {
+  /** Parties whose leg the ledger shows as 'transferred': never recomputed or re-sent, on any re-run. */
+  transferred: ReadonlySet<LedgerParty>;
+  /** The ledger could not be read, so "already paid?" is unknown: the caller HOLDS the legs, never pays blind. */
+  unreadable: boolean;
+};
+
 /**
- * True when the ledger already shows this leg as 'transferred'. A paid leg is NEVER recomputed or re-sent, on
- * any re-run (a re-delivered webhook, a fulfillment re-invoke, the held-payout retry). TUL-1746: refunds are
+ * What the booking_payouts ledger says about this participant's legs. A paid leg is NEVER recomputed or re-sent
+ * on any re-run (a re-delivered webhook, a fulfillment re-invoke, the held-payout retry). TUL-1746: refunds are
  * netted out of the legs now, so a re-run after a refund computes a DIFFERENT amount under the SAME Stripe
  * idempotency key; Stripe then rejects it within 24h and, once the window lapses, creates a second transfer.
  * The ledger is the truth for "already paid", not Stripe's key. (This used to run for pass_through rows only.)
+ * One read per snapshot; on a read error the legs are HELD under a retryable reason (the cron owns them).
  */
-export async function legAlreadyTransferred(
-  sb: SupabaseClient,
-  bookingId: string,
-  participantId: string,
-  party: LedgerParty,
-): Promise<boolean> {
-  const { data, error } = await sb
-    .from("booking_payouts")
-    .select("status")
-    .eq("booking_id", bookingId)
-    .eq("participant_id", participantId)
-    .eq("party", party)
-    .maybeSingle();
+export async function readLegLedgerState(sb: SupabaseClient, bookingId: string, participantId: string): Promise<LegLedgerState> {
+  const { data, error } = await sb.from("booking_payouts").select("party, status").eq("booking_id", bookingId).eq("participant_id", participantId);
   if (error) {
-    // Unknown ledger state: never risk re-sending a paid leg. Skipped loudly;
-    // the next webhook / retry run re-checks.
     logServerError(
       "transfers.ledger_read_failed",
-      new Error(`booking ${bookingId} participant ${participantId} ${party}: ${error.message} (leg skipped this run)`),
+      new Error(`booking ${bookingId} participant ${participantId}: ${error.message} (legs held, retried by the cron)`),
     );
-    return true;
+    return { transferred: new Set(), unreadable: true };
   }
-  return (data?.status as string | undefined) === "transferred";
+  const transferred = new Set<LedgerParty>();
+  for (const r of (data ?? []) as Array<{ party: string; status: string }>) {
+    if (r.status === "transferred") transferred.add(r.party as LedgerParty);
+  }
+  return { transferred, unreadable: false };
 }
 
 /**
@@ -80,7 +79,7 @@ export async function refundInFlightReason(stripe: Stripe | null, rows: readonly
 }
 
 
-/** Hold the channel referral leg (zero amount, "refund pending") and return its outcome. */
+/** Hold the channel referral leg (zero amount, retryable reason) and return its outcome. */
 export async function holdChannelReferralLeg(
   sb: SupabaseClient,
   i: {
@@ -92,6 +91,7 @@ export async function holdChannelReferralLeg(
     channelPartyId: string;
     currency: string;
     reason: string;
+    status: "skipped_refund_pending" | "skipped_ledger_unreadable";
   },
 ): Promise<DisburseOutcome> {
   await recordPayoutLeg(sb, {
@@ -118,7 +118,7 @@ export async function holdChannelReferralLeg(
     amountCents: 0,
     currency: i.currency,
     rail: "connect_transfer",
-    status: "skipped_refund_pending",
+    status: i.status,
     detail: i.reason,
   };
 }

@@ -19,7 +19,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { REFUND_PENDING_ERROR_PREFIX } from "@/lib/payments/balance-payout-refund-net";
+import { LEDGER_UNREADABLE_ERROR_PREFIX, REFUND_PENDING_ERROR_PREFIX } from "@/lib/payments/balance-payout-refund-net";
 import { executeBookingTransfers, type TransferDeps, type TransferOutcome } from "@/lib/payments/transfers";
 
 /** last_error prefix transfers.ts writes on a fee-unknown hold. */
@@ -47,7 +47,13 @@ export async function retryFeeUnknownPayouts(
     .eq("amount_cents", 0)
     // Two kinds of zero-amount hold are re-run from scratch: the fee was unknown (pass_through), or a refund was
     // in flight (TUL-1746). Both are recomputed fresh, so a refund that has landed is netted before anything pays.
-    .or(`last_error.like."${FEE_UNKNOWN_ERROR_PREFIX}%",last_error.like."${REFUND_PENDING_ERROR_PREFIX}%"`)
+    .or(
+      `last_error.like."${FEE_UNKNOWN_ERROR_PREFIX}%",last_error.like."${REFUND_PENDING_ERROR_PREFIX}%",last_error.like."${LEDGER_UNREADABLE_ERROR_PREFIX}%"`,
+    )
+    // Oldest touch first: with a cap and no order the same 200 rows could starve the rest forever. A leg that is
+    // held again is UPDATEd by recordPayoutLeg, which the booking_payouts touch trigger stamps with a fresh
+    // updated_at, so it goes to the back of the line.
+    .order("updated_at", { ascending: true })
     .not("transaction_id", "is", null)
     .limit(deps.limit ?? 200);
   if (error) {

@@ -56,6 +56,7 @@ function makeSupabase(opts: {
   rows: TxnRow[];
   snapshots: Snap[];
   legs?: Record<string, string>;
+  legsError?: boolean;
   ledger?: LedgerWrite[];
   balanceMeta?: Record<string, unknown>;
 }): SupabaseClient {
@@ -89,8 +90,16 @@ function makeSupabase(opts: {
         }
         return Promise.resolve({ data: null, error: null });
       },
-      then: (resolve: (v: { data: unknown; error: null }) => unknown) =>
-        resolve({ data: table === "booking_transactions" ? opts.rows : [], error: null }),
+      then: (resolve: (v: { data: unknown; error: unknown }) => unknown) => {
+        if (table === "booking_payouts") {
+          if (opts.legsError) return resolve({ data: null, error: { message: "ledger down" } });
+          const rows = Object.entries(opts.legs ?? {})
+            .filter(([k]) => k.startsWith(`${String(filters.participant_id)}:`))
+            .map(([k, status]) => ({ party: k.split(":")[1], status }));
+          return resolve({ data: rows, error: null });
+        }
+        return resolve({ data: table === "booking_transactions" ? opts.rows : [], error: null });
+      },
     };
     return chain;
   };
@@ -168,10 +177,11 @@ type Run = {
   stripe: Stripe;
   ledger?: LedgerWrite[];
   skipTransferredLegs?: boolean;
+  legsError?: boolean;
 };
 const run = (r: Run) =>
   executeBookingTransfers(BALANCE, {
-    sb: makeSupabase({ rows: r.rows, snapshots: [r.snap ?? TALENT_SNAP], legs: r.legs, ledger: r.ledger, balanceMeta: { payment_intent_id: "pi_balance" } }),
+    sb: makeSupabase({ rows: r.rows, snapshots: [r.snap ?? TALENT_SNAP], legs: r.legs, legsError: r.legsError, ledger: r.ledger, balanceMeta: { payment_intent_id: "pi_balance" } }),
     stripe: r.stripe,
     resolveTalentAccount: async () => "acct_talent",
     resolveWorkspaceAccount: async () => "acct_ws",
@@ -308,4 +318,40 @@ test("the held-payout retry reads refund-pending holds as well as fee-unknown on
   assert.match(src, /REFUND_PENDING_ERROR_PREFIX/);
   assert.match(src, /\.or\(/);
   assert.match(src, /FEE_UNKNOWN_ERROR_PREFIX/);
+});
+
+// ── 3. Ledger unreadable (TUL-1746 hardening): hold, so the cron owns it and nothing strands ──────────
+
+test("an unreadable ledger holds the payout under a retryable prefix instead of silently skipping it", async () => {
+  const s = makeStripe();
+  const ledger: LedgerWrite[] = [];
+  const outcomes = await run({ rows: [DEP(), BAL()], legsError: true, stripe: s.stripe, ledger });
+  assert.equal(s.calls.length, 0, "never pays blind");
+  const talent = outcomes.filter((o) => o.party === "talent");
+  assert.equal(talent.length, 1);
+  assert.equal(talent[0]?.status, "skipped_ledger_unreadable");
+  const held = ledger.find((w) => w.row.status === "held");
+  assert.ok(held, "a held leg is written, so the retry cron owns it");
+  assert.equal(held?.row.amount_cents, 0);
+  assert.match(String(held?.row.last_error), /^ledger unreadable/);
+});
+
+test("the unreadable-ledger hold covers workspace and referral legs too", async () => {
+  const s = makeStripe();
+  const ledger: LedgerWrite[] = [];
+  const snap: Snap = { ...AGENCY_SNAP, channel_referral_cents: 5000, channel_referral_party_id: "tenant_channel" };
+  await run({ rows: [BAL()], snap, legsError: true, stripe: s.stripe, ledger });
+  assert.equal(s.calls.length, 0);
+  const parties = ledger.filter((w) => w.row.status === "held").map((w) => w.row.party).sort();
+  assert.deepEqual(parties, ["channel_referral", "talent", "workspace"]);
+});
+
+test("a re-hold is an UPDATE of the existing row, which the booking_payouts touch trigger stamps with a fresh updated_at", () => {
+  const ledgerSrc = readFileSync(join(__dirname, "booking-payouts-ledger.ts"), "utf8");
+  const record = ledgerSrc.slice(ledgerSrc.indexOf("export async function recordPayoutLeg"), ledgerSrc.indexOf("export async function syncBookingPayoutLifecycle"));
+  assert.match(record, /\.update\(\{\s*\.\.\.base,/);
+  const migration = readFileSync(join(__dirname, "..", "..", "..", "..", "supabase", "migrations", "20260601014922_booking_payouts_ledger.sql"), "utf8");
+  assert.match(migration, /booking_payouts_touch_updated_at/);
+  assert.match(migration, /before update on public\.booking_payouts/i);
+  assert.match(migration, /new\.updated_at := now\(\)/);
 });

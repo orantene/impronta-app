@@ -15,7 +15,7 @@
  * semantics of the original payParty() so existing behaviour is unchanged.
  */
 
-import { isDeterministicTransferError } from "./payout-transfer-retry";
+import { REVERSED_NOTE, findExistingLegTransfer, isDeterministicTransferError } from "./payout-transfer-retry";
 import type Stripe from "stripe";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -37,6 +37,8 @@ export type DisburseStatus =
   | "skipped_fee_unknown"
   /** A refund Stripe has issued is not in our ledger yet (or its state is unreadable): the payout is HELD, never paid on a stale amount. Set by transfers.ts. */
   | "skipped_refund_pending"
+  /** The booking_payouts ledger could not be read, so "already paid?" is unknown: HELD under a retryable reason, never paid blind. Set by transfers.ts. */
+  | "skipped_ledger_unreadable"
   /** Recipient's connected account is on a different Stripe platform than the charge: HELD, never transferred. */
   | "skipped_cross_platform"
   | "mock"
@@ -120,6 +122,20 @@ async function connectTransfer(input: DisburseInput, deps: DisburseDeps): Promis
   const liveGuard = (deps.assertLivePayoutSafe ?? defaultAssertLivePayoutSafe)();
   if (!liveGuard.ok) {
     return { ...base, status: "skipped_live_disabled", destination: accountId, detail: liveGuard.error };
+  }
+
+  // TUL-1746: adopt a transfer Stripe already made for this leg (found by transfer_group + metadata) instead of
+  // making another, whatever the amount now is. Reversed: never re-paid automatically. Unreadable: not sent.
+  const existing = await findExistingLegTransfer(deps.stripe, { bookingId, participantId, party });
+  if (existing.kind === "existing") {
+    logServerError(`disburse.connect.adopted[${party}][booking=${bookingId}]`, new Error(`adopted existing transfer ${existing.transferId}; no new transfer made`));
+    return { ...base, status: "transferred", destination: accountId, transferId: existing.transferId };
+  }
+  if (existing.kind === "reversed") {
+    return { ...base, status: "failed", destination: accountId, detail: `a transfer for this leg (${existing.transferId}) was reversed on Stripe; not paid again [${REVERSED_NOTE}]`, deterministic: false };
+  }
+  if (existing.kind === "unreadable") {
+    return { ...base, status: "failed", destination: accountId, detail: "could not verify existing transfers for this leg on Stripe; not sent", deterministic: false };
   }
 
   try {
