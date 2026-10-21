@@ -22,7 +22,8 @@ import { z } from "zod";
 import { loadReserveAvailability } from "@/app/(public)/_reserve/reserve-actions";
 import { userHasCapability } from "@/lib/access";
 import { depositCentsForParty } from "@/lib/reservations";
-import { createReservation, findOfferedTime } from "@/lib/reservations/reserve";
+import { floorDepositQuote } from "@/lib/reservations/deposit-currency";
+import { createReservation, findOfferedTime, workspaceCurrency } from "@/lib/reservations/reserve";
 import { loadVenueServiceConfig } from "@/lib/reservations/store";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -71,6 +72,11 @@ export async function floorLoadReserveTimes(input: { onDate: string | null; part
     if (config) depositCents = depositCentsForParty(config.rules, parsed.data.partySize);
   }
 
+  // Never a guessed currency: a deposit with no explicit workspace currency is
+  // refused here, as the online charge is (deposit-currency.ts).
+  const quote = floorDepositQuote(depositCents, await workspaceCurrency(createServiceRoleClient(), g.tenantId));
+  if (!quote.ok) return { ok: false, reason: quote.reason, dates: availability.dates };
+
   return {
     ok: true,
     onDate: availability.onDate,
@@ -78,8 +84,8 @@ export async function floorLoadReserveTimes(input: { onDate: string | null; part
     slots: availability.windows.flatMap((w) =>
       w.slots.map((s) => ({ startsAtIso: s.startsAtIso, label: s.label, isLastSeating: s.isLastSeating, isUpsize: s.isUpsize })),
     ),
-    depositCents,
-    currency: "USD",
+    depositCents: quote.depositCents,
+    currency: quote.currency,
   };
 }
 

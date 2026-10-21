@@ -6,9 +6,11 @@
  * policies): C6 lets a site restyle the page around it, never remove it.
  */
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import type { ServiceFaqItem } from "@/lib/talent-site/service-page-faq";
 import { serviceFaqCopy } from "@/lib/talent-site/service-page-faq";
+import { datedAnchorHref, DATED_STEP_ANCHOR_ID } from "@/lib/sessions/dated-mount";
 import type { BusinessServiceFacts } from "@/lib/services/business-pages/page-model";
 import { businessServicePageCopy } from "@/lib/services/business-pages/page-model";
 
@@ -54,6 +56,8 @@ export function BusinessServiceView(props: {
   faq: readonly ServiceFaqItem[];
   homeHref: string;
   bookHref: string | null;
+  /** The dated booking step (TUL-1411). Replaces the generic link inside the booking panel. */
+  bookingSlot?: ReactNode;
 }) {
   const c = businessServicePageCopy(props.locale);
   const { facts } = props;
@@ -100,7 +104,9 @@ export function BusinessServiceView(props: {
               ))}
             </ul>
           ) : null}
-          {props.bookHref ? (
+          {props.bookHref && props.bookingSlot ? (
+            <div id={DATED_STEP_ANCHOR_ID}>{props.bookingSlot}</div>
+          ) : props.bookHref ? (
             <a className="bsp-book" href={props.bookHref} rel="nofollow">
               {facts.ctaLabel}
             </a>
@@ -110,7 +116,7 @@ export function BusinessServiceView(props: {
       {props.bookHref ? (
         <div className="bsp-sticky">
           <span style={{ fontWeight: 600, minWidth: 0 }}>{price ?? ""}</span>
-          <a className="bsp-book" href={props.bookHref} rel="nofollow">
+          <a className="bsp-book" href={props.bookingSlot ? datedAnchorHref() : props.bookHref} rel={props.bookingSlot ? undefined : "nofollow"}>
             {facts.ctaLabel}
           </a>
         </div>

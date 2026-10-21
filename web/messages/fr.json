@@ -739,6 +739,8 @@
       "phone": "Telephone",
       "quoteOnRequest": "Prix sur demande",
       "selectAtLeastOne": "Choisissez {nounPlural}",
+      "chooseOption": "Choisissez une option",
+      "extrasLabel": "Suppléments",
       "selectQuantities": "Choisissez les quantites",
       "sending": "Envoi",
       "sent": "Commande envoyee.",
@@ -2184,7 +2186,8 @@
           "already_closed": "Ce service est deja cloture.",
           "not_allowed": "Vous n'avez pas la permission de faire cela.",
           "no_customer": "Associez d'abord un client à cette vente.",
-          "item_unavailable": "Cet article n'est plus disponible."
+          "item_unavailable": "Cet article n'est plus disponible.",
+          "payment_required": "Ce cours est payant : la place ne peut pas etre confirmee avant le paiement. Pour la lui donner, refusez cette offre, puis vendez la place a la caisse pour l encaisser."
         }
       },
       "newSale": "Nouvelle vente",
@@ -4119,6 +4122,7 @@
           "refusal": {
             "timeNotOffered": "Cet horaire n'est pas proposé pour ce groupe. Choisissez-en un autre.",
             "noOfferingConfigured": "Les réservations ne sont pas encore possibles : aucune offre de réservation n'est configurée.",
+            "offeringNotPublished": "Publiez l'article de réservation pour accepter des réservations.",
             "noContact": "Un e-mail ou un téléphone est nécessaire pour joindre le client.",
             "closed": "L'établissement est fermé ce jour-là.",
             "tooLateToday": "Trop tard pour réserver ce soir."
@@ -4603,6 +4607,8 @@
         "accept": "Elle est prise",
         "accepting": "Prise de la place...",
         "accepted": "{name} a la place. Ce siege sort de ce cours.",
+        "acceptedPayPending": "La place de {name} est reservee jusqu'a {when}. Elle est a lui ou elle des le paiement. Lien de paiement (copie) : {url}",
+        "acceptedPayPendingNoLink": "La place de {name} est reservee jusqu'a {when}. Elle est a lui ou elle des le paiement. Le lien de paiement n'a pas pu etre cree : acceptez a nouveau pour reessayer.",
         "alreadyHasPlace": "{name} a deja cette place. Rien n'a change.",
         "decline": "Ils ont refuse",
         "declining": "Restitution de la place...",

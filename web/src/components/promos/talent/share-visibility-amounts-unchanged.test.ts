@@ -30,6 +30,7 @@ const FIXTURES: { name: string; status: PromoStatus; promo: Promo }[] = [
 
 function run(p: Promo) {
   return quote({
+    channel: "booking",
     cart,
     client: { customerId: "c-1", phone: "+525511112222", status: "new" },
     promos: [p],

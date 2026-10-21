@@ -57,6 +57,7 @@ import {
 import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
+import { docsHostResponse } from "@/lib/saas/docs-host-redirect";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect"; import { hubSearchRedirect } from "@/lib/saas/hub-search-redirect";
@@ -158,6 +159,9 @@ async function proxyInner(request: NextRequest) {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
   }
+
+  const docsHop = docsHostResponse(hostHeader, request.method);
+  if (docsHop) return docsHop;
 
   const hostContext = await timed("proxy.resolveTenantContext", resolveTenantContext(request, hostHeader));
 

@@ -59,6 +59,44 @@ export async function ledgerPaidCents(admin: Admin, orderId: string | null): Pro
 }
 
 /**
+ * Money already handed back on an order's SETTLED charges: refund rows
+ * (`status = 'refunded'`, `refund_of_transaction_id` set) whose parent is still
+ * counted by `ledgerPaidCents`. A parent refunded in full moves to `refunded`
+ * itself and drops out of the paid sum, so its refund rows are not netted
+ * twice. null when it cannot be read.
+ */
+export async function ledgerRefundedCents(admin: Admin, orderId: string | null): Promise<number | null> {
+  if (!orderId) return 0;
+  const { data, error } = await admin
+    .from("booking_transactions")
+    .select("id, gross_amount_cents, status, refund_of_transaction_id")
+    .eq("order_id", orderId);
+  if (error) {
+    logServerError("agenda.cancelMoney.refunded", error);
+    return null;
+  }
+  const rows = (data ?? []) as Array<{
+    id?: string | null;
+    gross_amount_cents: number | null;
+    status: string;
+    refund_of_transaction_id?: string | null;
+  }>;
+  const settled = new Set(
+    rows
+      .filter((r) => r.refund_of_transaction_id == null && (LEDGER_SETTLED_STATUSES as readonly string[]).includes(r.status))
+      .map((r) => r.id)
+      .filter((id): id is string => typeof id === "string"),
+  );
+  let refunded = 0;
+  for (const r of rows) {
+    if (r.status === "refunded" && r.refund_of_transaction_id && settled.has(r.refund_of_transaction_id)) {
+      refunded += Math.abs(Number(r.gross_amount_cents) || 0);
+    }
+  }
+  return refunded;
+}
+
+/**
  * Read-only: does an open pay link of this order have a Checkout session that
  * already completed (card payment arriving, not settled in the ledger yet)?
  * The same condition the post-cancel path reports as `paymentInFlight`.

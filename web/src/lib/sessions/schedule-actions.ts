@@ -57,6 +57,8 @@ import {
   describeSessionRefusal,
   planSession,
 } from "@/lib/sessions/session-plan";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { roomMessage } from "@/lib/sessions/room-messages";
 import { createSessionWithPools } from "@/lib/sessions/session-writer";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -623,15 +625,22 @@ export async function scheduleSession(
     );
 
     if (!result.ok) {
+      if (result.reason === "room_taken") {
+        return { ok: false, message: roomMessage("room_taken", await getRequestLocale()) };
+      }
+      if (result.reason === "room_unavailable") {
+        return { ok: false, message: roomMessage("room_unavailable", await getRequestLocale()) };
+      }
       if (result.reason === "insert_failed") {
         return { ok: false, message: "Could not create the session." };
       }
       // The session exists but not all of its pools do. Said plainly, with the
       // count, because a tier with no pool is unsellable for this night and
       // silence here is exactly the failure the plan refuses to create.
+      const poolsCreated = "poolsCreated" in result ? result.poolsCreated : 0;
       return {
         ok: false,
-        message: `The session was created, but only ${result.poolsCreated} of ${plan.pools.length} tiers got seats. Open the session and add the missing tiers before selling.`,
+        message: `The session was created, but only ${poolsCreated} of ${plan.pools.length} tiers got seats. Open the session and add the missing tiers before selling.`,
       };
     }
 

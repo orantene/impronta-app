@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { catalogSelectedStartStillOpen } from "./catalog-booking-logic";
+import { newOrderKey } from "@/lib/site-admin/builder-node/ticket-picker-copy";
 import { firstInvalidWhoField, focusBookingField } from "./catalog-booking-validation";
 import {
   catalogConfirmNetworkError,
@@ -71,6 +72,10 @@ export function useCatalogBookingConfirm(input: {
 }) {
   const [busy, setBusy] = useState(false);
   const confirmInFlightRef = useRef(false);
+  // D5 / M7: one key per booking attempt. Kept across an error or a lost answer
+  // (a retry replays the first order); dropped once the booking lands or the
+  // time changes, so the next booking is a new order.
+  const orderKeyRef = useRef<string | null>(null);
 
   const resetConfirmGuards = useCallback(() => {
     setBusy(false);
@@ -127,6 +132,7 @@ export function useCatalogBookingConfirm(input: {
       return;
     }
     confirmInFlightRef.current = true;
+    if (!orderKeyRef.current) orderKeyRef.current = newOrderKey();
     setBusy(true);
     input.setError(null);
     try {
@@ -156,6 +162,7 @@ export function useCatalogBookingConfirm(input: {
         bookFn: input.bookFn,
         promo: input.promo ?? null,
         onPromoGone: input.onPromoGone,
+        clientOrderKey: orderKeyRef.current,
       });
       if (written.phase === "preview") {
         await new Promise((r) => window.setTimeout(r, input.mode === "demo" ? 400 : 200));
@@ -164,6 +171,7 @@ export function useCatalogBookingConfirm(input: {
         return;
       }
       const { outcome } = written;
+      if (outcome.kind !== "error" && outcome.kind !== "payment_missing") orderKeyRef.current = null;
       if (outcome.kind === "redirect" || outcome.kind === "done") input.setDoneFacts?.({ ref: written.bookingRef, place: input.eventLocation ?? null });
       if (outcome.kind === "slot_taken") {
         recoverTakenSlot(outcome.message);

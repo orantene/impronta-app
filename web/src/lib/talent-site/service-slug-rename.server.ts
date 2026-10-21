@@ -2,7 +2,7 @@ import "server-only";
 
 /**
  * TUL-1272 C1: write `slug_history` when a service is renamed, so the old URL 308s (permanentRedirect) to the new
- * one. Code-first: the held migration 415800 adds the columns, so this reads and writes only
+ * one. Code-first: the held migration adds the columns (418800 keeps no slug columns; see service-content-fields.ts), so this reads and writes only
  * when the presentation flag is on AND the columns exist (`serviceContentColumnsAvailable`).
  * A failed read or write never blocks the save: the rename is saved either way and the old
  * `servicio-<title>-<id8>` URL keeps resolving through its id8.

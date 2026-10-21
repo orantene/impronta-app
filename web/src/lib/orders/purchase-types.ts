@@ -60,6 +60,13 @@ export type PurchaseInput = {
   ageAttestation?: { confirmedAge: number } | null;
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
+  /**
+   * A table's deposit from the venue's rules (`deposit_cents_per_person` x party),
+   * in the workspace currency. SERVER-SET ONLY, by `reservations/reserve.ts`:
+   * it prices the single line at this amount and collects it in full. See
+   * `purchase-table-deposit.ts`.
+   */
+  tableDeposit?: { cents: number; currency: string };
   sourceChannel: string;
   /**
    * Which door this purchase came through. Omitted = `guest`, the strict
@@ -82,6 +89,8 @@ export type PurchaseInput = {
     units?: number;
     /** Per-unit domain row exists (an admission per seat)? See capacity-requests.ts. */
     perUnitDomainRow?: boolean;
+    /** This leg's hold TTL in seconds, instead of the pool's (TUL-1552). */
+    ttlSeconds?: number | null;
   }>;
   /**
    * A code the buyer typed. Optional, and when present it is HONOURED OR THE

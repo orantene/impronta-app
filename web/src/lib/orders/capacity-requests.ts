@@ -40,6 +40,12 @@ export type CapacityNeed = {
    * units, which have nothing to carry an id.
    */
   perUnitDomainRow?: boolean;
+  /**
+   * Seconds this leg's hold lives, instead of the pool's own TTL. TUL-1552: a
+   * waitlist place is held for its offer window, not a pool's 15 minutes. The
+   * engine clamps it to its own bounds.
+   */
+  ttlSeconds?: number | null;
 };
 
 export type CapacityRequest = {
@@ -48,6 +54,7 @@ export type CapacityRequest = {
   endsAt: string | null;
   units: number;
   orderLineId: string | null;
+  ttlSeconds?: number | null;
 };
 
 /**
@@ -93,6 +100,7 @@ export function buildCapacityRequests(
       startsAt: need.startsAt ?? null,
       endsAt: need.endsAt ?? null,
       orderLineId,
+      ...(need.ttlSeconds != null ? { ttlSeconds: need.ttlSeconds } : {}),
     };
 
     if (!need.perUnitDomainRow) {

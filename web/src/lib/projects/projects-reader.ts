@@ -730,55 +730,8 @@ export async function loadProjectActivity(
   return { ok: true, rows };
 }
 
-// ── W48: who could take an assignment ────────────────────────────────
-
-export type ReplacementCandidate = {
-  readonly talentProfileId: string;
-  readonly name: string;
-};
-
-export type ReplacementCandidatesLoad =
-  | { readonly ok: true; readonly candidates: readonly ReplacementCandidate[] }
-  | ReadFailure;
-
-/**
- * The workspace's own roster, every person on it in any non-removed state:
- * the list the W48 replacement picker draws from. Whether the person is FREE
- * at the job's time is the engine's answer (`project_replace_talent` refuses
- * `talent_unavailable`), not this reader's guess.
- */
-export async function loadReplacementCandidates(tenantId: string): Promise<ReplacementCandidatesLoad> {
-  const admin = createServiceRoleClient();
-  if (!admin) return { ok: false, reason: "unavailable" };
-  const { data: roster, error: rosterErr } = await admin
-    .from("agency_talent_roster")
-    .select("talent_profile_id")
-    .eq("tenant_id", tenantId)
-    .neq("status", "removed");
-  if (rosterErr) {
-    logServerError("projects.loadReplacementCandidates/roster", rosterErr);
-    return { ok: false, reason: "unavailable" };
-  }
-  const ids = [...new Set(((roster ?? []) as Array<{ talent_profile_id: string }>).map((r) => r.talent_profile_id))];
-  if (ids.length === 0) return { ok: true, candidates: [] };
-  const { data, error } = await admin
-    .from("talent_profiles")
-    .select("id, display_name, first_name, last_name")
-    .in("id", ids)
-    .eq("profile_kind", "person");
-  if (error) {
-    logServerError("projects.loadReplacementCandidates/profiles", error);
-    return { ok: false, reason: "unavailable" };
-  }
-  const candidates = ((data ?? []) as Array<{ id: string; display_name: string | null; first_name: string | null; last_name: string | null }>)
-    .map((row) => ({
-      talentProfileId: row.id,
-      name: (row.display_name ?? `${row.first_name ?? ""} ${row.last_name ?? ""}`).trim(),
-    }))
-    .filter((c) => c.name.length > 0)
-    .sort((a, b) => a.name.localeCompare(b.name));
-  return { ok: true, candidates };
-}
+// W48: who could take an assignment lives in ./projects-replacement-reader (file-size limit).
+export { loadReplacementCandidates, type ReplacementCandidate, type ReplacementCandidatesLoad } from "./projects-replacement-reader";
 
 type TxRow = {
   order_id: string | null;

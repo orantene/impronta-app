@@ -175,6 +175,28 @@ export function AppointmentsWaitlist({
           });
           return;
         }
+        // TUL-1552: a paid session is held, not taken, until the guest pays.
+        const payment = result.payment;
+        if (payment) {
+          const url = payment.payUrl;
+          if (url) {
+            try {
+              await navigator.clipboard.writeText(url);
+            } catch {
+              // The link is in the notice either way; copying is a convenience.
+            }
+          }
+          const when = payment.holdExpiresAt ? formatClock(payment.holdExpiresAt, timeZone) : "";
+          setNotice({
+            sessionId: view.sessionId,
+            failed: false,
+            text: url
+              ? fill(t(`${K}.acceptedPayPending`), { name, when, url })
+              : fill(t(`${K}.acceptedPayPendingNoLink`), { name, when }),
+          });
+          onChanged();
+          return;
+        }
         setNotice({
           sessionId: view.sessionId,
           failed: false,
@@ -193,7 +215,7 @@ export function AppointmentsWaitlist({
         setBusyEntryId(null);
       }
     },
-    [onChanged, t, tenantId],
+    [onChanged, t, tenantId, timeZone],
   );
 
   const release = useCallback(

@@ -26,6 +26,8 @@ import {
 
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
+import { rosterGridEntries } from "@/lib/service-hub/roster-grid";
+import { RosterServicesGrid } from "./roster-services-grid";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { hcaptchaLocale } from "@/lib/i18n/vendor-locale";
 import { turnstileDataAttrs } from "@/lib/captcha/widget-options";
@@ -346,6 +348,11 @@ export interface BuilderNodeRenderDataSources {
    * talentProfileId off the full row.
    */
   talentOfferings?: ReadonlyArray<TalentOffering>;
+  /**
+   * TUL-1372: the workspace's roster services (accepted listing links), REQUEST-ONLY, shown under the
+   * Services widget on tenant pages. Tenant-strict; absent on a talent's own site.
+   */
+  rosterServices?: ReadonlyArray<import("@/lib/service-hub/roster-services").RosterServiceItem>;
   /**
    * W-12 Portfolio — live approved media shots for `portfolio` nodes.
    * Resolved by the SERVER caller; the renderer never queries.
@@ -6186,7 +6193,7 @@ function renderBuilderNodeElement(
               }
               rows={Math.min(Math.max(visible.length, 4), 6)}
             />
-          ) : visible.length === 0 ? (
+          ) : visible.length === 0 && !(options.dataSources.rosterServices?.length) ? (
             <div
               className="site-builder-node--services-catalog-empty"
               data-not-shown-on-site-host={
@@ -6262,6 +6269,16 @@ function renderBuilderNodeElement(
               />
             </CatalogIslandBoundary>
           )}
+          {options.dataSources.rosterServices?.length ? (
+            <RosterServicesGrid
+              entries={rosterGridEntries(
+                options.dataSources.rosterServices,
+                locale,
+                prefixPublicHref("/contact", options.publicPathPrefix ?? ""),
+              )}
+              locale={locale}
+            />
+          ) : null}
           {quickViews?.layer ?? null}
         </section>
       );

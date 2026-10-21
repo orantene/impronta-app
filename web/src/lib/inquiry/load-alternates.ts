@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { staffTalentClient } from "@/lib/talent/staff-talent-lookup";
 import { logServerError } from "@/lib/server/safe-error";
 import { mapAlternateRow, type AlternateDbRow } from "./inquiry-engine-alternates";
 import type { GroupShortfall, InquiryAlternate } from "./alternates-types";
@@ -42,7 +43,8 @@ export async function loadInquiryAlternates(
   // Resolve talent display names in one round-trip.
   const talentIds = Array.from(new Set(rows.map((r) => r.talent_profile_id)));
   const nameById = new Map<string, string | null>();
-  const { data: talents } = await supabase
+  // TUL-1382: service client (after the caller's inquiry access), keyed by this inquiry's alternates.
+  const { data: talents } = await (await staffTalentClient(supabase))
     .from("talent_profiles")
     .select("id, display_name")
     .in("id", talentIds)

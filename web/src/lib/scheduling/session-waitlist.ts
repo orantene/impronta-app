@@ -32,6 +32,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import { nextWaitlistInvite, type ClassWaitlistEntry } from "@/lib/scheduling/class-waitlist";
+import {
+  chargeForWaitlistPlace,
+  readWaitlistPrice,
+  type WaitlistChargeDeps,
+  type WaitlistPaymentPending,
+} from "@/lib/scheduling/waitlist-charge";
+
+export type { WaitlistChargeDeps, WaitlistPaymentPending };
 
 type Admin = Pick<SupabaseClient, "from" | "rpc">;
 
@@ -361,13 +369,35 @@ export type AcceptWaitlistResult =
       ok: true;
       already: boolean;
       entryId: string;
-      /** The seat this entry now holds. Never null on success. */
+      /** The seat this entry now holds. Never null on a committed success. */
       allocationId: string;
       units: number;
+      payment?: undefined;
+    }
+  | {
+      /**
+       * TUL-1552: a PAID session. The seat is HELD by a pending_payment order,
+       * not committed, and the entry is still `offered`; it becomes `accepted`
+       * when the order is paid (`acceptWaitlistEntriesForPaidOrder`).
+       */
+      ok: true;
+      already: boolean;
+      entryId: string;
+      allocationId: null;
+      units: number;
+      payment: WaitlistPaymentPending;
     }
   | { ok: false; reason: AcceptWaitlistReason; refusalKey: AcceptWaitlistRefusalKey };
 
-/** Take the offered place, and the seat with it. */
+/**
+ * Take the offered place.
+ *
+ * FREE session: the seat is reserved and committed in one RPC, as before.
+ * PAID session (TUL-1552): the place is bought through the orders gate and the
+ * seat is only HELD until the guest pays (`waitlist-charge.ts`). `charge` is
+ * how a caller says it can open that payment; a paid session accepted without
+ * it REFUSES rather than commit a seat nobody paid for.
+ */
 export async function acceptWaitlistOffer(
   admin: Admin,
   input: {
@@ -376,9 +406,26 @@ export async function acceptWaitlistOffer(
     actorUserId: string | null;
     expectedStatus?: WaitlistStoredStatus | null;
   },
+  charge?: WaitlistChargeDeps,
 ): Promise<AcceptWaitlistResult> {
   if (!input.tenantId || !input.entryId) {
     return { ok: false, reason: "invalid", refusalKey: "invalid" };
+  }
+
+  const priced = await readWaitlistPrice(admin, input);
+  // An unreadable price, or a paid place with no single price (priced only by
+  // tier), refuses. Neither may fall through to the commit RPC.
+  if (priced.kind === "error" || priced.kind === "ambiguous") {
+    return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+  }
+  if (priced.kind === "paid") {
+    if (!charge) {
+      logServerError("scheduling.acceptWaitlistOffer/paid", `entry ${input.entryId}: paid session accepted with no way to charge; refused`);
+      return { ok: false, reason: "unavailable", refusalKey: "unavailable" };
+    }
+    const held = await chargeForWaitlistPlace(admin, { tenantId: input.tenantId, priced }, charge);
+    if (!held.ok) return { ok: false, reason: held.reason, refusalKey: ACCEPT_REFUSAL_KEYS[held.reason] };
+    return { ok: true, already: false, entryId: input.entryId, allocationId: null, units: held.units, payment: held.payment };
   }
 
   const { data, error } = await admin.rpc("accept_session_waitlist_offer", {

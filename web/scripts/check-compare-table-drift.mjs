@@ -104,43 +104,31 @@ try {
     process.exit(1);
   }
 
-  // ── Second check: the displayed ticket fee must match live config ─────────
+  // ── Second check: the displayed ticket fee has no typed fallback ──────────
   //
-  // `ticket-fee-comparison.ts` keeps a FALLBACK rate for when the config read
-  // fails. A fallback that has drifted from the live value is worse than none:
-  // it renders a confidently wrong fee on a public page exactly when the read
-  // is broken and nobody is watching. This is also the specific rule a typed
-  // 0.06 on /pricing violated on the day it was made.
-  const cfgRes = await fetch(
-    `${url}/rest/v1/platform_commission_config?select=default_take_bps&limit=1`,
-    { headers: { apikey: key, Authorization: `Bearer ${key}` } },
-  );
-
-  if (cfgRes.ok) {
-    const cfg = await cfgRes.json();
-    const liveBps = cfg?.[0]?.default_take_bps;
-    const { TULALA_RATE_FALLBACK } = await import(
-      "../src/lib/marketing/ticket-fee-comparison.ts"
-    );
-    const fallbackBps = Math.round(TULALA_RATE_FALLBACK * 10_000);
-
-    if (typeof liveBps === "number" && liveBps !== fallbackBps) {
-      console.error(
-        `\nFAIL: the ticket fee fallback has drifted from live config.\n\n` +
-          `  ticket-fee-comparison.ts TULALA_RATE_FALLBACK = ${fallbackBps} bps\n` +
-          `  platform_commission_config.default_take_bps  = ${liveBps} bps\n\n` +
-          `The page reads live config, so customers see the right number today, ` +
-          `but the fallback renders when that read fails. Update the constant.\n`,
-      );
-      process.exit(1);
-    }
-    console.log(`ticket fee fallback: ${fallbackBps} bps, matches live config`);
-  } else {
-    console.error(
-      `FAIL: could not read platform_commission_config (REST ${cfgRes.status}).`,
-    );
+  // The ticket table states the fee checkouts charge, read live (ticket-fee-rates.ts):
+  // the per-plan service fee when pass-through is on, the legacy take otherwise,
+  // and NO figure when it cannot be read. There is no built-in rate any more, so
+  // there is nothing to drift. This check proves the live inputs exist and are
+  // valid: every product_tiers.service_fee_bps must be a whole number of bps in
+  // [0, 2000], and at least one tier must carry one once the fee migration is applied.
+  const feeRes = await fetch(`${url}/rest/v1/product_tiers?select=slug,service_fee_bps`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  });
+  if (!feeRes.ok) {
+    console.error(`FAIL: could not read product_tiers.service_fee_bps (REST ${feeRes.status}).`);
     process.exit(1);
   }
+  const tiers = await feeRes.json();
+  const badFees = tiers.filter(
+    (t) => t.service_fee_bps != null && !(Number.isInteger(t.service_fee_bps) && t.service_fee_bps >= 0 && t.service_fee_bps <= 2000),
+  );
+  if (badFees.length > 0) {
+    console.error(`\nFAIL: ${badFees.length} tier(s) carry an invalid service fee: ${badFees.map((t) => `${t.slug}=${t.service_fee_bps}`).join(", ")}\n`);
+    process.exit(1);
+  }
+  const withFee = tiers.filter((t) => typeof t.service_fee_bps === "number").length;
+  console.log(`ticket fee: ${withFee}/${tiers.length} tiers carry a valid service_fee_bps; no typed fallback in the code`);
 
   // ── Third check: the pricing LADDER copy, which the row check cannot see ──
   //

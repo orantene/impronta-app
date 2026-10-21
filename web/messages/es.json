@@ -1763,7 +1763,12 @@
       "chooseService": "Servicio",
       "studioFallback": "el estudio",
       "noServices": "Aún no hay nada abierto para reservar en línea. Envía un mensaje al estudio y te responderán.",
-      "contactCta": "Enviar un mensaje"
+      "contactCta": "Enviar un mensaje",
+      "rosterHeading": "De nuestro equipo",
+      "rosterNote": "Solicita un servicio y el estudio te responderá con los detalles.",
+      "rosterRequest": "Solicitar",
+      "noTimesRequest": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
+      "requestCta": "Enviar una solicitud"
     },
     "siteShellSurface": {
       "title": "Encabezado y pie de página del sitio",
@@ -1793,6 +1798,8 @@
       "phone": "Teléfono",
       "quoteOnRequest": "Precio a consultar",
       "selectAtLeastOne": "Elige {nounPlural}",
+      "chooseOption": "Elige una opción",
+      "extrasLabel": "Extras",
       "selectQuantities": "Selecciona las cantidades",
       "sending": "Enviando",
       "sent": "Pedido enviado.",
@@ -1822,14 +1829,14 @@
       "note": "Al cambiar la hora se comprueban primero la persona y la sala; tu reserva se mantiene hasta que se confirme la nueva hora.",
       "cancelTitle": "¿Cancelar esta reserva?",
       "cancelPolicy": "Política",
-      "cancelRefund": "{amount} vuelve por donde se pagó, en cuanto el banco lo confirme.",
+      "cancelRefund": "Según la política de cancelación, se te deben {amount}. El negocio tramita el reembolso.",
       "cancelNoRefund": "El pago se mantiene; el plazo de cancelación gratuita ya pasó.",
       "reason": "Motivo",
       "reasonPlaceholder": "Opcional",
       "keep": "Mantener la reserva",
       "cancelConfirm": "Cancelar reserva{amount}",
       "cancelled": "Tu reserva está cancelada.",
-      "cancelledRefund": "Tu reserva está cancelada. {amount} vuelve por donde se pagó.",
+      "cancelledRefund": "Tu reserva está cancelada. El negocio está tramitando tu reembolso de {amount}.",
       "rescheduleTitle": "Elige una nueva hora",
       "newTime": "Nueva hora",
       "rescheduleConfirm": "Confirmar la nueva hora",
@@ -2312,6 +2319,14 @@
       "tabPayments": "Pagos",
       "tabSettings": "Ajustes",
       "tabHelp": "Ayuda",
+      "tabSaved": "Guardados",
+      "tabReviews": "Mis reseñas",
+      "noSaved": "Aún no has guardado a nadie. Toca el corazón en un perfil para tenerlo aquí.",
+      "viewProfile": "Ver perfil",
+      "noReviews": "Aún no hay reseñas. Después de una visita, el negocio puede pedirte una y aparecerá aquí.",
+      "reviewsToLeave": "Esperando tu reseña",
+      "leaveReview": "Dejar una reseña",
+      "reviewsWritten": "Tus reseñas",
       "helpTitle": "¿En qué podemos ayudarte?",
       "helpPayQ": "¿Cómo pago un saldo pendiente?",
       "helpPayA": "Abre Pagos y elige Pagar ahora junto a la reserva.",
@@ -2358,7 +2373,7 @@
       "loadingSlots": "Buscando horarios libres",
       "confirmNewTime": "Confirmar nuevo horario",
       "cancelled": "Tu visita está cancelada.",
-      "cancelledRefund": "Tu visita está cancelada. Reembolso en camino: {amount}.",
+      "cancelledRefund": "Tu visita está cancelada. El negocio está tramitando tu reembolso de {amount}.",
       "rescheduled": "Tu visita se movió.",
       "errNotAllowed": "Esta visita no se puede cambiar desde esta cuenta.",
       "errSlotTaken": "Ese horario acaba de ocuparse. Elige otro.",
@@ -2474,6 +2489,61 @@
     }
   },
   "dashboard": {
+    "serviceHubTerms": {
+      "title": "Condiciones de {workspace}",
+      "titleChanged": "{workspace} cambió sus condiciones",
+      "intro": "Lee cómo {workspace} venderá tus servicios. Nada cambia hasta que aceptes.",
+      "introChanged": "Hasta que aceptes, siguen vigentes tus condiciones actuales.",
+      "labelModel": "Cómo funciona",
+      "labelShare": "Parte del espacio",
+      "labelClientPrice": "Precio que ven los clientes",
+      "labelIdentity": "Tu nombre",
+      "labelContact": "Tus datos de contacto",
+      "labelClientContact": "Quién habla con los clientes",
+      "labelExclusive": "Exclusividad",
+      "labelNoPoaching": "Sin saltarse al espacio",
+      "model_coordinator_agency": "Agencia: la agencia recibe las solicitudes y asigna los trabajos",
+      "model_open_network": "Red abierta: los clientes te reservan directamente",
+      "model_team_studio": "Estudio con equipo: el estudio vende y agenda",
+      "model_rental_studio": "Estudio de renta: rentas un espacio y vendes tu propio trabajo",
+      "model_friends_collective": "Colectivo: la persona dueña recibe las solicitudes y asigna los trabajos",
+      "share_percent": "de cada venta",
+      "share_margin": "sumado a tu precio",
+      "share_fixed": "por trabajo",
+      "share_per_hour": "por hora",
+      "share_rent": "de renta al mes",
+      "price_talent_price": "Tu precio",
+      "price_talent_plus_margin": "Tu precio más el margen del espacio",
+      "price_fixed": "Un precio fijo que define el espacio",
+      "price_from": "Un precio desde",
+      "identity_name": "Se muestra tu nombre",
+      "identity_portfolio": "Se muestra como parte de un portafolio",
+      "identity_hidden": "Oculto: los clientes ven al espacio",
+      "contactShown": "Visibles para los clientes",
+      "contactHidden": "Ocultos hasta que se reserve un trabajo",
+      "talks_workspace": "El espacio",
+      "talks_talent": "Tú",
+      "exclusiveYes": "Sí: solo este espacio te representa",
+      "exclusiveNo": "No",
+      "exclusiveNotice": "Solo este espacio y tu propio sitio pueden vender tus servicios",
+      "noPoachingLine": "Aceptas no tomar directamente a los clientes de este espacio.",
+      "accept": "Aceptar",
+      "decline": "Rechazar",
+      "version": "Versión {version}",
+      "accepted": "Condiciones aceptadas.",
+      "declined": "Condiciones rechazadas. Siguen vigentes tus condiciones actuales.",
+      "error": "No pudimos guardar tu respuesta. Inténtalo de nuevo."
+    },
+    "serviceHubListing": {
+      "status_offered": "Esperando al talento",
+      "status_accepted": "A la venta",
+      "status_hidden": "Oculto",
+      "belowFloor": "Este precio está por debajo de lo que acepta el talento más el mínimo del espacio ({floor}).",
+      "exclusiveOnly": "Este talento es exclusivo de otro espacio. Solo ese espacio y el hub de Tulala pueden vender este servicio.",
+      "needsConsent": "El talento tiene que aceptar antes de que este servicio se venda aquí.",
+      "floorBreached": "El talento subió su precio. Actualiza esta publicación; las ofertas abiertas mantienen su precio.",
+      "error": "No pudimos guardar la publicación. Inténtalo de nuevo."
+    },
     "uploadGuard": {
       "notAnImage": "Este archivo no es una imagen compatible. Usa JPEG, PNG, WebP o GIF.",
       "typeNotAllowed": "Este tipo de imagen no es compatible aquí. Usa JPEG, PNG, WebP o GIF.",
@@ -5833,6 +5903,7 @@
         "roomNamePlaceholder": "Sala principal",
         "addRoom": "Agregar sala",
         "tablesWord": "mesas",
+        "bookableAtATime": "Reservable, {n} a la vez",
         "addTablesTitle": "Agregar mesas",
         "addTablesHint": "Agrega varias a la vez. Nunca hace falta dibujar un plano para tomar reservas.",
         "addWord": "Agregar",
@@ -7506,6 +7577,7 @@
         "integrations": "Integraciones",
         "aiProviders": "IA",
         "email": "Correo",
+        "changelog": "Novedades",
         "catalog": "Campos de Profile",
         "taxonomy": "Taxonomía",
         "languages": "Idiomas",
@@ -8584,7 +8656,17 @@
           "tabPricing": "Precios",
           "tabFeatures": "Funciones",
           "tabDisplay": "Presentación",
-          "tabStripe": "Stripe"
+          "tabStripe": "Stripe",
+          "serviceFee": {
+            "label": "Cargo por servicio de Tulala",
+            "help": "Lo paga el cliente encima del precio de la reserva y se muestra antes de pagar. Aplica a las reservas vendidas por quien esté en este plan. Un cambio afecta los pagos que se coticen desde ahora; los pedidos ya cotizados conservan el cargo con el que se cotizaron.",
+            "field": "Cargo (%)",
+            "save": "Guardar cargo",
+            "saving": "Guardando...",
+            "saved": "Guardado. Los nuevos pagos usan este cargo.",
+            "range": "Escribe un cargo entre 0% y 20%.",
+            "notReady": "El ajuste del cargo por servicio aún no está disponible. Se activa cuando se aplica la migración del cargo."
+          }
         },
         "pricingTab": {
           "activePricesTitle": "Precios activos",
@@ -8807,7 +8889,7 @@
           "clientSurcharge": "Recargo al cliente (% del subtotal)",
           "clientSurchargePlaceholder": "división equitativa",
           "clientSurchargeEven": "equitativa",
-          "clientSurchargeHint": "La mitad del lado del cliente, añadida sobre el subtotal. Vacío = división equitativa. Con una comisión del 6%, 3% aquí = 3% cliente + 3% vendedor. Al Talent nunca se le cobra.",
+          "clientSurchargeHint": "La mitad del lado del cliente, añadida sobre el subtotal. Vacío = división equitativa. Lo que quede de la comisión después de esta parte sale del lado del vendedor. Al Talent nunca se le cobra.",
           "baseCapsTitle": "Tarifa base de reserva. Límites de plataforma",
           "baseCapsBody": "Un espacio de trabajo puede añadir una tarifa base de reserva automática (fija o % del subtotal) en cada reserva. Estos son los límites superiores que puede fijar. Vacío = sin límite. La tarifa es ingreso del espacio de trabajo y nunca se toma del Talent.",
           "maxFlatFee": "Tarifa base fija máx. ($ USD)",
@@ -14509,7 +14591,8 @@
           "already_closed": "Ese turno ya está cerrado.",
           "not_allowed": "No tienes permiso para hacer esto.",
           "no_customer": "Primero asigna un cliente a esta venta.",
-          "item_unavailable": "Este artículo ya no está disponible."
+          "item_unavailable": "Este artículo ya no está disponible.",
+          "payment_required": "Esta clase es de pago, así que el lugar no se puede confirmar antes del pago. Para dárselo, rechaza esta oferta y luego vende el lugar en caja para cobrarlo."
         }
       },
       "newSale": "Nueva venta",
@@ -16351,6 +16434,7 @@
           "refusal": {
             "timeNotOffered": "Esa hora no se ofrece para este grupo. Elige otra.",
             "noOfferingConfigured": "Las reservas aún no se pueden tomar: no hay una oferta de reserva configurada.",
+            "offeringNotPublished": "Publica el artículo de reservas para aceptar reservas.",
             "noContact": "Hace falta un correo o un teléfono para localizar al cliente.",
             "closed": "El local cierra ese día.",
             "tooLateToday": "Es tarde para reservar esta noche."
@@ -16879,6 +16963,8 @@
         "askBill": "Pedir la cuenta",
         "empty": "Aún no hay nada que pedir en esta visita.",
         "add": "Añadir",
+        "soldOut": "Agotado",
+        "priceOnRequest": "Precio a consultar",
         "offerTitle": "Hay una sustitución esperando",
         "acceptOffer": "Aceptar {name}",
         "back": "Tu mesa"
@@ -17131,6 +17217,8 @@
         "accept": "La tomaron",
         "accepting": "Tomando la plaza...",
         "accepted": "{name} tiene la plaza. Ese asiento ya sale de esta clase.",
+        "acceptedPayPending": "La plaza de {name} queda reservada hasta las {when}. Es suya cuando pague. Enlace de pago (copiado): {url}",
+        "acceptedPayPendingNoLink": "La plaza de {name} queda reservada hasta las {when}. Es suya cuando pague. Aun no se pudo crear el enlace de pago: acepta de nuevo para reintentar.",
         "alreadyHasPlace": "{name} ya tiene esta plaza. No cambio nada.",
         "decline": "Dijeron que no",
         "declining": "Devolviendo la plaza...",
@@ -18108,6 +18196,14 @@
       }
     },
     "catalog": {
+      "resources": {
+        "title": "Recursos que usa este servicio",
+        "intro": "La silla, sala o estación que aparta una reserva. Dos reservas nunca pueden usar la misma al mismo tiempo.",
+        "none": "Primero agrega tus sillas, salas o estaciones en la configuración de espacios.",
+        "saveFirst": "Guarda el artículo primero y luego elige sus recursos.",
+        "saved": "Guardado.",
+        "error": "No pudimos guardar los recursos. Inténtalo de nuevo."
+      },
       "loading": "Cargando el catálogo",
       "saving": "Guardando",
       "saved": "Guardado",
@@ -18115,6 +18211,8 @@
       "untitled": "(sin título)",
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
+      "itemProviderOwnedLink": "Abrir Servicios",
+      "duplicate": { "copySuffix": "copia" },
       "type": {
         "product": "Producto",
         "service": "Servicio",
@@ -18174,6 +18272,32 @@
       },
       "preparation": {
         "reason": "Aún no se registra estación ni tiempo de preparación en un artículo."
+      },
+      "websiteControl": {
+        "statusLabel": "Estado",
+        "presenceLabel": "En el sitio",
+        "status": {
+          "draft": "Borrador",
+          "published": "Publicado",
+          "stopped": "Detenido",
+          "archived": "Archivado"
+        },
+        "statusHint": {
+          "draft": "Aún no está a la venta.",
+          "published": "A la venta.",
+          "stopped": "No está a la venta. Las reservas ya hechas se respetan.",
+          "archived": "Se guarda como historial, fuera de todas las listas."
+        },
+        "presence": {
+          "own_page": "Página propia",
+          "lists_only": "Solo en listas",
+          "hidden": "No aparece en el sitio"
+        },
+        "presenceHint": {
+          "own_page": "Se muestra en listas y en su propia página.",
+          "lists_only": "Se muestra en listas y tarjetas, sin página propia.",
+          "hidden": "No se muestra en el sitio web."
+        }
       },
       "usedIn": {
         "label": "Se usa en",
@@ -18461,6 +18585,7 @@
         "fulfillmentHint": "Entrega inmediata · Recogida · A domicilio · Servir en mesa",
         "handoffNow": "Entrega inmediata",
         "station": "Estación",
+        "stationNone": "Aún no hay estaciones de cocina. Agrégalas en Configuración.",
         "prepTime": "Tiempo de preparación",
         "course": "Tiempo por defecto (mesas)"
       },
@@ -21231,6 +21356,7 @@
       "planPriceWebsite": "$12/mes",
       "billing": {
         "redirecting": "Redirigiendo…",
+        "trialRaceRetry": "Se abrió otro pago al mismo tiempo. Inténtalo de nuevo.",
         "pastDueTitle": "Pago fallido.",
         "pastDueGraceBody": {
           "one": "Tu pago no pasó. Las funciones de pago siguen activas {count} día más. Actualiza tu tarjeta para conservarlas.",

@@ -9,6 +9,9 @@
 
 export type OfferingResourceSet = {
   companionTalentIds: string[];
+  /** Every shared resource the service needs (chair, room, station, bed, bay, unit). TUL-1375. */
+  spaceIds: string[];
+  /** Legacy single room: the first of `spaceIds` (kept for existing readers). */
   spaceId: string | null;
 };
 
@@ -23,15 +26,17 @@ function asUuid(value: unknown): string | null {
 
 export function parseOfferingResourceSet(attributes: unknown): OfferingResourceSet {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
-    return { companionTalentIds: [], spaceId: null };
+    return { companionTalentIds: [], spaceIds: [], spaceId: null };
   }
   const raw = (attributes as { resourceSet?: unknown }).resourceSet;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { companionTalentIds: [], spaceId: null };
+    return { companionTalentIds: [], spaceIds: [], spaceId: null };
   }
-  const rec = raw as { companionTalentIds?: unknown; spaceId?: unknown };
+  const rec = raw as { companionTalentIds?: unknown; spaceId?: unknown; spaceIds?: unknown };
   const companionTalentIds = Array.isArray(rec.companionTalentIds)
     ? [...new Set(rec.companionTalentIds.map(asUuid).filter((id): id is string => id != null))]
     : [];
-  return { companionTalentIds, spaceId: asUuid(rec.spaceId) };
+  const listed = Array.isArray(rec.spaceIds) ? rec.spaceIds.map(asUuid) : [];
+  const spaceIds = [...new Set([asUuid(rec.spaceId), ...listed].filter((id): id is string => id != null))];
+  return { companionTalentIds, spaceIds, spaceId: spaceIds[0] ?? null };
 }

@@ -40,7 +40,7 @@ export type FloorReserveSlot = {
 };
 
 export type FloorReserveTimes =
-  | { ok: true; onDate: string; dates: string[]; slots: FloorReserveSlot[]; depositCents: number; currency: string }
+  | { ok: true; onDate: string; dates: string[]; slots: FloorReserveSlot[]; depositCents: number; /** Null only when depositCents is 0: never a guessed currency. */ currency: string | null }
   | { ok: false; reason: string; dates: string[] };
 
 export type FloorReserveResult =

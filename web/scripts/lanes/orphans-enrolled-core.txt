@@ -1,9 +1,11 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
+scripts/ci/held-migrations-report.test.mjs
 scripts/e2e-web-server-command.test.ts
 scripts/lib/failed-cards-fixtures.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
+src/app/(workspace)/platform/admin/changelog/changelog-sync-admin.test.ts
 src/app/(workspace)/talent/discover/_discover-copy.test.ts
 src/app/(workspace)/talent/talent-hoy-skeleton.static.test.ts
 src/app/(workspace)/talent/talent-layout-frame.render.test.tsx
@@ -15,6 +17,8 @@ src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.t
 src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/MissingTranslationChip.render.test.tsx
 src/components/admin/shell/internal/page-modules/catalog/catalog-list-columns.test.ts
+src/components/admin/shell/internal/page-modules/catalog/catalog-website-control.test.ts
+src/components/admin/shell/internal/page-modules/catalog/catalog-website-switch.test.ts
 src/components/admin/shell/internal/palette-help-key.static.test.ts
 src/components/admin/shell/internal/shell-count-bubbles.test.ts
 src/components/admin/shell/internal/shell-hydration.static.test.ts
@@ -58,6 +62,9 @@ src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
+src/lib/changelog/public-read.test.ts
+src/lib/changelog/whats-new.test.ts
+src/lib/cms/platform-blog.test.ts
 src/lib/email/recipient-address.test.ts
 src/lib/email/reserved-domains.test.ts
 src/lib/events/zone-time-label.test.ts
@@ -79,6 +86,7 @@ src/lib/quality/profile-footer-cta-full-name.static.test.ts
 src/lib/quality/projects-loading-skeleton.static.test.ts
 src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
+src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/site-admin/builder-core/site-templates/pageless-fallback-locale.test.ts
 src/lib/site-admin/server/public-page-role-titles.test.ts

@@ -16,6 +16,8 @@ export type PlatformProcessingModeRow = {
   processing_mode?: string | null;
   pass_through_take_bps?: number | null;
   processor_fee_rates?: Record<string, ProcessorFeeRates> | null;
+  /** TUL-1366: service fee (bps) per runtime plan key, from product_tiers, e.g. { agency: 300, talent_pro: 200 }. */
+  plan_service_fee_bps?: Record<string, number> | null;
 };
 
 /** Resolved platform fee inputs for a settings / quote preview. */
