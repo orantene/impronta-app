@@ -198,3 +198,14 @@ test("sellable checks run in parallel and are cached, so a public page does not 
   await loadWorkspaceRosterServices(admin.client, A);
   assert.equal(admin.rpcCalls.length, 2, "the second render reuses the cached verdicts");
 });
+
+test("TUL-1599 (D-10a): an on-request service shows no price; a public one keeps it", async () => {
+  const world = WORLD();
+  world.talent_offerings = [{ ...world.talent_offerings[0], visibility: "on_request" }];
+  const [item] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
+  assert.equal(item.priceCents, null);
+  world.talent_offerings = [{ ...world.talent_offerings[0], visibility: "public" }];
+  _resetRosterSellableCacheForTests();
+  const [pub] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
+  assert.equal(pub.priceCents, 150000);
+});

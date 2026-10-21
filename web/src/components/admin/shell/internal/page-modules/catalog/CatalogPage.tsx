@@ -29,6 +29,7 @@ import { useT } from "@/i18n/use-t";
 import { useOfferingsEditor } from "@/components/talent/services/use-offerings-editor";
 import { Outcome } from "../appointments-classes-ui";
 import { CatalogList } from "./CatalogList";
+import { CatalogServiceHubLink } from "./CatalogServiceHubLink";
 import { CatalogCreateType } from "./CatalogCreateType";
 import { CatalogItemEditor } from "./CatalogItemEditor";
 import { CatalogStructure } from "./CatalogStructure";
@@ -158,6 +159,11 @@ function CatalogBody({ tenantId, nav }: { tenantId: string; nav: CatalogNav }) {
     case "packages":
     case "items":
     default:
-      return <CatalogList editor={editor} nav={nav} />;
+      return (
+        <div className="flex flex-col gap-[12px]">
+          <CatalogServiceHubLink />
+          <CatalogList editor={editor} nav={nav} />
+        </div>
+      );
   }
 }

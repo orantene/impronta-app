@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { loadPublicHubEntries } from "./public-hub.server";
+import { loadPublicHub, loadPublicHubEntries } from "./public-hub.server";
 
 type Row = Record<string, unknown>;
 
@@ -131,4 +131,36 @@ test("the database check runs only for listings that passed the cheap checks", a
   db.rpc = async (fn, a) => (calls.push(a.p_listing_id), orig(fn, a));
   await loadPublicHubEntries(db as never, T);
   assert.deepEqual(calls, ["a"]);
+});
+
+test("TUL-1599: covered ids are the sellable members of shown entries; queue and hidden-entry listings stay loose", async () => {
+  const t = base();
+  t.workspace_service_entries = [entry("e1"), entry("e2", { hidden: true })];
+  t.workspace_service_listings = [listing("a", "e1"), listing("b", "e1"), listing("q", null as never), listing("h", "e2")];
+  t.talent_offerings = ["a", "b", "q", "h"].map((k) => ({ id: `o-${k}`, title: k, category: "x", duration_minutes: 60, amount_cents: 1000, currency: "USD", status: "published", moderation_state: "approved", visibility: "public" }));
+  t.talent_profiles = ["a", "b", "q", "h"].map((k) => PUBLIC_TALENT(k));
+  const hub = await loadPublicHub(fakeDb(t, { sellable: { a: true, b: false, q: true, h: true } }), T);
+  assert.deepEqual(hub.entries.map((e) => e.id), ["e1"]);
+  assert.deepEqual([...hub.coveredListingIds].sort(), ["a"]);
+});
+
+test("TUL-1599: an unreadable read covers nothing", async () => {
+  const hub = await loadPublicHub(fakeDb(base(), { sellable: { a: true }, failTable: "talent_profiles" }), T);
+  assert.deepEqual([hub.entries.length, hub.coveredListingIds.size], [0, 0]);
+});
+
+test("TUL-1599 (D-10a): an on-request member contributes no price; public members still do", async () => {
+  const t = base();
+  t.workspace_service_listings = [listing("a", "e1", { price_cents: 50000 }), listing("b", "e1", { price_cents: 30000 })];
+  t.talent_offerings = [
+    { id: "o-a", amount_cents: 50000, currency: "USD", status: "published", moderation_state: "approved", visibility: "on_request" },
+    { id: "o-b", amount_cents: 30000, currency: "USD", status: "published", moderation_state: "approved", visibility: "public" },
+  ];
+  t.talent_profiles = [PUBLIC_TALENT("a"), PUBLIC_TALENT("b")];
+  const out = await loadPublicHubEntries(fakeDb(t, { sellable: { a: true, b: true } }), T);
+  assert.deepEqual([out[0].priceCents, out[0].from], [30000, true]);
+  const only = base();
+  only.talent_offerings = [{ id: "o-a", amount_cents: 50000, currency: "USD", status: "published", moderation_state: "approved", visibility: "on_request" }];
+  const none = await loadPublicHubEntries(fakeDb(only, { sellable: { a: true } }), T);
+  assert.equal(none[0].priceCents, null);
 });

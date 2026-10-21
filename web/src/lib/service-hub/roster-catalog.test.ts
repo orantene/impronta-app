@@ -55,7 +55,7 @@ test("merge: roster entries follow the workspace's own services and never expose
 
 test("the route merges roster services for AGENCY hosts only (never the shared hub host)", () => {
   const src = readFileSync(join(process.cwd(), "src/app/api/public/booking/business-catalog/route.ts"), "utf8");
-  assert.match(src, /loadWorkspaceRosterServices\(admin, host\.tenantId\)/);
-  assert.match(src, /hostKind === "agency"[\s\S]{0,200}loadWorkspaceRosterServices/);
+  assert.match(src, /loadRosterServicesWithHub\(admin, host\.tenantId\)/);
+  assert.match(src, /hostKind === "agency"[\s\S]{0,200}loadRosterServicesWithHub/);
   assert.match(src, /mergeRosterIntoCatalog\(/);
 });
