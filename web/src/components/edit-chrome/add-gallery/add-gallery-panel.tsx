@@ -12,6 +12,7 @@ import Link from "next/link";
 import {
   codeGalleryItemsForPolicy,
   filterGalleryItemsFrom,
+  searchHitsFromOtherTabs,
   isAddGalleryItemAvailable,
   listGalleryCategoriesForTabFrom,
   type AddGalleryItem,
@@ -349,10 +350,21 @@ export function AddGalleryPanel({ open, onClose }: AddGalleryPanelProps) {
       // ruled vocabulary (a capability on the gallery policy, not surfaceKind).
       blockAllowList: gallerySurface.blockAllowList,
     });
-    // Global search: apps (every one, any theme) also surface from other tabs.
-    if (!query.trim() || tab === "apps" || !allowedTabIds.includes("apps")) return here;
-    const apps = filterGalleryItemsFrom(mergedItems, { tab: "apps", query, blockAllowList: gallerySurface.blockAllowList });
-    return [...here, ...apps.filter((a) => !here.some((h) => h.id === a.id))];
+    // Global search: apps (every one, any theme) and the live blocks on the
+    // Blocks / Data tabs also surface from other tabs (TUL-1408).
+    if (!query.trim()) return here;
+    const apps =
+      tab === "apps" || !allowedTabIds.includes("apps")
+        ? []
+        : filterGalleryItemsFrom(mergedItems, { tab: "apps", query, blockAllowList: gallerySurface.blockAllowList });
+    const live = searchHitsFromOtherTabs(mergedItems, {
+      tab,
+      query,
+      allowedTabs: allowedTabIds,
+      blockAllowList: gallerySurface.blockAllowList,
+    });
+    const extra = [...live, ...apps];
+    return [...here, ...extra.filter((a, i) => !here.some((h) => h.id === a.id) && extra.findIndex((x) => x.id === a.id) === i)];
   }, [mergedItems, tab, activeCategoryId, query, gallerySurface, allowedTabIds]);
 
   // ── Shell variants: REPLACE, not insert ───────────────────────────────────

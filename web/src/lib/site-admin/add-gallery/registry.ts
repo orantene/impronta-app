@@ -221,6 +221,40 @@ export function filterGalleryItemsFrom(
   });
 }
 
+/**
+ * TUL-1408 — a search from one tab also reaches the live blocks on the
+ * `blocks` and `data` tabs, so "Book a session" (a connected block on the Data
+ * tab) is found from the Blocks tab. Without this, searching from Blocks only
+ * widened to Apps and the paid-seat block looked missing. Pure; the shell and
+ * designs tabs are NOT widened (a shell template replaces a landmark and
+ * designs insert whole pages, neither belongs in a blocks search).
+ */
+export const SEARCH_WIDEN_TABS: ReadonlyArray<AddGalleryItem["tab"]> = ["blocks", "data"];
+
+export function searchHitsFromOtherTabs(
+  items: ReadonlyArray<AddGalleryItem>,
+  input: {
+    tab: AddGalleryItem["tab"];
+    query: string;
+    allowedTabs: ReadonlyArray<AddGalleryItem["tab"]>;
+    blockAllowList?: readonly BuilderNodeKind[];
+  },
+): ReadonlyArray<AddGalleryItem> {
+  if (!input.query.trim()) return [];
+  const out: AddGalleryItem[] = [];
+  for (const other of SEARCH_WIDEN_TABS) {
+    if (other === input.tab || !input.allowedTabs.includes(other)) continue;
+    out.push(
+      ...filterGalleryItemsFrom(items, {
+        tab: other,
+        query: input.query,
+        blockAllowList: input.blockAllowList,
+      }),
+    );
+  }
+  return out;
+}
+
 export function filterAddGalleryItems(input: {
   tab: AddGalleryItem["tab"];
   categoryId?: string;
