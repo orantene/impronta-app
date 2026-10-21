@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { contactMaskingEnabled, maskContactDetails } from "./contact-masking";
+import { contactMaskingEnabled, maskCardPayloadText, maskContactDetails } from "./contact-masking";
 import { contactMaskingActive } from "./contact-masking.server";
 
 /**
@@ -60,7 +60,7 @@ export async function insertInquiryMessage(
   deps: Deps = {},
 ): Promise<InsertMessageResult> {
   const select = opts.select ?? "id";
-  if (row.thread_type !== "private" || !row.body || !contactMaskingEnabled()) return plainInsert(client, row, select);
+  if (row.thread_type !== "private" || (!row.body && !row.card_payload) || !contactMaskingEnabled()) return plainInsert(client, row, select);
 
   const admin = deps.admin === undefined ? createServiceRoleClient() : deps.admin;
   if (!admin) {
@@ -70,8 +70,11 @@ export async function insertInquiryMessage(
   if (!(await contactMaskingActive(admin, { inquiryId: row.inquiry_id, tenantId: row.tenant_id }))) {
     return plainInsert(client, row, select);
   }
-  const masked = maskContactDetails(row.body);
-  if (masked.maskedCount === 0) return plainInsert(client, row, select);
+  const masked = maskContactDetails(row.body ?? "");
+  // TUL-1597: the free text inside a card payload (notes, summaries, captions) is masked too.
+  const maskedCard = maskCardPayloadText(row.card_payload ?? null);
+  const maskedCount = masked.maskedCount + maskedCard.maskedCount;
+  if (maskedCount === 0) return plainInsert(client, row, select);
 
   const id = (deps.newId ?? (() => crypto.randomUUID()))();
   const saved = await admin.from("inquiry_message_originals").insert({
@@ -79,8 +82,9 @@ export async function insertInquiryMessage(
     inquiry_id: row.inquiry_id,
     tenant_id: row.tenant_id,
     kind: "insert",
-    original_body: row.body,
-    masked_count: masked.maskedCount,
+    // The typed original: the body, or (when a card payload was masked too) body + payload as JSON.
+    original_body: maskedCard.maskedCount > 0 ? JSON.stringify({ body: row.body, card_payload: row.card_payload }) : row.body,
+    masked_count: maskedCount,
   });
   if (saved.error) {
     logServerError("coordinator.maskedWrite.original", saved.error);
@@ -88,14 +92,20 @@ export async function insertInquiryMessage(
   }
   const { data, error } = await client
     .from("inquiry_messages")
-    .insert({ ...row, id, body: masked.text, metadata: { ...(row.metadata ?? {}), contact_masked: masked.maskedCount } })
+    .insert({
+      ...row,
+      id,
+      body: row.body ? masked.text : row.body,
+      ...(maskedCard.maskedCount > 0 ? { card_payload: maskedCard.payload } : {}),
+      metadata: { ...(row.metadata ?? {}), contact_masked: maskedCount },
+    })
     .select(select)
     .single();
   if (error) {
     await admin.from("inquiry_message_originals").delete().eq("message_id", id).eq("kind", "insert");
-    return { data: null, error, storedBody: masked.text, maskedCount: masked.maskedCount };
+    return { data: null, error, storedBody: masked.text, maskedCount };
   }
-  return { data: (data as unknown as Record<string, unknown> | null) ?? null, error: null, storedBody: masked.text, maskedCount: masked.maskedCount };
+  return { data: (data as unknown as Record<string, unknown> | null) ?? null, error: null, storedBody: masked.text, maskedCount };
 }
 
 /**
