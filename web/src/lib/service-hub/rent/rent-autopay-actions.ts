@@ -4,7 +4,7 @@
  * TUL-1601: the MEMBER turns automatic monthly rent on (Stripe Checkout, subscription mode, recurring-charge consent
  * required) or off. Flag RENT_AUTOPAY_ENABLED + a TEST key; fixed rent only; the studio's connected account must be
  * ready; the Tulala service fee is the studio's current fee (fail closed when it cannot be confirmed); the first
- * automatic charge is the 1st of next month. US platform only in v1.
+ * automatic charge is the 1st of next month. The subscription lives on the studio's platform (US or MX, TUL-1610).
  */
 import { revalidatePath } from "next/cache";
 import { logWorkspaceAudit } from "@/lib/audit/workspace-audit";
@@ -17,7 +17,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { loadAccountPlatformStrict } from "@/lib/stripe/account-platform";
-import { getStripeFor } from "@/lib/stripe/client";
+import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
+import type Stripe from "stripe";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 import { getOrCreateTalentStripeCustomer } from "@/lib/stripe/talent-billing";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -28,7 +29,7 @@ import { planFromRow, PLAN_COLUMNS } from "./rent-store.server";
 
 export type StartAutopayResult =
   | { ok: true; url: string }
-  | { ok: false; reason: RentAutopayRefusal | "disabled" | "not_test_mode" | "unauthenticated" | "not_found" | "mx_not_supported" | "unavailable" };
+  | { ok: false; reason: RentAutopayRefusal | "disabled" | "not_test_mode" | "unauthenticated" | "not_found" | "unavailable" };
 
 export async function startRentAutopay(input: { planId: string }): Promise<StartAutopayResult> {
   await requireNotImpersonating();
@@ -38,8 +39,7 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     const me = await requireTalentSelf();
     if (!me.ok) return { ok: false, reason: "unauthenticated" };
     const admin = createServiceRoleClient();
-    const stripe = getStripeFor("us");
-    if (!admin || !stripe) return { ok: false, reason: "unavailable" };
+    if (!admin) return { ok: false, reason: "unavailable" };
 
     const { data: row } = await admin
       .from("studio_rent_plans")
@@ -51,8 +51,11 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     const plan = planFromRow(row as Parameters<typeof planFromRow>[0]);
     const autopayStatus = plan.autopayStatus ?? "off";
 
+    // TUL-1610: the subscription and the member's customer live on the studio's own platform (US or MX).
     const platform = await loadAccountPlatformStrict("agencies", { column: "id", value: plan.tenantId }, admin);
-    if (platform !== "us") return { ok: false, reason: platform === "mx" ? "mx_not_supported" : "unavailable" };
+    if (!platform) return { ok: false, reason: "unavailable" };
+    const stripe = getStripeFor(platform);
+    if (!stripe) return { ok: false, reason: "unavailable" };
     const { data: ag } = await admin.from("agencies").select("stripe_account_id, stripe_charges_enabled").eq("id", plan.tenantId).maybeSingle();
     const studio = {
       accountId: (ag as { stripe_account_id?: string | null } | null)?.stripe_account_id ?? null,
@@ -73,7 +76,11 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
 
     const email = me.session.user.email ?? "";
     const { data: tp } = await admin.from("talent_profiles").select("display_name").eq("id", me.talentProfile.id).maybeSingle();
-    const customer = await getOrCreateTalentStripeCustomer(me.session.user.id, email, (tp as { display_name?: string | null } | null)?.display_name ?? "");
+    const displayName = (tp as { display_name?: string | null } | null)?.display_name ?? "";
+    const customer =
+      platform === "us"
+        ? await getOrCreateTalentStripeCustomer(me.session.user.id, email, displayName)
+        : await mxRentCustomer(admin, stripe, { talentProfileId: me.talentProfile.id, userId: me.session.user.id, email, displayName });
     if (!customer.ok) return { ok: false, reason: "unavailable" };
 
     const locale = (await getRequestLocale()) === "es" ? "es" : "en";
@@ -97,7 +104,7 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     if (!session.url) return { ok: false, reason: "unavailable" };
     await admin
       .from("studio_rent_plans")
-      .update({ autopay_status: "pending", autopay_first_period: periodOfSeconds(anchor), updated_at: new Date().toISOString() })
+      .update({ autopay_status: "pending", autopay_first_period: periodOfSeconds(anchor), autopay_platform: platform, autopay_customer_id: customer.data, updated_at: new Date().toISOString() })
       .eq("id", plan.id)
       .eq("talent_profile_id", me.talentProfile.id)
       .in("autopay_status", ["off", "canceled"]);
@@ -129,13 +136,13 @@ export async function stopRentAutopay(input: { planId: string }): Promise<StopAu
     if (!admin) return { ok: false, reason: "unavailable" };
     const { data } = await admin
       .from("studio_rent_plans")
-      .select("id, tenant_id, stripe_subscription_id, autopay_status")
+      .select("id, tenant_id, stripe_subscription_id, autopay_status, autopay_platform")
       .eq("id", input.planId)
       .eq("talent_profile_id", me.talentProfile.id)
       .maybeSingle();
-    const r = data as { id: string; tenant_id: string; stripe_subscription_id: string | null; autopay_status: string } | null;
+    const r = data as { id: string; tenant_id: string; stripe_subscription_id: string | null; autopay_status: string; autopay_platform: StripeAccountKey | null } | null;
     if (!r) return { ok: false, reason: "not_found" };
-    if (r.stripe_subscription_id && r.autopay_status !== "canceled" && !(await cancelRentSubscription(r.stripe_subscription_id))) {
+    if (r.stripe_subscription_id && r.autopay_status !== "canceled" && !(await cancelRentSubscription(r.stripe_subscription_id, r.autopay_platform === "mx" ? "mx" : "us"))) {
       return { ok: false, reason: "unavailable" };
     }
     await admin.from("studio_rent_plans").update({ autopay_status: "canceled", updated_at: new Date().toISOString() }).eq("id", r.id).eq("talent_profile_id", me.talentProfile.id);
@@ -146,4 +153,31 @@ export async function stopRentAutopay(input: { planId: string }): Promise<StopAu
     logServerError("rent.autopay.stop", err);
     return { ok: false, reason: "unavailable" };
   }
+}
+
+/**
+ * TUL-1610: the member's Stripe customer on the MX platform. The Plans customer table is US-only, so the MX
+ * customer is kept on the member's rent plans: reuse one from any of her plans on MX, else create it once.
+ */
+async function mxRentCustomer(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  stripe: Stripe,
+  p: { talentProfileId: string; userId: string; email: string; displayName: string },
+): Promise<{ ok: true; data: string } | { ok: false }> {
+  const { data: prior, error } = await admin
+    .from("studio_rent_plans")
+    .select("autopay_customer_id")
+    .eq("talent_profile_id", p.talentProfileId)
+    .eq("autopay_platform", "mx")
+    .not("autopay_customer_id", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (error) return { ok: false };
+  const existing = (prior as { autopay_customer_id?: string | null } | null)?.autopay_customer_id;
+  if (existing) return { ok: true, data: existing };
+  const created = await stripe.customers.create(
+    { email: p.email || undefined, name: p.displayName || undefined, metadata: { user_id: p.userId, customer_type: "rent_member", talent_profile_id: p.talentProfileId } },
+    { idempotencyKey: `rent_mx_customer_${p.talentProfileId}` },
+  );
+  return { ok: true, data: created.id };
 }

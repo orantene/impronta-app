@@ -340,7 +340,7 @@ export async function processStripeEvent(
   if (rent) {
     const sb = createServiceRoleClient();
     if (!sb) throw new TransientWebhookError("rent_subscription: no service-role client");
-    if ((await handleRentSubscriptionEvent(sb, rent)) === "unavailable") throw new TransientWebhookError("rent_subscription: write failed");
+    if ((await handleRentSubscriptionEvent(sb, rent, account)) === "unavailable") throw new TransientWebhookError("rent_subscription: write failed");
     return;
   }
   const action = classifyStripeEvent(event);
