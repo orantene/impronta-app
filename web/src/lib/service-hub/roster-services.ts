@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CATALOG_PROFILE_COLUMNS, isPublicCatalogProfile, type CatalogProfileRow } from "@/lib/offerings/business-catalog";
 import { isSellable } from "@/lib/offerings/sellable";
 import { logServerError } from "@/lib/server/safe-error";
+import { sellableListingIds } from "./listing-sellable-batch.server";
 
 /**
  * TUL-1372 (slice 1): the READER for roster services on a workspace's public site.
@@ -97,18 +98,31 @@ export function _resetRosterSellableCacheForTests(): void {
   sellableCache.clear();
 }
 
-async function sellableVerdict(admin: Admin, listingId: string): Promise<boolean> {
-  const hit = sellableCache.get(listingId);
-  if (hit && Date.now() - hit.at < SELLABLE_TTL_MS) return hit.ok;
-  const { data, error } = await admin.rpc("workspace_service_listing_is_sellable", { p_listing_id: listingId });
-  if (error) {
-    logServerError("serviceHub.rosterServices.sellable", error);
-    return false; // an error is never cached: the next render asks again
+/**
+ * One database call for every listing not answered in the last SELLABLE_TTL_MS
+ * (`sellableListingIds`, TUL-1475). null = could not ask: every uncached listing is hidden
+ * and nothing is cached, so the next render asks again.
+ */
+async function sellableVerdicts(admin: Admin, listingIds: readonly string[]): Promise<Set<string>> {
+  const now = Date.now();
+  const yes = new Set<string>();
+  const ask: string[] = [];
+  for (const id of listingIds) {
+    const hit = sellableCache.get(id);
+    if (hit && now - hit.at < SELLABLE_TTL_MS) {
+      if (hit.ok) yes.add(id);
+    } else ask.push(id);
   }
-  const ok = data === true;
-  if (sellableCache.size >= SELLABLE_CACHE_MAX) sellableCache.clear();
-  sellableCache.set(listingId, { ok, at: Date.now() });
-  return ok;
+  if (ask.length === 0) return yes;
+  const answered = await sellableListingIds(admin as never, ask);
+  if (answered === null) return yes;
+  if (sellableCache.size + ask.length >= SELLABLE_CACHE_MAX) sellableCache.clear();
+  for (const id of ask) {
+    const ok = answered.has(id);
+    sellableCache.set(id, { ok, at: now });
+    if (ok) yes.add(id);
+  }
+  return yes;
 }
 
 export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string): Promise<RosterServiceItem[]> {
@@ -129,12 +143,10 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   const listings = ((raw ?? []) as ListingRow[]).filter((l) => l.tenant_id === tenantId && l.status === "accepted");
   if (listings.length === 0) return [];
 
-  // The database decides sellable. Any error or false hides the entry. The checks run in parallel
-  // and verdicts are cached briefly per listing (SELLABLE_TTL_MS), so a public page render does not
-  // repeat one RPC per listing on every visit. A revoked listing can therefore linger up to the TTL.
-  // TODO(TUL-1372): replace with one set-returning sellable RPC once the listing table is applied.
-  const verdicts = await Promise.all(listings.map(async (l) => [l.id, await sellableVerdict(admin, l.id)] as const));
-  const sellable = new Set(verdicts.filter(([, ok]) => ok).map(([id]) => id));
+  // The database decides sellable, in ONE call for the page (TUL-1475). Any error or false hides
+  // the entry. Verdicts are cached briefly per listing (SELLABLE_TTL_MS), so a public page render
+  // does not ask again on every visit. A revoked listing can therefore linger up to the TTL.
+  const sellable = await sellableVerdicts(admin, listings.map((l) => l.id));
   const live = listings.filter((l) => sellable.has(l.id));
   if (live.length === 0) return [];
 
