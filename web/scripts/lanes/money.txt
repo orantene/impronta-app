@@ -291,6 +291,7 @@ src/lib/reviews/team-studio-private-notes.static.test.ts
 src/lib/saas/capabilityless-staff-guard.static.test.ts
 src/lib/saas/media-area-writers-capability.static.test.ts
 src/lib/saas/media-writers-capability.static.test.ts
+src/lib/saas/ops-writers-capability.static.test.ts
 src/lib/saas/workspace-settings-writers-capability.static.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
