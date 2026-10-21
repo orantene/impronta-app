@@ -21,9 +21,13 @@ import { projectReplaceTalent, type ProjectOpsReason } from "./project-ops";
  *  - Only the changed seat is re-sent; the rest of the team is not touched.
  *  - The PAYOUT move is a plan with an idempotency key behind
  *    `movePayoutForReplacement`. No payout writer exists for a project
- *    assignment in this code (the swap RPC moves the `booking_talent` row and
- *    its cost; actual payouts settle elsewhere), so the seam returns
- *    `not_wired` and moves nothing.
+ *    assignment in this code. What the swap RPC (`project_replace_talent`)
+ *    really does, read from its SQL: it re-points the SAME `booking_talent`
+ *    row (same id, same cost columns) to the new person and refreshes the name
+ *    snapshot, then re-points that booking's `talent_bookings` and firm
+ *    `talent_holds`. The seat's cost therefore STAYS on the seat and follows the
+ *    new person; nothing is paid, reversed or re-created by the swap. So the
+ *    seam returns `not_wired` and moves nothing.
  */
 
 export type PayoutMove = { talentProfileId: string; deltaCents: number };

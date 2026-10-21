@@ -20,7 +20,7 @@ import { logServerError } from "@/lib/server/safe-error";
 export type ConfirmationState = "confirmed" | "declined";
 
 export type ConfirmationsRead =
-  | { ok: true; byAssignment: Record<string, ConfirmationState> }
+  | { ok: true; byAssignment: Record<string, ConfirmationState>; talentByAssignment: Record<string, string> }
   | { ok: false; reason: "no_state" | "unknown" };
 
 const TABLE = "project_assignment_confirmations";
@@ -37,7 +37,7 @@ export async function readConfirmations(
   try {
     const { data, error } = await admin
       .from(TABLE)
-      .select("booking_talent_id, status")
+      .select("booking_talent_id, status, talent_profile_id")
       .eq("tenant_id", input.tenantId)
       .eq("booking_id", input.bookingId);
     if (error) {
@@ -45,12 +45,19 @@ export async function readConfirmations(
       logServerError("projects.readConfirmations", error);
       return { ok: false, reason: "unknown" };
     }
+    // The swap RPC re-points the SAME seat (booking_talent.id) to another person, so an answer is
+    // only valid for the person who gave it: we keep who answered and the board compares it with
+    // the seat's current person.
     const byAssignment: Record<string, ConfirmationState> = {};
-    for (const r of (data ?? []) as Array<{ booking_talent_id?: unknown; status?: unknown }>) {
-      if (typeof r.booking_talent_id !== "string") continue;
-      if (r.status === "confirmed" || r.status === "declined") byAssignment[r.booking_talent_id] = r.status;
+    const talentByAssignment: Record<string, string> = {};
+    for (const r of (data ?? []) as Array<{ booking_talent_id?: unknown; status?: unknown; talent_profile_id?: unknown }>) {
+      if (typeof r.booking_talent_id !== "string" || typeof r.talent_profile_id !== "string") continue;
+      if (r.status === "confirmed" || r.status === "declined") {
+        byAssignment[r.booking_talent_id] = r.status;
+        talentByAssignment[r.booking_talent_id] = r.talent_profile_id;
+      }
     }
-    return { ok: true, byAssignment };
+    return { ok: true, byAssignment, talentByAssignment };
   } catch (err) {
     logServerError("projects.readConfirmations", err);
     return { ok: false, reason: "unknown" };

@@ -38,13 +38,13 @@ const B = "00000000-0000-0000-0000-0000000000b1";
 test("a confirmed and a declined row are read per assignment", async () => {
   const { admin } = fakeAdmin({
     project_assignment_confirmations: [
-      { tenant_id: T, booking_id: B, booking_talent_id: "a1", status: "confirmed" },
-      { tenant_id: T, booking_id: B, booking_talent_id: "a2", status: "declined" },
-      { tenant_id: T, booking_id: B, booking_talent_id: "a3", status: "weird" },
+      { tenant_id: T, booking_id: B, booking_talent_id: "a1", talent_profile_id: "p1", status: "confirmed" },
+      { tenant_id: T, booking_id: B, booking_talent_id: "a2", talent_profile_id: "p2", status: "declined" },
+      { tenant_id: T, booking_id: B, booking_talent_id: "a3", talent_profile_id: "p3", status: "weird" },
     ],
   });
   const r = await readConfirmations(admin, { tenantId: T, bookingId: B });
-  assert.deepEqual(r, { ok: true, byAssignment: { a1: "confirmed", a2: "declined" } });
+  assert.deepEqual(r, { ok: true, byAssignment: { a1: "confirmed", a2: "declined" }, talentByAssignment: { a1: "p1", a2: "p2" } });
 });
 
 test("a missing table or column (42P01, 42703, PGRST205) means no state, not an error", async () => {
