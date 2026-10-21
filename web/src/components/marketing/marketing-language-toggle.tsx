@@ -60,7 +60,7 @@ export function MarketingLanguageToggle({
             href={withLocalePath(pathnameWithoutLocale, code, settings)}
             aria-current={active ? "true" : undefined}
             hrefLang={code}
-            className="relative rounded-[5px] px-3 py-1 text-[0.6875rem] before:absolute before:inset-x-0 before:-inset-y-[13px] before:content-[''] font-semibold uppercase leading-none tracking-[0.06em] transition-colors"
+            className="relative inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center rounded-[5px] px-3 py-1 text-[0.6875rem] before:absolute before:inset-x-0 before:-inset-y-[13px] before:content-[''] font-semibold uppercase leading-none tracking-[0.06em] transition-colors"
             style={{
               background: active ? "var(--plt-forest)" : "transparent",
               color: active ? "var(--plt-forest-on)" : "var(--plt-muted)",
