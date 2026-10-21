@@ -112,7 +112,7 @@ async function resolveSellerPlatformUnsafe(
     }
   }
   // TUL-703: no receiver; an MXN-default talent seller routes to mx when the MX key is set.
-  const noReceiver = await resolveNoReceiverTalentLane(sb, t.order_id);
+  const noReceiver = await resolveNoReceiverTalentLane(sb, t.order_id, { tenantId: t.source_tenant_id });
   if (!noReceiver.ok) return null;
   if (noReceiver.lane) return noReceiver.lane;
   if (t.source_tenant_id) return loadAccountPlatformStrict("agencies", { column: "id", value: t.source_tenant_id }, sb);

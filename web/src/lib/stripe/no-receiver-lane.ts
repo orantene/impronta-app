@@ -25,7 +25,7 @@ const NOT_APPLICABLE: NoReceiverLane = { ok: true, lane: null };
 export async function resolveNoReceiverTalentLane(
   sb: SupabaseClient,
   orderId: string | null | undefined,
-  opts: { mxConfigured?: boolean } = {},
+  opts: { mxConfigured?: boolean; /** TUL-1407: the transaction's workspace; used when the order has no talent line. */ tenantId?: string | null } = {},
 ): Promise<NoReceiverLane> {
   if (!(opts.mxConfigured ?? !!stripeEnv("STRIPE_MX_SECRET_KEY"))) return NOT_APPLICABLE;
   if (!orderId) return NOT_APPLICABLE;
@@ -39,9 +39,16 @@ export async function resolveNoReceiverTalentLane(
       .map((l) => l.talent_profile_id)
       .filter((id): id is string => !!id),
   );
-  // Zero or several talents: no single seller of record, keep the workspace lane.
-  if (talents.size !== 1) return NOT_APPLICABLE;
-  const [talentId] = [...talents];
+  // Several talents: no single seller of record, keep the workspace lane.
+  if (talents.size > 1) return NOT_APPLICABLE;
+  let talentId: string | null = talents.size === 1 ? [...talents][0] : null;
+  // TUL-1407: no talent line (a seat / session-picker order) in a talent-owned workspace: the sole owner is the seller.
+  if (!talentId && opts.tenantId) {
+    const owner = await loadSoloOwnerTalentId(sb, opts.tenantId);
+    if (!owner.ok) return { ok: false };
+    talentId = owner.talentId;
+  }
+  if (!talentId) return NOT_APPLICABLE;
   const { data, error } = await sb
     .from("talent_profiles")
     .select("default_currency, stripe_account_id, stripe_account_platform")
@@ -54,4 +61,36 @@ export async function resolveNoReceiverTalentLane(
   // Already connected on the US platform: do not strand the funds on mx.
   if (t.stripe_account_id && t.stripe_account_platform !== "mx") return NOT_APPLICABLE;
   return { ok: true, lane: "mx" };
+}
+
+type SoloOwner = { ok: true; talentId: string | null } | { ok: false };
+
+/**
+ * A `workspace_type='talent'` workspace with exactly ONE active owner whose person talent profile is the seller.
+ * Multi-owner, non-talent or owner-without-profile workspaces return `talentId: null` (current refusal stays).
+ * A read error is `ok: false` (fail closed).
+ */
+async function loadSoloOwnerTalentId(sb: SupabaseClient, tenantId: string): Promise<SoloOwner> {
+  const { data: ag, error: agErr } = await sb.from("agencies").select("workspace_type").eq("id", tenantId).maybeSingle();
+  if (agErr) return { ok: false };
+  if ((ag as { workspace_type?: string } | null)?.workspace_type !== "talent") return { ok: true, talentId: null };
+  const { data: owners, error: ownersErr } = await sb
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .eq("status", "active");
+  if (ownersErr) return { ok: false };
+  const ids = Array.isArray(owners) ? (owners as Array<{ profile_id?: string | null }>) : [];
+  if (ids.length !== 1 || !ids[0].profile_id) return { ok: true, talentId: null };
+  const { data: tp, error: tpErr } = await sb
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", ids[0].profile_id)
+    .eq("profile_kind", "person")
+    .is("deleted_at", null)
+    .limit(1)
+    .maybeSingle();
+  if (tpErr) return { ok: false };
+  return { ok: true, talentId: (tp as { id?: string } | null)?.id ?? null };
 }
