@@ -43,7 +43,7 @@ import {
   setCredentialMode,
   setIntegrationConfig,
   setSecret,
-  tenantHasConnectedPayoutAccount,
+  tenantPayoutAccountState,
   tenantHasCustomDomain,
   type TenantIntegrationRow,
 } from "@/lib/integrations/repository";
@@ -278,7 +278,11 @@ export async function loadTenantIntegrations(
       lastError: null,
       entitlement: null,
       locked: false,
-      href: `/${tenantSlug}${surfaced.hrefPath}`,
+      // A pending Stripe payouts card opens the pending-accounts section, where the owner verifies.
+      href:
+        surfaced.key === "stripe_connect" && liveStatus === "pending_verification"
+          ? `/${tenantSlug}/admin/account#pending-payouts`
+          : `/${tenantSlug}${surfaced.hrefPath}`,
       config: {},
     });
   }
@@ -300,8 +304,8 @@ async function resolveSurfacedStatus(
 ): Promise<TenantIntegrationRow["status"]> {
   try {
     if (key === "stripe_connect") {
-      const connected = await tenantHasConnectedPayoutAccount(tenantId);
-      return connected ? "connected" : "not_configured";
+      const state = await tenantPayoutAccountState(tenantId);
+      return state === "connected" ? "connected" : state === "pending_verification" ? "pending_verification" : "not_configured";
     }
     if (key === "custom_domain") {
       const connected = await tenantHasCustomDomain(tenantId);

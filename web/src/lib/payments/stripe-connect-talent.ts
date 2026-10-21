@@ -22,6 +22,7 @@
  * trigger their own onboarding; service-role for engine writes.
  */
 
+import { syncPayoutAccountFromStripe } from "@/lib/payments/payout-account-verification";
 import type Stripe from "stripe";
 import { getStripe, getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
 import { resolveStripeAccountForSeller } from "@/lib/stripe/account-routing";
@@ -361,6 +362,14 @@ export async function persistTalentAccountSnapshot(
   if (error) {
     logServerError("stripe-connect-talent.persist", error);
     return { ok: false, error: "Could not save talent Stripe status." };
+  }
+
+  // A payout account added by hand starts pending; a payouts-enabled Stripe account verifies it.
+  // Best effort: never fail the webhook or the refresh over it.
+  try {
+    await syncPayoutAccountFromStripe(admin, { ownerType: "talent", ownerId: talentProfileId, stripeAccountId: account.id, payoutsEnabled });
+  } catch (err) {
+    logServerError("stripe-connect-talent.payoutSync", err);
   }
 
   return {

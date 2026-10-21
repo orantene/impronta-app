@@ -29,6 +29,7 @@
  *   a three-way split. See `lib/payments/stripe-checkout.ts`.
  */
 
+import { syncPayoutAccountFromStripe } from "@/lib/payments/payout-account-verification";
 import Stripe from "stripe";
 import { getStripe } from "./stripe-checkout";
 import { getStripeFor } from "@/lib/stripe/client";
@@ -420,6 +421,14 @@ export async function persistAccountSnapshot(
   if (error) {
     logServerError("payments.stripe-connect.persist", error);
     return { ok: false, error: "Could not save status." };
+  }
+
+  // A payout account added by hand starts pending; a payouts-enabled Stripe account verifies it.
+  // Best effort: never fail the webhook or the refresh over it.
+  try {
+    await syncPayoutAccountFromStripe(admin, { ownerType: "agency", ownerId: agencyId, stripeAccountId: account.id, payoutsEnabled });
+  } catch (err) {
+    logServerError("payments.stripe-connect.payoutSync", err);
   }
 
   return {

@@ -28,6 +28,8 @@ import { WorkspacePlanChangeOpener } from "./WorkspacePlanChangeOpener";
 import { workspaceAutoStartDecision, parsePlanIntent, isWorkspaceIntent, planIntentAction, planIntentLabel } from "@/lib/onboarding/plan-intent";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { BriefCard } from "./BriefCard";
+import { PendingPayoutAccounts } from "./PendingPayoutAccounts";
+import { loadPendingPayoutAccounts } from "@/lib/payments/pending-payout-accounts";
 import { CurrencyPicker } from "./CurrencyPicker";
 import {
   createStaffPayoutAccountAction,
@@ -104,6 +106,8 @@ export default async function WorkspaceAccountPage({
     loadWorkspacePayoutSnapshot(scope.tenantId, session.user.id),
     loadWorkspaceOverrideBanner(scope.tenantId),
   ]);
+  // Owner only (agency.payout_account.manage is in OWNER_CAPS; manage_billing is not enough).
+  const pendingPayouts = canManageWorkspacePayout ? await loadPendingPayoutAccounts(scope.tenantId) : [];
 
   // Platform-granted plan override (comp / trial) — explains why the plan
   // badge above may differ from any paid subscription.
@@ -671,6 +675,8 @@ export default async function WorkspaceAccountPage({
           </div>
         ) : null}
       </section>
+
+      {canManageWorkspacePayout ? <PendingPayoutAccounts accounts={pendingPayouts} tenantSlug={tenantSlug} t={t} /> : null}
 
       <section>
         <SectionHead>{t("admin.account.briefSection")}</SectionHead>
