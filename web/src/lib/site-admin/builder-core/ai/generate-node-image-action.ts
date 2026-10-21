@@ -27,8 +27,7 @@ import {
 } from "@/lib/ai/ai-image-generation";
 import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
-import { gateAiCall } from "@/lib/ai/metered-ai";
-import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 
 /** Flat estimate for one generated image (medium quality), until real image cost is measured (follow-up card). */
 const IMAGE_ESTIMATE_CENTS = 4;
@@ -63,8 +62,8 @@ export async function generateNodeImageAction(input: {
 
   // TUL-1624: the workspace's AI spend ceiling and request limits, checked BEFORE the paid call (the image quota below
   // is a separate count; neither one replaces the other).
-  const aiGate = await gateAiCall(tenantId);
-  if (!aiGate.ok) return { ok: false, error: aiGate.error, code: aiGate.code };
+  const aiGate = await assertAiInvocationAllowed(tenantId);
+  if (!aiGate.ok) return { ok: false, error: aiGate.message, code: aiGate.code === "rate_limit" ? "RATE_LIMITED" : aiGate.code.toUpperCase() };
 
   // Cost fuse #1 — the monthly cap, checked BEFORE the paid call.
   const quota = await checkImageQuota(tenantId);

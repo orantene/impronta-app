@@ -46,7 +46,7 @@ describe("the public AI sites gate AND record against the same resolved tenant",
 describe("the bypass sites close", () => {
   test("generate-node-image: the workspace ceiling BEFORE the paid call, the cost recorded AFTER", () => {
     const s = strip(read("src/lib/site-admin/builder-core/ai/generate-node-image-action.ts"));
-    assert.ok(s.indexOf("gateAiCall(tenantId)") > 0 && s.indexOf("gateAiCall(tenantId)") < s.indexOf("generateImageBytesFromPrompt(subject)"));
+    assert.ok(s.indexOf("assertAiInvocationAllowed(tenantId)") > 0 && s.indexOf("assertAiInvocationAllowed(tenantId)") < s.indexOf("generateImageBytesFromPrompt(subject)"));
     assert.ok(s.indexOf("recordAiUsageEstimate(tenantId, IMAGE_ESTIMATE_CENTS)") > s.indexOf("recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true })"));
   });
   test("stock engine (platform pool and per-site tenant images): gated before the paid call, for the tenant it bills", () => {
@@ -70,11 +70,12 @@ describe("the bypass sites close", () => {
 });
 
 describe("the platform row", () => {
-  test("raised to 300/min and 50,000/month, never lowered, spend cap untouched (migration 423800, held)", () => {
-    const sql = read("../supabase/migrations/_pending_pm/20261231423800_ai_platform_controls_tul1624.sql").replace(/^\s*--.*$/gm, "");
+  test("raised to 300/min, 50,000/month and a USD 200 spend cap, never lowered (migration 424200, held)", () => {
+    const sql = read("../supabase/migrations/_pending_pm/20261231424200_ai_platform_controls_tul1624.sql").replace(/^\s*--.*$/gm, "");
     assert.match(sql, /max_requests_per_minute = GREATEST\(COALESCE\(max_requests_per_minute, 0\), 300\)/);
     assert.match(sql, /max_requests_per_month = GREATEST\(COALESCE\(max_requests_per_month, 0\), 50000\)/);
     assert.match(sql, /WHERE tenant_id = '00000000-0000-0000-0000-000000000001'/);
-    assert.doesNotMatch(sql, /monthly_spend_cap_cents/);
+    assert.match(sql, /monthly_spend_cap_cents = GREATEST\(COALESCE\(monthly_spend_cap_cents, 0\), 20000\)/);
+    assert.throws(() => read("../supabase/migrations/_pending_pm/20261231423800_ai_platform_controls_tul1624.sql"), "the old 423800 name (taken by #4310) is gone");
   });
 });
