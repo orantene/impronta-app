@@ -18196,6 +18196,32 @@
       "preparation": {
         "reason": "No station or preparation time is recorded on an item yet."
       },
+      "websiteControl": {
+        "statusLabel": "Status",
+        "presenceLabel": "On the website",
+        "status": {
+          "draft": "Draft",
+          "published": "Published",
+          "stopped": "Stopped",
+          "archived": "Archived"
+        },
+        "statusHint": {
+          "draft": "Not on sale yet.",
+          "published": "On sale.",
+          "stopped": "Not for sale. Bookings already made are honoured.",
+          "archived": "Kept for history, off every list."
+        },
+        "presence": {
+          "own_page": "Own page",
+          "lists_only": "In lists only",
+          "hidden": "Not on the site"
+        },
+        "presenceHint": {
+          "own_page": "Shown in lists and on its own page.",
+          "lists_only": "Shown in lists and cards, no page of its own.",
+          "hidden": "Not shown on the website."
+        }
+      },
       "usedIn": {
         "label": "Used in",
         "pos": "POS",

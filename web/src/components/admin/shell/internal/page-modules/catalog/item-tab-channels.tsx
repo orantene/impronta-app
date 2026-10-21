@@ -22,6 +22,7 @@ import { Icon } from "../../primitives";
 import type { TabProps } from "./CatalogItemEditor";
 import { itemChannels } from "./catalog-model";
 import { posSwitchPatch } from "./catalog-pos-switch";
+import { WebsiteControls } from "./WebsiteControls";
 import { CARD, ChannelRow, Eyebrow, Field, INPUT, Note, SectionHead, SELECT, SelectShell, Switch } from "./catalog-ui";
 import { websiteSwitchPatch } from "./catalog-website-switch";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
@@ -45,6 +46,7 @@ export function ChannelsTab({ item, patch, saving, editor, isDraft }: TabProps) 
 
   return (
     <>
+      <WebsiteControls item={item} patch={patch} saving={saving} isDraft={isDraft} />
       <SectionHead title={t("dashboard.catalog.channels.title")} intro={t("dashboard.catalog.channels.intro")} />
       <div className={CARD} title={overrideReason} data-testid="catalog-channels">
         <ChannelRow
