@@ -1,5 +1,5 @@
 {
-  "note": "TUL-1629 ratchet: capability-less requireWorkspaceStaffAction() / messagingStaff() / local `await staff()` calls per file. A viewer holds the default capability, so a WRITER must pass its own. Counts may only go down.",
+  "note": "TUL-1629 ratchet: capability-less requireWorkspaceStaffAction() / messagingStaff() / local `await staff()` calls per file. A viewer holds the default capability, so a WRITER must pass its own. Counts may only go down. Exception (PM, 2026-10-21): src/lib/server-actions/admin-visible-picks-link.ts is a read-only loader; it checks agency.roster.edit via userHasCapability on purpose to avoid an audit row per Settings open; follow-up card to switch to a non-auditing capability guard.",
   "counts": {
     "src/app/(workspace)/[tenantSlug]/admin/_alternates-actions.ts": 4,
     "src/app/(workspace)/[tenantSlug]/admin/_door-actions.ts": 6,
@@ -12,7 +12,7 @@
     "src/app/(workspace)/[tenantSlug]/admin/catalog/service-hub/page.tsx": 1,
     "src/app/(workspace)/[tenantSlug]/admin/discounts/actions.ts": 2,
     "src/app/(workspace)/[tenantSlug]/admin/events/door/page.tsx": 1,
-    "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 22,
+    "src/app/(workspace)/[tenantSlug]/admin/media/actions.ts": 4,
     "src/app/(workspace)/[tenantSlug]/admin/media/folder-actions.ts": 13,
     "src/app/(workspace)/[tenantSlug]/admin/media/stock-actions.ts": 1,
     "src/app/(workspace)/[tenantSlug]/admin/orders/refund-actions.ts": 2,
@@ -70,9 +70,10 @@
     "src/lib/server-actions/admin-talent-skills.ts": 20,
     "src/lib/server-actions/admin-taxonomy.ts": 7,
     "src/lib/server-actions/admin-tenant-fonts.ts": 1,
+    "src/lib/server-actions/admin-visible-picks-link.ts": 1,
     "src/lib/server-actions/admin-workspace-default-currency.ts": 2,
     "src/lib/server-actions/admin-workspace-field-settings.ts": 7,
-    "src/lib/server-actions/admin-workspace-settings.ts": 7,
+    "src/lib/server-actions/admin-workspace-settings.ts": 3,
     "src/lib/server-actions/alternate-domain.ts": 2,
     "src/lib/server-actions/appointments-settings-tenant.ts": 2,
     "src/lib/server-actions/booking-hours.ts": 2,
