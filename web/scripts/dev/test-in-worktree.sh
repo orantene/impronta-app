@@ -5,7 +5,7 @@
 # Symlinks the main checkout's web/node_modules in ONLY if missing, runs
 # tsx --test with the server-only stub, forwards the real exit code, and always
 # removes the symlink it created. Never touches a real node_modules directory.
-# It only ever executes `tsx --test`; tsc, eslint, next build/dev and npm ci
+# It only ever executes `tsx --test` (through scripts/lane-test.cjs); tsc, eslint, next build/dev and npm ci
 # requests are refused (exit 2): local gates are CI's job.
 set -u
 
@@ -69,24 +69,20 @@ if [ -n "$LANE" ]; then
   eval "set -- $ARGS"
 fi
 
-# Lane files: `lane-test.cjs @scripts/lanes/<x>.txt` passes a list file, which
-# tsx cannot read. Expand any @file argument into its paths (one per line, #
-# comments and blanks skipped).
-EXPANDED=()
-for a in "$@"; do
-  if [ "${a#@}" != "$a" ] && [ -f "${a#@}" ]; then
-    while IFS= read -r line; do
-      case "$line" in ''|\#*) continue ;; esac
-      EXPANDED+=("$line")
-    done < "${a#@}"
-  else
-    EXPANDED+=("$a")
-  fi
-done
-# bash 3.2 (macOS) + set -u treats an empty "${arr[@]}" as unbound: guard it.
-[ "${#EXPANDED[@]}" -gt 0 ] && set -- "${EXPANDED[@]}"
+# Lane files: `lane-test.cjs @scripts/lanes/<x>.txt` passes a list file. Do NOT expand
+# it here: the final run goes through scripts/lane-test.cjs, which expands the list,
+# resolves every argument against the filesystem in the form THIS Node accepts
+# (brackets are glob classes on Node 22 and `?` is a failed path on Node 20; see
+# scripts/lane-paths.cjs), applies the quarantine, and FAILS on a zero-match argument
+# or a run of zero tests. Handing tsx the raw list line by line is what made
+# `test:wt -- --lane money` die on the [tenantSlug] paths (TUL-1754).
 
 [ "$#" -gt 0 ] || { echo "usage: $0 <test files...> | --lane <name>" >&2; exit 2; }
+
+# Dry run: resolve and count the files, run nothing, take no lock (guard tests use this).
+if [ "${LANE_TEST_DRY_RUN:-}" = 1 ]; then
+  NODE_OPTIONS="--require $WEB/scripts/register-server-only-test.cjs ${NODE_OPTIONS:-}" exec node scripts/lane-test.cjs "$@"
+fi
 
 # ── One test run per MACHINE (Oct 15: 4-5 lanes ran suites at once, load 55-65,
 # swap full, the Mac crashed). mkdir is atomic: the first caller gets the lock,
@@ -122,6 +118,6 @@ while :; do
 done
 
 # One test file at a time inside this run, too.
-NODE_OPTIONS="--require $WEB/scripts/register-server-only-test.cjs ${NODE_OPTIONS:-}" npx --no-install tsx --test --test-concurrency=1 "$@"
+NODE_OPTIONS="--require $WEB/scripts/register-server-only-test.cjs ${NODE_OPTIONS:-}" node scripts/lane-test.cjs --test-concurrency=1 "$@"
 RC=$?
 exit "$RC"

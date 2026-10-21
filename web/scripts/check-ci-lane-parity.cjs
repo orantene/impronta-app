@@ -52,6 +52,46 @@ function missingFromYml(lanes, yml) {
   return lanes.filter((lane) => !yml.includes(`npm run ${lane}`));
 }
 
+/**
+ * TUL-1762: the reverse question, for `test:*` lanes only. check:ci-lane-parity above walks the
+ * `ci` aggregate, so a `test:x` script that is in NEITHER the aggregate NOR ci.yml was never
+ * walked (test:webhook sat there with files no gate ran). Every `test:*` script must be in the
+ * `ci` chain, named by an `npm run test:x` step in ci.yml, or structurally exempt; a lane in none
+ * of those fails here unless it is a recorded debt in src/lib/quality/lane-enrolment.baseline.json
+ * (the baseline may only shrink: src/lib/quality/lane-enrolment.static.test.ts pins growth).
+ * The exempt list mirrors EXEMPT in src/lib/quality/lane-enrolment.ts; a static test pins the two together.
+ */
+const TEST_LANE_EXEMPT = [
+  /^test:e2e/,
+  /:watch$/,
+  /:strict$|:full$/,
+  /^test:orphans$/,
+  /:selftest$/,
+  /^test:builder-capabilities:[ab]$/,
+  /^test:wt$/,
+];
+
+function ungatedTestLanes(scripts, yml) {
+  const chain = new Set(
+    (scripts.ci ?? "")
+      .split("&&")
+      .map((x) => x.trim().replace(/^npm run /, ""))
+      .filter(Boolean),
+  );
+  return Object.keys(scripts)
+    .filter((lane) => lane.startsWith("test:"))
+    .filter((lane) => !chain.has(lane))
+    .filter((lane) => !new RegExp(`npm run ${lane.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w:-])`).test(yml))
+    .filter((lane) => !TEST_LANE_EXEMPT.some((re) => re.test(lane)))
+    .sort();
+}
+
+/** Ungated test:* lanes that the recorded baseline does not already list as debt. */
+function newUngatedTestLanes(scripts, yml, baselineLanes) {
+  const known = new Set(baselineLanes);
+  return ungatedTestLanes(scripts, yml).filter((lane) => !known.has(lane));
+}
+
 function selftest() {
   const assert = require("node:assert");
   // pulls every distinct test:* token, de-duped + sorted
@@ -65,6 +105,11 @@ function selftest() {
   assert.deepEqual(missingFromYml(["test:money", "test:reviews"], yml), ["test:reviews"]);
   // substring safety: `test:money` step must NOT satisfy a `test:money-extra` lane
   assert.deepEqual(missingFromYml(["test:money-extra"], "npm run test:money\n"), ["test:money-extra"]);
+  // a test:* script that nothing runs is reported; a wired / exempt / baselined one is not
+  const sc = { ci: "npm run test:a", "test:a": "x", "test:b": "x", "test:c": "x", "test:e2e:z": "x", "test:d": "x" };
+  assert.deepEqual(ungatedTestLanes(sc, "npm run test:b\n"), ["test:c", "test:d"]);
+  assert.deepEqual(newUngatedTestLanes(sc, "npm run test:b\n", ["test:d"]), ["test:c"]);
+  assert.deepEqual(ungatedTestLanes(sc, "npm run test:b-extra\n"), ["test:b", "test:c", "test:d"]);
   console.log("[check:ci-lane-parity] selftest OK");
 }
 
@@ -83,6 +128,22 @@ function main() {
 
   const missing = missingFromYml(lanes, yml);
 
+  const baseline = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "src", "lib", "quality", "lane-enrolment.baseline.json"), "utf8"),
+  );
+  const ungatedNew = newUngatedTestLanes(pkg.scripts, yml, baseline.lanes ?? []);
+  if (ungatedNew.length > 0) {
+    console.error(
+      `[check:ci-lane-parity] FAIL — ${ungatedNew.length} package.json test:* script(s) run in NO gate (not in the 'ci' chain, not in ci.yml):`,
+    );
+    for (const l of ungatedNew) console.error(`  - ${l}`);
+    console.error(
+      "A test script nothing runs lets a red test sit on main unseen (test:webhook did). Add `- run: npm run <lane>` to ci.yml, " +
+        "enrol its files in a gated lane and delete the script, or rename it `manual:<name>`.",
+    );
+    process.exit(1);
+  }
+
   if (missing.length > 0) {
     console.error(
       `[check:ci-lane-parity] FAIL — .github/workflows/ci.yml omits ${missing.length} lane(s)/guard(s) that 'npm run ci' runs:`,
@@ -98,4 +159,6 @@ function main() {
   console.log(`[check:ci-lane-parity] OK — all ${lanes.length} 'ci' lane(s) + guard(s) are gated in ci.yml.`);
 }
 
-main();
+module.exports = { lanesInCiScript, missingFromYml, ungatedTestLanes, newUngatedTestLanes, TEST_LANE_EXEMPT };
+
+if (require.main === module) main();
