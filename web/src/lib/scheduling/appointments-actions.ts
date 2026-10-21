@@ -39,6 +39,10 @@
  */
 
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createPurchase } from "@/lib/orders/purchase";
+import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-checkout";
+import { publicOrigin, storefrontLocale } from "@/lib/storefront/request-context";
 
 import { requireWorkspaceStaffAction, requireWorkspaceStaffActionOnce } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -404,7 +408,13 @@ export async function promoteFromWaitlist(input: {
 }
 
 export type AcceptWaitlistOfferResult =
-  | { ok: true; already: boolean; units: number }
+  | {
+      ok: true;
+      already: boolean;
+      units: number;
+      /** TUL-1552: a paid session. The place is held, not taken, until the guest pays. */
+      payment: { payUrl: string | null; holdExpiresAt: string | null } | null;
+    }
   | { ok: false; refusalKey: AcceptWaitlistRefusalKey };
 
 /**
@@ -429,16 +439,36 @@ export async function acceptWaitlistPlace(input: {
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, refusalKey: "unavailable" };
 
-    const result = await acceptWaitlistOffer(admin, {
-      tenantId: input.tenantId,
-      entryId: input.entryId,
-      actorUserId: scoped.scope.userId,
-      expectedStatus: input.expectedStatus,
-    });
+    // TUL-1552: on a paid session the place is bought by the guest through the
+    // orders gate; the desk only holds it and hands over the pay link.
+    const [origin, locale] = await Promise.all([publicOrigin(), storefrontLocale()]);
+    const result = await acceptWaitlistOffer(
+      admin,
+      {
+        tenantId: input.tenantId,
+        entryId: input.entryId,
+        actorUserId: scoped.scope.userId,
+        expectedStatus: input.expectedStatus,
+      },
+      {
+        createPurchase: (client, purchase) => createPurchase(client as SupabaseClient, purchase),
+        createCheckout: (checkout) => createCheckoutSessionForTransaction(checkout),
+        origin,
+        locale,
+        channel: "staff",
+      },
+    );
     if (!result.ok) return { ok: false, refusalKey: result.refusalKey };
 
     revalidatePath(`/${scoped.scope.tenantSlug}`, "layout");
-    return { ok: true, already: result.already, units: result.units };
+    return {
+      ok: true,
+      already: result.already,
+      units: result.units,
+      payment: result.payment
+        ? { payUrl: result.payment.payUrl, holdExpiresAt: result.payment.holdExpiresAt }
+        : null,
+    };
   } catch (err) {
     logServerError("scheduling.acceptWaitlistPlace", err);
     return { ok: false, refusalKey: "unavailable" };

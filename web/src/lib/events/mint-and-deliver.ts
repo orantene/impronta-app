@@ -3,6 +3,7 @@ import "server-only";
 import { deliverTicketsForOrder } from "@/lib/events/ticket-delivery";
 import { mintAdmissionsForPaidOrder, type MintOnPaidCtx } from "@/lib/events/mint-on-paid";
 import { logServerError } from "@/lib/server/safe-error";
+import { acceptWaitlistEntriesForPaidOrder } from "@/lib/scheduling/waitlist-charge";
 
 /**
  * Mint, then mail. The `onOrderPaid` composition every ticket-selling path
@@ -20,6 +21,14 @@ export async function mintAndDeliverForPaidOrder(
   ctx: MintOnPaidCtx,
   opts: { locale?: string | null } = {},
 ): Promise<void> {
+  // TUL-1552: a paid waitlist order makes its entry `accepted` against the seat
+  // the settle just committed. Before the mint's early return, and isolated:
+  // a waitlist write must never stop tickets from being minted or mailed.
+  try {
+    await acceptWaitlistEntriesForPaidOrder(admin, ctx);
+  } catch (err) {
+    logServerError("events.mintAndDeliver/waitlist", err);
+  }
   const minted = await mintAdmissionsForPaidOrder(admin, ctx);
   if (minted.rowsInserted === 0 && minted.linesMinted === 0) return;
   const delivered = await deliverTicketsForOrder(admin, {

@@ -4606,6 +4606,8 @@
         "accept": "Elle est prise",
         "accepting": "Prise de la place...",
         "accepted": "{name} a la place. Ce siege sort de ce cours.",
+        "acceptedPayPending": "La place de {name} est reservee jusqu'a {when}. Elle est a lui ou elle des le paiement. Lien de paiement (copie) : {url}",
+        "acceptedPayPendingNoLink": "La place de {name} est reservee jusqu'a {when}. Elle est a lui ou elle des le paiement. Le lien de paiement n'a pas pu etre cree : acceptez a nouveau pour reessayer.",
         "alreadyHasPlace": "{name} a deja cette place. Rien n'a change.",
         "decline": "Ils ont refuse",
         "declining": "Restitution de la place...",

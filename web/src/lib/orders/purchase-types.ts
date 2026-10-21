@@ -89,6 +89,8 @@ export type PurchaseInput = {
     units?: number;
     /** Per-unit domain row exists (an admission per seat)? See capacity-requests.ts. */
     perUnitDomainRow?: boolean;
+    /** This leg's hold TTL in seconds, instead of the pool's (TUL-1552). */
+    ttlSeconds?: number | null;
   }>;
   /**
    * A code the buyer typed. Optional, and when present it is HONOURED OR THE

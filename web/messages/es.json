@@ -17138,6 +17138,8 @@
         "accept": "La tomaron",
         "accepting": "Tomando la plaza...",
         "accepted": "{name} tiene la plaza. Ese asiento ya sale de esta clase.",
+        "acceptedPayPending": "La plaza de {name} queda reservada hasta las {when}. Es suya cuando pague. Enlace de pago (copiado): {url}",
+        "acceptedPayPendingNoLink": "La plaza de {name} queda reservada hasta las {when}. Es suya cuando pague. Aun no se pudo crear el enlace de pago: acepta de nuevo para reintentar.",
         "alreadyHasPlace": "{name} ya tiene esta plaza. No cambio nada.",
         "decline": "Dijeron que no",
         "declining": "Devolviendo la plaza...",
