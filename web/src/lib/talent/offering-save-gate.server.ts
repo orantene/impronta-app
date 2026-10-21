@@ -37,7 +37,7 @@ type Prior = { status: string | null; booking_mode: string | null } | null;
 /** Whose row this save writes: a talent's own offering, or a workspace (house) item. */
 export type OfferingSaveScope =
   | { kind: "talent"; talentProfileId: string }
-  | { kind: "workspace"; tenantId: string; ownerTalentId: string | null };
+  | { kind: "workspace"; tenantId: string; ownerTalentId: string | null; ownerTalentIds?: readonly string[] };
 
 /** The two reads the gate needs besides the stored row. Injected in tests. */
 export type OfferingSaveGateDeps = {
@@ -61,9 +61,35 @@ export function offeringCurrencyRefusal(currency: unknown, locale?: string): str
   return typeof locale === "string" && locale.startsWith("es") ? OFFERING_CURRENCY_REFUSAL_ES : OFFERING_CURRENCY_REFUSAL_EN;
 }
 
-/** The talent profile whose plan and default posture govern this save (null = none). */
+/** The talent profile whose default posture governs this save (null = none). */
 function planTalentId(scope: OfferingSaveScope): string | null {
   return scope.kind === "talent" ? scope.talentProfileId : scope.ownerTalentId;
+}
+
+/**
+ * TUL-1712: the talent profiles whose PLANS decide the instant-booking rule. A talent save: that
+ * talent. A workspace save: EVERY active owner (sorted, so the order they were read in never
+ * matters), falling back to the single `ownerTalentId` for callers that only know one.
+ */
+export function planTalentIds(scope: OfferingSaveScope): string[] {
+  if (scope.kind === "talent") return [scope.talentProfileId];
+  const ids = scope.ownerTalentIds && scope.ownerTalentIds.length > 0 ? scope.ownerTalentIds : scope.ownerTalentId ? [scope.ownerTalentId] : [];
+  return [...new Set(ids)].sort();
+}
+
+/**
+ * One answer for the workspace from its owners' plans: instant is allowed when ANY known owner plan
+ * allows it (the workspace is as capable as its best plan), refused only when every known plan is
+ * a no, and unknown (undefined, never refuses) when no plan could be read. Independent of order.
+ */
+export function workspaceAllowsInstant(plans: ReadonlyMap<string, boolean>, ids: readonly string[]): boolean | undefined {
+  let known = false;
+  for (const id of ids) {
+    const v = plans.get(id);
+    if (v === true) return true;
+    if (v === false) known = true;
+  }
+  return known ? false : undefined;
 }
 
 async function loadPrior(admin: unknown, scope: OfferingSaveScope, offeringId: string): Promise<{ ok: true; prior: Prior } | { ok: false }> {
@@ -107,11 +133,12 @@ export async function offeringSaveGateFor(
 
   if (wantsInstant && prior?.booking_mode !== "instant") {
     // No plan owner = unknown plan, which never refuses (same rule as loadPlanAllowsInstant on a failed read).
-    const plans = planId ? await deps.loadPlanAllowsInstant(admin as SupabaseClient, [planId]) : new Map<string, boolean>();
+    const planIds = planTalentIds(scope);
+    const plans = planIds.length > 0 ? await deps.loadPlanAllowsInstant(admin as SupabaseClient, planIds) : new Map<string, boolean>();
     const refuse = instantPlanRefuses({
       nextMode: offering.bookingMode,
       priorMode: prior?.booking_mode ?? null,
-      planAllowsInstant: planId ? plans.get(planId) : undefined,
+      planAllowsInstant: workspaceAllowsInstant(plans, planIds),
     });
     if (refuse) return { ok: false, error: INSTANT_PLAN_REFUSAL_EN };
   }
@@ -138,8 +165,10 @@ export async function workspaceOfferingSaveGate(
   offering: TalentOffering,
   deps?: OfferingSaveGateDeps,
   locale?: string,
+  /** TUL-1712: every active owner's talent id; the plan rule reads all of them. */
+  ownerTalentIds?: readonly string[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId }, offering, deps);
+  const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId, ownerTalentIds }, offering, deps);
   if (!gate.ok) return gate;
   const currency = offeringCurrencyRefusal(offering.currency, locale);
   return currency ? { ok: false, error: currency } : { ok: true };

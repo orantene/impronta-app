@@ -45,6 +45,7 @@ function menuRow(overrides: Partial<TalentOfferingRow> & { tenant_id: string }):
     currency: "USD",
     status: "published",
     moderation_state: "approved",
+    visibility: "public",
     sort_order: 0,
     ...overrides,
   } as TalentOfferingRow;
@@ -137,3 +138,27 @@ test("THE NULL-AMOUNT DOOR: an offering with no price and an exact display is ex
   assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "t"), []);
 });
 
+
+test("TUL-1295: fails closed. A row with a null, missing or unknown visibility is NOT on the public board", () => {
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "ok", tenant_id: "t1", title: "Taco", visibility: "public" }),
+    menuRow({ id: "null-vis", tenant_id: "t1", title: "Null", visibility: null as unknown as TalentOfferingRow["visibility"] }),
+    menuRow({ id: "no-vis", tenant_id: "t1", title: "Missing", visibility: undefined as unknown as TalentOfferingRow["visibility"] }),
+    menuRow({ id: "junk-vis", tenant_id: "t1", title: "Junk", visibility: "everyone" as unknown as TalentOfferingRow["visibility"] }),
+    menuRow({ id: "pending", tenant_id: "t1", title: "Pending", moderation_state: "pending" as unknown as TalentOfferingRow["moderation_state"] }),
+    menuRow({ id: "draft", tenant_id: "t1", title: "Draft", status: "draft" as unknown as TalentOfferingRow["status"] }),
+  ];
+  assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "t1").map((o) => o.id), ["ok"]);
+});
+
+test("TUL-1735: tenant A's public board never lists tenant B's rows, house or owner-provider", () => {
+  const rows: TalentOfferingRow[] = [
+    menuRow({ id: "a-house", tenant_id: "tenant-a", title: "A dish" }),
+    menuRow({ id: "b-house", tenant_id: "tenant-b", title: "B dish" }),
+    menuRow({ id: "b-owner", tenant_id: "tenant-b", owner_kind: "talent", talent_profile_id: "owner-b", title: "B owner dish" }),
+    menuRow({ id: "a-foreign-talent", tenant_id: "tenant-a", owner_kind: "talent", talent_profile_id: "roster-talent", title: "Roster talent" }),
+  ];
+  // Only tenant A's house row. B's rows are another tenant's; a roster talent's personal row is not the workspace's.
+  assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "tenant-a", "en", new Set(), new Set(["owner-b"])).map((o) => o.id), ["a-house"]);
+  assert.deepEqual(deriveWorkspaceMenuOfferings(rows, "", "en"), []);
+});

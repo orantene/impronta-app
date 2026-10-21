@@ -264,8 +264,10 @@ function body(name: string): string {
 
 test("upsertWorkspaceMenuItem gates before any write and runs the side effects only after the row is stored", () => {
   const upsert = body("upsertWorkspaceMenuItem");
-  const gate = upsert.indexOf("await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering, undefined, primaryLocale)");
+  const gate = upsert.indexOf("await workspaceOfferingSaveGate(");
   assert.ok(gate > -1);
+  // TUL-1712: the plan rule reads EVERY active owner, not just the first.
+  assert.match(upsert, /workspaceOfferingSaveGate\(\s*admin,\s*tenantId,\s*ownerTalentId,\s*offering,\s*undefined,\s*primaryLocale,\s*await resolveOwnerTalentProfileIds\(/);
   assert.ok(gate < upsert.indexOf(".update(patch)") && gate < upsert.indexOf(".insert(patch)"));
   assert.match(upsert, /if \(!gate\.ok\) return gate;/);
   const after = upsert.indexOf('await afterMenuWrite(admin, tenantId, "save", ownerTalentId);');
