@@ -5953,6 +5953,7 @@
         "save": "Save venue",
         "saving": "Saving…",
         "saved": "Saved",
+        "readOnly": "Only admins can edit the venue. Ask an admin to make changes.",
         "roomsTitle": "Rooms",
         "roomsHint": "The parts of your venue people are seated in. A bar counts as a room.",
         "noRoomsYet": "No rooms yet. Add one to start putting tables in it.",

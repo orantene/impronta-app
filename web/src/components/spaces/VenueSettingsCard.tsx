@@ -80,7 +80,18 @@ function nowIn(timeZone: string): string {
   }
 }
 
-export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
+export function VenueSettingsCard({
+  tenantSlug,
+  canEdit = true,
+}: {
+  tenantSlug: string;
+  /**
+   * TUL-1708: updateVenueSettings stays admin-only server-side
+   * (manage_agency_settings). This prop just hides the dead control for a
+   * viewer who can't save anyway — the server is the real gate.
+   */
+  canEdit?: boolean;
+}) {
   const t = useT();
   const [venue, setVenue] = useState<VenueSettings>(EMPTY);
   const [source, setSource] = useState<TimezoneSource>("platform");
@@ -120,6 +131,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
   }
 
   function save() {
+    if (!canEdit) return;
     setError(null);
     setSavedOk(false);
     startTransition(async () => {
@@ -157,11 +169,16 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
 
   return (
     <div style={{ fontFamily: FONT, display: "flex", flexDirection: "column", gap: 16 }}>
+      {!canEdit ? (
+        <div style={{ fontSize: 12.5, color: C.inkMuted }}>{t(`${K}.readOnly`)}</div>
+      ) : null}
+
       <Field label={t(`${K}.nameLabel`)} hint={t(`${K}.nameHint`)}>
         <input
           type="text"
           value={venue.name}
           onChange={(e) => set("name", e.target.value)}
+          disabled={!canEdit}
           style={inputStyle}
         />
       </Field>
@@ -170,6 +187,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
         <select
           value={venue.timezone}
           onChange={(e) => set("timezone", e.target.value)}
+          disabled={!canEdit}
           style={{ ...inputStyle, minWidth: 0 }}
         >
           {zones.map((z) => (
@@ -183,7 +201,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
             {t(`${K}.itIsNow`)} {localNow}
           </div>
         ) : null}
-        {suggestionWorthOffering ? (
+        {suggestionWorthOffering && canEdit ? (
           <button
             type="button"
             onClick={() => set("timezone", suggestion)}
@@ -245,6 +263,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
               type="text"
               value={venue.addressLine1}
               onChange={(e) => set("addressLine1", e.target.value)}
+              disabled={!canEdit}
               style={inputStyle}
             />
           </Field>
@@ -253,6 +272,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
               type="text"
               value={venue.addressLine2}
               onChange={(e) => set("addressLine2", e.target.value)}
+              disabled={!canEdit}
               style={inputStyle}
             />
           </Field>
@@ -261,6 +281,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
               type="text"
               value={venue.city}
               onChange={(e) => set("city", e.target.value)}
+              disabled={!canEdit}
               style={inputStyle}
             />
           </Field>
@@ -269,6 +290,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
               type="text"
               value={venue.region}
               onChange={(e) => set("region", e.target.value)}
+              disabled={!canEdit}
               style={inputStyle}
             />
           </Field>
@@ -277,6 +299,7 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
               type="text"
               value={venue.postalCode}
               onChange={(e) => set("postalCode", e.target.value)}
+              disabled={!canEdit}
               style={inputStyle}
             />
           </Field>
@@ -285,36 +308,39 @@ export function VenueSettingsCard({ tenantSlug }: { tenantSlug: string }) {
               type="text"
               value={venue.countryCode}
               onChange={(e) => set("countryCode", e.target.value)}
+              disabled={!canEdit}
               style={inputStyle}
             />
           </Field>
         </div>
       ) : null}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <button
-          type="button"
-          onClick={save}
-          disabled={pending}
-          style={{
-            background: C.ink,
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "9px 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: pending ? "default" : "pointer",
-            opacity: pending ? 0.6 : 1,
-          }}
-        >
-          {pending ? t(`${K}.saving`) : t(`${K}.save`)}
-        </button>
-        {savedOk ? (
-          <span style={{ fontSize: 13, color: C.success }}>{t(`${K}.saved`)}</span>
-        ) : null}
-        {error ? <span style={{ fontSize: 13, color: C.error }}>{error}</span> : null}
-      </div>
+      {canEdit ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={pending}
+            style={{
+              background: C.ink,
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "9px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: pending ? "default" : "pointer",
+              opacity: pending ? 0.6 : 1,
+            }}
+          >
+            {pending ? t(`${K}.saving`) : t(`${K}.save`)}
+          </button>
+          {savedOk ? (
+            <span style={{ fontSize: 13, color: C.success }}>{t(`${K}.saved`)}</span>
+          ) : null}
+          {error ? <span style={{ fontSize: 13, color: C.error }}>{error}</span> : null}
+        </div>
+      ) : null}
 
       {/* Rooms, tables and groups. Below the venue because a space needs a venue
           to hang off, and the timezone is the field that changes behaviour. */}
