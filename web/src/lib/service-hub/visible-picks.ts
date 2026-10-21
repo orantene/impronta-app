@@ -16,6 +16,14 @@ export function visiblePicksEnabled(env: Record<string, string | undefined> = pr
   return env.HUB_PLAN_CAP_PICKS_ENABLED === "1";
 }
 
+/**
+ * TUL-1687: the Settings link to this screen shows only with the flag on AND for someone
+ * who may edit the roster (the same capability the pick action checks).
+ */
+export function visiblePicksLinkShown(input: { flagOn: boolean; canEditRoster: boolean }): boolean {
+  return input.flagOn === true && input.canEditRoster === true;
+}
+
 export type KeepVisibleDecision = { ok: true; next: boolean | null } | { ok: false; reason: "not_public" };
 
 /**
@@ -57,6 +65,8 @@ type Copy = {
   loadError: string;
   back: string;
   empty: string;
+  settingsLinkDesc: string;
+  open: string;
 };
 
 export const VISIBLE_PICKS_COPY: Record<"en" | "es", Copy> = {
@@ -75,6 +85,8 @@ export const VISIBLE_PICKS_COPY: Record<"en" | "es", Copy> = {
     loadError: "We could not load your team. Try again in a moment.",
     back: "Back to settings",
     empty: "Nobody is shown on your public site yet.",
+    settingsLinkDesc: "Pick who stays on your public site when your team is over your plan's limit.",
+    open: "Open",
   },
   es: {
     title: "Quién se queda visible",
@@ -91,5 +103,7 @@ export const VISIBLE_PICKS_COPY: Record<"en" | "es", Copy> = {
     loadError: "No pudimos cargar tu equipo. Intenta de nuevo en un momento.",
     back: "Volver a ajustes",
     empty: "Todavía no hay nadie visible en tu sitio público.",
+    settingsLinkDesc: "Elige quién se queda en tu sitio público cuando tu equipo pasa el límite de tu plan.",
+    open: "Abrir",
   },
 };
