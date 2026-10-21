@@ -50,7 +50,7 @@ test("no public marketing or support source hard-codes the 6% fee", () => {
 });
 
 test("rendered pricing ladder fee card and bot corpus carry no percentage fee", () => {
-  for (const locale of ["en", "es"]) {
+  for (const locale of ["en", "es"] as const) {
     const fee = getPricingLaddersCopy(locale).fee;
     const text = JSON.stringify(fee);
     assert.ok(!STALE_FEE.test(text), `${locale} fee card still states 6%`);

@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { loadWorkspaceReviewPrivateNotesAction } from "@/lib/reviews/review-moderation-queue-actions";
 import type { WorkspaceReviewPrivateNote } from "@/lib/reviews/review-moderation-loaders";
 
@@ -43,7 +44,7 @@ export function WorkspacePrivateNotesCard({ tenantId }: { tenantId: string }) {
             <p className="whitespace-pre-wrap text-admin-13 text-admin-ink">{n.note}</p>
             {n.talentName ? (
               <p className="mt-[4px] text-admin-11h text-admin-ink-muted">
-                {t("dashboard.adminReviews.privateNotesWith", { name: n.talentName })}
+                {interpolate(t("dashboard.adminReviews.privateNotesWith"), { name: n.talentName })}
               </p>
             ) : null}
           </li>

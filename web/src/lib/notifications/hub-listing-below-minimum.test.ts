@@ -15,7 +15,7 @@ test("the bell reads in both languages, names who and what, and has no email", (
   assert.equal(t(ev({ talentName: "Ana", serviceTitle: "Masaje" }), { locale: "es" } as never), "Ana subió el precio de Masaje");
   assert.equal(t(ev({ talentName: "Ana", serviceTitle: "Massage" }), { locale: "en" } as never), "Ana raised the price of Massage");
   assert.equal(t(ev({}), { locale: "en" } as never), "Someone on your team raised the price of a service");
-  const b = entry.in_app!.body;
+  const b = entry.in_app!.body!;
   for (const l of ["es", "en"]) assert.doesNotMatch(String(b(ev({}), { locale: l } as never)), /[—–_]/);
 });
 
