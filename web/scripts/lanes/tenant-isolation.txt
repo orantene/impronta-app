@@ -215,6 +215,7 @@ src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
 src/lib/talent/offering-delete-or-archive.test.ts
 src/lib/talent/offerings-public-rows.test.ts
+src/lib/talent/staff-talent-access.static.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
 src/lib/team/redeem-role.test.ts
