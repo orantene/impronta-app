@@ -43,6 +43,7 @@ src/components/admin/shell/internal/talent/pages/talent-hydration-418.static.tes
 src/components/admin/shell/internal/talent/pages/today-hydration.static.test.ts
 src/components/admin/shell/internal/talent/shared/plan-oficina-web.static.test.ts
 src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
+src/components/appointments/appointments-settings-admin-gate.static.test.ts
 src/components/inquiry/event-date-input-aria.test.tsx
 src/components/inquiry/event-date-input.test.tsx
 src/components/marketing/directory/directory-es-labels.test.ts
@@ -107,6 +108,7 @@ src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/server-actions/admin-bookings-role-label.static.test.ts
 src/lib/server-actions/admin-talent-taxonomy-capabilities.test.ts
+src/lib/server-actions/tul-1708-bookings-capabilities.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts

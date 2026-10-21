@@ -5495,6 +5495,7 @@
         "desc": "Activa las reservas, elige la palabra pública y define horarios.",
         "masterTitle": "Activar citas",
         "masterDesc": "Apagado por defecto. Los espacios actuales siguen en modo solicitud hasta que lo actives.",
+        "adminOnlyNote": "Solo los administradores del espacio de trabajo pueden cambiar esta configuración.",
         "terminologyTitle": "Palabra pública",
         "terminologyDesc": "La palabra que ven los invitados. Las pantallas internas siguen diciendo Citas.",
         "term": {
