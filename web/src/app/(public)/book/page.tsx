@@ -21,6 +21,7 @@ import { BookPageClient } from "./BookPageClient";
 import { RosterRequestList } from "./RosterRequestList";
 import { PublicHubEntries } from "@/components/storefront/PublicHubEntries";
 import { loadPublicHub } from "@/lib/service-hub/public-hub.server";
+import { publicEntryRequestHref } from "@/lib/service-hub/public-hub-request";
 import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -127,7 +128,7 @@ export default async function BookPage({
           locale={locale}
           contactHref={`${pathPrefix}/contact`}
         />
-        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={() => `${pathPrefix}/contact`} /> : null}
+        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={(e) => publicEntryRequestHref(`${pathPrefix}/contact`, e, locale)} /> : null}
         <RosterRequestList
           items={rosterItems}
           contactHref={`${pathPrefix}/contact`}
