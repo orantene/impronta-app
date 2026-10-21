@@ -1,56 +1,38 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, it } from "node:test";
 
+import {
+  clientChosenTenant,
+  exportStatements,
+  exportedActions,
+  forbiddenExports,
+  isUseServerFile,
+  SCOPE_RESOLVER,
+  walkSource,
+} from "./use-server-scan";
+import baseline from "./use-server-tenant-param.baseline.json";
+
 /**
- * TUL-1744: an exported function in a "use server" file is a public endpoint, and its ARGUMENTS come
- * from the client. So it must not take things that decide trust: a test seam (`deps`), a database
- * client, a clock (`now`), or a function. Those belong in a plain (non-"use server") module that the
- * action calls with no arguments, or in a non-exported helper.
+ * The "use server" guards.
  *
- * Found by the consultant on #4341 (`loadVisiblePicksLink(deps?)`); the sweep that followed also
- * found `applyParsedMenu(admin, tenantId, menu)`, `processRosterImportRow(admin, tenantId, row)`,
- * `seedNewPageStarterComposition({ supabase, tenantId, ... })` and `markBookingNoShow({ now })`.
+ * TUL-1744: an exported function in a "use server" file is a public endpoint, and its ARGUMENTS come from the
+ * client. So it must not take things that decide trust: a test seam (`deps`), a database client, a clock
+ * (`now`), or a function. Those belong in a plain (non-"use server") module that the action calls with no
+ * arguments, or in a non-exported helper.
+ *
+ * TUL-1763: a "use server" file may export only async functions (plus erased type-only exports). A bare
+ * `export type { X };` passes tsc but broke the Turbopack production build (batch 10). The lanes catch it in
+ * seconds instead of at the 45-minute gate.
+ *
+ * TUL-1758: the same scan now also covers the `export const x = async (...) =>` form, and flags actions that
+ * take a CLIENT-CHOSEN tenantId/tenantSlug unless they show a scope-resolving call (membership, capability,
+ * platform admin). Existing actions without that evidence are listed in a shrink-only baseline, UNREVIEWED.
  */
 
 const SRC = join(__dirname, "..", "..");
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    const st = statSync(full);
-    if (st.isDirectory()) {
-      if (name === "node_modules" || name === ".next") continue;
-      walk(full, out);
-    } else if (/\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name) && !name.endsWith(".d.ts")) out.push(full);
-  }
-  return out;
-}
-
-/** True when the file's directive prologue says "use server" (comments and blank lines may precede it). */
-function isUseServerFile(src: string): boolean {
-  const head = src.replace(/^\s*(?:\/\*[\s\S]*?\*\/|\/\/[^\n]*\n|\s)*/, "");
-  return /^["']use server["']/.test(head);
-}
-
-/** Parameter lists of every exported function, balanced across nested parentheses and braces. */
-function exportedSignatures(src: string): Array<{ name: string; params: string }> {
-  const out: Array<{ name: string; params: string }> = [];
-  const re = /export\s+(?:async\s+)?function\s+(\w+)\s*(?:<[^>]*>)?\s*\(/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(src))) {
-    let depth = 1;
-    let i = re.lastIndex;
-    while (i < src.length && depth > 0) {
-      const ch = src[i++];
-      if (ch === "(" || ch === "{" || ch === "[") depth++;
-      else if (ch === ")" || ch === "}" || ch === "]") depth--;
-    }
-    out.push({ name: m[1], params: src.slice(re.lastIndex, i - 1) });
-  }
-  return out;
-}
+const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
 
 const INJECTABLE = [
   [/\bdeps\b|Deps\b|\bseams?\b/i, "a test seam / deps parameter"],
@@ -61,22 +43,88 @@ const INJECTABLE = [
 
 /** Exports that are allowed to look like this, with the reason. Keep empty unless a reason is real. */
 const ALLOWED: Record<string, string> = {};
+/** Files allowed a forbidden export shape, with the reason. Keep empty unless a reason is real. */
+const ALLOWED_SHAPE: Record<string, string> = {};
 
-describe('exported "use server" functions take no injectable parameters (TUL-1744)', () => {
-  const files = walk(SRC)
-    .filter((f) => isUseServerFile(readFileSync(f, "utf8")))
-    .map((f) => relative(SRC, f));
+const files = walkSource(SRC)
+  .map((f) => ({ rel: relative(SRC, f), src: readFileSync(f, "utf8") }))
+  .filter((f) => isUseServerFile(f.src));
 
+describe('the "use server" scan itself', () => {
   it("finds the use-server files (the scan is not empty)", () => {
     assert.ok(files.length > 100, `only ${files.length} use-server files found; detection is broken`);
   });
 
-  it("none exports a function that takes a seam, a client, a clock or a function", () => {
+  it("classifies export shapes", () => {
+    const shapes = (src: string) => exportStatements(src).map((e) => e.shape);
+    assert.deepEqual(shapes("export async function a() {}\nexport default async function () {}\nexport const b = async () => {};"), ["async-function", "default-async-function", "const-async"]);
+    assert.deepEqual(shapes('export type X = { a: 1 };\nexport interface Y {}\nexport type { Z } from "./z";'), ["type-declaration", "type-declaration", "type-reexport-from"]);
+    assert.deepEqual(shapes('export type { Z } from\n  "./z";'), ["type-reexport-from"]);
+    assert.deepEqual(shapes("export type {\n  A,\n  B,\n};"), ["type-reexport-bare"]);
+    assert.deepEqual(shapes("export type { A };"), ["type-reexport-bare"]);
+    for (const bad of ["export { a };", 'export * from "./a";', "export function sync() {}", "export const n = 5;", "export const f = () => 1;", "export let v = 1;", "export class C {}", "export enum E { A }", "export default function () {}", "export default 5;"]) {
+      assert.deepEqual(shapes(bad), ["other"], bad);
+    }
+  });
+
+  it("comments never read as code", () => {
+    assert.deepEqual(forbiddenExports("// export const n = 5;\n/* export class C {} */\nexport async function ok() {}"), []);
+  });
+
+  it("reads exported actions of every async form, with params and body", () => {
+    const a = exportedActions(
+      'export async function one(a: string, { b }: { b: number }): Promise<{ ok: true }> {\n  return doIt();\n}\nexport const two = async (x: number): Promise<void> => {\n  await go(x);\n};\nexport default async function three(c: string) {\n  return c;\n}',
+    );
+    assert.deepEqual(a.map((x) => x.name).sort(), ["one", "three", "two"]);
+    assert.match(a.find((x) => x.name === "one")!.body, /doIt\(\)/);
+    assert.match(a.find((x) => x.name === "two")!.body, /go\(x\)/);
+    assert.match(a.find((x) => x.name === "two")!.params, /x: number/);
+  });
+
+  it("finds a client-chosen tenant: direct, destructured, inline object, named type, zod schema", () => {
+    assert.ok(clientChosenTenant("tenantId: string, id: string", ""));
+    assert.ok(clientChosenTenant("tenantSlug?: string", ""));
+    assert.ok(clientChosenTenant("input: { tenantId: string; id: string }", ""));
+    assert.ok(clientChosenTenant("{ tenantId, id }: Input", ""));
+    assert.ok(clientChosenTenant("input: Foo", "type Foo = { tenantId: string };"));
+    assert.ok(clientChosenTenant("input: Foo", "interface Foo { tenantSlug: string }"));
+    assert.ok(clientChosenTenant("raw: z.infer<typeof fooSchema>", "const fooSchema = z.object({ tenantId: z.string() });"));
+    assert.equal(clientChosenTenant("id: string, locale: string", ""), null);
+    assert.equal(clientChosenTenant("input: Bar", "type Bar = { id: string };"), null);
+  });
+
+  it("recognises scope evidence, and does not count requireNotImpersonating", () => {
+    for (const ok of ["await requireWorkspaceStaffAction()", "gate(tenantSlug, cap)", "guardCatalogScope()", "await ownTenantId(slug)", "isPlatformAdmin(p)", "userHasCapability(a, b)", "await authorize(slug)", "getTenantScopeBySlug(s)"]) {
+      assert.match(ok, SCOPE_RESOLVER, ok);
+    }
+    for (const no of ["await requireNotImpersonating()", "assertNotImpersonating()", "createServiceRoleClient()", "supabase.from('x')"]) {
+      assert.doesNotMatch(no, SCOPE_RESOLVER, no);
+    }
+  });
+});
+
+describe('a "use server" file exports only async functions (TUL-1763)', () => {
+  it("no use-server file has a bare `export type { X };`, `export { x }`, `export *`, a sync function, a non-async const, a class, an enum or let/var", () => {
     const bad: string[] = [];
-    for (const rel of files) {
-      for (const sig of exportedSignatures(readFileSync(join(SRC, rel), "utf8"))) {
-        const hit = INJECTABLE.find(([re]) => re.test(sig.params));
-        if (hit && !ALLOWED[`${rel}:${sig.name}`]) bad.push(`${rel}: ${sig.name}(${sig.params.replace(/\s+/g, " ").slice(0, 90)}) takes ${hit[1]}`);
+    for (const { rel, src } of files) {
+      if (ALLOWED_SHAPE[rel]) continue;
+      for (const head of forbiddenExports(src)) bad.push(`${rel}: ${head}`);
+    }
+    assert.deepEqual(
+      bad,
+      [],
+      'a "use server" file may export only async functions and erased type exports. A bare `export type { X };` passes tsc but breaks the Turbopack build (batch 10): import the type from its home, or re-export it with `export type { X } from "..."`. Move values and sync helpers to a plain module.',
+    );
+  });
+});
+
+describe('exported "use server" functions take no injectable parameters (TUL-1744, now incl. the const form)', () => {
+  it("none exports an action that takes a seam, a client, a clock or a function", () => {
+    const bad: string[] = [];
+    for (const { rel, src } of files) {
+      for (const a of exportedActions(src)) {
+        const hit = INJECTABLE.find(([re]) => re.test(a.params));
+        if (hit && !ALLOWED[`${rel}:${a.name}`]) bad.push(`${rel}: ${a.name}(${a.params.replace(/\s+/g, " ").slice(0, 90)}) takes ${hit[1]}`);
       }
     }
     assert.deepEqual(
@@ -86,12 +134,11 @@ describe('exported "use server" functions take no injectable parameters (TUL-174
     );
   });
 
-  it("the five fixed exports are no longer actions, or no longer take the argument", () => {
-    const read = (rel: string) => readFileSync(join(SRC, rel), "utf8");
+  it("the earlier fixes still hold", () => {
     assert.ok(!isUseServerFile(read("lib/site-admin/edit-mode/new-page-starter.ts")));
     assert.ok(!/export async function applyParsedMenu/.test(read("lib/menu-import/import-actions.ts")));
     assert.ok(!/export async function processRosterImportRow/.test(read("lib/server-actions/roster-import.ts")));
-    for (const plain of ["lib/menu-import/apply-parsed-menu.ts", "lib/server-actions/roster-import-row.ts"]) {
+    for (const plain of ["lib/menu-import/apply-parsed-menu.ts", "lib/server-actions/roster-import-row.ts", "lib/server-actions/engine-audit.ts"]) {
       const s = read(plain);
       assert.ok(!isUseServerFile(s), plain);
       assert.match(s, /^import "server-only";/, plain);
@@ -101,5 +148,43 @@ describe('exported "use server" functions take no injectable parameters (TUL-174
     assert.ok(!/now\??:/.test(fn.split("{")[1] ?? ""));
     assert.match(fn, /const now = new Date\(\);/);
     assert.ok(!/input\.now/.test(fn));
+  });
+});
+
+describe('exported "use server" actions do not trust a client-chosen tenant (TUL-1758)', () => {
+  const found = new Map<string, string>(); // "rel:name" -> why
+  for (const { rel, src } of files) {
+    for (const a of exportedActions(src)) {
+      const tenant = clientChosenTenant(a.params, src);
+      if (tenant && !SCOPE_RESOLVER.test(a.body)) found.set(`${rel}:${a.name}`, tenant);
+    }
+  }
+  const baselined = new Set(baseline.entries);
+
+  it("a new action with a client-chosen tenantId/tenantSlug must re-resolve scope (membership, capability, platform admin)", () => {
+    const fresh = [...found].filter(([k]) => !baselined.has(k)).map(([k, why]) => `${k} (takes ${why})`);
+    assert.deepEqual(
+      fresh,
+      [],
+      "an exported action takes a workspace chosen by the CLIENT and shows no scope-resolving call in its body. Resolve the workspace through the caller's own membership (requireWorkspaceStaffAction, a gate/guard helper, getTenantScopeBySlug ...) and compare it, or, for a public/guest action that takes a tenant by design, say so in the review and add it to use-server-tenant-param.baseline.json with the reason in the PR.",
+    );
+  });
+
+  it("the baseline only shrinks: an entry whose action now re-resolves scope, or no longer exists, must be deleted", () => {
+    const stale = baseline.entries.filter((k) => !found.has(k));
+    assert.deepEqual(stale, [], "delete these from use-server-tenant-param.baseline.json (they are fixed or gone)");
+  });
+
+  it("the baseline is sorted and has no duplicates", () => {
+    assert.deepEqual([...baseline.entries], [...new Set(baseline.entries)].sort());
+  });
+
+  it("the two holes the sweep found are closed (not baselined)", () => {
+    assert.ok(!baselined.has("lib/server-actions/engine-audit.ts:logEngineAudit"));
+    const usage = read("lib/site-admin/builder-core/templates/template-usage-actions.ts");
+    const fn = usage.slice(usage.indexOf("export async function recordTemplateUsage"), usage.indexOf("export type TemplateUsageResult"));
+    assert.ok(!/input\.tenantId/.test(fn));
+    assert.match(fn, /requireEditSurfaceTenantScope\(\)/);
+    assert.ok(!/tenantId\??:/.test(usage.slice(usage.indexOf("export interface RecordTemplateUsageInput"), usage.indexOf("export async function recordTemplateUsage"))));
   });
 });

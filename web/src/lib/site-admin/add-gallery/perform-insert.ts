@@ -74,7 +74,6 @@ export async function performAddGalleryInsert(
         if (templateId) {
           void recordTemplateUsage({
             templateId,
-            tenantId: context.tenantId ?? null,
             surface: context.surface ?? null,
             pageRef: context.pageRef ?? null,
           });

@@ -1,6 +1,11 @@
-"use server";
+import "server-only";
 
 // engine-audit.ts
+//
+// A PLAIN server module, not a "use server" file (TUL-1758): as an exported action `logEngineAudit` let any
+// caller write audit rows for ANY tenant under ANY actor, because every field (tenantId, actorUserId,
+// actorRole, ...) came from the client. Only server code imports it (the taxonomy and workspace-field
+// actions), after they have authorised the caller.
 //
 // Phase 7a — fire-and-forget audit hook for catalog/privacy changes
 // to the talent engine. Sister to talent_profile_field_value_history
