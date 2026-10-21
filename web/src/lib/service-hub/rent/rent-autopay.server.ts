@@ -10,6 +10,7 @@ import type Stripe from "stripe";
 import { rentAutopayFlagOn, rentAutopayPercentFlagOn } from "./rent-autopay";
 import { rentReversalCents } from "./rent-autopay-refunds";
 import { percentMonthForInvoice, percentRentLines } from "./rent-autopay";
+import { shouldSkipAutopayInvoice } from "./rent-outside";
 import { periodOfSeconds } from "./rent-autopay-routing";
 import { loadMemberSalesBase } from "./rent-sales-base.server";
 import { getAppUrl } from "@/lib/auth-flow";
@@ -273,10 +274,10 @@ export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, e
   try {
     if (ev.percentAdded || !rentAutopayPercentFlagOn()) return "skipped";
     const { data } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId)
-      .select("stripe_subscription_id, rent_percent_bps, accepted_percent_bps, currency, talent_profile_id, autopay_first_period")
+      .select("stripe_subscription_id, rent_percent_bps, accepted_percent_bps, currency, talent_profile_id, autopay_first_period, autopay_skip_periods")
       .eq("id", ev.planId)
       .maybeSingle();
-    const plan = data as { stripe_subscription_id: string | null; rent_percent_bps: number | null; accepted_percent_bps: number | null; currency: string; talent_profile_id: string; autopay_first_period: string | null } | null;
+    const plan = data as { stripe_subscription_id: string | null; rent_percent_bps: number | null; accepted_percent_bps: number | null; currency: string; talent_profile_id: string; autopay_first_period: string | null; autopay_skip_periods: string[] | null } | null;
     if (!plan || plan.stripe_subscription_id !== ev.subscriptionId) return "skipped";
     const percentBps = plan.rent_percent_bps ?? 0;
     // Only the percentage the member accepted is ever charged.
@@ -286,6 +287,8 @@ export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, e
     // Re-read the LIVE invoice: the event may be old. Still a draft and not yet stamped, or nothing is added.
     const live = await stripe.invoices.retrieve(ev.invoiceId);
     if (live.status !== "draft" || live.metadata?.rent_percent_cents != null) return "skipped";
+    // TUL-1646: a month the owner recorded as paid outside already settled its percentage; never bill it again.
+    if (shouldSkipAutopayInvoice(plan.autopay_skip_periods ?? [], month)) return "skipped";
     const base = await loadMemberSalesBase(admin, { tenantId: ev.tenantId, talentProfileId: plan.talent_profile_id, period: month, currency: plan.currency });
     const lines = percentRentLines({ salesBaseCents: base, percentBps, feeBps: ev.feeBps });
     if (!lines) return "retry";
@@ -308,4 +311,75 @@ export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, e
     logServerError("rent.autopay.percentDraft", err);
     return "retry";
   }
+}
+
+// ── TUL-1646: a month paid outside Tulala must not also be charged by card ──────────────────────────────────────
+
+/** Void one subscription invoice that is still collectable: a draft is deleted (else finalized then voided), an open one voided. */
+export async function voidRentInvoice(stripe: Stripe, invoice: { id: string; status: string | null }): Promise<boolean> {
+  try {
+    if (invoice.status === "draft") {
+      try {
+        await stripe.invoices.del(invoice.id);
+      } catch {
+        await stripe.invoices.finalizeInvoice(invoice.id, { auto_advance: false });
+        await stripe.invoices.voidInvoice(invoice.id);
+      }
+      return true;
+    }
+    if (invoice.status === "open") {
+      await stripe.invoices.voidInvoice(invoice.id);
+      return true;
+    }
+    return false; // paid / void / uncollectible: nothing to void
+  } catch (err) {
+    logServerError("rent.autopay.voidInvoice", err);
+    return false;
+  }
+}
+
+/** Void the subscription's draft or open invoices that bill `period` (a month the owner recorded as paid outside). */
+export async function voidSubscriptionInvoicesForPeriod(
+  stripe: Stripe,
+  subscriptionId: string,
+  period: string,
+): Promise<{ ok: boolean; voided: number }> {
+  try {
+    const list = await stripe.invoices.list({ subscription: subscriptionId, limit: 6 });
+    let voided = 0;
+    for (const inv of list.data) {
+      const start = inv.lines?.data?.[0]?.period?.start ?? inv.period_start;
+      if (periodOfSeconds(start) !== period) continue;
+      if (await voidRentInvoice(stripe, { id: inv.id as string, status: inv.status })) voided += 1;
+    }
+    return { ok: true, voided };
+  } catch (err) {
+    logServerError("rent.autopay.voidForPeriod", err);
+    return { ok: false, voided: 0 };
+  }
+}
+
+/**
+ * A monthly renewal draft: if the owner recorded this month as paid outside, void it instead of charging;
+ * otherwise add the closed month's percentage (TUL-1609).
+ */
+export async function handleRentDraft(admin: SupabaseClient, stripe: Stripe, ev: Extract<RentSubscriptionEvent, { type: "draft" }>): Promise<PercentDraftOutcome | "voided"> {
+  try {
+    const { data } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId).select("autopay_skip_periods, stripe_subscription_id").eq("id", ev.planId).maybeSingle();
+    const plan = data as { autopay_skip_periods: string[] | null; stripe_subscription_id: string | null } | null;
+    if (plan?.stripe_subscription_id === ev.subscriptionId && shouldSkipAutopayInvoice(plan.autopay_skip_periods ?? [], periodOfSeconds(ev.periodStart))) {
+      return (await voidRentInvoice(stripe, { id: ev.invoiceId, status: "draft" })) ? "voided" : "retry";
+    }
+  } catch (err) {
+    logServerError("rent.autopay.handleDraft", err);
+    return "retry";
+  }
+  return addPercentToDraft(admin, stripe, ev);
+}
+
+/** Void this month's collectable subscription invoices on the subscription's own platform (TUL-1646). */
+export async function voidAutopayMonth(p: { subscriptionId: string; platform: StripeAccountKey | null; period: string }): Promise<boolean> {
+  const stripe = getStripeFor(p.platform === "mx" ? "mx" : "us");
+  if (!stripe) return false;
+  return (await voidSubscriptionInvoicesForPeriod(stripe, p.subscriptionId, p.period)).ok;
 }

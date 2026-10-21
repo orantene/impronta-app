@@ -51,6 +51,28 @@ export const RENT_COPY = {
     salesUnavailable: "Could not read this member's sales for that month. Nothing was issued. Try again.",
     nothingDue: "Nothing is due for that month.",
     issueMonth: "Month to issue",
+    paidOutsideOpen: "Mark a month as paid outside Tulala",
+    paidOutsideHint: "Rent received in cash or by bank transfer. No Tulala fee applies, and the month's payment link or automatic charge is closed.",
+    paidOutsideMonth: "Month",
+    paidOutsideMethod: "How it was paid",
+    paidOutsideAmount: "Amount received",
+    paidOutsideNote: "Note or reference (optional)",
+    paidOutsideSave: "Mark as paid",
+    paidOutsideDone: "Recorded as paid outside Tulala.",
+    cash: "Cash",
+    transfer: "Bank transfer",
+    cancel: "Cancel",
+    refundedMonth: "Refunded",
+    paidViaCash: "Paid in cash",
+    paidViaTransfer: "Paid by bank transfer",
+    paidViaLink: "Paid by payment link",
+    paidViaAutopay: "Paid automatically",
+    alreadyPaid: "That month is already paid.",
+    linkAlreadyPaid: "That month's payment link was already paid.",
+    autopayUnavailable: "Could not stop this month's automatic charge. Nothing was recorded. Try again.",
+    badAmount: "Enter the amount you received.",
+    futureMonth: "That month is too far ahead.",
+    beforeStart: "That month is before the plan started.",
     percentOfSales: "% of their sales",
     autopayStart: "Pay automatically each month",
     ownerAutopayOn: "Pays automatically each month. No payment link needed.",
@@ -118,6 +140,28 @@ export const RENT_COPY = {
     salesUnavailable: "No se pudieron leer las ventas del miembro en ese mes. No se emitió nada. Inténtalo de nuevo.",
     nothingDue: "No hay nada que cobrar de ese mes.",
     issueMonth: "Mes a emitir",
+    paidOutsideOpen: "Marcar un mes como pagado fuera de Tulala",
+    paidOutsideHint: "Renta recibida en efectivo o por transferencia bancaria. No se aplica cargo de Tulala, y se cierra el enlace de pago o el cobro automático de ese mes.",
+    paidOutsideMonth: "Mes",
+    paidOutsideMethod: "Cómo se pagó",
+    paidOutsideAmount: "Monto recibido",
+    paidOutsideNote: "Nota o referencia (opcional)",
+    paidOutsideSave: "Marcar como pagado",
+    paidOutsideDone: "Registrado como pagado fuera de Tulala.",
+    cash: "Efectivo",
+    transfer: "Transferencia bancaria",
+    cancel: "Cancelar",
+    refundedMonth: "Reembolsado",
+    paidViaCash: "Pagado en efectivo",
+    paidViaTransfer: "Pagado por transferencia bancaria",
+    paidViaLink: "Pagado con enlace de pago",
+    paidViaAutopay: "Pagado automáticamente",
+    alreadyPaid: "Ese mes ya está pagado.",
+    linkAlreadyPaid: "El enlace de pago de ese mes ya se pagó.",
+    autopayUnavailable: "No se pudo detener el cobro automático de este mes. No se registró nada. Inténtalo de nuevo.",
+    badAmount: "Escribe el monto que recibiste.",
+    futureMonth: "Ese mes está demasiado adelante.",
+    beforeStart: "Ese mes es anterior al inicio del plan.",
     percentOfSales: "% de sus ventas",
     autopayStart: "Pagar automáticamente cada mes",
     ownerAutopayOn: "Paga automáticamente cada mes. No hace falta enlace de pago.",
@@ -148,6 +192,12 @@ export function rentRefusalText(reason: string, c: RentCopy): string {
     case "sales_unavailable": return c.salesUnavailable;
     case "nothing_due": return c.nothingDue;
     case "autopay_on": return c.autopayOnRefusal;
+    case "already_paid": return c.alreadyPaid;
+    case "link_already_paid": return c.linkAlreadyPaid;
+    case "autopay_unavailable": return c.autopayUnavailable;
+    case "bad_amount": return c.badAmount;
+    case "future_period": return c.futureMonth;
+    case "before_start": return c.beforeStart;
     default: return c.unavailable;
   }
 }
