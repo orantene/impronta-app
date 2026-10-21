@@ -20,6 +20,7 @@ src/components/support/support-send-throw.test.ts
 src/i18n/locale-default-prefix-strip.test.ts
 src/lib/ai/ai-model-costs.test.ts
 src/lib/ai/ai-search-document-offerings-wiring.static.test.ts
+src/lib/ai/ai-usage-gate.test.ts
 src/lib/ai/booking-assistant/catalog-tenant.test.ts
 src/lib/ai/booking-assistant/credits.test.ts
 src/lib/ai/booking-assistant/decide.test.ts
