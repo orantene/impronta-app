@@ -19,7 +19,7 @@ const hook = readFileSync(join(__dirname, "use-dock-focus-return.ts"), "utf8");
 
 test("TUL-1082: focus moves into the dock on open (desktop composer, else the dialog itself)", () => {
   assert.match(panel, /focusIntoDock\(phone, textareaRef\.current\)/);
-  assert.match(hook, /if \(!phone\) composer\?\.focus\(\)/);
+  assert.match(hook, /if \(!phone\) composer\?\.focus\(\{ preventScroll: true \} as FocusOptions\)/);
   assert.match(hook, /panel\.focus\(\{ preventScroll: true \}\)/);
   assert.match(panel, /data-guest-chat-panel=""\s*\n\s*tabIndex=\{-1\}/);
 });
