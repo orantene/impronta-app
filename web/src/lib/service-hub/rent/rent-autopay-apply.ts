@@ -31,7 +31,7 @@ export type ApplyOutcome =
   | "plan_not_found"
   | "unavailable";
 
-export async function applyRentSubscriptionEvent(ev: RentSubscriptionEvent, deps: RentAutopayApplyDeps): Promise<ApplyOutcome> {
+export async function applyRentSubscriptionEvent(ev: Exclude<RentSubscriptionEvent, { type: "draft" }>, deps: RentAutopayApplyDeps): Promise<ApplyOutcome> {
   const plan = await deps.loadPlan(ev.planId, ev.tenantId);
   if (!plan) return "plan_not_found";
 

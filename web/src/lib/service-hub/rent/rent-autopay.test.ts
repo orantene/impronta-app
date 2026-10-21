@@ -47,7 +47,7 @@ describe("amounts: the member pays rent + the Tulala fee on top; the studio gets
     assert.equal(rentAutopayAmounts(50_000, 0)!.transferPercent, 100);
   });
   test("invalid inputs fail closed", () => {
-    for (const [r, b] of [[0, 150], [-1, 150], [1.5, 150], [100, -1], [100, 2_001], [100, Number.NaN]] as const) assert.equal(rentAutopayAmounts(r, b), null);
+    for (const [r, b] of [[-1, 150], [1.5, 150], [100, -1], [100, 2_001], [100, Number.NaN]] as const) assert.equal(rentAutopayAmounts(r, b), null);
   });
 });
 
@@ -59,7 +59,8 @@ describe("who may turn on automatic payments", () => {
   test("refusals, each fail closed", () => {
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ acceptedAt: null }) }), { ok: false, reason: "not_accepted" });
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ status: "paused" }) }), { ok: false, reason: "not_active" });
-    assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ percentBps: 1_000, acceptedPercentBps: 1_000 }) }), { ok: false, reason: "percent_rent" });
+    assert.deepEqual(decideRentAutopay({ ...ok, percentEnabled: true, plan: plan({ percentBps: 1_000, acceptedPercentBps: 1_000 }) }), { ok: true }, "TUL-1609: a percentage plan can pay automatically");
+    assert.deepEqual(decideRentAutopay({ ...ok, percentEnabled: true, plan: plan({ percentBps: 1_000, acceptedPercentBps: 500 }) }), { ok: false, reason: "terms_changed" });
     assert.deepEqual(decideRentAutopay({ ...ok, plan: plan({ termsVersion: 2 }) }), { ok: false, reason: "terms_changed" });
     assert.deepEqual(decideRentAutopay({ ...ok, studio: { accountId: null, chargesEnabled: false } }), { ok: false, reason: "studio_not_ready" });
     assert.deepEqual(decideRentAutopay({ ...ok, studio: { accountId: "acct", chargesEnabled: false } }), { ok: false, reason: "studio_not_ready" });
@@ -81,6 +82,7 @@ describe("Checkout session parameters", () => {
   const params = buildRentSubscriptionParams({
     plan: plan(),
     amounts: rentAutopayAmounts(120_000, 150)!,
+    feeBps: 150,
     customerId: "cus_1",
     studioAccountId: "acct_studio",
     successUrl: "https://app/ok",
@@ -118,7 +120,7 @@ describe("Checkout session parameters", () => {
     assert.deepEqual(params.consent_collection, { terms_of_service: "required" });
   });
   test("a zero fee sends one line only", () => {
-    const p = buildRentSubscriptionParams({ plan: plan(), amounts: rentAutopayAmounts(120_000, 0)!, customerId: "c", studioAccountId: "a", successUrl: "s", cancelUrl: "c", locale: "en", anchorSeconds: 1, rentLabel: "Station rent", feeLabel: "Tulala service fee", consent: {} });
+    const p = buildRentSubscriptionParams({ plan: plan(), amounts: rentAutopayAmounts(120_000, 0)!, feeBps: 0, customerId: "c", studioAccountId: "a", successUrl: "s", cancelUrl: "c", locale: "en", anchorSeconds: 1, rentLabel: "Station rent", feeLabel: "Tulala service fee", consent: {} });
     assert.equal(p.line_items?.length, 1);
   });
 });

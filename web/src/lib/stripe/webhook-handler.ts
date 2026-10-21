@@ -78,7 +78,7 @@ import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { classifyRentSubscriptionEvent } from "@/lib/service-hub/rent/rent-autopay-routing";
-import { handleRentChargeEvent, handleRentSubscriptionEvent } from "@/lib/service-hub/rent/rent-autopay.server";
+import { addPercentToDraft, handleRentChargeEvent, handleRentSubscriptionEvent } from "@/lib/service-hub/rent/rent-autopay.server";
 import { logServerError } from "@/lib/server/safe-error";
 import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -340,7 +340,11 @@ export async function processStripeEvent(
   if (rent) {
     const sb = createServiceRoleClient();
     if (!sb) throw new TransientWebhookError("rent_subscription: no service-role client");
-    if ((await handleRentSubscriptionEvent(sb, rent, account)) === "unavailable") throw new TransientWebhookError("rent_subscription: write failed");
+    if (rent.type === "draft") {
+      if ((await addPercentToDraft(sb, stripe, rent)) === "retry") throw new TransientWebhookError("rent_subscription: percentage not added yet");
+    } else if ((await handleRentSubscriptionEvent(sb, rent, account)) === "unavailable") {
+      throw new TransientWebhookError("rent_subscription: write failed");
+    }
     return;
   }
   // TUL-1611: a refund or dispute on an automatic rent charge reverses the studio's share / flags it; then the
