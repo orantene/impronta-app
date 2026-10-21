@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ]",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ] && ! { [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ] && [ \"$STAGING_BUILD\" = \"1\" ]; }",
   "regions": [
     "cle1"
   ],
