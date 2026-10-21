@@ -35,6 +35,8 @@ export type DisburseStatus =
   /** pass_through: the real processing fee could not be determined, so the leg
    *  is HELD (never paid pre-fee). Set by transfers.ts, not by disburse(). */
   | "skipped_fee_unknown"
+  /** A refund Stripe has issued is not in our ledger yet (or its state is unreadable): the payout is HELD, never paid on a stale amount. Set by transfers.ts. */
+  | "skipped_refund_pending"
   /** Recipient's connected account is on a different Stripe platform than the charge: HELD, never transferred. */
   | "skipped_cross_platform"
   | "mock"
