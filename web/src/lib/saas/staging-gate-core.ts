@@ -133,8 +133,18 @@ export function verifyPassword(given: string | null | undefined, password: strin
   return constantTimeEqual(given, password);
 }
 
-export function gateCookieHeader(value: string): string {
-  return `${STAGING_GATE_COOKIE}=${value}; Path=/; Max-Age=${STAGING_GATE_MAX_AGE_S}; HttpOnly; Secure; SameSite=Lax`;
+const STAGING_COOKIE_DOMAIN = "staging.tulala.digital";
+
+/**
+ * Host-only by default. On staging.tulala.digital and any *.staging.tulala.digital
+ * host the cookie is scoped to `.staging.tulala.digital` so one sign-in covers
+ * every staging subdomain. Other hosts (staging-qa-*, qa-N, local) stay host-only.
+ */
+export function gateCookieHeader(value: string, host?: string | null): string {
+  const h = normalizeHost(host);
+  const shared = h === STAGING_COOKIE_DOMAIN || h.endsWith(`.${STAGING_COOKIE_DOMAIN}`);
+  const domain = shared ? `; Domain=.${STAGING_COOKIE_DOMAIN}` : "";
+  return `${STAGING_GATE_COOKIE}=${value}; Path=/; Max-Age=${STAGING_GATE_MAX_AGE_S}${domain}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export const STAGING_ROBOTS_TXT = "User-agent: *\nDisallow: /\n";

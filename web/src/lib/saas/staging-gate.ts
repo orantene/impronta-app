@@ -16,6 +16,7 @@ import {
   gateUrlFor,
   isAlwaysAllowedPath,
   isGateActive,
+  normalizeHost,
   sanitizeNext,
   signGateCookie,
   verifyCiToken,
@@ -68,7 +69,7 @@ async function handleGateRoute(request: NextRequest, password: string): Promise<
   }
   if (!verifyPassword(given, password)) return htmlPage(request, 401, { next, error: "wrong" });
   const res = NextResponse.redirect(new URL(next, request.url), 303);
-  res.headers.append("set-cookie", gateCookieHeader(await signGateCookie(password)));
+  res.headers.append("set-cookie", gateCookieHeader(await signGateCookie(password), normalizeHost(request.headers.get("host") ?? request.nextUrl.host)));
   res.headers.set("cache-control", "no-store");
   return res;
 }
