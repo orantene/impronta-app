@@ -218,7 +218,7 @@ export async function PATCH(req: Request) {
   const isTalentSelf = self.ok;
 
   if (!authorized) {
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
     if (staff.ok) {
       const admin = createServiceRoleClient();
       if (admin) {

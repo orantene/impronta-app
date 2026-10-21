@@ -27,6 +27,7 @@ function fakeAdmin(tables: Record<string, Row[]>, opts: { failUpdate?: boolean }
           rows = rows.filter((r) => r[c] === v);
           return q;
         },
+        limit: (n: number) => ((rows = rows.slice(0, n)), q),
         in: (c: string, vs: unknown[]) => ((rows = rows.filter((r) => vs.includes(r[c]))), q),
         neq: (c: string, v: unknown) => ((rows = rows.filter((r) => r[c] !== v)), q),
         maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
@@ -104,6 +105,37 @@ describe("POS counter sales split like online ones (TUL-1467)", () => {
     const w = fakeAdmin(t);
     assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 });
     assert.deepEqual(w.updates[0].patch, { talent_cost_cents: 10_000, owner_take_cents: null, owner_share_snapshot: null });
+  });
+
+  test("TUL-1703: a workspace that is not a collective never reads the split columns (a database without them still collects)", async () => {
+    const w = fakeAdmin(world({ model: "coordinator_agency" }));
+    assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 0 });
+    assert.ok(!w.reads.includes("order_lines"), "order_lines (with owner_share_snapshot) is not touched");
+    assert.ok(!w.reads.includes("agency_talent_roster"));
+  });
+
+  test("TUL-1703 split tender: once a payment is taken or in flight the split is frozen (no re-split, no write)", async () => {
+    for (const status of ["payment_requested", "paid"]) {
+      const t = world();
+      t.booking_transactions = [{ id: "x1", order_id: "o1", source_tenant_id: "t1", status }];
+      const w = fakeAdmin(t);
+      assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 0 }, status);
+      assert.equal(w.updates.length, 0);
+    }
+  });
+
+  test("TUL-1703: a draft (not yet paid) transaction does not freeze it; the sale is split normally", async () => {
+    const t = world();
+    t.booking_transactions = [{ id: "x1", order_id: "o1", source_tenant_id: "t1", status: "draft" }];
+    const w = fakeAdmin(t);
+    assert.deepEqual(await applyPosCollectiveSplit(w.admin, { tenantId: "t1", orderId: "o1" }), { ok: true, changed: 1 });
+  });
+
+  test("TUL-1703: a failed read of the payments refuses the collection (never splits blind)", async () => {
+    const t = world();
+    const w = fakeAdmin({ ...t, booking_transactions: undefined as never });
+    const failing = { from: (tb: string) => (tb === "booking_transactions" ? ({ select: () => ({ eq: () => ({ eq: () => ({ in: () => ({ limit: async () => ({ data: null, error: { message: "x" } }) }) }) }) }) }) : (w.admin as { from: (t: string) => unknown }).from(tb)) } as never;
+    assert.equal((await applyPosCollectiveSplit(failing, { tenantId: "t1", orderId: "o1" })).ok, false);
   });
 
   test("a failed write refuses the collection, so a sale is never taken half split", async () => {

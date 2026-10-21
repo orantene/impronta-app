@@ -221,7 +221,7 @@ const es: PricingLaddersCopy = {
       { label: "Tulala se queda con", value: "El cargo por servicio de Tulala" },
     ],
     note:
-      "La misma tarifa aplica ya sea que la reserva llegue desde el hub de Tulala o desde el sitio propio de la agencia. No se cobra nada hasta que una reserva se paga.",
+      "El mismo cargo por servicio aplica ya sea que la reserva llegue desde el hub de Tulala o desde el sitio propio de la agencia. No se cobra nada hasta que una reserva se paga.",
   },
 };
 

@@ -137,6 +137,20 @@ export async function replaceTalentOnProject(
         .maybeSingle(),
       readShowWho(admin, input.tenantId, input.fromTalentId),
     ]);
+    // The seat now belongs to a new person: drop any earlier answer on it so the new person starts
+    // as Awaiting and swapping the old person back never revives their old confirm. Reads already
+    // ignore another person's answer, so a failure here is logged and never blocks the swap.
+    const swappedSeatId = (seatRes.data as { id?: string } | null)?.id;
+    if (swappedSeatId) {
+      try {
+        const cleared = await admin.from("project_assignment_confirmations").delete().eq("booking_talent_id", swappedSeatId);
+        if (cleared.error && cleared.error.code !== "42P01" && cleared.error.code !== "PGRST205") {
+          logServerError("projects.replaceTalentOnProject.clearConfirmation", cleared.error);
+        }
+      } catch (err) {
+        logServerError("projects.replaceTalentOnProject.clearConfirmation", err);
+      }
+    }
     const booking = bookingRes.data as { title: string | null; starts_at: string | null; timezone: string | null; currency_code: string | null } | null;
     const seat = seatRes.data as { id: string; role_label: string | null; talent_cost_total: unknown } | null;
     if (bookingRes.error || seatRes.error || !booking || !seat) {

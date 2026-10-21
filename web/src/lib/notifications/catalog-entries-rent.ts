@@ -120,9 +120,32 @@ const AUTOPAY_DISPUTED: CatalogEntry = {
     },
     body: (_e, recipient) =>
       (recipient.locale ?? "").toLowerCase().startsWith("es")
-        ? "Un miembro disputó un cobro automático de renta. Si la disputa se pierde, tu parte se revierte."
-        : "A member disputed an automatic rent charge. If the dispute is lost, your share is reversed.",
+        ? "Un miembro disputó un cobro automático de renta. Si la disputa se pierde, o si hay un reembolso, tu estudio devuelve su parte del monto reembolsado. Tulala no absorbe esa pérdida."
+        : "A member disputed an automatic rent charge. If the dispute is lost, or the charge is refunded, your studio returns its share of the refunded amount. Tulala does not absorb that loss.",
   },
 };
 
-export const RENT_CATALOG_ENTRIES: CatalogEntry[] = [rentEntry("declined"), rentEntry("ended"), autopayEntry("failed"), autopayEntry("canceled"), AUTOPAY_DISPUTED];
+/** TUL-1701: the percentage of a month could not be added to the automatic invoice; the OWNER is told (bell). */
+const AUTOPAY_PERCENT_MISSED: CatalogEntry = {
+  id: "rent.autopay_percent_missed.workspace",
+  category: "billing",
+  defaultChannels: ["in_app"],
+  required: true,
+  triggers: ["rent.autopay_percent_missed"],
+  resolveAudience: workspaceOwner,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: (e, recipient) => {
+      const es = (recipient.locale ?? "").toLowerCase().startsWith("es");
+      const period = str(e.payload.period) ?? "";
+      return es ? `Falta cobrar el porcentaje de ${period}` : `The ${period} percentage was not billed`;
+    },
+    body: (_e, recipient) =>
+      (recipient.locale ?? "").toLowerCase().startsWith("es")
+        ? "El porcentaje de ventas de ese mes no se pudo sumar al cobro automático. La renta fija sí se cobró. Contacta a soporte para cobrarlo."
+        : "That month's percentage of sales could not be added to the automatic charge. The fixed rent was charged. Contact support to collect it.",
+  },
+};
+
+export const RENT_CATALOG_ENTRIES: CatalogEntry[] = [rentEntry("declined"), rentEntry("ended"), autopayEntry("failed"), autopayEntry("canceled"), AUTOPAY_DISPUTED, AUTOPAY_PERCENT_MISSED];

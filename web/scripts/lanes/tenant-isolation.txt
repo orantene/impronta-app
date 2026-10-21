@@ -82,6 +82,7 @@ src/lib/marketing/launch-readiness/criteria.static.test.ts
 src/lib/marketing/launch-readiness/profile-criteria.static.test.ts
 src/lib/marketing/pricing-tier-localize.test.ts
 src/lib/marketing/service-fee-copy.static.test.ts
+src/lib/marketing/service-fee-label-es.static.test.ts
 src/lib/marketing/spanish-path-alias.test.ts
 src/lib/marketing/ticket-fee-comparison.test.ts
 src/lib/marketing/ticket-fee-qualifier.static.test.ts
@@ -100,6 +101,7 @@ src/lib/quality/no-flag-node-env-default.static.test.ts
 src/lib/quality/package-json-one-entry-per-line.static.test.ts
 src/lib/quality/package-json-unique-keys.static.test.ts
 src/lib/quality/settings-refusal-copy.static.test.ts
+src/lib/quality/subscription-template-check-migration.static.test.ts
 src/lib/saas/actor-signature.test.ts
 src/lib/saas/admin-api-tenant-scope.security.test.ts
 src/lib/saas/admin-href-invariant.static.test.ts
@@ -216,6 +218,7 @@ src/lib/talent/offering-delete-or-archive.test.ts
 src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
+src/lib/talent/workspace-menu-save-gates.test.ts
 src/lib/team/redeem-role.test.ts
 src/lib/workspace/destinations.test.ts
 src/lib/workspace/mobile-more-actions.test.ts

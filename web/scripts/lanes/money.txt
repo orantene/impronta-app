@@ -70,6 +70,7 @@ src/lib/bookings/transactions.deposit-manual.static.test.ts
 src/lib/catalog/packages.test.ts
 src/lib/catalog/price-phases.test.ts
 src/lib/catalog/tax.test.ts
+src/lib/coordinator/card-text-keys-guard.static.test.ts
 src/lib/coordinator/contact-masking-wire.test.ts
 src/lib/coordinator/contact-masking.test.ts
 src/lib/coordinator/event-board.test.ts
@@ -279,6 +280,10 @@ src/lib/reviews/collective-reviews.test.ts
 src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
 src/lib/reviews/team-studio-private-notes.static.test.ts
+src/lib/saas/capabilityless-staff-guard.static.test.ts
+src/lib/saas/media-area-writers-capability.static.test.ts
+src/lib/saas/media-writers-capability.static.test.ts
+src/lib/saas/workspace-settings-writers-capability.static.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
 src/lib/sales/by-item.test.ts
@@ -301,6 +306,7 @@ src/lib/service-hub/entries.test.ts
 src/lib/service-hub/entry-permissions.test.ts
 src/lib/service-hub/entry-photos.test.ts
 src/lib/service-hub/friends-collective.test.ts
+src/lib/service-hub/join-approve-gate.test.ts
 src/lib/service-hub/join-terms-wire.static.test.ts
 src/lib/service-hub/join-terms.server.test.ts
 src/lib/service-hub/join-terms.test.ts
@@ -313,7 +319,9 @@ src/lib/service-hub/public-hub.server.test.ts
 src/lib/service-hub/public-hub.test.ts
 src/lib/service-hub/rent/rent-autopay-apply.test.ts
 src/lib/service-hub/rent/rent-autopay-charge-events.test.ts
+src/lib/service-hub/rent/rent-autopay-currency.test.ts
 src/lib/service-hub/rent/rent-autopay-guards.test.ts
+src/lib/service-hub/rent/rent-autopay-hardening.test.ts
 src/lib/service-hub/rent/rent-autopay-migration.static.test.ts
 src/lib/service-hub/rent/rent-autopay-mx.static.test.ts
 src/lib/service-hub/rent/rent-autopay-percent.test.ts
@@ -325,8 +333,10 @@ src/lib/service-hub/rent/rent-issue.test.ts
 src/lib/service-hub/rent/rent-outside-autopay.test.ts
 src/lib/service-hub/rent/rent-outside.test.ts
 src/lib/service-hub/rent/rent-owner-autopay.static.test.ts
+src/lib/service-hub/rent/rent-percent-missed.test.ts
 src/lib/service-hub/rent/rent-percent.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts
+src/lib/service-hub/rent/rent-sales-net.test.ts
 src/lib/service-hub/rent/rent-sales-paging.test.ts
 src/lib/service-hub/rent/rent-station-pool.test.ts
 src/lib/service-hub/rent/rent-station-trigger.static.test.ts

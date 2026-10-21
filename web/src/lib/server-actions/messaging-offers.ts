@@ -22,6 +22,7 @@ import { linkRecordToConversation } from "@/lib/messaging/link-record";
 import { offerDraftNeedsSharedSeed } from "@/lib/messaging/offer-shared-seed";
 import { fail } from "@/lib/messaging/refusals";
 import { messagingInquiryManager } from "@/lib/messaging/staff-guard";
+import { MESSAGING_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/messaging/write-capabilities";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -62,7 +63,7 @@ export async function messagingCreateOffer(input: { inquiryId: string; expectedV
   await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, currencyCode: z.string().length(3).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.offerDraft);
   if (!g.ok) return g;
   // Creating the draft is the operator's own move on a thread they are
   // looking at: the version guard reads the row now instead of trusting a
@@ -145,7 +146,7 @@ export async function messagingSeedOfferFromShared(input: { inquiryId: string; o
   await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, offerId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.offerDraft);
   if (!g.ok) return g;
   await seedOfferFromSharedDraft(g, parsed.data.inquiryId, parsed.data.offerId);
   return { ok: true as const };
@@ -195,7 +196,7 @@ export async function messagingUpdateOfferDraft(input: {
     })
     .safeParse({ ...input, lineItems: undefined, terms: undefined });
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.offerDraft);
   if (!g.ok) return g;
   const result = await updateOfferDraft(g.supabase, {
     inquiryId: input.inquiryId,
@@ -220,7 +221,7 @@ export async function messagingReopenOfferForAmendment(input: { inquiryId: strin
   await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.offerDraft);
   if (!g.ok) return g;
   const result = await reopenOfferForAmendment(g.supabase, {
     inquiryId: parsed.data.inquiryId,
@@ -245,7 +246,7 @@ export async function messagingCounterOffer(input: { inquiryId: string; expected
   await requireNotImpersonating();
   const parsed = z.object({ inquiryId: uuid, expectedVersion: version, previousOfferId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
-  const g = await messagingInquiryManager(parsed.data.inquiryId);
+  const g = await messagingInquiryManager(parsed.data.inquiryId, WRITE_CAP.offerDraft);
   if (!g.ok) return g;
   const result = await counterOffer(g.supabase, {
     inquiryId: parsed.data.inquiryId,

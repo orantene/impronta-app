@@ -63,7 +63,7 @@ export async function renderClientAccountPage(view: AccountView) {
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
     else if (view.tab === "saved") {
-      [data.saved, data.savedServices] = await Promise.all([loadSavedTalent(userId, tenantId), loadSavedServices(userId, tenantId, locale, { hostKind: host.hostContext, hostTalentProfileId: talentProfileId })]);
+      [data.saved, data.savedServices] = await Promise.all([loadSavedTalent(userId, tenantId), loadSavedServices(userId, tenantId, locale, { hostKind: host.hostContext, hostTalentProfileId: talentProfileId, hubTalentProfileId: tenant.hubTalentProfileId })]);
     }
     else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
     else if (view.tab === "payments") {
