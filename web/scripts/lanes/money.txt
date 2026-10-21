@@ -280,6 +280,7 @@ src/lib/pos/hold-capacity.test.ts
 src/lib/pos/link-booking.test.ts
 src/lib/pos/order-lines-paid-split-guard.static.test.ts
 src/lib/pos/outbox-replay.test.ts
+src/lib/pos/pin-lock.test.ts
 src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
 src/lib/pos/pos-rpc-hardening.static.test.ts
@@ -290,6 +291,7 @@ src/lib/pos/scan-code.test.ts
 src/lib/pos/shift-movements.test.ts
 src/lib/pos/shift.test.ts
 src/lib/pos/staff-actor.static.test.ts
+src/lib/pos/staff-limit-plan.test.ts
 src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts

@@ -52,6 +52,8 @@ export type LockScreenProps = {
   readonly drawerOwnerName: string | null;
   /** The last refusal as a sentence, or null. */
   readonly status: string | null;
+  /** TUL-1723: the status is the PIN lockout (`pin_throttled`), not a typo. */
+  readonly statusLocked?: boolean;
   readonly busy: boolean;
   readonly onCancelSwitch?: () => void;
   readonly peopleHref: string;
@@ -122,7 +124,7 @@ export function LockScreen(props: LockScreenProps) {
         <button type="button" data-pos-lock-submit className={cn(POS_PRIMARY_ACTION, "mt-3 w-full max-w-[360px]")} disabled={!props.onSubmit || props.busy} onClick={props.onSubmit}>
           {props.mode === "locked" ? copy.unlock : copy.switchAction}
         </button>
-        <p role={props.status ? "alert" : "status"} data-pos-lock-status className={cn("m-0 mt-3 min-h-[20px] text-center text-[13.5px] font-semibold", props.status ? "text-admin-coral-deep" : "text-admin-ink-dim")}>
+        <p role={props.status ? "alert" : "status"} data-pos-lock-status data-pos-pin-locked={props.statusLocked ? "true" : undefined} className={cn("m-0 mt-3 min-h-[20px] text-center text-[13.5px] font-semibold", props.status ? "text-admin-coral-deep" : "text-admin-ink-dim", props.statusLocked && "rounded-[12px] bg-admin-critical-soft px-4 py-3")}>
           {props.busy ? copy.unlocking : (props.status ?? "")}
         </p>
         {props.mode === "switch" && props.onCancelSwitch && (

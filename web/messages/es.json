@@ -6279,6 +6279,20 @@
           "saved": "Límite guardado."
         },
         "saveReason": "Cada celda se guarda al cambiar; no queda nada que pulsar.",
+        "staffStep": {
+          "title": "Define qué pueden reembolsar y descontar gerentes y administradores",
+          "intro": "Mientras no definas un límite, solo tú puedes reembolsar o descontar por tu cuenta. Gerentes y administradores tienen que pedirte aprobación cada vez.",
+          "amountLabel": "Monto máximo que pueden hacer solos ({currency})",
+          "save": "Guardar límites",
+          "saving": "Guardando…",
+          "saved": "Límites guardados.",
+          "skip": "Omitir por ahora",
+          "skipped": "Omitido. Gerentes y administradores siguen cerrados: cada reembolso o descuento te llega para aprobación. Puedes definir los límites cuando quieras en la tabla de abajo.",
+          "closedNote": "En blanco significa cerrado: ese rol no puede reembolsar ni descontar sin tu aprobación.",
+          "ownerOnly": "Solo la persona propietaria define estos límites.",
+          "invalid": "Escribe un número igual o mayor que 0.",
+          "failed": "No se pudieron guardar los límites. Inténtalo de nuevo."
+        },
         "limits": {
           "intro": "Por encima del límite, la caja pide la aprobación de un gerente. Una celda vacía es sin límite.",
           "discount": "Descuento manual",
@@ -14672,7 +14686,7 @@
         "refusal": {
           "over_limit": "Un gerente tiene que aprobar este monto primero.",
           "pin_invalid": "Ese PIN no es correcto.",
-          "pin_throttled": "Demasiados intentos, espera 5 minutos.",
+          "pin_throttled": "Demasiados PIN incorrectos, así que el PIN está bloqueado. Vuelve a intentarlo en {minutes} min.",
           "not_manager": "Solo un gerente puede hacer esto.",
           "already_approved": "Este monto ya está aprobado.",
           "conflict": "Esta venta acaba de cambiar. Recarga e inténtalo de nuevo.",
