@@ -1,5 +1,4 @@
 import { isStaffRole } from "@/lib/auth-flow";
-import { isPlatformAdmin } from "@/lib/access/platform-role";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { assertMutationsAllowedWhileImpersonating } from "@/lib/impersonation/write-policy";
 import {
@@ -68,21 +67,6 @@ export async function requireStaff(): Promise<GuardOk | GuardFail> {
   const session = await requireSession();
   if (!session.ok) return session;
   if (!session.profile || !isStaffRole(session.profile.app_role)) {
-    return { ok: false, error: "Not authorized." };
-  }
-  return session;
-}
-
-/**
- * PLATFORM-admin only (TUL-1733). For surfaces that read or write PLATFORM-global data (the shared
- * translation, taxonomy and location catalogs, cross-tenant analytics). `requireStaff()` is not enough
- * there: `app_role = 'agency_staff'` is held by every self-serve studio owner, and the RLS function
- * `is_agency_staff()` is just as global, so an RLS-bound client does not narrow it either.
- */
-export async function requirePlatformAdmin(): Promise<GuardOk | GuardFail> {
-  const session = await requireSession();
-  if (!session.ok) return session;
-  if (!isPlatformAdmin(session.profile)) {
     return { ok: false, error: "Not authorized." };
   }
   return session;

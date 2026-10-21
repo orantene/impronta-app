@@ -6,7 +6,7 @@ import {
   mapBootstrapToAdminPulse,
   type AdminTranslationHealth,
 } from "@/lib/translation-center/admin-pulse";
-import { requireSession, requirePlatformAdmin } from "@/lib/server/action-guards";
+import { requireSession, requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTenantScope } from "@/lib/saas/scope";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
@@ -284,7 +284,7 @@ const loadCachedTranslationBootstrap = unstable_cache(
 );
 
 export const loadAdminTranslationHealth = cache(async (): Promise<AdminTranslationHealth | null> => {
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return null;
   return loadCachedTranslationBootstrap();
 });

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { requirePlatformAdmin } from "@/lib/server/action-guards";
+import { requireStaff } from "@/lib/server/action-guards";
 
 export type TalentTopSavedRow = {
   talent_profile_id: string;
@@ -11,7 +11,7 @@ export type TalentTopSavedRow = {
 /** Rough proxy for “most saved” using `saved_talent` rows. */
 export const loadTopSavedTalent = cache(
   async (limit: number): Promise<TalentTopSavedRow[] | null> => {
-    const auth = await requirePlatformAdmin();
+    const auth = await requireStaff();
     if (!auth.ok) return null;
     const { supabase } = auth;
 
@@ -53,7 +53,7 @@ export const loadTopSavedTalent = cache(
 export type WorkflowDistribution = Record<string, number>;
 
 export const loadTalentWorkflowDistribution = cache(async (): Promise<WorkflowDistribution | null> => {
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return null;
   const { supabase } = auth;
 

@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { revalidateTaxonomyCaches } from "@/lib/revalidate-public";
-import { requirePlatformAdmin } from "@/lib/server/action-guards";
+import { requireStaff } from "@/lib/server/action-guards";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -78,7 +78,7 @@ export async function adminMarkTaxonomyTranslated(
   input: z.infer<typeof idSchema>,
 ): Promise<TaxLocActionResult> {
   await requireNotImpersonating();
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid term." };
@@ -95,7 +95,7 @@ export async function adminMarkLocationTranslated(
   input: z.infer<typeof idSchema>,
 ): Promise<TaxLocActionResult> {
   await requireNotImpersonating();
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid location." };
@@ -115,7 +115,7 @@ export async function adminBulkMarkTaxonomyTranslated(
 ): Promise<ServerActionResult<BulkTaxLocSummary>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid selection." };
@@ -139,7 +139,7 @@ export async function adminBulkMarkLocationTranslated(
 ): Promise<ServerActionResult<BulkTaxLocSummary>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = bulkSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid selection." };
@@ -187,7 +187,7 @@ export type LocationTranslationPanelPayload = {
 export async function adminLoadTaxonomyTranslationPanelData(
   input: z.infer<typeof idSchema>,
 ): Promise<ServerActionResult<TaxonomyTranslationPanelPayload>> {
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid term." };
@@ -215,7 +215,7 @@ export async function adminLoadTaxonomyTranslationPanelData(
 export async function adminLoadLocationTranslationPanelData(
   input: z.infer<typeof idSchema>,
 ): Promise<ServerActionResult<LocationTranslationPanelPayload>> {
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = idSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid location." };
@@ -244,7 +244,7 @@ export async function adminSaveTaxonomySpanishLabel(
   input: z.infer<typeof labelEsSchema>,
 ): Promise<TaxLocActionResult> {
   await requireNotImpersonating();
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = labelEsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
@@ -282,7 +282,7 @@ export async function adminSaveLocationSpanishDisplay(
   input: z.infer<typeof locationEsSchema>,
 ): Promise<TaxLocActionResult> {
   await requireNotImpersonating();
-  const auth = await requirePlatformAdmin();
+  const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
   const parsed = locationEsSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid data." };
