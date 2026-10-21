@@ -277,3 +277,51 @@ test("TUL-469: tip that does not fit must not refuse the line remainder", () => 
   assert.equal(plan.totalCents, 70_000);
   assert.deepEqual(plan.steps, [{ transactionId: "t1", amountCents: 70_000 }]);
 });
+
+// ── Line-level discounts (the shared netting rule, also used by the rent sales base) ─────────────────────────────────
+
+const lineD = (id: string, total: number, discountCents: number, refunded = 0) =>
+  ({ id, totalCents: total, refundedCents: refunded, discountCents, variantId: null, eventId: null });
+
+test("TWO-LINE EXAMPLE: a line's own discount comes off that line first, the order discount spreads only what is left", () => {
+  // A 10,000 with its own 1,000 off; B 10,000 with none; order discount 3,000 in total.
+  // leftover = 3,000 - 1,000 = 2,000, spread over the after-own totals 9,000 and 10,000 (largest remainder): 947 and 1,053.
+  const lines = [lineD("a", 10_000, 1_000), lineD("b", 10_000, 0)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 3_000), 8_053);
+  assert.equal(refundableCentsFor(lines[1], lines, {}, 3_000), 8_947);
+  // the two nets add up to what the customer paid: 20,000 - 3,000
+  assert.equal(8_053 + 8_947, 20_000 - 3_000);
+});
+
+test("the old behaviour (whole order discount spread, own discount ignored) is NOT what refunds do any more", () => {
+  const lines = [lineD("a", 10_000, 1_000), lineD("b", 10_000, 0)];
+  // spreading all 3,000 over 10,000/10,000 would give 8,500 each; line a really cost 8,053
+  assert.notEqual(refundableCentsFor(lines[0], lines, {}, 3_000), 8_500);
+});
+
+test("a refund plan on a discounted two-line order refunds per line what each line cost, and a full refund returns exactly what was paid", () => {
+  const lines = [lineD("a", 10_000, 1_000), lineD("b", 10_000, 0)];
+  const plan = planRefund({ lines, lineIds: ["a", "b"], scope: {}, discountCents: 3_000, transactions: [txn("t1", 17_000)] });
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+  assert.equal(plan.totalCents, 17_000);
+});
+
+test("partial refunds reduce the NET line, and never go below zero", () => {
+  const lines = [lineD("a", 10_000, 1_000, 3_000), lineD("b", 10_000, 0)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 3_000), 8_053 - 3_000);
+  assert.equal(refundableCentsFor(lineD("a", 10_000, 1_000, 99_999), [lineD("a", 10_000, 1_000, 99_999)], {}, 0), 0);
+});
+
+test("no line discounts: unchanged from before (the order discount spreads over the lines)", () => {
+  const lines = [line("a", 10_000), line("b", 10_000)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 3_000), 8_500);
+  assert.equal(refundableCentsFor(lines[1], lines, {}, 3_000), 8_500);
+});
+
+test("a line discount larger than its line, or than the order discount, never refunds a negative or inflated amount", () => {
+  assert.equal(refundableCentsFor(lineD("a", 1_000, 5_000), [lineD("a", 1_000, 5_000)], {}, 100), 0);
+  const lines = [lineD("a", 1_000, 400), lineD("b", 1_000, 0)];
+  assert.equal(refundableCentsFor(lines[0], lines, {}, 100), 600, "order discount smaller than the line discounts: nothing more is taken");
+  assert.equal(refundableCentsFor(lines[1], lines, {}, 100), 1_000);
+});

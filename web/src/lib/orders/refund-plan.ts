@@ -11,7 +11,7 @@
  * testable without money moving.
  */
 
-import { apportionDiscount, type EligibleLine, type PromoScope } from "@/lib/orders/promo-eligibility";
+import { lineNetCents, type EligibleLine, type PromoScope } from "@/lib/orders/promo-eligibility";
 
 export type RefundableLine = EligibleLine & {
   /** Already returned for this line, cumulative. */
@@ -58,15 +58,17 @@ export type RefundPlanRefusal =
   | "exceeds_captured";
 
 /**
- * What a line is worth back, NET of its share of any order-level discount.
+ * What a line is worth back, NET of its own discount and of its share of any
+ * order-level discount.
  *
- * `orders.discount_cents` is the order-level truth, so a line's share of it is
- * derived — the same `apportionDiscount` 0.9 uses (a line's OWN
- * `order_lines.discount_cents`, where set, is separate and is not handled here;
- * the rent sales base subtracts it first, see rent-sales-net.ts) — which is
- * largest-remainder and therefore sums to exactly the discount. Refunding a
- * discounted line GROSS returns more than the customer paid, which is real
- * money and reconciles wrong quietly.
+ * `orders.discount_cents` is the order-level truth; a line's OWN
+ * `order_lines.discount_cents` comes off that line first and only what is left
+ * of the order discount is spread (`lineNetCents`, the one shared rule, also
+ * used by the rent sales base), largest-remainder, so the nets sum exactly.
+ * Refunding a discounted line GROSS returns more than the customer paid, and
+ * spreading the whole order discount without the lines' own discounts refunds
+ * the wrong amount per line and per payee: real money that reconciles wrong
+ * quietly.
  */
 export function refundableCentsFor(
   line: RefundableLine,
@@ -74,9 +76,7 @@ export function refundableCentsFor(
   scope: PromoScope,
   discountCents: number,
 ): number {
-  const share = apportionDiscount(allLines, scope, discountCents)
-    .find((s) => s.id === line.id)?.shareCents ?? 0;
-  const net = Math.max(0, line.totalCents - share);
+  const net = lineNetCents(allLines, scope, discountCents).get(line.id) ?? 0;
   return Math.max(0, net - line.refundedCents);
 }
 
@@ -208,13 +208,9 @@ export function planRefund(input: {
   if (left > 0) return { ok: false, reason: "exceeds_captured" };
 
   const refundedAfter = new Map(perLine.map((p) => [p.id, p.amountCents]));
+  const nets = lineNetCents(input.lines, input.scope, input.discountCents);
   const isFullRefund = input.lines.every((l) => {
-    const net = Math.max(
-      0,
-      l.totalCents
-        - (apportionDiscount(input.lines, input.scope, input.discountCents)
-            .find((s) => s.id === l.id)?.shareCents ?? 0),
-    );
+    const net = nets.get(l.id) ?? 0;
     return l.refundedCents + (refundedAfter.get(l.id) ?? 0) >= net;
   });
 
