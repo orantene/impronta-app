@@ -215,14 +215,15 @@ export function MarketingHeader({
                       e.preventDefault();
                       window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
                     }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[10px] max-[399px]:w-11 max-[399px]:justify-center max-[399px]:px-0 lg:h-9 border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
                   >
                     <SignInGlyph />
-                    {copy.nav.signIn}
+                    {/* TUL-1796: glyph-only under 400px so the menu button stays inside the viewport. */}
+                    <span className="max-[399px]:sr-only">{copy.nav.signIn}</span>
                   </a>
                   <a
                     href={clientEntry.createHref}
-                    className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
+                    className="hidden h-11 items-center gap-1.5 rounded-[10px] lg:h-9 border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
                   >
                     {copy.nav.createAccount}
                   </a>
@@ -236,10 +237,10 @@ export function MarketingHeader({
                 /* Colours as classes, not inline `style` — inline wins over
                    stylesheet rules and would nullify the `hover:` variants.
                    TUL-787: visible at every width (compact on phones); the menu footer keeps one too. */
-                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
+                className="inline-flex h-11 items-center gap-1.5 rounded-[10px] max-[399px]:w-11 max-[399px]:justify-center max-[399px]:px-0 lg:h-9 border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
               >
                 <SignInGlyph />
-                {copy.nav.signIn}
+                <span className="max-[399px]:sr-only">{copy.nav.signIn}</span>
               </button>
               )}
               <span className="relative hidden lg:inline-flex">
@@ -274,7 +275,7 @@ export function MarketingHeader({
               `style` was another instance of inline-kills-hover, see #888). */}
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink)] transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink)] transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:hidden"
             aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}

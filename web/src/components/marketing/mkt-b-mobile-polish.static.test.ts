@@ -78,3 +78,12 @@ test("TUL-594: hero intro tightens at <=480px so it wraps to at most 3 lines", (
   assert.match(copy, /Todo conectado\./);
   assert.doesNotMatch(hero, /line-clamp/);
 });
+
+test("TUL-1796: header controls are 44px on phones and the sign-in label collapses under 400px", () => {
+  const header = read("components/marketing/header.tsx");
+  assert.doesNotMatch(header, /\binline-flex h-9 /);
+  assert.match(header, /h-11 w-11 shrink-0/);
+  assert.match(header, /max-\[399px\]:sr-only/);
+  assert.match(read("components/marketing/marketing-support-menu.tsx"), /h-11 w-11/);
+  assert.match(read("components/marketing/marketing-language-menu.tsx"), /h-11 min-w-11/);
+});
