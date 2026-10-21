@@ -95,7 +95,7 @@ test("menu-import: preview reads with the default guard, apply names its capabil
   // previewMenuImport's call site passes no capability at all.
   const previewBody = importActions.slice(
     importActions.indexOf("export async function previewMenuImport"),
-    importActions.indexOf("export async function applyParsedMenu"),
+    importActions.indexOf("export async function applyMenuImport"),
   );
   assert.match(previewBody, /await authorize\(tenantId\);/);
   assert.doesNotMatch(previewBody, /authorize\(tenantId, APPLY_CAPABILITY\)/);

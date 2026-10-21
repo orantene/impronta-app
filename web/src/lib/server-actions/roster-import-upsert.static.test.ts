@@ -30,7 +30,8 @@ import { fileURLToPath } from "node:url";
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(here, "roster-import.ts"), "utf8")
+// The enqueue action and the per-row applier (moved to a plain module, TUL-1744) are checked together.
+const src = (readFileSync(join(here, "roster-import.ts"), "utf8") + "\n" + readFileSync(join(here, "roster-import-row.ts"), "utf8"))
   .replace(/\/\*[\s\S]*?\*\//g, "")
   .replace(/^\s*\/\/.*$/gm, "");
 

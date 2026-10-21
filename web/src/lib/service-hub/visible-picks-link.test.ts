@@ -41,26 +41,33 @@ describe("when the Settings link shows", () => {
 
 describe("wiring", () => {
   const action = read("src/lib/server-actions/admin-visible-picks-link.ts");
+  const impl = read("src/lib/service-hub/load-visible-picks-link.ts");
   const link = read("src/components/admin/shell/internal/page-modules/VisiblePicksSettingsLink.tsx");
   const settings = read("src/components/admin/shell/internal/page-modules/WorkspacePageView.tsx");
 
   test("the server check: flag first, then the session's workspace, then agency.roster.edit", () => {
     assert.match(action, /^"use server";/);
-    const flag = action.indexOf("if (!visiblePicksEnabled()) return { show: false };");
-    const session = action.indexOf("await resolveSession()");
-    const scope = action.indexOf("await resolveScope()");
-    const cap = action.indexOf('await hasCapability("agency.roster.edit", scope.tenantId)');
+    // TUL-1744: the exported action takes no arguments; the seam lives in the plain module.
+    assert.match(action, /export async function loadVisiblePicksLink\(\): Promise<VisiblePicksLinkResult>/);
+    assert.doesNotMatch(action, /deps/);
+    assert.doesNotMatch(impl, /^"use server"/);
+    const flag = impl.indexOf("if (!visiblePicksEnabled()) return { show: false };");
+    const session = impl.indexOf("await resolveSession()");
+    const scope = impl.indexOf("await resolveScope()");
+    const cap = impl.indexOf('await hasCapability("agency.roster.edit", scope.tenantId)');
     assert.ok(flag > 0 && session > flag && scope > session && cap > scope, "flag, then session, then scope, then capability");
-    assert.match(action, /if \(!session\.ok\) return \{ show: false \};/);
-    assert.match(action, /if \(!scope\) return \{ show: false \};/);
-    assert.match(action, /visiblePicksLinkShown\(\{ flagOn: true, canEditRoster \}\)/);
+    assert.match(impl, /if \(!session\.ok\) return \{ show: false \};/);
+    assert.match(impl, /if \(!scope\) return \{ show: false \};/);
+    assert.match(impl, /visiblePicksLinkShown\(\{ flagOn: true, canEditRoster \}\)/);
     // TUL-1716: no step in this file may route through a guard that writes an audit row on
     // refusal (requireWorkspaceStaffAction, with or without a capability) — this loader runs
     // on every Settings open, so a non-editor would audit-spam on every visit.
+    assert.doesNotMatch(impl, /requireWorkspaceStaffAction/);
     assert.doesNotMatch(action, /requireWorkspaceStaffAction/);
+    assert.doesNotMatch(impl, /auditFailure/);
     assert.doesNotMatch(action, /auditFailure/);
     // any error hides the link
-    assert.match(action, /catch \(err\) \{[\s\S]*return \{ show: false \};/);
+    assert.match(impl, /catch \(err\) \{[\s\S]*return \{ show: false \};/);
   });
   test("the link is a next/link to /admin/settings/visible-picks, hidden until the server says show", () => {
     assert.match(link, /^"use client";/);

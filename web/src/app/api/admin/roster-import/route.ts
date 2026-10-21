@@ -26,7 +26,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   processRosterImportRow,
   type RosterImportRow,
-} from "@/lib/server-actions/roster-import";
+} from "@/lib/server-actions/roster-import-row";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { checkDeclaredLength } from "@/lib/media/upload-guards";
