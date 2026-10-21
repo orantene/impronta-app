@@ -84,17 +84,20 @@ export default async function RefundsPage() {
                 Every card payment carries a processing fee that the card networks and Stripe
                 do not return. Depending on the talent&rsquo;s settings, the talent absorbs
                 this fee or it is added to the customer&rsquo;s total. The full amount,
-                including any fee, is always shown before the customer pays.
+                including any fee, is always shown before the customer pays. This includes the
+                Tulala service fee.
               </p>
               <p>
                 Card processing fees are non-refundable. Neither the talent nor{" "}
-                {PLATFORM_BRAND.name} covers those fees when a refund is issued. The{" "}
-                {PLATFORM_BRAND.name} service fee (shown before payment) is returned in full when
-                the seller cancels, and kept when the client cancels.
+                {PLATFORM_BRAND.name} covers those fees when a refund is issued. When the business
+                cancels, the Tulala service fee is refunded.
               </p>
             </>
           ),
         },
+        // TODO(TUL-1468): subsection 3b "Tulala service fee" (copy R3) and the customer-cancels line (R4, F5) wait for
+        // the legal brief (F6) and Oran (F5). See docs/plans/fee-copy-en-es-2026-10-20.md section 5. The sentence above
+        // that says the service fee is not refunded conflicts with R3 and is left as is until F6 is decided.
         {
           heading: "What you get back",
           body: (

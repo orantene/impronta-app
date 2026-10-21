@@ -117,6 +117,7 @@ src/lib/pricing/plan-claim-audit.test.ts
 src/lib/quality/commerce-drawer-deeplink.static.test.ts
 src/lib/quality/upgrade-flow-wiring.static.test.ts
 src/lib/reviews/g2-reviews-service.test.tsx
+src/lib/reviews/review-existing-load.test.ts
 src/lib/scheduling/cancel-notify-hook.test.ts
 src/lib/server/no-detached-dispatch.static.test.ts
 src/lib/site-admin/sections/site_header/brand-label-phone.static.test.ts

@@ -6,7 +6,7 @@
 
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { confirmationTotalRows, generateBookingConfirmationPdf } from "./booking-confirmation-pdf";
+import { confirmationTotalRows, generateBookingConfirmationPdf, RECEIPT_FEE_FOOTNOTE, RECEIPT_FEE_FOOTNOTE_EN, RECEIPT_FEE_FOOTNOTE_ES } from "./booking-confirmation-pdf";
 
 describe("generateBookingConfirmationPdf", () => {
   it("produces a valid, non-trivial PDF for the canonical booking", async () => {
@@ -103,7 +103,7 @@ describe("confirmationTotalRows", () => {
   it("falls back to Subtotal and Service fee when lines are absent or do not sum", () => {
     const fallback = [
       { label: "Subtotal", value: "$100" },
-      { label: "Service fee", value: "$2" },
+      { label: "Tulala service fee", value: "$2" },
     ];
     assert.deepEqual(confirmationTotalRows({ ...base, feeLines: null }), fallback);
     assert.deepEqual(
@@ -116,5 +116,40 @@ describe("confirmationTotalRows", () => {
       }),
       fallback,
     );
+  });
+});
+
+describe("TUL-1468: the receipt names the Tulala service fee", () => {
+  const base = { currency: "USD", subtotalCents: 10_000, serviceFeeCents: 150, totalPaidCents: 10_150, feeLines: null };
+  it("labels the fee row 'Tulala service fee' (no number) in both the breakdown and the fallback", () => {
+    const rows = confirmationTotalRows({
+      ...base,
+      feeLines: [
+        { code: "service_subtotal", cents: 10_000 },
+        { code: "platform_fee", cents: 150 },
+        { code: "total_charged", cents: 10_150 },
+      ],
+      totalPaidCents: 10_150,
+    });
+    assert.equal(rows.find((r) => /service fee/i.test(r.label))?.label, "Tulala service fee");
+    assert.ok(!rows.some((r) => /platform fee|%/i.test(r.label)), "no 'Platform fee' and no typed percentage");
+  });
+  it("carries the approved footnote", () => {
+    assert.equal(
+      RECEIPT_FEE_FOOTNOTE,
+      "The Tulala service fee is paid by the customer and charged on the price after discounts. It is not charged on tips.",
+    );
+  });
+});
+
+describe("TUL-1595: the receipt makes no absolute refund claim and carries the footnote in EN and ES", () => {
+  it("footnotes are the approved copy (fee-copy section 3)", () => {
+    assert.equal(RECEIPT_FEE_FOOTNOTE_EN, "The Tulala service fee is paid by the customer and charged on the price after discounts. It is not charged on tips.");
+    assert.equal(RECEIPT_FEE_FOOTNOTE_ES, "El cargo por servicio de Tulala lo paga el cliente y se calcula sobre el precio después de descuentos. No se cobra sobre propinas.");
+  });
+  it("the PDF source no longer says fees are non-refundable", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("./booking-confirmation-pdf.ts", import.meta.url), "utf8");
+    assert.ok(!/non-refundable/i.test(src.replace(/\/\/.*$/gm, "")), "no absolute refund claim on the receipt");
   });
 });

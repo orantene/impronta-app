@@ -42,8 +42,9 @@ test("the no-data early return still carries tenantId", () => {
   );
 
   assert.ok(
-    /return\s*\{\s*tenantId:\s*dataTenantId,\s*publicOrigin\s*\}\s*;/.test(source),
-    "the early return must be `return { tenantId: dataTenantId, publicOrigin };`",
+    // The early return may also spread the posts feed after these two (`...(await postsFeedPromise)`).
+    /return\s*\{\s*tenantId:\s*dataTenantId,\s*publicOrigin\s*(?:,\s*\.\.\.\(await postsFeedPromise\)\s*)?\}\s*;/.test(source),
+    "the early return must start `return { tenantId: dataTenantId, publicOrigin`",
   );
 });
 

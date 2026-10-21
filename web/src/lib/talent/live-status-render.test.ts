@@ -118,7 +118,8 @@ const RENDER_SRC = readFileSync(join(WEB, "src/lib/talent-site/server/render-max
 test("public render reads per request, applies expiry, hands widgets one liveStatus, mounts the island", () => {
   assert.match(RENDER_SRC, /loadTalentLiveStatus\(admin, talentProfileId\)/);
   assert.match(RENDER_SRC, /toLiveStatusRenderContext\(liveStatusRow, new Date\(\)\)/);
-  assert.match(RENDER_SRC, /\n\s+liveStatus,\n\s+\};/, "liveStatus on the page dataSources");
+  // liveStatus is on the page dataSources object (other keys, e.g. promo widgets, may follow it).
+  assert.match(RENDER_SRC, /\n\s+liveStatus,\n\s+(\.\.\.[^\n]*\n\s+)?\};/, "liveStatus on the page dataSources");
   assert.match(RENDER_SRC, /liveStatusRootAttrs\(liveStatus\)/);
   assert.match(RENDER_SRC, /<LiveStatusExpiry until=\{liveStatus\.emergenciesUntil\} \/>/);
   const siteRoute = "src/app/t/site/[siteSlug]/page.tsx";

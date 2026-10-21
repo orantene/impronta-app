@@ -186,6 +186,7 @@ src/lib/payments/disburse.test.ts
 src/lib/payments/dispute-evidence.test.ts
 src/lib/payments/failed-refund-attention-note.test.ts
 src/lib/payments/failed-refund-settlement.test.ts
+src/lib/payments/fee-copy-legal.static.test.ts
 src/lib/payments/link-checkout-extend-claim.test.ts
 src/lib/payments/link-checkout-receiver-wiring.static.test.ts
 src/lib/payments/link-payout-receiver.test.ts
@@ -216,6 +217,7 @@ src/lib/payments/refund-authority.test.ts
 src/lib/payments/refund-charge-share-fail-closed.test.ts
 src/lib/payments/refund-event-resolve.test.ts
 src/lib/payments/refund-execute.test.ts
+src/lib/payments/refund-fee-claims.static.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
 src/lib/payments/refund-talent-residual.test.ts

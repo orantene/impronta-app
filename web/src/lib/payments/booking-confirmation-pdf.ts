@@ -87,9 +87,18 @@ function fmtMoneyExact(cents: number, currency: string): string {
 const PDF_FEE_LABELS: Record<string, string> = {
   service_subtotal: "Service",
   base_reservation_fee: "Reservation fee",
+  // TUL-1468 / F1: the receipt names the fee without a number (the amount is on the row).
   platform_fee: "Tulala service fee",
   processing_fee: "Card processing",
 };
+
+/** Receipt footnote, EN and ES (docs/plans/fee-copy-en-es-2026-10-20.md section 3, final under F3). Both are printed: the PDF does not know the reader's language. */
+export const RECEIPT_FEE_FOOTNOTE_EN =
+  "The Tulala service fee is paid by the customer and charged on the price after discounts. It is not charged on tips.";
+export const RECEIPT_FEE_FOOTNOTE_ES =
+  "El cargo por servicio de Tulala lo paga el cliente y se calcula sobre el precio después de descuentos. No se cobra sobre propinas.";
+/** The EN footnote under its TUL-1468 name. */
+export const RECEIPT_FEE_FOOTNOTE = RECEIPT_FEE_FOOTNOTE_EN;
 
 /** Rows above "Total paid": the fee breakdown when it sums, else Subtotal + Service fee. */
 export function confirmationTotalRows(
@@ -104,7 +113,7 @@ export function confirmationTotalRows(
   }
   return [
     { label: "Subtotal", value: fmtMoney(input.subtotalCents, currency) },
-    { label: "Service fee", value: fmtMoney(input.serviceFeeCents, currency) },
+    { label: "Tulala service fee", value: fmtMoney(input.serviceFeeCents, currency) },
   ];
 }
 
@@ -244,9 +253,13 @@ export async function generateBookingConfirmationPdf(
   rule();
   cursor += 16;
   totalRow("Total paid", fmtMoney(input.totalPaidCents, currency), true, brandGreen);
-  if (feeLines.length) {
-    text("Fees are non-refundable.", { size: 8, color: muted, x: ML, maxWidth: CW, align: "right" });
-    cursor += 12;
+  // TUL-1595: no absolute refund claim here. The service fee IS refunded when the business cancels (O3), and
+  // card processing fees are with the legal brief (F6); the receipt says neither.
+  if (feeLines.length || input.serviceFeeCents > 0) {
+    for (const note of [RECEIPT_FEE_FOOTNOTE_EN, RECEIPT_FEE_FOOTNOTE_ES]) {
+      text(note, { size: 7.5, color: muted, x: ML, maxWidth: CW, align: "right" });
+      cursor += 11;
+    }
   }
 
   cursor += 8;

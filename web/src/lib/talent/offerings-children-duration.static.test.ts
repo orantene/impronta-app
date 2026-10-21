@@ -1,5 +1,5 @@
 /**
- * BUF wire — loadOfferingChildren must select and map addon duration_minutes
+ * BUF wire — the children reader (offerings-children-read.ts) must select and map addon duration_minutes
  * so the vanity catalog can pass durationMinutes into CatalogBookingSheet.
  */
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "offerings-children.ts"), "utf8");
+const SRC = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "offerings-children-read.ts"), "utf8");
 
 test("addon select includes duration_minutes", () => {
   assert.match(

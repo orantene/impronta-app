@@ -80,8 +80,13 @@ test("with CAP slots, CAP jobs run AT ONCE — fairness must not serialise the l
   const out = join(dir, "out");
   const lane = uniqueLane();
   try {
-    const a = start("A", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo A-in >> ${out}; sleep 4; echo A-out >> ${out}` });
-    const b = start("B", { lane, cap: 2, tickets: join(dir, "t"), cmd: `sleep 1; echo B-in >> ${out}; sleep 1` });
+    // Rendezvous, not sleeps: A holds its slot until B has started (a flag file), up to 60 s. If the
+    // lane were serialised B could never start while A holds, A would time out and the order below
+    // would read A-in, A-out, B-in. A fixed sleep decided this by wall clock, which a loaded runner
+    // (slow bash startup, slow polling) turned into a flaky "CAP" failure.
+    const flag = join(dir, "b-started");
+    const a = start("A", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo A-in >> ${out}; i=0; while [ ! -e ${flag} ] && [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done; echo A-out >> ${out}` });
+    const b = start("B", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo B-in >> ${out}; touch ${flag}` });
     await Promise.all([waitOk(a, "A"), waitOk(b, "B")]);
 
     const order = readFileSync(out, "utf8").trim().split("\n");
