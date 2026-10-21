@@ -52,19 +52,19 @@ describe("the sales base reads every page, or says it could not", () => {
   });
 });
 
-describe("the base query filters in SQL by the member's lines and includes partially refunded orders", () => {
+describe("the base query (TUL-1702: paid time, net lines; behaviour in rent-sales-net.test.ts)", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/service-hub/rent/rent-sales-base.server.ts"), "utf8");
-  test("member lines, this workspace, paid/fulfilled/partially_refunded, plan currency, the Mexico City month", () => {
+  test("this workspace, paid/fulfilled/partially_refunded, plan currency, the Mexico City month by PAID time, every read paged", () => {
     assert.match(src, /tenantScopedQuery\(admin, "order_lines", p\.tenantId\)/);
-    assert.match(src, /\.eq\("talent_profile_id", p\.talentProfileId\)/);
     assert.match(src, /\["paid", "fulfilled", "partially_refunded"\]/);
-    assert.match(src, /\.eq\("orders\.currency", p\.currency\)/);
+    assert.match(src, /\.eq\("currency", p\.currency\)/);
     assert.match(src, /zonedMonthStartUtc\(p\.period\)/);
-    assert.match(src, /sumSalesPages\(/);
-    assert.doesNotMatch(src, /\.in\("order_id"/, "no id list of every order of the month");
+    assert.match(src, /\.gte\("paid_at", from\)/);
+    assert.match(src, /readAllPages</);
+    assert.doesNotMatch(src, /created_at/, "orders count by when they were paid, not created");
   });
   test("rent invoices themselves are never part of the base", () => {
-    assert.match(src, /source_page\.is\.null,source_page\.neq\.rent/);
+    assert.match(src, /o\.source_page !== "rent"/);
   });
 });
 

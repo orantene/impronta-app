@@ -30,10 +30,11 @@ const visible = { id: ID, tenant_id: "tenant-a", status: "published", moderation
 test("a guest save asks for sign-in: the decision refuses before anything is read or written", () => {
   assert.deepEqual(decideServiceSave({ sessionUserId: null, siteTenantId: "tenant-a", offering: visible }), { ok: false, reason: "sign_in" });
   assert.equal(guestSaveOutcome({ ok: false, reason: "sign_in" }), "sign_in");
-  // The action returns sign_in for a guest BEFORE its first database call.
-  const action = readFileSync(join(process.cwd(), "src/lib/client-account/save-service-actions.ts"), "utf8");
-  const save = action.slice(action.indexOf("export async function setServiceSaved"), action.indexOf("export async function savedServiceStatus"));
+  // The save flow (save-service-core, TUL-1692) returns sign_in for a guest BEFORE its first database call.
+  const core = readFileSync(join(process.cwd(), "src/lib/client-account/save-service-core.ts"), "utf8");
+  const save = core.slice(core.indexOf("export async function runSetServiceSaved"));
   assert.ok(save.indexOf('reason: "sign_in"') > 0 && save.indexOf('reason: "sign_in"') < save.indexOf(".from("), "guest refused before any read or write");
+  const action = readFileSync(join(process.cwd(), "src/lib/client-account/save-service-actions.ts"), "utf8");
   const status = action.slice(action.indexOf("export async function savedServiceStatus"));
   assert.ok(status.indexOf("signedIn: false") < status.indexOf(".from("), "a guest status read touches nothing");
 });
@@ -66,9 +67,11 @@ test("a client saves only a visible service of this site's tenant; the tenant st
 });
 
 test("scoping: every read and write is the session client's own rows; the tenant comes from the host", () => {
-  const action = readFileSync(join(process.cwd(), "src/lib/client-account/save-service-actions.ts"), "utf8");
+  const action =
+    readFileSync(join(process.cwd(), "src/lib/client-account/save-service-actions.ts"), "utf8") +
+    readFileSync(join(process.cwd(), "src/lib/client-account/save-service-core.ts"), "utf8");
   assert.match(action, /assertNotImpersonating\(\)/);
-  assert.match(action, /resolveAccountTenant\(\)/);
+  assert.match(action, /tenant: resolveAccountTenant,/);
   assert.match(action, /client_user_id: userId, offering_id: parsed\.data\.offeringId, tenant_id: decision\.tenantId/);
   assert.equal((action.match(/from\("client_favorite_services"\)/g) ?? []).length, 3);
   assert.equal((action.match(/\.eq\("client_user_id", userId\)/g) ?? []).length, 2, "delete and status read are own-rows only");
@@ -77,7 +80,7 @@ test("scoping: every read and write is the session client's own rows; the tenant
   const loader = readFileSync(join(process.cwd(), "src/lib/client-account/saved-services.server.ts"), "utf8");
   assert.match(loader, /\.eq\("client_user_id", userId\)\s*\.eq\("tenant_id", tenantId\)/);
   // Links are decided from the host headers the renderer read, never from the browser.
-  assert.match(readFileSync(join(process.cwd(), "src/lib/client-account/render-area.tsx"), "utf8"), /loadSavedServices\(userId, tenantId, locale, \{ hostKind: host\.hostContext, hostTalentProfileId: talentProfileId \}\)/);
+  assert.match(readFileSync(join(process.cwd(), "src/lib/client-account/render-area.tsx"), "utf8"), /loadSavedServices\(userId, tenantId, locale, \{ hostKind: host\.hostContext, hostTalentProfileId: talentProfileId, hubTalentProfileId: tenant\.hubTalentProfileId \}\)/);
   assert.match(readFileSync(join(process.cwd(), "src/lib/client-account/render-tenant-area.tsx"), "utf8"), /loadSavedServices\(userId, tenantId, locale, \{ hostKind: hostContext, hostTalentProfileId: null \}\)/);
   assert.match(loader, /businessServicePagesOn\(admin, tenantId\)/);
 });

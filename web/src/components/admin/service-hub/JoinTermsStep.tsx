@@ -20,6 +20,7 @@ import {
   readJoinTerms,
   shareFieldFor,
   type JoinTermsInput,
+  type JoinTermsLoadState,
 } from "@/lib/service-hub/join-terms";
 import { joinTermsCopy, joinTermsLocale, joinTermsRestLines, modelLabel } from "@/lib/service-hub/join-terms-copy";
 import { loadJoinTermsDefaultsAction } from "@/lib/server-actions/join-terms";
@@ -38,12 +39,15 @@ export function JoinTermsStep({
   value,
   onChange,
   asFormFields = false,
+  onLoadState,
 }: {
   tenantSlug: string;
   locale: string;
   value: JoinTermsInput | null;
   onChange: (next: JoinTermsInput | null) => void;
   asFormFields?: boolean;
+  /** TUL-1690: tells the parent when the load settles, so Approve can wait for it. */
+  onLoadState?: (state: JoinTermsLoadState) => void;
 }) {
   const lang = joinTermsLocale(locale);
   const c = joinTermsCopy(lang);
@@ -56,6 +60,14 @@ export function JoinTermsStep({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  const onLoadStateRef = useRef(onLoadState);
+  useEffect(() => {
+    onLoadStateRef.current = onLoadState;
+  }, [onLoadState]);
+  useEffect(() => {
+    onLoadStateRef.current?.(load.kind);
+  }, [load.kind]);
 
   useEffect(() => {
     let alive = true;

@@ -12,6 +12,7 @@
  * the collection (a collective sale is never taken half split).
  */
 import { collectiveSplitEnabled, applyCollectiveOwnerShares, SPLIT_UNAVAILABLE_MESSAGE } from "@/lib/service-hub/collective-split";
+import { FRIENDS_COLLECTIVE_MODEL } from "@/lib/service-hub/friends-collective";
 import { logServerError } from "@/lib/server/safe-error";
 import type { Admin } from "./sale-rows";
 
@@ -39,6 +40,24 @@ export async function applyPosCollectiveSplit(admin: Admin, input: { tenantId: s
     const { data: order, error: oErr } = await admin.from("orders").select("id, currency").eq("id", input.orderId).eq("tenant_id", input.tenantId).maybeSingle();
     if (oErr) return refuse(oErr);
     if (!order) return { ok: true, changed: 0 };
+
+    // TUL-1703: is this a collective at all? Asked BEFORE any split column is read, so a workspace that is not one (or a
+    // database that does not have the split columns yet) is never refused a counter sale because of them.
+    const { data: agency, error: aErr } = await admin.from("agencies").select("work_model").eq("id", input.tenantId).maybeSingle();
+    if (aErr) return aErr.code === "42703" ? { ok: true, changed: 0 } : refuse(aErr);
+    if ((agency as { work_model?: string | null } | null)?.work_model !== FRIENDS_COLLECTIVE_MODEL) return { ok: true, changed: 0 };
+
+    // Split tender: once any money is taken or in flight on this sale the split is FROZEN. A later allocation (or a
+    // changed accepted share) must never re-split a sale that is already partly paid.
+    const { data: taken, error: tErr } = await admin
+      .from("booking_transactions")
+      .select("id")
+      .eq("order_id", input.orderId)
+      .eq("source_tenant_id", input.tenantId)
+      .in("status", ["payment_requested", "paid", "partially_refunded"])
+      .limit(1);
+    if (tErr) return refuse(tErr);
+    if ((taken ?? []).length > 0) return { ok: true, changed: 0 };
     const { data: rows, error: lErr } = await admin
       .from("order_lines")
       .select("id, kind, talent_profile_id, total_cents, talent_cost_cents, unit_cents, owner_take_cents, label, owner_share_snapshot")

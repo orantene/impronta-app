@@ -155,3 +155,15 @@ export function shareFieldFor(model: WorkModel): "percent" | "amount" {
   const k = defaultTermsForModel(model).shareKind;
   return k === "percent" || k === "margin" ? "percent" : "amount";
 }
+
+/** TUL-1690 · What the owner's terms step is doing. Anything but "loading" is a settled answer. */
+export type JoinTermsLoadState = "loading" | "ready" | "owner_only" | "off";
+
+/**
+ * Approve on a join request needs the terms step open and its load finished, so a fast or
+ * double click can never approve before the proposed terms exist. "owner_only" and "off"
+ * are settled (no terms apply), so Approve works there without terms.
+ */
+export function canApproveJoinRequest(termsStepOpen: boolean, load: JoinTermsLoadState): boolean {
+  return termsStepOpen && load !== "loading";
+}

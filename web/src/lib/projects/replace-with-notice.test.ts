@@ -10,12 +10,20 @@ type Err = { code?: string; message: string } | null;
 function fakeAdmin(tables: Record<string, Row[]>, errors: Record<string, Err> = {}) {
   const from = (table: string) => {
     const filters: Array<[string, unknown]> = [];
+    let del = false;
     const rows = () => (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
     const q = {
       select: () => q,
+      delete: () => { del = true; return q; },
       eq: (k: string, v: unknown) => { filters.push([k, v]); return q; },
       maybeSingle: async () => ({ data: rows()[0] ?? null, error: errors[table] ?? null }),
-      then: (resolve: (v: { data: Row[]; error: Err }) => unknown) => resolve({ data: rows(), error: errors[table] ?? null }),
+      then: (resolve: (v: { data: Row[]; error: Err }) => unknown) => {
+        if (del) {
+          if (!errors[table]) tables[table] = (tables[table] ?? []).filter((r) => !filters.every(([k, v]) => r[k] === v));
+          return resolve({ data: [], error: errors[table] ?? null });
+        }
+        return resolve({ data: rows(), error: errors[table] ?? null });
+      },
     };
     return q;
   };
@@ -115,4 +123,20 @@ test("a repeated replacement (same key) reports the plan with one stable key and
   assert.deepEqual(b.payout, a.payout);
   assert.deepEqual(a.payoutPlan, [{ talentProfileId: FROM, deltaCents: -15000 }, { talentProfileId: TO, deltaCents: 15000 }]);
   assert.equal(attempts, 2); // asked per call, refused both times: nothing moved
+});
+
+test("replacing a person clears that seat's confirmation, so swapping back starts as Awaiting", async () => {
+  const tables = { ...baseTables("name"), project_assignment_confirmations: [
+    { booking_talent_id: "seat1", talent_profile_id: FROM, status: "confirmed" },
+    { booking_talent_id: "seat2", talent_profile_id: "other", status: "confirmed" },
+  ] as Row[] };
+  const r = await replaceTalentOnProject(fakeAdmin(tables), input, deps().d);
+  assert.equal(r.ok, true);
+  assert.deepEqual(tables.project_assignment_confirmations.map((x) => x.booking_talent_id), ["seat2"]);
+});
+
+test("a failed clear is logged and never blocks the replacement", async () => {
+  const tables = { ...baseTables("name"), project_assignment_confirmations: [{ booking_talent_id: "seat1", talent_profile_id: FROM, status: "confirmed" }] as Row[] };
+  const r = await replaceTalentOnProject(fakeAdmin(tables, { project_assignment_confirmations: { code: "42P01", message: "x" } }), input, deps().d);
+  assert.equal(r.ok, true);
 });

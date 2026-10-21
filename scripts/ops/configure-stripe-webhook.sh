@@ -9,6 +9,7 @@
 # Usage:
 #   ./scripts/ops/configure-stripe-webhook.sh test
 #   ./scripts/ops/configure-stripe-webhook.sh live
+#   ./scripts/ops/configure-stripe-webhook.sh test mx   # the MX platform endpoint (STRIPE_API_KEY = the MX secret key)
 #
 # Notes:
 #   - Defaults to test mode if no arg.
@@ -20,7 +21,12 @@
 set -euo pipefail
 
 MODE="${1:-test}"
-WEBHOOK_URL="${WEBHOOK_URL:-https://app.tulala.digital/api/stripe/webhook}"
+PLATFORM="${2:-us}"
+if [ "$PLATFORM" = "mx" ]; then
+  WEBHOOK_URL="${WEBHOOK_URL:-https://app.tulala.digital/api/webhooks/stripe-mx}"
+else
+  WEBHOOK_URL="${WEBHOOK_URL:-https://app.tulala.digital/api/stripe/webhook}"
+fi
 
 if ! command -v stripe >/dev/null 2>&1; then
   echo "ERROR: stripe CLI not installed. brew install stripe/stripe-cli/stripe"
@@ -46,6 +52,13 @@ EVENTS=(
   invoice.payment_failed
   charge.refunded
   charge.dispute.created
+  charge.dispute.closed
+  # Station rent on automatic payments (TUL-1700): the monthly draft, the paid month, and an abandoned Checkout.
+  # Needed on BOTH the US and the MX endpoint; RENT_AUTOPAY_INVOICE_CREATED_SUBSCRIBED=1 is set only after this ran.
+  invoice.created
+  invoice.paid
+  invoice.payment_succeeded
+  checkout.session.expired
   payment_intent.succeeded
   payment_intent.payment_failed
   # Connect lifecycle
@@ -64,7 +77,7 @@ printf '  • %s\n' "${EVENTS[@]}"
 echo
 
 # stripe webhook_endpoints create — note the underscore form for CLI
-stripe webhook_endpoints create $STRIPE_FLAG \
+stripe webhook_endpoints create $STRIPE_FLAG ${STRIPE_API_KEY:+--api-key "$STRIPE_API_KEY"} \
   --url "$WEBHOOK_URL" \
   --enabled-events "$EVENTS_CSV" \
   --description "Tulala platform webhook ($MODE)"

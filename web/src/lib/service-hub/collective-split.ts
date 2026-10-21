@@ -89,6 +89,13 @@ function withMemberName(label: string, name: string | undefined): string {
   return `${label.slice(0, Math.max(0, LABEL_MAX - suffix.length))}${suffix}`;
 }
 
+export const TALENT_NO_LONGER_SELLS = "talent_no_longer_sells" as const;
+
+/** Own refusal copy: a member the owner removed and who has no recorded share. */
+export function talentNoLongerSellsCopy(locale: string | null | undefined): string {
+  return (locale ?? "").toLowerCase().startsWith("es") ? "Esta persona ya no vende aquí" : "This professional no longer sells here";
+}
+
 const UNDEFINED_COLUMN = "42703";
 
 /**
@@ -102,7 +109,7 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
   tenantId: string,
   orderCurrency: string,
   lines: L[],
-): Promise<{ ok: true; lines: L[] } | { ok: false; error: string }> {
+): Promise<{ ok: true; lines: L[] } | { ok: false; error: string; code?: typeof TALENT_NO_LONGER_SELLS }> {
   const refuse = (detail: unknown) => {
     logServerError("collective-split", detail);
     return { ok: false as const, error: SPLIT_UNAVAILABLE_MESSAGE };
@@ -120,18 +127,31 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
     if (talentIds.length > 0) {
       const { data: rows, error } = await admin
         .from("agency_talent_roster")
-        .select("talent_profile_id, status, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version")
+        .select("talent_profile_id, status, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version, removed_at, updated_at")
         .eq("tenant_id", tenantId)
         .in("talent_profile_id", talentIds);
       if (error) return refuse(error);
-      const all = (rows ?? []) as Array<ShareRow & { talent_profile_id: string; status?: string | null; owner_share_version?: number | null }>;
-      // A talent who left (or was removed) must never sell here with the owner's cut skipped: refuse
-      // unless she still has a live row (TUL-1469).
+      const all = (rows ?? []) as Array<ShareRow & { talent_profile_id: string; status?: string | null; owner_share_version?: number | null; removed_at?: string | null; updated_at?: string | null }>;
+      // A live row always wins. A talent with only a removed row still sells an already agreed
+      // booking: her LAST ACCEPTED share applies. No share on record for her: refuse (TUL-1699).
       const live = new Set(all.filter((r) => r.status !== "removed").map((r) => r.talent_profile_id));
-      if (all.some((r) => r.status === "removed" && !live.has(r.talent_profile_id))) return refuse("removed roster member on a collective order");
-      for (const r of all.filter((x) => x.status !== "removed")) {
+      // Left, rejoined, left again: a talent has several removed rows. Only her MOST RECENT one counts
+      // (removed_at, else updated_at); an older row's share is never used in its place.
+      const stamp = (r: { removed_at?: string | null; updated_at?: string | null }) => Date.parse(r.removed_at ?? r.updated_at ?? "") || 0;
+      const latestRemoved = new Map<string, (typeof all)[number]>();
+      for (const r of all) {
+        if (r.status !== "removed") continue;
+        const cur = latestRemoved.get(r.talent_profile_id);
+        if (!cur || stamp(r) > stamp(cur)) latestRemoved.set(r.talent_profile_id, r);
+      }
+      for (const r of all) {
+        if (r.status === "removed" && (live.has(r.talent_profile_id) || latestRemoved.get(r.talent_profile_id) !== r)) continue;
         const s = parseOwnerShareRow(r);
         if (s) shares.set(r.talent_profile_id, { share: s, version: Number(r.owner_share_version) || 1 });
+        else if (r.status === "removed") {
+          logServerError("collective-split", "removed roster member without a recorded share");
+          return { ok: false as const, error: talentNoLongerSellsCopy("en"), code: TALENT_NO_LONGER_SELLS };
+        }
       }
     }
     const names = new Map<string, string>();

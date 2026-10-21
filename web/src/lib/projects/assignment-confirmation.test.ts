@@ -7,29 +7,50 @@ import { readConfirmations, readOwnSeat, setOwnConfirmation } from "./assignment
 type Err = { code?: string; message: string } | null;
 type Row = Record<string, unknown>;
 
-/** A typed fake: tables of rows, an optional error per table, upserts recorded. */
-function fakeAdmin(tables: Record<string, Row[]>, errors: Record<string, Err> = {}) {
+type RpcResult = { data: unknown; error: Err };
+type FakeOpts = { rpc?: (name: string, args: Row) => RpcResult; onUpsert?: (tables: Record<string, Row[]>) => void };
+
+/** A typed fake: tables of rows, an optional error per table, upserts, deletes and rpc calls recorded. By default the RPC is missing (PGRST202), so the old path runs. */
+function fakeAdmin(tables: Record<string, Row[]>, errors: Record<string, Err> = {}, opts: FakeOpts = {}) {
   const upserts: Row[] = [];
+  const deletes: Array<Array<[string, unknown]>> = [];
+  const rpcs: Array<{ name: string; args: Row }> = [];
   const from = (table: string) => {
     const filters: Array<[string, unknown]> = [];
+    let del = false;
     const rows = () => (tables[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
     const q = {
       select: () => q,
+      delete: () => {
+        del = true;
+        return q;
+      },
       eq: (k: string, v: unknown) => {
         filters.push([k, v]);
         return q;
       },
-      maybeSingle: async () => ({ data: rows()[0] ?? null, error: errors[table] ?? null }),
+      maybeSingle: async () => ({ data: rows()[0] ? { ...rows()[0] } : null, error: errors[table] ?? null }),
       upsert: async (row: Row) => {
         if (errors[table]) return { error: errors[table] };
         upserts.push(row);
+        opts.onUpsert?.(tables);
         return { error: null };
       },
-      then: (resolve: (v: { data: Row[]; error: Err }) => unknown) => resolve({ data: rows(), error: errors[table] ?? null }),
+      then: (resolve: (v: { data: Row[]; error: Err }) => unknown) => {
+        if (del) {
+          deletes.push([...filters]);
+          return resolve({ data: [], error: errors[table] ?? null });
+        }
+        return resolve({ data: rows(), error: errors[table] ?? null });
+      },
     };
     return q;
   };
-  return { admin: { from } as unknown as SupabaseClient, upserts };
+  const rpc = async (name: string, args: Row): Promise<RpcResult> => {
+    rpcs.push({ name, args });
+    return opts.rpc ? opts.rpc(name, args) : { data: null, error: { code: "PGRST202", message: "missing" } };
+  };
+  return { admin: { from, rpc } as unknown as SupabaseClient, upserts, deletes, rpcs };
 }
 
 const T = "00000000-0000-0000-0000-0000000000a1";
@@ -145,4 +166,48 @@ test("TUL-1606: readOwnSeat returns only the signed-in person's own seat and the
   // a failed seat read is no seat
   const broken = fakeAdmin(tables, { booking_talent: { code: "57014", message: "x" } });
   assert.equal(await readOwnSeat(broken.admin, { userId: "u1", bookingId: B }), null);
+});
+
+test("with the guarded RPC, a late write by the previous person is refused and changes nothing", async () => {
+  const { admin, upserts, rpcs } = fakeAdmin(
+    { talent_profiles: [{ id: mine, user_id: "u1" }], booking_talent: [seat] },
+    {},
+    { rpc: () => ({ data: "stale", error: null }) },
+  );
+  assert.deepEqual(await setOwnConfirmation(admin, { userId: "u1", assignmentId: "a1", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.equal(rpcs.length, 1);
+  assert.equal(upserts.length, 0);
+});
+
+test("with the guarded RPC, the write is one statement carrying the seat, the person and the answer", async () => {
+  const { admin, upserts, rpcs } = fakeAdmin(
+    { talent_profiles: [{ id: mine, user_id: "u1" }], booking_talent: [seat] },
+    {},
+    { rpc: () => ({ data: "ok", error: null }) },
+  );
+  assert.deepEqual(await setOwnConfirmation(admin, { userId: "u1", assignmentId: "a1", status: "declined" }), { ok: true });
+  assert.deepEqual(rpcs, [{ name: "answer_assignment_confirmation", args: { p_seat: "a1", p_talent: mine, p_status: "declined" } }]);
+  assert.equal(upserts.length, 0);
+});
+
+test("a late write by the previous person never leaves the new person's seat confirmed (fallback path)", async () => {
+  // The seat is swapped to someone else between the ownership check and the write.
+  const tables = { talent_profiles: [{ id: mine, user_id: "u1" }], booking_talent: [{ ...seat }] as Row[] };
+  const { admin, deletes } = fakeAdmin(tables, {}, { onUpsert: (t) => void (t.booking_talent[0].talent_profile_id = theirs) });
+  assert.deepEqual(await setOwnConfirmation(admin, { userId: "u1", assignmentId: "a1", status: "confirmed" }), { ok: false, reason: "not_yours" });
+  assert.equal(deletes.length, 1);
+  assert.deepEqual(deletes[0], [
+    ["booking_talent_id", "a1"],
+    ["talent_profile_id", mine],
+  ]);
+});
+
+test("a swapped-back person's old confirm is not revived: the read still reports it as the old person's", async () => {
+  // Same seat, row written by A, seat now belongs to B: the board compares talentByAssignment with the seat's person.
+  const { admin } = fakeAdmin({
+    project_assignment_confirmations: [{ tenant_id: T, booking_id: B, booking_talent_id: "a1", talent_profile_id: mine, status: "confirmed" }],
+  });
+  const r = await readConfirmations(admin, { tenantId: T, bookingId: B });
+  assert.ok(r.ok);
+  if (r.ok) assert.notEqual(r.talentByAssignment.a1, theirs);
 });

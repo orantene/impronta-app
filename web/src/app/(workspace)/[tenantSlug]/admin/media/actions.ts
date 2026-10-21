@@ -80,7 +80,7 @@ export async function actionUploadAndAssignMedia(
   // self path, ownership (talent_profiles.user_id = caller) is the security
   // boundary (see requireTalentSelfAction). Without this, a talent editing
   // their own profile got "Not authorized" on every photo upload.
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   let tenantId: string | null;
   let isStaff: boolean;
   let revalidate: { path: string; type: "layout" | "page" };
@@ -310,7 +310,7 @@ export async function actionAssignMediaToTalent(
   talentProfileId: string,
 ): Promise<ActionResult<{ count: number }>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -379,7 +379,7 @@ export async function actionDeleteMediaAssets(
   await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.delete" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -434,7 +434,7 @@ export async function actionSetApprovalState(
   await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -477,7 +477,7 @@ export async function actionReassignMediaToTalent(
   await requireNotImpersonating();
   if (ids.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -527,7 +527,7 @@ export async function actionSetMediaWatermarkOverride(
   override: Record<string, unknown> | null,
 ): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.branding.edit" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -560,7 +560,7 @@ export async function actionSetAsCardPhoto(
   talentProfileId: string,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -654,7 +654,7 @@ export async function actionSetAsHeroPhoto(
   talentProfileId: string,
 ): Promise<ActionResult<null>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -717,7 +717,7 @@ export async function actionRevertCropToSource(
   croppedMediaAssetId: string,
 ): Promise<ActionResult<{ sourceMediaAssetId: string | null }>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -763,7 +763,7 @@ export async function actionReorderMediaAssets(
   await requireNotImpersonating();
   if (orderedIds.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -814,7 +814,7 @@ export async function actionUploadToStagingStorage(
   formData: FormData,
 ): Promise<StagingUploadResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -893,7 +893,7 @@ export async function actionCleanupStagedObjects(
   await requireNotImpersonating();
   if (storagePaths.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -925,7 +925,7 @@ export async function actionBulkAssignStagedMedia(
   await requireNotImpersonating();
   if (assignments.length === 0) return { ok: true, data: { count: 0 } };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1513,7 +1513,7 @@ export async function actionImportSingleDriveFile(
   sortOrder: number,
 ): Promise<ActionResult<{ id: string; publicUrl: string }>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1625,7 +1625,7 @@ export async function actionImportFromGoogleDrive(
   preResolvedFileIds?: string[],
 ): Promise<DriveImportResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -1841,7 +1841,7 @@ export async function actionCreateSignedUploadUrl(
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
 
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (staff.ok) {
     const { data: rosterRow } = await admin
       .from("agency_talent_roster")
@@ -1915,7 +1915,7 @@ export async function actionCreateStagingSignedUploadUrl(
   ext: "jpg" | "png" = "jpg",
 ): Promise<ActionResult<SignedUploadGrant>> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 
@@ -2111,7 +2111,7 @@ export async function actionRegisterUploadedAsset(
   // Same ownership split as actionUploadAndAssignMedia — the guard that
   // passed is the owner signal, so the two upload pipelines agree.
   let ownership: MediaOwnershipStamp;
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (staff.ok) {
     tenantId = staff.tenantId;
     revalidate = { path: `/${staff.tenantSlug}`, type: "layout" };
@@ -2296,7 +2296,7 @@ export async function actionRegisterStagedAsset(
   originalFilename: string | null = null,
 ): Promise<StagingUploadResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.media.upload" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { tenantId } = auth;
 

@@ -10,6 +10,8 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { userHasCapability } from "@/lib/access";
+import { OFFERING_CURATION_CAPABILITY, resolveServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
 import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
@@ -37,12 +39,19 @@ import {
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { normalizeWorkspaceLocale } from "@/lib/talent/workspace-primary-locale";
 import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
+import { workspaceOfferingSaveGate } from "@/lib/talent/offering-save-gate.server";
+import { runMenuWriteSideEffects, type MenuSideEffectDeps, type MenuWriteKind } from "@/lib/talent/workspace-menu-side-effects";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
 
-async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFail> {
-  const staff = await requireWorkspaceStaffAction();
+/** TUL-1629: writers pass WRITE_CAPABILITY (editor+); the two readers pass nothing (a viewer may read the menu). */
+const WRITE_CAPABILITY = "agency.site_admin.sections.edit" as const;
+
+async function authorizeForWorkspace(tenantId: string, capability?: typeof WRITE_CAPABILITY): Promise<AuthOk | AuthFail> {
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) {
     return { ok: false, error: "Not authorized for this workspace." };
@@ -57,6 +66,38 @@ async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFai
 
 function offeringsTable(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>) {
   return admin.from("talent_offerings");
+}
+
+/** TUL-1634: the real side effects (the same helpers the talent service writes call). */
+const MENU_SIDE_EFFECTS: MenuSideEffectDeps = {
+  revalidatePath: (path) => revalidatePath(path),
+  bustTalentSiteCache,
+  scheduleRebuildAiSearchDocument,
+  logServerError,
+};
+
+/** The workspace OWNER's talent profile (plan, default posture, talent site, AI document); null when none. */
+async function ownerTalentIdOf(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<string | null> {
+  const ids = await fetchOwnerTalentIds(admin, tenantId);
+  return ids.values().next().value ?? null;
+}
+
+/** TUL-1634: cache bust + AI search rebuild after a stored write. Logs and continues; never loses the write. */
+async function afterMenuWrite(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  kind: MenuWriteKind,
+  ownerTalentId?: string | null,
+): Promise<void> {
+  try {
+    const owner = ownerTalentId === undefined ? await ownerTalentIdOf(admin, tenantId) : ownerTalentId;
+    await runMenuWriteSideEffects(admin, { kind, ownerTalentId: owner }, MENU_SIDE_EFFECTS);
+  } catch (err) {
+    logServerError(`menu.offerings.sideEffects.${kind}`, err);
+  }
 }
 
 /** The workspace's primary language (business identity default_locale); "en" when unset or unreadable. */
@@ -179,13 +220,20 @@ export async function upsertWorkspaceMenuItem(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
     const errors = validateOffering(offering);
     if (errors.length > 0) return { ok: false, error: errors[0] };
+    // TUL-1634: the same publish-readiness + plan gate and MXN/USD rule as upsertTalentOffering.
+    // Locale: resolved the same way the save below already does (workspacePrimaryLocale),
+    // just hoisted earlier so the gate's refusal can be in the workspace's own language.
+    const ownerTalentId = await ownerTalentIdOf(admin, tenantId);
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    const gate = await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering, undefined, primaryLocale);
+    if (!gate.ok) return gate;
 
     if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
@@ -206,7 +254,20 @@ export async function upsertWorkspaceMenuItem(
       if (!station) return { ok: false, error: "That kitchen station is not in this workspace." };
     }
 
-    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    // TUL-1633: moderation is never the client's; Favorites and the Website switch
+    // need the admin capability, and a failed read of the current row refuses the save.
+    const curator = await userHasCapability(OFFERING_CURATION_CAPABILITY, tenantId);
+    const owned = await resolveServerOwnedOfferingFields(admin as SupabaseClient, {
+      offeringId: offering.id || null,
+      scope: { tenant_id: tenantId, owner_kind: "workspace" },
+      requested: { moderation_state: offering.moderationState, is_featured: offering.isFeatured, visibility: offering.visibility },
+      curation: curator ? "curator" : "refuse_change",
+    });
+    if (!owned.ok) {
+      if (owned.code === "read_failed") logServerError("menu.offerings.serverOwned", owned.code);
+      return { ok: false, error: owned.error };
+    }
+
     const patch = {
       ...offeringToRowPatch({
         ...offering,
@@ -214,6 +275,7 @@ export async function upsertWorkspaceMenuItem(
         talentProfileId: null,
         tenantId,
       }, primaryLocale), // the workspace's own language: a Spanish title is stored as `es`, not `en`
+      ...owned.fields,
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,
@@ -246,7 +308,7 @@ export async function upsertWorkspaceMenuItem(
       saved = data as TalentOfferingRow | null;
     }
     if (!saved) return { ok: false, error: "Failed to save." };
-    revalidatePath("/");
+    await afterMenuWrite(admin, tenantId, "save", ownerTalentId);
     return { ok: true, item: rowToOffering(saved, primaryLocale, offering.imageUrls ?? [], [primaryLocale]) };
   } catch (err) {
     logServerError("menu.offerings.upsert", err);
@@ -284,7 +346,7 @@ export async function deleteWorkspaceMenuItem(
 ): Promise<DeleteMenuItemResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -323,7 +385,7 @@ export async function deleteWorkspaceMenuItem(
   if (!gone || gone.length === 0) {
     return { ok: false, code: "not_found", error: "This item was already removed. Reload the list." };
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "delete");
   return { ok: true };
 }
 
@@ -335,7 +397,7 @@ export async function setWorkspaceMenuItemArchived(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -355,7 +417,7 @@ export async function setWorkspaceMenuItemArchived(
   if (!data || data.length === 0) {
     return { ok: false, error: "This item is not part of the workspace menu. Change it under Services." };
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "archive");
   return { ok: true };
 }
 
@@ -395,7 +457,7 @@ export async function reorderWorkspaceMenuItems(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -410,7 +472,7 @@ export async function reorderWorkspaceMenuItems(
       return { ok: false, error: "Failed to reorder." };
     }
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "reorder");
   return { ok: true };
 }
 
@@ -427,7 +489,7 @@ export async function setWorkspaceMenuItemOptions(
 ): Promise<OfferingChildrenSaved> {
   await requireNotImpersonating();
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -443,7 +505,7 @@ export async function setWorkspaceMenuItemOptions(
     }
     const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings", await workspacePrimaryLocale(admin, tenantId));
     if (!saved.ok) return saved;
-    revalidatePath("/");
+    await afterMenuWrite(admin, tenantId, "options");
     return saved;
   } catch (err) {
     logServerError("menu.offerings.setOptions", err);
@@ -457,7 +519,7 @@ export async function blankWorkspaceMenuItem(
   sortOrder: number,
 ): Promise<TalentOffering | null> {
   await requireNotImpersonating();
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
 }
@@ -505,7 +567,7 @@ export async function setMenuItemStockAction(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
 
     const admin = createServiceRoleClient();
@@ -559,7 +621,7 @@ export async function setWorkspaceItemPhotos(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -615,7 +677,7 @@ export async function setWorkspaceItemPhotos(
       logServerError("menu.offerings.photoClear", delErr);
       return { ok: false, error: "Failed to update photos." };
     }
-    revalidatePath("/admin/menu");
+    await afterMenuWrite(admin, tenantId, "photos");
     const assets = (await loadOfferingImageAssets(admin as unknown as SupabaseClient, [offeringId])).get(offeringId) ?? [];
     return { ok: true, assets };
   } catch (err) {
@@ -637,7 +699,7 @@ export async function setWorkspacePhotoAlt(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };

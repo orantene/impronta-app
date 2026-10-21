@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { CapabilityKey } from "@/lib/access";
 import { requireInquiryManagerAction, requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -7,8 +8,9 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
  * The Messages actions' guard: workspace staff, plus the service client the
  * readers use. One shape for `messaging-engine.ts` and `messaging-sheets.ts`.
  */
-export async function messagingStaff() {
-  const guard = await requireWorkspaceStaffAction();
+export async function messagingStaff(capability?: CapabilityKey) {
+  // TUL-1629: a WRITE passes the capability it needs; no argument = read access (a viewer may read).
+  const guard = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
@@ -31,8 +33,8 @@ export async function messagingStaff() {
  * coordinator row. Used by shared-draft (and peers) so talent `/talent/inbox`
  * coordinators are not refused with `not_allowed`.
  */
-export async function messagingInquiryManager(inquiryId: string) {
-  const mgr = await requireInquiryManagerAction(inquiryId);
+export async function messagingInquiryManager(inquiryId: string, capability?: CapabilityKey) {
+  const mgr = await requireInquiryManagerAction(inquiryId, capability ? { capability } : undefined);
   if (mgr.ok) {
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false as const, reason: "unavailable" as const };
@@ -46,5 +48,5 @@ export async function messagingInquiryManager(inquiryId: string) {
       isStaff: mgr.isStaff,
     };
   }
-  return messagingStaff();
+  return messagingStaff(capability);
 }

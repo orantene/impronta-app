@@ -13,7 +13,17 @@ import { pickAccountTimeZone } from "./account-timezone";
 import { clientAccountEnabledFor } from "./flag";
 import { decideAccountTenantSource, type AccountTenantSource } from "./tenant-source";
 
-export type AccountTenant = { tenantId: string; slug: string; timeZone: string };
+export type AccountTenant = {
+  tenantId: string;
+  slug: string;
+  timeZone: string;
+  /**
+   * TUL-1692: the host talent on her own site, whether it sells through the shared hub tenant or
+   * an agency tenant (both hold many talents, so tenant scoping alone would mix them). Saves and
+   * the Saved list there are hers only. Null on agency / hub / app hosts (whole-tenant scope).
+   */
+  hubTalentProfileId: string | null;
+};
 
 async function readSource(): Promise<{ decision: AccountTenantSource | null; talentProfileId: string | null; hostTenantId: string | null }> {
   try {
@@ -53,11 +63,13 @@ export async function resolveAccountTenant(): Promise<AccountTenant | null> {
   if (!decision) return null;
   let tenantId: string | null = null;
   let slug = "";
+  let hubTalentProfileId: string | null = null;
   if (decision.source === "talent_profile" && talentProfileId) {
     const loaded = await loadTalentSiteInquiryTenant(admin, talentProfileId);
     if (!loaded.ok) return null;
     tenantId = loaded.tenant.tenantId;
     slug = loaded.tenant.slug;
+    hubTalentProfileId = talentProfileId;
   } else if (decision.source === "host_tenant" && hostTenantId) {
     tenantId = hostTenantId;
   } else if (decision.source === "platform_hub") {
@@ -75,5 +87,5 @@ export async function resolveAccountTenant(): Promise<AccountTenant | null> {
     if (hrsErr) logServerError("clientAccount.tenant.hours", hrsErr);
     talentZone = (hrs as { timezone?: string | null } | null)?.timezone ?? null;
   }
-  return { tenantId, slug: slug || row?.slug?.trim() || "", timeZone: pickAccountTimeZone(talentZone, row?.timezone) };
+  return { tenantId, slug: slug || row?.slug?.trim() || "", timeZone: pickAccountTimeZone(talentZone, row?.timezone), hubTalentProfileId };
 }

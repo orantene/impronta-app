@@ -19,6 +19,7 @@ import {
 } from "./settings-deeplink";
 import { RegistrationSection } from "./RegistrationSection";
 import { DiscoverExposureSection } from "./DiscoverExposureSection";
+import { VisiblePicksSettingsLink } from "./VisiblePicksSettingsLink";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { RunsEventsCard } from "@/components/admin/settings/runs-events-card";
@@ -770,6 +771,9 @@ export function WorkspacePageView() {
         label: t("dashboard.adminWorkspace.rosterFieldsLabel"),
         desc: t("dashboard.adminWorkspace.rosterFieldsDesc"),
         visible: true,
+        // TUL-1687: "Who stays visible" (plan-cap picks). Renders nothing unless
+        // HUB_PLAN_CAP_PICKS_ENABLED=1 and the caller may edit the roster.
+        extra: <VisiblePicksSettingsLink adminBasePath={adminBasePath} />,
         rows: [
           {
             key: "talent-categories",

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { answerOwnOfferLine, readOfferLineAnswers } from "@/lib/coordinator/offer-line-confirmation.server";
 import { buildOfferLineConfirmationView } from "@/lib/coordinator/offer-line-confirmation-view";
@@ -50,6 +51,18 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false as const };
 
+    // Defence in depth: identity FIRST. A caller who is neither a manager of this inquiry nor the
+    // owner of a talent profile never makes the service role read an offer or its lines.
+    // The bail below checks "has any talent profile", not "has a line here": the per-line filter further
+    // down is what narrows a talent to their own lines.
+    const [guard, mineRes] = await Promise.all([
+      requireInquiryManagerAction(parsed.data.inquiryId),
+      // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is global: the signed-in person's own profiles, by their user id
+      admin.from("talent_profiles").select("id").eq("user_id", user.id),
+    ]);
+    const ownProfileIds = ((mineRes.data ?? []) as Array<{ id: string }>).map((p) => p.id);
+    if (!guard.ok && (mineRes.error || ownProfileIds.length === 0)) return { ok: false as const };
+
     // The talent surface has no offer id, so it passes none: use the inquiry's current offer.
     let offerId = parsed.data.offerId;
     if (!offerId) {
@@ -69,13 +82,8 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     // Readiness is shown on sent offers only, never on a draft.
     if (offer.status === "draft") return { ok: false as const };
 
-    const [guard, mineRes, linesRes, read] = await Promise.all([
-      requireInquiryManagerAction(parsed.data.inquiryId),
-      // eslint-disable-next-line ratchet/no-untenanted-from -- talent_profiles is global: the signed-in person's own profiles, by their user id
-      admin.from("talent_profiles").select("id").eq("user_id", user.id),
-      // eslint-disable-next-line ratchet/no-untenanted-from -- line items carry no tenant_id; scoped by offer_id of the tenant-checked offer above
-      admin
-        .from("inquiry_offer_line_items")
+    const [linesRes, read] = await Promise.all([
+      tenantScopedQuery(admin, "inquiry_offer_line_items", offer.tenant_id)
         .select("id, label, talent_profile_id, sort_order, talent_profiles ( display_name )")
         .eq("offer_id", offer.id)
         .order("sort_order", { ascending: true }),
@@ -97,7 +105,6 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
       talentProfileId: r.talent_profile_id,
       label: r.talent_profiles?.display_name ?? r.label ?? "",
     }));
-    const ownProfileIds = ((mineRes.data ?? []) as Array<{ id: string }>).map((p) => p.id);
 
     const view = buildOfferLineConfirmationView({ lines, read, viewer: { manager: guard.ok, ownProfileIds } });
     if (!guard.ok && view.rows.length === 0) return { ok: false as const };

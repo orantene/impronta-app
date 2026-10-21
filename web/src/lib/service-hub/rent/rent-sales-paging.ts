@@ -20,3 +20,15 @@ export async function sumSalesPages(
   }
   return null; // more than MAX_PAGES full pages: refuse rather than under-bill
 }
+
+/** Read every page of a query (fail closed: any failed page, or more than MAX_PAGES full pages, is null). */
+export async function readAllPages<T>(fetchPage: (from: number, to: number) => Promise<{ rows: T[] | null; error: boolean }>): Promise<T[] | null> {
+  const out: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const { rows, error } = await fetchPage(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+    if (error || !rows) return null;
+    out.push(...rows);
+    if (rows.length < PAGE_SIZE) return out;
+  }
+  return null;
+}
