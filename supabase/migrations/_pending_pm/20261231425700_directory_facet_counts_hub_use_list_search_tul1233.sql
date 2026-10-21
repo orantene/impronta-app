@@ -7,13 +7,6 @@
 -- block becomes `tp.id IN (SELECT public.directory_search_public_talent_ids(p_search))`. Signatures, return shapes and
 -- every other predicate are copied from the live definitions (read from production 2026-10-21) and unchanged.
 --
--- SECOND CHANGE, same three functions (TUL-1233 / TUL-1789, staging: header '92 perfiles', location facet 'Mexico (1) /
--- Guadalajara (1)'): the base set was `public.talent_is_site_visible_anywhere(tp.id)` (an ACTIVE roster row with the eye on),
--- but the hub list pages `talent_profiles.is_publicly_listed = true AND profile_kind <> 'resource'` (fetch-directory-page.ts
--- list + header count), which also admits pending rosters and self-published independents. Every profile outside the
--- narrower set was in the 92 and in no facet bucket. The base is now the list's own gate, so counts are over the same
--- profiles the cards show. The location join (residence_city_id OR location_id) already matches the card's location.
---
 -- The gender / boolean / text count functions read through directory_facet_scalar_base_ids, so they follow.
 --
 -- ROLLBACK: re-create the three functions with the ILIKE block (20260522061322 / 20260627120000 hold the older bodies).
@@ -42,8 +35,7 @@ AS $function$
     FROM public.talent_profiles tp
     WHERE tp.deleted_at IS NULL
       AND tp.is_publicly_hidden = false
-      AND tp.is_publicly_listed = true
-      AND tp.profile_kind <> 'resource'
+      AND public.talent_is_site_visible_anywhere(tp.id)
       AND (p_height_min IS NULL OR (tp.height_cm IS NOT NULL AND tp.height_cm >= p_height_min))
       AND (p_height_max IS NULL OR (tp.height_cm IS NOT NULL AND tp.height_cm <= p_height_max))
       AND (
@@ -103,8 +95,7 @@ AS $function$
     FROM public.talent_profiles tp
     WHERE tp.deleted_at IS NULL
       AND tp.is_publicly_hidden = false
-      AND tp.is_publicly_listed = true
-      AND tp.profile_kind <> 'resource'
+      AND public.talent_is_site_visible_anywhere(tp.id)
       AND (
         p_location_city_slug IS NULL
         OR trim(p_location_city_slug) = ''
@@ -190,8 +181,7 @@ AS $function$
     FROM public.talent_profiles tp
     WHERE tp.deleted_at IS NULL
       AND tp.is_publicly_hidden = false
-      AND tp.is_publicly_listed = true
-      AND tp.profile_kind <> 'resource'
+      AND public.talent_is_site_visible_anywhere(tp.id)
       AND (
         p_location_city_slug IS NULL
         OR trim(p_location_city_slug) = ''
