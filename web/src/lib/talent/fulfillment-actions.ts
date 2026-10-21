@@ -68,8 +68,12 @@ async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
     }
   }
 
-  // Staff path: tenant-scoped staff of the booking's tenant.
-  const staff = await requireWorkspaceStaffAction();
+  // Staff path: tenant-scoped staff of the booking's tenant. Only reached
+  // from the markBookingFulfillment WRITE (loadTalentOrders below has its own
+  // read-tier guard); TUL-1708: marking a product handed off releases the
+  // deferred payout, so this needs the same bar as other payment-state
+  // confirmations, not the viewer-held default.
+  const staff = await requireWorkspaceStaffAction({ capability: "booking.payment.mark_received" });
   if (!staff.ok || staff.tenantId !== booking.tenant_id) return { ok: false, error: "Forbidden." };
   return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId };
 }

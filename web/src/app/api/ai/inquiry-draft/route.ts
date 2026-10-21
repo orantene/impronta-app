@@ -7,6 +7,7 @@ import {
   sanitizeInquiryDraftOutput,
 } from "@/lib/ai/inquiry-draft-guardrails";
 import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { completeInquiryDraft } from "@/lib/ai/inquiry-draft-model";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
         { status: 503 },
       );
     }
+
+    // TUL-1630: per-network limit before any AI work; fails closed.
+    const limited = await guardPublicAiRoute("inquiry-draft", { draft: null });
+    if (limited) return limited;
 
     const gate = await assertAiInvocationAllowed();
     if (!gate.ok) {

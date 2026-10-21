@@ -24,10 +24,17 @@ export type ResourcesLoad =
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
-async function authorize(tenantId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+/**
+ * TUL-1708: the default guard capability (`agency.workspace.view`) is held by a `viewer`, so the WRITE
+ * below passes this editor-tier capability explicitly; the read (load) passes nothing — a viewer may see
+ * what is linked.
+ */
+const WRITE_CAPABILITY = "edit_talent_overlay" as const;
+
+async function authorize(tenantId: string, capability?: typeof WRITE_CAPABILITY): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) return { ok: false, error: "Not authorized for this workspace." };
   return { ok: true };
@@ -62,7 +69,7 @@ export async function setOfferingResourcesAction(
 ): Promise<{ ok: true; linked: string[] } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await authorize(tenantId);
+  const auth = await authorize(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return auth;
   if (!UUID.test(offeringId) || !Array.isArray(spaceIds) || spaceIds.some((id) => !UUID.test(id)) || spaceIds.length > 20) {
     return { ok: false, error: "Invalid resources." };

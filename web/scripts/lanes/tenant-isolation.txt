@@ -34,6 +34,7 @@ src/lib/access/talent-flags-off-parity.test.ts
 src/lib/access/talent-maison-theme.test.ts
 src/lib/access/talent-site-capabilities.test.ts
 src/lib/access/talent-tier-label-rename.static.test.ts
+src/lib/access/tul-1708-area-h-capability-guards.static.test.ts
 src/lib/ai/ai-image-quota.test.ts
 src/lib/analytics/consent-banner-suppression.test.ts
 src/lib/analytics/consent-snippet-minify.test.ts
@@ -93,6 +94,7 @@ src/lib/payments/provider-status.test.ts
 src/lib/people/display-name.test.ts
 src/lib/people/exclusivity.test.ts
 src/lib/people/hats.test.ts
+src/lib/people/pins-store.test.ts
 src/lib/platform/server-safe-constants.static.test.ts
 src/lib/pos/modes.test.ts
 src/lib/pos/pos-modes-persistence.test.ts
@@ -102,6 +104,7 @@ src/lib/quality/package-json-one-entry-per-line.static.test.ts
 src/lib/quality/package-json-unique-keys.static.test.ts
 src/lib/quality/settings-refusal-copy.static.test.ts
 src/lib/quality/subscription-template-check-migration.static.test.ts
+src/lib/rls/for-all-staff-policy-inventory.static.test.ts
 src/lib/saas/actor-signature.test.ts
 src/lib/saas/admin-api-tenant-scope.security.test.ts
 src/lib/saas/admin-href-invariant.static.test.ts
@@ -154,12 +157,14 @@ src/lib/saas/workspace-live-url.test.ts
 src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-public-url.test.ts
 src/lib/saas/workspace-type.test.ts
+src/lib/scheduling/hours-roster-guard.test.ts
 src/lib/seo/business-workspace-seo.test.ts
 src/lib/seo/llms-route-handoff.static.test.ts
 src/lib/seo/llms-txt.test.ts
 src/lib/seo/spanish-named-routes.test.ts
 src/lib/seo/talent-llms-txt.test.ts
 src/lib/seo/title-template.static.test.ts
+src/lib/server-actions/tul-1708-talent-identity-roster-branding-capabilities.test.ts
 src/lib/service-hub/customer-list-talent-audit.static.test.ts
 src/lib/service-hub/roster-chat-request.test.ts
 src/lib/service-hub/roster-request-core.test.ts
@@ -202,6 +207,7 @@ src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/supabase/auth-cookie-variants.security.test.ts
 src/lib/supabase/cookie-domain.test.ts
 src/lib/supabase/talent-profiles-anon-grants.static.test.ts
+src/lib/supabase/tenant-owned-ids.test.ts
 src/lib/support/desk-flag.test.ts
 src/lib/support/desk-host.test.ts
 src/lib/talent-agenda/booking-stub.test.ts
@@ -215,10 +221,13 @@ src/lib/talent/load-representation.test.ts
 src/lib/talent/menu-catalog-owner-provider-rows.static.test.ts
 src/lib/talent/menu-tenant-isolation.static.test.ts
 src/lib/talent/offering-delete-or-archive.test.ts
+src/lib/talent/offerings-auth-staff-capabilities.test.ts
 src/lib/talent/offerings-public-rows.test.ts
+src/lib/talent/staff-talent-access.static.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
 src/lib/talent/workspace-menu-save-gates.test.ts
+src/lib/team/invite-redeem-guard.test.ts
 src/lib/team/redeem-role.test.ts
 src/lib/workspace/destinations.test.ts
 src/lib/workspace/mobile-more-actions.test.ts

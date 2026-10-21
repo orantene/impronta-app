@@ -56,10 +56,21 @@ test("at or under the limit passes and files nothing", async () => {
   assert.equal(rpcs.length, 0);
 });
 
-test("no limit row and no role are both open", async () => {
-  const { admin: a, rpcs } = admin(null);
-  assert.deepEqual(await enforceRoleLimit(a, INPUT), { ok: true });
+test("no role is open; an unset limit is closed for manager and below, open for owner and admin (TUL-1516)", async () => {
   const capped = admin(1);
   assert.deepEqual(await enforceRoleLimit(capped.admin, { ...INPUT, role: null }), { ok: true });
-  assert.equal(rpcs.length + capped.rpcs.length, 0);
+  assert.equal(capped.rpcs.length, 0);
+
+  for (const role of ["owner", "admin"]) {
+    const open = admin(null);
+    assert.deepEqual(await enforceRoleLimit(open.admin, { ...INPUT, role }), { ok: true }, `${role} with no limit row`);
+    assert.equal(open.rpcs.length, 0);
+  }
+
+  for (const role of ["manager", "editor", "viewer"]) {
+    const unset = admin(null);
+    const out = await enforceRoleLimit(unset.admin, { ...INPUT, role });
+    assert.deepEqual(out, { ok: false, reason: "over_limit", requestId: "req-1" }, `${role} with no limit row`);
+    assert.equal(unset.rpcs.length, 1);
+  }
 });

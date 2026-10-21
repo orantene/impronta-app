@@ -62,10 +62,13 @@ export async function adminAiFillMissingSpanishBio(
     parsed.data.talent_profile_id,
   );
   if (!lock.ok) return { ok: false, error: lock.error };
+  // TUL-1623: billed to the staff member's workspace; none (platform super admin) = the platform tenant.
+  const billingTenantId = (await getTenantScope())?.tenantId ?? null;
   const { error } = await aiFillMissingSpanishBio(
     auth.supabase,
     parsed.data.talent_profile_id,
     auth.user.id,
+    billingTenantId,
   );
   if (error) return { ok: false, error };
   revalidatePath("/admin/talent");
@@ -84,7 +87,8 @@ export async function adminAiUpdateSpanishBio(input: z.infer<typeof idSchema>): 
 
   const lock = await assertBioPersonalEditable(auth.supabase, id);
   if (!lock.ok) return { ok: false, error: lock.error };
-  const { error } = await aiRefreshSpanishBioLive(auth.supabase, id, auth.user.id);
+  const billingTenantId = (await getTenantScope())?.tenantId ?? null;
+  const { error } = await aiRefreshSpanishBioLive(auth.supabase, id, auth.user.id, billingTenantId);
   if (error) return { ok: false, error };
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);

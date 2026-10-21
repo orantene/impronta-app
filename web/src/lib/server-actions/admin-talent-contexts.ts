@@ -19,6 +19,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { CONTEXTS_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import {
@@ -245,7 +246,7 @@ export async function setTalentProfileContexts(
 > {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: CONTEXTS_WRITE_CAPABILITY.setTalentProfileContexts });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

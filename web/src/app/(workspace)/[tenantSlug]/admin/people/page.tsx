@@ -15,8 +15,7 @@ import { notFound } from "next/navigation";
 
 import { resolveWorkspaceType } from "@/lib/saas/assert-roster-workspace";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
-import { pinHolderIdsFromSettings } from "@/lib/pos/staff";
-import { logServerError } from "@/lib/server/safe-error";
+import { loadPinHolderIds } from "@/lib/people/pins-store";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { PeopleClient } from "./PeopleClient";
@@ -50,16 +49,15 @@ export default async function PeoplePage({
 
   // The Applications tab opens the roster's own queue, whose route 404s a
   // business workspace; the tab is drawn only where the route answers.
-  // Who holds a register PIN (`agencies.settings.people.pins`), so the
+  // Who holds a register PIN (`staff_pin_hashes`), so the
   // Access hat can say "set" or "none" without ever reading the hash.
   const admin = createServiceRoleClient();
   const [surface, workspaceType, pins] = await Promise.all([
     loadPeopleSurface(scope.tenantId, viewerAccountId),
     resolveWorkspaceType(scope.tenantId),
-    admin ? admin.from("agencies").select("settings").eq("id", scope.tenantId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    admin ? loadPinHolderIds(admin, scope.tenantId) : Promise.resolve(new Set<string>()),
   ]);
-  if (pins.error) logServerError("people.page.pins", pins.error);
-  const registerPinUserIds = [...pinHolderIdsFromSettings((pins.data as { settings?: unknown } | null)?.settings)];
+  const registerPinUserIds = [...pins];
 
   return (
     <PeopleClient

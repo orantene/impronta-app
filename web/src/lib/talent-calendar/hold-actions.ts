@@ -86,7 +86,9 @@ export async function placeTalentHold(
       return { ok: false, error: "End must be after start." };
     }
 
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: placing a hold writes to the talent's calendar; the default
+    // guard capability (agency.workspace.view) is viewer-held.
+    const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -166,7 +168,8 @@ export async function releaseTalentHold(
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
   try {
     if (!holdId) return { ok: false, error: "Missing hold id." };
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: same capability as placeTalentHold — releasing is also a write.
+    const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId, tenantSlug } = auth;
 

@@ -62,7 +62,7 @@ export type LoadEventsResult =
  * a re-implementation.
  */
 export async function loadWorkspaceEvents(): Promise<LoadEventsResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
 
@@ -486,7 +486,7 @@ export type { SessionPoolRow } from "@/lib/events/session-pools";
  * "Comps", whatever had been given out.
  */
 export async function loadSessionComps(sessionId: string): Promise<{ ok: true; count: number; names: string[] } | { ok: false; error: string }> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: "That is not a session." };
@@ -513,7 +513,7 @@ export async function loadSessionComps(sessionId: string): Promise<{ ok: true; c
 }
 
 export async function loadSessionPools(sessionId: string): Promise<{ ok: true; rows: SessionPoolRow[] } | { ok: false; error: string }> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, error: "That is not a session." };
@@ -630,7 +630,7 @@ export type EventSettingsView = {
 
 /** What the Settings tab needs beyond `EventListRow`: the cover's URL and the venue list. */
 export async function loadEventSettings(input: { eventId: string }): Promise<{ ok: true; view: EventSettingsView } | { ok: false; error: string }> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
   const parsed = z.object({ eventId: z.string().uuid() }).safeParse(input);

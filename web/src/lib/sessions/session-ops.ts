@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { assertUserIsTenantStaff } from "@/lib/supabase/tenant-owned-ids";
 import { releaseResourcesOfCancelledSessions } from "@/lib/resources/session-resource-holds";
 
 type Admin = {
@@ -30,7 +31,10 @@ export async function sessionSetInstructor(
   admin: Admin,
   input: { tenantId: string; sessionId: string; userId: string; scope: "this" | "future" | "series" },
 ): Promise<{ ok: true; updated: number } | { ok: false; reason: SessionOpsReason }> {
-  if (typeof admin.rpc !== "function") return { ok: false, reason: "unavailable" };
+  if (typeof admin.rpc !== "function" || typeof admin.from !== "function") return { ok: false, reason: "unavailable" };
+  // TUL-1517: the RPC takes the instructor id as given. It must be staff of THIS tenant.
+  const ownedInstructor = await assertUserIsTenantStaff(admin as Parameters<typeof assertUserIsTenantStaff>[0], input.userId, input.tenantId);
+  if (!ownedInstructor.ok) return { ok: false, reason: ownedInstructor.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
   const { data, error } = await admin.rpc("session_set_instructor", {
     p_tenant_id: input.tenantId,
     p_session_id: input.sessionId,

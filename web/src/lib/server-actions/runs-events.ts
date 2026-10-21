@@ -40,7 +40,7 @@ export type RunsEventsResult =
 
 /** Current value. `ok: false` when it cannot be read — never a guessed `false`. */
 export async function getRunsEvents(): Promise<RunsEventsResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const current = await readRunsEvents(auth.supabase, auth.tenantId);
   if (current === null) return { ok: false, error: "Could not read the events setting." };

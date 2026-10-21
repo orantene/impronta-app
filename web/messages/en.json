@@ -5495,6 +5495,7 @@
         "desc": "Turn on reservations, pick the public word, and set hours.",
         "masterTitle": "Enable appointments",
         "masterDesc": "Off by default. Existing tenants stay on request-only inquiry mode until you turn this on.",
+        "adminOnlyNote": "Only workspace admins can change these settings.",
         "terminologyTitle": "Public wording",
         "terminologyDesc": "The word guests see. Admin screens stay on Appointments.",
         "term": {
@@ -5953,6 +5954,7 @@
         "save": "Save venue",
         "saving": "Saving…",
         "saved": "Saved",
+        "readOnly": "Only admins can edit the venue. Ask an admin to make changes.",
         "roomsTitle": "Rooms",
         "roomsHint": "The parts of your venue people are seated in. A bar counts as a room.",
         "noRoomsYet": "No rooms yet. Add one to start putting tables in it.",
@@ -14624,6 +14626,7 @@
         "refusal": {
           "over_limit": "A manager has to approve this amount first.",
           "pin_invalid": "That PIN is not right.",
+          "pin_throttled": "Too many attempts. Wait 5 minutes.",
           "not_manager": "Only a manager can do this.",
           "already_approved": "This amount is already approved.",
           "conflict": "This sale just changed. Reload and try again.",
@@ -21894,6 +21897,7 @@
           "noHat": "Pick at least one hat to continue.",
           "noName": "A name is needed before anyone can be added.",
           "noEmailForAccess": "An email address is needed to invite someone to sign in.",
+          "noAccessPermission": "Only an admin or owner can give someone access.",
           "bookableOnly": "A person with only the Bookable hat cannot be added yet: there is no invitation for a contractor. Add them with a public profile, or give them access, and turn Bookable on from their record.",
           "bookableWithAccess": "Bookable is turned on from the person's record once they are here; the invitation grants access first."
         },

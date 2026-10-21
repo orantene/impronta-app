@@ -292,7 +292,7 @@ export async function setWorkspaceFieldVisibility(
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_definition_id, visibility } = parsed.data;
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -384,7 +384,7 @@ export async function resetWorkspaceFieldVisibility(
   const parsed = fieldIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -622,7 +622,7 @@ export async function setWorkspaceFieldCatalog(
     required: parsed.data.required,
   });
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -718,7 +718,7 @@ export async function setWorkspaceFieldGroup(
   if (!parsed.success) return { ok: false, error: "Invalid request." };
   const { field_group_id, is_enabled, custom_label, display_order } = parsed.data;
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_field_catalog" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 

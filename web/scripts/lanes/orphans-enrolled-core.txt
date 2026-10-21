@@ -43,6 +43,7 @@ src/components/admin/shell/internal/talent/pages/talent-hydration-418.static.tes
 src/components/admin/shell/internal/talent/pages/today-hydration.static.test.ts
 src/components/admin/shell/internal/talent/shared/plan-oficina-web.static.test.ts
 src/components/admin/shell/internal/talent/today-mobile-header.static.test.ts
+src/components/appointments/appointments-settings-admin-gate.static.test.ts
 src/components/inquiry/event-date-input-aria.test.tsx
 src/components/inquiry/event-date-input.test.tsx
 src/components/marketing/directory/directory-es-labels.test.ts
@@ -65,6 +66,7 @@ src/components/talent/site/max-site-manager-timeout.static.test.ts
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
+src/lib/ai/ai-master-switch.test.ts
 src/lib/changelog/launch-edition-link.test.ts
 src/lib/changelog/launch-guard.test.ts
 src/lib/changelog/public-read.test.ts
@@ -80,8 +82,10 @@ src/lib/guide/guide-search.test.ts
 src/lib/i18n/place-names-es.test.ts
 src/lib/inquiry/inquiry-action-log.test.ts
 src/lib/locale-time.test.ts
+src/lib/media/asset-usage.server.test.ts
 src/lib/media/deleted-account-prefixes.test.ts
 src/lib/media/talent-media-paging.test.ts
+src/lib/media/workspace-asset-url.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/coordinator-role-notify.test.ts
 src/lib/notifications/hub-listing-below-minimum.test.ts
@@ -89,6 +93,7 @@ src/lib/notifications/talent-site-source-line.test.ts
 src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
+src/lib/payments/talent-payout-connect.test.ts
 src/lib/projects/assignment-confirmation.test.ts
 src/lib/projects/project-event-board.test.ts
 src/lib/projects/replace-client-notice.test.ts
@@ -102,6 +107,8 @@ src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/server-actions/admin-bookings-role-label.static.test.ts
+src/lib/server-actions/admin-talent-taxonomy-capabilities.test.ts
+src/lib/server-actions/tul-1708-bookings-capabilities.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts

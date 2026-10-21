@@ -80,7 +80,13 @@ export async function cancelSubscription(
 ): Promise<ServerActionResult<{ fromPlan: string; toPlan: string; effectiveAt: string }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: cancelling/downgrading is an owner-or-admin money decision
+    // (see the role check just below), not something any workspace staff
+    // may do. `manage_agency_settings` is the admin+owner capability and
+    // matches that check exactly — wiring it into the guard stops a viewer
+    // or editor from reaching this far at all; the explicit role check
+    // below is kept as defense-in-depth.
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -241,7 +247,9 @@ export async function reactivateSubscription(): Promise<
 > {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: same gate as cancelSubscription above — reactivating resumes
+    // billing, so it is owner-or-admin, not any workspace staff.
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -293,7 +301,11 @@ export async function pauseSubscription(
 ): Promise<ServerActionResult<{ pausedUntil: string }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: this sibling action had NO role check at all before this
+    // fix (unlike cancel/reactivate above) — any workspace staff, including
+    // a viewer, could stop Stripe from invoicing the tenant. Same gate as
+    // its siblings: owner-or-admin via `manage_agency_settings`.
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 

@@ -25,6 +25,13 @@ import {
 const uuid = z.string().uuid();
 
 async function ctx() {
+  // TUL-1708 audit: the guard below uses the default capability (viewer-held). It is not the real
+  // gate for the writers in this file (decideQueueItemAction, mergeEntriesAction, splitEntryAction,
+  // updateEntryAction, addOwnServiceAction): each one calls guard(ctx, <action>) / resolveHubRoles in
+  // entries.server.ts, which maps agency_memberships.role to a local HubRole set via
+  // hubRolesFromMembership() and denies every action to a viewer (and to any role that set does not
+  // recognize) — fail-closed, independent of this capability check. Not vulnerable; left on the
+  // default on purpose. (loadOwnerHubAction is a read and keeps the default too.)
   const guard = await requireWorkspaceStaffAction();
   if (!guard.ok) return null;
   const admin = createServiceRoleClient();

@@ -24,7 +24,7 @@ import {
   type ServiceMenuItem,
 } from "@/lib/talent/services-menu-types";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { isStaffRole } from "@/lib/auth-flow";
+import { staffMayEditTalent } from "@/lib/talent/staff-talent-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -76,8 +76,8 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
     return { ok: false, error: "Profile not found." };
   }
 
-  const isStaff = !!session.profile && isStaffRole(session.profile.app_role);
   const isOwner = tp.user_id === session.user.id;
+  const isStaff = !isOwner && (await staffMayEditTalent(talentProfileId));
   if (!isOwner && !isStaff) return { ok: false, error: "Forbidden." };
 
   // Resolve the active-roster tenant (service-role, so RLS edges don't hide the

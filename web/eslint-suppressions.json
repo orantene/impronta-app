@@ -196,6 +196,9 @@
   "src/components/admin/shell/internal/drawers/light-10.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 42
+    },
+    "max-lines": {
+      "count": 1
     }
   },
   "src/components/admin/shell/internal/drawers/light-11.tsx": {
@@ -1597,6 +1600,11 @@
   "src/lib/server-actions/admin-user-workspaces.ts": {
     "ratchet/no-untenanted-from": {
       "count": 2
+    }
+  },
+  "src/lib/server-actions/admin-workspace-settings.ts": {
+    "max-lines": {
+      "count": 1
     }
   },
   "src/lib/server-actions/alternate-domain.ts": {

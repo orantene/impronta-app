@@ -9,6 +9,12 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
  * (the settings page and every owner action call this; a layout check alone is not enough).
  */
 export async function ownerGuard() {
+  // TUL-1708 audit: requireWorkspaceStaffAction() below uses the default guard capability
+  // (agency.workspace.view, viewer-held), but that is not this function's real gate. Every caller
+  // relies on the explicit `role !== "owner"` check a few lines down, read straight from
+  // agency_memberships — the strictest tier there is, stronger than any capability a non-owner could
+  // hold. A viewer, editor, manager, or admin is refused here regardless of what capability the
+  // staff check used. Not vulnerable; left on the default on purpose.
   const auth = await requireWorkspaceStaffAction();
   if (!auth.ok) return { ok: false as const, reason: "unauthenticated" as const };
   const admin = createServiceRoleClient();

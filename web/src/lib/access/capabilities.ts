@@ -26,6 +26,7 @@ export const CAPABILITY_CATEGORIES = [
   "inquiry",
   "site",
   "team",
+  "operations",
   "billing",
   "platform",
 ] as const;
@@ -417,6 +418,17 @@ export const CAPABILITIES = {
     displayName: "Bulk watermark apply",
     description: "Apply or override watermarks across many photos in a single action. Agency plan and above.",
     category: "site",
+    scope: "tenant",
+    deprecated: false,
+  }),
+
+  // ─── Operations (day-to-day venue running) ──────────────────────────
+  operate_venue: define({
+    key: "operate_venue",
+    displayName: "Run day-to-day operations",
+    description:
+      "Run day-to-day operations: POS, tables, floor, door, classes, preparation, sessions, customer attach.",
+    category: "operations",
     scope: "tenant",
     deprecated: false,
   }),

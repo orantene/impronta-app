@@ -1,7 +1,10 @@
 src/app/(workspace)/?tenantSlug?/_data-bridge/overview-board-setup-wave.static.test.ts
 src/app/(workspace)/?tenantSlug?/_data-bridge/sales-by-item.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/_projects/projects-mode-model.test.ts
+src/app/(workspace)/?tenantSlug?/admin/pos/classes-actions-capabilities.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/counter-model.test.ts
+src/app/(workspace)/?tenantSlug?/admin/pos/customer-actions-capabilities.test.ts
+src/app/(workspace)/?tenantSlug?/admin/pos/door-actions-capabilities.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/door-client-never-silent.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/door-delivery-labels.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/pos/floor-client.render.test.tsx
@@ -13,6 +16,7 @@ src/components/admin/service-hub/owner-hub-screen.render.test.tsx
 src/components/storefront/public-hub-entries.render.test.tsx
 src/components/talent/money/ledger-clients-state.test.ts
 src/components/talent/service-hub/channel-panels.render.test.tsx
+src/lib/access/tul-1708-area-i-capability.static.test.ts
 src/lib/account/export-bundle.test.ts
 src/lib/account/export-scoping.test.ts
 src/lib/ai/booking-assistant/tools/order-pay-link.server.test.ts
@@ -50,6 +54,7 @@ src/lib/billing/trial-eligibility-user.test.ts
 src/lib/billing/trial-eligibility.test.ts
 src/lib/billing/trial-race-retry-locale.test.ts
 src/lib/billing/trial-session-reconcile.test.ts
+src/lib/billing/workspace-downgrade-stripe.test.ts
 src/lib/billing/workspace-money-gates.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
@@ -110,6 +115,7 @@ src/lib/inquiry/retry-failed-engine-effects.test.ts
 src/lib/ledger/project.test.ts
 src/lib/ledger/run-projection.test.ts
 src/lib/ledger/transfer-settlement.test.ts
+src/lib/media/upload-capability.static.test.ts
 src/lib/menu-import/import-patch.test.ts
 src/lib/menu-import/parse-restauradmin.test.ts
 src/lib/menu-import/photo-ingest.test.ts
@@ -297,6 +303,8 @@ src/lib/scheduling/waitlist-offers-paid.test.ts
 src/lib/scheduling/waitlist-offers.test.ts
 src/lib/scheduling/waitlist-paid-accept.test.ts
 src/lib/server-actions/admin-tier-service-fee.test.ts
+src/lib/server-actions/tul1708-area-j-capabilities.static.test.ts
+src/lib/server-actions/tul1708-billing-settings-capabilities.test.ts
 src/lib/service-hub/collective-p2-hardening.static.test.ts
 src/lib/service-hub/collective-share-guard.static.test.ts
 src/lib/service-hub/collective-split.test.ts
@@ -346,8 +354,10 @@ src/lib/service-hub/terms-wire.static.test.ts
 src/lib/service-hub/terms.test.ts
 src/lib/service-hub/work-style.server.test.ts
 src/lib/service-hub/work-style.test.ts
+src/lib/sessions/events-projects-capabilities.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
+src/lib/sessions/sessions-public-read-visibility.static.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts

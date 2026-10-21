@@ -24,6 +24,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 
 import { requireSession } from "@/lib/server/action-guards";
+import { mediaUploadDenied } from "@/lib/media/upload-capability";
 import { requireTenantScope } from "@/lib/saas";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { validateMediaUploadSize } from "@/lib/site-admin/media/validation";
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
+  const denied = await mediaUploadDenied(scope.tenantId);
+  if (denied) return denied;
 
   let body: Record<string, unknown>;
   try {

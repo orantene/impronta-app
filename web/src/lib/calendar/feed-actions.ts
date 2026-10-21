@@ -60,7 +60,9 @@ async function requestOrigin(): Promise<string> {
 export async function issueCalendarFeedUrl(): Promise<IssueFeedUrlResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: minting a feed URL is a write (a long-lived credential); the
+  // default guard capability (agency.workspace.view) is viewer-held.
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const admin = createServiceRoleClient();
@@ -87,7 +89,9 @@ export async function disconnectCalendarFeed(): Promise<{
 }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: same capability as issueCalendarFeedUrl — both mutate the
+  // workspace's calendar-sync credential.
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const admin = createServiceRoleClient();

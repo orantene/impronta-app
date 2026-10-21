@@ -27,7 +27,7 @@
 import { revalidatePath } from "next/cache";
 import type { RefundPolicyKey, TalentBookingTerms } from "@/lib/billing/commercial-terms-types";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { isStaffRole } from "@/lib/auth-flow";
+import { staffMayEditTalent } from "@/lib/talent/staff-talent-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -109,7 +109,7 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
     return { ok: false, error: "Profile not found." };
   }
 
-  const isStaff = !!session.profile && isStaffRole(session.profile.app_role);
+  const isStaff = tp.user_id === session.user.id ? false : await staffMayEditTalent(talentProfileId);
   const isOwner = tp.user_id === session.user.id;
   if (!isOwner && !isStaff) return { ok: false, error: "Forbidden." };
 

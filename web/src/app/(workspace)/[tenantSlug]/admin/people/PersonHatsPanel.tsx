@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 
 import { StatePill, type PillTone } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
 import { Icon } from "@/components/admin/shell/internal/primitives";
-import { useAdminShell } from "@/components/admin/shell/internal/state";
+import { meetsRole, useAdminShell } from "@/components/admin/shell/internal/state";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { personNameOr } from "@/lib/people/display-name";
@@ -93,11 +93,20 @@ export function PersonHatsPanel({
   onClose: () => void;
 }) {
   const t = useT();
-  const { openDrawer, adminBasePath } = useAdminShell();
+  const { state: shellState, openDrawer, adminBasePath } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<Feedback>(null);
   const name = personNameOr(person.name, t(`${K}.unnamed`));
+  // TUL-1708: grantPersonAccess/revokePersonAccess/setPersonAccessRole
+  // delegate to team-management's promoteRosterTalentToAdmin/
+  // removeTeamMember/changeTeamMemberRole, which now require
+  // manage_memberships (admin+). This panel's Access hat had no role floor
+  // at all — unlike the Team drawer (light-02.tsx `canManage`), which
+  // already swaps its role select for a read-only chip below admin. Mirror
+  // that here instead of leaving the select/buttons live for a role that
+  // can never save.
+  const canManageAccess = meetsRole(shellState.role, "admin");
 
   // Esc closes the sheet, as it closes the shell's own drawers.
   useEffect(() => {
@@ -276,7 +285,7 @@ export function PersonHatsPanel({
                     id={`role-${person.key}`}
                     className={`${PEOPLE_SELECT} max-w-[12rem]`}
                     defaultValue={person.role ?? "viewer"}
-                    disabled={pending || person.role === "owner"}
+                    disabled={pending || person.role === "owner" || !canManageAccess}
                     onChange={(e) => run(() => setPersonAccessRole(person.accountId!, e.target.value))}
                   >
                     {GRANTABLE_ROLES.map((role) => (
@@ -285,21 +294,23 @@ export function PersonHatsPanel({
                       </option>
                     ))}
                   </select>
-                  <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => revokePersonAccess(person.accountId!))}>
-                    {t(`${K}.detail.revokeAccess`)}
-                  </button>
+                  {canManageAccess ? (
+                    <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => revokePersonAccess(person.accountId!))}>
+                      {t(`${K}.detail.revokeAccess`)}
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
               {person.access.on && person.accountId ? <PersonRegisterPin accountId={person.accountId} hasPin={registerPinUserIds.includes(person.accountId)} /> : null}
 
-              {!person.access.on && person.accountId && person.talentProfileId ? (
+              {!person.access.on && person.accountId && person.talentProfileId && canManageAccess ? (
                 <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => grantPersonAccess(person.talentProfileId!, "viewer"))}>
                   {t(`${K}.detail.grantAccess`)}
                 </button>
               ) : null}
 
-              {!person.access.on && !person.accountId ? <InviteThisPerson person={person} pending={pending} run={run} /> : null}
+              {!person.access.on && !person.accountId ? <InviteThisPerson person={person} pending={pending} run={run} canInvite={canManageAccess} /> : null}
 
               {person.access.on ? <RemovalConsequence person={person} hat="access" /> : null}
             </HatBlock>
@@ -402,10 +413,13 @@ function InviteThisPerson({
   person,
   pending,
   run,
+  canInvite,
 }: {
   person: PersonRecord;
   pending: boolean;
   run: (action: () => Promise<PeopleActionResult>) => void;
+  /** TUL-1708: invitePersonAccess → inviteTeamMember needs manage_memberships (admin+). */
+  canInvite: boolean;
 }) {
   const t = useT();
   const invitationPending = person.access.blockedBy.includes("invitationPending");
@@ -434,7 +448,7 @@ function InviteThisPerson({
       <p className={PEOPLE_MUTED}>{interpolate(t(`${K}.detail.inviteWillGoTo`), { email })}</p>
       {/* An invitation is not access, and the screen says so before it is sent as well as after. */}
       <p className={PEOPLE_NOTE}>{t(`${K}.detail.inviteGrantsNothingYet`)}</p>
-      <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending} onClick={() => run(() => invitePersonAccess(email, "viewer"))}>
+      <button type="button" className={PEOPLE_SECONDARY_ACTION} disabled={pending || !canInvite} onClick={() => run(() => invitePersonAccess(email, "viewer"))}>
         {pending ? t(`${K}.detail.working`) : t(`${K}.detail.invite`)}
       </button>
     </div>
