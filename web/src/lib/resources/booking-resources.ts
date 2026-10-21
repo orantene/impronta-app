@@ -255,8 +255,11 @@ export type MoveResourcesResult =
  * window first ("taken" refuses the reschedule), then `finish(true)` gives the old window
  * back, or `finish(false)` (the calendar move failed) gives the new one back. Resources on
  * an order line are moved by `reschedule_booking_set` itself and are skipped here.
- * Known limit: a new window overlapping the old one on a 1-unit pool reads as taken
- * (no self-exclusion outside the engine's reschedule).
+ * FALLBACK ONLY (TUL-1480): `rescheduleBooking` calls
+ * `reschedule_inquiry_booking_with_resources` (held migration 20261231422200), which moves
+ * these allocations and the calendar in one transaction with self-exclusion. This path runs
+ * only while that function is missing; it cannot self-exclude, so a new window overlapping
+ * the old one on a 1-unit pool is refused as taken (never a double booking).
  */
 export async function moveInquiryBookingResources(
   admin: Admin,
