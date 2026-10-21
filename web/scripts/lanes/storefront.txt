@@ -82,12 +82,12 @@ src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
 src/lib/seo/service-page-metadata.test.ts
 src/lib/service-hub/hub-rules.test.ts
-src/lib/service-hub/roster-visibility.test.ts
 src/lib/service-hub/roster-catalog.test.ts
 src/lib/service-hub/roster-dock.test.ts
 src/lib/service-hub/roster-grid.test.ts
 src/lib/service-hub/roster-request.test.ts
 src/lib/service-hub/roster-services.test.ts
+src/lib/service-hub/roster-visibility.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
 src/lib/services/business-pages/page-model.test.ts
