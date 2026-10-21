@@ -37,6 +37,7 @@ src/app/template-preview/?key?/demo-preview-source.test.ts
 src/app/template-preview/?key?/preview-demo-guard.test.ts
 src/app/template-preview/?key?/theme-preview-gate.test.ts
 src/app/template-preview/?key?/theme-preview-source.test.ts
+src/components/support/support-no-inline-copy.static.test.ts
 src/components/talent/services/catalog-bootstrap.test.ts
 src/components/talent/services/services-bootstrap.test.ts
 src/lib/seo/json-ld-script-escape.test.ts
