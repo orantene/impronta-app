@@ -161,11 +161,16 @@ describe("collecting a missed month through a payment link", () => {
     assert.equal(percentLineLabel("2026-11", 1_000, "en"), "Station rent: 10% of your sales, November 2026");
     assert.match(percentLineLabel("2026-11", 1_000, "es"), /^Renta de estación: 10% de tus ventas de noviembre de 2026$/);
   });
-  test("the table keys a month once per plan and is service-role-written (held migration 424500)", () => {
-    const sql = read("../supabase/migrations/_pending_pm/20261231424500_studio_rent_percent_catchups_tul1717.sql").replace(/^\s*--.*$/gm, "");
+  test("the table keys a month once per plan and is service-role-written (held migration 424600)", () => {
+    const sql = read("../supabase/migrations/_pending_pm/20261231424600_studio_rent_percent_catchups_tul1717.sql").replace(/^\s*--.*$/gm, "");
     assert.match(sql, /CONSTRAINT studio_rent_percent_catchups_one_per_month UNIQUE \(plan_id, sales_month\)/);
     assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
     assert.match(sql, /FOR SELECT TO authenticated/);
     assert.doesNotMatch(sql, /FOR (INSERT|UPDATE|DELETE|ALL)/);
+  });
+  test("the owner action is guarded by the capability in the staff guard itself (no second hand-rolled capability check)", () => {
+    const src = read("src/lib/service-hub/rent/rent-percent-catchup-actions.ts");
+    assert.match(src, /requireWorkspaceStaffAction\(\{ capability: "booking\.payment\.request" \}\)/);
+    assert.doesNotMatch(src, /userHasCapability/);
   });
 });

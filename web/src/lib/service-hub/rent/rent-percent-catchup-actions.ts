@@ -7,7 +7,6 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { logWorkspaceAudit } from "@/lib/audit/workspace-audit";
-import { userHasCapability } from "@/lib/access";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
@@ -20,9 +19,9 @@ import { buildCatchupDeps } from "./rent-percent-catchup.server";
 export async function issueMissedPercentLink(input: { planId: string; salesMonth: string }): Promise<CatchupResult | { ok: false; reason: "unauthenticated" | "not_allowed" }> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
-    if (!auth.ok) return { ok: false, reason: "unauthenticated" };
-    if (!(await userHasCapability("booking.payment.request", auth.tenantId))) return { ok: false, reason: "not_allowed" };
+    // The capability is checked by the guard itself (same right issueRent needs), not by a second hand-rolled check.
+    const auth = await requireWorkspaceStaffAction({ capability: "booking.payment.request" });
+    if (!auth.ok) return { ok: false, reason: "not_allowed" };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, reason: "unavailable" };
     const hdrs = await headers();
