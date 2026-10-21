@@ -43,6 +43,17 @@ type Step = "email" | "code" | "password" | "consent";
 /** Dispatch on `window` to open the sign-in popover from a trigger that lives elsewhere (hub header "Entrar"). */
 export const CLIENT_ACCOUNT_OPEN_EVENT = "tulala:open-client-account" as const;
 
+/**
+ * TUL-759: "Entrar" used to dispatch the open event and do nothing when no popover host was
+ * mounted (a tap that goes nowhere). The listener marks `detail.handled`; with no listener the
+ * header falls back to the plain sign-in href.
+ */
+export function openClientAccountOrNavigate(fallbackHref: string): void {
+  const detail = { handled: false };
+  window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT, { detail }));
+  if (!detail.handled) window.location.assign(fallbackHref);
+}
+
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-surface-raised, var(--token-color-background, #fff))";
 const ACCENT = "var(--token-color-primary, #111)";
@@ -135,7 +146,11 @@ export function ClientAccountButton({
   }, [refresh]);
 
   useEffect(() => {
-    const onOpen = () => setOpen(true);
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ handled?: boolean } | null>).detail;
+      if (detail && typeof detail === "object") detail.handled = true;
+      setOpen(true);
+    };
     window.addEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
   }, []);
