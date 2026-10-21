@@ -292,6 +292,7 @@ src/lib/service-hub/entries.test.ts
 src/lib/service-hub/entry-permissions.test.ts
 src/lib/service-hub/entry-photos.test.ts
 src/lib/service-hub/friends-collective.test.ts
+src/lib/service-hub/listing-charge-currency.test.ts
 src/lib/service-hub/listing-sellable-batch.server.test.ts
 src/lib/service-hub/listing-wire.static.test.ts
 src/lib/service-hub/listing.test.ts
