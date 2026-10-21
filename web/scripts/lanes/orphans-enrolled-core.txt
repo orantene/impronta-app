@@ -98,6 +98,7 @@ src/lib/onboarding/type-search.test.ts
 src/lib/payments/payout-account-verification.test.ts
 src/lib/payments/payout-accounts-start-pending.test.ts
 src/lib/payments/talent-payout-connect.test.ts
+src/lib/payments/transfers-refund-race.test.ts
 src/lib/projects/assignment-confirmation.test.ts
 src/lib/projects/project-event-board.test.ts
 src/lib/projects/replace-client-notice.test.ts

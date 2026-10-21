@@ -10,6 +10,8 @@
  * transferred is skipped from the ledger, and Stripe idempotency keys are the
  * same as the original attempt, so the retry is idempotent.
  *
+ * A refund-pending hold (TUL-1746: Stripe shows a refund our ledger has not recorded yet) is retried the same way.
+ *
  * Cross-platform holds are NOT retried here (amount > 0, their own last_error
  * reason); a human resolves those.
  */
@@ -17,6 +19,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { REFUND_PENDING_ERROR_PREFIX } from "@/lib/payments/balance-payout-refund-net";
 import { executeBookingTransfers, type TransferDeps, type TransferOutcome } from "@/lib/payments/transfers";
 
 /** last_error prefix transfers.ts writes on a fee-unknown hold. */
@@ -42,7 +45,9 @@ export async function retryFeeUnknownPayouts(
     .select("transaction_id")
     .eq("status", "held")
     .eq("amount_cents", 0)
-    .like("last_error", `${FEE_UNKNOWN_ERROR_PREFIX}%`)
+    // Two kinds of zero-amount hold are re-run from scratch: the fee was unknown (pass_through), or a refund was
+    // in flight (TUL-1746). Both are recomputed fresh, so a refund that has landed is netted before anything pays.
+    .or(`last_error.like."${FEE_UNKNOWN_ERROR_PREFIX}%",last_error.like."${REFUND_PENDING_ERROR_PREFIX}%"`)
     .not("transaction_id", "is", null)
     .limit(deps.limit ?? 200);
   if (error) {
