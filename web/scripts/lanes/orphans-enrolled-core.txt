@@ -113,6 +113,7 @@ src/lib/server-actions/admin-bookings-role-label.static.test.ts
 src/lib/server-actions/admin-talent-taxonomy-capabilities.test.ts
 src/lib/server-actions/admin-visible-picks-link.test.ts
 src/lib/server-actions/tul-1708-bookings-capabilities.test.ts
+src/lib/server-actions/tul-1708-venue-capability-patch.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts
@@ -131,6 +132,7 @@ src/lib/talent/clients-initial.test.ts
 src/lib/talent/dashboard-mount-reads.static.test.ts
 src/lib/talent/dashboard-reads.test.ts
 src/lib/talent/format-count.test.ts
+src/lib/talent/fulfillment-actions.static.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/instant-plan-gate.test.ts
 src/lib/talent/offering-photo-links.test.ts
