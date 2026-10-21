@@ -55,11 +55,14 @@ const uuid = z.string().uuid();
 
 /**
  * TUL-1708: `action` names the capability a WRITE needs, from DOOR_WRITE_CAPABILITY, passed straight into
- * the guard. Reads (tonight's list, reading a sale, the tickets issued on an order) call `staff()` with
- * no action and keep the guard's own default (`agency.workspace.view`, which every staff role holds).
+ * the guard. Reads (tonight's list, reading a sale, the tickets issued on an order) call `staff()` with no
+ * action, but still need `booking.payment.request`, same as main today: the door shows sales figures and
+ * ticket holder names, which the guard's bare default (`agency.workspace.view`) would hand to any viewer.
  */
 async function staff(action?: DoorWriteAction) {
-  const guard = await requireWorkspaceStaffAction(action ? { capability: DOOR_WRITE_CAPABILITY[action] } : undefined);
+  const guard = await requireWorkspaceStaffAction({
+    capability: action ? DOOR_WRITE_CAPABILITY[action] : "booking.payment.request",
+  });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
