@@ -91,6 +91,8 @@ src/lib/coordinator/replacement-candidates-reader.test.ts
 src/lib/coordinator/staffing-picker.test.ts
 src/lib/customers/client-record.test.ts
 src/lib/customers/customer-identity.test.ts
+src/lib/domains/domain-renewal-plan.test.ts
+src/lib/domains/domain-renewal.static.test.ts
 src/lib/events/cancel-cascade.static.test.ts
 src/lib/events/cancel-event-stamp.static.test.ts
 src/lib/events/hidden-tier-payloads.test.ts
@@ -291,9 +293,11 @@ src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
 src/lib/reviews/team-studio-private-notes.static.test.ts
 src/lib/saas/capabilityless-staff-guard.static.test.ts
+src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/media-area-writers-capability.static.test.ts
 src/lib/saas/media-writers-capability.static.test.ts
 src/lib/saas/ops-writers-capability.static.test.ts
+src/lib/saas/vercel-domains-registrar.test.ts
 src/lib/saas/workspace-settings-writers-capability.static.test.ts
 src/lib/sales/activity-shape.test.ts
 src/lib/sales/by-item-wire.static.test.ts
@@ -372,8 +376,10 @@ src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/recurring-consent.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
+src/lib/stripe/talent-domain-renewal.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
 src/lib/stripe/webhook-events-subscription.static.test.ts
+src/lib/stripe/webhook-routing-renewal.test.ts
 src/lib/stripe/webhook-routing-topup-paid.test.ts
 src/lib/stripe/webhook-script-update.test.ts
 src/lib/stripe/webhook-topup-unpaid-log.test.ts
@@ -383,6 +389,7 @@ src/lib/talent-agenda/booked-guest-load.test.ts
 src/lib/talent-agenda/booking-blocks-and-names.test.ts
 src/lib/talent-agenda/send-quote-currency-message.static.test.ts
 src/lib/talent-agenda/unified-status.test.ts
+src/lib/talent-site/server/talent-domain-plan-grace.test.ts
 src/lib/talent/booking-owed.test.ts
 src/lib/talent/hub-in-place-offerings.test.ts
 src/lib/talent/income-summary.test.ts
