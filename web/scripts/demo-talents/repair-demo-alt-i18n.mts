@@ -27,12 +27,34 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 import { STAGING_MARKER_AGENCY_ID, parseEnvText } from "../lib/group6-fixtures.mjs";
 import {
-  FORBIDDEN_PROFILE_CODES, TARGET_REF, buildBackup, changesOf, checkBackup, checkTarget, checkWritePlan, formatPlanLine,
-  narrowAllowList, parseArgs, planAll, planRestore, sameJson, summarise,
+  FORBIDDEN_PROFILE_CODES, TARGET_REF, buildBackup as buildBackupJs, changesOf as changesOfJs, checkBackup, checkTarget, checkWritePlan, formatPlanLine,
+  narrowAllowList, parseArgs as parseArgsJs, planAll as planAllJs, planRestore as planRestoreJs, sameJson, summarise,
 } from "../lib/demo-alt-i18n.mjs";
 import { demoAltAllowList } from "./demo-alt-allowlist";
 
 type Row = Record<string, unknown>;
+
+// The lib is plain .mjs (no JSDoc), so TypeScript infers its empty-array/null literals as never[]/null.
+// These are the real shapes it produces (see scripts/lib/demo-alt-i18n.mjs); typed once here at the boundary.
+type Args = {
+  apply: boolean; selftest: boolean; help: boolean; envFile: string | null; backupFile: string | null;
+  restore: string | null; only: string[] | null; forceLocales: string[]; errors: string[];
+};
+type Plan = {
+  id: string; profile_code: string; owner_talent_profile_id: string; status: "will-set" | "already-set" | "skipped"; reason: string;
+};
+type Change = {
+  id: string; profile_code: string; owner_talent_profile_id: string; set: Record<string, string>; before: unknown; after: unknown;
+};
+type RestorePlan = {
+  id: string; profile_code: string; owner_talent_profile_id?: string; status: string; reason: string; before?: unknown; after?: unknown;
+};
+type Backup = { updated: { id: string }[] };
+const parseArgs = parseArgsJs as unknown as (argv: string[]) => Args;
+const planAll = planAllJs as unknown as (rows: unknown[], opts: { allowed: unknown; forceLocales: string[] }) => Plan[];
+const changesOf = changesOfJs as unknown as (plans: Plan[]) => Change[];
+const planRestore = planRestoreJs as unknown as (backup: Backup, live: unknown) => RestorePlan[];
+const buildBackup = buildBackupJs as unknown as (input: { mode: string; at: string; forceLocales?: string[]; changes: unknown[] }) => Backup;
 type PgClient = { connect(): Promise<void>; query(text: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>; end(): Promise<void> };
 const PG_MODULE = "pg";
 const pgMod = (await import(PG_MODULE)) as { default: { Client: new (cfg: { connectionString?: string; ssl?: unknown }) => PgClient } };
@@ -108,7 +130,7 @@ const UPDATE_RESTORE = `
 
 const J = (v: unknown) => JSON.stringify(v);
 
-function printPlan(plans: ReturnType<typeof planAll>) {
+function printPlan(plans: Plan[]) {
   let last = "";
   for (const p of plans) {
     if (p.profile_code !== last) {
@@ -134,14 +156,14 @@ async function planNow(forbiddenIds: string[]) {
   return { plans, changes };
 }
 
-async function applyChanges(changes: ReturnType<typeof changesOf>) {
+async function applyChanges(changes: Change[]) {
   for (const c of changes) {
     const r = await q(UPDATE_MERGE, [c.id, c.owner_talent_profile_id, J(c.set), J(c.before), allowedList]);
     if (r.rowCount !== 1) throw new Error(`media_assets ${c.id}: expected 1 row updated, got ${r.rowCount} (row changed under us or is not an allow-listed demo photo)`);
   }
 }
 
-async function readBackAfter(changes: ReturnType<typeof changesOf>) {
+async function readBackAfter(changes: Change[]) {
   const live = new Map((await loadRows()).map((r) => [r.id as string, r.metadata]));
   const bad = changes.filter((c) => !sameJson(live.get(c.id), c.after)).map((c) => c.id);
   if (bad.length) throw new Error(`read-back mismatch on ${bad.length} row(s): ${bad.slice(0, 5).join(", ")}`);
@@ -156,7 +178,7 @@ async function liveMetadataById(ids: string[]) {
   return new Map(r.rows.map((x) => [x.id as string, x as Row]));
 }
 
-async function restoreFrom(backup: ReturnType<typeof buildBackup>, write: boolean) {
+async function restoreFrom(backup: Backup, write: boolean) {
   const live = await liveMetadataById(backup.updated.map((u: { id: string }) => u.id));
   const plan = planRestore(backup, live as never);
   for (const p of plan) console.log(`  ${p.profile_code} ${p.id}: ${p.status}${p.reason ? ` (${p.reason})` : ""}`);

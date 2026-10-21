@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { permissionsTable, type PermissionRow } from "./__fixtures__/fake-permissions-table";
-import { selectStaffPermissions } from "./read";
+import { permissionsTable, thenOf, type PermissionRow } from "./__fixtures__/fake-permissions-table";
+import { selectStaffPermissions, type StaffPermissionsClient, type StaffPermissionsQuery } from "./read";
 
 const TENANT_A = "00000000-0000-4000-8000-00000000000a";
 const TENANT_B = "00000000-0000-4000-8000-00000000000b";
@@ -47,18 +47,9 @@ test("legacy shape (column absent): falls back to the plain query and still answ
 });
 
 test("an unrelated error is surfaced, not retried", async () => {
-  const failing = {
-    from: () => {
-      const q = {
-        select: () => q,
-        eq: () => q,
-        in: () => q,
-        then: <T>(resolve: (v: { data: unknown; error: { code: string; message: string } }) => T) =>
-          Promise.resolve({ data: null, error: { code: "57014", message: "statement timeout" } }).then(resolve),
-      };
-      return q;
-    },
-  };
+  const timeout = thenOf(() => ({ data: null, error: { code: "57014", message: "statement timeout" } }));
+  const q: StaffPermissionsQuery = { eq: () => q, in: () => q, then: timeout };
+  const failing: StaffPermissionsClient = { from: () => ({ select: () => q }) };
   const r = await selectStaffPermissions(failing, { tenantId: TENANT_A, userIds: [USER] });
   assert.equal(r.rows.length, 0);
   assert.equal(r.error?.code, "57014");

@@ -10,16 +10,28 @@
  * the way PostgREST does, so a reader that still uses it fails the test.
  */
 
+import type { StaffPermissionsQuery } from "../read";
+
 export type PermissionRow = { user_id: string; permission: string; tenant_id?: string };
 
-type Result = { data: unknown; error: { code?: string; message?: string } | null };
+export type Result = { data: unknown; error: { code?: string | null; message?: string | null } | null };
+
+/** The PromiseLike half of a PostgREST query builder, typed to the real minimal interface. */
+export function thenOf(run: () => Result): StaffPermissionsQuery["then"] {
+  return (onfulfilled, onrejected) => Promise.resolve(run()).then(onfulfilled, onrejected);
+}
+
+type FakeQuery = StaffPermissionsQuery & {
+  select(columns: string): FakeQuery;
+  maybeSingle(): Promise<Result>;
+};
 
 export function permissionsTable(shape: "legacy" | "scoped", rows: PermissionRow[]) {
   const queries: string[] = [];
   const from = (_table: string) => {
     const filters: Array<[string, (v: unknown) => boolean]> = [];
     let touchesTenant = false;
-    const q = {
+    const q: FakeQuery = {
       select: (_cols: string) => q,
       eq: (col: string, val: string) => {
         if (col === "tenant_id") touchesTenant = true;
@@ -38,8 +50,7 @@ export function permissionsTable(shape: "legacy" | "scoped", rows: PermissionRow
         }
         return Promise.resolve<Result>({ data: list[0] ?? null, error: r.error });
       },
-      then: <T>(resolve: (v: Result) => T, reject?: (e: unknown) => T) =>
-        Promise.resolve(run()).then(resolve, reject),
+      then: thenOf(() => run()),
     };
     const run = (): Result => {
       queries.push(touchesTenant ? "tenant" : "plain");
