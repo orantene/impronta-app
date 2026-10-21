@@ -47,7 +47,8 @@ describe("events", () => {
     const base = { id: "in_1", status: "draft", billing_reason: "subscription_cycle", customer: "cus_1", currency: "mxn", period_start: DEC1, parent: { subscription_details: { subscription: "sub_1", metadata: md } } };
     assert.deepEqual(classifyRentSubscriptionEvent(ev("invoice.created", base)), { type: "draft", planId: "plan-1", tenantId: "t-1", subscriptionId: "sub_1", invoiceId: "in_1", customerId: "cus_1", periodStart: DEC1, currency: "mxn", percentAdded: false, feeBps: 150 });
     assert.equal(classifyRentSubscriptionEvent(ev("invoice.created", { ...base, billing_reason: "subscription_create" })), null);
-    assert.equal(classifyRentSubscriptionEvent(ev("invoice.created", { ...base, status: "open" })), null);
+    // TUL-1717: an invoice created already past its draft window is not a chance to add the percentage; it is reported as past_draft
+    assert.equal(classifyRentSubscriptionEvent(ev("invoice.created", { ...base, status: "open" }))?.type, "past_draft");
     const done = classifyRentSubscriptionEvent(ev("invoice.created", { ...base, metadata: { rent_percent_cents: "0" } }));
     assert.equal(done?.type === "draft" && done.percentAdded, true, "already stamped: a replay adds nothing");
   });
@@ -98,7 +99,7 @@ describe("TUL-1609 consultant fixes", () => {
   const planRow = { stripe_subscription_id: "sub_1", rent_percent_bps: 1_000, accepted_percent_bps: 1_000, currency: "MXN", talent_profile_id: "tp-1", autopay_first_period: "2026-11" };
   function fake(invoice: Record<string, unknown>) {
     const q: Record<string, unknown> = {};
-    Object.assign(q, { select: () => q, eq: () => q, maybeSingle: async () => ({ data: planRow, error: null }) });
+    Object.assign(q, { select: () => q, eq: () => q, update: () => q, maybeSingle: async () => ({ data: { ...planRow, autopay_percent_missed: [] }, error: null }), then: (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res) });
     const created: string[] = [];
     const stripe = { invoices: { retrieve: async () => invoice, update: async () => ({}) }, invoiceItems: { create: async () => { created.push("item"); return {}; } } } as never;
     return { admin: { from: () => q } as never, stripe, created };

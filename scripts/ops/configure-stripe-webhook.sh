@@ -56,6 +56,7 @@ EVENTS=(
   # Station rent on automatic payments (TUL-1700): the monthly draft, the paid month, and an abandoned Checkout.
   # Needed on BOTH the US and the MX endpoint; RENT_AUTOPAY_INVOICE_CREATED_SUBSCRIBED=1 is set only after this ran.
   invoice.created
+  invoice.finalized
   invoice.paid
   invoice.payment_succeeded
   checkout.session.expired

@@ -9,6 +9,7 @@ import { rentBillingGate } from "@/lib/service-hub/rent/rent-gate";
 import { loadRentSafetyView } from "@/lib/service-hub/rent/rent-safety-view.server";
 import { ownerGuard } from "@/lib/service-hub/rent/rent-owner.server";
 import { rentLinkState } from "@/lib/service-hub/rent/rent-cycle";
+import { loadMissedPercentViews } from "@/lib/service-hub/rent/rent-percent-catchup.server";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
 import { isPooledKind, type SpaceKind } from "@/lib/spaces/tree";
 import { RentCard, type RentMember, type RentPlanView, type RentStationOption } from "./RentCard";
@@ -54,6 +55,9 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
       const { data: links } = await tenantScopedQuery(admin, "payment_links", scope.tenantId).select("code, status").in("code", codes);
       for (const l of (links ?? []) as Array<{ code: string; status: string }>) linkStatus.set(l.code, l.status);
     }
+    // TUL-1717: months the automatic invoice could not carry, read on their own and fail-soft (null = the card simply
+    // shows no catch-up rows; it never breaks the page, e.g. before the catch-up migration is applied).
+    const missedViews = await loadMissedPercentViews(admin, scope.tenantId, ((planRows ?? []) as Array<{ id: string }>).map((r) => r.id));
     for (const r of (planRows ?? []) as Array<{ id: string; talent_profile_id: string; monthly_rent_cents: number; rent_percent_bps: number | null; currency: string; status: string; starts_on: string; ended_by: string | null; station_resource_id: string | null; autopay_status?: string | null; talent_profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
       const tp = Array.isArray(r.talent_profiles) ? r.talent_profiles[0] : r.talent_profiles;
       // A live plan always shows; a declined or ended one shows so the owner learns the member's answer.
@@ -69,6 +73,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
         stationId: r.station_resource_id,
         autopayStatus: r.autopay_status ?? "off",
         startsOn: r.starts_on,
+        missedPercent: (missedViews?.get(r.id) ?? []).map((m) => ({ month: m.month, state: m.state })),
         invoice: inv ? { period: inv.period, state: rentLinkState(inv.status, inv.code ? (linkStatus.get(inv.code) ?? null) : null) } : null,
       });
     }
