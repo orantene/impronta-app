@@ -84,6 +84,7 @@ src/lib/marketing/pricing-tier-localize.test.ts
 src/lib/marketing/spanish-path-alias.test.ts
 src/lib/marketing/ticket-fee-comparison.test.ts
 src/lib/marketing/ticket-fee-qualifier.static.test.ts
+src/lib/marketing/ticket-fee-rates.test.ts
 src/lib/media/talent-storage-path.test.ts
 src/lib/onboarding/start-door-redirect.test.ts
 src/lib/payments/provider-status.test.ts
