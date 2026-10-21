@@ -401,7 +401,9 @@ export function WorkspacePageView() {
                 its own file because this one is already past the 800-line
                 max-lines cap. */}
             <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
-            {isOwner ? <><HowYouWorkCard /><WorkStyleSettingsRow /></> : null}
+            {isOwner ? <HowYouWorkCard /> : null}
+            {/* TUL-1474: owner AND admin may change the work style (canSetWorkStyle); the row itself re-checks on the server. */}
+            {isAdmin ? <WorkStyleSettingsRow /> : null}
             {/* Owner-only, and the ONLY caller of `setRunsEvents`. */}
             <RunsEventsCard canEdit={isOwner} />
             <DefaultCurrencySettingsRow />
