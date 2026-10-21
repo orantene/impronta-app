@@ -311,10 +311,12 @@ src/lib/service-hub/public-hub.server.test.ts
 src/lib/service-hub/public-hub.test.ts
 src/lib/service-hub/rent/rent-cycle.test.ts
 src/lib/service-hub/rent/rent-issue.test.ts
+src/lib/service-hub/rent/rent-percent.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts
 src/lib/service-hub/rent/rent-station-pool.test.ts
 src/lib/service-hub/rent/rent-station-trigger.static.test.ts
 src/lib/service-hub/rent/rent-station.test.ts
+src/lib/service-hub/rent/rent-sales-paging.test.ts
 src/lib/service-hub/rent/rent-wire.static.test.ts
 src/lib/service-hub/terms-wire.static.test.ts
 src/lib/service-hub/terms.test.ts

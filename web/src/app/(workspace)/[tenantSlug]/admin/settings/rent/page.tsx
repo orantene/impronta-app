@@ -37,7 +37,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
   let safety: Awaited<ReturnType<typeof loadRentSafetyView>> = [];
   if (admin && gate.ok) {
     const { data: planRows } = await tenantScopedQuery(admin, "studio_rent_plans", scope.tenantId)
-      .select("id, talent_profile_id, monthly_rent_cents, currency, status, ended_by, updated_at, station_resource_id, talent_profiles!inner(display_name)")
+      .select("id, talent_profile_id, monthly_rent_cents, rent_percent_bps, currency, status, ended_by, updated_at, station_resource_id, talent_profiles!inner(display_name)")
       .order("updated_at", { ascending: false })
       .limit(60);
     const { data: invRows } = await tenantScopedQuery(admin, "studio_rent_invoices", scope.tenantId)
@@ -54,7 +54,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
       const { data: links } = await tenantScopedQuery(admin, "payment_links", scope.tenantId).select("code, status").in("code", codes);
       for (const l of (links ?? []) as Array<{ code: string; status: string }>) linkStatus.set(l.code, l.status);
     }
-    for (const r of (planRows ?? []) as Array<{ id: string; talent_profile_id: string; monthly_rent_cents: number; currency: string; status: string; ended_by: string | null; station_resource_id: string | null; talent_profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
+    for (const r of (planRows ?? []) as Array<{ id: string; talent_profile_id: string; monthly_rent_cents: number; rent_percent_bps: number | null; currency: string; status: string; ended_by: string | null; station_resource_id: string | null; talent_profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
       const tp = Array.isArray(r.talent_profiles) ? r.talent_profiles[0] : r.talent_profiles;
       // A live plan always shows; a declined or ended one shows so the owner learns the member's answer.
       const inv = latest.get(r.id);
@@ -62,6 +62,7 @@ export default async function RentSettingsPage({ params }: { params: Promise<{ t
         id: r.id,
         name: tp?.display_name ?? "",
         monthlyRentCents: r.monthly_rent_cents,
+        percentBps: r.rent_percent_bps ?? 0,
         currency: r.currency,
         status: r.status,
         endedBy: r.ended_by,

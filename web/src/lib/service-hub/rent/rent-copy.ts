@@ -47,6 +47,12 @@ export const RENT_COPY = {
     notOwner: "Only the workspace owner can see station rent.",
     station: "Station held with every booking:",
     noStation: "No station",
+    monthNotClosed: "A percentage rent is billed once the month is over.",
+    salesUnavailable: "Could not read this member's sales for that month. Nothing was issued. Try again.",
+    nothingDue: "Nothing is due for that month.",
+    issueMonth: "Month to issue",
+    percentOfSales: "% of their sales",
+    ofSales: "of the member's sales that month",
     accept: "Accept",
     decline: "Decline",
   },
@@ -97,6 +103,12 @@ export const RENT_COPY = {
     notOwner: "Solo el dueño del espacio puede ver la renta de estaciones.",
     station: "Estación apartada en cada reserva:",
     noStation: "Sin estación",
+    monthNotClosed: "La renta por porcentaje se cobra cuando termina el mes.",
+    salesUnavailable: "No se pudieron leer las ventas del miembro en ese mes. No se emitió nada. Inténtalo de nuevo.",
+    nothingDue: "No hay nada que cobrar de ese mes.",
+    issueMonth: "Mes a emitir",
+    percentOfSales: "% de sus ventas",
+    ofSales: "de las ventas del miembro ese mes",
     accept: "Aceptar",
     decline: "Rechazar",
   },
@@ -110,6 +122,9 @@ export function rentRefusalText(reason: string, c: RentCopy): string {
     case "not_accepted": return c.notAccepted;
     case "not_active": return c.notActive;
     case "needs_approval": return c.needsApproval;
+    case "month_not_closed": return c.monthNotClosed;
+    case "sales_unavailable": return c.salesUnavailable;
+    case "nothing_due": return c.nothingDue;
     default: return c.unavailable;
   }
 }

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { memberEndRentPlan, respondRentPlan } from "@/lib/service-hub/rent/rent-actions";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
 
-export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; currency: string; startsOn: string };
+export type RentProposal = { id: string; status: string; workspaceName: string; monthlyRentCents: number; percentBps: number; currency: string; startsOn: string };
 
 function money(cents: number, currency: string, locale: "en" | "es"): string {
   try {
@@ -25,7 +25,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
       {open.map((p) => (
         <div key={p.id} data-testid="rent-proposal" style={{ padding: "14px 0", borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
           <div style={{ fontWeight: 600 }}>{p.workspaceName}</div>
-          <div style={{ fontSize: 15, margin: "4px 0" }}>{money(p.monthlyRentCents, p.currency, locale)} {c.perMonth}</div>
+          <div style={{ fontSize: 15, margin: "4px 0" }}>{p.monthlyRentCents > 0 ? `${money(p.monthlyRentCents, p.currency, locale)} ${c.perMonth}` : ""}{p.monthlyRentCents > 0 && p.percentBps > 0 ? " + " : ""}{p.percentBps > 0 ? `${p.percentBps / 100}% ${c.ofSales}` : ""}</div>
           <div style={{ fontSize: 12.5, opacity: 0.7 }}>{c.startsOn} {p.startsOn}</div>
           <p style={{ fontSize: 12.5, opacity: 0.75 }}>{c.safetyNote}</p>
           {p.status !== "proposed" ? (
@@ -43,7 +43,7 @@ export function RentProposalCard({ locale, proposals }: { locale: "en" | "es"; p
                 type="button"
                 disabled={pending}
                 onClick={() => start(async () => {
-                  const r = await respondRentPlan({ planId: p.id, accept: k === "accept", seenAmountCents: p.monthlyRentCents });
+                  const r = await respondRentPlan({ planId: p.id, accept: k === "accept", seenAmountCents: p.monthlyRentCents, seenPercentBps: p.percentBps });
                   setDone((d) => ({ ...d, [p.id]: r.ok ? c.saved : c.unavailable }));
                 })}
               >{c[k]}</button>
