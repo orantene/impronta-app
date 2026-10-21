@@ -2,8 +2,8 @@
  * TUL-1269 item 5 (package E6): team members cannot promote themselves or
  * rewrite other members' roles at the database layer.
  *
- * Pins the HELD migration
- *   supabase/migrations/_pending_pm/20261231418000_tenant_admin_tables_role_aware_rls.sql
+ * Pins the migration (applied on staging and prod 2026-10-20)
+ *   supabase/migrations/20261231418000_tenant_admin_tables_role_aware_rls.sql
  * Static text pins only; the behaviour check is the rolled-back harness in the
  * file's header comment (PM runs it on staging).
  *
@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FILE = join(
-  HERE, "..", "..", "..", "..", "supabase", "migrations", "_pending_pm",
+  HERE, "..", "..", "..", "..", "supabase", "migrations",
   "20261231418000_tenant_admin_tables_role_aware_rls.sql",
 );
 const sql = readFileSync(FILE, "utf8");
