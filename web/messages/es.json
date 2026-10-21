@@ -19596,6 +19596,7 @@
         "invalid": "Máximo 600 caracteres, sin guiones largos.",
         "tryAgain": "Eso no funcionó. Inténtalo de nuevo.",
         "capReached": "Ya usaste la ayuda de escritura de hoy. Se reinicia mañana.",
+        "personalCapReached": "Ya usaste tu parte de la ayuda de IA por ahora. Inténtalo en unos minutos. Tu cupo mensual se reinicia el día 1.",
         "aiOff": "La ayuda de escritura está apagada por ahora."
       }
     },

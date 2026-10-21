@@ -19596,6 +19596,7 @@
         "invalid": "Keep it under 600 characters, no dashes.",
         "tryAgain": "That didn't work. Try again.",
         "capReached": "You've used today's writing help. It resets tomorrow.",
+        "personalCapReached": "You've used your share of AI help for now. Try again in a few minutes. Your monthly allowance resets on the 1st.",
         "aiOff": "Writing help is off right now."
       }
     },
