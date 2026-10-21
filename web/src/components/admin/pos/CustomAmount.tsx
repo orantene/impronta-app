@@ -163,6 +163,8 @@ export type ManagerApprovalDialogProps = {
   readonly onKey: (key: string) => void;
   /** The last refusal, as a sentence, or null. */
   readonly status: string | null;
+  /** TUL-1723: the status is the PIN lockout (`pin_throttled`), not a typo. */
+  readonly statusLocked?: boolean;
   readonly busy: boolean;
   readonly onApprove: () => void;
   readonly copy: CustomAmountCopy;
@@ -250,8 +252,8 @@ export function ManagerApprovalDialog(props: ManagerApprovalDialogProps) {
         ))}
       </div>
       {props.status && (
-        <p role="alert" data-pos-approval-status className="m-0 mb-4 flex items-start gap-2.5 rounded-[12px] bg-admin-critical-soft px-4 py-3 text-[14px] text-admin-red">
-          <X aria-hidden size={16} strokeWidth={2} className="mt-0.5 shrink-0" />
+        <p role="alert" data-pos-approval-status data-pos-pin-locked={props.statusLocked ? "true" : undefined} className="m-0 mb-4 flex items-start gap-2.5 rounded-[12px] bg-admin-critical-soft px-4 py-3 text-[14px] text-admin-red">
+          {props.statusLocked ? <Lock aria-hidden size={16} strokeWidth={2} className="mt-0.5 shrink-0" /> : <X aria-hidden size={16} strokeWidth={2} className="mt-0.5 shrink-0" />}
           <span>{props.status}</span>
         </p>
       )}

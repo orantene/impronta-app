@@ -153,5 +153,5 @@ test("TUL-1516: a throttled reply reaches the till as pin_throttled with its own
     assert.equal(typeof msgs.dashboard.pos.engine.refusal.pin_throttled, "string", lang);
   }
   const es = JSON.parse(readFileSync(join(WEB, "messages/es.json"), "utf8"));
-  assert.equal(es.dashboard.pos.engine.refusal.pin_throttled, "Demasiados intentos, espera 5 minutos.");
+  assert.equal(es.dashboard.pos.engine.refusal.pin_throttled, "Demasiados PIN incorrectos, así que el PIN está bloqueado. Vuelve a intentarlo en {minutes} min.");
 });

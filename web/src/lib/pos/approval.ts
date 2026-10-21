@@ -24,6 +24,8 @@ export type ApproveCustomAmountResult =
         | "unavailable";
       /** TUL-1516: too many wrong PINs in the window; the PIN was not even checked. */
       throttled?: true;
+      /** Seconds until the oldest wrong PIN ages out, when the engine says. */
+      retryAfterSeconds?: number;
     };
 
 export async function approveCustomAmount(
@@ -62,6 +64,7 @@ export async function approveCustomAmount(
     approval_id?: string;
     already?: boolean;
     throttled?: boolean;
+    retry_after_seconds?: number;
   };
   if (reply.ok === true && reply.approval_id) {
     return { ok: true, approvalId: reply.approval_id, already: reply.already === true };
@@ -77,7 +80,12 @@ export async function approveCustomAmount(
     reason === "invalid"
   ) {
     return reply.throttled === true && reason === "pin_invalid"
-      ? { ok: false, reason: "pin_throttled", throttled: true }
+      ? {
+          ok: false,
+          reason: "pin_throttled",
+          throttled: true,
+          ...(typeof reply.retry_after_seconds === "number" ? { retryAfterSeconds: reply.retry_after_seconds } : {}),
+        }
       : { ok: false, reason };
   }
   return { ok: false, reason: "unavailable" };

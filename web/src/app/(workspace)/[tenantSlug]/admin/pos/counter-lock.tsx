@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { LockScreen, type LockScreenCopy } from "@/components/admin/pos/LockScreen";
 import type { PosPerson } from "@/components/admin/pos/pos-types";
+import { pinStatusFor, type PinStatus } from "@/lib/pos/pin-lock";
 import { posCurrentDeviceSession, posLockTill, posSwitchOperator, posUnlockTill } from "@/lib/server-actions/pos-engine";
 
 const DEVICE_KEY_STORAGE = "pos.deviceKey";
@@ -63,7 +64,7 @@ export function useCounterLock(input: {
   const [operatorUserId, setOperatorUserId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pin, setPin] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<PinStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
   const withPins = input.people.filter((p) => p.hasPin);
@@ -83,14 +84,12 @@ export function useCounterLock(input: {
     };
   }, []);
 
-  const sentence = useCallback((reason: unknown) => (typeof reason === "string" && copy.refusal[reason]) || copy.refusal.unavailable || "", [copy.refusal]);
-
   const lock = useCallback(() => {
     if (!deviceKey) {
       // Storage refused a key: the till cannot be told apart from another,
       // so the lock says so instead of silently doing nothing.
       setMode("locked");
-      setStatus(sentence("unavailable"));
+      setStatus(pinStatusFor(copy.refusal, "unavailable"));
       return;
     }
     setBusy(true);
@@ -102,11 +101,11 @@ export function useCounterLock(input: {
           setPin("");
           setSelectedId(operatorUserId ?? withPins[0]?.userId ?? null);
         } else {
-          setStatus(sentence(r.reason));
+          setStatus(pinStatusFor(copy.refusal, r.reason, "retryAfterSeconds" in r ? r.retryAfterSeconds : undefined));
         }
       })
       .finally(() => setBusy(false));
-  }, [deviceKey, operatorUserId, sentence, withPins]);
+  }, [copy.refusal, deviceKey, operatorUserId, withPins]);
 
   const openSwitch = useCallback(() => {
     setMode("switch");
@@ -129,12 +128,12 @@ export function useCounterLock(input: {
             setPin("");
           } else {
             setPin("");
-            setStatus(sentence(r.reason));
+            setStatus(pinStatusFor(copy.refusal, r.reason, "retryAfterSeconds" in r ? r.retryAfterSeconds : undefined));
           }
         })
         .finally(() => setBusy(false));
     },
-    [deviceKey, mode, selectedId, sentence],
+    [copy.refusal, deviceKey, mode, selectedId],
   );
 
   // A PIN is 4 to 6 digits, so four dots are not yet an answer: the pad
@@ -168,7 +167,8 @@ export function useCounterLock(input: {
         onKey={onKey}
         onSubmit={pin.length >= 4 ? () => submit(pin) : undefined}
         drawerOwnerName={input.drawerOwnerName}
-        status={status}
+        status={status?.text ?? null}
+        statusLocked={status?.locked === true}
         busy={busy}
         onCancelSwitch={mode === "switch" ? () => setMode("open") : undefined}
         peopleHref={input.peopleHref}
