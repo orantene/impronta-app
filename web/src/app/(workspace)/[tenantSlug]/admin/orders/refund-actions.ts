@@ -5,7 +5,6 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { findTenantMembership } from "@/lib/saas/tenant";
-import { userHasCapability } from "@/lib/access";
 import { enforceRoleLimit } from "@/lib/approvals/enforce";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
@@ -268,10 +267,14 @@ const schema = z.object({
 
 export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<RefundDeskResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: the guard used to default to the viewer-held
+  // `agency.workspace.view` and rely entirely on the `manage_billing`
+  // (owner-only) check just below. The registry has a capability named
+  // exactly for this action — `booking.payment.refund` (admin tier) — so the
+  // guard now asks for that directly instead of a generic billing capability
+  // one tier up from where refunds actually sit.
+  const guard = await requireWorkspaceStaffAction({ capability: "booking.payment.refund" });
   if (!guard.ok) return { ok: false, outcome: "not_allowed" };
-  const allowed = await userHasCapability("manage_billing", guard.tenantId);
-  if (!allowed) return { ok: false, outcome: "not_allowed" };
   const parsed = schema.safeParse(input);
   if (!parsed.success || !isRefundEffect(parsed.data.effect)) {
     return { ok: false, outcome: "invalid" };

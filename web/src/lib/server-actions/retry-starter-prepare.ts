@@ -50,7 +50,15 @@ export async function retryStarterPrepareAction(): Promise<RetryStarterPrepareRe
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: this retries the SAME write provisioning does — compose or
+    // seed, then `publish: true` — touching pages, nav, homepage AND the
+    // theme draft (compose-site-from-brief.server.ts). No single existing
+    // capability names "redo onboarding's site build"; `agency.site_admin
+    // .design.publish` (admin tier) is the narrowest capability that already
+    // covers every surface this write can touch, so a viewer/editor/manager
+    // can no longer trigger it. Flagging for PM: a dedicated capability may
+    // be worth adding if this grows beyond a one-time recovery action.
+    const auth = await requireWorkspaceStaffAction({ capability: "agency.site_admin.design.publish" });
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };

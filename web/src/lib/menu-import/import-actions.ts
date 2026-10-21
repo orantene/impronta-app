@@ -16,6 +16,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { insertPatch, updatePatch } from "./import-patch";
 import { parseRestauradminMenu, type ImportedMenu } from "./parse-restauradmin";
@@ -35,8 +36,16 @@ export type ApplyResult =
 
 type Auth = { ok: true; tenantId: string } | { ok: false; error: string };
 
-async function authorize(tenantId: string): Promise<Auth> {
-  const staff = await requireWorkspaceStaffAction();
+/**
+ * TUL-1708: the preview action reads only, so it keeps the guard's viewer
+ * default. The apply action writes `talent_offerings` — the same table
+ * `talent/menu-offerings-actions.ts` gates with `agency.site_admin.sections.edit`
+ * (editor and above) — so it passes that capability explicitly.
+ */
+const APPLY_CAPABILITY: CapabilityKey = "agency.site_admin.sections.edit";
+
+async function authorize(tenantId: string, capability?: CapabilityKey): Promise<Auth> {
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) {
     return { ok: false, error: "Not authorized for this workspace." };
@@ -258,7 +267,7 @@ export async function applyMenuImport(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorize(tenantId);
+    const auth = await authorize(tenantId, APPLY_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const parsed = parseSource(source);
     if (!parsed.ok) return { ok: false, error: parsed.error };

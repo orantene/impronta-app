@@ -292,6 +292,7 @@ src/lib/scheduling/waitlist-offers-paid.test.ts
 src/lib/scheduling/waitlist-offers.test.ts
 src/lib/scheduling/waitlist-paid-accept.test.ts
 src/lib/server-actions/admin-tier-service-fee.test.ts
+src/lib/server-actions/tul1708-area-j-capabilities.static.test.ts
 src/lib/service-hub/collective-p2-hardening.static.test.ts
 src/lib/service-hub/collective-share-guard.static.test.ts
 src/lib/service-hub/collective-split.test.ts

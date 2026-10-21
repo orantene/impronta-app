@@ -60,7 +60,12 @@ export async function enqueueRosterImportJob(
 ): Promise<ServerActionResult<{ jobId: string; totalRows: number }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: bulk-adding talent to the roster is exactly what
+    // `manage_talent_roster` (manager tier) describes. The owner/admin-only
+    // role check just below is a stricter, pre-existing gate layered on top —
+    // naming this capability only closes the viewer/editor default, it does
+    // not loosen anything that check already enforces.
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_talent_roster" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
