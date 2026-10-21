@@ -1749,6 +1749,8 @@
     "instantBook": {
       "guestName": "Your name",
       "guestEmail": "Your email",
+      "nameInvalid": "Enter your name.",
+      "emailInvalid": "Enter a valid email so we can send your confirmation.",
       "signInToBook": "Sign in to book",
       "refusal": {
         "requestOnly": "This one is booked by request. Send a message to ask for a time.",
