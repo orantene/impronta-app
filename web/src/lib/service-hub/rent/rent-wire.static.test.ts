@@ -68,4 +68,12 @@ describe("rent billing wiring (TUL-1376)", () => {
     assert.match(store, /\.is\("order_id", null\)\s*\.select\("id"\)/);
     assert.match(store, /data\.length === 1/);
   });
+
+  test("TUL-1483: a member declining or ending a plan notifies the owner, after the audit entry", () => {
+    const actions = code(sources.find((s) => s.f === "rent-actions.ts")!.text);
+    assert.match(actions, /notifyRentPlanMemberResponse\(\{[\s\S]*?outcome: "declined"/);
+    assert.match(actions, /notifyRentPlanMemberResponse\(\{[\s\S]*?outcome: "ended"/);
+    assert.match(actions, /if \(!input\.accept\) await notifyRentPlanMemberResponse/, "accepting does not alert the owner");
+    assert.ok(actions.indexOf('"workspace.rent_plan.ended_by_member"') < actions.lastIndexOf("notifyRentPlanMemberResponse("), "notify after the audit");
+  });
 });

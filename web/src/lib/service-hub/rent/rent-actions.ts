@@ -9,6 +9,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { logWorkspaceAudit } from "@/lib/audit/workspace-audit";
+import { notifyRentPlanMemberResponse } from "@/lib/notifications/producers/rent-notify";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { userHasCapability } from "@/lib/access";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -221,6 +222,8 @@ export async function respondRentPlan(input: { planId: string; accept: boolean; 
       targetId: input.planId,
       metadata: { terms_version: row.terms_version, amount_cents: row.monthly_rent_cents, currency: row.currency },
     });
+    // TUL-1483: the owner hears (email + bell) when the member declines; accepting needs no alert.
+    if (!input.accept) await notifyRentPlanMemberResponse({ admin, tenantId: row.tenant_id, planId: input.planId, talentProfileId: me.talentProfile.id, outcome: "declined" });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
@@ -260,6 +263,8 @@ export async function memberEndRentPlan(input: { planId: string }): Promise<Resp
       targetId: input.planId,
       metadata: {},
     });
+    // TUL-1483: tell the owner (email + bell); deduped on plan id + outcome.
+    await notifyRentPlanMemberResponse({ admin, tenantId: (data as { tenant_id: string }).tenant_id, planId: input.planId, talentProfileId: me.talentProfile.id, outcome: "ended" });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (err) {
