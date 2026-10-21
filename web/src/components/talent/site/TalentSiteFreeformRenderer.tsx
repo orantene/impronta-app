@@ -12,6 +12,7 @@ import { treeHasInstances } from "@/lib/site-admin/builder-node/component-instan
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
 import { renderPromoBlock } from "@/lib/site-admin/builder-node/promo-block";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
+import { renderLiveBookingBand } from "@/lib/site-admin/builder-node/live-booking-band";
 import { loadBuilderNodeDataSources } from "@/components/home/homepage-cms-data-sources";
 import { loadBuilderComponentsForTenant } from "@/lib/site-admin/edit-mode/builder-components-loader";
 import { loadPlatformDefaultTheme } from "@/lib/platform/default-theme";
@@ -182,6 +183,7 @@ export async function TalentSiteFreeformRenderer({
       contentLocale: { locale, defaultLocale: "en", chain: [locale, "en"] },
       ...experimentContext,
       renderSectionEmbed,
+      renderLiveBookingBand,
       // TUL-1178: the real promo renderer is injected here (the My content preview holds promo data).
       renderPromoBlock,
     });

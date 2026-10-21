@@ -97,6 +97,7 @@ src/lib/services/presentation/load-talent-presentation.server.test.ts
 src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
+src/lib/site-admin/builder-node/live-booking-band-injection.static.test.ts
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/roster-services-grid.render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts

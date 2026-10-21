@@ -41,6 +41,7 @@ import { loadTalentAskVisible } from "./talent-ask-visible";
 import { readableButtonDefaults } from "./talent-site-render-fixups.server";
 import { HeaderScrollObserver } from "@/lib/site-admin/sections/site_header/HeaderScrollObserver";
 import { makeSectionEmbedRenderer } from "@/lib/site-admin/builder-node/section-embed-renderer";
+import { renderLiveBookingBand } from "@/lib/site-admin/builder-node/live-booking-band";
 import { renderPromoBlock } from "@/lib/site-admin/builder-node/promo-block";
 import { resolveExperimentRenderContext } from "@/lib/site-admin/builder-node/experiment-context";
 import { coerceTheme } from "@/lib/talent-site/published-talent-page-core";
@@ -621,6 +622,7 @@ export async function renderMaxSiteDocument(args: {
           contentLocale: args.localeCtx.contentLocale,
           ...experimentContext,
           renderSectionEmbed,
+          renderLiveBookingBand,
           renderPromoBlock,
           publicHost: publicHost || undefined,
         })}
