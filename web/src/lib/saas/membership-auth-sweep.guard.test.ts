@@ -134,10 +134,6 @@ const REQUIRE_STAFF_ALLOW_LIST: ReadonlyArray<readonly [string, string]> = [
     "PR 0b-1 guard: calls requireStaff() only as the first step, then narrows non-platform staff to the talent's roster tenants (the scoping this guard exists to add)",
   ],
   ["src/app/api/dev/reset-guest/route.ts", "dev-only fixture reset; not reachable in production"],
-  [
-    "src/lib/server-actions/admin-clients.ts",
-    "writes global client_profiles rows + provisions auth users; has no tenant scope to prove (own lane)",
-  ],
 ];
 
 test("no NEW surface re-introduces the global-app_role gate", () => {
