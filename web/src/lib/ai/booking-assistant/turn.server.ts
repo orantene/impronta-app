@@ -34,6 +34,7 @@ import { sanitizeBookingAssistantOutput } from "./guardrails";
 import { BOOKING_ASSISTANT_MODEL } from "./model";
 import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
 import { offeringPriceLabel } from "./price-label";
+import { pickSoloRosterTalentId } from "./solo-roster-talent";
 import {
   bookingAssistantMonthlyCapCents,
   bookingAssistantMonthlyCapReached,
@@ -367,13 +368,41 @@ function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]):
   );
 }
 
+async function soloRosterTalentId(tenantId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id, status")
+    .eq("tenant_id", tenantId)
+    .neq("status", "removed")
+    .limit(3);
+  if (error) {
+    logServerError("booking-assistant/soloRoster", error);
+    return null;
+  }
+  return pickSoloRosterTalentId(data as Array<{ talent_profile_id: string | null; status: string | null }>);
+}
+
 /**
  * Best-effort: never throws to the guest send path. Returns the system message
  * when one was posted (callers that schedule via `after()` ignore the return).
  */
 export async function maybeRunBookingAssistantTurn(
-  args: MaybeRunBookingAssistantTurnArgs,
+  inputArgs: MaybeRunBookingAssistantTurnArgs,
 ): Promise<GuestThreadMessage | null> {
+  // TUL-662 / TUL-1155: a one-talent workspace site (/w/<slug>) starts a
+  // talent-less agency_site inquiry; the assistant speaks for the roster's only
+  // talent instead of skipping with no_talent_profile_id on every turn.
+  let args = inputArgs;
+  if (!inputArgs.talentProfileId) {
+    try {
+      const solo = await soloRosterTalentId(inputArgs.tenantId);
+      if (solo) args = { ...inputArgs, talentProfileId: solo };
+    } catch (err) {
+      logServerError("booking-assistant/soloRoster", err);
+    }
+  }
   const base = {
     inquiry_id: args.inquiryId,
     tenant_id: args.tenantId,
