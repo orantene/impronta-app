@@ -12,11 +12,14 @@ import { logServerError } from "@/lib/server/safe-error";
 import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { createClient } from "@/lib/supabase/server";
+import { readJoinTerms, type JoinTermsInput, type JoinTermsOutcome } from "@/lib/service-hub/join-terms";
+import { loadJoinTermsContext, proposeTermsOnJoin } from "@/lib/service-hub/join-terms.server";
 
 // Non-exported on purpose — a "use server" file may only *export* async
 // functions. The drawer consumes this shape via return-type inference.
 type InviteRosterTalentResult =
-  | { ok: true; talentProfileId: string }
+  | { ok: true; talentProfileId: string; terms: JoinTermsOutcome }
   | { ok: false; error: string };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,6 +45,8 @@ export async function inviteRosterTalent(
   tenantSlug: string,
   rawName: string,
   rawEmail: string,
+  // TUL-1476: the owner's terms step. Omitted (onboarding, older callers) = no terms sent.
+  terms?: JoinTermsInput | null,
 ): Promise<InviteRosterTalentResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
@@ -73,6 +78,15 @@ export async function inviteRosterTalent(
         ok: false,
         error: "Server configuration error (service role key missing).",
       };
+    }
+
+    // ── TUL-1476: check the owner's terms BEFORE writing anything, so a typo
+    // in the share is fixed in the drawer instead of leaving a half-done invite.
+    const termsCtx = terms
+      ? await loadJoinTermsContext(admin, scope.tenantId, session.user.id)
+      : null;
+    if (terms && termsCtx && readJoinTerms(terms, termsCtx.defaultModel).kind === "invalid") {
+      return { ok: false, error: "Check the terms: the share or rent is not valid." };
     }
 
     // ── Seat-limit check — server-side enforcement (not just the UI) ────────
@@ -173,6 +187,19 @@ export async function inviteRosterTalent(
       };
     }
 
+    // ── TUL-1476: propose terms now the roster row exists (pending until the
+    // talent accepts them on their terms card; nothing is sold before that).
+    let termsOutcome: JoinTermsOutcome = "skipped";
+    if (terms && termsCtx) {
+      termsOutcome = await proposeTermsOnJoin(await createClient(), {
+        tenantId: scope.tenantId,
+        talentProfileId,
+        path: "invite",
+        input: terms,
+        defaultModel: termsCtx.defaultModel,
+      });
+    }
+
     // ── Claim invite — routed through the notification dispatcher.
     // Fire-and-forget; the dispatcher renders the branded ClaimInvite email
     // to an email-only (guest) recipient and no-ops without RESEND_API_KEY.
@@ -225,7 +252,7 @@ export async function inviteRosterTalent(
     // it. Revalidate at layout scope so the new Invited talent appears on
     // the roster without a manual reload — the scope inviteTeamMember uses.
     revalidatePath("/", "layout");
-    return { ok: true, talentProfileId };
+    return { ok: true, talentProfileId, terms: termsOutcome };
   } catch (err) {
     logServerError("roster-invite/unexpected", err);
     return { ok: false, error: "Unexpected error. Try again." };
