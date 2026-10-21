@@ -95,7 +95,6 @@ const NOT_YET_ENROLLED: readonly string[] = [
   "src/lib/site-admin/server/pages.ts",
   "src/lib/site-admin/builder-node/render.test.ts",
   "src/lib/site-admin/builder-node/operations.ts",
-  "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx",
   "src/app/(workspace)/[tenantSlug]/_data-bridge/discover.ts",
   "src/lib/site-admin/tokens/registry.ts",
   "src/lib/site-admin/sections/directory/Editor.tsx",

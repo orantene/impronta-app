@@ -104,5 +104,4 @@ test("server upload routes (service role) keep the tenant/<id>/ prefix the helpe
 test("the roster editor's direct browser uploads (the only user-session writers) use <talent_profile_id>/", () => {
   const dir = "app/(workspace)/[tenantSlug]/admin/roster/[id]/";
   assert.match(read(dir + "EditorSections.tsx"), /const storagePath = `\$\{talentId\}\/gallery\//);
-  assert.match(read(dir + "TalentEditForm.tsx"), /const storagePath = `\$\{talentId\}\/public\//);
 });

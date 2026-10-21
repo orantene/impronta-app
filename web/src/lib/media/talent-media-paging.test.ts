@@ -67,7 +67,6 @@ test("gallery drawer shows Load more only with more rows, and blocks reorder on 
 
 test("the profile editors page the gallery instead of loading all of it", () => {
   for (const p of [
-    "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx",
     "src/components/admin/shell/internal/talent-drawers/profile-essentials.tsx",
   ]) {
     const s = src(p);

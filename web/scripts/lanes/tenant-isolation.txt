@@ -136,6 +136,7 @@ src/lib/saas/public-booking-surface.static.test.ts
 src/lib/saas/public-hrefs.test.ts
 src/lib/saas/public-profile-override-tenant.test.ts
 src/lib/saas/rail-visible-pages.static.test.ts
+src/lib/saas/retired-roster-edit-actions-removed.static.test.ts
 src/lib/saas/rls-grant-drift.static.test.ts
 src/lib/saas/scope.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts

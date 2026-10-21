@@ -35,7 +35,6 @@
   "src/app/(workspace)/[tenantSlug]/admin/payouts/base-fee-actions.ts": 1,
   "src/app/(workspace)/[tenantSlug]/admin/pitches/actions.ts": 3,
   "src/app/(workspace)/[tenantSlug]/admin/policy/auto-ack/actions.ts": 1,
-  "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/actions.ts": 3,
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/extended-actions.ts": 8,
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/talent-data.ts": 1,
   "src/app/(workspace)/[tenantSlug]/admin/roster/applications/page.tsx": 1,

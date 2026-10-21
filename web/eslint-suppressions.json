@@ -44,14 +44,6 @@
       "count": 1
     }
   },
-  "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx": {
-    "max-lines": {
-      "count": 1
-    },
-    "ratchet/no-raw-file-formdata": {
-      "count": 1
-    }
-  },
   "src/app/(workspace)/[tenantSlug]/admin/work/[id]/page.tsx": {
     "max-lines": {
       "count": 1

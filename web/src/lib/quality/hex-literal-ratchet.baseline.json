@@ -33,7 +33,6 @@
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/CompletenessDial.tsx": 4,
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/curated-city-field.tsx": 4,
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/EditorSections.tsx": 7,
-  "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/TalentEditForm.tsx": 9,
   "src/app/(workspace)/[tenantSlug]/admin/roster/[id]/WorkflowPipe.tsx": 7,
   "src/app/(workspace)/[tenantSlug]/admin/roster/applications/page.tsx": 2,
   "src/app/(workspace)/[tenantSlug]/admin/roster/new/NewRosterTalentForm.tsx": 5,
