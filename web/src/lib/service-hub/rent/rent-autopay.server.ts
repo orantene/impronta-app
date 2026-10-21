@@ -9,6 +9,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { rentAutopayFlagOn } from "./rent-autopay";
 import { rentReversalCents } from "./rent-autopay-refunds";
+import { percentMonthForInvoice, percentRentLines } from "./rent-autopay";
+import { periodOfSeconds } from "./rent-autopay-routing";
+import { loadMemberSalesBase } from "./rent-sales-base.server";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { afterResponse } from "@/lib/server/after-response";
@@ -115,7 +118,7 @@ function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentA
 }
 
 /** Webhook entry: apply one classified rent-subscription event. Never throws. */
-export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: RentSubscriptionEvent, account: StripeAccountKey = "us"): Promise<ApplyOutcome> {
+export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: Exclude<RentSubscriptionEvent, { type: "draft" }>, account: StripeAccountKey = "us"): Promise<ApplyOutcome> {
   try {
     return await applyRentSubscriptionEvent(ev, buildApplyDeps(admin, account));
   } catch (err) {
@@ -253,5 +256,53 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
   } catch (err) {
     logServerError("rent.autopay.chargeEvent", err);
     return confirmed ? "retry" : "not_rent";
+  }
+}
+
+// ── TUL-1609: the closed month's percentage on the monthly invoice ─────────────────────────────────────────────
+
+export type PercentDraftOutcome = "added" | "nothing_owed" | "skipped" | "retry";
+
+/**
+ * On a monthly DRAFT invoice of a percentage plan, add the closed month's percentage (and the Tulala fee on it) as
+ * invoice items, then stamp the invoice metadata so a replay adds nothing (and the paid event records the full rent).
+ * The subscription's transfer_data moves the studio's share of the whole invoice. A base that cannot be read asks
+ * Stripe to retry; Stripe finalizes drafts about an hour after creation.
+ */
+export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, ev: Extract<RentSubscriptionEvent, { type: "draft" }>): Promise<PercentDraftOutcome> {
+  try {
+    if (ev.percentAdded) return "skipped";
+    const { data } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId)
+      .select("stripe_subscription_id, rent_percent_bps, accepted_percent_bps, currency, talent_profile_id, autopay_first_period")
+      .eq("id", ev.planId)
+      .maybeSingle();
+    const plan = data as { stripe_subscription_id: string | null; rent_percent_bps: number | null; accepted_percent_bps: number | null; currency: string; talent_profile_id: string; autopay_first_period: string | null } | null;
+    if (!plan || plan.stripe_subscription_id !== ev.subscriptionId) return "skipped";
+    const percentBps = plan.rent_percent_bps ?? 0;
+    // Only the percentage the member accepted is ever charged.
+    if (percentBps <= 0 || plan.accepted_percent_bps !== percentBps) return "skipped";
+    const month = percentMonthForInvoice({ invoicePeriod: periodOfSeconds(ev.periodStart), autopayFirstPeriod: plan.autopay_first_period });
+    if (!month || ev.feeBps == null || !ev.customerId) return "skipped";
+    const base = await loadMemberSalesBase(admin, { tenantId: ev.tenantId, talentProfileId: plan.talent_profile_id, period: month, currency: plan.currency });
+    const lines = percentRentLines({ salesBaseCents: base, percentBps, feeBps: ev.feeBps });
+    if (!lines) return "retry";
+    const currency = plan.currency.toLowerCase();
+    if (lines.percentCents > 0) {
+      await stripe.invoiceItems.create(
+        { customer: ev.customerId, invoice: ev.invoiceId, amount: lines.percentCents, currency, description: `Station rent: ${percentBps / 100}% of sales, ${month}`, metadata: { rent_part: "percent", month } },
+        { idempotencyKey: `rent_pct_${ev.invoiceId}` },
+      );
+      if (lines.feeCents > 0) {
+        await stripe.invoiceItems.create(
+          { customer: ev.customerId, invoice: ev.invoiceId, amount: lines.feeCents, currency, description: "Tulala service fee", metadata: { rent_part: "percent_fee", month } },
+          { idempotencyKey: `rent_pct_fee_${ev.invoiceId}` },
+        );
+      }
+    }
+    await stripe.invoices.update(ev.invoiceId, { metadata: { rent_percent_cents: String(lines.percentCents), rent_percent_month: month } });
+    return lines.percentCents > 0 ? "added" : "nothing_owed";
+  } catch (err) {
+    logServerError("rent.autopay.percentDraft", err);
+    return "retry";
   }
 }

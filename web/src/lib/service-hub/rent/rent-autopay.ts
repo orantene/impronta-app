@@ -3,7 +3,8 @@
  * whose money is transferred to the studio's connected account (`transfer_data`), the Tulala service fee added on top
  * for the member (the customer), consent collected on Checkout (the Plans recurring-consent text, TUL-1229).
  *
- * v1 scope: FIXED rent only (a percentage-of-sales rent varies by month and stays on the monthly payment link).
+ * Fixed rent is the subscription price; a percentage of sales is added to each monthly invoice for the closed month
+ * before it (TUL-1609), never for a month before automatic payments started.
  * The first automatic charge is the 1st of NEXT month, so the current month (already on its payment link) is never
  * charged twice. Fail closed everywhere; TEST mode only behind RENT_AUTOPAY_ENABLED.
  */
@@ -39,21 +40,56 @@ export type RentAutopayAmounts = {
   transferPercent: number;
 };
 
-/** Rent + fee (half-up on the rent). null for any invalid input: never charge a guessed amount. */
+/**
+ * The studio's share of every subscription invoice, in percent with 2 decimals, rounded DOWN. Every rent part (fixed
+ * or percentage) carries the same fee rate on top, so the share is the same for any amount: 1 / (1 + fee).
+ */
+export function transferPercentForFeeBps(feeBps: number): number {
+  return Math.floor(100_000_000 / (10_000 + feeBps)) / 100;
+}
+
+/** Rent + fee (half-up on the rent). null for any invalid input: never charge a guessed amount. 0 rent = percentage-only plan. */
 export function rentAutopayAmounts(rentCents: number, feeBps: number): RentAutopayAmounts | null {
-  if (!Number.isInteger(rentCents) || rentCents <= 0) return null;
+  if (!Number.isInteger(rentCents) || rentCents < 0) return null;
   if (!Number.isInteger(feeBps) || feeBps < 0 || feeBps > MAX_SERVICE_FEE_BPS) return null;
   const feeCents = Math.floor((rentCents * feeBps + 5_000) / 10_000);
   const totalCents = rentCents + feeCents;
-  // Integer math in hundredths of a percent, rounded down.
-  const transferPercent = Math.floor((rentCents * 10_000) / totalCents) / 100;
-  return { rentCents, feeCents, totalCents, transferPercent };
+  return { rentCents, feeCents, totalCents, transferPercent: transferPercentForFeeBps(feeBps) };
+}
+
+/**
+ * TUL-1609: the percentage part a monthly invoice adds for one closed month: the studio's percentage of the member's
+ * sales base, half-up, plus the same Tulala fee rate on top. null when the base is not usable (fail closed).
+ */
+export function percentRentLines(input: { salesBaseCents: number | null; percentBps: number; feeBps: number }): { percentCents: number; feeCents: number } | null {
+  const { salesBaseCents: base, percentBps, feeBps } = input;
+  if (base == null || !Number.isInteger(base) || base < 0) return null;
+  if (!Number.isInteger(percentBps) || percentBps <= 0 || !Number.isInteger(feeBps) || feeBps < 0 || feeBps > MAX_SERVICE_FEE_BPS) return null;
+  const percentCents = Math.floor((base * percentBps + 5_000) / 10_000);
+  return { percentCents, feeCents: Math.floor((percentCents * feeBps + 5_000) / 10_000) };
+}
+
+/** The month before `period` ("YYYY-MM"). */
+export function previousPeriod(period: string): string {
+  const [y, m] = period.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 2, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * TUL-1609: on the monthly invoice dated `invoicePeriod`, which closed month's percentage is added? The month before
+ * it, but never a month before automatic payments started (that month is billed by its payment link), so the first
+ * automatic invoice carries no percentage.
+ */
+export function percentMonthForInvoice(input: { invoicePeriod: string; autopayFirstPeriod: string | null }): string | null {
+  if (!input.autopayFirstPeriod) return null;
+  const month = previousPeriod(input.invoicePeriod);
+  return month >= input.autopayFirstPeriod ? month : null;
 }
 
 export type RentAutopayRefusal =
   | "not_accepted"
   | "not_active"
-  | "percent_rent"
   | "terms_changed"
   | "studio_not_ready"
   | "fee_unavailable"
@@ -70,7 +106,6 @@ export function decideRentAutopay(input: {
   const { plan } = input;
   if (plan.acceptedAt == null) return { ok: false, reason: "not_accepted" };
   if (plan.status !== "active") return { ok: false, reason: "not_active" };
-  if (plan.percentBps > 0) return { ok: false, reason: "percent_rent" };
   if (
     plan.acceptedTermsVersion !== plan.termsVersion ||
     plan.acceptedAmountCents !== plan.monthlyRentCents ||
@@ -81,7 +116,10 @@ export function decideRentAutopay(input: {
   if (!input.studio.accountId || !input.studio.chargesEnabled) return { ok: false, reason: "studio_not_ready" };
   if (input.feeBps == null) return { ok: false, reason: "fee_unavailable" };
   const amounts = rentAutopayAmounts(plan.monthlyRentCents, input.feeBps);
-  if (!amounts || !checkChargeMinimum(amounts.totalCents, plan.currency).ok) return { ok: false, reason: "below_minimum" };
+  if (!amounts) return { ok: false, reason: "below_minimum" };
+  // A fixed part must clear the card minimum; a percentage-only plan charges each month what is owed (TUL-1609).
+  if (plan.monthlyRentCents > 0 && !checkChargeMinimum(amounts.totalCents, plan.currency).ok) return { ok: false, reason: "below_minimum" };
+  if (plan.acceptedPercentBps !== plan.percentBps) return { ok: false, reason: "terms_changed" };
   // 'pending' may start again (an abandoned Checkout); the same session is reused by its idempotency key.
   if (input.autopayStatus !== "off" && input.autopayStatus !== "canceled" && input.autopayStatus !== "pending") return { ok: false, reason: "already_on" };
   return { ok: true };
@@ -95,6 +133,8 @@ export function nextMonthAnchorSeconds(now: Date): number {
 export function buildRentSubscriptionParams(input: {
   plan: RentPlan;
   amounts: RentAutopayAmounts;
+  /** The Tulala fee rate at sign-up; the monthly percentage part carries the same rate (TUL-1609). */
+  feeBps: number;
   customerId: string;
   studioAccountId: string;
   successUrl: string;
@@ -115,6 +155,8 @@ export function buildRentSubscriptionParams(input: {
     rent_talent_profile_id: plan.talentProfileId,
     rent_cents: String(amounts.rentCents),
     fee_cents: String(amounts.feeCents),
+    percent_bps: String(plan.percentBps),
+    fee_bps: String(input.feeBps),
     terms_version: String(plan.termsVersion),
   };
   const line = (name: string, unitAmount: number): Stripe.Checkout.SessionCreateParams.LineItem => ({
@@ -136,5 +178,20 @@ export function buildRentSubscriptionParams(input: {
       transfer_data: { destination: input.studioAccountId, amount_percent: amounts.transferPercent },
     },
     ...input.consent,
+    // TUL-1609: a percentage rent says so above the Subscribe button, in the member's language.
+    ...(plan.percentBps > 0
+      ? {
+          custom_text: {
+            ...(input.consent.custom_text ?? {}),
+            submit: {
+              message:
+                (input.locale === "es"
+                  ? `Además, cada mes se cobra el ${plan.percentBps / 100}% de tus ventas del mes anterior en este estudio, más el cargo por servicio de Tulala. `
+                  : `Each month also charges ${plan.percentBps / 100}% of your sales in this studio the month before, plus the Tulala service fee. `) +
+                (input.consent.custom_text?.submit?.message ?? ""),
+            },
+          },
+        }
+      : {}),
   };
 }
