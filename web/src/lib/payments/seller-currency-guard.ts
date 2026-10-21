@@ -113,7 +113,7 @@ async function readFacts(sb: SupabaseClient, transactionId: string, talentMxLane
   // TUL-703: no receiver and one MXN-default talent on the order, MX configured: mx lane.
   let lane: "us" | "mx" | null = null;
   if (!sellerTable && talentMxLane) {
-    const noReceiver = await resolveNoReceiverTalentLane(sb, t.order_id);
+    const noReceiver = await resolveNoReceiverTalentLane(sb, t.order_id, { tenantId: t.source_tenant_id });
     if (!noReceiver.ok) return { ok: false };
     if (noReceiver.lane) lane = noReceiver.lane;
   }

@@ -251,6 +251,7 @@ src/lib/payments/stripe-collection.test.ts
 src/lib/payments/stripe-mx-money-paths.test.ts
 src/lib/payments/stripe-payment-intent.minimum.test.ts
 src/lib/payments/talent-payout-attention.test.ts
+src/lib/payments/talent-workspace-seller-lane.test.ts
 src/lib/payments/transfers-house-lane.test.ts
 src/lib/payments/transfers-processing-pass-through.test.ts
 src/lib/payments/transfers-product-gate.test.ts
