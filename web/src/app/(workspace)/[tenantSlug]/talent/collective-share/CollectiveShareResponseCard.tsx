@@ -23,7 +23,7 @@ function Row({ proposal, locale }: { proposal: ShareProposal; locale: "en" | "es
         <span role="status">{c.answered}</span>
       ) : (
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" disabled={pending} onClick={() => answer(true)} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: "#0F4F3E", color: "#fff", fontWeight: 600 }}>
+          <button type="button" disabled={pending} onClick={() => answer(true)} style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: "var(--color-admin-brand)", color: "#fff", fontWeight: 600 }}>
             {c.accept}
           </button>
           <button type="button" disabled={pending} onClick={() => answer(false)} style={{ padding: "9px 16px", borderRadius: 8, border: "1px solid rgba(24,24,27,0.2)", background: "transparent", fontWeight: 600 }}>

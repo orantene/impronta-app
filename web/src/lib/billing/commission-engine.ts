@@ -243,7 +243,8 @@ export async function persistBookingCommissionSnapshot(
         const { data: inq } = await supabase.from("inquiries").select("current_offer_id").eq("id", bk.source_inquiry_id).maybeSingle();
         const offerId = (inq as { current_offer_id?: string | null } | null)?.current_offer_id;
         if (offerId) {
-          const { data } = await supabase.from("inquiry_offers").select("service_fee_by_party").eq("id", offerId).maybeSingle();
+          const { data, error: offerErr } = await supabase.from("inquiry_offers").select("service_fee_by_party").eq("id", offerId).maybeSingle();
+          if (offerErr) logServerError("commission-engine.offer-fee-snapshot", offerErr);
           const v = (data as { service_fee_by_party?: unknown } | null)?.service_fee_by_party;
           if (v && typeof v === "object" && !Array.isArray(v)) fees.byParty = v as Record<string, number>;
         }
@@ -272,12 +273,13 @@ export async function persistBookingCommissionSnapshot(
       let relationshipOverride: RelationshipCommissionOverride | null = null;
       if (p.tenant_id && p.talent_profile_id) {
         try {
-          const { data: rel } = await supabase
+          const { data: rel, error: relErr } = await supabase
             .from("workspace_talent_commission_overrides")
             .select("platform_take_bps, platform_take_floor_cents, workspace_take_bps")
             .eq("tenant_id", p.tenant_id)
             .eq("talent_profile_id", p.talent_profile_id)
             .maybeSingle();
+          if (relErr) logServerError("commission-engine.relationship-override", relErr);
           if (rel) {
             relationshipOverride = {
               platform_take_bps: rel.platform_take_bps ?? null,
@@ -482,11 +484,12 @@ export async function persistBookingCommissionSnapshot(
     }),
     { platform_fee_cents: 0, workspace_fee_cents: 0, talent_fee_cents: 0 },
   );
-  const { data: bk } = await supabase
+  const { data: bk, error: bkErr } = await supabase
     .from("agency_bookings")
     .select("source_inquiry_id")
     .eq("id", bookingId)
     .maybeSingle();
+  if (bkErr) logServerError("commission-engine.audit-booking", bkErr);
   const auditInquiryId = (bk?.source_inquiry_id as string | null) ?? null;
   if (auditInquiryId) {
     await supabase.rpc("inquiry_audit_emit", {

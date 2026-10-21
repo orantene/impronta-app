@@ -106,7 +106,8 @@ export async function collectForOrderPrincipal(
   // the seller's current plan (no snapshot), never an invented rate.
   let frozenFeeByParty: Record<string, number> | null = null;
   try {
-    const { data: o } = await admin.from("orders").select("service_fee_by_party").eq("id", input.orderId).maybeSingle();
+    const { data: o, error: frozenErr } = await admin.from("orders").select("service_fee_by_party").eq("id", input.orderId).maybeSingle();
+    if (frozenErr) logServerError("purchase-collect.frozen-fee", frozenErr);
     const v = (o as { service_fee_by_party?: unknown } | null)?.service_fee_by_party;
     if (v && typeof v === "object" && !Array.isArray(v)) frozenFeeByParty = v as Record<string, number>;
   } catch {

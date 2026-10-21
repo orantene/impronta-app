@@ -36,8 +36,9 @@ test("talent nav and workspace nav both go through the Blog helpers", () => {
   assert.match(src("lib/cms/public-navigation.ts"), /href: resolvePublicCmsNavHref\(r\.href, locale, settings\)/);
 });
 
-test("sitemap adds the index through the new module (talent host + workspace)", () => {
+test("sitemap adds the index through the new module (talent host + workspace + Tulala product blog)", () => {
   const s = src("app/sitemap.ts");
-  assert.equal((s.match(/blogIndexSitemapEntries\(/g) ?? []).length, 2);
+  // Three callers: talent host, workspace, and the marketing-host product blog (TUL-1399).
+  assert.equal((s.match(/blogIndexSitemapEntries\(/g) ?? []).length, 3);
   assert.match(s, /from "@\/lib\/seo\/blog-index-sitemap-entries"/);
 });

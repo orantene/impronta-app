@@ -106,9 +106,15 @@ test("held migration 420300: restricted originals table, service role writes, pl
   assert.match(sql, /-- Rollback[\s\S]*DROP TABLE IF EXISTS public\.inquiry_message_originals/);
 });
 
+// Privileged paths that may name the originals table. Each needs a reason.
+const ORIGINALS_TABLE_ALLOWED: Record<string, string> = {
+  "src/lib/coordinator/masked-message-write.server.ts": "the one writer of the originals",
+  "src/lib/account/anonymize.ts": "account erasure purge (#4183, TUL-1416): deletes this person's originals, never shows them",
+};
+
 test("no screen or loader reads the originals table", () => {
   for (const f of files()) {
-    if (f === "src/lib/coordinator/masked-message-write.server.ts") continue;
+    if (f in ORIGINALS_TABLE_ALLOWED) continue;
     assert.ok(!readFileSync(join(process.cwd(), f), "utf8").includes("inquiry_message_originals"), f);
   }
 });

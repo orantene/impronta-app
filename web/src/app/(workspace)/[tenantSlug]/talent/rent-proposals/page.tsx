@@ -4,6 +4,7 @@ import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
 import { RentProposalCard, type RentProposal } from "./RentProposalCard";
+import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,12 @@ export default async function RentProposalsPage() {
   const admin = createServiceRoleClient();
   const proposals: RentProposal[] = [];
   if (me.ok && admin) {
-    const { data: rows } = await admin
+    const { data: rows, error: rowsErr } = await admin
       .from("studio_rent_plans")
       .select("id, status, monthly_rent_cents, currency, starts_on, agencies:tenant_id ( display_name )")
       .eq("talent_profile_id", me.talentProfile.id)
       .in("status", ["proposed", "active", "paused"]);
+    if (rowsErr) logServerError("rent-proposals.list", rowsErr);
     for (const r of (rows ?? []) as Array<{ id: string; status: string; monthly_rent_cents: number; currency: string; starts_on: string; agencies: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
       const ag = Array.isArray(r.agencies) ? r.agencies[0] : r.agencies;
       proposals.push({ id: r.id, status: r.status, workspaceName: ag?.display_name ?? "", monthlyRentCents: r.monthly_rent_cents, currency: r.currency, startsOn: r.starts_on });

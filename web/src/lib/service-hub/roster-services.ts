@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { CATALOG_PROFILE_COLUMNS, isPublicCatalogProfile, type CatalogProfileRow } from "@/lib/offerings/business-catalog";
+import { isSellable } from "@/lib/offerings/sellable";
 import { logServerError } from "@/lib/server/safe-error";
 
 /**
@@ -191,7 +192,8 @@ export async function loadWorkspaceRosterServices(admin: Admin, tenantId: string
   for (const l of live) {
     const o = offeringById.get(l.offering_id);
     if (!o || o.talent_profile_id !== l.talent_profile_id) continue; // the service must belong to the listing's talent
-    if (o.status !== "published" || o.moderation_state !== "approved") continue;
+    // Published + approved via the one sell rule (no visibility filter, unchanged from #4171; see PM note).
+    if (!isSellable(o, "staff_quote")) continue;
     if (!active.has(l.talent_profile_id)) continue;
     // Show-who only controls the NAME: anonymous selling of a hidden talent is not allowed either.
     if (!publicTalent.has(l.talent_profile_id)) continue;

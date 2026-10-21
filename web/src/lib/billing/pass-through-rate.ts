@@ -79,9 +79,11 @@ export async function loadSellerPassThroughBps(
   if (!plan) {
     try {
       if (input.seller.kind === "workspace") {
+        // supabase-read-unchecked-ok: a failed plan read leaves plan null and falls to the platform level by design (header, "never an invented rate"); this module is also imported by non-server code, so no server logger here.
         const { data } = await admin.from("agencies").select("plan_tier").eq("id", input.seller.partyId).maybeSingle();
         plan = (data as { plan_tier?: string | null } | null)?.plan_tier ?? null;
       } else {
+        // supabase-read-unchecked-ok: a failed plan read leaves plan null and falls to the platform level by design (header, "never an invented rate"); this module is also imported by non-server code, so no server logger here.
         const { data } = await admin
           .from("talent_profiles")
           .select("talent_plan_key")

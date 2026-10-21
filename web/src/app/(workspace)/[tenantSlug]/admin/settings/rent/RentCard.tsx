@@ -23,7 +23,7 @@ export type RentPlanView = {
 };
 
 const field = { padding: "7px 9px", borderRadius: 8, border: "1px solid rgba(24,24,27,0.15)" } as const;
-const primary = { padding: "8px 14px", borderRadius: 8, border: "none", background: "#0F4F3E", color: "#fff", fontWeight: 600 } as const;
+const primary = { padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--color-admin-brand)", color: "#fff", fontWeight: 600 } as const;
 
 function money(cents: number, currency: string, locale: "en" | "es"): string {
   try {
@@ -64,7 +64,7 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
     <section>
       <h1 style={{ fontSize: 22, margin: "0 0 8px" }}>{c.title}</h1>
       <p style={{ fontSize: 13.5, opacity: 0.75 }}>{c.intro}</p>
-      <p role="note" style={{ fontSize: 12.5, color: "#A8471B" }}>{c.testOnly}</p>
+      <p role="note" style={{ fontSize: 12.5, color: "var(--color-admin-red)" }}>{c.testOnly}</p>
 
       {plans.map((p) => (
         <div key={p.id} data-testid="rent-plan-row" style={{ padding: "12px 0", borderBottom: "1px solid rgba(24,24,27,0.08)" }}>
@@ -75,7 +75,7 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
             {p.status === "proposed" ? c.waiting : p.status === "active" ? c.active : p.status === "paused" ? c.paused : p.status === "declined" ? c.declinedByMember : p.endedBy === "member" ? c.endedByMember : c.endedByOwner}
           </div>
           {p.invoice && (p.status === "active" || p.status === "paused") && (
-            <div data-testid="rent-invoice-state" style={{ fontSize: 12.5, marginTop: 4, color: p.invoice.state === "needs_new_link" ? "#A8471B" : "inherit" }}>
+            <div data-testid="rent-invoice-state" style={{ fontSize: 12.5, marginTop: 4, color: p.invoice.state === "needs_new_link" ? "var(--color-admin-red)" : "inherit" }}>
               {p.invoice.period} · {p.invoice.state === "paid" ? c.paid : p.invoice.state === "waiting" ? c.linkWaiting : p.invoice.state === "needs_new_link" ? c.linkNew : ""}
               {p.invoice.state === "needs_new_link" && (
                 <button type="button" disabled={pending} style={{ marginLeft: 8 }} onClick={() => start(async () => {
@@ -113,7 +113,7 @@ export function RentCard({ locale, gate, plans, members, safety }: { locale: "en
         <button type="button" disabled={pending || !talent} style={primary} onClick={() => run(() => proposeRentPlan({ talentProfileId: talent, monthlyRentCents: Math.round(Number(rent) * 100), currency, startsOn }), c.saved)}>{c.propose}</button>
       </div>
 
-      {msg && <p role="status" style={{ fontSize: 13, color: msg.ok ? "#1A7348" : "#A8471B" }}>{msg.text}{link && msg.ok ? <> <a href={link}>{link}</a></> : null}</p>}
+      {msg && <p role="status" style={{ fontSize: 13, color: msg.ok ? "var(--color-admin-green)" : "var(--color-admin-red)" }}>{msg.text}{link && msg.ok ? <> <a href={link}>{link}</a></> : null}</p>}
 
       <h2 style={{ fontSize: 17, margin: "28px 0 6px" }}>{c.safetyTitle}</h2>
       <p style={{ fontSize: 13, opacity: 0.7 }}>{c.safetyIntro}</p>

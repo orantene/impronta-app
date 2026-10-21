@@ -7,6 +7,7 @@ import { parseOwnerShareRow } from "@/lib/service-hub/collective-split";
 import { COLLECTIVE_COPY } from "@/lib/service-hub/friends-collective-copy";
 import { memberNetPreview } from "@/lib/service-hub/friends-collective";
 import { CollectiveShareResponseCard, type ShareProposal } from "./CollectiveShareResponseCard";
+import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +18,13 @@ export default async function CollectiveSharePage() {
   const admin = createServiceRoleClient();
   const proposals: ShareProposal[] = [];
   if (me.ok && admin) {
-    const { data: rows } = await admin
+    const { data: rows, error: rowsErr } = await admin
       .from("agency_talent_roster")
       .select("tenant_id, pending_share_kind, pending_share_bps, pending_share_cents, pending_share_currency, pending_share_proposed_at, agencies:tenant_id ( display_name, default_currency )")
       .eq("talent_profile_id", me.talentProfile.id)
       .neq("status", "removed")
       .not("pending_share_kind", "is", null);
+    if (rowsErr) logServerError("collective-share.proposals", rowsErr);
     for (const r of (rows ?? []) as Array<Record<string, unknown> & { tenant_id: string; agencies: { display_name: string | null; default_currency: string | null } | Array<{ display_name: string | null; default_currency: string | null }> | null }>) {
       const share = parseOwnerShareRow({ owner_share_kind: r.pending_share_kind, owner_share_bps: r.pending_share_bps, owner_share_cents: r.pending_share_cents, owner_share_currency: r.pending_share_currency });
       if (!share) continue;

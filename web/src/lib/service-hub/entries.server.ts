@@ -239,7 +239,8 @@ async function rawOfferingCategory(ctx: Ctx, listingId: string): Promise<string 
   const { data } = await tenantScopedQuery(ctx.admin, "workspace_service_listings", ctx.tenantId).select("offering_id").eq("id", listingId).maybeSingle();
   const offeringId = (data as { offering_id?: string } | null)?.offering_id;
   if (!offeringId) return null;
-  const { data: off } = await ctx.admin.from("talent_offerings").select("category").eq("id", offeringId).maybeSingle();
+  const { data: off, error: offErr } = await ctx.admin.from("talent_offerings").select("category").eq("id", offeringId).maybeSingle();
+  if (offErr) logServerError("serviceHub.entries.offeringCategory", offErr);
   const c = (off as { category?: string | null } | null)?.category;
   return typeof c === "string" && c.trim() ? c.trim().slice(0, 120) : null;
 }

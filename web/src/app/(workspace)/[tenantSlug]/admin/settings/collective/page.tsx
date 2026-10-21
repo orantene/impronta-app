@@ -10,6 +10,7 @@ import { collectiveSplitEnabled, parseOwnerShareRow } from "@/lib/service-hub/co
 import { FRIENDS_COLLECTIVE_MODEL } from "@/lib/service-hub/friends-collective";
 import { loadWorkspaceReviews } from "@/lib/reviews/collective-reviews";
 import { CollectiveSharesCard, type CollectiveMember, type CollectiveReview } from "./CollectiveSharesCard";
+import { logServerError } from "@/lib/server/safe-error";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,8 @@ export default async function CollectiveSettingsPage({ params }: { params: Promi
   const members: CollectiveMember[] = [];
   const reviews: CollectiveReview[] = [];
   if (admin) {
-    const { data: agency } = await admin.from("agencies").select("work_model").eq("id", scope.tenantId).maybeSingle();
+    const { data: agency, error: agencyErr } = await admin.from("agencies").select("work_model").eq("id", scope.tenantId).maybeSingle();
+    if (agencyErr) logServerError("collective-settings.work-model", agencyErr);
     workModel = (agency as { work_model?: string | null } | null)?.work_model ?? null;
     if (workModel === FRIENDS_COLLECTIVE_MODEL) {
       for (const r of await loadWorkspaceReviews(admin, scope.tenantId, 10)) {

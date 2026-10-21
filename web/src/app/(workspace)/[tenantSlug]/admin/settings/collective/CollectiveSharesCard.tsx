@@ -64,10 +64,10 @@ function MemberRow({ member, locale }: { member: CollectiveMember; locale: "en" 
             <input value={currency} maxLength={3} onChange={(e) => setCurrency(e.target.value)} aria-label="Currency" style={{ width: 64, padding: "7px 9px", borderRadius: 8, border: "1px solid rgba(24,24,27,0.15)", textTransform: "uppercase" }} />
           </>
         )}
-        <button type="button" onClick={save} disabled={pending} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#0F4F3E", color: "#fff", fontWeight: 600, cursor: pending ? "default" : "pointer" }}>
+        <button type="button" onClick={save} disabled={pending} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--color-admin-brand)", color: "#fff", fontWeight: 600, cursor: pending ? "default" : "pointer" }}>
           {c.save}
         </button>
-        {msg && <span role="status" style={{ fontSize: 12.5, color: msg.ok ? "#1A7348" : "#A8471B" }}>{msg.text}</span>}
+        {msg && <span role="status" style={{ fontSize: 12.5, color: msg.ok ? "var(--color-admin-green)" : "var(--color-admin-red)" }}>{msg.text}</span>}
       </div>
     </div>
   );
@@ -102,7 +102,7 @@ export function CollectiveSharesCard({ locale, isCollective, members, reviews, s
         <li>{c.seatCap}</li>
       </ul>
       {!on ? (
-        <button type="button" onClick={apply} disabled={pending} style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#0F4F3E", color: "#fff", fontWeight: 600 }}>
+        <button type="button" onClick={apply} disabled={pending} style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "var(--color-admin-brand)", color: "#fff", fontWeight: 600 }}>
           {c.apply}
         </button>
       ) : (
