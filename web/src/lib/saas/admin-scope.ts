@@ -246,6 +246,8 @@ export type InquiryManagerActionGuard = {
 
 export async function requireInquiryManagerAction(
   inquiryId: string,
+  /** TUL-1629: a WRITE passes the capability it needs; omitted = read access (the viewer default). */
+  options?: { capability?: CapabilityKey },
 ): Promise<InquiryManagerActionGuard | StaffTenantActionGuardFail> {
   const trimmedInquiryId = typeof inquiryId === "string" ? inquiryId.trim() : "";
   if (!trimmedInquiryId) return { ok: false, error: "Missing inquiry." };
@@ -253,7 +255,7 @@ export async function requireInquiryManagerAction(
   // 1. Staff fast-path (cross-tenant-safe). Workspace-scoped (P0 2026-08-07):
   // the admin Messages surface lives at /{slug}/admin/messages, so the tenant
   // must come from the surface under the operator's cursor, not their cookie.
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction(options?.capability ? { capability: options.capability } : undefined);
   if (staff.ok) {
     const belongs = await assertRowBelongsToTenant(
       staff.supabase,

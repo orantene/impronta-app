@@ -41,8 +41,11 @@ import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
 
-async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFail> {
-  const staff = await requireWorkspaceStaffAction();
+/** TUL-1629: writers pass WRITE_CAPABILITY (editor+); the two readers pass nothing (a viewer may read the menu). */
+const WRITE_CAPABILITY = "agency.site_admin.sections.edit" as const;
+
+async function authorizeForWorkspace(tenantId: string, capability?: typeof WRITE_CAPABILITY): Promise<AuthOk | AuthFail> {
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) {
     return { ok: false, error: "Not authorized for this workspace." };
@@ -179,7 +182,7 @@ export async function upsertWorkspaceMenuItem(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -284,7 +287,7 @@ export async function deleteWorkspaceMenuItem(
 ): Promise<DeleteMenuItemResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -335,7 +338,7 @@ export async function setWorkspaceMenuItemArchived(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -395,7 +398,7 @@ export async function reorderWorkspaceMenuItems(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -427,7 +430,7 @@ export async function setWorkspaceMenuItemOptions(
 ): Promise<OfferingChildrenSaved> {
   await requireNotImpersonating();
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -457,7 +460,7 @@ export async function blankWorkspaceMenuItem(
   sortOrder: number,
 ): Promise<TalentOffering | null> {
   await requireNotImpersonating();
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
 }
@@ -505,7 +508,7 @@ export async function setMenuItemStockAction(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
 
     const admin = createServiceRoleClient();
@@ -559,7 +562,7 @@ export async function setWorkspaceItemPhotos(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -637,7 +640,7 @@ export async function setWorkspacePhotoAlt(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
