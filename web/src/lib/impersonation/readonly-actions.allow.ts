@@ -271,6 +271,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/server-actions/project-assignment-confirmation.ts", ["readMyAssignmentAction"], READ],
   // Public visitor read: builds a prefilled contact message from the host workspace's roster, writes nothing.
   ["lib/server-actions/roster-request.ts", ["buildRosterRequestFromSentence"], READ],
+  ["lib/server-actions/admin-visible-picks-link.ts", ["loadVisiblePicksLink"], READ],
   ["app/(public)/_dated/dated-picker-actions.ts", ["loadDatedPicker"], READ],
   ["lib/server-actions/series-dated-settings.ts", ["loadSeriesDatedSettingsAction"], READ],
   ["lib/server-actions/dated-details.ts", ["loadDatedDetailsAction"], READ],
