@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { summarizeAgencyAccountState, type PayoutAccountState } from "@/lib/payments/payout-account-verification";
 import {
   decryptSecret,
   encryptSecret,
@@ -25,7 +26,7 @@ export type TenantIntegrationRow = {
   tenant_id: string;
   integration_key: string;
   credential_mode: "inherit" | "custom";
-  status: "not_configured" | "inherited" | "connected" | "error" | "disabled";
+  status: "not_configured" | "inherited" | "connected" | "error" | "disabled" | "pending_verification";
   config_json: Record<string, unknown>;
   connection_method: "inherit" | "manual" | "oauth";
   last_verified_at: string | null;
@@ -364,6 +365,23 @@ export async function tenantHasConnectedPayoutAccount(
   if (error || !data || data.length === 0) return false;
   const status = (data[0] as { status: string | null }).status ?? "";
   return status === "connected" || status === "enabled";
+}
+
+/**
+ * The workspace's own payout account state for the "Stripe payouts" card: connected, pending
+ * verification (a manual account waiting for bank details or Stripe), or none. Read-only; service
+ * role; any failure reads as none.
+ */
+export async function tenantPayoutAccountState(tenantId: string): Promise<PayoutAccountState> {
+  const supabase = service();
+  if (!supabase) return "none";
+  const { data, error } = await supabase
+    .from("payout_accounts")
+    .select("status, disconnected_at")
+    .eq("tenant_id", tenantId)
+    .eq("owner_type", "agency");
+  if (error || !data) return "none";
+  return summarizeAgencyAccountState(data as { status: string; disconnected_at: string | null }[]);
 }
 
 /**

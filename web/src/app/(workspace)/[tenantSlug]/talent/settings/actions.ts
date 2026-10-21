@@ -372,7 +372,7 @@ export async function connectTalentPayoutAccountAction(formData: FormData): Prom
 
   revalidatePath(`/${tenantSlug}/talent/settings`);
   const p = new URLSearchParams({
-    paymsg: existing ? "Payout account already connected." : "Payout account connected.",
+    paymsg: existing ? "Payout account already added." : "Payout account added. It stays pending until your bank details or a Stripe account are connected.",
   });
   backToTalentSettings(tenantSlug, p);
 }

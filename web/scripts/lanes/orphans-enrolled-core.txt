@@ -94,6 +94,8 @@ src/lib/notifications/talent-site-source-line.test.ts
 src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/type-search.test.ts
+src/lib/payments/payout-account-verification.test.ts
+src/lib/payments/payout-accounts-start-pending.test.ts
 src/lib/payments/talent-payout-connect.test.ts
 src/lib/projects/assignment-confirmation.test.ts
 src/lib/projects/project-event-board.test.ts

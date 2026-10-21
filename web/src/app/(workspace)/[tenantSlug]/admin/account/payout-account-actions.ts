@@ -65,8 +65,9 @@ export async function createWorkspacePayoutAccountAction(formData: FormData): Pr
       owner_id: scope.tenantId,
       display_name: displayName,
       provider: "manual_bank",
-      status: "connected",
-      connected_at: new Date().toISOString(),
+      // Starts pending: a manual account has no bank details, so it must not be payout-eligible until
+      // bank details or a Stripe Connect account exist (receiver logic only reads status = connected).
+      status: "pending_verification",
     });
 
     if (error) {
@@ -77,7 +78,7 @@ export async function createWorkspacePayoutAccountAction(formData: FormData): Pr
   }
 
   revalidatePath(`/${tenantSlug}/admin/account`);
-  const p = new URLSearchParams({ pmsg: existing ? "Workspace payout account already exists." : "Workspace payout account created." });
+  const p = new URLSearchParams({ pmsg: existing ? "Workspace payout account already exists." : "Workspace payout account created. It stays pending until bank details or a Stripe account are connected." });
   backToAccount(tenantSlug, p);
 }
 
@@ -152,8 +153,9 @@ export async function createStaffPayoutAccountAction(formData: FormData): Promis
       owner_id: session.user.id,
       display_name: displayName,
       provider: "manual_bank",
-      status: "connected",
-      connected_at: new Date().toISOString(),
+      // Starts pending: a manual account has no bank details, so it must not be payout-eligible until
+      // bank details or a Stripe Connect account exist (receiver logic only reads status = connected).
+      status: "pending_verification",
     });
 
     if (error) {
@@ -164,6 +166,6 @@ export async function createStaffPayoutAccountAction(formData: FormData): Promis
   }
 
   revalidatePath(`/${tenantSlug}/admin/account`);
-  const p = new URLSearchParams({ pmsg: existing ? "Your payout account already exists." : "Your payout account is now connected." });
+  const p = new URLSearchParams({ pmsg: existing ? "Your payout account already exists." : "Your payout account was added. It stays pending until bank details or a Stripe account are connected." });
   backToAccount(tenantSlug, p);
 }
