@@ -17,6 +17,7 @@ import {
   type OfferingCuration,
 } from "./offering-server-owned";
 import { blankOffering, offeringToRowPatch, type TalentOffering } from "./offerings-types";
+import { ROLE_CAPABILITIES } from "@/lib/access/roles";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), "utf8");
@@ -170,6 +171,19 @@ test("wiring: the talent save writes the server fields after the client patch, i
   assert.match(src, /if \(!owned\.ok\)/);
   assert.match(src, /export async function upsertTalentOffering\([^)]*\): Promise<SaveResult> \{\s*const readOnly = await assertNotImpersonating\(\);\s*if \(!readOnly\.ok\) return readOnly;\s*return saveTalentOffering\(talentProfileId, offering\);/);
   assert.doesNotMatch(src, /export async function saveTalentOffering/);
+});
+
+test("role matrix: manager, editor and viewer lack the curation capability; admin and owner have it", () => {
+  // TUL-1633 follow-up: Favorites/Website stay gated on manage_storefront_settings
+  // (admin and owner only). There is no existing role-granted capability that
+  // cleanly covers "manager and above, storefront/catalog day-to-day" without
+  // also granting it to editor/viewer or inventing a new one, so the gate is
+  // unchanged. This pins that the role grants still match that decision.
+  assert.equal(ROLE_CAPABILITIES.viewer.has(OFFERING_CURATION_CAPABILITY), false);
+  assert.equal(ROLE_CAPABILITIES.editor.has(OFFERING_CURATION_CAPABILITY), false);
+  assert.equal(ROLE_CAPABILITIES.manager.has(OFFERING_CURATION_CAPABILITY), false);
+  assert.equal(ROLE_CAPABILITIES.admin.has(OFFERING_CURATION_CAPABILITY), true);
+  assert.equal(ROLE_CAPABILITIES.owner.has(OFFERING_CURATION_CAPABILITY), true);
 });
 
 test("wiring: the workspace save gates curation on the admin capability and writes the server fields", () => {
