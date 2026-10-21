@@ -37,3 +37,22 @@ test("the held migration carries the platform and customer columns", () => {
   assert.match(sql, /autopay_platform text NULL CHECK \(autopay_platform IS NULL OR autopay_platform IN \('us','mx'\)\)/);
   assert.match(sql, /autopay_customer_id text NULL/);
 });
+
+import { rentAutopayGate } from "./rent-autopay";
+
+test("TUL-1610 gate: the TEST check reads the key of the platform actually chosen", () => {
+  const on = { RENT_AUTOPAY_ENABLED: "1" };
+  assert.deepEqual(rentAutopayGate({ ...on, STRIPE_SECRET_KEY: "sk_test_us", STRIPE_MX_SECRET_KEY: "sk_live_mx" }, "mx"), { ok: false, reason: "not_test_mode" }, "a live MX key never rides on a US test key");
+  assert.deepEqual(rentAutopayGate({ ...on, STRIPE_SECRET_KEY: "sk_live_us", STRIPE_MX_SECRET_KEY: "sk_test_mx" }, "us"), { ok: false, reason: "not_test_mode" });
+  assert.deepEqual(rentAutopayGate({ ...on, STRIPE_SECRET_KEY: "sk_test_us", STRIPE_MX_SECRET_KEY: "sk_test_mx" }, "mx"), { ok: true });
+  assert.deepEqual(rentAutopayGate({ ...on, STRIPE_SECRET_KEY: "sk_test_us" }, "mx"), { ok: false, reason: "not_test_mode" }, "no MX key at all");
+  assert.deepEqual(rentAutopayGate({ ...on, STRIPE_SECRET_KEY: "sk_test_us", STRIPE_MX_SECRET_KEY: "sk_live_mx" }), { ok: true }, "the US default is unchanged");
+  assert.deepEqual(rentAutopayGate({ STRIPE_SECRET_KEY: "sk_test_us", STRIPE_MX_SECRET_KEY: "sk_test_mx" }, "mx"), { ok: false, reason: "disabled" });
+});
+
+test("TUL-1610 gate: start checks the platform's key after reading the platform, before any Stripe call", () => {
+  const src = actions.replace(/\/\/.*$/gm, "");
+  assert.ok(src.indexOf("rentAutopayGate(process.env, platform)") > src.indexOf("loadAccountPlatformStrict("));
+  assert.ok(src.indexOf("rentAutopayGate(process.env, platform)") < src.indexOf("getStripeFor(platform)"));
+  assert.match(src, /if \(!rentAutopayFlagOn\(\)\) return \{ ok: false, reason: "disabled" \}/);
+});

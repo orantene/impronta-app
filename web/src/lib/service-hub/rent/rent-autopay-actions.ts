@@ -22,7 +22,7 @@ import type Stripe from "stripe";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 import { getOrCreateTalentStripeCustomer } from "@/lib/stripe/talent-billing";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { buildRentSubscriptionParams, decideRentAutopay, nextMonthAnchorSeconds, rentAutopayAmounts, rentAutopayGate, type RentAutopayRefusal } from "./rent-autopay";
+import { buildRentSubscriptionParams, decideRentAutopay, nextMonthAnchorSeconds, rentAutopayAmounts, rentAutopayFlagOn, rentAutopayGate, type RentAutopayRefusal } from "./rent-autopay";
 import { cancelRentSubscription } from "./rent-autopay.server";
 import { periodOfSeconds } from "./rent-autopay-routing";
 import { planFromRow, PLAN_COLUMNS } from "./rent-store.server";
@@ -34,8 +34,8 @@ export type StartAutopayResult =
 export async function startRentAutopay(input: { planId: string }): Promise<StartAutopayResult> {
   await requireNotImpersonating();
   try {
-    const gate = rentAutopayGate();
-    if (!gate.ok) return gate;
+    // The flag first (cheap); the TEST-key check needs the platform the subscription will live on, so it comes after it is read.
+    if (!rentAutopayFlagOn()) return { ok: false, reason: "disabled" };
     const me = await requireTalentSelf();
     if (!me.ok) return { ok: false, reason: "unauthenticated" };
     const admin = createServiceRoleClient();
@@ -54,6 +54,8 @@ export async function startRentAutopay(input: { planId: string }): Promise<Start
     // TUL-1610: the subscription and the member's customer live on the studio's own platform (US or MX).
     const platform = await loadAccountPlatformStrict("agencies", { column: "id", value: plan.tenantId }, admin);
     if (!platform) return { ok: false, reason: "unavailable" };
+    const gate = rentAutopayGate(process.env, platform);
+    if (!gate.ok) return gate;
     const stripe = getStripeFor(platform);
     if (!stripe) return { ok: false, reason: "unavailable" };
     const { data: ag } = await admin.from("agencies").select("stripe_account_id, stripe_charges_enabled").eq("id", plan.tenantId).maybeSingle();
