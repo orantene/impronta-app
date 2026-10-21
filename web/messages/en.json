@@ -1736,6 +1736,7 @@
     "slotPicker": {
       "title": "Choose a time",
       "subtitle": "Times are shown in the studio timezone.",
+      "subtitleZone": "Times are shown in the studio timezone ({zone}).",
       "loading": "Loading times…",
       "empty": "No open times in the next two weeks. Try again later.",
       "unavailable": "Times are not available right now.",

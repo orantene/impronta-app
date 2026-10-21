@@ -1736,6 +1736,7 @@
     "slotPicker": {
       "title": "Elige un horario",
       "subtitle": "Los horarios se muestran en la zona del estudio.",
+      "subtitleZone": "Los horarios se muestran en la zona del estudio ({zone}).",
       "loading": "Cargando horarios…",
       "empty": "No hay horarios libres en las próximas dos semanas. Intenta más tarde.",
       "unavailable": "Los horarios no están disponibles ahora.",

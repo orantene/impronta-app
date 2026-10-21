@@ -17,7 +17,9 @@ test("an ASCII city takes the canonical accented name for the locale", () => {
 
 test("it never returns a different city, and no match keeps the text", () => {
   assert.equal(canonicalCityName("Tulum", [{ en: "Cancún" }], "es"), "Tulum");
-  assert.equal(canonicalCityName("Cancun", [], "es"), "Cancun");
+  assert.equal(canonicalCityName("Cancun", [], "es"), "Cancún", "TUL-847: well-known city gets its accent without a locations row");
+  assert.equal(canonicalCityName("Mérida", [], "es"), "Mérida");
+  assert.equal(canonicalCityName("Playa del Carmen", [], "es"), "Playa del Carmen");
   assert.equal(canonicalCityName("", [{ es: "Cancún" }], "es"), "");
 });
 
@@ -25,7 +27,8 @@ test("Valeria's data: the location row is ASCII in both languages, the place tex
   const rowMap = { en: "Cancun", es: "Cancun" };
   assert.equal(canonicalCityName("Cancun", [rowMap], "es", ["Cancún"]), "Cancún");
   assert.equal(canonicalCityName("Cancun", [rowMap], "en", ["Cancún"]), "Cancún");
-  assert.equal(canonicalCityName("Cancun", [rowMap], "es", ["Tulum"]), "Cancun", "a hint for another city is ignored");
+  assert.equal(canonicalCityName("Cancun", [rowMap], "es", ["Tulum"]), "Cancún", "a hint for another city is ignored; the known spelling applies");
+  assert.equal(canonicalCityName("Tulum", [{ en: "Tulum" }], "es", ["Cancún"]), "Tulum", "a hint for another city never renames");
 });
 
 test("hasAccent", () => {
