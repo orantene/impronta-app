@@ -49,7 +49,7 @@ export async function markRentPaidOutside(input: {
       .maybeSingle();
     const existing = inv as { id: string; status: string; payment_link_code: string | null } | null;
 
-    const verdict = decideMarkPaidOutside({ plan, period: input.period, method: input.method, amountCents: input.amountCents, existingStatus: existing?.status ?? null, now: new Date() });
+    const verdict = decideMarkPaidOutside({ plan, period: input.period, method: input.method, amountCents: input.amountCents, existingStatus: existing?.status ?? null, now: new Date(), invoiceCreatedSubscribed: process.env.RENT_AUTOPAY_INVOICE_CREATED_SUBSCRIBED === "1" });
     if (!verdict.ok) return verdict;
 
     // 1. Close the month's open payment link so it cannot be paid on top.

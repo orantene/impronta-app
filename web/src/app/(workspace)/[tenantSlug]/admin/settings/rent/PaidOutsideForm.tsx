@@ -18,7 +18,7 @@ function monthOptions(startsOn: string, now: Date): string[] {
   return out;
 }
 
-export function PaidOutsideForm({ planId, startsOn, defaultAmountCents, locale }: { planId: string; startsOn: string; defaultAmountCents: number; locale: "en" | "es" }) {
+export function PaidOutsideForm({ planId, startsOn, defaultAmountCents, locale, autopayOn = false }: { planId: string; startsOn: string; defaultAmountCents: number; locale: "en" | "es"; autopayOn?: boolean }) {
   const c = RENT_COPY[locale];
   const months = monthOptions(startsOn, new Date());
   const [open, setOpen] = useState(false);
@@ -39,7 +39,7 @@ export function PaidOutsideForm({ planId, startsOn, defaultAmountCents, locale }
   }
   return (
     <div data-testid="rent-paid-outside" style={{ marginTop: 10, padding: 10, border: "1px solid rgba(24,24,27,0.1)", borderRadius: 10 }}>
-      <div style={{ fontSize: 12.5, opacity: 0.75, marginBottom: 6 }}>{c.paidOutsideHint}</div>
+      <div style={{ fontSize: 12.5, opacity: 0.75, marginBottom: 6 }}>{autopayOn ? c.paidOutsideHintAutopay : c.paidOutsideHint}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
         <select value={period} onChange={(e) => setPeriod(e.target.value)} aria-label={c.paidOutsideMonth} style={field}>
           {months.map((m) => <option key={m} value={m}>{m}</option>)}
