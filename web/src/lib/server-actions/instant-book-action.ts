@@ -45,6 +45,7 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { localizedBookingRefusal } from "@/lib/scheduling/instant-book-refusal-copy";
 import { readSiteReturnUrl } from "@/lib/inquiry/claim-return-url.server";
 import { cookies } from "next/headers";
+import { paymentLineItemName, paymentPortion } from "@/lib/payments/line-item-name";
 import { randomUUID } from "node:crypto";
 import { PROMO_COOKIE, PROMO_VIA_COOKIE } from "@/lib/promos/share/cookies";
 import { bookingPromoRequest, instantPaymentStep, promoRefusal } from "@/lib/scheduling/instant-book-promo";
@@ -264,7 +265,16 @@ export async function createInstantBookingAction(
             // transaction it paid and only says paid once it is settled.
             successUrl,
             cancelUrl,
-            description: "Booking deposit",
+            // TUL-1305: the card fee is its own Checkout line (the total is unchanged) and the line says
+            // whether this is the deposit or the full payment, never "Booking deposit" for a full charge.
+            ...(typeof booked.principalCents === "number" && booked.collectCents > booked.principalCents
+              ? { serviceFeeCents: booked.collectCents - booked.principalCents }
+              : {}),
+            description: paymentLineItemName({
+              serviceName: null,
+              portion: paymentPortion(booked.principalCents ?? booked.collectCents, booked.orderTotalCents ?? null),
+              locale: bookingLocale,
+            }),
             locale: bookingLocale,
           });
           if (!session.ok) {

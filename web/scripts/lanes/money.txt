@@ -167,6 +167,10 @@ src/lib/orders/orders-for-thread.test.ts
 src/lib/orders/orders-list-refunded-owes-nothing.test.ts
 src/lib/orders/orders-list.test.ts
 src/lib/orders/orders-page-wire.static.test.ts
+src/lib/orders/price/price-golden.test.ts
+src/lib/orders/price/price-math-ratchet.static.test.ts
+src/lib/orders/price/price-module-invariance.static.test.ts
+src/lib/orders/price/rules.test.ts
 src/lib/orders/purchase-attribution.test.ts
 src/lib/orders/purchase-catalog-groups.test.ts
 src/lib/orders/purchase-pass-through-collect.test.ts

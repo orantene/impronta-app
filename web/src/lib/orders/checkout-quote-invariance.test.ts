@@ -36,10 +36,8 @@ test("no money path imports the quote or display modules; only the sheet side do
     .map((f) => f.slice(process.cwd().length + 1))
     .filter((f) => !f.startsWith("src/lib/orders/checkout-quote"))
     .sort();
-  assert.deepEqual(importers, [
-    "src/components/public-booking/catalog-who-summary.tsx",
-    "src/components/public-booking/use-card-fee-quote.ts",
-  ]);
+  // The sheet now reads the ONE price module (`orders/price/`); nothing imports the old quote modules.
+  assert.deepEqual(importers, []);
 });
 
 test("purchase-collect.ts, purchase.ts and the pass-through math never reference the quote modules", () => {

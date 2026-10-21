@@ -27,6 +27,7 @@ import {
   type CatalogBookingMode,
 } from "@/components/public-booking/catalog-booking-logic";
 import { offeringRequiresOnlineCollect } from "@/lib/talent/who-step-payment-copy";
+import { useCardFeeQuote } from "./use-card-fee-quote";
 import { BookingPromoPanel, type BookingPromoChoice } from "@/components/promos/public/booking-promo-panel";
 
 const INK = "#101211";
@@ -69,6 +70,15 @@ export function CatalogPurchaseMount({
   const [promoRefresh, setPromoRefresh] = useState(0);
 
   const armed = mode === "demo" || Boolean(tenantId);
+  // The server's own quote for this selection (promo, deposit and card fee included): what Stripe charges.
+  const quote = useCardFeeQuote({
+    enabled: mode === "live" && armed && sheet != null && sheet.reserveMode !== "free",
+    offeringId: sheet?.offeringId ?? null,
+    variantId,
+    addOnIds,
+    units: qty,
+    promoCode: promo.promoCode,
+  });
 
   useEffect(() => {
     setSourcePage(window.location.pathname || "/");
@@ -120,11 +130,14 @@ export function CatalogPurchaseMount({
     .reduce((s, a) => s + a.amountCents, 0);
   const listCents = baseCents != null ? baseCents * effQty + addOnCents : null;
   // Promos v1: the live promo price the panel quoted (the server re-prices and holds on confirm).
-  const totalCents =
+  const localTotalCents =
     listCents != null && promo.promoShownDiscountCents != null
       ? Math.max(0, listCents - promo.promoShownDiscountCents)
       : listCents;
-  const collectCents = catalogCollectNowCents(totalCents, d.reserveMode, d.depositPct);
+  const localCollectCents = catalogCollectNowCents(localTotalCents, d.reserveMode, d.depositPct);
+  // TUL-1304: when the server quote is in, show exactly what it charges (promo, floor deposit, card fee).
+  const totalCents = quote ? quote.totalCents : localTotalCents;
+  const collectCents = quote ? quote.payNowCents : localCollectCents;
   const price = catalogPurchaseTotalLabel(listCents, totalCents, locale, (c) => formatOfferingPrice(c, d.currency, locale));
   const collectPrice =
     collectCents != null && collectCents > 0

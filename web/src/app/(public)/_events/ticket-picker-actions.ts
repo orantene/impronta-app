@@ -39,6 +39,7 @@ import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
 import { releaseCapacity } from "@/lib/capacity";
+import { effectiveUnitCents } from "@/lib/orders/price/rules";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { orderOfferingsSellable } from "@/lib/orders/order-sellable-gate";
 import { tierRefUnlocks } from "@/lib/offerings/sellable";
@@ -164,7 +165,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
 
     const { data: offering, error: offErr } = await admin
       .from("talent_offerings")
-      .select("id, status, moderation_state, visibility, currency, allow_pay_in_person")
+      .select("id, status, moderation_state, visibility, currency, allow_pay_in_person, amount_cents")
       .eq("id", ev.offering_id as string).eq("tenant_id", tenantId).maybeSingle();
     if (offErr) { logServerError("events.picker.offering", offErr); return { ok: false, reason: "unavailable" }; }
     if (!offering || !isGuestSellableOffering(offering)) return { ok: false, reason: "not_sellable" };
@@ -259,7 +260,10 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     const tiers: PickerTier[] = tierRows.map((v) => {
       const t: Tier = {
         id: v.id as string, label: v.label as string, poolKey: v.pool_key as string,
-        amountCents: (v.amount_cents as number | null) ?? 0, salesFrom: (v.sales_from as string | null) ?? null,
+        // TUL-1301: a tier with no price of its own is charged the offering's price (pricePurchase), so SHOW that,
+        // never "Free". Only an offering that also has no price shows 0.
+        amountCents: effectiveUnitCents(v.amount_cents as number | null, (offering as { amount_cents?: number | null }).amount_cents ?? null) ?? 0,
+        salesFrom: (v.sales_from as string | null) ?? null,
         salesUntil: (v.sales_until as string | null) ?? null, minPerOrder: (v.min_per_order as number | null) ?? 1,
         maxPerOrder: (v.max_per_order as number | null) ?? null, isHidden: Boolean(v.is_hidden),
       };

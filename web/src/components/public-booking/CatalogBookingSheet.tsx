@@ -254,7 +254,7 @@ export function CatalogBookingSheet({
   const summaryCents = detail ? catalogSheetSummaryCents(detail, variantId) ?? 0 : 0;
   const total = detail ? catalogTotalCents(detail, variantId, addOnIds) : 0;
   const footerTotal = detail ? catalogSheetFooterTotal(detail, variantId, addOnIds) : { cents: 0, from: false };
-  const cardFee = useCardFeeQuote({ enabled: step === "who" && mode === "live" && detail?.priceDisplay !== "quote", offeringId: detail?.offeringId ?? null, variantId, addOnIds });
+  const cardFee = useCardFeeQuote({ enabled: step === "who" && mode === "live" && detail?.priceDisplay !== "quote", offeringId: detail?.offeringId ?? null, variantId, addOnIds, startsAt: liveStarts });
 
   useEffect(() => {
     if (!detail || step === "done" || (needsVariant && !variant)) return;
@@ -707,9 +707,15 @@ export function CatalogBookingSheet({
                 time={time}
                 tz={mode === "live" ? liveTz : null}
                 placeCity={mode === "live" ? livePlaceCity : null}
-                total={isQuote ? (es ? "A cotizar" : "Quote") : money(total, detail.currency)}
+                total={isQuote ? (es ? "A cotizar" : "Quote") : money(cardFee ? cardFee.totalCents : total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
-                cardFee={cardFee ? { feeLabel: cardFee.feeCents > 0 ? money(cardFee.feeCents, cardFee.currency) : null, payNowLabel: money(cardFee.payNowCents, cardFee.currency), travelFeeLabel: cardFee.travelFeeOnDayCents > 0 ? money(cardFee.travelFeeOnDayCents, cardFee.currency) : null } : null}
+                cardFee={cardFee ? {
+                  discountLabel: cardFee.discountCents > 0 ? money(cardFee.discountCents, cardFee.currency) : null,
+                  feeLabel: cardFee.feeCents > 0 ? money(cardFee.feeCents, cardFee.currency) : null,
+                  payNowLabel: cardFee.showPayNow ? money(cardFee.payNowCents, cardFee.currency) : null,
+                  balanceLabel: cardFee.balanceCents > 0 ? money(cardFee.balanceCents, cardFee.currency) : null,
+                  travelFeeLabel: cardFee.travelFeeOnDayCents > 0 ? money(cardFee.travelFeeOnDayCents, cardFee.currency) : null,
+                } : null}
               />
               <CatalogWhoContact
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
