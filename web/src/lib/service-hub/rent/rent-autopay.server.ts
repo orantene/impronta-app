@@ -7,6 +7,7 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
+import { rentAutopayFlagOn } from "./rent-autopay";
 import { rentReversalCents } from "./rent-autopay-refunds";
 import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
@@ -170,6 +171,12 @@ export type RentChargeOutcome = "not_rent" | "reversed" | "nothing_to_reverse" |
  * (`rentReversalCents`, cumulative, idempotency-keyed); a new dispute is flagged on the row and the owner is told.
  */
 export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Stripe, event: Stripe.Event): Promise<RentChargeOutcome> {
+  // This runs on EVERY platform refund and dispute. It must be invisible unless the charge is a confirmed rent charge:
+  // flag off or a Connect-account event is never ours, and any doubt before the rent row is confirmed is "not_rent"
+  // (a booking refund must still record normally). Only a confirmed rent row may ask Stripe to retry.
+  if (!rentAutopayFlagOn()) return "not_rent";
+  if (event.account) return "not_rent";
+  let confirmed = false;
   try {
     let charge: Stripe.Charge;
     let lostDisputeCents = 0;
@@ -199,8 +206,8 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
       .select("id, tenant_id, plan_id, period, talent_profile_id")
       .eq("stripe_invoice_id", invoiceId)
       .maybeSingle();
-    if (error) return "retry";
-    if (!row) return "not_rent";
+    if (error || !row) return "not_rent";
+    confirmed = true;
     const r = row as { id: string; tenant_id: string; plan_id: string; period: string; talent_profile_id: string };
 
     if (disputeOpened) {
@@ -245,6 +252,6 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
     return reversed > 0 ? "reversed" : "nothing_to_reverse";
   } catch (err) {
     logServerError("rent.autopay.chargeEvent", err);
-    return "retry";
+    return confirmed ? "retry" : "not_rent";
   }
 }
