@@ -19,7 +19,13 @@ function fake(invoice: Record<string, unknown>, missed: string[] = []) {
     then: (res: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(res),
   });
   const stripe = { invoices: { retrieve: async () => invoice, update: async () => ({}) }, invoiceItems: { create: async () => { items.push("item"); return {}; } } } as unknown as Stripe;
-  return { admin: { from: () => q } as never, stripe, updates, items };
+  // TUL-1751: the marker is the atomic rent_mark_percent_missed RPC; this fake behaves like the SQL function.
+  const rpc = async (_name: string, args: { p_month: string }) => {
+    if (missed.includes(args.p_month)) return { data: "already", error: null };
+    updates.push({ autopay_percent_missed: [...missed, args.p_month] });
+    return { data: "marked", error: null };
+  };
+  return { admin: { from: () => q, rpc } as never, stripe, updates, items };
 }
 
 const prev = process.env.RENT_AUTOPAY_PERCENT_ENABLED;

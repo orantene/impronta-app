@@ -362,6 +362,7 @@ src/lib/service-hub/rent/rent-outside-autopay.test.ts
 src/lib/service-hub/rent/rent-outside.test.ts
 src/lib/service-hub/rent/rent-owner-autopay.static.test.ts
 src/lib/service-hub/rent/rent-percent-gates.test.ts
+src/lib/service-hub/rent/rent-percent-missed-atomic.test.ts
 src/lib/service-hub/rent/rent-percent-missed.test.ts
 src/lib/service-hub/rent/rent-percent.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts

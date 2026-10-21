@@ -19,11 +19,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
-import { LEDGER_UNREADABLE_ERROR_PREFIX, REFUND_PENDING_ERROR_PREFIX } from "@/lib/payments/balance-payout-refund-net";
+import { FEE_UNKNOWN_ERROR_PREFIX, LEDGER_UNREADABLE_ERROR_PREFIX, REFUND_PENDING_ERROR_PREFIX } from "@/lib/payments/balance-payout-refund-net";
 import { executeBookingTransfers, type TransferDeps, type TransferOutcome } from "@/lib/payments/transfers";
 
-/** last_error prefix transfers.ts writes on a fee-unknown hold. */
-export const FEE_UNKNOWN_ERROR_PREFIX = "processing fee";
+// FEE_UNKNOWN_ERROR_PREFIX lives in balance-payout-refund-net (light import, shared with the stale-hold alert).
+export { FEE_UNKNOWN_ERROR_PREFIX };
 
 export type FeeUnknownRetryResult = {
   transactions: number;

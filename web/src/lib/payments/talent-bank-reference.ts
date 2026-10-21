@@ -162,6 +162,32 @@ export async function loadAddablePayoutWorkspaces(admin: SupabaseClient, userId:
 }
 
 /**
+ * Resolves the workspace for "add a manual payout account" on the SERVER: the client-sent id is only a
+ * request, and it comes back as a workspace id only when the signed-in user's own talent profile is on that
+ * workspace's roster (not removed). Null otherwise (TUL-1808). The pattern the use-server tenant guard recognises.
+ */
+export async function resolveTenantFromOwnRoster(
+  admin: SupabaseClient,
+  input: { userId: string; requestedTenantId: string },
+): Promise<{ ok: true; tenantId: string } | { ok: false; reason: "not_rostered" | "failed" }> {
+  const tp = await ownTalentProfileId(admin, input.userId);
+  if (!tp) return { ok: false, reason: "not_rostered" };
+  const { data, error } = await admin
+    .from("agency_talent_roster")
+    .select("tenant_id")
+    .eq("talent_profile_id", tp)
+    .eq("tenant_id", input.requestedTenantId)
+    .neq("status", "removed")
+    .maybeSingle();
+  if (error) {
+    logServerError("talent-bank-reference.resolveTenant", error);
+    return { ok: false, reason: "failed" };
+  }
+  const tenantId = (data as { tenant_id: string } | null)?.tenant_id;
+  return tenantId ? { ok: true, tenantId } : { ok: false, reason: "not_rostered" };
+}
+
+/**
  * The talent adds a manual payout account in a workspace where she is rostered. Creates it PENDING
  * (connectTalentPayoutAccount, the same path as the settings action, which re-proves ownership and
  * the roster). The user is the signed-in one; only the workspace comes from the caller.
