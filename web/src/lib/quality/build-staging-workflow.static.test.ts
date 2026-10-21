@@ -28,7 +28,11 @@ test("never production: no --prod, target production, promote or production alia
   assert.doesNotMatch(code, /deploy:alias|promote-and-alias|alias set/);
   // the only "production" allowed is the guard that refuses a production-targeted deployment
   for (const l of code.split("\n").filter((x) => /production/i.test(x))) {
-    assert.match(l, /"\$tgt" = "production"|came back as production|"target \/\/|\.target/, `unexpected production mention: ${l}`);
+    assert.match(
+      l,
+      /"\$tgt" = "production"|came back as production|"target \/\/|\.target|PRODUCTION Supabase ref/,
+      `unexpected production mention: ${l}`,
+    );
   }
 });
 
