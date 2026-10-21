@@ -11,6 +11,10 @@ export const STATIC_PATHS = [
   "/robots.txt",
   // llms.txt (TUL-589): the route itself 404s every host except marketing and published talent sites.
   "/llms.txt",
+  // IndexNow key file (TUL-589): must answer on every host — a talent/agency
+  // custom domain included — because IndexNow checks `keyLocation` against
+  // whichever host the pinged URL belongs to.
+  "/indexnow-key.txt",
   // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
   // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
   // card) and are referenced by absolute URL in every page's og:image /

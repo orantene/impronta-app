@@ -124,6 +124,7 @@ src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/host-gated-routes-no-static-extension.static.test.ts
 src/lib/saas/host-safe-destination.test.ts
 src/lib/saas/host-safe-links.static.test.ts
+src/lib/saas/indexnow-key-reachability.static.test.ts
 src/lib/saas/marketing-locale-hrefs.guard.test.ts
 src/lib/saas/membership-auth-sweep.guard.test.ts
 src/lib/saas/off-roster-hard-404.static.test.ts

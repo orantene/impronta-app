@@ -92,6 +92,7 @@ src/lib/seo/f5-sitemap-share-images.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
+src/lib/seo/indexnow.test.ts
 src/lib/seo/service-page-metadata.test.ts
 src/lib/service-hub/hub-rules.test.ts
 src/lib/service-hub/leaver-redirect.test.ts
@@ -122,6 +123,7 @@ src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
 src/lib/site-admin/sections/contact_form/strip-image-metadata.test.ts
 src/lib/site-admin/server/annotate-open-times.test.ts
+src/lib/site-admin/server/posts-indexnow-hook.static.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts
@@ -155,6 +157,7 @@ src/lib/talent-site/server/publish-idempotency.test.ts
 src/lib/talent-site/server/render-max-site-request-memo.static.test.ts
 src/lib/talent-site/server/render-max-site.perf.static.test.ts
 src/lib/talent-site/server/site-activation-state.test.ts
+src/lib/talent-site/server/site-management-actions-indexnow-hook.static.test.ts
 src/lib/talent-site/server/site-metadata-verification.test.ts
 src/lib/talent-site/server/vanity-usd-rates.test.ts
 src/lib/talent-site/service-page-sections.test.tsx

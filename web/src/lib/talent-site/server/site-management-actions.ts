@@ -64,6 +64,7 @@ import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
 import { siteScaffoldComplete } from "./site-scaffold-complete";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
 import { recordSitePublish } from "../history/history.server";
+import { pingIndexNowUrl } from "@/lib/seo/indexnow";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -710,6 +711,18 @@ export async function publishMaxSiteAction(opts?: { contentHash?: string | null 
         publishedAt: now,
       });
     }
+  }
+
+  // 6. TUL-589 (S slice): tell IndexNow this site changed. Best-effort and
+  // production-only (see pingIndexNowUrl); a demo profile has no real
+  // content, so it has nothing to ping.
+  const { data: demoCheck } = await sb
+    .from("talent_profiles")
+    .select("is_demo")
+    .eq("id", g.talentProfileId)
+    .maybeSingle();
+  if (!demoCheck?.is_demo) {
+    await pingIndexNowUrl(siteUrl(pre.site_slug, false));
   }
 
   return { ok: true, data: { publishedAt: now } };
