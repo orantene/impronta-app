@@ -138,3 +138,58 @@ test("an edit of a client-chat message is masked and its original kept; a failed
   assert.equal(await withFlag("true", () => maskEditedBody({ messageId: "m", inquiryId: "i", tenantId: "t", threadType: "private", body: "mail ana@x.com" }, { admin: failing.admin })), null);
   assert.equal(await withFlag(undefined, () => maskEditedBody({ messageId: "m", inquiryId: "i", tenantId: "t", threadType: "private", body: "mail ana@x.com" })), "mail ana@x.com");
 });
+
+// TUL-1597: free text inside a card payload (notes, summaries, captions) is masked like the body.
+import { maskCardPayloadText } from "./contact-masking";
+
+test("card payload: only known free-text keys are masked, nested too; ids, amounts and dates are untouched", () => {
+  const payload = {
+    title: "Quote v2",
+    summary: "call Ana 984 123 4567",
+    note: "mail ana@x.com",
+    caption: "my wa.me/5219841234567",
+    amount_cents: 984123456700,
+    starts_at: "2026-10-21T10:00:00Z",
+    reference: "1234567890123",
+    items: [{ name: "Cut", description: "ask +52 984 765 4321" }],
+  };
+  const r = maskCardPayloadText(payload);
+  assert.equal(r.maskedCount, 4);
+  const out = r.payload as typeof payload;
+  assert.equal(out.summary, "call Ana [phone hidden]");
+  assert.equal(out.note, "mail [email hidden]");
+  assert.equal(out.caption, "my [phone hidden]");
+  assert.equal(out.items[0].description, "ask [phone hidden]");
+  assert.equal(out.amount_cents, 984123456700);
+  assert.equal(out.starts_at, "2026-10-21T10:00:00Z");
+  assert.equal(out.reference, "1234567890123");
+  assert.equal(payload.summary, "call Ana 984 123 4567", "input is not mutated");
+});
+
+test("card payload with nothing to hide, or no payload: unchanged, zero count", () => {
+  assert.deepEqual(maskCardPayloadText({ summary: "see you at 15:30" }), { payload: { summary: "see you at 15:30" }, maskedCount: 0 });
+  assert.deepEqual(maskCardPayloadText(null), { payload: null, maskedCount: 0 });
+});
+
+test("a card with an empty body but a phone in its note is stored masked and the original kept", async () => {
+  const c = fakeClient();
+  const a = fakeAdmin(maskingTerms);
+  const cardRow = { inquiry_id: "i", tenant_id: "t", thread_type: "private", body: "", message_kind: "quote", card_payload: { summary: "call 984 123 4567" }, sender_user_id: "u" };
+  const r = await withFlag("true", () => insertInquiryMessage(c.client, cardRow, {}, { admin: a.admin, newId: () => "msg-9" }));
+  assert.equal(r.error, null);
+  assert.deepEqual(c.inserted[0].card_payload, { summary: "call [phone hidden]" });
+  assert.deepEqual(c.inserted[0].metadata, { contact_masked: 1 });
+  assert.equal(a.originals.length, 1);
+  assert.equal(a.originals[0].masked_count, 1);
+  assert.match(String(a.originals[0].original_body), /984 123 4567/, "the typed original is kept");
+  assert.equal(a.originals[0].kind, "insert");
+});
+
+test("a card with nothing to hide is a plain insert and keeps its payload as is", async () => {
+  const c = fakeClient();
+  const a = fakeAdmin(maskingTerms);
+  const cardRow = { inquiry_id: "i", tenant_id: "t", thread_type: "private", body: "Quote sent", message_kind: "quote", card_payload: { summary: "2 items, 15:30" }, sender_user_id: "u" };
+  await withFlag("true", () => insertInquiryMessage(c.client, cardRow, {}, { admin: a.admin }));
+  assert.deepEqual(c.inserted[0].card_payload, { summary: "2 items, 15:30" });
+  assert.equal(a.originals.length, 0);
+});
