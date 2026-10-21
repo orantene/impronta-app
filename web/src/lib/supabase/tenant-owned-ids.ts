@@ -48,7 +48,7 @@ export async function assertVariantsBelongToTenant(
 ): Promise<OwnedIdsResult> {
   const wanted = uniq(variantIds);
   if (wanted.length === 0) return { ok: true };
-  const { data, error } = await admin.from("talent_offering_variants").select("id, offering_id").in("id", wanted);
+  const { data, error } = await asClient(admin).from("talent_offering_variants").select("id, offering_id").in("id", wanted);
   if (error) {
     logServerError("tenancy.assertVariantsBelongToTenant.variants", error);
     return { ok: false, reason: "unavailable" };

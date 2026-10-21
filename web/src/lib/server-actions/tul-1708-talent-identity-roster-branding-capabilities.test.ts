@@ -128,7 +128,7 @@ for (const { path, caps, wiredPatterns, hasBareReadToo } of FILES) {
 // different tiers (editor+ vs manager+ vs admin+) — verify each capability's
 // real tier directly rather than assuming "editor fails" implies "manager
 // passes" for every one of them.
-const EXPECTED_MIN_TIER: Record<CapabilityKey, "editor" | "manager" | "admin"> = {
+const EXPECTED_MIN_TIER: Partial<Record<CapabilityKey, "editor" | "manager" | "admin">> = {
   "agency.roster.edit": "editor",
   manage_agency_settings: "admin",
   edit_talent_overlay: "editor",

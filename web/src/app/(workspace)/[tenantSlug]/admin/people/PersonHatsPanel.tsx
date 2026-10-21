@@ -93,7 +93,7 @@ export function PersonHatsPanel({
   onClose: () => void;
 }) {
   const t = useT();
-  const { state, openDrawer, adminBasePath } = useAdminShell();
+  const { state: shellState, openDrawer, adminBasePath } = useAdminShell();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -106,7 +106,7 @@ export function PersonHatsPanel({
   // already swaps its role select for a read-only chip below admin. Mirror
   // that here instead of leaving the select/buttons live for a role that
   // can never save.
-  const canManageAccess = meetsRole(state.role, "admin");
+  const canManageAccess = meetsRole(shellState.role, "admin");
 
   // Esc closes the sheet, as it closes the shell's own drawers.
   useEffect(() => {

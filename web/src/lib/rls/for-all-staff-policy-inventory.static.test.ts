@@ -119,7 +119,7 @@ function strip(sql: string): string {
 
 function forAllStaffPolicies(): Map<string, string[]> {
   const found = new Map<string, string[]>();
-  const re = /CREATE\s+POLICY\s+("?[\w$]+"?)\s+ON\s+(?:"?public"?\.)?("?\w+"?)([^;]*?);/gis;
+  const re = /CREATE\s+POLICY\s+("?[\w$]+"?)\s+ON\s+(?:"?public"?\.)?("?\w+"?)([^;]*?);/gi;
   for (const file of sqlFiles()) {
     const sql = strip(readFileSync(file, "utf8"));
     let m: RegExpExecArray | null;
