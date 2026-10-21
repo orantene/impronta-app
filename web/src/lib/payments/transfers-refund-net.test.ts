@@ -24,7 +24,7 @@ type TxnRow = {
 type Snap = {
   booking_id: string;
   participant_id: string;
-  owning_party_type: "talent";
+  owning_party_type: "talent" | "agency";
   owning_party_id: string;
   talent_net_cents: number;
   workspace_fee_cents: number;
@@ -178,4 +178,86 @@ test("replay is idempotent: same netted amount, same key, one transfer", async (
   await run(rows, stripe);
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.amount, 56000);
+});
+
+// ── Workspace (platform fee) leg is netted by the same rule ──────────────────
+
+const AGENCY_SNAP: Snap = {
+  ...SNAP,
+  owning_party_type: "agency",
+  owning_party_id: "tenant_1",
+  talent_net_cents: 60000,
+  workspace_fee_cents: 20000,
+};
+
+async function runAgency(rows: TxnRow[], stripe: Stripe) {
+  return executeBookingTransfers(BALANCE_TXN, {
+    sb: makeSupabase(rows, [AGENCY_SNAP]),
+    stripe,
+    resolveTalentAccount: async () => "acct_talent",
+    resolveWorkspaceAccount: async () => "acct_ws",
+  });
+}
+
+function amounts(outcomes: Awaited<ReturnType<typeof runAgency>>) {
+  return {
+    talent: outcomes.filter((o) => o.party === "talent").reduce((a, o) => a + o.amountCents, 0),
+    workspace: outcomes.filter((o) => o.party === "workspace").reduce((a, o) => a + o.amountCents, 0),
+  };
+}
+
+test("workspace leg: fully refunded deposit takes its share out of the fee leg too", async () => {
+  const { calls, stripe } = makeStripe();
+  const out = await runAgency(
+    [{ id: "txn_deposit", status: "refunded", gross_amount_cents: 30000, refund_of_transaction_id: null }, BALANCE],
+    stripe,
+  );
+  assert.deepEqual(amounts(out), { talent: 42000, workspace: 14000 });
+  assert.deepEqual(calls.map((c) => c.amount).sort((a, b) => a - b), [14000, 42000]);
+});
+
+test("workspace leg: partial refund nets only the refunded slice", async () => {
+  const { stripe } = makeStripe();
+  const out = await runAgency(
+    [
+      { id: "txn_deposit", status: "paid", gross_amount_cents: 30000, refund_of_transaction_id: null },
+      { id: "txn_refund_1", status: "refunded", gross_amount_cents: 15000, refund_of_transaction_id: "txn_deposit" },
+      BALANCE,
+    ],
+    stripe,
+  );
+  assert.deepEqual(amounts(out), { talent: 51000, workspace: 17000 });
+});
+
+test("fully refunded booking: both legs pay 0, no transfers, never negative", async () => {
+  const { calls, stripe } = makeStripe();
+  const out = await runAgency(
+    [
+      { id: "txn_deposit", status: "refunded", gross_amount_cents: 100000, refund_of_transaction_id: null },
+      { ...BALANCE, gross_amount_cents: 0 },
+    ],
+    stripe,
+  );
+  assert.deepEqual(amounts(out), { talent: 0, workspace: 0 });
+  assert.equal(calls.length, 0);
+});
+
+test("workspace leg: no refund leaves both legs unchanged", async () => {
+  const { stripe } = makeStripe();
+  const out = await runAgency(
+    [{ id: "txn_deposit", status: "paid", gross_amount_cents: 30000, refund_of_transaction_id: null }, BALANCE],
+    stripe,
+  );
+  assert.deepEqual(amounts(out), { talent: 60000, workspace: 20000 });
+});
+
+test("workspace leg: replay makes one transfer per leg", async () => {
+  const { calls, stripe } = makeStripe();
+  const rows: TxnRow[] = [
+    { id: "txn_deposit", status: "refunded", gross_amount_cents: 30000, refund_of_transaction_id: null },
+    BALANCE,
+  ];
+  await runAgency(rows, stripe);
+  await runAgency(rows, stripe);
+  assert.equal(calls.length, 2);
 });

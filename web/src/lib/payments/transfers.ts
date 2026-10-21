@@ -22,7 +22,7 @@
 
 import {
   bookingRefundTotals,
-  talentCentsNetOfRefunds,
+  legCentsNetOfRefunds,
   type BookingTxnRow,
 } from "./balance-payout-refund-net";
 import { legLastError } from "./connect-lane-attention";
@@ -471,15 +471,19 @@ export async function executeBookingTransfers(
         }
       }
 
-      if (refundTotals.refundedCents > 0 && talentAmountCents > 0) {
-        const before = talentAmountCents;
-        talentAmountCents = talentCentsNetOfRefunds(talentAmountCents, refundTotals);
-        void improntaLog("transfers.talent_net_of_refunds", {
+      if (refundTotals.refundedCents > 0 && (talentAmountCents > 0 || workspaceAmountCents > 0)) {
+        const beforeTalent = talentAmountCents;
+        const beforeWorkspace = workspaceAmountCents;
+        talentAmountCents = legCentsNetOfRefunds(talentAmountCents, refundTotals);
+        workspaceAmountCents = legCentsNetOfRefunds(workspaceAmountCents, refundTotals);
+        void improntaLog("transfers.legs_net_of_refunds", {
           bookingId,
           transactionId,
           participantId: snap.participant_id,
-          beforeCents: before,
-          afterCents: talentAmountCents,
+          beforeTalentCents: beforeTalent,
+          afterTalentCents: talentAmountCents,
+          beforeWorkspaceCents: beforeWorkspace,
+          afterWorkspaceCents: workspaceAmountCents,
           chargedCents: refundTotals.chargedCents,
           refundedCents: refundTotals.refundedCents,
         });

@@ -52,8 +52,8 @@ export function bookingRefundTotals(rows: readonly BookingTxnRow[]): { chargedCe
   return { chargedCents, refundedCents: Math.min(refundedCents, chargedCents) };
 }
 
-/** Pure: a talent leg after the refunded share of the booking is taken out (never below 0). */
-export function talentCentsNetOfRefunds(
+/** Pure: a payout leg (talent or workspace) after the refunded share of the booking is taken out (never below 0). */
+export function legCentsNetOfRefunds(
   legCents: number,
   totals: { chargedCents: number; refundedCents: number },
 ): number {
