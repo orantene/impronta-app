@@ -46,6 +46,21 @@ export function workspaceOps(fx, key, { slug, name, ownerUser, plan = "studio", 
   };
 }
 
+/**
+ * F3's OWN services ("a" = the booking-ready studio, "b" = the empty-state twin). Read-backs scope to THESE keys, never to the tenant:
+ * other clusters (G8) add services to the same studio and must not move F3's counts.
+ */
+export const F3_SERVICE_DEFS = [
+  { key: "f3-a-estandar", t: "f3-a", studio: "a", title: "Limpieza estándar", titleEn: "Standard cleaning", cents: 85000, min: 120, media: 0 },
+  { key: "f3-a-profunda", t: "f3-a", studio: "a", title: "Limpieza profunda", titleEn: "Deep cleaning", cents: 150000, min: 240, media: 1 },
+  { key: "f3-b-oficina", t: "f3-b", studio: "a", title: "Limpieza de oficina", titleEn: "Office cleaning", cents: 95000, min: 120, media: 2 },
+  { key: "f3-c-estandar", t: "f3-c", studio: "b", title: "Limpieza estándar", titleEn: "Standard cleaning", cents: 85000, min: 120, media: 0 },
+];
+export const F3_STUDIO_SERVICE_KEYS = F3_SERVICE_DEFS.filter((d) => d.studio === "a" && d.cents > 0).map((d) => d.key);
+/** F3's roster talents (studio "a") and domains, by their fixture keys. */
+export const F3_ROSTER_KEYS = ["roster:f3-a:ws", "roster:f3-b:ws"];
+export const F3_DOMAIN_KEYS = ["domain:f3:sub", "domain:f3:custom"];
+
 /** F3 (TUL-698, 1067, 1167, 870, 1016): booking-ready Studio workspace + a twin with services but no hours. */
 export function planF3(now, { trees }) {
   const fx = "F3";
@@ -82,12 +97,7 @@ export function planF3(now, { trees }) {
     tids[p.key] = t.tid;
     ops.push(...t.ops);
   }
-  const services = [
-    { key: "f3-a-estandar", t: "f3-a", ws: a.ws, title: "Limpieza estándar", titleEn: "Standard cleaning", cents: 85000, min: 120, media: 0 },
-    { key: "f3-a-profunda", t: "f3-a", ws: a.ws, title: "Limpieza profunda", titleEn: "Deep cleaning", cents: 150000, min: 240, media: 1 },
-    { key: "f3-b-oficina", t: "f3-b", ws: a.ws, title: "Limpieza de oficina", titleEn: "Office cleaning", cents: 95000, min: 120, media: 2 },
-    { key: "f3-c-estandar", t: "f3-c", ws: b.ws, title: "Limpieza estándar", titleEn: "Standard cleaning", cents: 85000, min: 120, media: 0 },
-  ];
+  const services = F3_SERVICE_DEFS.map((d) => ({ ...d, ws: d.studio === "a" ? a.ws : b.ws }));
   for (const s of services) {
     ops.push(mediaOp(fx, s.key, { tenantId: s.ws, talentId: tids[s.t], n: s.media }));
     ops.push(...offeringOps(fx, s.key, {

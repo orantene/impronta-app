@@ -23,6 +23,7 @@ scripts/qa/seed-diego-personas.static.test.mjs
 src/app/(public)/_events/ticket-picker-uuid.test.ts
 scripts/lib/failed-cards-g-fixtures.test.mjs
 scripts/lib/failed-cards-g678-fixtures.test.mjs
+scripts/lib/failed-cards-readback-scope.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/settings/domain-utils.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts

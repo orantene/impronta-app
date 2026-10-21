@@ -6,7 +6,17 @@ import { fcId } from "./failed-cards-guards.mjs";
 import { G6 } from "./failed-cards-ops.mjs";
 import { G_EVENT_SEATS, G_PROMO_CODE } from "./failed-cards-plan-g.mjs";
 import { G6_HIDDEN_KEY, G6_MAX_PER_ORDER, G7_DEPOSIT_CENTS_PER_PERSON, G7_DEPOSIT_FROM_PARTY, G7_DISPLAY_CURRENCY, G8_CANCEL_FREE_HOURS } from "./failed-cards-plan-g2.mjs";
-import { CONCIERGE_SLUG, LONG_TALENT_NAME } from "./failed-cards-plan-sites.mjs";
+import { CONCIERGE_SLUG, F3_DOMAIN_KEYS, F3_ROSTER_KEYS, F3_STUDIO_SERVICE_KEYS, LONG_TALENT_NAME } from "./failed-cards-plan-sites.mjs";
+
+/**
+ * SCOPING RULE: a read-back counts ITS OWN fixture ids, never "everything in the tenant / venue / workspace": several clusters
+ * share the F3 studio (G1-G8), and a tenant-wide count moves the moment another cluster adds a row. The expected number is the
+ * length of the id list, so it is derived from the plan's own keys and cannot drift from them.
+ */
+const F2_ROSTER_IDS = [fcId("roster:f2:t1:studio"), fcId("roster:f2:t1:studio2")];
+const F3_ROSTER_IDS = F3_ROSTER_KEYS.map(fcId);
+const F3_DOMAIN_IDS = F3_DOMAIN_KEYS.map(fcId);
+const F3_SERVICE_IDS = F3_STUDIO_SERVICE_KEYS.map((k) => fcId(`offering:${k}`));
 
 const CHECKS = {
   F1: [
@@ -17,20 +27,21 @@ const CHECKS = {
   ],
   F2: [
     ["group thread: 2 talent + 1 client + 1 coordinator participants", "select count(*)::int n from public.inquiry_participants where inquiry_id = $1 and status <> 'removed'", [fcId("inquiry:f2")], 4],
-    ["group thread: T1 in 2 non-hub rosters (Agency filter)", "select count(*)::int n from public.agency_talent_roster where talent_profile_id = $1 and tenant_id = any($2::uuid[]) and status = 'active'", [G6.t1, [fcId("workspace:f3"), fcId("workspace:f3-nohours")]], 2],
+    ["group thread: T1 in 2 non-hub rosters (Agency filter)", "select count(*)::int n from public.agency_talent_roster where id = any($1::uuid[]) and talent_profile_id = $2 and status = 'active'", [F2_ROSTER_IDS, G6.t1], F2_ROSTER_IDS.length],
     ["group thread: original request text set", "select count(*)::int n from public.inquiries where id = $1 and length(trim(message)) > 0", [fcId("inquiry:f2")], 1],
   ],
   F3: [
     ["studio: plan_tier studio, MXN, ES identity", "select count(*)::int n from public.agencies a join public.agency_business_identity b on b.tenant_id = a.id where a.id = $1 and a.plan_tier = 'studio' and a.default_currency = 'MXN' and b.default_locale = 'es'", [fcId("workspace:f3")], 1],
-    ["studio: 2 site-visible roster talents, one name >= 40 chars", "select count(*)::int n from public.agency_talent_roster r join public.talent_profiles t on t.id = r.talent_profile_id where r.tenant_id = $1 and r.agency_visibility = 'site_visible' and r.status = 'active'", [fcId("workspace:f3")], 2],
+    ["studio: 2 site-visible roster talents (F3's own roster rows)", "select count(*)::int n from public.agency_talent_roster r join public.talent_profiles t on t.id = r.talent_profile_id where r.id = any($1::uuid[]) and r.agency_visibility = 'site_visible' and r.status = 'active'", [F3_ROSTER_IDS], F3_ROSTER_IDS.length],
     ["studio: long-name talent present", "select count(*)::int n from public.talent_profiles where id = $1 and length(display_name) >= 40 and display_name = $2", [fcId("talent:f3-a"), LONG_TALENT_NAME], 1],
-    ["studio: 3 published priced services with a photo", "select count(distinct o.id)::int n from public.talent_offerings o join public.talent_offering_media m on m.offering_id = o.id where o.tenant_id = $1 and o.status = 'published' and o.amount_cents > 0 and o.duration_minutes > 0", [fcId("workspace:f3")], 3],
+    // By F3's OWN service ids, never by tenant: G8 adds a 4th priced service with a photo to this studio and must not move F3's count.
+    ["studio: F3's published priced services with a photo", "select count(distinct o.id)::int n from public.talent_offerings o join public.talent_offering_media m on m.offering_id = o.id where o.id = any($1::uuid[]) and o.status = 'published' and o.amount_cents > 0 and o.duration_minutes > 0", [F3_SERVICE_IDS], F3_SERVICE_IDS.length],
     ["studio: Mon-Sat hours rows for both roster talents", "select count(*)::int n from public.talent_booking_hours where talent_profile_id = any($1::uuid[]) and timezone = 'America/Cancun'", [[fcId("talent:f3-a"), fcId("talent:f3-b")]], 2],
-    ["studio: subdomain (active) + custom domain (unverified)", "select count(*)::int n from public.agency_domains where tenant_id = $1 and ((kind = 'subdomain' and status = 'active') or (kind = 'custom' and status = 'dns_verification_sent' and verified_at is null))", [fcId("workspace:f3")], 2],
+    ["studio: subdomain (active) + custom domain (unverified)", "select count(*)::int n from public.agency_domains where id = any($1::uuid[]) and ((kind = 'subdomain' and status = 'active') or (kind = 'custom' and status = 'dns_verification_sent' and verified_at is null))", [F3_DOMAIN_IDS], F3_DOMAIN_IDS.length],
     ["studio: logo + accent", "select count(*)::int n from public.agency_branding where tenant_id = $1 and accent_color is not null and theme_json ? 'logo_url'", [fcId("workspace:f3")], 1],
     ["T1/T2 services pages with a services_catalog block", "select count(*)::int n from public.talent_pages where id = any($1::uuid[]) and status = 'published' and blocks_published::text like '%services_catalog%'", [[fcId("page:f3:t1:servicios"), fcId("page:f3:t2:servicios")]], 2],
     ["T2 non-QA services: one public priced with a photo, one on_request without price", "select count(*)::int n from public.talent_offerings o where o.id = any($1::uuid[]) and o.status = 'published' and ((o.visibility = 'public' and o.amount_cents > 0 and exists (select 1 from public.talent_offering_media m where m.offering_id = o.id)) or (o.visibility = 'on_request' and o.amount_cents is null))", [[fcId("offering:f3-t2-lampara"), fcId("offering:f3-t2-revision")]], 2],
-    ["empty-state twin: published service, no hours row", "select (select count(*) from public.talent_offerings where tenant_id = $1 and status = 'published')::int - (select count(*) from public.talent_booking_hours where talent_profile_id = $2)::int n", [fcId("workspace:f3-nohours"), fcId("talent:f3-c")], 1],
+    ["empty-state twin: published service, no hours row", "select (select count(*) from public.talent_offerings where id = $1 and status = 'published')::int - (select count(*) from public.talent_booking_hours where talent_profile_id = $2)::int n", [fcId("offering:f3-c-estandar"), fcId("talent:f3-c")], 1],
   ],
   F5: [
     ["promos: 6 on T1 (scoped by talent_profile_id)", "select count(*)::int n from public.tenant_promo_codes where talent_profile_id = $1 and id = any($2::uuid[])", [G6.t1, ["t1-public", "t1-code", "t1-new-clients", "t1-first3", "t1-countdown", "t1-expired"].map((k) => fcId(`promo:${k}`))], 6],
@@ -69,7 +80,7 @@ const CHECKS = {
   ],
   G3: [
     ["second staff login: confirmed, manager membership on the studio (no refund capability), password set", "select count(*)::int n from public.agency_memberships m join auth.users u on u.id = m.profile_id where m.tenant_id = $1 and m.profile_id = $2 and m.role = 'manager' and m.status = 'active' and u.email_confirmed_at is not null and coalesce(u.encrypted_password, '') <> ''", [fcId("workspace:f3"), fcId("user:g3-manager")], 1],
-    ["studio still has exactly one owner (the F3 owner)", "select count(*)::int n from public.agency_memberships where tenant_id = $1 and role = 'owner' and status = 'active'", [fcId("workspace:f3")], 1],
+    ["the studio's owner is still the F3 owner membership (the DB allows one active owner per workspace)", "select count(*)::int n from public.agency_memberships where id = $1 and role = 'owner' and status = 'active'", [fcId("membership:f3")], 1],
   ],
   G4: [
     ["event: published, one scheduled night, one visible tier with seats " + G_EVENT_SEATS, "select count(*)::int n from public.events e join public.sessions s on s.event_id = e.id and s.status = 'scheduled' join public.talent_offering_variants v on v.offering_id = e.offering_id and not v.is_hidden join public.capacity_pools p on p.subject_kind = 'session_tier' and p.subject_id = s.id and p.pool_key = v.pool_key where e.id = $1 and e.status = 'published' and p.units_total = $2 and p.is_active and s.starts_at > now()", [fcId("event:g4"), G_EVENT_SEATS], 1],
@@ -107,3 +118,5 @@ export async function readBack(q, fixtures) {
 }
 
 export const READBACK_FIXTURES = Object.keys(CHECKS);
+/** For tests: the checks as [label, sql, params, want] per fixture. */
+export const READBACK_CHECKS = CHECKS;
