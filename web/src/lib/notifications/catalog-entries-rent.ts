@@ -102,4 +102,27 @@ function autopayEntry(kind: "failed" | "canceled"): CatalogEntry {
   };
 }
 
-export const RENT_CATALOG_ENTRIES: CatalogEntry[] = [rentEntry("declined"), rentEntry("ended"), autopayEntry("failed"), autopayEntry("canceled")];
+/** TUL-1611: the workspace OWNER is told (bell) when a member's automatic rent charge is disputed with the bank. */
+const AUTOPAY_DISPUTED: CatalogEntry = {
+  id: "rent.autopay_disputed.workspace",
+  category: "billing",
+  defaultChannels: ["in_app"],
+  required: true,
+  triggers: ["rent.autopay_disputed"],
+  resolveAudience: workspaceOwner,
+  in_app: {
+    kind: "system",
+    surface: "workspace",
+    title: (e, recipient) => {
+      const es = (recipient.locale ?? "").toLowerCase().startsWith("es");
+      const period = str(e.payload.period) ?? "";
+      return es ? `Disputa bancaria en la renta de ${period}` : `Bank dispute on the ${period} rent`;
+    },
+    body: (_e, recipient) =>
+      (recipient.locale ?? "").toLowerCase().startsWith("es")
+        ? "Un miembro disputó un cobro automático de renta. Si la disputa se pierde, tu parte se revierte."
+        : "A member disputed an automatic rent charge. If the dispute is lost, your share is reversed.",
+  },
+};
+
+export const RENT_CATALOG_ENTRIES: CatalogEntry[] = [rentEntry("declined"), rentEntry("ended"), autopayEntry("failed"), autopayEntry("canceled"), AUTOPAY_DISPUTED];
