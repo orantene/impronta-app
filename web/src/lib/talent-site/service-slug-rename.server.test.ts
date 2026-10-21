@@ -8,7 +8,7 @@ type Row = Record<string, unknown>;
 
 function fakeDb(tables: { offering?: Row | null; slugs?: Row[]; scoped?: Row[] }, opts: { failTable?: string; failInsert?: boolean; missingSlugs?: boolean } = {}) {
   const log: string[] = [];
-  const state = { slugs: (tables.slugs ?? []).map((r) => ({ offering_id: ID, ...r })) };
+  const state: { slugs: Row[] } = { slugs: (tables.slugs ?? []).map((r) => ({ offering_id: ID, ...r })) };
   const db = {
     from: (t: string) => {
       const filters: Array<[string, unknown]> = [];

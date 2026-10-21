@@ -185,7 +185,7 @@ test("the save button renders an accessible 44px toggle, no prompt until a guest
 test("copy: ES and EN for every new key, plain, no em dashes; the client bundle ships the subtree", () => {
   const keys = ["save", "saved", "saveAria", "removeAria", "promptTitle", "promptBody", "signIn", "notNow", "error", "clientsOnly"] as const;
   const area = ["savedPeople", "savedServices", "viewService", "reviewVisitTitle", "reviewRating", "reviewStar", "reviewBody", "reviewSend", "reviewThanks", "reviewDone", "reviewNote", "reviewPickRating", "reviewErr", "reviewErrNotCompleted"] as const;
-  for (const cat of [en, es] as Array<{ public: Record<string, Record<string, string>> }>) {
+  for (const cat of [en, es] as unknown as Array<{ public: Record<string, Record<string, string>> }>) {
     for (const k of keys) assert.ok(cat.public.saveService?.[k]?.trim(), k);
     for (const k of area) assert.ok(cat.public.clientAccountArea?.[k]?.trim(), k);
     for (const v of [...keys.map((k) => cat.public.saveService![k]!), ...area.map((k) => cat.public.clientAccountArea![k]!)]) {

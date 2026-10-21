@@ -110,7 +110,7 @@ test("a repeated replacement (same key) reports the plan with one stable key and
   const a = await replaceTalentOnProject(fakeAdmin(baseTables("name")), input, d);
   const b = await replaceTalentOnProject(fakeAdmin(baseTables("name")), input, d);
   assert.ok(a.ok && b.ok);
-  const key = payoutMoveKey({ tenantId: T, bookingId: B, operationKey: input.operationKey, moves: [] });
+  const key = payoutMoveKey({ tenantId: T, bookingId: B, operationKey: input.operationKey });
   assert.deepEqual(a.payout, { status: "not_wired", key });
   assert.deepEqual(b.payout, a.payout);
   assert.deepEqual(a.payoutPlan, [{ talentProfileId: FROM, deltaCents: -15000 }, { talentProfileId: TO, deltaCents: 15000 }]);

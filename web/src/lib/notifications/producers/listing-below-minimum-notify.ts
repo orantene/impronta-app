@@ -61,10 +61,12 @@ export async function notifyListingsBelowMinimum(params: {
     const live = new Set(((roster ?? []) as Array<{ tenant_id: string; status: string | null }>).filter((r) => r.status === "active" || r.status === "pending").map((r) => r.tenant_id));
     breached = breached.filter((b) => live.has(b.tenantId));
     if (breached.length === 0) return 0;
-    const { data: talent } = await admin.from("talent_profiles").select("display_name").eq("id", talentProfileId).maybeSingle();
+    const { data: talent, error: tErr } = await admin.from("talent_profiles").select("display_name").eq("id", talentProfileId).maybeSingle();
+    if (tErr) logServerError("notifyListingsBelowMinimum.talent", tErr);
     const talentName = (talent as { display_name?: string | null } | null)?.display_name ?? null;
     for (const b of breached) {
-      const { data: agency } = await admin.from("agencies").select("slug").eq("id", b.tenantId).maybeSingle();
+      const { data: agency, error: aErr } = await admin.from("agencies").select("slug").eq("id", b.tenantId).maybeSingle();
+      if (aErr) logServerError("notifyListingsBelowMinimum.agency", aErr);
       const slug = (agency as { slug?: string | null } | null)?.slug ?? null;
       const listingsUrl = slug ? `${getAppUrl()}/${encodeURIComponent(slug)}/admin/catalog/service-hub` : getAppUrl();
       afterResponse(() =>

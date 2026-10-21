@@ -31,7 +31,8 @@ function fakeDb(tables: Record<string, Row[]>, opts: { failTable?: string } = {}
       });
       return q;
     },
-    rpc: async () => ({ data: true, error: null }),
+    // The batch sellable RPC (TUL-1475) answers with the sellable listing ids; every listing here is sellable.
+    rpc: async (_name: string, args: { p_listing_ids?: string[] }) => ({ data: args?.p_listing_ids ?? true, error: null }),
     storage: { from: () => ({ getPublicUrl: () => ({ data: { publicUrl: "" } }) }) },
   } as never;
 }
@@ -65,7 +66,7 @@ test("the four public surfaces read through the combined loader, not the loose r
     "src/components/home/homepage-cms-data-sources.ts",
     "src/app/api/public/booking/business-catalog/route.ts",
     "src/lib/messages-v5/items-catalog.ts",
-    "src/app/t/[profileCode]/_actions/roster-request-actions.ts",
+    "src/lib/server-actions/roster-request.ts",
   ]) {
     const src = readFileSync(f, "utf8");
     assert.match(src, /loadRosterServicesWithHub\(/, f);
