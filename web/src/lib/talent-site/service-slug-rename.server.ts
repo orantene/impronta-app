@@ -26,7 +26,7 @@ export type SlugRenameDb = {
 };
 
 /** Always scoped to the saving talent: the service-role client bypasses RLS. */
-export type SlugRename = { offeringId: string; talentProfileId: string; scope: string; ops: SlugOp[] };
+export type SlugRename = { offeringId: string; talentProfileId?: string; tenantId?: string; scope: string; ops: SlugOp[] };
 
 const MISSING_TABLE = new Set(["42P01", "PGRST205", "PGRST204"]);
 
@@ -44,19 +44,21 @@ const table = (db: SlugRenameDb, name: string) => db.from(name) as unknown as Ch
 export async function prepareServiceSlugRename(
   /** The service-role client (typed structurally; generated types lag the held tables). */
   client: unknown,
-  input: { offeringId: string; talentProfileId: string; nextTitle: string },
+  /** Exactly one owner: `talentProfileId` (scope `t:<id>`) or `tenantId` (a workspace-owned service, scope `w:<id>`). */
+  input: { offeringId: string; talentProfileId?: string; tenantId?: string; nextTitle: string },
   opts: { enabled?: boolean } = {},
 ): Promise<SlugRename | null> {
   const db = client as SlugRenameDb | null;
-  if (!db || !input.offeringId || !input.talentProfileId) return null;
+  if (!db || !input.offeringId) return null;
+  if (Boolean(input.talentProfileId) === Boolean(input.tenantId)) return null;
   if (!(opts.enabled ?? servicePresentationResolverEnabled())) return null;
-  const scope = `t:${input.talentProfileId}`;
+  const scope = input.talentProfileId ? `t:${input.talentProfileId}` : `w:${input.tenantId}`;
   try {
-    const off = (await table(db, "talent_offerings")
-      .select("id, title")
-      .eq("id", input.offeringId)
-      .eq("talent_profile_id", input.talentProfileId)
-      .maybeSingle()) as Res;
+    const base = table(db, "talent_offerings").select("id, title").eq("id", input.offeringId);
+    const off = (await (input.talentProfileId
+      ? base.eq("talent_profile_id", input.talentProfileId)
+      : base.eq("tenant_id", input.tenantId as string).eq("owner_kind", "workspace")
+    ).maybeSingle()) as Res;
     if (off.error) {
       logServerError("service-slug-rename.read", off.error);
       return null;
@@ -88,7 +90,14 @@ export async function prepareServiceSlugRename(
       taken.set(r.locale, (taken.get(r.locale) ?? new Set<string>()).add(r.slug));
     }
     const ops = planOfferingSlugRename({ oldTitle, newTitle: input.nextTitle, rows, takenByLocale: taken });
-    return ops.length === 0 ? null : { offeringId: input.offeringId, talentProfileId: input.talentProfileId, scope, ops };
+    return ops.length === 0
+      ? null
+      : {
+          offeringId: input.offeringId,
+          ...(input.talentProfileId ? { talentProfileId: input.talentProfileId } : { tenantId: input.tenantId }),
+          scope,
+          ops,
+        };
   } catch (e) {
     logServerError("service-slug-rename.prepare", e);
     return null;

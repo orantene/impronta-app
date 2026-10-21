@@ -36,6 +36,7 @@ import {
 } from "@/lib/talent/offerings-types";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { normalizeWorkspaceLocale } from "@/lib/talent/workspace-primary-locale";
+import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
@@ -221,6 +222,8 @@ export async function upsertWorkspaceMenuItem(
 
     let saved: TalentOfferingRow | null = null;
     if (offering.id) {
+      // TUL-1594: a rename keeps the old link alive in offering_slugs (scope w:<tenant>); flag + table gated.
+      const slugRename = await prepareServiceSlugRename(admin, { offeringId: offering.id, tenantId, nextTitle: offering.title });
       const { data, error } = await offeringsTable(admin)
         .update(patch)
         .eq("id", offering.id)
@@ -233,6 +236,7 @@ export async function upsertWorkspaceMenuItem(
         return { ok: false, error: "Failed to save." };
       }
       saved = data as TalentOfferingRow | null;
+      if (slugRename && saved) await commitServiceSlugHistory(admin, slugRename);
     } else {
       const { data, error } = await offeringsTable(admin).insert(patch).select("*").maybeSingle();
       if (error) {
