@@ -14,6 +14,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { isPooledKind, type SpaceKind } from "@/lib/spaces/tree";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { ownerGuard } from "./rent-owner.server";
+import { ensureStationPool } from "./rent-station.server";
 import { decideStationChange, mergeStationSpaceIds } from "./rent-station";
 
 export type SetStationResult =
@@ -49,6 +50,10 @@ export async function setRentPlanStation(input: { planId: string; spaceId: strin
       if (!decision.ok) return decision;
     }
 
+    // The station's pool exists from now on, even if the member has no offering yet (TUL-1600).
+    if (input.spaceId && !(await ensureStationPool(g.admin, { tenantId: g.tenantId, spaceId: input.spaceId })).ok) {
+      return { ok: false, reason: "link_failed" };
+    }
     const { data: offerings, error } = await tenantScopedQuery(g.admin, "talent_offerings", g.tenantId)
       .select("id, attributes")
       .eq("talent_profile_id", p.talent_profile_id);
