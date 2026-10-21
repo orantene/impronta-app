@@ -43,7 +43,23 @@ test("ticketEmailed is true only when delivery really succeeded", () => {
   assert.match(src, /let ticketEmailed = false/);
 });
 
+test("TUL-1472: the talent-site channel is gated server-side before anything is sold, and prices the live promo", () => {
+  assert.match(src, /channel: z\.literal\("talent_site"\)\.optional\(\)/);
+  assert.match(src, /datedTalentGate\(admin, \{ tenantId: d\.tenantId, offeringId: d\.offeringId \}\)/);
+  assert.match(src, /booking_unavailable/);
+  assert.ok(src.indexOf("datedTalentGate(admin") < src.indexOf("createPurchase(admin, purchase)"));
+  assert.match(src, /talentSiteDatedExtras\(/);
+});
+
 test("a repeated free order does not mint or mail twice", () => {
   assert.match(src, /alreadyMinted/);
   assert.match(src, /\.from\("admissions"\)[\s\S]{0,200}\.eq\("tenant_id", d\.tenantId\)/);
+});
+
+test("TUL-1472: the talent gate follows the offering's owner, not the client's channel flag (no bypass by omitting it)", () => {
+  const src = readFileSync(join(process.cwd(), "src/app/(public)/_dated/dated-purchase-actions.ts"), "utf8");
+  assert.match(src, /talentOwned \|\| onTalentSite/);
+  assert.match(src, /select\("talent_profile_id"\)/);
+  // An unreadable owner refuses (fail closed).
+  assert.match(src, /ownerErr[\s\S]{0,200}booking_unavailable/);
 });

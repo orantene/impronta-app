@@ -62,6 +62,7 @@ import { loadPublishedFaqForProfile } from "@/lib/talent/faq-public";
 import { SERVICE_REVIEWS_MAX, shownServiceReviews, type ServiceReviews } from "@/lib/talent-site/service-page-reviews";
 import { loadReviewsSources } from "@/lib/site-admin/builder-node/reviews-sources";
 import { loadTalentRatingSummary } from "@/lib/reviews/load-reviews";
+import { serviceDatedSlot } from "./service-dated-slot";
 import { serviceMainNode, serviceRelatedLinks, serviceSeo } from "./service-main";
 import { loadPublicPromosForTalent, priceContext } from "@/lib/promos/public-promos.server";
 import { renderMaxSiteDocument } from "./render-max-site-document";
@@ -408,6 +409,20 @@ async function renderTalentMaxSiteUnguarded(
     const serviceCanonical = servicePath ? servicePageCanonical({ flagOn: presentationFlag, planKey, servicePath }) : null;
     // Resolved here: the document callback below is not async. pSeoFacts never throws.
     const serviceCity = serviceOffering ? ((await pSeoFacts).addressLocality ?? null) : null;
+    // TUL-1472: an item with upcoming dates books through the dated step on its own service page.
+    const serviceHomePath = talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales);
+    const serviceBookingSlot =
+      serviceOffering && servicePath
+        ? await serviceDatedSlot({
+            tenantId: tenantId ?? null,
+            talentProfileId: talentProfileId ?? null,
+            publicPathPrefix,
+            offeringId: serviceOffering.id,
+            locale,
+            returnPath: talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+            publicCtaHidden: serviceOffering.publicCtaHidden,
+          })
+        : null;
     const node = await timed("maxSite.document", () =>
       renderMaxSiteDocument({
         servicePagePath: servicePath ? talentSiteLocalePath(servicePath, locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales) : null,
@@ -424,7 +439,8 @@ async function renderTalentMaxSiteUnguarded(
                 promo: servicePromo,
                 talentName: identity?.name ?? null,
                 city: serviceCity,
-                homePath: talentSiteLocalePath("/", locale, localeCtx.settings.defaultLocale, localeCtx.settings.supportedLocales),
+                homePath: serviceHomePath,
+                bookingSlot: serviceBookingSlot,
               })
             : undefined,
         siteTokens,
