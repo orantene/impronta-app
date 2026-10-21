@@ -6,16 +6,9 @@ import { changelogSyncStatusLine, loadChangelogSyncStatus, type SyncResultCode }
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
-export const dynamic = "force-dynamic";
+import { HQ } from "../tenants/hq-kit";
 
-const HQ = {
-  card: "#16161A",
-  border: "rgba(255,255,255,0.10)",
-  ink: "#F5F2EB",
-  inkMuted: "rgba(245,242,235,0.62)",
-  green: "#5DD3A0",
-  red: "#F36772",
-} as const;
+export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -70,7 +63,7 @@ export default async function PlatformChangelogPage({ searchParams }: Props) {
         <form action={syncChangelogNowAction} style={{ marginTop: 16 }}>
           <button
             type="submit"
-            style={{ background: HQ.green, color: "#0F0F11", border: 0, borderRadius: 10, padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            style={{ background: HQ.green, color: HQ.bg, border: 0, borderRadius: 10, padding: "10px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
           >
             {t.button}
           </button>
