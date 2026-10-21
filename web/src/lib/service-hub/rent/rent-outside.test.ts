@@ -63,10 +63,12 @@ describe("wiring", () => {
     assert.ok(actions.indexOf("cancelPaymentLink(") < actions.indexOf('source: "outside"'));
   });
   test("an autopay month: the future charge is skipped by the webhook, an existing open or draft invoice is voided now", () => {
+    const helper = readFileSync(join(process.cwd(), "src/lib/service-hub/rent/rent-outside-autopay.server.ts"), "utf8");
     assert.match(actions, /autopay_skip_periods/);
+    assert.match(helper, /autopay_skip_periods/);
     assert.match(server, /shouldSkipAutopayInvoice\(/);
     assert.match(server, /voidRentInvoice\(/);
-    assert.match(actions, /voidAutopayMonth\(/);
+    assert.match(helper, /voidAutopayMonth/);
     // and the percentage of a month paid outside is never added to the next invoice
     assert.match(server, /shouldSkipAutopayInvoice\(plan\.autopay_skip_periods \?\? \[\], month\)/);
   });

@@ -13,8 +13,8 @@ import { cancelPaymentLink } from "@/lib/payments/links";
 import { logServerError } from "@/lib/server/safe-error";
 import type { StripeAccountKey } from "@/lib/stripe/client";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { voidAutopayMonth } from "./rent-autopay.server";
 import { ownerGuard } from "./rent-owner.server";
+import { skipAutopayForOutsideMonth } from "./rent-outside-autopay.server";
 import { decideMarkPaidOutside, type OutsideMethod, type OutsideRefusal } from "./rent-outside";
 import { PLAN_COLUMNS, planFromRow } from "./rent-store.server";
 
@@ -35,7 +35,7 @@ export async function markRentPaidOutside(input: {
     if (!g.ok) return g;
 
     const { data: row } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId)
-      .select(`${PLAN_COLUMNS}, autopay_platform, autopay_skip_periods`)
+      .select(`${PLAN_COLUMNS}, stripe_subscription_id, autopay_platform, autopay_skip_periods`)
       .eq("id", input.planId)
       .maybeSingle();
     if (!row) return { ok: false, reason: "not_found" };
@@ -64,19 +64,15 @@ export async function markRentPaidOutside(input: {
     }
 
     // 2. Automatic payments: this month's card charge must not happen.
-    const autopayLive = ["pending", "active", "past_due", "paused"].includes(plan.autopayStatus ?? "off");
-    if (autopayLive && extra.stripe_subscription_id && plan.autopayFirstPeriod && input.period >= plan.autopayFirstPeriod) {
-      const skip = [...new Set([...(extra.autopay_skip_periods ?? []), input.period])];
-      const { error: skipErr } = await tenantScopedQuery(g.admin, "studio_rent_plans", g.tenantId).update({ autopay_skip_periods: skip }).eq("id", plan.id);
-      if (skipErr) {
-        logServerError("rent.outside.skip", skipErr);
-        return { ok: false, reason: "autopay_unavailable" };
-      }
-      // An invoice that already exists (draft, open or failed) is voided now; a future one is voided by the webhook.
-      if (!(await voidAutopayMonth({ subscriptionId: extra.stripe_subscription_id, platform: extra.autopay_platform ?? null, period: input.period }))) {
-        return { ok: false, reason: "autopay_unavailable" };
-      }
-    }
+    const stopped = await skipAutopayForOutsideMonth(g.admin, {
+      tenantId: g.tenantId,
+      plan,
+      period: input.period,
+      subscriptionId: extra.stripe_subscription_id ?? null,
+      platform: extra.autopay_platform ?? null,
+      skipPeriods: extra.autopay_skip_periods ?? [],
+    });
+    if (!stopped) return { ok: false, reason: "autopay_unavailable" };
 
     // 3. Record the month as paid outside.
     const now = new Date().toISOString();
