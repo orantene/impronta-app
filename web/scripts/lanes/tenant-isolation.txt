@@ -152,6 +152,7 @@ src/lib/saas/workspace-live-url.test.ts
 src/lib/saas/workspace-path-redirects.test.ts
 src/lib/saas/workspace-public-url.test.ts
 src/lib/saas/workspace-type.test.ts
+src/lib/scheduling/hours-roster-guard.test.ts
 src/lib/seo/business-workspace-seo.test.ts
 src/lib/seo/llms-route-handoff.static.test.ts
 src/lib/seo/llms-txt.test.ts
