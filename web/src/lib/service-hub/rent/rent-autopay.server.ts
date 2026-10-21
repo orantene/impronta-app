@@ -61,11 +61,13 @@ function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentA
       return !error;
     },
     async loadInvoice(planId, tenantId, period) {
-      const { data } = await tenantScopedQuery(admin, "studio_rent_invoices", tenantId)
+      const { data, error } = await tenantScopedQuery(admin, "studio_rent_invoices", tenantId)
         .select("status, stripe_invoice_id, source")
         .eq("plan_id", planId)
         .eq("period", period)
         .maybeSingle();
+      // A DB error is not "no invoice yet": throwing makes the webhook answer "unavailable" and Stripe retries.
+      if (error) throw error;
       const r = data as { status: string; stripe_invoice_id: string | null; source: string } | null;
       return r ? { status: r.status, stripeInvoiceId: r.stripe_invoice_id, source: r.source } : null;
     },
@@ -226,7 +228,13 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
       .select("id, tenant_id, plan_id, period, talent_profile_id")
       .eq("stripe_invoice_id", invoiceId)
       .maybeSingle();
-    if (error || !row) return "not_rent";
+    if (error) {
+      // Logged with the event id, never swallowed: on prod before the rent tables exist this is expected and a booking
+      // refund must still record, but a real rent refund hit by a transient error can be found and reconciled.
+      logServerError("rent.autopay.chargeEvent.rentRowLookup", new Error(`event ${event.id} (${event.type}): ${(error as { message?: string }).message ?? "rent row lookup failed"}`));
+      return "not_rent";
+    }
+    if (!row) return "not_rent";
     confirmed = true;
     const r = row as { id: string; tenant_id: string; plan_id: string; period: string; talent_profile_id: string };
     confirmedRow = { id: r.id, tenantId: r.tenant_id };
@@ -282,11 +290,32 @@ export async function handleRentChargeEvent(admin: SupabaseClient, stripe: Strip
       // A confirmed rent charge whose reversal Stripe permanently refuses: mark the row for reconcile and stop the retry loop.
       logServerError("rent.autopay.chargeEvent.permanent", new Error(`event ${event.id}: reversal permanently failed, reconcile rent row`));
       if (confirmedRow) {
-        await tenantScopedQuery(admin, "studio_rent_invoices", confirmedRow.tenantId).update({ reversal_failed_at: new Date().toISOString() }).eq("id", confirmedRow.id);
+        const { error: markErr } = await tenantScopedQuery(admin, "studio_rent_invoices", confirmedRow.tenantId).update({ reversal_failed_at: new Date().toISOString() }).eq("id", confirmedRow.id);
+        if (markErr) logServerError("rent.autopay.chargeEvent.markFailed", markErr);
       }
       return "needs_manual";
     }
     return "retry";
+  }
+}
+
+/**
+ * TUL-1700: the support / reconcile read for refunds and lost disputes whose share reversal Stripe permanently refused
+ * (rows marked `reversal_failed_at`). Newest first. null = unreadable (never an empty list that hides a problem).
+ */
+export async function listRentReversalsToReconcile(admin: SupabaseClient, p: { tenantId?: string; limit?: number } = {}): Promise<Array<{ id: string; tenantId: string; planId: string; period: string; failedAt: string }> | null> {
+  try {
+    let q = admin.from("studio_rent_invoices").select("id, tenant_id, plan_id, period, reversal_failed_at").not("reversal_failed_at", "is", null);
+    if (p.tenantId) q = q.eq("tenant_id", p.tenantId);
+    const { data, error } = await q.order("reversal_failed_at", { ascending: false }).limit(Math.min(Math.max(p.limit ?? 50, 1), 200));
+    if (error || !Array.isArray(data)) {
+      logServerError("rent.autopay.reconcileList", error);
+      return null;
+    }
+    return (data as Array<{ id: string; tenant_id: string; plan_id: string; period: string; reversal_failed_at: string }>).map((r) => ({ id: r.id, tenantId: r.tenant_id, planId: r.plan_id, period: r.period, failedAt: r.reversal_failed_at }));
+  } catch (err) {
+    logServerError("rent.autopay.reconcileList", err);
+    return null;
   }
 }
 

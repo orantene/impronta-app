@@ -8,7 +8,7 @@ import { applyRentSubscriptionEvent, type RentAutopayApplyDeps } from "./rent-au
 import { isRentPaymentSucceeded } from "./rent-autopay-routing";
 import { RENT_COPY, rentRefusalText } from "./rent-copy";
 import { decideMarkPaidOutside } from "./rent-outside";
-import { handleRentChargeEvent, handleRentDraft, handleRentSubscriptionEvent, isPermanentStripeError, syncRentAutopayWithPlan } from "./rent-autopay.server";
+import { handleRentChargeEvent, handleRentDraft, handleRentSubscriptionEvent, isPermanentStripeError, listRentReversalsToReconcile, syncRentAutopayWithPlan } from "./rent-autopay.server";
 import type { RentPlan } from "./rent-cycle";
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
@@ -161,6 +161,59 @@ describe("9: a rent refund the bank-side cannot reverse is marked, not retried f
   });
 });
 
+describe("TUL-1700 consultant P1s", () => {
+  const prev = process.env.RENT_AUTOPAY_ENABLED;
+  beforeEach(() => { process.env.RENT_AUTOPAY_ENABLED = "1"; });
+  afterEach(() => { if (prev === undefined) delete process.env.RENT_AUTOPAY_ENABLED; else process.env.RENT_AUTOPAY_ENABLED = prev; });
+  test("(a) an invoice read error in the webhook is 'unavailable' (retried), not 'no invoice yet'", async () => {
+    const q: Record<string, unknown> = {};
+    let call = 0;
+    Object.assign(q, {
+      select: () => q, eq: () => q,
+      maybeSingle: async () => {
+        call += 1;
+        // 1st read = the plan (fine), 2nd read = the (plan, month) invoice (fails)
+        return call === 1 ? { data: { status: "active", autopay_status: "active", stripe_subscription_id: "sub_1", talent_profile_id: "tp" }, error: null } : { data: null, error: { message: "db down" } };
+      },
+    });
+    assert.equal(await handleRentSubscriptionEvent({ from: () => q } as never, paid(), "us"), "unavailable");
+  });
+
+  test("(b) a failed rent-row lookup is LOGGED with the event id and a booking refund still records (not_rent)", async () => {
+    const refund = { type: "charge.refunded", id: "evt_77", data: { object: { id: "ch_1", payment_intent: "pi_1", amount: 100, amount_refunded: 100 } } } as unknown as Stripe.Event;
+    const stripe = { invoicePayments: { list: async () => ({ data: [{ invoice: "in_1" }] }) } } as never;
+    const logs: string[] = [];
+    const orig = console.error;
+    console.error = (...a: unknown[]) => { logs.push(a.map(String).join(" ")); };
+    try {
+      assert.equal(await handleRentChargeEvent(adminReturning({ error: { message: "relation does not exist" } }), stripe, refund), "not_rent");
+    } finally {
+      console.error = orig;
+    }
+    const src = read("src/lib/service-hub/rent/rent-autopay.server.ts");
+    assert.match(src, /rent\.autopay\.chargeEvent\.rentRowLookup/);
+    assert.match(src, /event \$\{event\.id\}/);
+  });
+
+  test("(c) the reversal_failed_at write is checked, and a reader lists the marked rows (null when unreadable)", async () => {
+    const src = read("src/lib/service-hub/rent/rent-autopay.server.ts");
+    assert.match(src, /const \{ error: markErr \} = await tenantScopedQuery\(admin, "studio_rent_invoices", confirmedRow\.tenantId\)/);
+    assert.match(src, /if \(markErr\) logServerError\("rent\.autopay\.chargeEvent\.markFailed"/);
+    const rows = [{ id: "r1", tenant_id: "t", plan_id: "p", period: "2026-11", reversal_failed_at: "2026-11-02T00:00:00Z" }];
+    const q: Record<string, unknown> = {};
+    Object.assign(q, { select: () => q, not: () => q, eq: () => q, order: () => q, limit: async () => ({ data: rows, error: null }) });
+    assert.deepEqual(await listRentReversalsToReconcile({ from: () => q } as never, { tenantId: "t" }), [{ id: "r1", tenantId: "t", planId: "p", period: "2026-11", failedAt: "2026-11-02T00:00:00Z" }]);
+    const bad: Record<string, unknown> = {};
+    Object.assign(bad, { select: () => bad, not: () => bad, order: () => bad, limit: async () => ({ data: null, error: { message: "x" } }) });
+    assert.equal(await listRentReversalsToReconcile({ from: () => bad } as never), null);
+  });
+
+  test("the migration is renumbered to 20261231423700 (423200 belongs to dated places)", () => {
+    assert.match(read("../supabase/migrations/_pending_pm/20261231423700_studio_rent_reversal_marker_tul1700.sql"), /reversal_failed_at/);
+    assert.throws(() => read("../supabase/migrations/_pending_pm/20261231423200_studio_rent_reversal_marker_tul1700.sql"));
+  });
+});
+
 describe("10: copy", () => {
   test("pending never says paid automatically; the owner line never says no link is needed; every new key exists in EN and ES", () => {
     for (const l of ["en", "es"] as const) {
@@ -175,7 +228,7 @@ describe("10: copy", () => {
   });
   test("the dispute bell says refunds and lost disputes are returned by the studio, in both languages", () => {
     const src = read("src/lib/notifications/catalog-entries-rent.ts");
-    assert.match(src, /your studio returns the part of it that you received/);
-    assert.match(src, /tu estudio devuelve la parte de ese cobro que recibió/);
+    assert.match(src, /your studio returns its share of the refunded amount/);
+    assert.match(src, /tu estudio devuelve su parte del monto reembolsado/);
   });
 });
