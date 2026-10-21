@@ -9,6 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 // ─────────────────────────────────────────────────────────────────────
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { nextTalentTier } from "./talent-tier-sync";
 import { TalentStudioFlagProvider } from "@/components/talent/studio/flag";
 import { devSetTalentPlanTierForSelfAction } from "@/lib/talent-site/server/dev-plan";
 // Client-safe (no `server-only`): resolves the workspace's REAL public address
@@ -1192,6 +1193,15 @@ export function AdminShellProvider({
   const [talentTier, setTalentTierState] = useState<TalentSubscriptionTier>(
     initialBridgeData?.talentSelfProfile?.talentTier ?? MY_TALENT_PROFILE.subscription.tier,
   );
+  // TUL-1820: the seed above runs once. When the server tier changes (Stripe
+  // success redirect / router.refresh after an upgrade) adopt it during render
+  // so the rail Plan chip and the Settings Plan row follow the paid plan.
+  const bridgeTalentTier = initialBridgeData?.talentSelfProfile?.talentTier ?? null;
+  const [seenBridgeTalentTier, setSeenBridgeTalentTier] = useState(bridgeTalentTier);
+  if (seenBridgeTalentTier !== bridgeTalentTier) {
+    setSeenBridgeTalentTier(bridgeTalentTier);
+    setTalentTierState(nextTalentTier(talentTier, seenBridgeTalentTier, bridgeTalentTier));
+  }
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
   const [clientProfile, setClientProfile] = useState<ClientProfileId>("martina");
