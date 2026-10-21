@@ -37,10 +37,17 @@ test("identity editor shows the note only when unavailable, through the dashboar
 });
 
 test("the drawer tracks the hydration result and passes it to the editor", () => {
-  assert.match(drawer, /setPrivateFieldsUnavailable\(!privateFieldsLoadedRef\.current\)/);
-  assert.match(drawer, /privateFieldsUnavailable=\{privateFieldsUnavailable\}/);
+  // The state + omit logic lives in use-private-fields-gate.ts (moved out of the
+  // drawer for the size ratchet); the drawer wires it in three places.
+  const gate = read("drawers/profile-shell/profile-shell-modules/use-private-fields-gate.ts");
+  assert.match(gate, /setUnavailable\(!loadedRef\.current\)/);
+  assert.match(gate, /private_fields_available\?: boolean \}\)\.private_fields_available === true/);
   // The same flag still gates the save payload.
-  assert.match(drawer, /omitUnlessLoaded\(identityPayloadFull, privateFieldsLoadedRef\.current, PRIVATE_IDENTITY_PAYLOAD_KEYS\)/);
+  assert.match(gate, /omitUnlessLoaded\(payload, loadedRef\.current, PRIVATE_IDENTITY_PAYLOAD_KEYS/);
+  assert.match(drawer, /const privateFields = usePrivateFieldsGate\(\)/);
+  assert.match(drawer, /privateFields\.markHydrated\(edRes\.data\)/);
+  assert.match(drawer, /const identityPayload = privateFields\.scrub\(\{/);
+  assert.match(drawer, /privateFieldsUnavailable=\{privateFields\.unavailable\}/);
 });
 
 test("the unavailable note has a Spanish row, no em dashes, no unaccented markers", () => {
