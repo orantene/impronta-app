@@ -35,7 +35,7 @@ export type RetryStarterPrepareResult =
 
 export async function loadStarterPrepareStateAction(): Promise<LoadStarterPrepareStateResult> {
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Service unavailable." };

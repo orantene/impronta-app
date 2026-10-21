@@ -171,7 +171,7 @@ async function packageShares(
 }
 
 export async function loadOrderLinesForDesk(orderId: string): Promise<DeskLinesResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   // The guard's `error` is an English sentence for a log. The screen gets a
   // code and picks its own words.
   if (!guard.ok) return { ok: false, outcome: "not_allowed" };

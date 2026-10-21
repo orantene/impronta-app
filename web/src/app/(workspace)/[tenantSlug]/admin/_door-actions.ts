@@ -90,7 +90,7 @@ export type LoadDoorResult =
  * a door reading the pool tells a venue to expect 88 when 118 are coming.
  */
 export async function loadDoor(sessionId: string): Promise<LoadDoorResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
 
@@ -232,7 +232,7 @@ export async function admitAtDoor(
   count?: number,
 ): Promise<{ outcome: DoorOutcome }> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { outcome: { kind: "engine_error", detail: guard.error } };
   const { tenantId, user } = guard;
 
@@ -361,7 +361,7 @@ export type DoorTier = {
 export async function loadDoorTiers(
   sessionId: string,
 ): Promise<{ ok: true; tiers: DoorTier[] } | { ok: false; error: string }> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { supabase, tenantId } = guard;
   if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
@@ -480,7 +480,7 @@ export async function sellAtDoor(input: {
 }): Promise<SellAtDoorResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const { tenantId, user } = guard;
 
@@ -632,7 +632,7 @@ const settleSchema = z.object({
 
 export async function settleHeldOrderAtDoor(input: z.infer<typeof settleSchema>) {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const parsed = settleSchema.safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
@@ -666,7 +666,7 @@ export type HeldDoorOrder = {
 export async function loadHeldDoorOrders(
   sessionId: string,
 ): Promise<{ ok: true; orders: HeldDoorOrder[] } | { ok: false; error: string }> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
     return { ok: false, error: "That is not a session." };

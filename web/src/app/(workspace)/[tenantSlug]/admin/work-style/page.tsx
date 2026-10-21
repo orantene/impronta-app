@@ -13,7 +13,7 @@ import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 export const dynamic = "force-dynamic";
 
 export default async function WorkStylePage() {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) notFound();
   const admin = createServiceRoleClient();
   if (!admin) notFound();

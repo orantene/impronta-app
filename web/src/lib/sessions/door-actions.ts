@@ -86,7 +86,7 @@ export async function scanAdmission(
     }
 
     // ── 2. The scanner, and the tenant the function will not check ──────────
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffAction({ capability: "operate_venue" });
     if (!staff.ok) {
       return { outcome: { kind: "engine_error", detail: "not_authorized" } };
     }

@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getPublicHostContext } from "@/lib/saas/scope";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import {
   locationSetDefault as setDefaultLocation,
@@ -68,10 +68,12 @@ const uuid = z.string().uuid();
 const slug = z.string().trim().min(1).max(63);
 const zoneKind = z.enum(["floor", "bar", "terrace", "room", "counter"]);
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: the capability is named at every call. Behaviour is unchanged: every call here already
+// required booking.payment.request through the second check, so a viewer or editor was refused.
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, reason: "unavailable" as const };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
+  const allowed = await userHasCapability(capability, guard.tenantId);
   if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
@@ -79,7 +81,7 @@ async function staff() {
 }
 
 export async function locationsList() {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   return listLocations(g.admin, { tenantId: g.tenantId });
 }
@@ -97,7 +99,7 @@ export async function locationUpsert(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -119,7 +121,7 @@ export async function locationUpsert(input: {
 
 export async function locationSetDefault(input: { id: string; expectedVersion?: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -136,7 +138,7 @@ export async function zoneUpsert(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -155,7 +157,7 @@ export async function zoneUpsert(input: {
 
 export async function zoneDelete(input: { id: string; expectedVersion?: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -163,7 +165,7 @@ export async function zoneDelete(input: { id: string; expectedVersion?: number }
 }
 
 export async function partyWaitlistList() {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   return listPartyWaitlist(g.admin, { tenantId: g.tenantId });
 }
@@ -179,7 +181,7 @@ export async function partyWaitlistJoin(input: {
   quotedMinutes?: number | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -205,7 +207,7 @@ export async function partyWaitlistNotify(input: {
   holderPhone?: string | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -227,7 +229,7 @@ export async function partyWaitlistSeat(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -243,7 +245,7 @@ export async function partyWaitlistSeat(input: {
 
 export async function partyWaitlistLeave(input: { id: string; expectedVersion?: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -251,7 +253,7 @@ export async function partyWaitlistLeave(input: { id: string; expectedVersion?: 
 }
 
 export async function layoutsList() {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   return listLayouts(g.admin, { tenantId: g.tenantId });
 }
@@ -265,7 +267,7 @@ export async function layoutUpsert(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -295,7 +297,7 @@ export async function layoutUpsert(input: {
 
 export async function layoutActivate(input: { layoutId: string; expectedVersion?: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ layoutId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -303,7 +305,7 @@ export async function layoutActivate(input: { layoutId: string; expectedVersion?
 }
 
 export async function servicePeriodsList() {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   return listServicePeriods(g.admin, { tenantId: g.tenantId });
 }
@@ -320,7 +322,7 @@ export async function servicePeriodUpsert(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -340,7 +342,7 @@ export async function servicePeriodUpsert(input: {
 }
 
 export async function prepStationsList() {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   return listPrepStations(g.admin, { tenantId: g.tenantId });
 }
@@ -354,7 +356,7 @@ export async function prepStationUpsert(input: {
   sortOrder?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -372,7 +374,7 @@ export async function prepStationUpsert(input: {
 
 export async function prepStationDelete(input: { id: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -381,7 +383,7 @@ export async function prepStationDelete(input: { id: string }) {
 
 export async function prepFireCourse(input: { visitId: string; courseSeq: number; operationKey: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -445,7 +447,7 @@ export async function guestVisitSubmit(input: { token: string }) {
 
 export async function posLineOfferSubstitute(input: { lineId: string; substituteOfferingId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ lineId: uuid, substituteOfferingId: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -508,7 +510,7 @@ export async function admissionHoldSeats(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -530,7 +532,7 @@ export async function admissionExchange(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -554,7 +556,7 @@ export async function admissionComp(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -597,7 +599,7 @@ export async function admissionDeliver(input: {
   method: "email" | "sms" | "print" | "wallet";
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ admissionId: uuid, method: z.enum(["email", "sms", "print", "wallet"]) })
@@ -608,7 +610,7 @@ export async function admissionDeliver(input: {
 
 export async function eventSeatMapUpsert(input: { sessionId: string; layoutId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ sessionId: uuid, layoutId: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -617,7 +619,7 @@ export async function eventSeatMapUpsert(input: { sessionId: string; layoutId: s
 
 export async function eventSeriesUpsert(input: { id?: string; name: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ id: uuid.optional(), name: z.string().trim().min(1).max(160) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -703,7 +705,7 @@ export async function ticketRefundRequest(input: { code: string }) {
 }
 
 export async function posDevicesList() {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   return listPosDevices(g.admin, { tenantId: g.tenantId });
 }
@@ -715,7 +717,7 @@ export async function posDeviceRegister(input: {
   locationId?: string | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -731,7 +733,7 @@ export async function posDeviceRegister(input: {
 
 export async function posDeviceHeartbeat(input: { deviceKey: string; appVersion?: string | null }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ deviceKey: z.string().trim().min(8).max(80), appVersion: z.string().trim().max(40).nullable().optional() })
@@ -746,7 +748,7 @@ export async function posDeviceUpdate(input: {
   expectedVersion?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -765,7 +767,7 @@ export async function posOutboxApply(input: {
   command: Record<string, unknown>;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({

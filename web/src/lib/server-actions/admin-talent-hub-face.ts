@@ -52,7 +52,7 @@ function bust(tenantId: string, tenantSlug: string, talentProfileId: string): vo
 export async function actionLoadTalentHubFace(
   talentProfileId: string,
 ): Promise<ActionResult<HubFaceState>> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
 

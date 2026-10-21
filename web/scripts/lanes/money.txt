@@ -310,6 +310,8 @@ src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/media-area-writers-capability.static.test.ts
 src/lib/saas/media-writers-capability.static.test.ts
 src/lib/saas/ops-writers-capability.static.test.ts
+src/lib/saas/tul1708-engines-writers-capability.static.test.ts
+src/lib/saas/tul1708-venue-ops-writers-capability.static.test.ts
 src/lib/saas/vercel-domains-registrar.test.ts
 src/lib/saas/workspace-settings-writers-capability.static.test.ts
 src/lib/sales/activity-shape.test.ts
@@ -380,6 +382,7 @@ src/lib/service-hub/terms.test.ts
 src/lib/service-hub/work-style.server.test.ts
 src/lib/service-hub/work-style.test.ts
 src/lib/sessions/events-projects-capabilities.test.ts
+src/lib/sessions/operate-venue-writers.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/sessions/sessions-public-read-visibility.static.test.ts

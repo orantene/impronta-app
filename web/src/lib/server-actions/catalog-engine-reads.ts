@@ -35,7 +35,7 @@ export type OfferingPricePhaseRow = {
 type ReadFail = { ok: false; reason: "invalid" | "not_allowed" | "unavailable" };
 
 async function guard() {
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!staff.ok) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };

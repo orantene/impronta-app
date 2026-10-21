@@ -11,7 +11,7 @@ type PosStaffCapability =
 
 /** Counter / floor staff gate (capability + service-role admin). */
 export async function posStaff(capability: PosStaffCapability = "booking.payment.request") {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const allowed = await userHasCapability(capability, guard.tenantId);
   if (!allowed) return { ok: false as const, error: "not_allowed" };

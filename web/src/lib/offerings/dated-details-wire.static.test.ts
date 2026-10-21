@@ -12,7 +12,7 @@ const action = readFileSync(join(root, "lib/server-actions/dated-details.ts"), "
 test("the actions are staff-guarded and every offering query goes through the tenant-scoped helper", () => {
   assert.match(action, /^"use server";/);
   assert.match(action, /await requireNotImpersonating\(\)/);
-  assert.equal((action.match(/await staff\(\)/g) ?? []).length, 2);
+  assert.equal((action.match(/await staff\("(?:load|save)"\)/g) ?? []).length, 2);
   // the lint ratchet forbids a raw .from("talent_offerings") in a server action
   assert.doesNotMatch(action, /\.from\("talent_offerings"\)/);
   assert.equal((action.match(/tenantScopedQuery\(g\.admin, "talent_offerings", g\.tenantId\)/g) ?? []).length, 3);

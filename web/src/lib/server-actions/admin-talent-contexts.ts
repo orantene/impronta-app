@@ -37,7 +37,7 @@ export async function getResolvedContexts(input: {
   | { ok: true; contexts: ResolvedContext[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -142,7 +142,7 @@ export async function getContextCatalog(): Promise<
   | { ok: true; groups: ContextCatalogGroup[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

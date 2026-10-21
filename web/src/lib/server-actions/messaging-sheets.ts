@@ -35,14 +35,14 @@ const staff = messagingStaff;
 
 /** Hand over: who can take this thread. */
 export async function messagingLoadHandOverTargets() {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   return { ok: true as const, targets: await loadHandOverTargets(g.admin, { tenantId: g.tenantId, excludeUserId: g.userId }) };
 }
 
 /** Delivery: every attempt on this thread's messages. */
 export async function messagingLoadDelivery(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -69,7 +69,7 @@ export async function messagingRetryDelivery(input: { deliveryId: string }) {
 
 /** Recover: the saved checkouts this thread can be recovered from. */
 export async function messagingLoadSnapshots(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -78,7 +78,7 @@ export async function messagingLoadSnapshots(input: { inquiryId: string }) {
 
 /** Offer: the inquiry's offers, so the sheet acts on a real offer id. */
 export async function messagingLoadOffers(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -113,7 +113,7 @@ export async function messagingReviseOffer(input: { inquiryId: string; offerId: 
 
 /** Diff: the open payment page and what moved under it. */
 export async function messagingLoadBasketDiff(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -211,7 +211,7 @@ export async function messagingThreadLink(input: { inquiryId: string }) {
  * empty state. Read-only; formatting happens in the shell (USD).
  */
 export async function messagingLoadContextLines(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");

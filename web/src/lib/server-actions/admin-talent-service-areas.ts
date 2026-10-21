@@ -42,7 +42,7 @@ type WriteResult =
 export async function getTalentServiceAreasForTalent(input: {
   talent_profile_id: string;
 }): Promise<ReadResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

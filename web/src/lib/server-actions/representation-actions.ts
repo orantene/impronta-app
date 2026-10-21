@@ -14,7 +14,7 @@ export async function loadRepresentationForAgencyAdmin(input: {
   | { ok: true; data: Awaited<ReturnType<typeof loadRepresentation>> }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const admin = createServiceRoleClient();

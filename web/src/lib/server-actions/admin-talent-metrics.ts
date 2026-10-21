@@ -35,7 +35,7 @@ export async function getTalentMetrics(input: {
 }): Promise<
   { ok: true; metrics: TalentMetrics } | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

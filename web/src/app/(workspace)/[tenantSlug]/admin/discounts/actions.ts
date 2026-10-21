@@ -23,7 +23,7 @@ const createSchema = z
 
 export async function createTenantPromo(input: z.infer<typeof createSchema>) {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "manage_billing" });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const allowed = await userHasCapability("manage_billing", guard.tenantId);
   if (!allowed) return { ok: false as const, error: "not_allowed" };
@@ -55,7 +55,7 @@ export async function createTenantPromo(input: z.infer<typeof createSchema>) {
 
 export async function setTenantPromoActive(id: string, isActive: boolean) {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "manage_billing" });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const allowed = await userHasCapability("manage_billing", guard.tenantId);
   if (!allowed) return { ok: false as const, error: "not_allowed" };
