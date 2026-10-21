@@ -11,7 +11,9 @@ const route = readFileSync(join(root, "app/(public)/_services/business-service-r
 test("the client mount injects the dated purchase action into the step", () => {
   assert.match(mount, /^"use client";/);
   assert.match(mount, /import \{ startDatedPurchase \} from "@\/app\/\(public\)\/_dated\/dated-purchase-actions"/);
-  assert.match(mount, /<DatedPlacesStep[\s\S]*onBook=\{startDatedPurchase\}/);
+  // The business page passes no channel and gets the action itself; the talent site wraps it (TUL-1472).
+  assert.match(mount, /: startDatedPurchase;/);
+  assert.match(mount, /<DatedPlacesStep[\s\S]*onBook=\{onBook\}/);
 });
 
 test("the business service route loads the picker for THIS tenant and offering and mounts only when it has dates", () => {

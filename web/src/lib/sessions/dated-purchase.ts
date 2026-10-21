@@ -17,6 +17,7 @@
 
 import type { ReserveRequest } from "@/lib/capacity";
 import type { PurchaseInput } from "@/lib/orders/purchase-types";
+import { bookingPromoRequest } from "@/lib/scheduling/instant-book-promo";
 import { checkQuantity, type Tier } from "@/lib/events/tiers";
 import { DEFAULT_TIER_KEY, tierReserveRequest, type SessionWindow } from "@/lib/sessions/tier-pools";
 
@@ -137,6 +138,10 @@ export type DatedPurchaseArgs = {
   locale?: string | null;
   sourcePage?: string | null;
   confirmedAge?: number | null;
+  /** Attribution for the order. Omitted = `session_picker` (the business page). */
+  sourceChannel?: string | null;
+  /** The live booking promo to price and hold, so the charge equals the price shown. Omitted = none. */
+  bookingPromo?: PurchaseInput["bookingPromo"];
 };
 
 /**
@@ -177,12 +182,32 @@ export function buildDatedPurchase(a: DatedPurchaseArgs): PurchaseInput | null {
       units: l.units,
     })),
     paymentChoice: a.paymentChoice ?? "full",
-    sourceChannel: "session_picker",
+    sourceChannel: a.sourceChannel || "session_picker",
     sourcePage: a.sourcePage ?? null,
     capacity,
     promoCode: a.promoCode ?? null,
     locale: a.locale ?? null,
     ageAttestation: typeof a.confirmedAge === "number" ? { confirmedAge: a.confirmedAge } : null,
+    ...(a.bookingPromo ? { bookingPromo: a.bookingPromo } : {}),
+  };
+}
+
+/* ─── Talent-site channel (TUL-1472) ───────────────────────────────────── */
+
+/**
+ * What a purchase made on a TALENT-SITE service page adds to `buildDatedPurchase`:
+ * the order keeps talent-site attribution, and the live promo the page showed is priced and
+ * held by the purchase pipeline (the same `bookingPromo` the instant-book path sends), so
+ * the card is charged the price on the page, not the list price. No shown-discount is
+ * sent: the page cannot know a cart's discount, the pipeline's quote is the truth.
+ */
+export function talentSiteDatedExtras(cookies: { linkCookie?: string | null; viaCookie?: string | null }): {
+  sourceChannel: string;
+  bookingPromo: NonNullable<PurchaseInput["bookingPromo"]>;
+} {
+  return {
+    sourceChannel: "talent_site",
+    bookingPromo: bookingPromoRequest({ linkCookie: cookies.linkCookie, viaCookie: cookies.viaCookie, flow: "instant" }),
   };
 }
 

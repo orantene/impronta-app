@@ -21,7 +21,11 @@
 
 import "server-only";
 
+import { cookies } from "next/headers";
 import { z } from "zod";
+
+import { datedTalentGate } from "@/lib/sessions/dated-talent-gate";
+import { PROMO_COOKIE, PROMO_VIA_COOKIE } from "@/lib/promos/share/cookies";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -38,6 +42,7 @@ import {
   buildDatedPurchase,
   heldColumnRead,
   salesState,
+  talentSiteDatedExtras,
   validateDatedCart,
   type DatedLeg,
   type DatedTier,
@@ -61,6 +66,8 @@ const buySchema = z.object({
   paymentChoice: z.enum(["full", "in_person"]).default("full"),
   locale: z.string().max(10).optional(),
   confirmedAge: z.number().int().min(1).max(120).optional(),
+  /** TUL-1472: set by the talent-site service page. Turns on the talent's booking gate and promo. */
+  channel: z.literal("talent_site").optional(),
 });
 
 export type StartDatedPurchaseResult =
@@ -88,6 +95,7 @@ export type StartDatedPurchaseResult =
         | "age_gate_unconfirmed"
         | "age_gate_below_minimum"
         | "private_on_request"
+        | "booking_unavailable"
         | "engine_error";
       detail?: string;
       seatsLeft?: number;
@@ -113,6 +121,28 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
       return { ok: false, reason: "engine_error" };
     }
     if (!offering || !isGuestSellableOffering(offering)) return { ok: false, reason: "not_sellable" };
+
+    // TUL-1472: on a talent's own site the talent's accepting switch and booking posture decide
+    // whether a place can be bought by card at all. Same checks as the instant-book path; any
+    // unreadable setting refuses.
+    // The gate follows the OFFERING, never a client flag: a talent-owned item is always gated, so
+    // a caller cannot skip it by leaving `channel` out. A workspace-owned item (no talent) is not.
+    const onTalentSite = d.channel === "talent_site";
+    const { data: ownerRow, error: ownerErr } = await admin
+      .from("talent_offerings")
+      .select("talent_profile_id")
+      .eq("id", d.offeringId)
+      .eq("tenant_id", d.tenantId)
+      .maybeSingle();
+    if (ownerErr) {
+      logServerError("dated.purchase.owner", ownerErr);
+      return { ok: false, reason: "booking_unavailable", detail: "unreadable" };
+    }
+    const talentOwned = typeof (ownerRow as { talent_profile_id?: unknown } | null)?.talent_profile_id === "string";
+    if (talentOwned || onTalentSite) {
+      const gate = await datedTalentGate(admin, { tenantId: d.tenantId, offeringId: d.offeringId });
+      if (!gate.ok) return { ok: false, reason: "booking_unavailable", detail: gate.reason };
+    }
 
     // Held-migration column: read apart so a missing column cannot break the sale.
     const { data: flags, error: flagErr } = await admin
@@ -264,7 +294,15 @@ export async function startDatedPurchase(input: unknown): Promise<StartDatedPurc
       if (!door.offered) return { ok: false, reason: "pay_at_door_not_offered", detail: door.reason };
     }
 
+    const jar = onTalentSite ? await cookies() : null;
+    const siteExtras = onTalentSite
+      ? talentSiteDatedExtras({
+          linkCookie: jar?.get(PROMO_COOKIE)?.value ?? null,
+          viaCookie: jar?.get(PROMO_VIA_COOKIE)?.value ?? null,
+        })
+      : null;
     const purchase = buildDatedPurchase({
+      ...(siteExtras ?? {}),
       tenantId: d.tenantId,
       clientOrderKey: d.clientOrderKey,
       offeringId: d.offeringId,
