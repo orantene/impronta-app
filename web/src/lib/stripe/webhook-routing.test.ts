@@ -117,6 +117,7 @@ test("checkout payment: client_balance_topup with zero amount → invalid", () =
     evt("checkout.session.completed", {
       id: "cs_3",
       mode: "payment",
+      payment_status: "paid",
       metadata: {
         checkout_type: "client_balance_topup",
         user_id: "u1",
