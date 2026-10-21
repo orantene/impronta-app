@@ -302,6 +302,7 @@ src/lib/service-hub/entries.test.ts
 src/lib/service-hub/entry-permissions.test.ts
 src/lib/service-hub/entry-photos.test.ts
 src/lib/service-hub/friends-collective.test.ts
+src/lib/service-hub/join-approve-gate.test.ts
 src/lib/service-hub/join-terms-wire.static.test.ts
 src/lib/service-hub/join-terms.server.test.ts
 src/lib/service-hub/join-terms.test.ts

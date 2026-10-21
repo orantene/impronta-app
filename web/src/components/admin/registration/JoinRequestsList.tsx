@@ -17,7 +17,7 @@ import { interpolate } from "@/i18n/interpolate";
 import { decideJoinRequest } from "@/app/(workspace)/[tenantSlug]/admin/roster/registration/actions";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { JoinTermsStep } from "@/components/admin/service-hub/JoinTermsStep";
-import type { JoinTermsInput } from "@/lib/service-hub/join-terms";
+import { canApproveJoinRequest, type JoinTermsInput, type JoinTermsLoadState } from "@/lib/service-hub/join-terms";
 import { joinTermsCopy, joinTermsOutcomeNotice, joinTermsLocale } from "@/lib/service-hub/join-terms-copy";
 
 type JoinRequest = { id: string; talentName: string; requestedAt: string };
@@ -72,9 +72,12 @@ export function JoinRequestsList({
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [terms, setTerms] = useState<JoinTermsInput | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // TUL-1690: Approve waits until the proposed terms have loaded.
+  const [termsLoad, setTermsLoad] = useState<JoinTermsLoadState>("loading");
 
   function decide(id: string, decision: "approve" | "reject") {
     if (!canManage) return;
+    if (decision === "approve" && !canApproveJoinRequest(reviewId === id, termsLoad)) return;
     setError(null);
     setNotice(null);
     setBusyId(id);
@@ -122,6 +125,7 @@ export function JoinRequestsList({
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           {requests.map((r) => {
             const rowBusy = pending && busyId === r.id;
+            const approveWaiting = reviewId === r.id && !canApproveJoinRequest(true, termsLoad);
             return (
               <li
                 key={r.id}
@@ -175,18 +179,19 @@ export function JoinRequestsList({
                           return;
                         }
                         setTerms(null);
+                        setTermsLoad("loading");
                         setReviewId(r.id);
                       }}
-                      disabled={rowBusy}
+                      disabled={rowBusy || approveWaiting}
                       style={{
                         padding: "7px 16px",
                         borderRadius: 999,
                         border: "none",
-                        background: rowBusy ? "rgba(15,79,62,0.5)" : C.accent,
+                        background: rowBusy || approveWaiting ? "rgba(15,79,62,0.5)" : C.accent,
                         color: "#fff",
                         fontSize: 12.5,
                         fontWeight: 600,
-                        cursor: rowBusy ? "default" : "pointer",
+                        cursor: rowBusy || approveWaiting ? "default" : "pointer",
                         fontFamily: FONT,
                       }}
                     >
@@ -200,7 +205,7 @@ export function JoinRequestsList({
                 ) : null}
                 {canManage && reviewId === r.id ? (
                   <div style={{ flexBasis: "100%" }}>
-                    <JoinTermsStep tenantSlug={tenantSlug} locale={locale} value={terms} onChange={setTerms} />
+                    <JoinTermsStep tenantSlug={tenantSlug} locale={locale} value={terms} onChange={setTerms} onLoadState={setTermsLoad} />
                   </div>
                 ) : null}
               </li>
