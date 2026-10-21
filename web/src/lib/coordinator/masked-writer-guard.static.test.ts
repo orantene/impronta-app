@@ -143,3 +143,9 @@ test("TUL-1589: staff replies send the STORED (masked) text to the channel, neve
   assert.match(reply, /smsText: inserted\.storedBody/);
   assert.doesNotMatch(reply, /body: parsed\.data\.body,\s*smsText: parsed\.data\.body/);
 });
+
+test("TUL-1597: the masking writer masks card payload text, not only the body", () => {
+  const w = readFileSync(join(process.cwd(), "src/lib/coordinator/masked-message-write.server.ts"), "utf8");
+  assert.match(w, /maskCardPayloadText\(row\.card_payload/);
+  assert.match(w, /card_payload: maskedCard\.payload/);
+});
