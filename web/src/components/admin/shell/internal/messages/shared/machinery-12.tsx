@@ -571,6 +571,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
         return (
           <div className="flex flex-col gap-3 p-[18px] font-body">
             <TalentOfferApprovalCard inquiryId={conv.id} view={stubView} takeHome={takeHome} />
+            <OfferLineConfirmations inquiryId={conv.id} />
           </div>
         );
       }
@@ -620,6 +621,8 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
               </div>
             )}
           </div>
+          {/* TUL-1608: booked / on-hold talent still answers their own line. */}
+          {hasOffer && realInquiryId && <OfferLineConfirmations inquiryId={conv.id} />}
         </div>
       );
     }
@@ -633,6 +636,7 @@ export function OfferTab({ conv, pov }: { conv: Conversation; pov: OfferPov }) {
       return (
         <div className="flex flex-col gap-3 p-[18px] font-body">
           <TalentOfferApprovalCard inquiryId={conv.id} view={talentView} takeHome={takeHome} />
+          <OfferLineConfirmations inquiryId={conv.id} />
         </div>
       );
     }

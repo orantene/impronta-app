@@ -64,6 +64,33 @@ test("the component is wired into the offer panel, uses tokens only, and has ES 
   }
 });
 
+test("an unreadable read is flagged not readable, so the UI shows nothing instead of 0 of N", () => {
+  const bad = buildOfferLineConfirmationView({ lines, read: { ok: false }, viewer: { manager: true, ownProfileIds: [] } });
+  assert.equal(bad.readable, false);
+  const good = buildOfferLineConfirmationView({ lines, read, viewer: { manager: true, ownProfileIds: [] } });
+  assert.equal(good.readable, true);
+  const action = readFileSync("src/lib/server-actions/offer-line-confirmation.ts", "utf8");
+  assert.ok(/!read\.ok\) return \{ ok: false/.test(action), "the action returns no view when answers are unreadable");
+  const comp = readFileSync("src/components/admin/shell/internal/messages/shared/offer-line-confirmations.tsx", "utf8");
+  assert.ok(/!view\.readable/.test(comp));
+  assert.ok(/role="alert"/.test(comp) && /lineConfirm\.saveFailed/.test(comp), "a failed save is visible");
+  for (const lang of ["en", "es"]) {
+    const json = JSON.parse(readFileSync(`messages/${lang}.json`, "utf8"));
+    assert.ok(json.dashboard.adminTabs.offer.lineConfirm.saveFailed);
+  }
+});
+
+test("the talent surface mounts the confirmations beside the approval card, and the coordinator panel still does", () => {
+  const panel = readFileSync("src/components/admin/shell/internal/messages/shared/machinery-12.tsx", "utf8");
+  const mounts = panel.match(/<OfferLineConfirmations /g) ?? [];
+  assert.ok(mounts.length >= 4, `expected coordinator + 3 talent mounts, found ${mounts.length}`);
+  const cards = [...panel.matchAll(/<TalentOfferApprovalCard [^>]*\/>\s*<OfferLineConfirmations inquiryId=\{conv\.id\} \/>/g)];
+  assert.equal(cards.length, 2, "both talent approval-card branches mount it");
+  assert.ok(/<LiveOfferPanel/.test(panel) && /status !== "draft" && <OfferLineConfirmations inquiryId=\{inquiryId\} offerId=\{offerId\}/.test(panel));
+  const action = readFileSync("src/lib/server-actions/offer-line-confirmation.ts", "utf8");
+  assert.ok(/current_offer_id/.test(action) && /status === "draft"/.test(action), "talent passes no offer id; drafts are never shown");
+});
+
 test("approval and money code paths never import or read the confirmation model", () => {
   const files = [
     "src/lib/server-actions/client-pipeline.ts",

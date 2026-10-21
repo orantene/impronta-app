@@ -36,8 +36,8 @@ export async function answerMyOfferLineAction(input: { lineId: string; status: "
  * sees only the lines that are theirs. Read-only and fail-closed: any error
  * returns no view, and unreadable answers are Awaiting (never Confirmed).
  */
-export async function loadOfferLineConfirmationViewAction(input: { inquiryId: string; offerId: string }) {
-  const parsed = z.object({ inquiryId: z.string().uuid(), offerId: z.string().uuid() }).safeParse(input);
+export async function loadOfferLineConfirmationViewAction(input: { inquiryId: string; offerId?: string }) {
+  const parsed = z.object({ inquiryId: z.string().uuid(), offerId: z.string().uuid().optional() }).safeParse(input);
   if (!parsed.success) return { ok: false as const };
   try {
     const supabase = await getCachedServerSupabase();
@@ -50,13 +50,22 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false as const };
 
+    // The talent surface has no offer id, so it passes none: use the inquiry's current offer.
+    let offerId = parsed.data.offerId;
+    if (!offerId) {
+      const inqRes = await admin.from("inquiries").select("current_offer_id").eq("id", parsed.data.inquiryId).maybeSingle();
+      offerId = ((inqRes.data as { current_offer_id?: string | null } | null)?.current_offer_id ?? undefined) || undefined;
+      if (inqRes.error || !offerId) return { ok: false as const };
+    }
     const offerRes = await admin
       .from("inquiry_offers")
-      .select("id, inquiry_id, tenant_id")
-      .eq("id", parsed.data.offerId)
+      .select("id, inquiry_id, tenant_id, status")
+      .eq("id", offerId)
       .maybeSingle();
-    const offer = offerRes.data as { id: string; inquiry_id: string; tenant_id: string } | null;
+    const offer = offerRes.data as { id: string; inquiry_id: string; tenant_id: string; status: string | null } | null;
     if (offerRes.error || !offer || offer.inquiry_id !== parsed.data.inquiryId) return { ok: false as const };
+    // Readiness is shown on sent offers only, never on a draft.
+    if (offer.status === "draft") return { ok: false as const };
 
     const [guard, mineRes, linesRes, read] = await Promise.all([
       requireInquiryManagerAction(parsed.data.inquiryId),
@@ -68,7 +77,8 @@ export async function loadOfferLineConfirmationViewAction(input: { inquiryId: st
         .order("sort_order", { ascending: true }),
       readOfferLineAnswers(admin, { tenantId: offer.tenant_id, offerId: offer.id }),
     ]);
-    if (linesRes.error) return { ok: false as const };
+    // Unreadable answers: show nothing, so it never looks like "0 of N confirmed".
+    if (linesRes.error || !read.ok) return { ok: false as const };
 
     const lines = (
       (linesRes.data ?? []) as unknown as Array<{

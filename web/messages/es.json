@@ -4575,6 +4575,7 @@
           "summary": "{confirmed} de {total} confirmados",
           "confirm": "Confirmar",
           "decline": "Rechazar",
+          "saveFailed": "No pudimos guardar tu respuesta. Inténtalo de nuevo.",
           "state": {
             "confirmed": "Confirmado",
             "declined": "Rechazado",

@@ -12,8 +12,9 @@ import type { OfferLineConfirmationView } from "@/lib/coordinator/offer-line-con
  * only: it never touches the client's approval, the total or any money.
  * Token classes only (inline styles are frozen under components/admin/shell).
  */
-export function OfferLineConfirmations({ inquiryId, offerId }: { inquiryId: string; offerId: string }) {
+export function OfferLineConfirmations({ inquiryId, offerId }: { inquiryId: string; offerId?: string }) {
   const t = useT();
+  const [saveFailed, setSaveFailed] = useState(false);
   const [view, setView] = useState<OfferLineConfirmationView | null>(null);
   const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -36,12 +37,18 @@ export function OfferLineConfirmations({ inquiryId, offerId }: { inquiryId: stri
     };
   }, [inquiryId, offerId, reloadKey]);
 
-  if (failed || !view || view.summary.total === 0) return null;
+  // Unreadable or empty: show nothing (never "0 of N").
+  if (failed || !view || !view.readable || view.summary.total === 0) return null;
 
   const answer = (lineId: string, status: "confirmed" | "declined") =>
     startTransition(async () => {
       const r = await answerMyOfferLineAction({ lineId, status });
-      if (r.ok) setReloadKey((k) => k + 1);
+      if (r.ok) {
+        setSaveFailed(false);
+        setReloadKey((k) => k + 1);
+      } else {
+        setSaveFailed(true);
+      }
     });
 
   const stateLabel = (s: "confirmed" | "declined" | "pending") =>
@@ -57,6 +64,11 @@ export function OfferLineConfirmations({ inquiryId, offerId }: { inquiryId: stri
           total: String(view.summary.total),
         })}
       </div>
+      {saveFailed && (
+        <div role="alert" className="text-admin-12 font-semibold text-admin-coral">
+          {t("dashboard.adminTabs.offer.lineConfirm.saveFailed")}
+        </div>
+      )}
       <div className="overflow-hidden rounded-lg border border-admin-border">
         {view.rows.map((row, i) => (
           <div

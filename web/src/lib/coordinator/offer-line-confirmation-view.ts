@@ -27,6 +27,8 @@ export type OfferLineConfirmationRow = {
 export type OfferLineConfirmationView = {
   rows: OfferLineConfirmationRow[];
   summary: { confirmed: number; total: number };
+  /** False when the answers could not be read: show nothing, never "0 of N". */
+  readable: boolean;
 };
 
 export function buildOfferLineConfirmationView(input: {
@@ -46,7 +48,7 @@ export function buildOfferLineConfirmationView(input: {
     if (!input.viewer.manager && !mine) continue;
     rows.push({ lineId: l.id, label: l.label, state: s, mine });
   }
-  return { rows, summary: { confirmed: oc.confirmedLineIds.length, total } };
+  return { rows, summary: { confirmed: oc.confirmedLineIds.length, total }, readable: input.read.ok };
 }
 
 export function confirmationSummaryText(summary: { confirmed: number; total: number }, locale: "en" | "es"): string {
