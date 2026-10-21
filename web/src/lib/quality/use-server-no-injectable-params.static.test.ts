@@ -155,6 +155,16 @@ describe('exported "use server" functions take no injectable parameters (TUL-174
   });
 });
 
+/**
+ * REVIEWED exceptions: actions that take a client-chosen tenant BY DESIGN and are proven scoped by a helper the
+ * SCOPE_RESOLVER pattern cannot see. Unlike the baseline (unreviewed, may only shrink), every entry here carries
+ * the review that proved it. Key = "rel:action", value = the proof.
+ */
+const REVIEWED_CLIENT_TENANT_ACTIONS: Record<string, string> = {
+  "app/(workspace)/[tenantSlug]/talent/settings/payouts/manual-bank-actions.ts:addMyManualPayoutAccount":
+    "Reviewed TUL-1743 (#4376): tenantId is the talent's chosen workspace; connectTalentPayoutAccount requires own talent_profile + agency_talent_roster row in that tenant (not_rostered otherwise).",
+};
+
 describe('exported "use server" actions do not trust a client-chosen tenant (TUL-1758)', () => {
   const found = new Map<string, string>(); // "rel:name" -> why
   for (const { rel, src } of files) {
@@ -164,9 +174,10 @@ describe('exported "use server" actions do not trust a client-chosen tenant (TUL
     }
   }
   const baselined = new Set(baseline.entries);
+  const reviewed = new Set(Object.keys(REVIEWED_CLIENT_TENANT_ACTIONS));
 
   it("a new action with a client-chosen tenantId/tenantSlug must re-resolve scope (membership, capability, platform admin)", () => {
-    const fresh = [...found].filter(([k]) => !baselined.has(k)).map(([k, why]) => `${k} (takes ${why})`);
+    const fresh = [...found].filter(([k]) => !baselined.has(k) && !reviewed.has(k)).map(([k, why]) => `${k} (takes ${why})`);
     assert.deepEqual(
       fresh,
       [],
@@ -177,6 +188,11 @@ describe('exported "use server" actions do not trust a client-chosen tenant (TUL
   it("the baseline only shrinks: an entry whose action now re-resolves scope, or no longer exists, must be deleted", () => {
     const stale = baseline.entries.filter((k) => !found.has(k));
     assert.deepEqual(stale, [], "delete these from use-server-tenant-param.baseline.json (they are fixed or gone)");
+  });
+
+  it("every REVIEWED exception still exists, still takes a client tenant, and is not also baselined", () => {
+    const stale = [...reviewed].filter((k) => !found.has(k) || baselined.has(k));
+    assert.deepEqual(stale, [], "remove these from REVIEWED_CLIENT_TENANT_ACTIONS (gone, now re-resolve scope, or duplicated in the baseline)");
   });
 
   it("the baseline is sorted and has no duplicates", () => {
