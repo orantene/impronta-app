@@ -28,6 +28,7 @@ import { moneyFromLedger, rebookHint, rowFromAgendaItem, todayFromAgenda } from 
 import { placeLabelFor } from "./record-actions";
 import { serviceLabel } from "./calendar-view";
 import { hasBookingHoursWindows } from "@/lib/talent-agenda/first-day";
+import { todayAttentionTotal } from "@/lib/talent/today-attention-count";
 import { HoursSetupNudgeButton } from "./HoursSetupNudgeButton";
 import {
   bookedLabel,
@@ -219,6 +220,7 @@ export function AgendaTodayPage({
   const attention = derived.attention.filter((item) => !item.unscheduled);
   const replyState = todayReplyState(awaitingReplyCount);
   const awaitingReply = replyState === "waiting" && typeof awaitingReplyCount === "number" ? awaitingReplyCount : 0;
+  const attentionTotal = todayAttentionTotal(attention.length, awaitingReply);
   const noTime = unscheduledAgendaItems(items);
   const appointments = todayAppointments(items, clock).filter((item) => !item.unscheduled);
   const upNext = (() => {
@@ -606,9 +608,9 @@ export function AgendaTodayPage({
               {attention.length === 0 && replyState === "none" ? (
                 <span className={`text-[13px] ${MUTED}`}>{copy.t("You are clear for now.")}</span>
               ) : null}
-              {attention.length + (awaitingReply > 0 ? 1 : 0) > 0 ? (
+              {attentionTotal > 0 ? (
                 <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[12px] font-semibold text-amber-800">
-                  {attention.length + (awaitingReply > 0 ? 1 : 0)}
+                  {attentionTotal}
                 </span>
               ) : null}
               <span className="flex-1" />
@@ -618,7 +620,7 @@ export function AgendaTodayPage({
                   onClick={onOpenAttention}
                   className="min-h-[36px] px-1 text-[12.5px] font-medium text-[var(--tc-accent)]"
                 >
-                  {copy.t("View all")} {attention.length}
+                  {copy.t("View all")} {attentionTotal}
                 </button>
               ) : null}
             </CardHead>

@@ -159,6 +159,7 @@ src/lib/talent/profile-quality-mode.test.ts
 src/lib/talent/publish-readiness.test.ts
 src/lib/talent/service-share-link.test.ts
 src/lib/talent/signed-in-inquiry-accepting-gate.static.test.ts
+src/lib/talent/today-attention-count.test.ts
 src/lib/talent/website-published-truth.test.ts
 src/lib/words/business-types-everyday-words.test.ts
 src/lib/words/no-voseo.static.test.ts
