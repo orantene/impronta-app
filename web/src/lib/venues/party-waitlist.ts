@@ -3,6 +3,7 @@ import "server-only";
 import { logServerError } from "@/lib/server/safe-error";
 import { sendEmailResult } from "@/lib/email";
 import { openVisit } from "@/lib/visits/commands";
+import { assertIdsBelongToTenant } from "@/lib/supabase/tenant-owned-ids";
 import type { VenueAdmin } from "./locations";
 
 export type PartyWaitlistResult =
@@ -92,6 +93,11 @@ export async function partyWaitlistJoin(
   },
 ): Promise<PartyWaitlistResult> {
   if (input.partySize < 1 || !input.holderName.trim()) return { ok: false, reason: "invalid" };
+  // TUL-1517: the RPC checks the location but not the zone. Both must be this tenant's.
+  const ownedLoc = await assertIdsBelongToTenant(admin, "venue_locations", [input.locationId], input.tenantId);
+  if (!ownedLoc.ok) return { ok: false, reason: ownedLoc.reason === "unavailable" ? "unavailable" : "not_found" };
+  const ownedZone = await assertIdsBelongToTenant(admin, "venue_location_zones", [input.zoneId], input.tenantId);
+  if (!ownedZone.ok) return { ok: false, reason: ownedZone.reason === "unavailable" ? "unavailable" : "not_found" };
   return call(admin, "party_waitlist_join", {
     p_tenant_id: input.tenantId,
     p_location_id: input.locationId ?? null,
