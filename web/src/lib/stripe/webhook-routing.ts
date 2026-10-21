@@ -255,10 +255,24 @@ export function classifyStripeEvent(event: Stripe.Event): StripeAction {
           if (!userId || !tenantId) {
             return { kind: "invalid", reason: "client_balance_topup missing user_id/tenant_id" };
           }
-          const amountCents = parseInt(session.metadata?.amount_cents ?? "0", 10);
-          if (!amountCents) {
+          const requestedCents = parseInt(session.metadata?.amount_cents ?? "0", 10);
+          if (!requestedCents) {
             return { kind: "invalid", reason: "client_balance_topup missing/zero amount_cents" };
           }
+          // TUL-1307: credit what the customer actually PAID (amount_total is
+          // after promo discounts), never the requested metadata amount. Fail
+          // closed (no credit, logged) when it is missing, zero, or not USD.
+          // Never credit more than requested (tax/fees are not balance).
+          if (typeof session.amount_total !== "number" || !Number.isInteger(session.amount_total)) {
+            return { kind: "invalid", reason: "client_balance_topup missing amount_total (paid amount unknown)" };
+          }
+          if (session.currency?.toLowerCase() !== "usd") {
+            return { kind: "invalid", reason: "client_balance_topup session currency is not usd" };
+          }
+          if (session.amount_total <= 0) {
+            return { kind: "invalid", reason: "client_balance_topup paid amount is zero (fully discounted)" };
+          }
+          const amountCents = Math.min(session.amount_total, requestedCents);
           return {
             kind: "client_balance_topup",
             userId,

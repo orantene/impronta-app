@@ -25,6 +25,7 @@ src/lib/approvals/requests.test.ts
 src/lib/approvals/role-limits-wire.static.test.ts
 src/lib/billing/checkout-session-key.test.ts
 src/lib/billing/checkout-session-reopen.test.ts
+src/lib/billing/commercial-terms-admin-guard.static.test.ts
 src/lib/billing/commission-engine-xtenant.test.ts
 src/lib/billing/commission-engine.characterization.test.ts
 src/lib/billing/commission-house-lane.characterization.test.ts
@@ -243,6 +244,7 @@ src/lib/payments/talent-payout-attention.test.ts
 src/lib/payments/transfers-house-lane.test.ts
 src/lib/payments/transfers-processing-pass-through.test.ts
 src/lib/payments/transfers-product-gate.test.ts
+src/lib/payments/transfers-refund-net.test.ts
 src/lib/payments/transfers.test.ts
 src/lib/payments/usdc-payout-offer.test.ts
 src/lib/payments/workspace-currency.test.ts
@@ -338,9 +340,11 @@ src/lib/service-hub/rent/rent-autopay-routing.test.ts
 src/lib/service-hub/rent/rent-autopay.test.ts
 src/lib/service-hub/rent/rent-cycle.test.ts
 src/lib/service-hub/rent/rent-issue.test.ts
+src/lib/service-hub/rent/rent-link-void.test.ts
 src/lib/service-hub/rent/rent-outside-autopay.test.ts
 src/lib/service-hub/rent/rent-outside.test.ts
 src/lib/service-hub/rent/rent-owner-autopay.static.test.ts
+src/lib/service-hub/rent/rent-percent-gates.test.ts
 src/lib/service-hub/rent/rent-percent-missed.test.ts
 src/lib/service-hub/rent/rent-percent.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts
@@ -366,6 +370,8 @@ src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/recurring-consent.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts
+src/lib/stripe/webhook-routing-topup-paid.test.ts
+src/lib/stripe/webhook-script-update.test.ts
 src/lib/talent-agenda/abandoned-order-wire.static.test.ts
 src/lib/talent-agenda/abandoned-order.test.ts
 src/lib/talent-agenda/booked-guest-load.test.ts

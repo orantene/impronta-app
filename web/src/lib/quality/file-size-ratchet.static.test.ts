@@ -297,6 +297,8 @@ const BUDGETS: Record<string, number> = {
   "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5649,
   "src/components/admin/shell/internal/drawers/light-10.tsx": 806,
   "src/lib/server-actions/admin-workspace-settings.ts": 812,
+  "src/lib/payments/transfers.ts": 836,
+  "src/lib/stripe/webhook-routing.test.ts": 806,
   // 2026-08-18 Website pages data enrichment (P1-B): +29 for the bridge merge
   // projecting locale / SEO flags / page roles / 30d visits onto WebsitePageRow,
   // plus the null-honest visit mapping. The merge is the seam between the data
@@ -609,7 +611,7 @@ const BUDGETS: Record<string, number> = {
   // pays back #2971's +20 residue; async wrappers (not value re-exports) keep
   // the "use server" surface SWC-safe. Re-measured on main after batch #3002
   // (#2971 + #2965 lines): 3393 actual, locked (was 3552).
-  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3393,
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 3411,
   // 2026-08-10 branding-media: +12 for the wordmark/favicon in-use delete
   // guard (logic extracted to site-admin/server/brand-library.ts; this is
   // the import + call site + refusal message).

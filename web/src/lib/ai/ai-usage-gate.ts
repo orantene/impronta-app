@@ -1,87 +1,128 @@
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { fetchTenantControls } from "@/lib/ai/ai-provider-repository";
+import type { AiTenantControlsRow } from "@/lib/ai/ai-provider-repository";
+import { resolveDefaultAiControls } from "@/lib/ai/default-tenant-controls";
+import { checkAiRpm } from "@/lib/rate-limit-kv-ai-rpm";
+import type { KvRateLimitResult } from "@/lib/rate-limit-kv";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { logServerError } from "@/lib/server/safe-error";
 import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
-
-const minuteBuckets = new Map<string, { bucket: number; count: number }>();
 
 function currentMonthKey(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-function currentMinuteBucket(): number {
-  return Math.floor(Date.now() / 60_000);
-}
-
 export type AiUsageGateResult =
   | { ok: true }
-  | { ok: false; code: "ai_off" | "rate_limit" | "spend_cap" | "monthly_requests"; message: string };
+  | { ok: false; code: "ai_off" | "rate_limit" | "spend_cap" | "monthly_requests" | "unavailable"; message: string };
+
+/** Everything the gate reads, injectable so the behaviour is tested without a database. */
+export type AiUsageGateDeps = {
+  /** The AI master switch (TUL-1622). */
+  isMasterEnabled?(): Promise<boolean>;
+  /** null = no row. `error` = the read failed (never the same thing as "no row"). */
+  readControls(tenantId: string): Promise<{ row: AiTenantControlsRow | null; error: boolean }>;
+  /** The workspace's plan tier; null = unknown (treated as the strictest tier). */
+  readPlanTier(tenantId: string): Promise<string | null>;
+  readUsage(tenantId: string, monthKey: string): Promise<{ spendCents: number; requestCount: number } | null>;
+  checkRpm(tenantId: string, rpm: number): Promise<KvRateLimitResult>;
+};
+
+const UNAVAILABLE: AiUsageGateResult = {
+  ok: false,
+  code: "unavailable",
+  message: "We could not confirm AI usage limits right now. Try again in a moment.",
+};
+
+const defaultDeps: AiUsageGateDeps = {
+  async readControls(tenantId) {
+    const supabase = createServiceRoleClient();
+    if (!supabase) return { row: null, error: true };
+    const { data, error } = await supabase.from("ai_tenant_controls").select("*").eq("tenant_id", tenantId).maybeSingle();
+    if (error) {
+      logServerError("ai-usage-gate/controls", error);
+      return { row: null, error: true };
+    }
+    return { row: (data as AiTenantControlsRow | null) ?? null, error: false };
+  },
+  async readPlanTier(tenantId) {
+    const supabase = createServiceRoleClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase.from("agencies").select("plan_tier").eq("id", tenantId).maybeSingle();
+    if (error) {
+      logServerError("ai-usage-gate/plan", error);
+      return null;
+    }
+    return (data as { plan_tier?: string | null } | null)?.plan_tier ?? null;
+  },
+  async readUsage(tenantId, monthKey) {
+    const supabase = createServiceRoleClient();
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from("ai_usage_monthly")
+      .select("spend_cents, request_count")
+      .eq("tenant_id", tenantId)
+      .eq("month_key", monthKey)
+      .maybeSingle();
+    if (error) {
+      logServerError("ai-usage-gate/usage", error);
+      return null;
+    }
+    const r = data as { spend_cents?: number; request_count?: number } | null;
+    return { spendCents: r?.spend_cents ?? 0, requestCount: r?.request_count ?? 0 };
+  },
+  checkRpm: checkAiRpm,
+};
 
 /**
- * Best-effort guard before provider-backed work. Stateless servers share DB counters only.
+ * Guard before provider-backed work. A workspace with an `ai_tenant_controls` row uses that row; a workspace WITHOUT one
+ * (every real workspace today) gets the default ceilings of its plan (`default-tenant-controls.ts`), hard-stopped. The
+ * per-minute limit is shared across instances (Upstash) and, like the guest routes, fails closed. A read we could not
+ * make (controls, usage) refuses instead of waving the call through.
  */
 export async function assertAiInvocationAllowed(
   tenantId: string = DEFAULT_AI_TENANT_ID,
+  deps: AiUsageGateDeps = defaultDeps,
 ): Promise<AiUsageGateResult> {
-  // The AI master switch comes first (TUL-1622): this gate runs before provider-backed work in the
-  // builder, edit mode, writing helper, site composition, support and onboarding, so one check here
-  // stops all of them with a clean "AI is off" refusal and before any usage row is written.
-  if (!(await isAiMasterEnabled())) return { ok: false, code: "ai_off", message: AI_OFF_MESSAGE };
-  const controls = await fetchTenantControls(tenantId);
-  if (!controls) return { ok: true };
+  // The AI master switch comes first (TUL-1622): one check here stops every path that gates, before any usage row is written.
+  if (!(await (deps.isMasterEnabled ? deps.isMasterEnabled() : isAiMasterEnabled()))) return { ok: false, code: "ai_off", message: AI_OFF_MESSAGE };
+  const { row, error } = await deps.readControls(tenantId);
+  if (error) return UNAVAILABLE;
 
-  const rpm = controls.max_requests_per_minute;
+  let spendCap: number | null;
+  let hardStop: boolean;
+  let rpm: number | null;
+  let monthlyRequests: number | null;
+  if (row) {
+    spendCap = row.monthly_spend_cap_cents;
+    hardStop = row.hard_stop_on_cap;
+    rpm = row.max_requests_per_minute;
+    monthlyRequests = row.max_requests_per_month;
+  } else {
+    const d = resolveDefaultAiControls(await deps.readPlanTier(tenantId));
+    spendCap = d.monthlySpendCapCents;
+    hardStop = true;
+    rpm = d.maxRequestsPerMinute;
+    monthlyRequests = d.maxRequestsPerMonth;
+  }
+
   if (rpm != null && rpm > 0) {
-    const key = `${tenantId}:${currentMinuteBucket()}`;
-    const row = minuteBuckets.get(key);
-    const next = (row?.count ?? 0) + 1;
-    if (next > rpm) {
-      return {
-        ok: false,
-        code: "rate_limit",
-        message: "Request rate limit reached for AI usage. Try again shortly.",
-      };
+    const limit = await deps.checkRpm(tenantId, rpm);
+    if (!limit.ok) {
+      return { ok: false, code: "rate_limit", message: "Request rate limit reached for AI usage. Try again shortly." };
     }
-    minuteBuckets.set(key, { bucket: currentMinuteBucket(), count: next });
   }
 
-  const supabase = createServiceRoleClient();
-  if (!supabase) return { ok: true };
+  const usage = await deps.readUsage(tenantId, currentMonthKey());
+  if (!usage) return UNAVAILABLE;
 
-  const monthKey = currentMonthKey();
-  const { data: usageRow } = await supabase
-    .from("ai_usage_monthly")
-    .select("spend_cents, request_count")
-    .eq("tenant_id", tenantId)
-    .eq("month_key", monthKey)
-    .maybeSingle();
-
-  const spend = (usageRow as { spend_cents?: number } | null)?.spend_cents ?? 0;
-  const reqs = (usageRow as { request_count?: number } | null)?.request_count ?? 0;
-
-  if (
-    controls.hard_stop_on_cap &&
-    controls.monthly_spend_cap_cents != null &&
-    spend >= controls.monthly_spend_cap_cents
-  ) {
-    return {
-      ok: false,
-      code: "spend_cap",
-      message: "Monthly AI spend cap reached. Raise the cap or wait until next month.",
-    };
+  if (hardStop && spendCap != null && usage.spendCents >= spendCap) {
+    return { ok: false, code: "spend_cap", message: "Monthly AI spend cap reached. Raise the cap or wait until next month." };
   }
-
-  if (controls.max_requests_per_month != null && reqs >= controls.max_requests_per_month) {
-    return {
-      ok: false,
-      code: "monthly_requests",
-      message: "Monthly AI request limit reached.",
-    };
+  if (monthlyRequests != null && usage.requestCount >= monthlyRequests) {
+    return { ok: false, code: "monthly_requests", message: "Monthly AI request limit reached." };
   }
-
   return { ok: true };
 }
 

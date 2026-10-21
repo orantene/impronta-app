@@ -70,6 +70,10 @@ export const RENT_COPY = {
     paidViaAutopay: "Paid automatically",
     alreadyPaid: "That month is already paid.",
     linkAlreadyPaid: "That month's payment link was already paid.",
+    missedPercent: "The percentage of sales for this month was not billed automatically",
+    sendMissedLink: "Send payment link",
+    missedWaiting: "Payment link sent, waiting for payment",
+    missedPaid: "Paid",
     autopayFutureMonth: "Automatic payments are on, so next month cannot be marked as paid outside yet. Mark it after the 1st.",
     autopayUnavailable: "Could not stop this month's automatic charge. Nothing was recorded. Try again.",
     badAmount: "Enter the amount you received.",
@@ -164,6 +168,10 @@ export const RENT_COPY = {
     paidViaAutopay: "Pagado automáticamente",
     alreadyPaid: "Ese mes ya está pagado.",
     linkAlreadyPaid: "El enlace de pago de ese mes ya se pagó.",
+    missedPercent: "El porcentaje de ventas de este mes no se cobró automáticamente",
+    sendMissedLink: "Enviar enlace de pago",
+    missedWaiting: "Enlace de pago enviado, esperando el pago",
+    missedPaid: "Pagado",
     autopayFutureMonth: "Los pagos automáticos están activos, así que el próximo mes aún no se puede marcar como pagado fuera de Tulala. Márcalo después del día 1.",
     autopayUnavailable: "No se pudo detener el cobro automático de este mes. No se registró nada. Inténtalo de nuevo.",
     badAmount: "Escribe el monto que recibiste.",
@@ -203,6 +211,9 @@ export function rentRefusalText(reason: string, c: RentCopy): string {
     case "nothing_due": return c.nothingDue;
     case "autopay_on": return c.autopayOnRefusal;
     case "autopay_future_month": return c.autopayFutureMonth;
+    case "not_missed":
+    case "not_a_percentage_plan":
+    case "bad_period": return c.unavailable;
     case "already_paid": return c.alreadyPaid;
     case "link_already_paid": return c.linkAlreadyPaid;
     case "autopay_unavailable": return c.autopayUnavailable;

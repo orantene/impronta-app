@@ -7,6 +7,7 @@
  */
 import { useState, useTransition } from "react";
 import { issueRent, proposeRentPlan, setRentPlanStatus } from "@/lib/service-hub/rent/rent-actions";
+import { issueMissedPercentLink } from "@/lib/service-hub/rent/rent-percent-catchup-actions";
 import { setRentPlanStation } from "@/lib/service-hub/rent/rent-station-actions";
 import { RENT_COPY, rentRefusalText } from "@/lib/service-hub/rent/rent-copy";
 import { currentRentPeriod } from "@/lib/service-hub/rent/rent-cycle";
@@ -28,6 +29,8 @@ export type RentPlanView = {
   autopayStatus: string;
   startsOn: string;
   /** The latest month's invoice and what its payment link is doing. */
+  /** TUL-1717: months whose percentage the automatic invoice could not carry, and what happened to their catch-up link. */
+  missedPercent?: Array<{ month: string; state: "open" | "waiting" | "paid" }>;
   invoice: { period: string; state: "none" | "waiting" | "paid" | "needs_new_link" } | null;
 };
 
@@ -122,6 +125,19 @@ export function RentCard({ locale, gate, plans, members, stations, safety }: { l
               )}
             </div>
           )}
+          {(p.missedPercent ?? []).map((m) => (
+            <div key={m.month} data-testid="rent-missed-percent" style={{ fontSize: 12.5, marginTop: 4 }}>
+              {m.month} · {c.missedPercent} · {m.state === "paid" ? c.missedPaid : m.state === "waiting" ? c.missedWaiting : ""}
+              {m.state !== "paid" && (
+                <button type="button" disabled={pending} style={{ marginLeft: 8 }} onClick={() => start(async () => {
+                  setMsg(null);
+                  const r = await issueMissedPercentLink({ planId: p.id, salesMonth: m.month });
+                  if (r.ok) { setLink(r.url); setMsg({ ok: true, text: c.copyLink }); }
+                  else setMsg({ ok: false, text: rentRefusalText(r.reason, c) });
+                })}>{c.sendMissedLink}</button>
+              )}
+            </div>
+          ))}
           {(p.status === "active" || p.status === "paused") && stations.length > 0 && (
             <label style={{ display: "block", fontSize: 12.5, marginTop: 6 }}>
               {c.station}{" "}

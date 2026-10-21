@@ -246,7 +246,10 @@ export type InquiryManagerActionGuard = {
 
 export async function requireInquiryManagerAction(
   inquiryId: string,
-  /** TUL-1629: a WRITE passes the capability it needs; omitted = read access (the viewer default). */
+  /** TUL-1629 / TUL-1708: a WRITE passes the capability it needs; omitted = read access
+   *  (the viewer-held default, `agency.workspace.view`). A bare call here let a viewer
+   *  through any staff-gated inquiry mutation (TUL-1708 P1). Never applies to the
+   *  appointed-coordinator path below, which is unchanged. */
   options?: { capability?: CapabilityKey },
 ): Promise<InquiryManagerActionGuard | StaffTenantActionGuardFail> {
   const trimmedInquiryId = typeof inquiryId === "string" ? inquiryId.trim() : "";

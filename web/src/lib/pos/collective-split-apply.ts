@@ -28,6 +28,9 @@ type DbLine = {
   owner_share_snapshot: unknown;
 };
 
+/** Transaction statuses that never took or held money: the only ones that do NOT freeze the split. */
+export const NON_MONEY_TRANSACTION_STATUSES = ["draft", "cancelled", "failed"] as const;
+
 export type PosSplitResult = { ok: true; changed: number } | { ok: false; error: string };
 
 export async function applyPosCollectiveSplit(admin: Admin, input: { tenantId: string; orderId: string }): Promise<PosSplitResult> {
@@ -47,14 +50,18 @@ export async function applyPosCollectiveSplit(admin: Admin, input: { tenantId: s
     if (aErr) return aErr.code === "42703" ? { ok: true, changed: 0 } : refuse(aErr);
     if ((agency as { work_model?: string | null } | null)?.work_model !== FRIENDS_COLLECTIVE_MODEL) return { ok: true, changed: 0 };
 
-    // Split tender: once any money is taken or in flight on this sale the split is FROZEN. A later allocation (or a
-    // changed accepted share) must never re-split a sale that is already partly paid.
+    // Split tender: once ANY money movement exists on this sale the split is FROZEN. A later allocation (or a changed
+    // accepted share) must never re-split a sale that is already partly paid. "Money movement" is every transaction status
+    // EXCEPT the three that never took or held money (draft, cancelled, failed): an allow-list of paid-ish statuses would
+    // silently miss one (pending, payout_pending, payout_sent, refunded...) and re-split a paid sale.
     const { data: taken, error: tErr } = await admin
       .from("booking_transactions")
       .select("id")
       .eq("order_id", input.orderId)
       .eq("source_tenant_id", input.tenantId)
-      .in("status", ["payment_requested", "paid", "partially_refunded"])
+      // Also frozen when paid_at is set whatever the status says: a sale can go paid -> payout_pending -> failed with paid_at
+      // still stamped, and that must read as PAID, never as "never paid".
+      .or(`status.not.in.(${NON_MONEY_TRANSACTION_STATUSES.join(",")}),paid_at.not.is.null`)
       .limit(1);
     if (tErr) return refuse(tErr);
     if ((taken ?? []).length > 0) return { ok: true, changed: 0 };

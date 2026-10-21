@@ -4,7 +4,7 @@ import { applyRentSubscriptionEvent, type AutopayInvoiceRow, type AutopayPlanRow
 import type { RentSubscriptionEvent } from "./rent-autopay-routing";
 
 /** The events this applier takes (a draft invoice goes to the percentage step, not here). */
-type AppliedEvent = Exclude<RentSubscriptionEvent, { type: "draft" }>;
+type AppliedEvent = Exclude<RentSubscriptionEvent, { type: "draft" | "past_draft" }>;
 
 const OCT1 = Date.UTC(2026, 9, 1) / 1000;
 function world(plan: Partial<AutopayPlanRow> | null = {}) {
@@ -24,6 +24,7 @@ function world(plan: Partial<AutopayPlanRow> | null = {}) {
     },
     async loadInvoice(_p, _t, period) { return state.invoices.get(period) ?? null; },
     async writeInvoice(row) { state.invoices.set(row.period, { status: row.status, stripeInvoiceId: row.stripeInvoiceId, source: "autopay", amountCents: row.amountCents }); return true; },
+    async voidIssuedLink() { return "cancelled"; },
     async cancelSubscription(id) { state.cancelled.push(id); return true; },
     async notify(kind) { state.notified.push(kind); },
     alert(d) { state.alerts.push(d); },

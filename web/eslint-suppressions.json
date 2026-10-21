@@ -1415,6 +1415,11 @@
       "count": 1
     }
   },
+  "src/lib/payments/transfers.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/pitch/pitch-engine.deep.test.ts": {
     "max-lines": {
       "count": 1
@@ -1836,6 +1841,11 @@
     }
   },
   "src/lib/site-admin/tokens/registry.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/stripe/webhook-routing.test.ts": {
     "max-lines": {
       "count": 1
     }

@@ -11,6 +11,8 @@ export type RentSubscriptionEvent =
   | { type: "expired"; planId: string; tenantId: string }
   /** TUL-1609: a monthly invoice was created as a draft: the closed month's percentage can still be added. */
   | { type: "draft"; planId: string; tenantId: string; subscriptionId: string; invoiceId: string; customerId: string | null; periodStart: number; currency: string; percentAdded: boolean; feeBps: number | null }
+  /** TUL-1717: a monthly invoice reached us PAST its draft window (created already open, or finalized): the percentage can no longer be added. */
+  | { type: "past_draft"; planId: string; tenantId: string; subscriptionId: string; invoiceId: string; periodStart: number; stamped: boolean }
   | { type: "started"; planId: string; tenantId: string; subscriptionId: string; customerId: string | null }
   | { type: "status"; planId: string; tenantId: string; subscriptionId: string; stripeStatus: string; paused: boolean; deleted: boolean }
   | { type: "paid"; planId: string; tenantId: string; subscriptionId: string; invoiceId: string; periodStart: number; amountPaid: number; currency: string; rentCents: number }
@@ -70,8 +72,17 @@ export function classifyRentSubscriptionEvent(event: Stripe.Event): RentSubscrip
       const m = rentMeta(details?.metadata ?? null);
       const subscriptionId = id(details?.subscription as string | Stripe.Subscription | null | undefined);
       // Only the monthly renewal: the sign-up invoice is the start month, billed by its payment link.
-      if (!m || !subscriptionId || !inv.id || inv.billing_reason !== "subscription_cycle" || inv.status !== "draft") return null;
+      if (!m || !subscriptionId || !inv.id || inv.billing_reason !== "subscription_cycle") return null;
+      if (inv.status !== "draft") return { type: "past_draft", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), stamped: inv.metadata?.rent_percent_cents != null };
       return { type: "draft", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, customerId: id(inv.customer as string | null), periodStart: periodStartOf(inv), currency: inv.currency, percentAdded: inv.metadata?.rent_percent_cents != null, feeBps: Number.isInteger(Number(details?.metadata?.fee_bps)) && details?.metadata?.fee_bps !== "" ? Number(details?.metadata?.fee_bps) : null };
+    }
+    case "invoice.finalized": {
+      const inv = event.data.object as Stripe.Invoice;
+      const details = inv.parent?.subscription_details;
+      const m = rentMeta(details?.metadata ?? null);
+      const subscriptionId = id(details?.subscription as string | Stripe.Subscription | null | undefined);
+      if (!m || !subscriptionId || !inv.id || inv.billing_reason !== "subscription_cycle") return null;
+      return { type: "past_draft", planId: m.planId, tenantId: m.tenantId, subscriptionId, invoiceId: inv.id, periodStart: periodStartOf(inv), stamped: inv.metadata?.rent_percent_cents != null };
     }
     case "invoice.paid":
     case "invoice.payment_failed": {

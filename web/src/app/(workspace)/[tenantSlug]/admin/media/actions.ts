@@ -10,6 +10,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { verifyReelStat, verifyStoredObjectType } from "@/lib/server/verify-stored-object-type";
 import { isTalentDocumentRef } from "@/lib/media/talent-document-ref";
 import { describeAssetUsageRefusal, findAssetUsage } from "@/lib/media/asset-usage.server";
+import { getRequestLocale } from "@/i18n/request-locale";
 import {
   extractImageMetadata,
   isSafeImageMime,
@@ -392,7 +393,8 @@ export async function actionDeleteMediaAssets(
   // check itself cannot finish, the delete is refused too.
   const usage = await findAssetUsage(admin, tenantId, ids);
   if (usage.blocked.length > 0) {
-    return { ok: false, error: describeAssetUsageRefusal(usage) };
+    const locale = (await getRequestLocale().catch(() => "en")) === "es" ? "es" : "en";
+    return { ok: false, error: describeAssetUsageRefusal(usage, locale) };
   }
 
   const now = new Date().toISOString();
