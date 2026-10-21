@@ -114,6 +114,7 @@ test("platform-scoped talent routes still resolve", () => {
   assert.equal(pathIsCanonical("/talent/trust"), true);
   assert.equal(pathIsCanonical("/talent/discover"), true);
   assert.equal(pathIsCanonical("/talent/get-found"), true);
+  assert.equal(pathIsCanonical("/talent/where-you-appear"), true);
   // Soft nav from My presence must yield the SPA so Edit site is bare.
   assert.equal(pathIsCanonical("/talent/page-builder"), true);
   assert.equal(pathIsCanonical("/talent/onboarding"), true);

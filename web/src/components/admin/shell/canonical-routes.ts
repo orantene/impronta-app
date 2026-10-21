@@ -167,6 +167,9 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   (s) => s[0] === "talent" && s[1] === "discover",
   // /<tenant>/admin/work-style — TUL-1442 the one question that presets the hub settings.
   (s) => s[0] === "admin" && s[1] === "work-style",
+  // /talent/where-you-appear — TUL-1371 channels page (where it's sold, where you appear,
+  // earnings by channel). Standalone server page.
+  (s) => s[0] === "talent" && s[1] === "where-you-appear",
   // /talent/get-found — Google Business Profile setup guide (TUL-584), standalone server page.
   (s) => s[0] === "talent" && s[1] === "get-found",
   // /talent/page-builder — bare editor (talent layout opts out of the shell on
