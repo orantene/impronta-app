@@ -1,5 +1,7 @@
 import { isChangelogLive, loadChangelogRows, viewEntries, type ChangelogEntryView, type ChangelogLocale } from "@/lib/changelog/public-read";
+import { changelogOrigin } from "@/lib/changelog/request-origin";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { publicOrigin } from "@/lib/storefront/request-context";
 
 /** RSS 2.0 for the changelog (TUL-1394). Pattern: /resources/feed.xml. */
 
@@ -47,7 +49,7 @@ ${items}
 }
 
 export async function changelogFeedResponse(locale: ChangelogLocale): Promise<Response> {
-  const base = `https://${PLATFORM_BRAND.domain}`;
+  const base = changelogOrigin(await publicOrigin());
   const entries = viewEntries(await loadChangelogRows(), locale);
   return new Response(buildChangelogFeed(entries, locale, base), {
     headers: {

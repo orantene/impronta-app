@@ -41,8 +41,20 @@ export function parseFilename(name) {
   return m ? { version: m[1], slug: m[2] } : null;
 }
 
-/** Title: first meaningful header comment line, else the humanised slug. */
+/**
+ * Title (TUL-1794): the humanised filename slug first. The first SQL comment is
+ * often a sentence fragment, a divider or an instruction, so a header comment is
+ * used ONLY when the slug is empty. Hence `sqlText` is a last resort, kept for
+ * callers that pass a slug-less name.
+ */
 export function deriveTitle(slug, sqlText = "") {
+  const human = String(slug ?? "").replace(/[_-]+/g, " ").trim();
+  if (human) return human.length > 90 ? `${human.slice(0, 89).trimEnd()}…` : human;
+  return headerTitle(sqlText) ?? "untitled";
+}
+
+/** A clean single-line header title, or null (skips dividers, blanks, "--" only, HELD/NOTE, filename repeats). */
+export function headerTitle(sqlText = "") {
   for (const raw of String(sqlText).split("\n").slice(0, 12)) {
     const line = raw.trim();
     if (!line.startsWith("--")) {
@@ -50,10 +62,13 @@ export function deriveTitle(slug, sqlText = "") {
       break;
     }
     const text = line.replace(/^--+\s*/, "").trim();
-    if (/^\d{14}|\.sql\b/.test(text)) continue; // header that just repeats the filename
-    if (text && !/^(HELD|NOTE)\b/i.test(text) && text.length > 3) return text.slice(0, 90);
+    if (!text || !/[A-Za-z]/.test(text) || /^[=\-_*#~\s]+$/.test(text)) continue; // divider / empty
+    if (/^\d{14}|\.sql\b/.test(text)) continue; // repeats the filename
+    if (/^(HELD|NOTE|PM applies)\b/i.test(text) || text.length <= 3) continue;
+    const sentence = /^(.*?[.!?])(\s|$)/.exec(text)?.[1] ?? text; // stop at the first sentence
+    return sentence.length > 90 ? `${sentence.slice(0, 89).trimEnd()}…` : sentence;
   }
-  return slug.replace(/_/g, " ");
+  return null;
 }
 
 /** Last "(#1234)" in a commit subject, as "#1234", else null. */
