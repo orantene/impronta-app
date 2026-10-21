@@ -127,16 +127,25 @@ export async function applyCollectiveOwnerShares<L extends SplitLine>(
     if (talentIds.length > 0) {
       const { data: rows, error } = await admin
         .from("agency_talent_roster")
-        .select("talent_profile_id, status, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version")
+        .select("talent_profile_id, status, owner_share_kind, owner_share_bps, owner_share_cents, owner_share_currency, owner_share_version, removed_at, updated_at")
         .eq("tenant_id", tenantId)
         .in("talent_profile_id", talentIds);
       if (error) return refuse(error);
-      const all = (rows ?? []) as Array<ShareRow & { talent_profile_id: string; status?: string | null; owner_share_version?: number | null }>;
+      const all = (rows ?? []) as Array<ShareRow & { talent_profile_id: string; status?: string | null; owner_share_version?: number | null; removed_at?: string | null; updated_at?: string | null }>;
       // A live row always wins. A talent with only a removed row still sells an already agreed
       // booking: her LAST ACCEPTED share applies. No share on record for her: refuse (TUL-1699).
       const live = new Set(all.filter((r) => r.status !== "removed").map((r) => r.talent_profile_id));
+      // Left, rejoined, left again: a talent has several removed rows. Only her MOST RECENT one counts
+      // (removed_at, else updated_at); an older row's share is never used in its place.
+      const stamp = (r: { removed_at?: string | null; updated_at?: string | null }) => Date.parse(r.removed_at ?? r.updated_at ?? "") || 0;
+      const latestRemoved = new Map<string, (typeof all)[number]>();
       for (const r of all) {
-        if (r.status === "removed" && live.has(r.talent_profile_id)) continue;
+        if (r.status !== "removed") continue;
+        const cur = latestRemoved.get(r.talent_profile_id);
+        if (!cur || stamp(r) > stamp(cur)) latestRemoved.set(r.talent_profile_id, r);
+      }
+      for (const r of all) {
+        if (r.status === "removed" && (live.has(r.talent_profile_id) || latestRemoved.get(r.talent_profile_id) !== r)) continue;
         const s = parseOwnerShareRow(r);
         if (s) shares.set(r.talent_profile_id, { share: s, version: Number(r.owner_share_version) || 1 });
         else if (r.status === "removed") {

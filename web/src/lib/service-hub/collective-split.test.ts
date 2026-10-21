@@ -179,6 +179,30 @@ describe("loading the workspace's model and shares (fails closed)", () => {
     assert.equal(r.ok && r.lines[0].talentCostCents, 7500);
     assert.equal(r.ok && r.lines[0].ownerTakeCents, 2500);
   });
+  const gone = (removedAt: string | null, bps: number | null, updatedAt = "2026-01-01T00:00:00Z") => ({
+    talent_profile_id: "a", status: "removed", removed_at: removedAt, updated_at: updatedAt,
+    ...(bps === null ? {} : { owner_share_kind: "percent", owner_share_bps: bps, owner_share_version: 1 }),
+  });
+  test("left, rejoined, left again: only her MOST RECENT removed row counts, whatever the row order", async () => {
+    const older = gone("2026-02-01T00:00:00Z", 1000);
+    const newer = gone("2026-05-01T00:00:00Z", 3000);
+    for (const rows of [[older, newer], [newer, older]]) {
+      const r = await applyCollectiveOwnerShares(collectiveWith(rows), "t1", "MXN", lines());
+      assert.equal(r.ok && r.lines[0].talentCostCents, 7000);
+      assert.equal(r.ok && r.lines[0].ownerTakeCents, 3000);
+    }
+  });
+  test("the most recent removed row has no share: refused, even if an older removed row has one", async () => {
+    for (const rows of [[gone("2026-02-01T00:00:00Z", 1000), gone("2026-05-01T00:00:00Z", null)], [gone("2026-05-01T00:00:00Z", null), gone("2026-02-01T00:00:00Z", 1000)]]) {
+      const r = await applyCollectiveOwnerShares(collectiveWith(rows), "t1", "MXN", lines());
+      assert.equal(r.ok, false);
+      if (!r.ok) assert.equal(r.code, "talent_no_longer_sells");
+    }
+  });
+  test("a missing removed_at falls back to updated_at to find the most recent row", async () => {
+    const r1 = await applyCollectiveOwnerShares(collectiveWith([gone(null, 1000, "2026-03-01T00:00:00Z"), gone(null, 2000, "2026-06-01T00:00:00Z")]), "t1", "MXN", lines());
+    assert.equal(r1.ok && r1.lines[0].ownerTakeCents, 2000);
+  });
   test("removed-only with NO share on record refuses with its own code and copy", async () => {
     const r = await applyCollectiveOwnerShares(collectiveWith([{ talent_profile_id: "a", status: "removed" }]), "t1", "MXN", lines());
     assert.equal(r.ok, false);
