@@ -22,7 +22,10 @@ export async function saveWorkStyleAction(input: unknown): Promise<SaveWorkStyle
   await requireNotImpersonating();
   const raw = input as { choice?: unknown; confirmed?: unknown } | null;
   if (!isWorkStyleChoice(raw?.choice)) return { ok: false, reason: "invalid" };
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: write (sets client prices / split / request routing) requires
+  // manage_agency_settings (admin+), matching the owner/admin role check below;
+  // the default capability (agency.workspace.view) is viewer-held.
+  const guard = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!guard.ok) return { ok: false, reason: "unavailable" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };

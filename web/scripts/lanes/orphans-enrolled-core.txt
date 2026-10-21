@@ -102,6 +102,7 @@ src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/server-actions/admin-bookings-role-label.static.test.ts
+src/lib/server-actions/tul1708-area-g-discovery-content-capabilities.static.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts
