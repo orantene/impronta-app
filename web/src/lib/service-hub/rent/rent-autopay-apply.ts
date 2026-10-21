@@ -13,7 +13,13 @@ export type RentAutopayApplyDeps = {
   setAutopay(planId: string, tenantId: string, patch: { autopayStatus: string; subscriptionId?: string | null; clearFirstPeriod?: boolean }): Promise<boolean>;
   loadInvoice(planId: string, tenantId: string, period: string): Promise<AutopayInvoiceRow | null>;
   /** Insert-or-update the (plan, period) row as an automatic payment. */
-  writeInvoice(row: { planId: string; tenantId: string; talentProfileId: string; period: string; amountCents: number; currency: string; status: "paid" | "failed"; stripeInvoiceId: string }): Promise<boolean>;
+  writeInvoice(row: { planId: string; tenantId: string; talentProfileId: string; period: string; amountCents: number; currency: string; status: "paid" | "failed"; stripeInvoiceId: string; /** The row was a payment-link row whose link has just been voided: it becomes the automatic payment's row (TUL-1719). */ replacesLink?: boolean }): Promise<boolean>;
+  /**
+   * TUL-1719: this month already has an ISSUED, UNPAID payment link and the card was just charged: void the link so the month
+   * cannot be paid twice. "cancelled" = no live link remains; "paid" = the link had been paid (a real double payment);
+   * "failed" = it could not be confirmed voided (retry).
+   */
+  voidIssuedLink(planId: string, tenantId: string, period: string): Promise<"cancelled" | "paid" | "failed">;
   cancelSubscription(subscriptionId: string): Promise<boolean>;
   notify(kind: "autopay_failed" | "autopay_canceled", p: { planId: string; tenantId: string; talentProfileId: string; period?: string }): Promise<void>;
   alert(detail: string): void;
@@ -90,17 +96,33 @@ export async function applyRentSubscriptionEvent(ev: Exclude<RentSubscriptionEve
       deps.alert(`rent plan ${ev.planId} is ended but subscription ${ev.subscriptionId} was paid (invoice ${ev.invoiceId})`);
       await deps.cancelSubscription(ev.subscriptionId);
     }
+    let replacesLink = false;
     if (existing && existing.source !== "autopay" && existing.stripeInvoiceId !== ev.invoiceId) {
-      // A payment-link or outside row already owns this month (any status): never overwritten, never touched.
-      deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid but the month has a ${existing.source} row (${existing.status}); reconcile by hand`);
-      return "double_payment_alert";
+      if (existing.source === "link" && (existing.status === "issued" || existing.status === "issuing")) {
+        // The card paid a month that has an ISSUED, UNPAID payment link: void the link so it cannot be paid on top, and the
+        // month becomes the automatic payment's. A link that turns out to be paid is a real double payment.
+        const voided = await deps.voidIssuedLink(ev.planId, ev.tenantId, period);
+        if (voided === "failed") {
+          deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid but the issued payment link could not be voided; retrying`);
+          return "unavailable";
+        }
+        if (voided === "paid") {
+          deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid AND the month's payment link was paid; reconcile by hand`);
+          return "double_payment_alert";
+        }
+        replacesLink = true;
+      } else {
+        // An outside row, or a link row in any other state, owns this month: never overwritten, never touched.
+        deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid but the month has a ${existing.source} row (${existing.status}); reconcile by hand`);
+        return "double_payment_alert";
+      }
     }
     if (existing && existing.status === "paid" && existing.stripeInvoiceId !== ev.invoiceId) {
       // The month was already paid another way (a payment link): money taken twice. Loud, never silent.
       deps.alert(`rent plan ${ev.planId} period ${period}: automatic invoice ${ev.invoiceId} paid on top of an already paid month`);
       return "double_payment_alert";
     }
-    const ok = await deps.writeInvoice({ planId: ev.planId, tenantId: ev.tenantId, talentProfileId: plan.talentProfileId, period, amountCents: ev.rentCents, currency: ev.currency.toUpperCase(), status: "paid", stripeInvoiceId: ev.invoiceId });
+    const ok = await deps.writeInvoice({ planId: ev.planId, tenantId: ev.tenantId, talentProfileId: plan.talentProfileId, period, amountCents: ev.rentCents, currency: ev.currency.toUpperCase(), status: "paid", stripeInvoiceId: ev.invoiceId, replacesLink });
     if (!ok) return "unavailable";
     if (plan.autopayStatus === "past_due") await deps.setAutopay(ev.planId, ev.tenantId, { autopayStatus: "active" });
     return "paid_recorded";

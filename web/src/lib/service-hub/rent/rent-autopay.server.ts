@@ -14,6 +14,7 @@ import { shouldSkipAutopayInvoice } from "./rent-outside";
 import { periodOfSeconds } from "./rent-autopay-routing";
 import { loadMemberSalesBase } from "./rent-sales-base.server";
 import { getAppUrl } from "@/lib/auth-flow";
+import { cancelPaymentLink } from "@/lib/payments/links";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { afterResponse } from "@/lib/server/after-response";
 import { logServerError } from "@/lib/server/safe-error";
@@ -83,11 +84,33 @@ function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentA
           source: "autopay",
           stripe_invoice_id: row.stripeInvoiceId,
           ...(row.status === "paid" ? { paid_at: new Date().toISOString() } : {}),
+          // TUL-1719: a voided payment-link row becomes the automatic payment's row: no link code left on it.
+          ...(row.replacesLink ? { payment_link_code: null } : {}),
         },
         { onConflict: "plan_id,period" },
       );
       if (error) logServerError("rent.autopay.writeInvoice", error);
       return !error;
+    },
+    async voidIssuedLink(planId, tenantId, period) {
+      try {
+        const { data, error } = await tenantScopedQuery(admin, "studio_rent_invoices", tenantId).select("payment_link_code").eq("plan_id", planId).eq("period", period).maybeSingle();
+        if (error) throw error;
+        const code = (data as { payment_link_code?: string | null } | null)?.payment_link_code;
+        if (!code) return "cancelled"; // issuing, never minted: nothing live to void
+        const { data: link, error: linkErr } = await tenantScopedQuery(admin, "payment_links", tenantId).select("id, status").eq("code", code).maybeSingle();
+        if (linkErr) throw linkErr;
+        const l = link as { id: string; status: string } | null;
+        if (!l) return "cancelled";
+        if (l.status === "paid") return "paid";
+        if (l.status !== "open") return "cancelled"; // already cancelled / expired
+        const closed = await cancelPaymentLink(admin, { tenantId, linkId: l.id });
+        if (closed.ok) return "cancelled";
+        return closed.reason === "already_paid" ? "paid" : closed.reason === "not_found" ? "cancelled" : "failed";
+      } catch (err) {
+        logServerError("rent.autopay.voidIssuedLink", err);
+        return "failed";
+      }
     },
     // The event arrived on the platform the subscription lives on.
     cancelSubscription: (id) => cancelRentSubscription(id, account),

@@ -24,6 +24,7 @@ function world(plan: Partial<AutopayPlanRow> | null = {}) {
     },
     async loadInvoice(_p, _t, period) { return state.invoices.get(period) ?? null; },
     async writeInvoice(row) { state.invoices.set(row.period, { status: row.status, stripeInvoiceId: row.stripeInvoiceId, source: "autopay", amountCents: row.amountCents }); return true; },
+    async voidIssuedLink() { return "cancelled"; },
     async cancelSubscription(id) { state.cancelled.push(id); return true; },
     async notify(kind) { state.notified.push(kind); },
     alert(d) { state.alerts.push(d); },
