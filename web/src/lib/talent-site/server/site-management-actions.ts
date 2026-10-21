@@ -64,6 +64,8 @@ import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
 import { siteScaffoldComplete } from "./site-scaffold-complete";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
 import { recordSitePublish } from "../history/history.server";
+import { pingIndexNowUrl } from "@/lib/seo/indexnow";
+import { afterResponse } from "@/lib/server/after-response";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -710,6 +712,20 @@ export async function publishMaxSiteAction(opts?: { contentHash?: string | null 
         publishedAt: now,
       });
     }
+  }
+
+  // 6. TUL-589 (S slice): tell IndexNow this site changed. Best-effort,
+  // production-only (see pingIndexNowUrl) and NOT awaited on the request path
+  // — a slow api.indexnow.org must never hang this Publish click. A demo
+  // profile has no real content, so it has nothing to ping.
+  const { data: demoCheck } = await sb
+    .from("talent_profiles")
+    .select("is_demo")
+    .eq("id", g.talentProfileId)
+    .maybeSingle();
+  if (!demoCheck?.is_demo) {
+    const publicUrl = siteUrl(pre.site_slug, false);
+    afterResponse(() => pingIndexNowUrl(publicUrl), "talent-site.publish.indexnow");
   }
 
   return { ok: true, data: { publishedAt: now } };
