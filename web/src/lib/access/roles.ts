@@ -97,6 +97,10 @@ const EDITOR_CAPS: readonly CapabilityKey[] = [
   "agency.site_admin.sections.edit",
   "agency.site_admin.homepage.compose",
   "agency.site_admin.media.upload",
+  // TUL-1708: run day-to-day operations (POS, tables, floor, door, classes,
+  // preparation, sessions, customer attach). Editor and above hold it; viewer
+  // does not.
+  "operate_venue",
 ];
 
 const MANAGER_CAPS: readonly CapabilityKey[] = [
