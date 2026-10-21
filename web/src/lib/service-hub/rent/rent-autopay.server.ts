@@ -2,8 +2,8 @@ import "server-only";
 
 /**
  * TUL-1601 · The I/O side of automatic monthly rent: the webhook apply deps, and keeping the Stripe subscription in
- * step with the plan (ended -> cancelled now, paused -> collection paused, active -> resumed). US platform only in v1
- * (an MX studio is refused at start). Every call is tenant-scoped and fail-soft toward NOT charging.
+ * step with the plan (ended -> cancelled now, paused -> collection paused, active -> resumed), on the platform the
+ * subscription lives on (the studio's: US or MX, TUL-1610). Every call is tenant-scoped and fail-soft toward NOT charging.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
@@ -11,13 +11,13 @@ import { getAppUrl } from "@/lib/auth-flow";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
 import { afterResponse } from "@/lib/server/after-response";
 import { logServerError } from "@/lib/server/safe-error";
-import { getStripeFor } from "@/lib/stripe/client";
+import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { applyRentSubscriptionEvent, type ApplyOutcome, type RentAutopayApplyDeps } from "./rent-autopay-apply";
 import type { RentSubscriptionEvent } from "./rent-autopay-routing";
 
-export async function cancelRentSubscription(subscriptionId: string): Promise<boolean> {
-  const stripe = getStripeFor("us");
+export async function cancelRentSubscription(subscriptionId: string, platform: StripeAccountKey = "us"): Promise<boolean> {
+  const stripe = getStripeFor(platform);
   if (!stripe) return false;
   try {
     // Ended now: no proration, no refund of a month already paid, no further invoices.
@@ -29,7 +29,7 @@ export async function cancelRentSubscription(subscriptionId: string): Promise<bo
   }
 }
 
-function buildApplyDeps(admin: SupabaseClient): RentAutopayApplyDeps {
+function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentAutopayApplyDeps {
   return {
     async loadPlan(planId, tenantId) {
       const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", tenantId)
@@ -79,7 +79,8 @@ function buildApplyDeps(admin: SupabaseClient): RentAutopayApplyDeps {
       if (error) logServerError("rent.autopay.writeInvoice", error);
       return !error;
     },
-    cancelSubscription: cancelRentSubscription,
+    // The event arrived on the platform the subscription lives on.
+    cancelSubscription: (id) => cancelRentSubscription(id, account),
     async notify(kind, p) {
       try {
         const [{ data: tp }, { data: ag }] = await Promise.all([
@@ -112,9 +113,9 @@ function buildApplyDeps(admin: SupabaseClient): RentAutopayApplyDeps {
 }
 
 /** Webhook entry: apply one classified rent-subscription event. Never throws. */
-export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: RentSubscriptionEvent): Promise<ApplyOutcome> {
+export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: RentSubscriptionEvent, account: StripeAccountKey = "us"): Promise<ApplyOutcome> {
   try {
-    return await applyRentSubscriptionEvent(ev, buildApplyDeps(admin));
+    return await applyRentSubscriptionEvent(ev, buildApplyDeps(admin, account));
   } catch (err) {
     logServerError("rent.autopay.handle", err);
     return "unavailable";
@@ -134,12 +135,13 @@ export async function syncRentAutopayWithPlan(
 ): Promise<{ ok: boolean }> {
   try {
     const { data } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId)
-      .select("stripe_subscription_id, autopay_status")
+      .select("stripe_subscription_id, autopay_status, autopay_platform")
       .eq("id", p.planId)
       .maybeSingle();
-    const r = data as { stripe_subscription_id: string | null; autopay_status: string } | null;
+    const r = data as { stripe_subscription_id: string | null; autopay_status: string; autopay_platform: StripeAccountKey | null } | null;
+    const platform: StripeAccountKey = r?.autopay_platform === "mx" ? "mx" : "us";
     if (!r?.stripe_subscription_id || r.autopay_status === "off" || r.autopay_status === "canceled") return { ok: true };
-    const stripe = (deps.stripeFor ?? getStripeFor)("us");
+    const stripe = (deps.stripeFor ?? getStripeFor)(platform);
     if (!stripe) return { ok: false };
     if (p.planStatus === "ended") {
       await stripe.subscriptions.cancel(r.stripe_subscription_id, { invoice_now: false, prorate: false });
