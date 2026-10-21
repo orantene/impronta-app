@@ -11,6 +11,7 @@ import type { SavedTalent } from "@/lib/client-account/saved-talent";
 import type { MyReviews } from "@/lib/client-account/my-reviews";
 import type { SavedService } from "@/lib/client-account/saved-services";
 import type { VisitReviewState } from "@/lib/client-account/visit-review";
+import type { MyMatchRequest } from "@/lib/match-me/views";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
@@ -20,6 +21,7 @@ import { LogOutButton, NamePrompt, SessionSyncListener, SettingsForm, ThreadRepl
 import { bookAgainHref, canBookAgain } from "@/lib/client-account/book-again";
 import { btnPrimary } from "./account-button-styles";
 import { VisitReviewForm } from "./VisitReviewForm";
+import { MatchRequestForm } from "./MatchRequestForm";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -44,6 +46,8 @@ export type AreaData = {
   savedServices?: SavedService[];
   /** TUL-1463: the visit page's review block (form, open request link, done, or nothing). */
   visitReview?: VisitReviewState | null;
+  /** TUL-1598: this client's match-me requests on this workspace (Match tab). */
+  match?: MyMatchRequest[];
   profile?: { name: string; phone: string; locale: string; marketingOptIn: boolean };
 };
 
@@ -58,6 +62,8 @@ type Props = {
   /** Agency hosts only: links to the agency's existing client pages, shown after the four tabs. */
   /** TUL-65: this host serves the business's public /book page (talent site, agency host); hides Book again elsewhere. */
   bookHere?: boolean;
+  /** TUL-1598: show the Match tab (agency / hub / app hosts only; a talent site has no network to match from). */
+  matchEnabled?: boolean;
   extraTabs?: ReadonlyArray<{ key: "quotes" | "shortlists" | "approvals"; href: string }>;
 };
 
@@ -302,14 +308,16 @@ export function ClientAccountArea(props: Props) {
   }
 
   // ── Home: tabs ──────────────────────────────────────────────────────────
-  const tab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
+  const requestedTab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
+  // TUL-1464: with match-me off (or on a talent site) ?tab=match is plain Visits, never a blank page.
+  const tab: AccountTab = requestedTab === "match" && !props.matchEnabled ? "visits" : requestedTab;
   const tabLabel: Record<AccountTab, string> = {
-    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), saved: a("tabSaved"), reviews: a("tabReviews"), settings: a("tabSettings"), help: a("tabHelp"),
+    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), saved: a("tabSaved"), reviews: a("tabReviews"), match: a("tabMatch"), settings: a("tabSettings"), help: a("tabHelp"),
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
     <nav aria-label={a("title")} style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "20px 0", paddingBottom: 4 }}>
-      {ACCOUNT_TABS.map((k) => (
+      {ACCOUNT_TABS.filter((k) => k !== "match" || props.matchEnabled).map((k) => (
         <Link
           key={k}
           href={k === "visits" ? "/account" : `/account?tab=${k}`}
@@ -415,6 +423,28 @@ export function ClientAccountArea(props: Props) {
             </ul>
           </section>
         ) : null}
+      </>
+    );
+  } else if (tab === "match" && props.matchEnabled) {
+    const list = props.data.match ?? [];
+    body = (
+      <>
+        <h2 style={{ ...heading, fontSize: 18, marginBottom: 6 }}>{a("matchHeading")}</h2>
+        <p style={{ color: MUTED, marginTop: 0 }}>{a("matchHint")}</p>
+        <MatchRequestForm
+          copy={{ describe: a("matchDescribe"), where: a("matchWhere"), send: a("matchSend"), sending: a("matchSending"), sent: a("matchSent"), nobody: a("matchNobody"), rateLimited: a("matchRateLimited"), off: a("matchOff"), generic: a("errGeneric") }}
+        />
+        {list.length === 0 ? <p>{a("matchNone")}</p> : (
+          <ul data-testid="client-match-requests" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+            {list.map((r) => (
+              <li key={r.id} style={{ ...card, listStyle: "none" }}>
+                <strong>{r.status === "accepted" ? interpolate(a("matchAccepted"), { name: r.proName ?? a("matchAProfessional") }) : r.status === "cancelled" ? a("matchCancelled") : r.noneAvailable ? a("matchNoneAvailable") : a("matchWaiting")}</strong>
+                <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{r.description}</p>
+                {r.zone ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{r.zone}</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </>
     );
   } else if (tab === "reviews") {

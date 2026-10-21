@@ -39,6 +39,7 @@ import { TABLE_RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-table-reser
 import { SESSION_CATALOG_ENTRIES } from "./catalog-entries-sessions";
 import { RENT_CATALOG_ENTRIES } from "./catalog-entries-rent";
 import { COORDINATOR_ROLE_CATALOG_ENTRIES } from "./catalog-entries-coordinator-role";
+import { MATCH_CATALOG_ENTRIES } from "./catalog-entries-match";
 import { ACCOUNT_CATALOG_ENTRIES } from "./catalog-entries-accounts";
 import { PREP_CATALOG_ENTRIES } from "./catalog-entries-prep";
 import { UNCLAIMED_CATALOG_ENTRIES } from "./catalog-entries-unclaimed";
@@ -675,6 +676,7 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...SESSION_CATALOG_ENTRIES,
   ...ACCOUNT_CATALOG_ENTRIES,
   ...PREP_CATALOG_ENTRIES,
+  ...MATCH_CATALOG_ENTRIES,
   ...RENT_CATALOG_ENTRIES,
   ...COORDINATOR_ROLE_CATALOG_ENTRIES,
   ...UNCLAIMED_CATALOG_ENTRIES,

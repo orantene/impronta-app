@@ -46,7 +46,13 @@ export function pickMatches(
 
 export type MatchStatus = "open" | "accepted" | "cancelled";
 
-export function shouldWiden(req: { status: MatchStatus; roundStartedAtMs: number }, nowMs: number): boolean {
+/**
+ * Widen an OPEN request once its round is 2h old. A request nobody was ever offered (no candidate
+ * matched at all, `offeredCount === 0`) is never widened: the client sees "no one is available"
+ * instead of a request that silently waits and later reappears.
+ */
+export function shouldWiden(req: { status: MatchStatus; roundStartedAtMs: number; offeredCount?: number }, nowMs: number): boolean {
+  if (req.offeredCount === 0) return false;
   return req.status === "open" && nowMs - req.roundStartedAtMs >= MATCH_WIDEN_AFTER_MS;
 }
 
