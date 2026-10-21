@@ -7,6 +7,8 @@ import "server-only";
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseOfferingResourceSet } from "@/lib/resources/offering-resource-set";
+import { planSpacePoolForLink, type ExistingPool } from "@/lib/resources/space-pool-for-link";
+import type { SpaceKind, SpaceNode } from "@/lib/spaces/tree";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { mergeStationSpaceIds } from "./rent-station";
@@ -48,5 +50,55 @@ export async function releaseStationHold(
     }
   } catch (err) {
     logServerError("rent.releaseStation", err);
+  }
+}
+
+/**
+ * TUL-1600: the station's capacity pool must exist as soon as it is assigned, even when the member has no offering
+ * yet, so an offering created later can hold the station without ever linking a space that has no pool (the engine's
+ * rule: a link never exists without its pool). Same plan and same engine function as the offering link.
+ */
+export async function ensureStationPool(
+  admin: SupabaseClient,
+  p: { tenantId: string; spaceId: string },
+): Promise<{ ok: true } | { ok: false }> {
+  try {
+    const [{ data: spaceRows, error: spErr }, { data: poolRows, error: poolErr }] = await Promise.all([
+      tenantScopedQuery(admin, "spaces", p.tenantId).select("id, kind, parent_id, name"),
+      tenantScopedQuery(admin, "capacity_pools", p.tenantId).select("id, subject_id, units_total, parent_pool_id").eq("subject_kind", "space").eq("pool_key", "default"),
+    ]);
+    if (spErr || poolErr) {
+      logServerError("rent.ensureStationPool.read", spErr ?? poolErr);
+      return { ok: false };
+    }
+    const rows = (spaceRows ?? []) as Array<{ id: string; kind: SpaceKind; parent_id: string | null; name: string }>;
+    const nodes: SpaceNode[] = rows.map((r) => ({ id: r.id, kind: r.kind, parentId: r.parent_id }));
+    const pools = new Map<string, ExistingPool>(
+      ((poolRows ?? []) as Array<{ id: string; subject_id: string; units_total: number; parent_pool_id: string | null }>).map((x) => [
+        x.subject_id,
+        { id: x.id, unitsTotal: x.units_total, parentPoolId: x.parent_pool_id },
+      ]),
+    );
+    const plan = planSpacePoolForLink({ spaceId: p.spaceId, nodes, pools });
+    if (plan.action === "refuse") return { ok: false };
+    if (plan.action === "use") return { ok: true };
+    const { error } = await admin.rpc("upsert_capacity_pool", {
+      p_tenant_id: p.tenantId,
+      p_subject_kind: "space",
+      p_subject_id: p.spaceId,
+      p_units_total: plan.units,
+      p_pool_key: "default",
+      p_parent_pool_id: plan.parentPoolId,
+      p_unit_label: rows.find((r) => r.id === p.spaceId)?.name ?? null,
+      p_is_active: true,
+    });
+    if (error) {
+      logServerError("rent.ensureStationPool.write", error);
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (err) {
+    logServerError("rent.ensureStationPool", err);
+    return { ok: false };
   }
 }
