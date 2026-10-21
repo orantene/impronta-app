@@ -6,7 +6,7 @@
 
 import { strict as assert } from "node:assert";
 import { describe, it } from "node:test";
-import { confirmationTotalRows, generateBookingConfirmationPdf } from "./booking-confirmation-pdf";
+import { confirmationTotalRows, generateBookingConfirmationPdf, RECEIPT_FEE_FOOTNOTE_EN, RECEIPT_FEE_FOOTNOTE_ES } from "./booking-confirmation-pdf";
 
 describe("generateBookingConfirmationPdf", () => {
   it("produces a valid, non-trivial PDF for the canonical booking", async () => {
@@ -116,5 +116,17 @@ describe("confirmationTotalRows", () => {
       }),
       fallback,
     );
+  });
+});
+
+describe("TUL-1595: the receipt makes no absolute refund claim and carries the footnote in EN and ES", () => {
+  it("footnotes are the approved copy (fee-copy section 3)", () => {
+    assert.equal(RECEIPT_FEE_FOOTNOTE_EN, "The Tulala service fee is paid by the customer and charged on the price after discounts. It is not charged on tips.");
+    assert.equal(RECEIPT_FEE_FOOTNOTE_ES, "El cargo por servicio de Tulala lo paga el cliente y se calcula sobre el precio después de descuentos. No se cobra sobre propinas.");
+  });
+  it("the PDF source no longer says fees are non-refundable", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("./booking-confirmation-pdf.ts", import.meta.url), "utf8");
+    assert.ok(!/non-refundable/i.test(src.replace(/\/\/.*$/gm, "")), "no absolute refund claim on the receipt");
   });
 });

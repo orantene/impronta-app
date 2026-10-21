@@ -88,8 +88,8 @@ export default async function RefundsPage() {
               </p>
               <p>
                 Card processing fees are non-refundable. Neither the talent nor{" "}
-                {PLATFORM_BRAND.name} covers those fees when a refund is issued. The{" "}
-                {PLATFORM_BRAND.name} service fee paid by the client is not refunded either.
+                {PLATFORM_BRAND.name} covers those fees when a refund is issued. When the business
+                cancels, the Tulala service fee is refunded.
               </p>
             </>
           ),
