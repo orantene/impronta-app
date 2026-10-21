@@ -17,6 +17,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import type { StockRole } from "./platform-stock";
 
 export const STOCK_QA_VERSION = "qa@v1";
@@ -106,6 +107,8 @@ async function visionChecks(input: StockQaInput): Promise<StockQaResult["checks"
   const skipped = Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: "no QA model configured" }]));
   const model = input.visionModel?.trim();
   if (!model) return skipped;
+  // The QA model is a paid OpenAI call: the master switch stops it too (TUL-1622). Skipped, not failed.
+  if (!(await isAiMasterEnabled())) return skipped;
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) return skipped;
   try {

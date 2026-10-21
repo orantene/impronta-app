@@ -7,7 +7,9 @@ import { createOpenAiChatAdapter } from "@/lib/ai/providers/openai-adapter";
 import type { AiProviderAdapter } from "@/lib/ai/provider";
 import { resolveAnthropicApiKey, resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import { createDisabledChatAdapter } from "@/lib/ai/providers/disabled-chat-adapter";
 import { logServerError } from "@/lib/server/safe-error";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 import { AI_ROUTE_SETTING_KEYS, AI_ROUTED_CALLS, parseRouteValue, providerForModel, type AiRoutedCall } from "./call-routing";
@@ -51,6 +53,8 @@ function bound(adapter: AiProviderAdapter, model: string): AiProviderAdapter {
  * so in the server log once per request.
  */
 export async function resolveRoutedChat(call: AiRoutedCall): Promise<RoutedChat> {
+  // A routed model builds its adapter directly, so it needs its own master-switch check (TUL-1622).
+  if (!(await isAiMasterEnabled())) return { adapter: createDisabledChatAdapter("off"), model: undefined, source: "auto" };
   const routes = await readRoutes();
   const model = routes[call];
   if (!model) return { adapter: await resolveAiChatAdapter(), model: undefined, source: "auto" };
@@ -73,6 +77,7 @@ export async function resolveRoutedChat(call: AiRoutedCall): Promise<RoutedChat>
  * provider, not the global default, so quality stays measured.
  */
 export async function resolveFailoverChat(call: AiRoutedCall, failedProvider: AiProviderAdapter["id"] | string): Promise<RoutedChat | null> {
+  if (!(await isAiMasterEnabled())) return null;
   const failed = String(failedProvider);
   if (failed !== "anthropic") {
     const key = await resolveAnthropicApiKey();

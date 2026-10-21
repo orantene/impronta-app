@@ -2,6 +2,8 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchTenantControls } from "@/lib/ai/ai-provider-repository";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { logServerError } from "@/lib/server/safe-error";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 
 const minuteBuckets = new Map<string, { bucket: number; count: number }>();
 
@@ -16,7 +18,7 @@ function currentMinuteBucket(): number {
 
 export type AiUsageGateResult =
   | { ok: true }
-  | { ok: false; code: "rate_limit" | "spend_cap" | "monthly_requests"; message: string };
+  | { ok: false; code: "ai_off" | "rate_limit" | "spend_cap" | "monthly_requests"; message: string };
 
 /**
  * Best-effort guard before provider-backed work. Stateless servers share DB counters only.
@@ -24,6 +26,10 @@ export type AiUsageGateResult =
 export async function assertAiInvocationAllowed(
   tenantId: string = DEFAULT_AI_TENANT_ID,
 ): Promise<AiUsageGateResult> {
+  // The AI master switch comes first (TUL-1622): this gate runs before provider-backed work in the
+  // builder, edit mode, writing helper, site composition, support and onboarding, so one check here
+  // stops all of them with a clean "AI is off" refusal and before any usage row is written.
+  if (!(await isAiMasterEnabled())) return { ok: false, code: "ai_off", message: AI_OFF_MESSAGE };
   const controls = await fetchTenantControls(tenantId);
   if (!controls) return { ok: true };
 
