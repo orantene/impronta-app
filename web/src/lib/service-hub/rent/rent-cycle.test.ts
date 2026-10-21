@@ -8,11 +8,13 @@ const plan = (over: Partial<RentPlan> = {}): RentPlan => ({
   tenantId: "t-1",
   talentProfileId: "tp-1",
   monthlyRentCents: 120000,
+  percentBps: 0,
   currency: "MXN",
   startsOn: "2026-09-01",
   status: "active",
   acceptedAt: "2026-08-30T10:00:00Z",
   acceptedAmountCents: 120000,
+  acceptedPercentBps: 0,
   acceptedCurrency: "MXN",
   termsVersion: 1,
   acceptedTermsVersion: 1,
@@ -59,9 +61,9 @@ describe("which months may be invoiced", () => {
     }
     assert.deepEqual(decideRentIssue({ plan: plan({ monthlyRentCents: 0 }), period: "2026-10", now: NOW }), { ok: false, reason: "bad_amount" });
   });
-  test("the month rolls on UTC, not local time", () => {
-    assert.equal(currentRentPeriod(new Date("2026-10-31T23:59:59Z")), "2026-10");
-    assert.equal(currentRentPeriod(new Date("2026-11-01T00:00:00Z")), "2026-11");
+  test("the month rolls at Mexico City midnight (06:00 UTC)", () => {
+    assert.equal(currentRentPeriod(new Date("2026-11-01T05:59:59Z")), "2026-10");
+    assert.equal(currentRentPeriod(new Date("2026-11-01T06:00:00Z")), "2026-11");
   });
 });
 
