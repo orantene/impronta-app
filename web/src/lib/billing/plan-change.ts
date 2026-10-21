@@ -28,6 +28,8 @@ import {
 export type PlanChangeStripe = {
   subscriptions: Pick<Stripe["subscriptions"], "retrieve" | "update">;
   invoices: Pick<Stripe["invoices"], "createPreview">;
+  /** TUL-1297: reads the target price's amount + currency for an interval change. */
+  prices: Pick<Stripe["prices"], "retrieve">;
   subscriptionSchedules: Pick<Stripe["subscriptionSchedules"], "create" | "update" | "release" | "retrieve">;
 };
 
@@ -98,7 +100,25 @@ export async function previewPlanChange(
     if (typeof c === "string") return { ok: false, error: c, code: "not_allowed" };
     const policy = planChangePolicy({ plan: c.fromPlan, interval: c.fromInterval }, { plan: req.toPlan, interval: req.toInterval });
     const prorationDate = nowProrationDate(nowMs);
-    const base = { kind: policy.kind, timing: policy.timing, prorationDate, cancelsPendingChange: c.scheduleId !== null };
+    const base = {
+      kind: policy.kind,
+      timing: policy.timing,
+      prorationDate,
+      cancelsPendingChange: c.scheduleId !== null,
+      fromInterval: c.fromInterval,
+      toInterval: req.toInterval,
+      newPrice: null as { amount: number; currency: string } | null,
+    };
+    const isIntervalChange = policy.kind === "interval_up" || policy.kind === "interval_down";
+    if (isIntervalChange) {
+      // Fail closed: no readable price, no preview (never a made-up number or a currency fallback).
+      const price = await stripe.prices.retrieve(req.toPriceId);
+      const currency = price.currency?.trim();
+      if (price.unit_amount == null || !currency) {
+        return { ok: false, error: "This plan is not available for that billing period.", code: "no_price" };
+      }
+      base.newPrice = { amount: price.unit_amount, currency };
+    }
     if (policy.timing === "period_end") {
       return {
         ok: true,
@@ -113,12 +133,14 @@ export async function previewPlanChange(
       return { ok: true, ...base, amountDueToday: 0, currency: c.item.price.currency, effectiveAt: null };
     }
     const invoice = await stripe.invoices.createPreview(buildPreviewParams(subject(req, c, req.toPriceId), prorationDate));
+    // A trialing subscription keeps its trial: the new interval starts being billed when the trial ends.
+    const trialEnd = c.sub.status === "trialing" ? c.sub.trial_end : null;
     return {
       ok: true,
       ...base,
       amountDueToday: invoice.amount_due,
       currency: invoice.currency,
-      effectiveAt: null,
+      effectiveAt: isIntervalChange && trialEnd ? iso(trialEnd) : null,
     };
   } catch {
     return { ok: false, error: "We could not price this change. Try again.", code: "stripe" };

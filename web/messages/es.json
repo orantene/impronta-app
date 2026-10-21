@@ -11326,6 +11326,9 @@
         "changesOn": "Tu plan cambia a {plan} el {date}. Hoy no se cobra nada.",
         "cancelPending": "Conserva tu plan actual y cancela el cambio programado.",
         "noChange": "Ya tienes este plan.",
+        "switchYearlyNow": "Cambiar a facturación anual: {price} al año. Pagas {amount} hoy.",
+        "switchYearlyAt": "Cambiar a facturación anual: {price} al año, a partir del {date}. Hoy no se cobra nada.",
+        "switchMonthlyAt": "Cambiar a facturación mensual: {price} al mes, a partir del {date}. Hoy no se cobra nada.",
         "confirm": "Confirmar cambio",
         "cancel": "Ahora no",
         "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
