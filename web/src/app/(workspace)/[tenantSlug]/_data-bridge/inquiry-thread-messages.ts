@@ -6,6 +6,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
+import { clientRequestLeadBody } from "@/lib/client-account/client-thread-pure";
 import { INQUIRY_CLOSED_STATUSES } from "./inquiries-workspace";
 import type { ThreadType, WorkspaceMessage } from "./inquiries-messages";
 
@@ -85,7 +86,35 @@ export async function loadClientInquiryMessages(
   /** TUL-255: the effective viewer (impersonation subject); absent = the session user. */
   viewerUserId?: string,
 ): Promise<WorkspaceMessage[]> {
-  return loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client", viewerUserId });
+  const messages = await loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client", viewerUserId });
+  // TUL-1258: lead with the request the client typed (it is the inquiry's own `message`, not a row).
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return messages;
+    const { data: inq } = await admin
+      .from("inquiries")
+      .select("id, message, created_at")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const row = inq as { id: string; message: string | null; created_at: string | null } | null;
+    const lead = row?.created_at ? clientRequestLeadBody(messages, row) : null;
+    if (!row || !lead || !row.created_at) return messages;
+    const first: WorkspaceMessage = {
+      id: `inquiry-request:${row.id}`,
+      sender_user_id: viewerUserId ?? "",
+      sender_name: "",
+      sender_role: "you",
+      body: lead,
+      created_at: row.created_at,
+      is_mine: true,
+      message_kind: "text",
+    };
+    return [first, ...messages];
+  } catch (err) {
+    logServerError("workspace.loadClientInquiryMessages.request", err);
+    return messages;
+  }
 }
 
 /**
