@@ -460,7 +460,7 @@ export function GuestDockLineupView({
 
       {/* Start an inquiry with the current lineup — jumps to Chat; the draft
           picks the cart up through the existing preload/submit bridge. */}
-      {cartTalents.length > 0 && onStartInquiry && (
+      {inquiryCount > 0 && onStartInquiry && (
         <div style={{ padding: "8px 14px 2px" }}>
           <button
             type="button"
@@ -479,7 +479,7 @@ export function GuestDockLineupView({
             }}
           >
             {interpolate(t("public.guestChat.dockLineupStartInquiry"), {
-              count: cartTalents.length,
+              count: inquiryCount,
             })}
           </button>
         </div>

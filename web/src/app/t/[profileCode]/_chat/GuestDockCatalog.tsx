@@ -412,21 +412,18 @@ export function GuestDockCatalog(p: GuestDockCatalogProps) {
                 label={added ? t("public.guestChat.catalogInInquiry") : busyId === row.id ? t("public.guestChat.catalogAdding") : t("public.guestChat.catalogAddInquiry")}
                 primary={!added}
                 disabled={added || busyId === row.id}
-                onClick={() => void onAdd(row)}
+                onClick={() => {
+                  // TUL-1238: ONE add button per row. A service/class that needs options opens the
+                  // booking sheet, otherwise it goes straight into the inquiry.
+                  if (selectInPage) selectCatalogRow({ offeringId: row.offeringId ?? null, requestIsland: requestChatAddService, addToInquiry: () => void onAdd(row) });
+                  else void onAdd(row);
+                }}
                 C={C}
                 accent={accent}
                 accentInk={accentInk}
               />
             ) : null}
-            {selectInPage && row.available ? (
-              <SmallButton itemName={row.title}
-                label={t("public.guestChat.catalogAdd")}
-                onClick={() => { selectCatalogRow({ offeringId: row.offeringId ?? null, requestIsland: requestChatAddService, addToInquiry: () => void onAdd(row) }); }}
-                C={C}
-                accent={accent}
-                accentInk={accentInk}
-              />
-            ) : buyHref && row.available && !row.requestOnly ? (
+            {selectInPage && row.available ? null : buyHref && row.available && !row.requestOnly ? (
               <SmallButton itemName={row.title}
                 label={row.category === "service" || row.category === "class" ? t("public.guestChat.catalogAdd") : dockStorefrontCtaLabel(row.category, locale, t("public.guestChat.catalogBuyNow"))}
                 href={buyHref}
