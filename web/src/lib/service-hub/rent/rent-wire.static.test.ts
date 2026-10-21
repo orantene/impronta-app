@@ -72,8 +72,9 @@ describe("rent billing wiring (TUL-1376)", () => {
 
   test("TUL-1601: autopay is gated, consent-collecting, and the webhook handles it before the plan routing", () => {
     const actions = code(sources.find((s) => s.f === "rent-autopay-actions.ts")!.text);
-    assert.match(actions, /rentAutopayGate\(\)/);
-    assert.ok(actions.indexOf("rentAutopayGate()") < actions.indexOf("createServiceRoleClient()"), "gate before any read");
+    assert.match(actions, /rentAutopayFlagOn\(\)/);
+    assert.ok(actions.indexOf("rentAutopayFlagOn()") < actions.indexOf("createServiceRoleClient()"), "flag before any read");
+    assert.match(actions, /rentAutopayGate\(process\.env, platform\)/);
     assert.match(actions, /recurringConsentParams\(/);
     assert.match(actions, /idempotencyKey: `rent_sub_/);
     const handler = readFileSync(join(dir, "../../stripe/webhook-handler.ts"), "utf8");

@@ -3,7 +3,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { RENT_COPY } from "@/lib/service-hub/rent/rent-copy";
-import { rentAutopayGate } from "@/lib/service-hub/rent/rent-autopay";
+import { rentAutopayFlagOn } from "@/lib/service-hub/rent/rent-autopay";
 import { RentProposalCard, type RentProposal } from "./RentProposalCard";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -24,7 +24,7 @@ export default async function RentProposalsPage() {
     if (rowsErr) logServerError("rent-proposals.list", rowsErr);
     for (const r of (rows ?? []) as Array<{ id: string; status: string; monthly_rent_cents: number; rent_percent_bps: number | null; autopay_status?: string | null; currency: string; starts_on: string; agencies: { display_name: string | null } | Array<{ display_name: string | null }> | null }>) {
       const ag = Array.isArray(r.agencies) ? r.agencies[0] : r.agencies;
-      proposals.push({ id: r.id, status: r.status, workspaceName: ag?.display_name ?? "", monthlyRentCents: r.monthly_rent_cents, percentBps: r.rent_percent_bps ?? 0, autopayStatus: r.autopay_status ?? "off", autopayOffered: rentAutopayGate().ok, currency: r.currency, startsOn: r.starts_on });
+      proposals.push({ id: r.id, status: r.status, workspaceName: ag?.display_name ?? "", monthlyRentCents: r.monthly_rent_cents, percentBps: r.rent_percent_bps ?? 0, autopayStatus: r.autopay_status ?? "off", autopayOffered: rentAutopayFlagOn(), currency: r.currency, startsOn: r.starts_on });
     }
   }
   return (
