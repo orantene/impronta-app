@@ -123,7 +123,7 @@ function buildApplyDeps(admin: SupabaseClient, account: StripeAccountKey): RentA
 }
 
 /** Webhook entry: apply one classified rent-subscription event. Never throws. */
-export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: Exclude<RentSubscriptionEvent, { type: "draft" }>, account: StripeAccountKey = "us"): Promise<ApplyOutcome> {
+export async function handleRentSubscriptionEvent(admin: SupabaseClient, ev: Exclude<RentSubscriptionEvent, { type: "draft" | "past_draft" }>, account: StripeAccountKey = "us"): Promise<ApplyOutcome> {
   try {
     return await applyRentSubscriptionEvent(ev, buildApplyDeps(admin, account));
   } catch (err) {
@@ -329,14 +329,19 @@ export type PercentDraftOutcome = "added" | "nothing_owed" | "skipped" | "retry"
  * marker that cannot be written still alerts. (Collecting a marked month by payment link needs a percentage-only
  * invoice key of its own: a separate card, the (plan, month) row is taken by that month's rent.)
  */
-export async function markPercentMissed(admin: SupabaseClient, p: { tenantId: string; planId: string; month: string; reason: "finalized" | "flag_off" }): Promise<void> {
-  logServerError("rent.autopay.percentMissed", new Error(`plan ${p.planId}: percentage of ${p.month} was not billed (${p.reason})`));
+export type MarkMissedOutcome = "marked" | "already" | "error";
+
+export async function markPercentMissed(admin: SupabaseClient, p: { tenantId: string; planId: string; month: string; reason: "finalized" | "flag_off" }): Promise<MarkMissedOutcome> {
   try {
-    const { data } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).select("autopay_percent_missed").eq("id", p.planId).maybeSingle();
-    const current = ((data as { autopay_percent_missed?: string[] | null } | null)?.autopay_percent_missed ?? []) as string[];
-    if (current.includes(p.month)) return;
+    const { data, error: readErr } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).select("autopay_percent_missed").eq("id", p.planId).maybeSingle();
+    // A read we could not make is NOT "nothing marked yet": writing [month] now would overwrite the months already marked.
+    if (readErr) throw readErr;
+    if (!data) throw new Error(`plan ${p.planId} not found`);
+    const current = ((data as { autopay_percent_missed?: string[] | null }).autopay_percent_missed ?? []) as string[];
+    if (current.includes(p.month)) return "already";
     const { error } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).update({ autopay_percent_missed: [...current, p.month] }).eq("id", p.planId);
     if (error) throw error;
+    logServerError("rent.autopay.percentMissed", new Error(`plan ${p.planId}: percentage of ${p.month} was not billed (${p.reason})`));
     afterResponse(() =>
       dispatchEventNotifications({
         type: "rent.autopay_percent_missed",
@@ -345,8 +350,45 @@ export async function markPercentMissed(admin: SupabaseClient, p: { tenantId: st
         payload: { period: p.month, rentUrl: `${getAppUrl()}` },
       }).catch((err) => logServerError("rent.autopay.percentMissedNotify", err)),
     );
+    return "marked";
   } catch (err) {
     logServerError("rent.autopay.percentMissedMark", err);
+    return "error";
+  }
+}
+
+/**
+ * TUL-1717 · An invoice of a percentage plan that reached us already past its draft window (`invoice.created` with a
+ * status other than draft, or `invoice.finalized`) and was never stamped: its closed month's percentage was NOT billed, so
+ * the month is marked for the link path instead of being lost. Stamped invoices, fixed-only plans, a month the owner
+ * took outside and a foreign subscription are skipped. A read or write that failed is "retry", never a silent skip.
+ */
+export async function handleRentUnbilledPercent(
+  admin: SupabaseClient,
+  ev: Extract<RentSubscriptionEvent, { type: "past_draft" }>,
+): Promise<"marked" | "skipped" | "retry"> {
+  try {
+    if (ev.stamped) return "skipped";
+    const { data, error } = await tenantScopedQuery(admin, "studio_rent_plans", ev.tenantId)
+      .select("stripe_subscription_id, rent_percent_bps, accepted_percent_bps, autopay_first_period, autopay_skip_periods")
+      .eq("id", ev.planId)
+      .maybeSingle();
+    if (error) {
+      logServerError("rent.autopay.pastDraft.read", error);
+      return "retry";
+    }
+    const plan = data as { stripe_subscription_id: string | null; rent_percent_bps: number | null; accepted_percent_bps: number | null; autopay_first_period: string | null; autopay_skip_periods: string[] | null } | null;
+    if (!plan || plan.stripe_subscription_id !== ev.subscriptionId) return "skipped";
+    const percentBps = plan.rent_percent_bps ?? 0;
+    if (percentBps <= 0 || plan.accepted_percent_bps !== percentBps) return "skipped";
+    const month = percentMonthForInvoice({ invoicePeriod: periodOfSeconds(ev.periodStart), autopayFirstPeriod: plan.autopay_first_period });
+    if (!month) return "skipped";
+    if (shouldSkipAutopayInvoice(plan.autopay_skip_periods ?? [], month)) return "skipped";
+    const out = await markPercentMissed(admin, { tenantId: ev.tenantId, planId: ev.planId, month, reason: "finalized" });
+    return out === "error" ? "retry" : out === "marked" ? "marked" : "skipped";
+  } catch (err) {
+    logServerError("rent.autopay.pastDraft", err);
+    return "retry";
   }
 }
 
@@ -372,18 +414,17 @@ export async function addPercentToDraft(admin: SupabaseClient, stripe: Stripe, e
     if (!month || ev.feeBps == null || !ev.customerId) return "skipped";
     // TUL-1646: a month the owner recorded as paid outside already settled its percentage; never bill it again.
     if (shouldSkipAutopayInvoice(plan.autopay_skip_periods ?? [], month)) return "skipped";
-    // The percentage switch is off (never on, or turned off after being on): the fixed part still bills, so say so loudly.
-    if (!rentAutopayPercentFlagOn()) {
-      await markPercentMissed(admin, { tenantId: ev.tenantId, planId: ev.planId, month, reason: "flag_off" });
-      return "skipped";
-    }
-    // Re-read the LIVE invoice: the event may be old. A stamped invoice is done; one that is no longer a draft (a sales
-    // read that kept failing until Stripe finalized it) can no longer take the percentage: mark the month, never lose it.
+    // Re-read the LIVE invoice FIRST: the event may be old. A stamped invoice is done, whatever the switch says now.
     const live = await stripe.invoices.retrieve(ev.invoiceId);
     if (live.metadata?.rent_percent_cents != null) return "skipped";
+    // The percentage switch is off (never on, or turned off after being on): the fixed part still bills, so say so loudly.
+    if (!rentAutopayPercentFlagOn()) {
+      return (await markPercentMissed(admin, { tenantId: ev.tenantId, planId: ev.planId, month, reason: "flag_off" })) === "error" ? "retry" : "skipped";
+    }
+    // No longer a draft (a sales read that kept failing until Stripe finalized it): it can no longer take the percentage:
+    // mark the month, never lose it.
     if (live.status !== "draft") {
-      await markPercentMissed(admin, { tenantId: ev.tenantId, planId: ev.planId, month, reason: "finalized" });
-      return "skipped";
+      return (await markPercentMissed(admin, { tenantId: ev.tenantId, planId: ev.planId, month, reason: "finalized" })) === "error" ? "retry" : "skipped";
     }
     const base = await loadMemberSalesBase(admin, { tenantId: ev.tenantId, talentProfileId: plan.talent_profile_id, period: month, currency: plan.currency });
     const lines = percentRentLines({ salesBaseCents: base, percentBps, feeBps: ev.feeBps });
