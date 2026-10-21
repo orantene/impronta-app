@@ -212,7 +212,7 @@ describe("findAssetUsage (TUL-1637)", () => {
 });
 
 const usage = (over: Partial<Record<string, string[] | boolean>> = {}) => ({
-  brand: [], pages: [], posts: [], services: [], events: [], talent: [], unchecked: false, blocked: [], ...over,
+  brand: [], pages: [], posts: [], services: [], events: [], talent: [], unchecked: false, blocked: [], places: [], ...over,
 }) as Parameters<typeof describeAssetUsageRefusal>[0];
 
 describe("describeAssetUsageRefusal", () => {

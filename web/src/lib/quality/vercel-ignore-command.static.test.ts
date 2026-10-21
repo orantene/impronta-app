@@ -16,7 +16,7 @@ test("ignoreCommand builds the production branch", () => {
 // Exit 0 = SKIP the build, non-zero = build (Vercel's ignoreCommand contract).
 function skips(ref: string, env: Record<string, string> = {}): boolean {
   const r = spawnSync("sh", ["-c", cmd], {
-    env: { PATH: process.env.PATH ?? "", VERCEL_GIT_COMMIT_REF: ref, ...env },
+    env: { NODE_ENV: "test", PATH: process.env.PATH ?? "", VERCEL_GIT_COMMIT_REF: ref, ...env },
   });
   assert.ok(r.status === 0 || r.status === 1, `ignoreCommand must exit 0 or 1, got ${r.status}`);
   return r.status === 0;

@@ -1089,7 +1089,7 @@ function MediaLightbox({
           if (cropBusy) return;
           setCropMode(aspect === 1 ? "profile" : aspect === "free" ? "free" : "cover");
         }}
-        onDelete={() => void deletePhoto()}
+        onDelete={() => deletePhoto()}
         onRevertCrop={current.sourceMediaAssetId ? revertToOriginal : undefined}
         labels={{
           setAsProfile: t("dashboard.adminMedia.useAsProfile"),

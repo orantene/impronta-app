@@ -82,7 +82,7 @@ export function AdminNewClientSheet({
             <p className="text-sm text-foreground">{t("dashboard.adminNewClientSheet.invitedTitle")}</p>
             <div className="rounded-lg border border-border/45 bg-muted/15 p-3">
               <p className="text-sm text-foreground">
-                {t("dashboard.adminNewClientSheet.invitedBody", { email: state.createdEmail ?? "" })}
+                {t("dashboard.adminNewClientSheet.invitedBody").replace("{email}", state.createdEmail ?? "")}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">{t("dashboard.adminNewClientSheet.invitedHint")}</p>
             </div>
