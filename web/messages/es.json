@@ -2520,6 +2520,7 @@
       "appleFailed": "Apple no terminó. Inténtalo de nuevo o usa tu correo.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo."
     },
+    "pageLoading": "Cargando la página",
     "pricingInterval": {
       "groupLabel": "Periodo de facturación",
       "monthly": "Mensual",
