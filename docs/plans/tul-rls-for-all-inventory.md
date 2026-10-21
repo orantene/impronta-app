@@ -76,8 +76,8 @@ Open product questions:
 | inquiry_participants | inquiry_participants_talent_owning_party_staff | mixed (per-table read) | talent/client/participant also write legitimately; needs a per-table read of who writes before any change |
 | inquiry_reports | inquiry_reports_staff | mixed (per-table read) | talent/client/participant also write legitimately; needs a per-table read of who writes before any change |
 | lesson_package_consumptions | lesson_package_consumptions_staff | wave 2 | access/identity/config table: is_tenant_admin writes, or service-role-only after a writer audit |
-| media_assets | media_assets_tenant_staff_all | wave 3 | content or operational table: is_tenant_writer (editor+) for writes, is_staff_of_tenant for SELECT |
-| media_assets | media_write_staff | wave 3 | content or operational table: is_tenant_writer (editor+) for writes, is_staff_of_tenant for SELECT |
+| media_assets | media_assets_tenant_staff_all | wave 3 | content or operational table: is_tenant_writer (editor+) for writes, is_staff_of_tenant for SELECT (held 20261231425100) |
+| media_assets | media_write_staff | wave 3 | content or operational table: is_tenant_writer (editor+) for writes, is_staff_of_tenant for SELECT (held 20261231425100) |
 | media_grants | mg_all_owner_tenant_staff | wave 2 | access/identity/config table: is_tenant_admin writes, or service-role-only after a writer audit |
 | media_release_bake_failures | mrbf_all_owner_tenant_staff | wave 3 | content or operational table: is_tenant_writer (editor+) for writes, is_staff_of_tenant for SELECT |
 | notifications | notifications_merged_all_public | mixed (per-table read) | talent/client/participant also write legitimately; needs a per-table read of who writes before any change |
