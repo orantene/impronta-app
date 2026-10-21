@@ -19,6 +19,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { submitReviewViaTokenAction } from "@/lib/reviews/review-token-actions";
+import { privateNoteAudience, privateNotePageLabel, type NoteWorkspace } from "@/lib/reviews/private-note-audience";
 import { ReviewPhotoUploader } from "@/app/(workspace)/[tenantSlug]/client/_components/ReviewPhotoUploader";
 import {
   REVIEW_TRAITS,
@@ -89,7 +90,10 @@ export function ReviewTokenForm({
   talentProfileId,
   t,
   serviceName = null,
+  noteWorkspace = null,
 }: {
+  /** TUL-1686: the invite's workspace, so the private-note label names who reads it. null = unknown. */
+  noteWorkspace?: NoteWorkspace;
   /** G2 (TUL-1272 #11): the page copy in the page language. */
   t: ReviewPageCopy;
   /** The service the review is about, when the booking has one. */
@@ -537,10 +541,10 @@ export function ReviewTokenForm({
         </div>
       </div>
 
-      {/* Private note — talent-only */}
+      {/* Private note: the talent, or the workspace in a team studio (TUL-1686) */}
       <div style={{ marginTop: 18 }}>
         <label htmlFor={`${groupId}-private`} style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}>
-          {fillCopy(t.privateNote, { name: talentName })}
+          {privateNotePageLabel(privateNoteAudience(noteWorkspace, talentName), t)}
         </label>
         <textarea
           id={`${groupId}-private`}

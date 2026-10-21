@@ -14,6 +14,7 @@ import { useT } from "@/i18n/use-t";
 import { useAdminShell } from "../state";
 import { PageHeader } from "./pages-shared";
 import { ReviewModerationQueue } from "../drawers/profile-shell/profile-shell-modules/review-moderation-queue";
+import { WorkspacePrivateNotesCard } from "./WorkspacePrivateNotesCard";
 
 export function ReviewsPage() {
   const t = useT();
@@ -36,7 +37,11 @@ export function ReviewsPage() {
         }
       />
       {tenantId ? (
-        <ReviewModerationQueue tenantId={tenantId} />
+        <>
+          <ReviewModerationQueue tenantId={tenantId} />
+          {/* TUL-1686: team studios only; renders nothing elsewhere. */}
+          <WorkspacePrivateNotesCard tenantId={tenantId} />
+        </>
       ) : (
         <div className="rounded-[12px] border border-admin-border-soft bg-admin-card p-[24px] text-admin-13 text-admin-ink-muted">
           {t("dashboard.adminReviews.noTenant")}

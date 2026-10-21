@@ -37,6 +37,7 @@ import {
 } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
 import { loadExistingReviewsByKey } from "./review-existing-load";
+import { readNoteWorkspace } from "./private-note-routing";
 import { offeringIdForBooking, stampReviewOffering } from "./review-offering";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -365,6 +366,11 @@ export async function loadReviewableBookingsAction(
     bookingIds,
   );
 
+  // TUL-1686: who reads the private note (team studio: the workspace). Read with the
+  // service role (clients cannot read agencies); null on failure = neutral label.
+  const svc = createServiceRoleClient();
+  const noteWorkspace = svc ? await readNoteWorkspace(svc, tenantId) : null;
+
   const byId = new Map(reviewable.map((b) => [b.id, b] as const));
   const out: ReviewableBooking[] = [];
   for (const t of talents ?? []) {
@@ -377,6 +383,7 @@ export async function loadReviewableBookingsAction(
       talentName: t.talent_name_snapshot,
       eventTitle: b.title,
       eventDate: b.event_date,
+      noteWorkspace,
       existingReview:
         existingByKey.get(`${b.id}:${t.talent_profile_id}`) ?? null,
     });

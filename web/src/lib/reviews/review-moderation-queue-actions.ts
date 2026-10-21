@@ -18,8 +18,10 @@ import {
   loadModerationQueue,
   loadModerationIntegritySignals,
   loadReportedReviews,
+  loadWorkspaceReviewPrivateNotes,
   type ModerationIntegritySignal,
   type ReportedReview,
+  type WorkspaceReviewPrivateNote,
 } from "./review-moderation-loaders";
 
 /** Reported (subject-flagged) reviews for a tenant, staff-scoped. */
@@ -41,4 +43,11 @@ export async function loadModerationQueueAction(
   tenantId: string,
 ): Promise<{ reported: ReportedReview[]; signals: ModerationIntegritySignal[] }> {
   return loadModerationQueue(tenantId);
+}
+
+/** TUL-1686: team-studio client private notes, for the workspace's staff only. */
+export async function loadWorkspaceReviewPrivateNotesAction(
+  tenantId: string,
+): Promise<WorkspaceReviewPrivateNote[]> {
+  return loadWorkspaceReviewPrivateNotes(tenantId);
 }

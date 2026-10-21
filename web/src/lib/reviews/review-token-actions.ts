@@ -48,6 +48,8 @@ import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { ensureGuestClientByEmail } from "@/lib/inquiry/guest-client";
 import { isValidRating } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
+import { readNoteWorkspace } from "./private-note-routing";
+import type { NoteWorkspace } from "./private-note-audience";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { resolveReviewLocale, type ReviewLocale } from "./review-page-copy";
 import {
@@ -157,6 +159,8 @@ export async function loadReviewInviteByToken(
       locale: ReviewLocale;
       /** G2: the service this review is about, in the page language; null when none. */
       serviceName: string | null;
+      /** TUL-1686: the invite's workspace for the private-note label; null = could not be read. */
+      noteWorkspace: NoteWorkspace;
     }
 > {
   const t = cleanToken(token);
@@ -230,6 +234,7 @@ export async function loadReviewInviteByToken(
       message: (row.message ?? "").trim() || null,
       locale,
       serviceName,
+      noteWorkspace: await readNoteWorkspace(svc, row.tenant_id),
     };
   } catch (err) {
     logServerError("reviews/token/load", err);

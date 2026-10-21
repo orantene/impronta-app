@@ -286,7 +286,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/notifications/my-notifications-actions.ts", ["loadMyNotifications"], READ],
   ["lib/talent/profile-embeds/actions.ts", ["fetchTalentProfileExtrasAction"], READ],
   ["lib/reviews/review-owner-actions.ts", ["loadOwnerReceivedReviewsAction", "loadOwnerPrivateNoteThemesAction", "loadReviewAnalyticsAction"], READ],
-  ["lib/reviews/review-moderation-queue-actions.ts", ["loadReportedReviewsAction", "loadModerationIntegritySignalsAction", "loadModerationQueueAction"], READ],
+  ["lib/reviews/review-moderation-queue-actions.ts", ["loadReportedReviewsAction", "loadModerationIntegritySignalsAction", "loadModerationQueueAction", "loadWorkspaceReviewPrivateNotesAction"], READ],
   ["lib/reviews/review-request-actions.ts", ["loadReviewRequestsForOwnerAction", "reviewsEnabledForTenantAction"], READ],
   ["lib/reviews/review-token-actions.ts", ["loadReviewInviteByToken"], READ],
   ["lib/channels/pairing-actions.ts", ["loadWhatsAppConnection"], READ],
