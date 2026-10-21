@@ -1,3 +1,4 @@
+import { loadTalentInvitationEmail } from "@/lib/talent/invitation-email";
 import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -37,6 +38,8 @@ export async function loadSelfProfileEditorData(input: {
   talentProfileId: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | { ok: false; error: string }> {
   const { supabase, tenantId, talentProfileId } = input;
+  // TUL-1791: invitation_email is read through the RPC (own row), not the column.
+  const invitationEmailP = loadTalentInvitationEmail(supabase, talentProfileId);
   const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues, privateFields] = await Promise.all([
     supabase
       .from("talent_profiles")
@@ -48,7 +51,6 @@ export async function loadSelfProfileEditorData(input: {
         display_name, first_name, last_name, field_visibility,
         gender, nationality, home_country_text,
         is_discoverable,
-        invitation_email,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
         availability_data,
         social_links, embedded_media,
@@ -141,7 +143,7 @@ export async function loadSelfProfileEditorData(input: {
       response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
-      invitation_email: (p.invitation_email as string | null) ?? null,
+      invitation_email: await invitationEmailP,
       phone: (p.phone as string | null) ?? null,
       bios,
       bio_tone: sv.bio_tone ?? null,
