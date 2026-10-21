@@ -93,7 +93,10 @@ jobs:
     # seconds of the cap, so the outcome was decided by runner variance
     # rather than by the work. This does not make CI slower; it stops a slow
     # run being killed. See the "Main CI cancelled itself" incident.
-    timeout-minutes: 45
+    # 75, not 45 (Oct 21): batch gates now run under load and hit the 45 cap
+    # (timeouts show as `cancelled`, which blocks promote-production). Stopgap
+    # until the gate is split into parallel jobs.
+    timeout-minutes: 75
     defaults:
       run:
         working-directory: web
