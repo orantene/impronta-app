@@ -18,7 +18,8 @@ import sharp from "sharp";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
 import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import type { StockRole } from "./platform-stock";
 
@@ -136,9 +137,13 @@ async function visionChecks(input: StockQaInput): Promise<StockQaResult["checks"
         messages: [{ role: "user", content: [{ type: "text", text: question }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${small.toString("base64")}`, detail: "low" } }] }],
       }),
     });
-    await recordAiUsageEstimate(aiTenantId).catch(() => {});
-    if (!res.ok) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `vision HTTP ${res.status}` }]));
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    if (!res.ok) {
+      await recordMeasuredAiSpend(aiTenantId, 0, 0); // a failed call still counts as a request, at no spend
+      return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `vision HTTP ${res.status}` }]));
+    }
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+    // TUL-1731: the REAL cost of this vision call, from the reply's token usage at the QA model's rate.
+    await recordMeasuredAiSpend(aiTenantId, chatSpendUsd(model, { inputTokens: json.usage?.prompt_tokens, outputTokens: json.usage?.completion_tokens }));
     const raw = json.choices?.[0]?.message?.content ?? "";
     const m = raw.match(/\{[\s\S]*\}/);
     if (!m) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: "unparseable vision reply" }]));

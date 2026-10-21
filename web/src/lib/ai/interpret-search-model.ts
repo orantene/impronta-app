@@ -1,6 +1,7 @@
 import { formatInterpretCatalogForPrompt } from "@/lib/ai/interpret-search-catalog";
 import type { InterpretCatalogTerm } from "@/lib/ai/interpret-search-catalog";
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
+import type { AiUsage } from "@/lib/ai/provider";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import type { RawModelIntent } from "@/lib/ai/validate-interpret-intent";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -94,7 +95,7 @@ export type InterpretSearchModelFailureCode =
   | "model_exception";
 
 export type InterpretSearchModelResult =
-  | { ok: true; intent: RawModelIntent }
+  | { ok: true; intent: RawModelIntent; /** The provider's usage for this call (TUL-1731: priced by the real tokens). */ model?: string | null; usage?: AiUsage }
   | { ok: false; code: InterpretSearchModelFailureCode; message: string };
 
 export async function runInterpretSearchModel(args: {
@@ -175,7 +176,7 @@ ${locationBlock}`;
       };
     }
 
-    return { ok: true, intent };
+    return { ok: true, intent, model: result.model ?? null, usage: result.usage };
   } catch (e: unknown) {
     const msg =
       e instanceof Error && e.message.trim() ? e.message.trim() : "Unexpected model error.";

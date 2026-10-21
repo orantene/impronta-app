@@ -48,6 +48,7 @@ src/lib/ai/providers/anthropic-adapter.test.ts
 src/lib/ai/providers/thinking-default.test.ts
 src/lib/ai/resolve-api-keys-env-fallback.test.ts
 src/lib/ai/resolve-location-from-query.test.ts
+src/lib/ai/spend-cents.test.ts
 src/lib/ai/writing-helper-trade-words.test.ts
 src/lib/analytics/sanitize-url.test.ts
 src/lib/analytics/scrub-leaks.test.ts

@@ -47,7 +47,11 @@ function cacheSet(key: string, embedding: number[]): void {
  * Server-only: OpenAI embeddings for AI search. Returns null if key missing or request fails.
  * In-memory cache + in-flight dedupe per normalized key (Chunk 6).
  */
-export async function embedTextForSearch(text: string): Promise<number[] | null> {
+export async function embedTextForSearch(
+  text: string,
+  /** TUL-1731: called with the input tokens OpenAI billed, only when a real request was made (never for a cache hit or a deduped waiter). */
+  onTokens?: (inputTokens: number) => void,
+): Promise<number[] | null> {
   const normalized = normalizeSearchQueryForEmbedding(text).slice(0, 2000);
   if (!normalized) return null;
   const key = embeddingCacheKey(text);
@@ -58,7 +62,7 @@ export async function embedTextForSearch(text: string): Promise<number[] | null>
   const pending = inflight.get(key);
   if (pending) return pending;
 
-  const promise = embedTextForSearchUncached(text).then((emb) => {
+  const promise = embedTextForSearchUncached(text, onTokens).then((emb) => {
     inflight.delete(key);
     if (emb) cacheSet(key, emb);
     return emb;
@@ -67,7 +71,7 @@ export async function embedTextForSearch(text: string): Promise<number[] | null>
   return promise;
 }
 
-async function embedTextForSearchUncached(text: string): Promise<number[] | null> {
+async function embedTextForSearchUncached(text: string, onTokens?: (inputTokens: number) => void): Promise<number[] | null> {
   // Defence in depth (TUL-1622): the search route already checks the master switch; this keeps a
   // future caller from reaching the paid embeddings API with the switch off.
   if (!(await isAiMasterEnabled())) return null;
@@ -91,7 +95,10 @@ async function embedTextForSearchUncached(text: string): Promise<number[] | null
     if (!res.ok) return null;
     const json = (await res.json()) as {
       data?: Array<{ embedding?: number[] }>;
+      usage?: { prompt_tokens?: number; total_tokens?: number };
     };
+    const billedTokens = json?.usage?.prompt_tokens ?? json?.usage?.total_tokens;
+    if (typeof billedTokens === "number") onTokens?.(billedTokens);
     const emb = json?.data?.[0]?.embedding;
     return Array.isArray(emb) && emb.length > 0 ? emb : null;
   } catch {

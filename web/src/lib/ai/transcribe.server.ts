@@ -71,7 +71,8 @@ export function isAcceptedAudioType(mime: string): boolean {
  * that would have to be stripped. There is no diarisation or timing need here —
  * one person, one answer, plain text out.
  */
-const MODEL = "gpt-4o-mini-transcribe";
+export const TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe";
+const MODEL = TRANSCRIBE_MODEL;
 
 export type TranscribeResult =
   | { ok: true; text: string }
