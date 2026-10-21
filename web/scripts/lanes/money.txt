@@ -15,6 +15,7 @@ src/components/talent/money/ledger-clients-state.test.ts
 src/components/talent/service-hub/channel-panels.render.test.tsx
 src/lib/account/export-bundle.test.ts
 src/lib/account/export-scoping.test.ts
+src/lib/ai/booking-assistant/tools/order-pay-link.server.test.ts
 src/lib/approvals/enforce.test.ts
 src/lib/approvals/requests.test.ts
 src/lib/approvals/role-limits-wire.static.test.ts
