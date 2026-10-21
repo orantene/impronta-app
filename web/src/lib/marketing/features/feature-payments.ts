@@ -8,9 +8,9 @@ import type { Feature } from "./types";
  * platform rather than an integration, so a deposit is one setting on a
  * service instead of a processor account plus a plugin.
  *
- * FEE ACCURACY IS NON-NEGOTIABLE HERE. Six percent total, three from the
- * client and three from the seller, processing included, same on every plan.
- * Never round it, never omit the split, never imply it is lower.
+ * FEE ACCURACY IS NON-NEGOTIABLE HERE. The fee is the Tulala service fee,
+ * set per plan in Platform Admin and added on top for the client. Do not
+ * type a percentage here; never imply it is lower than it is.
  */
 export const PAYMENTS_FEATURE: Feature = {
   key: "payments",
@@ -65,7 +65,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "One clear fee, and no plan gate",
         body: [
           [
-            "The platform fee on booked work is six percent: three percent from the client and three percent from the seller, with card processing included in that number.",
+            "The Tulala service fee on booked work is added on top for the client and shown at checkout before they pay. It is set per plan.",
           ],
           [
             "It is the same on every plan including the free one. A business that cannot get paid is not a business, so we do not put the money rail behind a subscription.",
@@ -102,7 +102,7 @@ export const PAYMENTS_FEATURE: Feature = {
       "Checkout on your own site",
       "Deposits, balances and full prepayment",
       "Payouts to your own bank account",
-      "Six percent on booked work, processing included",
+      "Tulala service fee on booked work, shown before paying",
       "Available on every plan, including free",
       "One report across bookings, jobs and campaigns",
     ],
@@ -114,7 +114,7 @@ export const PAYMENTS_FEATURE: Feature = {
       },
       {
         q: "What exactly does it cost?",
-        a: "Six percent on booked work: three from the client and three from the seller, with card processing included in that number. Subscription plans are separate and do not change the fee.",
+        a: "The Tulala service fee on booked work is added on top for the client and shown at checkout before they pay. It is set per plan.",
       },
       {
         q: "When do I get the money?",
@@ -174,7 +174,7 @@ export const PAYMENTS_FEATURE: Feature = {
         heading: "Una comisión clara, y sin candado por plan",
         body: [
           [
-            "La comisión de la plataforma sobre el trabajo reservado es del seis por ciento: tres por ciento del cliente y tres por ciento del vendedor, con el procesamiento de tarjeta incluido en ese número.",
+            "El cargo por servicio de Tulala sobre el trabajo reservado se suma por encima para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
           ],
           [
             "Es igual en todos los planes, incluido el gratuito. Un negocio que no puede cobrar no es un negocio, así que no ponemos el cobro detrás de una suscripción.",
@@ -211,7 +211,7 @@ export const PAYMENTS_FEATURE: Feature = {
       "Cobro en tu propio sitio",
       "Anticipos, saldos y pago completo",
       "Depósitos a tu propia cuenta bancaria",
-      "Seis por ciento sobre trabajo reservado, procesamiento incluido",
+      "Cargo por servicio de Tulala sobre trabajo reservado, visible antes de pagar",
       "Disponible en todos los planes, incluido el gratuito",
       "Un solo reporte entre reservas, trabajos y campañas",
     ],
@@ -223,7 +223,7 @@ export const PAYMENTS_FEATURE: Feature = {
       },
       {
         q: "¿Cuánto cuesta exactamente?",
-        a: "Seis por ciento sobre trabajo reservado: tres del cliente y tres del vendedor, con el procesamiento de tarjeta incluido en ese número. Los planes de suscripción son aparte y no cambian la comisión.",
+        a: "El cargo por servicio de Tulala sobre trabajo reservado se suma por encima para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
       },
       {
         q: "¿Cuándo recibo el dinero?",

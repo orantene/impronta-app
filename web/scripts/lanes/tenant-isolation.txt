@@ -81,6 +81,7 @@ src/lib/marketing/hub-client-entry.test.ts
 src/lib/marketing/launch-readiness/criteria.static.test.ts
 src/lib/marketing/launch-readiness/profile-criteria.static.test.ts
 src/lib/marketing/pricing-tier-localize.test.ts
+src/lib/marketing/service-fee-copy.static.test.ts
 src/lib/marketing/spanish-path-alias.test.ts
 src/lib/marketing/ticket-fee-comparison.test.ts
 src/lib/marketing/ticket-fee-qualifier.static.test.ts
