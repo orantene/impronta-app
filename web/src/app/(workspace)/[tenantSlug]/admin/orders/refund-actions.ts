@@ -5,7 +5,6 @@ import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { findTenantMembership } from "@/lib/saas/tenant";
-import { userHasCapability } from "@/lib/access";
 import { enforceRoleLimit } from "@/lib/approvals/enforce";
 import { refundOrderLines } from "@/lib/orders/refund-execute-lines";
 import { cancelHybridComponents } from "@/lib/orders/hybrid-package";
@@ -268,10 +267,13 @@ const schema = z.object({
 
 export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<RefundDeskResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: the guard used to default to the viewer-held
+  // `agency.workspace.view` and rely entirely on the `manage_billing`
+  // (owner-only) check further down. `booking.payment.refund` is admin tier,
+  // one notch looser than main's owner-only bar, so the guard asks for
+  // `manage_billing` directly instead — never loosen a bar the sweep found.
+  const guard = await requireWorkspaceStaffAction({ capability: "manage_billing" });
   if (!guard.ok) return { ok: false, outcome: "not_allowed" };
-  const allowed = await userHasCapability("manage_billing", guard.tenantId);
-  if (!allowed) return { ok: false, outcome: "not_allowed" };
   const parsed = schema.safeParse(input);
   if (!parsed.success || !isRefundEffect(parsed.data.effect)) {
     return { ok: false, outcome: "invalid" };
@@ -312,7 +314,7 @@ export async function refundOrderAtDesk(input: z.infer<typeof schema>): Promise<
   // limit). `allowed` is already proven above; it is passed so the guard's
   // rule list is the same at every door.
   const authorized = await authorizeRefund({
-    capable: allowed,
+    capable: true,
     requestedCents: parsed.data.amountCents ?? null,
     refundableCents: remainingCents,
     allowFullRemainder: true,
