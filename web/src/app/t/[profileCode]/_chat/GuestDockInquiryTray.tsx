@@ -54,8 +54,8 @@ export function GuestDockInquiryTray({
         {t("public.guestChat.dockTrayOpen")}
       </button>
     </div>
-    {open ? <GuestInquiryTrayList t={t} C={C} onRemoveCartTalent={onRemoveCartTalent} /> : null}
-    {open && onSend ? (
+    {open && count > 0 ? <GuestInquiryTrayList t={t} C={C} onRemoveCartTalent={onRemoveCartTalent} /> : null}
+    {open && onSend && count > 0 ? (
       <button
         type="button"
         data-guest-inquiry-tray-send=""
