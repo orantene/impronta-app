@@ -7,6 +7,7 @@ import { describe, test } from "node:test";
 
 import {
   loadTalentPrivateNotes,
+  isWorkspaceNoteReader,
   loadWorkspacePrivateNotes,
   privateNoteGoesToWorkspace,
   readTalentPrivateNotes,
@@ -52,6 +53,7 @@ function fakeRpc(reply: Reply) {
   };
 }
 
+const OWNER_ACTIVE = { data: [{ role: "owner", status: "active" }] };
 const MISSING = { data: null, error: { code: "PGRST202", message: "Could not find the function" } };
 
 const REVIEWS = [
@@ -155,14 +157,14 @@ describe("workspace side: team-studio staff get the notes, other models get none
 
   test("the DB reader is used when applied; held migration falls back; other errors show nothing", async () => {
     const rpc = fakeRpc({ data: [{ review_id: "r1", talent_profile_id: "tal-a", private_note: "Late, but kind.", created_at: "2026-10-03" }], error: null });
-    const db = fakeDb({});
-    assert.equal((await loadWorkspacePrivateNotes(rpc as never, db as never, "t-studio")).length, 1);
+    const db = fakeDb({ agency_memberships: OWNER_ACTIVE });
+    assert.equal((await loadWorkspacePrivateNotes(rpc as never, db as never, "t-studio", "u1")).length, 1);
     assert.deepEqual(rpc.calls, [{ fn: "review_private_notes_for_workspace", args: { p_tenant_id: "t-studio", p_limit: 20 } }]);
 
-    const fb = fakeDb({ agencies: { data: [{ id: "t-studio", work_model: "team_studio" }] }, talent_reviews: { data: [{ id: "r9", talent_profile_id: "x", private_note: "n", created_at: "d" }] } });
-    assert.deepEqual((await loadWorkspacePrivateNotes(fakeRpc(MISSING) as never, fb as never, "t-studio")).map((n) => n.reviewId), ["r9"]);
+    const fb = fakeDb({ agency_memberships: OWNER_ACTIVE, agencies: { data: [{ id: "t-studio", work_model: "team_studio" }] }, talent_reviews: { data: [{ id: "r9", talent_profile_id: "x", private_note: "n", created_at: "d" }] } });
+    assert.deepEqual((await loadWorkspacePrivateNotes(fakeRpc(MISSING) as never, fb as never, "t-studio", "u1")).map((n) => n.reviewId), ["r9"]);
 
-    assert.deepEqual(await loadWorkspacePrivateNotes(fakeRpc({ data: null, error: { message: "boom" } }) as never, fb as never, "t-studio"), []);
+    assert.deepEqual(await loadWorkspacePrivateNotes(fakeRpc({ data: null, error: { message: "boom" } }) as never, fb as never, "t-studio", "u1"), []);
   });
 });
 
@@ -181,5 +183,64 @@ describe("the forms' workspace read (private-note label)", () => {
     assert.equal(await readNoteWorkspace(fakeDb({ agencies: { data: null, error: { message: "down" } } }) as never, "t"), null);
     assert.equal(await readNoteWorkspace(fakeDb({ agencies: { data: null } }) as never, "t"), null);
     assert.equal(await readNoteWorkspace(fakeDb({}) as never, null), null);
+  });
+});
+
+describe("who may read the workspace's notes: an ACTIVE owner or admin only (consultant hold, #4234)", () => {
+  const ROWS = [{ id: "r1", talent_profile_id: "tal-a", private_note: "Late, but kind.", created_at: "2026-10-03" }];
+  async function asMember(member: Array<{ role: string; status: string }> | null, error?: { message: string }) {
+    const rpc = fakeRpc({ data: [{ review_id: "r1", talent_profile_id: "tal-a", private_note: "Late, but kind.", created_at: "2026-10-03" }], error: null });
+    const db = fakeDb({
+      agency_memberships: error ? { data: null, error } : { data: member ?? [] },
+      agencies: { data: [{ id: "t-studio", work_model: "team_studio" }] },
+      talent_reviews: { data: ROWS },
+    });
+    const viaRpc = await loadWorkspacePrivateNotes(rpc as never, db as never, "t-studio", "u1");
+    const viaFallback = await loadWorkspacePrivateNotes(fakeRpc(MISSING) as never, db as never, "t-studio", "u1");
+    return { viaRpc, viaFallback, rpc, db };
+  }
+
+  test("a viewer seat is denied (a talent with a viewer seat never reads notes about herself)", async () => {
+    const r = await asMember([{ role: "viewer", status: "active" }]);
+    assert.deepEqual(r.viaRpc, []);
+    assert.deepEqual(r.viaFallback, []);
+    assert.equal(r.rpc.calls.length, 0, "the DB reader is not even asked");
+    assert.ok(!r.db.seen.some((x) => x.table === "talent_reviews"), "no note is read");
+  });
+
+  test("an owner still pending acceptance is denied", async () => {
+    const r = await asMember([{ role: "owner", status: "pending_acceptance" }]);
+    assert.deepEqual(r.viaRpc, []);
+    assert.deepEqual(r.viaFallback, []);
+  });
+
+  test("an active owner is allowed", async () => {
+    const r = await asMember([{ role: "owner", status: "active" }]);
+    assert.deepEqual(r.viaRpc.map((n) => n.reviewId), ["r1"]);
+    assert.deepEqual(r.viaFallback.map((n) => n.reviewId), ["r1"]);
+  });
+
+  test("an active admin is allowed", async () => {
+    const r = await asMember([{ role: "admin", status: "active" }]);
+    assert.deepEqual(r.viaRpc.map((n) => n.reviewId), ["r1"]);
+    assert.deepEqual(r.viaFallback.map((n) => n.reviewId), ["r1"]);
+  });
+
+  test("editor and manager seats, no membership, or an unreadable membership are denied", async () => {
+    for (const m of [[{ role: "editor", status: "active" }], [{ role: "manager", status: "active" }], [{ role: "admin", status: "suspended" }], []]) {
+      const r = await asMember(m);
+      assert.deepEqual([r.viaRpc, r.viaFallback], [[], []], JSON.stringify(m));
+    }
+    const r = await asMember(null, { message: "down" });
+    assert.deepEqual([r.viaRpc, r.viaFallback], [[], []]);
+  });
+
+  test("the membership read is scoped to this tenant and this user", async () => {
+    const db = fakeDb({ agency_memberships: OWNER_ACTIVE });
+    assert.equal(await isWorkspaceNoteReader(db as never, "t-studio", "u1"), true);
+    const eqs = db.seen.filter((x) => x.table === "agency_memberships" && x.op === "eq").map((x) => x.args);
+    assert.deepEqual(eqs, [["tenant_id", "t-studio"], ["profile_id", "u1"]]);
+    assert.equal(await isWorkspaceNoteReader(db as never, "", "u1"), false);
+    assert.equal(await isWorkspaceNoteReader(db as never, "t", ""), false);
   });
 });

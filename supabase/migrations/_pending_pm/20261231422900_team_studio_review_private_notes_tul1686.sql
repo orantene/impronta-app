@@ -20,7 +20,10 @@
 --       review_private_notes_for_talent(profile, limit)  the owner's notes,
 --         WITHOUT any review earned in a team_studio workspace.
 --       review_private_notes_for_workspace(tenant, limit) the workspace's notes,
---         staff of that tenant only (is_staff_of_tenant), team_studio only.
+--         ACTIVE OWNER or ADMIN members of that tenant only, team_studio only.
+--         Not is_staff_of_tenant: that admits viewer/editor/manager seats, members
+--         still pending acceptance and platform admins, so a talent holding a
+--         viewer seat could read notes about herself (consultant hold, #4234).
 --   * The column privilege is re-asserted: the migration aborts if anon or
 --     authenticated can SELECT private_note, so a later blanket GRANT cannot
 --     silently reopen the talent path.
@@ -75,8 +78,9 @@ AS $$
    LIMIT LEAST(GREATEST(COALESCE(p_limit, 6), 1), 50);
 $$;
 
--- 3. The workspace's notes. Staff of that tenant only, and only when the tenant
---    runs as a team studio (other models: the note is the talent's, not staff's).
+-- 3. The workspace's notes. Only an ACTIVE owner or admin membership of that
+--    tenant (no viewer/editor/manager seat, no pending member), and only when the
+--    tenant runs as a team studio (other models: the note is the talent's).
 CREATE OR REPLACE FUNCTION public.review_private_notes_for_workspace(
   p_tenant_id uuid,
   p_limit integer DEFAULT 20
@@ -90,7 +94,13 @@ AS $$
   SELECT r.id, r.talent_profile_id, r.private_note, r.created_at
     FROM public.talent_reviews r
    WHERE r.tenant_id = p_tenant_id
-     AND public.is_staff_of_tenant(p_tenant_id)
+     AND EXISTS (
+           SELECT 1 FROM public.agency_memberships m
+            WHERE m.tenant_id  = p_tenant_id
+              AND m.profile_id = auth.uid()
+              AND m.role IN ('owner', 'admin')
+              AND m.status = 'active'
+         )
      AND public.review_note_goes_to_workspace(p_tenant_id)
      AND r.private_note IS NOT NULL
      AND btrim(r.private_note) <> ''

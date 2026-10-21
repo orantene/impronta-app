@@ -42,10 +42,16 @@ test("talent reader: owner only, team-studio reviews excluded", () => {
   assert.match(fn, /SECURITY DEFINER\s+SET search_path = public/);
 });
 
-test("workspace reader: staff of that tenant only, team studio only", () => {
+test("workspace reader: ACTIVE owner/admin of that tenant only (not is_staff_of_tenant), team studio only", () => {
   const fn = fnBody("review_private_notes_for_workspace");
   assert.match(fn, /r\.tenant_id = p_tenant_id/);
-  assert.match(fn, /public\.is_staff_of_tenant\(p_tenant_id\)/);
+  assert.doesNotMatch(fn, /is_staff_of_tenant|is_platform_admin/, "staff helper admits viewer/editor/pending seats");
+  assert.match(fn, /FROM public\.agency_memberships m/);
+  assert.match(fn, /m\.tenant_id\s+= p_tenant_id/);
+  assert.match(fn, /m\.profile_id = auth\.uid\(\)/);
+  assert.match(fn, /m\.role IN \('owner', 'admin'\)/);
+  assert.match(fn, /m\.status = 'active'/);
+  assert.doesNotMatch(fn, /pending_acceptance|'viewer'|'editor'|'manager'/);
   assert.match(fn, /public\.review_note_goes_to_workspace\(p_tenant_id\)/);
   assert.match(fn, /SECURITY DEFINER\s+SET search_path = public/);
 });
@@ -81,6 +87,12 @@ test("the workspace Reviews page shows team-studio notes behind the staff gate",
   const loaders = read("src/lib/reviews/review-moderation-loaders.ts");
   const fn = loaders.slice(loaders.indexOf("export async function loadWorkspaceReviewPrivateNotes"));
   assert.ok(fn.indexOf("gateModeration(tenantId)") >= 0 && fn.indexOf("gateModeration(tenantId)") < fn.indexOf("loadWorkspacePrivateNotes("));
+  assert.match(fn, /loadWorkspacePrivateNotes\(session, gate\.svc, gate\.tid, gate\.userId, limit\)/);
+  const routing = read("src/lib/reviews/private-note-routing.ts");
+  const ws = routing.slice(routing.indexOf("export async function loadWorkspacePrivateNotes"));
+  assert.ok(ws.indexOf("isWorkspaceNoteReader(svc, tenantId, userId)") < ws.indexOf("session.rpc("), "role check runs before any read");
+  assert.match(routing, /WORKSPACE_NOTE_READER_ROLES = \["owner", "admin"\] as const/);
+  assert.match(routing, /row\.status === "active"/);
   assert.match(read("src/lib/reviews/review-moderation-queue-actions.ts"), /export async function loadWorkspaceReviewPrivateNotesAction/);
   assert.match(read("src/components/admin/shell/internal/page-modules/ReviewsPage.tsx"), /<WorkspacePrivateNotesCard tenantId=\{tenantId\} \/>/);
   const card = read("src/components/admin/shell/internal/page-modules/WorkspacePrivateNotesCard.tsx");

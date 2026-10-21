@@ -110,7 +110,7 @@ export async function readTalentPrivateNotes(svc: Db, talentProfileId: string, l
 
 /**
  * Workspace side, service-role fallback: the tenant's notes, only when it is a team
- * studio. The caller has already checked the caller is staff of this tenant.
+ * studio. The caller has already checked the caller is an active owner/admin.
  */
 export async function readWorkspacePrivateNotes(svc: Db, tenantId: string, limit = 20): Promise<WorkspacePrivateNote[]> {
   try {
@@ -129,6 +129,35 @@ export async function readWorkspacePrivateNotes(svc: Db, tenantId: string, limit
       .filter((n) => n.note.length > 0);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Who may read a workspace's private notes: an ACTIVE owner or admin membership of
+ * that tenant. Viewer, editor and manager seats and members still pending
+ * acceptance are denied (a talent holding a viewer seat must never read notes
+ * about herself). The repo has no reviews-moderation capability; the moderation
+ * queue's `agency.workspace.view` admits every seat, so it is not enough here.
+ */
+export const WORKSPACE_NOTE_READER_ROLES = ["owner", "admin"] as const;
+
+export function isWorkspaceNoteReaderRow(row: { role?: string | null; status?: string | null } | null | undefined): boolean {
+  return !!row && row.status === "active" && (WORKSPACE_NOTE_READER_ROLES as readonly string[]).includes(row.role ?? "");
+}
+
+/** The membership check, read with the service role. Any failure denies. */
+export async function isWorkspaceNoteReader(db: Db, tenantId: string, userId: string): Promise<boolean> {
+  if (!tenantId || !userId) return false;
+  try {
+    const { data, error } = await db
+      .from("agency_memberships")
+      .select("role, status")
+      .eq("tenant_id", tenantId)
+      .eq("profile_id", userId);
+    if (error || !Array.isArray(data)) return false;
+    return (data as Array<{ role?: string | null; status?: string | null }>).some(isWorkspaceNoteReaderRow);
+  } catch {
+    return false;
   }
 }
 
@@ -154,14 +183,20 @@ export async function loadTalentPrivateNotes(
   }
 }
 
-/** Workspace side: the DB reader as the signed-in staff member, else the fallback. */
+/**
+ * Workspace side: only an active owner/admin of the tenant (checked first, in code,
+ * so the held-migration fallback is gated too); then the DB reader as that member,
+ * else the fallback.
+ */
 export async function loadWorkspacePrivateNotes(
   session: RpcDb,
   svc: Db,
   tenantId: string,
+  userId: string,
   limit = 20,
 ): Promise<WorkspacePrivateNote[]> {
   try {
+    if (!(await isWorkspaceNoteReader(svc, tenantId, userId))) return [];
     const { data, error } = await session.rpc("review_private_notes_for_workspace", { p_tenant_id: tenantId, p_limit: limit });
     if (isMissingFunction(error)) return readWorkspacePrivateNotes(svc, tenantId, limit);
     if (error || !Array.isArray(data)) return [];
