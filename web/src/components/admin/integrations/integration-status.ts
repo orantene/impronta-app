@@ -19,6 +19,7 @@ export type IntegrationStatusKind =
   | "action_needed"
   | "reconnect"
   | "setup_required"
+  | "pending_verification"
   | "error"
   | "locked";
 
@@ -92,6 +93,18 @@ export function resolveIntegrationStatus(
       fg: COLORS.criticalDeep,
       bg: COLORS.criticalSoft,
       dot: COLORS.critical,
+    };
+  }
+
+  // A manually added payout account waits for bank details or Stripe; it is not connected yet.
+  if (integration.status === "pending_verification") {
+    return {
+      kind: "pending_verification",
+      label: "Pending verification",
+      labelKey: `${STATUS_NS}.pendingVerification`,
+      fg: COLORS.coralDeep,
+      bg: COLORS.coralSoft,
+      dot: COLORS.coral,
     };
   }
 

@@ -71,8 +71,9 @@ export async function connectTalentPayoutAccount(
     owner_id: talentProfileId,
     display_name: displayName,
     provider: "manual_bank",
-    status: "connected",
-    connected_at: new Date().toISOString(),
+    // Starts pending: a manual account has no bank details, so it must not be payout-eligible until
+    // bank details or a Stripe Connect account exist (receiver logic only reads status = connected).
+    status: "pending_verification",
   });
   if (error) {
     // A double click raced us to the unique index: the account exists, which is what was asked.
