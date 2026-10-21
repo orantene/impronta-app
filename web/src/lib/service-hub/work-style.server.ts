@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
+import { tradeFromCategories, type ExampleTrade } from "./work-style";
 import { planWorkStyleChange, presetFor, rowToChoice, storedToPreset, type Change, type StoredWorkStyle, type WorkStyleChoice } from "./work-style";
 
 /**
@@ -118,4 +119,15 @@ export async function saveWorkStyle(
     return { ok: false, reason: "failed" };
   }
   return { ok: true, changed: true };
+}
+
+/** The workspace's trade for the example lines, from its own services. null = unknown (use the stable pick). */
+export async function loadWorkspaceTrade(admin: SupabaseClient, tenantId: string): Promise<ExampleTrade | null> {
+  const { data, error } = await tenantScopedQuery(admin, "talent_offerings", tenantId).select("category, title").eq("status", "published").limit(200);
+  if (error) {
+    logServerError("service-hub.workStyle.trade", error);
+    return null;
+  }
+  const rows = (data ?? []) as Array<{ category?: string | null; title?: string | null }>;
+  return tradeFromCategories(rows.flatMap((r) => [r.category, r.title]));
 }
