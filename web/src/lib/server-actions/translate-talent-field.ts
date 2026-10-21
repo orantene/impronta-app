@@ -28,6 +28,7 @@ import {
   type TalentTranslateField,
   type TalentTranslateLocale,
 } from "@/lib/translation/talent-field-translate";
+import { assertHubTalentAiAllowed } from "@/lib/ai/hub-talent-subcap";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { afterResponse } from "@/lib/server/after-response";
 
@@ -66,6 +67,9 @@ export async function translateTalentField(input: TranslateTalentFieldInput): Pr
   if (!(await isResolvedAiChatConfigured())) return fail("no_key", "No AI provider is configured.");
 
   const tenantId = self.tenantId ?? DEFAULT_AI_TENANT_ID;
+  // TUL-1749: on the shared hub tenant each talent has their own share, checked first so a capped talent spends none of the tenant's.
+  const share = await assertHubTalentAiAllowed({ tenantId, talentProfileId: self.id });
+  if (!share.ok) return fail(share.code === "talent_rate_limit" ? "rate_limit" : "quota", share.message);
   const gate = await assertAiInvocationAllowed(tenantId);
   if (!gate.ok) return fail(gate.code === "rate_limit" ? "rate_limit" : "quota", gate.message);
   if (!(await underDailyCap(tenantId, { scope: TALENT_TRANSLATE_SCOPE, talentProfileId: self.id, cap: TALENT_TRANSLATE_DAILY_CAP }))) {

@@ -59,9 +59,11 @@ export function BioHelperCard() {
         setNotice(
           r.code === "cap"
             ? t("dashboard.talent.bioHelper.capReached")
-            : r.code === "ai_off"
-              ? t("dashboard.talent.bioHelper.aiOff")
-              : t("dashboard.talent.bioHelper.tryAgain"),
+            : r.code === "personal_cap"
+              ? t("dashboard.talent.bioHelper.personalCapReached")
+              : r.code === "ai_off"
+                ? t("dashboard.talent.bioHelper.aiOff")
+                : t("dashboard.talent.bioHelper.tryAgain"),
         );
       }
       setStatus("idle");

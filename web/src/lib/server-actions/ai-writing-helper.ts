@@ -10,6 +10,7 @@
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { resolveRoutedChat } from "@/lib/ai/call-routing.server";
 import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { assertHubTalentAiAllowed } from "@/lib/ai/hub-talent-subcap";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
 import { BIO_MAX_CHARS, buildWritingPrompt, screenWrittenText, WRITING_OPS, WRITING_TONES, type WritingFacts, type WritingOp, type WritingTone } from "@/lib/ai/writing-helper";
 import { resolveOwnTradeWords, restoreOwnTradeWords } from "@/lib/ai/writing-helper-trade-words";
@@ -27,7 +28,7 @@ export async function loadMyBio(): Promise<BioHelperState> {
   return { ok: true, text: self.text, facts: self.facts, tenantId: self.tenantId };
 }
 
-export type WriteResult = { ok: true; text: string } | { ok: false; code: "not_authenticated" | "no_profile" | "ai_off" | "cap" | "unusable" | "failed"; message?: string };
+export type WriteResult = { ok: true; text: string } | { ok: false; code: "not_authenticated" | "no_profile" | "ai_off" | "cap" | "personal_cap" | "unusable" | "failed"; message?: string };
 
 /** One helper call. Returns the draft only; nothing is saved until `saveMyBio`. */
 export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | null; text: string; locale: Locale }): Promise<WriteResult> {
@@ -38,6 +39,9 @@ export async function aiWriteMyBio(input: { op: WritingOp; tone?: WritingTone | 
   const self = await selfFacts();
   if (!self) return { ok: false, code: "no_profile" };
   const tenantId = self.tenantId;
+  // TUL-1749: on the shared hub tenant each talent has their own share, checked first so a capped talent spends none of the tenant's.
+  const share = await assertHubTalentAiAllowed({ tenantId, talentProfileId: self.id });
+  if (!share.ok) return { ok: false, code: "personal_cap", message: share.message };
   const gate = tenantId ? await assertAiInvocationAllowed(tenantId) : await assertAiInvocationAllowed();
   if (!gate.ok) return { ok: false, code: "ai_off" };
   if (tenantId && !(await underDailyCap(tenantId, { scope: "writing_helper", talentProfileId: self.id }))) return { ok: false, code: "cap" };
