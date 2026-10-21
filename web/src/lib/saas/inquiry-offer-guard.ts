@@ -29,6 +29,7 @@ import {
 import { requireSession } from "@/lib/server/action-guards";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import type { CapabilityKey } from "@/lib/access";
 import {
   validateActorPermission,
   type EngineAction,
@@ -36,8 +37,26 @@ import {
 
 export type OfferVerb = Extract<EngineAction, "create_offer" | "update_offer" | "send_offer">;
 
+/**
+ * TUL-1708 P1: the staff fast-path inside `requireInquiryManagerAction` used
+ * to be called bare here, defaulting to the viewer-held `agency.workspace.view`
+ * — a viewer could send a client offer. `send_offer` is the manager-tier
+ * `send_client_offer` capability; `create_offer`/`update_offer` are drafting
+ * work on the inquiry, not yet sent to the client, so they gate on
+ * `coordinate_inquiry` (same bar as the rest of offer preparation in
+ * `_pipeline-actions.ts`, e.g. `counterOfferAction`).
+ */
+const OFFER_VERB_CAPABILITY: Record<OfferVerb, CapabilityKey> = {
+  create_offer: "coordinate_inquiry",
+  update_offer: "coordinate_inquiry",
+  send_offer: "send_client_offer",
+};
+
 export type OfferGuardDeps = {
-  manager: (inquiryId: string) => Promise<InquiryManagerActionGuard | { ok: false; error: string }>;
+  manager: (
+    inquiryId: string,
+    verb: OfferVerb,
+  ) => Promise<InquiryManagerActionGuard | { ok: false; error: string }>;
   session: () => Promise<{ supabase: SupabaseClient; user: User } | null>;
   permission: (
     supabase: SupabaseClient,
@@ -49,7 +68,8 @@ export type OfferGuardDeps = {
 };
 
 const defaultDeps: OfferGuardDeps = {
-  manager: requireInquiryManagerAction,
+  manager: (inquiryId, verb) =>
+    requireInquiryManagerAction(inquiryId, { capability: OFFER_VERB_CAPABILITY[verb] }),
   session: async () => {
     const auth = await requireSession();
     return auth.ok ? { supabase: auth.supabase, user: auth.user } : null;
@@ -82,7 +102,7 @@ export async function requireInquiryOfferAction(
   verb: OfferVerb,
   deps: OfferGuardDeps = defaultDeps,
 ): Promise<InquiryManagerActionGuard | { ok: false; error: string }> {
-  const manager = await deps.manager(inquiryId);
+  const manager = await deps.manager(inquiryId, verb);
   if (manager.ok) return manager;
 
   const trimmed = typeof inquiryId === "string" ? inquiryId.trim() : "";

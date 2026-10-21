@@ -45,7 +45,7 @@ function mapRosterEngineFailure(res: EngineErr): ActionResult {
 export async function rosterAddTalent(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
-  const auth = await requireInquiryManagerAction(inquiryId);
+  const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.rosterAddTalent });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
@@ -81,7 +81,7 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
 export async function rosterRemoveParticipant(formData: FormData): Promise<ActionResult> {
   await requireNotImpersonating();
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
-  const auth = await requireInquiryManagerAction(inquiryId);
+  const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.rosterRemoveParticipant });
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }

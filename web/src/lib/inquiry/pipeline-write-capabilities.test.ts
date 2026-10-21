@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ROLE_CAPABILITIES, TENANT_ROLE_KEYS, isKnownCapability, getCapability } from "@/lib/access";
-import { PIPELINE_WRITE_CAPABILITY } from "./pipeline-write-capabilities";
+import { PIPELINE_WRITE_CAPABILITY, PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY } from "./pipeline-write-capabilities";
 
 const VIEWER_DEFAULT_CAPABILITY = "agency.workspace.view";
 
@@ -102,4 +102,40 @@ test("edit_client_relationship is editor-tier or higher", () => {
   assert.equal(ROLE_CAPABILITIES.viewer.has("edit_client_relationship" as never), false);
   assert.ok(ROLE_CAPABILITIES.editor.has("edit_client_relationship" as never));
   assert.ok(ROLE_CAPABILITIES.manager.has("edit_client_relationship" as never));
+});
+
+// ── patchAgencySettingsNamespace: per-namespace gating ─────────────────
+
+test("every PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY value is a known, non-deprecated, non-viewer capability key", () => {
+  for (const [namespace, capability] of Object.entries(PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY)) {
+    assert.ok(isKnownCapability(capability), `${namespace}: "${capability}" is not a registered capability`);
+    const def = getCapability(capability);
+    assert.ok(def, `${namespace}: capability "${capability}" has no definition`);
+    assert.equal(def!.deprecated, false, `${namespace}: capability "${capability}" is deprecated`);
+    assert.equal(
+      ROLE_CAPABILITIES.viewer.has(capability),
+      false,
+      `${namespace}: "${capability}" must not be viewer-held`,
+    );
+  }
+});
+
+test("patchAgencySettingsNamespace('navigation') is editor-tier (site-admin navigation edit)", () => {
+  const cap = PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY.navigation;
+  assert.ok(ROLE_CAPABILITIES.editor.has(cap));
+});
+
+test("patchAgencySettingsNamespace('domain') is OWNER-only — domains outrank admin per the PM's final role scope", () => {
+  const cap = PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY.domain;
+  assert.equal(ROLE_CAPABILITIES.manager.has(cap), false, "manager must not hold the domain-namespace capability");
+  assert.equal(ROLE_CAPABILITIES.admin.has(cap), false, "admin must not hold the domain-namespace capability — domains are OWNER-only");
+  assert.ok(ROLE_CAPABILITIES.owner.has(cap), "owner must hold the domain-namespace capability");
+});
+
+test("patchAgencySettingsNamespace('theme'/'seo'/'languages'/'visibility'/'filters') are admin-tier", () => {
+  for (const namespace of ["theme", "seo", "languages", "visibility", "filters"] as const) {
+    const cap = PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY[namespace];
+    assert.equal(ROLE_CAPABILITIES.manager.has(cap), false, `${namespace}: manager must not hold "${cap}"`);
+    assert.ok(ROLE_CAPABILITIES.admin.has(cap), `${namespace}: admin must hold "${cap}"`);
+  }
 });

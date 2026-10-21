@@ -65,6 +65,11 @@ for (const [relPath, expectedBare] of Object.entries(EXPECTED_BARE_READS)) {
     const code = src(relPath);
     const withCapability = code.match(/(?:requireWorkspaceStaffAction|staff)\(\s*\{\s*capability:\s*([^}]+)\}\s*\)/g) ?? [];
     for (const call of withCapability) {
+      // patchAgencySettingsNamespace is the one deliberate exception: it
+      // gates PER NAMESPACE via PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY
+      // (a sibling lookup map in the same module, keyed by namespace) rather
+      // than a single flat WRITE_CAP.<action> — see pipeline-write-capabilities.ts.
+      if (/PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY\[/.test(call)) continue;
       assert.match(
         call,
         /WRITE_CAP\.\w+/,
@@ -85,3 +90,59 @@ test("every file that references WRITE_CAP imports it from the shared pipeline-w
     );
   }
 });
+
+/**
+ * TUL-1708 P1: `requireInquiryManagerAction(inquiryId)` is a DIFFERENT guard
+ * from `requireWorkspaceStaffAction` — it admits workspace staff OR the
+ * appointed inquiry coordinator. Its staff fast-path used to call
+ * `requireWorkspaceStaffAction()` with NO capability, so a viewer passed
+ * every write gated behind it (offers, bookings, payouts, coordinator
+ * assignment…). This is the P1 security fix: every WRITE call now passes
+ * `{ capability: WRITE_CAP.<action> }` as a SECOND argument. A bare call
+ * (single argument, no capability) is only allowed for the named READS
+ * below — this list must shrink to exactly these as the only exemptions,
+ * so a future bare `requireInquiryManagerAction(inquiryId)` call on a NEW
+ * writer fails this test instead of shipping another viewer-passable write.
+ */
+const BARE_MANAGER_GUARD_RE = /\bawait requireInquiryManagerAction\([^,()]*\)/g;
+
+const EXPECTED_BARE_MANAGER_READS: Record<string, number> = {
+  // loadInquiryPaymentState, loadEditableJobFields, loadInquiryLineup,
+  // loadOfferDraft, loadInquiryPayoutReceiverCandidates,
+  // loadSecondaryCoordinators, loadBookingCommissionSnapshotAction.
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-actions.ts": 7,
+  "src/lib/server-actions/admin-inquiries.ts": 0,
+  // loadInquiryAttachments.
+  "src/app/(workspace)/[tenantSlug]/admin/_pipeline-attachment-actions.ts": 1,
+  "src/lib/server-actions/admin-inquiry-roster.ts": 0,
+  "src/lib/server-actions/inquiry-attachment-signed.ts": 0,
+  "src/lib/server-actions/inquiry-message-edit.ts": 0,
+  "src/lib/server-actions/admin-call-sheet.ts": 0,
+  "src/lib/call-sheet/actions.ts": 0,
+  "src/lib/server-actions/reservation-propose.ts": 0,
+};
+
+for (const [relPath, expectedBare] of Object.entries(EXPECTED_BARE_MANAGER_READS)) {
+  test(`${relPath}: exactly ${expectedBare} bare requireInquiryManagerAction() read(s) remain, every writer passes a capability`, () => {
+    const code = src(relPath);
+    const bareMatches = code.match(BARE_MANAGER_GUARD_RE) ?? [];
+    assert.equal(
+      bareMatches.length,
+      expectedBare,
+      `expected ${expectedBare} bare requireInquiryManagerAction(inquiryId) call(s) in ${relPath}, found ${bareMatches.length}. ` +
+        `A new write behind this guard MUST pass { capability: WRITE_CAP.<action> } as a second argument.`,
+    );
+  });
+
+  test(`${relPath}: every requireInquiryManagerAction call with a capability sources it from WRITE_CAP`, () => {
+    const code = src(relPath);
+    const withCapability = code.match(/requireInquiryManagerAction\([^,()]*,\s*\{\s*capability:\s*([^}]+)\}\s*\)/g) ?? [];
+    for (const call of withCapability) {
+      assert.match(
+        call,
+        /WRITE_CAP\.\w+/,
+        `${relPath}: "${call}" must source its capability from the WRITE_CAP map, not an inline literal`,
+      );
+    }
+  });
+}

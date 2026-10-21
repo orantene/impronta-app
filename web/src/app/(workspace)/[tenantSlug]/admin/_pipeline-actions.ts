@@ -18,6 +18,7 @@
 import { resolveOfferAuthorName } from "./offer-author";
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction, requireInquiryManagerAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { requireInquiryOfferAction } from "@/lib/saas/inquiry-offer-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -116,6 +117,7 @@ export type {
 } from "./_pipeline-types";
 import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
+import { PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY } from "@/lib/inquiry/pipeline-write-capabilities";
 
 // ─── convertInquiryToBookingAction ────────────────────────────────────────────
 
@@ -136,7 +138,7 @@ export async function convertInquiryToBookingAction(
 ): Promise<PipelineActionResult<{ bookingId: string }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.convertInquiryToBookingAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -201,7 +203,7 @@ export async function submitTalentRate(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.submitTalentRate });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -251,7 +253,7 @@ export async function counterOfferAction(
 ): Promise<PipelineActionResult<{ offerId: string }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.counterOfferAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -341,8 +343,9 @@ export async function loadInquiryPaymentState(
 async function withInquiryBooking<T>(
   inquiryId: string,
   fn: (ctx: { supabase: import("@supabase/supabase-js").SupabaseClient; userId: string; tenantId: string; bookingId: string }) => Promise<T>,
+  options?: { capability?: CapabilityKey },
 ): Promise<PipelineActionResult<T>> {
-  const auth = await requireInquiryManagerAction(inquiryId);
+  const auth = await requireInquiryManagerAction(inquiryId, options);
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, user, tenantId } = auth;
 
@@ -378,7 +381,7 @@ export async function markInquiryPaymentReceived(
     if (!txn) throw new Error("No active transaction.");
     const result = await markPaid(txn.id);
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.markInquiryPaymentReceived });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -392,7 +395,7 @@ export async function markInquiryPaymentPending(
     if (!txn) throw new Error("No active transaction.");
     const result = await markPending(txn.id);
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.markInquiryPaymentPending });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -406,7 +409,7 @@ export async function markInquiryPaymentDisputed(
     if (!txn) throw new Error("No active transaction.");
     const result = await markDisputed(txn.id);
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.markInquiryPaymentDisputed });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -421,7 +424,7 @@ export async function markInquiryPaymentFailed(
     if (!txn) throw new Error("No active transaction.");
     const result = await markFailed(txn.id, reason.trim() || "manual_marked_failed");
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.markInquiryPaymentFailed });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -435,7 +438,7 @@ export async function cancelInquiryTransaction(
     if (!txn) throw new Error("No active transaction.");
     const result = await cancelTransaction(txn.id);
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.cancelInquiryTransaction });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -455,7 +458,7 @@ export async function createInquiryTransactionDraft(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.createInquiryTransactionDraft });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -595,7 +598,7 @@ export async function requestInquiryPayment(
     if (!txn) throw new Error("No active transaction.");
     const result = await requestPayment(txn.id);
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.requestInquiryPayment });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -613,7 +616,7 @@ export async function initiateInquiryPayout(
     if (!txn) throw new Error("No active transaction.");
     const result = await initiatePayout(txn.id);
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.initiateInquiryPayout });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -631,7 +634,7 @@ export async function markInquiryPayoutSent(
     if (!txn) throw new Error("No active transaction.");
     const result = await markPayoutSent(txn.id, { providerReference: providerReference ?? null });
     if (!result.ok) throw new Error(result.error);
-  });
+  }, { capability: WRITE_CAP.markInquiryPayoutSent });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -696,7 +699,7 @@ export async function approveOfferAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.approveOfferAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -746,7 +749,7 @@ export async function acceptOfferForTalentAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.acceptOfferForTalentAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -857,7 +860,7 @@ export async function rejectOfferAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.rejectOfferAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -911,7 +914,13 @@ export async function patchAgencySettingsNamespace(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.patchAgencySettingsNamespace });
+    // Gated PER NAMESPACE (TUL-1708 re-key) — `navigation` is an EDITOR-tier
+    // site-admin edit, `domain` is OWNER-tier (same bar as manage_agency_domains
+    // — domains are OWNER per the PM's final role scope), and the rest sit at
+    // ADMIN. A single flat capability for every namespace over-granted.
+    const auth = await requireWorkspaceStaffAction({
+      capability: PATCH_AGENCY_SETTINGS_NAMESPACE_CAPABILITY[namespace],
+    });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId } = auth;
 
@@ -1178,7 +1187,7 @@ export async function updateInquiryJobFields(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.updateInquiryJobFields });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1283,7 +1292,7 @@ export async function updateBookingJobFields(
       eventType: BOOKING_AUDIT.JOB_FIELDS_UPDATED,
       payload: { fields: changedKeys },
     });
-  });
+  }, { capability: WRITE_CAP.updateBookingJobFields });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -1478,7 +1487,7 @@ export async function removeInquiryLineupParticipant(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.removeInquiryLineupParticipant });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1525,7 +1534,7 @@ export async function addInquiryLineupTalent(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.addInquiryLineupTalent });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -1924,7 +1933,7 @@ export async function setInquiryPayoutReceiver(
         sourceTenantId: txn.sourceTenantId,
       });
       if (!result.ok) throw new Error(result.error);
-    });
+    }, { capability: WRITE_CAP.setInquiryPayoutReceiver });
     return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
   } catch (err) {
     logServerError("admin._pipeline-actions.setInquiryPayoutReceiver", err);
@@ -1948,7 +1957,7 @@ export async function reorderInquiryLineup(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.reorderInquiryLineup });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2484,7 +2493,7 @@ export async function reassignCoordinatorAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.reassignCoordinatorAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
@@ -2542,7 +2551,7 @@ export async function addSecondaryCoordinatorAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.addSecondaryCoordinatorAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
     const result = await addSecondaryCoordinator(supabase, {
@@ -2578,7 +2587,7 @@ export async function removeSecondaryCoordinatorAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.removeSecondaryCoordinatorAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
     const result = await removeSecondaryCoordinator(supabase, {
@@ -2613,7 +2622,7 @@ export async function promoteToPrimaryCoordinatorAction(
 ): Promise<PipelineActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.promoteToPrimaryCoordinatorAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
     const result = await promoteToPrimary(supabase, {
@@ -2882,7 +2891,7 @@ export async function markInquiryPaidInCash(
     }
     const paid = await markPaid(txn.id);
     if (!paid.ok) throw new Error(paid.error);
-  });
+  }, { capability: WRITE_CAP.markInquiryPaidInCash });
   return wrapped.ok ? { ok: true } : { ok: false, error: wrapped.error };
 }
 
@@ -3245,7 +3254,7 @@ export async function reopenOfferAction(
 ): Promise<{ ok: boolean; error?: string }> {
   await requireNotImpersonating();
   try {
-    const auth = await requireInquiryManagerAction(inquiryId);
+    const auth = await requireInquiryManagerAction(inquiryId, { capability: WRITE_CAP.reopenOfferAction });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId } = auth;
 
