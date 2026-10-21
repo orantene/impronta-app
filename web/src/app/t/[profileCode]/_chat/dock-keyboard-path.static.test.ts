@@ -30,3 +30,17 @@ test("TUL-1082: focus returns to the control that opened the dock, the launcher,
   assert.match(hook, /\[openerRef\.current, pillRef\.current, \.\.\.Array\.from\(document\.querySelectorAll<HTMLElement>\(CHAT_OPENER_SELECTOR\)\)\]/);
   assert.match(hook, /document\.addEventListener\("focusin", onFocusIn\)/);
 });
+
+test("TUL-1082: the card skin and expanded dialogs are focusable so focus can enter the dock (QA c97ccc7)", () => {
+  for (const f of ["CardDockFrame.tsx", "ExpandedChatLayout.tsx"]) {
+    const src = readFileSync(join(__dirname, f), "utf8");
+    assert.match(src, /data-guest-chat-panel=""\s*\n\s*tabIndex=\{-1\}/, f);
+    assert.match(src, /outline: "none"/, f);
+  }
+});
+
+test("TUL-1082: returning focus never scrolls the page to the top", () => {
+  assert.match(hook, /target\?\.focus\(\{ preventScroll: true \}\)/);
+  const frame = readFileSync(join(__dirname, "CardDockFrame.tsx"), "utf8");
+  assert.match(frame, /opener\.focus\(\{ preventScroll: true \}\)/);
+});
