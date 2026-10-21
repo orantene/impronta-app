@@ -52,10 +52,13 @@ const DEFAULT_DEPS: OfferingSaveGateDeps = {
 
 /** The refusal both saves give for a price outside MXN/USD (owner ruling 2026-09-23). Never defaulted. */
 export const OFFERING_CURRENCY_REFUSAL_EN = "Set the price in Mexican pesos (MXN) or US dollars (USD).";
+/** TUL-1634 follow-up: the Spanish text, picked by locale. */
+export const OFFERING_CURRENCY_REFUSAL_ES = "Pon el precio en pesos mexicanos (MXN) o dólares (USD).";
 
-/** Null when the currency is MXN or USD; the refusal otherwise. */
-export function offeringCurrencyRefusal(currency: unknown): string | null {
-  return isTalentCurrency(currency) ? null : OFFERING_CURRENCY_REFUSAL_EN;
+/** Null when the currency is MXN or USD; the refusal otherwise, in English unless `locale` starts with "es". */
+export function offeringCurrencyRefusal(currency: unknown, locale?: string): string | null {
+  if (isTalentCurrency(currency)) return null;
+  return typeof locale === "string" && locale.startsWith("es") ? OFFERING_CURRENCY_REFUSAL_ES : OFFERING_CURRENCY_REFUSAL_EN;
 }
 
 /** The talent profile whose plan and default posture govern this save (null = none). */
@@ -134,9 +137,10 @@ export async function workspaceOfferingSaveGate(
   ownerTalentId: string | null,
   offering: TalentOffering,
   deps?: OfferingSaveGateDeps,
+  locale?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId }, offering, deps);
   if (!gate.ok) return gate;
-  const currency = offeringCurrencyRefusal(offering.currency);
+  const currency = offeringCurrencyRefusal(offering.currency, locale);
   return currency ? { ok: false, error: currency } : { ok: true };
 }
