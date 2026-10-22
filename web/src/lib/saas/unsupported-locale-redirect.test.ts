@@ -22,3 +22,13 @@ test("other paths keep the old drop-the-prefix behavior", () => {
   const r = unsupportedLocaleRedirectTarget({ ...base, requestedLocale: "es", remainderSegments: ["pricing"] });
   assert.deepEqual(r, { pathname: "/pricing", search: "" });
 });
+
+test("TUL-1866: hub /es/directory keeps Spanish via ?lang=es", () => {
+  const r = unsupportedLocaleRedirectTarget({ ...base, requestedLocale: "es", remainderSegments: ["directory"] });
+  assert.deepEqual(r, { pathname: "/directory", search: "?lang=es" });
+});
+
+test("TUL-1866: only the directory root keeps ?lang, not its cart", () => {
+  const r = unsupportedLocaleRedirectTarget({ ...base, requestedLocale: "es", remainderSegments: ["directory", "cart"] });
+  assert.equal(r.search, "");
+});

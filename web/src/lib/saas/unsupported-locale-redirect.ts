@@ -21,7 +21,9 @@ export function unsupportedLocaleRedirectTarget(input: {
       : `/${input.tenantDefaultLocale}/${remainder}`;
   const params = new URLSearchParams(input.search);
   const isHubProfile = input.remainderSegments[0] === "t" && Boolean(input.remainderSegments[1]);
-  if (isHubProfile && !params.has("lang")) params.set("lang", input.requestedLocale.toLowerCase());
+  // TUL-1866: the hub directory is the platform directory, so it keeps the visitor's language too.
+  const isHubDirectory = input.remainderSegments.length === 1 && input.remainderSegments[0] === "directory";
+  if ((isHubProfile || isHubDirectory) && !params.has("lang")) params.set("lang", input.requestedLocale.toLowerCase());
   const qs = params.toString();
   return { pathname, search: qs ? `?${qs}` : "" };
 }
