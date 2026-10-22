@@ -13,6 +13,8 @@ import { logServerError } from "@/lib/server/safe-error";
 export interface IndexNowEnv {
   VERCEL_ENV?: string;
   INDEXNOW_API_KEY?: string;
+  /** Index signature so `process.env` (NodeJS.ProcessEnv) is assignable; a bare all-optional interface is a "weak type" that rejects it (TS2559). */
+  [key: string]: string | undefined;
 }
 
 /** Pure + injectable so the production gate is unit-testable without mocking `process.env`. */

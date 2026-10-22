@@ -36,6 +36,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { gate } from "./site-action-gate";
+import { mapManagerPageRows } from "./site-management-page-map";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { isDnsLabel, slugifySiteName } from "./derive-site-slug";
@@ -185,27 +186,7 @@ export async function loadMaxSiteManagerAction(): Promise<
     theme_look_slug: string | null;
   } | null;
 
-  const pages: MaxSiteManagerPage[] = ((pageRows ?? []) as Array<{
-    id: string;
-    slug: string;
-    title: string;
-    nav_label: string | null;
-    status: string;
-    is_home: boolean;
-    sort_order: number;
-    published_at: string | null;
-    updated_at: string;
-  }>).map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    title: p.title,
-    navLabel: p.nav_label,
-    status: p.status,
-    isHome: p.is_home,
-    sortOrder: p.sort_order,
-    publishedAt: p.published_at,
-    updatedAt: p.updated_at,
-  }));
+  const pages: MaxSiteManagerPage[] = mapManagerPageRows(pageRows);
 
   // TUL-77 / TUL-347: business owners see the workspace live URL as "My website".
   const publicSiteUrl = await resolveManagerPublicSiteUrl({
