@@ -112,6 +112,29 @@ test("preview to Free when the plan is already set to end reports a noop instead
   assert.equal(p.amountDueToday, 0);
 });
 
+test("TUL-1914: Free already scheduled names the end date, is flagged, and reads as 'already scheduled' not 'already on this plan'", async () => {
+  const p = await previewPlanChange(fakeStripe(fakeSub({ cancelAtPeriodEnd: true }), []), toFree(), NOW);
+  assert.ok(p.ok);
+  assert.equal(p.alreadyScheduled, true);
+  assert.equal(p.effectiveAt, new Date(PERIOD_END * 1000).toISOString());
+  assert.equal(planChangeCopyKey(p), "alreadyScheduled");
+  // A portal-style cancel (cancel_at only) uses cancel_at as the date.
+  const portal = await previewPlanChange(fakeStripe(fakeSub({ cancelAt: PERIOD_END + 3600 }), []), toFree(), NOW);
+  assert.ok(portal.ok);
+  assert.equal(portal.effectiveAt, new Date((PERIOD_END + 3600) * 1000).toISOString());
+  // Not scheduled yet: no flag, the plain change.
+  const fresh = await previewPlanChange(fakeStripe(fakeSub(), []), toFree(), NOW);
+  assert.ok(fresh.ok);
+  assert.notEqual(fresh.alreadyScheduled, true);
+});
+
+test("TUL-1914: confirming Free again changes nothing at Stripe", async () => {
+  const calls: Call[] = [];
+  const out = await confirmPlanChange(fakeStripe(fakeSub({ cancelAtPeriodEnd: true }), calls), toFree(), Math.floor(NOW / 1000), NOW);
+  assert.ok(out.ok);
+  assert.equal(methods(calls).some((m) => m === "subscriptions.update" || m.startsWith("schedules.")), false);
+});
+
 test("preview to a lower PAID plan fails closed when its price cannot be read", async () => {
   const calls: Call[] = [];
   const stripe = fakeStripe(fakeSub(), calls, { unit_amount: null, currency: "usd" });

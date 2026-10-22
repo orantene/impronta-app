@@ -11421,6 +11421,8 @@
         "switchTo": "Switch to {plan}",
         "cancelChange": "Cancel change",
         "cancelPending": "Keep your current plan and cancel the change you scheduled.",
+        "alreadyScheduled": "Your plan is set to change to {plan} on {date}. Until then you stay on {current}.",
+        "keepPlan": "Keep my plan",
         "noChange": "You are already on this plan.",
         "switchYearlyNow": "Switch to yearly billing: {price} per year. You pay {amount} today.",
         "switchYearlyAt": "Switch to yearly billing: {price} per year, starting {date}. Nothing is charged today.",

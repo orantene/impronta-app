@@ -12,6 +12,8 @@ import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { commitPlanDowngrade, getDowngradePreflight, type DowngradePreflight } from "@/lib/server-actions/admin-plan-downgrade";
 import { DowngradeKeepPicker } from "./downgrade-keep-picker";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { interpolate } from "@/i18n/interpolate";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
@@ -52,6 +54,7 @@ export function GlobalUpgradeModal({
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
   const t = useT();
+  const locale = useDashboardLocale();
   // TUL-1291: owner keep-list picker (opens only when changeWorkspacePlan says the roster is above the Free cap).
   const [picker, setPicker] = React.useState<{ open: boolean; loading: boolean; preflight: DowngradePreflight | null }>({
     open: false,
@@ -62,7 +65,7 @@ export function GlobalUpgradeModal({
   function planChangeToast(plan: string, scheduled: boolean, effectiveAt: string | null): string {
     if (!scheduled) return interpolate(t("dashboard.adminShared.planChange.setTo"), { plan });
     return effectiveAt
-      ? interpolate(t("dashboard.adminShared.planChange.scheduledOn"), { plan, date: new Date(effectiveAt).toLocaleDateString() })
+      ? interpolate(t("dashboard.adminShared.planChange.scheduledOn"), { plan, date: formatPeriodDate(effectiveAt, locale) ?? "" })
       : interpolate(t("dashboard.adminShared.planChange.scheduledEnd"), { plan });
   }
 

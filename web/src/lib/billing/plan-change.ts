@@ -203,7 +203,16 @@ export async function previewPlanChange(
       };
     }
     if (policy.kind === "noop") {
-      return { ok: true, ...base, amountDueToday: 0, currency: c.item.price.currency, effectiveAt: null };
+      // TUL-1914: a Free switch that is already scheduled says WHEN (the same end the cancel set), instead of "you already have this plan".
+      const end = toFree && isCancellationPending(c.sub, new Date(nowMs)) ? (c.sub.cancel_at ?? c.item.current_period_end) : null;
+      return {
+        ok: true,
+        ...base,
+        amountDueToday: 0,
+        currency: c.item.price.currency,
+        effectiveAt: end ? iso(end) : null,
+        ...(end ? { alreadyScheduled: true } : {}),
+      };
     }
     const invoice = await stripe.invoices.createPreview(buildPreviewParams(subject(req, c, req.toPriceId as string), prorationDate));
     // TUL-831: the next renewal on the new price. Best effort; the line is simply hidden when the price is unreadable.
