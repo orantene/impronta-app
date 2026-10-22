@@ -34,7 +34,7 @@ describe("TUL-1244 booking record of a no-time draft says what Today says", () =
   it("does not show the created_at sort key as a UTC time or the placeholder place as Where", () => {
     const row = buildAgendaListItemFromAgendaItem(draft());
     assert.equal(row.whenLabel, "No time assigned");
-    assert.equal(row.whereLabel, "Not set yet");
+    assert.equal(row.whereLabel, ""); // TUL-1889: the record hides the Where row instead of "Not set yet"
     assert.equal(row.startsAtIso, undefined);
     assert.equal(row.endsAtIso, undefined);
   });
