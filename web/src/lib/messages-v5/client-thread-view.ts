@@ -324,7 +324,7 @@ export function offerCardState(offer: ClientOfferSummary, now: Date): OfferCardS
 /** The deposit the accept button names: an explicit amount wins, else pct of total, else null (accept only). */
 export function offerDepositCents(offer: Pick<ClientOfferSummary, "depositPct" | "depositCents" | "totalCents">): number | null {
   if (offer.depositCents != null && offer.depositCents > 0) return Math.round(offer.depositCents);
-  if (offer.depositPct != null && offer.depositPct > 0) return Math.round((offer.totalCents * offer.depositPct) / 100);
+  if (offer.depositPct != null && offer.depositPct > 0) return Math.floor((offer.totalCents * offer.depositPct) / 100);
   return null;
 }
 

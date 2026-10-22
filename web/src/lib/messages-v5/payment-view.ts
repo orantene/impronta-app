@@ -34,7 +34,7 @@ export type DepositAmount = { readonly amountCents: number; readonly pct: number
  * Deposit cents from the offer's own rule. `deposit_amount_cents` is the
  * server-derived, authoritative figure when the offer carries one
  * (`updateOfferDraft` in `lib/inquiry/inquiry-engine-offers.ts` stamps it as
- * `round(total_client_price_cents * depositPct / 100)`); this mirrors that
+ * `floor(total_client_price_cents * depositPct / 100)`); this mirrors that
  * exact formula as a fallback for an offer that only carries `depositPct`.
  * Null when the offer has no deposit rule (owner decision 4: confirm/pay
  * without an override reason is then unblocked).
@@ -45,7 +45,7 @@ export function depositFor(offer: OfferDepositRule | null): DepositAmount | null
     return { amountCents: Math.round(offer.depositAmountCents), pct: offer.depositPct ?? null };
   }
   if (offer.depositPct && offer.depositPct > 0) {
-    return { amountCents: Math.round(offer.totalClientPrice * displayMinorDivisor(offer.currencyCode) * (offer.depositPct / 100)), pct: offer.depositPct };
+    return { amountCents: Math.floor(Math.round(offer.totalClientPrice * displayMinorDivisor(offer.currencyCode)) * offer.depositPct / 100), pct: offer.depositPct };
   }
   return null;
 }

@@ -117,7 +117,7 @@ export function draftDepositCents(state: OfferDraftState): number | null {
   const total = draftTotalCents(state);
   if (state.terms.depositMode === "amount") return state.terms.depositAmountCents ?? null;
   if (state.terms.depositMode === "pct" && state.terms.depositPct != null) {
-    return Math.round((total * state.terms.depositPct) / 100);
+    return Math.floor((total * state.terms.depositPct) / 100);
   }
   return null;
 }

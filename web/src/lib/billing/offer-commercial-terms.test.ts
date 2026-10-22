@@ -16,6 +16,7 @@ import {
   clampDepositPct,
   defaultOfferTermsFromResolved,
   deriveDepositAmountCents,
+  lowestDepositPct,
   isBalanceCollectionMethod,
   isRefundPolicyKey,
   normalizeOfferTerms,
@@ -62,15 +63,15 @@ const baseFallback = {
 };
 
 describe("deriveDepositAmountCents", () => {
-  it("computes round(total * pct / 100) in minor units", () => {
+  it("computes floor(total * pct / 100) in minor units", () => {
     assert.equal(deriveDepositAmountCents(100_00, 30), 30_00);
     assert.equal(deriveDepositAmountCents(100_00, 0), 0);
     assert.equal(deriveDepositAmountCents(100_00, 100), 100_00);
   });
 
-  it("rounds half up", () => {
-    // 9999 * 50 / 100 = 4999.5 → 5000
-    assert.equal(deriveDepositAmountCents(99_99, 50), 50_00);
+  it("floors, so the offer never promises a cent checkout will not take (TUL-1303)", () => {
+    // 9999 * 50 / 100 = 4999.5 → 4999 (was 5000 here while checkout charged 4999)
+    assert.equal(deriveDepositAmountCents(99_99, 50), 49_99);
   });
 
   it("never returns negative or zero-total amounts", () => {
@@ -303,5 +304,17 @@ describe("type guards", () => {
     assert.equal(isRefundPolicyKey("tiered"), true);
     assert.equal(isRefundPolicyKey("manual"), true);
     assert.equal(isRefundPolicyKey("bogus"), false);
+  });
+});
+
+describe("lowestDepositPct (TUL-1303)", () => {
+  it("takes the LOWEST pct across talents, the one checkout charges", () => {
+    assert.equal(lowestDepositPct([{ depositPct: 50 }, { depositPct: 30 }]), 30);
+    assert.equal(deriveDepositAmountCents(100_000_00, lowestDepositPct([{ depositPct: 50 }, { depositPct: 30 }]) ?? 0), 30_000_00);
+  });
+  it("ignores talents with no pct, and is null when none has one", () => {
+    assert.equal(lowestDepositPct([{ depositPct: null }, { depositPct: 40 }]), 40);
+    assert.equal(lowestDepositPct([{ depositPct: null }]), null);
+    assert.equal(lowestDepositPct([]), null);
   });
 });
