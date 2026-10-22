@@ -167,7 +167,8 @@
         "confirmPassword": "Enter and confirm your new password.",
         "passwordMismatch": "Password and confirmation do not match.",
         "generic": "Something went wrong. Please try again.",
-        "ageTermsRequired": "Please confirm you are 18 or older and agree to the Terms and Privacy Policy."
+        "ageTermsRequired": "Please confirm you are 18 or older and agree to the Terms and Privacy Policy.",
+        "nameRequired": "Enter your name."
       },
       "errors": {
         "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
@@ -1068,6 +1069,7 @@
       "confirm": "Confirm",
       "editorDateLabel": "Event date",
       "dateIncompleteError": "Please enter the full date (day, month and year).",
+      "dateIncompleteInline": "Complete the date",
       "dateExact": "Exact date",
       "dateFlexible": "Flexible",
       "dateNotSure": "Not sure yet",
@@ -1812,7 +1814,9 @@
       "noAgencies": "No active agency domains yet.",
       "searchAgencies": "Search agencies",
       "noMatch": "No agencies match your search.",
-      "featured": "Featured on the hub"
+      "featured": "Featured on the hub",
+      "seeAll": "See all {count} agencies",
+      "showFewer": "Show fewer"
     },
     "menuBoard": {
       "contactRequired": "Name, email, and phone are required.",

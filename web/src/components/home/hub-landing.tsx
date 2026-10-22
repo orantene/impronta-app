@@ -1,7 +1,10 @@
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { buildHubAgencyEntries, type HubAgencyDomainRow } from "@/lib/home/hub-agency-entries";
 import { HubAgencyList } from "./hub-agency-list";
-import { hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
+import { isPublicHubAgency, tenantsWithRealOwner, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
+import { hubCmsTitle, hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
+import { resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -48,7 +51,7 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
   const t = createTranslator(locale);
   const kicker = hubDisplayName(identity?.public_name, PLATFORM_BRAND.name); // TUL-1884
   const tagline = hubDisplayTagline(identity?.tagline, t("public.hubLanding.tagline"));
-  const heroTitle = cmsHomepage?.title ?? t("public.hubLanding.agenciesTitle");
+  const heroTitle = hubCmsTitle(cmsHomepage?.title, t("public.hubLanding.agenciesTitle")); // TUL-1884
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
@@ -83,7 +86,12 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
         ) : (
           <HubAgencyList
             agencies={agencies}
-            labels={{ search: t("public.hubLanding.searchAgencies"), noMatch: t("public.hubLanding.noMatch") }}
+            labels={{
+              search: t("public.hubLanding.searchAgencies"),
+              noMatch: t("public.hubLanding.noMatch"),
+              seeAll: t("public.hubLanding.seeAll"),
+              showFewer: t("public.hubLanding.showFewer"),
+            }}
           />
         )}
 
@@ -261,36 +269,163 @@ async function loadHubApprovedTalent(
 }
 
 type AgencyDomainRow = HubAgencyDomainRow;
-type HubAgencyRow = { hostname: string; name: string | null };
+type CmsHomeRow = { tenant_id: string | null };
 
-async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
+/**
+ * TUL-1884: the whole list (domains, agencies, homepages, owners, auth lookups) is cached for 10 minutes (read errors throw, so a failure is never stored) so
+ * a hub render almost never touches auth. The key carries the public root so staging and production
+ * entries in a shared Data Cache never mix.
+ */
+export const HUB_AGENCY_LIST_REVALIDATE_SECONDS = 600;
+const cachedAgencyList = (): Promise<HubAgencyItem[]> =>
+  unstable_cache(computeActiveAgencyDomains, ["hub-landing:agency-list", resolvePublicRootDomain(process.env)], {
+    revalidate: HUB_AGENCY_LIST_REVALIDATE_SECONDS,
+    tags: ["hub-landing:agencies"],
+  })();
+
+/**
+ * Failures are never cached: `computeActiveAgencyDomains` THROWS on any read error, so unstable_cache stores
+ * nothing, and the render falls back to an empty list (with a logged error) until the next request retries.
+ */
+async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
+  try {
+    return await cachedAgencyList();
+  } catch (error) {
+    logServerError("hubLanding.agencyList", error);
+    return [];
+  }
+}
+
+async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!supabase) throw new Error("hubLanding: public Supabase client unavailable");
+  const { data, error: domainsError } = await supabase
     .from("agency_domains")
     .select("hostname, kind, tenant_id")
     .in("kind", ["subdomain", "custom"])
     .in("status", ["active", "ssl_provisioned", "verified"])
     .order("hostname", { ascending: true });
+  if (domainsError) throw domainsError;
   // Dev rows (localhost, *.local, LAN ips) are seeded for local work and must not
   // show up on a public hub landing (TUL-978).
   const rows = ((data ?? []) as AgencyDomainRow[]).filter((r) => !isDevOnlyHostname(r.hostname));
 
   // TUL-978: show the tenant's name, not just its raw domain. Names are public
   // (they head every storefront); a failed read only costs the nicer label.
-  const names = new Map<string, string>();
+  type AgencyMeta = Pick<HubAgencyCandidate, "name" | "status" | "discoverExposureEnabled" | "settings" | "agencyKind">;
+  const meta = new Map<string, AgencyMeta>();
   const slugs = new Map<string, string>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
+  if (!admin && tenantIds.length > 0) throw new Error("hubLanding: service-role client unavailable");
   if (admin && tenantIds.length > 0) {
-    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name, slug").in("id", tenantIds);
-    if (namesError) logServerError("hubLanding.agencyNames", namesError);
-    for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null; slug?: string | null }>) {
-      if (a.slug) slugs.set(a.id, a.slug);
-      const n = a.display_name?.trim();
-      if (n) names.set(a.id, n);
+    // TUL-1884: status + exposure + settings flags decide whether a workspace is listed publicly.
+    const { data: agencyRows, error: namesError } = await admin
+      .from("agencies")
+      .select("id, display_name, slug, status, kind, discover_exposure_enabled, settings")
+      .in("id", tenantIds);
+    if (namesError) throw namesError;
+    for (const a of (agencyRows ?? []) as Array<{
+      id: string;
+      display_name: string | null;
+      slug?: string | null;
+      status: string | null;
+      kind: string | null;
+      discover_exposure_enabled: boolean | null;
+      settings: Record<string, unknown> | null;
+    }>) {
+      if (a.slug) slugs.set(a.id, a.slug); // TUL-1843: the /w/<slug> fallback for custom-domain-only tenants
+      meta.set(a.id, {
+        name: a.display_name?.trim() || null,
+        status: a.status,
+        agencyKind: a.kind,
+        discoverExposureEnabled: a.discover_exposure_enabled,
+        settings: a.settings,
+      });
     }
   }
-  // TUL-1843: re-home production-pattern hosts and drop live custom domains off production.
-  return buildHubAgencyEntries(rows, names, process.env, slugs);
+  // TUL-1884: the listing bar for test workspaces is a PUBLISHED system homepage.
+  const published = new Set<string>();
+  if (admin && tenantIds.length > 0) {
+    const { data: homes, error: homesError } = await admin
+      .from("cms_pages")
+      .select("tenant_id")
+      .in("tenant_id", tenantIds)
+      .eq("status", "published")
+      .eq("is_system_owned", true)
+      .eq("system_template_key", "homepage");
+    if (homesError) throw homesError;
+    for (const h of (homes ?? []) as CmsHomeRow[]) if (h.tenant_id) published.add(h.tenant_id);
+  }
+  const realOwned = await loadTenantsWithRealOwner(admin, tenantIds);
+  // Eligibility (TUL-1884) decides WHICH tenants are listed; buildHubAgencyEntries (TUL-1843) decides each
+  // entry's href: production-pattern hosts re-homed onto this environment, live custom domains dropped off
+  // production, `/w/<slug>` for a custom-domain-only tenant. One card per tenant, custom domain first.
+  const names = new Map<string, string>();
+  const rowsByTenant = new Map<string, AgencyDomainRow[]>();
+  for (const r of rows) {
+    const m = r.tenant_id ? meta.get(r.tenant_id) : undefined;
+    // A domain whose workspace row could not be read has no name or status: it is not listed.
+    const candidate: HubAgencyCandidate = { hostname: r.hostname, tenantId: r.tenant_id, domainKind: r.kind, hasPublishedHomepage: Boolean(r.tenant_id && published.has(r.tenant_id)), hasRealOwner: Boolean(r.tenant_id && realOwned.has(r.tenant_id)), agencyKind: m?.agencyKind ?? null, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings };
+    if (!r.tenant_id || !isPublicHubAgency(candidate)) continue;
+    if (m?.name) names.set(r.tenant_id, m.name);
+    rowsByTenant.set(r.tenant_id, [...(rowsByTenant.get(r.tenant_id) ?? []), r]);
+  }
+  const seen = new Set<string>();
+  const out: HubAgencyItem[] = [];
+  for (const tenantRows of rowsByTenant.values()) {
+    const ordered = [...tenantRows].sort((x, y) => Number(y.kind === "custom") - Number(x.kind === "custom"));
+    const entry = buildHubAgencyEntries(ordered, names, process.env, slugs)[0];
+    if (!entry || !entry.name || seen.has(entry.hostname)) continue;
+    seen.add(entry.hostname);
+    out.push({ hostname: entry.hostname, name: entry.name });
+  }
+  return out;
+}
+
+/**
+ * TUL-1884: tenants whose active owner is a real person. One batched read of owner memberships, one of the
+ * account flags (profiles + talent_profiles), and one auth lookup per distinct owner (the repo's
+ * service-role `auth.admin` pattern; profiles carries no email). A read failure THROWS (never cached);
+ * the caller falls back to an empty list rather than test data.
+ */
+async function loadTenantsWithRealOwner(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  tenantIds: string[],
+): Promise<Set<string>> {
+  if (!admin || tenantIds.length === 0) return new Set();
+  const { data: members, error } = await admin
+    .from("agency_memberships")
+    .select("tenant_id, profile_id")
+    .in("tenant_id", tenantIds)
+    .eq("role", "owner")
+    .eq("status", "active")
+    .is("removed_at", null);
+  if (error) throw error;
+  const ownersByTenant = new Map<string, string[]>();
+  for (const m of (members ?? []) as Array<{ tenant_id: string; profile_id: string }>) {
+    ownersByTenant.set(m.tenant_id, [...(ownersByTenant.get(m.tenant_id) ?? []), m.profile_id]);
+  }
+  const ownerIds = [...new Set([...ownersByTenant.values()].flat())];
+  if (ownerIds.length === 0) return new Set();
+
+  const flagged = new Set<string>();
+  const [profileFlags, talentFlags] = await Promise.all([
+    admin.from("profiles").select("id").in("id", ownerIds).eq("is_test_account", true),
+    admin.from("talent_profiles").select("user_id").in("user_id", ownerIds).or("is_test_account.eq.true,is_demo.eq.true"),
+  ]);
+  if (profileFlags.error || talentFlags.error) throw profileFlags.error ?? talentFlags.error;
+  for (const r of (profileFlags.data ?? []) as Array<{ id: string }>) flagged.add(r.id);
+  for (const r of (talentFlags.data ?? []) as Array<{ user_id: string | null }>) if (r.user_id) flagged.add(r.user_id);
+
+  const emailByUser = new Map<string, string>();
+  // Owners already flagged as test accounts are decided; only the rest need an auth email lookup.
+  await Promise.all(
+    ownerIds.filter((id) => !flagged.has(id)).map(async (id) => {
+      const { data, error: userError } = await admin.auth.admin.getUserById(id);
+      if (userError) throw userError;
+      if (data?.user?.email) emailByUser.set(id, data.user.email);
+    }),
+  );
+  return tenantsWithRealOwner({ ownersByTenant, emailByUser, flaggedUserIds: flagged });
 }

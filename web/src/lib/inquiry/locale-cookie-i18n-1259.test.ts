@@ -48,8 +48,9 @@ test("TUL-1238: one Agregar per row and one shared count", () => {
 });
 
 test("TUL-1886: the onboarding footer is localized", () => {
-  const layout = read("src/app/onboarding/layout.tsx");
-  assert.match(layout, /public\.onboardingShell\.terms/);
+  // TUL-1910: the footer moved to one shared component (used by /onboarding and /start).
+  const footer = read("src/components/onboarding/onboarding-footer.tsx");
+  assert.match(footer, /public\.onboardingShell\.terms/);
   const es = JSON.parse(read("messages/es.json")).public.onboardingShell;
   assert.equal(es.terms, "Términos");
 });

@@ -20,6 +20,7 @@ type InquiryRow = {
   tenant_id: string;
   location_slug: string | null;
   contact_name: string;
+  client_user_id?: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   conversation_state: string | null;
@@ -58,7 +59,7 @@ export async function loadMessagingInbox(
   let query = admin
     .from("inquiries")
     .select(
-      "id, tenant_id, location_slug, contact_name, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version, source_context",
+      "id, tenant_id, location_slug, contact_name, client_user_id, contact_phone, contact_email, conversation_state, opportunity_state, channel, owner_user_id, last_customer_message_at, last_staff_message_at, resolved_at, lost_reason, status, current_offer_id, message, updated_at, version, source_context",
     )
     .order("updated_at", { ascending: false });
   query = input.onlyInquiryIds
@@ -73,6 +74,7 @@ export async function loadMessagingInbox(
   const chips = await loadChips(admin, input.onlyInquiryIds ? null : input.tenantId, ids);
   const previews = await loadPreviews(admin, ids);
   const owners = await loadOwnerLabels(admin, inquiries.map((row) => row.owner_user_id));
+  const otherSide = await loadOtherSideNames(admin, inquiries, input.actorUserId);
 
   const rows: InboxRow[] = [];
   let unreadCount = 0;
@@ -82,7 +84,10 @@ export async function loadMessagingInbox(
     if (unread) unreadCount += 1;
     const paid = (chips.get(row.id) ?? []).some((chip) => chip.paymentState === "paid" || chip.paymentState === "partially_refunded");
     // TUL-379: never surface seed Guest / pending-…@guest.impronta in the list.
-    const contact = displayableContact(row.contact_name, row.contact_email);
+    const shown = displayableContact(row.contact_name, row.contact_email);
+    // TUL-1887: a thread whose other side is a known person (the client's account name, or the
+    // talent when the viewer is the client) is never "no identity yet".
+    const contact = shown.contactName.trim() ? shown : { ...shown, contactName: otherSide.get(row.id) ?? shown.contactName };
     const mapped: InboxRow = {
       id: row.id,
       tenantId: row.tenant_id,
@@ -288,6 +293,43 @@ async function loadPreviews(admin: Admin, inquiryIds: string[]): Promise<Map<str
     map.set(row.inquiry_id, row.body);
   }
   return map;
+}
+
+/** inquiry id -> the name of the other side when the inquiry's own contact name is blank. Cosmetic: a failed read leaves the row as it was. */
+async function loadOtherSideNames(admin: Admin, inquiries: InquiryRow[], actorUserId: string): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const blank = inquiries.filter((row) => !displayableContact(row.contact_name, row.contact_email).contactName.trim());
+  if (blank.length === 0) return out;
+  const viewerIsClient = new Set(blank.filter((row) => row.client_user_id === actorUserId).map((row) => row.id));
+  const clientIds = [...new Set(blank.filter((row) => !viewerIsClient.has(row.id) && row.client_user_id).map((row) => row.client_user_id as string))];
+  if (clientIds.length > 0) {
+    const { data, error } = await admin.from("profiles").select("id, display_name").in("id", clientIds);
+    if (!error) {
+      const names = new Map<string, string>();
+      for (const p of (data ?? []) as { id: string; display_name: string | null }[]) if (p.display_name?.trim()) names.set(p.id, p.display_name.trim());
+      for (const row of blank) {
+        const n = row.client_user_id ? names.get(row.client_user_id) : undefined;
+        if (n) out.set(row.id, n);
+      }
+    }
+  }
+  if (viewerIsClient.size > 0) {
+    const { data, error } = await admin
+      .from("inquiry_participants")
+      .select("inquiry_id, talent_profiles(display_name)")
+      .eq("role", "talent")
+      .in("inquiry_id", [...viewerIsClient]);
+    if (!error) {
+      const byInquiry = new Map<string, string[]>();
+      for (const p of (data ?? []) as { inquiry_id: string; talent_profiles: { display_name: string | null } | { display_name: string | null }[] | null }[]) {
+        const tp = Array.isArray(p.talent_profiles) ? p.talent_profiles[0] : p.talent_profiles;
+        const n = tp?.display_name?.trim();
+        if (n) byInquiry.set(p.inquiry_id, [...(byInquiry.get(p.inquiry_id) ?? []), n]);
+      }
+      for (const [id, names] of byInquiry) out.set(id, names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "));
+    }
+  }
+  return out;
 }
 
 async function loadOwnerLabels(admin: Admin, userIds: Array<string | null>): Promise<Map<string, string>> {

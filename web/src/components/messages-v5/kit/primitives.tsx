@@ -7,6 +7,8 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import type { MessagingChannel, RecordKind } from "@/lib/messaging/types";
 
+import { validZone, zonedDayKey } from "@/lib/messages-v5/viewer-time";
+
 import type { KitCopy } from "./copy";
 
 /* ---------- icons (stroke, 24 viewBox, same set as the mockup) ---------- */
@@ -189,7 +191,7 @@ export function ChannelTag({ channel, copy, iconOnly }: { channel: MessagingChan
 }
 
 /** Relative "when" for inbox rows. Short on purpose: 2m, 1h, Yesterday, Tue, Sep 3. */
-export function formatWhen(iso: string | null, now: Date, locale = "en"): string {
+export function formatWhen(iso: string | null, now: Date, locale = "en", timeZone?: string | null): string {
   if (!iso) return "";
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return "";
@@ -197,10 +199,12 @@ export function formatWhen(iso: string | null, now: Date, locale = "en"): string
   if (diffMin < 1) return "now";
   if (diffMin < 60) return `${diffMin}m`;
   const diffH = Math.round(diffMin / 60);
-  if (diffH < 24 && then.getDate() === now.getDate()) return `${diffH}h`;
+  // TUL-1909: "same day" and the weekday/date read in the viewer's zone when one is known.
+  const zone = validZone(timeZone) ?? undefined;
+  if (diffH < 24 && zonedDayKey(then, zone) === zonedDayKey(now, zone)) return `${diffH}h`;
   const diffDays = Math.round((now.getTime() - then.getTime()) / 86400000);
-  if (diffDays < 7) return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(then);
-  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" }).format(then);
+  if (diffDays < 7) return new Intl.DateTimeFormat(locale, { weekday: "short", timeZone: zone }).format(then);
+  return new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", timeZone: zone }).format(then);
 }
 
 /**

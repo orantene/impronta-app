@@ -362,6 +362,10 @@ export async function signUpWithEmail(
   const t = authT(formData);
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  // TUL-1169: the name field only exists when the form asks for it; an empty one is its own error.
+  if (formData.has("full_name") && !String(formData.get("full_name") ?? "").trim()) {
+    return { error: t("public.auth.actions.nameRequired") };
+  }
   if (!email || !password) {
     return { error: t("public.auth.actions.emailPasswordRequired") };
   }

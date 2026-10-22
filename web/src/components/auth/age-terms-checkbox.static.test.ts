@@ -25,7 +25,8 @@ test("TUL-1169: both signup forms link consent and email to their own error id",
     assert.match(form, /aria-invalid=\{errField === "email" \? true : undefined\}/);
     assert.match(form, /aria-describedby=\{errField === "email" \? AUTH_ERROR_IDS\.email : undefined\}/);
     assert.match(form, /invalid=\{errField === "consent"\}/);
-    // the name field has no error of its own: it must never point at the shared notice
-    assert.doesNotMatch(form, /id="full_name"[\s\S]{0,400}aria-(invalid|describedby)/);
+    // TUL-1169: the name field has its own error id and only points at it for a name error
+    assert.match(form, /aria-invalid=\{errField === "name" \? true : undefined\}/);
+    assert.match(form, /aria-describedby=\{errField === "name" \? AUTH_ERROR_IDS\.name : undefined\}/);
   }
 });
