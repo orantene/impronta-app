@@ -2,7 +2,7 @@
  * TUL-1924: exclusivity binds only through the talent's PRIMARY roster row.
  * `agency_talent_roster.exclusivity_status` is the lifecycle of the is_primary flag, but it defaults
  * to 'confirmed' on every row, so non-primary rows (hub, secondary studios) must never block applying.
- * Mirrors the `taa_talent_insert` RLS predicate (migration 20261231418300).
+ * Mirrors the `taa_talent_insert` RLS predicate (migration 20261231429000).
  */
 
 export type ExclusivityRosterRow = {
