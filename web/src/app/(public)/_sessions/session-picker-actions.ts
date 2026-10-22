@@ -22,6 +22,7 @@
  * and nothing whatever about who holds them.
  */
 
+import { CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE } from "@/lib/payments/seller-currency-guard";
 import { z } from "zod";
 import { headers } from "next/headers";
 
@@ -466,7 +467,7 @@ const payBodySchema = z.object({
 
 export type StartSessionCardPaymentResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "invalid_request" | "not_found" | "engine_error" };
+  | { ok: false; reason: "invalid_request" | "not_found" | "engine_error" | "currency_unsupported" };
 
 /**
  * The card hop for a paid seat, copied from `startTicketCardPayment`
@@ -539,7 +540,9 @@ export async function startSessionCardPayment(input: unknown): Promise<StartSess
       locale: d.locale ?? null,
     });
     if (!res.ok) {
-      logServerError("sessions.picker.pay.checkout", res.error);
+      logServerError("sessions.picker.pay.checkout", `${res.code ?? "stripe"}: ${res.error}`);
+      // The seller's Stripe lane cannot settle this class's currency: say so, do not call it a glitch.
+      if (res.code === CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE) return { ok: false, reason: "currency_unsupported" };
       return { ok: false, reason: "engine_error" };
     }
     return { ok: true, url: res.url };

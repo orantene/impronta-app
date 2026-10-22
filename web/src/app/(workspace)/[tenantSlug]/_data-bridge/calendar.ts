@@ -103,8 +103,8 @@ export async function loadCalendarEvents(
         .limit(500),
       // TUL-1757: TABLE RESERVATIONS (read-only). An admission with a time and no session is a
       // host-stand booking (a ticket always has a session, and sessions are already above).
-      // Cancelled (void) and no-show rows are not on a forward-looking calendar. Starts a few
-      // hours back so tonight's earlier seatings still show.
+      // Cancelled (void) and no-show rows are not on a forward-looking calendar. Starts a day
+      // back so today's earlier seatings still show whatever the zone.
       supabase
         .from("admissions")
         .select("id, holder_name, party_size, starts_at, status, no_show_at")
@@ -114,7 +114,7 @@ export async function loadCalendarEvents(
         .is("no_show_at", null)
         .is("completed_at", null)
         .not("starts_at", "is", null)
-        .gte("starts_at", new Date(Date.now() - 6 * 3_600_000).toISOString())
+        .gte("starts_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
         .order("starts_at", { ascending: true })
         .limit(500),
       // Reservations carry no zone of their own: the venue's, so a 20:00 table lands on its local day.

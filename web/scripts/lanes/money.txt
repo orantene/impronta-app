@@ -50,6 +50,7 @@ src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
 src/lib/billing/receipt-notice.test.ts
+src/lib/billing/record-discount-redemption.test.ts
 src/lib/billing/refunded-charge-net.test.ts
 src/lib/billing/review-trial-days.test.ts
 src/lib/billing/snapshot-gross-follows-collect.test.ts
@@ -211,6 +212,7 @@ src/lib/payments/dispute-evidence.test.ts
 src/lib/payments/failed-refund-attention-note.test.ts
 src/lib/payments/failed-refund-settlement.test.ts
 src/lib/payments/fee-copy-legal.static.test.ts
+src/lib/payments/lane-currency-items.test.ts
 src/lib/payments/link-checkout-extend-claim.test.ts
 src/lib/payments/link-checkout-receiver-wiring.static.test.ts
 src/lib/payments/link-payout-receiver.test.ts
@@ -275,6 +277,7 @@ src/lib/pos/cash-outbox.test.ts
 src/lib/pos/classes/checkin.test.ts
 src/lib/pos/classes/day.test.ts
 src/lib/pos/classes/refusals.test.ts
+src/lib/pos/collection-recheck.test.ts
 src/lib/pos/collection.payer.test.ts
 src/lib/pos/collection.split.test.ts
 src/lib/pos/collective-split-apply.test.ts
@@ -306,6 +309,8 @@ src/lib/pos/staff-limit-plan.test.ts
 src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
+src/lib/pricing/discount-datetime.test.ts
+src/lib/pricing/expire-stale-discount.test.ts
 src/lib/projects/project-record.test.ts
 src/lib/reservations/deposit-currency.test.ts
 src/lib/reservations/reserve-table-deposit.test.ts
@@ -402,6 +407,7 @@ src/lib/storefront/trusted-public-origin.test.ts
 src/lib/stripe/connected-account-client.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
+src/lib/stripe/promo-1860-apply-points.static.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/recurring-consent.test.ts

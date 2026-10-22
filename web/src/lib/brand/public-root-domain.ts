@@ -27,7 +27,28 @@ type RootEnv = Readonly<Record<string, string | undefined>>;
 /** First labels that name a surface of an environment, never the environment root itself. */
 const SURFACE_LABELS = new Set(["www", "app", "hub", "pay", "docs", "support", "marketing"]);
 
+/** Environment labels that can sit between a surface/tenant label and `tulala.digital`. */
+const ENV_LABELS = new Set(["staging", "stage", "qa", "dev", "preview", "test"]);
+
+/**
+ * Derive the public root from a request/browser hostname alone (no env), e.g.
+ * `acme.staging.tulala.digital` -> `staging.tulala.digital`. Returns null for
+ * production hosts, custom domains and anything it cannot classify. This is
+ * what a CLIENT component uses: `process.env` is empty in the browser, so the
+ * env-based resolution below would silently fall back to production.
+ */
+export function publicRootFromHostname(hostname: string | null | undefined): string | null {
+  const host = (hostname ?? "").trim().toLowerCase().split(":")[0] ?? "";
+  if (!host.endsWith(`.${TULALA_APEX_HOST}`)) return null;
+  const labels = host.slice(0, -(TULALA_APEX_HOST.length + 1)).split(".");
+  const envLabel = labels[labels.length - 1] ?? "";
+  return ENV_LABELS.has(envLabel) ? `${envLabel}.${TULALA_APEX_HOST}` : null;
+}
+
 export function resolvePublicRootDomain(env: RootEnv = process.env): string {
+  if (env === process.env && typeof window !== "undefined") {
+    return publicRootFromHostname(window.location.hostname) ?? TULALA_APEX_HOST;
+  }
   if (env.VERCEL_ENV === "production") return TULALA_APEX_HOST;
 
   const talent = resolveTalentSiteRootDomain(env);
@@ -74,4 +95,17 @@ export function rehomeToPublicRoot(hostname: string, env: RootEnv = process.env)
     return `${lower.slice(0, -TULALA_APEX_HOST.length)}${root}`;
   }
   return hostname;
+}
+
+/** `rehomeToPublicRoot` for a full URL; non-URLs and non-`tulala.digital` hosts pass through. */
+export function rehomeUrlToPublicRoot(url: string, env: RootEnv = process.env): string {
+  try {
+    const u = new URL(url);
+    const host = rehomeToPublicRoot(u.hostname, env);
+    if (host === u.hostname) return url;
+    u.hostname = host;
+    return u.toString();
+  } catch {
+    return url;
+  }
 }

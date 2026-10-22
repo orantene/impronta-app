@@ -33,6 +33,7 @@ const EL_PAISA: ConfirmationInput = {
   freeCancelHours: 2,
   graceMinutes: 15,
   addressLine: null,
+  now: new Date("2026-08-01T00:00:00Z"), // before the seating, so the deadline is still ahead
 };
 
 /** Words that belong to the appointments product, never to a table. */

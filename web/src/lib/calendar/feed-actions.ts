@@ -26,6 +26,7 @@
  * pointing it at the wrong workspace would go unnoticed for months.
  */
 
+import { resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { headers } from "next/headers";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -54,7 +55,7 @@ async function requestOrigin(): Promise<string> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
-  return host ? `${proto}://${host}` : "https://app.tulala.digital";
+  return host ? `${proto}://${host}` : `https://app.${resolvePublicRootDomain()}`;
 }
 
 export async function issueCalendarFeedUrl(): Promise<IssueFeedUrlResult> {

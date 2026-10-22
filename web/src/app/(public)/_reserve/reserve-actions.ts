@@ -37,6 +37,7 @@ import { capacityRemaining } from "@/lib/capacity/reserve";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createReservation, findOfferedTime } from "@/lib/reservations/reserve";
+import { reservationItemPublished } from "@/lib/reservations/item-published";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const inputSchema = z.object({
@@ -168,6 +169,12 @@ export async function loadReserveAvailability(input: unknown): Promise<ReserveAv
     // restaurant is booked when we simply could not look.
     if (!config) return { ok: false, ...NO_DATES, reason: "unavailable" };
     if (!config.rules.isActive) return { ok: false, ...NO_DATES, reason: "reservations_off" };
+    // TUL-1880: an unpublished reservation item is not on sale, so no times are offered.
+    const itemAdmin = createServiceRoleClient();
+    if (!itemAdmin) return { ok: false, ...NO_DATES, reason: "unavailable" };
+    const itemState = await reservationItemPublished(itemAdmin, tenantId, config.rules.reservationOfferingId);
+    if (itemState === "unknown") return { ok: false, ...NO_DATES, reason: "unavailable" };
+    if (itemState === "unpublished") return { ok: false, ...NO_DATES, reason: "reservations_off" };
 
     const dates: string[] = [];
     // BOUNDED. A venue with every day closed must not spin: the scan stops at a
@@ -413,6 +420,11 @@ export async function submitReservation(input: unknown): Promise<SubmitReservati
     });
     // A failed read is not an open venue, and it is certainly not a booking.
     if (!config) return { ok: false, reason: "unavailable" };
+
+    // TUL-1880: confirm respects the item's published status too (a stale page must not book it).
+    const itemState = await reservationItemPublished(admin, d.tenantId, config.rules.reservationOfferingId);
+    if (itemState === "unknown") return { ok: false, reason: "unavailable" };
+    if (itemState === "unpublished") return { ok: false, reason: "offering_not_published" };
 
     const tz = await resolveTenantTimezone(d.tenantId, venue.id);
     const timeZone = tz?.timezone ?? venue.timezone;

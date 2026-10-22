@@ -147,7 +147,7 @@ test("proration date must be a recent integer, not in the future", () => {
 test("copy key per outcome", () => {
   assert.equal(planChangeCopyKey({ kind: "upgrade", timing: "now" }), "payToday");
   assert.equal(planChangeCopyKey({ kind: "interval_up", timing: "now" }), "switchYearlyNow");
-  assert.equal(planChangeCopyKey({ kind: "downgrade", timing: "period_end" }), "changesOn");
+  assert.equal(planChangeCopyKey({ kind: "downgrade", timing: "period_end" }), "downgradeAt");
   assert.equal(planChangeCopyKey({ kind: "interval_down", timing: "period_end" }), "switchMonthlyAt");
   assert.equal(planChangeCopyKey({ kind: "noop", timing: "now", cancelsPendingChange: true }), "cancelPending");
   assert.equal(planChangeCopyKey({ kind: "noop", timing: "now" }), "noChange");

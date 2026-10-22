@@ -25,7 +25,7 @@ export type CalendarListEvent = {
 };
 
 function eventDayKey(ev: CalendarListEvent): string {
-  if (ev.starts_at) return ev.starts_at.slice(0, 10);
+  // The loader's LOCAL day, not the UTC slice of the instant (TUL-1841).
   return ev.event_date.slice(0, 10);
 }
 

@@ -9,9 +9,12 @@ const e = (over: Partial<PublicEntryInput> = {}): PublicEntryInput => ({
   showWho: "name", featured: false, hidden: false, ownOfferingId: null, members: [m()], ...over,
 });
 
-test("every public entry is request-only, whatever its booking type says", () => {
-  const out = shapePublicEntries([e({ bookingType: "instant" } as never)]);
-  assert.equal(out[0].cta, "request");
+test("an on-request entry asks; an instant entry books (TUL-1471)", () => {
+  assert.equal(shapePublicEntries([e({ bookingType: "request" })])[0].cta, "request");
+  assert.equal(shapePublicEntries([e()])[0].cta, "request");
+  const out = shapePublicEntries([e({ bookingType: "instant", ownOfferingId: "own-1" })]);
+  assert.equal(out[0].cta, "book");
+  assert.equal(out[0].bookOfferingId, "own-1");
 });
 
 test("a hidden entry, or one with no sellable member, is not shown", () => {

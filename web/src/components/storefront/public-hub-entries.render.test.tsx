@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { PublicEntry } from "@/lib/service-hub/public-hub";
 import { PublicHubEntries } from "./PublicHubEntries";
 
-const E = (over: Partial<PublicEntry> = {}): PublicEntry => ({ id: "e1", name: "Massage", category: "Massage", photoUrl: null, priceCents: 45000, from: true, currency: "USD", who: ["Ana", "Blas"], cta: "request", ...over });
+const E = (over: Partial<PublicEntry> = {}): PublicEntry => ({ id: "e1", name: "Massage", category: "Massage", photoUrl: null, priceCents: 45000, from: true, currency: "USD", who: ["Ana", "Blas"], cta: "request", bookOfferingId: null, ...over });
 
 describe("PublicHubEntries", () => {
   it("renders request buttons only, with who and a from-price, in English", () => {
@@ -29,5 +29,11 @@ describe("PublicHubEntries", () => {
   it("uses the request link the site gives it", () => {
     const html = renderToStaticMarkup(<PublicHubEntries entries={[E()]} locale="en" requestHref={(e) => `/chat?entry=${e.id}`} />);
     assert.match(html, /href="\/chat\?entry=e1"/);
+  });
+  it("routes an instant entry to the booking widget, not the enquiry form", () => {
+    const html = renderToStaticMarkup(<PublicHubEntries entries={[E({ cta: "book", bookOfferingId: "o1" })]} locale="es" requestHref={() => "/contact"} bookHref={(e) => `/book?service=${e.bookOfferingId}`} />);
+    assert.match(html, /href="\/book\?service=o1"/);
+    assert.match(html, />Reservar</);
+    assert.doesNotMatch(html, /Solicitar|\/contact/);
   });
 });

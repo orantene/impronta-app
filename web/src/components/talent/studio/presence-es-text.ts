@@ -7,6 +7,7 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   // Where I appear
   "Where you appear": "Dónde apareces",
   "Where clients can find you": "Dónde te encuentran",
+  "Accepted": "Aceptada",
   "Live listings": "Fichas activas",
   "Other connections": "Otras conexiones",
   "Nothing yet": "Nada aún",
@@ -147,7 +148,6 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   Sent: "Enviada",
   Next: "Sigue",
   "You sent your application": "Enviaste tu solicitud",
-  Accepted: "Aceptada",
   "Listing published": "Ficha publicada",
   "They publish your listing. No date given.": "Ellos publican tu ficha. Sin fecha indicada.",
   "Not accepted": "No aceptada",

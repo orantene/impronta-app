@@ -81,7 +81,12 @@ export function DiscountsView({
     : null;
 
   // TUL-1860: status comes from active + date window (same rule as checkout), not the flag alone.
-  const [nowMs] = React.useState(() => Date.now());
+  // The clock ticks, so a tab left open flips a code to "Expired" at its end time instead of staying "Active".
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
   const activeCodes = discounts.filter((d) => discountStatus(d, nowMs) !== "archived");
   const liveCount = discounts.filter((d) => discountStatus(d, nowMs) === "active").length;
   const archivedCodes = discounts.filter((d) => discountStatus(d, nowMs) === "archived");
@@ -136,6 +141,7 @@ export function DiscountsView({
             <DiscountCodeRow
               key={row.id}
               row={row}
+              nowMs={nowMs}
               tiers={tiers}
               onEdit={() => {
                 setClosed(false);
@@ -161,6 +167,7 @@ export function DiscountsView({
               <DiscountCodeRow
                 key={row.id}
                 row={row}
+                nowMs={nowMs}
                 tiers={tiers}
                 dimmed
                 onViewUses={() => {

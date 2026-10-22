@@ -11,7 +11,7 @@ import type { PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
  * `open(target)` and renders `modal` instead of sending the customer to the
  * Stripe portal. `code` is whatever promo the surface already collected.
  */
-export function useTalentPlanChange(tenantSlug: string | null, code: string | null): {
+export function useTalentPlanChange(tenantSlug: string | null, code: string | null, onChanged?: () => void): {
   open: (target: PlanChangeTarget) => void;
   modal: ReactNode;
 } {
@@ -29,6 +29,7 @@ export function useTalentPlanChange(tenantSlug: string | null, code: string | nu
           onDone={() => {
             close();
             router.refresh();
+            onChanged?.();
           }}
           onCancel={close}
         />

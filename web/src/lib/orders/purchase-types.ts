@@ -67,6 +67,8 @@ export type PurchaseInput = {
    * `purchase-table-deposit.ts`.
    */
   tableDeposit?: { cents: number; currency: string };
+  /** TUL-1876: SERVER-SET ONLY by `reservations/reserve.ts` when the table owes no deposit: the order is priced at 0. */
+  tableNoDeposit?: boolean;
   sourceChannel: string;
   /**
    * Which door this purchase came through. Omitted = `guest`, the strict

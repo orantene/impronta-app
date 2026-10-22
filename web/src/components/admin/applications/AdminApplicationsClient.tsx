@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+
 import { decideTalentApplication } from "@/lib/talent/apply-actions";
 import { toggleOpenApplications } from "@/app/(workspace)/[tenantSlug]/admin/roster/applications/actions";
 import type { AgencyApplicationAdminRow } from "@/lib/talent/apply-loaders";
@@ -59,6 +61,7 @@ export function AdminApplicationsClient({
   const [note, setNote] = useState("");
   const [toast, setToast] = useState<{ kind: "ok" | "err"; text: string; rosterHref?: string } | null>(null);
   const [accepts, setAccepts] = useState(initialAccepts);
+  const lang = useDashboardLocale().toLowerCase().startsWith("es") ? "es" : "en";
 
   function toggleAccepts() {
     const next = !accepts;
@@ -286,6 +289,17 @@ export function AdminApplicationsClient({
               >
                 Go to Roster →
               </a>
+            )}
+            {/* Repair: approved earlier but the talent never reached the roster. Approving again adds them. */}
+            {row.status === "approved" && canDecide && (
+              <button
+                type="button"
+                onClick={() => { setDecisionFor({ row, decision: "approved" }); setNote(""); }}
+                disabled={pending}
+                style={{ padding: "5px 10px", borderRadius: 7, fontSize: 11.5, background: "transparent", border: `1px solid ${C.border}`, color: C.ink, cursor: "pointer", fontFamily: FONT }}
+              >
+                {lang === "es" ? "Añadir al roster" : "Add to roster"}
+              </button>
             )}
             {isPending && canDecide && (
               <>

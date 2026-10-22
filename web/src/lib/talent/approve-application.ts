@@ -66,6 +66,7 @@ const genericError = (locale: ApproveLocale) =>
   locale === "es" ? "No se pudo aprobar la solicitud. Inténtalo de nuevo." : "Couldn't approve the application. Please try again.";
 
 type LiveRow = { id: string; status: string };
+const LIVE_STATUSES = ["pending", "active", "inactive"];
 
 export async function approveApplicationIntoRoster(
   admin: Pick<SupabaseClient, "from">,
@@ -75,17 +76,21 @@ export async function approveApplicationIntoRoster(
   const now = (deps.now ?? (() => new Date().toISOString()))();
   const fail = (code: "db_error"): ApproveOutcome => ({ ok: false, code, error: genericError(input.locale) });
 
-  // 1. Live roster row (the unique index allows one per workspace + talent).
+  // 1. The workspace's roster row for this talent. A live row (pending / active / inactive) is
+  // unique per (workspace, talent); removed / archived_for_downgrade rows are history that approve
+  // must reactivate instead of leaving the talent off the roster (TUL-1871).
   const liveRes = await admin
     .from("agency_talent_roster")
     .select("id, status")
     .eq("tenant_id", input.tenantId)
     .eq("talent_profile_id", input.talentProfileId)
-    .in("status", ["pending", "active", "inactive"])
-    .limit(1);
+    .in("status", ["pending", "active", "inactive", "removed", "archived_for_downgrade"]);
   if (liveRes.error) return fail("db_error");
-  const live = ((liveRes.data ?? []) as LiveRow[])[0] ?? null;
+  const found = (liveRes.data ?? []) as LiveRow[];
+  const live = found.find((r) => LIVE_STATUSES.includes(r.status)) ?? null;
+  const dead = live ? null : found.find((r) => r.status === "removed" || r.status === "archived_for_downgrade") ?? null;
 
+  // Only a row that already holds a seat needs no new one.
   if (!live) {
     const seat = await deps.checkSeat(input.tenantId);
     if (!seat.ok) return { ok: false, code: "seat_limit", error: seatLimitApproveMessage(seat.limit, input.locale) };
@@ -99,20 +104,34 @@ export async function approveApplicationIntoRoster(
     .eq("status", "pending")
     .select("id");
   if (claim.error) return fail("db_error");
-  if (((claim.data ?? []) as unknown[]).length === 0) {
-    return {
-      ok: false,
-      code: "already_decided",
-      error: input.locale === "es" ? "Esta solicitud ya fue resuelta." : "This application was already decided.",
-    };
+  const claimed = ((claim.data ?? []) as unknown[]).length > 0;
+  // An application approved earlier (before approve put the talent on the roster, or by a write
+  // that failed half way) has status approved but no roster row. Approving it again repairs that
+  // instead of answering "already decided" and leaving the talent off the roster (TUL-1871).
+  let repairing = false;
+  if (!claimed) {
+    const cur = await admin.from(input.table).select("id, status").eq("id", input.applicationId).limit(1);
+    if (cur.error) return fail("db_error");
+    const curStatus = ((cur.data ?? []) as LiveRow[])[0]?.status ?? null;
+    repairing = curStatus === "approved" && live?.status !== "active";
+    if (!repairing) {
+      return {
+        ok: false,
+        code: "already_decided",
+        error: input.locale === "es" ? "Esta solicitud ya fue resuelta." : "This application was already decided.",
+      };
+    }
   }
 
-  const release = () =>
-    admin
+  // Only a claim made by THIS call is released on failure; a repair never un-approves.
+  const release = async () => {
+    if (!claimed) return;
+    await admin
       .from(input.table)
       .update({ status: "pending", decision_note: null, decided_by_user_id: null, decided_at: null })
       .eq("id", input.applicationId)
       .eq("status", "approved");
+  };
 
   // 3. Roster row.
   if (live?.status === "active") return { ok: true, rosterAdded: false };
@@ -126,12 +145,45 @@ export async function approveApplicationIntoRoster(
       }
     : {};
 
+  // The row the roster page lists: this workspace, this talent, status active. Read it back so
+  // an approve can never report success while that row is missing.
+  const rosterHasActiveRow = async (): Promise<boolean> => {
+    const res = await admin
+      .from("agency_talent_roster")
+      .select("id, status")
+      .eq("tenant_id", input.tenantId)
+      .eq("talent_profile_id", input.talentProfileId)
+      .eq("status", "active");
+    return !res.error && ((res.data ?? []) as LiveRow[]).length > 0;
+  };
+
   if (live) {
     const upd = await admin
       .from("agency_talent_roster")
       .update({ status: "active", agency_visibility: deps.defaultVisibility, ...exclusiveFields })
       .eq("id", live.id);
-    if (upd.error) {
+    if (upd.error || !(await rosterHasActiveRow())) {
+      await release();
+      return fail("db_error");
+    }
+    return { ok: true, rosterAdded: true };
+  }
+
+  if (dead) {
+    const back = await admin
+      .from("agency_talent_roster")
+      .update({
+        status: "active",
+        agency_visibility: deps.defaultVisibility,
+        source_type: "freelancer_claimed",
+        removed_at: null,
+        removed_by: null,
+        added_at: now,
+        added_by: input.userId,
+        ...exclusiveFields,
+      })
+      .eq("id", dead.id);
+    if (back.error || !(await rosterHasActiveRow())) {
       await release();
       return fail("db_error");
     }
@@ -150,9 +202,13 @@ export async function approveApplicationIntoRoster(
     source_workspace_id: input.tenantId,
     ...exclusiveFields,
   });
-  // 23505 = another request already wrote the live row between our read and insert: that is
-  // the state we wanted, so it is a success, not a failure.
+  // 23505 can be the live (workspace, talent) index (another request wrote the row we wanted) or
+  // the one-primary-per-talent index (our row was NOT written). Only the read-back tells them apart.
   if (ins.error && (ins.error as { code?: string }).code !== "23505") {
+    await release();
+    return fail("db_error");
+  }
+  if (!(await rosterHasActiveRow())) {
     await release();
     return fail("db_error");
   }

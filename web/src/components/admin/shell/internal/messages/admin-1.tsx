@@ -1,5 +1,6 @@
 "use client";
 
+import { resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { quickPatchInquiryStatus } from "@/lib/server-actions/admin-inquiries";
@@ -327,7 +328,7 @@ export function AdminInboxList({
             </div>
             {!search.trim() && (tenantSlug || effectiveTenant?.domain) && (
               <a
-                href={`https://${effectiveTenant?.domain ?? `tulala.digital/w/${tenantSlug}`}`}
+                href={`https://${effectiveTenant?.domain ?? `${resolvePublicRootDomain()}/w/${tenantSlug}`}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -340,7 +341,7 @@ export function AdminInboxList({
                   <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M4 6h4M6 4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
-                {effectiveTenant?.domain ?? `tulala.digital/w/${tenantSlug}`}
+                {effectiveTenant?.domain ?? `${resolvePublicRootDomain()}/w/${tenantSlug}`}
               </a>
             )}
             {search.trim() && (

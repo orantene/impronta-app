@@ -2,6 +2,7 @@
 // ProfileDiffModal + computeProfileDiff · PublishCelebrationModal +
 // celebrationBtnStyle · ProfileOwnershipPanel.  Byte-for-byte.
 "use client";
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import React, { useState } from "react";
 import { ClaimInvitedState } from "./claim-link-panel";
 import {
@@ -481,7 +482,7 @@ export function PublishCelebrationModal({ stageName, slug, tenantSlug, profileUr
 }) {
   const { toast } = useAdminShell();
   const copy = useDashboardText();
-  const profileUrl = profileUrlProp ?? `https://tulala.digital/${tenantSlug}/t/${slug}`;
+  const profileUrl = profileUrlProp ?? `${resolvePublicRootOrigin()}/${tenantSlug}/t/${slug}`;
   // 2026 #8 — Web Share API. Triggers the native iOS / Android / desktop
   // share sheet (Messages, WhatsApp, AirDrop, Slack, etc). Falls back
   // to clipboard copy when the API isn't available (older browsers).

@@ -1,4 +1,5 @@
 "use client";
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import { logServerError } from "@/lib/server/safe-error";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 
@@ -128,7 +129,7 @@ export type PitchComposeDrawerProps = {
   tenantSlug: string;
   /** Agency name used in share deep links. */
   agencyName: string;
-  /** Base URL for share links (defaults to tulala.digital). */
+  /** Base URL for share links (defaults to this environment's public origin). */
   baseUrl?: string;
   onPitchSent?: (pitchId: string) => void;
 };
@@ -778,7 +779,7 @@ export function PitchComposeDrawer({
   clients,
   tenantSlug,
   agencyName,
-  baseUrl = "https://tulala.digital",
+  baseUrl = resolvePublicRootOrigin(),
   onPitchSent,
 }: PitchComposeDrawerProps) {
   const t = useT();

@@ -41,6 +41,7 @@ export const JS_ERRORS: Record<JoinStudioErrorCode, Pair> = {
     en: "You already have a request waiting with this studio.",
     es: "Ya tienes una solicitud en espera con este estudio.",
   },
+  already_member: { en: "You're already part of this studio.", es: "Ya eres parte de este estudio." },
   exclusive: {
     en: "You are in an exclusive relationship right now, so requests are paused until it ends.",
     es: "Tienes una relación de exclusividad ahora, así que las solicitudes están en pausa hasta que termine.",

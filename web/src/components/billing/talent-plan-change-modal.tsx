@@ -8,6 +8,8 @@ import {
 } from "@/app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions";
 import type { PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
 import { planIntentLabel } from "@/lib/onboarding/plan-intent";
+import { isKnownPlan, planDisplayNameFor } from "@/lib/access/plan-catalog";
+import { isFreeTalentTarget } from "@/lib/billing/plan-change-policy";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 /**
@@ -42,11 +44,18 @@ export function TalentPlanChangeModal({
       confirmTalentPlanChange(tenantSlug, planKey, interval ?? null, prorationDate, code),
     [tenantSlug, planKey, interval],
   );
-  const name = planIntentLabel({ plan: planKey as "talent_pro" | "talent_portfolio", interval }, locale);
+  // TUL-831: "Switch to Free" names the free plan from the catalog; paid targets keep their upgrade-modal name.
+  const name = isFreeTalentTarget(planKey)
+    ? planDisplayNameFor("talent_basic", locale)
+    : planIntentLabel({ plan: planKey as "talent_pro" | "talent_portfolio", interval }, locale);
+  const currentName = useCallback(
+    (plan: string) => (isKnownPlan(plan) ? planDisplayNameFor(plan, locale) : ""),
+    [locale],
+  );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-xl bg-background p-5 shadow-xl">
-        <PlanChangeConfirm planName={name} preview={preview} confirm={confirm} initialCode={initialCode ?? null} onDone={onDone} onCancel={onCancel} />
+        <PlanChangeConfirm planName={name} currentPlanName={currentName} preview={preview} confirm={confirm} initialCode={initialCode ?? null} onDone={onDone} onCancel={onCancel} />
       </div>
     </div>
   );

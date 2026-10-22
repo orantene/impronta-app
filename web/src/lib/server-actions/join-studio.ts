@@ -20,6 +20,7 @@ import { loadRegistrationSettings, registrationIsLive } from "@/lib/saas/registr
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 
 export type JoinStudioResult =
   | { ok: true; status: "active" | "pending"; studioName: string }
@@ -61,6 +62,15 @@ export async function joinStudioAction(raw: string): Promise<JoinStudioResult> {
 
     const studio = await resolveJoinableStudio(admin, ref);
     if (!studio) return { ok: false, code: "not_found" };
+    // An approved talent is already on this studio's roster: say so instead of a generic failure.
+    const { data: onRoster, error: rosterErr } = await tenantScopedQuery(admin, "agency_talent_roster", studio.tenantId)
+      .select("talent_profile_id")
+      .eq("talent_profile_id", talentProfileId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (rosterErr) logServerError("join-studio.roster", rosterErr);
+    else if (onRoster) return { ok: false, code: "already_member" };
     const settings = await loadRegistrationSettings(studio.tenantId);
     if (!registrationIsLive(settings)) {
       // TUL-1862: a studio that is not self-registering can still take applications

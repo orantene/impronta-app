@@ -9,6 +9,7 @@ src/app/checkout/cancel/cancel-page.static.test.ts
 src/app/t/[profileCode]/profile-price-currency.test.ts
 src/components/admin/shell/internal/messages/shared/deposit-money.test.ts
 src/components/admin/shell/internal/messages/shared/payment-tab-state.test.ts
+src/components/billing/talent-switch-to-free.static.test.ts
 src/components/marketing/pricing-interval-toggle.test.ts
 src/components/promos/public/booking-promo-panel.render.test.tsx
 src/components/promos/share/copy-text.test.ts
@@ -46,6 +47,7 @@ src/lib/billing/effective-workspace-plan.test.ts
 src/lib/billing/fee-card-load.static.test.ts
 src/lib/billing/fee-config.static.test.ts
 src/lib/billing/period-date.test.ts
+src/lib/billing/plan-change-downgrade.test.ts
 src/lib/billing/plan-change-policy.test.ts
 src/lib/billing/plan-change-promo.test.ts
 src/lib/billing/plan-change.test.ts
@@ -74,6 +76,7 @@ src/lib/orders/promo-resolve.client-status.test.ts
 src/lib/orders/purchase-promo.test.ts
 src/lib/payments/pay-host-links.test.ts
 src/lib/payments/seller-currency-messages.test.ts
+src/lib/payments/talent-downgrade-webhook-timing.test.ts
 src/lib/platform/plan-labels.test.ts
 src/lib/pos/draft-variant-price.test.ts
 src/lib/pos/pos-enabled.test.ts

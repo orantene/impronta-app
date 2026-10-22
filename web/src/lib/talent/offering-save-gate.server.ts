@@ -28,8 +28,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
-import { INSTANT_PLAN_REFUSAL_EN, instantPlanRefuses } from "@/lib/talent/instant-plan-gate";
-import { isPublishTransition, notReadyToPublishMessage, publishBlockers } from "@/lib/talent/publish-readiness";
+import { INSTANT_PLAN_REFUSAL_EN, INSTANT_PLAN_REFUSAL_ES, instantPlanRefuses } from "@/lib/talent/instant-plan-gate";
+import { ownerLaneCurrencyRefusal } from "@/lib/payments/seller-currency-guard";
+import { isPublishTransition, isQuotePriced, notReadyToPublishMessage, publishBlockers } from "@/lib/talent/publish-readiness";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 
 type Prior = { status: string | null; booking_mode: string | null } | null;
@@ -92,6 +93,22 @@ export function workspaceAllowsInstant(plans: ReadonlyMap<string, boolean>, ids:
   return known ? false : undefined;
 }
 
+/** True when this workspace's venue rules name the offering as its table-reservation item; null on a read error. */
+async function isVenueReservationItem(admin: unknown, tenantId: string, offeringId: string): Promise<boolean | null> {
+  const { data, error } = await (admin as SupabaseClient)
+    .from("venue_service_rules")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("reservation_offering_id", offeringId)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    logServerError("talent.offerings.saveGate.reservationItem", error);
+    return null;
+  }
+  return !!data;
+}
+
 async function loadPrior(admin: unknown, scope: OfferingSaveScope, offeringId: string): Promise<{ ok: true; prior: Prior } | { ok: false }> {
   const base = (admin as SupabaseClient).from("talent_offerings").select("status, booking_mode").eq("id", offeringId);
   const scoped =
@@ -112,6 +129,7 @@ export async function offeringSaveGateFor(
   scope: OfferingSaveScope,
   offering: TalentOffering,
   deps: OfferingSaveGateDeps = DEFAULT_DEPS,
+  locale?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const wantsPublish = offering.status === "published";
   const wantsInstant = offering.bookingMode === "instant";
@@ -127,8 +145,15 @@ export async function offeringSaveGateFor(
   const planId = planTalentId(scope);
   if (isPublishTransition(offering.status, prior?.status)) {
     const posture = planId ? await deps.loadPosture(planId) : PLATFORM_DEFAULT_BOOKING_POSTURE;
-    const missing = publishBlockers(offering, prior?.status, posture);
-    if (missing.length > 0) return { ok: false, error: notReadyToPublishMessage(offering.title, missing) };
+    // TUL-1877: the submitted `reservation` flag is the client's word; it is ignored and re-read from the DB.
+    const untrusted = { ...offering, reservation: false };
+    let missing = publishBlockers(untrusted, prior?.status, posture);
+    if (missing.includes("length") && offering.id && scope.kind === "workspace") {
+      const isReservation = await isVenueReservationItem(admin, scope.tenantId, offering.id);
+      if (isReservation === null) return { ok: false, error: "Failed to save." };
+      if (isReservation) missing = publishBlockers({ ...offering, reservation: true }, prior?.status, posture);
+    }
+    if (missing.length > 0) return { ok: false, error: notReadyToPublishMessage(offering.title, missing, locale) };
   }
 
   if (wantsInstant && prior?.booking_mode !== "instant") {
@@ -140,7 +165,7 @@ export async function offeringSaveGateFor(
       priorMode: prior?.booking_mode ?? null,
       planAllowsInstant: workspaceAllowsInstant(plans, planIds),
     });
-    if (refuse) return { ok: false, error: INSTANT_PLAN_REFUSAL_EN };
+    if (refuse) return { ok: false, error: locale?.startsWith("es") ? INSTANT_PLAN_REFUSAL_ES : INSTANT_PLAN_REFUSAL_EN };
   }
   return { ok: true };
 }
@@ -168,8 +193,15 @@ export async function workspaceOfferingSaveGate(
   /** TUL-1712: every active owner's talent id; the plan rule reads all of them. */
   ownerTalentIds?: readonly string[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId, ownerTalentIds }, offering, deps);
+  const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId, ownerTalentIds }, offering, deps, locale);
   if (!gate.ok) return gate;
   const currency = offeringCurrencyRefusal(offering.currency, locale);
-  return currency ? { ok: false, error: currency } : { ok: true };
+  if (currency) return { ok: false, error: currency };
+  // TUL-1381: a priced item whose currency the workspace's Stripe lane cannot charge is refused here,
+  // before a guest hits the wall at checkout. Quote-priced and free items charge nothing, so they pass.
+  if (!isQuotePriced(offering) && (offering.amountCents ?? 0) > 0) {
+    const lane = await ownerLaneCurrencyRefusal(admin as SupabaseClient, { tenantId, currency: offering.currency, locale });
+    if (lane) return { ok: false, error: lane };
+  }
+  return { ok: true };
 }
