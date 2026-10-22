@@ -363,6 +363,8 @@
         "saveError": "Could not save your review. Please try again.",
         "savedTitle": "Thanks for reviewing {name}.",
         "savedBody": "Your {rating}-star review is now published.",
+        "updatedTitle": "Review updated.",
+        "updatedBody": "Your {rating}-star review has been updated and is live.",
         "done": "Done",
         "yourReview": "Your review",
         "closeReview": "Close review",
@@ -1790,6 +1792,7 @@
       "rosterNote": "Request a service and the studio will reply with the details.",
       "rosterRequest": "Request",
       "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "inquireOnly": "This service is not open for online booking yet. Write to us and we will arrange it.",
       "requestCta": "Send a request"
     },
     "siteShellSurface": {

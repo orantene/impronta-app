@@ -13,7 +13,7 @@
  *   - requested_by_user_id = the caller; status starts 'pending'.
  *
  * Auth/tenant-scope patterns mirror ./review-actions.ts exactly: requireTalent()
- * for the session, the resolve_public_tenant_by_slug SECURITY DEFINER RPC to map
+ * for the session, the tenant portal-scope resolver to map
  * a tenantSlug → tenant id, `.returns<T>()` reads (database.types.ts not
  * regenerated this wave), and the `{ ok: true } | { ok: false; error }` shape.
  * RLS on public.review_requests is authoritative — it lets tenant staff OR the
@@ -25,6 +25,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireTalent } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { resolveReviewTenantId } from "@/lib/reviews/resolve-review-tenant";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
 import { getAppUrl } from "@/lib/auth-flow";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -33,21 +34,6 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Postgres unique-violation SQLSTATE. */
 const PG_UNIQUE_VIOLATION = "23505";
-
-async function resolveTenantId(
-  supabase: SupabaseClient,
-  tenantSlug: string,
-): Promise<string | null> {
-  const slug = (tenantSlug ?? "").trim();
-  if (!slug) return null;
-  // agencies SELECT is staff-only under RLS; use the SECURITY DEFINER resolver
-  // RPC (granted to authenticated) so a talent session can map slug → tenant id.
-  const { data } = await supabase.rpc("resolve_public_tenant_by_slug", {
-    p_slug: slug,
-  });
-  const rows = (data ?? []) as Array<{ tenant_id: string; tenant_slug: string }>;
-  return rows[0]?.tenant_id ?? null;
-}
 
 /**
  * Fire the review-invite notification through the EXISTING engine.
@@ -158,7 +144,7 @@ export async function createReviewRequestAction(
 
   const cleanMessage = (input.message ?? "").trim().slice(0, 2000) || null;
 
-  const tenantId = await resolveTenantId(supabase, input.tenantSlug);
+  const tenantId = await resolveReviewTenantId(input.tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
   // Reviews are a PREMIUM capability, gated on the surface tenant's entitlement.
@@ -252,7 +238,7 @@ export async function loadReviewRequestsForOwnerAction(
   const cleanTalentId = (talentProfileId ?? "").trim();
   if (!cleanTalentId) return [];
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return [];
 
   const { data, error } = await supabase
@@ -296,6 +282,6 @@ export async function reviewsEnabledForTenantAction(
   // An unresolvable slug (a solo talent's own hub is not a public tenant) has
   // no platform decision on it, so it gets the platform default like any
   // missing entitlement row. Only an explicit stored false turns Reviews off.
-  const tenantId = await resolveTenantId(auth.supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   return tenantReviewsEnabled(tenantId);
 }
