@@ -126,3 +126,11 @@ test("a malformed share fragment never throws (crafted link)", () => {
   act(() => root.unmount());
   dom.window.history.replaceState(null, "", "/en");
 });
+
+test("an old-format share link (title + widget key) opens the same service", () => {
+  dom.window.history.replaceState(null, "", "/en#servicio-clase-aaaaaaaa-n1abc123");
+  const { root, dialog } = setup("quick_view");
+  assert.equal(dialog.hasAttribute("open"), true);
+  act(() => root.unmount());
+  dom.window.history.replaceState(null, "", "/en");
+});
