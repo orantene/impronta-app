@@ -1,5 +1,7 @@
 /**
- * Today money tiles (Stage C M3 / audit F2).
+ * Today money tiles (Stage C M3 / audit F2) — types + landing helpers only.
+ * The September-fixture tile builder lives in `today-money-tiles.fixture.ts`
+ * (tests only) so the fixture never reaches a client bundle (TUL-1178).
  *
  * Compact three figures on Talent Today — Collected in September, Due by today,
  * Next payout · estimated — from the same M1 fixture + `summarizeMoneyLedger`
@@ -7,14 +9,7 @@
  * (`mc_out_today`). No snapshot-aggregations / earnings totals here.
  */
 
-import { moneyDefinition } from "./definitions";
-import { formatMoneyMajor, formatMoneyShort } from "./money-spine-format";
-import {
-  buildMoneySpineView,
-  type MoneyTab,
-  type OutstandingFilter,
-} from "./money-spine-view";
-import { PAYOUT_ACCOUNT } from "./money-spine-chrome";
+import type { MoneyTab, OutstandingFilter } from "./money-spine-view";
 
 export const MONEY_OPEN_STORAGE_KEY = "tulala:money:open";
 
@@ -77,70 +72,4 @@ export function consumeMoneyLanding(): MoneyLanding | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Three Today tiles from the Money read model. Amounts are major units from
- * `buildMoneySpineView()` — the September fixture, not invented copy.
- */
-export function todayMoneyTilesFromLedger(): readonly TodayMoneyTile[] {
-  // The ledger read model is still the September FIXTURE (one demo business's
-  // figures). Real talents must never see it as theirs: no tiles unless the
-  // demo/QA flag is on (Today hides the money block when this is empty).
-  if (process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE !== "1") return [];
-  const view = buildMoneySpineView();
-  const s = view.summary;
-  const currency = view.currency;
-  const due = moneyDefinition("due_by_today");
-  const next = s.next_payout_estimated;
-  const nextDay = view.payouts.find((p) => p.state === "scheduled" || p.estimated === true);
-
-  return [
-    {
-      id: "collected",
-      labelEn: "Collected in September",
-      labelEs: "Cobrado en septiembre",
-      scopeEn: "gross, 1–23 Sep",
-      scopeEs: "bruto, 1–23 sep",
-      amountMajor: s.collected_gross,
-      amountLabel: formatMoneyMajor(s.collected_gross, currency),
-      linesEn: `${s.payments_count} payments · card ${formatMoneyShort(s.by_method.card)} · cash ${formatMoneyShort(s.by_method.cash)} · transfer ${formatMoneyShort(s.by_method.transfer)}`,
-      linesEs: `${s.payments_count} pagos · tarjeta ${formatMoneyShort(s.by_method.card)} · efectivo ${formatMoneyShort(s.by_method.cash)} · transferencia ${formatMoneyShort(s.by_method.transfer)}`,
-      landing: { tab: "payments" },
-      tone: "default",
-    },
-    {
-      id: "due_by_today",
-      labelEn: due.labelEn,
-      labelEs: due.labelEs,
-      scopeEn: "overdue + today",
-      scopeEs: "vencido + hoy",
-      amountMajor: s.due_by_today,
-      amountLabel: formatMoneyMajor(s.due_by_today, currency),
-      linesEn: `${formatMoneyShort(s.outstanding_overdue)} overdue · ${formatMoneyShort(s.outstanding_today)} due today`,
-      linesEs: `${formatMoneyShort(s.outstanding_overdue)} vencido · ${formatMoneyShort(s.outstanding_today)} hoy`,
-      landing: { tab: "outstanding", outFilt: "today" },
-      tone: "attention",
-    },
-    {
-      id: "payout",
-      labelEn: "Next payout · estimated",
-      labelEs: "Próximo pago · estimado",
-      scopeEn: "card only",
-      scopeEs: "solo tarjeta",
-      amountMajor: next ?? 0,
-      amountLabel:
-        next == null ? "—" : formatMoneyMajor(next, currency),
-      linesEn:
-        next == null || !nextDay
-          ? "No estimated payout"
-          : `About ${formatMoneyShort(next)} on Fri ${nextDay.day} (estimated) · ${PAYOUT_ACCOUNT.bank}`,
-      linesEs:
-        next == null || !nextDay
-          ? "Sin depósito estimado"
-          : `Cerca de ${formatMoneyShort(next)} el vie ${nextDay.day} (estimado) · ${PAYOUT_ACCOUNT.bank}`,
-      landing: { tab: "payouts" },
-      tone: "success",
-    },
-  ];
 }

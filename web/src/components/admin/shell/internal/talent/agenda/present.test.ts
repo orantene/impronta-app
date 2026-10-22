@@ -4,13 +4,12 @@ import { describe, it } from "node:test";
 import { needsAttention, todayTotals } from "@/lib/talent-agenda/derive";
 import { JOR_CLOCK, JOR_DAY_KEY, JOR_WEEK } from "@/lib/talent-agenda/__fixtures__/jor-week";
 import { LEDGER_CONTRACT_AGGREGATES } from "@/lib/money/september-ledger-contract";
-import { todayMoneyTilesFromLedger } from "@/lib/money/today-money-tiles";
+import { todayMoneyTilesFromLedger } from "@/lib/money/today-money-tiles.fixture";
 
 import { formatDualTimezoneWhen, moneyFromEarnings, moneyFromLedger, rebookHint, todayFromAgenda } from "./present";
 import type { TalentAgendaItem } from "@/lib/talent-agenda/types";
 
 // These tests exercise the September FIXTURE tiles, which are demo/QA-only.
-process.env.NEXT_PUBLIC_TALENT_MONEY_SPINE_FIXTURE = "1";
 
 describe("T4.1 Today V2 · Jor clock 09:50", () => {
   it("next up is Camila 10:00; rest is Ana then Lucía", () => {
