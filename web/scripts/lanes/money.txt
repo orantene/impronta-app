@@ -395,6 +395,7 @@ src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/recurring-consent.test.ts
+src/lib/stripe/stored-customer.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/talent-domain-renewal.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts

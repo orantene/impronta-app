@@ -21531,6 +21531,8 @@
       "billing": {
         "redirecting": "Redirecting…",
         "trialRaceRetry": "Another checkout was opened at the same time. Please try again.",
+        "checkoutFailed": "Could not create checkout session.",
+        "checkoutNoUrl": "Stripe returned no checkout URL.",
         "pastDueTitle": "Payment failed.",
         "pastDueGraceBody": {
           "one": "Your payment didn't go through. Paid features stay on for {count} more day. Update your card to keep them.",

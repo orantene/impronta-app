@@ -18,7 +18,8 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { type TalentPlanKey } from "@/lib/stripe/price-ids";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
+import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
@@ -43,6 +44,7 @@ import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { createTranslator } from "@/i18n/messages";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
@@ -99,8 +101,14 @@ export async function getOrCreateTalentStripeCustomer(
       .eq("user_id", userId)
       .maybeSingle();
 
+    let replacingStale = false;
     if (existing?.stripe_customer_id) {
-      return { ok: true, data: existing.stripe_customer_id };
+      if (!(await storedCustomerIsStale(stripe, existing.stripe_customer_id))) {
+        return { ok: true, data: existing.stripe_customer_id };
+      }
+      // The id belongs to another Stripe account/sandbox (or was deleted): mint a new one and replace the mapping.
+      replacingStale = true;
+      logServerExpected("talent-billing.getOrCreateCustomer.stale", new Error(`stored Stripe customer ${existing.stripe_customer_id} not found; recreating`));
     }
 
     const customer = await stripe.customers.create({
@@ -109,11 +117,14 @@ export async function getOrCreateTalentStripeCustomer(
       metadata: { user_id: userId, customer_type: "talent" },
     });
 
-    const { error } = await sb.from("talent_stripe_customers").insert({
+    const row = {
       user_id: userId,
       stripe_customer_id: customer.id,
       billing_email: email,
-    });
+    };
+    const { error } = replacingStale
+      ? await sb.from("talent_stripe_customers").upsert(row, { onConflict: "user_id" })
+      : await sb.from("talent_stripe_customers").insert(row);
 
     // Audit C6 — race fix: if a concurrent call won the insert race, our
     // freshly-created Stripe customer is now an orphan. Delete it and
@@ -281,7 +292,7 @@ export async function createTalentCheckoutSession(opts: {
         : created;
 
     if (!session.url) {
-      return { ok: false, error: "Stripe returned no checkout URL." };
+      return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutNoUrl") };
     }
 
     // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
@@ -294,7 +305,7 @@ export async function createTalentCheckoutSession(opts: {
     return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("talent-billing.createCheckoutSession", err);
-    return { ok: false, error: "Could not create checkout session." };
+    return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutFailed") };
   }
 }
 
