@@ -158,6 +158,7 @@ const KIND_BY_RENDERER_CSS_TOKEN: Readonly<Record<string, BuilderNodeKind>> = {
   "menu-board-item": "menu_board",
   "menu-board-item-copy": "menu_board",
   "menu-board-item-title": "menu_board",
+  "menu-board-item-link": "menu_board",
   "menu-board-item-price": "menu_board",
   "menu-board-usd-hint": "menu_board",
   "menu-board-catnav": "menu_board",

@@ -108,6 +108,7 @@ src/lib/service-hub/visible-picks-link.test.ts
 src/lib/service-hub/visible-picks.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
+src/lib/services/business-pages/menu-links.test.ts
 src/lib/services/business-pages/page-model.test.ts
 src/lib/services/business-pages/paths.test.ts
 src/lib/services/presentation/card-target.test.ts
