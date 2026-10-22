@@ -163,7 +163,10 @@ export async function getGuideArticle(nodeId: string, locale: GuideLocale): Prom
 }
 
 /** "Start here" + browse-by-area topic list for the Guide tab's landing view. */
-export async function listGuideTopics(locale: GuideLocale): Promise<GuideTopicSummary[]> {
+export async function listGuideTopics(
+  locale: GuideLocale,
+  surface?: string | null,
+): Promise<GuideTopicSummary[]> {
   const supabase = await createClient();
   const generated = new Map<string, ArticleRow>();
   if (supabase) {
@@ -181,6 +184,8 @@ export async function listGuideTopics(locale: GuideLocale): Promise<GuideTopicSu
   const out: GuideTopicSummary[] = [];
   for (const [nodeId, entry] of Object.entries(DRAWER_HELP)) {
     if (!entry) continue;
+    // TUL-602: a talent sees the talent guide, not the agency-written one.
+    if (surface === "talent" && ![entry.audience].flat().includes("Talent")) continue;
     const row = generated.get(nodeId);
     const oneSentence = row ? parseSections(row.body_md).oneSentence : guidePurpose(nodeId, entry.purpose, locale);
     out.push({

@@ -470,16 +470,13 @@ export function AgendaBookingRecord({
               <dt className="text-[var(--tc-muted)]">{copy.t("When")}</dt>
               <dd>{whenFull}</dd>
             </div>
-            <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
-              <dt className="text-[var(--tc-muted)]">{copy.t("Where")}</dt>
-              <dd>
-                {item.whereLabel ? (
-                  copy.t(item.whereLabel)
-                ) : (
-                  <span className="text-[var(--tc-muted)]">{copy.t("Not set yet")}</span>
-                )}
-              </dd>
-            </div>
+            {/* TUL-1889: no place on the booking means no row, never a "Not set yet" dead end. */}
+            {item.whereLabel ? (
+              <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
+                <dt className="text-[var(--tc-muted)]">{copy.t("Where")}</dt>
+                <dd>{copy.t(item.whereLabel)}</dd>
+              </div>
+            ) : null}
             <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
               <dt className="text-[var(--tc-muted)]">{copy.t("Came from")}</dt>
               <dd>{copy.t(recordSourceLabel(item.sourceLabel))}</dd>

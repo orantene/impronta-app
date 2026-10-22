@@ -19,8 +19,10 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
+  couponIdOf,
   extractSubscriptionDiscount,
   isUnexpandedDiscount,
+  type DiscountLike,
 } from "@/lib/billing/subscription-discounts";
 import { applyCampaignGrantForDiscount } from "@/lib/billing/apply-campaign-grant";
 import type Stripe from "stripe";
@@ -80,47 +82,107 @@ export async function recordDiscountRedemption(
   try {
     const mirror = extractSubscriptionDiscount(subscription);
     if (!mirror || isUnexpandedDiscount(mirror) || !mirror.couponId) return;
-
-    const tenantId = subscription.metadata?.tenant_id ?? null;
-    const talentProfileId = subscription.metadata?.talent_profile_id ?? null;
-    if (!tenantId && !talentProfileId) return;
-
-    const sb = client ?? createServiceRoleClient();
-    if (!sb) return;
-    if (await alreadyRecordedForSubscription(sb, mirror.couponId, subscription.id)) return;
-
-    const { data: recorded, error } = await sb.rpc("record_discount_redemption", {
-      p_stripe_coupon_id: mirror.couponId,
-      p_stripe_event_id: redemptionLedgerKey(subscription.id, mirror.couponId),
-      p_subject_type: talentProfileId ? "talent" : "workspace",
-      p_tenant_id: tenantId as string,
-      p_talent_profile_id: talentProfileId as string,
-      p_stripe_subscription_id: subscription.id,
-      // WHO redeemed. Talent checkout has always stamped `user_id`; the
-      // workspace side now does too. Older subscriptions carry no such
-      // metadata, so this is null for them rather than wrong.
-      p_user_id: subscription.metadata?.user_id ?? null,
-    });
-    if (error) logServerError("stripe-webhook.discount-redemption", error);
-
-    // The entitlement half of a campaign, applied exactly once. `recorded` is
-    // the RPC's own idempotency answer: true ONLY on the insert that actually
-    // happened, so a replayed webhook cannot hand out a second free upgrade.
-    // Workspace subjects only, and best-effort -- a courtesy grant that fails
-    // must never fail the webhook that delivered the payment.
-    if (recorded === true && tenantId) {
-      const outcome = await applyCampaignGrantForDiscount({
-        stripeCouponId: mirror.couponId,
-        tenantId,
-      });
-      if (outcome.applied) {
-        logServerError(
-          "stripe-webhook.campaign-grant.applied",
-          `tenant ${tenantId} granted ${outcome.planTier} until ${outcome.expiresAt}`,
-        );
-      }
-    }
+    await recordRedemptionForCoupon(subscription, mirror.couponId, client);
   } catch (err) {
     logServerError("stripe-webhook.discount-redemption", err);
   }
+}
+
+/** The shared body: one ledger row per subscription + coupon, plus the campaign grant. Throws; callers catch. */
+async function recordRedemptionForCoupon(
+  subscription: Stripe.Subscription,
+  couponId: string,
+  client?: RedemptionClient | null,
+): Promise<void> {
+  const tenantId = subscription.metadata?.tenant_id ?? null;
+  const talentProfileId = subscription.metadata?.talent_profile_id ?? null;
+  if (!tenantId && !talentProfileId) return;
+
+  const sb = client ?? createServiceRoleClient();
+  if (!sb) return;
+  if (await alreadyRecordedForSubscription(sb, couponId, subscription.id)) return;
+
+  const { data: recorded, error } = await sb.rpc("record_discount_redemption", {
+    p_stripe_coupon_id: couponId,
+    p_stripe_event_id: redemptionLedgerKey(subscription.id, couponId),
+    p_subject_type: talentProfileId ? "talent" : "workspace",
+    p_tenant_id: tenantId as string,
+    p_talent_profile_id: talentProfileId as string,
+    p_stripe_subscription_id: subscription.id,
+    // WHO redeemed. Talent checkout has always stamped `user_id`; the
+    // workspace side now does too. Older subscriptions carry no such
+    // metadata, so this is null for them rather than wrong.
+    p_user_id: subscription.metadata?.user_id ?? null,
+  });
+  if (error) logServerError("stripe-webhook.discount-redemption", error);
+
+  // The entitlement half of a campaign, applied exactly once. `recorded` is
+  // the RPC's own idempotency answer: true ONLY on the insert that actually
+  // happened, so a replayed webhook cannot hand out a second free upgrade.
+  // Workspace subjects only, and best-effort -- a courtesy grant that fails
+  // must never fail the webhook that delivered the payment.
+  if (recorded === true && tenantId) {
+    const outcome = await applyCampaignGrantForDiscount({
+      stripeCouponId: couponId,
+      tenantId,
+    });
+    if (outcome.applied) {
+      logServerError(
+        "stripe-webhook.campaign-grant.applied",
+        `tenant ${tenantId} granted ${outcome.planTier} until ${outcome.expiresAt}`,
+      );
+    }
+  }
+}
+
+/** B6 (TUL-1872): invoice reasons that carry a code the subscription never keeps (a "once" coupon is consumed by the invoice). */
+const REDEEMING_INVOICE_REASONS = new Set(["subscription_update", "subscription_create"]);
+
+/** Pure: the coupon ids on an invoice whose `discounts` are expanded. Bare `di_` strings are skipped (see below). */
+export function invoiceDiscountCouponIds(invoice: Pick<Stripe.Invoice, "discounts">): string[] {
+  const ids = new Set<string>();
+  for (const d of (invoice.discounts ?? []) as Array<string | DiscountLike>) {
+    if (typeof d === "string") continue;
+    const id = couponIdOf(d.source?.coupon ?? d.coupon ?? null);
+    if (id) ids.add(id);
+  }
+  return [...ids];
+}
+
+/**
+ * B6 (TUL-1872): an in-app plan change with a "once" coupon bills the code on the proration invoice and Stripe then
+ * drops it from the subscription, so reading the subscription finds nothing and the redemption was never counted.
+ * Read the PAID INVOICE's discounts instead. Same ledger key as the subscription path (sub + coupon), so whichever
+ * path gets there first wins and the other is a no-op. Best effort, like the rest of this file.
+ */
+export async function recordInvoiceDiscountRedemption(
+  stripe: { invoices: Pick<Stripe["invoices"], "retrieve"> },
+  invoice: Stripe.Invoice,
+  subscription: Stripe.Subscription,
+  client?: RedemptionClient | null,
+): Promise<void> {
+  try {
+    if (!REDEEMING_INVOICE_REASONS.has(String(invoice.billing_reason))) return;
+    if ((invoice.amount_paid ?? 0) <= 0 && (invoice.total ?? 0) > 0) return; // unpaid
+    let inv = invoice;
+    if ((inv.discounts ?? []).some((d) => typeof d === "string") && inv.id) {
+      inv = await stripe.invoices.retrieve(inv.id, { expand: ["discounts"] });
+    }
+    for (const couponId of invoiceDiscountCouponIds(inv)) {
+      await recordRedemptionForCoupon(subscription, couponId, client);
+    }
+  } catch (err) {
+    logServerError("stripe-webhook.discount-redemption.invoice", err);
+  }
+}
+
+/** Webhook entry: the subscription's own discount first, then the invoice's (covers a consumed "once" coupon). */
+export async function recordPaidInvoiceRedemptions(
+  stripe: { invoices: Pick<Stripe["invoices"], "retrieve"> },
+  subscription: Stripe.Subscription,
+  eventId: string,
+  invoice: Stripe.Invoice,
+): Promise<void> {
+  await recordDiscountRedemption(subscription, eventId);
+  await recordInvoiceDiscountRedemption(stripe, invoice, subscription);
 }

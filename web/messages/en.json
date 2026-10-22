@@ -167,7 +167,8 @@
         "confirmPassword": "Enter and confirm your new password.",
         "passwordMismatch": "Password and confirmation do not match.",
         "generic": "Something went wrong. Please try again.",
-        "ageTermsRequired": "Please confirm you are 18 or older and agree to the Terms and Privacy Policy."
+        "ageTermsRequired": "Please confirm you are 18 or older and agree to the Terms and Privacy Policy.",
+        "nameRequired": "Enter your name."
       },
       "errors": {
         "invalidCredentials": "Invalid email or password. Check the email or use Forgot password.",
@@ -362,6 +363,8 @@
         "saveError": "Could not save your review. Please try again.",
         "savedTitle": "Thanks for reviewing {name}.",
         "savedBody": "Your {rating}-star review is now published.",
+        "updatedTitle": "Review updated.",
+        "updatedBody": "Your {rating}-star review has been updated and is live.",
         "done": "Done",
         "yourReview": "Your review",
         "closeReview": "Close review",
@@ -939,7 +942,8 @@
       "threadLogAria": "Conversation",
       "systemClusterMore": "{count} more updates",
       "systemClusterCollapse": "Hide",
-      "systemLineupCount": "Selection · {count} talent",
+      "systemLineupCountOne": "Selection · {count} talent",
+      "systemLineupCount": "Selection · {count} talents",
       "systemLineupRecommend": "Let the agency recommend",
       "messageRemoved": "Message removed",
       "openFullToView": "Open the full conversation to view this update.",
@@ -1067,6 +1071,7 @@
       "confirm": "Confirm",
       "editorDateLabel": "Event date",
       "dateIncompleteError": "Please enter the full date (day, month and year).",
+      "dateIncompleteInline": "Complete the date",
       "dateExact": "Exact date",
       "dateFlexible": "Flexible",
       "dateNotSure": "Not sure yet",
@@ -1787,6 +1792,7 @@
       "rosterNote": "Request a service and the studio will reply with the details.",
       "rosterRequest": "Request",
       "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "inquireOnly": "This service is not open for online booking yet. Write to us and we will arrange it.",
       "requestCta": "Send a request"
     },
     "siteShellSurface": {
@@ -1811,7 +1817,9 @@
       "noAgencies": "No active agency domains yet.",
       "searchAgencies": "Search agencies",
       "noMatch": "No agencies match your search.",
-      "featured": "Featured on the hub"
+      "featured": "Featured on the hub",
+      "seeAll": "See all {count} agencies",
+      "showFewer": "Show fewer"
     },
     "menuBoard": {
       "contactRequired": "Name, email, and phone are required.",
@@ -5553,6 +5561,10 @@
       "wsFieldSettingsDesc": "Workspace overrides for the resolved profile engine",
       "wsTalentCategoriesTitle": "Talent categories",
       "wsTalentCategoriesDesc": "Tenant-enabled categories for roster and registration",
+      "workStyle": {
+        "label": "How you work with people",
+        "desc": "Who gets requests, the price clients see and your share."
+      },
       "industry": {
         "label": "Industry and words",
         "desc": "Pick what you are. It sets what things are called on your site, your main button, and how the chat greets people. Nothing is locked."
@@ -12904,6 +12916,7 @@
         "ai": "AI",
         "account": "Account",
         "agencies": "Agencies",
+        "calendar": "Calendar",
         "clients": "Clients",
         "hq": "HQ",
         "help": "Help",
@@ -12916,6 +12929,7 @@
         "roster": "Roster",
         "security": "Security",
         "settings": "Settings",
+        "support": "Support",
         "today": "Today"
       },
       "audiences": {
@@ -14120,6 +14134,8 @@
       "handoffHq": "Escalated to you",
       "humanReplyEta": "{agent} will reply, typically within a few hours",
       "ticketReceipt": "Ticket #{number} received. {agent} will reply, typically within a few hours.",
+      "takenBy": "Taken by {name}",
+      "escalatedLog": "Ticket #{number} handed to a human: {reason}",
       "humanHandling": "A person is handling this",
       "aiHandling": "AI is helping, a human is one tap away",
       "statusClosed": "Closed",

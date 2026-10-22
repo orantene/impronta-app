@@ -27,6 +27,9 @@ function unknownTime(locale: EventLabelLocale): string {
   return locale === "es" ? "Horario a confirmar por el local" : "Time to be confirmed by the venue";
 }
 
+// Zone names use `shortOffset` ("GMT-5"), never `short`: for a Cancún venue
+// (America/Cancun, UTC-5, no DST) `short` renders "EST" in English, which a
+// guest reads as New York time and is off by an hour half the year.
 export function whenLabel(
   iso: string | null,
   timeZone: string | null,
@@ -45,7 +48,7 @@ export function whenLabel(
       weekday: "long",
       day: "numeric",
       month: "long",
-      ...(withTime ? { hour: "numeric", minute: "2-digit", hour12: locale !== "es", timeZoneName: "short" } : {}),
+      ...(withTime ? { hour: "numeric", minute: "2-digit", hour12: locale !== "es", timeZoneName: "shortOffset" } : {}),
     });
   } catch {
     // Never silently the reader's zone.
@@ -139,7 +142,7 @@ export function timeLabel(iso: string, timeZone: string | null, locale: EventLab
       hour: "numeric",
       minute: "2-digit",
       hour12: locale !== "es",
-      timeZoneName: "short",
+      timeZoneName: "shortOffset",
     });
   } catch {
     return d.toISOString();

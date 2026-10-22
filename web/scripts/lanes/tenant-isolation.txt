@@ -244,6 +244,7 @@ src/lib/talent/offering-moderation.test.ts
 src/lib/talent/offerings-auth-staff-capabilities.test.ts
 src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/private-fields.test.ts
+src/lib/talent/propose-terms-after-approve.test.ts
 src/lib/talent/services-menu-authorization.test.ts
 src/lib/talent/staff-talent-access.static.test.ts
 src/lib/talent/studio-flag.test.ts

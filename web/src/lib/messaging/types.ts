@@ -199,6 +199,8 @@ export type ThreadMessage = {
   fromAi?: boolean;
   /** Guest/talent disclosure label when fromAi (e.g. "Automated reply"). */
   aiDisclosureLabel?: string | null;
+  /** TUL-1887: the talent's own display name when a talent wrote this reply; null/absent = the business label. */
+  senderLabel?: string | null;
   /** TUL-1415: the structured roster request the guest's front-door chat built (lines, party, day). Request-only: no price. */
   rosterRequest?: RosterRequestMeta | null;
 };

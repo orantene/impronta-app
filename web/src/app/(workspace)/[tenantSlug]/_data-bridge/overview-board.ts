@@ -57,6 +57,7 @@ import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
 import { timed } from "@/lib/server/perf-trace";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { pickWorkspaceCurrency } from "@/lib/payments/workspace-currency";
 import { tenantTimezone } from "@/lib/spaces/venues";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
@@ -94,11 +95,7 @@ async function readMoney(
   ]);
   // TUL-525: never paint "$0 USD" for an MXN studio — fall back to the
   // workspace preferred currency before the platform default.
-  const fallbackCurrency =
-    (workspaceCurrency?.trim().toUpperCase() || null) &&
-    /^[A-Z]{3}$/.test(workspaceCurrency!.trim().toUpperCase())
-      ? workspaceCurrency!.trim().toUpperCase()
-      : "USD";
+  const fallbackCurrency = pickWorkspaceCurrency(workspaceCurrency, null);
   const empty: OverviewMoney = {
     ok: false,
     currency: fallbackCurrency,
@@ -432,8 +429,11 @@ export async function loadOverviewSnapshot(input: {
   const book = stand.kind === "ok" ? stand.data.entries : [];
   // Prefer the agency column; else the first catalog currency (onboarding
   // seeds MXN services in Mexico but does not always write preferred_currency).
-  let workspaceCurrency = agency?.preferred_currency ?? null;
-  if (!workspaceCurrency && admin) {
+  // TUL-734: the SAME rule as the Payments board (`pickWorkspaceCurrency`): preferred currency, else the
+  // first catalogue currency, else MXN. It used to end in a hard-coded "USD" here.
+  const preferredCurrency = agency?.preferred_currency ?? null;
+  let offeringCurrency: string | null = null;
+  if (admin && !/^[A-Za-z]{3}$/.test((preferredCurrency ?? "").trim())) {
     const { data: offering, error: offeringError } = await admin
       .from("talent_offerings")
       .select("currency")
@@ -441,15 +441,10 @@ export async function loadOverviewSnapshot(input: {
       .not("currency", "is", null)
       .limit(1)
       .maybeSingle();
-    if (offeringError) {
-      logServerError("overview.workspaceCurrency", offeringError);
-    } else {
-      const raw = (offering as { currency?: string | null } | null)?.currency;
-      if (typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim())) {
-        workspaceCurrency = raw.trim().toUpperCase();
-      }
-    }
+    if (offeringError) logServerError("overview.workspaceCurrency", offeringError);
+    offeringCurrency = (offering as { currency?: string | null } | null)?.currency ?? null;
   }
+  const workspaceCurrency = pickWorkspaceCurrency(preferredCurrency, offeringCurrency);
   const money = await timed("overview.money", () =>
     readMoney(
       input.tenantId,

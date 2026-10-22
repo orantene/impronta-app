@@ -36,6 +36,8 @@ const BASE_NODE_FIELD_CARRIERS: ReadonlyArray<{
   skipKinds?: ReadonlyArray<string>;
 }> = [
   { key: "locked", normalize: (value) => (value === true ? true : undefined) },
+  // TUL-1854: owner removed the services band; survives validate so publish keeps the default band away.
+  { key: "hideDefaultServices", normalize: (value) => (value === true ? true : undefined) },
   {
     key: "lockedProps",
     normalize: (value) => {

@@ -65,7 +65,7 @@ async function requireOwner(talentProfileId: string) {
   if (!admin) return { ok: false as const, error: "Server configuration error." };
   const { data, error } = await admin
     .from("talent_profiles")
-    .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code, booking_terms")
+    .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code, booking_terms, is_demo, is_test_account")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (error) {
@@ -225,7 +225,15 @@ export async function mergeCategories(
 
 export async function loadOfferingDestinations(
   talentProfileId: string,
-): Promise<{ ok: true; destinations: OfferingDestination[] } | { ok: false; error: string }> {
+): Promise<
+  | {
+      ok: true;
+      destinations: OfferingDestination[];
+      /** TUL-1270: demo / test-account profile; the public loader strips QA-named services from its site. */
+      publicSiteHidesTestServices: boolean;
+    }
+  | { ok: false; error: string }
+> {
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const destinations: OfferingDestination[] = [];
@@ -275,7 +283,8 @@ export async function loadOfferingDestinations(
       enquiryTo: auth.profile.display_name ?? "You",
     });
   }
-  return { ok: true, destinations };
+  const flags = auth.profile as { is_demo?: boolean | null; is_test_account?: boolean | null };
+  return { ok: true, destinations, publicSiteHidesTestServices: flags.is_demo === true || flags.is_test_account === true };
 }
 
 export async function loadAddonGroups(

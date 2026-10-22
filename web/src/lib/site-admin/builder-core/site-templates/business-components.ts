@@ -323,7 +323,9 @@ const locationHours: BusinessComponent = {
     const hoursNodes: BuilderNode[] =
       hours.length > 0
         ? [band([heading(3, label("hours"), ctx), ...hours.map((l) => p(l))], { paddingY: "l", maxWidth: "reading", gap: "s" })]
-        : empty("location_hours", ctx);
+        : [];
+    // No published hours → no hours block at all: an empty public block saying
+    // "hours are not published yet" is noise to a visitor (Sofía, build 6).
     // No city and no address → no map at all (its empty state speaks of a
     // roster, which this business is not); the hours band still renders.
     if (items.length === 0 && !ctx.identity.address?.trim()) return hoursNodes;

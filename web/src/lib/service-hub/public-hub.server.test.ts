@@ -193,3 +193,10 @@ test("TUL-1599 (D-10a): an on-request member contributes no price; public member
   const none = await loadPublicHubEntries(fakeDb(only, { sellable: { a: true } }), T);
   assert.equal(none[0].priceCents, null);
 });
+
+test("TUL-1471: an entry whose booking_type is instant comes back as 'book' with the member's offering; request stays 'request'", async () => {
+  const instant = await loadPublicHubEntries(fakeDb({ ...base(), workspace_service_entries: [entry("e1", { booking_type: "instant" })] }, { sellable: { a: true } }), T);
+  assert.deepEqual([instant[0].cta, instant[0].bookOfferingId], ["book", "o-a"]);
+  const request = await loadPublicHubEntries(fakeDb({ ...base(), workspace_service_entries: [entry("e1", { booking_type: "request" })] }, { sellable: { a: true } }), T);
+  assert.deepEqual([request[0].cta, request[0].bookOfferingId], ["request", null]);
+});

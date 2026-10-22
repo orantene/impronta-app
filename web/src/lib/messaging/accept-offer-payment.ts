@@ -20,6 +20,7 @@ import { planAcceptCollection, type AcceptCollection, type AcceptPolicyLine } fr
 import { runAcceptOfferPayment, type AcceptOfferForPayment, type AcceptPaymentResult, type AcceptPaymentStore } from "./accept-offer-payment-core";
 import { insertMessage } from "./insert-message";
 import { linkRecordToConversation } from "./link-record";
+import { settleAcceptedOfferFor } from "./settle-accepted-offer";
 import { stampInquiryBookedAt } from "./stamp-inquiry-booked-at";
 
 /**
@@ -415,6 +416,8 @@ function productionStore(c: Ctx, offer: AcceptOfferForPayment): AcceptPaymentSto
         inquiryId: c.inquiryId,
       });
       if (!stamped.ok) return { ok: false };
+      // TUL-1899: a booked, paid offer is an accepted offer on a booked inquiry.
+      await settleAcceptedOfferFor(c.admin, { tenantId: c.tenantId, inquiryId: c.inquiryId, offerId: offer.id });
       return { ok: true, bookingId: booked.bookingId, scheduled: booked.scheduled };
     },
   };

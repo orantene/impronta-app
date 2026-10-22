@@ -20,18 +20,28 @@ type Probeable = {
   id: string;
   talentProfileId?: string | null;
   visibility?: string | null;
+  bookingMode?: string | null;
   hasOpenTimes?: boolean | null;
 };
 
 export async function annotateOpenTimes<T extends Probeable>(
   admin: SupabaseClient,
   offerings: T[],
-  ctx: { host: { kind: string; tenantId: string | null }; talentSiteId?: string | null; now?: Date },
+  ctx: {
+    host: { kind: string; tenantId: string | null };
+    talentSiteId?: string | null;
+    now?: Date;
+    /** Probed first, so a pinned service (Book again) is never past the cost cap. */
+    priorityId?: string | null;
+  },
 ): Promise<void> {
   const now = ctx.now ?? new Date();
   const probe: T[] = [];
-  for (const o of offerings) {
-    if (!o.talentProfileId || o.visibility === "on_request") {
+  const ordered = ctx.priorityId
+    ? [...offerings.filter((o) => o.id === ctx.priorityId), ...offerings.filter((o) => o.id !== ctx.priorityId)]
+    : offerings;
+  for (const o of ordered) {
+    if (!o.talentProfileId || o.visibility === "on_request" || o.bookingMode === "inquire") {
       o.hasOpenTimes = false;
     } else if (probe.length < OPEN_TIMES_PROBE_LIMIT) {
       probe.push(o);

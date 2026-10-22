@@ -73,6 +73,7 @@ import {
   stripDesignCredits,
 } from "@/lib/talent-site/footer-socket";
 import { resolveEffectiveSiteTokens } from "@/lib/talent-site/site-theme-tokens";
+import { hasPublicPublishedService, withDefaultServicesBand } from "@/lib/talent-site/default-services-band";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadTalentServicePresentation } from "@/lib/services/presentation/load-talent-presentation.server";
@@ -139,7 +140,6 @@ export async function renderMaxSiteDocument(args: {
     siteTokens,
     shellTree,
     page,
-    blocks,
     tenantId,
     talentProfileId,
     locale,
@@ -147,6 +147,13 @@ export async function renderMaxSiteDocument(args: {
     draftPreview,
     showPlatformBadge,
   } = args;
+
+  // TUL-1854: a home page published without a services band still shows the talent's public services.
+  let blocks = args.blocks;
+  if (page.isHome && !args.mainOverride && !builderTreeHasKind(blocks, "services_catalog")) {
+    const offered = await loadPublicOfferingsForProfile(talentProfileId, locale, null, { bypassCache: draftPreview }).catch(() => []);
+    blocks = withDefaultServicesBand(blocks, { isHome: true, hasPublicServices: hasPublicPublishedService(offered) });
+  }
 
   let publicHost = "";
   try {

@@ -79,3 +79,14 @@ describe("getOrCreate*StripeCustomer wiring", () => {
     assert.equal(createTranslator("es-MX")("admin.account.billing.checkoutNoUrl"), "Stripe no devolvió un enlace de pago.");
   });
 });
+
+describe("B6/TUL-1874: portal session creation syncs the customer language", () => {
+  for (const f of ["talent-billing.ts", "workspace-billing.ts"]) {
+    it(`${f} calls syncCustomerPreferredLocale before opening the portal`, () => {
+      const src = readFileSync(new URL(`./${f}`, import.meta.url), "utf8");
+      const portal = src.indexOf("billingPortal.sessions.create");
+      const sync = src.lastIndexOf("syncCustomerPreferredLocale(stripe, customer.stripe_customer_id", portal);
+      assert.ok(sync > 0 && sync < portal);
+    });
+  }
+});

@@ -275,8 +275,8 @@ export function ReservationSettingsForm({
           label={T("Reservations are on")}
           hint={
             canGoLive
-              ? "Guests can book from your site once a service window exists."
-              : "You can switch this on, but nothing is bookable until this venue has tables."
+              ? T("Guests can book from your site once a service window exists.")
+              : T("You can switch this on, but nothing is bookable until this venue has tables.")
           }
         >
           <input

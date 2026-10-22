@@ -11,7 +11,7 @@ import { revalidatePath } from "next/cache";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getAppUrl } from "@/lib/auth-flow";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
-import { parseStudioReference, type JoinStudioErrorCode } from "@/lib/onboarding/join-studio";
+import { existingStudioState, parseStudioReference, type JoinStudioErrorCode } from "@/lib/onboarding/join-studio";
 import { loadOwnTalentProfileId, resolveJoinableStudio } from "@/lib/onboarding/join-studio.server";
 import { submitAgencyApplication } from "@/lib/talent/apply-actions";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
@@ -63,14 +63,21 @@ export async function joinStudioAction(raw: string): Promise<JoinStudioResult> {
     const studio = await resolveJoinableStudio(admin, ref);
     if (!studio) return { ok: false, code: "not_found" };
     // An approved talent is already on this studio's roster: say so instead of a generic failure.
-    const { data: onRoster, error: rosterErr } = await tenantScopedQuery(admin, "agency_talent_roster", studio.tenantId)
-      .select("talent_profile_id")
-      .eq("talent_profile_id", talentProfileId)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
-    if (rosterErr) logServerError("join-studio.roster", rosterErr);
-    else if (onRoster) return { ok: false, code: "already_member" };
+    // Every roster status is read (not only "active"), plus approved applications, so a talent whose
+    // application was approved but whose row is pending/lagging still gets a specific answer.
+    const [rosterRead, approvedRead] = await Promise.all([
+      tenantScopedQuery(admin, "agency_talent_roster", studio.tenantId).select("status").eq("talent_profile_id", talentProfileId),
+      tenantScopedQuery(admin, "talent_agency_applications", studio.tenantId).select("id").eq("talent_profile_id", talentProfileId).eq("status", "approved").limit(1),
+    ]);
+    if (rosterRead.error) logServerError("join-studio.roster", rosterRead.error);
+    if (approvedRead.error) logServerError("join-studio.approved", approvedRead.error);
+    if (!rosterRead.error && !approvedRead.error) {
+      const existing = existingStudioState(
+        ((rosterRead.data ?? []) as Array<{ status: string }>).map((r) => r.status),
+        (approvedRead.data ?? []).length,
+      );
+      if (existing) return { ok: false, code: existing };
+    }
     const settings = await loadRegistrationSettings(studio.tenantId);
     if (!registrationIsLive(settings)) {
       // TUL-1862: a studio that is not self-registering can still take applications
