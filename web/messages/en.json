@@ -5533,6 +5533,10 @@
       "wsFieldSettingsDesc": "Workspace overrides for the resolved profile engine",
       "wsTalentCategoriesTitle": "Talent categories",
       "wsTalentCategoriesDesc": "Tenant-enabled categories for roster and registration",
+      "workStyle": {
+        "label": "How you work with people",
+        "desc": "Who gets requests, the price clients see and your share."
+      },
       "industry": {
         "label": "Industry and words",
         "desc": "Pick what you are. It sets what things are called on your site, your main button, and how the chat greets people. Nothing is locked."
