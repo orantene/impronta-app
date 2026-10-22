@@ -277,16 +277,18 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
   // TUL-978: show the tenant's name, not just its raw domain. Names are public
   // (they head every storefront); a failed read only costs the nicer label.
   const names = new Map<string, string>();
+  const slugs = new Map<string, string>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
   if (admin && tenantIds.length > 0) {
-    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name").in("id", tenantIds);
+    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name, slug").in("id", tenantIds);
     if (namesError) logServerError("hubLanding.agencyNames", namesError);
-    for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null }>) {
+    for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null; slug?: string | null }>) {
+      if (a.slug) slugs.set(a.id, a.slug);
       const n = a.display_name?.trim();
       if (n) names.set(a.id, n);
     }
   }
   // TUL-1843: re-home production-pattern hosts and drop live custom domains off production.
-  return buildHubAgencyEntries(rows, names);
+  return buildHubAgencyEntries(rows, names, process.env, slugs);
 }
