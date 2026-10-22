@@ -83,3 +83,18 @@ export function slicesForPage(page: WorkspacePage): readonly BridgeSliceName[] {
 export function isBridgeSliceName(value: string): value is BridgeSliceName {
   return (BRIDGE_SLICE_NAMES as readonly string[]).includes(value);
 }
+
+/**
+ * Drop the late slices the new initial bridge now carries itself (non-null there): those are
+ * fresher than anything fetched earlier. Slices the server still leaves out stay.
+ */
+export function pruneLateSlices<T extends object>(
+  late: T,
+  initial: object | null | undefined,
+): Partial<T> {
+  const out: Record<string, unknown> = {};
+  const init = (initial ?? {}) as Record<string, unknown>;
+  for (const [k, v] of Object.entries(late as Record<string, unknown>)) if (init[k] == null) out[k] = v;
+  return out as Partial<T>;
+}
+
