@@ -34,7 +34,7 @@ import {
 } from "@/lib/client-account/actions";
 import { ACCOUNT_DOCK_Z_INDEX, DOCK_NARROW_SIDE_CSS, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
 import { accountQuickLinks } from "@/lib/client-account/quick-links";
-import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
+import { resendSecondsLeft, visitLabels, type AccountSummary } from "@/lib/client-account/pure";
 import { formatPrice } from "@/lib/money/format-price";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
@@ -527,7 +527,12 @@ export function ClientAccountButton({
                     <dt style={{ fontSize: 12, opacity: 0.7 }}>{t("public.clientAccount.nextVisit")}</dt>
                     <dd style={{ margin: 0, fontWeight: 600 }}>
                       {me.summary.nextVisit
-                        ? `${me.summary.nextVisit.service ? `${me.summary.nextVisit.service}, ` : ""}${me.summary.nextVisit.dateLabel}, ${me.summary.nextVisit.timeLabel}`
+                        ? (() => {
+                            const v = me.summary.nextVisit;
+                            // Re-format in the PAGE locale (TUL-1900); the server labels are the fallback.
+                            const l = v.startsAtMs != null && v.timeZone ? visitLabels(v.startsAtMs, v.timeZone, loc) : v;
+                            return `${v.service ? `${v.service}, ` : ""}${l.dateLabel}, ${l.timeLabel}`;
+                          })()
                         : t("public.clientAccount.noVisit")}
                     </dd>
                   </div>

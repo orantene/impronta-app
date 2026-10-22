@@ -9,6 +9,7 @@ import {
   isClientAuthMethod,
   resendSecondsLeft,
   shapeAccountSummary,
+  visitLabels,
 } from "./pure";
 
 test("client auth methods include apple (TUL-65)", () => {
@@ -183,4 +184,12 @@ test("UTC fallback shows the zone label next to the time", () => {
   assert.match(shapeAccountSummary({ ...base, timeZone: "UTC" }).nextVisit!.timeLabel, /10:00.*UTC$/);
   assert.match(shapeAccountSummary({ ...base, timeZone: "Bad/Zone" }).nextVisit!.timeLabel, /UTC$/);
   assert.doesNotMatch(shapeAccountSummary({ ...base, timeZone: "America/Mexico_City" }).nextVisit!.timeLabel, /UTC/);
+});
+
+test("TUL-1900: visitLabels follows the page locale in the tenant zone", () => {
+  const ms = Date.parse("2026-10-24T00:00:00Z"); // Fri Oct 23, 7:00 PM in Cancún
+  const es = visitLabels(ms, "America/Cancun", "es");
+  assert.doesNotMatch(es.dateLabel, /Fri|Oct 23/);
+  assert.match(es.dateLabel, /vie/i);
+  assert.match(visitLabels(ms, "America/Cancun", "en").dateLabel, /Fri/);
 });

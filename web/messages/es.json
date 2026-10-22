@@ -939,6 +939,7 @@
       "threadLogAria": "Conversación",
       "systemClusterMore": "{count} actualizaciones más",
       "systemClusterCollapse": "Ocultar",
+      "systemLineupCountOne": "Selección · {count} talento",
       "systemLineupCount": "Selección · {count} talentos",
       "systemLineupRecommend": "Que la agencia recomiende",
       "messageRemoved": "Mensaje eliminado",
