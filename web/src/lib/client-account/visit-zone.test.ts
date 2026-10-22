@@ -70,7 +70,7 @@ test("two visits with different talents read in different zones in the list", ()
   const src = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
   assert.match(src, /visitZone\(props\.data\.visits\?\.zones\?\.\[v\.id\], props\.timeZone\)/);
   const data = readFileSync(join(process.cwd(), "src/lib/client-account/area-data.server.ts"), "utf8");
-  assert.match(data, /loadVisitZones\(tenantId, rows\.map/);
+  assert.match(data, /loadVisitZones\(tid, ids\)/);
 });
 
 test("TUL-62: list when uses starts_at (not date-only UTC midnight) in the talent zone", () => {
