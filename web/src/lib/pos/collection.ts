@@ -546,7 +546,7 @@ export async function startCollection(
         booking_id: bookingId,
         order_id: row.id,
         source_tenant_id: input.tenantId,
-        payer_user_id: input.actorUserId,
+        payer_user_id: null, // TUL-690: operator is staff, not the payer; sign-in claims by email
         payer_email: input.contact?.email ?? null,
         gross_amount_cents: amountCents,
         platform_fee_basis_points: 0,
