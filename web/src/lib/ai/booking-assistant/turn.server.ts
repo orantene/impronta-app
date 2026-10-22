@@ -24,6 +24,7 @@ import { catalogTenantForPublicHost } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
+  bookingAssistantFollowUpAckCopy,
   bookingAssistantHandoffCopy,
   replyLanguageDirective,
   replyLanguageMismatch,
@@ -31,6 +32,12 @@ import {
   type BookingHandoffReason,
 } from "./handoff";
 import { sanitizeBookingAssistantOutput } from "./guardrails";
+import {
+  llmFailureReason,
+  planBookingFallback,
+  safeProviderDetail,
+  type BookingFallbackReason,
+} from "./fallback";
 import { BOOKING_ASSISTANT_MODEL } from "./model";
 import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
 import { offeringPriceLabel } from "./price-label";
@@ -45,14 +52,18 @@ import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.ser
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
 /** Hard cut for deferred LLM work (guest already got their send response). */
-const LLM_TIMEOUT_MS = 5_000;
+const LLM_TIMEOUT_MS = 12_000;
 
 /**
  * Live QA / ops: every silent skip must leave a greppable line.
  * Event name: booking_assistant_skip | booking_assistant_run | booking_assistant_schedule.
  */
 function logBookingAssistant(
-  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule",
+  event:
+    | "booking_assistant_skip"
+    | "booking_assistant_run"
+    | "booking_assistant_schedule"
+    | "booking_assistant_fallback",
   fields: Record<string, string | number | boolean | null | undefined>,
 ): void {
   void improntaLog(event, fields);
@@ -432,6 +443,17 @@ export async function maybeRunBookingAssistantTurn(
     const switches = await loadTalentSiteSwitches(admin, args.talentProfileId);
     const enabled = switches.chatConfig.aiBookingAssistantEnabled === true;
     const prior = await loadPriorAssistantMeta(args.inquiryId, args.tenantId);
+    const postAck = (reason: string) => {
+      const ackLocale = resolveBookingAssistantReplyLocale(args.guestMessage, args.locale);
+      logBookingAssistant("booking_assistant_fallback", { ...base, reason, outcome: "ack" });
+      return insertSystemEvent({
+        inquiryId: args.inquiryId,
+        tenantId: args.tenantId,
+        body: bookingAssistantFollowUpAckCopy(ackLocale),
+        systemEventType: "booking_assistant_reply",
+        locale: ackLocale,
+      });
+    };
     const decision = decideBookingAssistantTurn({
       enabled,
       guestMessage: args.guestMessage,
@@ -446,6 +468,11 @@ export async function maybeRunBookingAssistantTurn(
         enabled,
         prior_count: prior.length,
       });
+      // TUL-1155: a guest who writes again after a handoff is never left on
+      // silence. The canned handoff copy is not repeated; they get the ack.
+      if (decision.reason === "already_handed_off") {
+        return postAck("already_handed_off");
+      }
       return null;
     }
 
@@ -470,8 +497,18 @@ export async function maybeRunBookingAssistantTurn(
     }
 
     // llm_facts — PM: Claude Haiku 5.5; bill the TALENT monthly cap, never hub.
+    // TUL-1155: after a handoff the canned copy is never posted twice.
+    const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     const anthropicKey = (await resolveAnthropicApiKey())?.trim() || null;
     if (!anthropicKey) {
+      // Config, not code: no key resolved (registry/vault key or ANTHROPIC_API_KEY).
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: "no_anthropic_key" satisfies BookingFallbackReason,
+        outcome: "gated_handoff",
+        env_anthropic_set: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
+      });
+      if (handedOffBefore) return postAck("no_anthropic_key");
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -485,6 +522,14 @@ export async function maybeRunBookingAssistantTurn(
     const planKey = await loadTalentPlanKey(args.talentProfileId);
     const usedCents = await loadTalentBookingAssistantSpendCentsThisMonth(args.talentProfileId);
     if (bookingAssistantMonthlyCapReached(usedCents, planKey)) {
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: "monthly_cap" satisfies BookingFallbackReason,
+        outcome: "gated_handoff",
+        plan_key: planKey,
+        used_cents: usedCents,
+      });
+      if (handedOffBefore) return postAck("monthly_cap");
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -502,6 +547,16 @@ export async function maybeRunBookingAssistantTurn(
       args.offerings,
     );
     const grounding = catalogGrounding(offerings);
+    if (offerings.length === 0) {
+      // Not a failure: the model is told the catalog is empty and says so. Named
+      // here because "no factual answer" on an empty catalog looks like a bug.
+      logBookingAssistant("booking_assistant_run", {
+        ...base,
+        action: "llm_facts",
+        decision_reason: "empty_catalog",
+        catalog_tenant_scoped: catalogTenantId !== null,
+      });
+    }
     const adapter = adapterForProvider("anthropic", anthropicKey);
     const started = Date.now();
     const controller = new AbortController();
@@ -559,10 +614,17 @@ export async function maybeRunBookingAssistantTurn(
       },
     });
 
-    // TUL-1155: after a handoff the canned copy is never posted twice.
-    const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     if (!completion.ok) {
-      if (handedOffBefore) return null;
+      const failReason = llmFailureReason(completion.code);
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: failReason,
+        outcome: handedOffBefore ? "ack" : "handoff",
+        provider_code: completion.code,
+        detail: safeProviderDetail(completion.message),
+        elapsed_ms: Date.now() - started,
+      });
+      if (planBookingFallback(handedOffBefore).kind === "ack") return postAck(failReason);
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -577,7 +639,18 @@ export async function maybeRunBookingAssistantTurn(
     // TUL-1154: never post a reply in the other language than the guest wrote.
     const wrongLanguage = replyLanguageMismatch(args.guestMessage, sanitized.text);
     if (sanitized.escalate || !sanitized.text.trim() || wrongLanguage) {
-      if (handedOffBefore) return null;
+      const why: BookingFallbackReason = wrongLanguage
+        ? "wrong_language"
+        : sanitized.escalate
+          ? "guardrail_escalate"
+          : "empty_reply";
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: why,
+        outcome: handedOffBefore ? "ack" : "handoff",
+        catalog_items: offerings.length,
+      });
+      if (planBookingFallback(handedOffBefore).kind === "ack") return postAck(why);
       const reason: BookingHandoffReason = "unsure";
       return insertSystemEvent({
         inquiryId: args.inquiryId,

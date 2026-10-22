@@ -103,5 +103,5 @@ export function availabilityReplyText(result: AvailabilityResult, locale: string
       ? "No veo horarios libres en los proximos dias. Una persona del equipo te ayuda a encontrar uno en este chat."
       : "I do not see open times in the next few days. A person on the team will help you find one in this chat.";
   }
-  return es ? "Una persona del equipo lo toma desde aqui y te responde en este chat." : "A person on the team will take it from here and reply in this chat.";
+  return es ? "Una persona del equipo lo toma desde aquí y te responde en este chat." : "A person on the team will take it from here and reply in this chat.";
 }

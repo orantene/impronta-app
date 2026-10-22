@@ -71,18 +71,32 @@ export function replyLanguageMismatch(
 
 const HANDOFF: Record<BookingAssistantLocale, string> = {
   en: "A person on the team will take it from here and reply in this chat.",
-  es: "Una persona del equipo lo toma desde aqui y te responde en este chat.",
+  es: "Una persona del equipo lo toma desde aquí y te responde en este chat.",
 };
 
 const CEILING: Record<BookingAssistantLocale, string> = {
   en: "I am passing you to the team so they can finish helping you here.",
-  es: "Te paso con el equipo para que te ayuden a terminar aqui.",
+  es: "Te paso con el equipo para que te ayuden a terminar aquí.",
 };
 
 const GATED: Record<BookingAssistantLocale, string> = {
   en: "The assistant is paused for now. The team will reply in this chat.",
-  es: "El asistente esta en pausa por ahora. El equipo te responde en este chat.",
+  es: "El asistente está en pausa por ahora. El equipo te responde en este chat.",
 };
+
+/**
+ * TUL-1155: after a handoff the canned handoff copy is never posted twice. When
+ * the assistant cannot answer a later message, the guest still gets a short,
+ * different acknowledgement instead of silence.
+ */
+const FOLLOW_UP_ACK: Record<BookingAssistantLocale, string> = {
+  en: "Got your message. The team has it and will reply here.",
+  es: "Recibimos tu mensaje. El equipo ya lo tiene y te responde aquí.",
+};
+
+export function bookingAssistantFollowUpAckCopy(locale: BookingAssistantLocale): string {
+  return FOLLOW_UP_ACK[locale];
+}
 
 export type BookingHandoffReason = "unsure" | "human_requested" | "turn_ceiling" | "gated" | "off";
 

@@ -26,6 +26,7 @@ src/lib/ai/ai-usage-gate.test.ts
 src/lib/ai/booking-assistant/catalog-tenant.test.ts
 src/lib/ai/booking-assistant/credits.test.ts
 src/lib/ai/booking-assistant/decide.test.ts
+src/lib/ai/booking-assistant/fallback.test.ts
 src/lib/ai/booking-assistant/handoff.test.ts
 src/lib/ai/booking-assistant/model.test.ts
 src/lib/ai/booking-assistant/price-label.test.ts
