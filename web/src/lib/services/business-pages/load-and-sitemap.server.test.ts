@@ -27,8 +27,20 @@ describe("pickBusinessServiceRow", () => {
     assert.equal(pickBusinessServiceRow([row("aaaaaaaa")], "masaje-aaaaaaaa", T, none)?.id, row("aaaaaaaa").id);
     assert.ok(pickBusinessServiceRow([row("aaaaaaaa", { visibility: "on_request" })], "x-aaaaaaaa", T, none));
   });
-  it("TUL-1325: never a talent-owned row, not even the owner's own (its one canonical is the talent site)", () => {
-    assert.equal(pickBusinessServiceRow([row("aaaaaaaa", { owner_kind: "talent", talent_profile_id: OWNER })], "aaaaaaaa", T, none), null);
+  it("TUL-1325: a talent-owned row is never a business page unless it is the workspace OWNER's own provider row", () => {
+    const mine = row("aaaaaaaa", { owner_kind: "talent", talent_profile_id: OWNER });
+    assert.equal(pickBusinessServiceRow([mine], "aaaaaaaa", T, none), null);
+    assert.equal(pickBusinessServiceRow([mine], "aaaaaaaa", T, none, new Set([OWNER]))?.id, mine.id);
+  });
+  it("TUL-1316: the cleaning set (owner-provider rows, id8 slugs) resolves by id8", () => {
+    const set = [
+      row("d21f897d", { title: "Limpieza estándar", owner_kind: "talent", talent_profile_id: OWNER }),
+      row("520f2677", { title: "Limpieza profunda", owner_kind: "talent", talent_profile_id: OWNER }),
+      row("f5ce66bd", { title: "Limpieza exprés", owner_kind: "talent", talent_profile_id: OWNER }),
+    ];
+    for (const [slug, id8] of [["limpieza-estandar-d21f897d", "d21f897d"], ["limpieza-profunda-520f2677", "520f2677"], ["limpieza-expres-f5ce66bd", "f5ce66bd"]]) {
+      assert.ok(String(pickBusinessServiceRow(set, slug, T, none, new Set([OWNER]))?.id).startsWith(id8), slug);
+    }
   });
   it("TUL-1322: never an event-backing package or the reservation item (non-menu offerings)", () => {
     assert.equal(pickBusinessServiceRow([row("aaaaaaaa", { kind: "package" })], "aaaaaaaa", T, new Set([row("aaaaaaaa").id as string])), null);
@@ -112,10 +124,11 @@ describe("sitemap entries", () => {
     });
     assert.deepEqual(out, []);
   });
-  it("TUL-1325: rows are house rows only (owner_kind = workspace)", async () => {
+  it("TUL-1325: rows are scoped to this tenant, house rows plus the owner's own provider rows", async () => {
     const { db, filters } = fakeDb("agency");
     await loadBusinessServiceSitemapEntries({ supabase: db, tenantId: T, origin: "https://spa.example", defaultLocale: "es", supportedLocales: ["es"], flagOn: true });
-    assert.ok(filters.includes("talent_offerings.owner_kind=workspace"));
+    assert.ok(filters.includes(`talent_offerings.tenant_id=${T}`));
+    assert.ok(!filters.includes("talent_offerings.owner_kind=talent"));
   });
   it("flag off lists nothing", async () => {
     const out = await loadBusinessServiceSitemapEntries({ supabase: fakeDb("agency").db, tenantId: T, origin: "https://spa.example", defaultLocale: "es", supportedLocales: ["es"], flagOn: false });
@@ -134,13 +147,15 @@ describe("loadBusinessServiceRows: order and no silent cap", () => {
     const ranges: Array<[number, number]> = [];
     const total = 1203;
     const db = {
-      from: () => {
+      from: (table: string) => {
         const q: Record<string, unknown> = {};
         let from = 0;
         let to = 0;
         for (const m of ["select", "eq", "or", "in", "not"]) q[m] = () => q;
-        q.order = (col: string) => (orders.push(col), q);
+        q.order = (col: string) => (table === "talent_offerings" && orders.push(col), q);
         q.limit = () => q;
+        q.is = () => q;
+        q.maybeSingle = async () => ({ data: null, error: null });
         q.range = (a: number, b: number) => ((from = a), (to = b), ranges.push([a, b]), q);
         q.then = (res: (v: unknown) => unknown) => {
           const n = Math.max(0, Math.min(to, total - 1) - from + 1);
