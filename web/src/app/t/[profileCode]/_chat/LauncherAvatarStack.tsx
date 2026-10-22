@@ -25,8 +25,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-contract";
-import type { Translator } from "@/i18n/interpolate";
-import { interpolate } from "@/i18n/interpolate";
+import { interpolate, type Translator } from "@/i18n/interpolate";
+import { cartAnnounce } from "./cart-announce";
 
 import {
   AVATAR_DIAMETER_DESKTOP,
@@ -104,18 +104,15 @@ export function LauncherAvatarStack({
     prevIdsRef.current = ids;
     prevTalentsRef.current = cartTalents;
 
-    const fallbackName = tt("public.guestChat.avatarNameFallback");
-
     if (added) {
       setLandingId(added);
-      const name =
-        cartTalents.find((item) => item.talentProfileId === added)?.displayName ??
-        fallbackName;
       setAnnounce(
-        interpolate(tt("public.guestChat.avatarAddedAnnounce"), {
-          name,
-          count: ids.length,
-        }),
+        cartAnnounce(
+          tt,
+          "added",
+          cartTalents.find((item) => item.talentProfileId === added)?.displayName,
+          ids.length,
+        ),
       );
       const timer = window.setTimeout(() => setLandingId(null), 420);
       return () => window.clearTimeout(timer);
@@ -123,14 +120,13 @@ export function LauncherAvatarStack({
     if (removed) {
       // Finding #7: name the removed talent (resolved from the prev snapshot) for
       // parity with the add announce.
-      const name =
-        prevTalents.find((item) => item.talentProfileId === removed)?.displayName ??
-        fallbackName;
       setAnnounce(
-        interpolate(tt("public.guestChat.avatarRemovedAnnounce"), {
-          name,
-          count: ids.length,
-        }),
+        cartAnnounce(
+          tt,
+          "removed",
+          prevTalents.find((item) => item.talentProfileId === removed)?.displayName,
+          ids.length,
+        ),
       );
     }
     return undefined;

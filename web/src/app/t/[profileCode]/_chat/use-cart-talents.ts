@@ -21,6 +21,7 @@
  * internally, so this hook keeps cartIds order as-is.
  */
 
+import { CART_TALENT_PLACEHOLDER_NAME } from "./cart-announce";
 import { useMemo } from "react";
 
 import type { AvatarStackItem } from "@/lib/inquiry/guest-chat-contract";
@@ -60,7 +61,7 @@ export function useCartTalents(lookup: CartTalentLookup): AvatarStackItem[] {
     const entry = readLookup(lookup, id);
     return {
       talentProfileId: id,
-      displayName: entry?.displayName?.trim() || "Talent",
+      displayName: entry?.displayName?.trim() || CART_TALENT_PLACEHOLDER_NAME,
       portraitUrl: entry?.portraitUrl ?? null,
     };
   });

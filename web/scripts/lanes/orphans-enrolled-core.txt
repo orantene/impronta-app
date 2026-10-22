@@ -44,6 +44,7 @@ src/app/api/dev/preview-qa-signin/route.test.ts
 src/app/api/dev/reset-guest/route.test.ts
 src/app/google-fonts-link.nonblocking.static.test.ts
 src/app/start/layout-landmark.static.test.ts
+src/app/t/[profileCode]/_chat/cart-announce.test.ts
 src/app/token-presets.grk046-header-logo.static.test.ts
 src/components/account/account-export-links.test.ts
 src/components/admin/offer/offer-solo-seller.test.ts

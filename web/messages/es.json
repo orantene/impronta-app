@@ -1164,8 +1164,14 @@
       "extraContactAdded": "Agregado",
       "extraYourInfo": "Tus datos",
       "avatarStackAria": "Talento seleccionado para tu solicitud",
-      "avatarAddedAnnounce": "{name} se agregó a tu solicitud. {count} seleccionados.",
-      "avatarRemovedAnnounce": "Se quitó a {name}. {count} seleccionados.",
+      "avatarAddedAnnounce": {
+        "one": "{name} se agregó a tu solicitud. 1 talento seleccionado.",
+        "other": "{name} se agregó a tu solicitud. {count} talentos seleccionados."
+      },
+      "avatarRemovedAnnounce": {
+        "one": "Se quitó a {name}. 1 talento seleccionado.",
+        "other": "Se quitó a {name}. {count} talentos seleccionados."
+      },
       "avatarNameFallback": "Talento",
       "avatarShowAllAria": "Ver todo el talento seleccionado ({count})",
       "avatarOpenInquiryAria": "{name}, seleccionado. Abrir la solicitud.",
