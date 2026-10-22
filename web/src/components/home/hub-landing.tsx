@@ -267,6 +267,7 @@ async function loadHubApprovedTalent(
 }
 
 type AgencyDomainRow = { hostname: string; kind: string; tenant_id?: string | null };
+type CmsHomeRow = { tenant_id: string | null };
 
 async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   const supabase = createPublicSupabaseClient();
@@ -283,7 +284,7 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
 
   // TUL-978: show the tenant's name, not just its raw domain. Names are public
   // (they head every storefront); a failed read only costs the nicer label.
-  type AgencyMeta = Pick<HubAgencyCandidate, "name" | "status" | "discoverExposureEnabled" | "settings">;
+  type AgencyMeta = Pick<HubAgencyCandidate, "name" | "status" | "discoverExposureEnabled" | "settings" | "agencyKind">;
   const meta = new Map<string, AgencyMeta>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
@@ -291,23 +292,38 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
     // TUL-1884: status + exposure + settings flags decide whether a workspace is listed publicly.
     const { data: agencyRows, error: namesError } = await admin
       .from("agencies")
-      .select("id, display_name, status, discover_exposure_enabled, settings")
+      .select("id, display_name, status, kind, discover_exposure_enabled, settings")
       .in("id", tenantIds);
     if (namesError) logServerError("hubLanding.agencyNames", namesError);
     for (const a of (agencyRows ?? []) as Array<{
       id: string;
       display_name: string | null;
       status: string | null;
+      kind: string | null;
       discover_exposure_enabled: boolean | null;
       settings: Record<string, unknown> | null;
     }>) {
       meta.set(a.id, {
         name: a.display_name?.trim() || null,
         status: a.status,
+        agencyKind: a.kind,
         discoverExposureEnabled: a.discover_exposure_enabled,
         settings: a.settings,
       });
     }
+  }
+  // TUL-1884: the listing bar for test workspaces is a PUBLISHED system homepage.
+  const published = new Set<string>();
+  if (admin && tenantIds.length > 0) {
+    const { data: homes, error: homesError } = await admin
+      .from("cms_pages")
+      .select("tenant_id")
+      .in("tenant_id", tenantIds)
+      .eq("status", "published")
+      .eq("is_system_owned", true)
+      .eq("system_template_key", "homepage");
+    if (homesError) logServerError("hubLanding.agencyHomepages", homesError);
+    for (const h of (homes ?? []) as CmsHomeRow[]) if (h.tenant_id) published.add(h.tenant_id);
   }
   // TUL-1843: staging rows carry production-pattern `*.tulala.digital` hostnames; re-home them
   // onto this environment's root so a staging hub never links to production. Dedupe after.
@@ -319,7 +335,7 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
     seen.add(hostname);
     // A domain whose workspace row could not be read has no name or status: it is not listed.
     const m = r.tenant_id ? meta.get(r.tenant_id) : undefined;
-    candidates.push({ hostname, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings });
+    candidates.push({ hostname, tenantId: r.tenant_id, domainKind: r.kind, hasPublishedHomepage: Boolean(r.tenant_id && published.has(r.tenant_id)), agencyKind: m?.agencyKind ?? null, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings });
   }
   return filterPublicHubAgencies(candidates);
 }

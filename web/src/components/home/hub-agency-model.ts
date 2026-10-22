@@ -2,7 +2,8 @@
  * TUL-1884: which agencies the hub home lists, and how many show before "see all".
  * Pure so a test pins it; the server loader and the client list share it.
  *
- * Public means: a live workspace (not draft/archived/suspended/cancelled), one that has not opted out
+ * Public means: a site domain (custom/subdomain) of an `agency`-kind workspace with a published
+ * homepage, one card per workspace, a live workspace (not draft/archived/suspended/cancelled), one that has not opted out
  * of Discover, with a real name, and not a seed/test/demo workspace. There is no `is_test` column on
  * `agencies`, so test data is recognised by its explicit settings flags and by the seed host pattern
  * (`qa-1`, `e2e-*`, `seed-*`, `test-*`, `demo-*`).
@@ -10,6 +11,17 @@
 export type HubAgencyItem = { hostname: string; name: string | null };
 
 export type HubAgencyCandidate = {
+  /** The workspace this domain belongs to; one card per tenant. */
+  tenantId?: string | null;
+  /** agency_domains.kind: only site domains (subdomain, custom) are listed. */
+  domainKind?: string | null;
+  /** agencies.kind: 'agency' only. The hub/platform tenant is excluded by kind, never by name. */
+  agencyKind?: string | null;
+  /**
+   * The listing bar for test workspaces: `agencies` has no reliable test flag, so a workspace must
+   * have a PUBLISHED homepage (cms_pages published, system homepage) to appear on the hub.
+   */
+  hasPublishedHomepage?: boolean;
   hostname: string;
   name: string | null;
   status?: string | null;
@@ -29,7 +41,12 @@ export function isSeedHostname(hostname: string): boolean {
   return SEED_HOST_LABEL.test(label);
 }
 
+const SITE_DOMAIN_RANK: Record<string, number> = { custom: 0, subdomain: 1 };
+
 export function isPublicHubAgency(c: HubAgencyCandidate): boolean {
+  if (SITE_DOMAIN_RANK[c.domainKind ?? ""] === undefined) return false; // app, marketing, hub, ...
+  if (c.agencyKind !== "agency") return false; // hub / platform tenants
+  if (c.hasPublishedHomepage !== true) return false;
   if (!c.name?.trim()) return false; // a bare address is never a card
   if (c.status != null && !LIVE_STATUSES.has(c.status)) return false;
   if (c.discoverExposureEnabled === false) return false;
@@ -39,9 +56,20 @@ export function isPublicHubAgency(c: HubAgencyCandidate): boolean {
 }
 
 export function filterPublicHubAgencies(candidates: readonly HubAgencyCandidate[]): HubAgencyItem[] {
-  return candidates
-    .filter(isPublicHubAgency)
-    .map((c) => ({ hostname: c.hostname, name: c.name!.trim() }));
+  // One card per tenant: prefer a custom domain over a subdomain, then the first seen (stable).
+  const best = new Map<string, HubAgencyCandidate>();
+  const order: string[] = [];
+  for (const c of candidates.filter(isPublicHubAgency)) {
+    const key = c.tenantId ?? `host:${c.hostname}`;
+    const cur = best.get(key);
+    if (!cur) {
+      best.set(key, c);
+      order.push(key);
+    } else if (SITE_DOMAIN_RANK[c.domainKind!]! < SITE_DOMAIN_RANK[cur.domainKind!]!) {
+      best.set(key, c);
+    }
+  }
+  return order.map((k) => best.get(k)!).map((c) => ({ hostname: c.hostname, name: c.name!.trim() }));
 }
 
 /** Search matches the NAME only: the address is not shown, so it must not be a hidden match. */

@@ -23,7 +23,7 @@ test("TUL-978: hub landing drops dev rows and renders the searchable list", () =
 });
 
 test("TUL-1884: the loader reads the tenant name and status, and the list shows names only (no raw address)", () => {
-  assert.match(landing, /select\("id, display_name, status, discover_exposure_enabled, settings"\)/);
+  assert.match(landing, /select\("id, display_name, status, kind, discover_exposure_enabled, settings"\)/);
   assert.match(landing, /filterPublicHubAgencies\(candidates\)/);
   const list = readFileSync(join(process.cwd(), "src/components/home/hub-agency-list.tsx"), "utf8");
   assert.doesNotMatch(list, />\s*\{agency\.hostname\}|\{sub\}/, "the hostname is the link target only, never rendered text");

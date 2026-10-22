@@ -12,7 +12,7 @@ import {
 } from "./hub-agency-model";
 import { hubCmsTitle, hubDisplayName } from "./hub-landing-copy";
 
-const live = { status: "active", discoverExposureEnabled: true, settings: {} };
+const live = { status: "active", discoverExposureEnabled: true, settings: {}, domainKind: "subdomain", agencyKind: "agency", hasPublishedHomepage: true };
 
 test("TUL-1884: unnamed, non-live, opted-out, flagged and seed-host agencies are not listed", () => {
   const out = filterPublicHubAgencies([
@@ -30,6 +30,29 @@ test("TUL-1884: unnamed, non-live, opted-out, flagged and seed-host agencies are
     { hostname: "unknown.example.com", name: "Unread", status: "unknown" },
   ]);
   assert.deepEqual(out, [{ hostname: "luna.example.com", name: "Luna Models" }]);
+});
+
+test("TUL-1884: only site domains of agency-kind workspaces with a published homepage; app/marketing/hub/platform rows never", () => {
+  const out = filterPublicHubAgencies([
+    { hostname: "ok.example.com", name: "Ok", ...live },
+    { hostname: "app.example.com", name: "Tulala Hub", ...live, domainKind: "app" },
+    { hostname: "www.example.com", name: "Mkt", ...live, domainKind: "marketing" },
+    { hostname: "hub.example.com", name: "Tulala Hub", ...live, domainKind: "hub" },
+    { hostname: "sub-of-hub.example.com", name: "Tulala Hub", ...live, agencyKind: "hub" },
+    { hostname: "qa-run.example.com", name: "Rosa both phone zaiawf", ...live, hasPublishedHomepage: false },
+    { hostname: "nohome.example.com", name: "No home", ...live, hasPublishedHomepage: undefined },
+  ]);
+  assert.deepEqual(out, [{ hostname: "ok.example.com", name: "Ok" }]);
+});
+
+test("TUL-1884: one card per tenant, custom beats subdomain, order stays stable", () => {
+  const out = filterPublicHubAgencies([
+    { hostname: "a.example.com", name: "A", tenantId: "t1", ...live },
+    { hostname: "b.example.com", name: "B", tenantId: "t2", ...live },
+    { hostname: "a-custom.com", name: "A", tenantId: "t1", ...live, domainKind: "custom" },
+    { hostname: "a2.example.com", name: "A", tenantId: "t1", ...live },
+  ]);
+  assert.deepEqual(out, [{ hostname: "a-custom.com", name: "A" }, { hostname: "b.example.com", name: "B" }]);
 });
 
 test("TUL-1884: seed host detection only matches the seed label pattern", () => {
