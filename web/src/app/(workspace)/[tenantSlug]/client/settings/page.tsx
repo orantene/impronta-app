@@ -17,7 +17,7 @@ import { ProfileFields, AccountFields } from "./_components/AccountFormsClient";
 import { ClientReviewsPanel, type GivenReview } from "../_components/ClientReviewsPanel";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { SettingsSectionIcon } from "@/components/admin/settings/settings-section-icons";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { AccountDeletionCard } from "@/components/account/AccountDeletionCard";
 import { AccountExportLinks, accountExportCopy } from "@/components/account/AccountExportLinks";
@@ -98,7 +98,7 @@ async function resolveTalentNames(
 
 export default async function ClientSettingsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();

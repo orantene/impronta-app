@@ -19,6 +19,7 @@ src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
 src/components/client-account/client-account-help.static.test.ts
 src/components/onboarding/onboarding-no-inline-copy.static.test.ts
+src/components/onboarding/use-age18-confirmed.test.ts
 src/i18n/auth-page-locale.test.ts
 src/i18n/locale-owner.test.ts
 src/i18n/workspace-page-locale.test.ts
@@ -56,6 +57,7 @@ src/lib/auth/signup-name.test.ts
 src/lib/auth/sso-handoff-pure.test.ts
 src/lib/auth/verify-stage.test.ts
 src/lib/client-account/client-entry-es-en.static.test.ts
+src/lib/client-account/client-page-locale.static.test.ts
 src/lib/client-account/client-thread-pure.test.ts
 src/lib/client-account/dock-visibility.test.ts
 src/lib/impersonation/client-portal-effective-user.static.test.ts

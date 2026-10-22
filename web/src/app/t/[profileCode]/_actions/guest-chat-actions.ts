@@ -27,6 +27,7 @@
  */
 
 import { guestChatLimitMessage } from "./guest-chat-limit-copy";
+import { deriveAuthorRole } from "./guest-author-role";
 import { safePublicName } from "@/lib/messaging/public-name";
 import { loadGuestThreadV5Extras } from "./guest-thread-v5";
 import { anyDemoTalent, DEMO_SUBMIT_REFUSAL } from "@/lib/talent/demo-talent";
@@ -309,39 +310,6 @@ type ParticipantIdentity = {
   label: string | null;
   avatarUrl: string | null;
 };
-
-function deriveAuthorRole(
-  row: RawMessageRow,
-  thisGuestSessionId: string,
-  identityByUserId: Map<string, ParticipantIdentity>,
-): GuestMessageAuthorRole {
-  // Guest's own message (this session).
-  if (!row.sender_user_id && row.guest_session_id === thisGuestSessionId) {
-    return "guest";
-  }
-  // A3 / SHELL-REQUESTS: a payment_paid (or other client card) with no sender
-  // must still draw as a paid card, not a system note.
-  if (!row.sender_user_id) {
-    if (isClientCardKind(row.message_kind)) return "staff";
-    return "system";
-  }
-  // Engine-authored lines ("Offer v3 sent", auto-ack) carry
-  // metadata.system_event_type even when a staff user id is stamped as the
-  // actor; they are system lines, never a staff bubble (Messages v5 rule:
-  // ThreadMessage.system). Found live 2026-09-17 on the fixture tenant.
-  const meta = (row as { metadata?: unknown }).metadata;
-  if (meta && typeof meta === "object" && typeof (meta as { system_event_type?: unknown }).system_event_type === "string") {
-    return "system";
-  }
-  const ident = identityByUserId.get(row.sender_user_id);
-  if (!ident) return "other";
-  if (ident.role === "coordinator") return "staff";
-  if (ident.role === "talent") return "talent";
-  // The client participant — for the guest that's effectively "their own
-  // account" voice; render as guest-side so it aligns right.
-  if (ident.role === "client") return "guest";
-  return "other";
-}
 
 function toGuestThreadMessage(
   row: RawMessageRow,
@@ -642,7 +610,7 @@ async function readGuestVisibleMessages(
     })
     .map((raw) => {
       const row = raw as unknown as RawMessageRow;
-      const role = deriveAuthorRole(row, guestSessionId, identityByUserId);
+      const role = deriveAuthorRole(row, guestSessionId, identityByUserId, inquiry.clientUserId);
       return toGuestThreadMessage(row, role, identityByUserId);
     });
 

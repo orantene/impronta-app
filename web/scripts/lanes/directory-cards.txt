@@ -42,4 +42,5 @@ src/lib/quality/inquiry-provider-reachability.static.test.ts
 src/lib/quality/taxonomy-conflict-target.static.test.ts
 src/lib/server-actions/roster-import-upsert.static.test.ts
 src/lib/site-admin/sections/directory/empty-state-copy.test.ts
+src/lib/site-admin/sections/directory/card-adapter-locale.static.test.ts
 src/lib/trust/verified-mark.test.ts

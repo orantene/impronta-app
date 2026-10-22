@@ -1,4 +1,5 @@
 src/app/(workspace)/talent/layout-bell-budget.static.test.ts
+src/app/t/?profileCode?/_actions/guest-author-role.test.ts
 src/app/t/?profileCode?/_actions/guest-chat-limit-copy.test.ts
 src/app/t/?profileCode?/_chat/OfferingQuickPicker.test.ts
 src/app/t/?profileCode?/_chat/category-chip-label.test.ts

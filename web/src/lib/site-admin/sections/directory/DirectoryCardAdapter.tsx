@@ -410,6 +410,7 @@ export function DirectoryCardAdapter({
                   variant="pill"
                   hideFavorite
                   portraitUrl={card.thumbnail?.url ?? null}
+                  locale={locale}
                   getInquiryPhotoRect={() =>
                     mediaRef.current
                       ?.querySelector("img")
@@ -444,6 +445,7 @@ export function DirectoryCardAdapter({
                 sourcePage={pathname}
                 variant="compact"
                 hideInquiry
+                locale={locale}
               />
             ) : null}
           </div>
