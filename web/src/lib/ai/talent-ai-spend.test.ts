@@ -9,7 +9,7 @@ import { HUB_TALENT_AI_SUBCAP, assertHubTalentAiAllowed, type HubTalentSubcapDep
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (p: string) => readFileSync(join(SRC, p), "utf8");
-const MIGRATION = readFileSync(join(SRC, "../../supabase/migrations/20261231431300_ai_spend_sum_tul320.sql"), "utf8");
+const MIGRATION = readFileSync(join(SRC, "../../supabase/migrations/20261231431600_ai_spend_sum_tul320.sql"), "utf8");
 
 function fakeRpc(result: { data: unknown; error: unknown }) {
   const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
