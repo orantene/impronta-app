@@ -91,7 +91,12 @@ export function buildLineupNoteBody(count: number, mode: string): string {
  */
 export function localizeLineupNoteBody(body: string, t: (key: string) => string): string {
   const m = /^Lineup · (\d+) talent$/.exec(body);
-  if (m) return t("public.guestChat.systemLineupCount").replace("{count}", m[1]!);
+  if (m) {
+    // Plural agreement (TUL-1901): "1 talento" / "3 talentos", "1 talent" / "3 talents".
+    const n = Number(m[1]);
+    const key = n === 1 ? "public.guestChat.systemLineupCountOne" : "public.guestChat.systemLineupCountOther";
+    return t(key).replace("{count}", m[1]!);
+  }
   if (body === "Let the agency recommend") return t("public.guestChat.systemLineupRecommend");
   return body;
 }

@@ -73,6 +73,7 @@ src/lib/inquiry/project-label.test.ts
 src/lib/inquiry/prune-duplicate-system-notes.test.ts
 src/lib/inquiry/reserve-slot-taken.test.ts
 src/lib/inquiry/skin-parity.render.test.tsx
+src/lib/inquiry/small-ui-1908-1910-1901.static.test.ts
 src/lib/inquiry/talent-reply-guest-nudge.static.test.ts
 src/lib/messages-v5/context-view.test.ts
 src/lib/messages-v5/guest-catalog-price.test.ts
