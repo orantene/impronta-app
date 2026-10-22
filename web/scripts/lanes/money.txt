@@ -115,6 +115,7 @@ src/lib/inquiry/counter-offer-currency.test.ts
 src/lib/inquiry/inquiry-engine-lifecycle.test.ts
 src/lib/inquiry/inquiry-engine-offers.test.ts
 src/lib/inquiry/messages-money-display.static.test.ts
+src/lib/inquiry/offer-client-total.test.ts
 src/lib/inquiry/offer-currency-chooser-sheet.static.test.ts
 src/lib/inquiry/offer-currency-chooser.static.test.ts
 src/lib/inquiry/offer-currency-fallback.test.ts
@@ -172,6 +173,7 @@ src/lib/orders/menu-action-loads.test.ts
 src/lib/orders/menu-rehome.static.test.ts
 src/lib/orders/order-card-wire.static.test.ts
 src/lib/orders/order-card.test.ts
+src/lib/orders/order-lines-units-whole-migration.static.test.ts
 src/lib/orders/orders-for-thread.test.ts
 src/lib/orders/orders-list-refunded-owes-nothing.test.ts
 src/lib/orders/orders-list.test.ts
@@ -182,13 +184,16 @@ src/lib/orders/price/price-module-invariance.static.test.ts
 src/lib/orders/price/rules.test.ts
 src/lib/orders/purchase-attribution.test.ts
 src/lib/orders/purchase-catalog-groups.test.ts
+src/lib/orders/purchase-lines.test.ts
 src/lib/orders/purchase-pass-through-collect.test.ts
+src/lib/orders/purchase-phases.test.ts
 src/lib/orders/purchase-policy.test.ts
 src/lib/orders/purchase-pricing.test.ts
 src/lib/orders/purchase-refusal.test.ts
 src/lib/orders/purchase-seller.test.ts
 src/lib/orders/purchase-stock-idempotency.test.ts
 src/lib/orders/purchase-table-deposit.test.ts
+src/lib/orders/purchase-tip-deposit.test.ts
 src/lib/orders/refund-admissions.test.ts
 src/lib/orders/refund-desk-copy.test.ts
 src/lib/orders/refund-effects.test.ts
@@ -252,6 +257,7 @@ src/lib/payments/refund-execute.test.ts
 src/lib/payments/refund-fee-claims.static.test.ts
 src/lib/payments/refund-fee-from-payouts.static.test.ts
 src/lib/payments/refund-non-refundable-fees.test.ts
+src/lib/payments/refund-restore-flag.test.ts
 src/lib/payments/refund-talent-residual.test.ts
 src/lib/payments/refunds-charge-share.test.ts
 src/lib/payments/refunds-restore-gate.test.ts

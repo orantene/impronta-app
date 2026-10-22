@@ -109,15 +109,17 @@ export function emptyTerms(): OfferDraftTerms {
   return { depositMode: "none", depositPct: null, depositAmountCents: null, validUntil: null, noteToClient: "" };
 }
 
+/** Lines plus the coordination fee: the client total the server saves (TUL-1306). */
 export function draftTotalCents(state: OfferDraftState): number {
-  return state.lines.filter((l) => !l.removedBy).reduce((sum, l) => sum + lineTotalCents(l), 0);
+  const lines = state.lines.filter((l) => !l.removedBy).reduce((sum, l) => sum + lineTotalCents(l), 0);
+  return lines > 0 ? lines + Math.max(0, Math.trunc(state.coordinatorFeeCents || 0)) : lines;
 }
 
 export function draftDepositCents(state: OfferDraftState): number | null {
   const total = draftTotalCents(state);
   if (state.terms.depositMode === "amount") return state.terms.depositAmountCents ?? null;
   if (state.terms.depositMode === "pct" && state.terms.depositPct != null) {
-    return Math.round((total * state.terms.depositPct) / 100);
+    return Math.floor((total * state.terms.depositPct) / 100);
   }
   return null;
 }

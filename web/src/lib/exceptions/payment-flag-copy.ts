@@ -21,7 +21,10 @@ type FlagCopy = {
   resolve: string;
   resolved: string;
   resolveFailed: string;
-  reasons: Record<"amount_mismatch" | "charge_on_inactive_row" | "duplicate_charge", { title: string; detail: string }>;
+  reasons: Record<
+    "amount_mismatch" | "charge_on_inactive_row" | "duplicate_charge" | "refund_restore_failed",
+    { title: string; detail: string; label?: string; why?: string }
+  >;
 };
 
 export const PAYMENT_FLAG_COPY: Record<Locale, FlagCopy> = {
@@ -44,6 +47,12 @@ export const PAYMENT_FLAG_COPY: Record<Locale, FlagCopy> = {
         title: "Possible duplicate card charge",
         detail: "Stripe charged {charged} again ({paymentIntent}) after this booking was already paid ({otherPaymentIntent}). Refund the extra charge if it is a duplicate.",
       },
+      refund_restore_failed: {
+        title: "Refunded, but tickets, seats or promo were not put back",
+        detail: "The refund went through, but putting back the tickets, seats or promo code did not finish. Some may still be held or still admit. Check the order and release them by hand.",
+        label: "Put the order back by hand",
+        why: "Open the order, void any ticket that still admits and free the seats or promo, then mark this resolved. Nothing here moves money.",
+      },
     },
   },
   es: {
@@ -65,6 +74,12 @@ export const PAYMENT_FLAG_COPY: Record<Locale, FlagCopy> = {
         title: "Posible cobro duplicado con tarjeta",
         detail: "Stripe cobró {charged} otra vez ({paymentIntent}) cuando esta reserva ya estaba pagada ({otherPaymentIntent}). Reembolsa el cobro extra si es un duplicado.",
       },
+      refund_restore_failed: {
+        title: "Reembolsado, pero no se devolvieron los boletos, lugares o la promo",
+        detail: "El reembolso se hizo, pero no terminó de devolverse los boletos, lugares o el código promo. Puede que sigan apartados o que aún dejen entrar. Revisa el pedido y libéralos a mano.",
+        label: "Devolver el pedido a mano",
+        why: "Abre el pedido, anula los boletos que aún dejen entrar y libera los lugares o la promo, y marca esto como resuelto. Aquí no se mueve dinero.",
+      },
     },
   },
   fr: {
@@ -85,6 +100,12 @@ export const PAYMENT_FLAG_COPY: Record<Locale, FlagCopy> = {
       duplicate_charge: {
         title: "Possible double paiement par carte",
         detail: "Stripe a debite {charged} une seconde fois ({paymentIntent}) alors que cette reservation etait deja payee ({otherPaymentIntent}). Remboursez le paiement en trop s'il s'agit d'un doublon.",
+      },
+      refund_restore_failed: {
+        title: "Rembourse, mais billets, places ou promo non remis",
+        detail: "Le remboursement est passe, mais la remise des billets, places ou du code promo n'est pas terminee. Certains peuvent rester bloques ou encore valides. Verifiez la commande et liberez-les a la main.",
+        label: "Remettre la commande a la main",
+        why: "Ouvrez la commande, annulez les billets encore valides, liberez les places ou la promo, puis marquez comme resolu. Rien ici ne deplace d'argent.",
       },
     },
   },
@@ -115,7 +136,7 @@ export function localizePaymentFlagRows(rows: readonly ExceptionRow[], locale: s
       ...row,
       title: text.title,
       detail: fill(text.detail, row.copy.vars),
-      nextAction: { ...row.nextAction, label: c.label, why: c.why },
+      nextAction: { ...row.nextAction, label: text.label ?? c.label, why: text.why ?? c.why },
       // Already spoken; the client never needs the keys.
       copy: undefined,
     };

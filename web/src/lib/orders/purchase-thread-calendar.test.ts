@@ -122,6 +122,7 @@ function threadFakeAdmin() {
         return api;
       },
       in: () => api,
+      lte: () => api,
       is: () => api,
       order: () => api,
       limit: () => api,

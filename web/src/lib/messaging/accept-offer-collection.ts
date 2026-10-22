@@ -64,7 +64,7 @@ export function planAcceptCollection(input: AcceptCollectionInput): AcceptCollec
   const allDeposit = effective.every((p) => p.reserveMode === "deposit" && p.depositPct != null);
   if (allDeposit) {
     const pct = Math.min(...effective.map((p) => p.depositPct as number));
-    const amount = Math.round((total * pct) / 100);
+    const amount = Math.floor((total * pct) / 100);
     if (amount > 0 && amount < total) return { collect: "deposit", amountCents: amount, depositPct: pct, source: "policy" };
   }
   return { collect: "full", amountCents: total, source: "policy" };

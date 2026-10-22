@@ -72,6 +72,7 @@ function fakeAdmin(opts: {
       },
       eq: () => api,
       in: () => api,
+      lte: () => api,
       is: () => api,
       order: () => api,
       maybeSingle: async () => ({ data: null, error: null }),

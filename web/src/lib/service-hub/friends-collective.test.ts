@@ -395,7 +395,7 @@ describe("DB guarantees, flag gate and acceptance wiring", () => {
     assert.match(split, /buildLineSnapshot\(/);
     assert.match(split, /ownerTakeCents/);
     assert.match(split, /ownerShareSnapshot/);
-    assert.match(read("../orders/purchase.ts"), /owner_take_cents: l\.ownerTakeCents, owner_share_snapshot: l\.ownerShareSnapshot/);
+    assert.match(read("../orders/purchase-lines.ts"), /owner_take_cents: l\.ownerTakeCents, owner_share_snapshot: l\.ownerShareSnapshot/);
   });
   test("flag-gated: the split applies only when COLLECTIVE_SPLIT_ENABLED is exactly 1 (default OFF)", () => {
     const split = read("./collective-split.ts");

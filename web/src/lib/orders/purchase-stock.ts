@@ -37,14 +37,23 @@ export function withOfferingStockNeeds(
   // One leg per LINE, not summed: `buildCapacityRequests` must still see each
   // line's own units so a part quantity is refused rather than added up into a
   // whole one. Two legs on one pool are fine; the batch takes them atomically.
-  for (const line of lines) {
+  for (const [lineIndex, line] of lines.entries()) {
     if (covered.has(line.offeringId)) continue;
     const poolId = stockPools.get(line.offeringId);
     if (!poolId) continue;
-    needs.push({ offeringId: line.offeringId, poolId, units: line.units, perUnitDomainRow: false });
+    // lineIndex (TUL-1314): this hold belongs to THIS line, not to "the line of that offering".
+    needs.push({ offeringId: line.offeringId, poolId, units: line.units, perUnitDomainRow: false, lineIndex });
   }
   return needs;
 }
+
+/**
+ * TUL-1313: how long a pay-in-person order keeps its committed stock. Committed
+ * units never lapse on their own, so a no-show kept them for ever; the order now
+ * carries this deadline, the expiry sweep cancels it and gives the units back.
+ * Staff who take the money before then settle the order and it is never swept.
+ */
+export const PAY_IN_PERSON_STOCK_HOLD_HOURS = 24;
 
 /**
  * Should a pay-in-person order keep its stock until the visit?

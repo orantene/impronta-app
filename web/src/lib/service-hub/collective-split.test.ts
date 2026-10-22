@@ -93,7 +93,7 @@ describe("loading the workspace's model and shares (fails closed)", () => {
         Object.assign(q, {
           select: chain,
           eq: chain,
-          in: chain,
+          in: chain, lte: chain,
           neq: chain,
           maybeSingle: async () => replies[table] ?? { data: null, error: null },
           then: (res: (v: unknown) => unknown) => Promise.resolve(replies[table] ?? { data: [], error: null }).then(res),
@@ -238,7 +238,8 @@ describe("wiring", () => {
     const split = src.indexOf("applyCollectiveOwnerShares(");
     assert.ok(split > 0);
     assert.ok(split < src.search(/await resolveCheckoutCollect(Cents|OrRefuse)\(/), "before the fee and collect");
-    assert.ok(split < src.indexOf("talent_cost_cents: l.talentCostCents"));
+    assert.ok(split < src.indexOf("buildOrderLineRows("), "before the insert");
+    assert.match(read("../orders/purchase-lines.ts"), /talent_cost_cents: l\.talentCostCents/);
     assert.match(src, /if \(!split\.ok\) return \{ ok: false, reason: "engine_error", error: split\.code \? talentNoLongerSellsCopy\(input\.locale\) : split\.error \}/);
   });
   test("the held migration adds the per-member share to the roster, capped at 90%", () => {

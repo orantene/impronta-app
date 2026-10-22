@@ -285,14 +285,17 @@ test("a caller that already declares the offering's capacity is not reserved twi
   assert.equal(db.stockLeft(), 4);
 });
 
-test("a pay-in-person stock order keeps its unit until the visit: committed, no 15-minute deadline", async () => {
+test("a pay-in-person stock order keeps its unit until the visit: committed, a last-day deadline, not 15 minutes (TUL-1313)", async () => {
   const db = fakeDb({ stock: 3, allowPayInPerson: true });
   const r = await createPurchase(db.admin, menuOrder({ paymentChoice: "in_person" }));
   assert.equal(r.ok, true);
   assert.ok(db.rpcCalls.find((c) => c.fn === "commit_capacity"), "the stock must be committed, not left as a lapsing hold");
   const statusPatch = db.orderUpdates.find((u) => u.status === "pending_payment");
   assert.ok(statusPatch);
-  assert.equal(statusPatch.hold_expires_at, null, "the expiry sweep must not cancel a pay-in-person order");
+  // TUL-1313: it used to be null, so a no-show kept the stock for ever. Now a visit deadline ~24 h out.
+  const deadline = Date.parse(String(statusPatch.hold_expires_at));
+  const hours = (deadline - Date.now()) / 3_600_000;
+  assert.ok(hours > 23.9 && hours < 24.1, `deadline is ~24 h out, got ${String(statusPatch.hold_expires_at)}`);
 });
 
 test("a card stock order keeps the pool TTL so an abandoned checkout frees the unit", async () => {

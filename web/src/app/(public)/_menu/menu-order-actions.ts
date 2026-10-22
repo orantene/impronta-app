@@ -124,6 +124,7 @@ export async function submitMenuOrder(
       // indictment of the engine this replaces: it rendered offerings whose
       // reserve_mode, deposit_pct and allow_pay_in_person it never read.
       paymentChoice: input.payInPerson === true ? "in_person" : "full",
+      followOwnerDeposit: true, // TUL-1308
       sourceChannel: "menu",
       sourcePage: input.sourcePage ?? null,
       // Staff work menu orders in Messages today. The order is the record; the

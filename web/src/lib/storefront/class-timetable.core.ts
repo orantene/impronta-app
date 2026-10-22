@@ -341,6 +341,7 @@ async function bookSeat(
         contact: { email, phone: input.contact.phone?.trim() || null, displayName: input.contact.name.trim() },
         lines: [{ offeringId: session.offering_id, units, sessionId: session.id }],
         paymentChoice: input.payment === "in_person" ? "in_person" : "full",
+        followOwnerDeposit: true, // TUL-1308
         sourceChannel: "storefront_class",
         sourcePage: input.sourcePage ?? null,
         capacity: [

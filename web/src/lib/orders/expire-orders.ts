@@ -21,6 +21,7 @@ export const HELD_ORDER_GRACE_MINUTES = 0;
 export const IDLE_DRAFT_TTL_HOURS = 72;
 
 import { cancelUnpaidBookings } from "@/lib/bookings/cancel-unpaid-booking";
+import { releaseCancelledOrderStock } from "@/lib/orders/expire-orders-release";
 
 export type ExpiringOrder = {
   id: string;
@@ -97,6 +98,8 @@ type SweepClient = {
   // The real client is a deeply generic PostgREST builder. Tests pass a fake.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from: (table: string) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc?: (fn: string, args: Record<string, unknown>) => any;
 };
 
 /**
@@ -175,6 +178,8 @@ export async function sweepExpiredOrders(
     return result;
   }
   result.cancelled = cancelIds.length;
+  // TUL-1313: a cancelled order gives its stock back (committed units never lapse by themselves).
+  await releaseCancelledOrderStock(admin as Parameters<typeof releaseCancelledOrderStock>[0], cancelIds);
   return releaseOrphanBookings(admin, result);
 }
 

@@ -504,6 +504,10 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
     0,
   );
 
+  // TUL-1306: the fee is added on top of the lines, so the client total (and the
+  // deposit base) include it. A solo seller has no workspace fee (the server drops it).
+  const clientTotal = computedTotal > 0 && !solo ? computedTotal + (Number(snapshot.coordinatorFee) || 0) : computedTotal;
+
   const addLineItem = () => {
     setSnapshot((s) => s == null ? s : {
       ...s,
@@ -619,7 +623,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
         t={t}
         pending={pending}
         savePending={savePending}
-        total={computedTotal}
+        total={clientTotal}
         currencyCode={snapshot.currencyCode}
         coordinatorFee={snapshot.coordinatorFee}
         hideFee={solo}
@@ -632,7 +636,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
       <OfferMoneySplit
         t={t}
         lineItems={snapshot.lineItems}
-        clientTotal={computedTotal}
+        clientTotal={clientTotal}
         coordinatorFee={snapshot.coordinatorFee}
         currencyCode={snapshot.currencyCode}
         hideWorkspaceTake={solo}
@@ -640,7 +644,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
 
       {/* W6a — negotiated booking terms, persisted via saveOfferDraft. */}
       <OfferTermsComposer
-        totalUnits={computedTotal}
+        totalUnits={clientTotal}
         currencyCode={snapshot.currencyCode}
         initial={{
           depositPct: snapshot.terms.depositPct,
@@ -654,7 +658,7 @@ export function OfferDraftEditor({ inquiryId, offerId, canEdit, onSendGateChange
           const r = await saveOfferDraft(effectiveTenant.slug, offerId, {
             inquiryExpectedVersion: snapshot.inquiryVersion,
             offerExpectedVersion: snapshot.offerVersion,
-            totalClientPrice: computedTotal,
+            totalClientPrice: clientTotal,
             coordinatorFee: snapshot.coordinatorFee,
             currencyCode: snapshot.currencyCode,
             notes: snapshot.notes,

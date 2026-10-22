@@ -65,6 +65,9 @@ export type PricingRequestLine = {
   units: number;
   variantId?: string | null;
   addonIds?: string[];
+  /** TUL-1302: the live price phase for this line (`purchase-phases.ts`); replaces the list/tier price. */
+  phasePriceCents?: number | null;
+  pricePhaseId?: string | null;
 };
 
 export type PricedLine = {
@@ -78,6 +81,8 @@ export type PricedLine = {
   talentProfileId: string | null;
   ownerTenantId: string | null;
   talentCostCents: number;
+  /** TUL-1302: stamped on the order line when a live phase set the price. */
+  pricePhaseId?: string | null;
   /** TUL-1374: set for a Friends collective member line: the owner's take and the accepted-share snapshot. */
   ownerTakeCents?: number;
   ownerShareSnapshot?: Record<string, unknown>;
@@ -204,6 +209,13 @@ export function pricePurchase(
       }
     }
 
+    // TUL-1302: a live phase replaces the list price (and a tier's price), as at the counter.
+    let pricePhaseId: string | null = null;
+    if (req.phasePriceCents != null && req.pricePhaseId) {
+      unitCents = req.phasePriceCents;
+      pricePhaseId = req.pricePhaseId;
+    }
+
     if (unitCents == null || !Number.isInteger(unitCents) || unitCents < 0) {
       return {
         ok: false,
@@ -281,6 +293,7 @@ export function pricePurchase(
       // the house's margin unless the catalog says otherwise, and inventing a
       // talent cost for it would pay out money the offering never promised.
       talentCostCents: offering.talentCostCents * req.units,
+      ...(pricePhaseId ? { pricePhaseId } : {}),
     });
   }
 

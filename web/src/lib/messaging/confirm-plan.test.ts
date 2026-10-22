@@ -139,3 +139,13 @@ test("conflictDate: zoned when a timezone is given, UTC date otherwise, null whe
   assert.equal(conflictDate("2026-09-21T03:30:00.000Z", null), "2026-09-21");
   assert.equal(conflictDate(null, "America/Mexico_City"), null);
 });
+
+test("TUL-1309: a part quantity on a capacity line is refused by name, never truncated into a smaller check", async () => {
+  const plan = buildConfirmPlan("draft", [{ id: "l1", label: "Chairs", poolId: "pool_1", units: 2.5 }]);
+  assert.equal(plan.checks[0]?.kind === "capacity" && plan.checks[0].units, 2.5);
+  const conflicts = await runConfirmChecks(plan, { busy: async () => [], remaining: async () => 100 });
+  assert.deepEqual(conflicts.map((c) => [c.line, c.code]), [["Chairs", "units_not_whole"]]);
+  // A whole quantity still passes the same readers.
+  const whole = buildConfirmPlan("draft", [{ id: "l1", label: "Chairs", poolId: "pool_1", units: 2 }]);
+  assert.deepEqual(await runConfirmChecks(whole, { busy: async () => [], remaining: async () => 100 }), []);
+});
