@@ -10,6 +10,7 @@
  */
 import type Stripe from "stripe";
 import { checkChargeMinimum } from "@/lib/payments/charge-minimums";
+import { stripeEnv } from "@/lib/stripe/env-keys";
 import { MAX_SERVICE_FEE_BPS } from "@/lib/billing/pass-through-rate";
 import type { RentPlan } from "./rent-cycle";
 
@@ -35,7 +36,8 @@ export function rentAutopayPercentFlagOn(env: Record<string, string | undefined>
  */
 export function rentAutopayGate(env: Record<string, string | undefined> = process.env, platform: "us" | "mx" = "us"): RentAutopayGate {
   if (!rentAutopayFlagOn(env)) return { ok: false, reason: "disabled" };
-  const key = (platform === "mx" ? env.STRIPE_MX_SECRET_KEY : env.STRIPE_SECRET_KEY) ?? "";
+  // Evaluate the key the app will really charge with (forced test mode resolves to the *_TEST sibling).
+  const key = stripeEnv(platform === "mx" ? "STRIPE_MX_SECRET_KEY" : "STRIPE_SECRET_KEY", env) ?? "";
   if (!key.trim().startsWith("sk_test_")) return { ok: false, reason: "not_test_mode" };
   return { ok: true };
 }
