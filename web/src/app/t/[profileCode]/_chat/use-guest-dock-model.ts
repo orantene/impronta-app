@@ -18,6 +18,7 @@ import { bookAgainRecordId } from "@/lib/messages-v5/guest-book-again";
 import { messagingClientBookAgain } from "@/lib/server-actions/messaging-client";
 
 import { useGuestClientCards } from "./GuestClientCards";
+import { isPlaceholderGuestName } from "./guest-placeholder-name";
 import type { paletteFor } from "./mini-chat-styles";
 
 export function useGuestDockModel(input: {
@@ -143,7 +144,8 @@ export function useGuestDockModel(input: {
       onAsk: c.onAsk,
     }),
     detailsProps: {
-      detailsName: input.contactName ?? "",
+      // TUL-1238: never prefill the English seed "Guest"; the field shows a localized placeholder.
+      detailsName: isPlaceholderGuestName(input.contactName) ? "" : input.contactName ?? "",
       detailsEmail: input.contactEmail ?? null,
       detailsPhone: input.contactPhone ?? null,
       detailsToken: input.v5?.threadToken ?? null,

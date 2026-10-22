@@ -8,3 +8,8 @@ export function displayGuestName(name: string | null | undefined, t: (key: strin
   const trimmed = (name ?? "").trim();
   return trimmed === GUEST_PLACEHOLDER_NAME ? t("public.guestChat.guestPlaceholderName") : trimmed;
 }
+
+/** True for the seeded English placeholder, so editable fields start empty instead of showing "Guest". */
+export function isPlaceholderGuestName(name: string | null | undefined): boolean {
+  return (name ?? "").trim() === GUEST_PLACEHOLDER_NAME;
+}

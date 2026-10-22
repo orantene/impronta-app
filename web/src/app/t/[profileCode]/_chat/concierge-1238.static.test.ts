@@ -39,3 +39,10 @@ test("tray copy has no mixed-language label in es and the new key exists in en +
   assert.ok(msgs("en").guestPlaceholderName && msgs("es").guestPlaceholderName);
   assert.notEqual(msgs("en").dockTrayOpenLineup, "Open the Items tab");
 });
+
+test("the details card never prefills the English seed name \"Guest\" and shows a localized placeholder", () => {
+  assert.match(read("use-guest-dock-model.ts"), /isPlaceholderGuestName\(input\.contactName\) \? ""/);
+  assert.match(read("GuestDockDetailsCard.tsx"), /placeholder=\{t\("public\.guestChat\.contactNamePlaceholder"\)\}/);
+  assert.ok(msgs("en").contactNamePlaceholder && msgs("es").contactNamePlaceholder);
+  assert.notEqual(msgs("es").contactNamePlaceholder, "");
+});
