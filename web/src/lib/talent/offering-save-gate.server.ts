@@ -28,7 +28,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentDefaultPosture } from "@/lib/talent/offerings-auth.server";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { loadPlanAllowsInstant } from "@/lib/talent/plan-instant.server";
-import { INSTANT_PLAN_REFUSAL_EN, instantPlanRefuses } from "@/lib/talent/instant-plan-gate";
+import { INSTANT_PLAN_REFUSAL_EN, INSTANT_PLAN_REFUSAL_ES, instantPlanRefuses } from "@/lib/talent/instant-plan-gate";
 import { isPublishTransition, notReadyToPublishMessage, publishBlockers } from "@/lib/talent/publish-readiness";
 import { PLATFORM_DEFAULT_BOOKING_POSTURE } from "@/lib/talent/selling-booking-settings";
 
@@ -112,6 +112,7 @@ export async function offeringSaveGateFor(
   scope: OfferingSaveScope,
   offering: TalentOffering,
   deps: OfferingSaveGateDeps = DEFAULT_DEPS,
+  locale?: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const wantsPublish = offering.status === "published";
   const wantsInstant = offering.bookingMode === "instant";
@@ -128,7 +129,7 @@ export async function offeringSaveGateFor(
   if (isPublishTransition(offering.status, prior?.status)) {
     const posture = planId ? await deps.loadPosture(planId) : PLATFORM_DEFAULT_BOOKING_POSTURE;
     const missing = publishBlockers(offering, prior?.status, posture);
-    if (missing.length > 0) return { ok: false, error: notReadyToPublishMessage(offering.title, missing) };
+    if (missing.length > 0) return { ok: false, error: notReadyToPublishMessage(offering.title, missing, locale) };
   }
 
   if (wantsInstant && prior?.booking_mode !== "instant") {
@@ -140,7 +141,7 @@ export async function offeringSaveGateFor(
       priorMode: prior?.booking_mode ?? null,
       planAllowsInstant: workspaceAllowsInstant(plans, planIds),
     });
-    if (refuse) return { ok: false, error: INSTANT_PLAN_REFUSAL_EN };
+    if (refuse) return { ok: false, error: locale?.startsWith("es") ? INSTANT_PLAN_REFUSAL_ES : INSTANT_PLAN_REFUSAL_EN };
   }
   return { ok: true };
 }
@@ -168,7 +169,7 @@ export async function workspaceOfferingSaveGate(
   /** TUL-1712: every active owner's talent id; the plan rule reads all of them. */
   ownerTalentIds?: readonly string[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId, ownerTalentIds }, offering, deps);
+  const gate = await offeringSaveGateFor(admin, { kind: "workspace", tenantId, ownerTalentId, ownerTalentIds }, offering, deps, locale);
   if (!gate.ok) return gate;
   const currency = offeringCurrencyRefusal(offering.currency, locale);
   return currency ? { ok: false, error: currency } : { ok: true };

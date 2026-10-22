@@ -17,8 +17,29 @@ import type { PurchaseResult } from "@/lib/orders/purchase-types";
 
 export type TableDeposit = { cents: number; currency: string };
 
-export function withTableDeposit(priced: PricingResult, deposit: TableDeposit | undefined): PricingResult {
-  if (!deposit || !priced.ok) return priced;
+export function withTableDeposit(
+  priced: PricingResult,
+  deposit: TableDeposit | undefined,
+  /**
+   * TUL-1876: a table with NO deposit due. The reservation item's catalog price is not a bill
+   * (the meal is settled at the table), so the order owes nothing: one line at 0, never the
+   * item's price shown as "pending payment" while the guest is told nothing is due.
+   */
+  noDeposit = false,
+): PricingResult {
+  if (!priced.ok) return priced;
+  if (!deposit && noDeposit) {
+    const only = priced.lines[0];
+    if (priced.lines.length !== 1 || !only) {
+      return { ok: false, reason: "amount_out_of_range", offeringId: only?.offeringId, message: "That amount is not valid." };
+    }
+    return {
+      ok: true,
+      subtotalCents: 0,
+      lines: [{ ...only, units: 1, unitCents: 0, totalCents: 0, addonIds: [], talentCostCents: 0 }],
+    };
+  }
+  if (!deposit) return priced;
   const line = priced.lines[0];
   if (
     priced.lines.length !== 1 ||

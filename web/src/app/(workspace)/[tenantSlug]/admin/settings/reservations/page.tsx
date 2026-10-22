@@ -46,6 +46,8 @@ export default async function ReservationSettingsPage({ params }: { params: Page
   const scope = await getTenantPortalScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
+  const locale = (await getRequestLocale()) === "es" ? "es" : "en";
+  const es = locale === "es";
   const venue = await loadDefaultVenue(scope.tenantId);
 
   // A workspace with no venue cannot have service windows, because a window
@@ -54,16 +56,17 @@ export default async function ReservationSettingsPage({ params }: { params: Page
   if (!venue) {
     return (
       <main style={{ padding: 24, maxWidth: 720, fontFamily: "Inter, system-ui, sans-serif" }}>
-        <h1 style={{ fontSize: 22, margin: "0 0 8px", color: C.ink }}>Reservations</h1>
+        <h1 style={{ fontSize: 22, margin: "0 0 8px", color: C.ink }}>{es ? "Reservas" : "Reservations"}</h1>
         <p style={{ color: C.inkMuted, margin: "0 0 16px", lineHeight: 1.6 }}>
-          Reservations need a venue first. A service window belongs to a place and runs on that
-          place&rsquo;s clock, so there is nothing to set up until one exists.
+          {es
+            ? "Las reservas necesitan primero un local. Un horario de servicio pertenece a un lugar y corre con el reloj de ese lugar, así que no hay nada que configurar hasta que exista uno."
+            : "Reservations need a venue first. A service window belongs to a place and runs on that place\u2019s clock, so there is nothing to set up until one exists."}
         </p>
         <Link
           href={`/${tenantSlug}/admin/settings`}
           style={{ color: C.accent, fontWeight: 600, fontSize: 14 }}
         >
-          Add a venue in Settings
+          {es ? "Agregar un local en Ajustes" : "Add a venue in Settings"}
         </Link>
       </main>
     );
@@ -77,10 +80,11 @@ export default async function ReservationSettingsPage({ params }: { params: Page
   if (!config) {
     return (
       <main style={{ padding: 24, maxWidth: 720, fontFamily: "Inter, system-ui, sans-serif" }}>
-        <h1 style={{ fontSize: 22, margin: "0 0 8px", color: C.ink }}>Reservations</h1>
+        <h1 style={{ fontSize: 22, margin: "0 0 8px", color: C.ink }}>{es ? "Reservas" : "Reservations"}</h1>
         <p style={{ color: C.inkMuted, margin: 0, lineHeight: 1.6 }}>
-          We could not load the reservation settings for {venue.name}. Nothing has changed. Try again
-          in a moment.
+          {es
+            ? `No pudimos cargar los ajustes de reservas de ${venue.name}. No se cambió nada. Intenta de nuevo en un momento.`
+            : `We could not load the reservation settings for ${venue.name}. Nothing has changed. Try again in a moment.`}
         </p>
       </main>
     );
@@ -92,7 +96,7 @@ export default async function ReservationSettingsPage({ params }: { params: Page
       : config.bands
           .slice()
           .sort((a, b) => a.partyMax - b.partyMax)
-          .map((b) => `${b.name} (${b.partyMin} to ${b.partyMax})`)
+          .map((b) => `${b.name} (${b.partyMin} ${es ? "a" : "to"} ${b.partyMax})`)
           .join(" · ");
 
   // TUL-1334: the items staff can pick as "the reservation item".
@@ -107,15 +111,15 @@ export default async function ReservationSettingsPage({ params }: { params: Page
       offerings.push({ id: o.id, title: o.title ?? "", status: o.status });
     }
   }
-  const locale = (await getRequestLocale()) === "es" ? "es" : "en";
 
   return (
     <main style={{ padding: 24, maxWidth: 820, fontFamily: "Inter, system-ui, sans-serif" }}>
       <header style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, margin: "0 0 6px", color: C.ink }}>Reservations</h1>
+        <h1 style={{ fontSize: 22, margin: "0 0 6px", color: C.ink }}>{es ? "Reservas" : "Reservations"}</h1>
         <p style={{ color: C.inkMuted, margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-          The rules every table booking follows at {venue.name}. Times are that venue&rsquo;s own clock
-          ({venue.timezone}).
+          {es
+            ? `Las reglas de cada reserva de mesa en ${venue.name}. Las horas usan el reloj de ese local (${venue.timezone}).`
+            : `The rules every table booking follows at ${venue.name}. Times are that venue\u2019s own clock (${venue.timezone}).`}
         </p>
       </header>
 
@@ -135,18 +139,19 @@ export default async function ReservationSettingsPage({ params }: { params: Page
       >
         {bandSummary ? (
           <>
-            <strong style={{ color: C.ink }}>What you can seat: </strong>
+            <strong style={{ color: C.ink }}>{es ? "Lo que puedes sentar: " : "What you can seat: "}</strong>
             <span style={{ color: C.inkMuted }}>{bandSummary}</span>
           </>
         ) : (
           <>
-            <strong style={{ color: C.ink }}>No tables set up yet. </strong>
+            <strong style={{ color: C.ink }}>{es ? "Aún no hay mesas configuradas. " : "No tables set up yet. "}</strong>
             <span style={{ color: C.inkMuted }}>
-              Reservations are offered against groups of tables, so nothing can be booked until{" "}
-              {venue.name} has some.{" "}
+              {es
+                ? `Las reservas se ofrecen sobre grupos de mesas, así que no se puede reservar hasta que ${venue.name} tenga algunas. `
+                : `Reservations are offered against groups of tables, so nothing can be booked until ${venue.name} has some. `}
             </span>
             <Link href={`/${tenantSlug}/admin/settings`} style={{ color: C.accent, fontWeight: 600 }}>
-              Set up tables
+              {es ? "Configurar mesas" : "Set up tables"}
             </Link>
           </>
         )}

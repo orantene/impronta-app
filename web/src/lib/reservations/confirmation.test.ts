@@ -16,6 +16,7 @@ const base = (over: Partial<ConfirmationInput> = {}): ConfirmationInput => ({
   freeCancelHours: 2,
   graceMinutes: 15,
   addressLine: "Calle 8 Sur, Tulum",
+  now: new Date("2026-08-01T00:00:00Z"), // well before the seating: the deadline is in the future
   ...over,
 });
 
@@ -110,4 +111,19 @@ test("a venue with no address simply omits the line", () => {
   const c = buildConfirmation(base({ addressLine: null }))!;
   assert.ok(!c.lines.some((l) => l.includes("Calle")));
   assert.ok(c.lines.length >= 4, "the rest of the confirmation survives");
+});
+
+test("TUL-1879: a free-cancel deadline already in the past is not promised", () => {
+  const after = new Date(AT.getTime() - 60 * 60_000); // 1h before the seating, freeCancelHours is 2
+  const en = buildConfirmation(base({ now: after }))!;
+  assert.ok(!en.lines.some((l) => l.startsWith("Free to cancel until")));
+  assert.ok(en.lines.includes("Free cancellation is no longer available."));
+  const es = buildConfirmation(base({ locale: "es", now: after }))!;
+  assert.ok(es.lines.includes("Ya no se puede cancelar sin cargo."));
+});
+
+test("TUL-1879: a future deadline is still shown", () => {
+  const before = new Date(AT.getTime() - 48 * 3_600_000);
+  const c = buildConfirmation(base({ now: before }))!;
+  assert.ok(c.lines.some((l) => l.startsWith("Free to cancel until")));
 });

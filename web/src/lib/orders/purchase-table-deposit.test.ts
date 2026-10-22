@@ -110,3 +110,17 @@ test("tableDepositRefusal: refuses a mismatched reservation currency, passes agr
   assert.equal(tableDepositRefusal({ cents: 60000, currency: "MXN" }, ["MXN"]), null);
   assert.equal(tableDepositRefusal(undefined, ["USD"]), null);
 });
+
+test("TUL-1876: a table with no deposit owes nothing, never the catalog item's price", () => {
+  const out = withTableDeposit(priced(10_000), undefined, true);
+  assert.equal(out.ok, true);
+  if (out.ok) {
+    assert.equal(out.subtotalCents, 0);
+    assert.equal(out.lines[0]!.totalCents, 0);
+  }
+});
+
+test("TUL-1876: without the no-deposit flag an undeposited order is priced as before", () => {
+  const out = withTableDeposit(priced(10_000), undefined);
+  assert.equal(out.ok && out.subtotalCents, 10_000);
+});
