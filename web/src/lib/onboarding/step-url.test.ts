@@ -16,3 +16,34 @@ test("no step, or a malformed one, removes the param", () => {
   assert.equal(urlWithStep("https://x.test/start?step=ready", null), "https://x.test/start");
   assert.equal(urlWithStep("https://x.test/start", "<script>"), "https://x.test/start");
 });
+
+import { planStepSync, stepForPopTarget } from "./step-url";
+
+test("TUL-812: forward steps push, passing screens rewrite their entry, the first step replaces", () => {
+  let p = planStepSync([], "choose");
+  assert.deepEqual(p, { op: "replace", stack: ["choose"] });
+  p = planStepSync(p.stack, "entry");
+  assert.deepEqual(p, { op: "push", stack: ["choose", "entry"] });
+  p = planStepSync(p.stack, "reading");
+  assert.deepEqual(p, { op: "replace", stack: ["choose", "reading"] });
+  p = planStepSync(p.stack, "understood");
+  assert.deepEqual(p, { op: "push", stack: ["choose", "reading", "understood"] });
+  assert.equal(planStepSync(p.stack, "understood").op, "none");
+});
+
+test("TUL-812: the in-app Back pops the entry the browser Back would", () => {
+  const p = planStepSync(["choose", "entry", "essentials", "setup"], "essentials");
+  assert.deepEqual(p, { op: "back", stack: ["choose", "entry", "essentials"] });
+});
+
+test("TUL-812: browser Back reaches earlier settled screens only", () => {
+  assert.equal(stepForPopTarget("setup", "essentials"), "essentials");
+  assert.equal(stepForPopTarget("readyToBuild", "setup"), "setup");
+  assert.equal(stepForPopTarget("save", "readyToBuild"), "readyToBuild");
+  assert.equal(stepForPopTarget("understood", "reading"), "entry", "a passing screen falls back to entry");
+  assert.equal(stepForPopTarget("setup", "setup"), null);
+  assert.equal(stepForPopTarget("essentials", "setup"), null, "forward is not a Back");
+  assert.equal(stepForPopTarget("building", "save"), null, "the build is never left");
+  assert.equal(stepForPopTarget("arrival", "readyToBuild"), null);
+  assert.equal(stepForPopTarget("setup", "<x>"), null);
+});
