@@ -13,6 +13,7 @@ import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 import { publicPriceForJsonLd, resolvePublicPrice } from "@/lib/talent/public-price";
 import { durationLabel } from "@/lib/talent/duration-label";
+import { isSellable } from "@/lib/offerings/sellable";
 import type { ServiceContentFields } from "./service-content-fields";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
@@ -90,8 +91,10 @@ export function isServicePubliclyServed(
     attributes?: Record<string, unknown> | null;
   },
 ): boolean {
-  if (o.status != null && o.status !== "published") return false;
-  if (o.moderationState != null && o.moderationState !== "approved") return false;
+  // Published + approved via the one sellable rule ("reservation" ignores visibility; the page
+  // eligibility check below handles that). An unknown value (not loaded) is not a refusal here.
+  const known = o.status != null || o.moderationState != null;
+  if (known && !isSellable({ status: o.status ?? "published", moderationState: o.moderationState ?? "approved" }, "reservation")) return false;
   return isServicePageEligible(o);
 }
 
