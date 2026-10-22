@@ -349,8 +349,7 @@ export async function createBillingPortalSession(opts: {
     const params = buildPortalSessionParams({
       customerId: customer.stripe_customer_id,
       returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
-      locale: opts.locale,
-      audience: "workspace",
+      locale: opts.locale, audience: "workspace",
     });
     let session;
     try {

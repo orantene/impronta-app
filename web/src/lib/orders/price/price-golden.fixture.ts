@@ -29,6 +29,7 @@ export type GoldenInput = {
 export type Charged = { subtotalCents: number; totalCents: number; baseCollectCents: number; collectCents: number };
 
 const TENANT = "ten";
+// fee-config-ok: golden fixture pins the MX card rate on purpose so a fee-config change shows up as a golden diff
 const MX = { percent: 0.036, fixed_cents: 300, tax_on_fee: 0.16 };
 
 function offering(id: string, amountCents: number | null, talent: string): PricedOffering {

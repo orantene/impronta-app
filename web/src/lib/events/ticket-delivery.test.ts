@@ -337,14 +337,24 @@ function statefulAdmin(rows: Record<string, Row[]>) {
       // cannot both match the same row.
       const filters: Array<(r: Row) => boolean> = [];
       let patch: Row | null = null;
+      let removing = false;
       const run = (): Row[] => {
         const matched = (rows[table] ?? []).filter((r) => filters.every((f) => f(r)));
         if (patch) for (const r of matched) Object.assign(r, patch);
+        if (removing) rows[table] = (rows[table] ?? []).filter((r) => !matched.includes(r));
         return matched.map((r) => ({ ...r }));
       };
       const chain: Record<string, unknown> = {};
       Object.assign(chain, {
         select: () => chain,
+        // Order-claim ledger (TUL-1267): insert-if-absent on dedupe_key, and delete.
+        insert: async (payload: Row) => {
+          const table_rows = (rows[table] ??= []);
+          if (table_rows.some((r) => r.dedupe_key === payload.dedupe_key)) return { data: null, error: { code: "23505", message: "duplicate" } };
+          table_rows.push(payload);
+          return { data: null, error: null };
+        },
+        delete: () => { removing = true; return chain; },
         update: (p: Row) => { patch = p; return chain; },
         eq: (c: string, v: unknown) => { filters.push((r) => r[c] === v); return chain; },
         in: (c: string, vs: unknown[]) => { filters.push((r) => vs.includes(r[c])); return chain; },

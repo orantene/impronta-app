@@ -24,7 +24,7 @@ test("the smoke is a step in the gate's build job, right after next build, reusi
   assert.ok(build.indexOf("no phantom client chunks") > iSmoke, "smoke is right after the build step");
   assert.match(script, /process\.argv\.includes\("--skip-build"\)/);
   // Required through the aggregator, with no check name of its own.
-  assert.match(ci, /needs: \[policy, build, static, tests_a, tests_b\]/);
+  assert.match(ci, /needs: \[policy, precheck, build, static, tests_a, tests_b\]/);
 });
 
 test("no separate runtime-boot-smoke workflow exists", () => {
