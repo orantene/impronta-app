@@ -2,6 +2,7 @@ import "server-only";
 
 import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-plan";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { logServerError } from "@/lib/server/safe-error";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import {
   talentPlanToTier,
@@ -148,7 +149,7 @@ export async function loadTalentPageAnalytics(
 
     const [presence, [viewsRes, inquiriesRes]] = await Promise.all([
       loadTalentPresenceStats(supabase, owned.id).catch((err) => {
-        console.warn("[talent-analytics] presence stats failed", err);
+        logServerError("talent-analytics.presence", err);
         return undefined;
       }),
       Promise.all([
@@ -210,7 +211,7 @@ export async function loadTalentPageAnalytics(
     // Best-effort, exactly like the workspace loader: a failed analytics read
     // must never break the talent dashboard layout. Logged so a paid talent's
     // empty "My presence" card is traceable (TUL-582).
-    console.warn("[talent-analytics] loadTalentPageAnalytics failed", err);
+    logServerError("talent-analytics.load", err);
     return { data: emptyTalentPageAnalytics(), hasAnyViews: false };
   }
 }
