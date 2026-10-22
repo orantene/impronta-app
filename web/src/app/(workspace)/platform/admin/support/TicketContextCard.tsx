@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useT } from "@/i18n/use-t";
+import { localizeAuditLine } from "@/lib/support/audit-line-i18n";
 import { HQ, HQ_F, PlanChip, planTierLabel } from "../tenants/hq-kit";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportTicketRow } from "@/lib/support/support-types";
@@ -147,7 +148,7 @@ export function TicketContextCard({
         ) : (
           context.auditEvents.map((ev, i) => (
             <div key={`${ev.action}-${i}`} style={{ fontSize: 12, color: HQ.inkMuted, marginBottom: 6 }}>
-              {ev.summary || ev.action}
+              {localizeAuditLine(t, ev)}
             </div>
           ))
         )}

@@ -1,5 +1,5 @@
 import { createTranslator } from "@/i18n/messages";
-import { GUIDE_EXTRA_ES } from "./guide-extra-es";
+import { GUIDE_EXTRA_ES, GUIDE_TITLES_EN, GUIDE_TITLES_ES, SUPPORT_TICKET_ES } from "./guide-extra-es";
 
 /**
  * Guide copy that comes from the English help registry (`DRAWER_HELP`) resolved
@@ -17,16 +17,24 @@ function tOr(locale: string, key: string, fallback: string): string {
 
 export function guideTitle(nodeId: string, fallback: string, locale: string): string {
   if (locale === "es" && GUIDE_EXTRA_ES[nodeId]) fallback = GUIDE_EXTRA_ES[nodeId].title;
+  else if (locale === "es" && GUIDE_TITLES_ES[nodeId]) fallback = GUIDE_TITLES_ES[nodeId];
+  else if (locale !== "es" && GUIDE_TITLES_EN[nodeId]) fallback = GUIDE_TITLES_EN[nodeId];
   return tOr(locale, `${NS}.drawerLabels.${nodeId}`, fallback);
 }
 
 export function guidePurpose(nodeId: string, fallback: string, locale: string): string {
   if (locale === "es" && GUIDE_EXTRA_ES[nodeId]) fallback = GUIDE_EXTRA_ES[nodeId].purpose;
+  else if (locale === "es" && nodeId === "support-ticket") fallback = SUPPORT_TICKET_ES.purpose;
   return tOr(locale, `${NS}.topics.${nodeId}.purpose`, fallback);
 }
 
 export function guideStep(nodeId: string, index: number, fallback: string, locale: string): string {
-  if (locale === "es") fallback = GUIDE_EXTRA_ES[nodeId]?.steps[index] ?? fallback;
+  if (locale === "es") {
+    fallback =
+      GUIDE_EXTRA_ES[nodeId]?.steps[index] ??
+      (nodeId === "support-ticket" ? SUPPORT_TICKET_ES.steps[index] : undefined) ??
+      fallback;
+  }
   return tOr(locale, `${NS}.topics.${nodeId}.b${index}`, fallback);
 }
 

@@ -12,7 +12,6 @@
 
 import { Lock, Plus } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
@@ -98,10 +97,10 @@ export function TalentPostsListPage() {
   const dashboardLocale = useDashboardLocale();
   const uiLocale: "es" | "en" = dashboardLocale === "es" ? "es" : "en";
   const t = useMemo(() => postsTranslator(uiLocale), [uiLocale]);
-  const router = useRouter();
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [filter, setFilter] = useState<Filter>("all");
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -133,8 +132,16 @@ export function TalentPostsListPage() {
 
   const createPost = () => {
     setCreating(true);
+    setCreateError(null);
     // TUL-1249: no row is written here; the writer creates the draft on the first edit.
-    router.push("/talent/posts/new");
+    // TUL-1903: a hard navigation. The talent layout picks the bare writer chrome from
+    // the request path, and a soft push kept the shell (and this pending button) mounted.
+    window.location.assign("/talent/posts/new");
+    // If the page has not left after a while, say so instead of sticking on "Creando...".
+    window.setTimeout(() => {
+      setCreating(false);
+      setCreateError(t("dashboard.talentPosts.createFailed"));
+    }, 10_000);
   };
 
   const visible = load.status === "ready" ? load.posts.filter((p) => matches(filter, rowStatus(p))) : [];
@@ -153,6 +160,12 @@ export function TalentPostsListPage() {
           {creating ? t("dashboard.talentPosts.creating") : t("dashboard.talentPosts.newPost")}
         </button>
       </div>
+
+      {createError ? (
+        <p role="alert" className="m-0 text-[14px] text-admin-ink">
+          {createError}
+        </p>
+      ) : null}
 
       {load.status === "ready" ? (
         <AiCrawlerToggle

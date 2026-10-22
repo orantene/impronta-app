@@ -10355,6 +10355,16 @@
         "whatsapp": "WhatsApp",
         "noPhone": "No phone on file",
         "callbackRequested": "Call back requested",
+        "auditOpened": "Opened support ticket #{number}",
+        "auditMarked": "Ticket #{number} marked {status}",
+        "auditEscalated": "Ticket #{number} handed to a human",
+        "auditStatus": {
+          "open": "open",
+          "pending": "pending",
+          "resolved": "resolved",
+          "closed": "closed",
+          "waiting": "waiting"
+        },
         "contextAudit": "Recent workspace activity",
         "noAudit": "No recent activity",
         "contextPast": "Past tickets",

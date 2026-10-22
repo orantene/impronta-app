@@ -83,6 +83,7 @@ src/lib/seo/robots-per-environment.test.ts
 src/lib/seo/staging-noindex.static.test.ts
 src/lib/seo/talent-site-not-found-robots.static.test.ts
 src/lib/support/attachment-rate-limit.static.test.ts
+src/lib/support/audit-line-i18n.test.ts
 src/lib/support/contact-receipt.static.test.ts
 src/lib/support/corpus-roadmap-truth.test.ts
 src/lib/support/desk/desk-filters.test.ts

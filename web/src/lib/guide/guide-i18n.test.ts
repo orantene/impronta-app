@@ -60,3 +60,9 @@ test("moved inline pair lives in the dashboard dictionary; arrival iframe is nam
   assert.equal(isArrivalThumbFrame({ name: "" }), false);
   assert.equal(isArrivalThumbFrame(undefined), false);
 });
+
+test("talent-facing nodes have Spanish and English titles, not humanized ids (TUL-602)", () => {
+  assert.equal(guideTitle("talent-today-pulse", "", "es"), "Tu día de un vistazo");
+  assert.equal(guideTitle("talent-today-pulse", "", "en"), "Your day at a glance");
+  assert.equal(guideTitle("support-ticket", "", "es"), "Tu ticket de soporte");
+});
