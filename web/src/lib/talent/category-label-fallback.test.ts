@@ -79,3 +79,16 @@ test("TUL-1891: a Spanish-stored Experiencias reads Experiences on an EN page", 
   assert.equal(platformCategoryLabel("Experiences", "es"), "Experiencias");
   assert.equal(platformCategoryLabel("Paquetes", "en"), "Packages");
 });
+
+test("TUL-1912: Spanish-seeded service and menu categories read in English on an EN page", () => {
+  for (const [es, en] of [
+    ["Limpieza", "Cleaning"], ["Bebidas", "Drinks"], ["Postres", "Desserts"], ["Reservaciones", "Reservations"],
+    ["Bebidas sin alcohol", "Non-alcoholic drinks"], ["Platos fuertes", "Main courses"], ["Electricidad", "Electrical"],
+    ["Mantenimiento", "Maintenance"], ["Fotografía", "Photography"], ["cleaning", "Cleaning"],
+  ] as const) {
+    assert.equal(resolveCategoryLabel({ category: es, ...none, locale: "en", chain: ["en"] }), en, es);
+  }
+  // The talent's own English words still win, and an ES visitor keeps the Spanish text.
+  assert.equal(resolveCategoryLabel({ category: "Limpieza", categoryI18n: { en: "Home cleaning" }, locale: "en", chain: ["en"] }), "Home cleaning");
+  assert.equal(resolveCategoryLabel({ category: "Limpieza", ...none, locale: "es", chain: ["es"] }), undefined);
+});

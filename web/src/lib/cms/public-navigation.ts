@@ -9,6 +9,7 @@ import { getRequestLocaleUrlSettings } from "@/i18n/tenant-url-locale";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import { scopeHasListablePosts } from "@/lib/cms/blog-nav";
 import { withBlogHeaderLink } from "@/lib/cms/blog-nav-link";
+import { localiseSeededCmsNavLabel } from "@/lib/cms/seeded-nav-labels";
 
 export type PublicNavLink = {
   label: string;
@@ -123,12 +124,12 @@ async function loadNavigationWithLocaleFallback(
   locale: Locale,
   zone: "header" | "footer",
   candidates: readonly string[],
-): Promise<RawNavRow[]> {
+): Promise<{ rows: RawNavRow[]; fromLocale: Locale | null }> {
   for (const l of navigationLocaleFallbackOrder(locale, candidates)) {
     const rows = await loadCachedNavigation(tenantId, l, zone);
-    if (rows.length > 0) return rows;
+    if (rows.length > 0) return { rows, fromLocale: l };
   }
-  return [];
+  return { rows: [], fromLocale: null };
 }
 
 /**
@@ -145,7 +146,7 @@ export async function getPublicCmsNavigationLinks(
   if (!publicScope) return [];
 
   const settings = await getRequestLocaleUrlSettings();
-  const rows = await loadNavigationWithLocaleFallback(
+  const { rows, fromLocale } = await loadNavigationWithLocaleFallback(
     publicScope.tenantId,
     locale,
     zone,
@@ -153,8 +154,9 @@ export async function getPublicCmsNavigationLinks(
   );
   if (rows.length === 0) return [];
 
+  // TUL-711: rows seeded in another language read in the visitor's (seeded labels only).
   const links = rows.map((r) => ({
-    label: r.label,
+    label: fromLocale !== locale ? localiseSeededCmsNavLabel(r.label, r.href, locale) : r.label,
     href: resolvePublicCmsNavHref(r.href, locale, settings),
     sort_order: r.sort_order,
   }));
