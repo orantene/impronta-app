@@ -21,7 +21,8 @@ import { cookies, headers } from "next/headers";
 import { LOCALE_COOKIE } from "@/i18n/locale-middleware";
 import { notFoundLocale } from "@/lib/i18n/not-found-locale";
 
-import { getAppUrl, getSiteUrl } from "@/lib/auth-flow";
+import { getAppUrl, getSiteUrl, resolveAuthenticatedDestination } from "@/lib/auth-flow";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { LOCALE_HEADER } from "@/i18n/request-locale";
 import { TalentSiteNotFoundCard } from "@/components/talent-site/talent-site-not-found-card";
 import { loadTalentNotFoundCopy } from "@/lib/talent-site/server/talent-not-found.server";
@@ -56,6 +57,7 @@ const COPY = {
     body: "The page you're looking for doesn't exist or may have moved. Head back to the homepage, or sign in to your workspace.",
     home: "Go to homepage",
     signIn: "Sign in",
+    dashboard: "Go to my dashboard",
   },
   es: {
     title: "Página no encontrada · Tulala",
@@ -64,8 +66,20 @@ const COPY = {
     body: "La página que buscas no existe o se movió. Vuelve al inicio, o inicia sesión en tu espacio de trabajo.",
     home: "Ir al inicio",
     signIn: "Iniciar sesión",
+    dashboard: "Ir a mi panel",
   },
 } as const;
+
+/** TUL-1907: the app-host path of a signed-in visitor's home, or null when signed out or unreadable. */
+async function signedInPath(): Promise<string | null> {
+  try {
+    const actor = await getCachedActorSession();
+    if (!actor.user) return null;
+    return resolveAuthenticatedDestination(actor.profile);
+  } catch {
+    return null;
+  }
+}
 
 export default async function PageNotFound() {
   const talent = await loadTalentNotFoundCopy();
@@ -75,6 +89,7 @@ export default async function PageNotFound() {
 
   const site = getSiteUrl();
   const app = getAppUrl();
+  const homePath = await signedInPath();
 
   return (
     <div
@@ -155,7 +170,7 @@ export default async function PageNotFound() {
             {t.home}
           </a>
           <a
-            href={`${app}/login`}
+            href={homePath ? `${app}${homePath}` : `${app}/login`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -170,7 +185,7 @@ export default async function PageNotFound() {
               textDecoration: "none",
             }}
           >
-            {t.signIn}
+            {homePath ? t.dashboard : t.signIn}
           </a>
         </div>
       </div>
