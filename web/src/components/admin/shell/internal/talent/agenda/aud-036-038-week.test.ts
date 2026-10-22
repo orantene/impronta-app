@@ -41,7 +41,7 @@ describe("AUD-037 FAB clearance", () => {
 
   it("public talent site reserves launcher height + gap at the page bottom on phones", () => {
     assert.ok(GUEST_CHAT_LAUNCHER_CLEARANCE_PX >= 52 + 12);
-    assert.match(GUEST_CHAT_LAUNCHER_CLEARANCE_CSS, /max-width: 480px/);
+    assert.match(GUEST_CHAT_LAUNCHER_CLEARANCE_CSS, /max-width: 639px/);
     assert.match(GUEST_CHAT_LAUNCHER_CLEARANCE_CSS, /data-guest-chat-launcher/);
     // TUL-516: sets the clearance variable; body padding max() lives in floating-chrome-stack.
     assert.match(GUEST_CHAT_LAUNCHER_CLEARANCE_CSS, /--floating-launcher-clearance:calc\(/);
