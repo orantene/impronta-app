@@ -114,3 +114,13 @@ test("payment_request partially_refunded state renders Partly refunded", () => {
   });
   assert.match(html, /Partly refunded/);
 });
+
+test("TUL-1867: an ES payment_request card titles itself Pago, not the English default", () => {
+  const es = buildScreenCopy(createTranslator("es"));
+  const message = msg("payment_request", { amountCents: 1800, currency: "USD", paymentLinkCode: "pay-abc" });
+  const html = renderToStaticMarkup(
+    <ThreadCard message={message} cardKind={"payment_request" as never} clientName="Diego" copy={es} variant="desktop" onAction={() => {}} onCopyText={() => {}} now={NOW} />,
+  );
+  assert.doesNotMatch(html, />Payment</);
+  assert.match(html, />Pago</);
+});
