@@ -22,14 +22,14 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-test("only /book/page.tsx and the lazy island import BookPageClient", () => {
+test("only the /book page wrapper (BookPageUrlSync, TUL-1913) and the lazy island import BookPageClient", () => {
   const importers = walk(SRC)
     .filter((f) => /BookPageClient"/.test(readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "")))
     .filter((f) => /from\s+["'][^"']*BookPageClient["']|import\(\s*["'][^"']*BookPageClient["']/.test(readFileSync(f, "utf8")))
     .map((f) => f.slice(SRC.length + 1))
     .sort();
   assert.deepEqual(importers, [
-    "app/(public)/book/page.tsx",
+    "app/(public)/book/BookPageUrlSync.tsx",
     "lib/site-admin/builder-node/LiveBookingClientIsland.tsx",
   ]);
 });
