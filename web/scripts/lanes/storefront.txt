@@ -73,6 +73,7 @@ src/lib/offerings/offering-index.test.ts
 src/lib/offerings/offering-paths.test.ts
 src/lib/offerings/offering-slug-rename.test.ts
 src/lib/offerings/offering-slugs-migration.static.test.ts
+src/lib/onboarding/talent-name-verify.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
 src/lib/saas/old-service-slug-gate.test.ts
@@ -156,6 +157,7 @@ src/lib/talent-site/server/publish-idempotency.test.ts
 src/lib/talent-site/server/render-max-site-request-memo.static.test.ts
 src/lib/talent-site/server/render-max-site.perf.static.test.ts
 src/lib/talent-site/server/site-activation-state.test.ts
+src/lib/talent-site/server/site-live-verified-quiet.static.test.ts
 src/lib/talent-site/server/site-metadata-verification.test.ts
 src/lib/talent-site/server/vanity-usd-rates.test.ts
 src/lib/talent-site/service-page-sections.test.tsx

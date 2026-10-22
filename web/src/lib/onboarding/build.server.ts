@@ -26,6 +26,7 @@ import { ENGINE_VERSION } from "@/lib/tulala/engine";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 
 import { resolveWorkspaceFinishUrl } from "./finish-url";
+import { talentNameToVerify } from "./talent-display-name";
 import { combineLiveChecks, verifyLivePageWithRetry, type LiveCheck } from "./verify-live";
 import { applyRetryCheck, arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
 import { buildUnderstanding } from "./understanding";
@@ -141,9 +142,25 @@ export async function runOnboardingBuild(input: {
         }
       : null;
 
+    // The name the talent page really prints: stored profile name (written by
+    // provisioning above), else the same derivation the writer used.
+    let storedTalentName: string | null = null;
+    if (talentProfileId) {
+      const { data: tpRow, error: tpErr } = await admin.from("talent_profiles").select("display_name").eq("id", talentProfileId).maybeSingle();
+      if (tpErr) logServerError("onboarding.build.talentName", tpErr);
+      else storedTalentName = (tpRow as { display_name?: string | null } | null)?.display_name ?? null;
+    }
+    const talentName = talentNameToVerify({
+      storedDisplayName: storedTalentName,
+      choice,
+      businessName,
+      essentialsName: essentials?.name,
+      briefPersonName: person.name,
+    });
+
     if (!prov.workspace) {
       // 1D: "ready" only when the real page opens with the person's own name.
-      const liveCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: person.name });
+      const liveCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: talentName });
       if (!liveCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`talent:${liveCheck.reason}`));
       const arrival = arrivalFromStamp({ path, stamp: null, person, businessName: null, services, unpricedServices, site: null, talent, liveCheck, firstService, published: !!talent?.siteUrl });
       return done(input, { status: "done", path, talentProfileId, arrival, finishedAt: new Date().toISOString() });
@@ -183,7 +200,7 @@ export async function runOnboardingBuild(input: {
     // "both" also owns a talent site: it must exist and open with her name, or the finish is not "ready".
     let talentCheck: LiveCheck | null = null;
     if (choice === "both") {
-      talentCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: person.name ?? finishName });
+      talentCheck = await verifyLivePageWithRetry({ url: talent?.siteUrl ?? null, name: talentName ?? finishName });
       if (!talentCheck.ok) logServerError("onboarding.build.verifyLive", new Error(`talent:${talentCheck.reason}`));
     }
     const liveCheck = combineLiveChecks(wsCheck, talentCheck);
