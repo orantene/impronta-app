@@ -119,7 +119,7 @@ export async function loadPublicBookableOfferings(args: {
         // TUL-1915: the same decision the item editor badge reads.
         // A pinned service (TUL-65) is still kept, as an enquiry, so the visitor lands on it.
         if (houseOnlineBooking(offering).state !== "request") {
-          if (isPinned) kept.push({ ...offering, bookingMode: "inquire", seatsLabel: null });
+          if (isPinned) kept.push({ ...offering, bookingMode: "inquire" as Kept["bookingMode"], seatsLabel: null });
           continue;
         }
         // Never "instant": the slots route refuses house rows (item 6).
