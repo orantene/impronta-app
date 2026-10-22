@@ -47,6 +47,7 @@ src/lib/site-admin/builder-node/classes-publish-parity.test.ts
 src/lib/site-admin/builder-node/create.test.ts
 src/lib/site-admin/builder-node/data-bindings.test.ts
 src/lib/site-admin/builder-node/drop-policy.test.ts
+src/lib/site-admin/builder-node/empty-placeholder-band.test.ts
 src/lib/site-admin/builder-node/experiment-render.test.ts
 src/lib/site-admin/builder-node/experiment-visitor-cookie.test.ts
 src/lib/site-admin/builder-node/experiment.test.ts
