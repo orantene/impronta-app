@@ -9,6 +9,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentChipInfo } from "@/lib/talent/talent-chip-info";
 import { backfillMissingTalentEmbeds } from "@/lib/talent/backfill-talent-embeds";
 import { tenantReviewsEnabled } from "@/lib/reviews/reviews-entitlement";
+import { threadSenderLabel } from "@/lib/inquiry/thread-sender-label";
 import { loadAgencyInboxHideSet } from "@/lib/inquiry/agency-inbox-visibility";
 import { inquiryMessagingState, linkedRecordsByInquiry, type InquiryMessagingState } from "./inquiries-messaging-state";
 export { loadClientInquiryMessages, loadInquiryMessages, loadTotalUnreadMessages } from "./inquiry-thread-messages";
@@ -502,6 +503,8 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       talent: Array<{ talentProfileId: string | null; displayName: string; status: string; photoUrl: string | null; headline: string | null; ratingAvg: number | null; ratingCount: number | null }>;
     }>();
     const participantRoleByInquiryUser = new Map<string, "client" | "coordinator" | "talent">();
+    // TUL-1887: a talent participant's own display name, keyed like the role map.
+    const talentNameByInquiryUser = new Map<string, string>();
     // Confidence: resolve a real face + discipline for every lineup talent in
     // ONE batch (across all inquiries) so the Lineup tab + roster cards in the
     // admin/talent/client shells show people, not initials-in-a-box.
@@ -535,6 +538,10 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
         | null;
     }>) {
       if (row.user_id) participantRoleByInquiryUser.set(`${row.inquiry_id}:${row.user_id}`, row.role);
+      if (row.user_id && row.role === "talent") {
+        const tp = Array.isArray(row.talent_profiles) ? row.talent_profiles[0] : row.talent_profiles;
+        if (tp?.display_name?.trim()) talentNameByInquiryUser.set(`${row.inquiry_id}:${row.user_id}`, tp.display_name.trim());
+      }
       if (row.role !== "talent") continue;
       const cur = lineup.get(row.inquiry_id) ?? { confirmed: 0, pending: 0, declined: 0, total: 0, talent: [] };
       cur.total += 1;
@@ -658,7 +665,11 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       const senderName =
         !row.sender_user_id ? "System"
         : row.sender_user_id === myUserId ? "You"
-        : displayNameFromProfile(row.profiles, role === "talent" ? "Talent" : "Client");
+        : threadSenderLabel({
+            accountName: displayNameFromProfile(row.profiles, ""),
+            talentDisplayName: talentNameByInquiryUser.get(`${row.inquiry_id}:${row.sender_user_id}`),
+            fallback: role === "talent" ? "Talent" : "Client",
+          });
       const current = messagesByInquiry.get(row.inquiry_id) ?? [];
       current.push({
         id: row.id,

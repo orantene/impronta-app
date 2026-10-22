@@ -151,8 +151,8 @@ export function deliveryStateFor(delivery: ThreadMessage["delivery"]): DeliveryS
   }
 }
 
-export function formatTime(iso: string, locale = "en"): string {
-  return formatClock(iso, locale);
+export function formatTime(iso: string, locale = "en", timeZone?: string | null): string {
+  return formatClock(iso, locale, timeZone);
 }
 
 export function dayLabel(date: Date, copy: { today: string; yesterday: string }, now: Date, locale = "en"): string {
