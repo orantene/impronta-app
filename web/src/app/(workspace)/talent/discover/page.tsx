@@ -28,6 +28,7 @@ import { resolveTalentPageScope } from "@/lib/talent/platform-talent-context";
 import { logServerError } from "@/lib/server/safe-error";
 import { SmartImage } from "@/components/ui/smart-image";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 import { discoverCopy } from "./_discover-copy";
 import { countryLabel } from "@/lib/geo/country-code";
 
@@ -410,7 +411,7 @@ export default async function PlatformTalentDiscoverPage() {
         </Link>
         {d.profileCode && (
           <a
-            href={`https://tulala.digital/t/${d.profileCode}`}
+            href={talentPublicProfileHref(d.profileCode)}
             target="_blank"
             rel="noopener noreferrer"
             style={{

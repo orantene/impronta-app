@@ -12,6 +12,7 @@
  * for client redirect.
  */
 
+import { getAppUrl } from "@/lib/auth-flow";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { usdcPayoutOffer } from "@/lib/payments/usdc-payout-offer";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -440,7 +441,7 @@ export async function startTalentGpHostedSetupAction(): Promise<
     // Stripe LIVE AccountLinks reject http://localhost ("only allowed in testmode").
     // On a localhost dev box running live keys, return to the real app domain.
     if (/^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)) {
-      origin = "https://app.tulala.digital";
+      origin = getAppUrl();
     }
     const back = `${origin}/talent/money?surface=talent&talentPage=money&drawer=talent-payouts`;
     return await getTalentGpAccountLink(tp.id, {

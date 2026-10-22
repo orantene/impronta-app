@@ -227,7 +227,9 @@ function RepresentationRow({
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{entry.name}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+              {entry.kind === "self_page" ? t("dashboard.talentDrawers.representation.selfPageName") : entry.name}
+            </span>
             <span
               style={{
                 fontSize: 9,

@@ -9,6 +9,7 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
+import { rehomeToPublicRoot } from "@/lib/brand/public-root-domain";
 import { canonicalTalentUrl, isDevOnlyHostname } from "@/lib/saas/canonical-hosts";
 import { hubMayListTalent, mapTenantDiscoverExposure } from "@/lib/saas/discover-exposure";
 
@@ -282,5 +283,15 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
       if (n) names.set(a.id, n);
     }
   }
-  return rows.map((r) => ({ hostname: r.hostname, name: (r.tenant_id && names.get(r.tenant_id)) || null }));
+  // TUL-1843: staging rows carry production-pattern `*.tulala.digital` hostnames; re-home them
+  // onto this environment's root so a staging hub never links to production. Dedupe after.
+  const seen = new Set<string>();
+  const out: HubAgencyRow[] = [];
+  for (const r of rows) {
+    const hostname = rehomeToPublicRoot(r.hostname);
+    if (seen.has(hostname)) continue;
+    seen.add(hostname);
+    out.push({ hostname, name: (r.tenant_id && names.get(r.tenant_id)) || null });
+  }
+  return out;
 }
