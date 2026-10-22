@@ -6,6 +6,7 @@ import { loadBookingCommissionSnapshots } from "@/lib/billing/commission-engine"
 import { resolveCancellationWindow } from "@/lib/bookings/cancellation-window";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
 import { buildClientThread, type ClientThreadRow } from "./client-thread-pure";
+import { talentNamesByUser } from "@/lib/messaging/thread-sender-labels";
 import { requestNowMs } from "@/lib/projects/request-clock";
 import { bookingOfferingId, loadBookingCancelPolicy, type BookingCancelPolicy } from "@/lib/scheduling/booking-cancel-policy";
 import { refundableCentsFromPolicy } from "@/lib/scheduling/cancel-booking";
@@ -228,8 +229,9 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
   };
 }
 
-export type ThreadRow = { id: string; title: string; lastBody: string | null; lastAt: string | null };
-export type ThreadMessage = { id: string; body: string; createdAt: string; mine: boolean };
+/** `counterpart`: the lineup talent names, used when the inquiry has no title of its own (never the hub label). */
+export type ThreadRow = { id: string; title: string; lastBody: string | null; lastAt: string | null; counterpart: string | null };
+export type ThreadMessage = { id: string; body: string; createdAt: string; mine: boolean; senderName: string | null };
 
 export async function loadThreads(userId: string, tenantId: string): Promise<ThreadRow[]> {
   const admin = createServiceRoleClient();
@@ -262,10 +264,27 @@ export async function loadThreads(userId: string, tenantId: string): Promise<Thr
   for (const m of (msgs ?? []) as Array<{ inquiry_id: string; body: string; created_at: string }>) {
     if (!last.has(m.inquiry_id)) last.set(m.inquiry_id, { body: m.body, at: m.created_at });
   }
+  const lineup = await lineupNames(admin, rows.map((r) => r.id));
   return rows
     .filter((r) => last.has(r.id))
-    .map((r) => ({ id: r.id, title: r.company?.trim() || "", lastBody: last.get(r.id)?.body ?? null, lastAt: last.get(r.id)?.at ?? null }))
+    .map((r) => ({ id: r.id, title: r.company?.trim() || "", lastBody: last.get(r.id)?.body ?? null, lastAt: last.get(r.id)?.at ?? null, counterpart: lineup.get(r.id) ?? null }))
     .sort((a, b) => Date.parse(b.lastAt ?? "") - Date.parse(a.lastAt ?? ""));
+}
+
+/** inquiry id -> "Ana, Luis +1" from its talent participants. Cosmetic: a failed read leaves the title blank. */
+async function lineupNames(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>, inquiryIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (inquiryIds.length === 0) return out;
+  const { data, error } = await admin.from("inquiry_participants").select("inquiry_id, talent_profiles(display_name)").eq("role", "talent").in("inquiry_id", inquiryIds);
+  if (error) return out;
+  const by = new Map<string, string[]>();
+  for (const p of (data ?? []) as Array<{ inquiry_id: string; talent_profiles: { display_name: string | null } | { display_name: string | null }[] | null }>) {
+    const tp = Array.isArray(p.talent_profiles) ? p.talent_profiles[0] : p.talent_profiles;
+    const n = tp?.display_name?.trim();
+    if (n) by.set(p.inquiry_id, [...(by.get(p.inquiry_id) ?? []), n]);
+  }
+  for (const [id, names] of by) out.set(id, names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "));
+  return out;
 }
 
 export async function loadThread(userId: string, tenantId: string, inquiryId: string, locale = "en"): Promise<{ title: string; messages: ThreadMessage[] } | null> {
@@ -298,10 +317,27 @@ export async function loadThread(userId: string, tenantId: string, inquiryId: st
     return null;
   }
   const inquiry = inq as { id: string; company: string | null; message: string | null; created_at: string | null };
+  // TUL-1887: a reply written by a talent carries that talent's own name, not the host's (hub) label.
+  const senderIds = [...new Set(((msgs ?? []) as ClientThreadRow[]).map((m) => m.sender_user_id).filter((x): x is string => !!x && x !== userId))];
+  const talentNames = new Map<string, string>();
+  if (senderIds.length > 0) {
+    const [byUser, parts] = await Promise.all([
+      admin.from("talent_profiles").select("user_id, display_name").in("user_id", senderIds),
+      admin.from("inquiry_participants").select("user_id, talent_profiles(display_name)").eq("inquiry_id", inquiryId).eq("role", "talent").in("user_id", senderIds),
+    ]);
+    const merged = talentNamesByUser([
+      ((byUser.data ?? []) as Array<{ user_id: string | null; display_name: string | null }>),
+      ((parts.data ?? []) as Array<{ user_id: string | null; talent_profiles: { display_name: string | null } | { display_name: string | null }[] | null }>).map((p) => ({
+        user_id: p.user_id,
+        display_name: (Array.isArray(p.talent_profiles) ? p.talent_profiles[0] : p.talent_profiles)?.display_name ?? null,
+      })),
+    ]);
+    for (const [k, v] of merged) talentNames.set(k, v);
+  }
   return {
-    title: inquiry.company?.trim() || "",
+    title: inquiry.company?.trim() || (await lineupNames(admin, [inquiryId])).get(inquiryId) || "",
     // TUL-1258: lead with the client's own request and give card rows readable text.
-    messages: buildClientThread((msgs ?? []) as ClientThreadRow[], inquiry, userId, locale),
+    messages: buildClientThread((msgs ?? []) as ClientThreadRow[], inquiry, userId, locale, talentNames),
   };
 }
 
