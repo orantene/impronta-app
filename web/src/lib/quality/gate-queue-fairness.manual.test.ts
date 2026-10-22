@@ -80,16 +80,34 @@ test("with CAP slots, CAP jobs run AT ONCE — fairness must not serialise the l
   const out = join(dir, "out");
   const lane = uniqueLane();
   try {
-    const a = start("A", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo A-in >> ${out}; sleep 4; echo A-out >> ${out}` });
-    const b = start("B", { lane, cap: 2, tickets: join(dir, "t"), cmd: `sleep 1; echo B-in >> ${out}; sleep 1` });
+    // TWO-WAY rendezvous, not sleeps. Each job writes its own "started" flag, then waits (up to 20 s)
+    // for the OTHER job's flag, and records whether it saw it. Only if BOTH jobs hold a slot at the
+    // same time can each see the other's flag. A queue that runs the jobs one after the other leaves
+    // the first job waiting alone until it times out ("A-timeout" / "B-timeout"), so the run FAILS
+    // whichever job happened to start first. (A one-way wait could not tell: with B first the log
+    // "B-in, A-in, A-out" looks identical to a concurrent run.)
+    const flagA = join(dir, "a-started");
+    const flagB = join(dir, "b-started");
+    const wait = (flag: string) => `i=0; while [ ! -e ${flag} ] && [ $i -lt 200 ]; do sleep 0.1; i=$((i+1)); done; [ -e ${flag} ]`;
+    // DISTINCT checkouts, as in the arrival-order test: the queue keys a claim on the cwd, and the
+    // newer of two spawns in the SAME cwd displaces the older by design. Sharing WEB_ROOT here made
+    // B displace A whenever it won the race (the log read just "B-in"), which is what looked flaky.
+    const cwds = ["a", "b"].map((n) => {
+      const d = join(dir, `co-${n}`);
+      mkdirSync(d, { recursive: true });
+      return d;
+    });
+    const a = start("A", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo A-in >> ${out}; touch ${flagA}; if ${wait(flagB)}; then echo A-out >> ${out}; else echo A-timeout >> ${out}; fi`, cwd: cwds[0] });
+    const b = start("B", { lane, cap: 2, tickets: join(dir, "t"), cmd: `echo B-in >> ${out}; touch ${flagB}; if ${wait(flagA)}; then echo B-saw-a >> ${out}; else echo B-timeout >> ${out}; fi`, cwd: cwds[1] });
     await Promise.all([waitOk(a, "A"), waitOk(b, "B")]);
 
     const order = readFileSync(out, "utf8").trim().split("\n");
-    assert.deepEqual(
-      order,
-      ["A-in", "B-in", "A-out"],
-      `B must start while A still holds the other slot; got ${order.join(",")}\n\n${diagnostics()}`,
-    );
+    const why = `got ${order.join(",")}\n\n${diagnostics()}`;
+    assert.equal(order.length, 4, `expected 4 events; ${why}`);
+    // Each job started, then SAW the other one running: the two held a slot at the same time. Which of
+    // the two spawned queues acquires first is a race and not the property under test.
+    assert.deepEqual([...order.slice(0, 2)].sort(), ["A-in", "B-in"], `both jobs must start before either finishes; ${why}`);
+    assert.deepEqual([...order.slice(2)].sort(), ["A-out", "B-saw-a"], `each job must see the other's flag (no A-timeout / B-timeout); ${why}`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

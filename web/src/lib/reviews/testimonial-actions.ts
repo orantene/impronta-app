@@ -19,9 +19,9 @@
  * written/read with .returns<T>() (database.types.ts not regenerated this wave).
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSession } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { resolveReviewTenantId } from "@/lib/reviews/resolve-review-tenant";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { TestimonialSource } from "./review-types";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -35,21 +35,6 @@ const VALID_SOURCES: readonly TestimonialSource[] = [
 function normalizeSource(raw: string | null | undefined): TestimonialSource {
   const v = (raw ?? "").trim() as TestimonialSource;
   return VALID_SOURCES.includes(v) ? v : "manual";
-}
-
-async function resolveTenantId(
-  supabase: SupabaseClient,
-  tenantSlug: string,
-): Promise<string | null> {
-  const slug = (tenantSlug ?? "").trim();
-  if (!slug) return null;
-  // agencies SELECT is staff-only under RLS; use the SECURITY DEFINER resolver
-  // RPC (granted to authenticated) so a staff session can map slug → tenant id.
-  const { data } = await supabase.rpc("resolve_public_tenant_by_slug", {
-    p_slug: slug,
-  });
-  const rows = (data ?? []) as Array<{ tenant_id: string; tenant_slug: string }>;
-  return rows[0]?.tenant_id ?? null;
 }
 
 /**
@@ -70,7 +55,7 @@ export async function createTestimonialAction(input: {
   if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, user } = auth;
+  const { user } = auth;
 
   const cleanTalentId = (input.talentProfileId ?? "").trim();
   const cleanAuthor = (input.authorName ?? "").trim().slice(0, 200);
@@ -91,7 +76,7 @@ export async function createTestimonialAction(input: {
 
   const source = normalizeSource(input.source);
 
-  const tenantId = await resolveTenantId(supabase, input.tenantSlug);
+  const tenantId = await resolveReviewTenantId(input.tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
   // Workspace-scoped authority: the caller must be an ACTIVE owner/admin

@@ -59,3 +59,22 @@ describe("readRecordInParallel", () => {
     assert.deepEqual(order.slice(0, 2), ["item-start", "stub-start"]);
   });
 });
+
+describe("agreedLines service fee (TUL-1889)", () => {
+  it("labels what the client paid above the price as the Tulala service fee", async () => {
+    const { agreedLines } = await import("./view-model");
+    const item = {
+      lines: [{ label: "Cut", cents: 30000 }],
+      money: { totalCents: 30000, paidCents: 30450, dueCents: 0, currency: "MXN" },
+      payment: "paid",
+      title: "Cut",
+      client: "A",
+      kind: "booking",
+    } as never;
+    const ids = agreedLines(item).map((l) => l.id);
+    assert.ok(ids.includes("service-fee"));
+    assert.ok(ids.indexOf("service-fee") < ids.indexOf("paid"));
+    const exact = { ...(item as object), money: { totalCents: 30000, paidCents: 30000, dueCents: 0, currency: "MXN" } } as never;
+    assert.ok(!agreedLines(exact).some((l) => l.id === "service-fee"));
+  });
+});

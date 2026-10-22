@@ -108,9 +108,12 @@ describe("presence card plan gating (TUL-582)", () => {
     assert.match(src, /if \(!talentTierHasPageAnalytics\(owned\.tier\)\) return null;/);
   });
 
-  it("the Hoy card renders nothing without the presence model and is mounted on Hoy", () => {
+  it("the Hoy card never returns null, shows the locked note for non-paid tiers and is mounted on Hoy", () => {
     const card = read("src", "components", "admin", "shell", "internal", "talent", "shared", "presence-stats-card.tsx");
-    assert.match(card, /if \(!stats\) return null;/);
+    assert.doesNotMatch(card, /return null;/);
+    assert.match(card, /presenceCardView\(talentTier, stats\)/);
+    assert.match(card, /Pro and Max plans/);
+    assert.match(card, /planes Pro y Max/);
     const today = read("src", "components", "admin", "shell", "internal", "talent", "pages", "TodayPage.tsx");
     assert.match(today, /<TalentPresenceStatsCard \/>/);
   });

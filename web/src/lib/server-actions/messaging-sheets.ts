@@ -24,8 +24,10 @@ import { conversationHostKind, threadLinkUrl } from "@/lib/messaging/thread-link
 import { refreshThreadToken } from "@/lib/messaging/thread-token";
 import { cancelPaymentLink } from "@/lib/payments/links";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { MESSAGING_EXTRAS_WRITE_CAPABILITY as EXTRAS_CAP } from "@/lib/messaging/extras-write-capabilities";
 
 const uuid = z.string().uuid();
 const version = z.number().int().positive();
@@ -33,14 +35,14 @@ const staff = messagingStaff;
 
 /** Hand over: who can take this thread. */
 export async function messagingLoadHandOverTargets() {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   return { ok: true as const, targets: await loadHandOverTargets(g.admin, { tenantId: g.tenantId, excludeUserId: g.userId }) };
 }
 
 /** Delivery: every attempt on this thread's messages. */
 export async function messagingLoadDelivery(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -50,7 +52,7 @@ export async function messagingLoadDelivery(input: { inquiryId: string }) {
 /** Delivery › Retry: the cron's own resend, for one failed row, now. */
 export async function messagingRetryDelivery(input: { deliveryId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.retryDelivery);
   if (!g.ok) return g;
   const parsed = z.object({ deliveryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -67,7 +69,7 @@ export async function messagingRetryDelivery(input: { deliveryId: string }) {
 
 /** Recover: the saved checkouts this thread can be recovered from. */
 export async function messagingLoadSnapshots(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -76,7 +78,7 @@ export async function messagingLoadSnapshots(input: { inquiryId: string }) {
 
 /** Offer: the inquiry's offers, so the sheet acts on a real offer id. */
 export async function messagingLoadOffers(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -90,7 +92,7 @@ export async function messagingLoadOffers(input: { inquiryId: string }) {
  */
 export async function messagingReviseOffer(input: { inquiryId: string; offerId: string; expectedVersion: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.reviseOffer);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid, offerId: uuid, expectedVersion: version }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -111,7 +113,7 @@ export async function messagingReviseOffer(input: { inquiryId: string; offerId: 
 
 /** Diff: the open payment page and what moved under it. */
 export async function messagingLoadBasketDiff(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -123,7 +125,7 @@ export async function messagingLoadBasketDiff(input: { inquiryId: string }) {
 /** Diff › Take theirs: the open page comes down so the new basket can be requested. */
 export async function messagingCancelPaymentLink(input: { linkId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.cancelPaymentLink);
   if (!g.ok) return g;
   const parsed = z.object({ linkId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -137,21 +139,28 @@ export async function messagingCancelPaymentLink(input: { linkId: string }) {
  * engine answers `policy_keeps` / `not_cancellable` as a sentence; nothing
  * is refunded by itself. Reschedule needs a slot and lives on Appointments.
  */
-export async function messagingCancelBooking(input: { inquiryId: string; bookingId: string; reason: string }) {
+export async function messagingCancelBooking(input: {
+  inquiryId: string;
+  bookingId: string;
+  reason: string;
+  /** Who asked for the cancel (TUL-1366): a client who asked the desk is recorded as the CLIENT, never as staff. Default: the seller side. */
+  requestedBy?: "client" | "seller";
+}) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.cancelBooking);
   if (!g.ok) return g;
-  const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200) }).safeParse(input);
+  const parsed = z.object({ inquiryId: uuid, bookingId: uuid, reason: z.string().trim().max(200), requestedBy: z.enum(["client", "seller"]).optional() }).safeParse(input);
   if (!parsed.success) return fail("invalid");
   const result = await cancelBookingSet(g.admin, {
     tenantId: g.tenantId,
     bookingId: parsed.data.bookingId,
     operationKey: `msg-cancel-${parsed.data.inquiryId}-${parsed.data.bookingId}`,
     reason: parsed.data.reason,
-    by: "staff",
+    by: parsed.data.requestedBy === "client" ? "client" : "staff",
     actorUserId: g.userId,
   });
   if (!result.ok) return { ok: false as const, reason: result.reason };
+  await settleCancelledBookingMoney(g.admin, { tenantId: g.tenantId, bookingId: parsed.data.bookingId, orderId: result.orderId });
   return { ok: true as const, refundableCents: result.refundableCents, already: result.already === true };
 }
 
@@ -165,7 +174,7 @@ export async function messagingCancelBooking(input: { inquiryId: string; booking
  */
 export async function messagingThreadLink(input: { inquiryId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await messagingStaff(EXTRAS_CAP.threadLink);
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");
@@ -202,7 +211,7 @@ export async function messagingThreadLink(input: { inquiryId: string }) {
  * empty state. Read-only; formatting happens in the shell (USD).
  */
 export async function messagingLoadContextLines(input: { inquiryId: string }) {
-  const g = await staff();
+  const g = await staff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z.object({ inquiryId: uuid }).safeParse(input);
   if (!parsed.success) return fail("invalid");

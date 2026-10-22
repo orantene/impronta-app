@@ -48,8 +48,11 @@ import {
 import { startTalentUpgrade } from "@/app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PromoCodeInput } from "@/components/billing/promo-code-input";
+import { useTalentPlanChange } from "@/components/billing/use-talent-plan-change";
+import { TalentSwitchToFree } from "@/components/billing/talent-switch-to-free";
 import { PLAN_CATALOG } from "@/lib/access/plan-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
+import { TierIntervalToggle, planYearlyPrice, useYearlyPlans, type TierInterval } from "./tier-interval-toggle";
 import { DomainSetupDrawerBody } from "@/components/talent/site/DomainSetupDrawer";
 
 /**
@@ -125,7 +128,7 @@ export function TalentTierCompareDrawer() {
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-tier-compare";
-  const current = state.talentTier;
+  const current = bridgeTalentSelfProfile?.talentTier ?? state.talentTier;
 
   return (
     <DrawerShell
@@ -136,6 +139,7 @@ export function TalentTierCompareDrawer() {
       width={760}
       footer={
         <>
+          {current !== "free" && <TalentSwitchToFree className="mr-2 rounded-md border px-3 py-2 text-sm font-semibold" />}
           <SecondaryButton onClick={closeDrawer}>{t("dashboard.talentDrawers.close")}</SecondaryButton>
         </>
       }
@@ -327,6 +331,10 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   useEffect(() => {
     setUrlPromo(readPromoCodeFromUrl());
   }, []);
+  const planChange = useTalentPlanChange(tenantSlug ?? null, appliedCode ?? urlPromo);
+  // TUL-1297: monthly / yearly switch, shown only when the catalog has a yearly price.
+  const [interval, setBillingInterval] = useState<TierInterval>("month");
+  const yearlyPlans = useYearlyPlans();
 
   // Pro fold (2026-09-23): the only upgrade path left is to Web Office.
   const upgradeable = (["max"] as const).filter((tier) => tier !== current);
@@ -338,7 +346,9 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       setPending(tier);
       setError(null);
       try {
-        const result = await startTalentUpgrade(planKey, tenantSlug, appliedCode ?? urlPromo);
+        const result = await startTalentUpgrade(planKey, tenantSlug, appliedCode ?? urlPromo, null, interval);
+        // TUL-831/833: a paying talent confirms in-app (proration preview + promo), not in the Stripe portal.
+        if (result.ok && result.planChange) return planChange.open(result.planChange);
         if (result.ok) {
           window.location.assign(result.redirectUrl);
           return;
@@ -350,12 +360,14 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
         setPending(null);
       }
     },
-    [tenantSlug, t, appliedCode, urlPromo],
+    [tenantSlug, t, appliedCode, urlPromo, interval],
   );
 
   if (!tenantSlug || upgradeable.length === 0) return null;
 
   const promoPlan = TIER_PLAN_KEY[upgradeable[0]];
+  const showIntervalToggle = !!promoPlan && yearlyPlans.includes(promoPlan);
+  const activeInterval = showIntervalToggle ? interval : "month";
 
   return (
     <div className="mt-4">
@@ -364,15 +376,24 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
           <PromoCodeInput
             key={urlPromo ?? "no-url-promo"}
             plan={promoPlan}
-            interval="month"
+            interval={activeInterval}
             defaultCode={urlPromo}
             onApplied={(code) => setAppliedCode(code)}
           />
         </div>
       ) : null}
+      {showIntervalToggle ? (
+        <TierIntervalToggle
+          value={interval}
+          onChange={setBillingInterval}
+          groupLabel={t("dashboard.talentDrawers.premiumPages.intervalLabel")}
+          monthlyLabel={t("dashboard.talentDrawers.premiumPages.intervalMonthly")}
+          yearlyLabel={t("dashboard.talentDrawers.premiumPages.intervalYearly")}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-[10px]">
         {upgradeable.map((tier) => {
-          const price = tierMonthlyPrice(tier, locale);
+          const price = activeInterval === "year" ? (planYearlyPrice(TIER_PLAN_KEY[tier], locale) ?? tierMonthlyPrice(tier, locale)) : tierMonthlyPrice(tier, locale);
           const label = translateDashboardText(TALENT_TIER_META[tier].label, locale);
           return (
             <PrimaryButton
@@ -382,7 +403,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
             >
               {pending === tier
                 ? t("dashboard.talentDrawers.premiumPages.upgradeStarting")
-                : interpolate(t("dashboard.talentDrawers.premiumPages.upgradeTo"), {
+                : interpolate(t(activeInterval === "year" ? "dashboard.talentDrawers.premiumPages.upgradeToYear" : "dashboard.talentDrawers.premiumPages.upgradeTo"), {
                     tier: label,
                     price: price ?? "",
                   })}
@@ -393,11 +414,8 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
       <div className="mt-2 text-[12px] leading-[1.5] text-admin-ink-muted">
         {t("dashboard.talentDrawers.premiumPages.upgradeNote")}
       </div>
-      {error && (
-        <div className="mt-2 text-[12.5px] leading-[1.5] text-admin-orange">
-          {error}
-        </div>
-      )}
+      {error && <div className="mt-2 text-[12.5px] leading-[1.5] text-admin-orange">{error}</div>}
+      {planChange.modal}
     </div>
   );
 }
@@ -484,9 +502,6 @@ export function TalentPersonalPageDrawer() {
     </DrawerShell>
   );
 }
-
-// ─── Page template picker ───────────────────────────────────────────
-
 
 // ─── Page template picker ───────────────────────────────────────────
 

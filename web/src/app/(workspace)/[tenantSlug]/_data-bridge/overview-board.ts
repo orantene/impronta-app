@@ -57,6 +57,8 @@ import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
 import { timed } from "@/lib/server/perf-trace";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { pickWorkspaceCurrency } from "@/lib/payments/workspace-currency";
+import { tenantTimezone } from "@/lib/spaces/venues";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
@@ -93,11 +95,7 @@ async function readMoney(
   ]);
   // TUL-525: never paint "$0 USD" for an MXN studio — fall back to the
   // workspace preferred currency before the platform default.
-  const fallbackCurrency =
-    (workspaceCurrency?.trim().toUpperCase() || null) &&
-    /^[A-Z]{3}$/.test(workspaceCurrency!.trim().toUpperCase())
-      ? workspaceCurrency!.trim().toUpperCase()
-      : "USD";
+  const fallbackCurrency = pickWorkspaceCurrency(workspaceCurrency, null);
   const empty: OverviewMoney = {
     ok: false,
     currency: fallbackCurrency,
@@ -111,8 +109,13 @@ async function readMoney(
   };
   if (!takings.ok || !owed.ok) return empty;
   const byMethod = groupTakingsByMethod(takings.rows);
-  const currency =
-    byMethod[0]?.currency ?? sumOwedByCurrency(owed.rows)[0]?.currency ?? fallbackCurrency;
+  // TUL-734: the workspace's own currency wins when it has any money here; a stray row in another
+  // currency (a USD-stamped MXN till line) must not turn the whole card into dollars.
+  const owedByCurrency = sumOwedByCurrency(owed.rows);
+  const hasMoneyIn = (c: string) => byMethod.some((m) => m.currency === c) || owedByCurrency.some((o) => o.currency === c);
+  const currency = hasMoneyIn(fallbackCurrency)
+    ? fallbackCurrency
+    : (byMethod[0]?.currency ?? owedByCurrency[0]?.currency ?? fallbackCurrency);
   let cash = 0;
   let card = 0;
   let other = 0;
@@ -397,7 +400,9 @@ export async function loadOverviewSnapshot(input: {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const agency = await readAgencySetupRow(input.tenantId);
-  const timeZone = agency?.timezone?.trim() || DEFAULT_ZONE;
+  // TUL-734: the full ladder (agency column, default venue, appointments setting), not only the
+  // agency column: a venue-only zone used to snapshot as "UTC" and the greeting fell to the viewer's clock.
+  const timeZone = agency?.timezone?.trim() || (await tenantTimezone(input.tenantId).catch(() => DEFAULT_ZONE)) || DEFAULT_ZONE;
   const window = venueDayWindow(now, timeZone, 0) ?? venueDayWindow(now, DEFAULT_ZONE, 0);
   if (!window) return null;
   const takesReservations = agency?.takes_reservations === true;
@@ -424,8 +429,11 @@ export async function loadOverviewSnapshot(input: {
   const book = stand.kind === "ok" ? stand.data.entries : [];
   // Prefer the agency column; else the first catalog currency (onboarding
   // seeds MXN services in Mexico but does not always write preferred_currency).
-  let workspaceCurrency = agency?.preferred_currency ?? null;
-  if (!workspaceCurrency && admin) {
+  // TUL-734: the SAME rule as the Payments board (`pickWorkspaceCurrency`): preferred currency, else the
+  // first catalogue currency, else MXN. It used to end in a hard-coded "USD" here.
+  const preferredCurrency = agency?.preferred_currency ?? null;
+  let offeringCurrency: string | null = null;
+  if (admin && !/^[A-Za-z]{3}$/.test((preferredCurrency ?? "").trim())) {
     const { data: offering, error: offeringError } = await admin
       .from("talent_offerings")
       .select("currency")
@@ -433,15 +441,10 @@ export async function loadOverviewSnapshot(input: {
       .not("currency", "is", null)
       .limit(1)
       .maybeSingle();
-    if (offeringError) {
-      logServerError("overview.workspaceCurrency", offeringError);
-    } else {
-      const raw = (offering as { currency?: string | null } | null)?.currency;
-      if (typeof raw === "string" && /^[A-Za-z]{3}$/.test(raw.trim())) {
-        workspaceCurrency = raw.trim().toUpperCase();
-      }
-    }
+    if (offeringError) logServerError("overview.workspaceCurrency", offeringError);
+    offeringCurrency = (offering as { currency?: string | null } | null)?.currency ?? null;
   }
+  const workspaceCurrency = pickWorkspaceCurrency(preferredCurrency, offeringCurrency);
   const money = await timed("overview.money", () =>
     readMoney(
       input.tenantId,

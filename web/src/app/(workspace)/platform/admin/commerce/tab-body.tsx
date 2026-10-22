@@ -10,6 +10,7 @@
  * old URLs redirect here.
  */
 
+import { deactivateExpiredBatch } from "@/lib/pricing/expire-stale-discount";
 import {
   loadProductCatalog,
   loadProductDiscounts,
@@ -32,6 +33,7 @@ import { HQ, F } from "./_tokens";
 import type { CommerceTab } from "./_registry";
 import { loadAccountDiscounts } from "@/lib/server-actions/admin-subscription-discounts";
 import { CatalogView } from "./catalog/CatalogView";
+import { loadTierServiceFees } from "@/lib/server-actions/admin-tier-service-fee";
 import { DiscountsView } from "./discounts/DiscountsView";
 import type { DiscountTierOption } from "./discounts/discount-format";
 import { HealthView } from "./health/HealthView";
@@ -65,11 +67,12 @@ export async function TabBody({
   }
 
   if (tab === "catalog") {
-    const [catalog, stripeAccount, fx, trialOffers] = await Promise.all([
+    const [catalog, stripeAccount, fx, trialOffers, serviceFees] = await Promise.all([
       loadProductCatalog(),
       loadStripeAccountInfo(),
       loadFxPreview(),
       loadAllTrialOffers(),
+      loadTierServiceFees(),
     ]);
     if (!catalog) return <LoadError />;
     return (
@@ -78,6 +81,7 @@ export async function TabBody({
         stripeAccount={stripeAccount}
         fx={fx}
         trialOffers={trialOffers}
+        serviceFees={serviceFees}
         initialDrawerId={initialDrawerId}
       />
     );
@@ -92,6 +96,8 @@ export async function TabBody({
       loadAccountDiscounts(),
       loadProductCatalog(),
     ]);
+    // TUL-1860: a code past its end time is switched off at Stripe too (best effort, capped).
+    await deactivateExpiredBatch(discounts);
     const tiers: DiscountTierOption[] = (catalog?.packages ?? [])
       .filter((pkg) => pkg.isActive)
       .flatMap((pkg) =>

@@ -55,7 +55,21 @@ const K = "dashboard.adminWorkspace.appointments";
 
 const PRESETS: AppointmentPresetId[] = ["default", "barbershop", "salon", "clinic"];
 
-export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string }) {
+export function AppointmentsSettingsCard({
+  tenantSlug,
+  canEdit = true,
+}: {
+  tenantSlug: string;
+  /**
+   * TUL-1708: `updateTenantAppointmentsSettings` requires `manage_agency_settings`
+   * (admin+) on the server, deliberately left there (workspace-wide config, same
+   * bar the rest of Settings uses). A manager or editor could still see this card,
+   * save, and get a silent server refusal. `canEdit` disables every control up
+   * front instead, the same `canEdit`/`canEditLimits` pattern the roles-limits card
+   * uses for an admin-only write.
+   */
+  canEdit?: boolean;
+}) {
   const t = useT();
   const [settings, setSettings] = useState<TenantAppointmentsSettings>(DEFAULT_TENANT_APPOINTMENTS);
   const [loading, setLoading] = useState(true);
@@ -131,13 +145,23 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
         right={
           <Switch
             checked={settings.enabled}
-            disabled={saving}
+            disabled={saving || !canEdit}
             label={t(`${K}.masterTitle`)}
             onClick={() => save({ ...settings, enabled: !settings.enabled })}
           />
         }
         first
       />
+
+      {/* TUL-1708: `updateTenantAppointmentsSettings` stays manage_agency_settings
+          (admin+) on the server. Every control above disables with canEdit, but a
+          manager or editor who opens this card still needs to know WHY nothing
+          responds, not just that it doesn't. */}
+      {!canEdit && (
+        <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 10, lineHeight: 1.5 }}>
+          {t(`${K}.adminOnlyNote`)}
+        </div>
+      )}
 
       {/* Nothing to configure about a feature that is off. One sentence saying
           what guests get today, and the screen ends here. */}
@@ -158,7 +182,7 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
               <select
                 aria-label={t(`${K}.businessTypeTitle`)}
                 value={settings.presetId ?? ""}
-                disabled={saving}
+                disabled={saving || !canEdit}
                 onChange={(e) => {
                   const id = e.target.value as AppointmentPresetId | "";
                   if (!id) {
@@ -192,7 +216,7 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
               <select
                 aria-label={t(`${K}.terminologyTitle`)}
                 value={settings.terminology}
-                disabled={saving || !settings.enabled}
+                disabled={saving || !settings.enabled || !canEdit}
                 onChange={(e) =>
                   save({ ...settings, terminology: e.target.value as TerminologyId })
                 }
@@ -223,7 +247,7 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
                 <input
                   aria-label={t(`${K}.timezoneTitle`)}
                   defaultValue={settings.timezone}
-                  disabled={saving || !settings.enabled}
+                  disabled={saving || !settings.enabled || !canEdit}
                   onBlur={(e) => {
                     const next = e.target.value.trim() || "UTC";
                     if (next !== settings.timezone) save({ ...settings, timezone: next });
@@ -239,7 +263,7 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
               right={
                 <Switch
                   checked={settings.allowTalentDirectBooking}
-                  disabled={saving || !settings.enabled}
+                  disabled={saving || !settings.enabled || !canEdit}
                   label={t(`${K}.allowDirectTitle`)}
                   onClick={() =>
                     save({
@@ -269,7 +293,7 @@ export function AppointmentsSettingsCard({ tenantSlug }: { tenantSlug: string })
                     <input
                       type="number"
                       defaultValue={settings.defaults[key]}
-                      disabled={saving}
+                      disabled={saving || !canEdit}
                       onBlur={(e) => {
                         const n = Number(e.target.value);
                         if (!Number.isFinite(n) || n === settings.defaults[key]) return;

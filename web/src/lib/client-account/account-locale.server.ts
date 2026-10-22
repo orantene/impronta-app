@@ -41,5 +41,6 @@ export async function resolveAccountLocale(userId: string | null): Promise<"en" 
     urlNamesLocale: urlNamesLocale(h.get(ORIGINAL_PATHNAME_HEADER), h.get(ORIGINAL_SEARCH_HEADER)),
     cookieLocale: jar.get(LOCALE_COOKIE)?.value,
     savedLocale: saved,
+    acceptLanguage: h.get("accept-language"), // TUL-968 / TUL-1856: same last resort as the client layout
   });
 }

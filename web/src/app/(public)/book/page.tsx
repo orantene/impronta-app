@@ -18,6 +18,12 @@ import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-p
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { pinnedServiceId } from "@/lib/client-account/book-again";
 import { BookPageClient } from "./BookPageClient";
+import { RosterRequestList } from "./RosterRequestList";
+import { PublicHubEntries } from "@/components/storefront/PublicHubEntries";
+import { loadPublicHub } from "@/lib/service-hub/public-hub.server";
+import { publicEntryRequestHref } from "@/lib/service-hub/public-hub-request";
+import { WORKSPACE_REQUEST_PATH } from "@/lib/service-hub/roster-request";
+import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -79,11 +85,17 @@ export default async function BookPage({
     }
   }
 
+  const rosterAdmin = host.kind === "agency" && tenantId ? createServiceRoleClient() : null;
+  // TUL-1471: the owner's hub entries load first; an INSTANT one adds its offering to the widget's list.
+  const hub = rosterAdmin && host.kind === "agency" ? await loadPublicHub(rosterAdmin, tenantId) : null;
+  const hubBookIds = (hub?.entries ?? []).flatMap((e) => (e.cta === "book" && e.bookOfferingId ? [e.bookOfferingId] : []));
   const offerings = await loadPublicBookableOfferings({
+    extraOfferingIds: hubBookIds,
     tenantId: tenantId || null,
     talentProfileId: talentId,
     locale,
     host: { kind: host.kind, tenantId: host.kind === "agency" ? host.tenantId : tenantId || null },
+    pinnedOfferingId: typeof service === "string" ? service : null,
   });
 
   let agencyName = t("public.bookPage.studioFallback");
@@ -94,6 +106,15 @@ export default async function BookPage({
   // Respects /w/<slug>; agency hosts serve the contact page at the root.
   const pathPrefix = host.kind === "agency" ? "" : await getPublicPathPrefix();
   const guestChrome = await loadGuestInstantChrome(tenantId || null);
+  // TUL-1372: roster services (accepted listings) of an AGENCY workspace, request-only. The tenant is
+  // the public host's resolved tenant, never a request parameter. Fails closed (empty).
+  const allRosterItems = rosterAdmin && host.kind === "agency" ? await loadWorkspaceRosterServices(rosterAdmin, tenantId) : [];
+  // TUL-1471: the owner's grouped hub entries (request-only) replace the loose rows they contain, so
+  // a service never shows twice. Listings still waiting in the review queue stay as loose rows.
+  const notInHub = hub ? allRosterItems.filter((i) => !hub.coveredListingIds.has(i.listingId)) : allRosterItems;
+  // TUL-861: a service already offered in the bookable list above must not be listed a second time as a request row.
+  const bookableIds = new Set(offerings.map((o) => o.id));
+  const rosterItems = notInHub.filter((i) => !bookableIds.has(i.offeringId));
 
   return (
     <>
@@ -113,7 +134,18 @@ export default async function BookPage({
           client={guestChrome.client}
           captcha={guestChrome.captcha}
           locale={locale}
-          contactHref={`${pathPrefix}/contact`}
+          contactHref={`${pathPrefix}${WORKSPACE_REQUEST_PATH}`}
+        />
+        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={(e) => publicEntryRequestHref(`${pathPrefix}${WORKSPACE_REQUEST_PATH}`, e, locale)} bookHref={(e) => (e.bookOfferingId ? `${pathPrefix}/book?service=${encodeURIComponent(e.bookOfferingId)}` : `${pathPrefix}/book`)} /> : null}
+        <RosterRequestList
+          items={rosterItems}
+          contactHref={`${pathPrefix}${WORKSPACE_REQUEST_PATH}`}
+          locale={locale}
+          copy={{
+            heading: t("public.bookPage.rosterHeading"),
+            request: t("public.bookPage.rosterRequest"),
+            note: t("public.bookPage.rosterNote"),
+          }}
         />
       </main>
       <PublicFooter className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8" />

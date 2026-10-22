@@ -8,6 +8,7 @@ import "server-only";
 
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access/capabilities";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -37,7 +38,18 @@ export function normalizePrimaryLocale(raw: unknown): string {
   return /^[a-z]{2,3}$/.test(code) ? code : "en";
 }
 
-export async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> {
+/**
+ * @param capability Membership-role capability the staff branch must hold on
+ *   the resolved workspace. Defaults to `requireWorkspaceStaffAction`'s own
+ *   default (`agency.workspace.view`, held by every active member incl.
+ *   `viewer`) — correct for a READ. Every WRITING caller must pass the
+ *   capability that matches what it actually does (TUL-1708/TUL-1727); never
+ *   leave a writer on the default.
+ */
+export async function authorizeForTalent(
+  talentProfileId: string,
+  capability?: CapabilityKey,
+): Promise<AuthResult> {
   const session = await getCachedActorSession();
   if (!session.user) return { ok: false, error: "Not authenticated." };
 
@@ -45,7 +57,7 @@ export async function authorizeForTalent(talentProfileId: string): Promise<AuthR
   if (!supabase) return { ok: false, error: "Database unavailable." };
 
   // The staff check does not depend on the profile row, so start it alongside.
-  const staffPending = requireWorkspaceStaffAction();
+  const staffPending = requireWorkspaceStaffAction(capability ? { capability } : undefined);
   const { data: tp, error } = await supabase
     .from("talent_profiles")
     .select("id, user_id, default_currency, preferred_locale")

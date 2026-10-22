@@ -21,11 +21,11 @@ export type CalendarListEvent = {
    * here rather than at the source — the assignment at CalendarPage.tsx is the
    * only thing holding them together. Add to both, or neither.
    */
-  kind?: "inquiry" | "booking" | "hold" | "order" | "session";
+  kind?: "inquiry" | "booking" | "hold" | "order" | "session" | "reservation";
 };
 
 function eventDayKey(ev: CalendarListEvent): string {
-  if (ev.starts_at) return ev.starts_at.slice(0, 10);
+  // The loader's LOCAL day, not the UTC slice of the instant (TUL-1841).
   return ev.event_date.slice(0, 10);
 }
 
@@ -123,7 +123,9 @@ export function CalendarListViews({
                 ? t("dashboard.adminCalendar.bookingLabel")
                 : ev.kind === "session"
                   ? t("dashboard.adminCalendar.sessionLabel")
-                  : ev.status;
+                  : ev.kind === "reservation"
+                    ? t("dashboard.adminCalendar.reservationLabel")
+                    : ev.status;
           const tone =
             ev.status === "booked" || ev.status === "converted" || ev.status === "approved" || ev.status === "confirmed"
               ? "bg-admin-success-soft text-admin-green"
@@ -137,7 +139,8 @@ export function CalendarListViews({
               key={`${ev.kind ?? "inquiry"}-${ev.id}-${ev.starts_at ?? ev.event_date}`}
               type="button"
               className="flex w-full cursor-pointer items-center gap-2.5 border-t border-admin-border-soft bg-transparent px-3.5 py-3 text-left"
-              onClick={() => onOpen(ev.id)}
+              // A table reservation is read-only here (its id is not a conversation): the Live Floor owns it.
+              onClick={() => (ev.kind === "reservation" ? undefined : onOpen(ev.id))}
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[14.5px] font-semibold text-admin-ink">

@@ -8,7 +8,7 @@
  *
  * Slug: `<title words>-<id8>`. The id8 (first 8 hex of the offering id) decides,
  * so a renamed service keeps resolving and 301s to its current slug. When the
- * held content migration (415800) lands, a custom slug and its history plug in
+ * held content migration (418800) lands, a custom slug and its history plug in
  * through C1's `resolveServiceSlugWithHistory` (#4035).
  *
  * Only TWO-segment paths are ours: a business may own a CMS page at
@@ -16,6 +16,8 @@
  *
  * Pure: no DB, no React.
  */
+
+import { isReservedOfferingSlug } from "@/lib/offerings/offering-paths";
 
 export const BUSINESS_SERVICE_SEGMENTS = { en: "services", es: "servicios" } as const;
 export type BusinessServiceSegment = (typeof BUSINESS_SERVICE_SEGMENTS)[keyof typeof BUSINESS_SERVICE_SEGMENTS];
@@ -70,6 +72,22 @@ export function isBusinessServicePagePath(pathname: string): boolean {
     ANY_SLUG.test(slug ?? "") &&
     parseBusinessServiceSlug(slug) !== null
   );
+}
+
+/**
+ * TUL-1594: a two-segment `/(services|servicios)/<plain-slug>` with NO id8 may be an OLD service
+ * slug kept in `offering_slugs`. The gate lets it reach the business route (flag on, agency hosts)
+ * and the route either redirects it or hands it to the CMS page it always was (so the CMS page
+ * `/services/photography` still renders). Reserved words (the catalog list words, a bare id8, the
+ * legacy form) are never candidates, and the single-segment list stays the CMS's.
+ */
+export function isBusinessServiceOldSlugCandidate(pathname: string): boolean {
+  const parts = pathname.split("/");
+  if (parts.length !== 3 || parts[0] !== "") return false;
+  const [, segment, slug] = parts;
+  if (segment !== BUSINESS_SERVICE_SEGMENTS.en && segment !== BUSINESS_SERVICE_SEGMENTS.es) return false;
+  if (!slug || !ANY_SLUG.test(slug) || parseBusinessServiceSlug(slug) !== null) return false;
+  return !isReservedOfferingSlug(slug);
 }
 
 export type BusinessServiceRoute =

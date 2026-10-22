@@ -16,6 +16,7 @@ export function GuestInstantContact({
   onName,
   onEmail,
   onCaptchaToken,
+  showErrors = false,
 }: {
   name: string;
   email: string;
@@ -24,7 +25,11 @@ export function GuestInstantContact({
   onName: (v: string) => void;
   onEmail: (v: string) => void;
   onCaptchaToken: (v: string) => void;
+  /** TUL-841: after a failed Confirm, name the field that is wrong instead of failing silently. */
+  showErrors?: boolean;
 }) {
+  const nameBad = showErrors && name.trim().length < 2;
+  const emailBad = showErrors && !/.+@.+\..+/.test(email.trim());
   // Page locale wins (CMS /book band, /book route). useT() reads the dashboard
   // cookie and leaves English labels on a Spanish studio site.
   const t = useMemo(() => translatorFor(locale.startsWith("es") ? "es" : "en"), [locale]);
@@ -36,9 +41,12 @@ export function GuestInstantContact({
           type="text"
           value={name}
           autoComplete="name"
+          data-testid="cb-name"
+          aria-invalid={nameBad ? true : undefined}
           onChange={(e) => onName(e.target.value)}
           className={FIELD}
         />
+        {nameBad ? <span role="alert" className="text-xs text-[var(--token-color-danger,#dc2626)]">{t("public.instantBook.nameInvalid")}</span> : null}
       </label>
       <label className="flex flex-col gap-1 text-xs" style={{ color: INK }}>
         <span>{t("public.instantBook.guestEmail")}</span>
@@ -46,9 +54,12 @@ export function GuestInstantContact({
           type="email"
           value={email}
           autoComplete="email"
+          data-testid="cb-email"
+          aria-invalid={emailBad ? true : undefined}
           onChange={(e) => onEmail(e.target.value)}
           className={FIELD}
         />
+        {emailBad ? <span role="alert" className="text-xs text-[var(--token-color-danger,#dc2626)]">{t("public.instantBook.emailInvalid")}</span> : null}
       </label>
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="hidden" />
       {/*

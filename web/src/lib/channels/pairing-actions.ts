@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 
+import type { CapabilityKey } from "@/lib/access";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { getAdminWorkspaceScope } from "@/lib/saas/admin-workspace-scope";
@@ -20,8 +21,13 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+/**
+ * TUL-1708: the default guard capability (agency.workspace.view) is
+ * viewer-held; every write below passes a capability, reads call with no
+ * argument and keep the default.
+ */
+async function staff(capability?: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!guard.ok) return { ok: false as const, reason: "not_allowed" as const };
   const scope = await getAdminWorkspaceScope();
   const admin = createServiceRoleClient();
@@ -81,7 +87,7 @@ export async function loadWhatsAppConnection(): Promise<
 
 export async function startWhatsAppPairing(input: { consented: boolean }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("coordinate_inquiry");
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
     return { ok: false as const, reason: "unavailable" as const };
@@ -109,7 +115,7 @@ export async function startWhatsAppPairing(input: { consented: boolean }) {
 
 export async function requestWhatsAppPairingCode(input: { phone: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("coordinate_inquiry");
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
     return { ok: false as const, reason: "unavailable" as const };
@@ -132,7 +138,7 @@ export async function requestWhatsAppPairingCode(input: { phone: string }) {
 
 export async function unlinkWhatsApp() {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("coordinate_inquiry");
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
     return { ok: false as const, reason: "unavailable" as const };
@@ -154,9 +160,12 @@ export async function unlinkWhatsApp() {
   return { ok: true as const };
 }
 
+// TUL-1708 (PM revision): pinging the owner to connect WhatsApp is a
+// day-to-day operations nudge, not a manager-tier channel action — gate on
+// operate_venue (editor+), not coordinate_inquiry (manager+).
 export async function askOwnerToConnectWhatsApp() {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!(await isMessagingChannelsEnabledForTenant({ tenantId: g.tenantId })))
     return { ok: false as const, reason: "unavailable" as const };

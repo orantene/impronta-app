@@ -43,7 +43,23 @@ test("TUL-1272/C3: same locale or unknown locale adds nothing; an existing catal
   assert.equal(profileLocaleMessagesScript("xx", "en"), null);
   const ctx = { self: { __TULALA_MSGS__: { es: { marker: "kept" } } } as Record<string, unknown> };
   vm.runInNewContext(profileLocaleMessagesScript("es", "en")!, ctx);
-  assert.deepEqual((ctx.self.__TULALA_MSGS__ as Catalog).es, { marker: "kept" });
+  const es2 = (ctx.self.__TULALA_MSGS__ as Catalog).es as Catalog;
+  assert.equal(es2.marker, "kept", "an existing entry is kept");
+  assert.ok(es2.public, "missing subtrees are merged in (TUL-736)");
+});
+
+test("TUL-736: an English-owned profile on /es gets its strings although the root payload already holds a partial en", () => {
+  const before = getClientMessagesPayload("es");
+  assert.ok(before.en, "the root payload carries en as the fallback remainder");
+  assert.equal(browserT(before, "en", "public.profileCta.inquireAbout") === "public.profileCta.inquireAbout", true, "premise: en lacks the key");
+  const script = profileLocaleMessagesScript("en", "es");
+  assert.ok(script);
+  const ctx = { self: { __TULALA_MSGS__: structuredClone(before) } as Record<string, unknown> };
+  vm.runInNewContext(script!, ctx);
+  const store = ctx.self.__TULALA_MSGS__ as Record<string, Catalog>;
+  assert.equal(browserT(store, "en", "public.profileCta.inquireAbout"), "Inquire about {name}");
+  assert.equal(browserT(store, "en", "public.consent.privacyChoices") === "public.consent.privacyChoices", false);
+  assert.equal(browserT(store, "es", "public.profileCta.inquireAbout"), "Consultar sobre {name}", "request locale untouched");
 });
 
 test("TUL-1272/C3: the strings named in the bug are translated in es and differ from en", () => {

@@ -34,7 +34,7 @@ import {
 } from "@/lib/client-account/actions";
 import { ACCOUNT_DOCK_Z_INDEX, DOCK_NARROW_SIDE_CSS, shouldHideAccountDock } from "@/lib/client-account/dock-visibility";
 import { accountQuickLinks } from "@/lib/client-account/quick-links";
-import { resendSecondsLeft, type AccountSummary } from "@/lib/client-account/pure";
+import { resendSecondsLeft, visitLabels, type AccountSummary } from "@/lib/client-account/pure";
 import { formatPrice } from "@/lib/money/format-price";
 
 type Me = { signedIn: false; signedInAs?: "business" } | { signedIn: true; email: string | null; initials: string; summary: AccountSummary };
@@ -42,6 +42,17 @@ type Step = "email" | "code" | "password" | "consent";
 
 /** Dispatch on `window` to open the sign-in popover from a trigger that lives elsewhere (hub header "Entrar"). */
 export const CLIENT_ACCOUNT_OPEN_EVENT = "tulala:open-client-account" as const;
+
+/**
+ * TUL-759: "Entrar" used to dispatch the open event and do nothing when no popover host was
+ * mounted (a tap that goes nowhere). The listener marks `detail.handled`; with no listener the
+ * header falls back to the plain sign-in href.
+ */
+export function openClientAccountOrNavigate(fallbackHref: string): void {
+  const detail = { handled: false };
+  window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT, { detail }));
+  if (!detail.handled) window.location.assign(fallbackHref);
+}
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-surface-raised, var(--token-color-background, #fff))";
@@ -68,6 +79,9 @@ export function ClientAccountButton({
   accountHref = "/account",
   appleSignInEnabled = false,
   hideTrigger = false,
+  defaultOpen = false,
+  onSignedIn,
+  onClose,
 }: {
   variant: "dock" | "header";
   locale: string;
@@ -77,10 +91,16 @@ export function ClientAccountButton({
   appleSignInEnabled?: boolean;
   /** Render only the popover; the caller supplies the trigger and fires CLIENT_ACCOUNT_OPEN_EVENT. */
   hideTrigger?: boolean;
+  /** TUL-1463: mount already open (a save button's own sign-in sheet). */
+  defaultOpen?: boolean;
+  /** TUL-1463: called once the visitor is signed in here, so the caller can finish what they started. */
+  onSignedIn?: () => void;
+  /** TUL-1463: called when the sheet closes. */
+  onClose?: () => void;
 }) {
   const loc = locale === "es" ? "es" : "en";
   const t = createTranslator(loc);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [hubHost, setHubHost] = useState(false);
   useEffect(() => {
     setHubHost(/^hub\./i.test(window.location.hostname));
@@ -126,7 +146,11 @@ export function ClientAccountButton({
   }, [refresh]);
 
   useEffect(() => {
-    const onOpen = () => setOpen(true);
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ handled?: boolean } | null>).detail;
+      if (detail && typeof detail === "object") detail.handled = true;
+      setOpen(true);
+    };
     window.addEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(CLIENT_ACCOUNT_OPEN_EVENT, onOpen);
   }, []);
@@ -140,15 +164,17 @@ export function ClientAccountButton({
   const close = useCallback(() => {
     setOpen(false);
     triggerRef.current?.focus();
-  }, []);
+    onClose?.();
+  }, [onClose]);
 
   const afterSignIn = useCallback(
     async (firstSignIn: boolean) => {
       await refresh();
+      onSignedIn?.();
       if (firstSignIn) setStep("consent");
       else close();
     },
-    [close, refresh],
+    [close, refresh, onSignedIn],
   );
 
   useEffect(() => {
@@ -501,7 +527,12 @@ export function ClientAccountButton({
                     <dt style={{ fontSize: 12, opacity: 0.7 }}>{t("public.clientAccount.nextVisit")}</dt>
                     <dd style={{ margin: 0, fontWeight: 600 }}>
                       {me.summary.nextVisit
-                        ? `${me.summary.nextVisit.service ? `${me.summary.nextVisit.service}, ` : ""}${me.summary.nextVisit.dateLabel}, ${me.summary.nextVisit.timeLabel}`
+                        ? (() => {
+                            const v = me.summary.nextVisit;
+                            // Re-format in the PAGE locale (TUL-1900); the server labels are the fallback.
+                            const l = v.startsAtMs != null && v.timeZone ? visitLabels(v.startsAtMs, v.timeZone, loc) : v;
+                            return `${v.service ? `${v.service}, ` : ""}${l.dateLabel}, ${l.timeLabel}`;
+                          })()
                         : t("public.clientAccount.noVisit")}
                     </dd>
                   </div>

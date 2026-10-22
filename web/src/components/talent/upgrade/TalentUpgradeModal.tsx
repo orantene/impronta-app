@@ -38,9 +38,12 @@ const SERVER_SNAPSHOT = { request: null, leader: null } as const;
 
 export function TalentUpgradeModalHost({
   planLabel,
+  trialDays,
   onCompareAll,
 }: {
   planLabel?: string | null;
+  /** Trial length when one applies to this talent (TUL-1821); hides the trial line when absent. */
+  trialDays?: number | null;
   /** Opens the full plan comparison. Omitted where no comparison surface exists. */
   onCompareAll?: () => void;
 }) {
@@ -79,6 +82,7 @@ export function TalentUpgradeModalHost({
     interval,
     locale,
     planLabel,
+    trialDays,
   });
 
   const dismiss = () => {
@@ -169,6 +173,14 @@ export function TalentUpgradeModalHost({
           >
             {offer.ctaLabel}
           </button>
+          {offer.trialLabel ? (
+            <p className="text-center text-xs font-medium" data-testid="talent-upgrade-trial">
+              {offer.trialLabel}
+            </p>
+          ) : null}
+          <p className="text-center text-xs text-muted-foreground" data-testid="talent-upgrade-charge-note">
+            {offer.chargeNote}
+          </p>
           {onCompareAll ? (
             <button
               type="button"

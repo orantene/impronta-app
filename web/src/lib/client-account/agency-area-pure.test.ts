@@ -54,10 +54,13 @@ test("legacy redirect: flag off never redirects", () => {
   }
 });
 
-test("legacy redirect: only agency and hub hosts, only clients or signed out", () => {
+test("legacy redirect: agency/hub (clients or signed out) and the app host (signed-in clients)", () => {
   assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "agency", userId: null, appRole: null }), "account");
   assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "hub", userId: "u", appRole: "client" }), "account");
-  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: "u", appRole: "client" }), "stay");
+  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: "u", appRole: "client" }), "account");
+  // TUL-782: the app host only redirects a signed-in client; signed-out and other roles stay.
+  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: null, appRole: null }), "stay");
+  assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "app", userId: "u", appRole: "talent" }), "stay");
   assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "marketing", userId: null, appRole: null }), "stay");
   for (const appRole of ["talent", "agency_staff", "super_admin"]) {
     assert.equal(legacyClientEntryRedirect({ flagOn: true, hostContext: "agency", userId: "u", appRole }), "stay");
@@ -119,7 +122,9 @@ test("tenant renderer: data only for a client, always scoped by session user and
   assert.doesNotMatch(src, /searchParams|cookies\(\)/);
   const loads = [...src.matchAll(/load(?:VisitGroups|VisitDetail|Thread|Threads|Receipt|ReceiptDetail|Receipts|OwedPayLinks)\(([^)]*)\)/g)];
   assert.ok(loads.length >= 6);
-  for (const m of loads) assert.match(m[1], /^userId, tenantId/, m[0]);
+  for (const m of loads) assert.match(m[1], /^userId, (?:tenantId|visitTenant)\b/, m[0]);
+  // TUL-1688: a visit on a hub/app host may use its own tenant, but only one the session user owns.
+  if (/visitTenant/.test(src)) assert.match(src, /resolveOwnedVisitTenantId\(userId, view\.id\)/);
   const data = readFileSync(join(__dirname, "area-data.server.ts"), "utf8");
   for (const fn of ["loadVisitGroups", "loadVisitDetail", "loadThreads", "loadThread", "loadReceipts", "loadReceiptDetail", "loadOwedPayLinks"]) {
     assert.match(data, new RegExp(`export async function ${fn}\\(userId: string, tenantId: string`));

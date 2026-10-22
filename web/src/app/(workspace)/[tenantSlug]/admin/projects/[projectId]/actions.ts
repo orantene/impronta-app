@@ -17,7 +17,6 @@
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
 import { approveDeliverable, createDeliverable, requestRevision } from "@/lib/bookings/deliverables";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -30,11 +29,13 @@ export type MilestoneDecisionResult =
       reason: "invalid" | "not_allowed" | "unavailable" | "not_found" | "limit_reached";
     };
 
+/**
+ * TUL-1708: every action in this file WRITES (approve, request a revision, add a milestone). The old guard
+ * only needed `view_dashboard`, which a `viewer` holds. Writers now need `edit_client_relationship` (editor and above, as editors could before; no money moves).
+ */
 async function guard() {
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!staff.ok) return { ok: false as const, reason: "not_allowed" as const };
-  const allowed = await userHasCapability("view_dashboard", staff.tenantId);
-  if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
   return { ok: true as const, tenantId: staff.tenantId, admin };

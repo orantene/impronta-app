@@ -17,6 +17,7 @@
  */
 
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
+import { TALENT_LOADER_BUDGET_MS } from "@/lib/talent/loader-budget";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import {
   loadTalentOfferingsForEditor,
@@ -131,9 +132,9 @@ export function useOfferingsEditor(owner: OfferingOwner): OfferingsEditor {
 
   useEffect(() => {
     let cancelled = false;
-    // Services fires several actions on mount and they run one at a time, so
-    // the list read gets a longer budget than the 4 s default.
-    const settle = { area: "talent-services", budgetMs: 10_000 };
+    // TUL-1113: the shared 2 s talent loader budget (the list is seeded by the route,
+    // so this action is only the reload / missing-seed path).
+    const settle = { area: "talent-services", budgetMs: TALENT_LOADER_BUDGET_MS };
     // TUL-824: the first load comes from the server route's seed (no queued
     // server action); reloads and a missing/stale seed call the action.
     const seeded = isWorkspace || loadTick > 0 ? null : takeServicesSeed(talentId);

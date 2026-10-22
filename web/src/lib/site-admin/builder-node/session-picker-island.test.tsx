@@ -154,9 +154,86 @@ test("a FREE booking shows done, with no payment call and no email claim", async
   await act(async () => m.root.unmount());
 });
 
+test("TUL-1810: inputs have a visible border, the pay button is a filled button, the refusal is an alert", async () => {
+  const m = await mountPicker({ amountCents: 45000, txn: TXN });
+  for (const sel of ['input[type="number"]', 'input[type="email"]', 'input[type="text"]']) {
+    assert.match(m.host.querySelector<HTMLElement>(sel)!.getAttribute("style") ?? "", /border: 1px solid/, sel);
+  }
+  assert.match(button(m.host).getAttribute("style") ?? "", /background: var\(--token-color-ink\)/);
+  await act(async () => m.root.unmount());
+});
+
 test("nextStepAfterBook: only money plus a transaction goes to pay", () => {
   assert.equal(nextStepAfterBook({ checkoutTransactionId: TXN }, 45000), "pay");
   assert.equal(nextStepAfterBook({ checkoutTransactionId: TXN }, 0), "done");
   assert.equal(nextStepAfterBook({ checkoutTransactionId: null }, 45000), "done");
   assert.equal(nextStepAfterBook({ checkoutTransactionId: null }, null), "done");
+});
+
+// TUL-1381: with more than one class the guest chooses the class, and each class shows its own price and currency.
+test("TUL-1381: two classes: a selector, per-class currency, and the booking uses the chosen class", async () => {
+  const MXN_CLASS = "66666666-6666-4666-8666-666666666666";
+  const USD_CLASS = "77777777-7777-4777-8777-777777777777";
+  const booked: Array<Record<string, unknown>> = [];
+  const loaded: string[] = [];
+  const actions = {
+    listSessionPickerOfferings: async () => ({
+      ok: true as const,
+      offerings: [
+        { id: MXN_CLASS, title: "Pottery MXN", currency: "MXN", amountCents: 25000 },
+        { id: USD_CLASS, title: "Clase USD", currency: "USD", amountCents: 2500 },
+      ],
+    }),
+    loadSessionPicker: async (input: { offeringId: string }) => {
+      loaded.push(input.offeringId);
+      const usd = input.offeringId === USD_CLASS;
+      return {
+        ok: true as const,
+        currency: usd ? "USD" : "MXN",
+        amountCents: usd ? 2500 : 25000,
+        sessions: [
+          { id: SESSION, title: "S", startsAt: "2026-11-02T20:00:00.000Z", endsAt: "2026-11-02T22:00:00.000Z", timeZone: "America/Cancun", seatsRemaining: 8, soldOut: false },
+        ],
+      };
+    },
+    bookSessionSeat: async (input: Record<string, unknown>) => {
+      booked.push(input);
+      return { ok: true as const, orderId: ORDER, checkoutTransactionId: TXN };
+    },
+    startSessionCardPayment: async () => ({ ok: true as const, url: "https://checkout.stripe.test/c/pay_2" }),
+  };
+  const navigated: string[] = [];
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(host);
+  await act(async () => {
+    root.render(
+      <SessionPickerIsland tenantId={TENANT} offeringId="" locale="en" deps={{ loadActions: (async () => actions) as unknown as Actions, navigate: (u) => navigated.push(u) }} />,
+    );
+  });
+  await flush();
+  const select = host.querySelector<HTMLSelectElement>('select[data-session-picker="class"]')!;
+  assert.ok(select, "a class selector is shown when there is more than one class");
+  assert.equal(select.options.length, 2);
+  assert.match(text(host), /\$250(\.00)? MXN per person/);
+
+  const nativeSelect = Object.getOwnPropertyDescriptor(dom.window.HTMLSelectElement.prototype, "value")!.set!;
+  await act(async () => {
+    nativeSelect.call(select, USD_CLASS);
+    select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  await flush();
+  assert.deepEqual(loaded, [MXN_CLASS, USD_CLASS]);
+  assert.match(text(host), /\$25(\.00)? USD per person/);
+  assert.doesNotMatch(host.querySelector('[data-session-picker="price"]')!.textContent ?? "", /MXN/);
+
+  await act(async () => host.querySelector<HTMLInputElement>('input[name="session"]')!.click());
+  await typeInto(host.querySelector<HTMLInputElement>('input[type="email"]')!, "guest@example.com");
+  await act(async () => button(host).click());
+  await flush();
+  assert.equal(booked.length, 1);
+  assert.equal(booked[0].offeringId, USD_CLASS);
+  assert.deepEqual(navigated, ["https://checkout.stripe.test/c/pay_2"]);
+  await act(async () => root.unmount());
 });

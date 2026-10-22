@@ -1,3 +1,4 @@
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -67,6 +68,10 @@ export async function POST(request: Request) {
       );
     }
     const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;
+
+    // TUL-1630: per-network limit before any embedding or search work; fails closed.
+    const limited = await guardPublicAiRoute("search", { results: [], search_mode: "classic" });
+    if (limited) return limited;
 
     const json = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(json);

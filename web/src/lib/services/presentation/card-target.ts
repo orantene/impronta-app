@@ -36,6 +36,24 @@ export function serviceQuickViewId(o: { id: string; title?: string }): string {
   return `servicio-${o.id.replace(/-/g, "").slice(0, 8).toLowerCase()}`;
 }
 
+/**
+ * TUL-1339: maps a shared fragment to a permanent share id. The exact id passes through; the first
+ * #4087 format (`servicio-<title>-<id8>-<widget key>`, or `servicio-<title>-<id8>`) is matched by the
+ * `<id8>` token against the share ids really on the page. Anything unmatched returns null (the page
+ * simply stays put; nothing throws).
+ */
+export function canonicalServiceShareKey(fragment: string, knownKeys: readonly string[]): string | null {
+  const f = fragment.toLowerCase();
+  if (knownKeys.includes(f)) return f;
+  if (!f.startsWith("servicio-")) return null;
+  const tokens = new Set(f.split("-").slice(1));
+  for (const key of knownKeys) {
+    const id8 = key.slice("servicio-".length);
+    if (id8 && tokens.has(id8)) return key;
+  }
+  return null;
+}
+
 /** The dialog's DOM id: the share id plus a short widget key, unique when two widgets list one service. */
 export function serviceQuickViewDomId(shareId: string, nodeKey?: string | null): string {
   const key = (nodeKey ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(-8);

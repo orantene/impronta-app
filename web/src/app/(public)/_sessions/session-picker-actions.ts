@@ -22,6 +22,7 @@
  * and nothing whatever about who holds them.
  */
 
+import { CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE } from "@/lib/payments/seller-currency-guard";
 import { z } from "zod";
 import { headers } from "next/headers";
 
@@ -76,16 +77,25 @@ const tenantOnlySchema = z.object({
   tenantId: uuidWire,
 });
 
+export type PickerOffering = {
+  id: string;
+  title: string;
+  /** This class's own price and currency, never another class's or the workspace default. */
+  currency: string;
+  amountCents: number | null;
+};
+
 /**
- * Bind an unconfigured picker to this tenant's next published class.
+ * Every published class of this tenant that has an upcoming scheduled session,
+ * soonest first, each with its OWN price and currency (TUL-1381).
  *
- * Page-less fallbacks cannot hard-code a fixture offering id. An empty
- * `offeringId` therefore means "this workspace's class, if it has one".
- * No published scheduled night → none, and the island hides.
+ * The unconfigured picker used to bind to the first of these and hide the rest,
+ * so a workspace with an MXN class and a USD class showed the MXN class's price
+ * and sessions for both, and "Book and pay" charged in the wrong currency.
  */
-export async function resolveSessionPickerOffering(
+export async function listSessionPickerOfferings(
   input: unknown,
-): Promise<{ ok: true; offeringId: string } | { ok: false; reason: "unavailable" | "none" }> {
+): Promise<{ ok: true; offerings: PickerOffering[] } | { ok: false; reason: "unavailable" | "none" }> {
   const parsed = tenantOnlySchema.safeParse(input);
   if (!parsed.success) return { ok: false, reason: "unavailable" };
   const { tenantId } = parsed.data;
@@ -101,7 +111,7 @@ export async function resolveSessionPickerOffering(
       .gte("starts_at", now)
       .not("offering_id", "is", null)
       .order("starts_at", { ascending: true })
-      .limit(20);
+      .limit(200);
     if (error) {
       logServerError("sessions.picker.resolve", error);
       return { ok: false, reason: "unavailable" };
@@ -118,22 +128,47 @@ export async function resolveSessionPickerOffering(
     if (offeringIds.length === 0) return { ok: false, reason: "none" };
 
     const { data: offerings, error: offErr } = await scopeToSellableOfferings(
-      tenantScopedQuery(admin, "talent_offerings", tenantId).select("id"),
+      tenantScopedQuery(admin, "talent_offerings", tenantId).select("id, title, amount_cents, currency"),
       "guest",
     ).in("id", offeringIds);
     if (offErr) {
       logServerError("sessions.picker.resolve.offering", offErr);
       return { ok: false, reason: "unavailable" };
     }
-    const offeringRows = (offerings ?? []) as Array<{ id: unknown }>;
-    const published = new Set(offeringRows.map((o) => String(o.id)));
-    const offeringId = offeringIds.find((id) => published.has(id));
-    if (!offeringId) return { ok: false, reason: "none" };
-    return { ok: true, offeringId };
+    const byId = new Map(
+      ((offerings ?? []) as Array<Record<string, unknown>>).map((o) => [String(o.id), o] as const),
+    );
+    const out: PickerOffering[] = [];
+    for (const id of offeringIds) {
+      const o = byId.get(id);
+      if (!o) continue;
+      out.push({
+        id,
+        title: typeof o.title === "string" && o.title.trim() ? o.title.trim() : "Class",
+        currency: typeof o.currency === "string" ? o.currency : "",
+        amountCents: o.amount_cents == null ? null : Number(o.amount_cents),
+      });
+    }
+    if (out.length === 0) return { ok: false, reason: "none" };
+    return { ok: true, offerings: out };
   } catch (error) {
     logServerError("sessions.picker.resolve", error);
     return { ok: false, reason: "unavailable" };
   }
+}
+
+/**
+ * Bind an unconfigured picker to this tenant's next published class.
+ *
+ * Kept for callers that want a single class; the island uses
+ * `listSessionPickerOfferings` so a guest can choose between classes.
+ */
+export async function resolveSessionPickerOffering(
+  input: unknown,
+): Promise<{ ok: true; offeringId: string } | { ok: false; reason: "unavailable" | "none" }> {
+  const listed = await listSessionPickerOfferings(input);
+  if (!listed.ok) return listed;
+  return { ok: true, offeringId: listed.offerings[0].id };
 }
 
 /**
@@ -466,7 +501,7 @@ const payBodySchema = z.object({
 
 export type StartSessionCardPaymentResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "invalid_request" | "not_found" | "engine_error" };
+  | { ok: false; reason: "invalid_request" | "not_found" | "engine_error" | "currency_unsupported" };
 
 /**
  * The card hop for a paid seat, copied from `startTicketCardPayment`
@@ -539,7 +574,9 @@ export async function startSessionCardPayment(input: unknown): Promise<StartSess
       locale: d.locale ?? null,
     });
     if (!res.ok) {
-      logServerError("sessions.picker.pay.checkout", res.error);
+      logServerError("sessions.picker.pay.checkout", `${res.code ?? "stripe"}: ${res.error}`);
+      // The seller's Stripe lane cannot settle this class's currency: say so, do not call it a glitch.
+      if (res.code === CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE) return { ok: false, reason: "currency_unsupported" };
       return { ok: false, reason: "engine_error" };
     }
     return { ok: true, url: res.url };

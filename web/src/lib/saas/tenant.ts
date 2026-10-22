@@ -88,6 +88,7 @@ export function forgetUserTenantMemberships(userId: string): void {
 async function fetchMemberships(
   supabase: SupabaseClient,
   userId: string,
+  onFailure?: () => void,
 ): Promise<TenantMembership[]> {
   try {
     const { data, error } = await supabase
@@ -98,6 +99,7 @@ async function fetchMemberships(
 
     if (error) {
       logServerError("saas/tenant.fetchMemberships", error);
+      onFailure?.();
       return [];
     }
 
@@ -125,48 +127,79 @@ async function fetchMemberships(
  * only tenants they are active/pending members of. Unauthenticated callers
  * get an empty array.
  */
+export async function loadUserTenants(
+  supabase: SupabaseClient,
+  userId: string,
+  appRole: string | null | undefined,
+  opts: { fresh?: boolean } = {},
+): Promise<TenantMembership[]> {
+  if (!opts.fresh) {
+    const hit = _membershipCache.get(userId);
+    if (hit && Date.now() - hit.ts < MEMBERSHIP_CACHE_TTL) return hit.data;
+  }
+
+  // TUL-1840: a failed read looks like "no memberships". It must never be
+  // memoised, or an owner is told they have no workspace for the whole TTL.
+  let failed = false;
+  const memberships = await fetchMemberships(supabase, userId, () => {
+    failed = true;
+  });
+
+  let result = memberships;
+  if (appRole === "super_admin") {
+    // Platform admin sees all tenants; fill in synthetic "admin" membership
+    // for those where no real row exists so the switcher lists everything.
+    const { data: allAgencies, error } = await supabase
+      .from("agencies")
+      .select("id, slug, display_name, status");
+
+    if (error) {
+      failed = true;
+      logServerError("saas/tenant.getCurrentUserTenants.all", error);
+    } else {
+      const known = new Map(memberships.map((m) => [m.tenant_id, m]));
+      for (const agency of allAgencies ?? []) {
+        if (known.has(agency.id)) continue;
+        known.set(agency.id, {
+          tenant_id: agency.id,
+          role: "admin",
+          status: "active",
+          slug: agency.slug,
+          display_name: agency.display_name,
+          agency_status: agency.status,
+        });
+      }
+      result = Array.from(known.values());
+    }
+  }
+
+  if (!failed) _membershipCache.set(userId, { data: result, ts: Date.now() });
+  return result;
+}
+
 export const getCurrentUserTenants = cache(
   async (): Promise<TenantMembership[]> => {
     const session = await getCachedActorSession();
     if (!session.supabase || !session.user) return [];
-
-    const userId = session.user.id;
-    const hit = _membershipCache.get(userId);
-    if (hit && Date.now() - hit.ts < MEMBERSHIP_CACHE_TTL) return hit.data;
-
-    const memberships = await fetchMemberships(session.supabase, userId);
-
-    let result = memberships;
-    if (session.profile?.app_role === "super_admin") {
-      // Platform admin sees all tenants; fill in synthetic "admin" membership
-      // for those where no real row exists so the switcher lists everything.
-      const { data: allAgencies, error } = await session.supabase
-        .from("agencies")
-        .select("id, slug, display_name, status");
-
-      if (error) {
-        logServerError("saas/tenant.getCurrentUserTenants.all", error);
-      } else {
-        const known = new Map(memberships.map((m) => [m.tenant_id, m]));
-        for (const agency of allAgencies ?? []) {
-          if (known.has(agency.id)) continue;
-          known.set(agency.id, {
-            tenant_id: agency.id,
-            role: "admin",
-            status: "active",
-            slug: agency.slug,
-            display_name: agency.display_name,
-            agency_status: agency.status,
-          });
-        }
-        result = Array.from(known.values());
-      }
-    }
-
-    _membershipCache.set(userId, { data: result, ts: Date.now() });
-    return result;
+    return loadUserTenants(session.supabase, session.user.id, session.profile?.app_role);
   },
 );
+
+/**
+ * TUL-1840: the membership list read straight from the database, skipping the
+ * 30 s process memo. Callers use it ONLY when the memoised answer says "no
+ * access" (workspace not found for this user, or no membership at all) and are
+ * about to redirect or 404 on it. A stale "no" then costs one extra read
+ * instead of bouncing an owner away from their own workspace; a stale "yes"
+ * is not a concern here because grants are re-checked per capability.
+ * Access is never widened: the fresh list is the same RLS-scoped query.
+ * Refreshes the memo as a side effect so the rest of the session agrees.
+ */
+export async function getFreshUserTenants(): Promise<TenantMembership[]> {
+  const session = await getCachedActorSession();
+  if (!session.supabase || !session.user) return [];
+  return loadUserTenants(session.supabase, session.user.id, session.profile?.app_role, { fresh: true });
+}
 
 export async function requireStaffOfTenant(tenantId: string): Promise<void> {
   const tenants = await getCurrentUserTenants();

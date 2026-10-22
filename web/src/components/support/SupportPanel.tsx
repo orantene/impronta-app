@@ -565,6 +565,7 @@ export function SupportPanel({
         )}
         {view === "guide" && (
           <GuideTab
+            surface={contract.surface}
             initialNodeId={guideDeepLinkNodeId}
             onConsumedDeepLink={() => setGuideDeepLinkNodeId(null)}
             onAskSupport={(question) => {

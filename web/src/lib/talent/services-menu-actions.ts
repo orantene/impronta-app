@@ -24,7 +24,8 @@ import {
   type ServiceMenuItem,
 } from "@/lib/talent/services-menu-types";
 import { getCachedActorSession } from "@/lib/server/request-cache";
-import { isStaffRole } from "@/lib/auth-flow";
+import { staffMayEditTalent } from "@/lib/talent/staff-talent-access";
+import { authorizeTalentProfileAccess } from "@/lib/talent/talent-profile-access";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
@@ -65,20 +66,24 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, error: "Database unavailable." };
 
-  const { data: tp, error } = await supabase
-    .from("talent_profiles")
-    .select("id, user_id, default_currency")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-
-  if (error || !tp) {
-    if (error) logServerError("talent.servicesMenu.authorize", error);
-    return { ok: false, error: "Profile not found." };
-  }
-
-  const isStaff = !!session.profile && isStaffRole(session.profile.app_role);
-  const isOwner = tp.user_id === session.user.id;
-  if (!isOwner && !isStaff) return { ok: false, error: "Forbidden." };
+  const access = await authorizeTalentProfileAccess<{ id: string; user_id: string | null; default_currency: string | null }>(
+    {
+      getUserId: async () => session.user?.id ?? null,
+      loadProfile: async (id) => {
+        const { data, error } = await supabase
+          .from("talent_profiles")
+          .select("id, user_id, default_currency")
+          .eq("id", id)
+          .maybeSingle();
+        return { row: data ?? null, error };
+      },
+      staffMayEdit: staffMayEditTalent,
+      onReadError: (error) => logServerError("talent.servicesMenu.authorize", error),
+    },
+    talentProfileId,
+  );
+  if (!access.ok) return { ok: false, error: access.error };
+  const { isStaff, profile: tp } = access;
 
   // Resolve the active-roster tenant (service-role, so RLS edges don't hide the
   // row) — the catalog value is scoped to it, like every other Tier-B blob.
@@ -98,7 +103,7 @@ async function authorizeForTalent(talentProfileId: string): Promise<AuthResult> 
   return {
     ok: true,
     supabase,
-    userId: session.user.id,
+    userId: access.userId,
     isStaff,
     defaultCurrency: resolveDefaultCurrencyForUI(tp.default_currency),
     tenantId,

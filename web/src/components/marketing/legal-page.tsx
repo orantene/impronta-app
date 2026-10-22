@@ -1,3 +1,4 @@
+import { formatLegalDate } from "@/lib/marketing/legal-date";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 
 export type LegalSection = {
@@ -13,11 +14,13 @@ type Props = {
   lastUpdated: string;
   /** "Last updated" in the page's language. */
   lastUpdatedLabel?: string;
+  /** Page language; Spanish writes the date out ("1 de octubre de 2026"). */
+  locale?: string;
   intro: React.ReactNode;
   sections: LegalSection[];
 };
 
-export function LegalPage({ eyebrow, title, lastUpdated, lastUpdatedLabel = "Last updated", intro, sections }: Props) {
+export function LegalPage({ eyebrow, title, lastUpdated, lastUpdatedLabel = "Last updated", locale, intro, sections }: Props) {
   return (
     <MarketingSection spacing="tight" className="pt-12 sm:pt-16">
       <MarketingContainer size="default">
@@ -33,7 +36,7 @@ export function LegalPage({ eyebrow, title, lastUpdated, lastUpdatedLabel = "Las
             className="mt-4 plt-mono text-[0.75rem] uppercase tracking-[0.22em]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {lastUpdatedLabel} · {lastUpdated}
+            {lastUpdatedLabel} · {formatLegalDate(lastUpdated, locale)}
           </p>
           <div
             className="mt-6 text-[1rem] leading-[1.65]"

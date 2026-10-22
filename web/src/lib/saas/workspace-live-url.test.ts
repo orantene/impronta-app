@@ -166,3 +166,22 @@ test("admin storefront cards do not synthesize slug.tulala.digital", () => {
     );
   }
 });
+
+test("TUL-1868: a free workspace on staging shows the staging address, not tulala.digital", () => {
+  const keys = ["VERCEL_ENV", "TALENT_SITE_ROOT_DOMAIN", "NEXT_PUBLIC_SITE_URL"] as const;
+  const saved = keys.map((k) => process.env[k]);
+  try {
+    delete process.env.VERCEL_ENV;
+    delete process.env.TALENT_SITE_ROOT_DOMAIN;
+    process.env.NEXT_PUBLIC_SITE_URL = "https://staging.tulala.digital";
+    assert.equal(workspaceLiveHost({ slug: "tulala", planTier: "free" }), "staging.tulala.digital/w/tulala");
+    assert.equal(workspaceLiveUrl({ slug: "tulala", planTier: "free" }), "https://staging.tulala.digital/w/tulala");
+    process.env.VERCEL_ENV = "production";
+    assert.equal(workspaceLiveHost({ slug: "tulala", planTier: "free" }), "tulala.digital/w/tulala");
+  } finally {
+    keys.forEach((k, i) => {
+      if (saved[i] === undefined) delete process.env[k];
+      else process.env[k] = saved[i];
+    });
+  }
+});

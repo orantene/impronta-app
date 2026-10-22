@@ -6,9 +6,13 @@ import {
   mapBootstrapToAdminPulse,
   type AdminTranslationHealth,
 } from "@/lib/translation-center/admin-pulse";
-import { requireSession, requireStaff } from "@/lib/server/action-guards";
+import { requireSession, requirePlatformAdmin } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTenantScope } from "@/lib/saas/scope";
+import {
+  selectStaffPermissions,
+  type StaffPermissionsClient,
+} from "@/lib/staff-permissions/read";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
@@ -284,7 +288,7 @@ const loadCachedTranslationBootstrap = unstable_cache(
 );
 
 export const loadAdminTranslationHealth = cache(async (): Promise<AdminTranslationHealth | null> => {
-  const auth = await requireStaff();
+  const auth = await requirePlatformAdmin();
   if (!auth.ok) return null;
   return loadCachedTranslationBootstrap();
 });
@@ -587,20 +591,22 @@ export const loadAdminStaffRows = cache(async (): Promise<AdminStaffRow[]> => {
   const ids = (profiles ?? []).map((p) => p.id as string);
   if (ids.length === 0) return [];
 
-  const { data: permRows, error: permErr } = await supabase
-    .from("staff_permissions")
-    .select("user_id, permission")
-    .in("user_id", ids);
+  // Tenant-scoped (TUL-1813): only this workspace's grants. Tolerates the
+  // pre-migration shape; the helper falls back when tenant_id is absent.
+  const { rows: permRows, error: permErr } = await selectStaffPermissions(
+    supabase as unknown as StaffPermissionsClient,
+    { tenantId: scope.tenantId, userIds: ids },
+  );
 
   if (permErr) {
     logServerError("admin/loadAdminStaffRows/permissions", permErr);
   }
 
   const permMap = new Map<string, string[]>();
-  for (const row of permRows ?? []) {
-    const uid = row.user_id as string;
+  for (const row of permRows) {
+    const uid = row.user_id;
     const list = permMap.get(uid) ?? [];
-    list.push(row.permission as string);
+    list.push(row.permission);
     permMap.set(uid, list);
   }
 

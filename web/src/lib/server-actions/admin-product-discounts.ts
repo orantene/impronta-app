@@ -49,6 +49,10 @@ import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
+import { discountStatus, discountWindowError, localizeWindowIssue, WINDOW_ERROR_PREFIX } from "@/lib/pricing/discount-status";
+import { deactivateIfExpired } from "@/lib/pricing/expire-stale-discount";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { archiveOutcome } from "@/lib/billing/discount-archive-outcome";
 import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
   PRODUCT_DISCOUNT_SELECT,
@@ -101,8 +105,8 @@ const createDiscountSchema = z
     appliesFamily: z.enum(["workspace", "talent"]).nullable().optional(),
     maxRedemptions: z.number().int().positive().optional(),
     perCustomerLimit: z.number().int().positive().default(1),
-    startsAt: z.string().datetime().nullable().optional(),
-    endsAt: z.string().datetime().nullable().optional(),
+    startsAt: z.string().datetime({ offset: true }).nullable().optional(),
+    endsAt: z.string().datetime({ offset: true }).nullable().optional(),
     firstTimeOnly: z.boolean().default(false),
     minimumAmountCents: z.number().int().positive().nullable().optional(),
     minimumAmountCurrency: z
@@ -148,11 +152,12 @@ const createDiscountSchema = z
         path: ["minimumAmountCurrency"],
       });
     }
-    if (v.startsAt && v.endsAt && new Date(v.startsAt) >= new Date(v.endsAt)) {
+    const windowError = discountWindowError({ startsAt: v.startsAt, endsAt: v.endsAt }, "create");
+    if (windowError) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Start date must be before end date.",
-        path: ["startsAt"],
+        message: `${WINDOW_ERROR_PREFIX}${windowError}`,
+        path: [windowError === "endInPast" ? "endsAt" : "startsAt"],
       });
     }
   });
@@ -181,9 +186,12 @@ export async function createDiscount(
 
   const parsed = createDiscountSchema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    // TUL-1873: a date-window issue is shown in the viewer's language only, never both.
+    return { ok: false, error: localizeWindowIssue(parsed.error.issues[0]?.message ?? "Invalid input.", await getRequestLocale()) };
   }
   const input = parsed.data;
+  if (input.startsAt) input.startsAt = new Date(input.startsAt).toISOString();
+  if (input.endsAt) input.endsAt = new Date(input.endsAt).toISOString();
 
   const admin = createServiceRoleClient();
   if (!admin) {
@@ -399,13 +407,15 @@ export async function archiveDiscount(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  if (row.stripe_promotion_code_id) {
-    await archiveDiscountInStripe({
-      stripePromotionCodeId: row.stripe_promotion_code_id,
-    });
-  }
+  const stripeArchive = await archiveDiscountInStripe({
+    stripePromotionCodeId: row.stripe_promotion_code_id,
+  });
 
   revalidateCommerceSurfaces();
+
+  // Our row is already off; a Stripe code that stayed on can still be typed in Checkout's own box, so say so.
+  const outcome = archiveOutcome(stripeArchive);
+  if (!outcome.ok) return outcome;
 
   await auditDiscountArchived({
     actorId: gate.userId,
@@ -444,7 +454,8 @@ const updateDiscountSchema = z
     name: z.string().trim().min(1, "Give the code an internal name.").max(120),
     campaign: z.string().trim().max(60).nullable(),
     perCustomerLimit: z.number().int().min(1).max(1000),
-    startsAt: z.string().trim().min(1).nullable(),
+    // ISO with an offset, parsed as-is: the server never re-applies a time zone (TUL-1860).
+    startsAt: z.string().datetime({ offset: true }).nullable(),
   })
   .strict();
 
@@ -572,14 +583,16 @@ export async function validateDiscount(
     load.data as unknown as RawProductDiscountRow,
   );
 
-  if (!discount.isActive) {
+  const status = discountStatus(discount);
+  if (status === "archived") {
     return { ok: false, reason: "Code is no longer active." };
   }
-  const now = Date.now();
-  if (discount.startsAt && new Date(discount.startsAt).getTime() > now) {
+  if (status === "scheduled") {
     return { ok: false, reason: "Code hasn’t started yet." };
   }
-  if (discount.endsAt && new Date(discount.endsAt).getTime() < now) {
+  if (status === "expired") {
+    // TUL-1860: also switch the Stripe promotion code off, so a typed Checkout code is refused too.
+    await deactivateIfExpired(discount);
     return { ok: false, reason: "Code has expired." };
   }
   if (

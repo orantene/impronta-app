@@ -164,6 +164,7 @@ export function CardLine({ label, amount, muted, flag }: { label: ReactNode; amo
     <div className={`li${muted ? " muted" : ""}`}>
       <span>
         {label}
+        {flag ? " " : null}
         {flag}
       </span>
       <span>{amount ?? ""}</span>

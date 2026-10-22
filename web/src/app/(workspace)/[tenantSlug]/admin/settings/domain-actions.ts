@@ -24,11 +24,13 @@ import { auditFailure } from "@/lib/audit/emit";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   normalizeCustomDomainHostname,
   pickFallbackSubdomainHostname,
 } from "./domain-utils";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { encodeDomainActionText } from "@/components/admin/shell/internal/domain-action-codes";
 type DomainReturnTo = "settings" | "site" | "website";
 
 function domainPath(
@@ -37,7 +39,12 @@ function domainPath(
   messageKey: "dmsg" | "derr",
   message: string,
 ): string {
-  const params = new URLSearchParams({ [messageKey]: message });
+  // TUL-1863: carry a stable code (+ domain / hint) so the page picks en/es copy;
+  // text with no code (validation, plan-lock copy) travels as before.
+  const encoded = encodeDomainActionText(message);
+  const params = new URLSearchParams({ [messageKey]: encoded.value });
+  if (encoded.domain) params.set("dhost", encoded.domain);
+  if (encoded.hint) params.set("dhint", encoded.hint);
   if (returnTo === "site") {
     return `/${tenantSlug}/admin/site?${params.toString()}`;
   }
@@ -76,6 +83,26 @@ function readReturnTo(formData: FormData): DomainReturnTo {
   if (raw === "site") return "site";
   if (raw === "website") return "website";
   return "settings";
+}
+
+/**
+ * TUL-1292: the verified / ssl_provisioned / active transitions are written ONLY by
+ * service_role (DB trigger agency_domains_guard_verification_state). The owner's
+ * session proves who may ask (requireCapability + a tenant-pinned row load); the
+ * DNS / HTTPS check inside verifyCustomDomainRecord / syncCustomDomainProvisioning
+ * decides the outcome; the write goes through the service-role client. Never trust
+ * the client for the tenant: `domain` was loaded with scope.tenantId above.
+ */
+function transitionWriter(tenantSlug: string, returnTo: DomainReturnTo) {
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    redirectWithDomainError(
+      tenantSlug,
+      "Domain verification is unavailable until the server is configured.",
+      returnTo,
+    );
+  }
+  return admin;
 }
 
 async function loadManagedDomainContext(tenantSlug: string, returnTo: DomainReturnTo) {
@@ -302,8 +329,9 @@ export async function verifyCustomDomainNowAction(formData: FormData): Promise<v
     redirectWithDomainError(tenantSlug, "No verification token is saved for that domain.", returnTo);
   }
 
+  const writer = transitionWriter(tenantSlug, returnTo);
   try {
-    const transition = await verifyCustomDomainRecord(supabase, domain);
+    const transition = await verifyCustomDomainRecord(writer, domain);
     revalidatePath(`/${tenantSlug}/admin/settings`);
     revalidatePath(`/${tenantSlug}/admin/site`);
     revalidatePath(`/${tenantSlug}/admin/website/setup`);
@@ -580,8 +608,9 @@ export async function checkCustomDomainProvisioningAction(formData: FormData): P
     );
   }
 
+  const writer = transitionWriter(tenantSlug, returnTo);
   try {
-    const transition = await syncCustomDomainProvisioning(supabase, domain);
+    const transition = await syncCustomDomainProvisioning(writer, domain);
     revalidatePath(`/${tenantSlug}/admin/settings`);
     revalidatePath(`/${tenantSlug}/admin/site`);
     revalidatePath(`/${tenantSlug}/admin/website/setup`);

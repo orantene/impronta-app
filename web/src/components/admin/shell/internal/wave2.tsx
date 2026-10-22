@@ -26,7 +26,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
-import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
+import { workspaceLiveHost } from "@/lib/saas/workspace-live-url"; import { publicSubdomainHost, resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { useRouter } from "next/navigation"; import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
@@ -67,6 +67,7 @@ import {
   TextArea,
   FieldRow,
 } from "./primitives";
+import { workspaceSwitchAdminUrlForLocation } from "@/components/edit-chrome/workspace-admin-base";
 import { pinNextConversation } from "./messages/conversation-pending";
 import { copyTalentOwnPublicLink } from "@/lib/talent/public-profile-href";
 import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
@@ -1052,7 +1053,7 @@ export function TenantSwitcherDrawer() {
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => {
               // Workspace admin ALWAYS lives on the app host
-              // (app.tulala.digital/<slug>/admin), never on the tenant's
+              // (<app host>/<slug>/admin), never on the tenant's
               // public/custom domain. Routing admin through w.domain broke the
               // switcher whenever that domain was stale or unreachable — e.g. a
               // tenant whose first-listed subdomain is a dead legacy host
@@ -1062,9 +1063,9 @@ export function TenantSwitcherDrawer() {
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
               // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
-                ? "tulala.digital"
+                ? resolvePublicRootDomain()
                 : (w.domain ?? workspaceLiveHost({ slug: w.slug, planTier: w.tier, domains: null }));
-              const adminUrl = `https://app.tulala.digital/${w.slug}/admin`;
+              const adminUrl = workspaceSwitchAdminUrlForLocation(w.slug);
               return {
                 id: w.id,
                 slug: w.slug,
@@ -1454,7 +1455,7 @@ export function TalentAgencySwitcherDrawer() {
               const tierPalette = TENANT_TIER_PALETTE[(a.plan as TenantTier) in TENANT_TIER_PALETTE ? a.plan as TenantTier : "free"];
               const isExclusive = a.rosterStatus === "exclusive";
               const initials = a.agencyName.charAt(0).toUpperCase();
-              const domain = `${a.agencySlug}.tulala.digital`;
+              const domain = publicSubdomainHost(a.agencySlug);
 
               return (
                 <button
@@ -1692,7 +1693,7 @@ export function WorkspaceProfileDrawer() {
                 value={slug}
                 readOnly
                 disabled
-                title="Slug changes require a support request"
+                title="Changing the web address requires a support request"
                 style={{ ...inputDisabledStyle, flex: 1 }}
               />
             </div>

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   MARKETING_PRICE_CURRENCIES,
   coerceMarketingCurrency,
+  fxSafeMarketingCurrency,
   isMarketingPriceCurrency,
   pickMarketingCurrency,
 } from "./pick-marketing-currency";
@@ -36,7 +37,12 @@ describe("pickMarketingCurrency", () => {
       pickMarketingCurrency({ urlCurrency: "usd" }),
       { currency: "USD", source: "url-param" },
     );
+    // TUL-892: picking MXN selects MXN (never BRL).
     assert.deepEqual(pickMarketingCurrency({ urlCurrency: "mxn" }), {
+      currency: "MXN",
+      source: "url-param",
+    });
+    assert.deepEqual(pickMarketingCurrency({ urlCurrency: "brl" }), {
       currency: "USD",
       source: "fallback",
     });
@@ -77,18 +83,20 @@ describe("pickMarketingCurrency", () => {
 });
 
 describe("Spanish locale default (TUL-864)", () => {
-  it("defaults to MXN on es only when the catalog can render MXN", () => {
-    const expected = isMarketingPriceCurrency("MXN") ? "MXN" : "USD";
-    assert.deepEqual(pickMarketingCurrency({ locale: "es" }), {
-      currency: expected,
-      source: "fallback",
-    });
+  it("defaults to MXN on es and es-MX (TUL-864)", () => {
+    assert.equal(isMarketingPriceCurrency("MXN"), true);
+    for (const locale of ["es", "es-MX"]) {
+      assert.deepEqual(pickMarketingCurrency({ locale }), {
+        currency: "MXN",
+        source: "fallback",
+      });
+    }
   });
 
   it("explicit URL or cookie still beats the locale default", () => {
     assert.equal(pickMarketingCurrency({ locale: "es", urlCurrency: "USD" }).currency, "USD");
-    // EUR has no catalog rows, so an EUR cookie is ignored (TUL-892).
-    assert.equal(pickMarketingCurrency({ locale: "es", cookieCurrency: "EUR" }).currency, coerceMarketingCurrency("EUR"));
+    // EUR is not renderable: ignored, es falls to its MXN default (TUL-892).
+    assert.equal(pickMarketingCurrency({ locale: "es", cookieCurrency: "EUR" }).currency, "MXN");
   });
 
   it("English stays USD", () => {
@@ -106,5 +114,33 @@ describe("resolveCurrency wiring", () => {
     );
     assert.doesNotMatch(src, /from "next\/headers".*headers|headers\(\)/);
     assert.match(src, /pickMarketingCurrency/);
+  });
+});
+
+describe("MXN view of the USD catalog (TUL-864 / TUL-892)", () => {
+  it("the ladders convert USD rows for display and state the USD charge", () => {
+    const src = readFileSync(
+      join(HERE, "../../components/marketing/pricing-ladders-section.tsx"),
+      "utf8",
+    );
+    assert.match(src, /formatConvertedLocal/);
+    assert.match(src, /currency === "MXN" \? fxMxn : null/);
+    assert.match(src, /"US\$"/);
+  });
+});
+
+describe("fxSafeMarketingCurrency (TUL-1817)", () => {
+  const mxn = { currency: "MXN", source: "fallback" } as const;
+  it("falls back to USD when MXN has no FX rate (outage stubbed off)", () => {
+    for (const rate of [null, undefined, 0, Number.NaN]) {
+      assert.deepEqual(fxSafeMarketingCurrency(mxn, rate), { currency: "USD", source: "fallback" });
+    }
+  });
+  it("keeps MXN when a rate is available", () => {
+    assert.deepEqual(fxSafeMarketingCurrency(mxn, 17.2), mxn);
+  });
+  it("never touches a USD pick", () => {
+    const usd = { currency: "USD", source: "url-param" } as const;
+    assert.deepEqual(fxSafeMarketingCurrency(usd, null), usd);
   });
 });

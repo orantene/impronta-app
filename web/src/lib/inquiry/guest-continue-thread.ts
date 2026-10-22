@@ -107,6 +107,8 @@ export async function continueOpenGuestThread(
     guestSessionId: string;
     talentProfileId: string | null | undefined;
     body: string;
+    /** TUL-1415: sanitized structured metadata for the message (already validated by the caller). */
+    metadata?: Record<string, unknown>;
   },
 ): Promise<ContinueResult> {
   try {
@@ -120,6 +122,7 @@ export async function continueOpenGuestThread(
       guestSessionId: args.guestSessionId,
       threadType: "private",
       body: args.body,
+      ...(args.metadata ? { metadata: args.metadata } : {}),
     });
     if (sent.success) return { kind: "sent", inquiryId, messageId: sent.data?.messageId ?? "" };
     if (sent.rateLimited) return { kind: "rate_limited", retryAfterMs: sent.retryAfterMs };

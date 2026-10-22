@@ -26,7 +26,7 @@
 import { DateFormatHint } from "../primitives/DateFormatHint";
 import { useState, type ReactNode } from "react";
 
-import { useT } from "@/i18n/use-t";
+import { useT, useTPlural } from "@/i18n/use-t";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { interpolate } from "@/i18n/interpolate";
 import { DEFAULT_WAITLIST_OFFER_MINUTES } from "@/lib/scheduling/session-waitlist";
@@ -39,6 +39,7 @@ import type { SessionRow } from "./appointments-classes-model";
 import { ActionButton, BUTTON_PRIMARY, CARD, FactRow, INPUT, Outcome, SectionLabel, StatePill, UsedIn } from "./appointments-classes-ui";
 import { whenLine } from "./appointments-format";
 import type { StaffOption } from "./SessionPanelForms";
+import { SeriesDatedSettings } from "./SeriesDatedSettings";
 
 const K = "dashboard.adminAppointments.board.seriesEditor";
 const B = "dashboard.adminAppointments.board";
@@ -121,6 +122,19 @@ function OffField({ label, value, reason }: { label: string; value: string; reas
   );
 }
 
+/** TUL-1409: singular/plural per count, accents come from the catalog. */
+function generatedText(
+  t: (key: string) => string,
+  tPlural: (key: string, count: number) => string,
+  created: number,
+  reused: number,
+): string {
+  return interpolate(t(`${B}.generated`), {
+    created: tPlural(`${B}.generatedCreated`, created),
+    reused: tPlural(`${B}.generatedReused`, reused),
+  });
+}
+
 function Select({ value, onChange, children, testId }: { value: string; onChange: (v: string) => void; children: ReactNode; testId?: string }) {
   return (
     <div className={`${FIELD} relative`}>
@@ -162,6 +176,7 @@ export function SeriesEditor({
   onClose: () => void;
 }) {
   const t = useT();
+  const tPlural = useTPlural();
   const locale = useDashboardLocale();
   const [draft, setDraft] = useState<SeriesDraft>(initial);
   const [until, setUntil] = useState(() => addUtcDays(todayYmd, 28) ?? todayYmd);
@@ -218,7 +233,7 @@ export function SeriesEditor({
     try {
       const res = await generateSessionsForSeriesAction({ seriesId: draft.seriesId, untilDate: until });
       if (res.ok) {
-        setOutcome({ kind: "done", text: interpolate(t(`${B}.generated`), { created: res.created, reused: res.reused }) });
+        setOutcome({ kind: "done", text: generatedText(t, tPlural, res.created, res.reused) });
         onGenerated();
       } else {
         setOutcome({ kind: "refused", text: t(engineRefusalKey(res.reason)) });
@@ -239,7 +254,7 @@ export function SeriesEditor({
   ];
 
   return (
-    <div data-testid="series-editor" className="grid min-h-full grid-cols-[1fr_360px] max-[720px]:grid-cols-[1fr]">
+    <div data-testid="series-editor" className="grid min-h-full grid-cols-[minmax(0,1fr)_360px] max-[1100px]:grid-cols-[minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-[14px] border-r border-admin-border px-[28px] py-[20px] max-[720px]:px-[14px]">
         <div className="flex items-center justify-between gap-[12px]">
           <div className="min-w-0 flex-1">
@@ -396,6 +411,9 @@ export function SeriesEditor({
           <OffField label={t(`${K}.cancellation`)} value={t(`${B}.panel.cancellationOff`)} reason={t(`${K}.cancellationOff`)} />
         </div>
 
+        {/* TUL-1344 slice 3: stop selling and spots per price. */}
+        <SeriesDatedSettings seriesId={draft.seriesId} locale={locale} />
+
         {/* The preview: the series' dated sessions and the sweep's collisions. */}
         <div className={`${CARD} overflow-hidden`} data-testid="series-preview">
           <div className={`${previewGrid} py-[8px] font-admin-body text-admin-11 font-semibold uppercase tracking-[0.05em] text-admin-ink-muted`}>
@@ -485,6 +503,7 @@ export function GenerateSessionsForm({
 }) {
   const t = useT();
   const locale = useDashboardLocale();
+  const tPlural = useTPlural();
   const [seriesId, setSeriesId] = useState(seriesOptions[0]?.id ?? "");
   const [until, setUntil] = useState(() => addUtcDays(todayYmd, 28) ?? todayYmd);
   const [busy, setBusy] = useState(false);
@@ -497,7 +516,7 @@ export function GenerateSessionsForm({
     try {
       const res = await generateSessionsForSeriesAction({ seriesId, untilDate: until });
       if (res.ok) {
-        setOutcome({ kind: "done", text: interpolate(t(`${B}.generated`), { created: res.created, reused: res.reused }) });
+        setOutcome({ kind: "done", text: generatedText(t, tPlural, res.created, res.reused) });
         onGenerated();
       } else {
         setOutcome({ kind: "refused", text: t(engineRefusalKey(res.reason)) });

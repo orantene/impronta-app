@@ -17,9 +17,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
-import { getStripe, getStripeFor, getStripePublishableKeyFor } from "@/lib/stripe/client";
-import { loadAccountPlatform } from "@/lib/stripe/account-platform";
+import { getStripe } from "@/lib/stripe/client";
+import { publishableKeyForSession, resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import {
   createOrGetConnectedAccount,
   createOnboardingLink,
@@ -38,11 +39,20 @@ export type ConnectActionResult<T = void> =
 /**
  * Verify the caller is staff of the workspace identified by `tenantSlug`.
  * Returns the resolved tenantId on success, error on mismatch.
+ *
+ * TUL-1708: `capability` is required at every call site below except the
+ * pure read (`getConnectSnapshotAction`), which passes none and keeps the
+ * `requireWorkspaceStaffAction` default (`agency.workspace.view`). Every
+ * other caller here either talks to Stripe or hands back a link that grants
+ * control of the payout account, so it is gated on
+ * `agency.payout_account.manage` (owner-only — "Configure the agency-level
+ * account that receives platform payouts", `lib/access/capabilities.ts`).
  */
 async function authorizeForSlug(
   tenantSlug: string,
+  capability?: CapabilityKey,
 ): Promise<{ ok: true; tenantId: string } | { ok: false; error: string }> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { data: agency, error } = await auth.supabase
@@ -67,7 +77,7 @@ export async function ensureConnectedAccountAction(
 ): Promise<ConnectActionResult<{ stripeAccountId: string }>> {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return guard;
 
     const result = await createOrGetConnectedAccount(tenantSlug);
@@ -91,7 +101,7 @@ export async function getConnectOnboardingLinkAction(
 ): Promise<ConnectActionResult<{ url: string }>> {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return guard;
 
     // Build absolute return + refresh URLs from the request host.
@@ -136,7 +146,7 @@ export async function ensureWorkspacePayoutAccount(
 > {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return { ok: false, code: "error", error: guard.error };
     const ensure = await createOrGetConnectedAccount(tenantSlug, { country: opts.country });
     if (ensure.ok) return { ok: true };
@@ -153,7 +163,7 @@ export async function getConnectAccountSessionAction(
 ): Promise<ConnectActionResult<{ clientSecret: string; publishableKey: string | null }>> {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return guard;
 
     const stripe = getStripe();
@@ -163,9 +173,10 @@ export async function getConnectAccountSessionAction(
     if (!ensure.ok) return ensure;
 
     // The account may live on the MX platform; its session must be minted there.
-    const platform = await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug });
-    const owningStripe = getStripeFor(platform) ?? stripe;
-    const session = await owningStripe.accountSessions.create({
+    const owning = await resolveConnectedAccountClient("agencies", { column: "slug", value: tenantSlug }, ensure.data.stripeAccountId);
+    if (!owning.ok) return { ok: false, error: owning.error };
+    const platform = owning.platform;
+    const session = await owning.stripe.accountSessions.create({
       account: ensure.data.stripeAccountId,
       components: {
         account_onboarding: {
@@ -177,7 +188,7 @@ export async function getConnectAccountSessionAction(
     revalidatePath(`/${tenantSlug}/admin/payouts`);
     return {
       ok: true,
-      data: { clientSecret: session.client_secret, publishableKey: getStripePublishableKeyFor(platform) },
+      data: { clientSecret: session.client_secret, publishableKey: publishableKeyForSession(platform) },
     };
   } catch (err) {
     logServerError("admin-stripe-connect.getConnectAccountSessionAction", err);
@@ -194,7 +205,7 @@ export async function getConnectDashboardLinkAction(
 ): Promise<ConnectActionResult<{ url: string }>> {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return guard;
 
     const result = await createDashboardLink(tenantSlug);
@@ -215,7 +226,7 @@ export async function refreshConnectStatusAction(
 ): Promise<ConnectActionResult<ConnectedAccountSnapshot>> {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return guard;
 
     const result = await refreshAccountStatus(tenantSlug);
@@ -258,7 +269,7 @@ export async function disconnectStripeAccountAction(
 ): Promise<ConnectActionResult> {
   await requireNotImpersonating();
   try {
-    const guard = await authorizeForSlug(tenantSlug);
+    const guard = await authorizeForSlug(tenantSlug, "agency.payout_account.manage");
     if (!guard.ok) return guard;
 
     const result = await disconnectAccount(tenantSlug);

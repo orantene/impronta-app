@@ -53,11 +53,36 @@ export function decideTalentProfileLocale(input: {
   requested: string | null | undefined;
   primary: string;
   supported: readonly string[];
+  /**
+   * TUL-736: the language the URL itself names (`/es/...` prefix or `?lang=`), plus the platform's
+   * public locales. A signup stamps `preferred_locale = en`, which reads as a one-language
+   * talent, and that bound turned `/es/t/<code>` English. An explicit URL language wins for the
+   * page chrome; content still falls back to the talent's primary through `chain`.
+   */
+  explicitUrlLocale?: string | null;
+  publicLocales?: readonly string[];
 }): TalentProfileLocale {
   const { primary } = input;
   const supported = [primary, ...input.supported.filter((l) => l !== primary)];
-  const locale = boundTalentSiteLocale(input.requested, primary, supported);
+  const bound = boundTalentSiteLocale(input.requested, primary, supported);
+  const explicit = input.explicitUrlLocale;
+  const locale = explicit && input.publicLocales?.includes(explicit) ? explicit : bound;
   return { locale, primary, supported, chain: locale === primary ? [locale] : [locale, primary] };
+}
+
+/**
+ * TUL-875: the profile code of a `/t/<code>` request (optionally `/xx/t/<code>`),
+ * or null for any other path. Used so the root layout can ask the SAME
+ * decision the page and <head> make.
+ */
+export function talentProfileCodeFromPathname(pathname: string | null | undefined): string | null {
+  const m = pathname ? /^\/(?:[a-z]{2}\/)?t\/([^/]+)\/?$/.exec(pathname) : null;
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]!);
+  } catch {
+    return null;
+  }
 }
 
 export function talentProfileAlternates(input: {

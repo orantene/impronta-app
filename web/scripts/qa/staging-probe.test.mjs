@@ -206,6 +206,23 @@ test("cut: staging ref present, prod ref absent -> PASS; prod ref present -> FAI
   assert.equal(row(none, "CUT", "fxlank").status, "FAIL");
 });
 
+test("cut: scans EVERY chunk, not the first 40 (TUL-1794)", async () => {
+  const N = 68;
+  const names = Array.from({ length: N }, (_, i) => `/_next/static/chunks/c${i}.js`);
+  const shell = `<html><head><meta name="baggage" content="sentry-release=${SHA},x">${names.map((n) => `<script src="${n}"></script>`).join("")}</head></html>`;
+  const chunks = Object.fromEntries(names.map((n) => [n, "var a=1;"]));
+  // staging ref only in chunk 60 (past the old cap of 40), pk_live_ only in chunk 65
+  const r = await probe({ routes: { "/login": shell, ...chunks, [names[60]]: `var u="${STAGING}";`, [names[65]]: `k="${FAKE_KEY}";` } });
+  assert.equal(row(r, "CUT", "fxlank").status, "PASS");
+  assert.ok(row(r, "CUT", "fxlank").detail.includes("68 of 68 scripts scanned"));
+  assert.equal(row(r, "CUT", "pk_live_").status, "FAIL");
+  assert.ok(r.text.includes("c65.js"));
+  // prod ref hiding in the last chunk is found too
+  const p = await probe({ routes: { "/login": shell, ...chunks, [names[3]]: `x="${STAGING}"`, [names[67]]: `y="${PROD}"` } });
+  assert.equal(row(p, "CUT", "fxlank").status, "FAIL");
+  assert.ok(row(p, "CUT", "fxlank").detail.includes("c67.js"));
+});
+
 test("cut: pk_live_ -> FAIL without echoing the key; clean and pk_test_ -> PASS", async () => {
   const bad = await probe({ bundle: `var u="${STAGING}",k="${FAKE_KEY}";` });
   assert.equal(row(bad, "CUT", "pk_live_").status, "FAIL");

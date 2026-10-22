@@ -25,6 +25,7 @@ import { getStripeFor, getStripeMxPublishableKey, type StripeAccountKey } from "
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
 import { checkTransactionConnectedAccount } from "@/lib/payments/connected-account-guard";
+import { belowMinimumMessage, checkChargeMinimum } from "@/lib/payments/charge-minimums";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
@@ -42,6 +43,8 @@ export type PaymentIntentInput = {
   description?: string;
   /** Public display name of the talent/workspace; becomes the card statement suffix. */
   payeeName?: string | null;
+  /** The payer's app language for a refusal sentence; unknown = both languages. */
+  locale?: string | null;
   /**
    * Optional split breakdown, in cents, carried as PaymentIntent metadata so
    * the post-payment transfer step (Phase 3) and the confirmation PDF can read
@@ -85,6 +88,11 @@ export async function createPaymentIntentForTransaction(
   try {
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
+    }
+    // P-10 / TUL-1549: under Stripe's minimum is refused with a sentence, never made free.
+    const floor = checkChargeMinimum(input.amountCents, input.currency);
+    if (!floor.ok && floor.reason === "below_minimum") {
+      return { ok: false, error: belowMinimumMessage(floor.minimumMinor, floor.currency, input.locale) };
     }
     // TUL-284: the charge currency must match the seller of record. Fails
     // CLOSED on a seller-read error, before any platform or Stripe work. An

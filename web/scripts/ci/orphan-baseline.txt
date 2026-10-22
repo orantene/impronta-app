@@ -1,0 +1,5 @@
+# Test files that run in no CI lane today and are NOT in nightly-orphans.txt (TUL-1458). A RATCHET:
+# the gate (src/lib/quality/orphan-gate.static.test.ts) fails on any orphan missing from both files,
+# so this list may only shrink. Enrol a file into a lane in scripts/lanes/*.txt, then delete its line here.
+# Money / promo / orders / POS tests may never be listed: they fail the gate regardless.
+# TUL-1793: emptied. All 444 orphans were run once (all pass after the workspace-item-photos guard was updated) and enrolled in scripts/lanes/*.txt. New orphans fail the gate.

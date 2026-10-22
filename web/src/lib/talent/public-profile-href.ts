@@ -6,7 +6,15 @@
  * itself, so QA on localhost:3001 never jumps to the live site.
  */
 
+import { withHubLocale } from "@/lib/hub-link";
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
+
 export const CANONICAL_PROFILE_ORIGIN = "https://tulala.digital";
+
+/** The canonical public origin for THIS deployment: production apex, or the staging root (TUL-1845). */
+export function canonicalProfileOrigin(): string {
+  return resolvePublicRootOrigin();
+}
 
 export function isLocalDevOrigin(origin: string | null | undefined): boolean {
   if (!origin) return false;
@@ -27,7 +35,7 @@ export function isLocalDevOrigin(origin: string | null | undefined): boolean {
 
 /** Absolute href for her public page, on the current origin when it is local. */
 export function talentPublicProfileHref(profileCode: string, currentOrigin?: string | null): string {
-  const base = isLocalDevOrigin(currentOrigin) ? new URL(currentOrigin as string).origin : CANONICAL_PROFILE_ORIGIN;
+  const base = isLocalDevOrigin(currentOrigin) ? new URL(currentOrigin as string).origin : canonicalProfileOrigin();
   return `${base}/t/${encodeURIComponent(profileCode)}`;
 }
 
@@ -84,6 +92,8 @@ export function resolveTalentPublicPreviewDestinations(input: {
   profileCode: string | null | undefined;
   publicSiteUrl: string | null | undefined;
   currentOrigin?: string | null;
+  /** TUL-1811: visitor locale; carried to the hub link as `?lang=` (the cookie does not cross hosts). */
+  locale?: string | null;
 }): {
   destinations: TalentPublicPreviewDestination[];
   defaultHref: string | null;
@@ -103,7 +113,7 @@ export function resolveTalentPublicPreviewDestinations(input: {
     destinations.push({ kind: "website", href: websiteHref });
   }
   if (hubHref) {
-    destinations.push({ kind: "hub", href: hubHref });
+    destinations.push({ kind: "hub", href: withHubLocale(hubHref, input.locale) });
   }
 
   return {
@@ -125,7 +135,7 @@ function normalizeDistinctPersonalSiteHref(
   // (subdomains off); elsewhere keep the canonical public host.
   const relativeBase = isLocalDevOrigin(currentOrigin)
     ? new URL(currentOrigin as string).origin
-    : CANONICAL_PROFILE_ORIGIN;
+    : canonicalProfileOrigin();
 
   let absolute: string;
   try {
@@ -173,6 +183,6 @@ export function copyTalentOwnPublicLink(
     toast(t("Publish your profile first to get a public link"));
     return;
   }
-  navigator.clipboard?.writeText(own?.href ?? "https://tulala.digital/t/marta-reyes");
+  navigator.clipboard?.writeText(own?.href ?? `${canonicalProfileOrigin()}/t/marta-reyes`);
   toast("Public link copied to clipboard");
 }

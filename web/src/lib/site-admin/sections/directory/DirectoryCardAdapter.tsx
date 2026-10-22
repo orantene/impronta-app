@@ -7,6 +7,7 @@ import { createTranslator } from "@/i18n/messages";
 import { TalentCardActions } from "@/components/talent-cards/talent-card-actions";
 import { TalentQuickViewButton } from "@/components/directory/talent-quick-view";
 import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
+import { roleLineFor } from "@/lib/directory/card-role-line";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
 import { formatPriceFromLabel, formatPriceUnitSuffix } from "@/lib/directory/format-price-from";
@@ -409,6 +410,7 @@ export function DirectoryCardAdapter({
                   variant="pill"
                   hideFavorite
                   portraitUrl={card.thumbnail?.url ?? null}
+                  locale={locale}
                   getInquiryPhotoRect={() =>
                     mediaRef.current
                       ?.querySelector("img")
@@ -443,6 +445,7 @@ export function DirectoryCardAdapter({
                 sourcePage={pathname}
                 variant="compact"
                 hideInquiry
+                locale={locale}
               />
             ) : null}
           </div>
@@ -470,7 +473,7 @@ function mapDtoToCardData(
     name: card.displayName,
     profileCode: card.profileCode || null,
     profileHref,
-    primaryType: card.primaryTalentTypeLabel || null,
+    primaryType: roleLineFor(card.displayName, card.primaryTalentTypeLabel),
     location: card.locationLabel || null,
     photoUrl: card.thumbnail?.url ?? null,
     agencyName: card.agencyName ?? null,

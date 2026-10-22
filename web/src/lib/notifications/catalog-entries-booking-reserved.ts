@@ -12,6 +12,8 @@ import {
 import { formatBookingPrice } from "./booking-confirmed-email";
 import { inquiryPathForRole, pageUrl } from "./catalog-render";
 import { normalizeEmailLocale } from "./email-copy";
+import { minorUnitDivisor } from "@/lib/orders/money-format";
+import { balanceCents } from "@/lib/orders/price/rules";
 
 /**
  * booking.reserved (TUL-1268): a DEPOSIT reserves the booking ("Booking
@@ -35,11 +37,15 @@ export async function loadBookingReservedView(
   const deposit = num(event.payload.depositCents);
   const currency = str(event.payload.currency) ?? str(base.currencyCode);
   const locale = str(base.locale);
-  const balanceCents = total != null && deposit != null && total > deposit ? total - deposit : null;
+  // TUL-1305: what is still owed is the total minus what the deposit CREDITED (the principal). The gross
+  // charge includes the card fee, so subtracting it understated the balance (69550, not 70000).
+  const credited = num(event.payload.principalCents) ?? deposit;
+  const balance = total != null && credited != null && total > credited ? balanceCents(total, credited) : null;
+  const divisor = minorUnitDivisor(currency ?? "");
   return {
     ...base,
-    depositLabel: deposit != null ? formatBookingPrice(deposit / 100, currency, locale) : null,
-    balanceLabel: balanceCents != null ? formatBookingPrice(balanceCents / 100, currency, locale) : null,
+    depositLabel: deposit != null ? formatBookingPrice(deposit / divisor, currency, locale) : null,
+    balanceLabel: balance != null ? formatBookingPrice(balance / divisor, currency, locale) : null,
   };
 }
 

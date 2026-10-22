@@ -30,6 +30,8 @@ import { loadDefaultVenue } from "@/lib/spaces/venues";
 import { loadVenueServiceConfig, seatWalkIn } from "@/lib/reservations/store";
 import { planWalkIn } from "@/lib/reservations";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { auditEvent } from "@/lib/audit/emit";
+import { cancelReservation, markReservationNoShow } from "@/lib/visits/reservation-ops";
 
 const seatInput = z.object({
   admissionId: z.string().uuid(),
@@ -55,7 +57,7 @@ export async function reservationsSeatBooking(input: {
   partySize: number;
 }): Promise<DeskSeatResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { ok: false, reason: "not_allowed" };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);
   if (!allowed) return { ok: false, reason: "not_allowed" };
@@ -112,7 +114,7 @@ export async function reservationsTakeWalkIn(input: {
   partySize: number;
 }): Promise<DeskWalkInResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
   if (!guard.ok) return { ok: false, reason: "not_allowed" };
   const allowed = await userHasCapability("view_dashboard", guard.tenantId);
   if (!allowed) return { ok: false, reason: "not_allowed" };
@@ -145,4 +147,69 @@ export async function reservationsTakeWalkIn(input: {
     actorUserId: guard.user.id,
   });
   return seated.ok ? { ok: true, admissionId: seated.admissionId } : { ok: false, reason: seated.reason };
+}
+
+/**
+ * NO-SHOW and CANCEL for a table reservation (TUL-1757).
+ *
+ * BOTH ARE WRITES, SO BOTH NAME A CAPABILITY. `operate_venue` is the editor-tier
+ * "run the floor" capability the other floor writers need; the bare default
+ * (`agency.workspace.view`) is viewer-reachable and is exactly what the
+ * TUL-1708 sweep removed from writers. The engine is `lib/visits/reservation-ops.ts`
+ * (guarded update, hold released through `release_capacity`, counter bumped
+ * only when this call flipped the row). Refusals leave as codes.
+ */
+const reservationIdInput = z.object({ admissionId: z.string().uuid() });
+
+export type DeskReservationOpResult =
+  | { ok: true; already?: true }
+  | { ok: false; reason: string };
+
+async function reservationOperator() {
+  const guard = await requireWorkspaceStaffAction({ capability: "operate_venue" });
+  if (!guard.ok) return { ok: false as const, reason: "not_allowed" };
+  const admin = createServiceRoleClient();
+  if (!admin) return { ok: false as const, reason: "unavailable" };
+  return { ok: true as const, tenantId: guard.tenantId, userId: guard.user.id, admin };
+}
+
+export async function reservationsMarkNoShow(input: { admissionId: string }): Promise<DeskReservationOpResult> {
+  await requireNotImpersonating();
+  const g = await reservationOperator();
+  if (!g.ok) return g;
+  const parsed = reservationIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid" };
+
+  // The SERVER clock only: an exported action must not take `now` from the caller.
+  const r = await markReservationNoShow(g.admin, { tenantId: g.tenantId, admissionId: parsed.data.admissionId, now: new Date() });
+  if (!r.ok) return r;
+  if (!r.already) {
+    auditEvent(g.tenantId, "system", "reservation.no_show", "Marked a table reservation as a no-show", {
+      targetType: "admission",
+      targetId: parsed.data.admissionId,
+      actorUserId: g.userId,
+      actorKind: "staff",
+    });
+  }
+  return r.already ? { ok: true, already: true } : { ok: true };
+}
+
+export async function reservationsCancel(input: { admissionId: string }): Promise<DeskReservationOpResult> {
+  await requireNotImpersonating();
+  const g = await reservationOperator();
+  if (!g.ok) return g;
+  const parsed = reservationIdInput.safeParse(input);
+  if (!parsed.success) return { ok: false, reason: "invalid" };
+
+  const r = await cancelReservation(g.admin, { tenantId: g.tenantId, admissionId: parsed.data.admissionId });
+  if (!r.ok) return r;
+  if (!r.already) {
+    auditEvent(g.tenantId, "system", "reservation.cancelled", "Cancelled a table reservation", {
+      targetType: "admission",
+      targetId: parsed.data.admissionId,
+      actorUserId: g.userId,
+      actorKind: "staff",
+    });
+  }
+  return r.already ? { ok: true, already: true } : { ok: true };
 }

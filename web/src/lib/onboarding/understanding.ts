@@ -15,6 +15,8 @@
  *  - nothing here invents a fact; a fork tap is a choice, not a fact.
  */
 
+import type { Essentials } from "./essentials";
+import { withSavedEssentials } from "./understanding-essentials";
 import type { Brief, BriefFact, FactSource } from "@/lib/tulala/brief-store";
 import { booleanFact, listFact, stringFact } from "@/lib/tulala/brief-store";
 import { looksLikeUrl, normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
@@ -70,8 +72,27 @@ export type Understanding = {
 
 const KNOWN_SOURCES: ReadonlySet<FactSource> = new Set(["user_stated", "system_derived"]);
 
+function hasDisplayValue(f: BriefFact): boolean {
+  const v = f.value;
+  if (typeof v === "string") return v.trim() !== "";
+  if (typeof v === "number") return true;
+  if (Array.isArray(v)) return v.length > 0;
+  return false;
+}
+
+/**
+ * The fact for a key. A brief can hold more than one non-rejected fact per key (an earlier
+ * empty read, then the answer the person typed), and the first one used to win: a blank
+ * earlier fact made "what you do" and "where" show as missing although both were given
+ * (/start summary read "Falta"). Prefer one that has a value, confirmed over said over guessed.
+ */
 function fact(brief: Brief, key: string): BriefFact | null {
-  return brief.facts.find((f) => f.factKey === key && f.status !== "rejected") ?? null;
+  const all = brief.facts.filter((f) => f.factKey === key && f.status !== "rejected");
+  if (all.length <= 1) return all[0] ?? null;
+  const rank = (f: BriefFact) => (f.status === "confirmed" ? 0 : KNOWN_SOURCES.has(f.source) ? 1 : 2);
+  const withValue = all.filter(hasDisplayValue);
+  const pool = withValue.length ? withValue : all;
+  return pool.reduce((best, f) => (rank(f) < rank(best) ? f : best));
 }
 
 function lineStatus(f: BriefFact | null, hasValue: boolean): LineStatus {
@@ -273,9 +294,11 @@ export function buildUnderstanding(input: {
   userPath?: OnboardingPath | null;
   /** Flow locale; hours lines render ES day shorts when "es" (TUL-540). */
   locale?: "en" | "es";
+  /** TUL-1822: what step 3 saved, so a finished item never reads "missing". */
+  essentials?: Essentials | null;
 }): Understanding {
   const decided = decidePath(input.brief, input.intent, input.userPath ?? null);
-  const lines = essentialsFor(input.brief, decided.path, input.locale ?? "en");
+  const lines = withSavedEssentials(essentialsFor(input.brief, decided.path, input.locale ?? "en"), input.essentials, input.locale ?? "en");
   const followUps: ModuleQuestionId[] = [];
   if (decided.pathConfidence === "ambiguous") followUps.push("fork");
   for (const q of MODULE_QUESTIONS) {

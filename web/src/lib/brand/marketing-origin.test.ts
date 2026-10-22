@@ -118,3 +118,9 @@ test("TUL-520: with TULALA_MARKETING_ORIGIN set, buildStartUrl never lands on pr
   assert.equal(url, "http://localhost:3105/start?lang=en");
   assert.doesNotMatch(url, /tulala\.digital/);
 });
+
+test("TUL-1843: non-production with no override falls back to its own public root, never the apex", () => {
+  const staging = { VERCEL_ENV: "preview", NEXT_PUBLIC_SITE_URL: "https://staging.tulala.digital", TALENT_SITE_ROOT_DOMAIN: "staging.tulala.digital" };
+  assert.equal(resolveMarketingOrigin(staging), "https://staging.tulala.digital");
+  assert.equal(resolveMarketingOrigin({ ...staging, VERCEL_ENV: "production" }), "https://tulala.digital");
+});

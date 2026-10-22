@@ -28,7 +28,7 @@ export async function loadSessionParticipants(
   sessionId: string,
 ): Promise<SessionParticipantsResult> {
   try {
-    const staff = await requireWorkspaceStaffAction();
+    const staff = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
     if (!staff.ok) return { ok: false, error: staff.error };
     if (staff.tenantId !== tenantId) {
       return { ok: false, error: "Not authorized for this workspace." };

@@ -15,6 +15,7 @@ export function TermsEs() {
       title="Términos de servicio"
       lastUpdated="2026-10-01"
       lastUpdatedLabel="Última actualización"
+      locale="es"
       intro={
         <p>
           Al usar {PLATFORM_BRAND.name}{" "}aceptas estos términos. Los hemos mantenido breves y
@@ -126,11 +127,11 @@ export function TermsEs() {
                 espera a que se pueda, en lugar de estimarse.
               </p>
               <p>
-                Tarifa de servicio: los clientes pagan una tarifa de servicio de{" "}
-                {PLATFORM_BRAND.name} de {clientServiceFeePercentLabel()} sobre el precio de la reservación. Se muestra al
+                Cargo por servicio: los clientes pagan un cargo por servicio de{" "}
+                {PLATFORM_BRAND.name} sobre el precio de la reservación ({clientServiceFeePercentLabel()} por defecto; el cargo depende del plan de quien vende). Se muestra al
                 pagar, antes de que el cliente confirme, y es independiente de la comisión de
-                procesamiento de tarjeta descrita arriba, y no se reembolsa cuando se reembolsa
-                una reservación. Las comisiones y tarifas para talentos
+                procesamiento de tarjeta descrita arriba. Se devuelve completo cuando quien
+                vende cancela la reservación y se conserva cuando cancela el cliente. Las comisiones y tarifas para talentos
                 se indican en los planes.
               </p>
             </>

@@ -10,6 +10,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 
+import { shareOfLegCents } from "./charge-share-math";
 import { handleBookingDispute, handleBookingRefund } from "./refunds";
 import {
   E2E_BOOKING,
@@ -182,4 +183,25 @@ test("E5: a lost dispute on the deposit claws back only the deposit's share", as
 
   assert.deepEqual(reversals.map((r) => [r.transferId, r.amount]).sort(), [["tr_t", 21000], ["tr_ws", 7200]]);
   assert.deepEqual(bookingMarkedRefunded(db), { booking: false, order: false }, "the balance is still paid");
+});
+
+test("shareOfLegCents rounds a half-cent share half-up, and the remainder keeps the other cent", () => {
+  // leg 33333 split across two equal charges 20833 / 20833: exact share is
+  // 33333 * 20833 / 41666 = 16666.5. Math.round gives 16667; floor would give
+  // 16666, so this pins the rounding mode.
+  const leg = 33333;
+  const refunded = shareOfLegCents(leg, 20833, 20833);
+  assert.equal(refunded, 16667, "x.5 rounds up (floor would give 16666)");
+  assert.equal(leg - refunded, 16666, "what stays paid out is leg minus the share");
+
+  // Mirrored: the other charge is the refunded one; its share is also exactly x.5.
+  const mirrored = shareOfLegCents(leg, 20833, 20833);
+  assert.equal(mirrored, 16667);
+  assert.equal(leg - mirrored, 16666);
+
+  // Small x.5 (leg 5, charges 1/1 -> 2.5): share 3, remainder 2.
+  const odd = shareOfLegCents(5, 1, 1);
+  assert.equal(odd, 3);
+  assert.equal(odd + (5 - odd), 5, "no cent lost or created: share + remainder = leg");
+  assert.equal(refunded + (leg - refunded), leg, "share + remainder = leg");
 });

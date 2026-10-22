@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { existingStudioState } from "./join-studio";
 import { JS_ERRORS } from "../../components/settings/join-studio-copy";
 import { parseStudioReference } from "./join-studio";
 
@@ -35,7 +36,8 @@ test("TUL-75 join studio: closed studios answer like unknown ones, and the actio
   const src = read("src/lib/server-actions/join-studio.ts");
   assert.match(src, /assertNotImpersonating\(\)/);
   assert.match(src, /tryConsumeRateLimit\(`join-studio:\$\{userId\}`/);
-  assert.match(src, /if \(!registrationIsLive\(settings\)\) return \{ ok: false, code: "not_found" \};/);
+  assert.match(src, /if \(!registrationIsLive\(settings\)\) \{/);
+  assert.match(src, /if \(!studio\.acceptsOpenApplications\) return \{ ok: false, code: "not_found" \};/);
   assert.match(src, /if \(!studio\) return \{ ok: false, code: "not_found" \};/);
   assert.match(src, /applyRegistrationPolicy\(admin,/);
   assert.doesNotMatch(src, /getTenantPortalScopeBySlug/);
@@ -51,4 +53,41 @@ test("TUL-75 join studio: the card is in talent Settings and every error has EN 
     assert.ok(pair.en.trim() && pair.es.trim(), code);
     assert.notEqual(pair.en, pair.es, code);
   }
+});
+
+test("TUL-1862 join studio: a studio with open applications ON files an application, and the card links to Discover", () => {
+  const src = read("src/lib/server-actions/join-studio.ts");
+  assert.match(src, /submitAgencyApplication\(studio\.tenantId\)/);
+  assert.match(src, /duplicate_pending[^\n]*already_pending/);
+  assert.match(read("src/lib/onboarding/join-studio.server.ts"), /accepts_open_applications/);
+  const card = read("src/components/settings/join-studio-card.tsx");
+  assert.match(card, /href="\/talent\/discover-agencies"/);
+});
+
+test("TUL-1862 / TUL-1690: a staging /w link resolves through the env-derived hosts, and Discover has no production host literal", () => {
+  assert.deepEqual(parseStudioReference("https://app.staging.tulala.digital/w/bella-studio", ["app.staging.tulala.digital"]), { kind: "slug", slug: "bella-studio" });
+  assert.deepEqual(parseStudioReference("https://app.staging.tulala.digital/w/bella-studio"), { kind: "host", host: "app.staging.tulala.digital" });
+  const client = read("src/components/talent/apply/TalentApplyDiscoveryClient.tsx");
+  assert.doesNotMatch(client, /tulala\.(app|digital)/);
+  assert.match(client, /href=\{`\/w\/\$\{row\.slug\}`\}/);
+  assert.match(client, /applicationNote\(terms, message, lang\)/);
+  assert.doesNotMatch(read("src/components/settings/join-studio-copy.ts"), /tulala\.digital/);
+  assert.match(read("src/lib/server-actions/join-studio.ts"), /resolveMarketingOrigin\(\)/);
+});
+
+test("TUL-1882: an approved talent gets 'already part of this studio', not a generic failure", () => {
+  const src = read("src/lib/server-actions/join-studio.ts");
+  assert.match(src, /agency_talent_roster/);
+  assert.match(src, /existingStudioState\(/);
+  assert.equal(JS_ERRORS.already_member.es, "Ya eres parte de este estudio.");
+  assert.equal(JS_ERRORS.already_member.en, "You're already part of this studio.");
+});
+
+test("TUL-1882: an active or approved talent is a member, a pending one is waiting, a removed one may ask again", () => {
+  assert.equal(existingStudioState(["active"], 0), "already_member");
+  assert.equal(existingStudioState(["pending"], 0), "already_pending");
+  assert.equal(existingStudioState([], 1), "already_member");
+  assert.equal(existingStudioState(["removed"], 1), null);
+  assert.equal(existingStudioState(["inactive"], 0), null);
+  assert.equal(existingStudioState([], 0), null);
 });

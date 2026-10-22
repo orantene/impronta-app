@@ -16,7 +16,7 @@
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { acknowledgeTicket, markTicketReady, recordHandoff } from "@/lib/preparation/tickets";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -37,8 +37,9 @@ export type PrepRefusalReason =
 
 export type PrepActionResult = { ok: true; ticketId: string } | { ok: false; reason: PrepRefusalReason };
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: every caller names the capability it needs (writers: operate_venue).
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   // The guard's `error` is an English sentence. It is deliberately dropped:
   // "not signed in" and "not staff here" are both, to a station board, the
   // same instruction — this is not yours to touch.
@@ -52,7 +53,7 @@ async function staff() {
 
 export async function prepAcknowledge(ticketId: string): Promise<PrepActionResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(ticketId).success) return { ok: false, reason: "invalid" };
   const r = await acknowledgeTicket(g.admin, { tenantId: g.tenantId, ticketId });
@@ -61,7 +62,7 @@ export async function prepAcknowledge(ticketId: string): Promise<PrepActionResul
 
 export async function prepReady(ticketId: string): Promise<PrepActionResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(ticketId).success) return { ok: false, reason: "invalid" };
   const r = await markTicketReady(g.admin, { tenantId: g.tenantId, ticketId });
@@ -70,7 +71,7 @@ export async function prepReady(ticketId: string): Promise<PrepActionResult> {
 
 export async function prepHandoff(ticketId: string): Promise<PrepActionResult> {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(ticketId).success) return { ok: false, reason: "invalid" };
   const r = await recordHandoff(g.admin, { tenantId: g.tenantId, ticketId });

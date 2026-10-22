@@ -2,6 +2,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { deliverTicketForAdmission } from "@/lib/events/ticket-delivery";
+import { assertVariantsBelongToTenant } from "@/lib/supabase/tenant-owned-ids";
 import type { VenueAdmin } from "./locations";
 
 export type EventHoldReason =
@@ -166,6 +167,12 @@ export async function admissionComp(
 ) {
   if (input.operationKey.trim().length < 8 || input.holderName.trim().length < 1) {
     return { ok: false as const, reason: "invalid" as const };
+  }
+  // TUL-1517: the RPC reads the tier variant by id alone. Prove it hangs off this tenant's
+  // offering first; a foreign variant is a refusal, nothing is written.
+  const ownedVariant = await assertVariantsBelongToTenant(admin, [input.tierVariantId], input.tenantId);
+  if (!ownedVariant.ok) {
+    return { ok: false as const, reason: ownedVariant.reason === "unavailable" ? ("unavailable" as const) : ("not_found" as const) };
   }
   const r = await call(admin, "admission_comp", {
     p_tenant_id: input.tenantId,

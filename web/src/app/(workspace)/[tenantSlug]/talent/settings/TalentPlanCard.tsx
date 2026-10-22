@@ -27,7 +27,10 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { TalentCancelBlock } from "./TalentCancelBlock";
-import { isLiveTalentSubscriptionStatus } from "@/lib/billing/talent-cancel";
+import { TalentSwitchToFree } from "@/components/billing/talent-switch-to-free";
+import { talentPlanPriceLine } from "@/lib/billing/talent-plan-price";
+import { PLAN_CATALOG, isKnownPlan } from "@/lib/access/plan-catalog";
+import { talentPlanCancelBlock } from "@/lib/billing/talent-cancel";
 import { usePresenceText } from "@/components/talent/studio/presence-i18n";
 import {
   loadTalentPlanSummary,
@@ -345,6 +348,17 @@ export function TalentPlanCard({
   const showPromo =
     !!data.upgradeOffer && data.upgradeOffer.isTrialEnabled && !data.trial;
 
+  const def = isKnownPlan(data.planKey) ? PLAN_CATALOG[data.planKey] : null;
+  const priceLine =
+    def && def.monthlyPriceCents !== null && def.monthlyPriceCents > 0
+      ? talentPlanPriceLine({
+          monthlyCents: def.monthlyPriceCents,
+          annualCents: data.billingInterval === "year" ? (data.billedAmountCents ?? def.annualPriceCents) : null,
+          interval: data.billingInterval,
+          locale: copy.isSpanish ? "es" : "en",
+        })
+      : { primary: copy.t(data.priceLabel), secondary: null };
+
   return (
     <div data-testid="talent-plan-card" data-plan={data.planKey} style={cardShell}>
       {/* Header — effective plan + price */}
@@ -357,7 +371,10 @@ export function TalentPlanCard({
             <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: -0.2, color: C.ink, lineHeight: 1.1 }}>
               {copy.t(data.planLabel)}
             </span>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.inkMuted }}>{data.priceLabel}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.inkMuted }}>{priceLine.primary}</span>
+            {priceLine.secondary ? (
+              <span data-testid="talent-plan-price-secondary" style={{ fontSize: 11.5, color: C.inkMuted }}>{priceLine.secondary}</span>
+            ) : null}
           </div>
           {data.tagline && (
             <div style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 3, lineHeight: 1.45 }}>{copy.t(data.tagline)}</div>
@@ -387,17 +404,20 @@ export function TalentPlanCard({
       {showPromo && <PromoBlock offer={data.upgradeOffer!} onUpgrade={onUpgrade} />}
 
       {/* TUL-832: cancel / resume for a live paid subscription */}
-      {data.subscription &&
-        data.planKey !== "talent_basic" &&
-        isLiveTalentSubscriptionStatus(data.subscription.status) && (
-          <TalentCancelBlock
-            es={copy.isSpanish}
-            cancelAtPeriodEnd={data.subscription.cancelAtPeriodEnd}
-            currentPeriodEnd={data.subscription.currentPeriodEnd}
-            onCompare={onCompare}
-            onChanged={() => setReloadTick((n) => n + 1)}
-          />
-        )}
+      {data.subscription && talentPlanCancelBlock(data.planKey, data.subscription) !== "none" && (
+        <TalentCancelBlock
+          es={copy.isSpanish}
+          cancelAtPeriodEnd={data.subscription.cancelAtPeriodEnd}
+          currentPeriodEnd={data.subscription.currentPeriodEnd}
+          onCompare={onCompare}
+          onChanged={() => setReloadTick((n) => n + 1)}
+        />
+      )}
+
+      {/* TUL-831: lower plan. Takes effect at the end of the paid period, nothing charged or refunded today. */}
+      {data.subscription && talentPlanCancelBlock(data.planKey, data.subscription) === "cancel" && (
+        <TalentSwitchToFree onChanged={() => setReloadTick((n) => n + 1)} />
+      )}
 
       {/* Footer — always offer Compare plans */}
       <button

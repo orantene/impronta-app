@@ -18,7 +18,7 @@ import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 import fr from "../../messages/fr.json";
 
-import { missingFrom, pickClientSubtrees } from "./client-subtrees";
+import { ADMIN_CLIENT_MESSAGE_SUBTREES, missingFrom, pickClientSubtrees } from "./client-subtrees";
 import { defaultLocale } from "./config";
 
 type Catalog = Record<string, unknown>;
@@ -136,15 +136,22 @@ export function getMessageStringArray(locale: string, key: string): string[] {
  */
 const clientPayloadCache = new Map<string, Record<string, Catalog>>();
 
-export function getClientMessagesPayload(locale: string): Record<string, Catalog> {
-  const cached = clientPayloadCache.get(locale);
+/**
+ * `public` (default) is what the root layout inlines for every route. `admin` is the
+ * workspace-only addition (TUL-1773) that `app/(workspace)/layout.tsx` merges in.
+ */
+export type ClientMessagesSurface = "public" | "admin";
+
+export function getClientMessagesPayload(locale: string, surface: ClientMessagesSurface = "public"): Record<string, Catalog> {
+  const cacheKey = `${surface}:${locale}`;
+  const cached = clientPayloadCache.get(cacheKey);
   if (cached) return cached;
-  const built = buildClientMessagesPayload(locale);
-  if (clientPayloadCache.size < 32) clientPayloadCache.set(locale, built);
+  const built = buildClientMessagesPayload(locale, surface);
+  if (clientPayloadCache.size < 32) clientPayloadCache.set(cacheKey, built);
   return built;
 }
 
-function buildClientMessagesPayload(locale: string): Record<string, Catalog> {
+function buildClientMessagesPayload(locale: string, surface: ClientMessagesSurface): Record<string, Catalog> {
   const out: Record<string, Catalog> = {};
   // The page's own locale in full, then each fallback in the chain as ONLY the keys the
   // locales before it lack (TUL-1156: a complete `es` never reaches `en`, so shipping `en`
@@ -152,7 +159,7 @@ function buildClientMessagesPayload(locale: string): Record<string, Catalog> {
   const answered: Catalog[] = [];
   for (const code of new Set([locale, defaultLocale, ROOT_FALLBACK_LOCALE])) {
     if (!hasMessageCatalog(code)) continue;
-    const full: Catalog = pickClientSubtrees(CATALOG_REGISTRY[code]);
+    const full: Catalog = surface === "admin" ? pickClientSubtrees(CATALOG_REGISTRY[code], ADMIN_CLIENT_MESSAGE_SUBTREES) : pickClientSubtrees(CATALOG_REGISTRY[code]);
     let subtrees: Catalog = full;
     for (const base of answered) subtrees = missingFrom(base, subtrees);
     answered.push(full);

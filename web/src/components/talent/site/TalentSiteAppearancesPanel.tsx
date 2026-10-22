@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { rehomeUrlToPublicRoot } from "@/lib/brand/public-root-domain";
+
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { setTalentSiteVisibility } from "@/app/(workspace)/[tenantSlug]/talent/settings/actions";
 import { agencyRosterProfileUrl } from "@/lib/talent/agency-roster-profile-url";
@@ -76,7 +78,8 @@ function StatusChip({ status, kind }: { status: PlacementStatus; kind?: Placemen
  * can do about each one. Figures are named as unavailable, never zeroed.
  */
 export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }) {
-  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug } = useAdminShell();
+  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug, state } = useAdminShell();
+  const talentTier = state.talentTier;
   const { t, es } = usePresenceText();
   // Local overrides after a hide / show so the row answers immediately.
   const [hiddenOverride, setHiddenOverride] = useState<Record<string, boolean>>({});
@@ -151,6 +154,9 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
     });
   }
 
+  // TUL-1845: stored/server-built hosts carry the production pattern; show this environment's.
+  for (const p of placements) if (p.url) p.url = rehomeUrlToPublicRoot(p.url);
+
   const { live, other } = splitPlacements(placements);
 
   const setHidden = async (p: Placement, hidden: boolean) => {
@@ -191,7 +197,9 @@ export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }
                 ? t("Your Tulala directory profile is not published yet. Your own website is separate and is not affected.")
                 : p.status === "not_published"
                 ? t("No public page, so there is nothing to link to and no views to show. That is not a zero.")
-                : t("Views and enquiries for this place are not available yet.")}
+                : talentTier === "free"
+                ? t("Views and enquiries are on the Pro and Max plans.")
+                : t("Views and enquiries are counted for your whole profile, not yet per place. See them on Today.")}
             </p>
             {p.status === "hidden_by_you" && (
               <p className="mt-1 text-[12px] text-admin-ink-muted">

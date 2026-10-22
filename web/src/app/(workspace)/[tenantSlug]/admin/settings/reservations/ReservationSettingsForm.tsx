@@ -36,6 +36,7 @@ const C = {
 } as const;
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+const DAYS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 
 function hhmm(minutes: number): string {
   const h = Math.floor(minutes / 60);
@@ -114,6 +115,56 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const ES_COPY: Record<string, string> = {
+  "Taking reservations": "Reservas",
+  "Reservations are on": "Las reservas están activas",
+  "Guests can book from your site once a service window exists.": "Los clientes pueden reservar desde tu sitio cuando exista un horario de servicio.",
+  "You can switch this on, but nothing is bookable until this venue has tables.": "Puedes activarlo, pero no se podrá reservar hasta que este local tenga mesas.",
+  "Party size": "Tamaño del grupo",
+  "Larger parties are sent to the chat instead.": "Los grupos más grandes se envían al chat.",
+  "Smallest party": "Grupo más pequeño",
+  "Largest party": "Grupo más grande",
+  "Book ahead": "Reservar con anticipación",
+  "How far in advance a guest may book.": "Con cuánta anticipación puede reservar un cliente.",
+  "Days ahead": "Días de anticipación",
+  "Minimum notice": "Aviso mínimo",
+  "How close to the time a guest may still book.": "Qué tan cerca de la hora puede reservar aún un cliente.",
+  "Minutes of notice": "Minutos de aviso",
+  "Walk-ins": "Clientes sin reserva",
+  "The host stand seats walk-ins against the same tables, so the book cannot oversell them.": "El anfitrión sienta a los clientes sin reserva en las mismas mesas, así que no se vende de más.",
+  "Special requests": "Peticiones especiales",
+  "A note field on the reserve step.": "Un campo de nota en el paso de reservar.",
+  "No-shows and deposits": "Inasistencias y anticipos",
+  "Card on file from": "Tarjeta en garantía desde",
+  "A card holds the table. Nothing is charged unless the party does not arrive.": "Una tarjeta garantiza la mesa. No se cobra nada salvo que el grupo no llegue.",
+  "Ask for a card on file": "Pedir tarjeta en garantía",
+  "Card on file from this party size": "Tarjeta en garantía desde este tamaño de grupo",
+  "No-show fee": "Cargo por inasistencia",
+  "Charged after the grace period if the party has not been seated.": "Se cobra tras el periodo de gracia si el grupo no fue sentado.",
+  "No-show fee in dollars": "Cargo por inasistencia en dólares",
+  "No-show fee basis": "Base del cargo por inasistencia",
+  "Grace period": "Periodo de gracia",
+  "How long a table is held before the fee applies.": "Cuánto se guarda una mesa antes de aplicar el cargo.",
+  "Grace minutes": "Minutos de gracia",
+  "Deposit from": "Anticipo desde",
+  "Taken at booking and applied to the bill.": "Se cobra al reservar y se descuenta de la cuenta.",
+  "Take a deposit": "Cobrar un anticipo",
+  "Deposit from this party size": "Anticipo desde este tamaño de grupo",
+  "Deposit per person in dollars": "Anticipo por persona en dólares",
+  "Free cancellation until": "Cancelación gratis hasta",
+  "After this, a deposit is not returned.": "Después de esto, el anticipo no se devuelve.",
+  "Free cancellation hours": "Horas de cancelación gratis",
+  "Service windows": "Horarios de servicio",
+  "Advanced": "Avanzado",
+  "How long a table turns": "Duración de cada turno de mesa",
+  "Used when no band below covers the party. A 90 minute turn makes 20:00 and 21:30 independent.": "Se usa cuando ninguna banda cubre al grupo. Un turno de 90 minutos hace independientes las 20:00 y las 21:30.",
+  "Default turn minutes": "Minutos de turno por defecto",
+  "Offer a bigger table online": "Ofrecer una mesa más grande en línea",
+  "A party of two booking a four-top when the two-tops are gone. Your host can always do this at the door; this is about the website.": "Un grupo de dos reservando una mesa de cuatro cuando se acabaron las de dos. Tu anfitrión siempre puede hacerlo en la puerta; esto es sobre el sitio web.",
+  "Waitlist": "Lista de espera",
+  "Offer released tables. Needs SMS, which is not connected yet.": "Ofrece mesas liberadas. Requiere SMS, que aún no está conectado.",
+};
+
 export function ReservationSettingsForm({
   venueId,
   timezone,
@@ -132,6 +183,7 @@ export function ReservationSettingsForm({
   locale: "es" | "en";
 }) {
   const es = locale === "es";
+  const T = (en: string): string => (es ? (ES_COPY[en] ?? en) : en);
   const [form, setForm] = useState(rules);
   const itemState = reservationItemState(form.reservationOfferingId, offerings);
   const [saving, startSaving] = useTransition();
@@ -169,7 +221,7 @@ export function ReservationSettingsForm({
       });
       setMessage(
         result.ok
-          ? { tone: "ok", text: "Saved." }
+          ? { tone: "ok", text: es ? "Guardado." : "Saved." }
           : { tone: "error", text: result.error },
       );
     });
@@ -218,23 +270,23 @@ export function ReservationSettingsForm({
           </div>
         ) : null}
       </Section>
-      <Section title="Taking reservations">
+      <Section title={T("Taking reservations")}>
         <Row
-          label="Reservations are on"
+          label={T("Reservations are on")}
           hint={
             canGoLive
-              ? "Guests can book from your site once a service window exists."
-              : "You can switch this on, but nothing is bookable until this venue has tables."
+              ? T("Guests can book from your site once a service window exists.")
+              : T("You can switch this on, but nothing is bookable until this venue has tables.")
           }
         >
           <input
             type="checkbox"
             checked={form.isActive}
             onChange={(e) => set("isActive", e.target.checked)}
-            aria-label="Reservations are on"
+            aria-label={T("Reservations are on")}
           />
         </Row>
-        <Row label="Party size" hint="Larger parties are sent to the chat instead.">
+        <Row label={T("Party size")} hint={T("Larger parties are sent to the chat instead.")}>
           <input
             type="number"
             min={1}
@@ -242,9 +294,9 @@ export function ReservationSettingsForm({
             value={form.partySizeMin}
             onChange={(e) => set("partySizeMin", Number(e.target.value))}
             style={numberStyle}
-            aria-label="Smallest party"
+            aria-label={T("Smallest party")}
           />
-          <span style={{ color: C.inkMuted, fontSize: 13 }}>to</span>
+          <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "a" : "to"}</span>
           <input
             type="number"
             min={1}
@@ -252,10 +304,10 @@ export function ReservationSettingsForm({
             value={form.partySizeMax}
             onChange={(e) => set("partySizeMax", Number(e.target.value))}
             style={numberStyle}
-            aria-label="Largest party"
+            aria-label={T("Largest party")}
           />
         </Row>
-        <Row label="Book ahead" hint="How far in advance a guest may book.">
+        <Row label={T("Book ahead")} hint={T("How far in advance a guest may book.")}>
           <input
             type="number"
             min={1}
@@ -263,11 +315,11 @@ export function ReservationSettingsForm({
             value={form.horizonDays}
             onChange={(e) => set("horizonDays", Number(e.target.value))}
             style={numberStyle}
-            aria-label="Days ahead"
+            aria-label={T("Days ahead")}
           />
-          <span style={{ color: C.inkMuted, fontSize: 13 }}>days</span>
+          <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "días" : "days"}</span>
         </Row>
-        <Row label="Minimum notice" hint="How close to the time a guest may still book.">
+        <Row label={T("Minimum notice")} hint={T("How close to the time a guest may still book.")}>
           <input
             type="number"
             min={0}
@@ -275,41 +327,41 @@ export function ReservationSettingsForm({
             value={form.minNoticeMinutes}
             onChange={(e) => set("minNoticeMinutes", Number(e.target.value))}
             style={numberStyle}
-            aria-label="Minutes of notice"
+            aria-label={T("Minutes of notice")}
           />
-          <span style={{ color: C.inkMuted, fontSize: 13 }}>minutes</span>
+          <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "minutos" : "minutes"}</span>
         </Row>
         <Row
-          label="Walk-ins"
-          hint="The host stand seats walk-ins against the same tables, so the book cannot oversell them."
+          label={T("Walk-ins")}
+          hint={T("The host stand seats walk-ins against the same tables, so the book cannot oversell them.")}
         >
           <input
             type="checkbox"
             checked={form.walkinsEnabled}
             onChange={(e) => set("walkinsEnabled", e.target.checked)}
-            aria-label="Walk-ins"
+            aria-label={T("Walk-ins")}
           />
         </Row>
-        <Row label="Special requests" hint="A note field on the reserve step.">
+        <Row label={T("Special requests")} hint={T("A note field on the reserve step.")}>
           <input
             type="checkbox"
             checked={form.notesEnabled}
             onChange={(e) => set("notesEnabled", e.target.checked)}
-            aria-label="Special requests"
+            aria-label={T("Special requests")}
           />
         </Row>
       </Section>
 
-      <Section title="No-shows and deposits">
+      <Section title={T("No-shows and deposits")}>
         <Row
-          label="Card on file from"
-          hint="A card holds the table. Nothing is charged unless the party does not arrive."
+          label={T("Card on file from")}
+          hint={T("A card holds the table. Nothing is charged unless the party does not arrive.")}
         >
           <input
             type="checkbox"
             checked={form.cardOnFileFromParty !== null}
             onChange={(e) => set("cardOnFileFromParty", e.target.checked ? 6 : null)}
-            aria-label="Ask for a card on file"
+            aria-label={T("Ask for a card on file")}
           />
           {form.cardOnFileFromParty !== null ? (
             <input
@@ -319,15 +371,15 @@ export function ReservationSettingsForm({
               value={form.cardOnFileFromParty}
               onChange={(e) => set("cardOnFileFromParty", Number(e.target.value))}
               style={numberStyle}
-              aria-label="Card on file from this party size"
+              aria-label={T("Card on file from this party size")}
             />
           ) : (
-            <span style={{ color: C.inkDim, fontSize: 13 }}>never</span>
+            <span style={{ color: C.inkDim, fontSize: 13 }}>{es ? "nunca" : "never"}</span>
           )}
         </Row>
         <Row
-          label="No-show fee"
-          hint="Charged after the grace period if the party has not been seated."
+          label={T("No-show fee")}
+          hint={T("Charged after the grace period if the party has not been seated.")}
         >
           <input
             type="number"
@@ -336,7 +388,7 @@ export function ReservationSettingsForm({
             value={Math.round(form.noShowFeeCents / 100)}
             onChange={(e) => set("noShowFeeCents", Math.round(Number(e.target.value) * 100))}
             style={numberStyle}
-            aria-label="No-show fee in dollars"
+            aria-label={T("No-show fee in dollars")}
           />
           <select
             value={form.noShowFeeBasis}
@@ -344,13 +396,13 @@ export function ReservationSettingsForm({
               set("noShowFeeBasis", e.target.value === "per_party" ? "per_party" : "per_person")
             }
             style={{ ...numberStyle, width: "auto" }}
-            aria-label="No-show fee basis"
+            aria-label={T("No-show fee basis")}
           >
-            <option value="per_person">per person</option>
-            <option value="per_party">per party</option>
+            <option value="per_person">{es ? "por persona" : "per person"}</option>
+            <option value="per_party">{es ? "por grupo" : "per party"}</option>
           </select>
         </Row>
-        <Row label="Grace period" hint="How long a table is held before the fee applies.">
+        <Row label={T("Grace period")} hint={T("How long a table is held before the fee applies.")}>
           <input
             type="number"
             min={0}
@@ -358,16 +410,16 @@ export function ReservationSettingsForm({
             value={form.noShowGraceMinutes}
             onChange={(e) => set("noShowGraceMinutes", Number(e.target.value))}
             style={numberStyle}
-            aria-label="Grace minutes"
+            aria-label={T("Grace minutes")}
           />
-          <span style={{ color: C.inkMuted, fontSize: 13 }}>minutes</span>
+          <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "minutos" : "minutes"}</span>
         </Row>
-        <Row label="Deposit from" hint="Taken at booking and applied to the bill.">
+        <Row label={T("Deposit from")} hint={T("Taken at booking and applied to the bill.")}>
           <input
             type="checkbox"
             checked={form.depositFromParty !== null}
             onChange={(e) => set("depositFromParty", e.target.checked ? 8 : null)}
-            aria-label="Take a deposit"
+            aria-label={T("Take a deposit")}
           />
           {form.depositFromParty !== null ? (
             <>
@@ -378,7 +430,7 @@ export function ReservationSettingsForm({
                 value={form.depositFromParty}
                 onChange={(e) => set("depositFromParty", Number(e.target.value))}
                 style={numberStyle}
-                aria-label="Deposit from this party size"
+                aria-label={T("Deposit from this party size")}
               />
               <input
                 type="number"
@@ -388,15 +440,15 @@ export function ReservationSettingsForm({
                   set("depositCentsPerPerson", Math.round(Number(e.target.value) * 100))
                 }
                 style={numberStyle}
-                aria-label="Deposit per person in dollars"
+                aria-label={T("Deposit per person in dollars")}
               />
-              <span style={{ color: C.inkMuted, fontSize: 13 }}>per person</span>
+              <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "por persona" : "per person"}</span>
             </>
           ) : (
-            <span style={{ color: C.inkDim, fontSize: 13 }}>never</span>
+            <span style={{ color: C.inkDim, fontSize: 13 }}>{es ? "nunca" : "never"}</span>
           )}
         </Row>
-        <Row label="Free cancellation until" hint="After this, a deposit is not returned.">
+        <Row label={T("Free cancellation until")} hint={T("After this, a deposit is not returned.")}>
           <input
             type="number"
             min={0}
@@ -404,17 +456,18 @@ export function ReservationSettingsForm({
             value={form.freeCancelHours}
             onChange={(e) => set("freeCancelHours", Number(e.target.value))}
             style={numberStyle}
-            aria-label="Free cancellation hours"
+            aria-label={T("Free cancellation hours")}
           />
-          <span style={{ color: C.inkMuted, fontSize: 13 }}>hours before</span>
+          <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "horas antes" : "hours before"}</span>
         </Row>
       </Section>
 
-      <Section title="Service windows">
+      <Section title={T("Service windows")}>
         {windows.length === 0 ? (
           <p style={{ fontSize: 13.5, color: C.inkMuted, lineHeight: 1.6, margin: "10px 0 14px" }}>
-            No service windows yet. A window is when you seat people, in {timezone} &mdash; lunch 13:00
-            to 16:00, dinner 19:00 to 23:00. A window may run past midnight.
+            {es
+              ? `Aún no hay horarios de servicio. Un horario es cuando sientas gente, en ${timezone}: comida de 13:00 a 16:00, cena de 19:00 a 23:00. Un horario puede pasar de medianoche.`
+              : `No service windows yet. A window is when you seat people, in ${timezone}: lunch 13:00 to 16:00, dinner 19:00 to 23:00. A window may run past midnight.`}
           </p>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 12px" }}>
@@ -432,9 +485,9 @@ export function ReservationSettingsForm({
               >
                 <span style={{ color: C.ink, fontWeight: 500 }}>{w.key}</span>
                 <span style={{ color: C.inkMuted, fontVariantNumeric: "tabular-nums" }}>
-                  {hhmm(w.localTimeMin)} for {Math.round((w.durationMinutes / 60) * 10) / 10}h &middot;{" "}
-                  {w.weekdays.map((d) => DAYS[d - 1]).join(" ")}
-                  {w.isActive ? "" : " · closed"}
+                  {hhmm(w.localTimeMin)} {es ? "por" : "for"} {Math.round((w.durationMinutes / 60) * 10) / 10}h &middot;{" "}
+                  {w.weekdays.map((d) => (es ? DAYS_ES : DAYS)[d - 1]).join(" ")}
+                  {w.isActive ? "" : es ? " · cerrado" : " · closed"}
                 </span>
               </li>
             ))}
@@ -457,14 +510,14 @@ export function ReservationSettingsForm({
         }}
         aria-expanded={advanced}
       >
-        {advanced ? "Hide advanced" : "Advanced: turn times and upsizing"}
+        {advanced ? (es ? "Ocultar avanzado" : "Hide advanced") : es ? "Avanzado: tiempos de turno y mesas más grandes" : "Advanced: turn times and upsizing"}
       </button>
 
       {advanced ? (
-        <Section title="Advanced">
+        <Section title={T("Advanced")}>
           <Row
-            label="How long a table turns"
-            hint="Used when no band below covers the party. A 90 minute turn makes 20:00 and 21:30 independent."
+            label={T("How long a table turns")}
+            hint={T("Used when no band below covers the party. A 90 minute turn makes 20:00 and 21:30 independent.")}
           >
             <input
               type="number"
@@ -473,27 +526,27 @@ export function ReservationSettingsForm({
               value={form.defaultTurnMinutes}
               onChange={(e) => set("defaultTurnMinutes", Number(e.target.value))}
               style={numberStyle}
-              aria-label="Default turn minutes"
+              aria-label={T("Default turn minutes")}
             />
-            <span style={{ color: C.inkMuted, fontSize: 13 }}>minutes</span>
+            <span style={{ color: C.inkMuted, fontSize: 13 }}>{es ? "minutos" : "minutes"}</span>
           </Row>
           <Row
-            label="Offer a bigger table online"
-            hint="A party of two booking a four-top when the two-tops are gone. Your host can always do this at the door; this is about the website."
+            label={T("Offer a bigger table online")}
+            hint={T("A party of two booking a four-top when the two-tops are gone. Your host can always do this at the door; this is about the website.")}
           >
             <input
               type="checkbox"
               checked={form.allowPublicUpsize}
               onChange={(e) => set("allowPublicUpsize", e.target.checked)}
-              aria-label="Offer a bigger table online"
+              aria-label={T("Offer a bigger table online")}
             />
           </Row>
-          <Row label="Waitlist" hint="Offer released tables. Needs SMS, which is not connected yet.">
+          <Row label={T("Waitlist")} hint={T("Offer released tables. Needs SMS, which is not connected yet.")}>
             <input
               type="checkbox"
               checked={form.waitlistEnabled}
               onChange={(e) => set("waitlistEnabled", e.target.checked)}
-              aria-label="Waitlist"
+              aria-label={T("Waitlist")}
             />
           </Row>
         </Section>
@@ -516,7 +569,7 @@ export function ReservationSettingsForm({
             opacity: saving ? 0.6 : 1,
           }}
         >
-          {saving ? "Saving" : "Save"}
+          {saving ? (es ? "Guardando" : "Saving") : es ? "Guardar" : "Save"}
         </button>
         {message ? (
           <span

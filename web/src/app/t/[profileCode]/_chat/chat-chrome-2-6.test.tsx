@@ -325,7 +325,7 @@ test("ONE dock: the round launcher is hidden by CSS whenever the dock carries a 
   // Pill capsule (cb-bar-chat) and selection dock both own a chat button.
   assert.match(css, /body:has\(\.cb-bar\[data-show="true"\] \.cb-bar-chat,\.cb-dock\[data-show="true"\]\) \.tl-fab\{visibility:hidden;pointer-events:none\}/);
   // Open panel: launcher wrapper must not steal the ✕ (Gridline desktop W4-5).
-  assert.match(launcher, /pointerEvents:\s*open\s*\?\s*"none"/);
+  assert.match(launcher, /pointerEvents:\s*open\s*\|\|\s*ctaUnderLauncher\s*\?\s*"none"/);
   assert.match(src("GuestAskAboutCard.tsx"), /askQuickPrice/);
   assert.doesNotMatch(src("GuestAskAboutCard.tsx"), /askQuickChange/);
   // The same markup the rule keys on really exists in the dock.

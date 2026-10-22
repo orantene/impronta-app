@@ -17,6 +17,7 @@
 import { useMemo, useState, useTransition } from "react";
 
 import { ActionButton } from "@/components/admin/shell/internal/page-modules/appointments-classes-ui";
+import { meetsRole, useAdminShellOptional } from "@/components/admin/shell/internal/state";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
 import { personNameOr } from "@/lib/people/display-name";
@@ -53,6 +54,13 @@ export function PeopleAddPerson({
   onCreateProfile: (name: string, email: string) => void;
 }) {
   const t = useT();
+  // TUL-1708: invitePersonAccess → inviteTeamMember now requires
+  // manage_memberships (admin+). `useAdminShellOptional` because this wizard
+  // can render outside the shell in isolation (tests); no shell context
+  // means no gate to enforce, same default as the shell's own `isAdmin`
+  // falling back to the viewer-held default elsewhere.
+  const shell = useAdminShellOptional();
+  const canGrantAccess = shell ? meetsRole(shell.state.role, "admin") : true;
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [hats, setHats] = useState<Record<PersonHat, boolean>>({ publicProfile: false, bookable: false, access: false });
@@ -75,6 +83,7 @@ export function PeopleAddPerson({
     if (picked.length === 0) return t(`${A}.continueOff.noHat`);
     if (!name.trim()) return t(`${A}.continueOff.noName`);
     if (bookableOnly) return t(`${A}.continueOff.bookableOnly`);
+    if (wantsAccess && !wantsProfile && !canGrantAccess) return t(`${A}.continueOff.noAccessPermission`);
     if (wantsAccess && !wantsProfile && !trimmedEmail.includes("@")) return t(`${A}.continueOff.noEmailForAccess`);
     return null;
   })();

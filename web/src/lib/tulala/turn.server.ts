@@ -25,7 +25,9 @@ import "server-only";
 
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
 import { streamOrFallback } from "@/lib/ai/stream";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { AiSpendCollector, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { loadBrief, type BriefOwner } from "./brief-store.server";
@@ -109,7 +111,9 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
     return;
   }
 
-  const gate = await assertAiInvocationAllowed();
+  const aiTenantId = await resolveAiBillingTenantId();
+  const spend = new AiSpendCollector();
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     yield {
       type: "error",
@@ -135,6 +139,10 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
     // extractor's vocabulary, so it has to be resolved before the extraction
     // rather than from its output.
     pack: state.pack ?? packForBrief(brief),
+    // TUL-1731: the extraction's real token usage joins the reply's in this turn's cost.
+    report: (outcome) => {
+      if (outcome.ok) spend.add(outcome.model, outcome.usage);
+    },
   });
 
   // Re-read rather than patching the in-memory set: `recordFacts` applies the
@@ -236,6 +244,7 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
         streamFailed = { code: event.code, message: event.message };
       } else if (event.type === "done") {
         raw = event.text;
+        spend.add(event.model, event.usage);
       }
     }
   } catch (err) {
@@ -243,7 +252,7 @@ export async function* runTurn(request: TurnRequest): AsyncIterable<TurnEvent> {
     streamFailed = { code: "stream_failed", message: "The reply was interrupted." };
   }
 
-  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
+  afterResponse(() => recordMeasuredAiSpend(aiTenantId, spend.total()));
 
   const guarded = sanitizeAgentReply(raw, { locale, move: move.kind });
 

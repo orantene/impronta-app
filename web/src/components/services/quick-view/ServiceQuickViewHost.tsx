@@ -11,7 +11,7 @@
 import { useEffect } from "react";
 
 import { dispatchOffering } from "@/lib/site-admin/builder-node/services-catalog-detail";
-import type { ServiceCardTarget } from "@/lib/services/presentation/card-target";
+import { canonicalServiceShareKey, type ServiceCardTarget } from "@/lib/services/presentation/card-target";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import type { TalentBookingPosture } from "@/lib/talent/selling-booking-settings";
 
@@ -131,7 +131,10 @@ export function ServiceQuickViewHost({
       } catch {
         return;
       }
-      if (firstOwner(id)) open(id);
+      // Old links (`#servicio-<title>-<id8>-<widget>`) still land on the same service.
+      const keys = Array.from(root.querySelectorAll<HTMLDialogElement>("dialog.sqv"), (d) => d.dataset.sqvKey ?? "");
+      const key = canonicalServiceShareKey(id, keys.filter(Boolean));
+      if (key && firstOwner(key)) open(key);
     };
     root.addEventListener("click", onClick);
     window.addEventListener("hashchange", fromHash);

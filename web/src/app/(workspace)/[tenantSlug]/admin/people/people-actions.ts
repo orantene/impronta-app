@@ -121,7 +121,7 @@ export async function setPersonBookable(
   on: boolean,
 ): Promise<PeopleActionResult> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!auth.ok) return { ok: false, reasonKey: "notAuthorized" };
   if (!uuid.safeParse(talentProfileId).success) {
     return { ok: false, reasonKey: "checkTheDetails" };

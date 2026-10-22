@@ -23,6 +23,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { scheduleWorkspaceAudit } from "@/lib/audit/workspace-audit";
 import { hubTalentMediaTag } from "@/lib/media/talent-media-for-hub";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { HUB_FACE_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
   loadHubFaceState,
@@ -51,7 +52,7 @@ function bust(tenantId: string, tenantSlug: string, talentProfileId: string): vo
 export async function actionLoadTalentHubFace(
   talentProfileId: string,
 ): Promise<ActionResult<HubFaceState>> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
 
@@ -64,7 +65,7 @@ export async function actionSetTalentHubCover(
 ): Promise<ActionResult<{ coverAssetId: string | null }>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: HUB_FACE_WRITE_CAPABILITY.actionSetTalentHubCover });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
   if (assetId !== null && !UUID_RE.test(assetId)) return { ok: false, error: "Invalid request." };
@@ -92,7 +93,7 @@ export async function actionSetTalentHubSelection(
 ): Promise<ActionResult<{ selectedAssetIds: string[]; coverAssetId: string | null }>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: HUB_FACE_WRITE_CAPABILITY.actionSetTalentHubSelection });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
   if (!Array.isArray(orderedAssetIds) || orderedAssetIds.length > 60) {
@@ -130,7 +131,7 @@ export async function actionSetTalentHubMediaCaption(
 ): Promise<ActionResult<{ caption: string | null }>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: HUB_FACE_WRITE_CAPABILITY.actionSetTalentHubMediaCaption });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
   if (!UUID_RE.test(assetId)) return { ok: false, error: "Invalid request." };
@@ -170,7 +171,7 @@ export async function actionSetTalentHubMediaVisibility(
 ): Promise<ActionResult<{ visible: boolean }>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: HUB_FACE_WRITE_CAPABILITY.actionSetTalentHubMediaVisibility });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
   if (!UUID_RE.test(assetId)) return { ok: false, error: "Invalid request." };
@@ -207,7 +208,7 @@ export async function actionReorderTalentHubMedia(
 ): Promise<ActionResult<{ orderedAssetIds: string[] }>> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return { ok: false, error: readOnly.error };
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: HUB_FACE_WRITE_CAPABILITY.actionReorderTalentHubMedia });
   if (!auth.ok) return { ok: false, error: auth.error };
   if (!UUID_RE.test(talentProfileId)) return { ok: false, error: "Invalid request." };
   if (!Array.isArray(orderedAssetIds) || orderedAssetIds.length > 60) {

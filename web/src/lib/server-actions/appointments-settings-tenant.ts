@@ -82,7 +82,11 @@ export async function updateTenantAppointmentsSettings(
 ): Promise<UpdateResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer`
+  // holds. This is workspace-wide appointments configuration (hours defaults, terminology,
+  // the direct-booking toggle) — `manage_agency_settings` (admin+) is the capability that
+  // already gates the rest of workspace Settings.
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

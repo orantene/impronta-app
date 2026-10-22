@@ -75,6 +75,32 @@ describe("resolveRequestLocale (TUL-518 hub ?lang=)", () => {
     );
   });
 
+  it("TUL-1798: marketing hosts ignore the cookie on an unprefixed path", () => {
+    assert.equal(
+      resolveRequestLocale({
+        ...LOCALES,
+        headerLocale: "en",
+        pathname: "/",
+        search: "",
+        cookieLocale: "es",
+        cookieBeatsUnprefixedPath: false,
+      }),
+      "en",
+    );
+    // A prefixed marketing path still wins over everything.
+    assert.equal(
+      resolveRequestLocale({
+        ...LOCALES,
+        headerLocale: "es",
+        pathname: "/es",
+        search: "",
+        cookieLocale: "en",
+        cookieBeatsUnprefixedPath: false,
+      }),
+      "es",
+    );
+  });
+
   it("TUL-1187: prefixed path still beats the cookie", () => {
     assert.equal(
       resolveRequestLocale({

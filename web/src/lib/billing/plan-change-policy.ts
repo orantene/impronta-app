@@ -21,8 +21,19 @@
  * plan_key / billing_interval into Stripe metadata (immediately, or on the
  * schedule's second phase) so the webhook reads the right plan.
  */
+import type { PromoErrorCode } from "./promo-preview";
 import { PLAN_CATALOG, isKnownPlan } from "@/lib/access/plan-catalog";
 import type { BillingInterval } from "@/lib/pricing/interval-pricing";
+
+/**
+ * TUL-831: the free talent plan has no Stripe price. Switching to it is a
+ * period-end cancel (`cancel_at_period_end`), never a schedule phase.
+ */
+export const FREE_TALENT_PLAN_KEY = "talent_basic";
+
+export function isFreeTalentTarget(plan: string): boolean {
+  return plan === FREE_TALENT_PLAN_KEY;
+}
 
 export type PlanChangeKind = "upgrade" | "downgrade" | "interval_up" | "interval_down" | "noop";
 export type PlanChangeTiming = "now" | "period_end";
@@ -106,7 +117,30 @@ export type PlanChangeSubject = {
   toPlan: string;
   toInterval: BillingInterval;
   toPriceId: string;
+  /**
+   * TUL-833: a promo code already validated server-side, as the Stripe discount
+   * entry to attach (promotion code preferred, coupon as the stub fallback).
+   * Absent = no code. Never built from a browser value.
+   */
+  discount?: PlanChangeDiscountEntry | null;
 };
+
+export type PlanChangeDiscountEntry = { promotion_code: string } | { coupon: string };
+
+/** `discounts` param fragment: empty (key absent) when there is no code, so a code-less call is byte-identical to before. */
+export function discountParams(s: Pick<PlanChangeSubject, "discount">): { discounts?: PlanChangeDiscountEntry[] } {
+  return s.discount ? { discounts: [s.discount] } : {};
+}
+
+/**
+ * subscriptions.update params for "switch to Free": the subscription keeps its
+ * paid price and plan metadata until the period ends, then Stripe ends it and
+ * the `customer.subscription.deleted` webhook drops the talent to Free. No
+ * proration, no refund, no invoice today.
+ */
+export function buildFreeDowngradeUpdateParams() {
+  return { cancel_at_period_end: true as const };
+}
 
 export function planChangeMetadata(s: Pick<PlanChangeSubject, "toPlan" | "toInterval">): Record<string, string> {
   return { plan_key: s.toPlan, billing_interval: s.toInterval };
@@ -117,6 +151,7 @@ export function buildPreviewParams(s: PlanChangeSubject, prorationDate: number) 
   return {
     customer: s.customerId,
     subscription: s.subscriptionId,
+    ...discountParams(s),
     subscription_details: {
       items: [{ id: s.itemId, price: s.toPriceId }],
       proration_behavior: "always_invoice" as const,
@@ -132,6 +167,7 @@ export function buildImmediateUpdateParams(s: PlanChangeSubject, prorationDate: 
     proration_behavior: "always_invoice" as const,
     proration_date: prorationDate,
     payment_behavior: "error_if_incomplete" as const,
+    ...discountParams(s),
     metadata: planChangeMetadata(s),
   };
 }
@@ -189,16 +225,40 @@ export function planChangeIdempotencyKey(input: {
   toPlan: string;
   toInterval: BillingInterval;
   prorationDate: number;
-  step: "update" | "schedule_create" | "schedule_update" | "schedule_release";
+  step: "update" | "schedule_create" | "schedule_update" | "schedule_release" | "downgrade_free" | "cancel_pending";
+  /** TUL-833: the attached discount id, so a retry with a different code never replays another code's key. */
+  discountId?: string | null;
 }): string {
-  return `plan_change_${input.step}_${input.subscriptionId}_${input.toPlan}_${input.toInterval}_${input.prorationDate}`;
+  const base = `plan_change_${input.step}_${input.subscriptionId}_${input.toPlan}_${input.toInterval}_${input.prorationDate}`;
+  return input.discountId ? `${base}_${input.discountId}` : base;
 }
 
 // ─── Result shapes shared with the UI ────────────────────────────────────────
 
+/**
+ * TUL-831: the line items the confirm step shows before anything is charged.
+ * Minor units in the invoice currency. `credit` and `charge` are positive
+ * magnitudes; `discount` is the promo's cut of today's invoice (0 when none).
+ * `total` is what Stripe will collect now (the preview invoice's amount_due).
+ */
+export type PlanChangeBreakdown = {
+  credit: number;
+  charge: number;
+  discount: number;
+  total: number;
+  /** Next renewal amount on the new price, discount applied if it still lasts; null when unreadable. */
+  renewal: number | null;
+};
+
+export type PlanChangePromo = { code: string; label: { en: string; es: string } };
+
 export type PlanChangePreview =
   | {
       ok: true;
+      /** TUL-831: undefined for period-end changes (nothing is charged today). */
+      breakdown?: PlanChangeBreakdown;
+      /** TUL-833: the validated code this preview priced, or null. */
+      promo?: PlanChangePromo | null;
       kind: PlanChangeKind;
       timing: PlanChangeTiming;
       /** Minor units charged today (0 for period-end changes). */
@@ -210,21 +270,53 @@ export type PlanChangePreview =
       effectiveAt: string | null;
       /** True when a period-end change is already scheduled and this confirm cancels it. */
       cancelsPendingChange: boolean;
+      /** TUL-831: the plan the subscription is on now, so the sheet can say "until then you stay on X". */
+      fromPlan?: string;
+      /** TUL-1297: the subscription's current and requested billing interval. */
+      fromInterval: BillingInterval;
+      toInterval: BillingInterval;
+      /**
+       * TUL-1297: the target price (minor units + the Stripe price's own currency) for an interval change;
+       * null for every other kind. Read from the same catalog price id checkout uses, never invented.
+       */
+      newPrice: { amount: number; currency: string } | null;
     }
-  | { ok: false; error: string; code?: PlanChangeErrorCode };
+  | { ok: false; error: string; code?: PlanChangeErrorCode; promoError?: PromoErrorCode };
 
-export type PlanChangeErrorCode = "no_subscription" | "stale_preview" | "no_price" | "not_allowed" | "stripe";
+export type PlanChangeErrorCode =
+  | "no_subscription"
+  | "stale_preview"
+  | "no_price"
+  | "not_allowed"
+  | "stripe"
+  /** TUL-833: the code was refused (unknown, expired, wrong plan, already discounted). */
+  | "promo";
 
 export type PlanChangeConfirm =
   | { ok: true; kind: PlanChangeKind; timing: PlanChangeTiming; effectiveAt: string | null }
-  | { ok: false; error: string; code?: PlanChangeErrorCode };
+  /** `definite` is false only when Stripe may still have applied the change (timeout / network / 5xx); omitted = definite. */
+  | { ok: false; error: string; code?: PlanChangeErrorCode; definite?: boolean; promoError?: PromoErrorCode };
 
 /** Which confirm sentence the modal shows (keys under `planChange` in messages). */
-export function planChangeCopyKey(p: { kind: PlanChangeKind; timing: PlanChangeTiming; cancelsPendingChange?: boolean }):
+export function planChangeCopyKey(p: {
+  kind: PlanChangeKind;
+  timing: PlanChangeTiming;
+  cancelsPendingChange?: boolean;
+  amountDueToday?: number;
+  effectiveAt?: string | null;
+}):
   | "payToday"
   | "changesOn"
+  | "downgradeAt"
   | "cancelPending"
-  | "noChange" {
+  | "noChange"
+  | "switchYearlyNow"
+  | "switchYearlyAt"
+  | "switchMonthlyAt" {
   if (p.kind === "noop") return p.cancelsPendingChange ? "cancelPending" : "noChange";
+  // TUL-1297: an interval change names the new billing interval and its price.
+  if (p.kind === "interval_down") return "switchMonthlyAt";
+  if (p.kind === "interval_up") return (p.amountDueToday ?? 0) > 0 || !p.effectiveAt ? "switchYearlyNow" : "switchYearlyAt";
+  if (p.kind === "downgrade" && p.timing === "period_end") return "downgradeAt";
   return p.timing === "now" ? "payToday" : "changesOn";
 }

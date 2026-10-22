@@ -33,6 +33,7 @@ export function ReadyStep({
   ageRequiredNotice = false,
   setupLines = [],
   onChangeTimezone,
+  onEditSetup,
   locale = "en",
 }: {
   t: (key: string) => string;
@@ -55,6 +56,8 @@ export function ReadyStep({
   setupLines?: ReviewLine[];
   /** TUL-815: makes the time zone row a select; the parent saves the new zone. */
   onChangeTimezone?: (zoneId: string) => void;
+  /** TUL-806: services, hours and place each link back to step 3. */
+  onEditSetup?: () => void;
   locale?: "en" | "es";
 }) {
   const talentOnly = path === "talent";
@@ -143,6 +146,17 @@ export function ReadyStep({
             ) : (
               <span className="min-w-0 break-words" style={{ color: "var(--tl-ink)" }}>{l.value}</span>
             )}
+            {onEditSetup && l.id !== "timezone" ? (
+              <button
+                type="button"
+                onClick={onEditSetup}
+                data-testid={`onb-ready-edit-${l.id}`}
+                className="shrink-0 self-start text-[0.8125rem] font-semibold underline underline-offset-2 sm:ml-auto"
+                style={{ color: "var(--tl-forest)" }}
+              >
+                {t("public.onboarding.ready.editSetup")}<span className="sr-only"> {l.label}</span>
+              </button>
+            ) : null}
           </li>
         ))}
       </ul>

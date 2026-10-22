@@ -28,9 +28,9 @@
  * wrong one thinks the studio is full when the studio is fine.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
-import type { PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
+import type { PickerOffering, PickerSession } from "@/app/(public)/_sessions/session-picker-actions";
 import { money } from "./ticket-picker-copy";
 
 type Locale = "en" | "es";
@@ -56,6 +56,7 @@ function newOrderKey(): string {
 const COPY: Record<Locale, Record<string, string>> = {
   en: {
     heading: "Pick a date",
+    chooseClass: "Class",
     loading: "Loading dates...",
     none: "No dates are open just now.",
     seatsLeft: "{n} left",
@@ -72,6 +73,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     total: "Total {price}",
     // Shown only for a FREE booking: nothing is paid and no ticket email is sent, so it claims no email.
     done: "Done, your spot is booked.",
+    currency_unsupported: "This class cannot be paid online in its currency right now. Nothing was charged. Please contact the studio.",
     pay_error: "We could not open the payment page. Press the button to try again.",
     emailRequired: "We need an email to send your place to.",
     // Refusals, each its own sentence. A visitor who reads the wrong one goes
@@ -87,6 +89,7 @@ const COPY: Record<Locale, Record<string, string>> = {
   },
   es: {
     heading: "Elige una fecha",
+    chooseClass: "Clase",
     loading: "Cargando fechas...",
     none: "No hay fechas abiertas por ahora.",
     seatsLeft: "quedan {n}",
@@ -102,6 +105,7 @@ const COPY: Record<Locale, Record<string, string>> = {
     perPerson: "{price} por persona",
     total: "Total {price}",
     done: "Listo, tu lugar está reservado.",
+    currency_unsupported: "Esta clase no se puede pagar en línea en su moneda por ahora. No se cobró nada. Escribe al estudio.",
     pay_error: "No pudimos abrir la página de pago. Pulsa el botón para intentar de nuevo.",
     emailRequired: "Necesitamos un correo para enviarte tu plaza.",
     sold_out: "Esa clase acaba de llenarse. Elige otra fecha y es tuya.",
@@ -181,6 +185,45 @@ function formatWhen(iso: string, timeZone: string, locale: Locale): string | nul
   }
 }
 
+/**
+ * TUL-1810: the block shipped with browser-default controls, so on a phone the
+ * inputs had no visible border, "Reservar y pagar" read as plain text and the
+ * refusal was grey body copy. These use the site's design tokens (ink / line /
+ * background), so the block follows the site's theme.
+ */
+const FIELD_STYLE: CSSProperties = {
+  boxSizing: "border-box",
+  marginLeft: 8,
+  minHeight: 44,
+  padding: "8px 12px",
+  font: "inherit",
+  color: "var(--token-color-ink)",
+  background: "var(--token-color-surface-raised, var(--token-color-background))",
+  border: "1px solid var(--token-color-line)",
+  borderRadius: 10,
+};
+const BUTTON_STYLE: CSSProperties = {
+  marginTop: 12,
+  minHeight: 48,
+  width: "100%",
+  padding: "12px 20px",
+  font: "inherit",
+  fontWeight: 600,
+  cursor: "pointer",
+  color: "var(--token-color-background)",
+  background: "var(--token-color-ink)",
+  border: "1px solid var(--token-color-ink)",
+  borderRadius: 999,
+};
+const REFUSAL_STYLE: CSSProperties = {
+  marginTop: 12,
+  padding: "10px 14px",
+  color: "var(--token-color-danger, firebrick)",
+  background: "color-mix(in srgb, var(--token-color-danger, firebrick) 8%, var(--token-color-background, white))",
+  border: "1px solid color-mix(in srgb, var(--token-color-danger, firebrick) 45%, transparent)",
+  borderRadius: 10,
+};
+
 export function SessionPickerIsland({
   tenantId,
   offeringId,
@@ -210,6 +253,11 @@ export function SessionPickerIsland({
     offeringId.trim() || null,
   );
   const [hidden, setHidden] = useState(false);
+  // TUL-1381: with no configured class, every class that has dates is listed and
+  // the guest picks one. Price, currency and dates then come from THAT class.
+  const loadSeq = useRef(0);
+  const [classes, setClasses] = useState<PickerOffering[]>([]);
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   // NOT CONFIGURED IS NOT AN OUTAGE.
   //
@@ -239,17 +287,22 @@ export function SessionPickerIsland({
       const actions = await getActions();
       let offering = (offeringId ?? "").trim();
       if (!offering) {
-        const resolved = await actions.resolveSessionPickerOffering({ tenantId: tenant });
-        if (!resolved.ok) {
+        const listed = await actions.listSessionPickerOfferings({ tenantId: tenant });
+        if (!listed.ok) {
           setHidden(true);
           setSessions([]);
           return;
         }
-        offering = resolved.offeringId;
+        setClasses(listed.offerings);
+        offering =
+          (pickedId && listed.offerings.find((o) => o.id === pickedId)?.id) || listed.offerings[0].id;
         setBoundOfferingId(offering);
       }
       setHidden(false);
+      const seq = ++loadSeq.current;
       const result = await actions.loadSessionPicker({ tenantId: tenant, offeringId: offering });
+      // A slower answer for a class the guest has since left must not overwrite the current one.
+      if (seq !== loadSeq.current) return;
       if (result.ok) {
         setSessions(result.sessions);
         setPrice({ amountCents: result.amountCents, currency: result.currency });
@@ -263,11 +316,23 @@ export function SessionPickerIsland({
       setSessions([]);
       setRefusal(t("unavailable"));
     }
-  }, [tenantId, offeringId, loc, getActions]);
+  }, [tenantId, offeringId, pickedId, loc, getActions]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  function chooseClass(id: string) {
+    if (id === (boundOfferingId ?? "")) return;
+    // A different class is a different cart: its dates, price and currency replace the old ones.
+    setPickedId(id);
+    setBoundOfferingId(id);
+    setChosen(null);
+    setSessions(null);
+    setPrice({ amountCents: null, currency: classes.find((o) => o.id === id)?.currency ?? "" });
+    setRefusal(null);
+    setOrderKey(newOrderKey());
+  }
 
   async function book() {
     if (!chosen || busy) return;
@@ -307,7 +372,7 @@ export function SessionPickerIsland({
           // The order exists under this cart key, so the key is kept: the retry
           // is idempotent and reuses the same order and transaction.
           setRedirecting(false);
-          setRefusal(t("pay_error"));
+          setRefusal(t(pay.reason === "currency_unsupported" ? "currency_unsupported" : "pay_error"));
           return;
         }
         setDone(true);
@@ -340,6 +405,23 @@ export function SessionPickerIsland({
   return (
     <div data-session-picker="root" style={{ padding: 16 }}>
       {title ? <h3 style={{ margin: "0 0 4px" }}>{title}</h3> : null}
+      {classes.length > 1 ? (
+        <label style={{ display: "block", margin: "0 0 12px" }}>
+          {t("chooseClass")}
+          <select
+            data-session-picker="class"
+            value={boundOfferingId ?? ""}
+            onChange={(e) => chooseClass(e.target.value)}
+            style={FIELD_STYLE}
+          >
+            {classes.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <div style={{ margin: "0 0 12px", fontWeight: 600 }}>{t("heading")}</div>
 
       {sessions === null ? (
@@ -394,7 +476,7 @@ export function SessionPickerIsland({
             max={20}
             value={seats}
             onChange={(e) => setSeats(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-            style={{ marginLeft: 8, width: 64 }}
+            style={{ ...FIELD_STYLE, width: 80 }}
           />
         </label>
         <label style={{ display: "block", marginTop: 8 }}>
@@ -403,7 +485,7 @@ export function SessionPickerIsland({
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{ marginLeft: 8 }}
+            style={FIELD_STYLE}
           />
         </label>
         <label style={{ display: "block", marginTop: 8 }}>
@@ -412,7 +494,7 @@ export function SessionPickerIsland({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{ marginLeft: 8 }}
+            style={FIELD_STYLE}
           />
         </label>
       </div>
@@ -429,7 +511,7 @@ export function SessionPickerIsland({
       ) : null}
 
       {refusal ? (
-        <div data-session-picker="refusal" style={{ marginTop: 12 }}>
+        <div data-session-picker="refusal" role="alert" style={REFUSAL_STYLE}>
           {refusal}
         </div>
       ) : null}
@@ -438,7 +520,7 @@ export function SessionPickerIsland({
         type="button"
         onClick={() => void book()}
         disabled={!chosen || busy || redirecting}
-        style={{ marginTop: 12 }}
+        style={{ ...BUTTON_STYLE, opacity: !chosen || busy || redirecting ? 0.55 : 1 }}
       >
         {redirecting
           ? t("redirecting")

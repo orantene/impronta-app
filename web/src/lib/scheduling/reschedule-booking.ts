@@ -37,6 +37,15 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
+import { inquiryResourcesKey, moveInquiryBookingResources } from "@/lib/resources/booking-resources";
+
+/** TUL-1480 (held migration 20261231422200): orderless request reschedule, one transaction. */
+export const INQUIRY_RESCHEDULE_RPC = "reschedule_inquiry_booking_with_resources";
+
+/** PostgREST / Postgres: the function is not there (migration not applied yet). */
+function isMissingRpc(err: { code?: string } | null): boolean {
+  return err?.code === "PGRST202" || err?.code === "42883";
+}
 
 /** The end when nothing else says otherwise. Matches the public slot default. */
 export const RESCHEDULE_DEFAULT_MINUTES = 60;
@@ -382,7 +391,7 @@ export async function rescheduleBooking(
   const operationKey =
     input.operationKey?.trim() || `reschedule:${input.bookingId}:${input.newStartsAt}`;
 
-  const { data, error } = await admin.rpc("reschedule_booking_set", {
+  const rpcArgs = {
     p_tenant_id: input.tenantId,
     p_booking_id: input.bookingId,
     p_operation_key: operationKey,
@@ -398,9 +407,51 @@ export async function rescheduleBooking(
         : input.expectedStartsAt != null
           ? booking.ends_at
           : null,
-  });
+  };
+
+  // A request-sourced booking with no order holds its chair, room or station under the
+  // inquiry's key (TUL-1375); order-line resources move inside `reschedule_booking_set`.
+  const orderlessRequest = Boolean(booking.source_inquiry_id && !booking.order_id);
+
+  // TUL-1480: one transaction moves the resources (self-excluded, so an overlapping new
+  // window on a one-unit room is not "taken" by this booking's own old window) AND the
+  // calendar; any refusal rolls both back.
+  let resourceMove: Awaited<ReturnType<typeof moveInquiryBookingResources>> | null = null;
+  let call: { data: unknown; error: { code?: string; message?: string } | null } | null = null;
+  if (orderlessRequest && booking.source_inquiry_id) {
+    call = await admin.rpc(INQUIRY_RESCHEDULE_RPC, {
+      ...rpcArgs,
+      p_resources_key: inquiryResourcesKey(booking.source_inquiry_id, { startsAt: input.newStartsAt, endsAt }),
+    });
+    if (call.error && isMissingRpc(call.error)) {
+      // Held migration not applied yet: the TUL-1375 path below. It holds the new window
+      // BEFORE anything moves, so it can refuse an overlapping move but never double-books.
+      logServerError("scheduling.rescheduleBooking/inquiry_rpc_missing", call.error);
+      call = null;
+    }
+  }
+
+  if (!call) {
+    resourceMove =
+      orderlessRequest && booking.source_inquiry_id && booking.starts_at && booking.ends_at
+        ? await moveInquiryBookingResources(admin as never, {
+            tenantId: input.tenantId,
+            inquiryId: booking.source_inquiry_id,
+            from: { startsAt: booking.starts_at, endsAt: booking.ends_at },
+            to: { startsAt: input.newStartsAt, endsAt },
+            actorUserId: input.actorUserId || null,
+          })
+        : null;
+    if (resourceMove && !resourceMove.ok) {
+      return fail(resourceMove.reason === "taken" ? "sold_out" : "unavailable");
+    }
+    call = await admin.rpc("reschedule_booking_set", rpcArgs);
+  }
+
+  const { data, error } = call;
   if (error) {
     logServerError("scheduling.rescheduleBooking/rpc", error);
+    if (resourceMove?.ok) await resourceMove.finish(false);
     return fail("unavailable");
   }
 
@@ -419,11 +470,14 @@ export async function rescheduleBooking(
   };
 
   if (reply.ok !== true) {
+    if (resourceMove?.ok) await resourceMove.finish(false);
     return fail(toReason(reply.reason), {
       failedPoolId: reply.failed_pool_id ?? null,
       failedTalentId: reply.failed_talent_id ?? null,
     });
   }
+
+  if (resourceMove?.ok) await resourceMove.finish(true);
 
   return {
     ok: true,

@@ -1,7 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Billing E2E (TUL-838) — Playwright against STAGING, Stripe TEST mode only.
 # Pricing toggle plus signed-in lifecycle scenarios (skip without creds).
-# Not a required check until repo settings say so.
+# Not itself a required check (a path-filtered workflow cannot be one). Its PR-time
+# compile/list step is mirrored as the `billing_e2e` job in ci.yml, which the required
+# "Structural quality gate" waits on. Keep the paths list below in sync with that job.
 # On PRs it only checks the suite compiles and lists (staging does not run the
 # PR's code yet, so a staging run on a PR always tests the OLD build). The real
 # run is workflow_dispatch against staging after a staging deploy.

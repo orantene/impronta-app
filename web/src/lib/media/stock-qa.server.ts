@@ -17,6 +17,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import type { StockRole } from "./platform-stock";
 
 export const STOCK_QA_VERSION = "qa@v1";
@@ -75,6 +79,8 @@ export interface StockQaInput {
   typeLabel: string | null;
   /** Vision model id; null/empty = vision checks skipped. */
   visionModel?: string | null;
+  /** The workspace the QA is for (per-site images); omitted = the platform stock pool. TUL-1624: gated and metered against it. */
+  tenantId?: string | null;
 }
 
 export async function runStockQa(input: StockQaInput): Promise<StockQaResult> {
@@ -106,8 +112,15 @@ async function visionChecks(input: StockQaInput): Promise<StockQaResult["checks"
   const skipped = Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: "no QA model configured" }]));
   const model = input.visionModel?.trim();
   if (!model) return skipped;
+  // The QA model is a paid OpenAI call: the master switch stops it too (TUL-1622). Skipped, not failed.
+  if (!(await isAiMasterEnabled())) return skipped;
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) return skipped;
+  // TUL-1624: the vision call is paid: the spend ceiling is checked first (skipped, not failed, when it is closed) and
+  // the call is recorded against the same tenant.
+  const aiTenantId = input.tenantId || DEFAULT_AI_TENANT_ID;
+  const gate = await assertAiInvocationAllowed(aiTenantId);
+  if (!gate.ok) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `AI limit: ${gate.code}` }]));
   try {
     const small = await sharp(input.bytes).resize({ width: 768, withoutEnlargement: true }).jpeg({ quality: 70 }).toBuffer();
     const question =
@@ -124,8 +137,13 @@ async function visionChecks(input: StockQaInput): Promise<StockQaResult["checks"
         messages: [{ role: "user", content: [{ type: "text", text: question }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${small.toString("base64")}`, detail: "low" } }] }],
       }),
     });
-    if (!res.ok) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `vision HTTP ${res.status}` }]));
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    if (!res.ok) {
+      await recordMeasuredAiSpend(aiTenantId, 0, 0); // a failed call still counts as a request, at no spend
+      return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: `vision HTTP ${res.status}` }]));
+    }
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+    // TUL-1731: the REAL cost of this vision call, from the reply's token usage at the QA model's rate.
+    await recordMeasuredAiSpend(aiTenantId, chatSpendUsd(model, { inputTokens: json.usage?.prompt_tokens, outputTokens: json.usage?.completion_tokens }));
     const raw = json.choices?.[0]?.message?.content ?? "";
     const m = raw.match(/\{[\s\S]*\}/);
     if (!m) return Object.fromEntries(VISION_KEYS.map((k) => [k, { verdict: "skipped" as const, detail: "unparseable vision reply" }]));

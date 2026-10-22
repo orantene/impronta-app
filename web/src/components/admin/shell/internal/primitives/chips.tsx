@@ -616,10 +616,10 @@ export function TrustBoostBanner({
   // Inline reference instead of importing TRUST_TIER_UPGRADE here to keep
   // the primitives file framework-light. Caller passes the next-tier copy
   // via the wrapper.
+  const t = useT();
   if (level === "gold") return null;
 
   const isActionable = level === "basic";
-  const meta = CLIENT_TRUST_META[level];
 
   return (
     <div
@@ -644,14 +644,14 @@ export function TrustBoostBanner({
             lineHeight: 1.3,
           }}
         >
-          {isActionable ? "Get Verified, open more talent inboxes" : `You're at ${meta.label}`}
+          {isActionable ? t("dashboard.talentDrawers.agency.trustBoostBasicTitle") : interpolate(t("dashboard.talentDrawers.agency.trustBoostLevelTitle"), { label: t(TK[level].label) })}
         </div>
         <div style={{ fontFamily: FONTS.body, fontSize: 12, marginTop: 2, lineHeight: 1.45 }} className="text-admin-ink-muted">
           {isActionable
-            ? "Verification confirms a real, verified client. Talent that filters out anonymous inquiries will see your next message."
+            ? t("dashboard.talentDrawers.agency.trustBoostBasicBody")
             : level === "verified"
-              ? "Funded-balance activity earns Silver. No extra fee, just a stronger signal of readiness to book."
-              : "Sustained activity + funded balance earns Trusted, the strongest trust signal Tulala issues."}
+              ? t("dashboard.talentDrawers.agency.trustBoostVerifiedBody")
+              : t("dashboard.talentDrawers.agency.trustBoostSilverBody")}
         </div>
       </div>
       {isActionable && onUpgrade && (
@@ -674,7 +674,7 @@ export function TrustBoostBanner({
             flexShrink: 0,
           }}
         >
-          Get Verified · $29
+          {t("dashboard.talentDrawers.agency.trustBoostCta")}
           <Icon name="arrow-right" size={11} stroke={2} color="#fff" />
         </button>
       )}

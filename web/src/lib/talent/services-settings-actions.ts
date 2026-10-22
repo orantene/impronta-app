@@ -1,5 +1,6 @@
 "use server";
 
+import { publicSubdomainHost } from "@/lib/brand/public-root-domain";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { revalidatePath } from "next/cache";
@@ -64,7 +65,7 @@ async function requireOwner(talentProfileId: string) {
   if (!admin) return { ok: false as const, error: "Server configuration error." };
   const { data, error } = await admin
     .from("talent_profiles")
-    .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code, booking_terms")
+    .select("id, user_id, display_name, category_order, selling_defaults, category_rename_log, profile_code, booking_terms, is_demo, is_test_account")
     .eq("id", talentProfileId)
     .maybeSingle();
   if (error) {
@@ -224,7 +225,15 @@ export async function mergeCategories(
 
 export async function loadOfferingDestinations(
   talentProfileId: string,
-): Promise<{ ok: true; destinations: OfferingDestination[] } | { ok: false; error: string }> {
+): Promise<
+  | {
+      ok: true;
+      destinations: OfferingDestination[];
+      /** TUL-1270: demo / test-account profile; the public loader strips QA-named services from its site. */
+      publicSiteHidesTestServices: boolean;
+    }
+  | { ok: false; error: string }
+> {
   const auth = await requireOwner(talentProfileId);
   if (!auth.ok) return auth;
   const destinations: OfferingDestination[] = [];
@@ -240,7 +249,7 @@ export async function loadOfferingDestinations(
   }
   const { data: roster, error: rosterError } = await auth.admin
     .from("agency_talent_roster")
-    .select("tenant_id, agencies:tenant_id ( name, slug )")
+    .select("tenant_id, agencies:tenant_id ( display_name, slug )")
     .eq("talent_profile_id", talentProfileId)
     .neq("status", "removed");
   if (rosterError) {
@@ -252,9 +261,9 @@ export async function loadOfferingDestinations(
     if (!agency) continue;
     destinations.push({
       id: `agency:${row.tenant_id}`,
-      label: agency.name ?? "Agency listing",
+      label: agency.display_name ?? "Agency listing",
       href: agency.slug ? `/${agency.slug}` : null,
-      enquiryTo: agency.name ?? "The agency",
+      enquiryTo: agency.display_name ?? "The agency",
     });
   }
   const { data: site, error: siteError } = await auth.admin
@@ -270,11 +279,12 @@ export async function loadOfferingDestinations(
     destinations.push({
       id: "website",
       label: "Your website",
-      href: `https://${site.site_slug}.tulala.digital/`,
+      href: `https://${publicSubdomainHost(site.site_slug)}/`,
       enquiryTo: auth.profile.display_name ?? "You",
     });
   }
-  return { ok: true, destinations };
+  const flags = auth.profile as { is_demo?: boolean | null; is_test_account?: boolean | null };
+  return { ok: true, destinations, publicSiteHidesTestServices: flags.is_demo === true || flags.is_test_account === true };
 }
 
 export async function loadAddonGroups(

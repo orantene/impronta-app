@@ -164,7 +164,6 @@ export default async function LoginPage({
   return (
     <div className="w-full">
       <AuthHeading
-        eyebrow={t("public.auth.login.eyebrow")}
         title={title}
         description={description}
       />

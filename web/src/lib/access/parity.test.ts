@@ -204,6 +204,17 @@ test("registry contains all expected capability sets", () => {
   for (const key of SUPPORT_KEYS) {
     assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
+  // TUL-1708: run day-to-day operations (POS, tables, floor, door, classes,
+  // preparation, sessions, customer attach). Editor+ ; viewer does not hold it.
+  const OPERATIONS_KEYS: readonly CapabilityKey[] = ["operate_venue"];
+  // TUL-1715: curation of what is sold (Favorites, the Website switch). Manager and above.
+  const CATALOG_CURATION_KEYS: readonly CapabilityKey[] = ["curate_catalog"];
+  for (const key of CATALOG_CURATION_KEYS) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
+  }
+  for (const key of OPERATIONS_KEYS) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
+  }
   const expected =
     LEGACY_CAPABILITIES.length +
     PHASE_5_CAPABILITIES.length +
@@ -217,7 +228,9 @@ test("registry contains all expected capability sets", () => {
     PITCH_KEYS.length +
     MEDIA_WATERMARK_KEYS.length +
     PHASE_0_TALENT_SELF_KEYS.length +
-    SUPPORT_KEYS.length;
+    SUPPORT_KEYS.length +
+    OPERATIONS_KEYS.length +
+    CATALOG_CURATION_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 

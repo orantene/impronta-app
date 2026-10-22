@@ -149,7 +149,9 @@ export async function resolvePromo(
     currency: promo.currency,
   }));
 
+  // Orders (POS, QR, cart/web) never take the free-below-minimum waiver: that is for bookings (P-10).
   const result = quote({
+    channel: "web",
     cart,
     client: { customerId: input.customerId, status },
     now,

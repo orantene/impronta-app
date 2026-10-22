@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { withLocaleHref } from "@/i18n/pathnames";
+import { getAppUrl } from "@/lib/auth-flow";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { TulalaLogo } from "@/components/brand/tulala-logo";
 import { getMarketingCopy } from "@/lib/marketing/copy";
@@ -28,7 +29,7 @@ import {
   type MarketingAccount,
 } from "./marketing-account-menu";
 import { useStickyDesktopMenu } from "./marketing-header-sticky-menu";
-import { ClientAccountButton, CLIENT_ACCOUNT_OPEN_EVENT } from "@/components/client-account/ClientAccountButton";
+import { ClientAccountButton, openClientAccountOrNavigate } from "@/components/client-account/ClientAccountButton";
 import type { HubClientEntry } from "@/lib/marketing/hub-client-entry";
 
 export function MarketingHeader({
@@ -213,16 +214,17 @@ export function MarketingHeader({
                     href={clientEntry.signInHref}
                     onClick={(e) => {
                       e.preventDefault();
-                      window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
+                      openClientAccountOrNavigate(clientEntry.signInHref);
                     }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[10px] max-[399px]:w-11 max-[399px]:justify-center max-[399px]:px-0 lg:h-9 border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
                   >
                     <SignInGlyph />
-                    {copy.nav.signIn}
+                    {/* TUL-1796: glyph-only under 400px so the menu button stays inside the viewport. */}
+                    <span className="max-[399px]:sr-only">{copy.nav.signIn}</span>
                   </a>
                   <a
                     href={clientEntry.createHref}
-                    className="hidden h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
+                    className="hidden h-11 items-center gap-1.5 rounded-[10px] lg:h-9 border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-3.5 text-[0.875rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:inline-flex"
                   >
                     {copy.nav.createAccount}
                   </a>
@@ -236,10 +238,10 @@ export function MarketingHeader({
                 /* Colours as classes, not inline `style` — inline wins over
                    stylesheet rules and would nullify the `hover:` variants.
                    TUL-787: visible at every width (compact on phones); the menu footer keeps one too. */
-                className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
+                className="inline-flex h-11 items-center gap-1.5 rounded-[10px] max-[399px]:w-11 max-[399px]:justify-center max-[399px]:px-0 lg:h-9 border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[0.8125rem] font-medium leading-none tracking-[-0.005em] text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:px-3.5 lg:text-[0.875rem]"
               >
                 <SignInGlyph />
-                {copy.nav.signIn}
+                <span className="max-[399px]:sr-only">{copy.nav.signIn}</span>
               </button>
               )}
               <span className="relative hidden lg:inline-flex">
@@ -274,7 +276,7 @@ export function MarketingHeader({
               `style` was another instance of inline-kills-hover, see #888). */}
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink)] transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:hidden"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] text-[var(--plt-ink)] transition-[background-color,border-color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)] lg:hidden"
             aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
@@ -379,7 +381,7 @@ export function MarketingHeader({
                         onClick={(e) => {
                           e.preventDefault();
                           setMenuOpen(false);
-                          window.dispatchEvent(new CustomEvent(CLIENT_ACCOUNT_OPEN_EVENT));
+                          openClientAccountOrNavigate(clientEntry.signInHref);
                         }}
                         className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
                         style={{ color: "var(--plt-ink-soft)" }}
@@ -410,6 +412,19 @@ export function MarketingHeader({
                     <ChevronGlyph />
                   </button>
                   )}
+                  {/* TUL-759: a client reaches the client register in one tap from the menu; the seller CTA below stays. */}
+                  {!clientEntry ? (
+                    <Link
+                      href={`${getAppUrl()}${L("/register?as=client")}`}
+                      onClick={() => setMenuOpen(false)}
+                      data-client-signup-link=""
+                      className="flex w-full items-center justify-between rounded-2xl px-4 py-4 text-left text-[1rem] font-medium"
+                      style={{ color: "var(--plt-ink-soft)" }}
+                    >
+                      {copy.nav.createAccount}
+                      <ChevronGlyph />
+                    </Link>
+                  ) : null}
                   <span className="relative block w-full">
                     <MarketingCta
                       href={L("/get-started")}

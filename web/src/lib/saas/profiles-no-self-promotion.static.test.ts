@@ -109,11 +109,23 @@ test("admin-talent mutations are roster-scoped, not the global requireStaff()", 
   assert.ok((src.match(/await requireRosterScopedStaff\(/g) ?? []).length >= 7);
 });
 
-test("createAdminClient writes the new user's profile / client_profile with the service role", () => {
-  const src = read("lib/server-actions/admin-clients.ts");
-  const fn = src.slice(src.indexOf("export async function createAdminClient"));
-  assert.match(fn, /await admin\s*\.from\("profiles"\)/);
-  assert.match(fn, /await admin\s*\.from\("client_profiles"\)/);
+test("createClientAccount (behind createAdminClient) writes app_role 'client' only for the brand-new user, with the service role", () => {
+  const action = read("lib/server-actions/admin-clients.ts");
+  const fn = action.slice(action.indexOf("export async function createAdminClient"));
+  assert.match(fn, /createClientAccount\(/);
+  assert.match(fn, /createServiceRoleClient\(\)/);
+  const core = read("lib/server/create-client-account.ts");
+  // The profile / client_profile writes go through the service-role client handed in as `admin` ...
+  assert.match(core, /await admin\s*\.from\("profiles"\)/);
+  assert.match(core, /await admin\.from\("client_profiles"\)/);
+  assert.match(core, /app_role: "client"/);
+  // ... keyed on the id the invite just returned, and only after the user is proven NEW (created in this call).
+  assert.match(core, /\.eq\("id", userId\)/);
+  const gate = core.indexOf("createdAt < startedAt - NEW_USER_SKEW_MS");
+  const write = core.indexOf('app_role: "client"');
+  assert.ok(gate > -1 && write > gate, "the new-user check must come BEFORE the app_role write");
+  // The only delete is the rollback of that new user.
+  assert.equal((core.match(/deleteUser\(/g) ?? []).length, 1);
 });
 
 test("global user search is platform-admin-only except the tenant-narrowed client picker", () => {

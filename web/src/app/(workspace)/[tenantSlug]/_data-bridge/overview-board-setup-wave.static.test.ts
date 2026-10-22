@@ -24,3 +24,15 @@ test("setup items are returned as read, not re-awaited after the wave", () => {
   assert.doesNotMatch(afterWave, /await loadSetupItems/);
   assert.match(afterWave, /\n\s+setup,\n/);
 });
+
+test("TUL-734: zone uses the full tenant ladder, and the workspace currency wins on the money card", () => {
+  assert.match(src, /tenantTimezone\(input\.tenantId\)/);
+  assert.match(src, /hasMoneyIn\(fallbackCurrency\)/);
+});
+
+test("TUL-734 round 2: the Overview picks its currency with the Payments rule, never a hard-coded USD", () => {
+  assert.match(src, /pickWorkspaceCurrency\(preferredCurrency, offeringCurrency\)/);
+  assert.doesNotMatch(src, /:\s*"USD"/);
+  const board = readFileSync(new URL("../../../../components/admin/shell/internal/page-modules/OverviewBoard.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(board, /\?\? "USD"/);
+});

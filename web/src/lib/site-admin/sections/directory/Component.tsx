@@ -14,6 +14,7 @@ import {
   getCachedDirectoryFilterSidebarModel,
 } from "@/lib/directory/field-driven-filters";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
+import { directoryTenantIdForHost } from "@/lib/directory/directory-scope";
 import {
   buildRosterItemListJsonLd,
   jsonLdToString,
@@ -43,6 +44,7 @@ import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
 import { mapDirectoryDefaultSort } from "./default-sort";
 import { resolveDirectoryScopeSeed } from "./scope-seed";
 import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
+import { emptyStateCopy } from "./empty-state-copy";
 
 /**
  * P4 — Resolve a per-instance `cardKitOverride` slug to inline `--token-card-*`
@@ -140,20 +142,25 @@ export async function DirectoryComponent({
 
   // Tenant context for the public directory query (scoped by host).
   const publicScope = await getPublicTenantScope();
-  const directoryTenantId = publicScope?.tenantId ?? null;
-  const surface = directorySurfaceFromTenantId(publicScope?.tenantId ?? null);
+  // TUL-1233 / TUL-1789: a hub host carries the hub's own tenant id in the scope header, but the hub directory is
+  // CROSS-tenant: `/api/directory` (the list) already scopes a hub to null. The section used the header as-is, so on a
+  // hub the first page, the facet counts and the scope seed were scoped to the hub tenant's roster while the list
+  // paged across everyone (staging: 92 results, "México (1)"). One scope for list AND facets: null on a hub.
+  const hostContext = await getPublicHostContext();
+  const directoryTenantId = directoryTenantIdForHost(hostContext.kind, publicScope?.tenantId ?? null);
+  const surface = directorySurfaceFromTenantId(directoryTenantId);
   // Map view key: prefer the TENANT's own Google Maps integration key (admin →
   // Settings → Integrations, custom mode) so the tenant's own referrer-restricted
   // key authorizes their custom domain; falls back to the platform key in inherit
   // mode. null → the map panel shows its graceful "unavailable" box.
-  const mapApiKey = await resolveGoogleMapsKeyForClient(directoryTenantId);
+  const mapApiKey = await resolveGoogleMapsKeyForClient(publicScope?.tenantId ?? null);
 
   // Tenant-wide profile-popup ceiling. "off" forces full-page navigation for
   // every card on the site; a section can still choose the full page itself,
   // but cannot force the popup back on. Click interception is JS, so unlike
   // the price/quick-view gates this cannot be a CSS rule.
-  const tenantCardDesign = directoryTenantId
-    ? await resolveCardDesign(directoryTenantId)
+  const tenantCardDesign = publicScope?.tenantId
+    ? await resolveCardDesign(publicScope.tenantId)
     : null;
   const popupDisabledTenantWide = tenantCardDesign?.profilePopup === "off";
   // Favorite / inquiry ceilings — same one-directional semantics as the
@@ -653,8 +660,7 @@ export async function DirectoryComponent({
               </p>
             ) : null}
             <p className="mt-3 text-sm leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
-              {props.emptyStateText ||
-                "No one matches yet, check back as the roster grows."}
+              {emptyStateCopy(props.emptyStateText, loc, ui.emptyResults)}
             </p>
           </div>
         ) : (

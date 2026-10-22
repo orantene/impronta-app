@@ -65,6 +65,7 @@ import {
 } from "@/lib/directory/apply-directory-field-facet-filters";
 import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import { resolvePublicRosterDisplayCap } from "@/lib/saas/roster-seat-limit";
+import { visibleRosterIdsWithinCap } from "@/lib/service-hub/roster-visibility";
 import {
   loadTenantTaxonomyVisibility,
   resolveTenantSafeDirectoryTaxonomyTermIds,
@@ -638,6 +639,10 @@ async function fetchDirectoryWindow(
         agencySeatRow.data?.talent_seat_limit ?? null,
       );
     }
+    // TUL-1378: over the plan cap, the OWNER's picks stay visible (then the longest-standing); the rest are
+    // hidden from this public list, never removed.
+    const visibleWithinCap = await visibleRosterIdsWithinCap(supabase, tenantScopeId, rosterIds, tenantRosterDisplayCap);
+    if (visibleWithinCap) tenantRosterIds = visibleWithinCap;
     if (tenantRosterDisplayCap != null && offset >= tenantRosterDisplayCap) {
       return {
         items: [],

@@ -74,6 +74,14 @@ export type TemplatePickerPanelProps = {
    * 'site' mode (destructive whole-site replace) and false for 'profile'.
    */
   confirmBeforeApply?: boolean;
+  /**
+   * TUL-829: called instead of apply for a `locked` template (the viewer's plan
+   * is below the template's tier). Locked cards show a lock badge and this
+   * action's label; they are listed, never hidden.
+   */
+  onLockedUpgrade?: (def: UnifiedTemplateDef) => void;
+  /** Localized lock copy. Defaults are English; callers pass es when needed. */
+  lockedLabels?: { locked: string; upgrade: string };
 };
 
 export function TemplatePickerPanel({
@@ -86,6 +94,8 @@ export function TemplatePickerPanel({
   heading,
   description,
   confirmBeforeApply,
+  onLockedUpgrade,
+  lockedLabels = { locked: "Locked", upgrade: "Upgrade to unlock" },
 }: TemplatePickerPanelProps) {
   const [pending, startTransition] = useTransition();
   const [applyingKey, setApplyingKey] = useState<string | null>(null);
@@ -192,6 +202,7 @@ export function TemplatePickerPanel({
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{def.label}</span>
                 {selected ? <Pill tone="indigo">Current</Pill> : null}
+                {def.locked ? <Pill tone="muted">{lockedLabels.locked}</Pill> : null}
                 {def.tier && def.tier !== "free" ? (
                   <Pill tone="muted">{def.tier === "max" ? "Portfolio" : "Pro"}</Pill>
                 ) : null}
@@ -210,11 +221,18 @@ export function TemplatePickerPanel({
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: "auto" }}>
                 <button
                   type="button"
-                  onClick={() => handleApply(def)}
-                  disabled={pending}
+                  onClick={() => (def.locked && onLockedUpgrade ? onLockedUpgrade(def) : handleApply(def))}
+                  disabled={pending || (!!def.locked && !onLockedUpgrade)}
+                  data-template-locked={def.locked ? "true" : undefined}
                   style={{ ...miniBtn, alignSelf: "flex-start" }}
                 >
-                  {isApplying ? "Applying…" : selected ? "Re-apply" : "Apply"}
+                  {def.locked
+                    ? lockedLabels.upgrade
+                    : isApplying
+                      ? "Applying…"
+                      : selected
+                        ? "Re-apply"
+                        : "Apply"}
                 </button>
                 {/* Eye / Preview — opens the SHARED owner-gated hydrated preview
                     route with this talent's real data (?talent param). */}

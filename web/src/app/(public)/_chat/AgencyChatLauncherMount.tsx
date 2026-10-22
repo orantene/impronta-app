@@ -24,7 +24,8 @@ import { Suspense } from "react";
 
 import { ClientAccountDock } from "@/components/client-account/ClientAccountDock";
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
-import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
+import { mergeDockPrefill } from "@/lib/client-account/dock-prefill-merge";
+import { resolveDockViewerIdentityTier, resolveDockViewerPrefill } from "@/lib/client-account/dock-viewer-identity.server";
 
 import { TalentProfileChatLauncher } from "@/app/t/[profileCode]/_chat/TalentProfileChatLauncher";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
@@ -289,7 +290,7 @@ export async function AgencyChatLauncherMount({
         label={t("public.guestChat.bookNow")}
         existingInquiryId={active?.inquiryId ?? null}
         existingContactPromoted={active?.contactPromoted ?? null}
-        prefill={active?.prefill ?? null}
+        prefill={mergeDockPrefill(active?.prefill ?? null, await resolveDockViewerPrefill())}
         onStartInquiry={startGuestChatInquiry}
         onSendMessage={sendGuestMessageAction}
         fetchMessages={getGuestThreadMessages}

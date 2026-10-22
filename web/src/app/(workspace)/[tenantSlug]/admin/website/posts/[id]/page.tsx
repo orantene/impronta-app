@@ -4,6 +4,7 @@ import { WorkspacePostWriterClient } from "@/components/posts/writer/WorkspacePo
 import { isPostLocale } from "@/lib/cms/posts-shared";
 import {
   listPostCategories,
+  listTranslationOptions,
   listWorkspaceOfferings,
   loadPostForWriter,
 } from "@/lib/cms/posts-writer-read";
@@ -33,9 +34,10 @@ export default async function AdminWebsitePostWriterPage({
   const ui = await getRequestLocale();
   const locale: "es" | "en" = ui === "es" ? "es" : "en";
   const postLocale = isPostLocale(post.locale) ? post.locale : "es";
-  const [categories, offerings, aiCrawlersAllowed] = await Promise.all([
+  const [categories, offerings, translationOptions, aiCrawlersAllowed] = await Promise.all([
     listPostCategories(ctx.supabase, scope, postLocale),
     listWorkspaceOfferings(ctx.supabase, ctx.tenantId, postLocale),
+    listTranslationOptions(ctx.supabase, scope, postLocale, post.id),
     loadOwnAiCrawlersAllowed(scope),
   ]);
 
@@ -49,6 +51,7 @@ export default async function AdminWebsitePostWriterPage({
         locale={locale}
         offerings={offerings}
         categories={categories}
+        translationOptions={translationOptions}
         backHref={`${adminBase}/website/posts`}
         upgradeHref={`${adminBase}/account`}
         lapsed={!ctx.canPublish}

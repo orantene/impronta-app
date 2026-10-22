@@ -77,8 +77,10 @@ import { defaultCancelNoticeDeps } from "@/lib/billing/cancel-state-notice-deps"
 import { recordProviderInvoice } from "@/lib/payments/provider-invoices";
 import { notifyTrialWillEnd } from "@/lib/notifications/producers/trial-notify";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { classifyRentSubscriptionEvent, isRentPaymentSucceeded } from "@/lib/service-hub/rent/rent-autopay-routing";
+import { handleRentChargeEvent, handleRentDraft, handleRentSubscriptionEvent, handleRentUnbilledPercent } from "@/lib/service-hub/rent/rent-autopay.server";
 import { logServerError } from "@/lib/server/safe-error";
-import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
+import { recordDiscountRedemption, recordPaidInvoiceRedemptions } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
 import {
@@ -86,7 +88,6 @@ import {
   releaseStripeEventClaim,
 } from "@/lib/stripe/event-idempotency";
 import type Stripe from "stripe";
-
 // ─── Error classification ─────────────────────────────────────────────────────
 
 /**
@@ -333,6 +334,27 @@ export async function processStripeEvent(
   /** Platform account this event arrived on; threaded to settle so the charge platform is recorded. */
   account: StripeAccountKey = "us",
 ): Promise<void> {
+  // TUL-1601: a studio rent subscription is handled before the plan-subscription routing (kept a pure leaf module).
+  if (isRentPaymentSucceeded(event)) return; // recorded by invoice.paid; never a Plans renewal
+  const rent = classifyRentSubscriptionEvent(event);
+  if (rent) {
+    const sb = createServiceRoleClient();
+    if (!sb) throw new TransientWebhookError("rent_subscription: no service-role client");
+    if (rent.type === "draft") {
+      if ((await handleRentDraft(sb, stripe, rent)) === "retry") throw new TransientWebhookError("rent_subscription: percentage not added yet");
+    } else if (rent.type === "past_draft") {
+      if ((await handleRentUnbilledPercent(sb, rent)) === "retry") throw new TransientWebhookError("rent_subscription: missed percentage not recorded yet");
+    } else if ((await handleRentSubscriptionEvent(sb, rent, account)) === "unavailable") {
+      throw new TransientWebhookError("rent_subscription: write failed");
+    }
+    return;
+  }
+  // TUL-1611: a refund or dispute on an automatic rent charge reverses the studio's share / flags it; then the
+  // normal routing still records the dispute (it ignores refunds it cannot trace, as before).
+  if (event.type === "charge.refunded" || event.type === "charge.dispute.created" || event.type === "charge.dispute.closed") {
+    const sbRent = createServiceRoleClient();
+    if (sbRent && (await handleRentChargeEvent(sbRent, stripe, event)) === "retry") throw new TransientWebhookError("rent charge event: retry");
+  }
   const action = classifyStripeEvent(event);
 
   switch (action.kind) {
@@ -445,6 +467,7 @@ export async function processStripeEvent(
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId} (${action.source})`, err);
       }
       await syncSubscriptionByType(subscription, event.id);
+      await recordDiscountRedemption(subscription, event.id); // TUL-1872: a code added by an in-app upgrade
       return;
     }
 
@@ -729,6 +752,7 @@ export async function processStripeEvent(
           throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
         }
         await syncSubscriptionByType(subscription, event.id);
+        await recordPaidInvoiceRedemptions(stripe, subscription, event.id, event.data.object as Stripe.Invoice); // TUL-1872
         // TUL-1232: one receipt per paid invoice (ledger keyed on the Stripe
         // invoice id, so a replayed event sends nothing). Zero-amount and
         // unpaid invoices are skipped inside the notice.
@@ -766,6 +790,11 @@ export async function processStripeEvent(
       return;
 
     case "ignore":
+      if (action.info) {
+        // INFO, not error: lets support trace a delayed payment without paging anyone.
+        void improntaLog("stripe_webhook.info", { reason: action.info.event, eventId: event.id, eventType: event.type,
+          sessionId: action.info.sessionId, paymentStatus: action.info.paymentStatus });
+      }
       return;
   }
 }

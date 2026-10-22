@@ -106,7 +106,6 @@ const MOBILE_QUEUE_ROWS = 5;
 export function OverviewBoard() {
   const snapshot = useOverviewSnapshot();
   const t = useT();
-  const router = useRouter();
   const copy = useDashboardText();
   const {
     state,
@@ -161,7 +160,7 @@ export function OverviewBoard() {
   const canBook = meetsRole(state.role, "manager");
   const needCount = snapshot?.needsYou.length ?? 0;
   const money = snapshot?.money;
-  const fmt = (cents: number) => formatMoneyCents(cents, money?.currency ?? "USD");
+  const fmt = (cents: number) => formatMoneyCents(cents, money?.currency ?? "MXN");
 
   const subline = snapshot
     ? [
@@ -364,7 +363,6 @@ export function OverviewBoard() {
           <SetupReadiness
             snapshot={snapshot}
             adminBase={adminBasePath}
-            onFinish={() => router.push(`${adminBasePath}/setup`)}
           />
         </div>
       </div>
@@ -536,15 +534,15 @@ function TodayPanel({ snapshot }: { snapshot: OverviewSnapshot | null }) {
 
 function SetupReadiness({
   snapshot,
-  onFinish,
   adminBase,
 }: {
   snapshot: OverviewSnapshot | null;
-  onFinish: () => void;
   adminBase: string;
 }) {
   const t = useT();
   const router = useRouter();
+  // TUL-734: "See all N" expands the list in place (it used to call a no-op).
+  const [showAll, setShowAll] = useState(false);
   if (!snapshot) {
     return (
       <section className={`${CARD} px-[18px] py-[14px]`} data-testid="overview-setup-skeleton">
@@ -558,7 +556,7 @@ function SetupReadiness({
   }
   const { done, total } = setupProgress(snapshot.setup);
   const missingAll = snapshot.setup.filter((i) => !i.done);
-  const missing = missingAll.slice(0, 3);
+  const missing = showAll ? missingAll : missingAll.slice(0, 3);
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return (
     <section
@@ -580,8 +578,8 @@ function SetupReadiness({
             />
           </div>
         </div>
-        {missingAll.length > 3 ? (
-          <button type="button" onClick={onFinish} className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
+        {missingAll.length > 3 && !showAll ? (
+          <button type="button" onClick={() => setShowAll(true)} data-testid="overview-setup-see-all" className={`${BUTTON_BASE} h-[30px] px-[14px] text-[12px] ${TONE_SECONDARY}`}>
             {interpolate(t(`${K}.setup.seeAllCount`), { count: missingAll.length })}
           </button>
         ) : null}

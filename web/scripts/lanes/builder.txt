@@ -7,12 +7,17 @@ src/app/t/?profileCode?/free-plan-storefront-parity.static.test.ts
 src/app/t/?profileCode?/noir-inquire-gate.static.test.ts
 src/components/admin/shell/internal/drawers/profile-shell/profile-shell-modules/profile-state-real-talent.test.ts
 src/components/admin/shell/internal/qa-residuals-702-721.static.test.ts
+src/components/admin/shell/internal/talent/shared/presence-card-view.test.ts
 src/components/edit-chrome/bridge-reference-identity.test.ts
+src/components/edit-chrome/builder-390-layout.static.test.ts
 src/components/edit-chrome/client-builder-canvas-bridge.test.ts
 src/components/edit-chrome/edit-chrome-overlay-invariant.static.test.ts
 src/components/edit-chrome/invariant-guard.static.test.ts
 src/components/edit-chrome/kit/drawer-modal-inert.static.test.ts
+src/components/edit-chrome/page-edit-href.test.ts
 src/components/edit-chrome/publish-menu.test.tsx
+src/components/edit-chrome/template-picker-locked.static.test.ts
+src/components/edit-chrome/workspace-switch-admin-url.test.ts
 src/components/talent/site/maison-setup/explore-slug.test.ts
 src/components/talent/site/maison-setup/theme-detail-model.test.ts
 src/components/talent/site/theme-gallery/gallery-bootstrap-action.test.ts
@@ -31,6 +36,8 @@ src/lib/analytics/website-analytics-group.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
+src/lib/site-admin/add-gallery/search-widen.test.ts
+src/lib/site-admin/builder-node/book-page-client-boundary.static.test.ts
 src/lib/site-admin/builder-node/builder-node-editor-published-parity.test.ts
 src/lib/site-admin/builder-node/builder-node-role-bindings.test.ts
 src/lib/site-admin/builder-node/builder-node-undo-transaction.test.ts
@@ -46,6 +53,8 @@ src/lib/site-admin/builder-node/experiment.test.ts
 src/lib/site-admin/builder-node/free-plan-builder-tree-guard.test.ts
 src/lib/site-admin/builder-node/freeform-heading-outline.test.ts
 src/lib/site-admin/builder-node/layout-health.test.ts
+src/lib/site-admin/builder-node/menu-board-price.test.ts
+src/lib/site-admin/builder-node/menu-board-subtotal.test.ts
 src/lib/site-admin/builder-node/mobile-safe-width.static.test.ts
 src/lib/site-admin/builder-node/mutation-feedback.test.ts
 src/lib/site-admin/builder-node/mvp-allow-list.test.ts
@@ -66,7 +75,9 @@ src/lib/site-admin/sections/featured_talent/*.test.ts
 src/lib/site-admin/sections/no-dead-default-cta.static.test.ts
 src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/site-admin/sections/site_header/header-aria-i18n.test.tsx
+src/lib/site-admin/sections/site_header/seeded-home-label.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
+src/lib/talent-site/templates/registry-access.test.ts
 src/lib/talent-site/theme-releases/builder-lab-errors.test.ts
 src/lib/talent-site/theme-releases/superseded-rows.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts

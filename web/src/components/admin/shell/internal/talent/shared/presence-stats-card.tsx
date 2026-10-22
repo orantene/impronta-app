@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * TalentPresenceStatsCard (TUL-582): last 30 days of profile visits, top 3
+ * TalentPresenceStatsCard (TUL-582): last 30 days of profile visits (Free sees a locked note naming Pro and Max), top 3
  * sources, booking requests and confirmed bookings, with a delta vs the
  * previous 30 days. Reads the layout-bridged `presence` model (collected data
- * only). Renders nothing when the talent has no analytics entitlement.
+ * only). Never renders nothing: Free or unknown tier shows the Pro and Max note, a failed load shows the empty state.
  */
 
 import Link from "next/link";
@@ -14,6 +14,7 @@ import type {
   PresenceSourceKey,
   TalentPresenceStats,
 } from "@/lib/analytics/talent-presence-stats";
+import { presenceCardView } from "./presence-card-view";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 
@@ -68,10 +69,31 @@ function Metric({
 
 export function TalentPresenceStatsCard() {
   const copy = useDashboardText();
-  const { bridgeTalentPageAnalytics } = useAdminShell();
+  const { bridgeTalentPageAnalytics, bridgeTalentSelfProfile, state } = useAdminShell();
+  // Same effective plan as the loader: the bridge tier comes from the effective-plan resolver.
+  const talentTier = bridgeTalentSelfProfile?.talentTier ?? state.talentTier;
   const stats: TalentPresenceStats | undefined = bridgeTalentPageAnalytics?.presence;
-  if (!stats) return null;
   const es = copy.isSpanish;
+  const view = presenceCardView(talentTier, stats);
+  if (view === "locked") {
+    // Plan gate: visits, sources and bookings are Pro and Max. Say so instead of showing nothing.
+    return (
+      <section
+        aria-label={es ? "Mi presencia, ultimos 30 dias" : "My presence, last 30 days"}
+        className="rounded-admin-lg border border-admin-border bg-admin-card p-4"
+      >
+        <h2 className="text-sm font-semibold text-admin-ink">{es ? "Mi presencia" : "My presence"}</h2>
+        <p className="mt-1 text-sm text-admin-ink-muted">
+          {es
+            ? "Visitas, de dónde llegan y solicitudes de tu perfil están en los planes Pro y Max."
+            : "Visits, where they come from and requests for your profile are on the Pro and Max plans."}
+        </p>
+        <Link href="/talent/plan" className="mt-2 inline-block text-xs text-admin-ink-muted underline-offset-2 hover:underline">
+          {es ? "Ver planes" : "See plans"}
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -88,14 +110,14 @@ export function TalentPresenceStatsCard() {
         </Link>
       </div>
 
-      {stats.isEmpty ? (
+      {!stats || stats.isEmpty ? (
         <p className="text-sm text-admin-ink-muted">
           {es
             ? "Aun no hay visitas ni solicitudes. Comparte el enlace de tu perfil y aqui veras de donde llegan."
             : "No visits or requests yet. Share your profile link and you will see where people come from here."}
         </p>
       ) : (
-        <>
+        stats && (<>
           <div className="grid grid-cols-3 gap-4">
             <Metric label={es ? "Visitas" : "Visits"} value={stats.last30d.visits} pct={stats.deltaPct.visits} isSpanish={es} />
             <Metric label={es ? "Solicitudes" : "Requests"} value={stats.last30d.requests} pct={stats.deltaPct.requests} isSpanish={es} />
@@ -111,7 +133,7 @@ export function TalentPresenceStatsCard() {
               ))}
             </ul>
           )}
-        </>
+        </>)
       )}
     </section>
   );

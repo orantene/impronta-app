@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   SERVICE_TAP_ACTIONS,
   isServiceTapAction,
+  canonicalServiceShareKey,
   serviceCardTarget,
   serviceQuickViewDomId,
   serviceQuickViewId,
@@ -25,6 +26,17 @@ describe("serviceQuickViewId", () => {
     const b = serviceQuickViewDomId(QV, "node_DEF-456");
     assert.notEqual(a, b);
     assert.match(a, /^servicio-1a2b3c4d--[a-z0-9]{1,8}$/);
+  });
+});
+
+describe("canonicalServiceShareKey (old shared links keep resolving)", () => {
+  const keys = [QV, "servicio-ffffffff"];
+  it("exact id passes; old title and widget formats map by id8; unknown is null", () => {
+    assert.equal(canonicalServiceShareKey(QV, keys), QV);
+    assert.equal(canonicalServiceShareKey("servicio-corte-barba-1a2b3c4d-9xk2m4pq", keys), QV);
+    assert.equal(canonicalServiceShareKey("Servicio-Corte-1a2b3c4d", keys), QV);
+    assert.equal(canonicalServiceShareKey("servicio-corte-00000000", keys), null);
+    assert.equal(canonicalServiceShareKey("contacto", keys), null);
   });
 });
 

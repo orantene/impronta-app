@@ -173,6 +173,7 @@ export function SettingsForm({ initial, copy }: {
   initial: { name: string; phone: string; locale: string; marketingOptIn: boolean };
   copy: SettingsCopy;
 }) {
+  const router = useRouter();
   const [v, setV] = useState(initial);
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -185,6 +186,7 @@ export function SettingsForm({ initial, copy }: {
         start(async () => {
           const r = await saveAccountSettings({ name: v.name, phone: v.phone, locale: v.locale, marketingOptIn: v.marketingOptIn });
           setMsg(r.ok ? copy.saved : copy.invalid);
+          if (r.ok) router.refresh(); // TUL-1259: re-render in the language just saved
         });
       }}
     >

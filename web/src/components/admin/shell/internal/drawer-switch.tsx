@@ -38,7 +38,8 @@ import { InquiryPeekDrawer, NewInquiryDrawer, DayDetailDrawer, ClientProfileDraw
 import { NewAppointmentDrawer } from "./drawers/new-appointment-drawer";
 import { TodayPulseDrawer, PipelineDrawer, PipelineFilterDrawer, NotificationsDrawer, ActivityFeedDrawer, MyActivityDrawer } from "./drawers/light-07";
 import { PagesDrawer, PostsDrawer, NavigationDrawer, MediaDrawer, SeoDrawer } from "./drawers/light-08";
-import { FieldCatalogDrawer, FieldPrivacyDrawer } from "./drawers/light-10";
+import { FieldCatalogDrawer } from "./drawers/light-10";
+import { FieldPrivacyDrawer } from "./drawers/field-privacy-drawer";
 import { TrustVerificationQueueDrawer, DisputedClaimsDrawer } from "./drawers/light-11";
 import { TalentTrustDetailDrawer, TalentClaimInviteDrawer, PlatformVerificationMethodsDrawer } from "./drawers/light-12";
 import { TalentPhoneVerifyDrawer, TalentIdVerifyDrawer, TalentBusinessVerifyDrawer, TalentDomainVerifyDrawer, TalentPaymentVerifyDrawer, ClientCsvBulkAddDrawer, WidgetsDrawer, ApiKeysDrawer, SiteHealthDrawer } from "./drawers/light-13";

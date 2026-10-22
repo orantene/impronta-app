@@ -181,6 +181,17 @@ export async function requestEmailCode(
       : { step: "email", error: t("public.auth.actions.ageTermsRequired"), email };
   }
 
+  // TUL-1169: on the signup form an asked-for but empty name is its own error (name field).
+  if (
+    !resent &&
+    String(formData.get("create") ?? "1") !== "0" &&
+    String(formData.get("terms_form") ?? "") === "1" &&
+    formData.has("full_name") &&
+    !String(formData.get("full_name") ?? "").trim()
+  ) {
+    return { step: "email", error: t("public.auth.actions.nameRequired"), email };
+  }
+
   const nextPath = normalizeNextPath(String(formData.get("next") ?? "").trim());
   // `create=0` is the LOGIN path: an unknown address must not silently become a
   // brand-new empty account just because someone typed it into the sign-in box.
@@ -217,7 +228,11 @@ export async function requestEmailCode(
         nextPath,
         lang: otpLang(formData),
       }),
-      newUserData: { lang: otpLang(formData) },
+      newUserData: {
+        lang: otpLang(formData),
+        // TUL-910: the confirm email says "client account" for a client sign-up.
+        ...(String(formData.get("signup_as") ?? "") === "client" ? { signup_as: "client" } : {}),
+      },
       logError: logServerError,
     },
   );

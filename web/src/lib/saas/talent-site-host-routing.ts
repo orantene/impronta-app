@@ -19,6 +19,8 @@
  * page — the code is the credential; host is presentation (pay-link host rules).
  */
 
+import { isCatalogWordSegment } from "@/lib/offerings/offering-paths";
+
 export const TALENT_SITE_HOST_ROUTE_PREFIX = "/_talent-site" as const;
 
 /**
@@ -154,6 +156,8 @@ function talentBlogPath(segments: readonly string[]): TalentSiteHostPath | null 
  */
 export function isTalentSiteHostPathAllowed(
   pathname: string,
+  /** TUL-1324: `<word>/<slug>` is the canonical service page; only when the presentation resolver is on. */
+  opts: { serviceCanonical?: boolean } = {},
 ): TalentSiteHostPath | null {
   // Shared plumbing + static assets pass straight through untouched.
   if (
@@ -182,6 +186,12 @@ export function isTalentSiteHostPathAllowed(
     !RESERVED_TALENT_SITE_SLUGS.has(segments[0])
   ) {
     return { kind: "render", pageSlug: segments[0] };
+  }
+
+  // TUL-1324: the canonical service page `/<word>/<slug>` (servicios/sesion-de-fotos, services/photo-session).
+  // Rewritten to the host route, whose page resolves the slug against the talent's offering_slugs.
+  if (opts.serviceCanonical && segments.length === 2 && isCatalogWordSegment(segments[0]) && TALENT_PAGE_SLUG.test(segments[1])) {
+    return { kind: "render", pageSlug: `${segments[0].toLowerCase()}/${segments[1].toLowerCase()}` };
   }
 
   // Promo share link `/p/<slug>` (promos engine PR4). Two segments, so it can

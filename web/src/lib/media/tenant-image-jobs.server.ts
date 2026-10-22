@@ -137,7 +137,7 @@ export interface RunReport {
   imagesFailed: number;
   imagesBlocked: number;
   costUsd: number;
-  stoppedBy: "budget_ms" | "daily_cap" | "empty" | "not_configured" | "rate_limited";
+  stoppedBy: "ai_off" | "budget_ms" | "daily_cap" | "empty" | "not_configured" | "rate_limited";
 }
 
 /**
@@ -214,6 +214,9 @@ export async function runTenantImageJobs(admin: SupabaseClient, options: { budge
         } else if (r.code === "rate_limit_exceeded") {
           // Leave the slot queued; the next cron minute retries under the limit.
           stop = "rate_limited";
+        } else if (r.code === "ai_off") {
+          // The AI master switch is off (TUL-1622): leave the slot queued, so the job resumes when it is back on.
+          stop = "ai_off";
         } else if (r.code === "daily_cap" || r.code === "not_configured" || r.code === "insufficient_quota") {
           // Leave the slot queued; the job goes back to the queue for tomorrow / after the fix.
           stop = r.code === "daily_cap" ? "daily_cap" : "not_configured";

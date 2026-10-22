@@ -7,7 +7,7 @@ import { logServerError } from "@/lib/server/safe-error";
 
 import type { StudioReference } from "./join-studio";
 
-export type JoinableStudio = { tenantId: string; displayName: string };
+export type JoinableStudio = { tenantId: string; displayName: string; acceptsOpenApplications: boolean };
 
 /** The caller's own live talent profile id, `null` when none, or `"error"` on a failed read. */
 export async function loadOwnTalentProfileId(admin: SupabaseClient, userId: string): Promise<string | null | "error"> {
@@ -29,7 +29,7 @@ export async function loadOwnTalentProfileId(admin: SupabaseClient, userId: stri
  * Resolve a pasted studio reference to a studio workspace. Platform hosts
  * (no tenant) and the hub are never joinable here; a cancelled or archived
  * workspace resolves to nothing. Whether the studio accepts requests at all is
- * the caller's check (registration settings).
+ * the caller's check (registration settings, or the open-applications switch).
  */
 export async function resolveJoinableStudio(
   admin: SupabaseClient,
@@ -50,7 +50,7 @@ export async function resolveJoinableStudio(
     if (!tenantId) return null;
   }
 
-  const query = admin.from("agencies").select("id, display_name, status, kind").limit(1);
+  const query = admin.from("agencies").select("id, display_name, status, kind, accepts_open_applications").limit(1);
   const { data: agency, error } = await (ref.kind === "slug" ? query.eq("slug", ref.slug) : query.eq("id", tenantId)).maybeSingle();
   if (error) {
     logServerError("join-studio.agency", error);
@@ -58,5 +58,5 @@ export async function resolveJoinableStudio(
   }
   if (!agency || agency.kind !== "agency") return null;
   if (agency.status === "cancelled" || agency.status === "archived") return null;
-  return { tenantId: agency.id, displayName: agency.display_name };
+  return { tenantId: agency.id, displayName: agency.display_name, acceptsOpenApplications: agency.accepts_open_applications === true };
 }

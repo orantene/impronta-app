@@ -85,6 +85,7 @@ import { ClassesClient, DoorClient, PosClient } from "./mode-clients";
 import { collectionMethods, currentAdminPath, loadCashierName, posRole } from "./page-helpers";
 import { messagesModeView, readMessagesUnread } from "./messages-view";
 import { PosModeUrlSync } from "./pos-mode-url-sync";
+import { PosNoAccessCard } from "./pos-no-access-card";
 import { ProjectsModePage } from "./_projects/projects-mode-page";
 
 export const dynamic = "force-dynamic";
@@ -102,11 +103,22 @@ export default async function PosPage({
   const { tenantSlug } = await params;
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
-  const allowed = await userHasCapability("booking.payment.request", scope.tenantId);
-  if (!allowed) notFound();
-
+  const allowed = await userHasCapability("operate_venue", scope.tenantId);
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
+  // Inline answer, never `notFound()`: that swap crashes the admin shell client
+  // ("This page couldn't load") for a seat the counter is not open to.
+  if (!allowed) {
+    return (
+      <>
+        <PageRouteSyncer page="pos" />
+        <PosNoAccessCard
+          tr={tr}
+          backHref={(await currentAdminPath(tenantSlug)).replace(/\/pos$/, "")}
+        />
+      </>
+    );
+  }
   const admin = createServiceRoleClient();
   if (!admin) notFound();
 

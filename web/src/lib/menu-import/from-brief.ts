@@ -20,7 +20,7 @@ import { decodeBody, safeFetch } from "@/lib/security/safe-fetch";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
-import { applyParsedMenu } from "./import-actions";
+import { applyParsedMenu } from "./apply-parsed-menu";
 import { parseRestauradminMenu } from "./parse-restauradmin";
 
 /**

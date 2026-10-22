@@ -29,11 +29,12 @@
  *   a three-way split. See `lib/payments/stripe-checkout.ts`.
  */
 
+import { syncPayoutAccountFromStripe } from "@/lib/payments/payout-account-verification";
 import Stripe from "stripe";
 import { getStripe } from "./stripe-checkout";
 import { getStripeFor } from "@/lib/stripe/client";
 import { resolveStripeAccountForSeller } from "@/lib/stripe/account-routing";
-import { loadAccountPlatform } from "@/lib/stripe/account-platform";
+import { resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { normalizePayoutCountry, payoutCountryLabel } from "@/lib/payments/payout-countries";
@@ -305,8 +306,9 @@ export async function createOnboardingLink(
   const ensure = await createOrGetConnectedAccount(tenantSlug);
   if (!ensure.ok) return ensure;
 
-  const stripe = getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug }));
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
+  const owning = await resolveConnectedAccountClient("agencies", { column: "slug", value: tenantSlug }, ensure.data.stripeAccountId);
+  if (!owning.ok) return { ok: false, error: owning.error };
+  const stripe = owning.stripe;
 
   try {
     const link = await stripe.accountLinks.create({
@@ -330,14 +332,15 @@ export async function createOnboardingLink(
 export async function createDashboardLink(
   tenantSlug: string,
 ): Promise<ConnectResult<{ url: string }>> {
-  const stripe = getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug }));
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
-
   const agency = await loadAgencyConnectFields(tenantSlug);
   if (!agency) return { ok: false, error: "Workspace not found." };
   if (!agency.stripeAccountId) {
     return { ok: false, error: "Workspace hasn't connected Stripe yet." };
   }
+
+  const owning = await resolveConnectedAccountClient("agencies", { column: "slug", value: tenantSlug }, agency.stripeAccountId);
+  if (!owning.ok) return { ok: false, error: owning.error };
+  const stripe = owning.stripe;
 
   try {
     const link = await stripe.accounts.createLoginLink(agency.stripeAccountId);
@@ -360,9 +363,6 @@ export async function createDashboardLink(
 export async function refreshAccountStatus(
   tenantSlug: string,
 ): Promise<ConnectResult<ConnectedAccountSnapshot>> {
-  const stripe = getStripeFor(await loadAccountPlatform("agencies", { column: "slug", value: tenantSlug }));
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
-
   const agency = await loadAgencyConnectFields(tenantSlug);
   if (!agency) return { ok: false, error: "Workspace not found." };
   if (!agency.stripeAccountId) {
@@ -378,6 +378,10 @@ export async function refreshAccountStatus(
       },
     };
   }
+
+  const owning = await resolveConnectedAccountClient("agencies", { column: "slug", value: tenantSlug }, agency.stripeAccountId);
+  if (!owning.ok) return { ok: false, error: owning.error };
+  const stripe = owning.stripe;
 
   try {
     const account = await stripe.accounts.retrieve(agency.stripeAccountId);
@@ -420,6 +424,14 @@ export async function persistAccountSnapshot(
   if (error) {
     logServerError("payments.stripe-connect.persist", error);
     return { ok: false, error: "Could not save status." };
+  }
+
+  // A payout account added by hand starts pending; a payouts-enabled Stripe account verifies it.
+  // Best effort: never fail the webhook or the refresh over it.
+  try {
+    await syncPayoutAccountFromStripe(admin, { ownerType: "agency", ownerId: agencyId, stripeAccountId: account.id, payoutsEnabled });
+  } catch (err) {
+    logServerError("payments.stripe-connect.payoutSync", err);
   }
 
   return {

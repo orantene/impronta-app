@@ -6,6 +6,7 @@
 // Manage subscription CTA opens Stripe Billing Portal for active subscribers.
 // Capability gate: agency.workspace.view (viewer+). Billing CTAs: manage_billing (admin+).
 
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { notFound, redirect } from "next/navigation";
 import { verifyCheckoutReturn } from "@/lib/billing/checkout-return";
 import Link from "next/link";
@@ -28,6 +29,8 @@ import { WorkspacePlanChangeOpener } from "./WorkspacePlanChangeOpener";
 import { workspaceAutoStartDecision, parsePlanIntent, isWorkspaceIntent, planIntentAction, planIntentLabel } from "@/lib/onboarding/plan-intent";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { BriefCard } from "./BriefCard";
+import { PendingPayoutAccounts } from "./PendingPayoutAccounts";
+import { loadPendingPayoutAccounts } from "@/lib/payments/pending-payout-accounts";
 import { CurrencyPicker } from "./CurrencyPicker";
 import {
   createStaffPayoutAccountAction,
@@ -104,6 +107,8 @@ export default async function WorkspaceAccountPage({
     loadWorkspacePayoutSnapshot(scope.tenantId, session.user.id),
     loadWorkspaceOverrideBanner(scope.tenantId),
   ]);
+  // Owner only (agency.payout_account.manage is in OWNER_CAPS; manage_billing is not enough).
+  const pendingPayouts = canManageWorkspacePayout ? await loadPendingPayoutAccounts(scope.tenantId) : [];
 
   // Platform-granted plan override (comp / trial) — explains why the plan
   // badge above may differ from any paid subscription.
@@ -144,13 +149,7 @@ export default async function WorkspaceAccountPage({
     billingState.status !== "incomplete_expired";
 
   // Format billing period end for display
-  const periodEndLabel = billingState?.currentPeriodEnd
-    ? new Date(billingState.currentPeriodEnd).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
+  const periodEndLabel = formatPeriodDate(billingState?.currentPeriodEnd, "en");
 
   // TUL-828: /pricing -> /start?plan= -> here. Start the chosen checkout once;
   // the component falls back to this page on any failure.
@@ -671,6 +670,8 @@ export default async function WorkspaceAccountPage({
           </div>
         ) : null}
       </section>
+
+      {canManageWorkspacePayout ? <PendingPayoutAccounts accounts={pendingPayouts} tenantSlug={tenantSlug} t={t} /> : null}
 
       <section>
         <SectionHead>{t("admin.account.briefSection")}</SectionHead>

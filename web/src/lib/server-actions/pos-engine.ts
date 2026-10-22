@@ -4,7 +4,7 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { lockTill, readDeviceSession, switchOperator, unlockTill } from "@/lib/pos/device-session";
 import { linkBooking } from "@/lib/pos/link-booking";
 import { setTip } from "@/lib/pos/tip";
@@ -19,10 +19,11 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: the capability is named at every call; the till handles money, so all of them are manager+.
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, reason: "unavailable" as const };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
+  const allowed = await userHasCapability(capability, guard.tenantId);
   if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
@@ -31,7 +32,7 @@ async function staff() {
 
 export async function posLockTill(input: { deviceKey: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ deviceKey: z.string().trim().min(8).max(80) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -46,7 +47,7 @@ export async function posLockTill(input: { deviceKey: string }) {
  */
 export async function posUnlockTill(input: { deviceKey: string; pin: string; userId?: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     deviceKey: z.string().trim().min(8).max(80),
@@ -64,7 +65,7 @@ export async function posUnlockTill(input: { deviceKey: string; pin: string; use
 
 export async function posSwitchOperator(input: { deviceKey: string; pin: string; userId?: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     deviceKey: z.string().trim().min(8).max(80),
@@ -82,7 +83,7 @@ export async function posSwitchOperator(input: { deviceKey: string; pin: string;
 
 /** The contract's reader: this device's session, or `no_session`. */
 export async function posCurrentDeviceSession(input: { deviceKey: string }) {
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ deviceKey: z.string().trim().min(8).max(80) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -96,7 +97,7 @@ export async function posLinkBooking(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -115,7 +116,7 @@ export async function posSetTip(input: {
   expectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -133,7 +134,7 @@ export async function createPaymentLink(input: {
   idempotencyKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,
@@ -168,7 +169,7 @@ export async function posRecordShiftMovement(input: {
   shiftId?: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     kind: z.enum(["paid_in", "paid_out", "drop", "float_add"]),
@@ -190,7 +191,7 @@ export async function waitlistOfferPlace(input: {
   ttlSeconds?: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     entryId: uuid,
@@ -203,7 +204,7 @@ export async function waitlistOfferPlace(input: {
 
 export async function waitlistAcceptOffer(input: { offerId: string; operationKey: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({
     offerId: uuid,
@@ -215,7 +216,7 @@ export async function waitlistAcceptOffer(input: { offerId: string; operationKey
 
 export async function waitlistDeclineOffer(input: { offerId: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ offerId: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };

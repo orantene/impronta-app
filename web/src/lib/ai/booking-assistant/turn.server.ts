@@ -20,10 +20,12 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
-import { catalogTenantForPublicHost } from "./catalog-tenant";
+import { catalogTenantForPublicHost, loadCatalogWithTalentFallback } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
+  bookingAssistantEmptyCatalogCopy,
+  bookingAssistantFollowUpAckCopy,
   bookingAssistantHandoffCopy,
   replyLanguageDirective,
   replyLanguageMismatch,
@@ -31,14 +33,22 @@ import {
   type BookingHandoffReason,
 } from "./handoff";
 import { sanitizeBookingAssistantOutput } from "./guardrails";
+import {
+  llmFailureReason,
+  planBookingFallback,
+  safeProviderDetail,
+  type BookingFallbackReason,
+} from "./fallback";
 import { BOOKING_ASSISTANT_MODEL } from "./model";
 import { BOOKING_ASSISTANT_EVENT_TYPES } from "./turns";
 import { offeringPriceLabel } from "./price-label";
+import { pickSoloRosterTalentId } from "./solo-roster-talent";
 import {
   bookingAssistantMonthlyCapCents,
   bookingAssistantMonthlyCapReached,
 } from "./credits";
 import { improntaLog } from "@/lib/server/structured-log";
+import { insertInquiryMessage } from "@/lib/coordinator/masked-message-write.server";
 
 export { BOOKING_ASSISTANT_MODEL } from "./model";
 
@@ -50,7 +60,11 @@ const LLM_TIMEOUT_MS = 5_000;
  * Event name: booking_assistant_skip | booking_assistant_run | booking_assistant_schedule.
  */
 function logBookingAssistant(
-  event: "booking_assistant_skip" | "booking_assistant_run" | "booking_assistant_schedule",
+  event:
+    | "booking_assistant_skip"
+    | "booking_assistant_run"
+    | "booking_assistant_schedule"
+    | "booking_assistant_fallback",
   fields: Record<string, string | number | boolean | null | undefined>,
 ): void {
   void improntaLog(event, fields);
@@ -132,9 +146,9 @@ async function insertSystemEvent(input: {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const disclosure = bookingAssistantDisclosureLabel(input.locale);
-  const { data: row, error } = await admin
-    .from("inquiry_messages")
-    .insert({
+  const { data: row, error } = await insertInquiryMessage(
+    admin,
+    {
       inquiry_id: input.inquiryId,
       tenant_id: input.tenantId,
       thread_type: "private",
@@ -149,9 +163,9 @@ async function insertSystemEvent(input: {
         disclosure_label: disclosure,
         ...(input.reason ? { handoff_reason: input.reason } : {}),
       },
-    })
-    .select("id, created_at")
-    .single();
+    },
+    { select: "id, created_at" },
+  );
   if (error || !row) {
     if (error) logServerError("booking-assistant/insert", error);
     return null;
@@ -344,9 +358,8 @@ async function loadGroundingOfferings(
   provided?: readonly BookingAssistantOfferingGround[],
 ): Promise<BookingAssistantOfferingGround[]> {
   if (provided && provided.length > 0) return [...provided];
-  const publicRows = await loadPublicOfferingsForProfile(
-    talentProfileId,
-    locale,
+  const { rows: publicRows } = await loadCatalogWithTalentFallback(
+    (tenantId) => loadPublicOfferingsForProfile(talentProfileId, locale, tenantId),
     catalogTenantId,
   );
   return publicRows.map((o) => ({
@@ -366,13 +379,42 @@ function catalogGrounding(offerings: readonly BookingAssistantOfferingGround[]):
   );
 }
 
+async function soloRosterTalentId(tenantId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin) return null;
+  const { data, error } = await admin
+    .from("agency_talent_roster")
+    .select("talent_profile_id, status")
+    .eq("tenant_id", tenantId)
+    // TUL-1816: only an ACTIVE talent speaks; a pending invitee has not accepted yet.
+    .eq("status", "active")
+    .limit(3);
+  if (error) {
+    logServerError("booking-assistant/soloRoster", error);
+    return null;
+  }
+  return pickSoloRosterTalentId(data as Array<{ talent_profile_id: string | null; status: string | null }>);
+}
+
 /**
  * Best-effort: never throws to the guest send path. Returns the system message
  * when one was posted (callers that schedule via `after()` ignore the return).
  */
 export async function maybeRunBookingAssistantTurn(
-  args: MaybeRunBookingAssistantTurnArgs,
+  inputArgs: MaybeRunBookingAssistantTurnArgs,
 ): Promise<GuestThreadMessage | null> {
+  // TUL-662 / TUL-1155: a one-talent workspace site (/w/<slug>) starts a
+  // talent-less agency_site inquiry; the assistant speaks for the roster's only
+  // talent instead of skipping with no_talent_profile_id on every turn.
+  let args = inputArgs;
+  if (!inputArgs.talentProfileId) {
+    try {
+      const solo = await soloRosterTalentId(inputArgs.tenantId);
+      if (solo) args = { ...inputArgs, talentProfileId: solo };
+    } catch (err) {
+      logServerError("booking-assistant/soloRoster", err);
+    }
+  }
   const base = {
     inquiry_id: args.inquiryId,
     tenant_id: args.tenantId,
@@ -402,6 +444,17 @@ export async function maybeRunBookingAssistantTurn(
     const switches = await loadTalentSiteSwitches(admin, args.talentProfileId);
     const enabled = switches.chatConfig.aiBookingAssistantEnabled === true;
     const prior = await loadPriorAssistantMeta(args.inquiryId, args.tenantId);
+    const postAck = (reason: string) => {
+      const ackLocale = resolveBookingAssistantReplyLocale(args.guestMessage, args.locale);
+      logBookingAssistant("booking_assistant_fallback", { ...base, reason, outcome: "ack" });
+      return insertSystemEvent({
+        inquiryId: args.inquiryId,
+        tenantId: args.tenantId,
+        body: bookingAssistantFollowUpAckCopy(ackLocale),
+        systemEventType: "booking_assistant_reply",
+        locale: ackLocale,
+      });
+    };
     const decision = decideBookingAssistantTurn({
       enabled,
       guestMessage: args.guestMessage,
@@ -416,6 +469,11 @@ export async function maybeRunBookingAssistantTurn(
         enabled,
         prior_count: prior.length,
       });
+      // TUL-1155: a guest who writes again after a handoff is never left on
+      // silence. The canned handoff copy is not repeated; they get the ack.
+      if (decision.reason === "already_handed_off") {
+        return postAck("already_handed_off");
+      }
       return null;
     }
 
@@ -440,8 +498,18 @@ export async function maybeRunBookingAssistantTurn(
     }
 
     // llm_facts — PM: Claude Haiku 5.5; bill the TALENT monthly cap, never hub.
+    // TUL-1155: after a handoff the canned copy is never posted twice.
+    const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     const anthropicKey = (await resolveAnthropicApiKey())?.trim() || null;
     if (!anthropicKey) {
+      // Config, not code: no key resolved (registry/vault key or ANTHROPIC_API_KEY).
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: "no_anthropic_key" satisfies BookingFallbackReason,
+        outcome: "gated_handoff",
+        env_anthropic_set: Boolean(process.env.ANTHROPIC_API_KEY?.trim()),
+      });
+      if (handedOffBefore) return postAck("no_anthropic_key");
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -455,6 +523,14 @@ export async function maybeRunBookingAssistantTurn(
     const planKey = await loadTalentPlanKey(args.talentProfileId);
     const usedCents = await loadTalentBookingAssistantSpendCentsThisMonth(args.talentProfileId);
     if (bookingAssistantMonthlyCapReached(usedCents, planKey)) {
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: "monthly_cap" satisfies BookingFallbackReason,
+        outcome: "gated_handoff",
+        plan_key: planKey,
+        used_cents: usedCents,
+      });
+      if (handedOffBefore) return postAck("monthly_cap");
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -472,6 +548,22 @@ export async function maybeRunBookingAssistantTurn(
       args.offerings,
     );
     const grounding = catalogGrounding(offerings);
+    if (offerings.length === 0) {
+      // Data gap, not a failure: say so plainly instead of the canned handoff.
+      logBookingAssistant("booking_assistant_run", {
+        ...base,
+        action: "llm_facts",
+        decision_reason: "empty_catalog",
+        catalog_tenant_scoped: catalogTenantId !== null,
+      });
+      return insertSystemEvent({
+        inquiryId: args.inquiryId,
+        tenantId: args.tenantId,
+        body: bookingAssistantEmptyCatalogCopy(locale),
+        systemEventType: "booking_assistant_reply",
+        locale,
+      });
+    }
     const adapter = adapterForProvider("anthropic", anthropicKey);
     const started = Date.now();
     const controller = new AbortController();
@@ -529,10 +621,17 @@ export async function maybeRunBookingAssistantTurn(
       },
     });
 
-    // TUL-1155: after a handoff the canned copy is never posted twice.
-    const handedOffBefore = prior.some((m) => m.systemEventType === "booking_assistant_handoff");
     if (!completion.ok) {
-      if (handedOffBefore) return null;
+      const failReason = llmFailureReason(completion.code);
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: failReason,
+        outcome: handedOffBefore ? "ack" : "handoff",
+        provider_code: completion.code,
+        detail: safeProviderDetail(completion.message),
+        elapsed_ms: Date.now() - started,
+      });
+      if (planBookingFallback(handedOffBefore).kind === "ack") return postAck(failReason);
       return insertSystemEvent({
         inquiryId: args.inquiryId,
         tenantId: args.tenantId,
@@ -547,7 +646,18 @@ export async function maybeRunBookingAssistantTurn(
     // TUL-1154: never post a reply in the other language than the guest wrote.
     const wrongLanguage = replyLanguageMismatch(args.guestMessage, sanitized.text);
     if (sanitized.escalate || !sanitized.text.trim() || wrongLanguage) {
-      if (handedOffBefore) return null;
+      const why: BookingFallbackReason = wrongLanguage
+        ? "wrong_language"
+        : sanitized.escalate
+          ? "guardrail_escalate"
+          : "empty_reply";
+      logBookingAssistant("booking_assistant_fallback", {
+        ...base,
+        reason: why,
+        outcome: handedOffBefore ? "ack" : "handoff",
+        catalog_items: offerings.length,
+      });
+      if (planBookingFallback(handedOffBefore).kind === "ack") return postAck(why);
       const reason: BookingHandoffReason = "unsure";
       return insertSystemEvent({
         inquiryId: args.inquiryId,

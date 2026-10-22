@@ -41,6 +41,7 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useCartTalents } from "./use-cart-talents";
 import { useAddedCatalogItems, useRemovedLineIds } from "./guest-added-items-store";
+import { useInquiryTrayCount } from "./GuestInquiryTray";
 import { itemsWithoutAddedDuplicates } from "./guest-added-items-dedupe";
 import { removeAddedCatalogLine } from "./remove-added-item";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
@@ -238,7 +239,8 @@ export function GuestDockLineupView({
   const addedItems = useAddedCatalogItems();
   const removedLineIds = useRemovedLineIds();
   const [removeNotice, setRemoveNotice] = useState<string | null>(null);
-  const inquiryCount = cartTalents.length + addedItems.length;
+  // TUL-1238: the shelf header and the tray read ONE count (useInquiryTrayCount), never two formulas.
+  const inquiryCount = useInquiryTrayCount();
   const showPeopleShelves =
     representsPeople || cartTalents.length > 0 || savedTiles.length > 0 || addedItems.length > 0;
   const [savedLoading, setSavedLoading] = useState(false);
@@ -460,7 +462,7 @@ export function GuestDockLineupView({
 
       {/* Start an inquiry with the current lineup — jumps to Chat; the draft
           picks the cart up through the existing preload/submit bridge. */}
-      {cartTalents.length > 0 && onStartInquiry && (
+      {inquiryCount > 0 && onStartInquiry && (
         <div style={{ padding: "8px 14px 2px" }}>
           <button
             type="button"
@@ -479,7 +481,7 @@ export function GuestDockLineupView({
             }}
           >
             {interpolate(t("public.guestChat.dockLineupStartInquiry"), {
-              count: cartTalents.length,
+              count: inquiryCount,
             })}
           </button>
         </div>
@@ -518,7 +520,16 @@ export function GuestDockLineupView({
           {t("public.guestChat.dockLoading")}
         </div>
       ) : savedTiles.length === 0 ? (
-        <EmptyShelfNote text={t("public.guestChat.dockLineupEmptySaved")} C={C} />
+        <EmptyShelfNote
+          text={
+            // TUL-1239: talent added from a profile lives on the inquiry shelf above, so an
+            // empty favorites shelf must not read as if that add was lost.
+            inquiryCount > 0
+              ? t("public.guestChat.dockLineupEmptySavedInInquiry")
+              : t("public.guestChat.dockLineupEmptySaved")
+          }
+          C={C}
+        />
       ) : (
         <ul role="list" style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {savedTiles.map((tile) => {

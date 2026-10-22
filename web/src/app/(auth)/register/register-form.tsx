@@ -14,6 +14,8 @@ import {
 } from "@/components/auth/auth-ui";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
+import { AUTH_ERROR_IDS, authErrorField } from "@/lib/auth/auth-error-field";
+import { useSignupFieldCheck } from "@/lib/auth/use-signup-field-check";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -93,6 +95,15 @@ export function RegisterForm({
   // "Use a different email" pins the form back until the next signup attempt.
   const [backToForm, setBackToForm] = useState(false);
   useFocusFirstInvalidOnError(state?.error);
+  const errMessages = {
+    invalidEmail: t("public.auth.actions.invalidEmail"),
+    ageTermsRequired: t("public.auth.actions.ageTermsRequired"),
+    nameRequired: t("public.auth.actions.nameRequired"),
+  };
+  const check = useSignupFieldCheck(collectName, errMessages);
+  // A client-side finding wins over the previous server answer; each names exactly one field.
+  const shownError = check.clientError ?? state?.error;
+  const errField = check.clientField ?? authErrorField(state?.error, errMessages);
 
   // Confirmation required: the code box replaces the form for that address.
   // The confirmation email carries the link too, so both ways still work.
@@ -118,12 +129,16 @@ export function RegisterForm({
       action={formAction}
       noValidate // TUL-893: the server answers in the page language; no English browser tooltip
       className="space-y-3.5"
-      onSubmit={() => setBackToForm(false)}
+      onSubmit={(e) => {
+        setBackToForm(false);
+        check.onSubmit(e);
+      }}
     >
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
+      {clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
 
-      {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
+      {shownError ? <AuthNotice tone="error" id={AUTH_ERROR_IDS[errField ?? "form"]}>{shownError}</AuthNotice> : null}
       {state?.message ? (
         <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
@@ -136,6 +151,8 @@ export function RegisterForm({
             type="text"
             autoComplete="name"
             required
+            aria-invalid={errField === "name" ? true : undefined}
+            aria-describedby={errField === "name" ? AUTH_ERROR_IDS.name : undefined}
             maxLength={120}
             defaultValue={readAuthNameDraft()}
             onChange={(e) => writeAuthNameDraft(e.target.value)}
@@ -153,7 +170,8 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
-          aria-invalid={state?.error ? true : undefined}
+          aria-invalid={errField === "email" ? true : undefined}
+          aria-describedby={errField === "email" ? AUTH_ERROR_IDS.email : undefined}
           defaultValue={pickAuthEmail(readAuthEmailDraft(), defaultEmail)}
           onChange={(e) => writeAuthEmailDraft(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}
@@ -184,7 +202,12 @@ export function RegisterForm({
         {t("public.auth.register.passwordConfirmNote")}
       </p>
 
-      <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} />
+      <AgeTermsCheckbox
+        locale={locale}
+        marketingOrigin={marketingOrigin}
+        invalid={errField === "consent"}
+        errorId={AUTH_ERROR_IDS.consent}
+      />
 
       <AuthSubmitButton
         pending={pending}

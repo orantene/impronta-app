@@ -95,6 +95,13 @@ export function localizeNotificationText(
   // TUL-391: support-ticket bell titles carry the ticket subject / number.
   const resolved = text.match(/^Resolved: (.+)$/u);
   if (resolved) return `Resuelto: ${resolved[1] === "your ticket" ? "tu ticket" : resolved[1]}`;
+  // TUL-1867: the requester-side ticket bells (no ticket number) and the agent reply title.
+  if (text === "Your ticket needs you") return "Tu ticket te necesita";
+  if (text === "Support replied to your ticket." || text === "Support replied to your ticket") {
+    return "Soporte respondió a tu ticket.";
+  }
+  const agentReply = text.match(/^(.+) replied - (.+)$/u);
+  if (agentReply) return `${agentReply[1]} respondió - ${agentReply[2] === "your ticket" ? "tu ticket" : agentReply[2]}`;
   const needsYou = text.match(/^Ticket #(\d+) needs you$/u);
   if (needsYou) return `El ticket #${needsYou[1]} te necesita`;
   const replyOn = text.match(/^Reply on #(\d+)$/u);

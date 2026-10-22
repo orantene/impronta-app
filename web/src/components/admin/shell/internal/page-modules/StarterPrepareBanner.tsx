@@ -17,6 +17,7 @@ import {
 export function StarterPrepareBanner() {
   const t = useT();
   const [needsRetry, setNeedsRetry] = useState(false);
+  const [canRetry, setCanRetry] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -28,8 +29,12 @@ export function StarterPrepareBanner() {
         const result = await loadStarterPrepareStateAction();
         if (cancelled) return;
         setNeedsRetry(result.ok && result.needsRetry);
+        setCanRetry(result.ok && result.canRetry);
       } catch {
-        if (!cancelled) setNeedsRetry(false);
+        if (!cancelled) {
+          setNeedsRetry(false);
+          setCanRetry(false);
+        }
       } finally {
         if (!cancelled) setLoaded(true);
       }
@@ -71,17 +76,19 @@ export function StarterPrepareBanner() {
           {error}
         </p>
       ) : null}
-      <button
-        type="button"
-        onClick={retry}
-        disabled={pending}
-        data-testid="starter-prepare-retry"
-        className="mt-3 rounded-[10px] bg-stone-900 px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-60"
-      >
-        {pending
-          ? t("dashboard.adminWebsite.starterPrepareRetryPending")
-          : t("dashboard.adminWebsite.starterPrepareRetryCta")}
-      </button>
+      {canRetry ? (
+        <button
+          type="button"
+          onClick={retry}
+          disabled={pending}
+          data-testid="starter-prepare-retry"
+          className="mt-3 rounded-[10px] bg-stone-900 px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-60"
+        >
+          {pending
+            ? t("dashboard.adminWebsite.starterPrepareRetryPending")
+            : t("dashboard.adminWebsite.starterPrepareRetryCta")}
+        </button>
+      ) : null}
     </section>
   );
 }

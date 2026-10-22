@@ -215,11 +215,19 @@ export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "pa
   } else {
     out.push({ id: "line-0", label: serviceLabel(item) ?? "Agreed", value: moneyText(total, currency) });
   }
-  out.push({ id: "total", label: "Total", value: moneyText(total, currency) });
+  // TUL-1906: when the client paid a Tulala service fee on top, the agreed price is a Subtotal and the
+  // fee is its own "+" line, so nobody reads the fee as included in the price. No fee, no change.
+  const feeCents = item.money.paidCents > total ? item.money.paidCents - total : 0;
+  const hasFee = item.money.paidCents > 0 && feeCents > 0;
+  out.push({ id: "total", label: hasFee ? "Subtotal" : "Total", value: moneyText(total, currency) });
   const deposit = item.money.depositCents ?? 0;
   if (deposit > 0) out.push({ id: "deposit", label: "Deposit", value: moneyText(deposit, currency) });
+  // The client paid more than the agreed price: the extra is the Tulala service fee, not part of the price.
+  if (hasFee) {
+    out.push({ id: "service-fee", label: "Tulala service fee", value: `+${moneyText(feeCents, currency)}` });
+  }
   if (item.money.paidCents > 0) {
-    out.push({ id: "paid", label: "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
+    out.push({ id: "paid", label: hasFee ? "Total paid" : "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
   }
   if (item.money.dueCents > 0) {
     out.push({
@@ -233,13 +241,12 @@ export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "pa
 }
 
 export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): AgendaListItem {
-  const whenLabel = formatDualTimezoneWhen(
-    item.startsAt,
-    item.endsAt,
-    item.tz,
-    item.clientTz,
-    item.allDay,
-  );
+  // TUL-1244: an unscheduled draft carries created_at as a sort key, in UTC, with the
+  // placeholder place "No time". The record must say what Today says: no time assigned.
+  const unscheduled = item.unscheduled === true;
+  const whenLabel = unscheduled
+    ? "No time assigned"
+    : formatDualTimezoneWhen(item.startsAt, item.endsAt, item.tz, item.clientTz, item.allDay);
   let nowTitle: string | undefined;
   let nowBody: string | undefined;
   let nowTone: AgendaListItem["nowTone"] = "info";
@@ -288,7 +295,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
         }
       : undefined,
     whenLabel,
-    whereLabel: placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : ""),
+    whereLabel: unscheduled ? "" : (placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : "")),
     sourceLabel: item.managedBy?.name ?? item.source,
     bookingState: item.booking,
     paymentState: paymentStateOf(item),
@@ -301,8 +308,8 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     currency: item.money.currency?.trim() || "MXN",
     orderId: item.orderId ?? null,
     paymentMethod: item.paymentMethod ?? null,
-    startsAtIso: item.startsAt,
-    endsAtIso: item.endsAt,
+    startsAtIso: unscheduled ? undefined : item.startsAt,
+    endsAtIso: unscheduled ? undefined : item.endsAt,
     clientTz: item.clientTz,
     talentTz: item.tz,
     tradeSectionPayloads: (() => {

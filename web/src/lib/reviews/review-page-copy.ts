@@ -61,6 +61,10 @@ export const REVIEW_PAGE_EN = {
   traitBrief: "Delivered the brief",
   traitEasy: "Easy to work with",
   privateNote: "Private note. Only {name} sees this, to help them improve.",
+  /** TUL-1686: team studio, the note goes to the workspace ({name} = the workspace). */
+  privateNoteWorkspace: "Private note. Only {name} sees this.",
+  /** TUL-1686: who reads it is unknown, so name no one. */
+  privateNoteNeutral: "Private note, not shown publicly.",
   privatePlaceholder: "Anything you'd share privately to help them grow?",
   anon: "Post anonymously (show as {as})",
   anonVerified: "Verified client",
@@ -135,6 +139,8 @@ export const REVIEW_PAGE_ES: typeof REVIEW_PAGE_EN = {
   traitBrief: "Cumplió lo acordado",
   traitEasy: "Fácil de tratar",
   privateNote: "Nota privada. Solo {name} la ve, para ayudar a mejorar.",
+  privateNoteWorkspace: "Nota privada. Solo {name} la ve.",
+  privateNoteNeutral: "Nota privada, no se muestra públicamente.",
   privatePlaceholder: "¿Algo que quieras compartir en privado para ayudar a crecer?",
   anon: "Publicar de forma anónima (se muestra como {as})",
   anonVerified: "Cliente verificado",

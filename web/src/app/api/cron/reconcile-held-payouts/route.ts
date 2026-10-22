@@ -26,6 +26,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { releaseHeldPayouts } from "@/lib/payments/booking-payouts-ledger";
 import { retryFeeUnknownPayouts } from "@/lib/payments/retry-fee-unknown-payouts";
+import { alertStaleHeldPayouts } from "@/lib/payments/stale-payout-hold-alert";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,8 +84,10 @@ export async function GET(request: Request) {
     }
 
     const feeUnknown = await retryFeeUnknownPayouts(admin);
+    // A fee-unknown, refund-pending or ledger-unreadable hold still held after 3 days raises an ops alert (TUL-1746, TUL-1776), after the retry had its chance.
+    const staleRefundHolds = await alertStaleHeldPayouts(admin);
 
-    const result = { payees: talentIds.size + tenantIds.size, released, stillHeld, failed, feeUnknown };
+    const result = { payees: talentIds.size + tenantIds.size, released, stillHeld, failed, feeUnknown, staleRefundHolds: staleRefundHolds.stale };
     void improntaLog("payouts.cron.reconcile", {
       payees: result.payees,
       released,
@@ -94,6 +97,7 @@ export async function GET(request: Request) {
       feeUnknownPaid: feeUnknown.paid,
       feeUnknownStillHeld: feeUnknown.stillHeld,
       feeUnknownFailed: feeUnknown.failed,
+      staleRefundHolds: staleRefundHolds.stale,
     });
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {

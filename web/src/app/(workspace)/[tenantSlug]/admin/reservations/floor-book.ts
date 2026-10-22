@@ -83,7 +83,9 @@ export async function loadFloorBook(tenantId: string, now: Date, locale = "en"):
   }
 
   return {
-    entries: data.entries.map((e) => ({
+    // A CANCELLED (void) reservation is not tonight's book: it must leave the Arrivals list the
+    // moment the host cancels it, not keep reading "arriving" and then "late" (TUL-1757).
+    entries: data.entries.filter((e) => !e.isVoid).map((e) => ({
       admissionId: e.admissionId,
       startsAtIso: e.startsAt.toISOString(),
       partySize: e.partySize,
@@ -92,6 +94,7 @@ export async function loadFloorBook(tenantId: string, now: Date, locale = "en"):
       state: e.state,
       lateMinutes: e.lateMinutes,
       seatedAtIso: e.seatedAt ? e.seatedAt.toISOString() : null,
+      holderEmail: e.holderEmail ?? null,
     })),
     service,
     defaultTurnMinutes: data.rules.defaultTurnMinutes,

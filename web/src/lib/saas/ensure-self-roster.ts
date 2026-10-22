@@ -134,3 +134,34 @@ export async function resolveOwnerTalentProfileId(
   }
   return typeof tp?.id === "string" ? tp.id : null;
 }
+
+/**
+ * TUL-1712: EVERY active owner's talent profile id for the workspace, sorted so the answer never
+ * depends on read order. `resolveOwnerTalentProfileId` keeps returning the first owner (it picks a
+ * row, which is right for "whose posture / site"); a rule that must be the same however many
+ * owners there are (the plan the instant-booking gate reads) uses this.
+ */
+export async function resolveOwnerTalentProfileIds(admin: SupabaseClient, tenantId: string): Promise<string[]> {
+  const { data: memberships, error: memErr } = await admin
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("role", "owner")
+    .eq("status", "active");
+  if (memErr) {
+    logServerError("ensure-self-roster.ownerMemberships", memErr);
+    return [];
+  }
+  const userIds = [...new Set((memberships ?? []).map((m) => (m as { profile_id: string | null }).profile_id).filter((v): v is string => typeof v === "string" && v !== ""))];
+  if (userIds.length === 0) return [];
+  const { data: profiles, error: tpErr } = await admin
+    .from("talent_profiles")
+    .select("id")
+    .in("user_id", userIds)
+    .is("deleted_at", null);
+  if (tpErr) {
+    logServerError("ensure-self-roster.ownerProfiles", tpErr);
+    return [];
+  }
+  return [...new Set((profiles ?? []).map((p) => (p as { id: string | null }).id).filter((v): v is string => typeof v === "string" && v !== ""))].sort();
+}

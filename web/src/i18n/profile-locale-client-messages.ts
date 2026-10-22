@@ -25,5 +25,13 @@ export function inlineCatalogScript(code: string, subtrees: unknown): string {
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
   const g = `self.${CLIENT_MESSAGES_GLOBAL}`;
-  return `${g}=${g}||{};if(!${g}[${JSON.stringify(code)}])${g}[${JSON.stringify(code)}]=${json};`;
+  // TUL-736: MERGE, never skip. The root layout already inlines the fallback locales as only
+  // the keys the request locale lacks (TUL-1156), so on /es the `en` entry exists but is
+  // partial; an `if (!g.en)` guard left an English-owned profile with raw keys. Existing
+  // strings win, missing ones are added.
+  return (
+    `${g}=${g}||{};(function(t,s){function m(a,b){for(var k in b){var v=b[k];` +
+    `if(v&&typeof v==="object"&&!Array.isArray(v)){if(!a[k]||typeof a[k]!=="object")a[k]={};m(a[k],v)}` +
+    `else if(!(k in a))a[k]=v}}m(t,s)})(${g}[${JSON.stringify(code)}]||(${g}[${JSON.stringify(code)}]={}),${json});`
+  );
 }

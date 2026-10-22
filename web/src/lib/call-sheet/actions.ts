@@ -21,6 +21,7 @@ import {
   type CallSheetPayload,
 } from "./types";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 /** Field-level audit map for call-sheet payload keys (Details v3 §4.3).
  *  Maps each scalar payload key to its activity-feed group + visibility
@@ -94,7 +95,7 @@ export async function saveBookingCallSheet(
   try {
     if (!bookingId) return { ok: false, error: "Missing booking id." };
 
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.callSheetSaveClear });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, user, tenantId, tenantSlug } = auth;
 
@@ -200,7 +201,7 @@ export async function clearBookingCallSheet(
   try {
     if (!bookingId) return { ok: false, error: "Missing booking id." };
 
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: WRITE_CAP.callSheetSaveClear });
     if (!auth.ok) return { ok: false, error: auth.error };
     const { supabase, tenantId, tenantSlug } = auth;
 

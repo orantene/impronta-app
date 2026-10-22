@@ -41,6 +41,9 @@ import { applySellingTimeToHours, clampPublicSlotDays, computePublicSlots, parse
 import { addUtcDays, utcToZonedYmd, zonedLocalToUtc } from "@/lib/scheduling/tz";
 import { readSessionSeats, type WaitlistSeats } from "@/lib/scheduling/waitlist-desk";
 import { logServerError } from "@/lib/server/safe-error";
+import { rosterItemsToCatalogRows } from "@/lib/service-hub/roster-catalog";
+import { loadRosterServicesWithHub } from "@/lib/service-hub/hub-roster.server";
+import type { RosterServiceItem } from "@/lib/service-hub/roster-services";
 import { resolveTenantTimezone } from "@/lib/spaces/venues";
 import { resolveIndustryPreset } from "@/lib/words/presets";
 
@@ -82,7 +85,7 @@ export function pickScopedTalentId(input: { forcedTalentId: string | null | unde
   return input.talentOwned && input.contextTalentIds.length === 1 ? input.contextTalentIds[0] : null;
 }
 
-export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date; scope?: CatalogScope }): Promise<ItemsCatalog> {
+export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; inquiryId: string; talentProfileId?: string | null; now?: Date; includeRoster?: boolean; scope?: CatalogScope }): Promise<ItemsCatalog> {
   const now = input.now ?? new Date();
   const [inqRes, tenantRes, tz] = await Promise.all([
     admin.from("inquiries").select("event_date, event_timezone, source_context").eq("id", input.inquiryId).eq("tenant_id", input.tenantId).maybeSingle(),
@@ -116,6 +119,9 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
     now,
     date,
     reservations: Boolean(preset.features.reservations),
+    // TUL-1372: the workspace's roster services (request-only) reach the GUEST dock only, and only on
+    // a tenant-wide catalog. `input.tenantId` is authorized by the caller (the host-resolved tenant).
+    roster: input.includeRoster && !talentProfileId ? await loadRosterServicesWithHub(admin, input.tenantId) : undefined,
     scope: input.scope,
   });
 
@@ -133,7 +139,7 @@ export async function loadItemsCatalog(admin: Admin, input: { tenantId: string; 
  */
 export async function loadCatalogRowsForScope(
   admin: Admin,
-  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean; scope?: CatalogScope },
+  input: { tenantId: string; talentProfileId: string | null; forcedTalent: boolean; window: { from: Date; to: Date } | null; now: Date; date: string | null; reservations: boolean; roster?: readonly RosterServiceItem[]; scope?: CatalogScope },
 ): Promise<CatalogRow[]> {
   const { tenantId, talentProfileId, forcedTalent, window, now, date, reservations, scope } = input;
   if (forcedTalent && talentProfileId) {
@@ -147,7 +153,8 @@ export async function loadCatalogRowsForScope(
     loadSessionRows(admin, tenantId, now, scope),
     date && reservations ? loadTableRows(tenantId, date) : Promise.resolve([] as CatalogRow[]),
   ]);
-  return [...talent, ...offerings, ...sessions, ...tables];
+  const roster = !talentProfileId && input.roster ? rosterItemsToCatalogRows(input.roster) : [];
+  return [...talent, ...offerings, ...sessions, ...tables, ...roster];
 }
 
 /** Talent that may surface to a guest (mirrors `default-storefront-roster` PUBLISHED_STATUSES). */
@@ -277,7 +284,7 @@ export async function loadTalentProfileOfferingRows(admin: Admin, tenantId: stri
   };
   const rows = (data ?? []) as Row[];
   if (rows.length === 0) return [];
-  const children = await loadOfferingChildren(admin, rows.map((row) => row.id));
+  const children = await loadOfferingChildren(admin, rows.map((row) => row.id), { publicOnly: true });
   return rows.map((row) => {
     const counted = !!row.capacity_pool_id && typeof row.inventory_qty === "number" && Number.isFinite(row.inventory_qty);
     const variants: CatalogOption[] = (children.variants.get(row.id) ?? []).map((v) => ({
@@ -325,7 +332,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
   const { data: sellable, error: sellableErr } = await scopeOfferingsFor(
     admin
       .from("talent_offerings")
-      .select("id")
+      .select("id, currency")
       .eq("tenant_id", tenantId)
       .in("id", [...new Set(withOffering.map((r) => r.offering_id as string))]),
     scope,
@@ -334,7 +341,10 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
     logServerError("messagesV5.itemsCatalog/sessionOfferings", sellableErr);
     return [];
   }
-  const sellableIds = new Set(((sellable ?? []) as { id: string }[]).map((o) => o.id));
+  const sellableRows = (sellable ?? []) as { id: string; currency?: string | null }[];
+  const sellableIds = new Set(sellableRows.map((o) => o.id));
+  // TUL-1347 retest: tiers and classes were drawn in USD on an MXN tenant because the row carried no currency.
+  const offeringCurrency = new Map(sellableRows.map((o) => [o.id, o.currency?.trim().toUpperCase() || null] as const));
   const rows = withOffering.filter((r) => sellableIds.has(r.offering_id as string));
   if (rows.length === 0) return [];
   const sessionIds = rows.map((r) => r.id);
@@ -383,6 +393,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
         title: s.title?.trim() || "Class",
         sub: left == null ? null : `${left} left`,
         amountCents: null,
+        currency: offeringCurrency.get(s.offering_id as string) ?? null,
         availability,
         offeringId: s.offering_id as string,
         sessionId: s.id,
@@ -407,6 +418,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
       title: eventTitle.get(s.event_id) ?? s.title?.trim() ?? "Event",
       sub: tiers.length ? `${tiers.length} ${tiers.length === 1 ? "tier" : "tiers"}` : null,
       amountCents: tiers.length ? Math.min(...tiers.map((t) => t.amountCents)) : null,
+      currency: offeringCurrency.get(s.offering_id as string) ?? null,
       availability: tiers.length === 0 ? { kind: "busy", reason: "sold_out" } : anyCounted && !anyLeft ? { kind: "busy", reason: "sold_out" } : anyCounted ? { kind: "free" } : { kind: "unknown" },
       offeringId: s.offering_id as string,
       sessionId: s.id,

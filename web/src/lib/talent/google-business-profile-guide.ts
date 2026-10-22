@@ -11,6 +11,8 @@ export type GbpProfileInput = {
   displayName?: string | null;
   /** Primary trade label, e.g. "Makeup Artist" or "Barbera". */
   tradeLabel?: string | null;
+  /** Spanish name of the primary trade (taxonomy_terms.name_i18n.es), used on the ES guide when no Google category rule matches. */
+  tradeLabelEs?: string | null;
   homeCity?: string | null;
   /** Street address when the talent works from a fixed place. */
   address?: string | null;
@@ -121,7 +123,13 @@ export function buildGbpGuide(input: GbpProfileInput, lang: GbpLang): GbpGuide {
   const city = clean(input.homeCity);
   const address = clean(input.address);
   const serviceArea = input.travelsToClients === true || !address;
-  const categories = suggestGbpCategories(input.tradeLabel);
+  let categories = suggestGbpCategories(input.tradeLabel);
+  // No Google category rule matched, so the trade name itself is the suggestion: show the
+  // taxonomy term in the viewer's language ("Limpieza", not "Cleaner" on ES).
+  const tradeEs = clean(input.tradeLabelEs);
+  if (lang === "es" && tradeEs && categories.length === 1 && categories[0] === clean(input.tradeLabel)) {
+    categories = [tradeEs];
+  }
   const locationValue = serviceArea ? city : address;
   const loc = serviceArea ? c.locationArea : c.locationFixed;
 

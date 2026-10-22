@@ -97,6 +97,10 @@ const EDITOR_CAPS: readonly CapabilityKey[] = [
   "agency.site_admin.sections.edit",
   "agency.site_admin.homepage.compose",
   "agency.site_admin.media.upload",
+  // TUL-1708: run day-to-day operations (POS, tables, floor, door, classes,
+  // preparation, sessions, customer attach). Editor and above hold it; viewer
+  // does not.
+  "operate_venue",
 ];
 
 const MANAGER_CAPS: readonly CapabilityKey[] = [
@@ -115,6 +119,8 @@ const MANAGER_CAPS: readonly CapabilityKey[] = [
   // Phase 9 — pitch curation (compose, send, cancel pitches)
   "agency.pitch.manage",
   "publish_cms_pages",
+  // TUL-1715: curation of what is sold (Favorites, the Website switch)
+  "curate_catalog",
   // Booking transactions (manual provider v1)
   "booking.payment.select_receiver",
   "booking.payment.request",

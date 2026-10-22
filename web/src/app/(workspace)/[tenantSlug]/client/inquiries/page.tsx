@@ -13,7 +13,7 @@ import { clientDateMs, formatClientDate } from "../date-format";
 import { ClientPageHeader, HeaderBadge } from "../_components/ClientPageHeader";
 import { NewInquiryButton } from "../_components/NewInquiryButton";
 import { EmptyState } from "../_components/EmptyState";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 
@@ -316,7 +316,7 @@ function InquiryTable({
 
 export default async function ClientInquiriesPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();

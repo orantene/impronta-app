@@ -11,7 +11,8 @@
  *    an id8 that is no longer bookable, falls back to the plain `#book`).
  * No signed token (the signed `?service=` intent expires in 30 minutes).
  */
-import { serviceSlug, isServicePageEligible } from "@/lib/talent-site/service-page";
+import { isServicePageEligible, isServicePubliclyServed, servicePageUrl } from "@/lib/talent-site/service-page";
+import { hideTestServiceOnPublicSite, QA_FIXTURE_TENANT_IDS } from "./qa-test-service";
 import { hubServiceHash } from "./service-share-hash";
 
 export { HUB_SERVICE_HASH_PREFIX, hubServiceHash, offeringId8, parseHubServiceHash } from "./service-share-hash";
@@ -24,13 +25,58 @@ export type ServiceShareTarget = {
   via: "website" | "profile";
 };
 
+/**
+ * TUL-1270: false while the service is a draft, archived, unapproved or agency-only. Its public
+ * page (and the hub booking sheet) does not exist yet, so the share sheet says so instead of
+ * copying a link that 404s.
+ */
+export function isServiceShareable(o: ShareOffering): boolean {
+  return isServicePubliclyServed({
+    kind: o.kind,
+    title: o.title,
+    visibility: (o.visibility ?? undefined) as never,
+    status: o.status,
+    moderationState: o.moderationState,
+  });
+}
+
+/**
+ * TUL-1270: true when the public loader would drop this service (QA/E2E-named on a demo or
+ * test-account profile, or a fixture-tenant house service). Same helper as the loader.
+ */
+export function serviceHiddenAsTest(
+  o: { title: string; titleI18n?: Record<string, string | null | undefined> | null; tenantId?: string | null },
+  talentProfileId: string,
+  publicSiteHidesTestServices: boolean,
+): boolean {
+  return hideTestServiceOnPublicSite(
+    { title: o.title, titleI18n: o.titleI18n, talent_profile_id: talentProfileId, tenant_id: o.tenantId ?? null },
+    {
+      fixtureProfileIds: new Set(publicSiteHidesTestServices ? [talentProfileId] : []),
+      fixtureTenantIds: QA_FIXTURE_TENANT_IDS,
+    },
+  );
+}
+
+type ShareOffering = {
+  id: string;
+  title: string;
+  kind: "service" | "package" | "product";
+  visibility?: string | null;
+  status?: string | null;
+  moderationState?: string | null;
+};
+
 export function serviceShareUrl(input: {
-  offering: { id: string; title: string; kind: "service" | "package" | "product"; visibility?: string | null };
+  offering: ShareOffering;
   destinations: readonly ShareDestination[];
   /** Origin for relative destination hrefs (the dashboard origin). */
   origin: string;
 }): ServiceShareTarget | null {
   const { offering, destinations } = input;
+  // Products have no page but share the profile (below); everything else must be live.
+  if (offering.kind !== "product" && !isServiceShareable(offering)) return null;
+  if (offering.kind === "product" && (offering.status ?? "published") !== "published") return null;
   const website = destinations.find((d) => d.id === "website" && d.href)?.href ?? null;
   const eligible = isServicePageEligible({
     kind: offering.kind,
@@ -38,7 +84,7 @@ export function serviceShareUrl(input: {
     visibility: offering.visibility ?? undefined,
   });
   if (website && eligible) {
-    return { url: `${website.replace(/\/+$/, "")}/${serviceSlug(offering)}`, via: "website" };
+    return { url: servicePageUrl(website, offering), via: "website" };
   }
   const dir = destinations.find((d) => d.id === "directory" && (d.shareUrl || d.href));
   if (!dir) return null;

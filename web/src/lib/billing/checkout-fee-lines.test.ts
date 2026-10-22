@@ -120,14 +120,20 @@ describe("card fee display flag", () => {
     assert.deepEqual(validClientFeeLines(on, snap.gross_charged_cents + 1), []);
   });
 
-  it("percent label is withheld when the fee is not the configured rate", () => {
-    assert.equal(
+  it("TUL-1366: the percent is read back from the charged amounts (the rate varies by plan), never from a 150 default", () => {
+    const label = (service: number, fee: number) =>
       platformFeePercentLabel([
-        { code: "service_subtotal", cents: 10_000 },
-        { code: "platform_fee", cents: 400 },
-        { code: "total_charged", cents: 10_400 },
-      ]),
-      null,
-    );
+        { code: "service_subtotal", cents: service },
+        { code: "platform_fee", cents: fee },
+        { code: "total_charged", cents: service + fee },
+      ]);
+    assert.equal(label(10_000, 150), "1.5%");
+    assert.equal(label(10_000, 300), "3%");
+    assert.equal(label(10_000, 400), "4%");
+    assert.equal(label(10_000, 0), "0%");
+    // A floored or topped-up fee that is not a believable rate states no percent.
+    assert.equal(label(10_000, 3_000), null);
+    assert.equal(label(100, 99), null);
+    assert.equal(label(0, 150), null);
   });
 });

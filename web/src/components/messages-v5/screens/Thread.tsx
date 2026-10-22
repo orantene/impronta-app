@@ -8,6 +8,8 @@
  * them in. Auto-scrolls to the unread divider on open, else to the bottom.
  */
 
+import { useViewerTimeZone } from "@/lib/messages-v5/viewer-time";
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
 import { localiseEngineLine, localiseSystemKind } from "@/lib/messages-v5/engine-lines";
@@ -73,6 +75,7 @@ export type ThreadProps = {
 };
 
 export function Thread(props: ThreadProps) {
+  const zone = useViewerTimeZone(); // TUL-1909
   const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer, composerAccessory, seller } = props;
   const kit = copy.kit;
   const shell = copy.shell;
@@ -111,7 +114,8 @@ export function Thread(props: ThreadProps) {
   }, [menuOpen, onMenu]);
 
   const clientName = essentials?.customer.name.trim() || row.contactName.trim() || kit.inbox.visitor;
-  const headerEssentials = essentials ?? { name: row.subject || row.contactName, customer: { name: row.contactName, email: row.contactEmail, phone: row.contactPhone, identityLevel: "none" as const, identityMethod: null, request: null, source: null } };
+  const headerEssentials = essentials ?? { name: row.subject || row.contactName, customer: { name: row.contactName, email: row.contactEmail, phone: row.contactPhone, identityLevel: (row.contactName?.trim() ? "linked" : "none") as "linked" | "none", // TUL-1887: a named client is not "no identity"
+     identityMethod: null, request: null, source: null } };
   const owner = row.ownerLabel ? { label: row.ownerLabel, isMe: !!currentUserId && row.ownerUserId === currentUserId } : null;
 
   const header = (
@@ -121,7 +125,7 @@ export function Thread(props: ThreadProps) {
       chips={chips}
       channel={row.channel}
       subject={essentials?.customer.request ?? row.subject}
-      when={mobile ? null : formatTime(row.lastCustomerMessageAt ?? row.updatedAt, locale)}
+      when={mobile ? null : formatTime(row.lastCustomerMessageAt ?? row.updatedAt, locale, zone)}
       owner={owner}
       copy={kit}
       variant={variant}
@@ -182,7 +186,7 @@ export function Thread(props: ThreadProps) {
           );
         }
         if (it.kind === "system") {
-          const body = it.message.body ? localiseEngineLine(it.message.body, kit) : localiseSystemKind(it.message.kind, kit);
+          const body = it.message.body ? localizeSystemNote(localiseEngineLine(it.message.body, kit), locale) : localiseSystemKind(it.message.kind, kit); // TUL-1888
           const aiLabel = it.message.fromAi
             ? (it.message.aiDisclosureLabel?.trim() || "Automated reply")
             : null;
@@ -201,7 +205,7 @@ export function Thread(props: ThreadProps) {
         }
         const m = it.message;
         const who = it.fromClient ? clientName : it.mine ? shell.you : shell.staff;
-        const metaParts = [who, formatTime(m.createdAt, locale)];
+        const metaParts = [who, formatTime(m.createdAt, locale, zone)];
         if (it.fromClient && m.delivery?.channel) metaParts.push((kit.channel as Record<string, string>)[m.delivery.channel] ?? m.delivery.channel);
         const voice = m.kind === "voice" ? { durationLabel: String((m.payload as { voice?: { durationLabel?: string } } | null)?.voice?.durationLabel ?? kit.stream.voice) } : null;
         return (

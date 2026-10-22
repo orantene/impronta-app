@@ -11,6 +11,7 @@ import { TicketReplayPanel } from "./TicketReplayPanel";
 import { TicketInsightsPanel } from "./TicketInsightsPanel";
 import { ProposeFixComposer } from "./ProposeFixComposer";
 import { SupportAttachButton } from "@/components/support/SupportAttachButton";
+import { readTakeover } from "@/lib/support/support-takeover";
 import type { HqTicketContext } from "@/lib/support/load-hq";
 import type { SupportMessageRow, SupportTicketRow } from "@/lib/support/support-types";
 import {
@@ -173,7 +174,7 @@ export function SupportTicketHqDrawer({
               ))}
             </div>
           ) : null}
-          {ticket?.handledBy === "ai" ? (
+          {ticket && (ticket.handledBy === "ai" || !readTakeover(ticket.metadata)) && ticket.status !== "closed" ? (
             <button
               type="button"
               onClick={() =>

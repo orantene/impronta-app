@@ -38,6 +38,7 @@ import {
 } from "@/lib/saas/host-context";
 import { resolveWorkspacePathTenantPublicPath } from "@/lib/saas/surface-allow-list";
 import {
+  buildTenantLocaleSettings,
   loadTenantLocaleSettings,
   type TenantLocaleSettings,
 } from "@/lib/site-admin/server/locale-resolver";
@@ -56,6 +57,27 @@ export function isTenantHostContext(
 export function isLocalhostHost(hostHeader: string): boolean {
   const hostname = hostHeader.split(":")[0]?.trim().toLowerCase();
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+/**
+ * TUL-1883: the HUB host is the platform's own front door, not a tenant that opted into a language
+ * list. Its tenant row is seeded with `supported_locales = {en}`, so `/es` counted as "unsupported"
+ * and was 302'd to the English home. The hub speaks every platform locale (its chrome is the
+ * platform message catalog), so on the hub host the grammar is the platform's. A path tenant
+ * (`/w/<slug>`) keeps its own settings.
+ */
+export function hubPlatformLocaleSettings(
+  hostContext: HostContext,
+  hostTenantLocaleSettings: TenantLocaleSettings | null,
+  langSettings: LanguageSettings,
+): TenantLocaleSettings | null {
+  if (hostContext.kind !== "hub") return hostTenantLocaleSettings;
+  const supported = langSettings.publicLocales.length > 0 ? langSettings.publicLocales : [langSettings.defaultLocale];
+  return buildTenantLocaleSettings(
+    langSettings.defaultLocale,
+    supported,
+    hostTenantLocaleSettings?.showLanguageSwitcher ?? true,
+  );
 }
 
 /** Overlay a tenant's locale pair onto the global settings object. */
@@ -117,7 +139,7 @@ export async function resolveProxyLocaleContext(params: {
   const effectiveTenantLocaleSettings =
     pathBasedTenantContext && isTenantHostContext(pathBasedTenantContext)
       ? await loadTenantLocaleSettings(pathBasedTenantContext.tenantId)
-      : hostTenantLocaleSettings;
+      : hubPlatformLocaleSettings(hostContext, hostTenantLocaleSettings, langSettings);
 
   return {
     canResolvePathBasedTenant,

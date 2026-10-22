@@ -10,6 +10,7 @@
  *     mistaken for one this admin minted (its fields were never reviewed here).
  */
 
+import { discountStatus } from "@/lib/pricing/discount-status";
 import { useState, useTransition } from "react";
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import type { AccountDiscountRow as AccountDiscountRowType } from "@/lib/billing/subscription-discounts";
@@ -39,10 +40,13 @@ export function DiscountCodeRow({
   row,
   tiers,
   dimmed,
+  nowMs,
   onEdit,
   onViewUses,
 }: {
   row: PricingDiscountRow;
+  /** The list's ticking clock, so the status and the list counts always agree. */
+  nowMs?: number;
   tiers: DiscountTierOption[];
   dimmed?: boolean;
   /** Opens the edit drawer. Absent on archived rows — nothing left to change. */
@@ -70,6 +74,7 @@ export function DiscountCodeRow({
     });
   }
 
+  const status = discountStatus(row, nowMs);
   return (
     <div role="row" style={rowStyle(CODE_GRID)}>
       <span style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -127,7 +132,12 @@ export function DiscountCodeRow({
         {formatScope(row.appliesTo, tiers, t)}
       </span>
       <span style={{ fontSize: 11.5, color: HQ.inkMuted }}>
-        {formatWindow(row, t)}
+        <span suppressHydrationWarning>{formatWindow(row, t)}</span>
+        <span style={{ display: "block", marginTop: 3 }} data-testid="discount-status">
+          <Pill color={status === "active" ? HQ.green : status === "scheduled" ? HQ.blue : status === "expired" ? HQ.amber : HQ.inkDim}>
+            {t(`${P}.status_${status}`)}
+          </Pill>
+        </span>
       </span>
       <span style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <StripeDot ok={stripeOk} />

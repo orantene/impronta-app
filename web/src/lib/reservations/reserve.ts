@@ -25,6 +25,8 @@ import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { refusalFromPurchaseReason } from "./reservation-item";
 import { availabilityForWindow, resolveWindowOnDate } from "./index";
 import type { OfferedTime, PartyBand } from "./availability";
+import { explicitDisplayCurrency } from "./deposit-currency";
+import { depositCentsForParty } from "./rules";
 import type { ServiceRules, ServiceWindow, ServiceWindowException } from "./types";
 
 export type ReserveRefusal =
@@ -35,6 +37,8 @@ export type ReserveRefusal =
   | "sold_out"
   | "capacity_unavailable"
   | "no_contact"
+  /** A deposit is due but the workspace has no explicit, valid display currency. */
+  | "currency_not_set"
   | "engine_error";
 
 export type ReserveOutcome =
@@ -103,6 +107,22 @@ export function findOfferedTime(input: {
 }
 
 /**
+ * The workspace's EXPLICIT display currency, read fresh from its settings, or
+ * null. FAILS CLOSED: a read error, a missing setting and a malformed setting
+ * are all null, never USD, so no deposit is charged or shown in a guessed
+ * currency (deposit-currency.ts).
+ */
+export async function workspaceCurrency(admin: SupabaseClient | null, tenantId: string): Promise<string | null> {
+  if (!admin) return null;
+  const { data, error } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
+  if (error) {
+    logServerError("reservations.workspaceCurrency", error);
+    return null;
+  }
+  return explicitDisplayCurrency((data as { settings?: unknown } | null)?.settings ?? null);
+}
+
+/**
  * Hold the table and record the visit.
  *
  * The capacity hold is taken by `createPurchase`, under the pool's own row
@@ -125,6 +145,8 @@ export async function createReservation(
     sourcePage?: string | null;
     locale?: string | null;
   },
+  /** Injectable so the money decision is testable without the whole pipeline. */
+  deps: { createPurchase: typeof createPurchase } = { createPurchase },
 ): Promise<ReserveOutcome> {
   const { rules, offered, partySize } = input;
 
@@ -137,7 +159,19 @@ export async function createReservation(
     return { ok: false, reason: "no_contact" };
   }
 
-  const purchase = await createPurchase(admin, {
+  // The deposit is the venue's rule, the SAME figure the floor shows
+  // (`depositCentsForParty`), in the workspace's currency; never the catalog
+  // item's deposit_pct. 0 means nothing is paid online.
+  // No explicit currency means no charge: refused, never defaulted to USD.
+  const depositCents = depositCentsForParty(rules, partySize);
+  let tableDeposit: { cents: number; currency: string } | undefined;
+  if (depositCents > 0) {
+    const currency = await workspaceCurrency(admin, input.tenantId);
+    if (!currency) return { ok: false, reason: "currency_not_set" };
+    tableDeposit = { cents: depositCents, currency };
+  }
+
+  const purchase = await deps.createPurchase(admin, {
     tenantId: input.tenantId,
     clientOrderKey: input.clientOrderKey,
     actorUserId: input.actorUserId,
@@ -147,9 +181,8 @@ export async function createReservation(
     // INTENT, not policy: the pipeline re-derives what this offering permits
     // and refuses this choice if the offering forbids it. A table with no
     // deposit is not paid online, which is what "in person" means here.
-    paymentChoice: rules.depositFromParty !== null && partySize >= rules.depositFromParty
-      ? "deposit"
-      : "in_person",
+    paymentChoice: tableDeposit ? "deposit" : "in_person",
+    ...(tableDeposit ? { tableDeposit } : { tableNoDeposit: true }),
     sourceChannel: "reservation",
     // D1: the venue's configured reservation offering is deliberately not a public menu
     // item (agency_only or public, owner's choice), so it uses its own sellable context: published + approved.

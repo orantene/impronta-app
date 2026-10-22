@@ -111,8 +111,12 @@ export function variantSellability(
   return { ok: false, reason: "tier_hidden" };
 }
 
-/** The deep-link ref names a tier by its id (case-insensitive) or its tier key. */
+/**
+ * The deep-link ref unlocks a hidden tier by its id (case-insensitive) only. The tier key
+ * (pool_key such as "comp") is guessable, so it never unlocks anything; `tierKey` is accepted
+ * and ignored.
+ */
 export function tierRefUnlocks(ref: string | null | undefined, tier: { variantId: string; tierKey?: string | null }): boolean {
   if (!ref) return false;
-  return ref.toLowerCase() === tier.variantId.toLowerCase() || (tier.tierKey != null && tier.tierKey !== "" && ref === tier.tierKey);
+  return ref.toLowerCase() === tier.variantId.toLowerCase();
 }

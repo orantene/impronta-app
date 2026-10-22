@@ -196,6 +196,7 @@ test("call sites pass actorUserId (talent agenda, staff desk, manage token, mess
   assert.match(engine, /actorUserId:\s*null/);
 
   const sheets = readFileSync(join(root, "lib/server-actions/messaging-sheets.ts"), "utf8");
-  assert.match(sheets, /by:\s*"staff"/);
+  // Messages cancel is staff, or the client when staff records a client-requested cancel.
+  assert.match(sheets, /by:\s*[^,\n]*"staff"/);
   assert.match(sheets, /actorUserId:\s*g\.userId/);
 });

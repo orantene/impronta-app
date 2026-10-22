@@ -71,11 +71,12 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { DEFAULT_POOL_KEY } from "@/lib/sessions/session-plan";
+import { loadSeriesPoolPlan } from "@/lib/sessions/series-pools";
 import {
   createSessionWithPools,
   ensureSessionPools,
 } from "@/lib/sessions/session-writer";
+import { sweepCancelledSessionRooms } from "@/lib/resources/session-resource-holds";
 import { improntaLog } from "@/lib/server/structured-log";
 import {
   DEFAULT_HORIZON_DAYS,
@@ -254,6 +255,15 @@ export async function GET(request: Request) {
         });
       }
 
+      // One plan per series per sweep: the single default pool, or a default
+      // total with a capped child per tier (TUL-1344 slice 3).
+      const poolPlan = await loadSeriesPoolPlan(admin, {
+        tenantId: series.tenantId,
+        seriesId: series.id,
+        offeringId: row.offering_id ? String(row.offering_id) : null,
+        seats: series.seats,
+      });
+
       for (const occ of decision.create) {
         // One creator. This used to insert the row and call
         // `upsert_capacity_pool` inline, and it was correct; the staff
@@ -269,9 +279,19 @@ export async function GET(request: Request) {
             startsAt: occ.startsAt,
             endsAt: occ.endsAt,
           },
-          [{ poolKey: DEFAULT_POOL_KEY, units: series.seats }],
+          poolPlan,
         );
 
+        if (!result.ok && (result.reason === "room_taken" || result.reason === "room_unavailable")) {
+          // TUL-1413: the class's room is taken at that time (or could not be held): not scheduled,
+          // and said, so the owner can move one of the two. The next sweep tries again.
+          void improntaLog("sessions.cron.room_refused", {
+            seriesId: series.id,
+            startsAt: occ.startsAt,
+            reason: result.reason,
+          });
+          continue;
+        }
         if (!result.ok && result.reason !== "pools_failed") continue;
 
         // A repeat is the normal second-run path and no longer a refusal: the
@@ -293,12 +313,14 @@ export async function GET(request: Request) {
       // upsert_capacity_pool would reset units_total on a pool that may have
       // seats sold against it or a count an operator deliberately raised.
       for (const sessionId of decision.poolBackfill) {
-        const repaired = await ensureSessionPools(admin, series.tenantId, sessionId, [
-          { poolKey: DEFAULT_POOL_KEY, units: series.seats },
-        ]);
+        const repaired = await ensureSessionPools(admin, series.tenantId, sessionId, poolPlan);
         poolsCreated += repaired.created.length;
       }
     }
+
+    // Safety net: a cancelled session never keeps its room, even if its cancel could not release it.
+    const swept = await sweepCancelledSessionRooms(admin);
+    void improntaLog("sessions.cron.rooms_swept", { ok: swept.ok, released: swept.ok ? swept.released : 0 });
 
     void improntaLog("sessions.cron.materialise", {
       series: (seriesRows ?? []).length,

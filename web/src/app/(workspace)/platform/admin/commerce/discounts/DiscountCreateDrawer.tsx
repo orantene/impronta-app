@@ -27,6 +27,7 @@ import {
 } from "@/lib/billing/currencies";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { viewerTimeZone, wallTimeToIso } from "@/lib/pricing/discount-datetime";
 import { HQ, F } from "../_tokens";
 import { Field, inputStyle } from "../_primitives";
 import type { DiscountTierOption } from "./discount-format";
@@ -91,9 +92,8 @@ export function DiscountCreateDrawer({
     setMessage(null);
     startTransition(async () => {
       const isoOrNull = (raw: string) => {
-        if (!raw) return null;
-        const d = new Date(raw);
-        return Number.isNaN(d.getTime()) ? null : d.toISOString();
+        // The picker value is the operator's wall time in their own zone; send it as an absolute instant.
+        return raw ? wallTimeToIso(raw) : null;
       };
       const minCents = minimumAmount
         ? Math.round(Number(minimumAmount) * 100)
@@ -349,6 +349,7 @@ export function DiscountCreateDrawer({
           </Field>
         </FieldRow>
         <p style={hintStyle}>{t(`${P}.startsAtHint`)}</p>
+        <p style={hintStyle}>{interpolate(t(`${P}.timeZoneNote`), { zone: viewerTimeZone() })}</p>
 
         <DrawerSaveBar
           state={state}

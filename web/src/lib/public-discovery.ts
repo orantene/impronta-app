@@ -2,7 +2,9 @@ import { cache } from "react";
 import { getGuestSessionKey } from "@/lib/guest-session";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { isViewableSavedProfile } from "@/lib/client-account/saved-talent";
 
 async function loadSavedTalentIds(): Promise<string[]> {
   if (!isSupabaseConfigured()) return [];
@@ -70,7 +72,31 @@ async function loadFavoriteTalentIds(): Promise<string[]> {
     .eq("client_user_id", actor.user.id)
     .order("added_at", { ascending: false });
 
-  return favs?.map((fav: { talent_profile_id: string }) => fav.talent_profile_id) ?? [];
+  const ids = favs?.map((fav: { talent_profile_id: string }) => fav.talent_profile_id) ?? [];
+  return keepViewableTalentIds(ids);
+}
+
+/**
+ * TUL-1239: the header count, the chat dock's Saved shelf and /account Saved must agree. They read the
+ * same `client_favorites` rows, but the shelf and the account list drop profiles that cannot be shown
+ * (hidden, deleted, private, resource, unapproved), so a raw row count said "2" over an empty list.
+ * Count only what the lists can show. Degrades to the raw ids when the admin client is unavailable.
+ */
+async function keepViewableTalentIds(ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return ids;
+  const admin = createServiceRoleClient();
+  if (!admin) return ids;
+  const { data, error } = await admin
+    .from("talent_profiles")
+    .select("id, workflow_status, deleted_at, is_publicly_hidden, visibility, profile_kind")
+    .in("id", ids);
+  if (error || !data) return ids;
+  const ok = new Set(
+    (data as Array<{ id: string; workflow_status: string | null; deleted_at: string | null; is_publicly_hidden: boolean | null; visibility: string | null; profile_kind: string | null }>)
+      .filter((p) => isViewableSavedProfile(p))
+      .map((p) => p.id),
+  );
+  return ids.filter((id) => ok.has(id));
 }
 
 /**

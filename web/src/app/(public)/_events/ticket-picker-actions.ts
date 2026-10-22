@@ -39,6 +39,7 @@ import { uuidWire } from "@/lib/events/uuid-wire";
 import { resolveGuestSessionId } from "@/lib/guest/guest-session";
 import { admissionHoldConsume, admissionHoldSeats } from "@/lib/venues/event-holds";
 import { releaseCapacity } from "@/lib/capacity";
+import { effectiveUnitCents } from "@/lib/orders/price/rules";
 import { isGuestSellableOffering } from "@/lib/offerings/guest-sellable";
 import { orderOfferingsSellable } from "@/lib/orders/order-sellable-gate";
 import { tierRefUnlocks } from "@/lib/offerings/sellable";
@@ -164,7 +165,7 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
 
     const { data: offering, error: offErr } = await admin
       .from("talent_offerings")
-      .select("id, status, moderation_state, visibility, currency, allow_pay_in_person")
+      .select("id, status, moderation_state, visibility, currency, allow_pay_in_person, amount_cents")
       .eq("id", ev.offering_id as string).eq("tenant_id", tenantId).maybeSingle();
     if (offErr) { logServerError("events.picker.offering", offErr); return { ok: false, reason: "unavailable" }; }
     if (!offering || !isGuestSellableOffering(offering)) return { ok: false, reason: "not_sellable" };
@@ -259,7 +260,10 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
     const tiers: PickerTier[] = tierRows.map((v) => {
       const t: Tier = {
         id: v.id as string, label: v.label as string, poolKey: v.pool_key as string,
-        amountCents: (v.amount_cents as number | null) ?? 0, salesFrom: (v.sales_from as string | null) ?? null,
+        // TUL-1301: a tier with no price of its own is charged the offering's price (pricePurchase), so SHOW that,
+        // never "Free". Only an offering that also has no price shows 0.
+        amountCents: effectiveUnitCents(v.amount_cents as number | null, (offering as { amount_cents?: number | null }).amount_cents ?? null) ?? 0,
+        salesFrom: (v.sales_from as string | null) ?? null,
         salesUntil: (v.sales_until as string | null) ?? null, minPerOrder: (v.min_per_order as number | null) ?? 1,
         maxPerOrder: (v.max_per_order as number | null) ?? null, isHidden: Boolean(v.is_hidden),
       };
@@ -277,20 +281,25 @@ export async function loadTicketPicker(input: unknown): Promise<TicketPicker> {
       };
     }).filter((t) =>
       !t.hidden
-      || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase())
-      || (includeTierKey != null && t.tierKey === includeTierKey));
+      || (includeVariantId != null && t.variantId.toLowerCase() === includeVariantId.toLowerCase()));
+    // A hidden / comp tier is reachable ONLY by its unguessable variant id in the link. The pool key
+    // ("comp", "vip") is guessable, so `includeTierKey` never unlocks one.
+    void includeTierKey;
+    // Night eligibility and availability come from the LISTED tiers only, so an anonymous payload
+    // never carries a hidden tier's id.
+    const listedIds = new Set(tiers.map((t) => t.variantId));
 
     const nights: PickerNight[] = (sessions ?? []).map((s) => {
       const keys = poolKeysBySession.get(s.id as string) ?? new Set<string>();
       return {
         sessionId: s.id as string, startsAt: s.starts_at as string, endsAt: s.ends_at as string,
-        sellableVariantIds: tierRows.filter((v) => keys.has(v.pool_key as string)).map((v) => v.id as string),
+        sellableVariantIds: tierRows.filter((v) => listedIds.has(v.id as string) && keys.has(v.pool_key as string)).map((v) => v.id as string),
         door: doorOfferState({
           allowPayInPerson: offering.allow_pay_in_person === true,
           sessionStartsAt: s.starts_at as string, sessionEndsAt: s.ends_at as string, now,
         }),
         seats: seatsBySession.get(s.id as string) ?? [],
-        availability: availabilityBySession.get(s.id as string) ?? {},
+        availability: Object.fromEntries(Object.entries(availabilityBySession.get(s.id as string) ?? {}).filter(([id]) => listedIds.has(id))),
       };
     });
 
@@ -427,7 +436,7 @@ export async function startTicketPurchase(input: unknown): Promise<StartTicketPu
       locale: d.locale ?? null, sourcePage: `/events`,
       confirmedAge: d.confirmedAge ?? null,
       // D1: a hidden / comp tier sells only when the buyer arrived by that tier's link.
-      unlockedVariantIds: tierRefUnlocks(d.unlockTier, { variantId: tier.id, tierKey: tier.poolKey }) ? [tier.id] : [],
+      unlockedVariantIds: tierRefUnlocks(d.unlockTier, { variantId: tier.id }) ? [tier.id] : [],
     }));
     if (!result.ok) {
       if (result.reason === "sold_out") return { ok: false, reason: "sold_out" };

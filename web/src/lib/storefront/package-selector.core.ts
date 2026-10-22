@@ -56,7 +56,7 @@ export async function readPackageSelectorCore(
     const titles = new Map<string, string>();
     const compIds = [...new Set(comps.map((c) => c.component_offering_id))];
     if (compIds.length > 0) {
-      const { data, error: tErr } = await deps.admin.from("talent_offerings").select("id, title").in("id", compIds);
+      const { data, error: tErr } = await deps.admin.from("talent_offerings").select("id, title").eq("tenant_id", tenantId).in("id", compIds);
       if (tErr) return { ok: false, reason: "unavailable" };
       for (const t of (data ?? []) as Array<{ id: string; title: string | null }>) titles.set(t.id, t.title ?? "");
     }

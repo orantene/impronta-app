@@ -48,11 +48,25 @@ export function nonRefundableFeeCents(
     client_surcharge_cents?: number | null;
     client_processing_fee_cents?: number | null;
   }>,
+  /**
+   * TUL-1366: whether the Tulala service fee (client surcharge) is returned.
+   * `feeRefundable` is the cancel-time decision stored on the booking (seller
+   * side cancels, or the client cancels inside the free-cancellation window:
+   * true; a late client cancel: false). When it is not decided yet (older
+   * bookings), `cancelledBy` decides: seller side returns it, a client or an
+   * unknown actor keeps it. The processing fee is a real card cost either way
+   * and is never returned here.
+   */
+  opts: { cancelledBy?: string | null; feeRefundable?: boolean | null } = {},
 ): number | null {
+  const sellerCancelled =
+    typeof opts.feeRefundable === "boolean"
+      ? opts.feeRefundable
+      : opts.cancelledBy === "talent" || opts.cancelledBy === "staff" || opts.cancelledBy === "system";
   let sum = 0;
   for (const r of snaps) {
     if (r.processing_mode !== "pass_through") continue;
-    sum += r.client_surcharge_cents ?? 0;
+    if (!sellerCancelled) sum += r.client_surcharge_cents ?? 0;
     if (r.processing_fee_payer === "client") {
       sum += r.client_processing_fee_cents ?? 0;
     } else {

@@ -60,6 +60,15 @@ export type PurchaseInput = {
   ageAttestation?: { confirmedAge: number } | null;
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
+  /**
+   * A table's deposit from the venue's rules (`deposit_cents_per_person` x party),
+   * in the workspace currency. SERVER-SET ONLY, by `reservations/reserve.ts`:
+   * it prices the single line at this amount and collects it in full. See
+   * `purchase-table-deposit.ts`.
+   */
+  tableDeposit?: { cents: number; currency: string };
+  /** TUL-1876: SERVER-SET ONLY by `reservations/reserve.ts` when the table owes no deposit: the order is priced at 0. */
+  tableNoDeposit?: boolean;
   sourceChannel: string;
   /**
    * Which door this purchase came through. Omitted = `guest`, the strict
@@ -98,6 +107,12 @@ export type PurchaseInput = {
    */
   bookingPromo?: BookingPromoRequest | null;
   locale?: string | null;
+  /**
+   * TUL-1591 (d): the hub listing this purchase sells (talent x workspace x service). When
+   * set, the order is charged only in the SELLER OF RECORD's explicit currency and refuses
+   * on a missing or mismatched one (`listing-charge-currency.server.ts`). Server-set only.
+   */
+  hubListingId?: string | null;
   /** TUL-426: where the service happens, from the booking sheet; cleaned before it is stored. */
   eventLocation?: string | null;
   /**
@@ -232,6 +247,13 @@ export type PurchaseResult =
       totalCents: number;
       /** What the pipeline decided to collect now. Derived, never sent. */
       collectCents: number;
+      /**
+       * Display only (TUL-1304/1305): the part of `collectCents` credited to the order (the deposit or the
+       * full total, before any pass-through card fee) and the promo-adjusted order total. Labels and
+       * emails read these; no charge is computed from them.
+       */
+      principalCents?: number;
+      orderTotalCents?: number;
       /**
        * The ISO currency the order, its lines and its transaction are in. The
        * caller MUST charge in this currency: charging `collectCents` in any

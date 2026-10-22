@@ -2,7 +2,7 @@
 --
 -- HELD FILE (supabase/migrations/_pending_pm/). NOT applied by the author.
 -- PROPOSAL for the Production Migration Manager (TUL-1269 #12, package H2, part 2).
--- Follows 20261231417200 (sessions_select_public: scheduled + sellable offering + published event).
+-- Independent of the sessions_select_public policy (20261231417200, applied; restated by 20261231423800, TUL-1486).
 --
 -- WHAT
 --  1. talent_offerings_public_read gains a talent eligibility gate: an offering

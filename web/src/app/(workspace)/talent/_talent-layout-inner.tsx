@@ -23,6 +23,10 @@ import { loadTalentAgenda } from "@/lib/talent-agenda/load";
 import { isAgendaV2 } from "@/lib/talent-agenda/flag";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import { loadTalentEarningsByCurrency } from "@/lib/talent/earnings-by-currency";
+import { EMPTY_TALENT_EARNINGS_BY_CURRENCY } from "@/lib/talent/earnings-by-currency-types";
+import { TALENT_LOADER_BUDGET_MS } from "@/lib/talent/loader-budget";
+import { EMPTY_TALENT_PAYOUT_ATTENTION } from "@/lib/payments/talent-payout-attention-types";
+import { withTimeout } from "@/lib/tulala/with-timeout";
 import { loadPlatformOperatingCurrency, applyOperatingCurrencyToEarnings } from "@/lib/platform/operating-currency";
 import { getTalentConnectedAccountSnapshot, resolveTalentPayoutCountry } from "@/lib/payments/stripe-connect-talent";
 import { loadTalentPayoutAttention } from "@/lib/payments/talent-payout-attention";
@@ -76,6 +80,8 @@ import { resolveTalentActingAs, talentActingAsBannerCopy } from "@/lib/impersona
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import { LocaleSeedHardRedirect } from "@/components/admin/shell/locale-seed-hard-redirect";
 import { TalentShellSkeleton } from "./_talent-shell-skeleton";
+import { Suspense } from "react";
+import { HubTermsPrompt } from "@/components/talent/service-hub/HubTermsPrompt";
 
 const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   today: "today",
@@ -104,11 +110,22 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   plan: "settings",
 };
 
+/** TUL-1255: longest the shell waits for the theme-update bell fan-out before streaming without it. */
+const THEME_BELL_BUDGET_MS = 1500;
+
 /** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
 async function ensureThemeBellThenLoad(talentProfileId: string, readCtx: Parameters<typeof loadTalentSurfaceNotifications>[0]) {
   try {
     const admin = createServiceRoleClient();
-    if (admin) await ensureSiteThemeUpdates(admin, talentProfileId);
+    if (admin) {
+      // TUL-1255: the fan-out is several serial round trips and sits on the shell's critical
+      // path. Give it a short budget; past that the shell streams with the bell as it stands
+      // and the fan-out keeps running (it is idempotent) for the next load.
+      await Promise.race([
+        ensureSiteThemeUpdates(admin, talentProfileId).catch(() => undefined),
+        new Promise<void>((resolve) => setTimeout(resolve, THEME_BELL_BUDGET_MS)),
+      ]);
+    }
   } catch {
     // best-effort: the bell still loads what exists
   }
@@ -352,7 +369,7 @@ export async function TalentLayoutInner({
     timed("talent.loadTalentAgencies", () => loadTalentAgencies(talentSelfProfile.id)),
     timed("talent.loadTalentRepresentation", () => loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode)),
     timed("talent.findTenantMembership", () => tenantId ? findTenantMembership(tenantId) : Promise.resolve(null)),
-    timed("talent.loadWorkspaceUnreadCount", () => tenantId ? loadWorkspaceUnreadCount(tenantId) : Promise.resolve(0)),
+    timed("talent.loadWorkspaceUnreadCount", () => tenantId ? withTimeout(loadWorkspaceUnreadCount(tenantId), TALENT_LOADER_BUDGET_MS, 0) : Promise.resolve(0)),
 
     // TUL-387 — talent chrome badge counts (replaces the prior hard-coded zero).
     timed("talent.loadShellCounts", () => tenantId
@@ -369,11 +386,17 @@ export async function TalentLayoutInner({
     // legacy calendar bridge so Today/Calendar stay unchanged.
     timed("talent.loadTalentCalendarEntries", () => talentAgendaV2
       ? Promise.resolve([])
-      : loadTalentCalendarEntries(talentSelfProfile.id)),
+      : withTimeout(loadTalentCalendarEntries(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, [])),
     timed("talent.loadTalentAgendaForLayout", () => talentAgendaV2
       ? loadTalentAgendaForLayout(talentSelfProfile.id)
       : Promise.resolve({ items: [], hours: null, error: null as string | null })),
-    timed("talent.loadTalentEarningsByCurrency", () => loadTalentEarningsByCurrency(talentSelfProfile.id)),
+    // TUL-1113: Today's money reads share the 2 s first-paint budget; past it they paint empty.
+    timed("talent.loadTalentEarningsByCurrency", () =>
+      withTimeout(loadTalentEarningsByCurrency(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, {
+        ...EMPTY_TALENT_EARNINGS_BY_CURRENCY,
+        loadError: "Could not load earnings.",
+      }),
+    ),
     timed("talent.loadTalentPersonalSiteDashboardState", () => early?.siteDashboard ?? loadTalentPersonalSiteDashboardState(undefined, readCtx, undefined, {
       requestHost: hdrs.get("x-forwarded-host") ?? hdrs.get("host"),
     })),
@@ -385,7 +408,9 @@ export async function TalentLayoutInner({
     // Payout legs that did NOT land (reversed / failed / still held), with
     // booking context, for the Payouts page. Supersedes the held-only totals:
     // a reversed leg reached no talent surface at all before this.
-    timed("talent.loadTalentPayoutAttention", () => loadTalentPayoutAttention(talentSelfProfile.id)),
+    timed("talent.loadTalentPayoutAttention", () =>
+      withTimeout(loadTalentPayoutAttention(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, EMPTY_TALENT_PAYOUT_ATTENTION),
+    ),
 
     // B0 — DB-backed profile-editor sidebar layout. Never throws (falls back
     // to the hardcoded structure), so it can't break the layout.
@@ -394,7 +419,7 @@ export async function TalentLayoutInner({
     // P1 — DB-resolved client field source (wizard/drawer type-specific
     // catalog). Null when every surface is `static` (default). `tenantId` may
     // be null for independent talent — the loader degrades to flags-only.
-    timed("talent.loadClientFieldSource", () => loadClientFieldSource(tenantId)),
+    timed("talent.loadClientFieldSource", () => withTimeout(loadClientFieldSource(tenantId), TALENT_LOADER_BUDGET_MS, null)),
 
     // The talent's OWN languages (primary + secondary, bounded to platform
     // public locales) drive the shell's DashboardLocaleToggle / LanguageMenu.
@@ -408,7 +433,7 @@ export async function TalentLayoutInner({
     // render. Returns [] on any failure, so it never breaks the layout.
     // TUL-675: the theme-update bell is created lazily; make sure it exists BEFORE the bell loads
     // (idempotent, best-effort, never throws), so it shows without opening Mi sitio first.
-    timed("talent.ensureThemeBellThenLoad", () => ensureThemeBellThenLoad(talentSelfProfile.id, readCtx)),
+    timed("talent.ensureThemeBellThenLoad", () => withTimeout(ensureThemeBellThenLoad(talentSelfProfile.id, readCtx), TALENT_LOADER_BUDGET_MS, [])),
 
     // Pro/Portfolio page analytics — profile views + inquiry conversion for the
     // signed-in talent's OWN profile. Scoped by the SESSION user id (the
@@ -433,11 +458,11 @@ export async function TalentLayoutInner({
     timed("talent.getRequestLocale", () => early?.requestLocale ?? getRequestLocale()),
 
     // TUL-392: theme update waiting + site needs publish (Attention signals).
-    timed("talent.loadTalentAttentionSignals", () => loadTalentAttentionSignals(talentSelfProfile.id)),
+    timed("talent.loadTalentAttentionSignals", () => withTimeout(loadTalentAttentionSignals(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, null)),
 
     // Payout country (ISO-2) so the Money arrival text states the documented
     // timing for it. Runs in parallel with the rest; returns null on any failure.
-    timed("talent.resolveTalentPayoutCountry", () => resolveTalentPayoutCountry(talentSelfProfile.id)),
+    timed("talent.resolveTalentPayoutCountry", () => withTimeout(resolveTalentPayoutCountry(talentSelfProfile.id), TALENT_LOADER_BUDGET_MS, null)),
   ]);
   perfMark("talent.after-fanout", t0);
 
@@ -612,6 +637,13 @@ export async function TalentLayoutInner({
           chip → Switch-agency drawer (in-place cookie switch + refresh). The
           old raw <select> strip that rendered here duplicated that control
           and sat as an unstyled band above the shell chrome. */}
+      {/* TUL-1368: workspace terms waiting for the talent's answer. Renders nothing when
+          there are none or while an admin is acting as the talent (read-only). */}
+      {actingAs ? null : (
+        <Suspense fallback={null}>
+          <HubTermsPrompt talentProfileId={talentSelfProfile.id} locale={requestLocale} />
+        </Suspense>
+      )}
       {children}
     </TalentShellClient>
     </TalentSiteDashboardProvider>

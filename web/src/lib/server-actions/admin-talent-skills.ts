@@ -19,6 +19,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { SKILLS_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { pgUuidSchema } from "@/lib/site-admin/validators";
 import { invalidSkillTerms } from "@/lib/talent/skill-term-validation";
@@ -39,7 +40,7 @@ export async function getResolvedSkills(input: {
   | { ok: true; skills: ResolvedSkill[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -86,7 +87,7 @@ export async function addSkill(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.addSkill });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -193,7 +194,7 @@ export async function addSkills(
 ): Promise<{ ok: true; insertedCount: number } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.addSkills });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -336,7 +337,7 @@ export async function setTalentProfileSkills(
 > {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.setTalentProfileSkills });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -683,7 +684,7 @@ export async function updateSkill(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.updateSkill });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -733,7 +734,7 @@ export async function removeSkill(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.removeSkill });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -777,7 +778,7 @@ export async function verifySkill(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.verifySkill });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -867,7 +868,7 @@ export async function unverifySkill(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.unverifySkill });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -903,7 +904,7 @@ export async function reorderSkills(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.reorderSkills });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -958,7 +959,7 @@ export async function setFeaturedSkill(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.setFeaturedSkill });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1039,7 +1040,7 @@ export async function getEnabledParentCategoriesForPicker(): Promise<
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1094,7 +1095,7 @@ export async function getAgencySkillOverrides(input: {
   | { ok: true; overrides: AgencySkillOverride[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1129,7 +1130,7 @@ export async function upsertAgencySkillOverride(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.upsertAgencySkillOverride });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1190,7 +1191,7 @@ export async function clearAgencySkillOverride(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.clearAgencySkillOverride });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1221,7 +1222,7 @@ export async function addAspiration(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.addAspiration });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1260,7 +1261,7 @@ export async function removeAspiration(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.removeAspiration });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1288,7 +1289,7 @@ export async function getAspirations(input: {
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1349,7 +1350,7 @@ export async function requestNewTaxonomyTerm(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: SKILLS_WRITE_CAPABILITY.requestNewTaxonomyTerm });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1418,7 +1419,7 @@ export async function getTalentTypesUnderParent(input: {
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1539,7 +1540,7 @@ export async function getTalentTypesUnderParent(input: {
 export async function getUnpublishableSkillsForTenant(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; unpublishable: { term_id: string; label: string }[] }> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: true, unpublishable: [] };
   const { supabase, tenantId } = auth;
 

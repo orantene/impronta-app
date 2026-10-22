@@ -39,6 +39,7 @@ export function HubProfileCta({
       href={cta.href}
       className={className}
       data-hub-book-cta=""
+      data-profile-cta=""
       data-hub-book-slot={slot}
     >
       {createTranslator(locale)("public.profileCta.bookCta")}

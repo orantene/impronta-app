@@ -63,6 +63,7 @@ import {
 } from "./edit-context";
 import { useLastDraftSavedAt, useSaving } from "./save-cycle-bridge";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
+import { pageEditHref } from "./page-edit-href";
 import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { resolveLocaleToggleMode } from "./locale-toggle-mode";
 import { selectEditingLocale } from "./editing-locale";
@@ -296,7 +297,7 @@ function PagePicker({
       await navigateToEditSurface({
         dirty: dirty ?? false,
         flush: editCtx?.flushBuilderTreeSave,
-        href: slug === "" ? "/?edit=1" : `/${slug}?edit=1`,
+        href: pageEditHref(window.location.pathname, slug),
       });
       setOpen(false);
     } finally {
@@ -322,7 +323,7 @@ function PagePicker({
         await navigateToEditSurface({
           dirty: dirty ?? false,
           flush: editCtx?.flushBuilderTreeSave,
-          href: result.slug ? `/${result.slug}?edit=1` : "/?edit=1",
+          href: pageEditHref(window.location.pathname, result.slug),
         });
         setOpen(false);
       } else {
@@ -348,10 +349,7 @@ function PagePicker({
         await navigateToEditSurface({
           dirty: dirty ?? false,
           flush: editCtx?.flushBuilderTreeSave,
-          href:
-            result.slug === ""
-              ? "/?edit=1&panel=pageSettings"
-              : `/${result.slug}?edit=1&panel=pageSettings`,
+          href: pageEditHref(window.location.pathname, result.slug, "panel=pageSettings"),
         });
         setOpen(false);
       } else {

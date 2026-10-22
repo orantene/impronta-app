@@ -20,7 +20,7 @@
  * ladder closes up around it. Nothing here changes when it flips on.
  *
  * The only dollar figures below are the worked fee EXAMPLE, which illustrates
- * the 6% split and is not a catalog price.
+ * the fee and is not a catalog price.
  */
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { planDisplayNameFor, type PlanKey } from "@/lib/access/plan-catalog";
@@ -116,18 +116,16 @@ const en = {
   },
   fee: {
     eyebrow: "Transaction fee",
-    title: "6% on a paid booking. The same on every plan.",
+    title: "A Tulala service fee on a paid booking.",
     body:
-      "Three percent is a client surcharge at checkout and three percent comes off the seller side. Card processing is included, and the rate does not change as you move up either ladder.",
-    exampleTitle: "A $1,000 booking through an agency",
+      "The Tulala service fee is added on top of the price for the client and shown at checkout before they pay. It is set per plan.",
+    exampleTitle: "How a paid booking adds up",
     rows: [
-      { label: "Client pays", value: "$1,030" },
-      { label: "Talent receives", value: "$800" },
-      { label: "Agency receives", value: "$170" },
-      { label: "Tulala keeps", value: "$60" },
+      { label: "Client pays", value: "The price plus the Tulala service fee" },
+      { label: "Tulala keeps", value: "The Tulala service fee" },
     ],
     note:
-      "The same 6% whether the booking arrives from the Tulala hub or from the agency's own website. Nothing is charged until a booking is paid.",
+      "The same fee applies whether the booking arrives from the Tulala hub or from the agency's own website. Nothing is charged until a booking is paid.",
   },
 };
 
@@ -214,18 +212,16 @@ const es: PricingLaddersCopy = {
   },
   fee: {
     eyebrow: "Comisión por transacción",
-    title: "6% sobre una reserva pagada. Igual en todos los planes.",
+    title: "Un cargo por servicio de Tulala sobre una reserva pagada.",
     body:
-      "Tres por ciento es un recargo al cliente en el checkout y tres por ciento sale del lado de quien vende. El procesamiento de tarjeta va incluido, y la tasa no cambia conforme subes en cualquiera de las dos columnas.",
-    exampleTitle: "Una reserva de $1,000 a través de una agencia",
+      "El cargo por servicio de Tulala se suma por encima del precio para el cliente y se muestra en el checkout antes de pagar. Se define por plan.",
+    exampleTitle: "Cómo se compone una reserva pagada",
     rows: [
-      { label: "El cliente paga", value: "$1,030" },
-      { label: "El talento recibe", value: "$800" },
-      { label: "La agencia recibe", value: "$170" },
-      { label: "Tulala se queda con", value: "$60" },
+      { label: "El cliente paga", value: "El precio más el cargo por servicio de Tulala" },
+      { label: "Tulala se queda con", value: "El cargo por servicio de Tulala" },
     ],
     note:
-      "El mismo 6% ya sea que la reserva llegue desde el hub de Tulala o desde el sitio propio de la agencia. No se cobra nada hasta que una reserva se paga.",
+      "El mismo cargo por servicio aplica ya sea que la reserva llegue desde el hub de Tulala o desde el sitio propio de la agencia. No se cobra nada hasta que una reserva se paga.",
   },
 };
 

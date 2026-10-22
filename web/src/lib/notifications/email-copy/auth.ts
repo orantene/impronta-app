@@ -33,6 +33,11 @@ export const AUTH_EN = {
     intro:
       "Thanks for signing up. Click the button below to confirm your email address and activate your account.",
     introWithCode: "Enter this code on the page where you signed up, or tap the button.",
+    // TUL-910/1169/1191: a client sign-up (?as=client) is told it is a client account.
+    introClient:
+      "Thanks for signing up. Click the button below to confirm your email address and activate your client account.",
+    introClientWithCode:
+      "Enter this code on the page where you signed up to activate your client account, or tap the button.",
     note: "Expires in 24 hours. Single use.",
     button: "Confirm email →",
     codeLabel: "Or type this code where you asked for it:",
@@ -76,6 +81,10 @@ export const AUTH_ES: typeof AUTH_EN = {
     intro:
       "Gracias por registrarte. Haz clic en el botón de abajo para confirmar tu correo y activar tu cuenta.",
     introWithCode: "Escribe este código en la página donde te registraste, o toca el botón.",
+    introClient:
+      "Gracias por registrarte. Haz clic en el botón de abajo para confirmar tu correo y activar tu cuenta de cliente.",
+    introClientWithCode:
+      "Escribe este código en la página donde te registraste para activar tu cuenta de cliente, o toca el botón.",
     note: "Caduca en 24 horas. De un solo uso.",
     button: "Confirmar correo →",
     codeLabel: "O escribe este código donde lo solicitaste:",

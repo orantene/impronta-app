@@ -17,7 +17,9 @@
 import "server-only";
 
 import { resolveAiChatAdapter } from "@/lib/ai/resolve-provider";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { AiSpendCollector, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { resolveAiBillingTenantId } from "@/lib/ai/ai-billing-tenant";
 import { logServerError } from "@/lib/server/safe-error";
 
 import { sanitizeAgentReply } from "./agent-guardrails";
@@ -71,13 +73,16 @@ export async function runStrategistTurn(
     return { ok: false, error: "No brief yet. Start with the Tulala Agent first." };
   }
 
-  const gate = await assertAiInvocationAllowed();
+  const aiTenantId = await resolveAiBillingTenantId();
+  const spend = new AiSpendCollector();
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     return { ok: false, error: "Unavailable right now." };
   }
 
   const pack = packForBrief(brief);
   const learned = await extractFacts({
+    spend,
     brief,
     message: request.message,
     pack,
@@ -119,13 +124,14 @@ export async function runStrategistTurn(
   }
 
   const reply = await composeReply({
+    spend,
     message: request.message,
     locale: request.locale,
     proposals,
     justLearned: learned.map((l) => ({ factKey: l.factKey, value: l.value })),
   });
 
-  afterResponse(() => recordAiUsageEstimate().catch(() => {}));
+  afterResponse(() => recordMeasuredAiSpend(aiTenantId, spend.total()));
 
   return {
     ok: true,
@@ -141,6 +147,7 @@ export async function runStrategistTurn(
 }
 
 async function extractFacts(input: {
+  spend: AiSpendCollector;
   brief: Brief;
   message: string;
   pack: ReturnType<typeof packForBrief>;
@@ -166,6 +173,7 @@ async function extractFacts(input: {
       temperature: 0,
     });
     if (!completion.ok) return [];
+    input.spend.add(completion.model, completion.usage);
     const parsed = parseExtraction(completion.text, {
       questionId: null,
       questionVersion: null,
@@ -184,6 +192,7 @@ async function extractFacts(input: {
 }
 
 async function composeReply(input: {
+  spend: AiSpendCollector;
   message: string;
   locale: "en" | "es";
   proposals: StrategistProposal[];
@@ -244,6 +253,7 @@ async function composeReply(input: {
       temperature: 0.4,
     });
     if (!completion.ok) return { text: fallbackIdle(input.locale) };
+    input.spend.add(completion.model, completion.usage);
     const cleaned = sanitizeAgentReply(completion.text, {
       locale: input.locale,
       move: "strategist",

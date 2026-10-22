@@ -34,6 +34,7 @@ import {
 } from "@/lib/inquiry/inquiry-intent";
 import {
   createInquiryFromIntent,
+  loadInquiryDraft,
   saveInquiryDraft,
   submitInquiryDraft,
   type CreateInquiryFromIntentResult,
@@ -72,6 +73,18 @@ const GUEST_HEADER = "x-impronta-guest";
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared resolver: pull tenant + actor session + supabase client.
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Pathname + query of the page that posted this server action (Referer), or null. */
+async function postingPagePath(): Promise<string | null> {
+  const referer = (await headers()).get("referer");
+  if (!referer) return null;
+  try {
+    const u = new URL(referer);
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return null;
+  }
+}
 
 async function resolveSubmitContext(
   tenantSlug: string,
@@ -225,6 +238,18 @@ export async function submitDraftAction(
   const ctx = await resolveSubmitContext(tenantSlug);
   if (!ctx.ok) return { kind: "error", message: ctx.error };
 
+  // `writeClient` is service-role, so RLS no longer says whose draft this is. The draft id is client-chosen:
+  // prove here, with the caller's own session, that it is THEIR draft in THIS workspace before the engine runs.
+  if (!ctx.actorUserId) return { kind: "error", message: "Sign in to send a draft." };
+  const mine = await loadInquiryDraft(ctx.supabase, draftId);
+  if (
+    !mine.ok ||
+    mine.draft.requester_user_id !== ctx.actorUserId ||
+    mine.draft.tenant_id !== ctx.tenantId
+  ) {
+    return { kind: "error", message: "Draft not found." };
+  }
+
   const result = await submitInquiryDraft(ctx.writeClient, draftId, {
     actor_user_id: ctx.actorUserId,
     client_user_id: ctx.actorUserId,
@@ -251,7 +276,7 @@ export async function submitInquiryNowAction(
   let intent: InquiryIntent;
   try {
     // TUL-964: from a talent's page, route to that talent like the guest path.
-    intent = normalizeTalentPageIntent(JSON.parse(intentJson));
+    intent = normalizeTalentPageIntent(JSON.parse(intentJson), await postingPagePath());
   } catch {
     return { kind: "error", message: "Malformed intent payload." };
   }

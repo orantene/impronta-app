@@ -11,6 +11,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { LANGUAGES_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
 import { buildTalentLanguageRpcRows } from "@/lib/talent/talent-profile-shell-persistence";
@@ -31,7 +32,7 @@ export async function saveTalentLanguages(input: {
 }): Promise<Result> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: LANGUAGES_WRITE_CAPABILITY.saveTalentLanguages });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -99,7 +100,7 @@ export async function setTalentLanguages(input: {
 > {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: LANGUAGES_WRITE_CAPABILITY.setTalentLanguages });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
   const LOG = "[setLanguages]";
@@ -236,7 +237,7 @@ export async function setTalentLanguages(input: {
 export async function getTalentLanguages(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; languages: TalentLanguageInput[] } | { ok: false; error: string }> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 

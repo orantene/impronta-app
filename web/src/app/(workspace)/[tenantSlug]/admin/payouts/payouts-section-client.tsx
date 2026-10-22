@@ -27,6 +27,7 @@
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { InfoTip } from "@/components/ui/info-tip";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { createTranslator } from "@/i18n/messages";
 import { formatDashboardMoney } from "@/lib/money/dashboard-money-format";
 import type { ConnectAccountStatus } from "@/lib/payments/stripe-connect";
 import { PayoutsActionsClient } from "./payouts-actions-client";
@@ -52,32 +53,33 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
-function StatusPill({ status, charges, payouts }: {
+function StatusPill({ status, charges, payouts, t }: {
   status: ConnectAccountStatus;
   charges: boolean;
   payouts: boolean;
+  t: (key: string) => string;
 }) {
   let label: string;
   let bg: string;
   let fg: string;
   if (status === "enabled" && charges && payouts) {
-    label = "Active";
+    label = t("admin.payouts.statusActive");
     bg = C.greenSoft;
     fg = C.green;
   } else if (status === "pending") {
-    label = "Onboarding incomplete";
+    label = t("admin.payouts.statusPending");
     bg = C.amberSoft;
     fg = C.amber;
   } else if (status === "restricted") {
-    label = "Restricted";
+    label = t("admin.payouts.statusRestricted");
     bg = C.coralSoft;
     fg = C.coral;
   } else if (status === "disabled") {
-    label = "Disabled";
+    label = t("admin.payouts.statusDisabled");
     bg = C.coralSoft;
     fg = C.coral;
   } else {
-    label = "Not connected";
+    label = t("admin.payouts.statusNotConnected");
     bg = "rgba(11,11,13,0.06)";
     fg = C.inkMuted;
   }
@@ -97,7 +99,7 @@ function StatusPill({ status, charges, payouts }: {
   );
 }
 
-function CapabilityRow({ label, on }: { label: string; on: boolean }) {
+function CapabilityRow({ label, on, t }: { label: string; on: boolean; t: (key: string) => string }) {
   return (
     <div style={{
       display: "flex",
@@ -113,17 +115,17 @@ function CapabilityRow({ label, on }: { label: string; on: boolean }) {
         fontWeight: 600,
         color: on ? C.green : C.inkDim,
       }}>
-        {on ? "Enabled" : "Not yet"}
+        {on ? t("admin.payouts.capEnabled") : t("admin.payouts.capNotYet")}
       </span>
     </div>
   );
 }
 
-function formatSyncedAt(iso: string | null): string {
-  if (!iso) return "Never";
+function formatSyncedAt(iso: string | null, locale: string, never: string): string {
+  if (!iso) return never;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "Unknown";
-  return d.toLocaleString();
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleString(locale.toLowerCase().startsWith("es") ? "es-MX" : "en-US");
 }
 
 export function PayoutsSectionClient({
@@ -171,14 +173,39 @@ export function PayoutsSectionClient({
 }
 
 function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSurfaceData }) {
-  const { connect, baseFee, held, laneAttention } = data;
+  const { connect, baseFee, held, laneAttention, laneMismatch } = data;
   const copy = useDashboardText();
   const locale = useDashboardLocale();
+  const tr = createTranslator(locale);
   const enabled = connect.ok && connect.data.status === "enabled" && connect.data.payoutsEnabled;
 
   return (
     <>
       {!enabled && <HeldPayoutsBanner held={held} audience="workspace" />}
+      {laneMismatch ? (
+        <div
+          data-testid="lane-currency-mismatch"
+          role="alert"
+          style={{ marginBottom: 16, padding: "12px 14px", background: C.amberSoft, border: `1px solid ${C.border}`, borderRadius: 12 }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>
+            {laneMismatch.lane === "us"
+              ? copy.t("Your payments account (US) only charges in USD. Change the price to USD or connect a Mexico account.")
+              : copy.t("Your payments account cannot charge some of your prices. Change them to MXN or USD.")}
+          </div>
+          <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 4 }}>
+            {copy.t("Guests cannot pay for these items online yet:")}
+          </div>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 13, color: C.ink }}>
+            {laneMismatch.items.slice(0, 10).map((item) => (
+              <li key={item.id}>
+                {item.title} ({item.currency})
+              </li>
+            ))}
+            {laneMismatch.items.length > 10 ? <li>+{laneMismatch.items.length - 10}</li> : null}
+          </ul>
+        </div>
+      ) : null}
       {(laneAttention ?? []).map((row) => {
         const amount = formatDashboardMoney(row.amountCents / 100, row.currency, locale, { wholeUnits: true });
         const where =
@@ -220,26 +247,27 @@ function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSu
             }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.ink }}>
-                  Stripe account status
+                  {tr("admin.payouts.accountStatus")}
                 </div>
                 <div style={{ fontSize: 11, color: C.inkDim, marginTop: 2 }}>
                   {connect.data.stripeAccountId ? (
-                    <>Stripe account status: <code style={{ fontSize: 11 }}>{connect.data.stripeAccountId}</code></>
-                  ) : "No Stripe account connected"}
+                    <code style={{ fontSize: 11 }}>{connect.data.stripeAccountId}</code>
+                  ) : tr("admin.payouts.noAccount")}
                 </div>
               </div>
               <StatusPill
                 status={connect.data.status}
                 charges={connect.data.chargesEnabled}
                 payouts={connect.data.payoutsEnabled}
+                t={tr}
               />
             </div>
 
             {connect.data.stripeAccountId && (
               <div style={{ marginTop: 8 }}>
-                <CapabilityRow label="Onboarding submitted" on={connect.data.detailsSubmitted} />
-                <CapabilityRow label="Card charges enabled" on={connect.data.chargesEnabled} />
-                <CapabilityRow label="Payouts to bank enabled" on={connect.data.payoutsEnabled} />
+                <CapabilityRow label={tr("admin.payouts.onboardingSubmitted")} on={connect.data.detailsSubmitted} t={tr} />
+                <CapabilityRow label={tr("admin.payouts.chargesEnabled")} on={connect.data.chargesEnabled} t={tr} />
+                <CapabilityRow label={tr("admin.payouts.payoutsEnabled")} on={connect.data.payoutsEnabled} t={tr} />
               </div>
             )}
 
@@ -250,16 +278,16 @@ function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSu
               paddingTop: 12,
               borderTop: `1px solid ${C.borderSoft}`,
             }}>
-              Last synced: {formatSyncedAt(connect.data.syncedAt)}
+              {tr("admin.payouts.lastSynced")}: {formatSyncedAt(connect.data.syncedAt, locale, tr("admin.payouts.never"))}
             </div>
           </>
         ) : (
           <>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-              Stripe account status
+              {tr("admin.payouts.accountStatus")}
             </div>
             <p style={{ color: C.coral, fontSize: 13, margin: 0 }}>
-              Couldn&apos;t load Stripe status: {connect.error}
+              {tr("admin.payouts.loadError")}: {copy.t(connect.error)}
             </p>
           </>
         )}
@@ -273,12 +301,13 @@ function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSu
             hasAccount={!!connect.data.stripeAccountId}
             chargesEnabled={connect.data.chargesEnabled}
             payoutsEnabled={connect.data.payoutsEnabled}
+            locale={locale}
           />
         </section>
       )}
 
       {baseFee.ok && (
-        <BaseFeeClient tenantSlug={tenantSlug} initial={baseFee.data} />
+        <BaseFeeClient tenantSlug={tenantSlug} initial={baseFee.data} locale={locale} />
       )}
 
       <section style={{
@@ -292,13 +321,13 @@ function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSu
         marginTop: 16,
       }}>
         <div style={{ fontWeight: 600, color: C.ink, marginBottom: 6, fontSize: 13 }}>
-          How payouts work
+          {tr("admin.payouts.howItWorksTitle")}
         </div>
         <ul style={{ margin: 0, paddingLeft: 18 }}>
-          <li>Once connected, all client payments through your workspace route directly to your Stripe account.</li>
-          <li>Stripe handles the legal / KYC dance. You manage your bank account from the Stripe dashboard.</li>
-          <li>Payouts run on Stripe&apos;s default schedule (typically 2–7 days for new accounts).</li>
-          <li>Disconnecting clears the binding here; it does not delete your Stripe account.</li>
+          <li>{tr("admin.payouts.howItWorks1")}</li>
+          <li>{tr("admin.payouts.howItWorks2")}</li>
+          <li>{tr("admin.payouts.howItWorks3")}</li>
+          <li>{tr("admin.payouts.howItWorks4")}</li>
         </ul>
       </section>
     </>

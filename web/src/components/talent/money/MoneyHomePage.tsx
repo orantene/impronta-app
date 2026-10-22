@@ -26,7 +26,8 @@ import {
   type MoneyAgendaRow,
   type MoneyMethodBucket,
 } from "@/lib/talent/money-home";
-import { formatMonthLabel, monthKeyInZone } from "@/lib/money/money-rules";
+import { formatMonthLabel } from "@/lib/money/money-rules";
+import { currentCollectedMonth } from "@/lib/talent/collected-month";
 import { refundOwnBookingPayment } from "@/lib/talent-agenda";
 import { AgendaPanelFrame } from "@/components/admin/shell/internal/talent/agenda/AgendaPanelFrame";
 import { MoneyRecordPaymentPanel } from "./MoneyRecordPaymentPanel";
@@ -36,6 +37,7 @@ import { AgendaMoneyLine } from "./AgendaMoneyLine";
 import { FeePayerCard } from "./FeePayerCard";
 import { PayoutBreakdownCard } from "./PayoutBreakdownCard";
 import { MoneySentOffers } from "./MoneySentOffers";
+import { WhereYouAppearLink } from "@/components/talent/service-hub/WhereYouAppearLink";
 import { useResolvedTalentEarningsByCurrency } from "./use-resolved-talent-earnings-by-currency";
 import { ledgerClientsForSummary } from "./ledger-clients-state";
 import { useTalentLedgerClients } from "./use-talent-ledger-clients";
@@ -53,7 +55,7 @@ function day(iso: string | null, locale: string): string {
 }
 
 function currentMonthKey(): string {
-  return monthKeyInZone(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return currentCollectedMonth(new Date());
 }
 
 const METHOD_LABEL: Record<MoneyMethodBucket, string> = {
@@ -658,6 +660,7 @@ export function MoneyHomePage() {
       />
       <FeePayerCard currency={fallbackCurrency} showTip={false} />
       <MoneySentOffers />
+      <WhereYouAppearLink />
       {loadError ? (
         <p className="rounded-[12px] border border-admin-border-soft bg-admin-critical-soft px-4 py-3 font-admin-body text-[13.5px] text-admin-critical">
           {t("Could not load Money.")} {t("Refresh the page and try again.")}

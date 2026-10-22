@@ -37,6 +37,7 @@
 import { logServerError } from "@/lib/server/safe-error";
 import type { createServiceRoleClient } from "@/lib/supabase/admin";
 import type { TierUnits } from "@/lib/sessions/session-plan";
+import { holdSessionResources, releaseSessionResources } from "@/lib/resources/session-resource-holds";
 
 /** Capacity's defaults for a session tier pool. One definition, not four. */
 const HOLD_TTL_SECONDS = 900;
@@ -75,6 +76,8 @@ export type CreateSessionResult =
    */
   | { ok: true; sessionId: string; poolsCreated: number; created: boolean }
   | { ok: false; reason: "insert_failed" }
+  /** TUL-1413: the service's linked room is already taken for this time, or could not be held. Nothing was created. */
+  | { ok: false; reason: "room_taken" | "room_unavailable" }
   | { ok: false; reason: "pools_failed"; sessionId: string; poolsCreated: number };
 
 /**
@@ -101,10 +104,35 @@ export async function createSessionWithPools(
   admin: Admin,
   session: SessionRowInput,
   pools: ReadonlyArray<TierUnits>,
+  roomDeps: { hold: typeof holdSessionResources; release: typeof releaseSessionResources } = {
+    hold: holdSessionResources,
+    release: releaseSessionResources,
+  },
 ): Promise<CreateSessionResult> {
+  // TUL-1413: the session holds its linked room ONCE (attendees only take seats). Held BEFORE the
+  // row exists, under the id the row will get, so a refusal leaves nothing behind. A night that
+  // already exists is a repeat: it keeps the hold it has and asks for no second one.
+  const sessionId = crypto.randomUUID();
+  let roomHeld = false;
+  const already = session.offeringId ? await findExistingSession(admin, session) : null;
+  // An unreadable "does this night exist" must not become a second hold against the first one's room.
+  if (already === FIND_FAILED) return { ok: false, reason: "room_unavailable" };
+  if (session.offeringId && !already) {
+    const hold = await roomDeps.hold({
+      admin,
+      tenantId: session.tenantId,
+      sessionId,
+      offeringId: session.offeringId,
+      window: { startsAt: session.startsAt, endsAt: session.endsAt },
+    });
+    if (!hold.ok) return { ok: false, reason: hold.reason };
+    roomHeld = hold.held > 0;
+  }
+
   const { data: inserted, error: insertError } = await admin
     .from("sessions")
     .insert({
+      id: sessionId,
       tenant_id: session.tenantId,
       series_id: session.seriesId ?? null,
       venue_id: session.venueId ?? null,
@@ -119,6 +147,11 @@ export async function createSessionWithPools(
     .select("id")
     .maybeSingle();
 
+  if (insertError && roomHeld) {
+    // The session was not created: give its room back.
+    await roomDeps.release({ admin, tenantId: session.tenantId, sessionId });
+  }
+
   if (insertError) {
     // 23505 is a unique violation: this night already exists, on one of the two
     // indexes. Plain INSERT rather than an upsert precisely so BOTH are caught
@@ -127,7 +160,7 @@ export async function createSessionWithPools(
     // event night through, which is the defect this replaces.
     if (insertError.code === "23505") {
       const existingId = await findExistingSession(admin, session);
-      if (existingId) {
+      if (existingId && existingId !== FIND_FAILED) {
         // Fill in any pool the first attempt failed to create. Additive only:
         // `ensureSessionPools` never re-asserts an existing pool, so a repeat
         // cannot reset a seat count somebody raised or that has seats sold.
@@ -151,14 +184,17 @@ export async function createSessionWithPools(
     logServerError("sessions.createSessionWithPools.insert", insertError);
     return { ok: false, reason: "insert_failed" };
   }
-  if (!inserted?.id) return { ok: false, reason: "insert_failed" };
-
-  const sessionId = String(inserted.id);
-  const poolsCreated = await createPools(admin, session.tenantId, sessionId, pools);
-  if (poolsCreated < pools.length) {
-    return { ok: false, reason: "pools_failed", sessionId, poolsCreated };
+  if (!inserted?.id) {
+    if (roomHeld) await roomDeps.release({ admin, tenantId: session.tenantId, sessionId });
+    return { ok: false, reason: "insert_failed" };
   }
-  return { ok: true, sessionId, poolsCreated, created: true };
+
+  const createdId = String(inserted.id);
+  const poolsCreated = await createPools(admin, session.tenantId, createdId, pools);
+  if (poolsCreated < pools.length) {
+    return { ok: false, reason: "pools_failed", sessionId: createdId, poolsCreated };
+  }
+  return { ok: true, sessionId: createdId, poolsCreated, created: true };
 }
 
 /**
@@ -167,10 +203,13 @@ export async function createSessionWithPools(
  * occurrence key otherwise. Tenant-scoped, so a collision with another
  * workspace's row (impossible today, cheap to guarantee) can never be returned.
  */
+/** The read itself failed: not "no such session". Callers fail closed. */
+const FIND_FAILED = Symbol("find_failed");
+
 async function findExistingSession(
   admin: Admin,
   session: SessionRowInput,
-): Promise<string | null> {
+): Promise<string | null | typeof FIND_FAILED> {
   let query = admin
     .from("sessions")
     .select("id")
@@ -186,12 +225,14 @@ async function findExistingSession(
     return null;
   }
 
-  const { data, error } = await query.maybeSingle();
+  // limit(1) rather than maybeSingle(): two matching rows must not read as "no session".
+  const { data, error } = await query.order("created_at", { ascending: true }).limit(1);
   if (error) {
     logServerError("sessions.findExistingSession", error);
-    return null;
+    return FIND_FAILED;
   }
-  return data?.id ? String(data.id) : null;
+  const first = (data ?? [])[0] as { id?: unknown } | undefined;
+  return first?.id ? String(first.id) : null;
 }
 
 /**
@@ -212,7 +253,7 @@ export async function ensureSessionPools(
 ): Promise<{ created: string[]; alreadyPresent: string[]; failed: string[] }> {
   const { data: existing, error } = await admin
     .from("capacity_pools")
-    .select("pool_key")
+    .select("id, pool_key")
     .eq("tenant_id", tenantId)
     .eq("subject_kind", "session_tier")
     .eq("subject_id", sessionId);
@@ -224,17 +265,21 @@ export async function ensureSessionPools(
     return { created: [], alreadyPresent: [], failed: wanted.map((w) => w.poolKey) };
   }
 
-  const present = new Set((existing ?? []).map((row) => String(row.pool_key)));
+  const idByKey = new Map((existing ?? []).map((row) => [String(row.pool_key), String(row.id)]));
+  const present = new Set(idByKey.keys());
   const created: string[] = [];
   const alreadyPresent: string[] = [];
   const failed: string[] = [];
 
-  for (const tier of wanted) {
+  for (const tier of parentsFirst(wanted)) {
     if (present.has(tier.poolKey)) {
       alreadyPresent.push(tier.poolKey);
       continue;
     }
-    const ok = await createOnePool(admin, tenantId, sessionId, tier);
+    const parent = await resolveParent(admin, tenantId, sessionId, tier, idByKey);
+    // A tier whose parent is not there is NOT created parentless: that would
+    // sell it past the session's total. It is reported failed and retried.
+    const ok = parent.ok && (await createOnePool(admin, tenantId, sessionId, tier, parent.id, idByKey));
     (ok ? created : failed).push(tier.poolKey);
   }
 
@@ -248,10 +293,43 @@ async function createPools(
   pools: ReadonlyArray<TierUnits>,
 ): Promise<number> {
   let made = 0;
-  for (const tier of pools) {
-    if (await createOnePool(admin, tenantId, sessionId, tier)) made += 1;
+  const idByKey = new Map<string, string>();
+  for (const tier of parentsFirst(pools)) {
+    const parent = await resolveParent(admin, tenantId, sessionId, tier, idByKey);
+    if (parent.ok && (await createOnePool(admin, tenantId, sessionId, tier, parent.id, idByKey))) made += 1;
   }
   return made;
+}
+
+/** Parents before children, otherwise the given order. Pure. */
+export function parentsFirst(pools: ReadonlyArray<TierUnits>): TierUnits[] {
+  return [...pools.filter((p) => !p.parentPoolKey), ...pools.filter((p) => p.parentPoolKey)];
+}
+
+async function resolveParent(
+  admin: Admin,
+  tenantId: string,
+  sessionId: string,
+  tier: TierUnits,
+  idByKey: Map<string, string>,
+): Promise<{ ok: true; id: string | null } | { ok: false }> {
+  if (!tier.parentPoolKey) return { ok: true, id: null };
+  const known = idByKey.get(tier.parentPoolKey);
+  if (known) return { ok: true, id: known };
+  const { data, error } = await admin
+    .from("capacity_pools")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("subject_kind", "session_tier")
+    .eq("subject_id", sessionId)
+    .eq("pool_key", tier.parentPoolKey)
+    .maybeSingle();
+  if (error || !data?.id) {
+    if (error) logServerError("sessions.resolveParent", error);
+    return { ok: false };
+  }
+  idByKey.set(tier.parentPoolKey, String(data.id));
+  return { ok: true, id: String(data.id) };
 }
 
 async function createOnePool(
@@ -259,17 +337,20 @@ async function createOnePool(
   tenantId: string,
   sessionId: string,
   tier: TierUnits,
+  parentPoolId: string | null = null,
+  idByKey?: Map<string, string>,
 ): Promise<boolean> {
-  const { error } = await admin.rpc("upsert_capacity_pool", {
+  const { data, error } = await admin.rpc("upsert_capacity_pool", {
     p_tenant_id: tenantId,
     p_subject_kind: "session_tier",
     p_subject_id: sessionId,
     p_units_total: tier.units,
     p_pool_key: tier.poolKey,
-    // Parentless on purpose today. When Spaces gives a room a pool, the parent
+    // Parentless unless the plan names a parent on this session (a tier under
+    // the session's total). When Spaces gives a room a pool, that parent also
     // belongs here and in exactly one place, which is why this is the one
     // creator.
-    p_parent_pool_id: null,
+    p_parent_pool_id: parentPoolId,
     p_overbook_units: 0,
     p_hold_ttl_seconds: HOLD_TTL_SECONDS,
     p_unit_label: UNIT_LABEL,
@@ -279,5 +360,7 @@ async function createOnePool(
     logServerError("sessions.createOnePool", error);
     return false;
   }
+  // upsert_capacity_pool returns the pool id; remember it for this session's children.
+  if (idByKey && typeof data === "string") idByKey.set(tier.poolKey, data);
   return true;
 }

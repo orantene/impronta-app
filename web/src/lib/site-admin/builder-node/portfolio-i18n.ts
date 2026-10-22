@@ -72,6 +72,35 @@ export function humanImageAlt(alt: string | null | undefined): string | null {
   return s;
 }
 
+const EN_WORDS = new Set([
+  "a", "an", "the", "of", "in", "on", "at", "with", "and", "for", "to", "by", "from", "near", "next",
+  "man", "men", "woman", "women", "person", "people", "girl", "boy", "standing", "sitting", "wearing",
+  "holding", "playing", "smiling", "looking", "walking", "white", "black", "yellow", "green", "red", "blue",
+  "shirt", "dress", "table", "room", "street", "city", "mixer", "lights", "his", "her", "is", "are",
+]);
+const NON_EN_WORDS = new Set([
+  "de", "del", "la", "el", "las", "los", "un", "una", "con", "en", "y", "por", "para", "al", "sobre",
+  "mujer", "hombre", "persona", "retrato", "foto", "manos", "detalle",
+]);
+
+/**
+ * TUL-1792: true when a stored alt is plain English prose. Seeded demo photos
+ * carry English descriptions in the single `alt` column with no `alt_i18n`;
+ * on a Spanish site that text must not be read out. Conservative: needs two
+ * English function/descriptor words and no Spanish marker or accented letter.
+ */
+export function looksEnglishAlt(alt: string | null | undefined): boolean {
+  const s = text(alt).toLowerCase();
+  if (!s || /[\u00c0-\u024f\u00bf\u00a1]/.test(s)) return false;
+  const words = s.split(/[^a-z']+/).filter(Boolean);
+  let en = 0;
+  for (const w of words) {
+    if (NON_EN_WORDS.has(w)) return false;
+    if (EN_WORDS.has(w)) en += 1;
+  }
+  return en >= 2;
+}
+
 export function resolvePortfolioCaption(
   metadata: Record<string, unknown> | null | undefined,
   locale: string | null | undefined,
@@ -99,13 +128,18 @@ export function resolvePortfolioAlt(args: {
   /** Zero-cost generated alt (TUL-588), used before the bare name. */
   suggested?: string | null;
 }): string {
+  const altMap = readPortfolioI18nMap(args.metadata?.alt_i18n);
+  const visitor = key(args.locale);
+  // TUL-1792: the bare `alt` column is the talent's primary-language text. When
+  // it is plain English and the visitor reads another language (no alt_i18n
+  // entry for them), skip it so the localized suggestion / name is used instead
+  // of a hard-coded English description.
+  const baseAlt =
+    visitor && visitor !== "en" && looksEnglishAlt(args.alt) && !text(altMap?.[visitor])
+      ? null
+      : args.alt;
   const fromMaps = humanImageAlt(
-    resolvePortfolioText(
-      readPortfolioI18nMap(args.metadata?.alt_i18n),
-      args.alt,
-      args.locale,
-      args.primaryLocale,
-    ),
+    resolvePortfolioText(altMap, baseAlt, args.locale, args.primaryLocale),
   );
   return (
     fromMaps ||

@@ -1,6 +1,9 @@
 import "server-only";
 
-import { getRequestLocale } from "@/i18n/request-locale";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { headers } from "next/headers";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { explicitUrlLocale } from "@/i18n/workspace-page-locale";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
@@ -24,8 +27,14 @@ export async function resolveTalentProfileLocale(
     getLanguageSettingsPublicCached().catch(() => null),
   ]);
   const { settings } = state;
+  const h = await headers();
+  const publicLocales = language?.publicLocales ?? [];
+  const requestedLocale = applyLangQuery(requested, langQuery);
   return decideTalentProfileLocale({
-    requested: applyLangQuery(requested, langQuery),
+    requested: requestedLocale,
+    // The `?lang=` already folded into `requestedLocale`, plus the `/es` prefix, name the language.
+    explicitUrlLocale: explicitUrlLocale(h.get(ORIGINAL_PATHNAME_HEADER), h.get(ORIGINAL_SEARCH_HEADER), publicLocales),
+    publicLocales,
     primary: settings.defaultLocale,
     supported: talentProfileSupportedSet({
       unset: state.seedPrimary === null && settings.secondaryLocales.length === 0,
@@ -65,4 +74,31 @@ export async function talentProfileLocaleMetadata(input: {
     openGraphLocale: ogLocale(profile.locale),
     openGraphAlternateLocale: profile.supported.filter((l) => l !== profile.locale).map(ogLocale),
   };
+}
+
+/**
+ * TUL-875: same decision as `resolveTalentProfileLocale`, keyed by profile
+ * code, for the root layout (<html lang>). Null when the talent cannot be
+ * read publicly (unknown/hidden/preview) so the caller keeps the request
+ * locale. Never throws.
+ */
+export async function resolveTalentProfileLocaleByCode(
+  profileCode: string,
+  langQuery?: string | string[] | null,
+): Promise<TalentProfileLocale | null> {
+  try {
+    const pub = createPublicSupabaseClient();
+    if (!pub) return null;
+    // supabase-read-unchecked-ok: never-throws resolver; a failed read yields
+    // null, which callers already treat as "no locale override".
+    const { data } = await pub
+      .from("talent_profiles")
+      .select("id")
+      .eq("profile_code", profileCode)
+      .maybeSingle();
+    const id = (data as { id?: string } | null)?.id;
+    return id ? await resolveTalentProfileLocale(id, langQuery) : null;
+  } catch {
+    return null;
+  }
 }

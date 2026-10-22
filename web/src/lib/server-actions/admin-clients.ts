@@ -3,14 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { parseWithSchema, trimmedString } from "@/lib/admin/validation";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { clientBelongsToTenant } from "@/lib/server/client-tenant-access";
+import { createClientAccount } from "@/lib/server/create-client-account";
+import { ensureTenantClientRelationship } from "@/lib/client-account/relationship.server";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 // A.4 INTENTIONAL DIVERGENCE: convert to `ServerActionResult<T>`. This is a `useFormState`
 // payload (admin "new client" sheet) that carries both success metadata
-// (`createdUserId`, `temporaryPassword`, etc.) and error state on the same
+// (`createdUserId`, `invited`, etc.) and error state on the same
 // object. Conversion requires moving the create-result fields under `data`
 // + updating every form caller. Out of scope for the initial sweep.
 export type AdminClientProfileActionState =
@@ -19,18 +22,18 @@ export type AdminClientProfileActionState =
       success?: boolean;
       message?: string;
       createdUserId?: string;
-      temporaryPassword?: string;
       createdDisplayName?: string;
       createdCompanyName?: string | null;
       createdEmail?: string;
       createdPhone?: string | null;
+      /** An invitation email was sent; the client chooses their own password. */
+      invited?: boolean;
     }
   | undefined;
 
 const adminCreateClientSchema = z.object({
   display_name: z.string().min(1, "Client name is required."),
   email: z.string().email("Enter a valid email."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
   company_name: z.string(),
   phone: z.string(),
   whatsapp_phone: z.string(),
@@ -52,7 +55,9 @@ export async function updateAdminClientProfile(
   formData: FormData,
 ): Promise<AdminClientProfileActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  // TUL-1733: a WORKSPACE action. The old global `requireStaff()` admitted every self-serve studio owner
+  // to ANY client's profile (and the RLS policy on client_profiles is just as global).
+  const auth = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!auth.ok) return { error: auth.error };
 
   const { supabase } = auth;
@@ -74,6 +79,10 @@ export async function updateAdminClientProfile(
     website_url,
     notes,
   } = parsed.data;
+
+  if (!(await clientBelongsToTenant(supabase, auth.tenantId, userId))) {
+    return { error: CLIENT_ERROR.update };
+  }
 
   const { error } = await supabase
     .from("client_profiles")
@@ -102,13 +111,14 @@ export async function createAdminClient(
   formData: FormData,
 ): Promise<AdminClientProfileActionState> {
   await requireNotImpersonating();
-  const auth = await requireStaff();
+  // TUL-1733: a WORKSPACE action (editor and above). The new client is attached to the caller's workspace
+  // below; the old global `requireStaff()` let any studio owner mint confirmed accounts platform-wide.
+  const auth = await requireWorkspaceStaffAction({ capability: "edit_client_relationship" });
   if (!auth.ok) return { error: auth.error };
 
   const parsed = parseWithSchema(adminCreateClientSchema, {
     display_name: trimmedString(formData, "display_name"),
     email: trimmedString(formData, "email").toLowerCase(),
-    password: String(formData.get("password") ?? ""),
     company_name: trimmedString(formData, "company_name"),
     phone: trimmedString(formData, "phone"),
     whatsapp_phone: trimmedString(formData, "whatsapp_phone"),
@@ -125,73 +135,34 @@ export async function createAdminClient(
     };
   }
 
-  const { display_name, email, password, company_name, phone, whatsapp_phone, website_url, notes } = parsed.data;
+  const { display_name, email, company_name, phone } = parsed.data;
+  const redirectTo = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/reset-password` : undefined;
 
-  const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      display_name,
+  // The client is invited by email and sets their own password (no password is typed or shown here).
+  const created = await createClientAccount(
+    {
+      admin,
+      redirectTo,
+      attachToTenant: (userId) => ensureTenantClientRelationship({ userId, tenantId: auth.tenantId, originDomain: null }),
     },
-  });
-
-  const userId = created.user?.id;
-  if (createErr || !userId) {
-    logServerError("admin/createAdminClient/auth", createErr);
-    return { error: createErr?.message || CLIENT_ERROR.signUp };
+    parsed.data,
+  );
+  if (!created.ok) {
+    return { error: created.step === "invite" || created.step === "exists" ? created.message || CLIENT_ERROR.signUp : CLIENT_ERROR.update };
   }
-
-  // The brand-new user is not tied to any workspace yet, and role / status
-  // changes are platform-admin-only for direct sessions (see
-  // profiles_protect_role_status), so these two writes use the service role.
-  const { error: profileErr } = await admin
-    .from("profiles")
-    .update({
-      display_name,
-      app_role: "client",
-      account_status: "active",
-      onboarding_completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-
-  if (profileErr) {
-    logServerError("admin/createAdminClient/profile", profileErr);
-    return { error: CLIENT_ERROR.update };
-  }
-
-  const { error: clientProfileErr } = await admin
-    .from("client_profiles")
-    .upsert(
-      {
-        user_id: userId,
-        company_name: company_name || null,
-        phone: phone || null,
-        whatsapp_phone: whatsapp_phone || null,
-        website_url: website_url || null,
-        notes: notes || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-
-  if (clientProfileErr) {
-    logServerError("admin/createAdminClient/clientProfile", clientProfileErr);
-    return { error: CLIENT_ERROR.update };
-  }
+  const userId = created.userId;
 
   revalidatePath("/admin/clients");
   revalidatePath(`/admin/clients/${userId}`);
 
   return {
     success: true,
-    message: "Client login created.",
+    message: "Invitation sent.",
     createdUserId: userId,
-    temporaryPassword: password,
     createdDisplayName: display_name,
     createdCompanyName: company_name || null,
     createdEmail: email,
     createdPhone: phone || null,
+    invited: true,
   };
 }

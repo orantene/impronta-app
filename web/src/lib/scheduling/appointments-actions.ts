@@ -45,6 +45,7 @@ import { createCheckoutSessionForTransaction } from "@/lib/payments/stripe-check
 import { publicOrigin, storefrontLocale } from "@/lib/storefront/request-context";
 
 import { requireWorkspaceStaffAction, requireWorkspaceStaffActionOnce } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { logBookingActivity } from "@/lib/server/commercial-audit";
@@ -107,12 +108,23 @@ export type AppointmentsResult =
 
 type Scope = { tenantId: string; tenantSlug: string; userId: string };
 
+/**
+ * TUL-1708: `requireWorkspaceStaffActionOnce` (the shared-guard, read-only path) takes no
+ * capability — the default `agency.workspace.view` is correct for every reader below. Every
+ * WRITE runs its own guard and must name `capability`: the default capability is held by
+ * `viewer`, so a capability-less guard let a viewer reschedule a booking or move someone on
+ * or off a waitlist. `operate_venue` (editor+) is the floor-operations bar for rescheduling
+ * and waitlist moves — day-to-day venue operation, not deal/money coordination.
+ */
 async function scopedTo(
   tenantId: string,
   /** Readers share one guard per request; writes always run their own. */
   shareGuard = false,
+  capability?: CapabilityKey,
 ): Promise<{ ok: true; scope: Scope } | { ok: false; error: string }> {
-  const staff = shareGuard ? await requireWorkspaceStaffActionOnce() : await requireWorkspaceStaffAction();
+  const staff = shareGuard
+    ? await requireWorkspaceStaffActionOnce()
+    : await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) {
     return { ok: false, error: "Not authorized for this workspace." };
@@ -272,7 +284,7 @@ export async function rescheduleAppointment(input: {
 }): Promise<RescheduleAppointmentResult> {
   await requireNotImpersonating();
   try {
-    const scoped = await scopedTo(input.tenantId);
+    const scoped = await scopedTo(input.tenantId, false, "operate_venue");
     if (!scoped.ok) {
       return { ok: false, refusal: describeRescheduleRefusal({ reason: "not_found" }) };
     }
@@ -382,7 +394,7 @@ export async function promoteFromWaitlist(input: {
 }): Promise<PromoteResult> {
   await requireNotImpersonating();
   try {
-    const scoped = await scopedTo(input.tenantId);
+    const scoped = await scopedTo(input.tenantId, false, "operate_venue");
     if (!scoped.ok) return { ok: false, refusalKey: "notFound", outstandingOffers: null };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, refusalKey: "unavailable", outstandingOffers: null };
@@ -434,7 +446,7 @@ export async function acceptWaitlistPlace(input: {
 }): Promise<AcceptWaitlistOfferResult> {
   await requireNotImpersonating();
   try {
-    const scoped = await scopedTo(input.tenantId);
+    const scoped = await scopedTo(input.tenantId, false, "operate_venue");
     if (!scoped.ok) return { ok: false, refusalKey: "notFound" };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, refusalKey: "unavailable" };
@@ -498,7 +510,7 @@ export async function releaseWaitlistPlace(input: {
 }): Promise<ReleaseWaitlistPlaceResult> {
   await requireNotImpersonating();
   try {
-    const scoped = await scopedTo(input.tenantId);
+    const scoped = await scopedTo(input.tenantId, false, "operate_venue");
     if (!scoped.ok) return { ok: false, refusalKey: "notFound" };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, refusalKey: "unavailable" };
@@ -535,7 +547,7 @@ export async function joinSessionWaitlist(input: {
 }): Promise<JoinWaitlistResult> {
   await requireNotImpersonating();
   try {
-    const scoped = await scopedTo(input.tenantId);
+    const scoped = await scopedTo(input.tenantId, false, "operate_venue");
     if (!scoped.ok) return { ok: false, refusalKey: "notFound", seatsRemaining: null };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, refusalKey: "unavailable", seatsRemaining: null };

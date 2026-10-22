@@ -17,6 +17,8 @@ import { TULALA_APEX_HOST } from "@/lib/brand/tulala";
 import { isTalentProfilePlatformHost } from "@/lib/talent-site/platform-host";
 import { TALENT_CATEGORIES } from "@/lib/marketing/talent-categories";
 import { RESOURCE_ARTICLES } from "@/lib/marketing/resources";
+import { isChangelogLive } from "@/lib/changelog/public-read";
+import { HELP_ARTICLES } from "@/lib/support/help-articles";
 import {
   FEATURE_HUB_PATHS,
   MARKETING_FEATURES,
@@ -51,6 +53,8 @@ import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import { getOnboardingFlags } from "@/lib/settings/onboarding-flags";
 import { localeAlternateUrl } from "@/i18n/alternates";
 import { listPublishedPostRows } from "@/lib/cms/posts-public";
+import { buildPlatformBlogSite, platformBlogTenantId } from "@/lib/cms/platform-blog";
+import { postSiteUrlFor } from "@/lib/cms/posts-public-site";
 import { postSitemapEntries, type LocalizedUrl } from "@/lib/cms/posts-public-model";
 import { blogIndexSitemapEntries } from "@/lib/seo/blog-index-sitemap-entries";
 import { loadEventSitemapEntries } from "@/lib/seo/event-sitemap-entries";
@@ -307,6 +311,8 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
     // redirect: Search Console reports those as "Page with redirect" and
     // discounts the whole file. Advertise it only while it renders a page.
     const getStartedIsRedirect = (await getOnboardingFlags()).onboarding_module_enabled;
+    // Public only when the launch flag is on AND the launch copy is real (TUL-1586).
+    const changelogLive = await isChangelogLive();
     const marketingPaths = [
       "/",
       ...(getStartedIsRedirect ? [] : ["/get-started"]),
@@ -350,6 +356,7 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       "/integrations",
       "/discover-agencies",
       "/help",
+      ...HELP_ARTICLES.map((a) => `/help/articles/${a.slug}`),
       "/legal/privacy",
       "/legal/terms",
       "/legal/cookies",
@@ -360,6 +367,8 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
       // Resource hub, glossary, and each article, derived the same way.
       "/resources",
       "/resources/glossary",
+      // Changelog is noindex and out of the sitemap until the public launch flag flips.
+      ...(changelogLive ? ["/changelog", "/novedades"] : []),
       ...RESOURCE_ARTICLES.map((a) => `/resources/${a.slug}`),
     ];
     // The feature hub is emitted separately from `marketingPaths`, because the
@@ -424,7 +433,17 @@ async function buildSitemap(): Promise<MetadataRoute.Sitemap> {
         ];
       },
     );
-    return [...marketingEntries, ...featureEntries, ...comparisonEntries, ...platformTalentEntries];
+    // TUL-1399: the product blog's posts, only when PLATFORM_BLOG_TENANT_ID is configured.
+    const blogTenantId = platformBlogTenantId();
+    const blogSite = blogTenantId ? buildPlatformBlogSite(blogTenantId) : null;
+    const blogEntries: MetadataRoute.Sitemap = blogSite
+      ? await (async () => {
+          const rows = await listPublishedPostRows(blogSite.scope, blogSite.supportedLocales).catch(() => []);
+          const url = postSiteUrlFor(blogSite);
+          return [...blogIndexSitemapEntries(rows, url, new Date()), ...postSitemapEntries(rows, url, new Date())];
+        })()
+      : [];
+    return [...marketingEntries, ...featureEntries, ...comparisonEntries, ...platformTalentEntries, ...blogEntries];
   }
   if (isTalentProfilePlatformHost(hostContext.kind)) {
     return platformTalentEntries;

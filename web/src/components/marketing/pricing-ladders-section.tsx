@@ -61,7 +61,11 @@ import {
 } from "@/lib/pricing/interval-pricing";
 import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
 import { formatPrice } from "@/lib/money/format-price";
-import { approxCurrencyForLocale, fxRateFor } from "@/lib/pricing/approx-local-price";
+import {
+  approxCurrencyForLocale,
+  formatConvertedLocal,
+  fxRateFor,
+} from "@/lib/pricing/approx-local-price";
 import { loadFxPreview } from "@/lib/pricing/fx-preview";
 import { BillingIntervalToggle } from "./billing-interval-toggle";
 import { PricingAudienceTabs } from "./pricing-audience-tabs";
@@ -132,6 +136,8 @@ function buildCards(
   locale: string,
   ic: IntervalCopy,
   mxnRate: number | null,
+  /** MXN view of the USD catalog (TUL-864): primary price converted, USD charge stated. */
+  convertRate: number | null,
 ): Card[] {
   return rows.map((t) => {
     const tierCopy = copyByKey[t.key];
@@ -140,13 +146,22 @@ function buildCards(
     const salesLed = t.cadence === "" && !/\d/.test(t.price);
     const m = t.monthly;
     const y = t.yearly;
+    // Convert only USD catalog rows (real MXN rows are shown as they are) and
+    // only when there is a usable rate; otherwise keep the USD price.
+    const conv =
+      convertRate != null && !salesLed && m && m.currency === "USD" && m.unitAmount > 0
+        ? convertRate
+        : null;
+    const toLocal = (usdMinor: number, currency: string) =>
+      (conv != null && currency === "USD" ? formatConvertedLocal(usdMinor, conv, "MXN") : null) ??
+      formatUnitAmount(usdMinor, currency);
     const yearly =
       !salesLed && m && y
         ? {
-            perMonth: formatUnitAmount(y.perMonthAmount, y.currency),
+            perMonth: toLocal(y.perMonthAmount, y.currency),
             billedLine: ic.billedYearly.replace(
               "{amount}",
-              formatUnitAmount(y.unitAmount, y.currency),
+              toLocal(y.unitAmount, y.currency),
             ),
             savePct: yearlySavingsPercent(m.unitAmount, y.unitAmount),
             source: y.source,
@@ -156,17 +171,27 @@ function buildCards(
       key: t.key,
       // TUL-839: name, bullets and "most popular" come from the plan catalog.
       name: pricingTierName(packageSlug, t.key, t.name, locale),
-      price: salesLed ? c.salesLed : localizeTierPrice(t.price, locale),
+      price: salesLed
+        ? c.salesLed
+        : (conv != null && m ? formatConvertedLocal(m.unitAmount, conv, "MXN") : null) ??
+          localizeTierPrice(t.price, locale),
       cadence: salesLed ? "" : localizeTierCadence(t.cadence, locale),
       line: tierCopy?.line ?? t.tagline,
       bullets: tierCopy ? [...tierCopy.bullets] : t.highlights,
       featured: pricingTierFeatured(packageSlug, t.key, t.featured),
-      isOnSale: t.isOnSale && !salesLed,
+      // A converted view drops the strike-through (the canonical price is a USD string).
+      isOnSale: t.isOnSale && !salesLed && conv == null,
       canonicalPrice: t.canonicalPrice,
       yearly,
       monthlyLine: yearly ? ic.billedMonthly : "",
       approx:
-        !salesLed && mxnRate != null
+        conv != null && m
+          ? {
+              // Converted view: the approx line states the real USD charge.
+              month: formatUnitAmount(m.unitAmount, "USD").replace(/^\$/, "US$"),
+              year: y ? formatUnitAmount(y.perMonthAmount, "USD").replace(/^\$/, "US$") : null,
+            }
+          : !salesLed && mxnRate != null
           ? {
               // TUL-864: the ONE price formatter owns the "≈ MX$" rule (lib/money/format-price.ts).
               month: m ? formatPrice({ amountCents: m.unitAmount, currency: "USD", locale, usdRates: { rateDate: "", perUsd: { MXN: mxnRate } } }).secondary : null,
@@ -215,23 +240,25 @@ export async function PricingLaddersSection({
     loadMarketingTiers("workspace", currency),
   ]);
   // Spanish site on USD prices: add an approximate MX$ line (display only).
-  const mxnRate =
-    currency === "USD" && approxCurrencyForLocale(locale) === "MXN"
-      ? fxRateFor(await loadFxPreview(), "MXN")
-      : null;
+  const wantsMxnRate =
+    (currency === "USD" && approxCurrencyForLocale(locale) === "MXN") || currency === "MXN";
+  const fxMxn = wantsMxnRate ? fxRateFor(await loadFxPreview(), "MXN") : null;
+  const mxnRate = currency === "USD" ? fxMxn : null;
+  // TUL-864: MXN view of USD catalog rows (converted for display, charge stays USD).
+  const convertRate = currency === "MXN" ? fxMxn : null;
 
   const allLadders: Ladder[] = [
     {
       id: "person",
       label: c.person.label,
       blurb: c.person.blurb,
-      cards: buildCards(viewer, talentRows, c.talent, "talent", c, locale, ic, mxnRate),
+      cards: buildCards(viewer, talentRows, c.talent, "talent", c, locale, ic, mxnRate, convertRate),
     },
     {
       id: "business",
       label: c.business.label,
       blurb: c.business.blurb,
-      cards: buildCards(viewer, workspaceRows, c.workspace, "workspace", c, locale, ic, mxnRate),
+      cards: buildCards(viewer, workspaceRows, c.workspace, "workspace", c, locale, ic, mxnRate, convertRate),
     },
   ];
   // A package with no active tiers (or a catalog read that failed) drops its

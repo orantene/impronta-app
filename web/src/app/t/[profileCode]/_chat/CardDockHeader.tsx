@@ -206,7 +206,8 @@ export function CardDockHeader({
     >
       <CardDockAvatar photo={photo} name={name} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <b style={{ display: "block", fontSize: 15, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</b>
+        {/* TUL-1795: the full name wraps to two lines before it is clipped, so a status badge never hides it. */}
+        <b title={name} style={{ display: "-webkit-box", fontSize: 15, fontWeight: 600, lineHeight: 1.2, overflow: "hidden", overflowWrap: "anywhere", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}>{name}</b>
         {threadState !== "new" || onOpenSwitcher ? (
           <StatusLine threadState={threadState} syncState={syncState} onRetrySync={onRetrySync} onOpenSwitcher={onOpenSwitcher} C={CARD_PALETTE} t={t} />
         ) : subline ? (

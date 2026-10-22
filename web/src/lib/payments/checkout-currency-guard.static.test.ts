@@ -16,6 +16,8 @@ export const GUARDED_CREATORS: ReadonlySet<string> = new Set([
   "src/lib/payments/stripe-checkout.ts",
   "src/lib/payments/stripe-payment-intent.ts",
   "src/lib/payments/stripe-terminal.ts",
+  // TUL-1700: studio-rent subscription, no booking transaction: guarded by the tenant-lane variant.
+  "src/lib/service-hub/rent/rent-autopay-actions.ts",
 ]);
 
 /** Creators with no seller currency to compare against. One reason each. */
@@ -31,7 +33,7 @@ export const ALLOW_LIST: Readonly<Record<string, string>> = {
 const CREATOR_RE =
   /(?:checkout\.sessions|paymentIntents|paymentLinks)\.create\(|api\.stripe\.com\/v1\/(?:payment_intents|checkout\/sessions|payment_links)/;
 const GUARD_CALL = "checkTransactionChargeCurrency";
-const GUARD_CALL_RE = /(?:guardFn|checkTransactionChargeCurrency)\(/;
+const GUARD_CALL_RE = /(?:guardFn|checkTransactionChargeCurrency|checkTenantChargeCurrency)\(/;
 
 /** Comments may mention a creator (docs do); only code counts. */
 export function stripComments(src: string): string {
@@ -130,7 +132,7 @@ describe("every Stripe charge creator is guarded or allow-listed", () => {
   it("the Stripe creators call the guard in charge position (before their Stripe call)", () => {
     for (const rel of GUARDED_CREATORS) {
       const src = readFileSync(join(WEB_ROOT, rel), "utf8");
-      assert.match(src, /checkTransactionChargeCurrency/);
+      assert.match(src, /checkTransactionChargeCurrency|checkTenantChargeCurrency/);
       assert.match(src, /createServiceRoleClient\(\)/);
     }
   });

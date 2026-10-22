@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ]",
+  "ignoreCommand": "[ \"$VERCEL_GIT_COMMIT_REF\" != \"production\" ] && ! { [ \"$VERCEL_GIT_COMMIT_REF\" = \"main\" ] && [ \"$STAGING_BUILD\" = \"1\" ]; }",
   "regions": [
     "cle1"
   ],
@@ -98,6 +98,9 @@
       "maxDuration": 60
     },
     "src/app/api/cron/support-weekly-digest/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/cron/changelog-sync/route.ts": {
       "maxDuration": 60
     },
     "src/app/api/cron/support-notion-mirror/route.ts": {
@@ -247,6 +250,10 @@
     {
       "path": "/api/cron/support-notion-mirror",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/changelog-sync",
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/refresh-social-feeds",

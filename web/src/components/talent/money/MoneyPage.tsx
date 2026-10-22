@@ -1,5 +1,6 @@
 "use client";
 
+import { WhereYouAppearLink } from "@/components/talent/service-hub/WhereYouAppearLink";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -67,7 +68,7 @@ function MoneySpineFixturePage() {
         onViewBreakdown={() => setBreakdownOpen(true)}
         onOpenAction={setAction}
       />
-
+      <WhereYouAppearLink />
     </>
   );
 }

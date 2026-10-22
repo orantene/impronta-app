@@ -40,7 +40,7 @@ export type FloorReserveSlot = {
 };
 
 export type FloorReserveTimes =
-  | { ok: true; onDate: string; dates: string[]; slots: FloorReserveSlot[]; depositCents: number; currency: string }
+  | { ok: true; onDate: string; dates: string[]; slots: FloorReserveSlot[]; depositCents: number; /** Null only when depositCents is 0: never a guessed currency. */ currency: string | null }
   | { ok: false; reason: string; dates: string[] };
 
 export type FloorReserveResult =
@@ -86,6 +86,10 @@ export type FloorActions = {
   readonly splitCheck?: (input: { visitId: string; lineIds: string[]; operationKey: string }) => Promise<FloorOutcome & { orderId?: string }>;
   /** The lines of one open check, for the split sheet. */
   readonly loadCheckLines?: (orderId: string) => Promise<FloorCheckLinesResult>;
+  /** TUL-1757: a late reservation that did not come. Absent where the surface has no writer. */
+  readonly markNoShow?: (input: { admissionId: string }) => Promise<FloorOutcome>;
+  /** TUL-1757: cancel a reservation (void it, release its hold). */
+  readonly cancelReservation?: (input: { admissionId: string }) => Promise<FloorOutcome>;
   readonly resetTable: (spaceId: string) => Promise<FloorOutcome>;
   /** Absent on a surface with no kitchen send (the workspace's Live Floor). */
   readonly sendToKitchen?: (orderId: string) => Promise<FloorOutcome>;

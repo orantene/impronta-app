@@ -73,3 +73,9 @@ test("dictionary copy has no em dashes and no duplicate terms", () => {
     terms.add(p.en);
   }
 });
+
+test("TUL-1891: a Spanish-stored Experiencias reads Experiences on an EN page", () => {
+  assert.equal(platformCategoryLabel("Experiencias", "en"), "Experiences");
+  assert.equal(platformCategoryLabel("Experiences", "es"), "Experiencias");
+  assert.equal(platformCategoryLabel("Paquetes", "en"), "Packages");
+});

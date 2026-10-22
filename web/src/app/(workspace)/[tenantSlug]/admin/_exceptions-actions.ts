@@ -22,6 +22,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { loadExceptions, type ExceptionsLoad } from "@/lib/exceptions/read";
 import { resumeException } from "@/lib/exceptions/resume";
@@ -30,6 +31,22 @@ import { RESUME_VERBS, type ResumeVerb } from "@/lib/exceptions/model";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { resolvePaymentFlag } from "@/lib/payments/payment-review-flags";
 import { isPaymentReviewReason } from "@/lib/payments/payment-review-flags-model";
+
+/**
+ * TUL-1708: the default guard capability is `agency.workspace.view`, which a `viewer`
+ * holds. Of the five RESUME_VERBS this re-drives, `run_refund_intent` moves money, so it
+ * keeps the `booking.payment.refund` (admin+) bar the money-moving verb in this queue
+ * already needs. The other four are floor operations — re-minting an admission, retrying
+ * an engine effect, requeuing an outbox message, recovering an unresolved collection —
+ * the same `operate_venue` (editor+) bar day-to-day venue operation requires elsewhere.
+ */
+const RESUME_VERB_CAPABILITY: Record<ResumeVerb, CapabilityKey> = {
+  run_refund_intent: "booking.payment.refund",
+  mint_missing_admissions: "operate_venue",
+  retry_engine_effect: "operate_venue",
+  requeue_outbox_message: "operate_venue",
+  recover_unresolved_collection: "operate_venue",
+};
 
 export type LoadExceptionsResult =
   | { ok: true; load: ExceptionsLoad }
@@ -80,12 +97,18 @@ export async function resumeExceptionAction(input: {
   idempotencyKey: string;
 }): Promise<ResumeExceptionResult> {
   await requireNotImpersonating();
-  const guard = await requireWorkspaceStaffAction();
-  if (!guard.ok) return { ok: false, error: guard.error };
 
+  // The verb must be checked against the closed set before it can pick a
+  // capability — membership in a fixed list of five strings, not a data read,
+  // so refusing an unknown verb here leaks nothing.
   if (!(RESUME_VERBS as readonly string[]).includes(input.verb)) {
     return { ok: false, error: "That is not something this queue can re-drive." };
   }
+  const guard = await requireWorkspaceStaffAction({
+    capability: RESUME_VERB_CAPABILITY[input.verb as ResumeVerb],
+  });
+  if (!guard.ok) return { ok: false, error: guard.error };
+
   if (typeof input.sourceId !== "string" || !/^[0-9a-f-]{36}$/i.test(input.sourceId)) {
     return { ok: false, error: "That is not a valid row." };
   }

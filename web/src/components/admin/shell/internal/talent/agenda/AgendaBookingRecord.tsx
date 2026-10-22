@@ -101,7 +101,7 @@ export function AgendaBookingRecord({
   });
   // F61: the record states the day, not just the times.
   const whenFull =
-    recordWhenLabel({ startsAt: item.startsAtIso, endsAt: item.endsAtIso, tz: item.talentTz, locale: copy.locale }) ?? item.whenLabel;
+    recordWhenLabel({ startsAt: item.startsAtIso, endsAt: item.endsAtIso, tz: item.talentTz, locale: copy.locale }) ?? copy.t(item.whenLabel);
   // F44: Money → Record payment lands here with ?collect=1 and opens Finish and collect.
   useEffect(() => {
     if (!show.finishCollect) return;
@@ -470,16 +470,13 @@ export function AgendaBookingRecord({
               <dt className="text-[var(--tc-muted)]">{copy.t("When")}</dt>
               <dd>{whenFull}</dd>
             </div>
-            <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
-              <dt className="text-[var(--tc-muted)]">{copy.t("Where")}</dt>
-              <dd>
-                {item.whereLabel ? (
-                  copy.t(item.whereLabel)
-                ) : (
-                  <span className="text-[var(--tc-muted)]">{copy.t("Not set yet")}</span>
-                )}
-              </dd>
-            </div>
+            {/* TUL-1889: no place on the booking means no row, never a "Not set yet" dead end. */}
+            {item.whereLabel ? (
+              <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
+                <dt className="text-[var(--tc-muted)]">{copy.t("Where")}</dt>
+                <dd>{copy.t(item.whereLabel)}</dd>
+              </div>
+            ) : null}
             <div className="grid grid-cols-[120px_1fr] gap-3 py-2.5">
               <dt className="text-[var(--tc-muted)]">{copy.t("Came from")}</dt>
               <dd>{copy.t(recordSourceLabel(item.sourceLabel))}</dd>

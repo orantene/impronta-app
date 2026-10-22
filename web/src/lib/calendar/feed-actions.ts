@@ -26,6 +26,7 @@
  * pointing it at the wrong workspace would go unnoticed for months.
  */
 
+import { resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { headers } from "next/headers";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -54,13 +55,15 @@ async function requestOrigin(): Promise<string> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
-  return host ? `${proto}://${host}` : "https://app.tulala.digital";
+  return host ? `${proto}://${host}` : `https://app.${resolvePublicRootDomain()}`;
 }
 
 export async function issueCalendarFeedUrl(): Promise<IssueFeedUrlResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: minting a feed URL is a write (a long-lived credential); the
+  // default guard capability (agency.workspace.view) is viewer-held.
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const admin = createServiceRoleClient();
@@ -87,7 +90,9 @@ export async function disconnectCalendarFeed(): Promise<{
 }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const guard = await requireWorkspaceStaffAction();
+  // TUL-1708: same capability as issueCalendarFeedUrl — both mutate the
+  // workspace's calendar-sync credential.
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const admin = createServiceRoleClient();

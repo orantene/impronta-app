@@ -22,10 +22,12 @@
  * trigger their own onboarding; service-role for engine writes.
  */
 
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
+import { syncPayoutAccountFromStripe } from "@/lib/payments/payout-account-verification";
 import type Stripe from "stripe";
 import { getStripe, getStripeFor, isStripeConfigured } from "@/lib/stripe/client";
 import { resolveStripeAccountForSeller } from "@/lib/stripe/account-routing";
-import { loadAccountPlatform } from "@/lib/stripe/account-platform";
+import { resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import {
@@ -208,7 +210,7 @@ export async function createOrGetTalentConnectedAccount(
   //    public Tulala page so they don't have to type/hunt for a URL.
   const businessUrl =
     opts.businessUrl ??
-    (tp.profile_code ? `https://tulala.digital/t/${tp.profile_code}` : undefined);
+    (tp.profile_code ? `${resolvePublicRootOrigin()}/t/${tp.profile_code}` : undefined);
 
   // 4. Create the Express account in the payee's country, on the platform the
   //    router picks (MX sellers on the Mexico platform; USDC stays US).
@@ -316,8 +318,9 @@ export async function createTalentOnboardingLink(
   const ensure = await createOrGetTalentConnectedAccount(talentProfileId);
   if (!ensure.ok) return { ok: false, error: ensure.error };
 
-  const stripe = getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: talentProfileId }));
-  if (!stripe) return { ok: false, error: "Stripe client unavailable." };
+  const owning = await resolveConnectedAccountClient("talent_profiles", { column: "id", value: talentProfileId }, ensure.data.stripeAccountId);
+  if (!owning.ok) return { ok: false, error: owning.error };
+  const stripe = owning.stripe;
 
   const link = await stripe.accountLinks.create({
     account: ensure.data.stripeAccountId,
@@ -361,6 +364,14 @@ export async function persistTalentAccountSnapshot(
   if (error) {
     logServerError("stripe-connect-talent.persist", error);
     return { ok: false, error: "Could not save talent Stripe status." };
+  }
+
+  // A payout account added by hand starts pending; a payouts-enabled Stripe account verifies it.
+  // Best effort: never fail the webhook or the refresh over it.
+  try {
+    await syncPayoutAccountFromStripe(admin, { ownerType: "talent", ownerId: talentProfileId, stripeAccountId: account.id, payoutsEnabled });
+  } catch (err) {
+    logServerError("stripe-connect-talent.payoutSync", err);
   }
 
   return {
@@ -416,12 +427,14 @@ export async function getTalentConnectedAccountSnapshot(
 export async function refreshTalentAccountStatus(
   talentProfileId: string,
 ): Promise<TalentConnectResult<TalentConnectedAccountSnapshot>> {
-  const stripe = getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: talentProfileId }));
-  if (!stripe) return { ok: false, error: "Stripe is not configured." };
 
   const snap = await getTalentConnectedAccountSnapshot(talentProfileId);
   if (!snap.ok) return snap;
   if (!snap.data.stripeAccountId) return snap; // nothing to refresh yet
+
+  const owning = await resolveConnectedAccountClient("talent_profiles", { column: "id", value: talentProfileId }, snap.data.stripeAccountId);
+  if (!owning.ok) return { ok: false, error: owning.error };
+  const stripe = owning.stripe;
 
   try {
     const account = await stripe.accounts.retrieve(snap.data.stripeAccountId);
@@ -471,14 +484,16 @@ export function canRouteTransfersToTalent(snap: TalentConnectedAccountSnapshot):
 export async function createTalentDashboardLink(
   talentProfileId: string,
 ): Promise<TalentConnectResult<{ url: string }>> {
-  const stripe = getStripeFor(await loadAccountPlatform("talent_profiles", { column: "id", value: talentProfileId }));
-  if (!stripe) return { ok: false, error: "Stripe client unavailable." };
 
   const snap = await getTalentConnectedAccountSnapshot(talentProfileId);
   if (!snap.ok) return { ok: false, error: snap.error };
   if (!snap.data.stripeAccountId) {
     return { ok: false, error: "Connect your Stripe account first." };
   }
+
+  const owning = await resolveConnectedAccountClient("talent_profiles", { column: "id", value: talentProfileId }, snap.data.stripeAccountId);
+  if (!owning.ok) return { ok: false, error: owning.error };
+  const stripe = owning.stripe;
 
   try {
     const link = await stripe.accounts.createLoginLink(snap.data.stripeAccountId);

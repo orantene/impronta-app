@@ -33,7 +33,8 @@ import {
   type ContactAttachmentErrorCode,
 } from "./attachments";
 import type { ContactFormField } from "./schema";
-import { stripImageMetadata } from "./strip-image-metadata";
+import { reencodeImageWithoutMetadata } from "./reencode-image";
+import { sanitizeImageForStorage } from "./strip-image-metadata";
 
 type ServiceClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
 
@@ -139,7 +140,14 @@ export async function storeContactAttachments(args: {
       });
       // TUL-1288: location/camera metadata never reaches storage.
       const original = new Uint8Array(await file.arrayBuffer());
-      const clean = stripImageMetadata(original, item.mime);
+      // Fail closed (TUL-1410): a file whose metadata cannot be stripped or re-encoded away is
+      // refused, never stored as the original bytes.
+      const clean = await sanitizeImageForStorage(original, item.mime, reencodeImageWithoutMetadata);
+      if (!clean) {
+        logServerError("cms-forms/attachments/sanitize", `could not strip metadata from ${item.mime}`);
+        await rollback();
+        return false;
+      }
       const { error: uploadError } = await admin.storage
         .from(CONTACT_ATTACHMENT_BUCKET)
         .upload(storagePath, clean, {

@@ -16,6 +16,7 @@ export function RefundsEs() {
       title="Política de reembolsos"
       lastUpdated="2026-10-01"
       lastUpdatedLabel="Última actualización"
+      locale="es"
       intro={
         <p>
           Esta página explica cómo funcionan los reembolsos cuando un cliente paga a un
@@ -67,12 +68,12 @@ export function RefundsEs() {
                 tarjetas y Stripe no devuelven. Según la configuración del talento, el talento
                 absorbe esta comisión o se suma al total del cliente. El monto completo,
                 incluida cualquier comisión, siempre se muestra antes de que el cliente pague.
+                Esto incluye el cargo por servicio de Tulala.
               </p>
               <p>
                 Las comisiones de procesamiento de tarjeta no son reembolsables. Ni el talento
                 ni {PLATFORM_BRAND.name} cubren esas comisiones cuando se emite un reembolso.
-                Tampoco se reembolsa la tarifa de servicio de {PLATFORM_BRAND.name} que paga el
-                cliente.
+                Cuando el negocio cancela, se reembolsa el cargo por servicio de Tulala.
               </p>
             </>
           ),

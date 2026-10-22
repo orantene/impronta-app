@@ -77,6 +77,7 @@ const GROUPS: readonly NavGroup[] = [
       { id: "integrations", labelKey: "dashboard.platform.nav.integrations", segment: "integrations" },
       { id: "ai-providers", labelKey: "dashboard.platform.nav.aiProviders",  segment: "ai-providers" },
       { id: "email",        labelKey: "dashboard.platform.nav.email",        segment: "email"        },
+      { id: "changelog",    labelKey: "dashboard.platform.nav.changelog",    segment: "changelog"    },
       { id: "audit-log",    labelKey: "dashboard.platform.nav.auditLog",     segment: "audit-log"    },
       { id: "settings",     labelKey: "dashboard.platform.nav.settings",     segment: "settings"     },
     ],

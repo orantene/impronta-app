@@ -1,4 +1,6 @@
 "use server";
+import { loadTalentInvitationEmail } from "@/lib/talent/invitation-email";
+import { loadTalentPrivateFields } from "@/lib/talent/private-fields";
 import { improntaLog } from "@/lib/server/structured-log";
 
 // admin-talent-profile-sections.ts
@@ -14,6 +16,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { PROFILE_SECTIONS_WRITE_CAPABILITY } from "./admin-talent-write-capabilities";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { assertPersonalProfileEditable } from "@/lib/talent/personal-profile-lock";
@@ -98,7 +101,7 @@ export async function updateTalentAbout(input: {
   tagline?: string | null;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentAbout });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -145,7 +148,7 @@ export async function updateTalentLocation(input: {
   upcoming_visits?: Array<{ id: string; city: string; placeId?: string; date?: string; dateEnd?: string }>;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentLocation });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -215,7 +218,7 @@ export async function updateTalentRates(input: {
   lodging_included?: boolean;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentRates });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -251,7 +254,7 @@ export async function updateTalentAvailability(input: {
   };
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentAvailability });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -276,7 +279,7 @@ export async function updateTalentCredits(input: {
   credits_data: CreditEntry[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentCredits });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -299,7 +302,7 @@ export async function updateTalentLimits(input: {
   limits_data: { hardLimits?: string[]; softLimits?: string[]; customNote?: string };
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentLimits });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -324,7 +327,7 @@ export async function updateTalentSocialProof(input: {
   social_proof_data: PastClient[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentSocialProof });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -352,7 +355,7 @@ export async function updateTalentMediaAlbums(input: {
   albums: MediaAlbumEntry[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentMediaAlbums });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -392,7 +395,7 @@ export async function updateTalentDocuments(input: {
   documents: TalentDocumentEntry[];
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateTalentDocuments });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -418,7 +421,7 @@ export async function updateRosterMeta(input: {
   feature_in_directory?: boolean;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.updateRosterMeta });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -557,7 +560,7 @@ export async function commitTalentProfileShellAdmin(
     tPrev = now;
   };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.commitTalentProfileShellAdmin });
   lap("requireWorkspaceStaffAction");
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
@@ -882,7 +885,7 @@ export async function getTalentPublishReadiness(input: {
   | { ok: true; missing: Array<{ id: string; label: string; groupKey?: string }>; deleted: boolean }
   | ErrResult
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -914,7 +917,7 @@ export async function getTalentPublishReadiness(input: {
 export async function getTalentProfileDynFieldValuesForShell(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; values: Record<string, string> } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -940,7 +943,7 @@ export async function getTalentProfileActivity(input: {
   talent_profile_id: string;
   limit?: number;
 }): Promise<{ ok: true; entries: ProfileActivityEntry[] } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1026,7 +1029,7 @@ export async function sendTalentClaimInvite(input: {
   resend?: boolean;
 }): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.sendTalentClaimInvite });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, user } = auth;
 
@@ -1149,7 +1152,7 @@ export async function resendTalentClaimInvite(
   talent_profile_id: string,
 ): Promise<Result & { redeem_url?: string; expires_at?: string; invitation_id?: string }> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.resendTalentClaimInvite });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1170,12 +1173,8 @@ export async function resendTalentClaimInvite(
   const phone = (previous as { invited_phone?: string | null } | null)?.invited_phone ?? null;
 
   if (!email && !phone) {
-    const { data: talent } = await supabase
-      .from("talent_profiles")
-      .select("invitation_email")
-      .eq("id", talent_profile_id)
-      .maybeSingle();
-    email = (talent as { invitation_email?: string | null } | null)?.invitation_email ?? null;
+    // TUL-1791: not column-granted to authenticated; staff read it through the RPC.
+    email = await loadTalentInvitationEmail(supabase, talent_profile_id);
   }
 
   if (!email && !phone) {
@@ -1203,7 +1202,7 @@ export async function assignTalentTaxonomyBySlug(input: {
   relationship_type?: "primary_role" | "secondary_role" | "specialty";
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.assignTalentTaxonomyBySlug });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -1236,7 +1235,7 @@ export async function removeTalentTaxonomyBySlug(input: {
   slug: string;
 }): Promise<Result> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.removeTalentTaxonomyBySlug });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId, tenantSlug } = auth;
 
@@ -1306,6 +1305,8 @@ export type ProfileEditorData = {
   display_name: string | null;
   first_name: string | null;
   last_name: string | null;
+  /** False when phone / date_of_birth / legal_name could not be loaded (TUL-1269): the editor must not submit them. */
+  private_fields_available: boolean;
   legal_name: string | null;
   pronouns: string | null;
   pronouns_custom: string | null;
@@ -1369,16 +1370,18 @@ export type ProfileEditorData = {
 export async function getTalentProfileEditorData(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; data: ProfileEditorData } | ErrResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
   const check = await assertOnRoster(supabase as never, tenantId, input.talent_profile_id);
   if (!check.ok) return check;
+  // TUL-1791: invitation_email is read through the RPC, not the column.
+  const invitationEmailP = loadTalentInvitationEmail(supabase, input.talent_profile_id);
 
   // Fetch talent_profiles row + the roster row + the Tier-D catalog value
   // rows in parallel.
-  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues] = await Promise.all([
+  const [profileRes, rosterRes, rosterFieldValues, scalarFieldValues, blobFieldValues, identityFieldValues, privateFields] = await Promise.all([
     supabase
       .from("talent_profiles")
       // T4 collapse-dedicated-columns: the migrated Tier-A/B/C fields no longer
@@ -1387,10 +1390,9 @@ export async function getTalentProfileEditorData(input: {
       .select(`
         updated_at,
         user_id,
-        display_name, first_name, last_name, legal_name, field_visibility,
-        gender, date_of_birth, nationality, home_country_text,
+        display_name, first_name, last_name, field_visibility,
+        gender, nationality, home_country_text,
         is_discoverable,
-        invitation_email, phone,
         home_city_text, home_place_id, travel_radius_km, travel_fee_required, remote_only,
         availability_data,
         social_links, embedded_media,
@@ -1422,6 +1424,9 @@ export async function getTalentProfileEditorData(input: {
     // pronouns_custom + gender) from the catalog value table, falling back to the
     // dedicated column below when absent. DOB stays column-only.
     readIdentityFieldValuesFromCatalog(supabase, input.talent_profile_id),
+    // TUL-1269: phone / date_of_birth / legal_name are not column-granted to
+    // signed-in clients; roster staff (checked above) read them via the RPC.
+    loadTalentPrivateFields(supabase, input.talent_profile_id),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -1430,7 +1435,10 @@ export async function getTalentProfileEditorData(input: {
   }
 
   type Row = Record<string, unknown>;
-  const p = profileRes.data as Row;
+  // `unavailable` leaves phone / date_of_birth / legal_name undefined AND flags the
+  // payload so the editor never saves a blank over values it could not read.
+  const privateFieldsAvailable = privateFields.status === "loaded";
+  const p = { ...(profileRes.data as Row), ...(privateFields.status === "loaded" ? privateFields.fields : {}) } as Row;
   const r = (rosterRes.data ?? {}) as Row;
   const sv = scalarFieldValues;
   const bv = blobFieldValues;
@@ -1475,6 +1483,7 @@ export async function getTalentProfileEditorData(input: {
       display_name: (p.display_name as string | null) ?? null,
       first_name: (p.first_name as string | null) ?? null,
       last_name: (p.last_name as string | null) ?? null,
+      private_fields_available: privateFieldsAvailable,
       legal_name: (p.legal_name as string | null) ?? null,
       // T4 collapse-dedicated-columns: pronouns / pronouns_custom are System-B
       // only now (columns dropped). gender + date_of_birth remain dedicated
@@ -1493,7 +1502,7 @@ export async function getTalentProfileEditorData(input: {
       response_time: sv.response_time ?? null,
       is_discoverable: Boolean(p.is_discoverable),
       field_visibility: p.field_visibility ?? null,
-      invitation_email: (p.invitation_email as string | null) ?? null,
+      invitation_email: await invitationEmailP,
       phone: (p.phone as string | null) ?? null,
       bios,
       bio_tone: sv.bio_tone ?? null,
@@ -1550,7 +1559,7 @@ export async function emitProfileEvent(input: {
   payload?: Record<string, unknown>;
 }): Promise<void> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: PROFILE_SECTIONS_WRITE_CAPABILITY.emitProfileEvent });
   if (!auth.ok) return;
   const { supabase } = auth;
   await supabase.from("talent_workflow_events").insert({

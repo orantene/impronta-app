@@ -72,7 +72,9 @@ export function CalendarPage() {
     // no RICH_INQUIRIES mock fallback. Previously guarded by `length > 0`,
     // which caused new workspaces to see Mango / Vogue Italia mock events.
     effectiveCalendarEvents.forEach((ev) => {
-      const dayKey = ev.starts_at ? ev.starts_at.slice(0, 10) : ev.event_date;
+      // The loader's LOCAL day (event_date), never the UTC slice of starts_at: a 20:00 table in
+      // Cancun is 01:00Z the next day and would land on tomorrow's column (TUL-1841).
+      const dayKey = ev.event_date.slice(0, 10);
       const d = new Date(dayKey + "T00:00:00");
       if (d.getFullYear() !== year || d.getMonth() !== month) return;
       const day = d.getDate();
@@ -94,6 +96,7 @@ export function CalendarPage() {
         // from an inquiry. The customer-facing word for an occurrence comes
         // from the words table (`events.session`); this is the STAFF rail label.
         : ev.kind === "session" ? `${t("dashboard.adminCalendar.sessionLabel")}: `
+        : ev.kind === "reservation" ? `${t("dashboard.adminCalendar.reservationLabel")}: `
         : "";
       const label = `${kindPrefix}${ev.company ?? ev.contact_name}`;
       events[day] = events[day] ?? [];

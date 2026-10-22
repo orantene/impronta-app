@@ -36,3 +36,27 @@ test("English 404 is unchanged", () => {
   assert.equal(c.secondary.label, "Sign in");
   assert.equal(notFoundCopy("en", "X").poweredBy, "Powered by Tulala");
 });
+
+// TUL-1907: a signed-in visitor must not be offered "Sign in" on the platform 404.
+test("TUL-1907: signed-in platform 404 offers the dashboard, not sign in", () => {
+  const es = notFoundCopy("es", null, "/client");
+  assert.equal(es.secondary.label, "Ir a mi panel");
+  assert.equal(es.secondary.href, "/client");
+  assert.doesNotMatch(JSON.stringify(es), /Iniciar sesión/);
+  const en = notFoundCopy("en", null, "/admin");
+  assert.equal(en.secondary.label, "Go to my dashboard");
+  assert.equal(en.secondary.href, "/admin");
+});
+
+test("TUL-1907: signed-out platform 404 and the agency 404 are unchanged", () => {
+  assert.equal(notFoundCopy("es", null, null).secondary.label, "Iniciar sesión");
+  assert.equal(notFoundCopy("es", null).secondary.href, "/login");
+  assert.equal(notFoundCopy("es", "Casa Luz", "/client").secondary.label, "Enviar una consulta");
+});
+
+test("TUL-1907: not-found.tsx reads the session only for the platform 404", () => {
+  const src = readFileSync("src/app/not-found.tsx", "utf8");
+  assert.match(src, /getCachedActorSession/);
+  assert.match(src, /isAgency \? null : await loadSignedInHref\(\)/);
+  assert.match(src, /notFoundCopy\(locale, brand \? brand\.name : null, signedInHref\)/);
+});

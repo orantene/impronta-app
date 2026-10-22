@@ -16,9 +16,9 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { translatorFor } from "@/i18n/translator-for";
 import { trackProductEvent } from "@/lib/analytics/track-client";
 import { BACK, initialMachineState, reduceMachine, type MachineErrorCode } from "@/lib/onboarding/machine";
-import { CHOOSE_COPY, FLOW_TOTAL, flowStepOf, flowSubLabel, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
-import type { VisualDirection } from "@/lib/onboarding/module-state";
-import type { ModuleStep, OnboardingIntent } from "@/lib/onboarding/module-state";
+import { CHOOSE_COPY, FLOW_TOTAL, flowProgressLine, flowShowsCounter, flowStepOf, urlChoiceBeatsGuestDraft, type FlowLocale } from "@/lib/onboarding/flow";
+import { choiceToPath, type ModuleStep, type OnboardingChoice, type OnboardingIntent, type OnboardingPath, type VisualDirection } from "@/lib/onboarding/module-state";
+import { landingStep, urlStepOfLocation } from "@/lib/onboarding/step-url";
 import {
   acceptUnderstoodCard,
   saveOnboardingEssentials,
@@ -32,16 +32,16 @@ import {
   saveOnboardingStep,
   saveOnboardingDesign,
   saveOnboardingAge18,
+  saveOnboardingAgeTerms,
   setOnboardingLink,
   submitOnboardingInput,
   understandOnboardingInput,
   type CardResult,
   type EssentialsAnswer,
 } from "@/lib/server-actions/onboarding-module";
-import { choiceToPath, type OnboardingChoice, type OnboardingPath } from "@/lib/onboarding/module-state";
 import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
-
 import { runResumeLookup } from "./resume-lookup";
+import { useAge18Confirmed } from "./use-age18-confirmed";
 import { OnboardingStepSkeleton } from "./step-skeleton";
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
@@ -49,6 +49,7 @@ import { ChooseStep } from "./steps/choose-step";
 import { SetupStep } from "./steps/setup-step";
 import { loadOnboardingSetup, saveOnboardingSetup, saveOnboardingTimezone, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
 import type { Essentials } from "@/lib/onboarding/essentials";
+import { useWizardGoto } from "./use-wizard-goto";
 import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
 import { EssentialsStep } from "./steps/essentials-step";
 import { StyleStep } from "./steps/style-step";
@@ -65,7 +66,6 @@ import type { ArrivalPayload } from "@/lib/onboarding/arrival";
 import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
 import { UnderstoodStep } from "./steps/understood-step";
-
 
 function isOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
@@ -116,6 +116,7 @@ export function OnboardingModule({
   }, []);
   const cardRef = useRef<HTMLDivElement>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
+  const [urlStepAtLoad] = useState<string | null>(() => (typeof window === "undefined" ? null : urlStepOfLocation(window.location.href)));
   const [setupData, setSetupData] = useState<SetupPayload | null>(null);
   // TUL-806: what step 3 saved, so the review step can show it.
   const [savedSetup, setSavedSetup] = useState<Essentials | null>(null);
@@ -209,7 +210,7 @@ export function OnboardingModule({
     const to = BACK[state.step];
     if (to) void saveOnboardingStep({ step: to, locale });
   }, [state.step, locale]);
-
+  useWizardGoto(isPage, (step) => { dispatch({ type: "toStep", step }); void saveOnboardingStep({ step, locale }); });
   // Phase 3 · the card. Runs the understand step once the words are sent
   // (reading screen), or reloads the card from the brief on resume.
   const understoodTrackedRef = useRef(false);
@@ -281,9 +282,9 @@ export function OnboardingModule({
     });
   }, [state.step, state.understanding, applyCard]);
 
-  // 1B step 3: the setup screen's prefill (saved record, AI-read services or a trade pack).
+  // 1B step 3 (and the review): the setup prefill (saved record, AI-read services or a trade pack).
   useEffect(() => {
-    if (state.step !== "setup" || setupData) return;
+    if ((state.step !== "setup" && state.step !== "readyToBuild") || setupData) return;
     let cancelled = false;
     void loadOnboardingSetup().then((r) => {
       if (!cancelled && r.ok) setSetupData(r.setup);
@@ -320,8 +321,8 @@ export function OnboardingModule({
   // of jumping straight to a later step. Else apply a URL choice.
   useEffect(() => {
     if (!isPage) return;
-    if (state.resume && state.isAuthenticated) dispatch({ type: "resumeContinue" });
-  }, [isPage, state.resume, state.isAuthenticated]);
+    if (state.resume && state.isAuthenticated) dispatch({ type: "resumeContinue", step: landingStep(urlStepAtLoad, state.resume.state.step) });
+  }, [isPage, state.resume, state.isAuthenticated, urlStepAtLoad]);
   const startChoiceAppliedRef = useRef(false);
   useEffect(() => {
     if (!isPage || !startChoice || startChoiceAppliedRef.current || state.step !== "choose" || state.choice) return;
@@ -358,14 +359,12 @@ export function OnboardingModule({
     else dispatch({ type: "cardFailed", code: "save_failed" });
   }, []);
 
-  // Phase 4 · account. Signed-in people never see the save step.
   const path: OnboardingPath = state.choice ? choiceToPath(state.choice) : state.understanding?.path ?? "talent";
-  // The 18+/Terms tick from the save step; carried to the verify step so the
-  // acceptance is recorded once the account exists (Legal 2.2).
+  // The 18+/Terms tick from the save step, carried to the verify step (Legal 2.2).
   const ageTermsRef = useRef(false);
-  // TUL-750: 18+ already confirmed on the ready step; the save step then asks only for Terms.
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
-  // Mirrors the ref for render: SaveStep reopens ticked after "change email".
+  // TUL-750: 18+ confirmed on the ready step, so the save step asks only for Terms. TUL-1847: both survive a reload.
+  const { ageConfirmed, setAgeConfirmed, termsRestored } = useAge18Confirmed(state.resume, state.briefId);
+  // Mirrors the ref for render (reopens ticked after "change email").
   const [ageTermsGiven, setAgeTermsGiven] = useState(false);
   const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
     dispatch({ type: "sendStarted" });
@@ -463,7 +462,8 @@ export function OnboardingModule({
     return r.link;
   }, []);
 
-  const flowN = flowStepOf(state.step);
+  const shownStep: ModuleStep = state.resume?.state.step ?? state.step; // TUL-813
+  const flowN = flowStepOf(shownStep);
   const stepLabel = CHOOSE_COPY[locale].step(flowN);
   const showBack = isPage
     ? state.step !== "building" && state.step !== "arrival"
@@ -478,7 +478,7 @@ export function OnboardingModule({
       <ResumeCard
         t={t}
         snapshot={state.resume}
-        onContinue={() => dispatch({ type: "resumeContinue" })}
+        onContinue={() => dispatch({ type: "resumeContinue", step: landingStep(urlStepAtLoad, state.resume?.state.step) })}
         onFresh={() => {
           dispatch({ type: "resumeFresh" });
           void resetOnboardingDraft();
@@ -562,7 +562,7 @@ export function OnboardingModule({
     );
   } else if (state.step === "setup") {
     body = setupData ? (
-      <SetupStep locale={locale} setup={setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
+      <SetupStep locale={locale} setup={savedSetup ? { ...setupData, essentials: savedSetup, saved: true } : setupData} busy={state.busy} saveFailed={state.error === "save_failed"} onSave={(e) => void saveSetup(e)} />
     ) : (
       <div data-testid="onb-setup-loading"><OnboardingStepSkeleton /></div>
     );
@@ -585,6 +585,7 @@ export function OnboardingModule({
         ageRequiredNotice={ageRequired}
         setupLines={reviewSetupLines(savedSetup ?? setupData?.essentials ?? null, locale)}
         locale={locale}
+        onEditSetup={() => { dispatch({ type: "toStep", step: "setup" }); void saveOnboardingStep({ step: "setup", locale }); }}
         onChangeTimezone={(zone) => {
           const cur = savedSetup ?? setupData?.essentials ?? null;
           if (!cur) return;
@@ -610,7 +611,8 @@ export function OnboardingModule({
         ageConfirmed={ageConfirmed}
         busy={state.busy}
         error={state.accountMessage}
-        initialAgeTerms={ageTermsGiven}
+        initialAgeTerms={ageTermsGiven || termsRestored}
+        onAgeTermsChange={(ticked) => { setAgeTermsGiven(ticked); ageTermsRef.current = ticked; void saveOnboardingAgeTerms({ ticked }); }}
         onEmail={(email, ageTerms) => void sendCode(email, false, ageTerms)}
         onGoogleSuccess={onGoogleSuccess}
       />
@@ -680,7 +682,7 @@ export function OnboardingModule({
       <div
         className="flex min-h-[100dvh] w-full flex-col"
         style={{ background: "var(--tl-bone)", color: "var(--tl-ink)" }}
-        data-onboarding-step={state.step}
+        data-onboarding-step={state.resume ? "resume" : state.step}
         data-onboarding-flow-step={flowN}
         data-testid="onb-page"
       >
@@ -713,7 +715,7 @@ export function OnboardingModule({
               ))}
             </div>
             <p className="mt-2 text-[0.6875rem] font-semibold tracking-[0.08em]" style={{ color: "var(--tl-ink-soft)" }} data-testid="onb-step-label">
-              {CHOOSE_COPY[locale].progress(flowN)}{flowSubLabel(state.step, locale) ? ` · ${flowSubLabel(state.step, locale)}` : ""} <span className="sr-only">{stepLabel}</span>
+              {flowProgressLine(shownStep, locale)}{flowShowsCounter(shownStep) ? <span className="sr-only"> {stepLabel}</span> : null}
             </p>
           </div>
           <div className="flex-1 pt-6">{body}</div>
@@ -738,7 +740,7 @@ export function OnboardingModule({
           role="dialog"
           aria-modal="true"
           aria-label={t("public.onboarding.chrome.dialogLabel")}
-          data-onboarding-step={state.step}
+          data-onboarding-step={state.resume ? "resume" : state.step}
           className="flex h-[100dvh] w-full flex-col overflow-hidden outline-none sm:h-auto sm:max-h-[90vh] sm:w-[640px] sm:rounded-[28px]"
           style={{ background: "var(--tl-bone)", color: "var(--tl-ink)", boxShadow: "var(--tl-shadow-lg)" }}
         >

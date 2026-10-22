@@ -1,17 +1,13 @@
 "use server";
 
-import { cookies } from "next/headers";
-
-import { loadCatalog } from "@/lib/orders/purchase-catalog";
-import { pricePurchase } from "@/lib/orders/purchase-pricing";
-import { resolveOrderCurrency } from "@/lib/orders/display-currency";
+import { MAX_UNITS_PER_LINE } from "@/lib/orders/purchase-policy";
+import { loadPriceContext } from "@/lib/orders/price/context.server";
+import { priceLines } from "@/lib/orders/price/lines";
+import { previewPromoForLines } from "@/lib/orders/price/promo-preview.server";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { bookingPromoRequest } from "@/lib/scheduling/instant-book-promo";
-import { PROMO_COOKIE, PROMO_VIA_COOKIE } from "@/lib/promos/share/cookies";
 
-import { bookingCartLines, quoteBooking } from "./booking-quote.server";
-import { bookingPreviewView, type BookingPreview } from "./booking-preview-view";
+import type { BookingPreview } from "./booking-preview-view";
 
 /**
  * Read-only booking quote for the sheet's pay step (Promos v1). Same engine,
@@ -37,49 +33,22 @@ export async function previewBookingQuoteAction(
   try {
     const admin = createServiceRoleClient();
     if (!admin || !input.offeringId) return { ok: false };
-    const catalog = await loadCatalog(admin, [input.offeringId]);
-    if (!catalog.ok) return { ok: false };
-    const policy = catalog.policies.get(input.offeringId);
-    const offering = catalog.offerings.get(input.offeringId);
-    if (!policy?.tenantId || !offering) return { ok: false };
-    const units = Math.max(1, Math.min(99, Math.trunc(input.quantity ?? 1)));
-    const priced = pricePurchase(
-      [{ offeringId: input.offeringId, units, variantId: input.variantId ?? null, addonIds: input.addOnIds ?? [] }],
+    const loaded = await loadPriceContext(admin, { offeringIds: [input.offeringId], withTravel: false });
+    if (!loaded.ok) return { ok: false };
+    // The same whole-unit ceiling the checkout enforces (999), not the old 99 that undercounted a crafted request.
+    const units = Math.max(1, Math.min(MAX_UNITS_PER_LINE, Math.trunc(input.quantity ?? 1)));
+    const { catalog } = loaded.ctx;
+    const priced = priceLines(
       { offerings: catalog.offerings, variants: catalog.variants, addons: catalog.addons },
+      [{ offeringId: input.offeringId, units, variantId: input.variantId ?? null, addonIds: input.addOnIds ?? [] }],
     );
     if (!priced.ok) return { ok: false };
-    const ccy = resolveOrderCurrency([offering.currency ?? null]);
-    if (!ccy.ok) return { ok: false };
-
-    const jar = await cookies();
-    const req = bookingPromoRequest({
-      promoCode: input.promoCode,
-      linkCookie: jar.get(PROMO_COOKIE)?.value ?? null,
-      viaCookie: jar.get(PROMO_VIA_COOKIE)?.value ?? null,
-    });
-    const lines = priced.lines.map((l) => ({
-      offeringId: l.offeringId,
-      kind: catalog.rawOfferings.get(l.offeringId)?.kind ?? "service",
-      totalCents: l.totalCents,
-      addons: l.addonIds.map((id) => ({ id, cents: catalog.addons.get(id)?.amountCents ?? 0 })),
-    }));
-    const cart = bookingCartLines(lines, { currency: ccy.currency, appointmentStart: input.startsAt ?? null });
-    const q = await quoteBooking(admin, {
-      tenantId: policy.tenantId,
-      talentProfileId: offering.talentProfileId,
-      lines: cart,
+    return await previewPromoForLines(admin, loaded.ctx, {
+      lines: priced.lines,
+      startsAt: input.startsAt ?? null,
+      promoCode: input.promoCode ?? null,
       contact: { email: input.contactEmail ?? null, phone: input.contactPhone ?? null },
-      code: req.code,
-      linkPromoIds: req.linkPromoIds,
     });
-    if (!q.ok) return { ok: false };
-    const labels = new Map<string, string>();
-    labels.set(input.offeringId, offering.label);
-    for (const id of input.addOnIds ?? []) {
-      const a = catalog.addons.get(id);
-      if (a) labels.set(id, a.label);
-    }
-    return { ok: true, preview: bookingPreviewView({ cart, value: q.value, labels, linkPromoIds: req.linkPromoIds ?? [] }) };
   } catch (err) {
     logServerError("promos.previewBookingQuote", err);
     return { ok: false };

@@ -60,7 +60,7 @@ test("every staff action calls the guard before the store, fails closed, and han
 test("writes are capability-gated; reads use the view capability", () => {
   assert.match(staff, /const CAPABILITY = "manage_agency_settings" as const;/);
   for (const name of WRITES) assert.match(fnBody(staff, staffActions, name), /requireWorkspaceStaffAction\(\{ capability: CAPABILITY \}\)/, `${name} is gated`);
-  for (const name of READS) assert.match(fnBody(staff, staffActions, name), /requireWorkspaceStaffAction\(\)/, `${name} is a plain staff read`);
+  for (const name of READS) assert.match(fnBody(staff, staffActions, name), /requireWorkspaceStaffAction\((?:\{ capability: "agency\.workspace\.view" \})?\)/, `${name} is a plain staff read (the default, or the view capability spelled out: TUL-1708 #4325)`);
 });
 
 test("the store scopes every read and write by the tenant it is handed, and checks each foreign key inside it", () => {

@@ -121,6 +121,8 @@ export type OnboardingPrefill = {
   gender: string;
   dateOfBirth: string;
   phone: string;
+  /** False when phone / date of birth could not be loaded (TUL-1269). */
+  privateFieldsAvailable: boolean;
   shortBio: string;
   ratesData: RateRow[];
 };

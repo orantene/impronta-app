@@ -115,6 +115,35 @@ test("messagingPreviewCancelRead: single-admission kind previews only that line"
   assert.deepEqual(preview.freesAdmissionIds, [ADMISSION_A]);
 });
 
+function seedDiscountedOrder() {
+  // A 5,000 with its OWN 500 off, B 3,000, order discount 1,000 in total (so 500 is left to spread: A 300, B 200);
+  // the customer paid 7,000 = 8,000 - 1,000.
+  return fakeAdmin({
+    orders: [{ id: ORDER, tenant_id: TENANT, inquiry_id: INQUIRY, status: "paid", discount_cents: 1000, tip_cents: 0, currency: "USD" }],
+    order_lines: [
+      { id: LINE_A, order_id: ORDER, tenant_id: TENANT, total_cents: 5000, discount_cents: 500, refunded_cents: 0, variant_id: null, offering_id: OFFERING },
+      { id: LINE_B, order_id: ORDER, tenant_id: TENANT, total_cents: 3000, discount_cents: 0, refunded_cents: 0, variant_id: null, offering_id: null },
+    ],
+    admissions: [
+      { id: ADMISSION_A, tenant_id: TENANT, order_line_id: LINE_A, starts_at: "2026-10-01T18:00:00Z", status: "valid" },
+      { id: ADMISSION_B, tenant_id: TENANT, order_line_id: LINE_B, starts_at: "2026-10-05T18:00:00Z", status: "valid" },
+    ],
+    talent_offerings: [{ id: OFFERING, cancellation_hours: 24 }],
+    capacity_allocations: [],
+    booking_transactions: [{ id: uuid(20), order_id: ORDER, status: "paid", gross_amount_cents: 7000, created_at: "2026-09-01T00:00:00Z", source_tenant_id: TENANT }],
+  });
+}
+
+test("messagingPreviewCancelRead: with line discounts the preview equals what the refund will really return (lineNetCents over every order line)", async () => {
+  const { admin } = seedDiscountedOrder();
+  const whole = await messagingPreviewCancelRead(admin, { tenantId: TENANT, recordKind: "order", recordId: ORDER });
+  assert.equal(whole.ok && whole.refundableCents, 7000);
+  const one = await messagingPreviewCancelRead(seedDiscountedOrder().admin, { tenantId: TENANT, recordKind: "appointment", recordId: ADMISSION_A });
+  assert.equal(one.ok && one.refundableCents, 4200, "line A: 5,000 - 500 own - 300 share (NOT the whole order discount on this one line)");
+  const other = await messagingPreviewCancelRead(seedDiscountedOrder().admin, { tenantId: TENANT, recordKind: "appointment", recordId: ADMISSION_B });
+  assert.equal(other.ok && other.refundableCents, 2800);
+});
+
 test("messagingPreviewCancelRead: window is NOT enforceable when the offering has no cancellation_hours", async () => {
   const { admin } = seedOrder();
   const preview = await messagingPreviewCancelRead(admin, { tenantId: TENANT, recordKind: "appointment", recordId: ADMISSION_B });

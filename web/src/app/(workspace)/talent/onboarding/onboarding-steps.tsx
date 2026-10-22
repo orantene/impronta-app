@@ -40,6 +40,7 @@ import {
   type RateRow,
   type ParentCategory,
 } from "./onboarding-shared";
+import { buildBasicsSavePayload } from "./basics-save-payload";
 
 // ─── Step: Basics — updateSelfIdentity (name + phone + gender + DOB) ───────────
 
@@ -49,6 +50,7 @@ export function BasicsStep({
   initialPhone,
   initialGender,
   initialDob,
+  privateFieldsAvailable,
   onSaved,
 }: {
   talentProfileId: string;
@@ -56,6 +58,8 @@ export function BasicsStep({
   initialPhone: string;
   initialGender: string;
   initialDob: string;
+  /** False when phone / date of birth could not be loaded (TUL-1269): shown disabled and never saved. */
+  privateFieldsAvailable: boolean;
   onSaved: () => void;
 }) {
   const [name, setName] = useState(initialName);
@@ -74,13 +78,9 @@ export function BasicsStep({
     startTransition(async () => {
       // Single updateSelfIdentity call covers all four checklist gates this
       // step owns. stage_name maps to display_name (the "Profile name").
-      const res = await updateSelfIdentity({
-        talent_profile_id: talentProfileId,
-        stage_name: name.trim(),
-        contact_phone: phone.trim(),
-        gender: gender,
-        date_of_birth: dob || undefined,
-      });
+      const res = await updateSelfIdentity(
+        buildBasicsSavePayload({ talentProfileId, name, phone, gender, dob, privateFieldsAvailable }),
+      );
       setSaving(false);
       if (res.ok) {
         setSavedOk(true);
@@ -110,6 +110,7 @@ export function BasicsStep({
           value={phone}
           placeholder="+52 55 1234 5678"
           onChange={(e) => setPhone(e.target.value)}
+          disabled={!privateFieldsAvailable}
           aria-label="Phone number"
         />
       </div>
@@ -127,10 +128,15 @@ export function BasicsStep({
         </div>
         <div style={{ flex: "1 1 0", minWidth: 0 }}>
           <FieldLabel>Date of birth</FieldLabel>
-          <input style={inputStyle} type="date" value={dob} onChange={(e) => setDob(e.target.value)} aria-label="Date of birth" />
+          <input style={inputStyle} type="date" value={dob} onChange={(e) => setDob(e.target.value)} disabled={!privateFieldsAvailable} aria-label="Date of birth" />
         </div>
       </div>
 
+      {!privateFieldsAvailable && (
+        <p style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8, lineHeight: 1.45 }}>
+          Private details could not be loaded. Reload to edit them.
+        </p>
+      )}
       <p style={{ fontSize: 11.5, color: C.inkMuted, marginTop: 8, lineHeight: 1.45 }}>
         Your name shows on the directory and your public page. Phone, gender, and date of birth are used by the agency
         for matching and records.

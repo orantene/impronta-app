@@ -12,7 +12,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { resolveImageEngineSettings, type ImageEngineSettings, type ImageQuality } from "@/lib/ai/ai-image-model";
 import { ImageProviderError, generateStockImage } from "@/lib/ai/ai-image-generation";
-import { recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveStockPrompt, type DirectionId, type StockPromptFacts } from "@/lib/site-admin/builder-core/site-templates/stock-prompts";
 import type { ImageSlotKey } from "@/lib/site-admin/builder-core/site-templates/types";
@@ -39,7 +41,7 @@ export interface GenerateStockAssetInput {
 
 export type GenerateStockAssetResult =
   | { ok: true; id: string; assetId: string; approval: "qa_passed" | "rejected"; costUsd: number; latencyMs: number; qa: Record<string, unknown> }
-  | { ok: false; code: "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error" | "store_failed" | "daily_cap"; error: string; costUsd: number };
+  | { ok: false; code: "ai_off" | "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error" | "store_failed" | "daily_cap"; error: string; costUsd: number };
 
 const REWORD = " Everyone is fully clothed; a calm, ordinary, family-friendly working scene.";
 
@@ -52,6 +54,15 @@ const DIRECTION_ALT: Readonly<Record<DirectionId, { es: string; en: string }>> =
 };
 
 export async function generateStockAsset(admin: SupabaseClient, input: GenerateStockAssetInput): Promise<GenerateStockAssetResult> {
+  // AI master switch (TUL-1622): refuse before the ceiling read, the paid call or a usage row.
+  if (!(await isAiMasterEnabled())) return { ok: false, code: "ai_off", error: AI_OFF_MESSAGE, costUsd: 0 };
+  // TUL-1624: the spend ceiling and request limits of the workspace the image is for (per-site) or the stock pool tenant,
+  // checked BEFORE the paid call. logUsage below rolls the measured cost into the same tenant.
+  const gateTenantId = input.originTenantId ?? (await resolveStockTenantId(admin));
+  if (gateTenantId) {
+    const gate = await assertAiInvocationAllowed(gateTenantId);
+    if (!gate.ok) return { ok: false, code: gate.code === "ai_off" ? "ai_off" : "daily_cap", error: gate.message, costUsd: 0 };
+  }
   const settings = input.settings ?? (await resolveImageEngineSettings());
   const cap = await dailyImageCeiling(admin, settings);
   if (!cap.allowed) return { ok: false, code: "daily_cap", error: `Daily image ceiling reached (${cap.used}/${cap.cap}).`, costUsd: 0 };

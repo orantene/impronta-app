@@ -37,6 +37,7 @@ import { loadOwnedTalentInquiry, loadTalentActor } from "@/lib/messaging/talent-
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 const BUCKET = "inquiry-files";
 /** Mirrors the bucket's file_size_limit (100 MB). */
@@ -78,7 +79,11 @@ async function resolveScope(
 ): Promise<{ ok: true; scope: Scope } | { ok: false; error: string }> {
   if (!inquiryId) return { ok: false, error: "Missing inquiryId." };
 
-  const staff = await requireWorkspaceStaffAction();
+  // TUL-1708: staff writing an attachment (mint + register are both writes —
+  // the mint step is pointless without the register that follows) needs
+  // coordinate_inquiry, not the viewer-held default. Client/talent scopes
+  // below are unaffected (their own participant checks are the real guard).
+  const staff = await requireWorkspaceStaffAction({ capability: WRITE_CAP.inquiryAttachmentSignedScope });
   if (staff.ok) {
     const { data: inq } = await tenantScopedQuery(staff.supabase, "inquiries", staff.tenantId)
       .select("id")

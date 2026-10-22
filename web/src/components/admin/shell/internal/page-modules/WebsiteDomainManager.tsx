@@ -39,6 +39,9 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { useT } from "@/i18n/use-t";
+import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { translateDomainActionText } from "@/components/admin/shell/internal/dashboard-i18n-domain-errors";
+import { decodeDomainActionParam } from "@/components/admin/shell/internal/domain-action-codes";
 import { interpolate } from "@/i18n/interpolate";
 import {
   connectCustomDomainAction,
@@ -152,6 +155,7 @@ function DomainRow({
   onCopy: (value: string, label: string) => void;
 }) {
   const t = useT();
+  const copy = useDashboardText();
   const [confirming, setConfirming] = useState<"primary" | "remove" | null>(null);
   const meta = DOMAIN_STATUS_META[record.status];
   const isCustom = record.kind === "custom";
@@ -284,7 +288,7 @@ function DomainRow({
 
       {record.failureReason ? (
         <p className="m-0 mt-[8px] text-admin-11h leading-relaxed text-admin-critical-deep">
-          {record.failureReason}
+          {translateDomainActionText(record.failureReason, copy.t)}
         </p>
       ) : null}
 
@@ -322,6 +326,7 @@ function DomainRow({
 
 export function WebsiteDomainManager() {
   const t = useT();
+  const copy = useDashboardText();
   const { effectiveWebsiteState, bridgeSessionIdentity, tenantSlug, toast, openUpgrade } =
     useAdminShell();
   const domain = effectiveWebsiteState.domain;
@@ -337,9 +342,13 @@ export function WebsiteDomainManager() {
     const params = new URLSearchParams(window.location.search);
     const ok = params.get("dmsg");
     const err = params.get("derr");
-    if (ok) setBanner({ kind: "ok", text: ok });
-    else if (err) setBanner({ kind: "error", text: err });
-  }, []);
+    // The actions put a stable code (or, in old links, English text) in the
+    // query; decode it, then map it to the dashboard language.
+    const dhost = params.get("dhost");
+    const dhint = params.get("dhint");
+    if (ok) setBanner({ kind: "ok", text: translateDomainActionText(decodeDomainActionParam(ok, dhost, dhint), copy.t) });
+    else if (err) setBanner({ kind: "error", text: translateDomainActionText(decodeDomainActionParam(err, dhost, dhint), copy.t) });
+  }, [copy.t]);
 
   const copyValue = (value: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -423,7 +432,7 @@ export function WebsiteDomainManager() {
           </p>
         </form>
       ) : (
-        /* Honest plan gate: names the plan the SERVER requires (Agency) — the
+        /* Honest plan gate: names the plans the SERVER accepts (customDomainEligible) — the
            old drawer told Studio tenants to upgrade to Studio. */
         <div className="flex flex-col gap-[8px] rounded-admin-lg border border-admin-border bg-admin-accent-soft p-[12px]">
           <p className="m-0 text-admin-12h leading-relaxed text-admin-ink">
@@ -435,7 +444,7 @@ export function WebsiteDomainManager() {
               openUpgrade({
                 feature: t(`${K}.planLockedFeature`),
                 why: t(`${K}.planLockedWhy`),
-                requiredPlan: "agency",
+                requiredPlan: "website",
               })
             }
             className="cursor-pointer self-start rounded-full border-none bg-admin-accent px-[14px] py-[7px] text-admin-11h font-bold text-white"

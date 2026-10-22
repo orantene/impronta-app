@@ -119,6 +119,7 @@ const BASE_ALLOW: AllowEntry[] = [
     READ,
   ],
   ["talent/settings/payouts/payout-waitlist-actions.ts", ["loadPayoutWaitlist"], READ],
+  ["talent/settings/payouts/manual-bank-actions.ts", ["loadMyManualPayoutAccounts"], READ],
   ["talent/inbox/[id]/actions.ts", ["loadTalentInquiryThread", "loadTalentInquiryLineupCount"], READ],
   ["talent/inbox/[id]/guest-trust-loader.ts", ["loadTalentInquiryGuestTrust"], READ],
   [

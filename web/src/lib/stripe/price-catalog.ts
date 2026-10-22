@@ -80,7 +80,21 @@ async function resolvePriceIdForTier(
     const canonical = (data ?? []).find(
       (row) => row.valid_from === null && row.valid_until === null,
     );
-    return canonical?.stripe_price_id?.trim() || null;
+    const priceId = canonical?.stripe_price_id?.trim() || null;
+    if (!priceId) {
+      // Diagnosable "no price": says which tier/interval and why, never a secret.
+      const rows = data?.length ?? 0;
+      logServerError(
+        "stripe.price-catalog.no-price",
+        new Error(
+          `tier=${tierSlug} interval=${INTERVAL_COLUMN[interval]} currency=USD: ` +
+            (rows === 0
+              ? "no active product_prices row on an active product_tiers row"
+              : `${rows} row(s) found but none is canonical (valid_from/valid_until both null) with a stripe_price_id`),
+        ),
+      );
+    }
+    return priceId;
   } catch (err) {
     logServerError("stripe.price-catalog.resolve", err);
     return null;

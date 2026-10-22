@@ -107,7 +107,7 @@ test("inquiry contact email stays non-null (column is NOT NULL)", () => {
 
 type Call = { table: string; action: string; patch?: unknown; filters: Array<[string, string, unknown]> };
 
-function fakeAdmin(opts: { failTable?: string; avatarFiles?: string[]; listError?: boolean; removeAvatarError?: boolean } = {}) {
+function fakeAdmin(opts: { failTable?: string; avatarFiles?: string[]; listError?: boolean; removeAvatarError?: boolean; messageIds?: string[]; originalsMissing?: boolean } = {}) {
   const calls: Call[] = [];
   const removed: string[][] = [];
   const storageCalls: Array<{ bucket: string; op: "list" | "remove"; arg: unknown }> = [];
@@ -116,23 +116,42 @@ function fakeAdmin(opts: { failTable?: string; avatarFiles?: string[]; listError
     calls.push(call);
     const result = () => ({
       data: rows,
-      error: opts.failTable === table && action !== "select" ? { message: "boom" } : null,
+      error:
+        opts.failTable === table && action !== "select"
+          ? { message: "boom" }
+          : opts.originalsMissing && table === "inquiry_message_originals"
+            ? { message: 'relation "public.inquiry_message_originals" does not exist', code: "42P01" }
+            : null,
     });
     const b: Record<string, unknown> = {};
-    for (const m of ["eq", "in", "ilike", "is", "not", "neq"]) {
+    for (const m of ["eq", "in", "ilike", "is", "not", "neq", "order"]) {
       b[m] = (col: string, ...rest: unknown[]) => {
         call.filters.push([m, col, rest.length === 1 ? rest[0] : rest]);
         return b;
       };
     }
+    // Paged ids: `range(from, to)` slices the rows.
+    b.range = (from: number, to: number) => {
+      rows = rows.slice(from, to + 1);
+      return b;
+    };
     b.then = (res: (v: unknown) => unknown) => Promise.resolve(result()).then(res);
     return b;
   }
   const admin = {
     from(table: string) {
       return {
-        select: () =>
-          builder(table, "select", undefined, table === "inquiry_attachments" ? [{ storage_path: "t/1/a.pdf" }] : []),
+        select: (cols?: string) =>
+          builder(
+            table,
+            "select",
+            undefined,
+            table === "inquiry_attachments"
+              ? [{ storage_path: "t/1/a.pdf" }]
+              : table === "inquiry_messages" && cols === "id"
+                ? (opts.messageIds ?? []).map((id) => ({ id }))
+                : [],
+          ),
         update: (patch: unknown) => builder(table, "update", patch),
         delete: () => builder(table, "delete"),
       };
@@ -305,7 +324,7 @@ test("payout accounts: applying the plan to a fake store changes only display_na
         },
         select: () => {
           const b: Record<string, unknown> = {};
-          for (const m of ["eq", "not"]) b[m] = () => b;
+          for (const m of ["eq", "not", "order", "range"]) b[m] = () => b;
           b.then = (res: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(res);
           return b;
         },
@@ -393,4 +412,49 @@ test("the talent_sites op is idempotent: two plans are identical", () => {
   const subject = { userId: USER, email: null, talentProfileIds: [TALENT] };
   const pick = () => buildAnonymizationPlan(subject, NOW).filter((o) => o.table === "talent_sites");
   assert.deepEqual(pick(), pick());
+});
+
+// ── TUL-1416: account erasure also purges inquiry_message_originals ───────────
+
+test("erasing an account deletes the originals of THEIR messages, keyed by message id", async () => {
+  const { admin, calls } = fakeAdmin({ messageIds: ["m1", "m2", "m3"] });
+  const report = await anonymizeUserData(admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(report.ok, true);
+  const del = calls.find((c) => c.table === "inquiry_message_originals" && c.action === "delete");
+  assert.ok(del, "originals are deleted");
+  assert.deepEqual(del!.filters, [["in", "message_id", ["m1", "m2", "m3"]]], "only this person's message ids");
+  const lookup = calls.find((c) => c.table === "inquiry_messages" && c.action === "select" && c.filters.some(([m, col]) => m === "eq" && col === "sender_user_id"));
+  assert.ok(lookup, "the ids come from messages this user sent");
+});
+
+test("the purge runs before the scrub, and a person with no messages deletes nothing", async () => {
+  const a = fakeAdmin({ messageIds: ["m1"] });
+  await anonymizeUserData(a.admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  const order = a.calls.map((c) => `${c.table}:${c.action}`);
+  assert.ok(order.indexOf("inquiry_message_originals:delete") < order.indexOf("profiles:update"), "purge first");
+  const none = fakeAdmin({ messageIds: [] });
+  await anonymizeUserData(none.admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.ok(!none.calls.some((c) => c.table === "inquiry_message_originals"));
+});
+
+test("large histories are purged in chunks, every message id covered", async () => {
+  const ids = Array.from({ length: 1234 }, (_, i) => `m${i}`);
+  const { admin, calls } = fakeAdmin({ messageIds: ids });
+  await anonymizeUserData(admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  const purged = calls.filter((c) => c.table === "inquiry_message_originals" && c.action === "delete").flatMap((c) => c.filters[0]![2] as string[]);
+  assert.deepEqual(purged, ids);
+});
+
+test("while the held table is not applied yet the purge is a clean no-op (not a failed erasure)", async () => {
+  const { admin } = fakeAdmin({ messageIds: ["m1"], originalsMissing: true });
+  const report = await anonymizeUserData(admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(report.ok, true);
+  assert.ok(report.steps.some((st) => st.label === "message_originals.purge" && st.ok));
+});
+
+test("a real failure purging originals fails the report, so the auth user is never deleted over leftover text", async () => {
+  const { admin } = fakeAdmin({ messageIds: ["m1"], failTable: "inquiry_message_originals" });
+  const report = await anonymizeUserData(admin as never, { userId: USER, email: null, talentProfileIds: [] }, {}, new Date(NOW));
+  assert.equal(report.ok, false);
+  assert.ok(report.steps.some((st) => st.label === "message_originals.purge" && !st.ok));
 });

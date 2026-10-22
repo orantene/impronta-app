@@ -17,7 +17,7 @@
  */
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
 const { WEB_ROOT, toNodeArg, resolveLaneArgs, expandListArgs } = require("./lane-paths.cjs");
 
 function readLaneQuarantine() {
@@ -27,6 +27,25 @@ function readLaneQuarantine() {
   } catch {
     return new Set();
   }
+}
+
+/**
+ * The test count a run printed: node's TAP summary (`# tests N`, non-TTY) or the spec
+ * reporter's (`ℹ tests N`). null when neither is present. A lane whose files all load but
+ * register no tests must not pass (2026-10-08 incident: a lane ran zero files and stayed green).
+ */
+function testCountFromOutput(out) {
+  const m = /^(?:# |ℹ )tests (\d+)\s*$/m.exec(out);
+  return m ? Number(m[1]) : null;
+}
+
+/** Exit code for a finished run. A green exit that printed no summary, or 0 tests, is a failure. */
+function laneExitCode(status, count) {
+  if (status === null) return { code: 1, message: "the test process was killed" };
+  if (status !== 0) return { code: status, message: null };
+  if (count === null) return { code: 2, message: "test count not reported (no summary line): a lane that cannot prove it ran tests fails" };
+  if (count === 0) return { code: 2, message: "the lane ran ZERO tests (a green lane that ran nothing is a CI hole)" };
+  return { code: 0, message: null };
 }
 
 function main() {
@@ -45,13 +64,29 @@ function main() {
     console.error("lane-test: nothing to run");
     process.exit(2);
   }
+  console.log(`lane-test: ${run.length} test file(s)`);
+  // LANE_TEST_DRY_RUN=1: resolve and count, run nothing (used by the lane guards and test:wt checks).
+  if (process.env.LANE_TEST_DRY_RUN === "1") process.exit(0);
   const tsx = path.join(WEB_ROOT, "node_modules", ".bin", "tsx");
-  const r = spawnSync(tsx, ["--test", ...flags, ...run], { stdio: "inherit", cwd: WEB_ROOT, env: process.env });
-  if (r.error) {
-    console.error(String(r.error));
+  const child = spawn(tsx, ["--test", ...flags, ...run], { cwd: WEB_ROOT, env: process.env, stdio: ["inherit", "pipe", "inherit"] });
+  let tail = "";
+  child.stdout.on("data", (d) => {
+    process.stdout.write(d);
+    tail = (tail + d).slice(-4000);
+  });
+  child.on("error", (e) => {
+    console.error(String(e));
     process.exit(1);
-  }
-  process.exit(r.status === null ? 1 : r.status);
+  });
+  child.on("close", (status) => {
+    const count = testCountFromOutput(tail);
+    console.log(`lane-test: ${run.length} test file(s), ${count === null ? "test count not reported" : `${count} test(s)`}`);
+    const verdict = laneExitCode(status, count);
+    if (verdict.message) console.error(`lane-test: ${verdict.message}`);
+    process.exit(verdict.code);
+  });
 }
 
 if (require.main === module) main();
+
+module.exports = { testCountFromOutput, laneExitCode };

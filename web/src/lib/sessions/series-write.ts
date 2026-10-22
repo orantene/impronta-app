@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { assertIdsBelongToTenant, assertUserIsTenantStaff } from "@/lib/supabase/tenant-owned-ids";
 import {
   decideMaterialisation,
   type ExistingOccurrence,
@@ -8,6 +9,7 @@ import {
   type VenueOccupancy,
 } from "./materialise";
 import { createSessionWithPools } from "./session-writer";
+import { loadSeriesPoolPlan } from "./series-pools";
 import type { IsoWeekday } from "./recurrence";
 
 type Admin = {
@@ -86,6 +88,15 @@ export async function upsertSessionSeries(
   if (!Number.isInteger(input.seats) || input.seats < 0) return { ok: false, reason: "invalid" };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.startsOn)) return { ok: false, reason: "invalid" };
   if (input.endsOn && input.endsOn < input.startsOn) return { ok: false, reason: "past" };
+
+  // TUL-1517: venue, offering and instructor are ids the caller typed. Each must belong to this
+  // tenant before the series is written (or the venue clash check reads anything).
+  const ownedVenue = await assertIdsBelongToTenant(admin, "venues", [input.venueId], input.tenantId);
+  if (!ownedVenue.ok) return { ok: false, reason: ownedVenue.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
+  const ownedOffering = await assertIdsBelongToTenant(admin, "talent_offerings", [input.offeringId], input.tenantId);
+  if (!ownedOffering.ok) return { ok: false, reason: ownedOffering.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
+  const ownedInstructor = await assertUserIsTenantStaff(admin, input.instructorUserId, input.tenantId);
+  if (!ownedInstructor.ok) return { ok: false, reason: ownedInstructor.reason === "unavailable" ? "unavailable" : "wrong_tenant" };
 
   const localTime = input.localTime.trim().length === 5 ? `${input.localTime.trim()}:00` : input.localTime.trim();
   if (input.venueId) {
@@ -254,6 +265,12 @@ export async function generateSessionsForSeries(
 
   let created = 0;
   let reused = decision.existing;
+  const poolPlan = await loadSeriesPoolPlan(admin as never, {
+    tenantId: input.tenantId,
+    seriesId: input.seriesId,
+    offeringId: s.offering_id,
+    seats: s.seats,
+  });
   for (const occ of decision.create) {
     const made = await createSessionWithPools(
       admin as never,
@@ -267,9 +284,10 @@ export async function generateSessionsForSeries(
         title: s.title,
         instructorUserId: s.instructor_user_id,
       },
-      [{ poolKey: "default", units: s.seats }],
+      poolPlan,
     );
-    if (!made.ok) return { ok: false, reason: "unavailable" };
+    // TUL-1413: the room is taken by another session at that time: the same refusal as an overlapping room.
+    if (!made.ok) return { ok: false, reason: made.reason === "room_taken" ? "overlapping_room" : "unavailable" };
     if (made.created) created += 1;
     else reused += 1;
   }

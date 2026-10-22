@@ -7,6 +7,7 @@
  */
 
 import { mainCtaLabel } from "./main-cta";
+import { localiseSeededDesignLabel } from "./design-label-locale";
 
 const SEEDED_CTA_LABEL = "inquire";
 
@@ -54,6 +55,18 @@ export function localiseTalentHeaderDefaults(
   if (cta && typeof cta === "object") {
     const c = cta as Record<string, unknown>;
     props.primaryCta = { ...c, label: localiseLabel(c.label, key) };
+  }
+
+  // The seeded nav ("Home") is English in every saved shell tree; localise the untouched
+  // seed here too (a label the talent typed is not in the seed table, so it is left alone).
+  if (Array.isArray(props.navItems)) {
+    props.navItems = props.navItems.map((item: unknown) => {
+      if (!item || typeof item !== "object") return item;
+      const it = item as Record<string, unknown>;
+      return typeof it.label === "string"
+        ? { ...it, label: localiseSeededDesignLabel(it.label, key) }
+        : it;
+    });
   }
 
   const regions = props.regions;

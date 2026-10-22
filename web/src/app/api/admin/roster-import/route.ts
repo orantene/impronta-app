@@ -26,7 +26,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   processRosterImportRow,
   type RosterImportRow,
-} from "@/lib/server-actions/roster-import";
+} from "@/lib/server-actions/roster-import-row";
 import { logServerError } from "@/lib/server/safe-error";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { checkDeclaredLength } from "@/lib/media/upload-guards";
@@ -40,9 +40,14 @@ const MAX_ROWS = 2000;
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return NextResponse.json({ error: readOnly.error }, { status: 403 });
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: same write as the inline-rows server action in
+  // roster-import.ts — `manage_talent_roster` (manager tier). The owner/admin
+  // role check below is a stricter, pre-existing gate layered on top.
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_talent_roster" });
   if (!auth.ok) {
-    return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
+    // TUL-1708: a capability refusal is authenticated-but-forbidden, not
+    // unauthenticated — 403, not 401.
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
   }
   const { tenantId, user } = auth;
 

@@ -14,6 +14,8 @@
  */
 
 import { improntaLog } from "@/lib/server/structured-log";
+import { assertOwnedAssetIds } from "@/lib/media/workspace-asset-url";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { randomUUID } from "node:crypto";
 import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -141,6 +143,16 @@ export async function saveBranding(
   if (beforeVersion !== values.expectedVersion) {
     return versionConflict(beforeVersion);
   }
+
+  // TUL-1635: the asset ids come from the client. Each non-null one must be a live asset of THIS
+  // workspace, or workspace A could point its logo at workspace B's file. Read error refuses.
+  const owned = await assertOwnedAssetIds(createServiceRoleClient() ?? supabase, tenantId, [
+    values.logoMediaAssetId,
+    values.logoDarkMediaAssetId,
+    values.faviconMediaAssetId,
+    values.ogImageMediaAssetId,
+  ]);
+  if (!owned.ok) return fail("MEDIA_REF_BROKEN", owned.error);
 
   const nextVersion = beforeVersion + 1;
 

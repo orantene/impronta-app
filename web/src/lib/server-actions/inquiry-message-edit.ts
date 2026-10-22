@@ -9,6 +9,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { logServerError } from "@/lib/server/safe-error";
 import type { ServerActionResult } from "./result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { PIPELINE_WRITE_CAPABILITY as WRITE_CAP } from "@/lib/inquiry/pipeline-write-capabilities";
 
 /**
  * G.3 — Server actions for inquiry message edit + delete.
@@ -36,7 +37,9 @@ async function resolveTenantContext(): Promise<
   | { ok: false; error: string }
 > {
   // Try staff path first — common case (admin moderating a thread).
-  const staffAuth = await requireWorkspaceStaffAction();
+  const staffAuth = await requireWorkspaceStaffAction({
+    capability: WRITE_CAP.editOrDeleteInquiryMessage,
+  });
   if (staffAuth.ok) {
     return { ok: true, tenantId: staffAuth.tenantId, userId: staffAuth.user.id, supabase: staffAuth.supabase };
   }

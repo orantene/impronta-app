@@ -16,7 +16,10 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
  */
 export async function updateAutoAckPolicy(formData: FormData): Promise<void> {
   await requireNotImpersonating();
-  const auth = await requireWorkspaceStaffAction();
+  // TUL-1708: write (toggles workspace policy) requires manage_agency_settings
+  // (admin+), matching the owner/admin role check below; the default capability
+  // (agency.workspace.view) is viewer-held.
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) {
     redirect(`/admin/policy/auto-ack?err=${encodeURIComponent(auth.error)}`);
   }

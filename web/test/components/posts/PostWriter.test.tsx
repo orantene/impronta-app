@@ -26,6 +26,7 @@ const POST: WriterPostData = {
   locale: "es",
   status: "draft",
   slug: "mi-post",
+  translationOf: null,
   title: "",
   excerpt: "",
   blocks: [],

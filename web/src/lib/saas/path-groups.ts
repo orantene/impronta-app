@@ -11,6 +11,10 @@ export const STATIC_PATHS = [
   "/robots.txt",
   // llms.txt (TUL-589): the route itself 404s every host except marketing and published talent sites.
   "/llms.txt",
+  // IndexNow key file (TUL-589): must answer on every host — a talent/agency
+  // custom domain included — because IndexNow checks `keyLocation` against
+  // whichever host the pinged URL belongs to.
+  "/indexnow-key.txt",
   // Root Next.js metadata file-routes (`app/opengraph-image.tsx`,
   // `app/twitter-image.tsx`). They are host-aware (agency card vs. Tulala
   // card) and are referenced by absolute URL in every page's og:image /
@@ -415,11 +419,24 @@ export const HUB_API_EXACT_PATHS = ["/api/client/account"] as const;
  * (session + tenant scope / talent-self).
  */
 export const HUB_API_PREFIXES = [
+  // TUL-1866: the hub's /directory shows the global directory; its Saved shelf
+  // resolves hearted talent through this batch lookup (same exact path as marketing).
+  "/api/directory/talents-by-ids",
   "/api/admin/media/library",
   "/api/admin/media/upload",
   "/api/talent/media/library",
   "/api/talent/media/upload",
 ] as const;
+
+/**
+ * TUL-1866: a hub host's own directory. `/search` already hops to `/directory`
+ * (hub-search-redirect.ts), so the hub must serve it; proxy.ts rewrites it to the
+ * `(marketing)/global-directory` route exactly as on the marketing apex. Exact
+ * `/directory` only: the storefront's `/directory/cart` stays off the hub.
+ */
+export const HUB_PAGE_EXACT_PATHS = ["/directory"] as const;
+/** Internal directory route (og:image lives under it). Prefix, not exact. */
+export const HUB_DIRECTORY_INTERNAL_PREFIX = "/global-directory" as const;
 
 export const APP_API_EXACT_PATHS = [
   "/api/location-place-details",
@@ -567,6 +584,11 @@ export const MARKETING_PAGE_PREFIXES = [
   "/for",
   // Educational resource articles + glossary (`/resources/*`).
   "/resources",
+  // Public changelog (TUL-1394) and its Spanish-slugged twin; noindex until the launch flag.
+  "/changelog",
+  "/novedades",
+  // Tulala product blog (TUL-1399): marketing-host /blog and /blog/<slug>. 404s unless PLATFORM_BLOG_TENANT_ID is set.
+  "/blog",
   // The feature hub: the index, every `/features/{slug}`, and its
   // `opengraph-image` route.
   "/features",

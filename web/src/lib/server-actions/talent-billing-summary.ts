@@ -17,7 +17,7 @@ import {
   loadTalentStripeCustomerId,
   loadTalentStripeSubscriptionId,
 } from "@/lib/billing/talent-billing-reads";
-import { invoiceDisplayState } from "@/lib/billing/invoice-display";
+import { invoiceDisplayState, isZeroNoChargeInvoice } from "@/lib/billing/invoice-display";
 import { pickDefaultCard } from "@/lib/billing/talent-billing-display";
 
 export type TalentBillingInvoice = {
@@ -88,6 +88,15 @@ export async function loadTalentBillingSummary(): Promise<TalentBillingSummaryRe
       }
       invoices = data
         .filter((r) => r.status !== "draft")
+        // TUL-834: trial / 100% promo start invoices are $0 bookkeeping.
+        .filter(
+          (r) =>
+            !isZeroNoChargeInvoice({
+              status: r.status,
+              totalCents: r.total_cents,
+              attemptCount: r.attempt_count,
+            }),
+        )
         .map((r) => ({
           id: r.stripe_invoice_id,
           number: r.invoice_number,

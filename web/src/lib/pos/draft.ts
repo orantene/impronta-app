@@ -18,6 +18,7 @@ import { ITEM_UNAVAILABLE, offeringSellableAtReprice, variantRefusedAtReprice } 
 import { livePhasePrice } from "@/lib/catalog/price-phases";
 import { composeTalentOfferingLabel } from "@/lib/talent/offering-line-label";
 import { isWholeQuantity } from "@/lib/orders/purchase-policy";
+import { settleOrderCurrency } from "./draft-currency";
 
 export type CreateDraftOrderInput = {
   tenantId: string;
@@ -322,11 +323,8 @@ export async function addLine(
   if (off.status !== "published") {
     return { ok: false, reason: "invalid", error: "That item is not for sale." };
   }
-  const offeringCurrency = (off.currency || "USD").toUpperCase();
-  const orderCurrency = (loaded.order.currency || "USD").toUpperCase();
-  if (off.talent_profile_id && offeringCurrency !== orderCurrency) {
-    return { ok: false, reason: "invalid", error: "That price is in a different currency than this sale." };
-  }
+  const cur = await settleOrderCurrency(admin, { tenantId: input.tenantId, orderId: input.orderId, orderCurrency: loaded.order.currency, lineCount: loaded.lines.length, offeringCurrency: off.currency, talentOwned: !!off.talent_profile_id });
+  if (!cur.ok) return cur;
 
   let sessionTitle: string | null = null;
   if (input.line.sessionId) {

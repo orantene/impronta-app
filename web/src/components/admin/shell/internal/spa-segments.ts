@@ -34,7 +34,7 @@ export const SPA_ONLY_ADMIN_SEGMENTS = [
   "pitches",
   "production",
   "reviews",
-  "roster",
+  // "roster" left the list (TUL-1476, #4228): its page reads ?joinTerms on the server for the join-terms notice.
   "sessions",
   "settings",
   "site",

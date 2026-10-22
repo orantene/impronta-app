@@ -26,6 +26,7 @@
  * `dataSources`. A builder node holds no tenant id and issues no query, so a
  * cross-tenant leak is not reachable from the render path at all.
  */
+import { isSellable, scopeToSellableOfferings } from "@/lib/offerings/sellable";
 import { loadOfferingChildren } from "@/lib/talent/offerings-children-read";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
@@ -336,8 +337,10 @@ export function deriveWorkspaceMenuOfferings(
   const out: WorkspaceMenuOffering[] = [];
   for (const row of rows) {
     if (!isWorkspaceOfferingRow(row, tenantId, ownerTalentIds)) continue;
-    if (row.status !== "published") continue;
-    if (row.moderation_state !== "approved") continue;
+    // TUL-1295: the ONE sellable rule (D1, #4094) decides published + approved + public.
+    // It fails closed: a row whose visibility is null / missing is NOT listed (the old
+    // check only skipped a non-public STRING, so a null slipped onto the public board).
+    if (!isSellable(row, "guest")) continue;
     // A RESERVATION IS NOT A DISH. Measured live on a page-less restaurant:
     // "Tonight's selection" listed exactly one line, "Table reservation $0",
     // with a quantity stepper, because the seeded reservation offering is a
@@ -346,7 +349,6 @@ export function deriveWorkspaceMenuOfferings(
     // is not on it, and a line with no price that is not a quote is not a
     // dish either. Kind is deliberately not the gate (see the stock rule
     // below: a pizza can be a `service`, a course is a `package`).
-    if (typeof row.visibility === "string" && row.visibility !== "public") continue;
     // An event's own offering: its price lives on the ticket tiers, so it
     // renders here as "Quote on request" beside the dishes and takes a
     // quantity stepper that orders a night out as though it were an empanada.
@@ -430,14 +432,14 @@ export async function fetchWorkspaceMenuOfferings(
   if (!supabase || !tenantId) return [];
   try {
     const memberIds = await fetchOwnerTalentIds(createServiceRoleClient() ?? supabase, tenantId);
-    const { data, error } = await supabase
-      .from("talent_offerings")
-      .select("*")
-      .eq("tenant_id", tenantId)
-      .or(workspaceOfferingOrFilter(memberIds))
-      .eq("status", "published")
-      .eq("moderation_state", "approved")
-      .order("sort_order", { ascending: true });
+    const { data, error } = await scopeToSellableOfferings(
+      supabase
+        .from("talent_offerings")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .or(workspaceOfferingOrFilter(memberIds)),
+      "guest",
+    ).order("sort_order", { ascending: true });
     if (error) {
       logServerError("native-data-blocks/fetchWorkspaceMenuOfferings", error);
       return [];
@@ -455,6 +457,7 @@ export async function fetchWorkspaceMenuOfferings(
     const children = await loadOfferingChildren(createServiceRoleClient() ?? supabase, derived.map((o) => o.id), {
       locale,
       chain: [locale, "en"],
+      publicOnly: true,
     }).catch(() => null);
     if (!children) return derived;
     return derived.map((o) => {

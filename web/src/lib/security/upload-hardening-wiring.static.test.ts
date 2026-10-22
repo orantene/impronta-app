@@ -114,7 +114,7 @@ test("nothing re-attaches metadata to stored derivatives", () => {
  * listed below WITH A REASON. A new unguarded entry point fails this test.
  */
 const GUARD_SYMBOLS =
-  /\b(sniffImageBlob|guardImageBlob|guardImageBytes|readGuardedImage|readGuardedAttachment|verifyStoredImage|stripImageMetadata|resizeUploadForStorage|hasEmbeddedMetadata)\(/;
+  /\b(sniffImageBlob|guardImageBlob|guardImageBytes|readGuardedImage|readGuardedAttachment|verifyStoredImage|stripImageMetadata|sanitizeImageForStorage|resizeUploadForStorage|hasEmbeddedMetadata)\(/;
 
 const NOT_GUARDED_ON_PURPOSE: Readonly<Record<string, string>> = {
   "src/app/(workspace)/platform/admin/builder-lab/looks/actions.ts":

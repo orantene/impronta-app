@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { EMPTY_ME, formatAmount, meVisitListFields, shapeMeData, type MeRow } from "./shape-me";
+import { EMPTY_ME, bookingOwnedInquiryIdsToAdd, formatAmount, meVisitListFields, shapeMeData, type MeRow } from "./shape-me";
 
 const NOW = Date.parse("2026-09-03T19:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
@@ -141,4 +141,36 @@ test("TUL-62: list falls back to inquiry when there is no booking", () => {
   assert.equal(fields.title, "Consulta");
   assert.equal(fields.status, "new");
   assert.equal(fields.eventDate, "2026-11-01");
+});
+
+test("TUL-1089: a request with no booking lists at its stamp's time and zone", () => {
+  const stamp = { starts_at: "2026-10-20T16:00:00.000Z", timezone: "America/Cancun" };
+  const f = meVisitListFields({ company: "Consulta", inquiryStatus: "new", eventDate: "2026-10-20", booking: null, stamp });
+  assert.equal(f.eventDate, stamp.starts_at);
+  assert.equal(f.startsAtZone, "America/Cancun");
+});
+
+test("TUL-1089: a booking's own start wins over the stamp and leaves no stamp zone", () => {
+  const f = meVisitListFields({
+    company: null,
+    inquiryStatus: "new",
+    eventDate: "2026-10-20",
+    booking: { title: "x", status: "confirmed", starts_at: "2026-10-21T10:00:00.000Z" },
+    stamp: { starts_at: "2026-10-20T16:00:00.000Z", timezone: "America/Cancun" },
+  });
+  assert.equal(f.eventDate, "2026-10-21T10:00:00.000Z");
+  assert.equal(f.startsAtZone, null);
+});
+
+test("TUL-1317: inquiries behind client-owned bookings are added once, never duplicated", () => {
+  assert.deepEqual(bookingOwnedInquiryIdsToAdd(["a", "b", null, undefined, "b", "c"], ["a"]), ["b", "c"]);
+  assert.deepEqual(bookingOwnedInquiryIdsToAdd([], ["a"]), []);
+});
+
+test("TUL-65: a completed visit is history, whatever its date", () => {
+  const shaped = shapeMeData([
+    { id: "c1", tenantId: "t", status: "completed", title: "Done", eventDate: null, startsAtZone: null, eventLocation: null, createdAt: "2026-10-01T00:00:00Z", nextActionBy: null, booking: null },
+  ], Date.parse("2026-10-22T00:00:00Z"));
+  assert.equal(shaped.past.length, 1);
+  assert.equal(shaped.upcoming.length, 0);
 });

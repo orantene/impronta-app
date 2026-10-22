@@ -7,6 +7,11 @@ import { visitZone } from "@/lib/client-account/visit-zone";
 import { ACCOUNT_TABS, formatZonedWhen, needsRealName, type AccountTab, type AccountView } from "@/lib/client-account/area-pure";
 import type { ReceiptDetail, ReceiptRow, ThreadMessage, ThreadRow, VisitDetail } from "@/lib/client-account/area-data.server";
 import type { MeItem } from "@/lib/me/shape-me";
+import type { SavedTalent } from "@/lib/client-account/saved-talent";
+import type { MyReviews } from "@/lib/client-account/my-reviews";
+import type { SavedService } from "@/lib/client-account/saved-services";
+import type { VisitReviewState } from "@/lib/client-account/visit-review";
+import type { MyMatchRequest } from "@/lib/match-me/views";
 import { formatOrderMoney } from "@/lib/orders/money-format";
 import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
@@ -15,6 +20,8 @@ import { ClientAccountButton } from "./ClientAccountButton";
 import { LogOutButton, NamePrompt, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
 import { bookAgainHref, canBookAgain } from "@/lib/client-account/book-again";
 import { btnPrimary } from "./account-button-styles";
+import { VisitReviewForm } from "./VisitReviewForm";
+import { MatchRequestForm } from "./MatchRequestForm";
 
 const INK = "var(--token-color-ink, #111)";
 const BG = "var(--token-color-background, #fff)";
@@ -31,6 +38,16 @@ export type AreaData = {
   payLinks?: Array<{ title: string; code: string | null; bookingId: string }>;
   receipts?: ReceiptRow[];
   receipt?: ReceiptDetail | null;
+  /** TUL-1317: the client's saved talent (Saved tab). */
+  saved?: SavedTalent[];
+  /** TUL-1317: reviews written here and review requests waiting (My reviews tab). */
+  reviews?: MyReviews;
+  /** TUL-1463: services the client saved on this site (Saved tab). */
+  savedServices?: SavedService[];
+  /** TUL-1463: the visit page's review block (form, open request link, done, or nothing). */
+  visitReview?: VisitReviewState | null;
+  /** TUL-1598: this client's match-me requests on this workspace (Match tab). */
+  match?: MyMatchRequest[];
   profile?: { name: string; phone: string; locale: string; marketingOptIn: boolean };
 };
 
@@ -45,6 +62,8 @@ type Props = {
   /** Agency hosts only: links to the agency's existing client pages, shown after the four tabs. */
   /** TUL-65: this host serves the business's public /book page (talent site, agency host); hides Book again elsewhere. */
   bookHere?: boolean;
+  /** TUL-1598: show the Match tab (agency / hub / app hosts only; a talent site has no network to match from). */
+  matchEnabled?: boolean;
   extraTabs?: ReadonlyArray<{ key: "quotes" | "shortlists" | "approvals"; href: string }>;
 };
 
@@ -56,6 +75,11 @@ const card: CSSProperties = { border: `1px solid ${LINE}`, borderRadius: RADIUS,
 
 export function ClientAccountArea(props: Props) {
   const loc = props.locale === "es" ? "es" : "en";
+  // TUL-1089: a message time always reads date, time and zone, in the account zone.
+  const stamp = (iso: string | null | undefined): string => {
+    const w = formatZonedWhen(iso ?? null, visitZone(undefined, props.timeZone), loc);
+    return w ? [w.date, [w.time, w.tzLabel].filter(Boolean).join(" ")].filter(Boolean).join(", ") : "";
+  };
   const t = createTranslator(loc);
   const a = (k: string) => t(`public.clientAccountArea.${k}`);
   const heading: CSSProperties = { fontFamily: "var(--site-heading-font, inherit)", margin: 0 };
@@ -117,6 +141,34 @@ export function ClientAccountArea(props: Props) {
     if (x === "confirmed" || x === "booked") return a("statusConfirmed");
     if (x === "pending" || x === "inquiry" || x === "new") return a("statusPending");
     return a("statusOther");
+  };
+
+  // TUL-1463: leave a review on a completed visit (one per visit; an open request is reused).
+  const reviewBlock = (bookingId: string | null) => {
+    const r = props.data.visitReview;
+    if (!r || r.kind === "none" || !bookingId) return null;
+    return (
+      <section style={{ ...card, marginTop: 24 }} data-account-visit-review={r.kind}>
+        <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("reviewVisitTitle")}</h2>
+        {r.kind === "done" ? <p style={{ margin: 0, color: MUTED }}>{a("reviewDone")}</p> : null}
+        {r.kind === "request" ? (
+          <Link href={r.href} style={{ ...btnPrimary, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>{a("leaveReview")}</Link>
+        ) : null}
+        {r.kind === "form" ? (
+          <VisitReviewForm
+            bookingId={bookingId}
+            copy={{
+              title: a("reviewVisitTitle"), rating: a("reviewRating"), star: a("reviewStar"), body: a("reviewBody"), send: a("reviewSend"),
+              thanks: a("reviewThanks"), note: a("reviewNote"), pickRating: a("reviewPickRating"),
+              errors: {
+                generic: a("reviewErr"), not_completed: a("reviewErrNotCompleted"), already_reviewed: a("reviewDone"),
+                not_owner: a("errNotAllowed"), wrong_tenant: a("errNotAllowed"), not_signed_in: a("errNotAllowed"),
+              },
+            }}
+          />
+        ) : null}
+      </section>
+    );
   };
 
   // ── Visit detail ────────────────────────────────────────────────────────
@@ -193,6 +245,7 @@ export function ClientAccountArea(props: Props) {
             <button type="submit" style={btnPrimary}>{a("payNow")}</button>
           </form>
         ) : null}
+        {reviewBlock(v.bookingId)}
       </>,
     );
   }
@@ -205,11 +258,14 @@ export function ClientAccountArea(props: Props) {
       <>
         {back("/account?tab=messages")}
         <h2 style={{ ...heading, fontSize: 18 }}>{th.title}</h2>
+        {th.messages.length > 0 && stamp(th.messages[th.messages.length - 1]?.createdAt) ? (
+          <p data-thread-last-at="" style={{ margin: "4px 0 0", fontSize: 13, color: MUTED }}>{stamp(th.messages[th.messages.length - 1]?.createdAt)}</p>
+        ) : null}
         <div style={{ display: "grid", gap: 10, margin: "16px 0" }}>
           {th.messages.length === 0 ? <p>{a("noMessages")}</p> : null}
           {th.messages.map((m) => (
             <div key={m.id} style={{ ...card, padding: 12, justifySelf: m.mine ? "end" : "start", maxWidth: "88%" }}>
-              <div style={{ fontSize: 12, color: MUTED }}>{m.mine ? a("you") : props.talentName}</div>
+              <div style={{ fontSize: 12, color: MUTED }}>{m.mine ? a("you") : props.talentName}{stamp(m.createdAt) ? ` · ${stamp(m.createdAt)}` : ""}</div>
               <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{m.body}</div>
             </div>
           ))}
@@ -260,14 +316,16 @@ export function ClientAccountArea(props: Props) {
   }
 
   // ── Home: tabs ──────────────────────────────────────────────────────────
-  const tab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
+  const requestedTab: AccountTab = props.view.kind === "home" ? props.view.tab : "visits";
+  // TUL-1464: with match-me off (or on a talent site) ?tab=match is plain Visits, never a blank page.
+  const tab: AccountTab = requestedTab === "match" && !props.matchEnabled ? "visits" : requestedTab;
   const tabLabel: Record<AccountTab, string> = {
-    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), settings: a("tabSettings"), help: a("tabHelp"),
+    visits: a("tabVisits"), messages: a("tabMessages"), payments: a("tabPayments"), saved: a("tabSaved"), reviews: a("tabReviews"), match: a("tabMatch"), settings: a("tabSettings"), help: a("tabHelp"),
   };
   const extraLabel = { quotes: a("tabQuotes"), shortlists: a("tabShortlists"), approvals: a("tabApprovals") };
   const nav = (
     <nav aria-label={a("title")} style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "20px 0", paddingBottom: 4 }}>
-      {ACCOUNT_TABS.map((k) => (
+      {ACCOUNT_TABS.filter((k) => k !== "match" || props.matchEnabled).map((k) => (
         <Link
           key={k}
           href={k === "visits" ? "/account" : `/account?tab=${k}`}
@@ -305,7 +363,7 @@ export function ClientAccountArea(props: Props) {
         <Link href={`/account/visits/${v.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
           <strong>{v.title || a("service")}</strong>
           <span style={{ display: "block", color: MUTED, fontSize: 14 }}>
-            {when ? [when.date, when.time].filter(Boolean).join(", ") : a("noDate")} · {statusLabel(v.status)}
+            {when ? [when.date, [when.time, when.tzLabel].filter(Boolean).join(" ")].filter(Boolean).join(", ") : a("noDate")} · {statusLabel(v.status)}
           </span>
         </Link>
       </li>
@@ -333,6 +391,105 @@ export function ClientAccountArea(props: Props) {
         {group(a("past"), g.past, true)}
       </>
     );
+  } else if (tab === "saved") {
+    const list = props.data.saved ?? [];
+    const services = props.data.savedServices ?? [];
+    const people = list.length === 0 ? null : (
+      <ul data-testid="client-saved" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+        {list.map((s) => (
+          <li key={s.href} style={{ listStyle: "none" }}>
+            <Link href={s.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+              <strong>{s.displayName}</strong>
+              {s.city ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{s.city}</span> : null}
+              <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{a("viewProfile")}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+    body = list.length + services.length === 0 ? <p>{a("noSaved")}</p> : (
+      <>
+        {people && services.length > 0 ? <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("savedPeople")}</h2> : null}
+        {people}
+        {services.length > 0 ? (
+          <section style={{ marginTop: people ? 24 : 0 }}>
+            {people ? <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("savedServices")}</h2> : null}
+            <ul data-testid="client-saved-services" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+              {services.map((s, i) => (
+                <li key={`${i}:${s.title}`} style={{ listStyle: "none" }}>
+                  {s.href ? (
+                    <Link href={s.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+                      <strong>{s.title}</strong>
+                      <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{a("viewService")}</span>
+                    </Link>
+                  ) : (
+                    // No page on this site is sure to show it: listed, never a dead link.
+                    <div style={card}><strong>{s.title}</strong></div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </>
+    );
+  } else if (tab === "match" && props.matchEnabled) {
+    const list = props.data.match ?? [];
+    body = (
+      <>
+        <h2 style={{ ...heading, fontSize: 18, marginBottom: 6 }}>{a("matchHeading")}</h2>
+        <p style={{ color: MUTED, marginTop: 0 }}>{a("matchHint")}</p>
+        <MatchRequestForm
+          copy={{ describe: a("matchDescribe"), where: a("matchWhere"), send: a("matchSend"), sending: a("matchSending"), sent: a("matchSent"), nobody: a("matchNobody"), rateLimited: a("matchRateLimited"), off: a("matchOff"), generic: a("errGeneric") }}
+        />
+        {list.length === 0 ? <p>{a("matchNone")}</p> : (
+          <ul data-testid="client-match-requests" style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+            {list.map((r) => (
+              <li key={r.id} style={{ ...card, listStyle: "none" }}>
+                <strong>{r.status === "accepted" ? interpolate(a("matchAccepted"), { name: r.proName ?? a("matchAProfessional") }) : r.status === "cancelled" ? a("matchCancelled") : r.noneAvailable ? a("matchNoneAvailable") : a("matchWaiting")}</strong>
+                <p style={{ margin: "6px 0 0", whiteSpace: "pre-wrap" }}>{r.description}</p>
+                {r.zone ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{r.zone}</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </>
+    );
+  } else if (tab === "reviews") {
+    const r = props.data.reviews ?? { written: [], toWrite: [] };
+    body = r.written.length + r.toWrite.length === 0 ? <p>{a("noReviews")}</p> : (
+      <>
+        {r.toWrite.length > 0 ? (
+          <section style={{ marginBottom: 24 }}>
+            <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("reviewsToLeave")}</h2>
+            <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+              {r.toWrite.map((q) => (
+                <li key={q.href} style={{ listStyle: "none" }}>
+                  <Link href={q.href} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
+                    <strong>{a("leaveReview")}</strong>
+                    {q.who ? <span style={{ display: "block", color: MUTED, fontSize: 14 }}>{q.who}</span> : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        {r.written.length > 0 ? (
+          <section>
+            <h2 style={{ ...heading, fontSize: 16, marginBottom: 10 }}>{a("reviewsWritten")}</h2>
+            <ul style={{ margin: 0, padding: 0, display: "grid", gap: 10 }}>
+              {r.written.map((w) => (
+                <li key={w.id} style={{ ...card, listStyle: "none" }}>
+                  <strong>{w.who ?? a("service")}</strong>
+                  <span style={{ display: "block", color: MUTED, fontSize: 14 }} aria-label={`${w.rating}/5`}>{"★".repeat(w.rating)}{"☆".repeat(5 - w.rating)}</span>
+                  {w.body ? <p style={{ margin: "6px 0 0" }}>{w.body}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </>
+    );
   } else if (tab === "messages") {
     const list = props.data.threads ?? [];
     body = list.length === 0 ? <p>{a("noMessages")}</p> : (
@@ -342,6 +499,7 @@ export function ClientAccountArea(props: Props) {
             <Link href={`/account/messages/${th.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
               <strong>{th.title || props.talentName}</strong>
               {th.lastBody ? <span style={{ display: "block", color: MUTED, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{th.lastBody}</span> : null}
+              {stamp(th.lastAt) ? <span data-thread-at="" style={{ display: "block", color: MUTED, fontSize: 12 }}>{stamp(th.lastAt)}</span> : null}
             </Link>
           </li>
         ))}

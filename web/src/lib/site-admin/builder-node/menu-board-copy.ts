@@ -25,6 +25,7 @@ const KEYS = [
   "itemsSelected",
   "itemsSelectedOne",
   "selectAtLeastOne",
+  "subtotal",
   "chooseOption",
   "extrasLabel",
   "name",
@@ -63,8 +64,10 @@ export function menuBoardCopy(
     noun: string;
     nounPlural: string;
   },
+  /** TUL-1801: spoken locale when the render carried no content locale (the visitor's). */
+  fallbackLocale?: string,
 ): MenuBoardCopy {
-  const t = createTranslator(contentLocale?.locale ?? "en");
+  const t = createTranslator(contentLocale?.locale ?? fallbackLocale ?? "en");
   const out = {} as Record<keyof MenuBoardCopy, string>;
   for (const key of KEYS) {
     out[key] = t(`public.menuBoard.${key}`);

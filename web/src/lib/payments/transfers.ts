@@ -20,6 +20,8 @@
  * Until then this runs harmlessly in skip/mock mode.
  */
 
+import { LEDGER_UNREADABLE_ERROR_PREFIX, bookingRefundTotals, legCentsNetOfRefunds, type BookingTxnRow } from "./balance-payout-refund-net";
+import { holdChannelReferralLeg, readLegLedgerState, refundInFlightReason } from "./transfer-guards";
 import { legLastError } from "./connect-lane-attention";
 import { getStripeFor, type StripeAccountKey } from "@/lib/stripe/client";
 import { decideLegPlatform } from "@/lib/stripe/account-routing";
@@ -92,9 +94,10 @@ export type TransferDeps = {
     id: string | null,
   ) => Promise<StripeAccountKey>;
   /**
-   * Retry mode (retryFeeUnknownPayouts): skip EVERY leg the ledger already
-   * shows as transferred, not only pass_through ones, so a re-run never
-   * re-sends a paid leg once Stripe's 24h idempotency window has lapsed.
+   * Retained for callers (retryFeeUnknownPayouts). Since TUL-1746 EVERY run skips
+   * a leg the ledger already shows as transferred, so this flag no longer changes
+   * behaviour: a re-run never re-sends a paid leg once Stripe's 24h idempotency
+   * window has lapsed.
    */
   skipTransferredLegs?: boolean;
 };
@@ -211,38 +214,6 @@ async function talentRecipientAccount(talentProfileId: string): Promise<string |
 }
 
 /**
- * pass_through only: true when this leg already reached 'transferred'. A
- * re-delivered webhook must never recompute (and possibly change) the amount of
- * a leg that already paid out. Always false for 'included' rows (no extra read).
- */
-async function passThroughLegAlreadyTransferred(
-  sb: SupabaseClient,
-  isPassThrough: boolean,
-  bookingId: string,
-  participantId: string,
-  party: Party | "channel_referral",
-): Promise<boolean> {
-  if (!isPassThrough) return false;
-  const { data, error } = await sb
-    .from("booking_payouts")
-    .select("status")
-    .eq("booking_id", bookingId)
-    .eq("participant_id", participantId)
-    .eq("party", party)
-    .maybeSingle();
-  if (error) {
-    // Unknown ledger state: never risk re-sending a paid leg. Skipped loudly;
-    // the next webhook / retry run re-checks.
-    logServerError(
-      "transfers.ledger_read_failed",
-      new Error(`booking ${bookingId} participant ${participantId} ${party}: ${error.message} (leg skipped this run)`),
-    );
-    return true;
-  }
-  return (data?.status as string | undefined) === "transferred";
-}
-
-/**
  * Execute the talent + workspace transfers for a paid booking transaction.
  * Idempotent + best-effort; never throws (the payment already settled).
  */
@@ -264,7 +235,6 @@ export async function executeBookingTransfers(
   const resolveTalentRecipientAccount =
     deps.resolveTalentRecipientAccount ?? talentRecipientAccount;
   const getFinancialAccountId = deps.getFinancialAccountId ?? getPrimaryFinancialAccountId;
-  const skipTransferred = deps.skipTransferredLegs === true;
   const outcomes: TransferOutcome[] = [];
 
   try {
@@ -377,6 +347,29 @@ export async function executeBookingTransfers(
     }
     const ppIds = new Set(ppSnaps.map((s) => s.participant_id));
 
+    // TUL-1294: net out charges already refunded (e.g. the deposit) so the
+    // balance payout never pays the talent for money the client got back.
+    const { data: bookingTxnRows, error: bookingTxnErr } = await sb
+      .from("booking_transactions")
+      .select("id, status, gross_amount_cents, refund_of_transaction_id, provider, provider_metadata")
+      .eq("booking_id", bookingId);
+    if (bookingTxnErr) {
+      // Refund state unknown: never risk paying a refunded share. Skipped
+      // loudly; the next webhook / retry run re-checks.
+      logServerError(
+        "transfers.refund_state_unreadable",
+        new Error(`booking ${bookingId} (txn ${transactionId}): ${bookingTxnErr.message} (payout skipped this run)`),
+      );
+      return outcomes;
+    }
+    const refundTotals = bookingRefundTotals((bookingTxnRows ?? []) as BookingTxnRow[]);
+    // TUL-1746: a refund Stripe has issued but our ledger has not recorded yet (or whose state we cannot read)
+    // holds the payout: zero held legs, retried by the held-payout cron once the refund is on file.
+    const refundHoldReason = await refundInFlightReason(stripe, (bookingTxnRows ?? []) as BookingTxnRow[]);
+    if (refundHoldReason) {
+      void improntaLog("transfers.refund_pending_hold", { bookingId, transactionId, reason: refundHoldReason });
+    }
+
     for (const snap of snapshots) {
       // OFF-PLATFORM MONEY HAS NO PAYOUT LEG.
       //
@@ -417,6 +410,13 @@ export async function executeBookingTransfers(
       // real processing fee (or a 0 placeholder + hold when the fee is unknown).
       const isPassThrough = ppIds.has(snap.participant_id);
       const feeHeld = isPassThrough && ppFeeHoldReason !== null;
+      // Why this snapshot's legs are held instead of paid: a refund in flight (TUL-1746) or an unknown
+      // processing fee. Both record zero-amount held legs that the retry cron re-runs from scratch.
+      // An unreadable ledger holds too (retryable prefix), so nothing is paid blind and nothing strands.
+      const ledger = await readLegLedgerState(sb, bookingId, snap.participant_id);
+      const ledgerHold = ledger.unreadable ? `${LEDGER_UNREADABLE_ERROR_PREFIX}: payout ledger could not be read; payout held and retried` : null;
+      const legHoldReason: string | null = ledgerHold ?? refundHoldReason ?? (feeHeld ? ppFeeHoldReason : null);
+      const legHoldStatus = ledgerHold ? ("skipped_ledger_unreadable" as const) : refundHoldReason ? ("skipped_refund_pending" as const) : ("skipped_fee_unknown" as const);
       let talentAmountCents = snap.talent_net_cents;
       let workspaceAmountCents = snap.workspace_fee_cents;
       let legFeeCents: number | null = null;
@@ -447,6 +447,24 @@ export async function executeBookingTransfers(
             });
           }
         }
+      }
+
+      if (refundTotals.refundedCents > 0 && (talentAmountCents > 0 || workspaceAmountCents > 0)) {
+        const beforeTalent = talentAmountCents;
+        const beforeWorkspace = workspaceAmountCents;
+        talentAmountCents = legCentsNetOfRefunds(talentAmountCents, refundTotals);
+        workspaceAmountCents = legCentsNetOfRefunds(workspaceAmountCents, refundTotals);
+        void improntaLog("transfers.legs_net_of_refunds", {
+          bookingId,
+          transactionId,
+          participantId: snap.participant_id,
+          beforeTalentCents: beforeTalent,
+          afterTalentCents: talentAmountCents,
+          beforeWorkspaceCents: beforeWorkspace,
+          afterWorkspaceCents: workspaceAmountCents,
+          chargedCents: refundTotals.chargedCents,
+          refundedCents: refundTotals.refundedCents,
+        });
       }
 
       // Audit #5: never transfer in a currency the platform did NOT settle. The
@@ -560,15 +578,19 @@ export async function executeBookingTransfers(
       // 1) Talent — full protected quote. Routed via the resolved rail: a
       //    Connect transfer by default, or a Global Payouts OutboundPayment when
       //    the talent is provisioned for it (opt-in, off until then).
-      if (feeHeld && snap.talent_net_cents > 0) {
+      if (
+        legHoldReason !== null &&
+        snap.talent_net_cents > 0 &&
+        !ledger.transferred.has("talent")
+      ) {
         outcomes.push({
           party: "talent",
           participantId: snap.participant_id,
           amountCents: 0,
           currency,
           rail: talentRail,
-          status: "skipped_fee_unknown",
-          detail: ppFeeHoldReason ?? undefined,
+          status: legHoldStatus,
+          detail: legHoldReason,
         });
         await recordPayoutLeg(sb, {
           bookingId,
@@ -586,11 +608,11 @@ export async function executeBookingTransfers(
           stripeTransferId: null,
           payoutRail: talentRail,
           releaseAfter: null,
-          lastError: ppFeeHoldReason,
+          lastError: legHoldReason,
         });
       } else if (
         talentAmountCents > 0 &&
-        !(await passThroughLegAlreadyTransferred(sb, isPassThrough || skipTransferred, bookingId, snap.participant_id, "talent"))
+        !ledger.transferred.has("talent")
       ) {
         const rail: PayoutRail = talentRail;
         let route: DisburseRoute;
@@ -645,15 +667,20 @@ export async function executeBookingTransfers(
 
       // 2) Workspace — margin net of the platform's seller share. Agency payouts
       //    stay on the Connect rail (the GP rail is talent-only for now).
-      if (feeHeld && isWorkspaceOwned && snap.workspace_fee_cents > 0) {
+      if (
+        legHoldReason !== null &&
+        isWorkspaceOwned &&
+        snap.workspace_fee_cents > 0 &&
+        !ledger.transferred.has("workspace")
+      ) {
         outcomes.push({
           party: "workspace",
           participantId: snap.participant_id,
           amountCents: 0,
           currency,
           rail: "connect_transfer",
-          status: "skipped_fee_unknown",
-          detail: ppFeeHoldReason ?? undefined,
+          status: legHoldStatus,
+          detail: legHoldReason,
         });
         await recordPayoutLeg(sb, {
           bookingId,
@@ -671,12 +698,12 @@ export async function executeBookingTransfers(
           stripeTransferId: null,
           payoutRail: "connect_transfer",
           releaseAfter: null,
-          lastError: ppFeeHoldReason,
+          lastError: legHoldReason,
         });
       } else if (
         isWorkspaceOwned &&
         workspaceAmountCents > 0 &&
-        !(await passThroughLegAlreadyTransferred(sb, isPassThrough || skipTransferred, bookingId, snap.participant_id, "workspace"))
+        !ledger.transferred.has("workspace")
       ) {
         const accountId = await resolveWorkspaceAccount(snap.owning_party_id);
         const outcome = await payLeg(
@@ -721,9 +748,18 @@ export async function executeBookingTransfers(
       const channelReferralCents = snap.channel_referral_cents ?? 0;
       const channelReferralPartyId = snap.channel_referral_party_id ?? null;
       if (
+        (ledgerHold ?? refundHoldReason) !== null &&
         channelReferralCents > 0 &&
         channelReferralPartyId &&
-        !(await passThroughLegAlreadyTransferred(sb, skipTransferred, bookingId, snap.participant_id, "channel_referral"))
+        !ledger.transferred.has("channel_referral")
+      ) {
+        outcomes.push(
+          await holdChannelReferralLeg(sb, { bookingId, transactionId, participantId: snap.participant_id, owningPartyType: snap.owning_party_type, owningPartyId: snap.owning_party_id, channelPartyId: channelReferralPartyId, currency, reason: (ledgerHold ?? refundHoldReason)!, status: ledgerHold ? "skipped_ledger_unreadable" : "skipped_refund_pending" }),
+        );
+      } else if (
+        channelReferralCents > 0 &&
+        channelReferralPartyId &&
+        !ledger.transferred.has("channel_referral")
       ) {
         const accountId = await resolveWorkspaceAccount(channelReferralPartyId);
         const outcome = await payLeg(
@@ -776,7 +812,9 @@ export async function executeBookingTransfers(
         o.status === "failed" ||
         o.status === "skipped_no_account" ||
         o.status === "skipped_live_disabled" ||
-        o.status === "skipped_fee_unknown",
+        o.status === "skipped_fee_unknown" ||
+        o.status === "skipped_refund_pending" ||
+        o.status === "skipped_ledger_unreadable",
     );
     if (pending.length) {
       logServerError(

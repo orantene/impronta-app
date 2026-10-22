@@ -5,6 +5,7 @@ import {
   STAGING_GATE_NOT_CONFIGURED,
   classifyHost,
   constantTimeEqual,
+  gateCookieHeader,
   gateUrlFor,
   isAlwaysAllowedPath,
   isGateActive,
@@ -143,4 +144,20 @@ test("page: language, noindex, escaped next", () => {
   assert.match(html, /Contraseña/);
   assert.ok(!html.includes("<script>"));
   assert.ok(!html.includes("—"));
+});
+
+test("cookie domain: shared across *.staging.tulala.digital, host-only elsewhere", async () => {
+  assert.match(gateCookieHeader("v", "staging.tulala.digital"), /Max-Age=2592000; Domain=\.staging\.tulala\.digital; HttpOnly/);
+  assert.match(gateCookieHeader("v", "Talent.Staging.Tulala.Digital:443"), /Domain=\.staging\.tulala\.digital;/);
+  for (const h of ["staging-qa-1.tulala.digital", "qa-1.tulala.digital", "localhost:3000", "evilstaging.tulala.digital", null]) {
+    assert.doesNotMatch(gateCookieHeader("v", h), /Domain=/);
+  }
+  const gate = withStagingGate(app, () => ON);
+  const post = (url: string, ip: string) =>
+    gate(req(url, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip }, body: "password=pw-test-value&next=%2F" }));
+  const shared = await post("https://agency.staging.tulala.digital/__staging-gate", "10.0.1.1");
+  assert.match(shared.headers.get("set-cookie") ?? "", /Domain=\.staging\.tulala\.digital/);
+  const hostOnly = await post("https://staging-qa-2.tulala.digital/__staging-gate", "10.0.1.2");
+  assert.doesNotMatch(hostOnly.headers.get("set-cookie") ?? "", /Domain=/);
+  assert.equal(await verifyGateCookie((shared.headers.get("set-cookie") ?? "").split(";")[0].split("=")[1], "pw-test-value"), true);
 });

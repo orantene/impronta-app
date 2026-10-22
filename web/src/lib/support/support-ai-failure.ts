@@ -28,6 +28,8 @@ const OFFER_FIRST_REASONS: ReadonlySet<string> = new Set([
   "ai_low_confidence",
   "ai_sentiment",
   "ai_suggested",
+  // TUL-660: the model may name this reason; it still only offers a person.
+  "ai_unavailable",
   "billing",
   "refund",
 ]);

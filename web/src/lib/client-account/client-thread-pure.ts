@@ -10,6 +10,8 @@
  *     neither is skipped instead of drawn empty.
  */
 
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
+
 export type ClientThreadRow = {
   id: string;
   body: string | null;
@@ -44,11 +46,14 @@ export function buildClientThread(
   rows: ReadonlyArray<ClientThreadRow>,
   inquiry: ClientThreadInquiry,
   userId: string,
+  locale = "en",
 ): ClientThreadMessage[] {
   const messages: ClientThreadMessage[] = [];
   for (const r of rows) {
-    const body = clientThreadBody(r);
-    if (!body) continue;
+    const raw = clientThreadBody(r);
+    if (!raw) continue;
+    // TUL-1857: platform notes (no sender) are stored in English; show them in the account language.
+    const body = r.sender_user_id ? raw : localizeSystemNote(raw, locale);
     messages.push({ id: r.id, body, createdAt: r.created_at, mine: r.sender_user_id === userId });
   }
   const original = text(inquiry.message);
@@ -61,4 +66,20 @@ export function buildClientThread(
     });
   }
   return messages;
+}
+
+/**
+ * TUL-1258 (workspace Mensajes shell): the same fact for the signed-in client portal. The request
+ * the client typed lives on `inquiries.message`, so a thread whose rows are only cards, or none at
+ * all, opened empty ("Aún no hay mensajes") while the banner asked the client to answer.
+ * Returns the request text to lead the thread with, or null when the thread already has it
+ * (a message of the client's own with that body) or the inquiry carries none.
+ */
+export function clientRequestLeadBody(
+  rows: ReadonlyArray<{ body: string | null; is_mine: boolean }>,
+  inquiry: { message?: string | null },
+): string | null {
+  const original = text(inquiry.message);
+  if (!original) return null;
+  return rows.some((r) => r.is_mine && (r.body ?? "").trim() === original) ? null : original;
 }

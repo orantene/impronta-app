@@ -57,6 +57,7 @@ import {
 import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 import { ensureExperimentVisitorCookie } from "@/lib/site-admin/builder-node/experiment-visitor-cookie";
 import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
+import { docsHostResponse } from "@/lib/saas/docs-host-redirect";
 import { timed } from "@/lib/server/perf-trace";
 import { startDoorRedirect } from "@/lib/onboarding/start-door-redirect";
 import { marketingDemoSlugRedirect } from "@/lib/marketing/demo-slug-apex-redirect"; import { hubSearchRedirect } from "@/lib/saas/hub-search-redirect";
@@ -159,6 +160,9 @@ async function proxyInner(request: NextRequest) {
     });
   }
 
+  const docsHop = docsHostResponse(hostHeader, request.method, request.nextUrl);
+  if (docsHop) return docsHop;
+
   const hostContext = await timed("proxy.resolveTenantContext", resolveTenantContext(request, hostHeader));
 
   if (hostContext.kind === "not_found") {
@@ -192,7 +196,7 @@ async function proxyInner(request: NextRequest) {
   if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
 
   const hopInput = { pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind };
-  const demoSlugHop = marketingDemoSlugRedirect(hopInput) ?? hubSearchRedirect(hopInput); // TUL-978: a hub's /search is its directory search
+  const demoSlugHop = marketingDemoSlugRedirect(hopInput) ?? hubSearchRedirect({ ...hopInput, marketingOrigin: resolveMarketingOrigin(), cookieLocale: request.cookies.get("locale")?.value, referer: request.headers.get("referer") }); // TUL-978: a hub's /search is its directory search
   if (demoSlugHop) return NextResponse.redirect(new URL(demoSlugHop, request.url), 308);
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the
@@ -680,7 +684,7 @@ async function proxyInner(request: NextRequest) {
   // `/directory`; `/global-directory` is intentionally absent from the
   // marketing allow-list, so it is reachable only through this rewrite.
   let marketingDirectoryRewrite = false;
-  if (effectiveHostContext.kind === "marketing" && pathnameForAuth === "/directory") {
+  if ((effectiveHostContext.kind === "marketing" || effectiveHostContext.kind === "hub") && pathnameForAuth === "/directory") { // TUL-1866: hub too
     nextUrl.pathname = "/global-directory";
     pathnameForAuth = "/global-directory";
     marketingDirectoryRewrite = true;
@@ -745,7 +749,7 @@ async function proxyInner(request: NextRequest) {
   if (
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
-    cmsSlugRewrite ||
+    cmsSlugRewrite || eventPathRewrite || // `/eventos/x` on an es-default tenant needs the rewrite too
     brandedWorkspaceShortcutSlug !== null ||
     marketingDirectoryRewrite
   ) {

@@ -39,3 +39,29 @@ export function optionPriceLabel(
 ): string {
   return option.amountCents == null ? option.label : `${option.label} · ${format(option.amountCents, currency)}`;
 }
+
+/**
+ * TUL-1894: the cart's running total. Per line: the chosen option's price (else the dish's own)
+ * plus every chosen extra that states a price, times the quantity. This is a DISPLAY figure; the
+ * server prices the order from its own rows. Returns null when no line states a price, or when the
+ * priced lines are in more than one currency (one number would be wrong), so the cart shows none.
+ */
+export function cartSubtotal(
+  lines: ReadonlyArray<{ offering: MenuChoiceOffering; quantity: number; choice: MenuChoice }>,
+): { amountCents: number; currency: string } | null {
+  let total = 0;
+  let currency: string | null = null;
+  for (const { offering, quantity, choice } of lines) {
+    const option = (offering.options ?? []).find((o) => o.id === choice.variantId);
+    const unit = option?.amountCents ?? offering.amountCents;
+    if (typeof unit !== "number" || !Number.isFinite(unit)) continue;
+    const extras = (offering.extras ?? [])
+      .filter((e) => choice.addonIds.includes(e.id))
+      .reduce((sum, e) => sum + (typeof e.amountCents === "number" && Number.isFinite(e.amountCents) ? e.amountCents : 0), 0);
+    const cur = offering.currency.toUpperCase();
+    if (currency !== null && currency !== cur) return null;
+    currency = cur;
+    total += (unit + extras) * quantity;
+  }
+  return currency === null ? null : { amountCents: total, currency };
+}

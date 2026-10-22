@@ -1,12 +1,27 @@
 "use server";
 
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidatePath } from "next/cache";
 import type { ServerActionResult } from "./result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+
+/**
+ * TUL-1708: the agency-staff accept/reject writes called
+ * `requireWorkspaceStaffAction()` with no capability (defaults to
+ * `agency.workspace.view`, viewer-held). Accepting a change request applies
+ * talent editorial fields (name, bio, phone, etc.) straight to
+ * `talent_profiles` — the same `edit_talent_overlay` (editor+) bar as any
+ * other talent profile edit; rejecting carries the same bar for consistency
+ * (it is the companion action on the same queue).
+ */
+const CHANGE_REQUEST_WRITE_CAPABILITY = {
+  accept: "edit_talent_overlay",
+  reject: "edit_talent_overlay",
+} as const satisfies Record<string, CapabilityKey>;
 
 /**
  * F.8 — Talent profile change request review actions.
@@ -153,7 +168,9 @@ export async function acceptProfileChangeRequests(
 ): Promise<ServerActionResult<{ accepted: number; failed: number }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({
+      capability: CHANGE_REQUEST_WRITE_CAPABILITY.accept,
+    });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 
@@ -215,7 +232,9 @@ export async function rejectProfileChangeRequests(
 ): Promise<ServerActionResult<{ rejected: number }>> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({
+      capability: CHANGE_REQUEST_WRITE_CAPABILITY.reject,
+    });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user } = auth;
 

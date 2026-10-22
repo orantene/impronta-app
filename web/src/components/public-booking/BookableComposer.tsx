@@ -17,6 +17,9 @@ import { createInstantBookingAction } from "@/lib/server-actions/instant-book-ac
 import type { TalentBookingMode } from "@/lib/scheduling/booking-surface";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { GuestInstantContact } from "@/components/public-booking/GuestInstantContact";
+import { ServiceAddressField } from "@/components/public-booking/ServiceAddressField";
+import { useServiceAddress } from "@/components/public-booking/use-service-address";
+import { firstInvalidWhoField, focusBookingField } from "@/components/public-booking/catalog-booking-validation";
 import {
   preloadGuestCaptchaScript,
   type GuestCaptchaConfig,
@@ -100,6 +103,9 @@ export function BookableComposer({
   const [honeypot, setHoneypot] = useState("");
   const active = eventOffering ?? offering;
   const instant = bookingMode === "instant" && !forceRequest && !!tenantId;
+  // TUL-841: the server asks for an address when the service is at the client's place; ask here too.
+  const addr = useServiceAddress(active.where, pageLocale);
+  const [showContactErrors, setShowContactErrors] = useState(false);
   const requireAccountToBook = active.requireAccountToBook === true;
   const skipCaptcha = shouldSkipGuestCaptchaOnHost();
   const captchaForGuest =
@@ -168,6 +174,21 @@ export function BookableComposer({
       setError(t("public.slotPicker.notBookableOnline"));
       return;
     }
+    // TUL-841: validate every required field, then scroll to and focus the first bad one.
+    addr.showError(true);
+    if (!signedIn) setShowContactErrors(true);
+    const firstInvalid = firstInvalidWhoField({
+      nameValid: signedIn || guestName.trim().length >= 2,
+      phoneValid: true,
+      emailValid: signedIn || /.+@.+\..+/.test(guestEmail.trim()),
+      addressValid: addr.valid,
+    });
+    if (firstInvalid) {
+      if (!focusBookingField(firstInvalid)) {
+        setError(pageLocale.toLowerCase().startsWith("es") ? "Revisa los datos marcados antes de confirmar." : "Check the highlighted details before confirming.");
+      }
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -191,6 +212,8 @@ export function BookableComposer({
         // <html lang> wins (URL-language surfaces), the dashboard cookie is the
         // fallback; the server stamps it on the booking for the confirmation.
         locale: pageLocale,
+        eventLocation: addr.eventLocation,
+        serviceAddress: addr.payload,
         contactName: signedIn ? undefined : guestName,
         contactEmail: signedIn ? undefined : guestEmail,
         captchaToken: signedIn ? undefined : captchaToken || null,
@@ -296,6 +319,7 @@ export function BookableComposer({
                 onName={setGuestName}
                 onEmail={setGuestEmail}
                 onCaptchaToken={setCaptchaToken}
+                showErrors={showContactErrors}
               />
               <input
                 type="text"
@@ -307,6 +331,15 @@ export function BookableComposer({
                 className="absolute -left-[9999px] h-px w-px overflow-hidden"
               />
             </>
+          ) : null}
+          {addr.rule === "required" && (signedIn || !requireAccountToBook) ? (
+            <ServiceAddressField
+              value={addr.fields.address}
+              note={addr.fields.note}
+              onChange={addr.setFields}
+              error={addr.error}
+              locale={pageLocale}
+            />
           ) : null}
           {signedIn || !requireAccountToBook ? (
           <button

@@ -85,6 +85,15 @@ export function resolveLiveCheckOrigin(input: {
   return u.origin;
 }
 
+/**
+ * TUL-1839: the page text as a reader sees it. React writes `Ana <!-- -->Perez`
+ * and `<b>Ana</b>` around a name that is on the page, so a plain substring of
+ * the raw HTML missed it (false name_missing). Comments and tags are dropped.
+ */
+export function visibleTextForMatch(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, "").replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]*>/g, " ");
+}
+
 export function normalizeForMatch(s: string): string {
   return s
     .normalize("NFD")
@@ -92,6 +101,9 @@ export function normalizeForMatch(s: string): string {
     .toLowerCase()
     .replace(/&amp;/g, "&")
     .replace(/&#x27;|&#39;|&apos;/g, "'")
+    .replace(/&quot;|&#34;|&#x22;/g, '"')
+    .replace(/&nbsp;|&#160;|&#xa0;/g, " ")
+    .replace(/&#(\d+);/g, (_m, n: string) => String.fromCodePoint(Number(n)).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -187,13 +199,18 @@ export async function verifyLivePage(input: {
     if (isProtectionWall(res.status, raw, finalUrl)) return { ok: false, reason: "protected", status: res.status };
     if (res.status !== 200) return { ok: false, reason: "status", status: res.status };
     const html = normalizeForMatch(raw);
-    return html.includes(needle) ? { ok: true } : { ok: false, reason: "name_missing" };
+    return html.includes(needle) || normalizeForMatch(visibleTextForMatch(raw)).includes(needle) || normalizeForMatch(raw.replace(/<!--[\s\S]*?-->/g, "")).includes(needle) ? { ok: true } : { ok: false, reason: "name_missing" };
   } catch {
     return { ok: false, reason: "network" };
   }
 }
 
-/** A just-published site can lag a moment: a few spaced tries, then the truth. */
+/**
+ * A just-published site can lag a moment (DNS and route warm-up): three tries
+ * about 3 s apart (~6 s in all), then the truth (TUL-1839).
+ */
+export const LIVE_CHECK_RETRY_DELAY_MS = 3000;
+
 export async function verifyLivePageWithRetry(
   input: Parameters<typeof verifyLivePage>[0] & { attempts?: number; delayMs?: number; sleep?: (ms: number) => Promise<void> },
 ): Promise<LiveCheck> {
@@ -203,7 +220,7 @@ export async function verifyLivePageWithRetry(
   for (let i = 0; i < attempts; i++) {
     last = await verifyLivePage(input);
     if (last.ok || last.reason === "no_url" || last.reason === "no_name") return last;
-    if (i < attempts - 1) await sleep(input.delayMs ?? 1500);
+    if (i < attempts - 1) await sleep(input.delayMs ?? LIVE_CHECK_RETRY_DELAY_MS);
   }
   return last;
 }

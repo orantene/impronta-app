@@ -6,10 +6,10 @@
  */
 
 import type { HostKind } from "./host-kinds";
-import { HUB_API_EXACT_PATHS, HUB_API_PREFIXES, AGENCY_API_PREFIXES, AGENCY_BLOG_DETAIL_PREFIX, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_EVENTS_ES_PREFIX, CANONICAL_EVENTS_PREFIX, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_MANAGE_PREFIX, CANONICAL_PAY_LINK_PREFIX, CANONICAL_PAY_PREFIX, CANONICAL_RECEIPT_PREFIX, CANONICAL_TALENT_PREFIX, CANONICAL_TICKET_API_PREFIX, CANONICAL_TICKET_PREFIX, CANONICAL_VISIT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
+import { HUB_PAGE_EXACT_PATHS, HUB_DIRECTORY_INTERNAL_PREFIX, HUB_API_EXACT_PATHS, HUB_API_PREFIXES, AGENCY_API_PREFIXES, AGENCY_BLOG_DETAIL_PREFIX, AGENCY_STOREFRONT_PREFIXES, APP_API_EXACT_PATHS, APP_API_PREFIXES, APP_WORKSPACE_PREFIXES, AUTH_PREFIXES, CANONICAL_EVENTS_ES_PREFIX, CANONICAL_EVENTS_PREFIX, CANONICAL_GUEST_THREAD_PREFIX, CANONICAL_LINK_PREFIX, CANONICAL_MANAGE_PREFIX, CANONICAL_PAY_LINK_PREFIX, CANONICAL_PAY_PREFIX, CANONICAL_RECEIPT_PREFIX, CANONICAL_TALENT_PREFIX, CANONICAL_TICKET_API_PREFIX, CANONICAL_TICKET_PREFIX, CANONICAL_VISIT_PREFIX, CHECKOUT_PREFIX, COMPLIANCE_PREFIXES, EMBED_EXACT_PATHS, EMBED_PREFIX, MARKETING_API_PREFIXES, MARKETING_PAGE_PREFIXES, PROTOTYPE_PREFIX, PWA_PATHS, SHARED_API_PREFIXES, STATIC_PATHS, WELL_KNOWN_PREFIX } from "./path-groups";
 import { anyExact, anyPrefix, hasPrefix } from "./path-utils";
 import { isWorkspaceSlugPath } from "./reserved-slugs";
-import { isBusinessServicePagePath } from "@/lib/services/business-pages/paths";
+import { isBusinessServiceOldSlugCandidate, isBusinessServicePagePath } from "@/lib/services/business-pages/paths";
 import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 
 /**
@@ -49,7 +49,15 @@ export function isPathAllowedForHostKind(
   // Business (agency) hosts only, never the hub (ruling 2026-10-19). Only while the presentation
   // flag is on (flag off = exactly main: the CMS catch-all keeps these paths), and only slugs that
   // carry the id8 (nested CMS pages like `/services/photography` stay the CMS's).
-  if (kind === "agency" && servicePresentationResolverEnabled() && isBusinessServicePagePath(pathname)) return true;
+  // TUL-1594: a plain slug (no id8) may be an OLD service slug; the route redirects it or renders
+  // the CMS page it always was. Same flag, same hosts, two segments only, reserved words excluded.
+  if (
+    kind === "agency" &&
+    servicePresentationResolverEnabled() &&
+    (isBusinessServicePagePath(pathname) || isBusinessServiceOldSlugCandidate(pathname))
+  ) {
+    return true;
+  }
   // TUL-1252: the pay page is looked up by code alone (the code is the
   // credential), so the platform app host serves it too. The client account
   // lives on app.<domain>; its "Pagar ahora" links are relative and 404'd there.
@@ -113,6 +121,8 @@ export function isPathAllowedForHostKind(
   if (kind === "hub") {
     return (
       hasPrefix(pathname, CANONICAL_GUEST_THREAD_PREFIX) ||
+      anyExact(pathname, HUB_PAGE_EXACT_PATHS) ||
+      hasPrefix(pathname, HUB_DIRECTORY_INTERNAL_PREFIX) ||
       anyPrefix(pathname, HUB_API_PREFIXES) ||
       anyExact(pathname, HUB_API_EXACT_PATHS) ||
       anyPrefix(pathname, AUTH_PREFIXES) ||

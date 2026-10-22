@@ -10,6 +10,9 @@ import Link from "next/link";
 import { getTenantScopeBySlug } from "@/lib/saas/scope";
 import { userHasCapability } from "@/lib/access";
 import { loadWorkspaceBookings, loadCommissionContext } from "../../_data-bridge";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { createTranslator } from "@/i18n/messages";
+import { interpolate } from "@/i18n/interpolate";
 import {
   calculateTransactionAmountsForBasisPoints,
   formatCents,
@@ -48,6 +51,22 @@ function isUpcoming(iso: string | null): boolean {
 
 // ─── Booking row ──────────────────────────────────────────────────────────────
 
+// The page speaks the workspace's language (the Spanish workspaces were reading English here).
+type Tr = Awaited<ReturnType<typeof createTranslator>>;
+const K = "dashboard.workspaceBookings";
+
+const STATUS_KEYS: Record<string, string> = {
+  paid: "statusPaid",
+  payout_sent: "statusPaidOut",
+  payout_pending: "statusPayoutPending",
+  pending: "statusPending",
+  refunded: "statusRefunded",
+  disputed: "statusDisputed",
+  cancelled: "statusCancelled",
+  failed: "statusFailed",
+  payment_requested: "statusInvoiceSent",
+};
+
 type BookingRow = {
   id: string;
   contact_name: string;
@@ -71,14 +90,18 @@ function BookingListItem({
   muted,
   tenantSlug,
   feeBasisPoints,
+  tr,
+  locale,
 }: {
   booking: BookingRow;
   muted: boolean;
   tenantSlug: string;
   feeBasisPoints: number;
+  tr: Tr;
+  locale: string;
 }) {
   const month = booking.event_date
-    ? new Intl.DateTimeFormat("en-GB", { month: "short" }).format(new Date(booking.event_date))
+    ? new Intl.DateTimeFormat(locale === "es" ? "es" : "en-GB", { month: "short" }).format(new Date(booking.event_date))
     : null;
   const day = booking.event_date ? new Date(booking.event_date).getDate() : null;
   const preview =
@@ -139,7 +162,7 @@ function BookingListItem({
             </div>
           </>
         ) : (
-          <span style={{ fontSize: 11, color: C.inkDim }}>TBD</span>
+          <span style={{ fontSize: 11, color: C.inkDim }}>{tr(`${K}.tbd`)}</span>
         )}
       </div>
 
@@ -171,8 +194,8 @@ function BookingListItem({
             <span
               title={
                 booking.sourceChannel === "discover_shortlist"
-                  ? "Originated from a Discover shortlist (multi-talent fan-out)"
-                  : "Originated from Tulala Discover"
+                  ? tr(`${K}.discoverShortlistTip`)
+                  : tr(`${K}.discoverTip`)
               }
               style={{
                 flexShrink: 0,
@@ -186,7 +209,7 @@ function BookingListItem({
                 color: "#1D4ED8",
               }}
             >
-              ◎ {booking.sourceChannel === "discover_shortlist" ? "Shortlist" : "Discover"}
+              ◎ {booking.sourceChannel === "discover_shortlist" ? tr(`${K}.shortlist`) : tr(`${K}.discover`)}
             </span>
           )}
         </div>
@@ -216,7 +239,7 @@ function BookingListItem({
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          {booking.quantity} {booking.quantity === 1 ? "talent" : "talents"}
+          {booking.quantity} {booking.quantity === 1 ? tr(`${K}.talentOne`) : tr(`${K}.talentMany`)}
         </span>
       )}
 
@@ -228,11 +251,11 @@ function BookingListItem({
           </div>
           {displayNet != null && displayFee != null && displayFee > 0 ? (
             <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
-              {formatCents(displayNet, displayCurrency)} net
+              {interpolate(tr(`${K}.net`), { amount: formatCents(displayNet, displayCurrency) })}
             </div>
           ) : displayFee != null && displayFee > 0 ? (
             <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 1, fontVariantNumeric: "tabular-nums" }}>
-              {formatCents(displayFee, displayCurrency)} fee
+              {interpolate(tr(`${K}.fee`), { amount: formatCents(displayFee, displayCurrency) })}
             </div>
           ) : null}
         </div>
@@ -253,16 +276,7 @@ function BookingListItem({
           letterSpacing: 0.1,
         }}
       >
-        {booking.transactionStatus === "paid" ? "Paid"
-         : booking.transactionStatus === "payout_sent" ? "Paid out"
-         : booking.transactionStatus === "payout_pending" ? "Payout pending"
-         : booking.transactionStatus === "pending" ? "Pending"
-         : booking.transactionStatus === "refunded" ? "Refunded"
-         : booking.transactionStatus === "disputed" ? "Disputed"
-         : booking.transactionStatus === "cancelled" ? "Cancelled"
-         : booking.transactionStatus === "failed" ? "Failed"
-         : booking.transactionStatus === "payment_requested" ? "Invoice sent"
-         : "Confirmed"}
+        {tr(`${K}.${STATUS_KEYS[booking.transactionStatus ?? ""] ?? "statusConfirmed"}`)}
       </span>
     </Link>
   );
@@ -274,10 +288,12 @@ function BookingStatStrip({
   bookings,
   upcomingCount,
   feeBasisPoints,
+  tr,
 }: {
   bookings: BookingRow[];
   upcomingCount: number;
   feeBasisPoints: number;
+  tr: Tr;
 }) {
   let totalGrossCents = 0;
   let totalFeeCents = 0;
@@ -299,12 +315,12 @@ function BookingStatStrip({
     "USD";
 
   const items = [
-    { label: "Total", value: String(bookings.length), tone: "#0F4F3E" },
-    { label: "Upcoming", value: String(upcomingCount), tone: "#3B5E9E" },
+    { label: tr(`${K}.statTotal`), value: String(bookings.length), tone: "#0F4F3E" },
+    { label: tr(`${K}.statUpcoming`), value: String(upcomingCount), tone: "#3B5E9E" },
     ...(hasRevenue
       ? [
-          { label: "Gross revenue", value: formatCents(totalGrossCents, displayCurrency), tone: "#2E7D5B" },
-          { label: "Platform fees", value: formatCents(totalFeeCents, displayCurrency), tone: "#8B4F16" },
+          { label: tr(`${K}.statGross`), value: formatCents(totalGrossCents, displayCurrency), tone: "#2E7D5B" },
+          { label: tr(`${K}.statFees`), value: formatCents(totalFeeCents, displayCurrency), tone: "#8B4F16" },
         ]
       : []),
   ];
@@ -378,6 +394,9 @@ export default async function WorkspaceBookingsPage({
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) notFound();
 
+  const locale = await getRequestLocale();
+  const tr = createTranslator(locale);
+
   const canView = await userHasCapability("view_dashboard", scope.tenantId);
   if (!canView) notFound();
 
@@ -429,7 +448,7 @@ export default async function WorkspaceBookingsPage({
               gap: 8,
             }}
           >
-            Bookings
+            {tr(`${K}.title`)}
             <span
               style={{
                 fontSize: 16,
@@ -461,7 +480,7 @@ export default async function WorkspaceBookingsPage({
             letterSpacing: 0,
           }}
         >
-          Full pipeline →
+          {tr(`${K}.fullPipeline`)}
         </Link>
       </div>
 
@@ -484,7 +503,10 @@ export default async function WorkspaceBookingsPage({
           }}
         >
           <span className="font-bold">{commission.feePercent}</span>
-          {" "}platform fee · {commission.planTier.charAt(0).toUpperCase() + commission.planTier.slice(1)} plan
+          {" "}
+          {interpolate(tr(`${K}.platformFee`), {
+            plan: commission.planTier.charAt(0).toUpperCase() + commission.planTier.slice(1),
+          })}
         </div>
       )}
 
@@ -494,6 +516,7 @@ export default async function WorkspaceBookingsPage({
           bookings={bookings}
           upcomingCount={upcoming.length}
           feeBasisPoints={commission.feeBasisPoints}
+          tr={tr}
         />
       )}
 
@@ -509,10 +532,10 @@ export default async function WorkspaceBookingsPage({
         >
           <div style={{ fontSize: 32, marginBottom: 12 }} aria-hidden>📋</div>
           <p style={{ fontSize: 14, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-            No confirmed bookings yet
+            {tr(`${K}.emptyTitle`)}
           </p>
           <p style={{ fontSize: 12, color: C.inkMuted, lineHeight: 1.5 }}>
-            Bookings appear here once an inquiry is confirmed.
+            {tr(`${K}.emptyBody`)}
           </p>
           <Link
             href={`/${tenantSlug}/admin/work`}
@@ -531,7 +554,7 @@ export default async function WorkspaceBookingsPage({
               fontFamily: FONT,
             }}
           >
-            View pipeline →
+            {tr(`${K}.viewPipeline`)}
           </Link>
         </div>
       ) : (
@@ -540,7 +563,7 @@ export default async function WorkspaceBookingsPage({
           {upcoming.length > 0 && (
             <section>
               <SectionHead>
-                Upcoming
+                {tr(`${K}.statUpcoming`)}
                 <span
                   style={{
                     marginLeft: 6,
@@ -566,7 +589,7 @@ export default async function WorkspaceBookingsPage({
                     {i > 0 && (
                       <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
                     )}
-                    <BookingListItem booking={b} muted={false} tenantSlug={tenantSlug} feeBasisPoints={commission.feeBasisPoints} />
+                    <BookingListItem booking={b} muted={false} tenantSlug={tenantSlug} feeBasisPoints={commission.feeBasisPoints} tr={tr} locale={locale} />
                   </div>
                 ))}
               </div>
@@ -577,7 +600,7 @@ export default async function WorkspaceBookingsPage({
           {past.length > 0 && (
             <section>
               <SectionHead>
-                Past
+                {tr(`${K}.past`)}
                 <span
                   style={{
                     marginLeft: 6,
@@ -603,7 +626,7 @@ export default async function WorkspaceBookingsPage({
                     {i > 0 && (
                       <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
                     )}
-                    <BookingListItem booking={b} muted tenantSlug={tenantSlug} feeBasisPoints={commission.feeBasisPoints} />
+                    <BookingListItem booking={b} muted tenantSlug={tenantSlug} feeBasisPoints={commission.feeBasisPoints} tr={tr} locale={locale} />
                   </div>
                 ))}
               </div>

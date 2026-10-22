@@ -16,6 +16,7 @@ import {
 } from "@/lib/billing/currencies";
 import { logServerError } from "@/lib/server/safe-error";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
+import { connectTalentPayoutAccount } from "@/lib/payments/talent-payout-connect";
 
 export type SaveContactPrefsResult =
   | { ok: true }
@@ -344,73 +345,34 @@ export async function connectTalentPayoutAccountAction(formData: FormData): Prom
     backToTalentSettings(tenantSlug, p);
   }
 
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) {
+  // The payout_accounts policies are staff-only, so this runs on the service role after
+  // connectTalentPayoutAccount proves the caller is the talent and is rostered here.
+  const admin = createServiceRoleClient();
+  if (!admin) {
     const p = new URLSearchParams({ payerr: "Database unavailable." });
     backToTalentSettings(tenantSlug, p);
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("talent_profiles")
-    .select("id, user_id, display_name")
-    .eq("id", talentProfileId)
-    .maybeSingle();
-
-  if (profileError || !profile || profile.user_id !== session.user.id) {
-    if (profileError) logServerError("talent.connectPayout.verifyProfile", profileError);
-    const p = new URLSearchParams({ payerr: "Forbidden." });
-    backToTalentSettings(tenantSlug, p);
+  const result = await connectTalentPayoutAccount(admin, {
+    userId: session.user.id,
+    userEmail: session.user.email,
+    tenantId: scope.tenantId,
+    talentProfileId,
+  });
+  if (!result.ok) {
+    const payerr =
+      result.reason === "forbidden"
+        ? "Forbidden."
+        : result.reason === "not_rostered"
+          ? "You are not rostered in this workspace."
+          : "Failed to connect payout account.";
+    backToTalentSettings(tenantSlug, new URLSearchParams({ payerr }));
   }
-
-  const { data: roster, error: rosterError } = await supabase
-    .from("agency_talent_roster")
-    .select("id, status")
-    .eq("tenant_id", scope.tenantId)
-    .eq("talent_profile_id", talentProfileId)
-    .neq("status", "removed")
-    .maybeSingle();
-
-  if (rosterError || !roster) {
-    if (rosterError) logServerError("talent.connectPayout.verifyRoster", rosterError);
-    const p = new URLSearchParams({ payerr: "You are not rostered in this workspace." });
-    backToTalentSettings(tenantSlug, p);
-  }
-
-  const { data: existing, error: existingError } = await supabase
-    .from("payout_accounts")
-    .select("id")
-    .eq("tenant_id", scope.tenantId)
-    .eq("owner_type", "talent")
-    .eq("owner_id", talentProfileId)
-    .in("status", ["pending_verification", "connected"])
-    .maybeSingle();
-
-  if (existingError) {
-    logServerError("talent.connectPayout.lookup", existingError);
-  }
-
-  if (!existing) {
-    const displayName =
-      profile.display_name?.trim() || session.user.email || "Talent payout account";
-    const { error } = await supabase.from("payout_accounts").insert({
-      tenant_id: scope.tenantId,
-      owner_type: "talent",
-      owner_id: talentProfileId,
-      display_name: displayName,
-      provider: "manual_bank",
-      status: "connected",
-      connected_at: new Date().toISOString(),
-    });
-    if (error) {
-      logServerError("talent.connectPayout.insert", error);
-      const p = new URLSearchParams({ payerr: "Failed to connect payout account." });
-      backToTalentSettings(tenantSlug, p);
-    }
-  }
+  const existing = result.existed;
 
   revalidatePath(`/${tenantSlug}/talent/settings`);
   const p = new URLSearchParams({
-    paymsg: existing ? "Payout account already connected." : "Payout account connected.",
+    paymsg: existing ? "Payout account already added." : "Payout account added. It stays pending until your bank details or a Stripe account are connected.",
   });
   backToTalentSettings(tenantSlug, p);
 }

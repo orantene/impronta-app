@@ -128,6 +128,7 @@ const DEFAULT_LABELS = {
   keyboardHint: "← → navigate · Esc close",
   prevPhoto: "Previous photo",
   nextPhoto: "Next photo",
+  actionFailed: "That didn't work. Try again.",
 } as const;
 
 export function PhotoLightbox({
@@ -169,6 +170,8 @@ export function PhotoLightbox({
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [revertBusy, setRevertBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // TUL-1771: a throwing action must clear its spinner and say so.
+  const [actionFailed, setActionFailed] = useState(false);
   // In-app confirmation (replaces native confirm() — consistent, testable,
   // doesn't freeze the surface). null = no dialog.
   const [pendingConfirm, setPendingConfirm] = useState<"delete" | "revert" | null>(null);
@@ -245,15 +248,27 @@ export function PhotoLightbox({
 
   const handleSetAvatar = async () => {
     if (!onSetAvatar) return;
+    setActionFailed(false);
     setSetAvatarBusy(true);
-    await onSetAvatar();
-    setSetAvatarBusy(false);
+    try {
+      await onSetAvatar();
+    } catch {
+      setActionFailed(true);
+    } finally {
+      setSetAvatarBusy(false);
+    }
   };
   const handleSetHero = async () => {
     if (!onSetHero) return;
+    setActionFailed(false);
     setSetHeroBusy(true);
-    await onSetHero();
-    setSetHeroBusy(false);
+    try {
+      await onSetHero();
+    } catch {
+      setActionFailed(true);
+    } finally {
+      setSetHeroBusy(false);
+    }
   };
   // Delete / Revert open the in-app confirm modal instead of native
   // confirm(). The actual work runs in runConfirmedAction once the user
@@ -263,14 +278,26 @@ export function PhotoLightbox({
   const runConfirmedAction = async () => {
     const kind = pendingConfirm;
     setPendingConfirm(null);
+    setActionFailed(false);
+    // TUL-1771: try/finally so the busy flag always clears when the action throws.
     if (kind === "delete" && onDelete) {
       setDeleteBusy(true);
-      await onDelete();
-      setDeleteBusy(false);
+      try {
+        await onDelete();
+      } catch {
+        setActionFailed(true);
+      } finally {
+        setDeleteBusy(false);
+      }
     } else if (kind === "revert" && onRevertCrop) {
       setRevertBusy(true);
-      await onRevertCrop();
-      setRevertBusy(false);
+      try {
+        await onRevertCrop();
+      } catch {
+        setActionFailed(true);
+      } finally {
+        setRevertBusy(false);
+      }
     }
   };
   const copyUrl = () => {
@@ -514,6 +541,12 @@ export function PhotoLightbox({
               folders, notes, approval — admin-only concepts that don't
               belong in the shared component's API surface). */}
           {extraSections}
+
+          {actionFailed ? (
+            <p role="alert" style={{ margin: "10px 0 0", fontFamily: F, fontSize: 12, color: "rgba(255,135,120,0.95)" }}>
+              {L("actionFailed", "admin.talent.edit.mediaGallery.actionFailed")}
+            </p>
+          ) : null}
 
           {/* Danger zone — only when caller wired delete */}
           {onDelete && (

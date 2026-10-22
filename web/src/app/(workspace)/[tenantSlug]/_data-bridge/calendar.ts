@@ -3,6 +3,7 @@ import "server-only";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
 import { utcToZonedYmd } from "@/lib/scheduling/tz";
+import { tenantTimezone } from "@/lib/spaces/venues";
 
 /**
  * _data-bridge/calendar.ts — calendar page data loader.
@@ -11,7 +12,7 @@ import { utcToZonedYmd } from "@/lib/scheduling/tz";
  * Empty array stays blank (no RICH_INQUIRIES mock).
  */
 
-export type CalendarEventKind = "inquiry" | "booking" | "hold" | "order" | "session";
+export type CalendarEventKind = "inquiry" | "booking" | "hold" | "order" | "session" | "reservation";
 
 export type CalendarEvent = {
   id: string;
@@ -67,7 +68,7 @@ export async function loadCalendarEvents(
 
     const nowIso = new Date().toISOString();
 
-    const [inqRes, bookRes, holdRes, sessionRes] = await Promise.all([
+    const [inqRes, bookRes, holdRes, sessionRes, reservationRes, venueZone] = await Promise.all([
       supabase
         .from("inquiries")
         .select("id, contact_name, company, event_date, status")
@@ -100,12 +101,31 @@ export async function loadCalendarEvents(
         .gte("starts_at", nowIso)
         .order("starts_at", { ascending: true })
         .limit(500),
+      // TUL-1757: TABLE RESERVATIONS (read-only). An admission with a time and no session is a
+      // host-stand booking (a ticket always has a session, and sessions are already above).
+      // Cancelled (void) and no-show rows are not on a forward-looking calendar. Starts a day
+      // back so today's earlier seatings still show whatever the zone.
+      supabase
+        .from("admissions")
+        .select("id, holder_name, party_size, starts_at, status, no_show_at")
+        .eq("tenant_id", tenantId)
+        .eq("status", "valid")
+        .is("session_id", null)
+        .is("no_show_at", null)
+        .is("completed_at", null)
+        .not("starts_at", "is", null)
+        .gte("starts_at", new Date(Date.now() - 24 * 3_600_000).toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(500),
+      // Reservations carry no zone of their own: the venue's, so a 20:00 table lands on its local day.
+      tenantTimezone(tenantId),
     ]);
 
     if (inqRes.error) logServerError("workspace.loadCalendarEvents.inquiries", inqRes.error);
     if (bookRes.error) logServerError("workspace.loadCalendarEvents.bookings", bookRes.error);
     if (holdRes.error) logServerError("workspace.loadCalendarEvents.holds", holdRes.error);
     if (sessionRes.error) logServerError("workspace.loadCalendarEvents.sessions", sessionRes.error);
+    if (reservationRes.error) logServerError("workspace.loadCalendarEvents.reservations", reservationRes.error);
 
     const out: CalendarEvent[] = [];
     const coveredInquiryIds = new Set<string>();
@@ -237,6 +257,25 @@ export async function loadCalendarEvents(
           kind: "session",
         });
       }
+    }
+
+    for (const row of (reservationRes.data ?? []) as Array<{
+      id: string;
+      holder_name: string | null;
+      party_size: number | null;
+      starts_at: string;
+    }>) {
+      out.push({
+        id: row.id,
+        contact_name: `${row.holder_name?.trim() || "Table"} · ${row.party_size ?? 1}`,
+        company: null,
+        event_date: localYmd(row.starts_at, venueZone || null),
+        status: "confirmed",
+        starts_at: row.starts_at,
+        ends_at: null,
+        timezone: venueZone || null,
+        kind: "reservation",
+      });
     }
 
     out.sort((a, b) => (a.starts_at ?? a.event_date).localeCompare(b.starts_at ?? b.event_date));

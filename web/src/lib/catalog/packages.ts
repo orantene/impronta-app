@@ -1,6 +1,7 @@
 import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
+import { assertIdsBelongToTenant } from "@/lib/supabase/tenant-owned-ids";
 
 type Admin = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -49,6 +50,16 @@ export async function setOfferingComponents(
     if (ids.has(c.componentOfferingId)) return { ok: false, reason: "overlap" };
     ids.add(c.componentOfferingId);
   }
+
+  // TUL-1517: the package and EVERY component must be this tenant's offerings. A foreign id is
+  // refused before anything is deleted or written, and the answer never says which id was foreign.
+  const owned = await assertIdsBelongToTenant(
+    admin,
+    "talent_offerings",
+    [input.offeringId, ...input.components.map((c) => c.componentOfferingId)],
+    input.tenantId,
+  );
+  if (!owned.ok) return { ok: false, reason: owned.reason === "unavailable" ? "unavailable" : "not_found" };
 
   const { error: delErr } = await admin
     .from("offering_components")

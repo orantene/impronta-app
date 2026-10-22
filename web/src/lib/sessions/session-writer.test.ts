@@ -27,6 +27,7 @@ function fakeDb() {
   const sessions: Row[] = [];
   const pools: Row[] = [];
   let nextId = 1;
+  const readFails = { sessions: false };
 
   function violatesUnique(row: Row): boolean {
     // sessions_series_occurrence_uniq (series_id, starts_at) — NULLS DISTINCT,
@@ -88,6 +89,13 @@ function fakeDb() {
             const hit = sessions.find((r) => filters.every((f) => f(r)));
             return { data: hit ? { id: hit.id } : null, error: null };
           },
+          order() {
+            return api;
+          },
+          async limit(n: number) {
+            if (readFails.sessions) return { data: null, error: { code: "57014", message: "timeout" } };
+            return { data: sessions.filter((r) => filters.every((f) => f(r))).slice(0, n).map((r) => ({ id: r.id })), error: null };
+          },
         };
         return api;
       }
@@ -98,6 +106,10 @@ function fakeDb() {
         eq(col: string, val: unknown) {
           poolFilters.push((r) => r[col] === val);
           return poolApi;
+        },
+        async maybeSingle() {
+          const hit = pools.find((r) => poolFilters.every((f) => f(r)));
+          return { data: hit ? { id: hit.id } : null, error: null };
         },
         then(resolve: (v: unknown) => void) {
           resolve({ data: pools.filter((r) => poolFilters.every((f) => f(r))), error: null });
@@ -114,20 +126,27 @@ function fakeDb() {
           p.subject_kind === args.p_subject_kind,
       );
       // ON CONFLICT DO UPDATE SET units_total = EXCLUDED — the real behaviour.
-      if (existing) existing.units_total = args.p_units_total;
-      else
+      if (existing) {
+        existing.units_total = args.p_units_total;
+        return { data: existing.id, error: null };
+      }
+      const id = `pool-${pools.length + 1}`;
+      {
         pools.push({
+          id,
+          parent_pool_id: args.p_parent_pool_id ?? null,
           subject_kind: args.p_subject_kind,
           subject_id: args.p_subject_id,
           pool_key: args.p_pool_key,
           units_total: args.p_units_total,
           tenant_id: args.p_tenant_id,
         });
-      return { data: null, error: null };
+      }
+      return { data: id, error: null };
     },
   };
 
-  return { admin, sessions, pools };
+  return { admin, sessions, pools, readFails };
 }
 
 const NIGHT = {
@@ -236,4 +255,88 @@ test("a SERIES occurrence repeat is still idempotent, on its own index", async (
   assert.equal(b.created, false);
   assert.equal(db.sessions.length, 1);
   assert.equal(db.pools.length, 1);
+});
+
+// ── TUL-1413: the session holds its room once ─────────────────────────────────
+
+test("a session with a linked room holds it BEFORE the row exists, under the id the row gets", async () => {
+  const { admin, sessions } = fakeDb();
+  const held: Array<{ sessionId: string; offeringId: string }> = [];
+  const deps = {
+    hold: (async (i: { sessionId: string; offeringId: string }) => (held.push({ sessionId: i.sessionId, offeringId: i.offeringId }), { ok: true, held: 1 })) as never,
+    release: (async () => ({ ok: true, released: 1 })) as never,
+  };
+  const res = await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.equal(res.ok, true);
+  assert.equal(held.length, 1);
+  assert.equal(held[0].offeringId, "off-1");
+  assert.equal(sessions.length, 1);
+});
+
+test("a taken room refuses the session and creates nothing (no row, no pools)", async () => {
+  const { admin, sessions, pools } = fakeDb();
+  const deps = { hold: (async () => ({ ok: false, reason: "room_taken" })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  const res = await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.deepEqual(res, { ok: false, reason: "room_taken" });
+  assert.equal(sessions.length, 0);
+  assert.equal(pools.length, 0);
+});
+
+test("a night that already exists is a repeat: no second hold is asked for", async () => {
+  const { admin } = fakeDb();
+  let holds = 0;
+  const deps = { hold: (async () => (holds += 1, { ok: true, held: 1 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  const night = { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt };
+  await createSessionWithPools(admin as never, night, [{ poolKey: "default", units: 12 }], deps);
+  const again = await createSessionWithPools(admin as never, night, [{ poolKey: "default", units: 12 }], deps);
+  assert.equal(holds, 1);
+  assert.equal(again.ok && again.created, false);
+});
+
+test("a session with no offering asks the engine for no room at all", async () => {
+  const { admin } = fakeDb();
+  let holds = 0;
+  const deps = { hold: (async () => (holds += 1, { ok: true, held: 0 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.equal(holds, 0);
+});
+
+test("when the 'does this night exist' read fails, nothing is held or created (fail closed)", async () => {
+  const { admin, sessions, readFails } = fakeDb();
+  readFails.sessions = true;
+  let holds = 0;
+  const deps = { hold: (async () => (holds += 1, { ok: true, held: 1 })) as never, release: (async () => ({ ok: true, released: 0 })) as never };
+  const res = await createSessionWithPools(admin as never, { tenantId: "t1", seriesId: "series-9", offeringId: "off-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt }, [{ poolKey: "default", units: 12 }], deps);
+  assert.deepEqual(res, { ok: false, reason: "room_unavailable" });
+  assert.equal(holds, 0);
+  assert.equal(sessions.length, 0);
+});
+
+test("tier pools: the default pool is written first and each tier hangs under it", async () => {
+  const { admin, pools } = fakeDb();
+  const res = await createSessionWithPools(
+    admin as never,
+    { tenantId: "t1", seriesId: "series-1", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt },
+    // children listed BEFORE the parent on purpose: the writer must reorder
+    [
+      { poolKey: "child", units: 6, parentPoolKey: "default" },
+      { poolKey: "default", units: 20 },
+    ],
+  );
+  assert.equal(res.ok, true);
+  const parent = pools.find((p) => p.pool_key === "default")!;
+  const child = pools.find((p) => p.pool_key === "child")!;
+  assert.equal(parent.parent_pool_id, null);
+  assert.equal(child.parent_pool_id, parent.id);
+});
+
+test("a tier whose parent cannot be found is NOT created parentless", async () => {
+  const { admin, pools } = fakeDb();
+  const res = await createSessionWithPools(
+    admin as never,
+    { tenantId: "t1", seriesId: "series-2", startsAt: NIGHT.startsAt, endsAt: NIGHT.endsAt },
+    [{ poolKey: "child", units: 6, parentPoolKey: "default" }],
+  );
+  assert.equal(res.ok, false);
+  assert.equal(pools.length, 0);
 });

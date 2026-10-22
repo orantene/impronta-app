@@ -7,6 +7,7 @@ import { ShellPreview } from "@/components/messages-v5/shell/ShellPreview";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadClientLinkBusiness, loadClientOfferSummaries, loadOpenPaymentCode } from "@/lib/messaging/client-link";
 import { customerVisibleMessages, loadMessagingThread } from "@/lib/messaging/thread";
+import { clientThreadCatalog } from "@/lib/messaging/client-thread-catalog";
 import { verifyThreadToken } from "@/lib/messaging/thread-token";
 import { threadTokenMatchesRequestHost } from "@/lib/messaging/thread-token-host";
 
@@ -62,6 +63,7 @@ export default async function PublicConversationPage({
     <ClientThread
       token={token}
       locale={locale}
+      catalog={clientThreadCatalog(locale)}
       business={{ name: business.name, handlerFirstName: business.handlerFirstName }}
       messages={messages}
       offers={offers}

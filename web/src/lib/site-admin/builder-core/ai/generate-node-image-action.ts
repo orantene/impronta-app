@@ -25,6 +25,9 @@ import {
   recordImageGenerationUsage,
   uploadGeneratedImageBytes,
 } from "@/lib/ai/ai-image-generation";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 export type GenerateNodeImageState =
@@ -46,10 +49,18 @@ export async function generateNodeImageAction(input: {
     return { ok: false, error: "No active workspace.", code: "NO_SCOPE" };
   }
 
+  // AI master switch (TUL-1622): refuse before the quota read, the paid call or any usage row.
+  if (!(await isAiMasterEnabled())) return { ok: false, error: AI_OFF_MESSAGE, code: "AI_OFF" };
+
   const subject = (input.subject ?? "").trim();
   if (subject.length < 2) {
     return { ok: false, error: "Describe the image in a few words.", code: "BRIEF_TOO_SHORT" };
   }
+
+  // TUL-1624: the workspace's AI spend ceiling and request limits, checked BEFORE the paid call (the image quota below
+  // is a separate count; neither one replaces the other).
+  const aiGate = await assertAiInvocationAllowed(tenantId);
+  if (!aiGate.ok) return { ok: false, error: aiGate.message, code: aiGate.code === "rate_limit" ? "RATE_LIMITED" : aiGate.code.toUpperCase() };
 
   // Cost fuse #1 — the monthly cap, checked BEFORE the paid call.
   const quota = await checkImageQuota(tenantId);
@@ -62,7 +73,10 @@ export async function generateNodeImageAction(input: {
   }
 
   try {
-    const bytes = await generateImageBytesFromPrompt(subject);
+    let measuredCostUsd = 0;
+    const bytes = await generateImageBytesFromPrompt(subject, (usd) => {
+      measuredCostUsd = usd;
+    });
     const uploaded = await uploadGeneratedImageBytes({
       tenantId,
       userId: auth.user.id,
@@ -73,7 +87,9 @@ export async function generateNodeImageAction(input: {
       await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: false });
       return { ok: false, error: "Made the image but couldn't save it. Try again.", code: "UPLOAD_FAILED" };
     }
-    await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true });
+    await recordImageGenerationUsage({ tenantId, userId: auth.user.id, ok: true, measuredCostUsd });
+    // The spend ceiling already sees this image: recordImageGenerationUsage (above) rolls its cost into the workspace's
+    // monthly AI spend. Recording it again here would count every image twice.
     return {
       ok: true,
       url: uploaded.url,

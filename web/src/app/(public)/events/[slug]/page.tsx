@@ -158,7 +158,13 @@ export default async function PublicEventPage({ params }: Params) {
   // whose site is Spanish-first gets Spanish; the reader's browser does not
   // decide, the venue does.
   const supported = (ctx.supportedLocales as string[] | null) ?? [];
-  const locale: Locale = (supported[0] ?? "en").toLowerCase().startsWith("es") ? "es" : "en";
+  // TUL-1881: an explicit `/en/...` URL is the reader asking for English. `getRequestLocale` is the
+  // workspace language unless the URL names one, so honouring it (when the venue serves it) keeps the
+  // venue-decides rule and stops `/en/events/x` rendering Spanish.
+  const askedLocale = (await getRequestLocale()).toLowerCase().slice(0, 2);
+  const servesAsked = supported.some((l) => l.toLowerCase().startsWith(askedLocale));
+  const pageLang = servesAsked ? askedLocale : (supported[0] ?? "en").toLowerCase();
+  const locale: Locale = pageLang.startsWith("es") ? "es" : "en";
 
   // Venue → workspace, NEVER the platform rung: no zone, no date (#1874).
   const zone = resolvePublicZone({ venue: ctx.venueTimezone, workspace: ctx.workspaceTimezone });

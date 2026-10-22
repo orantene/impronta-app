@@ -31,6 +31,7 @@ import {
   type TalentReviewStanding,
 } from "@/lib/reviews/review-actions";
 import type { ReviewableBooking } from "@/lib/reviews/review-types";
+import { privateNoteAudience, privateNoteLabelKey } from "@/lib/reviews/private-note-audience";
 import { ReviewPhotoUploader } from "./ReviewPhotoUploader";
 import { useT } from "@/i18n/use-t";
 import { withInterpolation } from "@/i18n/interpolate";
@@ -147,11 +148,13 @@ export function LeaveReviewCard({
   const [privateNote, setPrivateNote] = useState<string>(existing?.privateNote ?? "");
   const [anon, setAnon] = useState<boolean>(existing?.anon ?? false);
   const [state, setState] = useState<SaveState>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); const [savedWasEdit, setSavedWasEdit] = useState(false);
 
   const isEdit = existing != null;
   const groupId = useId();
   const talentLabel = booking.talentName ?? tt("public.reviews.form.talentFallback");
+  // TUL-1686: say who reads the private note (team studio: the workspace, by name).
+  const noteLabel = privateNoteLabelKey(privateNoteAudience(booking.noteWorkspace, talentLabel));
   const starAria = (n: number) =>
     tt(n > 1 ? "public.reviews.form.starMany" : "public.reviews.form.starOne", { count: n });
 
@@ -204,7 +207,7 @@ export function LeaveReviewCard({
       standing,
     );
     if (res.ok) {
-      setState("saved");
+      setSavedWasEdit(existing != null); setState("saved");
       onSaved?.({
         rating,
         body: trimmed.length > 0 ? trimmed : null,
@@ -236,6 +239,7 @@ export function LeaveReviewCard({
   if (state === "saved") {
     return (
       <div
+        role="status"
         style={{
           background: C.greenSoft,
           border: `1px solid rgba(26,115,72,0.20)`,
@@ -265,10 +269,10 @@ export function LeaveReviewCard({
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, color: C.greenDeep, letterSpacing: -0.1 }}>
-              {tt("public.reviews.form.savedTitle", { name: talentLabel })}
+              {savedWasEdit ? tt("public.reviews.form.updatedTitle") : tt("public.reviews.form.savedTitle", { name: talentLabel })}
             </div>
             <div style={{ fontSize: 12, color: "rgba(26,115,72,0.75)", marginTop: 2 }}>
-              {tt("public.reviews.form.savedBody", { rating })}
+              {tt(savedWasEdit ? "public.reviews.form.updatedBody" : "public.reviews.form.savedBody", { rating })}
             </div>
           </div>
           {onClose && (
@@ -651,13 +655,13 @@ export function LeaveReviewCard({
         </div>
       </div>
 
-      {/* Private note — talent-only */}
+      {/* Private note: the talent, or the workspace in a team studio (TUL-1686) */}
       <div style={{ marginTop: 18 }}>
         <label
           htmlFor={`${groupId}-private`}
           style={{ display: "block", fontSize: 11, fontWeight: 600, color: C.inkMuted, marginBottom: 5, letterSpacing: 0.1 }}
         >
-          {tt("public.reviews.form.privateNoteLabel", { name: talentLabel })}
+          {tt(noteLabel.key, { name: noteLabel.name ?? "" })}
         </label>
         <textarea
           id={`${groupId}-private`}

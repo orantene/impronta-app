@@ -10,7 +10,7 @@ const PRICE_TO_PLAN: Record<string, TalentPlanKey> = {
   talent_portfolio: "talent_portfolio",
 };
 
-function planKeyFromSubscription(
+export function planKeyFromSubscription(
   sub: import("stripe").Stripe.Subscription,
 ): TalentPlanKey | null {
   // plan_key is what our checkout (and TUL-831 plan change) writes;

@@ -1,5 +1,6 @@
 import { resolveAiChatAdapter, isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { gateAiCall, meterAiCall } from "@/lib/ai/metered-ai";
 import { glossaryPromptBlock } from "@/lib/translation/ai-translate-bio";
 
 export type LabelTranslateFailureCode = "no_key" | "quota" | "api_error" | "empty_response";
@@ -37,12 +38,17 @@ export async function translateDirectoryLabelEnToEs(text: string): Promise<Label
     };
   }
 
+  // TUL-1623: platform-level admin tool (no workspace): gated and metered against the platform tenant.
+  const gate = await gateAiCall();
+  if (!gate.ok) return { ok: false, code: "quota", message: gate.error };
   const adapter = await resolveAiChatAdapter();
+  const startedAt = Date.now();
   const result = await adapter.chatCompletion({
     systemPrompt: `You translate short English UI labels, taxonomy terms, and place names into natural Spanish for a fashion/modeling agency directory. ${glossaryPromptBlock()} Output only the Spanish text, no quotes or explanation.`,
     userMessage: trimmed,
     temperature: 0.2,
   });
+  meterAiCall({ feature: "translate_label_en_es", provider: adapter.id, model: null, result, startedAt });
 
   if (!result.ok) {
     if (result.code === "quota") {

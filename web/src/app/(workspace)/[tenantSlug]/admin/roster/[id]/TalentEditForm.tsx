@@ -1,5 +1,6 @@
 "use client";
 
+import { talentPublicProfileHref } from "@/lib/talent/public-profile-href";
 import * as React from "react";
 import { useActionState, useEffect, useRef, useState, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -704,7 +705,7 @@ function WorkflowSidebar({
   const [pending, startTransition] = useTransition();
   const isFeatured = agencyVisibility === "featured";
 
-  const publicUrl = profileCode ? `https://tulala.digital/t/${profileCode}` : null;
+  const publicUrl = profileCode ? talentPublicProfileHref(profileCode) : null;
 
   const apply = (next: boolean) => {
     if (pending) return;

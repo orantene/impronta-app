@@ -81,8 +81,9 @@ export function ExpandedChatLayout({
       role="dialog"
       aria-modal="false"
       data-guest-chat-panel=""
+      tabIndex={-1}
       aria-label={ariaLabel}
-      style={expandedShellStyle(P)}
+      style={{ ...expandedShellStyle(P), outline: "none" }}
     >
       {/* Horizontal flex: left list + right thread */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>

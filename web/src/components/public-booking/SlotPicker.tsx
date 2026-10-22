@@ -6,8 +6,9 @@
  */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
+import { canonicalCityName, localizePlaceCity } from "@/lib/talent-site/city-label";
 import { loadPublicSlots } from "./slot-picker-load";
 import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
@@ -38,6 +39,12 @@ const MUTED = "var(--token-color-muted, rgba(11,11,13,0.62))";
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/** TUL-1812: the studio's zone named by its city ("America/Cancun" -> "Cancún"); null when the id has no city part. */
+export function studioZoneLabel(timezone: string, locale: string): string | null {
+  const city = timezone.includes("/") ? (timezone.split("/").pop() ?? "").replace(/_/g, " ").trim() : "";
+  return city ? localizePlaceCity(canonicalCityName(city, [], locale), locale) : null;
 }
 
 function formatSlot(iso: string, timezone: string, locale: string): string {
@@ -87,6 +94,12 @@ export function SlotPicker({
   }, [timezone]);
 
   const from = useMemo(() => ymd(new Date()), []);
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +122,8 @@ export function SlotPicker({
       } else {
         setSlots(r.slots);
         setEmptyReason(r.reason);
+        // TUL-1812: a time picked for the previous service must not stay selected on one that does not offer it.
+        if (valueRef.current && !r.slots.includes(valueRef.current.startsAt)) onChangeRef.current(null);
         if (r.timezone) setResolvedTz(r.timezone);
       }
       setLoading(false);
@@ -126,6 +141,8 @@ export function SlotPicker({
       : typeof document !== "undefined" && document.documentElement.lang.startsWith("es")
         ? "es"
         : "en";
+
+  const zoneLabel = studioZoneLabel(resolvedTz, locale);
 
   const contactLink = emptyAction || contactHref ? (
     <div className="mt-2 flex flex-col items-start gap-2">
@@ -149,7 +166,7 @@ export function SlotPicker({
         {t("public.slotPicker.title")}
       </p>
       <p className="mt-1 text-xs" style={{ color: MUTED }}>
-        {t("public.slotPicker.subtitle")}
+        {zoneLabel ? t("public.slotPicker.subtitleZone").replace("{zone}", zoneLabel) : t("public.slotPicker.subtitle")}
       </p>
       {loading ? (
         <div className="mt-3 flex flex-col gap-1.5" role="status" aria-busy="true" data-testid="slot-picker-skeleton">
@@ -184,7 +201,8 @@ export function SlotPicker({
         {contactLink}
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-1.5 max-h-64 overflow-auto">
+        <>
+        <div className="mt-3 flex w-full flex-col gap-1.5 max-h-64 overflow-auto">
           {slots.map((start) => {
             const ends = new Date(new Date(start).getTime() + durationMinutes * 60_000).toISOString();
             const selected = value?.startsAt === start;
@@ -199,7 +217,7 @@ export function SlotPicker({
                       : { startsAt: start, endsAt: ends, timezone: resolvedTz },
                   )
                 }
-                className={`text-left text-[13px] rounded-lg border px-3 py-2 ${
+                className={`w-full text-left text-[13px] rounded-lg border px-3 py-2 ${
                   selected
                     ? "border-[rgba(11,11,13,0.85)] bg-[rgba(11,11,13,0.06)]"
                     : "border-[rgba(24,24,27,0.12)] bg-white"
@@ -211,6 +229,18 @@ export function SlotPicker({
             );
           })}
         </div>
+        {/* TUL-861: the request path stays reachable when times exist (it used to show only when empty). */}
+        {contactHref ? (
+          <Link
+            href={contactHref}
+            data-testid="slot-picker-request"
+            className="mt-2 inline-block text-xs font-medium underline"
+            style={{ color: INK }}
+          >
+            {t("public.slotPicker.sendRequest")}
+          </Link>
+        ) : null}
+        </>
       )}
     </div>
   );

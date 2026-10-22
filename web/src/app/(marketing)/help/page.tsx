@@ -5,6 +5,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { buildMarketingLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { listHelpArticles } from "@/lib/support/help-articles";
 
 /**
  * Help docs index. Still scaffolding for the articles themselves, but no
@@ -162,6 +163,33 @@ export default async function HelpIndexPage() {
                 </Link>
               );
             })}
+          </div>
+
+          <div className="mx-auto mt-12 max-w-4xl">
+            <h2 className="plt-display" style={{ fontSize: "1.25rem", color: "var(--plt-ink)" }}>
+              {es ? "Guías paso a paso" : "Step-by-step guides"}
+            </h2>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              {listHelpArticles(locale).map((a) => (
+                <li key={a.slug}>
+                  <Link
+                    href={withLocaleHref(`/help/articles/${a.slug}`, locale)}
+                    className="block rounded-[14px] p-5 transition-colors hover:border-[var(--plt-forest)]"
+                    style={{ background: "var(--plt-bg-raised)", border: "1px solid var(--plt-hairline)" }}
+                  >
+                    <span className="plt-display" style={{ fontSize: "1rem", color: "var(--plt-ink)" }}>
+                      {a.title}
+                    </span>
+                    <span
+                      className="plt-body mt-1 block"
+                      style={{ fontSize: "0.875rem", lineHeight: 1.55, color: "var(--plt-muted)" }}
+                    >
+                      {a.summary}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div

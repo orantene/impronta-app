@@ -43,12 +43,14 @@
  *   NEXT_PUBLIC_BASE_URL     — base URL for success/cancel redirects
  */
 
+import { checkoutCountryHint, createCountryCustomer } from "@/lib/payments/checkout-country";
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
 import { recordChargePlatform, resolveSellerPlatformForTransaction } from "@/lib/stripe/charge-platform";
 import { checkTransactionChargeCurrency, type ChargeCurrencyGuard } from "@/lib/payments/seller-currency-guard";
 import { checkTransactionConnectedAccount, type ConnectedAccountCheck } from "@/lib/payments/connected-account-guard";
+import { belowMinimumMessage, checkChargeMinimum } from "@/lib/payments/charge-minimums";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { paymentsMockAllowed } from "@/lib/payments/mock-guard";
 import { logServerError } from "@/lib/server/safe-error";
@@ -120,6 +122,8 @@ export type CheckoutSessionInput = {
    * omitted and Stripe keeps its own default.
    */
   locale?: string | null;
+  /** TUL-1865: payer's ISO country when known; otherwise the seller platform decides (MX platform -> MX). */
+  payerCountry?: string | null;
   /**
    * Extra keys for the session's metadata, for tracing only (a payment link
    * adds its `payment_link_code` so the Stripe dashboard can name it). Never
@@ -134,6 +138,8 @@ export type CheckoutSessionResult =
   | {
       ok: false;
       error: string;
+      /** Stable refusal code when a guard (not Stripe) refused, so callers can show the right sentence. */
+      code?: string;
       /**
        * True when a session MAY exist (network drop, Stripe 5xx, no URL on
        * the response). The caller must not release the hold on that: a retry
@@ -192,7 +198,10 @@ export async function createCheckoutSessionForTransaction(
     const guardFn = deps.currencyGuard ?? ((deps.stripe !== undefined || deps.platform) && !deps.sb ? null : checkTransactionChargeCurrency);
     if (guardFn) {
       const check = await guardFn(deps.sb ?? createServiceRoleClient(), { transactionId: input.transactionId, currency: input.currency, locale: input.locale });
-      if (!check.ok) return { ok: false, error: check.message, uncertain: false };
+      if (!check.ok) {
+        logServerError("payments.stripe.chargeCurrencyRefused", `transaction ${input.transactionId}: ${check.code} (${input.currency})`);
+        return { ok: false, error: check.message, code: check.code, uncertain: false };
+      }
     }
     // The seller of record's platform decides which Stripe account takes the
     // charge (default 'us'). An injected client (tests) is used as-is.
@@ -228,6 +237,12 @@ export async function createCheckoutSessionForTransaction(
 
     if (input.amountCents <= 0) {
       return { ok: false, error: "Amount must be positive." };
+    }
+    // P-10 / TUL-1549: an amount Stripe will refuse is refused HERE with a sentence, never
+    // waived to free. (Only a booking is ever free below the minimum, decided in the quote.)
+    const floor = checkChargeMinimum(input.amountCents, input.currency);
+    if (!floor.ok && floor.reason === "below_minimum") {
+      return { ok: false, error: belowMinimumMessage(floor.minimumMinor, floor.currency, input.locale), uncertain: false };
     }
 
     // TUL-483: refuse before Stripe work when the seller's connected account
@@ -297,6 +312,20 @@ export async function createCheckoutSessionForTransaction(
         },
       },
     };
+
+    // TUL-1865: pre-select the payer's country (Stripe has no session param for it; a Customer address is the only lever).
+    const countryHint = checkoutCountryHint(input.payerCountry, platform);
+    if (countryHint && input.payerEmail) {
+      const customerId = await createCountryCustomer(stripe, {
+        transactionId: input.transactionId,
+        email: input.payerEmail,
+        country: countryHint,
+      });
+      if (customerId) {
+        delete sessionParams.customer_email;
+        sessionParams.customer = customerId;
+      }
+    }
 
     // Always the PLATFORM account. See the module header for why the
     // connected-account (Direct Charge) branch was removed.

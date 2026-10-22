@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
+import { userHasCapability, type CapabilityKey } from "@/lib/access";
 import { decideApproval, requestApproval } from "@/lib/approvals/requests";
 import {
   signBookingManageToken,
@@ -18,11 +18,14 @@ import {
   attachDeliverableFile,
   projectArchive,
   projectReopen,
-  projectReplaceTalent,
   setDeliverableAmount,
 } from "@/lib/projects/project-ops";
+import { replaceTalentOnProject } from "@/lib/projects/replace-with-notice.server";
 import { cancelBookingSet } from "@/lib/scheduling/cancel-booking";
+import { settleCancelledBookingMoney } from "@/lib/scheduling/cancel-settle";
 import { rescheduleBooking } from "@/lib/scheduling/reschedule-booking";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { roomMessage } from "@/lib/sessions/room-messages";
 import { sessionCancel, sessionMoveParticipant, sessionSetInstructor } from "@/lib/sessions/session-ops";
 import { generateSessionsForSeries, upsertSessionSeries } from "@/lib/sessions/series-write";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
@@ -31,10 +34,12 @@ const uuid = z.string().uuid();
 const opKey = z.string().min(8).max(80);
 const scope = z.enum(["this", "future", "series"]);
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+// TUL-1708: the capability is named at every call. Behaviour is unchanged: every call here already
+// required booking.payment.request through the second check, so a viewer or editor was refused.
+async function staff(capability: CapabilityKey) {
+  const guard = await requireWorkspaceStaffAction({ capability });
   if (!guard.ok) return { ok: false as const, reason: "unavailable" as const };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
+  const allowed = await userHasCapability(capability, guard.tenantId);
   if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
@@ -57,7 +62,7 @@ export async function upsertSessionSeriesAction(input: {
   isActive?: boolean;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -82,7 +87,7 @@ export async function upsertSessionSeriesAction(input: {
 
 export async function generateSessionsForSeriesAction(input: { seriesId: string; untilDate: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ seriesId: uuid, untilDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })
@@ -97,7 +102,7 @@ export async function sessionSetInstructorAction(input: {
   scope: "this" | "future" | "series";
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ sessionId: uuid, userId: uuid, scope }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -110,7 +115,7 @@ export async function sessionMoveParticipantAction(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ admissionId: uuid, toSessionId: uuid, operationKey: opKey })
@@ -126,13 +131,17 @@ export async function sessionCancelAction(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ sessionId: uuid, scope, reason: z.string().max(200), operationKey: opKey })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return sessionCancel(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  const res = await sessionCancel(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  if (!res.ok && res.reason === "room_release_failed") {
+    return { ...res, message: roomMessage("room_release_failed", await getRequestLocale()) };
+  }
+  return res;
 }
 
 export async function cancelBookingSetAction(input: {
@@ -143,7 +152,7 @@ export async function cancelBookingSetAction(input: {
   by: "staff" | "customer" | "client" | "talent" | "system";
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -154,12 +163,17 @@ export async function cancelBookingSetAction(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return cancelBookingSet(g.admin, {
+  const result = await cancelBookingSet(g.admin, {
     tenantId: g.tenantId,
     ...parsed.data,
     // Desk cancel: the signed-in staff member is the audit actor.
     actorUserId: g.userId,
   });
+  // Pay links come down and an unpaid order is voided; runs on a replay too.
+  if (result.ok) {
+    await settleCancelledBookingMoney(g.admin, { tenantId: g.tenantId, bookingId: parsed.data.bookingId, orderId: result.orderId });
+  }
+  return result;
 }
 
 export async function signBookingManageTokenAction(input: {
@@ -167,7 +181,7 @@ export async function signBookingManageTokenAction(input: {
   action: "cancel" | "reschedule";
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ bookingId: uuid, action: z.enum(["cancel", "reschedule"]) })
@@ -197,7 +211,7 @@ export async function cancelBookingByManageToken(input: {
   if (verified.payload.action !== "cancel") return { ok: false as const, reason: "token_invalid" as const };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
-  return cancelBookingSet(admin, {
+  const result = await cancelBookingSet(admin, {
     tenantId: verified.payload.tenantId,
     bookingId: verified.payload.bookingId,
     operationKey: parsed.data.operationKey,
@@ -206,6 +220,15 @@ export async function cancelBookingByManageToken(input: {
     by: "client",
     actorUserId: null,
   });
+  // Same follow-up as every other cancel path: pay links dead, unpaid order voided.
+  if (result.ok) {
+    await settleCancelledBookingMoney(admin, {
+      tenantId: verified.payload.tenantId,
+      bookingId: verified.payload.bookingId,
+      orderId: result.orderId,
+    });
+  }
+  return result;
 }
 
 /**
@@ -272,7 +295,7 @@ export async function projectReplaceTalentAction(input: {
   operationKey: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -283,7 +306,8 @@ export async function projectReplaceTalentAction(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
-  return projectReplaceTalent(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  // TUL-1603: the swap, then the new person's bell, the client notice (only for a person shown by name) and the payout plan.
+  return replaceTalentOnProject(g.admin, { tenantId: g.tenantId, ...parsed.data });
 }
 
 export async function amendmentSend(input: {
@@ -293,7 +317,7 @@ export async function amendmentSend(input: {
   inquiryExpectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -329,7 +353,7 @@ export async function amendmentDiscardAction(input: {
   inquiryExpectedVersion: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -344,7 +368,7 @@ export async function amendmentDiscardAction(input: {
 
 export async function setDeliverableAmountAction(input: { deliverableId: string; amountCents: number }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ deliverableId: uuid, amountCents: z.number().int().nonnegative() })
@@ -355,7 +379,7 @@ export async function setDeliverableAmountAction(input: { deliverableId: string;
 
 export async function attachDeliverableFileAction(input: { deliverableId: string; filePath: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({ deliverableId: uuid, filePath: z.string().trim().min(1).max(500) })
@@ -366,7 +390,7 @@ export async function attachDeliverableFileAction(input: { deliverableId: string
 
 export async function projectArchiveAction(input: { bookingId: string; reason: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, reason: z.string().max(200) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -375,7 +399,7 @@ export async function projectArchiveAction(input: { bookingId: string; reason: s
 
 export async function projectReopenAction(input: { bookingId: string; reason: string }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z.object({ bookingId: uuid, reason: z.string().max(200) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -387,7 +411,7 @@ export async function setOfferingComponentsAction(input: {
   components: Array<{ componentOfferingId: string; qty: number; required: boolean }>;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -414,7 +438,7 @@ export async function setOfferingPricePhaseAction(input: {
   priceCents: number;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -437,7 +461,7 @@ export async function writePolicyOverrideAction(input: {
   noShowFeeCents?: number | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -458,7 +482,7 @@ export async function requestApprovalAction(input: {
   reason: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({
@@ -482,7 +506,7 @@ export async function decideApprovalAction(input: {
   reason: string;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("booking.payment.request");
   if (!g.ok) return g;
   const parsed = z
     .object({

@@ -19,9 +19,12 @@ import {
 } from "./settings-deeplink";
 import { RegistrationSection } from "./RegistrationSection";
 import { DiscoverExposureSection } from "./DiscoverExposureSection";
+import { VisiblePicksSettingsLink } from "./VisiblePicksSettingsLink";
 import { IntegrationsSection } from "./IntegrationsSection";
 import { WorkspaceTypeCard } from "@/components/admin/settings/workspace-type-card";
 import { RunsEventsCard } from "@/components/admin/settings/runs-events-card";
+import { WorkStyleSettingsRow } from "@/components/admin/settings/work-style-settings-row";
+import { CollectiveSettingsRow } from "@/components/admin/settings/collective-settings-row";
 import { AppointmentsSettingsCard } from "@/components/appointments/AppointmentsSettingsCard";
 import { HowYouWorkCard } from "@/components/settings/how-you-work-card";
 import { IndustrySettingsCard } from "@/components/words/IndustrySettingsCard";
@@ -136,6 +139,8 @@ type GroupId =
   // Industry and words: the sixteen presets. Sits above appointments
   // because the preset supplies the nouns that screen then uses.
   | "industry"
+  // TUL-1474: "How you work with people" has its own entry in the Settings nav.
+  | "work-style"
   | "pos"
   | "appointments"
   | "pricing-defaults"
@@ -154,7 +159,7 @@ type GroupId =
 
 /** Every group `?focus=` may open (the ids above, spelled once for the URL check). */
 const FOCUSABLE_GROUPS: readonly GroupId[] = [
-  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "layouts", "service-periods", "prep-stations", "industry", "pos",
+  "account", "plan", "workspace", "commercial-terms", "venue", "locations", "layouts", "service-periods", "prep-stations", "industry", "work-style", "pos",
   "appointments", "pricing-defaults", "domain", "branding", "team", "roles-limits", "roster-fields",
   "registration", "discover", "compliance", "payments", "integrations", "email", "advanced",
 ];
@@ -240,7 +245,8 @@ export function WorkspacePageView() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const el = document.querySelector(`[data-settings-section="${target.section}"]`);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        // TUL-1864: a ?focus= door lands ON the section (focus + scroll), not only beside it.
+        if (el instanceof HTMLElement) { el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: "smooth", block: "start" }); }
       });
     });
   }, []);
@@ -400,6 +406,8 @@ export function WorkspacePageView() {
                 max-lines cap. */}
             <WorkspaceTypeCard currentType={state.workspaceType} canEdit={isOwner} />
             {isOwner ? <HowYouWorkCard /> : null}
+            {/* TUL-1374: door to Settings > Friends collective (page + actions re-check the role). */}
+            {isAdmin ? <CollectiveSettingsRow /> : null}
             {/* Owner-only, and the ONLY caller of `setRunsEvents`. */}
             <RunsEventsCard canEdit={isOwner} />
             <DefaultCurrencySettingsRow />
@@ -438,7 +446,10 @@ export function WorkspacePageView() {
         desc: t("dashboard.adminWorkspace.venue.desc"),
         visible: !!tenantSlug,
         rows: [],
-        extra: tenantSlug ? <VenueSettingsCard tenantSlug={tenantSlug} /> : null,
+        // TUL-1708: updateVenueSettings requires manage_agency_settings
+        // (admin+) server-side; hide the dead edit control for non-admins
+        // rather than let them fill the form and have Save silently refuse.
+        extra: tenantSlug ? <VenueSettingsCard tenantSlug={tenantSlug} canEdit={isAdmin} /> : null,
         extraSearch: [
           {
             title: t("dashboard.adminWorkspace.venue.label"),
@@ -523,6 +534,21 @@ export function WorkspacePageView() {
         ],
       },
       {
+        // TUL-1474: its own nav entry (owner or admin), so it is found without opening Espacio.
+        id: "work-style",
+        label: t("dashboard.adminWorkspace.workStyle.label"),
+        desc: t("dashboard.adminWorkspace.workStyle.desc"),
+        visible: isAdmin,
+        rows: [],
+        extra: <WorkStyleSettingsRow />,
+        extraSearch: [
+          {
+            title: t("dashboard.adminWorkspace.workStyle.label"),
+            desc: t("dashboard.adminWorkspace.workStyle.desc"),
+          },
+        ],
+      },
+      {
         // W20 — the point of sale at this location. The card draws the board's
         // header itself (title, the one location, the save state).
         id: "pos",
@@ -579,7 +605,7 @@ export function WorkspacePageView() {
         rows: [],
         extra: tenantSlug ? (
           <>
-            <AppointmentsSettingsCard tenantSlug={tenantSlug} />
+            <AppointmentsSettingsCard tenantSlug={tenantSlug} canEdit={isAdmin} />
             <BookingHoursCard
               talentProfileId={bridgeTalentSelfProfile?.id ?? null}
               showTalentPicker
@@ -756,6 +782,7 @@ export function WorkspacePageView() {
             // Limits are typed in the platform currency (USD only, by ruling).
             currency="USD"
             canEditLimits={isAdmin}
+            isOwner={isOwner}
           />
         ),
         extraSearch: [
@@ -769,6 +796,9 @@ export function WorkspacePageView() {
         label: t("dashboard.adminWorkspace.rosterFieldsLabel"),
         desc: t("dashboard.adminWorkspace.rosterFieldsDesc"),
         visible: true,
+        // TUL-1687: "Who stays visible" (plan-cap picks). Renders nothing unless
+        // HUB_PLAN_CAP_PICKS_ENABLED=1 and the caller may edit the roster.
+        extra: <VisiblePicksSettingsLink adminBasePath={adminBasePath} />,
         rows: [
           {
             key: "talent-categories",
@@ -1143,7 +1173,7 @@ export function WorkspacePageView() {
     )
   ) : (
     activeGroupData && (
-      <div data-settings-section={activeGroupData.id} className="flex flex-col gap-[14px]">
+      <div data-settings-section={activeGroupData.id} tabIndex={-1} className="flex flex-col gap-[14px] outline-none">
         {activeGroupData.frame !== "own" ? (
           <div>
             <h2 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{activeGroupData.label}</h2>

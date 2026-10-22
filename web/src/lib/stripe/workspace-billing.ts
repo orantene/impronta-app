@@ -21,7 +21,8 @@ import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
+import { storedCustomerIsStale, syncCustomerPreferredLocale } from "@/lib/stripe/stored-customer";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
@@ -29,6 +30,7 @@ import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import type { AllowedStatus } from "@/lib/stripe/utils";
 import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
+import { expiredPromoMessage } from "@/lib/billing/promo-preview";
 import {
   reconcileAppliedDiscount,
   resolveSubscriptionDiscountMirror,
@@ -42,11 +44,12 @@ import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
-import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
-import {
-  stripeCheckoutLocale,
-} from "@/lib/i18n/vendor-locale";
+import { buildPortalSessionParams, withoutPortalConfiguration } from "@/lib/stripe/portal-params";
+import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { createTranslator } from "@/i18n/messages";
+import { isDefiniteStripeFailure } from "@/lib/billing/stripe-failure";
+import { applyPendingDowngradeAtTierDrop, clearPendingOnTierIncrease } from "@/lib/billing/workspace-downgrade-archive";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
@@ -54,7 +57,7 @@ import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 
 export type BillingResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string };
+  | { ok: false; error: string; /** false = Stripe may still have applied the write (TUL-1737); omitted = definite */ definite?: boolean };
 
 export type { WorkspaceSubscriptionState } from "@/lib/stripe/workspace-subscription-reads";
 export { hasLiveWorkspaceSubscription, loadWorkspaceSubscriptionState } from "@/lib/stripe/workspace-subscription-reads";
@@ -85,8 +88,13 @@ export async function getOrCreateStripeCustomer(
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
+    let replacingStale = false;
     if (existing?.stripe_customer_id) {
-      return { ok: true, data: existing.stripe_customer_id };
+      if (!(await storedCustomerIsStale(stripe, existing.stripe_customer_id))) {
+        return { ok: true, data: existing.stripe_customer_id };
+      }
+      replacingStale = true; // the id belongs to another Stripe account/sandbox (or was deleted): mint a new one
+      logServerExpected("workspace-billing.getOrCreateCustomer.stale", new Error(`stored Stripe customer ${existing.stripe_customer_id} not found; recreating`));
     }
 
     // Create new Stripe customer
@@ -97,11 +105,10 @@ export async function getOrCreateStripeCustomer(
     });
 
     // Persist to DB
-    const { error } = await sb.from("stripe_customers").insert({
-      tenant_id: tenantId,
-      stripe_customer_id: customer.id,
-      billing_email: ownerEmail,
-    });
+    const row = { tenant_id: tenantId, stripe_customer_id: customer.id, billing_email: ownerEmail };
+    const { error } = replacingStale
+      ? await sb.from("stripe_customers").upsert(row, { onConflict: "tenant_id" })
+      : await sb.from("stripe_customers").insert(row);
 
     // Audit C6 — race fix: if a concurrent call won the insert race, our
     // freshly-created Stripe customer is now an orphan. Clean it up.
@@ -196,16 +203,16 @@ export async function createWorkspaceCheckoutSession(opts: {
   }
 
   const price = await resolveCheckoutPrice((i) => resolveWorkspacePriceId(opts.planKey, i), opts.interval);
-  if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  if (!price.ok) {
+    logServerError("workspace-billing.checkout.price", new Error(`plan=${opts.planKey} code=${price.code}: the catalog resolved no Stripe price id`));
+    return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  }
   const priceId = price.priceId;
 
   // Get or create the Stripe customer
-  const customerResult = await getOrCreateStripeCustomer(
-    opts.tenantId,
-    opts.ownerEmail,
-    opts.displayName,
-  );
+  const customerResult = await getOrCreateStripeCustomer(opts.tenantId, opts.ownerEmail, opts.displayName);
   if (!customerResult.ok) return customerResult;
+  await syncCustomerPreferredLocale(stripe, customerResult.data, opts.locale, (e) => logServerError("workspace-billing.customer-locale", e)); // TUL-1874
 
   // What this session charges, before the buyer types anything: an account
   // discount we granted, else a validated promo code, else Stripe's own box.
@@ -216,6 +223,8 @@ export async function createWorkspaceCheckoutSession(opts: {
     tenantId: opts.tenantId,
     promoCode: opts.promoCode ?? null,
   });
+  // TUL-1860: an expired code is refused with a clear message, never silently dropped to full price.
+  if (discount.rejected) return { ok: false, error: expiredPromoMessage(opts.locale) };
 
   // The trial the admin configured in `plan_trial_offers`. Until now that
   // number was displayed in marketing copy and never sent to Stripe, so a
@@ -286,20 +295,20 @@ export async function createWorkspaceCheckoutSession(opts: {
         : created;
 
     if (!session.url) {
-      return { ok: false, error: "Stripe returned no checkout URL." };
+      return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutNoUrl") };
     }
 
     // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
     // only when the winner is the same plan, else a retryable error.
     const settled =
       trialDays != null
-        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError })
+        ? await reconcileTrialSession(stripe, customerResult.data, { id: session.id, url: session.url }, { otherTrialKnownOpen: trialSweep.otherTrialKnownOpen, requestedPriceIdentity: priceIdentity, onError: logServerError, locale: opts.locale })
         : { url: session.url };
     if ("error" in settled) return { ok: false, error: settled.error };
     return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("workspace-billing.createCheckoutSession", err);
-    return { ok: false, error: "Could not create checkout session." };
+    return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutFailed") };
   }
 }
 
@@ -334,13 +343,22 @@ export async function createBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create(
-      buildPortalSessionParams({
-        customerId: customer.stripe_customer_id,
-        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
-        locale: opts.locale,
-      }),
-    );
+    // TUL-1874: customers created outside checkout have no language; the portal is where they pick up PDFs.
+    await syncCustomerPreferredLocale(stripe, customer.stripe_customer_id, opts.locale, (e) => logServerError("workspace-billing.customer-locale", e));
+
+    const params = buildPortalSessionParams({
+      customerId: customer.stripe_customer_id,
+      returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
+      locale: opts.locale, audience: "workspace",
+    });
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create(params);
+    } catch (firstErr) {
+      if (!params.configuration) throw firstErr;
+      logServerError("workspace-billing.portalConfigRetry", firstErr);
+      session = await stripe.billingPortal.sessions.create(withoutPortalConfiguration(params));
+    }
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {
@@ -535,6 +553,24 @@ export async function syncStripeSubscriptionToDb(
       });
     }
 
+    // TUL-1737: the tier has now actually moved. If the owner chose which talent to keep when they scheduled this
+    // downgrade, archive the overflow NOW (period end), under the same archive_event id. Skipped when the tier write
+    // failed (the retry redoes both) and a no-op unless newPlanTier reached the downgrade's target. A failure here
+    // fails the sync so Stripe retries; the pending row stays until the archive lands.
+    if (!agencyError) {
+      // An upgrade since the downgrade was scheduled supersedes it: drop the stale keep-list first (TUL-1737).
+      const superseded = await clearPendingOnTierIncrease(sb, { tenantId, priorTier: priorPlanTier, newTier: newPlanTier });
+      if (!superseded.ok) {
+        logServerError("workspace-billing.syncSubscription.clearPending", superseded.error);
+        return { ok: false, error: "Failed to clear the superseded downgrade." };
+      }
+      const pending = await applyPendingDowngradeAtTierDrop(sb, { tenantId, newTier: newPlanTier, nowIso: new Date().toISOString() });
+      if (!pending.ok) {
+        logServerError("workspace-billing.syncSubscription.downgradeArchive", pending.error);
+        return { ok: false, error: "Failed to archive the roster for the scheduled downgrade." };
+      }
+    }
+
     return { ok: true, data: undefined };
   } catch (err) {
     logServerError("workspace-billing.syncSubscription", err);
@@ -708,7 +744,7 @@ export async function cancelWorkspaceSubscriptionAtPeriodEnd(
     return { ok: true, data: { effectiveAt, hadSubscription: true } };
   } catch (err) {
     logServerError("workspace-billing.cancelAtPeriodEnd", err);
-    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed." };
+    return { ok: false, error: "Stripe could not cancel the subscription. Nothing was changed.", definite: isDefiniteStripeFailure(err) };
   }
 }
 

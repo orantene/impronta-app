@@ -102,6 +102,7 @@ export const ADMIN_ROUTE_FOLDERS: ReadonlySet<string> = new Set([
   "triage",
   "website",
   "work",
+  "work-style",
 ]);
 
 export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = [
@@ -164,6 +165,14 @@ export const CANONICAL_ROUTE_MATCHERS: Array<(segments: string[]) => boolean> = 
   // (card preview + travel reach + 30-day stats). Standalone server
   // component; talent.tsx mega-shell untouched.
   (s) => s[0] === "talent" && s[1] === "discover",
+  // /<tenant>/admin/work-style — TUL-1442 the one question that presets the hub settings.
+  (s) => s[0] === "admin" && s[1] === "work-style",
+  // /talent/where-you-appear — TUL-1371 channels page (where it's sold, where you appear,
+  // earnings by channel). Standalone server page.
+  (s) => s[0] === "talent" && s[1] === "where-you-appear",
+  // /<tenant>/admin/catalog/service-hub — TUL-1369 owner service hub (review queue, groups,
+  // entries). Standalone server page; the Catalog list itself stays the SPA module.
+  (s) => s[0] === "admin" && s[1] === "catalog" && s[2] === "service-hub",
   // /talent/get-found — Google Business Profile setup guide (TUL-584), standalone server page.
   (s) => s[0] === "talent" && s[1] === "get-found",
   // /talent/page-builder — bare editor (talent layout opts out of the shell on
@@ -268,4 +277,17 @@ export function pathIsCanonical(pathname: string | null): boolean {
   if (parts.length < 2) return false;
   const afterTenant = parts.slice(1);
   return CANONICAL_ROUTE_MATCHERS.some((match) => match(afterTenant));
+}
+
+/**
+ * TUL-1819: talent canonical pages that the talent shell HOSTS inside its own
+ * body (sidebar + top bar), instead of yielding to a bare standalone page.
+ * Every other talent canonical route still renders bare, exactly as before.
+ * Each entry must also match `pathIsCanonical` (it is a real server page).
+ */
+export function pathIsTalentShellHosted(pathname: string | null): boolean {
+  if (!pathname || !pathIsCanonical(pathname)) return false;
+  const parts = pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+  const afterTenant = parts[0] === "talent" ? parts : parts.slice(1);
+  return afterTenant[0] === "talent" && afterTenant[1] === "trust";
 }

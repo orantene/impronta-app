@@ -17,6 +17,11 @@ import { claimAndActivateVerifiedClient } from "@/lib/client-account/after-verif
 import { isAuthEmailConfirmedForClaim } from "@/lib/client-account/pure";
 import { postAuthContextForNext } from "@/lib/auth/post-auth-workspaces.server";
 import { NextResponse } from "next/server";
+import { activateSelfSignedClient } from "@/lib/client-account/guest-activate.server";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createTranslator } from "@/i18n/messages";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { confirmConflictHtml } from "@/lib/auth/confirm-conflict";
 
 /**
  * /auth/confirm — server-side OTP/magic-link verification (the token_hash flow).
@@ -61,11 +66,39 @@ export async function GET(request: Request) {
     },
   });
 
+  // TUL-774: a confirm link opened while ANOTHER user is signed in must not silently
+  // swap or ignore the session. Show who is signed in and let the visitor choose.
+  // `switch=1` is the visitor's explicit "sign out and continue".
+  if (searchParams.get("switch") !== "1") {
+    const {
+      data: { user: current },
+    } = await supabase.auth.getUser();
+    if (current) {
+      const t = createTranslator(await getRequestLocale());
+      const continueParams = new URLSearchParams(searchParams);
+      continueParams.set("switch", "1");
+      return new NextResponse(
+        confirmConflictHtml({
+          t,
+          signedInEmail: current.email ?? "",
+          continueHref: `${origin}/auth/confirm?${continueParams.toString()}`,
+          stayHref: `${origin}/`,
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-store" },
+        },
+      );
+    }
+  }
+
   const { error } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type,
   });
   if (!error) {
+    // supabase-read-unchecked-ok: verifyOtp just succeeded; no user here only skips
+    // the best-effort claim relink below, the login redirect still proceeds.
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -74,6 +107,13 @@ export async function GET(request: Request) {
     // the passwordless code path). Runs BEFORE the redirect.
     if (user) {
       await relinkFirstConfirmedClaim(user.id);
+      // TUL-759/774: an explicit client sign-up (`signup_as=client`, stamped at sign-up) is a
+      // client right away. Without this the new account has no role and the role screen
+      // sent it to the seller /start flow.
+      if (user.user_metadata?.signup_as === "client") {
+        const admin = createServiceRoleClient();
+        if (admin) await activateSelfSignedClient(admin, { userId: user.id, signupIntent: "client" });
+      }
       // G3: claim every guest record for this proven email and activate a
       // guest booker, so the destination below reads the active profile.
       await claimAndActivateVerifiedClient({

@@ -18,6 +18,8 @@
  * wave.
  */
 
+import { collectiveTenantIdsForTalent, notInTenantsFilter } from "./collective-reviews";
+import { loadTalentPrivateNotes } from "./private-note-routing";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -139,6 +141,12 @@ async function resolveClientFirstNames(
   return resolveFirstNames(clientUserIds);
 }
 
+/** TUL-1374: workspaces (Friends collectives) whose reviews the owner's page collects, not this talent's page. */
+async function hiddenCollectiveTenants(talentProfileId: string): Promise<string[]> {
+  const svc = createServiceRoleClient();
+  return svc ? collectiveTenantIdsForTalent(svc, talentProfileId) : [];
+}
+
 /**
  * Published reviews for a talent profile, newest first. Public-safe.
  */
@@ -153,14 +161,17 @@ export async function loadTalentReviews(
 
   const from = Math.max(0, offset);
   const to = from + limit - 1;
+  const hidden = await hiddenCollectiveTenants(talentProfileId);
 
-  const { data, error } = await supabase
+  let listQuery = supabase
     .from("talent_reviews")
     .select(
       "id, talent_profile_id, booking_id, client_user_id, rating, body, status, created_at, anon, reply_body, reply_at",
     )
     .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
+    .eq("status", "published");
+  if (hidden.length > 0) listQuery = listQuery.not("tenant_id", "in", notInTenantsFilter(hidden));
+  const { data, error } = await listQuery
     .order("created_at", { ascending: false })
     .range(from, to)
     .returns<ReviewRow[]>();
@@ -262,9 +273,12 @@ export async function loadTalentRatingSummary(
   // the public average is derived from (migration 20261110040000: public
   // aggregate = status='published' AND verified_paid). Computed in one grouped
   // read and merged onto whichever count/average path is taken below.
-  const breakdown = await loadTalentRatingBreakdown(supabase, talentProfileId);
+  const hidden = await hiddenCollectiveTenants(talentProfileId);
+  const breakdown = await loadTalentRatingBreakdown(supabase, talentProfileId, hidden);
 
-  // Fast path — denormalized cache columns.
+  // Fast path — denormalized cache columns. TUL-1374: the cache counts every
+  // review, so a talent in a Friends collective skips it and is aggregated from
+  // the rows that are public on her own page.
   const { data: profileRow } = await supabase
     .from("talent_profiles")
     .select("rating_avg, rating_count, would_book_again_pct")
@@ -272,7 +286,7 @@ export async function loadTalentRatingSummary(
     .returns<{ rating_avg: number | null; rating_count: number | null; would_book_again_pct: number | null }[]>()
     .maybeSingle();
 
-  const cachedCount = profileRow?.rating_count ?? null;
+  const cachedCount = hidden.length > 0 ? undefined : (profileRow?.rating_count ?? null);
   if (typeof cachedCount === "number" && cachedCount > 0) {
     const avg = Number(profileRow?.rating_avg ?? 0);
     return {
@@ -288,12 +302,13 @@ export async function loadTalentRatingSummary(
   }
 
   // Fallback — aggregate published rows directly.
-  const { data, error } = await supabase
+  let fallbackQuery = supabase
     .from("talent_reviews")
     .select("rating")
     .eq("talent_profile_id", talentProfileId)
-    .eq("status", "published")
-    .returns<{ rating: number }[]>();
+    .eq("status", "published");
+  if (hidden.length > 0) fallbackQuery = fallbackQuery.not("tenant_id", "in", notInTenantsFilter(hidden));
+  const { data, error } = await fallbackQuery.returns<{ rating: number }[]>();
 
   if (error || !data || data.length === 0) {
     return { ...empty, distribution: null, attrAverages: null };
@@ -324,19 +339,21 @@ type RatingBreakdownRow = {
 async function loadTalentRatingBreakdown(
   supabase: NonNullable<ReturnType<typeof createPublicSupabaseClient>>,
   talentProfileId: string,
+  hidden: readonly string[] = [],
 ): Promise<{
   distribution: { stars: number; count: number }[] | null;
   attrAverages: TalentRatingSummary["attrAverages"];
 }> {
-  const { data, error } = await supabase
+  let breakdownQuery = supabase
     .from("talent_reviews")
     .select(
       "rating, attr_professionalism, attr_skill, attr_communication, attr_reliability",
     )
     .eq("talent_profile_id", talentProfileId)
     .eq("status", "published")
-    .eq("verified_paid", true)
-    .returns<RatingBreakdownRow[]>();
+    .eq("verified_paid", true);
+  if (hidden.length > 0) breakdownQuery = breakdownQuery.not("tenant_id", "in", notInTenantsFilter(hidden));
+  const { data, error } = await breakdownQuery.returns<RatingBreakdownRow[]>();
 
   if (error || !data || data.length === 0) {
     return { distribution: null, attrAverages: null };
@@ -586,12 +603,6 @@ export type OwnerPrivateNote = {
   createdAt: string;
 };
 
-type PrivateNoteRow = {
-  id: string;
-  private_note: string | null;
-  created_at: string;
-};
-
 /**
  * Recent non-empty `private_note` values on the talent's OWN received reviews,
  * newest first. private_note is column-privilege protected (migration
@@ -599,6 +610,8 @@ type PrivateNoteRow = {
  * runs on the SERVICE-ROLE client AFTER an explicit ownership check — the
  * authed caller must be the profile's owner (owner-only by contract: the UI
  * promises "Only you can see these"). Returns [] when none (or unauthorized).
+ * TUL-1686: reviews earned in a team-studio workspace are never included; those
+ * notes belong to the workspace (see ./private-note-routing).
  */
 export async function loadOwnerPrivateNoteThemes(
   talentProfileId: string,
@@ -625,22 +638,8 @@ export async function loadOwnerPrivateNoteThemes(
     .maybeSingle();
   if (!profileRow?.user_id || profileRow.user_id !== user.id) return [];
 
-  const { data, error } = await svc
-    .from("talent_reviews")
-    .select("id, private_note, created_at")
-    .eq("talent_profile_id", talentProfileId)
-    .not("private_note", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(limit)
-    .returns<PrivateNoteRow[]>();
-
-  if (error || !data || data.length === 0) return [];
-
-  return data
-    .map((r) => ({
-      reviewId: r.id,
-      note: (r.private_note ?? "").trim(),
-      createdAt: r.created_at,
-    }))
-    .filter((n) => n.note.length > 0);
+  // TUL-1686: notes on reviews earned in a team studio go to the workspace, never
+  // the talent. The DB reader (as the signed-in owner) enforces it; the fallback
+  // applies the same rule in code while that migration is held.
+  return loadTalentPrivateNotes(supabase, svc, talentProfileId, limit);
 }

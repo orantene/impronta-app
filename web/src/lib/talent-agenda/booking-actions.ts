@@ -112,7 +112,6 @@ export async function requireOwnBooking(bookingId: string): Promise<OwnBookingRe
  */
 export async function markBookingNoShow(input: {
   bookingId: string;
-  now?: Date;
 }): Promise<AgendaActionResult> {
   await requireNotImpersonating();
   const own = await requireOwnBooking(input.bookingId);
@@ -121,7 +120,9 @@ export async function markBookingNoShow(input: {
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, reason: "unavailable" };
 
-  const now = input.now ?? new Date();
+  // The SERVER clock only (TUL-1744): an exported action must not take `now` from the caller, or a
+  // talent could pass a future time and mark an upcoming booking no-show past the before_start guard.
+  const now = new Date();
   const { data: row, error } = await admin
     .from("agency_bookings")
     .select("id, status, starts_at, customer_id, tenant_id")
@@ -139,15 +140,18 @@ export async function markBookingNoShow(input: {
     return { ok: false, reason: "before_start" };
   }
 
-  const { error: upErr } = await admin
+  const { data: flipped, error: upErr } = await admin
     .from("agency_bookings")
     .update({ status: "no_show" })
     .eq("id", input.bookingId)
-    .eq("status", "confirmed");
+    .eq("status", "confirmed")
+    .select("id");
   if (upErr) {
     logServerError("agenda.markBookingNoShow.update", upErr);
     return { ok: false, reason: "unavailable" };
   }
+  // A double click or a concurrent mark lost the race: the other call did the work, count nothing twice.
+  if (!flipped || flipped.length !== 1) return { ok: true, already: true };
 
   // Mirror calendar copy by shared id only (never a naked time window).
   const mirror = talentBookingMirrorEq(input.bookingId, own.talentId);
@@ -158,17 +162,11 @@ export async function markBookingNoShow(input: {
     .eq("talent_profile_id", mirror.talent_profile_id);
 
   if (row.customer_id) {
-    const { data: cust, error: custErr } = await admin
-      .from("customers")
-      .select("no_shows")
-      .eq("id", row.customer_id)
-      .maybeSingle();
-    if (custErr) {
-      logServerError("agenda.markBookingNoShow.customer", custErr);
-    } else {
-      const next = (Number(cust?.no_shows) || 0) + 1;
-      await admin.from("customers").update({ no_shows: next }).eq("id", row.customer_id);
-    }
+    // Atomic +1, and only because THIS call flipped the row (TUL-1757). Best-effort: the no-show is already saved.
+    const { error: custErr } = await admin.rpc("increment_customer_no_shows" as never, {
+      p_customer_id: row.customer_id,
+    } as never);
+    if (custErr) logServerError("agenda.markBookingNoShow.customer", custErr);
   }
 
   await logBookingActivity(admin, {

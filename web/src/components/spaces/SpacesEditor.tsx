@@ -37,7 +37,24 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 const K = "dashboard.adminWorkspace.venue";
 
-export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
+// Server messages are English; the page maps the stable ones to the catalog (TUL-1409).
+const SERVER_ERROR_KEYS: Record<string, string> = {
+  "This workspace has no venue yet.": "errorNoVenue",
+  "Not allowed.": "errorNotAllowed",
+  "Give the room a name.": "errorRoomName",
+  "Could not add the room.": "errorRoomAdd",
+  "A party is at least one person.": "errorPartyMin",
+  "The largest party cannot be smaller than the smallest.": "errorPartyRange",
+  "Name the group these belong to.": "errorGroupName",
+  "Something went wrong.": "errorGeneric",
+};
+
+function localizeServerError(t: (key: string) => string, message: string): string {
+  const key = SERVER_ERROR_KEYS[message];
+  return key ? t(`${K}.${key}`) : message;
+}
+
+export function SpacesEditor({ tenantSlug, reloadKey = 0 }: { tenantSlug: string; reloadKey?: number }) {
   const t = useT();
   const [snapshot, setSnapshot] = useState<SpacesSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,13 +69,16 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
   const [partyMax, setPartyMax] = useState(2);
   const [groupName, setGroupName] = useState("");
 
+  const showError = (message: string) => setError(localizeServerError(t, message));
+
   useEffect(() => {
     let cancelled = false;
+    setError(null);
     loadSpacesSnapshot(tenantSlug)
       .then((res) => {
         if (cancelled) return;
         if (res.ok) setSnapshot(res.snapshot);
-        else setError(res.error);
+        else setError(localizeServerError(t, res.error));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -66,9 +86,17 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [tenantSlug]);
+  }, [tenantSlug, reloadKey, t]);
 
   const rooms = (snapshot?.spaces ?? []).filter((s) => s.kind === "room");
+  // TUL-1375: a space with nothing inside it and its own pool is held by bookings of the
+  // services linked to it; settings say so plainly (a chair linked to a haircut, etc.).
+  const parents = new Set((snapshot?.spaces ?? []).map((s) => s.parent_id).filter(Boolean));
+  const bookableUnits = (id: string): number | null => {
+    const n = snapshot?.poolUnits?.[id];
+    return typeof n === "number" && n >= 1 && !parents.has(id) ? n : null;
+  };
+  const otherBookable = (snapshot?.spaces ?? []).filter((s) => s.kind !== "room" && s.kind !== "table" && bookableUnits(s.id) !== null);
   const tablesByRoom = new Map<string, number>();
   for (const s of snapshot?.spaces ?? []) {
     if (s.kind === "table" && s.parent_id) {
@@ -81,7 +109,7 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
     startTransition(async () => {
       const res = await run();
       if (res.ok && res.snapshot) setSnapshot(res.snapshot);
-      else setError(res.error ?? "Something went wrong.");
+      else showError(res.error ?? "Something went wrong.");
     });
   }
 
@@ -122,7 +150,28 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
               >
                 <span style={{ fontWeight: 600 }}>{room.name}</span>
                 <span style={{ color: C.inkMuted }}>
-                  {tablesByRoom.get(room.id) ?? 0} {t(`${K}.tablesWord`)}
+                  {bookableUnits(room.id) !== null
+                    ? t(`${K}.bookableAtATime`).replace("{n}", String(bookableUnits(room.id)))
+                    : `${tablesByRoom.get(room.id) ?? 0} ${t(`${K}.tablesWord`)}`}
+                </span>
+              </li>
+            ))}
+            {otherBookable.map((space) => (
+              <li
+                key={space.id}
+                style={{
+                  border: `1px solid ${C.borderSoft}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <span style={{ fontWeight: 600 }}>{space.name}</span>
+                <span style={{ color: C.inkMuted }}>
+                  {t(`${K}.bookableAtATime`).replace("{n}", String(bookableUnits(space.id)))}
                 </span>
               </li>
             ))}

@@ -13,7 +13,7 @@
  */
 
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { createLiveVerifyMemo } from "@/lib/onboarding/live-badge";
 import { verifyLivePage } from "@/lib/onboarding/verify-live";
@@ -45,10 +45,13 @@ export async function loadMySiteLiveVerifiedAction(): Promise<boolean | null> {
   // Path addresses (`/t/site/<slug>`) are checked on the app origin.
   const url = /^https?:\/\//.test(raw) ? raw : `${getAppUrl().replace(/\/+$/, "")}${raw}`;
 
-  const name = scope.talentProfile.displayName;
+  // No name yet: nothing to look for, so the badge is simply "not verified".
+  const name = scope.talentProfile.displayName?.trim() || null;
+  if (!name) return null;
   return memo.get(url, async () => {
     const check = await verifyLivePage({ url, name, timeoutMs: 6000 });
-    if (!check.ok) logServerError("talentSite.liveVerified", new Error(`check:${check.reason}`));
+    // A page that does not (yet) show the name or answer is an expected state, not a crash.
+    if (!check.ok) logServerExpected("talentSite.liveVerified", new Error(`check:${check.reason}`));
     return check.ok;
   });
 }

@@ -10,12 +10,15 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { userHasCapability } from "@/lib/access";
+import { OFFERING_CURATION_CAPABILITY, resolveServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
-import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
+import { defaultCreateTypeForFamily, defaultCurrencyForCountry, dominantItemCurrency, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
+import { resolveOwnerTalentProfileIds } from "@/lib/saas/ensure-self-roster";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { OFFERING_MEDIA_EMBED, imagesFromEmbed, loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
 import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
@@ -36,12 +39,20 @@ import {
 } from "@/lib/talent/offerings-types";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { normalizeWorkspaceLocale } from "@/lib/talent/workspace-primary-locale";
+import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
+import { bustTalentSiteCache } from "@/lib/talent-site/cache-tags";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
+import { workspaceOfferingSaveGate } from "@/lib/talent/offering-save-gate.server";
+import { runMenuWriteSideEffects, type MenuSideEffectDeps, type MenuWriteKind } from "@/lib/talent/workspace-menu-side-effects";
 
 type AuthOk = { ok: true; userId: string; tenantId: string; defaultCurrency: string };
 type AuthFail = { ok: false; error: string };
 
-async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFail> {
-  const staff = await requireWorkspaceStaffAction();
+/** TUL-1629: writers pass WRITE_CAPABILITY (editor+); the two readers pass nothing (a viewer may read the menu). */
+const WRITE_CAPABILITY = "agency.site_admin.sections.edit" as const;
+
+async function authorizeForWorkspace(tenantId: string, capability?: typeof WRITE_CAPABILITY): Promise<AuthOk | AuthFail> {
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false, error: staff.error };
   if (staff.tenantId !== tenantId) {
     return { ok: false, error: "Not authorized for this workspace." };
@@ -56,6 +67,38 @@ async function authorizeForWorkspace(tenantId: string): Promise<AuthOk | AuthFai
 
 function offeringsTable(admin: NonNullable<ReturnType<typeof createServiceRoleClient>>) {
   return admin.from("talent_offerings");
+}
+
+/** TUL-1634: the real side effects (the same helpers the talent service writes call). */
+const MENU_SIDE_EFFECTS: MenuSideEffectDeps = {
+  revalidatePath: (path) => revalidatePath(path),
+  bustTalentSiteCache,
+  scheduleRebuildAiSearchDocument,
+  logServerError,
+};
+
+/** The workspace OWNER's talent profile (plan, default posture, talent site, AI document); null when none. */
+async function ownerTalentIdOf(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+): Promise<string | null> {
+  const ids = await fetchOwnerTalentIds(admin, tenantId);
+  return ids.values().next().value ?? null;
+}
+
+/** TUL-1634: cache bust + AI search rebuild after a stored write. Logs and continues; never loses the write. */
+async function afterMenuWrite(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  kind: MenuWriteKind,
+  ownerTalentId?: string | null,
+): Promise<void> {
+  try {
+    const owner = ownerTalentId === undefined ? await ownerTalentIdOf(admin, tenantId) : ownerTalentId;
+    await runMenuWriteSideEffects(admin, { kind, ownerTalentId: owner }, MENU_SIDE_EFFECTS);
+  } catch (err) {
+    logServerError(`menu.offerings.sideEffects.${kind}`, err);
+  }
 }
 
 /** The workspace's primary language (business identity default_locale); "en" when unset or unreadable. */
@@ -138,7 +181,9 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       logServerError("menu.offerings.eventIds", nonMenu.error);
       return { ok: false, error: "Could not load the menu." };
     }
-    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], nonMenu.ids);
+    // TUL-1262: the Catalog LISTS the table reservation (marked Reserva); only ticketed-event rows stay out.
+    const eventOnly = new Set([...nonMenu.ids].filter((id) => !nonMenu.reservationIds.has(id)));
+    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], eventOnly);
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     // B5: one stage, not three: the children beside the defaults started above.
@@ -151,6 +196,7 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
+      if (nonMenu.reservationIds.has(r.id)) item.reservation = true;
       return item;
     });
     // TUL-77 (#36): defaults from business family + country, not one
@@ -160,7 +206,11 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     return {
       ok: true,
       items,
-      defaultCurrency: defaultCurrencyForCountry(defaults.addressCountry, auth.defaultCurrency),
+      // Country wins; with no mapped country, follow what the menu already uses (TUL-1409).
+      defaultCurrency:
+        defaultCurrencyForCountry(defaults.addressCountry, "") ||
+        dominantItemCurrency(items.map((i) => i.currency)) ||
+        auth.defaultCurrency,
       defaultCreateType: defaultCreateTypeForFamily(family),
     };
   } catch (err) {
@@ -178,13 +228,28 @@ export async function upsertWorkspaceMenuItem(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
 
     const errors = validateOffering(offering);
     if (errors.length > 0) return { ok: false, error: errors[0] };
+    // TUL-1634: the same publish-readiness + plan gate and MXN/USD rule as upsertTalentOffering.
+    // Locale: resolved the same way the save below already does (workspacePrimaryLocale),
+    // just hoisted earlier so the gate's refusal can be in the workspace's own language.
+    const ownerTalentId = await ownerTalentIdOf(admin, tenantId);
+    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    const gate = await workspaceOfferingSaveGate(
+      admin,
+      tenantId,
+      ownerTalentId,
+      offering,
+      undefined,
+      primaryLocale,
+      await resolveOwnerTalentProfileIds(admin as SupabaseClient, tenantId),
+    );
+    if (!gate.ok) return gate;
 
     if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
       return { ok: false, error: "This item belongs to an event. Edit it under Events." };
@@ -205,7 +270,20 @@ export async function upsertWorkspaceMenuItem(
       if (!station) return { ok: false, error: "That kitchen station is not in this workspace." };
     }
 
-    const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
+    // TUL-1633: moderation is never the client's; Favorites and the Website switch
+    // need the admin capability, and a failed read of the current row refuses the save.
+    const curator = await userHasCapability(OFFERING_CURATION_CAPABILITY, tenantId);
+    const owned = await resolveServerOwnedOfferingFields(admin as SupabaseClient, {
+      offeringId: offering.id || null,
+      scope: { tenant_id: tenantId, owner_kind: "workspace" },
+      requested: { moderation_state: offering.moderationState, is_featured: offering.isFeatured, visibility: offering.visibility },
+      curation: curator ? "curator" : "refuse_change",
+    });
+    if (!owned.ok) {
+      if (owned.code === "read_failed") logServerError("menu.offerings.serverOwned", owned.code);
+      return { ok: false, error: owned.error };
+    }
+
     const patch = {
       ...offeringToRowPatch({
         ...offering,
@@ -213,6 +291,7 @@ export async function upsertWorkspaceMenuItem(
         talentProfileId: null,
         tenantId,
       }, primaryLocale), // the workspace's own language: a Spanish title is stored as `es`, not `en`
+      ...owned.fields,
       talent_profile_id: null,
       owner_kind: "workspace",
       tenant_id: tenantId,
@@ -221,6 +300,8 @@ export async function upsertWorkspaceMenuItem(
 
     let saved: TalentOfferingRow | null = null;
     if (offering.id) {
+      // TUL-1594: a rename keeps the old link alive in offering_slugs (scope w:<tenant>); flag + table gated.
+      const slugRename = await prepareServiceSlugRename(admin, { offeringId: offering.id, tenantId, nextTitle: offering.title });
       const { data, error } = await offeringsTable(admin)
         .update(patch)
         .eq("id", offering.id)
@@ -233,6 +314,7 @@ export async function upsertWorkspaceMenuItem(
         return { ok: false, error: "Failed to save." };
       }
       saved = data as TalentOfferingRow | null;
+      if (slugRename && saved) await commitServiceSlugHistory(admin, slugRename);
     } else {
       const { data, error } = await offeringsTable(admin).insert(patch).select("*").maybeSingle();
       if (error) {
@@ -242,7 +324,7 @@ export async function upsertWorkspaceMenuItem(
       saved = data as TalentOfferingRow | null;
     }
     if (!saved) return { ok: false, error: "Failed to save." };
-    revalidatePath("/");
+    await afterMenuWrite(admin, tenantId, "save", ownerTalentId);
     return { ok: true, item: rowToOffering(saved, primaryLocale, offering.imageUrls ?? [], [primaryLocale]) };
   } catch (err) {
     logServerError("menu.offerings.upsert", err);
@@ -261,15 +343,15 @@ async function offeringHasHistory(
   row: { status: string | null; first_published_at: string | null },
 ): Promise<boolean> {
   if (row.status === "published" || row.first_published_at) return true;
-  const [lines, bookings] = await Promise.all([
-    admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-    admin.from("talent_bookings").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-  ]);
-  if (lines.error || bookings.error) {
-    logServerError("menu.offerings.history", lines.error ?? bookings.error);
+  // TUL-1337: a booking is sold through an order line; `talent_bookings` has no
+  // `offering_id` column, and querying it errored on every call, so the fail-closed
+  // branch turned every delete into "cannot be deleted".
+  const lines = await admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId);
+  if (lines.error) {
+    logServerError("menu.offerings.history", lines.error);
     return true;
   }
-  return (lines.count ?? 0) > 0 || (bookings.count ?? 0) > 0;
+  return (lines.count ?? 0) > 0;
 }
 
 export type DeleteMenuItemResult = { ok: boolean; error?: string; code?: "has_history" | "not_found" };
@@ -280,7 +362,7 @@ export async function deleteWorkspaceMenuItem(
 ): Promise<DeleteMenuItemResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -319,7 +401,7 @@ export async function deleteWorkspaceMenuItem(
   if (!gone || gone.length === 0) {
     return { ok: false, code: "not_found", error: "This item was already removed. Reload the list." };
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "delete");
   return { ok: true };
 }
 
@@ -331,7 +413,7 @@ export async function setWorkspaceMenuItemArchived(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -351,7 +433,7 @@ export async function setWorkspaceMenuItemArchived(
   if (!data || data.length === 0) {
     return { ok: false, error: "This item is not part of the workspace menu. Change it under Services." };
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "archive");
   return { ok: true };
 }
 
@@ -391,7 +473,7 @@ export async function reorderWorkspaceMenuItems(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -406,7 +488,7 @@ export async function reorderWorkspaceMenuItems(
       return { ok: false, error: "Failed to reorder." };
     }
   }
-  revalidatePath("/");
+  await afterMenuWrite(admin, tenantId, "reorder");
   return { ok: true };
 }
 
@@ -423,7 +505,7 @@ export async function setWorkspaceMenuItemOptions(
 ): Promise<OfferingChildrenSaved> {
   await requireNotImpersonating();
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -439,7 +521,7 @@ export async function setWorkspaceMenuItemOptions(
     }
     const saved = await replaceOfferingChildren(admin, offeringId, input, "menu.offerings", await workspacePrimaryLocale(admin, tenantId));
     if (!saved.ok) return saved;
-    revalidatePath("/");
+    await afterMenuWrite(admin, tenantId, "options");
     return saved;
   } catch (err) {
     logServerError("menu.offerings.setOptions", err);
@@ -453,7 +535,7 @@ export async function blankWorkspaceMenuItem(
   sortOrder: number,
 ): Promise<TalentOffering | null> {
   await requireNotImpersonating();
-  const auth = await authorizeForWorkspace(tenantId);
+  const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
   if (!auth.ok) return null;
   return blankOffering({ kind: "workspace", tenantId }, auth.defaultCurrency, sortOrder);
 }
@@ -501,7 +583,7 @@ export async function setMenuItemStockAction(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
 
     const admin = createServiceRoleClient();
@@ -555,7 +637,7 @@ export async function setWorkspaceItemPhotos(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -611,7 +693,7 @@ export async function setWorkspaceItemPhotos(
       logServerError("menu.offerings.photoClear", delErr);
       return { ok: false, error: "Failed to update photos." };
     }
-    revalidatePath("/admin/menu");
+    await afterMenuWrite(admin, tenantId, "photos");
     const assets = (await loadOfferingImageAssets(admin as unknown as SupabaseClient, [offeringId])).get(offeringId) ?? [];
     return { ok: true, assets };
   } catch (err) {
@@ -633,7 +715,7 @@ export async function setWorkspacePhotoAlt(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForWorkspace(tenantId);
+    const auth = await authorizeForWorkspace(tenantId, WRITE_CAPABILITY);
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };

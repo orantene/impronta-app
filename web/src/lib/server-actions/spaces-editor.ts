@@ -10,7 +10,12 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import { OPS_WRITER_CAPABILITY } from "@/lib/saas/ops-writer-capabilities";
+import type { CapabilityKey } from "@/lib/access";
 import { loadDefaultVenue } from "@/lib/spaces/venues";
 import {
   addRoom,
@@ -27,6 +32,8 @@ export type SpacesSnapshot = {
   venueName: string;
   spaces: SpaceRow[];
   groups: SpaceGroupRow[];
+  /** TUL-1375: units of each space's own pool (space id -> units), so settings can say "Bookable, N at a time". */
+  poolUnits: Record<string, number>;
 };
 
 export type LoadSpacesResult =
@@ -35,8 +42,8 @@ export type LoadSpacesResult =
 
 const MAX_BULK = 60;
 
-async function staffAndVenue(tenantSlug: string) {
-  const staff = await requireWorkspaceStaffAction();
+async function staffAndVenue(tenantSlug: string, capability?: CapabilityKey) {
+  const staff = await requireWorkspaceStaffAction(capability ? { capability } : undefined);
   if (!staff.ok) return { ok: false as const, error: "Not allowed." };
   if (staff.tenantSlug !== tenantSlug.trim().toLowerCase()) {
     return { ok: false as const, error: "Not allowed." };
@@ -46,12 +53,30 @@ async function staffAndVenue(tenantSlug: string) {
   return { ok: true as const, tenantId: staff.tenantId, venue };
 }
 
+async function loadSpacePoolUnits(tenantId: string): Promise<Record<string, number>> {
+  const admin = createServiceRoleClient();
+  if (!admin) return {};
+  const { data, error } = await tenantScopedQuery(admin, "capacity_pools", tenantId)
+    .select("subject_id, units_total")
+    .eq("subject_kind", "space")
+    .eq("pool_key", "default");
+  if (error) {
+    // Display only: without it the settings simply do not show the badge.
+    logServerError("spaces-editor.loadSpacePoolUnits", error);
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const r of (data ?? []) as Array<{ subject_id: string; units_total: number }>) out[r.subject_id] = r.units_total;
+  return out;
+}
+
 export async function loadSpacesSnapshot(tenantSlug: string): Promise<LoadSpacesResult> {
   const ctx = await staffAndVenue(tenantSlug);
   if (!ctx.ok) return { ok: false, error: ctx.error };
-  const [spaces, groups] = await Promise.all([
+  const [spaces, groups, poolUnits] = await Promise.all([
     loadSpaces(ctx.tenantId, ctx.venue.id),
     loadSpaceGroups(ctx.tenantId, ctx.venue.id),
+    loadSpacePoolUnits(ctx.tenantId),
   ]);
   return {
     ok: true,
@@ -60,6 +85,7 @@ export async function loadSpacesSnapshot(tenantSlug: string): Promise<LoadSpaces
       venueName: ctx.venue.name,
       spaces,
       groups,
+      poolUnits,
     },
   };
 }
@@ -70,7 +96,7 @@ export async function addRoomAction(
 ): Promise<LoadSpacesResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const ctx = await staffAndVenue(tenantSlug);
+  const ctx = await staffAndVenue(tenantSlug, OPS_WRITER_CAPABILITY.addRoomAction);
   if (!ctx.ok) return { ok: false, error: ctx.error };
   const trimmed = name.trim().slice(0, 120);
   if (!trimmed) return { ok: false, error: "Give the room a name." };
@@ -94,7 +120,7 @@ export async function addTablesAction(
 ): Promise<LoadSpacesResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const ctx = await staffAndVenue(tenantSlug);
+  const ctx = await staffAndVenue(tenantSlug, OPS_WRITER_CAPABILITY.addTablesAction);
   if (!ctx.ok) return { ok: false, error: ctx.error };
 
   const count = Math.trunc(input.count);

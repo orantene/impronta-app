@@ -4,8 +4,10 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/server/safe-error";
+import { threadSenderLabel } from "@/lib/inquiry/thread-sender-label";
 import { loadOrdersForThread, orderIdsFromMessages } from "@/lib/orders/orders-for-thread";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND } from "@/lib/messaging/thread-rule";
+import { clientRequestLeadBody } from "@/lib/client-account/client-thread-pure";
 import { INQUIRY_CLOSED_STATUSES } from "./inquiries-workspace";
 import type { ThreadType, WorkspaceMessage } from "./inquiries-messages";
 
@@ -85,7 +87,35 @@ export async function loadClientInquiryMessages(
   /** TUL-255: the effective viewer (impersonation subject); absent = the session user. */
   viewerUserId?: string,
 ): Promise<WorkspaceMessage[]> {
-  return loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client", viewerUserId });
+  const messages = await loadInquiryMessages(tenantId, inquiryId, CLIENT_THREAD, { audience: "client", viewerUserId });
+  // TUL-1258: lead with the request the client typed (it is the inquiry's own `message`, not a row).
+  try {
+    const admin = createServiceRoleClient();
+    if (!admin) return messages;
+    const { data: inq } = await admin
+      .from("inquiries")
+      .select("id, message, created_at")
+      .eq("id", inquiryId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    const row = inq as { id: string; message: string | null; created_at: string | null } | null;
+    const lead = row?.created_at ? clientRequestLeadBody(messages, row) : null;
+    if (!row || !lead || !row.created_at) return messages;
+    const first: WorkspaceMessage = {
+      id: `inquiry-request:${row.id}`,
+      sender_user_id: viewerUserId ?? "",
+      sender_name: "",
+      sender_role: "you",
+      body: lead,
+      created_at: row.created_at,
+      is_mine: true,
+      message_kind: "text",
+    };
+    return [first, ...messages];
+  } catch (err) {
+    logServerError("workspace.loadClientInquiryMessages.request", err);
+    return messages;
+  }
 }
 
 /**
@@ -177,6 +207,8 @@ export async function loadInquiryMessages(
 
     const starredSet = new Set<string>();
     if (myUserId && messageIds.length > 0) {
+      // supabase-read-unchecked-ok: stars are a cosmetic overlay; a failed read
+      // just shows no stars and must not hide the thread.
       const { data: starsRows } = await supabase
         .from("inquiry_message_stars")
         .select("message_id")
@@ -193,11 +225,26 @@ export async function loadInquiryMessages(
       tenantId,
     });
 
+    // TUL-1887: a talent's reply carries the talent's own display name, not a platform label.
+    const senderIds = [...new Set(rows.map((r) => r.sender_user_id).filter((x): x is string => Boolean(x)))];
+    const talentNameByUser = new Map<string, string>();
+    if (senderIds.length > 0) {
+      // supabase-read-unchecked-ok: a cosmetic label; a failed read keeps the account name.
+      const { data: talentRows } = await readClient
+        .from("talent_profiles")
+        .select("user_id, display_name")
+        .in("user_id", senderIds);
+      for (const t of ((talentRows ?? []) as Array<{ user_id: string | null; display_name: string | null }>)) {
+        if (t.user_id && t.display_name?.trim() && !talentNameByUser.has(t.user_id)) talentNameByUser.set(t.user_id, t.display_name.trim());
+      }
+    }
     return rows.map((row) => {
       const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-      const senderName =
-        profile?.display_name?.trim()
-        || (row.sender_user_id ? row.sender_user_id.slice(0, 8) : "System");
+      const senderName = threadSenderLabel({
+        accountName: profile?.display_name,
+        talentDisplayName: row.sender_user_id ? talentNameByUser.get(row.sender_user_id) : null,
+        fallback: row.sender_user_id ? row.sender_user_id.slice(0, 8) : "System",
+      });
       const reactionAgg = reactionsByMessage.get(row.id);
       const is_mine = !!row.sender_user_id && row.sender_user_id === myUserId;
       return {

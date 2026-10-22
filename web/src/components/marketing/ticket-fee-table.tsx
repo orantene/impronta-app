@@ -2,8 +2,8 @@ import {
   EVENTBRITE_TERMS,
   formatCheckedOn,
   ticketFeeRows,
-  TULALA_RATE_FALLBACK,
 } from "@/lib/marketing/ticket-fee-comparison";
+import type { TicketFeeRate } from "@/lib/marketing/ticket-fee-rates";
 import { getFeatureByKey } from "@/lib/marketing/features";
 
 /**
@@ -22,12 +22,16 @@ import { getFeatureByKey } from "@/lib/marketing/features";
  */
 export function TicketFeeTable({
   locale,
-  tulalaRate,
+  rate: feeRate,
 }: {
   locale: string;
-  /** Live platform take as a fraction, from platform_commission_config. */
-  tulalaRate?: number;
+  /**
+   * What checkouts charge right now (ticket-fee-rates.ts). Null = it could not be
+   * read: the table is not rendered. There is no built-in rate to fall back to.
+   */
+  rate: TicketFeeRate | null;
 }) {
+  if (!feeRate) return null;
   const es = locale === "es";
 
   // Read from the catalogue rather than showing this unconditionally.
@@ -38,10 +42,13 @@ export function TicketFeeTable({
   // pricing page.
   const ticketingLive = getFeatureByKey("ticketing")?.status === "live";
   // Resolved ONCE, then used by both the table and the prose below. Letting
-  // each caller apply its own `?? FALLBACK` is how the sentence and the table
+  // each caller apply its own default is how the sentence and the table
   // drift apart again, which is the whole defect this component exists to fix.
-  const rate = tulalaRate ?? TULALA_RATE_FALLBACK;
+  // The table uses the HIGHEST fee across plans, so it never understates what a ticket carries.
+  const rate = feeRate.maxBps / 10_000;
   const rows = ticketFeeRows(rate);
+  const pct = (bps: number) => `${Math.round(bps) / 100}%`;
+  const range = feeRate.minBps === feeRate.maxBps ? "" : `${pct(feeRate.minBps)} - ${pct(feeRate.maxBps)}`;
 
   // The TABLE reads the live rate; this sentence used to hardcode it. That is
   // the more dangerous half: a stale table is obvious at a glance, a stale
@@ -70,7 +77,9 @@ export function TicketFeeTable({
         them: "Carga en Eventbrite",
         us: "Carga aquí",
         share: "del precio",
-        ours: `Nuestro ${pctText} incluye el procesamiento de tarjeta y es igual en todos los planes, incluido el gratis. En un boleto de $10 eso es $${tenTotal} en total: $${tenHalf} que se le suman al comprador y $${tenHalf} que salen del vendedor.`,
+        ours: feeRate.customerOnly
+          ? `Nuestro cargo por servicio lo fija tu plan${range ? `, entre ${range}` : `: ${pctText}`}. Lo paga el comprador al final, y lo ve antes de pagar. La tabla usa el más alto. En un boleto de $10 eso es hasta $${tenTotal}.`
+          : `Nuestro ${pctText} incluye el procesamiento de tarjeta y es igual en todos los planes, incluido el gratis. En un boleto de $10 eso es $${tenTotal} en total: $${tenHalf} que se le suman al comprador y $${tenHalf} que salen del vendedor.`,
         theirs: `Eventbrite, boletos pagados en Estados Unidos, revisado el ${formatCheckedOn(locale)}: ${EVENTBRITE_TERMS.es}`,
         verify: "Revisa su página de precios",
         note: "Los precios cambian. Si algo aquí ya no es correcto, dinos y lo corregimos.",
@@ -86,7 +95,9 @@ export function TicketFeeTable({
         them: "Carried on Eventbrite",
         us: "Carried here",
         share: "of face",
-        ours: `Our ${pctText} includes card processing and is the same on every plan, including free. On a $10 ticket that is $${tenTotal} in total: $${tenHalf} added to the buyer and $${tenHalf} from the seller.`,
+        ours: feeRate.customerOnly
+          ? `Our service fee is set by your plan${range ? `, between ${range}` : `: ${pctText}`}. The buyer pays it at checkout and sees it before paying. The table uses the highest. On a $10 ticket that is up to $${tenTotal}.`
+          : `Our ${pctText} includes card processing and is the same on every plan, including free. On a $10 ticket that is $${tenTotal} in total: $${tenHalf} added to the buyer and $${tenHalf} from the seller.`,
         theirs: `Eventbrite, US paid tickets, checked ${formatCheckedOn(locale)}: ${EVENTBRITE_TERMS.en}`,
         verify: "Check their pricing page",
         note: "Prices change. If anything here is out of date, tell us and we will fix it.",

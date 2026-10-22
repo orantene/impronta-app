@@ -7,7 +7,11 @@ import {
   validateAndMergeInterpretIntent,
   type RawModelIntent,
 } from "@/lib/ai/validate-interpret-intent";
-import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
+import { assertAiInvocationAllowed } from "@/lib/ai/ai-usage-gate";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { afterResponse } from "@/lib/server/after-response";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
+import { guardPublicAiRoute } from "@/lib/ai/public-ai-guard";
 import { finalizeInterpretFilters } from "@/lib/ai/finalize-interpret-filters";
 import { pruneInterpretTermsToTenantRoster } from "@/lib/ai/prune-interpret-terms";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -46,6 +50,10 @@ export async function POST(request: Request) {
   if (!flags.ai_master_enabled || !flags.ai_search_enabled) {
     return NextResponse.json({ error: "ai_search_disabled" }, { status: 403 });
   }
+
+  // TUL-1630: per-network limit before any DB or model work; fails closed.
+  const limited = await guardPublicAiRoute("interpret-search");
+  if (limited) return limited;
 
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
@@ -91,7 +99,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "query_too_long" }, { status: 400 });
   }
 
-  const gate = await assertAiInvocationAllowed();
+  // TUL-1624: billed to the workspace the request came from (host, or the path tenant), else the platform.
+  const aiTenantId = tenantId ?? DEFAULT_AI_TENANT_ID;
+  const gate = await assertAiInvocationAllowed(aiTenantId);
   if (!gate.ok) {
     return NextResponse.json(
       { error: gate.code, message: gate.message },
@@ -193,10 +203,9 @@ export async function POST(request: Request) {
       usedInterpreter: usedModel,
     }).catch((err) => logServerError("api/ai/interpret-search/insertAiSearchLog", err));
 
-    if (usedModel) {
-      recordAiUsageEstimate().catch((err) =>
-        logServerError("api/ai/interpret-search/recordAiUsageEstimate", err),
-      );
+    if (modelRun.ok) {
+      // TUL-1731: the REAL cost of this call (tokens x the served model's rate), not a flat cent.
+      afterResponse(() => recordMeasuredAiSpend(aiTenantId, chatSpendUsd(modelRun.model, modelRun.usage)), "api/ai/interpret-search/spend");
     }
 
     return NextResponse.json({

@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -192,7 +192,7 @@ async function loadMappableTalents(): Promise<{
 
 export default async function ClientDiscoverMapPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
 
   const session = await getCachedActorSession();

@@ -32,6 +32,8 @@ export type FloorBookEntry = {
   readonly lateMinutes: number;
   /** When the party was checked in, or null while it has not been. */
   readonly seatedAtIso: string | null;
+  /** The contact the booking was made with, when it has one. */
+  readonly holderEmail?: string | null;
 };
 
 export type FloorTicket = {
@@ -137,6 +139,24 @@ export function arrivingEntries(book: readonly FloorBookEntry[]): FloorBookEntry
  */
 export function isWaiting(entry: FloorBookEntry): boolean {
   return entry.spaceCode === null && (entry.state === "arriving" || entry.state === "late");
+}
+
+/**
+ * Whether the host may call this party a NO-SHOW now: its booked time has
+ * passed and nobody has arrived. It is NOT gated on the grace window: the
+ * grace window decides when a party reads "late" (the Resumen count, the
+ * pill), but a host who can see the table is empty at +9 minutes must be able
+ * to release it. The server re-checks with its own clock.
+ */
+export function canMarkNoShow(entry: Pick<FloorBookEntry, "state" | "startsAtIso">, nowMs: number): boolean {
+  if (entry.state !== "arriving" && entry.state !== "late") return false;
+  const at = Date.parse(entry.startsAtIso);
+  return !Number.isNaN(at) && nowMs >= at;
+}
+
+/** Whether the reservation can still be cancelled: nobody has been seated. */
+export function canCancelReservation(entry: Pick<FloorBookEntry, "state">): boolean {
+  return entry.state === "booked" || entry.state === "arriving" || entry.state === "late";
 }
 
 export function waitingEntries(book: readonly FloorBookEntry[]): FloorBookEntry[] {

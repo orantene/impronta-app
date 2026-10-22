@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { userHasCapability } from "@/lib/access";
+import type { CapabilityKey } from "@/lib/access";
 import { ensureCustomer } from "@/lib/customers/ensure-customer";
 import { attachDraftCustomer } from "@/lib/pos/attach-customer";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
@@ -16,12 +16,21 @@ import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const uuid = z.string().uuid();
 
+/**
+ * TUL-1708: the capability each action requires, passed into the staff guard itself. The
+ * default guard capability is `agency.workspace.view`, which a `viewer` holds, so a writer
+ * must name its own. `booking.payment.request` is manager+ (the same bar the counter's own
+ * `posStaff` guard uses for sale writes, see `@/lib/pos/staff-actor.ts`) — this file used to
+ * check it manually right after a bare guard call; now the guard itself enforces it.
+ */
+const CUSTOMER_ACTIONS_CAPABILITY = {
+  posAttachCustomer: "booking.payment.request",
+} as const satisfies Record<string, CapabilityKey>;
+
 /** The counter's guard (`actions.ts` `staff()`), for the sale-side capability. */
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
+async function staff(action: keyof typeof CUSTOMER_ACTIONS_CAPABILITY) {
+  const guard = await requireWorkspaceStaffAction({ capability: CUSTOMER_ACTIONS_CAPABILITY[action] });
   if (!guard.ok) return { ok: false as const, error: guard.error };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
-  if (!allowed) return { ok: false as const, error: "not_allowed" };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, error: "unavailable" };
   return { ok: true as const, tenantId: guard.tenantId, admin };
@@ -41,7 +50,7 @@ export async function posAttachCustomer(input: {
   displayName?: string | null;
 }) {
   await requireNotImpersonating();
-  const g = await staff();
+  const g = await staff("posAttachCustomer");
   if (!g.ok) return g;
   const parsed = z.object({
     orderId: uuid,

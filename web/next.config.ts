@@ -315,10 +315,13 @@ if (isProd) {
 
 const nextConfig: NextConfig = {
   /**
-   * `isomorphic-dompurify` drags jsdom into the server build (SVG sanitizer, TUL-1269). jsdom reads
-   * its own stylesheet files at runtime, so it must stay a real `require` instead of being bundled.
+   * HOTFIX (P0, 2026-10-21): `isomorphic-dompurify` (SVG sanitizer, TUL-1269) pulled in jsdom's
+   * `html-encoding-sniffer` -> `@exodus/bytes`, an ESM-only package with no CJS release at any
+   * version. Left external, Turbopack's `externalImport` helper throws `ERR_REQUIRE_ESM`
+   * loading it, 500ing every page (public-header renders the brand mark on every request).
+   * No npm `overrides` pin avoids this — every html-encoding-sniffer release depends on it.
+   * Bundling instead sidesteps the external-require path entirely.
    */
-  serverExternalPackages: ["isomorphic-dompurify", "jsdom"],
   /**
    * Skip the integrated `next build` type-check. Under Next 16.2.3 (Turbopack)
    * this phase intermittently HANGS on Vercel's build machines after a clean

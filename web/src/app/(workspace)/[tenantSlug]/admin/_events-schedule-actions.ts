@@ -51,7 +51,7 @@ const itemIdSchema = z.object({ id: uuidWire });
 
 /** Every item of the event plus its program settings, for the tab. Read-only: the view capability is enough. */
 export async function listScheduleItems(input: { eventId: string }): Promise<ListScheduleItemsResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = eventIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "That is not an event." };
@@ -182,7 +182,7 @@ const searchSchema = z.object({ query: z.string().max(80).optional() });
 
 /** The performer picker: roster first, then public talent, each with its hero URL. */
 export async function searchPerformers(input: { query?: string }): Promise<SearchPerformersResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = searchSchema.safeParse(input ?? {});
   if (!parsed.success) return { ok: false, error: "That is not a valid search." };
@@ -198,7 +198,7 @@ export async function searchPerformers(input: { query?: string }): Promise<Searc
 
 /** The place picker: active spaces of the event's venue, stage / room / area first. */
 export async function listEventSpaces(input: { eventId: string }): Promise<ListEventSpacesResult> {
-  const guard = await requireWorkspaceStaffAction();
+  const guard = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!guard.ok) return { ok: false, error: guard.error };
   const parsed = eventIdSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "That is not an event." };

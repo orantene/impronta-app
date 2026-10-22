@@ -34,6 +34,27 @@
 # to "make CI green"; adding a fix workflow that auto-pushes; enabling
 # Vercel deploys (`vercel-post-deploy-alias.yml` handles deploy-side aliasing
 # on its own trigger).
+#
+# TUL-1770 part 2: the gate used to be ONE job (tsc + lint + ~90 test lanes +
+# next build), which hit its timeout under runner load. It is now four worker
+# jobs that run in parallel, plus an aggregator that keeps the required name:
+#
+#   policy    Gate policy             decides whether the heavy gate runs
+#   precheck  Gate — fast pre-check   tsc, eslint (+ stale suppressions), static ratchets,
+#                                     lane lists, orphan gate, tests in changed files.
+#                                     Runs first; build/static/tests_a/tests_b `needs` it,
+#                                     so none of them starts if it fails.
+#   build     next build + budgets    next build, phantom chunks, bundle budget
+#   static    tsc and lint            tsc, lint, ratchets, structural guards
+#   tests_a   tests (A)               access .. a11y (incl. the big builder lanes)
+#   tests_b   tests (B)               size ratchet .. components
+#   gate      Structural quality gate AGGREGATOR. The ONLY job whose name the
+#             required check, promote-production.yml, main-red-alert.yml,
+#             ci-full-ci-rerun.yml and alias-guard know. `if: always()`, fails
+#             unless every needed job succeeded. Do not rename it.
+#
+# Every old step lives in exactly one job (pinned by
+# web/src/lib/quality/ci-gate-split.static.test.ts).
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: CI — structural quality gate
@@ -69,6 +90,10 @@ on:
 # wrong; the platform simply stopped shipping, and it got worse the more work
 # the team landed.
 #
+# TUL-1403: pushes to main are in their own per-SHA group (never shared with a
+# PR ref, so a PR run can neither queue them nor cancel them) and never cancel.
+# Pinned by ci-priority.static.test.ts.
+#
 # Runs on main now queue instead of cancelling. The cost is compute already
 # being spent on runs that were thrown away.
 concurrency:
@@ -80,35 +105,13 @@ permissions:
   pull-requests: read   # TUL-412 gate policy reads the PR labels
 
 jobs:
-  gate:
-    name: Structural quality gate
+  policy:
+    name: Gate policy
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    # 45, not 25. At 25 this job was killed mid-flight at 25m15s on a main
-    # commit. GitHub reports a timeout as `cancelled`, not `failure`, and
-    # promote-production.yml requires `success` on that exact commit, so the
-    # pointer silently did not advance: the merge landed and nothing shipped.
-    # This job's own clock on the five most recent successful main runs:
-    # 22m42s, 23m41s, 23m53s, 24m4s, 15m43s. Four of five sat within 70
-    # seconds of the cap, so the outcome was decided by runner variance
-    # rather than by the work. This does not make CI slower; it stops a slow
-    # run being killed. See the "Main CI cancelled itself" incident.
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: web
-    env:
-      # ── BASE TRIPWIRES (lowered per landing — see per-line note) ──────
-      # Bumping any of these requires a PR that demonstrably reduces the
-      # underlying count first; never raise to silence a regression.
-      # TSC_BASE drift note: 4 was correct at c4f833937 (PM2 baseline, all in
-      # profile-shell-internal.tsx). Q1's no-explicit-any narrowing (e2447cb43)
-      # surfaced 2 latent call-site mismatches (light-01.tsx:146 jumpItems.icon
-      # and WorkspaceTopbar.tsx:549 items.drawer); both fixed surgically by typing
-      # the array element shapes to AdminShellIconName / DrawerId | null. Count
-      # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
-      TSC_BASE: 0              # was 4 (the PM2 profile-shell-internal ResolvedField baseline); LOWERED to 0 after integration's field-engine refactor moved ResolvedField + added has_value? + tenant_override? optional fields, AND profile-shell-internal.tsx decomp (Phase 1f) shipped clean. Codebase is now tsc-zero.
-      SUPPRESSIONS_BASE: 7840  # CARD-SYSTEM (#651): raised 7802→7840 (+38) for the new workspace-admin Card Design studio. ALL 38 are ratchet/no-new-inline-style in the admin-shell page-modules CardDesignStudio-2/-3/-4 — the studio's live canonical-card preview + kit/colour controls drive per-draft `--token-card-*` CSS vars that MUST be inline (dynamic per-tenant values can't be static CSS), and the file is part of the admin shell, which is inline-styled by convention. No max-lines growth (the studio was split -2/-3/-4 to stay under the 800 cap). A later paydown wave can extract the static (non-dynamic) inline styles in the studio to Tailwind to drop BASE again. PAYDOWN wave 5: lowered 7803→7802 after decomposing component-catalog.tsx 1644→767 under the 800-line max-lines cap and pruning its stale suppression — split into catalog-gallery-view.tsx (gallery surface JSX), catalog-actions.ts (useCatalogActions mutation hook), catalog-palette-jumps.ts (palette/all-index/health jump handlers), component-catalog-helpers.ts (pure constants/parsers). 2 remain over cap (catalog-row-table 1996 / registry-actions 1180) → later waves drop BASE further. EARLIER waves 1-4 (7808→7803): contact_form/Component.tsx 828→596 (style-helpers.ts), registry-db-merge.ts 863→625 (gallery-policy.ts + catalog-admin-view.ts), catalog-playground.tsx 918→412 (playground-draft-row.tsx + playground-shared.ts), template-manager.tsx 1239→588 (template-manager-ui.tsx + template-row-card.tsx), catalog-starter-kit.tsx 1573→771 (starter-kit-helpers.ts + starter-kit-table.tsx + starter-kit-filters.tsx). PRIOR: reconciled 7802→7808 to the true committed floor (the +6 drift — +8 max-lines from #616/#495 minus -2 inline-style — had been masked red behind the also-red builder lanes; several merges landed on an already-red main). BASE always = the EXACT current committed count (this gate's own algorithm: sum of x[f][r].count), zero slack, so the ratchet still fails on the NEXT new suppression. Earlier history: 8020→7802 (platform-health WS-E; 8020 had sat ~218 above reality). Never raise BASE *above* the committed count to silence a regression.
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.policy.outputs.run }}
     steps:
       # TUL-412: the heavy gate (~30 min of a shared ubuntu-latest runner) runs
       # on main, on integ/* batch PRs, and on ordinary PRs that carry the
@@ -144,6 +147,375 @@ jobs:
             exit 1
           fi
 
+  # ── Billing E2E (TUL-838) ───────────────────────────────────────────────────
+  # billing-e2e.yml is path-filtered, and a path-filtered workflow cannot be a
+  # required check (it never reports on PRs that skip it, so the merge would
+  # wait forever). Actions also cannot `needs:` a job in another workflow. So the
+  # part of it that runs on PRs (the Playwright suite compiles and lists; staging
+  # does not run the PR's code) is mirrored here, and the aggregator waits on it.
+  # The same path filter applies INSIDE the job: a PR that touches no billing
+  # path finishes this job in seconds after one API call (no checkout, no npm
+  # ci), so it never delays the verdict. Keep the path list in sync with
+  # billing-e2e.yml (pinned by ci-gate-split.static.test.ts). The real staging
+  # run stays workflow_dispatch in billing-e2e.yml.
+  billing_e2e:
+    name: Gate — billing E2E suite compiles
+    needs: policy
+    if: ${{ needs.policy.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Detect billing paths in this PR
+        id: detect
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if [ "$IS_PR" != "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Not a PR: billing-e2e.yml also runs on PRs only."
+            exit 0
+          fi
+          # Fail safe: if the file list cannot be read, run the check.
+          if ! gh api "repos/$GH_REPO/pulls/$PR_NUMBER/files" --paginate -q '.[].filename' > "$RUNNER_TEMP/files.txt"; then
+            echo "::warning::could not list PR files; running the billing check"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if grep -Eq '^(web/src/lib/stripe/|web/src/lib/billing/|web/src/lib/access/|web/src/components/marketing/[^/]*pricing[^/]*$|web/e2e-billing/|web/playwright\.billing\.config\.ts$|\.github/workflows/billing-e2e\.yml$)' "$RUNNER_TEMP/files.txt"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No billing paths touched; nothing to compile."
+          fi
+
+      - name: Checkout
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        working-directory: web
+        run: npm ci
+
+      - name: billing E2E — suite compiles and lists (no staging run)
+        if: ${{ steps.detect.outputs.changed == 'true' }}
+        working-directory: web
+        run: npx playwright test -c playwright.billing.config.ts --list
+
+  # ── Fast pre-check (TUL-1770 follow-up) ─────────────────────────────────────
+  # The cheap, high-signal part of the gate, run FIRST. Every heavy job below
+  # `needs: precheck`, so a type error, a lint error, a stale eslint suppression
+  # or a failed ratchet stops the run in minutes instead of after ~45 minutes of
+  # parallel build + test lanes (3 batch runs failed late on exactly these on
+  # 2026-10-21). NOTHING is removed from the heavy jobs: this is an extra, earlier
+  # look at the same checks, never a replacement. Runs on the standard runner.
+  #
+  # Every step uses `!cancelled()` (plus the policy output) so one run reports ALL the cheap breaks at once;
+  # the job still fails if any step failed, and the aggregator counts that as a gate
+  # failure. Caches (tsbuildinfo, ESLint) are saved even when the job fails, so the
+  # re-run after a fix is warm.
+  precheck:
+    name: Gate — fast pre-check
+    needs: policy
+    if: ${{ needs.policy.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the changed-test step diffs against the PR base.
+          fetch-depth: 0
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # TypeScript incremental state (tsconfig has `incremental: true`, so tsc
+      # writes tsconfig.tsbuildinfo even with --noEmit). TS keys it on file
+      # CONTENT hashes, not mtimes, so a fresh checkout reuses it; the error count
+      # stays exact because unchanged files keep their stored diagnostics.
+      - name: Restore tsc incremental cache
+        id: cache-tsc
+        uses: actions/cache/restore@v4
+        with:
+          path: web/tsconfig.tsbuildinfo
+          key: precheck-tsc-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/tsconfig.json') }}-${{ github.sha }}
+          restore-keys: |
+            precheck-tsc-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/tsconfig.json') }}-
+
+      # ESLint result cache (content strategy: checkout resets mtimes). ESLint
+      # invalidates entries itself when the config or plugin versions change; the
+      # key also carries the lockfile and config so a stale cache is never reused.
+      - name: Restore ESLint cache
+        id: cache-eslint
+        uses: actions/cache/restore@v4
+        with:
+          path: web/.eslintcache
+          key: precheck-eslint-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/eslint.config.mjs') }}-${{ github.sha }}
+          restore-keys: |
+            precheck-eslint-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/eslint.config.mjs') }}-
+
+      # Cheapest first (seconds), so the common mistakes show at the top of the log.
+      - name: precheck — lane lists sorted and every test file in a lane
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          node scripts/lanes-sort.cjs --check
+          # The orphan gate: a test file that runs in no lane, and the
+          # nightly-orphans overlap check, live in these two static tests.
+          NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' node scripts/lane-test.cjs \
+            src/lib/quality/orphan-gate.static.test.ts \
+            src/lib/quality/lane-enrolment.static.test.ts \
+            src/lib/quality/lane-file-lists.static.test.ts
+
+      # The static ratchets (file size / max-lines, supabase unchecked read,
+      # upsert onConflict, ...) are all in the `size ratchet` lane; run that lane
+      # whole so nothing it holds is skipped. The tests_b job runs it again.
+      - name: precheck — static ratchets (npm run test:size-ratchet)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:size-ratchet
+
+      # Guards that live in other lanes (their lanes need the heavier jobs).
+      - name: precheck — capability-less staff guard, message-key usage, duplicate keys
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' node scripts/lane-test.cjs \
+            src/lib/saas/capabilityless-staff-guard.static.test.ts \
+            src/i18n/message-key-usage.static.test.ts \
+            src/i18n/message-catalog-duplicate-keys.static.test.ts
+
+      - name: precheck — tests in changed files
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # Base: the PR target, or the previous tip on a push to main. Manual runs
+          # have no base, so only the fixed guards above run.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="origin/$BASE_REF"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE" ] && ! printf '%s' "$PUSH_BEFORE" | grep -qE '^0+$' \
+               && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            BASE="$PUSH_BEFORE"
+          else
+            echo "No diff base for $EVENT_NAME; skipping changed-file tests."
+            exit 0
+          fi
+          # web/-relative paths of changed files (added, copied, modified, renamed).
+          git diff --name-only --diff-filter=ACMR "$BASE"...HEAD -- . | sed 's#^web/##' | sort -u > "$RUNNER_TEMP/changed.txt"
+          echo "changed files: $(wc -l < "$RUNNER_TEMP/changed.txt")"
+          : > "$RUNNER_TEMP/cand.txt"
+          while IFS= read -r f; do
+            case "$f" in
+              *.test.ts|*.test.tsx|*.test.mjs|*.test.cjs|*.test.js) echo "$f" >> "$RUNNER_TEMP/cand.txt" ;;
+              src/*.ts|src/*.tsx)
+                stem="${f%.*}"
+                for s in .test.ts .test.tsx .static.test.ts .static.test.tsx; do
+                  [ -f "$stem$s" ] && echo "$stem$s" >> "$RUNNER_TEMP/cand.txt"
+                done ;;
+            esac
+          done < "$RUNNER_TEMP/changed.txt"
+          sort -u "$RUNNER_TEMP/cand.txt" | while IFS= read -r t; do
+            [ -f "$t" ] || continue                                  # deleted or renamed away
+            grep -qE "from ['\"]vitest['\"]" "$t" && continue         # vitest files run in tests_b (test:components)
+            printf '%s\n' "$t"
+          done > "$RUNNER_TEMP/tests.txt"
+          # Files that deliberately run in no lane (recorded orphans, nightly-only) and
+          # quarantined files are not this step's business.
+          { grep -vE '^\s*(#|$)' scripts/ci/orphan-baseline.txt scripts/ci/nightly-orphans.txt 2>/dev/null | sed 's/^[^:]*://'; \
+            node -e 'try{for(const e of require("./scripts/lane-quarantine.json").entries??[])console.log(e.file)}catch{}'; } | sort -u > "$RUNNER_TEMP/skip.txt"
+          grep -vxFf "$RUNNER_TEMP/skip.txt" "$RUNNER_TEMP/tests.txt" > "$RUNNER_TEMP/run.txt" || true
+          n=$(wc -l < "$RUNNER_TEMP/run.txt")
+          echo "tests to run: $n"
+          if [ "$n" -eq 0 ]; then exit 0; fi
+          if [ "$n" -gt 250 ]; then
+            echo "::notice title=pre-check::$n changed test files; running the first 250 here, the heavy lanes run the rest."
+            head -250 "$RUNNER_TEMP/run.txt" > "$RUNNER_TEMP/run250.txt"; mv "$RUNNER_TEMP/run250.txt" "$RUNNER_TEMP/run.txt"
+          fi
+          cat "$RUNNER_TEMP/run.txt"
+          # lane-test resolves bracketed folders for this Node, runs tsx --test, and
+          # fails a run that reports zero tests.
+          xargs -a "$RUNNER_TEMP/run.txt" env NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' node scripts/lane-test.cjs
+
+      # Same command and heap as the `static` job's tsc step, same TSC_BASE (read
+      # from that job so the number lives in one place).
+      - name: precheck — tsc error count ≤ BASE
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          TSC_BASE=$(grep -m1 -E '^      TSC_BASE: [0-9]+' ../.github/workflows/ci.yml | sed -E 's/^ +TSC_BASE: ([0-9]+).*/\1/')
+          [ -n "$TSC_BASE" ] || { echo "::error::could not read TSC_BASE from ci.yml"; exit 1; }
+          set +e
+          tsc_output=$(NODE_OPTIONS="--max-old-space-size=11264" npx tsc --noEmit 2>&1)
+          tsc_exit=$?
+          set -e
+          error_count=$(printf '%s\n' "$tsc_output" | grep -cE 'error TS[0-9]+:' || true)
+          echo "tsc exit=$tsc_exit  errors=$error_count  BASE=$TSC_BASE"
+          printf '%s\n' "$tsc_output" | tail -80
+          if [ "$error_count" -gt "$TSC_BASE" ]; then
+            echo "::error title=tsc regression::HEAD has $error_count tsc error(s); BASE is $TSC_BASE."
+            exit 1
+          fi
+
+      # `npm run lint` is the gate's own command (suppressions file included). With
+      # a suppressions file ESLint 9 also FAILS on entries that no longer occur
+      # ("Suppressions left that do not occur anymore"), which is the stale-entry
+      # break; adding --cache does not change that. Fix with
+      # `npm run lint:refresh-baseline`-style pruning, never by hand-editing counts up.
+      - name: precheck — eslint (suppressions file, stale suppressions fail)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run lint -- --cache --cache-location .eslintcache --cache-strategy content
+
+      - name: precheck — eslint-suppressions.json total ≤ BASE
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          SUPPRESSIONS_BASE=$(grep -m1 -E '^      SUPPRESSIONS_BASE: [0-9]+' ../.github/workflows/ci.yml | sed -E 's/^ +SUPPRESSIONS_BASE: ([0-9]+).*/\1/')
+          [ -n "$SUPPRESSIONS_BASE" ] || { echo "::error::could not read SUPPRESSIONS_BASE from ci.yml"; exit 1; }
+          count=$(node -e "
+            const x = require('./eslint-suppressions.json');
+            let n = 0;
+            for (const f of Object.keys(x)) for (const r of Object.keys(x[f])) n += (x[f][r].count || 0);
+            console.log(n);
+          ")
+          echo "eslint-suppressions.json total=$count  BASE=$SUPPRESSIONS_BASE"
+          if [ "$count" -gt "$SUPPRESSIONS_BASE" ]; then
+            echo "::error title=suppressions regression::eslint-suppressions.json grew from $SUPPRESSIONS_BASE to $count."
+            exit 1
+          fi
+
+      - name: Save tsc incremental cache
+        if: ${{ !cancelled() && steps.cache-tsc.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: web/tsconfig.tsbuildinfo
+          key: precheck-tsc-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/tsconfig.json') }}-${{ github.sha }}
+
+      - name: Save ESLint cache
+        if: ${{ !cancelled() && steps.cache-eslint.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: web/.eslintcache
+          key: precheck-eslint-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/eslint.config.mjs') }}-${{ github.sha }}
+
+  build:
+    name: Gate — next build and bundle budget
+    needs: [policy, precheck]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Parallel part of the old single `gate` job (TUL-1770 part 2).
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          # package.json `engines.node` = ">=22.0.0 <25.0.0".
+          # `.nvmrc` says 20.20.2 but that's stale (predates the Next 15 /
+          # React 19 bump); package.json is the source of truth.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # ── Gate 6: Production build (catch-all bundle gate) ─────────────
+      # The ONLY step that exercises the real SWC bundle the way Vercel does, so
+      # `main` refuses bundle-time breakers tsc/tsx never see. Runs `next build`
+      # directly to skip the network-bound `prebuild` migration check; the
+      # placeholder public env keeps module-eval happy without secrets (server
+      # env is read at runtime, not build).
+      - name: build — next production build (bundle gate)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NODE_OPTIONS: --max-old-space-size=11264
+        run: npx next build
+
+      # TUL-1769: boot the production build the way Vercel runs it (Node with
+      # --no-experimental-require-module) and prove pages serve. On 2026-10-21
+      # every page 500'd on Vercel (a CJS dep require()-ing an ESM-only one)
+      # while tsc, lint and `next build` were green. Reuses the build above
+      # (--skip-build), so it adds seconds, not a second build. Required via
+      # the aggregator; same policy as every other gate step.
+      - name: runtime boot smoke (next start with --no-experimental-require-module)
+        if: success()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          RUNTIME_SMOKE_LOG: ${{ runner.temp }}/runtime-boot-smoke.log
+        run: node scripts/ci/runtime-boot-smoke.mjs --skip-build
+
+      # Cheap file-only check (no second build): every client chunk a route's
+      # client-reference manifest names must exist in .next/static/chunks.
+      - name: build — no phantom client chunks
+        if: success()
+        run: npm run check:build-chunks
+
+      # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
+      # MUST follow the build: it reads `.next/app-build-manifest.json`, which
+      # is the bundler's own account of which chunks each route loads. The
+      # builder perf budget above covers seven static designs; these are the two
+      # surfaces where weight is actually paid — an admin shell opened forty
+      # times a day and a register downloaded by a tablet on venue wifi at the
+      # start of every shift. Neither had a ceiling before.
+      #
+      # The self-test runs FIRST, so a gate that has quietly stopped measuring
+      # (a moved route, a stale prefix, a manifest shape change) fails as a
+      # broken gate rather than passing as a clean bundle.
+      - name: perf — admin and POS bundle budget
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          npm run perf:app-budget:selftest
+          npm run perf:app-budget
+
+  static:
+    name: Gate — tsc and lint
+    needs: [policy, precheck]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Parallel part of the old single `gate` job (TUL-1770 part 2).
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # ── BASE TRIPWIRES (lowered per landing — see per-line note) ──────
+      # Bumping any of these requires a PR that demonstrably reduces the
+      # underlying count first; never raise to silence a regression.
+      # TSC_BASE drift note: 4 was correct at c4f833937 (PM2 baseline, all in
+      # profile-shell-internal.tsx). Q1's no-explicit-any narrowing (e2447cb43)
+      # surfaced 2 latent call-site mismatches (light-01.tsx:146 jumpItems.icon
+      # and WorkspaceTopbar.tsx:549 items.drawer); both fixed surgically by typing
+      # the array element shapes to AdminShellIconName / DrawerId | null. Count
+      # restored to 4 — the 4 remaining are the original PM2 profile-shell baseline.
+      TSC_BASE: 0              # was 4 (the PM2 profile-shell-internal ResolvedField baseline); LOWERED to 0 after integration's field-engine refactor moved ResolvedField + added has_value? + tenant_override? optional fields, AND profile-shell-internal.tsx decomp (Phase 1f) shipped clean. Codebase is now tsc-zero.
+      SUPPRESSIONS_BASE: 7840  # CARD-SYSTEM (#651): raised 7802→7840 (+38) for the new workspace-admin Card Design studio. ALL 38 are ratchet/no-new-inline-style in the admin-shell page-modules CardDesignStudio-2/-3/-4 — the studio's live canonical-card preview + kit/colour controls drive per-draft `--token-card-*` CSS vars that MUST be inline (dynamic per-tenant values can't be static CSS), and the file is part of the admin shell, which is inline-styled by convention. No max-lines growth (the studio was split -2/-3/-4 to stay under the 800 cap). A later paydown wave can extract the static (non-dynamic) inline styles in the studio to Tailwind to drop BASE again. PAYDOWN wave 5: lowered 7803→7802 after decomposing component-catalog.tsx 1644→767 under the 800-line max-lines cap and pruning its stale suppression — split into catalog-gallery-view.tsx (gallery surface JSX), catalog-actions.ts (useCatalogActions mutation hook), catalog-palette-jumps.ts (palette/all-index/health jump handlers), component-catalog-helpers.ts (pure constants/parsers). 2 remain over cap (catalog-row-table 1996 / registry-actions 1180) → later waves drop BASE further. EARLIER waves 1-4 (7808→7803): contact_form/Component.tsx 828→596 (style-helpers.ts), registry-db-merge.ts 863→625 (gallery-policy.ts + catalog-admin-view.ts), catalog-playground.tsx 918→412 (playground-draft-row.tsx + playground-shared.ts), template-manager.tsx 1239→588 (template-manager-ui.tsx + template-row-card.tsx), catalog-starter-kit.tsx 1573→771 (starter-kit-helpers.ts + starter-kit-table.tsx + starter-kit-filters.tsx). PRIOR: reconciled 7802→7808 to the true committed floor (the +6 drift — +8 max-lines from #616/#495 minus -2 inline-style — had been masked red behind the also-red builder lanes; several merges landed on an already-red main). BASE always = the EXACT current committed count (this gate's own algorithm: sum of x[f][r].count), zero slack, so the ratchet still fails on the NEXT new suppression. Earlier history: 8020→7802 (platform-health WS-E; 8020 had sat ~218 above reality). Never raise BASE *above* the committed count to silence a regression.
+    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -162,7 +534,7 @@ jobs:
 
       # ── Gate 1: TypeScript error-count ratchet ───────────────────────
       - name: tsc — error count ≤ BASE
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: |
           set +e
           # Bump heap: the full-project tsc exceeds the default ~2GB and was
@@ -195,7 +567,7 @@ jobs:
       # red on main for months while CI stayed green. Keep it as its own step:
       # a guard that only exists inside an unused script is not a guard.
       - name: field catalog frozen (no new fields without a migration)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run check:field-catalog-frozen
 
       # The same "in the ci script but nothing runs it" gap applied to these
@@ -211,7 +583,7 @@ jobs:
       # CI, which is a security decision rather than a wiring one, so the name is
       # corrected first and the coverage is not claimed until it exists.
       - name: structural guards (field engine, imports, seatbelt) + types-drift (INERT, no creds)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: |
           # Capability registry: every key roles.ts references exists in
           # CAPABILITIES. Credential-free, so it does real work here. Added
@@ -235,11 +607,11 @@ jobs:
       # on the structural gate makes a red budget stop the production pointer.
       # The fidelity workflow still runs it (belt-and-suspenders + goldens).
       - name: Builder perf budget
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run perf:builder-budget
 
       - name: Builder perf budget self-test
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run perf:builder-budget:selftest
 
       # ── Gate 2: ESLint baseline (--suppressions-location ratchet) ────
@@ -249,7 +621,7 @@ jobs:
       # baseline. We do NOT pass `--max-warnings 0` — 449 warnings are
       # tracked separately via the suppressions ratchet.
       - name: lint — no new errors past the baseline
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run lint
 
       # ── Gate 3: Suppressions JSON monotone-decreasing ────────────────
@@ -258,7 +630,7 @@ jobs:
       # the JSON to absorb any new errors — without this gate, that script
       # silently grows the baseline and the ratchet is defeated.
       - name: suppressions — eslint-suppressions.json total ≤ BASE
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: |
           count=$(node -e "
             const x = require('./eslint-suppressions.json');
@@ -277,434 +649,13 @@ jobs:
             exit 1
           fi
 
-      # ── Gate 4: Tests ────────────────────────────────────────────────
-      # The same suites the canonical `npm run ci` script invokes, minus
-      # `check:migrations-applied` (network) and `build` (out of T2a scope
-      # — Vercel handles deploy-side build). Each script runs separately
-      # so a failure surfaces the exact suite.
-      # Access control. Defined in package.json since it was written, and in
-      # NEITHER the `ci` aggregate nor this workflow — so it has gated nothing
-      # on any PR, ever. check:ci-lane-parity cannot see it: that guard walks
-      # the AGGREGATE and asks whether each lane it finds is in this workflow,
-      # so a lane present in neither list is never walked and never missed.
-      # A guard that enumerates one list can only find gaps in that list.
-      - name: tests — access control
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:access
-
-      - name: tests — phase1-i18n
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:phase1-i18n
-
-      - name: tests — locale-precedence
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:locale-precedence
-
-      - name: tests — tenant-locale-grammar
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:tenant-locale-grammar
-
-      - name: tests — vendor-locale (third-party widget language handoff)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:vendor-locale
-
-      - name: tests — locale-suggestion
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:locale-suggestion
-
-      - name: tests — inquiry-workspace
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:inquiry-workspace
-
-      - name: tests — messaging
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:messaging
-
-      - name: tests — ai-guardrails
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:ai-guardrails
-
-      - name: tests — ai-builder eval smoke (brief-set spec + scorecard + judge, no key)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run eval:generate-smoke
-
-      - name: tests — tenant-isolation
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:tenant-isolation
-
-      # Auth routing decides every post-login / onboarding redirect, including
-      # the host-awareness guard that keeps those redirects off surfaces that
-      # 404 them (a signed-in, mid-onboarding account on tulala.digital/get-started
-      # used to dead-end there). The lane existed in package.json but ran in
-      # neither ci.yml nor the `ci` aggregate, so it never gated a PR.
-      - name: tests — auth-routing
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:auth-routing
-
-      - name: tests — activity-log
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:activity-log
-
-      - name: tests — connection-oauth
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:connection-oauth
-
-      - name: tests — social-embed
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:social-embed
-
-      - name: tests — directory-cards
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:directory-cards
-
-      - name: tests — builder-capabilities
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:builder-capabilities
-
-      - name: tests — builder-node-bindings
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:builder-node-bindings
-
-      # The big builder-lab + page-builder suite (1200+ node tests) + the
-      # builder-chrome suite. Both are in the `npm run ci` aggregate but Actions
-      # only runs this curated step list, so they never gated a PR — a behavioral
-      # regression in the builder/catalog/page-roles logic could land on main
-      # green. Wired in here (verified green on main at the time of this change).
-      - name: tests — builder
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:builder
-
-      - name: tests — builder-chrome
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:builder-chrome
-
-      - name: tests — a11y
-        # The lane existed in package.json but ran in NEITHER ci.yml NOR the
-        # `ci` aggregate, so the builder's a11y suite never executed on any PR.
-        # check:builder-test-lane-coverage did not catch it: that guard checks
-        # builder test FILES are in a lane, not that a LANE is wired into CI.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:a11y
-
-      - name: tests — size ratchet
-        # Line-count budgets for the files eslint stopped constraining. Every
-        # file already over `max-lines` 800 is grandfathered in
-        # eslint-suppressions.json as {"max-lines": {"count": 1}}, and that
-        # count is a count of violations, not of lines — so it is satisfied at
-        # 801 lines and at 8,001 alike. This lane measures the line count.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:size-ratchet
-
-      - name: tests — QA host pool helpers
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:qa-host
-
-      - name: tests — alias guard
-        # scripts/lib/alias-guard.mjs: a custom domain may only be aliased to a
-        # build whose commit the main structural gate passed (2026-09-11
-        # pointer incident). Pure decision, node:test, includes that day's case.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:alias-guard
-
-      - name: tests — theme i18n overlay release script
-        # scripts/release-theme-i18n-plan.ts: pure guards + flow of the guarded
-        # Spanish/English seed release (injected fakes, no DB).
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:release-theme-i18n
-
-      - name: tests — theme seed i18n heal inventory
-        # scripts/heal-seed-i18n-missing-es-plan.ts (TUL-369): read-only count of
-        # stored trees whose English seed lacks props.i18n.es. Pure, no DB.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:heal-seed-i18n-missing-es
-
-      - name: tests — theme CTA patch release script
-        # scripts/release-theme-cta-plan.ts: guards + flow of the guarded Maison v2
-        # "Book an appointment" header/hero release (injected fakes, no DB).
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:release-theme-cta
-
-      - name: tests — media ownership stamps
-        # The ownership stamp helpers every media writer now spreads into its
-        # INSERT (lib/media/ownership.ts). A regression here silently mislabels
-        # who owns a photo, which is the input to every later per-hub phase.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:media-ownership
-
-      - name: tests — account lifecycle (anonymize, deletion, retention purge)
-        # PII erasure and retention purge decide what we keep about a person.
-        # These suites existed (anonymize, deletion, retention) but sat in no
-        # lane, so a regression in what gets scrubbed or purged gated nothing.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:account-lifecycle
-
-      - name: tests — taxonomy guard (selftest only; the DB probe runs in deploy:smoke)
-        # Proves check:taxonomy still MEASURES the bugs it was written for —
-        # in particular that a parent-category expansion reaching `specialty`
-        # terms still resolves to ZERO. Pure, no network, no credentials: the
-        # live data probe belongs to deploy:smoke, not to a PR gate.
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:taxonomy-guard
-
-      - name: tests — node-presentation
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:node-presentation
-
-      - name: tests — publish-preflight
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:publish-preflight
-
-      - name: tests — posts
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:posts
-
-      # The Impronta page-tree suites (12 files, 133 assertions) existed but
-      # ran nowhere: no npm script, no CI step. Their section-structure
-      # snapshot had been red since the location map landed and nothing said
-      # so. A guard nobody runs is not a guard.
-      - name: tests — impronta page trees
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:impronta-pages
-
-      - name: tests — platform stock library
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:platform-stock
-
-      # ── Money / content lanes ─────────────────────────────────────────
-      # These four lanes were in the `npm run ci` aggregate but NOT in this
-      # curated step list, so they never gated a PR (the same drift that hid
-      # test:builder). For a payments product, test:money/billing not gating is
-      # the highest-risk gap; check:ci-lane-parity (below) now prevents recurrence.
-      - name: tests — billing
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:billing
-
-      - name: tests — money
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:money
-
-      # Tulala Agent: entitlement truth, the product laws, the recommendation
-      # engine. Deterministic and pure by design, so this lane is cheap and is
-      # the one that catches a rule change nobody meant to make.
-      - name: tests — tulala
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:tulala
-
-      - name: tests — onboarding
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:onboarding
-
-      - name: tests — Jorgelina publish script (TUL-73b)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:jorgelina-publish
-
-      - name: tests — Jorgelina content script (TUL-73)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:jorgelina-content
-
-      - name: tests — demo English data script (TUL-207)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:demo-english-data
-
-      - name: tests — English content fill + ticker source scripts (TUL-15)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:en-content-fill
-
-      - name: tests — QA test-talent sync + design drift (TUL-135)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:sync-test-talent
-
-      - name: tests — live timing harness pure parts (TUL-290)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:live-timing
-      - name: tests — talent public app routes (bracketed folders, TUL-288 follow-up)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:talent-public-app
-
-      - name: tests — previously orphaned tests, enrolled (core)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:orphans-enrolled-core
-
-      - name: tests — previously orphaned money and auth tests, enrolled
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:orphans-enrolled-money-auth
-
-      - name: tests — fields
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:fields
-
-      # The shape half of the anon-write-policy guard. The live half runs in
-      # auto-apply-migrations.yml, which holds the Management API token; this
-      # exercises the judgement without a database, so a new open policy fails a
-      # build rather than waiting to be found by a probe.
-      - name: tests — anon write policy shape
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:anon-write-policy
-
-      # The credential-free half of the migration-collision guard. The remote
-      # half needs the service role, which never enters CI, and lives behind
-      # `npm run manual:migration-collisions`.
-      - name: tests — migration collisions
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:migration-collisions
-
-      # The splitter the isolated-branch repair depends on. It decides what one
-      # statement is, and getting a dollar-quoted plpgsql body wrong would make
-      # a replay report success over a half-applied schema.
-      - name: tests — migration replay tooling
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:migration-tooling
-
-      - name: tests — notifications
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:notifications
-
-      - name: tests — reviews
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:reviews
-
-      - name: tests — scheduling
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:scheduling
-
-      # Capacity engine (Sell the Room 0.2). Pure: the TypeScript half of the
-      # remaining-units rule, which must agree with the SQL half in
-      # 20261229000200_capacity_engine.sql. The 200-concurrent oversell proof is
-      # NOT here — it needs a real Postgres. It lives in
-      # `npm run verify:capacity-concurrency` and is deliberately outside the
-      # `ci` aggregate so lane parity stays honest about what actually gates.
-      # The sibling proof for a single physical resource (one unit, N concurrent
-      # reserve_capacity calls, ground truth from capacity_allocations) is
-      # `npm run verify:resource-concurrency` — same reason, same exclusion.
-      - name: tests — capacity engine
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:capacity
-
-      # The M0 reliability layer: command envelope, transactional outbox and the
-      # Exceptions inbox that reads what they leave behind. Pure, against fakes
-      # that enforce the two schema properties the behaviour depends on — the
-      # unique index on (tenant, command, idempotency key) and the partial
-      # unique index on the outbox dedupe key. The races ARE the subject here (a
-      # double-tapped button, a key reused with different arguments, a retried
-      # enqueue) and a real Postgres cannot hold an interleaving still enough to
-      # assert on. The exceptions half additionally pins the one classification
-      # whose failure mode is a second refund.
-      # The lease-taken race for the command claim table (first-claim and
-      # lease-takeover compare-and-set) needs a real Postgres and is proven
-      # separately, deliberately outside the `ci` aggregate for the same reason
-      # as the capacity proofs above: `npm run verify:command-lease`.
-      - name: tests — command envelope, outbox and exceptions
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:commands
-
-      # The M0 design system: the ImpactPreview model (which decides whether a
-      # destructive confirm is offered at all) and the catalog coverage ratchet
-      # that keeps the axe lane's subject list honest. Pure — no DOM here.
-      - name: tests — design system model and catalog coverage
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:design-system
-
-      - name: tests — build-chunk checker
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:build-chunks
-
-      # axe-core over every variant in the component catalog, one mount each.
-      # The plan's finding was "no axe in CI"; this is the answer to it, and it
-      # is deliberately aimed at PRIMITIVES rather than pages — a page-level
-      # sweep tells you a screen is broken, this tells you which component is.
-      # It found a real `role="alert"` on a <ul> in the first component it ran
-      # against, which is the sort of defect no screenshot and no type ever
-      # catches.
-      - name: tests — axe (component catalog)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:axe
-
-      # Events & Ticketing (Phase 2). Pure: the event policy decisions -- slug,
-      # the status moves (cancelled is terminal), doors as an OFFSET so it never
-      # acquires a second wall clock, and the refund decision, which returns a
-      # reason so "nobody set a policy" cannot be served to a customer as "the
-      # window closed". A GLOB lane on purpose: the hand-maintained file list is
-      # what made the lane-name collision lose coverage silently.
-      - name: tests — events and ticketing
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:events
-
-      # Sessions & Classes (Phase 1). Pure: the recurrence resolver, whose DST
-      # tests assert the naive 7x24h expansion DRIFTS while this one does not,
-      # and the tier-pool request builder that makes a timeless allocation
-      # impossible to construct.
-      - name: tests — sessions and classes
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:sessions
-
-      # Spaces & Seating S1: the timezone ladder (venue, then workspace, then
-      # the legacy appointments setting, then UTC) and the local-hour helper the
-      # reminder cron gates on. Pure; the venue rows themselves are asserted in
-      # production after the migration, not here.
-      - name: tests — spaces and seating
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:spaces
-
-      # Reservations R1. Pure: the fail-closed rules parser and the service
-      # window resolver. The DST cases are the point of this lane — a seating
-      # inside a spring-forward gap must be DROPPED rather than moved onto the
-      # real one an hour later, and every turn time must be added to the INSTANT,
-      # because adding it to the wall clock holds a table for 30 real minutes
-      # instead of 90 on the one night a year that loses an hour.
-      - name: tests — reservations
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:reservations
-      # Storefront widget seams: the reader/action pair per page-builder widget
-      # (`lib/storefront/*.server.ts`) over injected engines. Proves each read
-      # returns shaped data, each act refuses without identity, maps every
-      # engine refusal onto the five widget reasons, and replays a key without
-      # a second write. No database: the fakes model the contract, the engines
-      # own the row locks.
-      - name: tests — storefront seams
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:storefront
-
-      # Design-compiler (token/CSS compile pipeline). Wired into `npm run ci`;
-      # must appear here so check:ci-lane-parity stays green.
-      - name: tests — design-compiler
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:design-compiler
-      # QR & Links Q1: which destination a printed code resolves to, at the
-      # hour it is actually scanned. Pure — a wall clock in the venue timezone
-      # and a rule list, no database. The rows and the redirect are asserted in
-      # production after the migration, not here.
-      - name: tests — qr and links
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:links
-
-      - name: tests — words and industry presets
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:words
-
-      - name: tests — front door (cart totals, /me)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:front-door
-
-      # ── Component test gate (10th test step) ─────────────────────────
-      # Vitest + @testing-library/react + jsdom. Smoke tests for the
-      # top god-files (primitives, profile-shell-internal, WorkspacePageView,
-      # media-page, edit-context). A red signal means a recent refactor
-      # broke the render shape of a foundational component.
-      #
-      # See web/docs/test-infrastructure.md for stack rationale and the
-      # rule against bloating this lane with "high coverage" tests —
-      # smoke-level only; expand via a separate lane.
-      - name: tests — components (vitest smoke)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        run: npm run test:components
-
       # ── CI lane parity ───────────────────────────────────────────────
       # This curated step list is NOT `npm run ci` — Actions invokes the steps
       # above one by one. When a `test:*` lane is added to the `ci` aggregate
       # but not here, it silently never gates (test:builder + 5 money/content
       # lanes drifted that way). This guard fails red the moment that recurs.
       - name: verify — ci.yml gates every `npm run ci` test lane
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run check:ci-lane-parity
 
       # ── Builder test-lane COVERAGE ───────────────────────────────────
@@ -718,7 +669,7 @@ jobs:
       # This guard compares the test files on disk against what the lanes
       # actually expand to and fails on any orphan.
       - name: verify — every builder test file is in a CI lane
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run check:builder-test-lane-coverage
 
       # ── Gate 5: Server-action bundle safety ──────────────────────────
@@ -728,7 +679,7 @@ jobs:
       # Two such breakers shipped to a prod deploy before this gate existed
       # (see web/docs/builder-lab-completion-audit-2026.md). Cheap static guard.
       - name: verify — server-action export rules ("use server" files)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run verify:server-actions
 
       # Gate: EN/ES message catalogs stay aligned. This lived ONLY in the `ci`
@@ -736,7 +687,7 @@ jobs:
       # it had never gated a single PR. Wired here 2026-08-15 after a duplicate
       # key reached main unnoticed.
       - name: verify — i18n message catalogs (en/es aligned)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: npm run verify:ui-messages
 
       # ── Builder 2027 ship-gate integrity ─────────────────────────────
@@ -755,47 +706,528 @@ jobs:
       # anchor smoke) is wired in the moment that script exists. The selftest
       # runs first so the guard itself cannot rot into a no-op.
       - name: verify — Builder 2027 ship gate is well-formed
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
         run: |
           npm run check:builder-2027-gate-selftest
           npm run check:builder-2027-gate
 
-      # ── Gate 6: Production build (catch-all bundle gate) ─────────────
-      # The ONLY step that exercises the real SWC bundle the way Vercel does, so
-      # `main` refuses bundle-time breakers tsc/tsx never see. Runs `next build`
-      # directly to skip the network-bound `prebuild` migration check; the
-      # placeholder public env keeps module-eval happy without secrets (server
-      # env is read at runtime, not build).
-      - name: build — next production build (bundle gate)
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
-          NODE_OPTIONS: --max-old-space-size=11264
-        run: npx next build
+  tests_a:
+    name: Gate — tests (A)
+    needs: [policy, precheck]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Parallel part of the old single `gate` job (TUL-1770 part 2).
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # Cheap file-only check (no second build): every client chunk a route's
-      # client-reference manifest names must exist in .next/static/chunks.
-      - name: build — no phantom client chunks
-        if: success()
-        run: npm run check:build-chunks
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          # package.json `engines.node` = ">=22.0.0 <25.0.0".
+          # `.nvmrc` says 20.20.2 but that's stale (predates the Next 15 /
+          # React 19 bump); package.json is the source of truth.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
 
-      # ── Gate 7: Admin + POS JavaScript budget ────────────────────────
-      # MUST follow the build: it reads `.next/app-build-manifest.json`, which
-      # is the bundler's own account of which chunks each route loads. The
-      # builder perf budget above covers seven static designs; these are the two
-      # surfaces where weight is actually paid — an admin shell opened forty
-      # times a day and a register downloaded by a tablet on venue wifi at the
-      # start of every shift. Neither had a ceiling before.
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # ── Gate 4: Tests ────────────────────────────────────────────────
+      # The same suites the canonical `npm run ci` script invokes, minus
+      # `check:migrations-applied` (network) and `build` (out of T2a scope
+      # — Vercel handles deploy-side build). Each script runs separately
+      # so a failure surfaces the exact suite.
+      # Access control. Defined in package.json since it was written, and in
+      # NEITHER the `ci` aggregate nor this workflow — so it has gated nothing
+      # on any PR, ever. check:ci-lane-parity cannot see it: that guard walks
+      # the AGGREGATE and asks whether each lane it finds is in this workflow,
+      # so a lane present in neither list is never walked and never missed.
+      # A guard that enumerates one list can only find gaps in that list.
+      - name: tests — access control
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:access
+
+      - name: tests — phase1-i18n
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:phase1-i18n
+
+      - name: tests — locale-precedence
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:locale-precedence
+
+      - name: tests — tenant-locale-grammar
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:tenant-locale-grammar
+
+      - name: tests — vendor-locale (third-party widget language handoff)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:vendor-locale
+
+      - name: tests — locale-suggestion
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:locale-suggestion
+
+      - name: tests — inquiry-workspace
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:inquiry-workspace
+
+      - name: tests — messaging
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:messaging
+
+      - name: tests — ai-guardrails
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:ai-guardrails
+
+      - name: tests — ai-builder eval smoke (brief-set spec + scorecard + judge, no key)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run eval:generate-smoke
+
+      - name: tests — tenant-isolation
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:tenant-isolation
+
+      # Auth routing decides every post-login / onboarding redirect, including
+      # the host-awareness guard that keeps those redirects off surfaces that
+      # 404 them (a signed-in, mid-onboarding account on tulala.digital/get-started
+      # used to dead-end there). The lane existed in package.json but ran in
+      # neither ci.yml nor the `ci` aggregate, so it never gated a PR.
+      - name: tests — auth-routing
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:auth-routing
+
+      - name: tests — activity-log
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:activity-log
+
+      - name: tests — connection-oauth
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:connection-oauth
+
+      - name: tests — social-embed
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:social-embed
+
+      - name: tests — directory-cards
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:directory-cards
+
+      - name: tests — builder-capabilities
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:builder-capabilities
+
+      - name: tests — builder-node-bindings
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:builder-node-bindings
+
+      # The big builder-lab + page-builder suite (1200+ node tests) + the
+      # builder-chrome suite. Both are in the `npm run ci` aggregate but Actions
+      # only runs this curated step list, so they never gated a PR — a behavioral
+      # regression in the builder/catalog/page-roles logic could land on main
+      # green. Wired in here (verified green on main at the time of this change).
+      - name: tests — builder
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:builder
+
+      - name: tests — builder-chrome
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:builder-chrome
+
+      - name: tests — a11y
+        # The lane existed in package.json but ran in NEITHER ci.yml NOR the
+        # `ci` aggregate, so the builder's a11y suite never executed on any PR.
+        # check:builder-test-lane-coverage did not catch it: that guard checks
+        # builder test FILES are in a lane, not that a LANE is wired into CI.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:a11y
+
+  tests_b:
+    name: Gate — tests (B)
+    needs: [policy, precheck]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Parallel part of the old single `gate` job (TUL-1770 part 2).
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          # package.json `engines.node` = ">=22.0.0 <25.0.0".
+          # `.nvmrc` says 20.20.2 but that's stale (predates the Next 15 /
+          # React 19 bump); package.json is the source of truth.
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: tests — size ratchet
+        # Line-count budgets for the files eslint stopped constraining. Every
+        # file already over `max-lines` 800 is grandfathered in
+        # eslint-suppressions.json as {"max-lines": {"count": 1}}, and that
+        # count is a count of violations, not of lines — so it is satisfied at
+        # 801 lines and at 8,001 alike. This lane measures the line count.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:size-ratchet
+
+      - name: tests — QA host pool helpers
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:qa-host
+
+      - name: tests — alias guard
+        # scripts/lib/alias-guard.mjs: a custom domain may only be aliased to a
+        # build whose commit the main structural gate passed (2026-09-11
+        # pointer incident). Pure decision, node:test, includes that day's case.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:alias-guard
+
+      - name: tests — theme i18n overlay release script
+        # scripts/release-theme-i18n-plan.ts: pure guards + flow of the guarded
+        # Spanish/English seed release (injected fakes, no DB).
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:release-theme-i18n
+
+      - name: tests — theme seed i18n heal inventory
+        # scripts/heal-seed-i18n-missing-es-plan.ts (TUL-369): read-only count of
+        # stored trees whose English seed lacks props.i18n.es. Pure, no DB.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:heal-seed-i18n-missing-es
+
+      - name: tests — theme CTA patch release script
+        # scripts/release-theme-cta-plan.ts: guards + flow of the guarded Maison v2
+        # "Book an appointment" header/hero release (injected fakes, no DB).
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:release-theme-cta
+
+      - name: tests — media ownership stamps
+        # The ownership stamp helpers every media writer now spreads into its
+        # INSERT (lib/media/ownership.ts). A regression here silently mislabels
+        # who owns a photo, which is the input to every later per-hub phase.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:media-ownership
+
+      - name: tests — account lifecycle (anonymize, deletion, retention purge)
+        # PII erasure and retention purge decide what we keep about a person.
+        # These suites existed (anonymize, deletion, retention) but sat in no
+        # lane, so a regression in what gets scrubbed or purged gated nothing.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:account-lifecycle
+
+      - name: tests — taxonomy guard (selftest only; the DB probe runs in deploy:smoke)
+        # Proves check:taxonomy still MEASURES the bugs it was written for —
+        # in particular that a parent-category expansion reaching `specialty`
+        # terms still resolves to ZERO. Pure, no network, no credentials: the
+        # live data probe belongs to deploy:smoke, not to a PR gate.
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:taxonomy-guard
+
+      - name: tests — node-presentation
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:node-presentation
+
+      - name: tests — publish-preflight
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:publish-preflight
+
+      - name: tests — posts
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:posts
+
+      # The Impronta page-tree suites (12 files, 133 assertions) existed but
+      # ran nowhere: no npm script, no CI step. Their section-structure
+      # snapshot had been red since the location map landed and nothing said
+      # so. A guard nobody runs is not a guard.
+      - name: tests — impronta page trees
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:impronta-pages
+
+      - name: tests — platform stock library
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:platform-stock
+
+      # ── Money / content lanes ─────────────────────────────────────────
+      # These four lanes were in the `npm run ci` aggregate but NOT in this
+      # curated step list, so they never gated a PR (the same drift that hid
+      # test:builder). For a payments product, test:money/billing not gating is
+      # the highest-risk gap; check:ci-lane-parity (below) now prevents recurrence.
+      - name: tests — billing
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:billing
+
+      - name: tests — money
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:money
+
+      # Tulala Agent: entitlement truth, the product laws, the recommendation
+      # engine. Deterministic and pure by design, so this lane is cheap and is
+      # the one that catches a rule change nobody meant to make.
+      - name: tests — tulala
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:tulala
+
+      - name: tests — onboarding
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:onboarding
+
+      - name: tests — Jorgelina publish script (TUL-73b)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:jorgelina-publish
+
+      - name: tests — Jorgelina content script (TUL-73)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:jorgelina-content
+
+      - name: tests — demo English data script (TUL-207)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:demo-english-data
+
+      - name: tests — English content fill + ticker source scripts (TUL-15)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:en-content-fill
+
+      - name: tests — QA test-talent sync + design drift (TUL-135)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:sync-test-talent
+
+      - name: tests — live timing harness pure parts (TUL-290)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:live-timing
+      - name: tests — talent public app routes (bracketed folders, TUL-288 follow-up)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:talent-public-app
+
+      - name: tests — previously orphaned tests, enrolled (core)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:orphans-enrolled-core
+
+      - name: tests — previously orphaned money and auth tests, enrolled
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:orphans-enrolled-money-auth
+
+      - name: tests — previously orphaned promo, orders, POS and money tests, enrolled (TUL-1458)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:orphans-enrolled-money-promos
+
+      - name: tests — fields
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:fields
+
+      # The shape half of the anon-write-policy guard. The live half runs in
+      # auto-apply-migrations.yml, which holds the Management API token; this
+      # exercises the judgement without a database, so a new open policy fails a
+      # build rather than waiting to be found by a probe.
+      - name: tests — anon write policy shape
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:anon-write-policy
+
+      # The credential-free half of the migration-collision guard. The remote
+      # half needs the service role, which never enters CI, and lives behind
+      # `npm run manual:migration-collisions`.
+      - name: tests — migration collisions
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:migration-collisions
+
+      # The splitter the isolated-branch repair depends on. It decides what one
+      # statement is, and getting a dollar-quoted plpgsql body wrong would make
+      # a replay report success over a half-applied schema.
+      - name: tests — migration replay tooling
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:migration-tooling
+
+      - name: tests — notifications
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:notifications
+
+      - name: tests — reviews
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:reviews
+
+      - name: tests — scheduling
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:scheduling
+
+      # Capacity engine (Sell the Room 0.2). Pure: the TypeScript half of the
+      # remaining-units rule, which must agree with the SQL half in
+      # 20261229000200_capacity_engine.sql. The 200-concurrent oversell proof is
+      # NOT here — it needs a real Postgres. It lives in
+      # `npm run verify:capacity-concurrency` and is deliberately outside the
+      # `ci` aggregate so lane parity stays honest about what actually gates.
+      # The sibling proof for a single physical resource (one unit, N concurrent
+      # reserve_capacity calls, ground truth from capacity_allocations) is
+      # `npm run verify:resource-concurrency` — same reason, same exclusion.
+      - name: tests — capacity engine
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:capacity
+
+      # The M0 reliability layer: command envelope, transactional outbox and the
+      # Exceptions inbox that reads what they leave behind. Pure, against fakes
+      # that enforce the two schema properties the behaviour depends on — the
+      # unique index on (tenant, command, idempotency key) and the partial
+      # unique index on the outbox dedupe key. The races ARE the subject here (a
+      # double-tapped button, a key reused with different arguments, a retried
+      # enqueue) and a real Postgres cannot hold an interleaving still enough to
+      # assert on. The exceptions half additionally pins the one classification
+      # whose failure mode is a second refund.
+      # The lease-taken race for the command claim table (first-claim and
+      # lease-takeover compare-and-set) needs a real Postgres and is proven
+      # separately, deliberately outside the `ci` aggregate for the same reason
+      # as the capacity proofs above: `npm run verify:command-lease`.
+      - name: tests — command envelope, outbox and exceptions
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:commands
+
+      # The M0 design system: the ImpactPreview model (which decides whether a
+      # destructive confirm is offered at all) and the catalog coverage ratchet
+      # that keeps the axe lane's subject list honest. Pure — no DOM here.
+      - name: tests — design system model and catalog coverage
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:design-system
+
+      - name: tests — build-chunk checker
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:build-chunks
+
+      # axe-core over every variant in the component catalog, one mount each.
+      # The plan's finding was "no axe in CI"; this is the answer to it, and it
+      # is deliberately aimed at PRIMITIVES rather than pages — a page-level
+      # sweep tells you a screen is broken, this tells you which component is.
+      # It found a real `role="alert"` on a <ul> in the first component it ran
+      # against, which is the sort of defect no screenshot and no type ever
+      # catches.
+      - name: tests — axe (component catalog)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:axe
+
+      # Events & Ticketing (Phase 2). Pure: the event policy decisions -- slug,
+      # the status moves (cancelled is terminal), doors as an OFFSET so it never
+      # acquires a second wall clock, and the refund decision, which returns a
+      # reason so "nobody set a policy" cannot be served to a customer as "the
+      # window closed". A GLOB lane on purpose: the hand-maintained file list is
+      # what made the lane-name collision lose coverage silently.
+      - name: tests — events and ticketing
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:events
+
+      # Sessions & Classes (Phase 1). Pure: the recurrence resolver, whose DST
+      # tests assert the naive 7x24h expansion DRIFTS while this one does not,
+      # and the tier-pool request builder that makes a timeless allocation
+      # impossible to construct.
+      - name: tests — sessions and classes
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:sessions
+
+      # Spaces & Seating S1: the timezone ladder (venue, then workspace, then
+      # the legacy appointments setting, then UTC) and the local-hour helper the
+      # reminder cron gates on. Pure; the venue rows themselves are asserted in
+      # production after the migration, not here.
+      - name: tests — spaces and seating
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:spaces
+
+      # Reservations R1. Pure: the fail-closed rules parser and the service
+      # window resolver. The DST cases are the point of this lane — a seating
+      # inside a spring-forward gap must be DROPPED rather than moved onto the
+      # real one an hour later, and every turn time must be added to the INSTANT,
+      # because adding it to the wall clock holds a table for 30 real minutes
+      # instead of 90 on the one night a year that loses an hour.
+      - name: tests — reservations
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:reservations
+      # Storefront widget seams: the reader/action pair per page-builder widget
+      # (`lib/storefront/*.server.ts`) over injected engines. Proves each read
+      # returns shaped data, each act refuses without identity, maps every
+      # engine refusal onto the five widget reasons, and replays a key without
+      # a second write. No database: the fakes model the contract, the engines
+      # own the row locks.
+      - name: tests — storefront seams
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:storefront
+
+      # Design-compiler (token/CSS compile pipeline). Wired into `npm run ci`;
+      # must appear here so check:ci-lane-parity stays green.
+      - name: tests — design-compiler
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:design-compiler
+      # QR & Links Q1: which destination a printed code resolves to, at the
+      # hour it is actually scanned. Pure — a wall clock in the venue timezone
+      # and a rule list, no database. The rows and the redirect are asserted in
+      # production after the migration, not here.
+      - name: tests — qr and links
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:links
+
+      - name: tests — words and industry presets
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:words
+
+      - name: tests — front door (cart totals, /me)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:front-door
+
+      # ── Component test gate (10th test step) ─────────────────────────
+      # Vitest + @testing-library/react + jsdom. Smoke tests for the
+      # top god-files (primitives, profile-shell-internal, WorkspacePageView,
+      # media-page, edit-context). A red signal means a recent refactor
+      # broke the render shape of a foundational component.
       #
-      # The self-test runs FIRST, so a gate that has quietly stopped measuring
-      # (a moved route, a stale prefix, a manifest shape change) fails as a
-      # broken gate rather than passing as a clean bundle.
-      - name: perf — admin and POS bundle budget
-        if: ${{ !cancelled() && steps.policy.outputs.run == 'true' }}
+      # See web/docs/test-infrastructure.md for stack rationale and the
+      # rule against bloating this lane with "high coverage" tests —
+      # smoke-level only; expand via a separate lane.
+      - name: tests — components (vitest smoke)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:components
+
+  # AGGREGATOR. Keeps the exact check/job name `Structural quality gate`.
+  # Consumers: the required status check, promote-production.yml (workflow-level
+  # conclusion), main-red-alert.yml, alias-guard.mjs (workflow name), and
+  # ci-full-ci-rerun.yml (finds this job's "Gate policy" step to decide a re-run).
+  # `always()` so it reports a verdict even when a needed job failed, was
+  # cancelled (a timeout shows as cancelled) or was skipped because policy
+  # refused. The draft skip is unchanged: a draft PR skips this job (a skipped
+  # required check counts as passing, exactly as before).
+  gate:
+    name: Structural quality gate
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    needs: [policy, precheck, build, static, tests_a, tests_b, billing_e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The policy job already refused an ordinary PR; this step restates it on
+      # THIS job so ci-full-ci-rerun.yml (which looks for a failed "Gate policy"
+      # step on the "Structural quality gate" job) still finds it and re-runs.
+      - name: Gate policy (ordinary PRs ship via an integ batch)
+        env:
+          POLICY_RESULT: ${{ needs.policy.result }}
         run: |
-          npm run perf:app-budget:selftest
-          npm run perf:app-budget
+          if [ "$POLICY_RESULT" != "success" ]; then
+            echo "::error::Ordinary PRs ship inside an integ/* batch, whose gate covers them. To merge this PR on its own, add the full-ci label; this check then re-runs on its own. (policy job result: $POLICY_RESULT)"
+            exit 1
+          fi
+
+      - name: Verdict (every gate job must have succeeded)
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          printf '%s' "$NEEDS_JSON" | node -e '
+            const needs = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            let bad = 0;
+            for (const [job, v] of Object.entries(needs)) {
+              console.log(job + ": " + v.result);
+              if (v.result !== "success") bad++;
+            }
+            if (bad) { console.error("::error::" + bad + " gate job(s) did not succeed (failure, cancelled or timed out, or skipped)."); process.exit(1); }
+          '
 
   # PR typecheck (PM, 2026-10-09): ordinary PRs fail the heavy gate in seconds
   # (TUL-412 policy) and ship inside an integ batch, so a tsc error used to

@@ -96,3 +96,32 @@ test("TUL-540: the talent 'what' line reads work.industry when no discipline was
   const u = buildUnderstanding({ brief, intent: "talent", userPath: "talent" });
   assert.equal(u.lines.find((l) => l.id === "what")?.value, "Maquillaje");
 });
+
+test("/start summary: an earlier blank fact for a key does not hide the value the person gave", () => {
+  const base = briefFromOnboardingFixture(fixtureById("rosa"));
+  const blank = (factKey: string) => ({ factKey, value: "", source: "ai_inference" as const, status: "needs_approval" as const, confidence: 0.2, sourceExcerpt: null, sourceUrl: null, questionId: null, questionVersion: null, updatedAt: "" });
+  const said = (factKey: string, value: string) => ({ factKey, value, source: "user_stated" as const, status: "confirmed" as const, confidence: 1, sourceExcerpt: null, sourceUrl: null, questionId: null, questionVersion: null, updatedAt: "" });
+  const facts = base.facts.filter((f) => !["work.discipline", "work.industry", "person.city"].includes(f.factKey));
+  const brief = { ...base, facts: [blank("work.discipline"), blank("person.city"), ...facts, said("work.discipline", "Peluquera"), said("person.city", "Tulum")] };
+  const u = buildUnderstanding({ brief, intent: "talent", locale: "es" });
+  assert.equal(u.lines.find((l) => l.id === "what")?.value, "Peluquera");
+  assert.equal(u.lines.find((l) => l.id === "what")?.status, "known");
+  assert.equal(u.lines.find((l) => l.id === "city")?.value, "Tulum");
+  assert.equal(u.lines.find((l) => l.id === "city")?.status, "known");
+});
+
+import type { Essentials } from "./essentials";
+
+test("TUL-1822: services, hours and place saved on step 3 never read as missing", () => {
+  const fx = fixtureById("mariana");
+  const brief = { ...briefFromOnboardingFixture(fx), facts: [] };
+  const week = { "0": [], "1": [{ startMin: 540, endMin: 1140 }], "2": [], "3": [], "4": [], "5": [], "6": [] } as Essentials["hours"];
+  const essentials = { name: "Ana", services: [{ name: "Corte", durationMin: 30, priceCents: 1000, quote: false, currency: "MXN" }], hours: week, timezone: null, place: { mode: "client", area: "Tulum" }, firstProviderEmail: null, firstProviderName: null, ownerProvides: true, confirmed: true, source: "manual" } as Essentials;
+  const before = buildUnderstanding({ brief, intent: "business", userPath: "business" });
+  const after = buildUnderstanding({ brief, intent: "business", userPath: "business", essentials });
+  const status = (u: typeof before, id: string) => u.lines.find((l) => l.id === id)?.status;
+  for (const id of ["offer", "hours", "city"]) {
+    assert.equal(status(before, id), "missing", `${id} before`);
+    assert.equal(status(after, id), "known", `${id} after`);
+  }
+});

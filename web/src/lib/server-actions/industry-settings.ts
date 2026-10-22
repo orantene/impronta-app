@@ -133,7 +133,7 @@ export async function setIndustryPreset(
   const parsed = presetSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: CLIENT_ERROR.update };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -181,7 +181,7 @@ export async function setBusinessType(
   const type = businessTypeById(parsed.data.typeId);
   if (!type) return { ok: false, error: CLIENT_ERROR.update };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -222,7 +222,7 @@ export async function setWordOverride(
   const parsed = wordEditSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: CLIENT_ERROR.update };
 
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_settings" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

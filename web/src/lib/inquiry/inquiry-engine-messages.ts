@@ -9,6 +9,7 @@ import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { notifyMentionedParticipants } from "@/lib/notifications/mention-notify";
 import { maybeSendGuestReplyNudge } from "./guest-reply-nudge";
 import { logServerError } from "@/lib/server/safe-error";
+import { insertInquiryMessage, maskEditedBody } from "@/lib/coordinator/masked-message-write.server";
 
 // SaaS P1.B STEP A: tenant-scoped by construction. Every read/write against
 // inquiries / inquiry_messages / inquiry_message_reads filters on tenant_id,
@@ -50,6 +51,8 @@ export async function sendMessage(
     body: string;
     /** Optional threaded-reply anchor (inquiry_messages.reply_to_message_id). */
     replyToMessageId?: string | null;
+    /** Extra structured metadata for the row (e.g. TUL-1415 `roster_request`). Never trusted input: callers sanitize. */
+    metadata?: Record<string, unknown>;
   },
 ): Promise<EngineResult<{ messageId: string }>> {
   const isGuestSender = !ctx.actorUserId && !!ctx.guestSessionId;
@@ -84,20 +87,21 @@ export async function sendMessage(
     // the security gate. See qa-evidence/2026-05-14/step-06.
     // Guests (anon, no JWT) likewise cannot pass RLS — same gate, same path.
     const writeMsg = await inquiryWriteClient(supabase);
-    const { data: row, error } = await writeMsg
-      .from("inquiry_messages")
-      .insert({
-        inquiry_id: ctx.inquiryId,
-        tenant_id: ctx.tenantId,
-        thread_type: ctx.threadType,
-        sender_user_id: isGuestSender ? null : ctx.actorUserId,
-        guest_session_id: isGuestSender ? ctx.guestSessionId : null,
-        body: ctx.body,
-        metadata: {},
-        ...(ctx.replyToMessageId ? { reply_to_message_id: ctx.replyToMessageId } : {}),
-      })
-      .select("id")
-      .single();
+    // TUL-1373: the one masked writer (dark unless the flag is on; client chat only).
+    const written = await insertInquiryMessage(writeMsg, {
+      inquiry_id: ctx.inquiryId,
+      tenant_id: ctx.tenantId,
+      thread_type: ctx.threadType,
+      sender_user_id: isGuestSender ? null : ctx.actorUserId,
+      guest_session_id: isGuestSender ? ctx.guestSessionId : null,
+      body: ctx.body,
+      metadata: { ...(ctx.metadata ?? {}) },
+      ...(ctx.replyToMessageId ? { reply_to_message_id: ctx.replyToMessageId } : {}),
+    });
+    const row = written.data;
+    const error = written.error;
+    // What was stored (masked or not) feeds the notification, nudge and mention fan-out.
+    const storedBody = written.storedBody ?? ctx.body;
 
     if (error || !row) return { success: false, error: error?.message ?? "insert_failed" };
 
@@ -118,7 +122,7 @@ export async function sendMessage(
     resolveInquiryRecipients(supabase, ctx.inquiryId, ctx.tenantId)
       .then(async (recipients) => {
         const title = "New message";
-        const body = ctx.body.length > 120 ? `${ctx.body.slice(0, 117)}…` : ctx.body;
+        const body = storedBody.length > 120 ? `${storedBody.slice(0, 117)}…` : storedBody;
 
         const workspaceTargets = recipients.workspaceUserIds.filter((id) => id !== ctx.actorUserId);
         const promises: Array<Promise<void>> = [];
@@ -260,7 +264,7 @@ export async function sendMessage(
         tenantId: ctx.tenantId,
         senderUserId: ctx.actorUserId,
         messageId: row.id as string,
-        body: ctx.body,
+        body: storedBody,
       }).catch((err) => logServerError("inquiry-engine-messages.guestReplyNudge", err));
     }
 
@@ -279,7 +283,7 @@ export async function sendMessage(
         tenantId: ctx.tenantId,
         actorUserId: ctx.actorUserId,
         threadType: ctx.threadType,
-        body: ctx.body,
+        body: storedBody,
         messageId: row.id as string,
       }).catch((err) => logServerError("inquiry-engine-messages.mentionNotify", err));
     }
@@ -329,7 +333,7 @@ export async function editMessage(
   return runWithEngineLog("editMessage", undefined, ctx.actorUserId, async () => {
     const { data: msg } = await supabase
       .from("inquiry_messages")
-      .select("id, sender_user_id, inquiry_id, created_at")
+      .select("id, sender_user_id, inquiry_id, created_at, thread_type")
       .eq("id", ctx.messageId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
@@ -341,9 +345,18 @@ export async function editMessage(
     const p = await validateActorPermission(supabase, msg.inquiry_id as string, ctx.actorUserId, "edit_message");
     if (!p.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
+    // An edit must not put back what masking took out; the typed original is kept.
+    const editedBody = await maskEditedBody({
+      messageId: ctx.messageId,
+      inquiryId: msg.inquiry_id as string,
+      tenantId: ctx.tenantId,
+      threadType: String(msg.thread_type ?? ""),
+      body: ctx.body,
+    });
+    if (editedBody === null) return { success: false, error: "edit_not_saved" };
     await supabase
       .from("inquiry_messages")
-      .update({ body: ctx.body, edited_at: new Date().toISOString() })
+      .update({ body: editedBody, edited_at: new Date().toISOString() })
       .eq("id", ctx.messageId)
       .eq("tenant_id", ctx.tenantId);
 

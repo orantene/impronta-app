@@ -611,7 +611,7 @@ test("phones do not autofocus the composer", () => {
   assert.match(panel, /pointer: coarse/);
   // TUL-1082: the composer is focused only off-phone; on a phone the dialog itself takes focus (no keyboard pop-up).
   assert.match(panel, /focusIntoDock\(phone, textareaRef\.current\)/);
-  assert.match(src("use-dock-focus-return.ts"), /if \(!phone\) composer\?\.focus\(\)/);
+  assert.match(src("use-dock-focus-return.ts"), /if \(!phone\) composer\?\.focus\(\{ preventScroll: true \}/);
 });
 
 test("desktop card grows with its content between about 420 and 640, anchored bottom-right", () => {

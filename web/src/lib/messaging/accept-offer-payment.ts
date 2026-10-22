@@ -9,6 +9,7 @@ import { computeBookingTalentRowTotals } from "@/lib/booking-pricing";
 import { createDraftOrder } from "@/lib/pos/draft";
 import { resolveAppointmentMirrorSource } from "@/lib/scheduling/reservation-convert";
 import { isExclusionViolation, releaseHoldsForInquiry } from "@/lib/scheduling/reservation-hold";
+import { releaseInquiryWindowResources, secureInquiryBookingResources } from "@/lib/resources/booking-resources";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { resolveAgendaPayPublicOrigin } from "@/lib/talent-agenda/pay-public-origin";
@@ -19,6 +20,7 @@ import { planAcceptCollection, type AcceptCollection, type AcceptPolicyLine } fr
 import { runAcceptOfferPayment, type AcceptOfferForPayment, type AcceptPaymentResult, type AcceptPaymentStore } from "./accept-offer-payment-core";
 import { insertMessage } from "./insert-message";
 import { linkRecordToConversation } from "./link-record";
+import { settleAcceptedOfferFor } from "./settle-accepted-offer";
 import { stampInquiryBookedAt } from "./stamp-inquiry-booked-at";
 
 /**
@@ -169,6 +171,51 @@ function bookingStore(c: Ctx, offer: AcceptOfferForPayment): OfferBookingStore {
         return false;
       }
       return true;
+    },
+
+    async holdResources({ orderId, window }) {
+      // TUL-1375: the shared resources (chair, room, station) the offered services need.
+      const { data: items, error } = await scoped("inquiry_offer_line_items").select("source_service_id").eq("offer_id", offer.id);
+      if (error) {
+        logServerError("messaging.acceptOffer.booking.resources.read", error);
+        return "failed";
+      }
+      const offeringIds = [
+        ...new Set(
+          ((items ?? []) as Array<{ source_service_id: string | null }>)
+            .map((r) => r.source_service_id)
+            .filter((x): x is string => Boolean(x)),
+        ),
+      ];
+      if (offeringIds.length === 0) return "ok";
+      // With an order, the resources are committed onto its line: cancel_booking_set and
+      // reschedule_booking_set then release and move them with THIS booking.
+      let orderLineId: string | null = null;
+      if (orderId) {
+        const { data: line, error: lineErr } = await scoped("order_lines").select("id").eq("order_id", orderId).order("sort_order", { ascending: true }).limit(1).maybeSingle();
+        if (lineErr) {
+          logServerError("messaging.acceptOffer.booking.resources.line", lineErr);
+          return "failed";
+        }
+        orderLineId = (line as { id?: string } | null)?.id ?? null;
+      }
+      return secureInquiryBookingResources(c.admin, {
+        orderLineId,
+        tenantId: c.tenantId,
+        inquiryId: c.inquiryId,
+        offeringIds,
+        window: { startsAt: window.startsAt, endsAt: window.endsAt },
+        actorUserId: c.offerCreatedBy,
+      });
+    },
+
+    async releaseResources({ window }) {
+      // Only this booking's window: never another booking's resources on the same request.
+      await releaseInquiryWindowResources(c.admin, {
+        tenantId: c.tenantId,
+        inquiryId: c.inquiryId,
+        window: { startsAt: window.startsAt, endsAt: window.endsAt },
+      });
     },
 
     async insertMirror({ bookingId, talentProfileId, window }) {
@@ -369,6 +416,8 @@ function productionStore(c: Ctx, offer: AcceptOfferForPayment): AcceptPaymentSto
         inquiryId: c.inquiryId,
       });
       if (!stamped.ok) return { ok: false };
+      // TUL-1899: a booked, paid offer is an accepted offer on a booked inquiry.
+      await settleAcceptedOfferFor(c.admin, { tenantId: c.tenantId, inquiryId: c.inquiryId, offerId: offer.id });
       return { ok: true, bookingId: booked.bookingId, scheduled: booked.scheduled };
     },
   };

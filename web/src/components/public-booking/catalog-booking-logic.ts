@@ -1,3 +1,4 @@
+import { collectNowCents } from "@/lib/orders/price/rules";
 import { bookingDurationMinutes } from "@/lib/scheduling/reservation-window";
 import { zoneTimeLabel } from "@/lib/events/zone-time-label";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
@@ -256,24 +257,16 @@ export function catalogRowCtaLabel(opts: {
   return opts.inspectorLabel?.trim() || offeringCtaLabel("book_now", opts.locale, "catalog");
 }
 
-/** Cents collected at confirm for the given reserve policy (full / deposit / free). */
+/**
+ * Cents collected at confirm for the given reserve policy (full / deposit / free). The deposit is the
+ * checkout's own floor (`orders/price/rules`), so the rail shows exactly what is charged (TUL-1304).
+ */
 export function catalogCollectNowCents(
   totalCents: number | null | undefined,
   reserveMode: "full" | "deposit" | "free" | null | undefined,
   depositPct: number | null | undefined,
 ): number | null {
-  if (totalCents == null) return null;
-  if (reserveMode === "free") return 0;
-  if (
-    reserveMode === "deposit" &&
-    typeof depositPct === "number" &&
-    Number.isFinite(depositPct) &&
-    depositPct > 0 &&
-    depositPct < 100
-  ) {
-    return Math.round((totalCents * depositPct) / 100);
-  }
-  return totalCents;
+  return collectNowCents(totalCents, reserveMode, depositPct);
 }
 
 /** Min bookable cents for a row — base amount or cheapest variant. */

@@ -23,6 +23,7 @@ import {
 
 import { formatRelTime, hasNewInbound } from "./guest-thread-switcher-helpers";
 import { NewDot } from "./GuestThreadSwitcherParts";
+import { displayGuestName } from "./guest-placeholder-name";
 import { FONT, paletteFor, readableOn, type SurfaceMode } from "./mini-chat-styles";
 
 export type GuestDockProjectsViewProps = {
@@ -231,7 +232,7 @@ export function GuestDockProjectsView({
         {visible.map((inq) => {
           const isActive = inq.inquiryId === activeInquiryId;
           const showNew = !isActive && hasNewInbound(inq, seenAtByInquiry);
-          const name = (inq.contactName ?? "").trim() || inq.projectLabel;
+          const name = displayGuestName(inq.contactName, t) || inq.projectLabel;
           return (
             <div key={inq.inquiryId} style={{ display: "flex", flexDirection: "column" }}>
             <button

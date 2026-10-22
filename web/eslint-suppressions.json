@@ -150,6 +150,11 @@
       "count": 2
     }
   },
+  "src/components/admin/shell/internal/drawers/field-privacy-drawer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 9
+    }
+  },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 29
@@ -195,7 +200,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-10.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 42
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/drawers/light-11.tsx": {
@@ -1412,6 +1417,11 @@
       "count": 1
     }
   },
+  "src/lib/payments/transfers.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
   "src/lib/pitch/pitch-engine.deep.test.ts": {
     "max-lines": {
       "count": 1
@@ -1452,7 +1462,7 @@
   },
   "src/lib/server-actions/admin-clients.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 3
+      "count": 1
     }
   },
   "src/lib/server-actions/admin-cms-revisions.ts": {
@@ -1475,7 +1485,7 @@
   },
   "src/lib/server-actions/admin-plan-downgrade.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 6
+      "count": 5
     }
   },
   "src/lib/server-actions/admin-product-discounts.ts": {
@@ -1548,7 +1558,7 @@
       "count": 1
     },
     "ratchet/no-untenanted-from": {
-      "count": 17
+      "count": 16
     }
   },
   "src/lib/server-actions/admin-talent-roster.ts": {
@@ -1621,7 +1631,7 @@
   },
   "src/lib/server-actions/client-pipeline.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 5
+      "count": 4
     }
   },
   "src/lib/server-actions/details-tab-data.ts": {
@@ -1676,7 +1686,7 @@
   },
   "src/lib/server-actions/talent-pipeline.ts": {
     "ratchet/no-untenanted-from": {
-      "count": 14
+      "count": 13
     }
   },
   "src/lib/server-actions/talent-self-profile-sections.ts": {
@@ -1828,6 +1838,11 @@
     }
   },
   "src/lib/site-admin/tokens/registry.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "src/lib/stripe/webhook-routing.test.ts": {
     "max-lines": {
       "count": 1
     }

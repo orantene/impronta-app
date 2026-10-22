@@ -55,20 +55,20 @@ test("a variantId from another offering is refused by pricing, not ignored", () 
 });
 
 test("the action gates BEFORE it loads or prices anything, and refuses on failure", () => {
-  const src = readFileSync(join(process.cwd(), "src/lib/orders/checkout-quote.actions.ts"), "utf8");
+  const src = readFileSync(join(process.cwd(), "src/lib/orders/price/quote.actions.ts"), "utf8");
   const gate = src.indexOf("offeringIsQuotable(");
   assert.ok(gate > 0);
-  assert.ok(gate < src.indexOf("loadCatalog(admin"));
-  assert.match(src, /if \(!\(await offeringIsQuotable\(admin, input\.offeringId\)\)\) return \{ ok: false \}/);
+  assert.ok(gate < src.indexOf("loadPriceContext(admin"));
+  assert.match(src, /if \(!\(await offeringIsQuotable\(admin, l\.offeringId\)\)\) return \{ ok: false \}/);
   assert.match(src, /sanitizeQuoteAddOnIds/);
 });
 
 test("the sheet side never statically imports a server-only module (builder renders and perf budget load the sheet without the stub)", () => {
   for (const f of ["src/components/public-booking/use-card-fee-quote.ts", "src/components/public-booking/catalog-who-summary.tsx"]) {
     const src = readFileSync(join(process.cwd(), f), "utf8");
-    assert.doesNotMatch(src, /^import .*checkout-quote\.actions/m);
+    assert.doesNotMatch(src, /^import .*quote\.actions/m);
     assert.doesNotMatch(src, /server-only/);
   }
   const hook = readFileSync(join(process.cwd(), "src/components/public-booking/use-card-fee-quote.ts"), "utf8");
-  assert.match(hook, /import\("@\/lib\/orders\/checkout-quote\.actions"\)/);
+  assert.match(hook, /import\("@\/lib\/orders\/price\/quote\.actions"\)/);
 });

@@ -10,7 +10,10 @@ import { computeHybridContextStamp } from "@/lib/directory/hybrid-context-stamp"
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
-import { embedTextForSearch, embeddingCacheKey } from "@/lib/ai/openai-embeddings";
+import { OPENAI_EMBEDDING_MODEL_ID, embedTextForSearch, embeddingCacheKey } from "@/lib/ai/openai-embeddings";
+import { chatSpendUsd, recordMeasuredAiSpend } from "@/lib/ai/spend-cents";
+import { afterResponse } from "@/lib/server/after-response";
+import { DEFAULT_AI_TENANT_ID } from "@/lib/ai/ai-tenant-constants";
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { directoryCardToSearchResult, type SearchResult } from "@/lib/ai/search-result";
 import { cosineDistanceToSimilarity01 } from "@/lib/ai/vector-retrieval";
@@ -307,7 +310,13 @@ async function runAiDirectorySearchOnce(
     } else if (!(await resolveOpenAiApiKey())?.trim()) {
       fallbackReason = "openai_key_missing";
     } else {
-      const emb = await embedTextForSearch(normalizedForEmbedding!);
+      // TUL-1731: the embedding is priced by the tokens OpenAI billed, and only when a real request was made.
+      const emb = await embedTextForSearch(normalizedForEmbedding!, (inputTokens) => {
+        afterResponse(
+          () => recordMeasuredAiSpend(tenantScopeId ?? DEFAULT_AI_TENANT_ID, chatSpendUsd(OPENAI_EMBEDDING_MODEL_ID, { inputTokens }), 0),
+          "run-ai-directory-search/embedding-usage",
+        );
+      });
       if (!emb) {
         fallbackReason = "embedding_failed";
       } else {

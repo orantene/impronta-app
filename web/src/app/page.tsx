@@ -5,6 +5,7 @@ import { AgencyHomeStorefront } from "@/components/home/agency-home-storefront";
 import { AppLanding } from "@/components/home/app-landing";
 import { appLandingLocale } from "@/components/home/app-landing-locale.server";
 import { HubLanding } from "@/components/home/hub-landing";
+import { hubCmsTitle, hubDisplayName, hubLandingCopy } from "@/components/home/hub-landing-copy";
 import { MarketingLanding } from "@/components/home/marketing-landing";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -118,10 +119,10 @@ export async function generateMetadata(): Promise<Metadata> {
     const businessMeta = tenantWords
       ? businessHomeMeta(tenantWords.preset, identity, t)
       : null;
-    const brandName = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+    const brandName = hubDisplayName(identity?.public_name, PLATFORM_BRAND.name);
     const fallbackTitle =
       ctx.kind === "hub"
-        ? `Agencies on the platform · ${brandName}`
+        ? hubLandingCopy(locale).metaTitle(brandName)
         : identity?.seo_default_title?.trim() ||
           businessMeta?.title ||
           (identity?.public_name?.trim()
@@ -131,7 +132,10 @@ export async function generateMetadata(): Promise<Metadata> {
       identity?.seo_default_description?.trim() ||
       businessMeta?.description ||
       (businessMeta ? fallbackTitle : t("public.meta.homeDescription"));
-    const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
+    const title =
+      ctx.kind === "hub"
+        ? hubCmsTitle(homepage?.metaTitle, "") || hubCmsTitle(homepage?.title, "") || fallbackTitle // TUL-1884
+        : homepage?.metaTitle || homepage?.title || fallbackTitle;
     const description = homepage?.metaDescription || fallbackDescription;
     const localeAlternates = await buildTenantLocaleAlternates(locale, "/");
     // TUL-591: an empty business workspace (no services, no published pages) is a placeholder; keep it out of search.
@@ -154,7 +158,7 @@ export async function generateMetadata(): Promise<Metadata> {
       ctx.hostname,
       localeAlternates.metadataBase,
     );
-    const ogTitle = homepage?.ogTitle || title;
+    const ogTitle = ctx.kind === "hub" ? hubCmsTitle(homepage?.ogTitle, title) : homepage?.ogTitle || title; // TUL-1884
     const ogDescription = homepage?.ogDescription || description;
 
     return {

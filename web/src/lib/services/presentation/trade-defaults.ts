@@ -51,10 +51,11 @@ export function tradeDefaultMode(slug: string | null | undefined): PresentationM
 
 /**
  * Tenant plan -> allowed modes. Plans are those of normalizeTenantTaxonomyPlan.
- * Assumption to confirm with PM: free has no standalone pages, so no own_page.
+ * Free has no standalone pages, so no own_page; every PAID workspace plan (website, studio, agency,
+ * network) has them. `website` was missing, so Website-plan workspaces got no service pages (staging QA 2026-10-21).
  */
 export function presentationEntitlementsForPlan(plan: string | null | undefined): PresentationEntitlements {
-  const hasPages = plan === "studio" || plan === "agency" || plan === "network";
+  const hasPages = plan === "website" || plan === "studio" || plan === "agency" || plan === "network";
   return {
     allowedModes: hasPages ? PRESENTATION_MODES : PRESENTATION_MODES.filter((m) => m !== "own_page"),
   };

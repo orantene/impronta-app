@@ -11,6 +11,7 @@ import {
 import { useCurrentOrigin } from "@/lib/talent/use-public-profile-href";
 
 import { useDashboardText } from "../dashboard-i18n";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 function EyeGlyph() {
   return (
@@ -38,6 +39,7 @@ export function TalentPreviewEyeControl({
 }) {
   const copy = useDashboardText();
   const origin = useCurrentOrigin();
+  const dashboardLocale = useDashboardLocale();
   const siteLoad = useTalentSiteDashboardInitialLoad();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -51,6 +53,7 @@ export function TalentPreviewEyeControl({
     profileCode,
     publicSiteUrl,
     currentOrigin: origin,
+    locale: dashboardLocale,
   });
 
   useEffect(() => {

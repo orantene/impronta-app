@@ -3,6 +3,8 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
+import { AI_OFF_MESSAGE } from "@/lib/ai/providers/disabled-chat-adapter";
+import { isAiMasterEnabled } from "@/lib/settings/ai-feature-flags";
 import { imageCostFromUsage, resolveImageEngineSettings, type ImageEngineSettings, type ImageQuality, type ImageUsage } from "@/lib/ai/ai-image-model";
 import { buildOpenAiImageRequestBody, isDallEModel } from "@/lib/ai/openai-image-request";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -59,7 +61,11 @@ function currentMonthKey(): string {
  * (no real-person likeness, text, logos, or nudity) — mirrors the shipped
  * taxonomy promo-image generator, but takes a caller subject.
  */
-export async function generateImageBytesFromPrompt(subject: string): Promise<Buffer> {
+export async function generateImageBytesFromPrompt(
+  subject: string,
+  /** TUL-1731: called with the cost measured from the reply's token usage, so the spend counter sees the real price. */
+  onMeasuredCostUsd?: (usd: number) => void,
+): Promise<Buffer> {
   const safeSubject = subject.trim().slice(0, 400) || "an abstract editorial image";
   return requestOpenAiImage(
     [
@@ -68,6 +74,7 @@ export async function generateImageBytesFromPrompt(subject: string): Promise<Buf
       "No text, no logos, no watermarks. No recognizable real person, face, or celebrity. No nudity.",
       `Subject (interpret tastefully): "${safeSubject}".`,
     ].join(" "),
+    onMeasuredCostUsd,
   );
 }
 
@@ -94,7 +101,7 @@ export async function generateLifestyleStockBytes(input: {
   return { bytes: await requestOpenAiImage(prompt), prompt };
 }
 
-export type ImageProviderErrorCode = "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error";
+export type ImageProviderErrorCode = "ai_off" | "not_configured" | "moderation_blocked" | "rate_limit_exceeded" | "insufficient_quota" | "provider_error";
 
 /** A provider refusal the pipeline treats as a STATE (03 §4), not a crash. */
 export class ImageProviderError extends Error {
@@ -131,6 +138,9 @@ export async function generateStockImage(input: {
   quality?: ImageQuality;
   settings?: ImageEngineSettings;
 }): Promise<GeneratedStockImage> {
+  // Every image path (builder node image, stock engine, lifestyle stock) goes through here, so the
+  // master switch is checked once, before any key is read or paid call is made (TUL-1622).
+  if (!(await isAiMasterEnabled())) throw new ImageProviderError("ai_off", AI_OFF_MESSAGE);
   const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) throw new ImageProviderError("not_configured", "OpenAI API key is not configured.");
   const settings = input.settings ?? (await resolveImageEngineSettings());
@@ -179,8 +189,9 @@ export async function generateStockImage(input: {
 }
 
 /** Legacy single-image path (builder node image, taxonomy promo). Uses the stored model; square, medium. */
-async function requestOpenAiImage(prompt: string): Promise<Buffer> {
+async function requestOpenAiImage(prompt: string, onMeasuredCostUsd?: (usd: number) => void): Promise<Buffer> {
   const out = await generateStockImage({ prompt, size: "1024x1024", quality: "medium" });
+  onMeasuredCostUsd?.(out.costUsd);
   return out.bytes;
 }
 
@@ -312,11 +323,13 @@ export async function recordImageGenerationUsage(input: {
   tenantId: string;
   userId: string;
   ok: boolean;
+  /** TUL-1731: the cost measured from the reply's usage. Absent or 0 = the flat estimate (a reply with no usage block). */
+  measuredCostUsd?: number;
 }): Promise<void> {
   try {
     const supabase = createServiceRoleClient();
     if (!supabase) return;
-    const costUsd = input.ok ? estimateImageCostUsd() : 0;
+    const costUsd = input.ok ? (input.measuredCostUsd && input.measuredCostUsd > 0 ? input.measuredCostUsd : estimateImageCostUsd()) : 0;
     await supabase.from("cms_ai_usage_log").insert({
       tenant_id: input.tenantId,
       action: "generate_section", // reuse the allowed action value; feature marks images

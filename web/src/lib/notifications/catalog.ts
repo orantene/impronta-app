@@ -37,6 +37,10 @@ import { SUPPORT_CATALOG_ENTRIES } from "./catalog-entries-support";
 import { RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-reservation";
 import { TABLE_RESERVATION_CATALOG_ENTRIES } from "./catalog-entries-table-reservation";
 import { SESSION_CATALOG_ENTRIES } from "./catalog-entries-sessions";
+import { RENT_CATALOG_ENTRIES } from "./catalog-entries-rent";
+import { COORDINATOR_ROLE_CATALOG_ENTRIES } from "./catalog-entries-coordinator-role";
+import { MATCH_CATALOG_ENTRIES } from "./catalog-entries-match";
+import { HUB_LISTING_CATALOG_ENTRIES } from "./catalog-entries-hub-listing";
 import { ACCOUNT_CATALOG_ENTRIES } from "./catalog-entries-accounts";
 import { PREP_CATALOG_ENTRIES } from "./catalog-entries-prep";
 import { UNCLAIMED_CATALOG_ENTRIES } from "./catalog-entries-unclaimed";
@@ -673,6 +677,10 @@ export const NOTIFICATION_CATALOG: CatalogEntry[] = [
   ...SESSION_CATALOG_ENTRIES,
   ...ACCOUNT_CATALOG_ENTRIES,
   ...PREP_CATALOG_ENTRIES,
+  ...MATCH_CATALOG_ENTRIES,
+  ...RENT_CATALOG_ENTRIES,
+  ...COORDINATOR_ROLE_CATALOG_ENTRIES,
+  ...HUB_LISTING_CATALOG_ENTRIES,
   ...UNCLAIMED_CATALOG_ENTRIES,
   PLATFORM_NEW_WORKSPACE,
   PLATFORM_WORKSPACE_OVER_QUOTA,

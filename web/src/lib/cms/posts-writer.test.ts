@@ -422,3 +422,64 @@ test("cron publish: published_at = scheduled_publish_at, schedule cleared", asyn
   const row = db.tables.cms_posts[0]!;
   assert.deepEqual([row.status, row.published_at, row.scheduled_publish_at], ["published", when, null]);
 });
+
+// ---- TUL-1399: excerpt, language and EN/ES link ----------------------------
+
+test("settings: excerpt is saved trimmed", async () => {
+  const db = fakeDb({ cms_posts: [post()] });
+  const res = await updatePostSettings(ctx(db), { id: "p1", patch: { excerpt: "  Resumen corto  " } });
+  assert.equal(res.ok, true);
+  assert.equal(db.tables.cms_posts[0].excerpt, "Resumen corto");
+});
+
+test("settings: a draft can change language; category and old link are cleared", async () => {
+  const db = fakeDb({ cms_posts: [post({ category_id: "c1", translation_of: "x" })] });
+  const res = await updatePostSettings(ctx(db), { id: "p1", patch: { locale: "en" } });
+  assert.equal(res.ok, true);
+  assert.equal(db.tables.cms_posts[0].locale, "en");
+  assert.equal(db.tables.cms_posts[0].category_id, null);
+  assert.equal(db.tables.cms_posts[0].translation_of, null);
+});
+
+test("settings: a live post keeps its language", async () => {
+  const db = fakeDb({ cms_posts: [post({ status: "published" })] });
+  const res = await updatePostSettings(ctx(db), { id: "p1", patch: { locale: "en" } });
+  assert.equal(res.ok, false);
+  assert.equal(db.tables.cms_posts[0].locale, "es");
+});
+
+test("settings: changing language onto a taken slug reports slug_taken", async () => {
+  const db = fakeDb({ cms_posts: [post(), post({ id: "p2", locale: "en" })] });
+  const res = await updatePostSettings(ctx(db), { id: "p1", patch: { locale: "en" } });
+  assert.equal(res.ok, false);
+  if (!res.ok) assert.equal(res.code, "slug_taken");
+});
+
+test("settings: translation link needs a post in the OTHER language and points at the group root", async () => {
+  const sameLang = "33333333-3333-4333-8333-333333333333";
+  const other = "44444444-4444-4444-8444-444444444444";
+  const db = fakeDb({
+    cms_posts: [
+      post({ id: "p1", locale: "es" }),
+      post({ id: other, locale: "en", slug: "my-post", translation_of: "55555555-5555-4555-8555-555555555555" }),
+      post({ id: sameLang, locale: "es", slug: "otro" }),
+    ],
+  });
+  const same = await updatePostSettings(ctx(db), { id: "p1", patch: { translation_of: sameLang } });
+  assert.equal(same.ok, false);
+  const missing = await updatePostSettings(ctx(db), { id: "p1", patch: { translation_of: "66666666-6666-4666-8666-666666666666" } });
+  assert.equal(missing.ok, false);
+  const ok = await updatePostSettings(ctx(db), { id: "p1", patch: { translation_of: other } });
+  assert.equal(ok.ok, true);
+  assert.equal(db.tables.cms_posts[0].translation_of, "55555555-5555-4555-8555-555555555555");
+});
+
+test("settings: language and link keys are known to the schema (not forbidden fields)", async () => {
+  const id = "22222222-2222-4222-8222-222222222222";
+  const db = fakeDb({
+    cms_posts: [post({ id: "p1", locale: "es" }), post({ id: id, locale: "en", slug: "my-post", translation_of: null })],
+  });
+  const res = await updatePostSettings(ctx(db), { id: "p1", patch: { translation_of: id } });
+  assert.equal(res.ok, true);
+  assert.equal(db.tables.cms_posts[0].translation_of, id);
+});

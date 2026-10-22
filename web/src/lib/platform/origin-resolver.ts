@@ -101,11 +101,11 @@ async function lookupWorkspaceName(
   try {
     const { data, error } = await supabase
       .from("agencies")
-      .select("name")
+      .select("display_name")
       .eq("id", workspaceId)
       .maybeSingle();
     if (error || !data) return null;
-    return (data as { name: string | null }).name ?? null;
+    return (data as { display_name: string | null }).display_name ?? null;
   } catch {
     return null;
   }

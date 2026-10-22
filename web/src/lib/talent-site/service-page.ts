@@ -13,6 +13,7 @@ import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 import { publicPriceForJsonLd, resolvePublicPrice } from "@/lib/talent/public-price";
 import { durationLabel } from "@/lib/talent/duration-label";
+import { isSellable } from "@/lib/offerings/sellable";
 import type { ServiceContentFields } from "./service-content-fields";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
@@ -55,7 +56,11 @@ function slugifyTitle(title: string): string {
 }
 
 /** A catalog entry that gets its own page: a public service or package. */
-export function isServicePageEligible(o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title">): boolean {
+export function isServicePageEligible(
+  o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title"> & { attributes?: Record<string, unknown> | null },
+): boolean {
+  // "In lists only" (Catalog website control): shown in lists and cards, no page of its own.
+  if (o.attributes?.presence === "lists_only") return false;
   return (o.kind === "service" || o.kind === "package") && o.visibility !== "agency_only" && o.title.trim() !== "";
 }
 
@@ -63,6 +68,34 @@ export function serviceSlug(o: { id: string; title: string }): string {
   const id8 = o.id.replace(/-/g, "").slice(0, 8).toLowerCase();
   const t = slugifyTitle(o.title);
   return `${SERVICE_SLUG_PREFIX}${t ? `${t}-` : ""}${id8}`;
+}
+
+/**
+ * TUL-1270: the ONE absolute address of a service page on a talent site. The share link, the home
+ * service cards (servicePageHrefs) and the route all build from `serviceSlug`, so they cannot drift.
+ * `siteBase` is the site origin plus any locale prefix, with or without a trailing slash.
+ */
+export function servicePageUrl(siteBase: string, o: { id: string; title: string }): string {
+  return `${siteBase.replace(/\/+$/, "")}/${serviceSlug(o)}`;
+}
+
+/**
+ * TUL-1270: does a visitor get this service's page? Mirrors the public loader
+ * (published AND approved AND not agency_only) plus the page-eligibility rules the route applies.
+ * A draft, archived, unapproved or agency-only service 404s on the public host.
+ */
+export function isServicePubliclyServed(
+  o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title"> & {
+    status?: string | null;
+    moderationState?: string | null;
+    attributes?: Record<string, unknown> | null;
+  },
+): boolean {
+  // Published + approved via the one sellable rule ("reservation" ignores visibility; the page
+  // eligibility check below handles that). An unknown value (not loaded) is not a refusal here.
+  const known = o.status != null || o.moderationState != null;
+  if (known && !isSellable({ status: o.status ?? "published", moderationState: o.moderationState ?? "approved" }, "reservation")) return false;
+  return isServicePageEligible(o);
 }
 
 /**
@@ -77,7 +110,7 @@ export function servicePageHrefs(
   if (base == null) return out;
   const prefix = base.replace(/\/+$/, "");
   for (const o of offerings) {
-    if (isServicePageEligible(o)) out[o.id] = `${prefix}/${serviceSlug(o)}`;
+    if (isServicePageEligible(o)) out[o.id] = servicePageUrl(prefix, o);
   }
   return out;
 }

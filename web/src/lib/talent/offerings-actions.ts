@@ -14,7 +14,6 @@
  */
 
 import type { LocalizedMap } from "@/lib/i18n/resolve-localized";
-import { isTalentCurrency } from "@/lib/billing/currencies";
 import { loadUsdRates } from "@/lib/pricing/usd-rates";
 import type { UsdRates } from "@/lib/pricing/usd-equivalent";
 import { revalidatePath } from "next/cache";
@@ -30,7 +29,11 @@ import {
   type TalentOfferingRow,
 } from "@/lib/talent/offerings-types";
 import { patchForSave } from "@/lib/talent/offering-save-patch";
+import { resolveServerOwnedOfferingFields, type ServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
+import { replaceOfferingPhotoLinks } from "@/lib/talent/offering-photo-links";
 import { deleteOrArchiveTalentOffering } from "@/lib/talent/offering-delete-or-archive";
+import { afterResponse } from "@/lib/server/after-response";
+import { notifyListingsBelowMinimum } from "@/lib/notifications/producers/listing-below-minimum-notify";
 import { commitServiceSlugHistory, prepareServiceSlugRename } from "@/lib/talent-site/service-slug-rename.server";
 import { importI18n, importLocaleKey } from "@/lib/talent/offerings-import-locale";
 import { loadTalentLocaleSettings } from "@/lib/site-admin/server/talent-locale-settings";
@@ -44,7 +47,7 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { setOfferingStock, stockChanged } from "@/lib/capacity";
-import { offeringSaveGate } from "@/lib/talent/offering-save-gate.server"; // TUL-1270 #11/#12
+import { offeringCurrencyRefusal, offeringSaveGate } from "@/lib/talent/offering-save-gate.server"; // TUL-1270 #11/#12, TUL-1634
 import { readBlobFieldValuesFromCatalog } from "@/lib/talent/blob-field-values-catalog";
 import { parseTalentBookingTerms } from "@/lib/billing/commercial-terms";
 import { parsePackageTeasers } from "@/lib/talent/services-menu-legacy";
@@ -176,15 +179,26 @@ type SaveResult =
   | { ok: true; item: TalentOffering; bookingHoursStatus?: BookingHoursStatus }
   | { ok: false; error: string };
 
-/** Create or update one offering (id === "" ⇒ insert). Validates first. */
+/** Create or update one offering (id === "" ⇒ insert). TUL-1633: moderation, featured, visibility are server-owned. */
 export async function upsertTalentOffering(
   talentProfileId: string,
   offering: TalentOffering,
 ): Promise<SaveResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
+  return saveTalentOffering(talentProfileId, offering);
+}
+
+/** Not exported (never an action): `insertSeed` comes only from a server-read row (duplicate). */
+async function saveTalentOffering(
+  talentProfileId: string,
+  offering: TalentOffering,
+  insertSeed?: Partial<ServerOwnedOfferingFields>,
+): Promise<SaveResult> {
+  const readOnly = await assertNotImpersonating();
+  if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -196,12 +210,27 @@ export async function upsertTalentOffering(
     // Owner ruling 2026-09-23: a talent prices in MXN or USD. Every live talent
     // row is one of the two, so this refuses nothing that exists today; it
     // stops a third currency reaching checkout, where it was never priced.
-    if (!isTalentCurrency(offering.currency)) {
-      return { ok: false, error: "Set the price in Mexican pesos (MXN) or US dollars (USD)." };
+    // TUL-1634: the same rule the workspace Menu save uses (offeringCurrencyRefusal).
+    // Locale: `auth.primaryLocale` is already in scope from authorizeForTalent above.
+    const currencyRefusal = offeringCurrencyRefusal(offering.currency, auth.primaryLocale);
+    if (currencyRefusal) return { ok: false, error: currencyRefusal };
+
+    // TUL-1633: fail closed; the talent path is never a curator (offering-server-owned.ts).
+    const owned = await resolveServerOwnedOfferingFields(admin as SupabaseClient, {
+      offeringId: offering.id || null,
+      scope: { talent_profile_id: talentProfileId },
+      requested: { moderation_state: offering.moderationState, is_featured: offering.isFeatured, visibility: offering.visibility },
+      curation: "ignore",
+      insertSeed,
+    });
+    if (!owned.ok) {
+      if (owned.code === "read_failed") logServerError("talent.offerings.serverOwned", owned.code);
+      return { ok: false, error: owned.error };
     }
 
     const patch = {
       ...offeringToRowPatch({ ...offering, ownerKind: "talent", tenantId: auth.tenantId }, auth.primaryLocale),
+      ...owned.fields,
       talent_profile_id: talentProfileId,
       owner_kind: "talent",
       updated_at: new Date().toISOString(),
@@ -224,6 +253,8 @@ export async function upsertTalentOffering(
       saved = data as TalentOfferingRow | null;
       // Only when the talent-scoped UPDATE matched a row (a foreign id returns saved = null).
       if (slugRename && saved) await commitServiceSlugHistory(admin, slugRename);
+      // TUL-1469: a price raise that put a workspace's listing below its minimum tells that workspace.
+      if (saved) afterResponse(() => notifyListingsBelowMinimum({ admin, offeringId: offering.id as string, talentProfileId, serviceTitle: offering.title ?? null }));
     } else {
       // Count BEFORE the insert so a zero here means this row is the first
       // offering this profile has ever had. Counting afterwards would race
@@ -308,7 +339,7 @@ export async function deleteTalentOffering(
 ): Promise<{ ok: boolean; error?: string; archived?: boolean }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -356,7 +387,12 @@ export async function duplicateTalentOffering(
     inventoryQty: null,
     capacityPoolId: null,
   };
-  const saved = await upsertTalentOffering(talentProfileId, copy);
+  // TUL-1633: the copy keeps its source's DB-read moderation and visibility (no rejected-to-live copy).
+  const saved = await saveTalentOffering(talentProfileId, copy, {
+    moderation_state: item.moderationState,
+    visibility: item.visibility,
+    is_featured: false,
+  });
   if (!saved.ok) return saved;
   if (item.imageAssets?.length) {
     const ids = item.imageAssets.map((asset) => asset.id);
@@ -377,7 +413,7 @@ export async function deleteTalentOfferingForever(
 ): Promise<{ ok: boolean; error?: string; archived?: boolean }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   // TUL-1335: no bookings pre-check here; deleteTalentOffering archives anything with history.
   return deleteTalentOffering(talentProfileId, offeringId);
@@ -390,7 +426,7 @@ export async function reorderTalentOfferings(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -418,7 +454,7 @@ export async function setOfferingImages(
 ): Promise<{ ok: boolean; error?: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await authorizeForTalent(talentProfileId);
+  const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
   if (!auth.ok) return { ok: false, error: auth.error };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false, error: "Server configuration error." };
@@ -454,22 +490,11 @@ export async function setOfferingImages(
     }
   }
 
-  const { error: delErr } = await offeringMediaTable(admin).delete().eq("offering_id", offeringId);
-  if (delErr) {
-    logServerError("talent.offerings.mediaClear", delErr);
+  // Insert-then-remove (TUL-1632): a failed write leaves the old photos in place instead of none.
+  const linked = await replaceOfferingPhotoLinks(admin, offeringId, wanted);
+  if (!linked.ok) {
+    logServerError(linked.stage === "write" ? "talent.offerings.mediaSet" : "talent.offerings.mediaClear", linked.error);
     return { ok: false, error: "Failed to update photos." };
-  }
-  if (wanted.length > 0) {
-    const rows = wanted.map((mid, i) => ({
-      offering_id: offeringId,
-      media_asset_id: mid,
-      sort_order: i,
-    }));
-    const { error: insErr } = await offeringMediaTable(admin).insert(rows);
-    if (insErr) {
-      logServerError("talent.offerings.mediaSet", insErr);
-      return { ok: false, error: "Failed to update photos." };
-    }
   }
   revalidatePath("/talent/services");
   bustTalentSiteCache(talentProfileId, null);
@@ -574,7 +599,7 @@ export async function setOfferingOptions(
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };
@@ -717,7 +742,7 @@ async function collectLegacySources(
 export async function importLegacyToOfferings(talentProfileId: string): Promise<LoadResult> {
   await requireNotImpersonating();
   try {
-    const auth = await authorizeForTalent(talentProfileId);
+    const auth = await authorizeForTalent(talentProfileId, "agency.roster.edit");
     if (!auth.ok) return { ok: false, error: auth.error };
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, error: "Server configuration error." };

@@ -10,7 +10,7 @@ import {
   LIVE_SERVICES_LABEL,
   mergeServiceCards,
 } from "./live-booking-markers";
-import { formatServicePrice, serviceMetaLine } from "./live-booking-bands";
+import { formatServicePrice, serviceBookHref, serviceMetaLine } from "./live-booking-bands";
 import type { BuilderNode } from "./types";
 
 const ctx = {
@@ -72,4 +72,10 @@ test("LiveBookingBand accepts locale (TUL-452 Spanish studio page)", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/site-admin/builder-node/live-booking-bands.tsx"), "utf8");
   assert.match(src, /locale\?: string/);
   assert.match(src, /locale=\{locale\}/);
+});
+
+test("TUL-1812: each service card links to /book pinned to its own service", () => {
+  assert.equal(serviceBookHref("/book", "abc"), "/book?service=abc");
+  assert.equal(serviceBookHref("/es/book?x=1", "a b"), "/es/book?x=1&service=a%20b");
+  assert.equal(serviceBookHref("/book#top", "abc"), "/book?service=abc#top");
 });

@@ -80,6 +80,18 @@ interface Props {
   signOutAction?: (formData: FormData) => void | Promise<void>;
 }
 
+/** Returns a cleanup; when `open` is false it schedules the release after the exit animation. */
+export function releaseBodyPointerLock(open: boolean): () => void {
+  const release = () => {
+    if (typeof document === "undefined") return;
+    if (document.querySelector("[data-public-header-menu]")) return;
+    if (document.body.style.pointerEvents === "none") document.body.style.pointerEvents = "";
+  };
+  if (open) return release; // unmounting while open (route change) must not leave the lock behind
+  const timer = window.setTimeout(release, 350);
+  return () => window.clearTimeout(timer);
+}
+
 export function PublicHeaderMobileMenu({
   navLinks,
   locale,
@@ -128,6 +140,12 @@ export function PublicHeaderMobileMenu({
     return () => window.removeEventListener("popstate", onPop);
   }, [open]);
 
+  // TUL-1812: Radix sets `pointer-events:none` on <body> while the modal is
+  // open and clears it when the content unmounts. A tap on a language link
+  // navigates while the exit animation runs, which can leave it set and the
+  // whole page untappable. Once the menu is closed and gone, release it.
+  useEffect(() => releaseBodyPointerLock(open), [open]);
+
   // C3 — remove CMS links whose href duplicates a role nav link so the
   // menu doesn't show the same destination twice under different labels.
   const roleNavHrefs = new Set(roleNavLinks?.map((l) => l.href) ?? []);
@@ -157,6 +175,9 @@ export function PublicHeaderMobileMenu({
           // animation; the token CSS in token-presets.css can layer on
           // surface tone, typography, etc. without touching this file.
           data-public-header-menu
+          // TUL-1812: the menu has a title and no description; opting out
+          // silences Radix's missing-Description console warning.
+          aria-describedby={undefined}
           data-mobile-nav-variant={variant}
           className={`public-header-menu ${VARIANT_CLASSES[variant]} fixed z-[60] flex flex-col gap-4 bg-background text-foreground shadow-2xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:duration-300`}
         >
@@ -357,7 +378,7 @@ function LanguageRow({
                 aria-label={meta.label}
                 className={`rounded px-2 py-0.5 transition-colors ${
                   active
-                    ? "bg-muted text-foreground"
+                    ? "bg-foreground font-semibold text-background"
                     : "text-muted-foreground hover:text-foreground"
                   }`}
               >

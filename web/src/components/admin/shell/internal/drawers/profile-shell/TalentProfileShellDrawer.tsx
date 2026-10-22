@@ -6,6 +6,7 @@ import { improntaLog } from "@/lib/server/structured-log";
 import { isStaleDeploymentError, notifyStaleDeployment } from "@/lib/client/stale-deployment";
 
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
+import { usePrivateFieldsGate } from "./profile-shell-modules/use-private-fields-gate";
 import { useRouter } from "next/navigation";
 import {
   buildCorePublishRequirements,
@@ -219,6 +220,9 @@ import {
   ProfileShellUnsavedBanner,
 } from "./profile-shell-modules/profile-shell-save-hints";
 import type { ServiceAreaDesired } from "../../location-slot-panel";
+import { CreateJoinTerms } from "./CreateJoinTerms";
+import type { JoinTermsInput } from "@/lib/service-hub/join-terms";
+import { joinTermsOutcomeNotice } from "@/lib/service-hub/join-terms-copy";
 import { saveTalentServiceAreas } from "@/lib/server-actions/admin-talent-service-areas";
 import { setTalentLanguages } from "@/lib/server-actions/admin-talent-languages";
 import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-languages.types";
@@ -343,11 +347,13 @@ export function TalentProfileShellDrawer() {
   const historyIdxRef = useRef(0);
   const skipHistoryRef = useRef(false);
   const allowMarkDirtyRef = useRef(false);
+  const privateFields = usePrivateFieldsGate(); // TUL-1269
   const savedStatusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   type SaveStatus = "idle" | "saving" | "saved" | "error";
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const joinTermsRef = useRef<JoinTermsInput | null>(null); // TUL-1476: owner's terms, read at create
   /** Same text as saveError, readable synchronously right after `await saveAll()`
    *  (state hasn't re-rendered yet at that point). submit() toasts from this. */
   const lastSaveErrorRef = useRef<string | null>(null);
@@ -680,7 +686,7 @@ export function TalentProfileShellDrawer() {
           return;
         }
 
-        const d = edRes.data;
+        const d = privateFields.markHydrated(edRes.data);
         // Multi-tenant identity flags — three fields added by
         // admin-talent-profile-sections.ts. Used by the banner + the future
         // per-field disabled gating. Cast through unknown because the
@@ -991,7 +997,7 @@ export function TalentProfileShellDrawer() {
         primaryTypeSlugorId: primaryType,
         secondaryTypeSlugorIds: s.secondaryTypes ?? [],
         managementMethod: "agency",
-      });
+      }, joinTermsRef.current);
       if (!createRes.ok || !createRes.talentProfileId) {
         // ActionResult is a discriminated union — inside this OR-guard
         // TS can't narrow to the !ok branch, so use the `in` operator.
@@ -1002,6 +1008,8 @@ export function TalentProfileShellDrawer() {
       }
       tid = createRes.talentProfileId;
       justCreated = true;
+      const termsNote = joinTermsOutcomeNotice(createRes.terms, copy.isSpanish ? "es" : "en");
+      if (termsNote) toast(termsNote);
       // Fall through — commitTalentProfileShellAdmin runs below with `tid`
       // so nationality, bio, logistics, dyn fields, etc. persist on the
       // first click (not only the minimal addTalentToRoster columns).
@@ -1052,7 +1060,7 @@ export function TalentProfileShellDrawer() {
         }
       : undefined;
 
-    const identityPayload = {
+    const identityPayload = privateFields.scrub({
       talent_profile_id: tid,
       stage_name: id.stageName,
       first_name: id.firstName ?? "",
@@ -1075,7 +1083,7 @@ export function TalentProfileShellDrawer() {
       contact_email: id.contactEmail ?? "",
       contact_phone: id.contactPhone ?? "",
       contact_phone_prefix: id.contactPhonePrefix ?? "+1",
-    };
+    });
 
     const aboutPayload = {
       talent_profile_id: tid,
@@ -2865,6 +2873,10 @@ export function TalentProfileShellDrawer() {
           />
         </div>
 
+        {mode === "create" && !isSelf && !payload.talentId && tenantSlug ? (
+          <CreateJoinTerms tenantSlug={tenantSlug} locale={copy.isSpanish ? "es" : "en"} termsRef={joinTermsRef} />
+        ) : null}
+
         {/* Save-failure reason — pinned full-width in the sticky header so the
             WHOLE reason is always visible (the in-body banner can scroll out of
             view). Clearly a MESSAGE (role=alert) with its own Retry action, so
@@ -3366,7 +3378,7 @@ export function TalentProfileShellDrawer() {
                 isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
                 lockReasons={state.fieldLockReasons}
                 workspaceScopeTenantId={workspaceScopeTenantId}
-                disabled={personalProfileLocked}
+                disabled={personalProfileLocked} privateFieldsUnavailable={privateFields.unavailable}
               />
               <ProfileHeroTextRows tagline={state.tagline} onTagline={(v) => patch({ tagline: v })} talentProfileId={payload.talentId} isSelf={isSelf}
                 workspaceScopeTenantId={workspaceScopeTenantId} disabled={personalProfileLocked} />

@@ -15,6 +15,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
+import type { CapabilityKey } from "@/lib/access";
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { getToken } from "@/lib/site-admin/tokens/registry";
@@ -22,10 +23,20 @@ import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 const TOKEN_KEY = "template.profile-layout-family";
 
+/**
+ * TUL-1708: `setProfileTemplateFamily` called `requireWorkspaceStaffAction()`
+ * with no capability (defaults to `agency.workspace.view`, viewer-held). This
+ * is a design-token write — same surface and bar as the sibling Card Design
+ * token (`agency.site_admin.design.edit`, admin+), see `design-actions.ts`.
+ */
+const PROFILE_TEMPLATE_WRITE_CAPABILITY = {
+  set: "agency.site_admin.design.edit",
+} as const satisfies Record<string, CapabilityKey>;
+
 export async function loadProfileTemplateFamily(): Promise<
   { ok: true; family: string } | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -54,7 +65,9 @@ export async function setProfileTemplateFamily(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({
+    capability: PROFILE_TEMPLATE_WRITE_CAPABILITY.set,
+  });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

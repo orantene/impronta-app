@@ -44,7 +44,7 @@ export type PosLocationFactsResult =
   | { ok: false; reason: PaymentProviderRefusal };
 
 export async function getPosLocationFacts(): Promise<PosLocationFactsResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) {
     logServerError("pos-location-facts.denied", auth.error);
     return { ok: false, reason: "not_allowed" };

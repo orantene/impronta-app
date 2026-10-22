@@ -9,11 +9,23 @@
 
 import { useEffect, useState, useTransition } from "react";
 
+import { useAdminShellOptional, meetsRole } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { useT } from "@/i18n/use-t";
 import { loadIndustrySettings, setBusinessType, setIndustryPreset } from "@/lib/server-actions/industry-settings";
 import { presetPickerModel, presetSummary } from "@/lib/words/picker-options";
 import { resolveWords, type IndustryPresetId } from "@/lib/words";
 import { businessTypeById, searchBusinessTypes } from "@/lib/words/business-types";
+
+/**
+ * Mutable facade over the server actions this card calls. Exported so
+ * render tests can substitute a spy for one call without a module-mocking
+ * framework — this repo's component unit tests run under `tsx --test`
+ * (Node's built-in runner), which has no `jest.mock`/`vi.mock` equivalent
+ * on Node 20. Call sites below go through this object rather than the
+ * bare imports so a test can reassign a property on it directly.
+ */
+export const industrySettingsActions = { loadIndustrySettings, setBusinessType, setIndustryPreset };
 
 const inputBoxStyle: React.CSSProperties = {
   borderRadius: 10,
@@ -59,7 +71,18 @@ function Row({
 /** `locale` overrides; without it the card follows the dashboard language (TUL-702). */
 export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "es" }) {
   const dash = useDashboardText();
+  const t = useT();
   const locale: "en" | "es" = localeProp ?? (dash.isSpanish ? "es" : "en");
+  // TUL-1708: setBusinessType/setIndustryPreset/setWordOverride now require
+  // manage_agency_settings (admin+). This card had no role floor at all —
+  // an editor/manager could search a type, pick one and watch it silently
+  // fail against the server. `useAdminShellOptional` because this card can
+  // render outside the admin shell (design QA); missing shell context fails
+  // CLOSED (read-only) rather than assuming admin — a card rendered without
+  // the shell mounted has no role to check, so it must not default to editable.
+  const shell = useAdminShellOptional();
+  const canEdit = shell ? meetsRole(shell.state.role, "admin") : false;
+  const roleGateMessage = t("dashboard.adminWorkspace.roleGateOnlyAdmin");
   const [saving, startTransition] = useTransition();
   const [current, setCurrent] = useState<unknown>(undefined);
   const [typeId, setTypeId] = useState<string | null>(null);
@@ -69,7 +92,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
 
   useEffect(() => {
     let alive = true;
-    void loadIndustrySettings().then((result) => {
+    void industrySettingsActions.loadIndustrySettings().then((result) => {
       if (!alive) return;
       if (result.ok) {
         setCurrent(result.rawPresetId);
@@ -92,11 +115,15 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
   const matches = searchBusinessTypes(query).slice(0, 12);
 
   function choosePreset(next: IndustryPresetId) {
+    if (!canEdit) {
+      setError(roleGateMessage);
+      return;
+    }
     setError(null);
     const previous = current;
     setCurrent(next);
     startTransition(async () => {
-      const result = await setIndustryPreset({ presetId: next });
+      const result = await industrySettingsActions.setIndustryPreset({ presetId: next });
       if (!result.ok) {
         setCurrent(previous);
         setError(result.error);
@@ -105,6 +132,10 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
   }
 
   function chooseType(nextId: string) {
+    if (!canEdit) {
+      setError(roleGateMessage);
+      return;
+    }
     setError(null);
     const previous = typeId;
     const previousPreset = current;
@@ -112,7 +143,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
     setTypeId(nextId);
     if (next) setCurrent(next.preset);
     startTransition(async () => {
-      const result = await setBusinessType({ typeId: nextId });
+      const result = await industrySettingsActions.setBusinessType({ typeId: nextId });
       if (!result.ok) {
         setTypeId(previous);
         setCurrent(previousPreset);
@@ -147,8 +178,9 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
               aria-label={es ? "Buscar tipo de negocio" : "Search business type"}
               placeholder={es ? "Prueba uñas, restaurante o fotógrafo" : "Try nail salon, restaurant or photographer"}
               value={query}
+              disabled={!canEdit}
               onChange={(e) => setQuery(e.target.value)}
-              style={{ ...inputBoxStyle, minWidth: 260 }}
+              style={{ ...inputBoxStyle, minWidth: 260, cursor: canEdit ? "text" : "not-allowed", opacity: canEdit ? 1 : 0.6 }}
             />
             <div style={{ fontSize: 13, color: "var(--admin-text)" }}>
               {selectedType
@@ -168,7 +200,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
                       type="button"
                       role="option"
                       aria-selected={row.id === typeId}
-                      disabled={saving}
+                      disabled={saving || !canEdit}
                       onClick={() => {
                         chooseType(row.id);
                         setQuery("");
@@ -177,7 +209,8 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
                         ...inputBoxStyle,
                         width: "100%",
                         textAlign: "left",
-                        cursor: saving ? "wait" : "pointer",
+                        cursor: !canEdit ? "not-allowed" : saving ? "wait" : "pointer",
+                        opacity: canEdit ? 1 : 0.6,
                         minHeight: 44,
                         marginBottom: 4,
                       }}
@@ -189,7 +222,7 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
                 <li>
                   <button
                     type="button"
-                    disabled={saving}
+                    disabled={saving || !canEdit}
                     onClick={() => {
                       chooseType("custom");
                       setQuery("");
@@ -221,9 +254,9 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
           <select
             aria-label={es ? "Tipo de negocio" : "Kind of business"}
             value={selected}
-            disabled={saving}
+            disabled={saving || !canEdit}
             onChange={(e) => choosePreset(e.target.value as IndustryPresetId)}
-            style={{ ...inputBoxStyle, minWidth: 220, cursor: saving ? "wait" : "pointer" }}
+            style={{ ...inputBoxStyle, minWidth: 220, cursor: !canEdit ? "not-allowed" : saving ? "wait" : "pointer", opacity: canEdit ? 1 : 0.6 }}
           >
             {options.map((option) => (
               <option key={option.value} value={option.value}>
@@ -254,6 +287,11 @@ export function IndustrySettingsCard({ locale: localeProp }: { locale?: "en" | "
           {" · "}
           <strong>{previewItem}</strong>
         </div>
+        {!canEdit ? (
+          <div style={{ fontSize: 12, color: "var(--admin-text-muted)" }}>
+            {roleGateMessage}
+          </div>
+        ) : null}
         {error ? (
           <div role="alert" style={{ fontSize: 13, color: "var(--admin-danger, #b3261e)" }}>
             {error}

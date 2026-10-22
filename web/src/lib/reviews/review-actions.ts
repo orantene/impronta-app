@@ -22,6 +22,7 @@ import {
   requireTalent,
 } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { resolveReviewTenantId } from "@/lib/reviews/resolve-review-tenant";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { emitNotificationToUsers } from "@/lib/notifications/emit";
 import { dispatchEventNotifications } from "@/lib/notifications/dispatcher";
@@ -36,6 +37,8 @@ import {
   isValidRating,
 } from "./review-eligibility";
 import { insertOrEditTalentReview } from "./review-write";
+import { loadExistingReviewsByKey } from "./review-existing-load";
+import { readNoteWorkspace } from "./private-note-routing";
 import { offeringIdForBooking, stampReviewOffering } from "./review-offering";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
@@ -56,22 +59,6 @@ type BookingTalentRow = {
   booking_id: string;
   talent_profile_id: string | null;
   talent_name_snapshot: string | null;
-};
-
-type ExistingReviewRow = {
-  booking_id: string | null;
-  talent_profile_id: string;
-  rating: number;
-  body: string | null;
-  would_book_again: boolean | null;
-  attr_professionalism: number | null;
-  attr_skill: number | null;
-  attr_communication: number | null;
-  attr_reliability: number | null;
-  traits: string[] | null;
-  private_note: string | null;
-  anon: boolean | null;
-  published_at: string | null;
 };
 
 /** The STANDING signal a client may attach to a talent review (all optional). */
@@ -119,21 +106,6 @@ function bookingReviewable(b: BookingRow): boolean {
   });
 }
 
-async function resolveTenantId(
-  supabase: SupabaseClient,
-  tenantSlug: string,
-): Promise<string | null> {
-  const slug = (tenantSlug ?? "").trim();
-  if (!slug) return null;
-  // agencies SELECT is staff-only under RLS; use the SECURITY DEFINER resolver
-  // RPC (granted to authenticated) so a client session can map slug → tenant id.
-  const { data } = await supabase.rpc("resolve_public_tenant_by_slug", {
-    p_slug: slug,
-  });
-  const rows = (data ?? []) as Array<{ tenant_id: string; tenant_slug: string }>;
-  return rows[0]?.tenant_id ?? null;
-}
-
 /**
  * Submit (or edit) a client's review of a talent on a completed booking.
  */
@@ -178,7 +150,7 @@ export async function submitTalentReviewAction(
   const privateNote = privateNoteRaw.length > 0 ? privateNoteRaw : null;
   const anon = s.anon === true;
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
   // Load the booking. RLS already restricts the client to their own bookings,
@@ -345,7 +317,7 @@ export async function loadReviewableBookingsAction(
   if (!auth.ok) return [];
   const { supabase, user } = auth;
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return [];
 
   // RLS scopes agency_bookings to the caller-client. Pull this tenant's rows.
@@ -371,34 +343,19 @@ export async function loadReviewableBookingsAction(
     .in("booking_id", bookingIds)
     .returns<BookingTalentRow[]>();
 
-  const { data: existing } = await supabase
-    .from("talent_reviews")
-    .select(
-      "booking_id, talent_profile_id, rating, body, would_book_again, attr_professionalism, attr_skill, attr_communication, attr_reliability, traits, private_note, anon, published_at",
-    )
-    .in("booking_id", bookingIds)
-    .eq("client_user_id", user.id)
-    .returns<ExistingReviewRow[]>();
+  // private_note is NOT selectable by the user session (column privilege);
+  // the helper reads it separately via service role, scoped to this user.
+  const existingByKey = await loadExistingReviewsByKey(
+    supabase,
+    createServiceRoleClient(),
+    user.id,
+    bookingIds,
+  );
 
-  const existingByKey = new Map<
-    string,
-    NonNullable<ReviewableBooking["existingReview"]>
-  >();
-  for (const e of existing ?? []) {
-    existingByKey.set(`${e.booking_id}:${e.talent_profile_id}`, {
-      rating: e.rating,
-      body: e.body,
-      wouldBookAgain: e.would_book_again ?? null,
-      attrProfessionalism: e.attr_professionalism ?? null,
-      attrSkill: e.attr_skill ?? null,
-      attrCommunication: e.attr_communication ?? null,
-      attrReliability: e.attr_reliability ?? null,
-      traits: Array.isArray(e.traits) ? e.traits : null,
-      privateNote: e.private_note ?? null,
-      anon: e.anon ?? false,
-      publishedAt: e.published_at ?? null,
-    });
-  }
+  // TUL-1686: who reads the private note (team studio: the workspace). Read with the
+  // service role (clients cannot read agencies); null on failure = neutral label.
+  const svc = createServiceRoleClient();
+  const noteWorkspace = svc ? await readNoteWorkspace(svc, tenantId) : null;
 
   const byId = new Map(reviewable.map((b) => [b.id, b] as const));
   const out: ReviewableBooking[] = [];
@@ -412,6 +369,7 @@ export async function loadReviewableBookingsAction(
       talentName: t.talent_name_snapshot,
       eventTitle: b.title,
       eventDate: b.event_date,
+      noteWorkspace,
       existingReview:
         existingByKey.get(`${b.id}:${t.talent_profile_id}`) ?? null,
     });
@@ -477,7 +435,7 @@ export async function submitClientReviewAction(
   }
   const cleanBody = (body ?? "").trim().slice(0, 4000);
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return { ok: false, error: "Unknown workspace." };
 
   // Load the booking. (RLS may not scope agency_bookings to a talent, so we
@@ -574,7 +532,7 @@ export async function loadClientReviewablesAction(
   if (!auth.ok) return [];
   const { supabase, user } = auth;
 
-  const tenantId = await resolveTenantId(supabase, tenantSlug);
+  const tenantId = await resolveReviewTenantId(tenantSlug);
   if (!tenantId) return [];
 
   const myProfileIds = await callerTalentProfileIds(supabase, user.id);
