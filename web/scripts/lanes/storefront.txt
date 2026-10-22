@@ -51,6 +51,7 @@ src/components/talent/website-reward/website-flow-surfaces.static.test.ts
 src/lib/admin/website-editor-base-url.test.ts
 src/lib/auth/apple-provider-flag.test.ts
 src/lib/client-account/account-messages-time.test.ts
+src/lib/client-account/account-thread-sender-zone-1887.test.ts
 src/lib/client-account/after-verified-sign-in.test.ts
 src/lib/client-account/agency-account-site-pure.test.ts
 src/lib/client-account/book-again.test.ts

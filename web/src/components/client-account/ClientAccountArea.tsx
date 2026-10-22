@@ -17,6 +17,7 @@ import type { AccountSummary } from "@/lib/client-account/pure";
 import { payMyBookingForm } from "@/lib/client-account/booking-actions";
 
 import { ClientAccountButton } from "./ClientAccountButton";
+import { LocalStamp } from "./LocalStamp";
 import { LogOutButton, NamePrompt, SessionSyncListener, SettingsForm, ThreadReply, VisitActions, type VisitActionsCopy } from "./AccountClientIslands";
 import { bookAgainHref, canBookAgain } from "@/lib/client-account/book-again";
 import { btnPrimary } from "./account-button-styles";
@@ -80,6 +81,8 @@ export function ClientAccountArea(props: Props) {
     const w = formatZonedWhen(iso ?? null, visitZone(undefined, props.timeZone), loc);
     return w ? [w.date, [w.time, w.tzLabel].filter(Boolean).join(" ")].filter(Boolean).join(", ") : "";
   };
+  // TUL-1909: a message stamp is drawn in the viewer's own zone once mounted (the account zone until then).
+  const msgStamp = (iso: string | null | undefined) => (iso ? <LocalStamp iso={iso} locale={loc} fallbackZone={visitZone(undefined, props.timeZone)} /> : null);
   const t = createTranslator(loc);
   const a = (k: string) => t(`public.clientAccountArea.${k}`);
   const heading: CSSProperties = { fontFamily: "var(--site-heading-font, inherit)", margin: 0 };
@@ -259,13 +262,13 @@ export function ClientAccountArea(props: Props) {
         {back("/account?tab=messages")}
         <h2 style={{ ...heading, fontSize: 18 }}>{th.title}</h2>
         {th.messages.length > 0 && stamp(th.messages[th.messages.length - 1]?.createdAt) ? (
-          <p data-thread-last-at="" style={{ margin: "4px 0 0", fontSize: 13, color: MUTED }}>{stamp(th.messages[th.messages.length - 1]?.createdAt)}</p>
+          <p data-thread-last-at="" style={{ margin: "4px 0 0", fontSize: 13, color: MUTED }}>{msgStamp(th.messages[th.messages.length - 1]?.createdAt)}</p>
         ) : null}
         <div style={{ display: "grid", gap: 10, margin: "16px 0" }}>
           {th.messages.length === 0 ? <p>{a("noMessages")}</p> : null}
           {th.messages.map((m) => (
             <div key={m.id} style={{ ...card, padding: 12, justifySelf: m.mine ? "end" : "start", maxWidth: "88%" }}>
-              <div style={{ fontSize: 12, color: MUTED }}>{m.mine ? a("you") : props.talentName}{stamp(m.createdAt) ? ` · ${stamp(m.createdAt)}` : ""}</div>
+              <div style={{ fontSize: 12, color: MUTED }}>{m.mine ? a("you") : m.senderName || props.talentName}{stamp(m.createdAt) ? <> · {msgStamp(m.createdAt)}</> : null}</div>
               <div style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{m.body}</div>
             </div>
           ))}
@@ -497,9 +500,9 @@ export function ClientAccountArea(props: Props) {
         {list.map((th) => (
           <li key={th.id} style={{ listStyle: "none" }}>
             <Link href={`/account/messages/${th.id}`} style={{ ...card, display: "block", textDecoration: "none", color: INK }}>
-              <strong>{th.title || props.talentName}</strong>
+              <strong>{th.title || th.counterpart || props.talentName}</strong>
               {th.lastBody ? <span style={{ display: "block", color: MUTED, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{th.lastBody}</span> : null}
-              {stamp(th.lastAt) ? <span data-thread-at="" style={{ display: "block", color: MUTED, fontSize: 12 }}>{stamp(th.lastAt)}</span> : null}
+              {stamp(th.lastAt) ? <span data-thread-at="" style={{ display: "block", color: MUTED, fontSize: 12 }}>{msgStamp(th.lastAt)}</span> : null}
             </Link>
           </li>
         ))}

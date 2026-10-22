@@ -24,6 +24,6 @@ test("TUL-1089: the message list shows date, time and zone", () => {
 test("TUL-1089: the thread header and each message are stamped (the reply form needs the app router, so read the source)", () => {
   const src = readFileSync("src/components/client-account/ClientAccountArea.tsx", "utf8");
   assert.match(src, /data-thread-last-at/);
-  assert.match(src, /stamp\(m\.createdAt\)/);
-  assert.match(src, /stamp\(th\.lastAt\)/);
+  assert.match(src, /msgStamp\(m\.createdAt\)/);
+  assert.match(src, /msgStamp\(th\.lastAt\)/);
 });

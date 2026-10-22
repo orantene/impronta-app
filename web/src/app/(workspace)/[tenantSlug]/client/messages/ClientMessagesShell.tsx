@@ -340,16 +340,18 @@ export function ClientMessagesShell({
           };
           if (row.thread_type !== "private") return;
           let appended = false;
+          let unnamed = false;
           setMessages((prev) => {
             if (prev.some((m) => m.id === row.id)) return prev;
             const isMine = isOwnClientMessage(row.sender_user_id, viewerUserIdRef.current);
             if (isMine) return prev;
             const knownName = prev.find((m) => m.sender_user_id === row.sender_user_id)?.sender_name;
             appended = true;
+            unnamed = !knownName;
             return [...prev, {
               id: row.id,
               sender_user_id: row.sender_user_id ?? "",
-              sender_name: knownName ?? (row.sender_user_id?.slice(0, 8) ?? t("client.messages.unknownSender")),
+              sender_name: knownName ?? t("client.messages.unknownSender"),
               body: row.body,
               created_at: row.created_at,
               is_mine: false,
@@ -358,6 +360,14 @@ export function ClientMessagesShell({
           // Pull the inbox again so the just-updated thread bubbles to
           // top, the preview line refreshes, and the unread badge ticks.
           if (appended) router.refresh();
+          // TUL-1887: a sender not seen yet has no name here; reload the thread so the server-resolved
+          // label (the talent's own name) replaces the placeholder instead of a hub label or an id.
+          if (appended && unnamed) {
+            fetch(`/api/client/messages?inquiry=${encodeURIComponent(activeId)}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((j: { messages?: WorkspaceMessage[] } | null) => { if (j?.messages) setMessages(j.messages); })
+              .catch(() => {});
+          }
         },
       )
       .subscribe();

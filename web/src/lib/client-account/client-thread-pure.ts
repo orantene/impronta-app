@@ -27,7 +27,8 @@ export type ClientThreadInquiry = {
   created_at?: string | null;
 };
 
-export type ClientThreadMessage = { id: string; body: string; createdAt: string; mine: boolean };
+/** `senderName`: the talent who wrote a reply (TUL-1887); null = the host/business label applies. */
+export type ClientThreadMessage = { id: string; body: string; createdAt: string; mine: boolean; senderName: string | null };
 
 function text(v: unknown): string {
   return typeof v === "string" ? v.trim() : "";
@@ -47,6 +48,8 @@ export function buildClientThread(
   inquiry: ClientThreadInquiry,
   userId: string,
   locale = "en",
+  /** user id -> talent display name, for replies written by a talent on this inquiry. */
+  talentNames: ReadonlyMap<string, string> = new Map(),
 ): ClientThreadMessage[] {
   const messages: ClientThreadMessage[] = [];
   for (const r of rows) {
@@ -54,7 +57,8 @@ export function buildClientThread(
     if (!raw) continue;
     // TUL-1857: platform notes (no sender) are stored in English; show them in the account language.
     const body = r.sender_user_id ? raw : localizeSystemNote(raw, locale);
-    messages.push({ id: r.id, body, createdAt: r.created_at, mine: r.sender_user_id === userId });
+    const mine = r.sender_user_id === userId;
+    messages.push({ id: r.id, body, createdAt: r.created_at, mine, senderName: !mine && r.sender_user_id ? (talentNames.get(r.sender_user_id) ?? null) : null });
   }
   const original = text(inquiry.message);
   if (original && inquiry.created_at && !messages.some((m) => m.mine && m.body === original)) {
@@ -63,6 +67,7 @@ export function buildClientThread(
       body: original,
       createdAt: inquiry.created_at,
       mine: true,
+      senderName: null,
     });
   }
   return messages;
