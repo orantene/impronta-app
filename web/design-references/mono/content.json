@@ -1,0 +1,198 @@
+{
+  "design": "mono",
+  "profileCode": "TAL-93010",
+  "locale": "es",
+  "talent": {
+    "displayName": "Pablo Serrano",
+    "tagline": "Entrena una hora. Siente la diferencia en un mes.",
+    "bio": "Entrenador personal en CDMX. Fuerza y movilidad a domicilio o al aire libre; llevo el equipo. Diez años entrenando a gente que no tiene tiempo para el gimnasio.",
+    "trade": "personal trainer",
+    "city": "CDMX"
+  },
+  "suggestions": [
+    "¿Llevas el equipo?",
+    "¿Entrenas en parques?",
+    "¿Puedo pagar en efectivo?"
+  ],
+  "chatGreeting": "¡Hola! ¿Qué objetivo tienes y en qué colonia entrenarías? Te paso horarios.",
+  "hero": {
+    "eyebrow": "Entrenador personal · CDMX",
+    "headline": "Entrena una hora. Siente la diferencia.",
+    "lede": "Fuerza y movilidad a domicilio o al aire libre. Llevo el equipo.",
+    "ctas": [
+      "Reservar"
+    ],
+    "imageKey": null,
+    "imageAlt": null
+  },
+  "about": {
+    "eyebrow": null,
+    "title": "Sobre mí",
+    "text": "Entrenador personal en CDMX. Fuerza y movilidad a domicilio o al aire libre; llevo el equipo. Diez años entrenando a gente que no tiene tiempo para el gimnasio."
+  },
+  "services": [
+    {
+      "id": "one",
+      "category": "Sesiones",
+      "name": "Sesión de entrenamiento",
+      "shortName": "Sesión de entrenamiento",
+      "durationLabel": "1 h",
+      "durationMinutes": 60,
+      "priceLabel": "$500",
+      "priceAmount": 500,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Reservar",
+      "description": "Una hora de fuerza y movilidad a domicilio o al aire libre, con equipo incluido.",
+      "includes": [
+        "Equipo incluido",
+        "Calentamiento y movilidad",
+        "Rutina para repetir sola/o"
+      ],
+      "imageKey": "mo-session",
+      "slots": [
+        "06:00",
+        "07:00",
+        "08:00",
+        "18:00",
+        "19:00",
+        "20:00"
+      ],
+      "slotNote": "Horarios en CDMX.",
+      "policy": "Cambios con 12 h de aviso.",
+      "whoFields": [
+        {
+          "id": "where",
+          "label": "¿Dónde entrenamos?",
+          "placeholder": "Colonia o parque"
+        }
+      ]
+    },
+    {
+      "id": "pack",
+      "category": "Paquetes",
+      "name": "Paquete de 10 sesiones",
+      "shortName": "Paquete de 10 sesiones",
+      "durationLabel": "2 meses",
+      "durationMinutes": null,
+      "priceLabel": "$4,500",
+      "priceAmount": 4500,
+      "currency": "MXN",
+      "mode": "request",
+      "ctaLabel": "Solicitar",
+      "description": "Diez sesiones con plan escrito y un ajuste cada dos semanas, para usar en dos meses.",
+      "includes": [
+        "Plan de entrenamiento escrito",
+        "Ajuste cada dos semanas",
+        "Se usa en dos meses"
+      ],
+      "imageKey": "mo-session",
+      "requestFlow": {
+        "title": "Solicitar paquete",
+        "intro": "Es una solicitud: Pablo confirma tus horarios fijos antes de apartarlos.",
+        "submit": null,
+        "fields": [
+          {
+            "id": "goal",
+            "label": "Objetivo",
+            "placeholder": null,
+            "type": "chips",
+            "options": [
+              "Fuerza",
+              "Bajar de peso",
+              "Movilidad",
+              "Volver a entrenar"
+            ]
+          },
+          {
+            "id": "days",
+            "label": "Días y hora",
+            "placeholder": "Ej. lunes y miércoles 7:00",
+            "type": "text",
+            "options": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "mob",
+      "category": "Sesiones",
+      "name": "Evaluación de movilidad",
+      "shortName": "Evaluación de movilidad",
+      "durationLabel": "45 min",
+      "durationMinutes": 45,
+      "priceLabel": "$350",
+      "priceAmount": 350,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Reservar",
+      "description": "Revisión de postura y rango de movimiento con un plan de ejercicios para casa.",
+      "includes": [
+        "Pruebas de movilidad",
+        "Plan de 3 ejercicios",
+        "Seguimiento por chat"
+      ],
+      "imageKey": "mo-mobility",
+      "slots": [
+        "07:00",
+        "12:00",
+        "18:00"
+      ],
+      "slotNote": "Horarios en CDMX.",
+      "policy": "Cambios con 12 h de aviso.",
+      "whoFields": [
+        {
+          "id": "where",
+          "label": "¿Dónde nos vemos?",
+          "placeholder": "Colonia o parque"
+        }
+      ]
+    }
+  ],
+  "servicesSection": {
+    "eyebrow": "Elige y reserva",
+    "title": "Precios",
+    "layout": "compact-list",
+    "search": "Buscar un servicio",
+    "categories": [
+      "Todo",
+      "Sesiones",
+      "Paquetes"
+    ]
+  },
+  "portfolio": null,
+  "contact": {
+    "eyebrow": null,
+    "title": "Bueno saberlo",
+    "text": null,
+    "cta": null
+  },
+  "faq": {
+    "eyebrow": null,
+    "title": "Bueno saberlo",
+    "items": [
+      {
+        "q": "¿Llevas el equipo?",
+        "a": "Sí: ligas, mancuernas ajustables y tapete."
+      },
+      {
+        "q": "¿Dónde entrenamos?",
+        "a": "En tu casa, edificio o un parque cercano, en CDMX."
+      },
+      {
+        "q": "¿Cómo pago?",
+        "a": "En persona, en efectivo o transferencia, al final de la sesión."
+      }
+    ]
+  },
+  "reviews": null,
+  "stats": [],
+  "location": null,
+  "footer": {
+    "line": "pablo-entrena.tulala.digital · Hecho con Tulala"
+  },
+  "mockupOnly": {
+    "note": "Fictional mockup data. Never written to the database by the demo rebuild. Mono has no gallery by design.",
+    "domain": "pablo-entrena.tulala.digital"
+  }
+}

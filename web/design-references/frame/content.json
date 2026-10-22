@@ -1,0 +1,232 @@
+{
+  "design": "frame",
+  "profileCode": "TAL-93009",
+  "locale": "es",
+  "talent": {
+    "displayName": "Tomás Aguilar",
+    "tagline": "Retratos con luz de estudio.",
+    "bio": "Fotógrafo de retrato en Guadalajara. Trabajo con luz de estudio y locación; te ayudo a posar y elegimos juntos las mejores tomas. Entrego en una semana.",
+    "trade": "portrait photographer",
+    "city": "Guadalajara"
+  },
+  "suggestions": [
+    "¿Cuántas fotos entregas?",
+    "¿Haces sesiones en exterior?",
+    "¿Puedo llevar cambio de ropa?"
+  ],
+  "chatGreeting": "¡Hola! ¿Para qué usarás las fotos y en qué fecha? Te paso disponibilidad hoy.",
+  "hero": {
+    "eyebrow": "Fotógrafo de retrato · Guadalajara",
+    "headline": "Retratos con luz de estudio.",
+    "lede": "Estudio y locación. Te guío al posar y entrego en una semana.",
+    "ctas": [
+      "Reservar",
+      "Ver trabajo"
+    ],
+    "imageKey": "fr-hero",
+    "imageAlt": "Tomás Aguilar en sesión"
+  },
+  "about": {
+    "eyebrow": null,
+    "title": "Sobre mí",
+    "text": "Fotógrafo de retrato en Guadalajara. Trabajo con luz de estudio y locación; te ayudo a posar y elegimos juntos las mejores tomas. Entrego en una semana."
+  },
+  "services": [
+    {
+      "id": "port",
+      "category": "Retrato",
+      "name": "Sesión de retrato",
+      "shortName": "Sesión de retrato",
+      "durationLabel": "1 h",
+      "durationMinutes": 60,
+      "priceLabel": "$2,200",
+      "priceAmount": 2200,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Reservar",
+      "description": "Una hora en estudio, 20 fotos editadas.",
+      "includes": [
+        "Una hora en estudio",
+        "20 fotos editadas",
+        "Galería privada en 7 días"
+      ],
+      "imageKey": "fr-w2",
+      "slots": [
+        "10:00",
+        "12:00",
+        "16:00",
+        "18:00"
+      ],
+      "slotNote": "Horarios en Guadalajara.",
+      "policy": "Cambios con 24 h de aviso.",
+      "whoFields": [
+        {
+          "id": "use",
+          "label": "¿Para qué son las fotos?",
+          "placeholder": "Perfil, book, regalo…"
+        }
+      ]
+    },
+    {
+      "id": "brand",
+      "category": "Marca personal",
+      "name": "Retrato para marca personal",
+      "shortName": "Retrato para marca personal",
+      "durationLabel": "3 h",
+      "durationMinutes": 180,
+      "priceLabel": "$4,200",
+      "priceAmount": 4200,
+      "currency": "MXN",
+      "mode": "request",
+      "ctaLabel": "Solicitar",
+      "description": "Dos locaciones, 40 fotos editadas.",
+      "includes": [
+        "Dos locaciones",
+        "40 fotos editadas",
+        "Cambio de vestuario"
+      ],
+      "imageKey": "fr-w7",
+      "requestFlow": {
+        "title": "Solicitar sesión",
+        "intro": "Es una solicitud: Tomás confirma la fecha antes de apartarla.",
+        "submit": null,
+        "fields": [
+          {
+            "id": "brand",
+            "label": "Tu marca o profesión",
+            "placeholder": "Ej. consultora",
+            "type": "text",
+            "options": null
+          },
+          {
+            "id": "date",
+            "label": "Fecha",
+            "placeholder": "Ej. 18 de octubre",
+            "type": "text",
+            "options": null
+          },
+          {
+            "id": "loc",
+            "label": "Locaciones",
+            "placeholder": null,
+            "type": "chips",
+            "options": [
+              "Estudio",
+              "Oficina",
+              "Exterior"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "head",
+      "category": "Retrato",
+      "name": "Headshot corporativo",
+      "shortName": "Headshot corporativo",
+      "durationLabel": "30 min",
+      "durationMinutes": 30,
+      "priceLabel": "$1,300",
+      "priceAmount": 1300,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Reservar",
+      "description": "Media hora, 5 fotos editadas para LinkedIn o tu web.",
+      "includes": [
+        "30 minutos en estudio",
+        "5 fotos editadas",
+        "Entrega en 3 días"
+      ],
+      "imageKey": "fr-w5",
+      "slots": [
+        "09:00",
+        "09:30",
+        "13:00",
+        "13:30"
+      ],
+      "slotNote": "Horarios en Guadalajara.",
+      "policy": "Cambios con 24 h de aviso.",
+      "whoFields": [
+        {
+          "id": "company",
+          "label": "Empresa",
+          "placeholder": "Opcional"
+        }
+      ]
+    }
+  ],
+  "servicesSection": {
+    "eyebrow": "Reservar",
+    "title": "Sesiones y precios",
+    "layout": "cards-3",
+    "categories": [
+      "Todo",
+      "Retrato",
+      "Marca personal"
+    ]
+  },
+  "portfolio": {
+    "eyebrow": null,
+    "title": "Trabajo",
+    "layout": "contact-sheet",
+    "items": [
+      {
+        "imageKey": "fr-w1",
+        "caption": "Retrato · Estudio",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w2",
+        "caption": "Retrato · Luz suave",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w3",
+        "caption": "Book · Moda",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w4",
+        "caption": "Retrato · B/N",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w5",
+        "caption": "Headshot",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w6",
+        "caption": "Book · Exterior",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w7",
+        "caption": "Marca personal",
+        "alt": null
+      },
+      {
+        "imageKey": "fr-w8",
+        "caption": "Retrato · Noche",
+        "alt": null
+      }
+    ]
+  },
+  "contact": {
+    "eyebrow": null,
+    "title": "Reserva una sesión",
+    "text": "Escríbeme por el chat; respondo el mismo día.",
+    "cta": "Reservar"
+  },
+  "faq": null,
+  "reviews": null,
+  "stats": [],
+  "location": null,
+  "footer": {
+    "line": "tomas-retratos.tulala.digital · Hecho con Tulala"
+  },
+  "mockupOnly": {
+    "note": "Fictional mockup data. Never written to the database by the demo rebuild.",
+    "domain": "tomas-retratos.tulala.digital"
+  }
+}

@@ -29,7 +29,7 @@ const PACK_FILES = [
   "content.json",
 ] as const;
 
-const DRAFT_PACK_FILES = ["index.html", "kit.js", "README.md"] as const;
+const DRAFT_PACK_FILES = ["index.html", "kit.js", "README.md", "parity-map.json", "content.json"] as const;
 
 function finishedGallerySlugs(): string[] {
   const src = readFileSync(GALLERY_META, "utf8");
@@ -80,5 +80,34 @@ test("shared review kit.js is identical across every collection pack", () => {
       0,
       `${slugs[i]} kit.js must match ${slugs[0]} (shared review kit)`,
     );
+  }
+});
+
+test("draft packs carry a parity map whose mockup units exist in index.html, and a matching content.json", () => {
+  for (const slug of UNFINISHED_COLLECTION) {
+    const dir = join(REFS, slug);
+    const map = JSON.parse(readFileSync(join(dir, "parity-map.json"), "utf8")) as {
+      design: string;
+      order: string[];
+      sections: Array<{ key: string; unit: string; mockup: string[] }>;
+    };
+    const content = JSON.parse(readFileSync(join(dir, "content.json"), "utf8")) as {
+      design: string;
+      profileCode: string;
+      services: unknown[];
+    };
+    const html = readFileSync(join(dir, "index.html"), "utf8");
+    assert.equal(map.design, slug);
+    assert.equal(content.design, slug);
+    assert.match(content.profileCode, /^TAL-\d+$/);
+    assert.ok(content.services.length >= 3, `${slug}: content.json lists the demo's services`);
+    assert.deepEqual([...map.order].sort(), map.sections.map((s) => s.key).sort(), `${slug}: order matches sections`);
+    for (const sec of map.sections) {
+      const sel = sec.mockup.find((m) => m.startsWith("[data-w"));
+      assert.ok(sel, `${slug}/${sec.key}: a data-w mockup selector`);
+      const m = sel!.match(/data-w(\^?)="([^"]+)"/);
+      assert.ok(m, `${slug}/${sec.key}: parseable selector ${sel}`);
+      assert.ok(html.includes(`data-w="${m![1] ? m![2] : m![2]}`), `${slug}/${sec.key}: data-w "${m![2]}" not in index.html`);
+    }
   }
 });
