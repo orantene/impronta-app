@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { unwindClosedCheckoutSession, unwindFailedCheckout } from "./unwind-failed-checkout";
+import { heldAllocationIdsForOrder, unwindClosedCheckoutSession, unwindFailedCheckout } from "./unwind-failed-checkout";
 
 type Write = { table: string; payload: Record<string, unknown>; eq: [string, unknown][]; inStatus: string[] };
 
@@ -151,4 +151,62 @@ test("TUL-706 (b): a paid, link or foreign transaction is left alone", async () 
     assert.equal(res.outcome, "skipped");
     assert.equal(writes.length, 0);
   }
+});
+
+test("TUL-1921: an expired Stripe session releases the order's held seats now", async () => {
+  const released: string[][] = [];
+  const res = await unwindClosedCheckoutSession(
+    fakeAdminWithTxn([], { id: "t7", status: "pending", order_id: "o7", booking_id: null, metadata: {} }),
+    { transactionId: "00000000-0000-4000-8000-000000000007", reason: "expired" },
+    {
+      releaseHold: async () => ({ ok: true }),
+      releaseAllocations: async (ids) => {
+        released.push([...ids]);
+        return { ok: true, released: ids.length, alreadyReleased: 0 };
+      },
+      heldAllocationIds: async (_db, orderId) => (orderId === "o7" ? ["a1"] : []),
+    } as unknown as Parameters<typeof unwindClosedCheckoutSession>[2],
+  );
+  assert.equal(res.outcome, "unwound");
+  assert.deepEqual(released, [["a1"]]);
+});
+
+test("TUL-1921: only HELD allocations are looked up, never committed (paid) seats", async () => {
+  const filters: Array<[string, unknown]> = [];
+  const db = {
+    from(table: string) {
+      const chain = {
+        select: () => chain,
+        eq(col: string, v: unknown) {
+          if (table === "capacity_allocations") filters.push([col, v]);
+          return table === "order_lines" ? Promise.resolve({ data: [{ id: "l1" }], error: null }) : chain;
+        },
+        in: () => chain,
+        then: (ok: (v: unknown) => unknown) => ok({ data: [{ id: "a9" }], error: null }),
+      };
+      return chain;
+    },
+  } as unknown as SupabaseClient;
+  assert.deepEqual(await heldAllocationIdsForOrder(db, "o8"), ["a9"]);
+  assert.deepEqual(filters, [["state", "hold"]]);
+});
+
+test("TUL-1921: a failed seat lookup falls back to hold expiry (no throw, nothing released)", async () => {
+  const db = {
+    from() {
+      throw new Error("boom");
+    },
+  } as unknown as SupabaseClient;
+  assert.deepEqual(await heldAllocationIdsForOrder(db, "o9"), []);
+});
+
+test("TUL-1921: availability counts only paid seats and unexpired holds (SQL + TS rule)", async () => {
+  const { isAllocationLive } = await import("@/lib/capacity/remaining");
+  const now = new Date("2026-10-22T12:20:00Z");
+  const base = { id: "x", poolId: "p", poolPath: ["p"], units: 1, startsAt: null, endsAt: null } as never;
+  const mk = (state: string, expiresAt: string | null) => ({ ...(base as object), state, expiresAt }) as never;
+  assert.equal(isAllocationLive(mk("committed", null), now), true);
+  assert.equal(isAllocationLive(mk("hold", "2026-10-22T12:30:00Z"), now), true);
+  assert.equal(isAllocationLive(mk("hold", "2026-10-22T12:16:54Z"), now), false);
+  assert.equal(isAllocationLive(mk("released", null), now), false);
 });

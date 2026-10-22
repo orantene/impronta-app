@@ -18,8 +18,8 @@ import { releaseOrderPromoHolds } from "@/lib/promos/redemption/order-redemption
  *
  * `checkout.session.expired` / `async_payment_failed` for an instant order run
  * this same unwind through `unwindClosedCheckoutSession` (TUL-706). That event
- * carries only the transaction id, so allocations are left to Capacity's own
- * reaper; the booking, transaction and order are closed here.
+ * carries only the transaction id, so allocations are looked up by order (held
+ * ones only, TUL-1921); the booking, transaction and order are closed here.
  */
 export type FailedCheckoutUnwindInput = {
   orderId: string;
@@ -36,12 +36,37 @@ export type FailedCheckoutUnwindDeps = {
   releaseAllocations: typeof releaseCapacity;
   /** Promos v1: the order's held promo uses go back to the pool. */
   releasePromos?: (db: SupabaseClient, orderId: string) => Promise<{ ok: boolean }>;
+  /** TUL-1921: the order's still-held seat allocations (a Stripe event carries only the transaction id). */
+  heldAllocationIds?: (db: SupabaseClient, orderId: string) => Promise<string[]>;
 };
+
+/**
+ * TUL-1921: ids of the order's capacity allocations that are still a `hold`.
+ * Only holds: `release_capacity` releases anything not yet released, so a
+ * committed (paid) seat must never be handed to it. Failure reads as "none",
+ * so the hold-expiry honoured by `capacity_remaining_public` still frees the seat.
+ */
+export async function heldAllocationIdsForOrder(db: SupabaseClient, orderId: string): Promise<string[]> {
+  try {
+    const { data: lines, error: lineErr } = await db.from("order_lines").select("id").eq("order_id", orderId);
+    if (lineErr || !lines?.length) return [];
+    const { data, error } = await db
+      .from("capacity_allocations")
+      .select("id")
+      .in("order_line_id", (lines as Array<{ id: string }>).map((l) => l.id))
+      .eq("state", "hold");
+    if (error) return [];
+    return ((data ?? []) as Array<{ id: string }>).map((r) => r.id);
+  } catch {
+    return [];
+  }
+}
 
 const DEFAULT_DEPS: FailedCheckoutUnwindDeps = {
   releaseHold: releaseReservationHold,
   releaseAllocations: releaseCapacity,
   releasePromos: releaseOrderPromoHolds,
+  heldAllocationIds: heldAllocationIdsForOrder,
 };
 
 export async function unwindFailedCheckout(
@@ -134,13 +159,16 @@ export async function unwindClosedCheckoutSession(
     | null;
   if (!txn || !txn.order_id || !STILL_PAYABLE_TXN.has(txn.status)) return { ok: true, outcome: "skipped" };
   if (paymentLinkIdFromMetadata(txn.metadata)) return { ok: true, outcome: "skipped" };
+  // TUL-1921: free the seat now (Stripe's session outlives the 15-minute hold);
+  // the hold's own expiry remains the backstop if this lookup finds nothing.
+  const allocationIds = deps.heldAllocationIds ? await deps.heldAllocationIds(admin, txn.order_id) : [];
   const res = await unwindFailedCheckout(
     admin,
     {
       orderId: txn.order_id,
       transactionId: txn.id,
       bookingId: txn.booking_id,
-      allocationIds: [],
+      allocationIds,
       reservationHoldId: null,
       why: `checkout_${input.reason}`,
     },
