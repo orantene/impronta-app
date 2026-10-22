@@ -69,3 +69,4 @@ src/lib/seo/json-ld-script-escape.test.ts
 src/lib/storefront/on-request-price-withheld.test.ts
 src/lib/talent/agencies-select-columns.static.test.ts
 src/lib/talent/workspace-menu-defaults.test.ts
+src/app/(workspace)/talent/bounded-shell-loaders.static.test.ts

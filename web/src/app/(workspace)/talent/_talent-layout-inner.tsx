@@ -113,6 +113,11 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
 /** TUL-1255: longest the shell waits for the theme-update bell fan-out before streaming without it. */
 const THEME_BELL_BUDGET_MS = 1500;
 
+/** TUL-1255: time-box an optional shell read to the shared first-paint budget; past it the empty fallback wins. */
+function bounded<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return withTimeout(promise, TALENT_LOADER_BUDGET_MS, fallback);
+}
+
 /** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
 async function ensureThemeBellThenLoad(talentProfileId: string, readCtx: Parameters<typeof loadTalentSurfaceNotifications>[0]) {
   try {
@@ -198,8 +203,11 @@ async function loadOwnedWorkspaceSlug(subjectUserId: string): Promise<string | n
   try {
     const adminDb = createServiceRoleClient();
     if (!adminDb) return null;
-    const owned = await loadOwnedBusinessWorkspace(adminDb, subjectUserId);
-    return owned.ownsBusinessWorkspace ? owned.workspaceSlug : null;
+    // TUL-1255: time-boxed here so the awaited promise can never hold the shell past the budget.
+    return await bounded(
+      loadOwnedBusinessWorkspace(adminDb, subjectUserId).then((owned) => (owned.ownsBusinessWorkspace ? owned.workspaceSlug : null)),
+      null,
+    );
   } catch (err) {
     logServerError("talentLayout.ownedWorkspace", err);
     return null;
@@ -365,22 +373,24 @@ export async function TalentLayoutInner({
     talentAttentionSignals,
     talentPayoutCountry,
   ] = await Promise.all([
-    timed("talent.loadTalentInquiriesAllAgencies", () => early?.inquiries ?? loadTalentInquiriesAllAgencies(baseProfile.id)),
-    timed("talent.loadTalentAgencies", () => loadTalentAgencies(talentSelfProfile.id)),
+    // TUL-1255: optional shell reads below share the 2 s first-paint budget (bounded()) and fall
+    // back to their empty state, so one slow query can never hold the shell on the skeleton.
+    timed("talent.loadTalentInquiriesAllAgencies", () => bounded(early?.inquiries ?? loadTalentInquiriesAllAgencies(baseProfile.id), [])),
+    timed("talent.loadTalentAgencies", () => bounded(loadTalentAgencies(talentSelfProfile.id), [])),
     timed("talent.loadTalentRepresentation", () => loadTalentRepresentation(talentSelfProfile.id, talentSelfProfile.profileCode)),
     timed("talent.findTenantMembership", () => tenantId ? findTenantMembership(tenantId) : Promise.resolve(null)),
     timed("talent.loadWorkspaceUnreadCount", () => tenantId ? withTimeout(loadWorkspaceUnreadCount(tenantId), TALENT_LOADER_BUDGET_MS, 0) : Promise.resolve(0)),
 
     // TUL-387 — talent chrome badge counts (replaces the prior hard-coded zero).
     timed("talent.loadShellCounts", () => tenantId
-      ? loadShellCounts("talent", {
+      ? bounded(loadShellCounts("talent", {
           tenantId,
           talentProfileId: talentSelfProfile.id,
-        })
+        }), zeroShellCounts)
       : Promise.resolve(zeroShellCounts)),
-    timed("talent.loadUserPrefs", () => early?.userPrefs ?? loadUserPrefs(session.user.id)),
-    timed("talent.loadTenantIdentity", () => tenantId ? loadTenantIdentity(tenantId) : Promise.resolve(null)),
-    timed("talent.loadProfileDisplayName", () => early?.displayName ?? loadProfileDisplayName(subjectUserId)),
+    timed("talent.loadUserPrefs", () => bounded(early?.userPrefs ?? loadUserPrefs(session.user.id), null)),
+    timed("talent.loadTenantIdentity", () => tenantId ? bounded(loadTenantIdentity(tenantId), null) : Promise.resolve(null)),
+    timed("talent.loadProfileDisplayName", () => bounded(early?.displayName ?? loadProfileDisplayName(subjectUserId), null)),
 
     // Agenda V2: loadTalentAgenda behind the flag only. Flag off keeps the
     // legacy calendar bridge so Today/Calendar stay unchanged.
@@ -403,7 +413,9 @@ export async function TalentLayoutInner({
 
     // Stripe Connect payout snapshot for the in-shell Payouts section.
     // Returns { ok:false } on any failure, so it never breaks the layout.
-    timed("talent.getTalentConnectedAccountSnapshot", () => getTalentConnectedAccountSnapshot(talentSelfProfile.id)),
+    timed("talent.getTalentConnectedAccountSnapshot", () =>
+      bounded(getTalentConnectedAccountSnapshot(talentSelfProfile.id), { ok: false as const, error: "Payout status is taking too long." }),
+    ),
 
     // Payout legs that did NOT land (reversed / failed / still held), with
     // booking context, for the Payouts page. Supersedes the held-only totals:
@@ -452,8 +464,8 @@ export async function TalentLayoutInner({
     // above, stacking four round trips onto every talent page before the shell
     // could stream. None depends on the batch, so they ride in it.
     // The bell counts only conversations she can open in Messages (TUL-52 B).
-    timed("talent.loadTalentInboxSummary", () => early?.inboxSummary ?? loadTalentInboxSummary(readCtx).catch(() => null)),
-    timed("talent.loadTalentPlanGrants", () => loadTalentPlanGrants(talentSelfProfile.id).catch(() => null)),
+    timed("talent.loadTalentInboxSummary", () => bounded(early?.inboxSummary ?? loadTalentInboxSummary(readCtx).catch(() => null), null)),
+    timed("talent.loadTalentPlanGrants", () => bounded(loadTalentPlanGrants(talentSelfProfile.id).catch(() => null), null)),
     timed("talent.loadPlatformOperatingCurrency", () => early?.operatingCurrency ?? loadPlatformOperatingCurrency()),
     timed("talent.getRequestLocale", () => early?.requestLocale ?? getRequestLocale()),
 
