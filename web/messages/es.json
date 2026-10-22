@@ -18903,6 +18903,7 @@
         "posTablesNote": "Sección y tiempo en el menú de mesas",
         "tableQr": "QR de mesa (pedido del cliente)",
         "tableQrNote": "Los clientes pueden pedirlo solos",
+        "tableQrDraft": "No está en el menú de mesa: el artículo es un borrador",
         "profile": "Perfil de talento",
         "profileNote": "Un artículo del espacio no está en el perfil de una persona",
         "privateLink": "Enlace privado",

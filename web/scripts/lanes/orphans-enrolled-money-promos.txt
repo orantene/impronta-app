@@ -9,6 +9,7 @@ src/app/checkout/cancel/cancel-page.static.test.ts
 src/app/t/[profileCode]/profile-price-currency.test.ts
 src/components/admin/shell/internal/messages/shared/deposit-money.test.ts
 src/components/admin/shell/internal/messages/shared/payment-tab-state.test.ts
+src/components/admin/shell/internal/page-modules/catalog/catalog-table-qr-switch.test.ts
 src/components/billing/talent-switch-to-free.static.test.ts
 src/components/marketing/pricing-interval-toggle.test.ts
 src/components/promos/public/booking-promo-panel.render.test.tsx
@@ -68,6 +69,7 @@ src/lib/email/order-confirmation.test.ts
 src/lib/ledger/write.test.ts
 src/lib/money/talent-payout-breakdown.test.ts
 src/lib/money/total-client-revenue.test.ts
+src/lib/offerings/table-qr.test.ts
 src/lib/onboarding/talent-plan-display-name.test.ts
 src/lib/orders/complete-order-promo.test.ts
 src/lib/orders/menu-order-lines.test.ts
