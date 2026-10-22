@@ -15,6 +15,7 @@ src/components/edit-chrome/kit/drawer-modal-inert.static.test.ts
 src/components/edit-chrome/page-edit-href.test.ts
 src/components/edit-chrome/publish-menu.test.tsx
 src/components/edit-chrome/workspace-switch-admin-url.test.ts
+src/components/edit-chrome/template-picker-locked.static.test.ts
 src/components/talent/site/maison-setup/explore-slug.test.ts
 src/components/talent/site/maison-setup/theme-detail-model.test.ts
 src/components/talent/site/theme-gallery/gallery-bootstrap-action.test.ts
@@ -73,6 +74,7 @@ src/lib/site-admin/sections/registry-freeze.static.test.ts
 src/lib/site-admin/sections/site_header/header-aria-i18n.test.tsx
 src/lib/site-admin/sections/site_header/seeded-home-label.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
+src/lib/talent-site/templates/registry-access.test.ts
 src/lib/talent-site/theme-releases/builder-lab-errors.test.ts
 src/lib/talent-site/theme-releases/superseded-rows.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts

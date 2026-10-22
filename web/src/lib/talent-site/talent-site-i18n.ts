@@ -19,6 +19,9 @@ const COPY = {
       "Build and publish your own personal service website from your profile, media, and services.",
     templateIncluded: "Included",
     templateChange: "Change template",
+    templateBrowse: "See all templates",
+    templateLocked: "Locked",
+    templateUpgrade: "Upgrade to unlock",
     // FOLDED 2026-09-23 (Pro fold): one paid tier, Web Office. Never "Pro"
     // or "Max" in this copy again.
     upgradeProTemplates: "Upgrade to Web Office to choose premium templates.",
@@ -68,6 +71,9 @@ const COPY = {
       "Crea y publica tu sitio personal de servicios con tu perfil, medios y servicios.",
     templateIncluded: "Incluido",
     templateChange: "Cambiar plantilla",
+    templateBrowse: "Ver todas las plantillas",
+    templateLocked: "Bloqueada",
+    templateUpgrade: "Mejorar para desbloquear",
     upgradeProTemplates: "Mejora a Web Office para elegir plantillas premium.",
     upgradeMaxBuilder:
       "Mejora a Web Office para personalizar secciones y crear un sitio de servicios completo.",

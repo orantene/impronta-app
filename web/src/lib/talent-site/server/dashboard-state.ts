@@ -9,7 +9,7 @@ import {
   requireTalentSelf,
   requireTalentSelfScope,
 } from "@/lib/server/talent-self-guard";
-import { listTemplatesForTier } from "@/lib/talent-site/templates/registry";
+import { listTemplatesWithAccess } from "@/lib/talent-site/templates/registry";
 import type { TalentSiteDashboardState, TalentSiteRow } from "@/lib/talent-site/types";
 import { parseTalentSiteSnapshot } from "@/lib/talent-site/validation";
 import { isTalentSiteSubdomainsEnabled } from "@/lib/access/talent-site-subdomains";
@@ -222,12 +222,7 @@ export async function loadTalentPersonalSiteDashboardState(
     }
   }
 
-  const availableTemplates = listTemplatesForTier(membership.tier).map((t) => ({
-    key: t.key,
-    label: t.label,
-    blurb: t.blurb,
-    thumbnailUrl: t.thumbnailUrl,
-  }));
+  const availableTemplates = listTemplatesWithAccess(membership.tier);
 
   // TUL-77 / TUL-347 / TUL-180: when the effective owner has a business
   // workspace site, surface that live URL on Hoy / presence. Reuse the

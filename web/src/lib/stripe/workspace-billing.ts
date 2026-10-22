@@ -43,7 +43,7 @@ import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
-import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
+import { buildPortalSessionParams, withoutPortalConfiguration } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
@@ -353,13 +353,19 @@ export async function createBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create(
-      buildPortalSessionParams({
-        customerId: customer.stripe_customer_id,
-        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
-        locale: opts.locale,
-      }),
-    );
+    const params = buildPortalSessionParams({
+      customerId: customer.stripe_customer_id,
+      returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
+      locale: opts.locale,
+    });
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create(params);
+    } catch (firstErr) {
+      if (!params.configuration) throw firstErr;
+      logServerError("workspace-billing.portalConfigRetry", firstErr);
+      session = await stripe.billingPortal.sessions.create(withoutPortalConfiguration(params));
+    }
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {
