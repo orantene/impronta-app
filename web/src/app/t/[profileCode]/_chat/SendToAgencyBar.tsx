@@ -62,6 +62,8 @@ export type SendToAgencyBarProps = {
   surfaceMode?: SurfaceMode;
   /** Trigger the send-to-agency flow (gate when needed, else submit). */
   onSend: () => void;
+  /** TUL-966: after a send, jump to the sent conversation (the confirmation links to it). */
+  onViewThread?: () => void;
 };
 
 const wrapStyle = (C: Palette): CSSProperties => ({
@@ -85,6 +87,7 @@ export function SendToAgencyBar({
   sent,
   surfaceMode = "light",
   onSend,
+  onViewThread,
 }: SendToAgencyBarProps) {
   const C = paletteFor(surfaceMode);
   // Hub hosts (Tulala) are not agencies — the CTA + notes must not say "agency".
@@ -101,20 +104,26 @@ export function SendToAgencyBar({
       : t("public.guestChat.sendToAgencySent");
   if (sent) {
     return (
-      <div style={wrapStyle(C)}>
+      <div style={wrapStyle(C)} data-send-confirmation>
         <p
           role="status"
           aria-live="polite"
-          style={{
-            margin: 0,
-            fontSize: 12,
-            fontWeight: 500,
-            color: C.inkMuted,
-            textAlign: "center",
-          }}
+          style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.ink, textAlign: "center" }}
         >
+          {t("public.guestChat.sendSentTitle")}
+        </p>
+        <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: C.inkMuted, textAlign: "center" }}>
           {sentLine}
         </p>
+        {onViewThread ? (
+          <button
+            type="button"
+            onClick={onViewThread}
+            style={{ ...primaryBtnStyle(accent, accentInk), width: "100%" }}
+          >
+            {t("public.guestChat.sendSentViewThread")}
+          </button>
+        ) : null}
       </div>
     );
   }

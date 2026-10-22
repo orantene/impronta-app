@@ -1165,6 +1165,8 @@
       "avatarRemoveAria": "Quitar a {name} de tu solicitud",
       "sendToAgency": "Enviar a la agencia",
       "sendToAgencySent": "Enviado. La agencia te responderá en breve.",
+      "sendSentTitle": "Solicitud enviada",
+      "sendSentViewThread": "Ver la conversación",
       "sendHub": "Enviar",
       "sendHubNoPayment": "Sin pago ahora. Dirigiremos tu consulta a las personas indicadas.",
       "sendHubSent": "Enviado. {brand} dirigirá tu consulta a las personas indicadas.",

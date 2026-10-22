@@ -85,7 +85,8 @@ export const EMPTY_ME: MeData = {
 };
 
 /** Statuses that mean the thing is over and should never read as upcoming. */
-const TERMINAL = new Set(["cancelled", "declined", "expired", "closed", "archived"]);
+// TUL-65: a completed visit is history however its date reads (no date, or one still ahead).
+const TERMINAL = new Set(["cancelled", "declined", "expired", "closed", "archived", "completed"]);
 
 function eventMs(row: MeRow): number | null {
   if (!row.eventDate) return null;

@@ -38,7 +38,8 @@ test("GuestNextStep surfaces accept refusals (no silent dead button)", () => {
 test("TUL-965: the talent dock prefills the first-message form from the signed-in viewer", () => {
   const src = read("TalentProfileChatLauncherMount.tsx");
   assert.match(src, /resolveDockViewerPrefill/);
-  assert.match(src, /prefill=\{active\?\.prefill \?\? viewerPrefill\}/);
+  assert.match(src, /mergeDockPrefill\(active\?\.prefill/);
+  assert.match(src, /prefill=\{viewerPrefill\}/);
   const server = readFileSync(join(HERE, "..", "..", "..", "..", "lib", "client-account", "dock-viewer-identity.server.ts"), "utf8");
   assert.match(server, /defaultClientName/);
 });

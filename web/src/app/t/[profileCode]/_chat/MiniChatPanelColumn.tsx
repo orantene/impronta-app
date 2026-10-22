@@ -59,6 +59,7 @@ import { GuestComposerOfferingStrip } from "./GuestComposerOfferingStrip";
 import { guestComposerPlaceholder } from "./guest-composer-placeholder";
 import { SendToAgencyBar } from "./SendToAgencyBar";
 import { buildGateLineupRecap } from "./guest-gate-lineup-recap";
+import { runTraySend } from "./tray-send-action";
 import {
   EMAIL_RE,
   paletteFor,
@@ -410,10 +411,8 @@ export function MiniChatPanelColumn({
   const activeDockView: GuestDockView = dockEnabled ? dockView : "chat";
   const draftExists = Boolean(inquiryRecordExists) && !contactPromoted;
 
-  // "Start an inquiry" (Home card + Lineup CTA): resume a live DRAFT in Chat;
-  // when the active thread is already SENT, spin up a FRESH draft instead so
-  // the guest never types into a frozen conversation. The lineup cart carries
-  // over through the remount.
+  // "Start an inquiry" (Home card + Lineup CTA): resume a live DRAFT in Chat; a SENT
+  // thread spins up a FRESH draft (the lineup cart carries over the remount).
   const startInquiryInChat = () => {
     if (!draftExists && inquiryRecordExists && contactPromoted && onStartFresh) {
       onStartFresh();
@@ -421,6 +420,8 @@ export function MiniChatPanelColumn({
     }
     onDockViewChange?.("chat");
   };
+
+  const sendFromTray = () => runTraySend({ draftExists, canSubmit: Boolean(onSendToAgency), recordExists: Boolean(inquiryRecordExists), promoted: Boolean(contactPromoted) }, { start: startInquiryInChat, openChat: () => onDockViewChange?.("chat"), submit: onSendToAgency });
 
   const dock = useGuestDockModel({ rows, v5, refresh: onRefreshThread, threadStatus, brand, t, C, accent, accentInk, inquiryId, onOpenInquiry: (id) => { onSwitchInquiry(id); onDockViewChange?.("chat"); }, onAsk: (text) => onDraftChange(text), contactName: `${firstName} ${lastName}`.trim(), contactEmail: guestContactEmail, contactPhone: phone.trim() || capturedChipValues?.contact?.contactPhone || inquiryIntent?.requester?.phone || null, onRenameSaved: (n) => { onFirstNameChange(n); onLastNameChange(""); } });
   const [detailsOpen, setDetailsOpen] = useState(false); // header-triggered sheet
@@ -483,7 +484,7 @@ export function MiniChatPanelColumn({
         card={card}
       />
 
-      <GuestDockInquiryTray onRemoveCartTalent={onRemoveCartTalent} activeView={activeDockView} enabled={dockEnabled} t={t} C={C} accent={accent} accentInk={accentInk} onOpen={() => onDockViewChange?.("lineup")} onSend={card ? undefined : startInquiryInChat} />
+      <GuestDockInquiryTray onRemoveCartTalent={onRemoveCartTalent} activeView={activeDockView} enabled={dockEnabled} t={t} C={C} accent={accent} accentInk={accentInk} onOpen={() => onDockViewChange?.("lineup")} onSend={card ? undefined : sendFromTray} />
 
       <GuestThreadSwitcherDrawer
         open={switcherOpen}
@@ -777,7 +778,7 @@ export function MiniChatPanelColumn({
         />
       )}
 
-      {!showGate && extrasEnabled && onSendToAgency && !threadStateInput.hasSentMessage && !guestThreadBlocksSendBar(rows) && (
+      {!showGate && extrasEnabled && (sentNote || (onSendToAgency && !threadStateInput.hasSentMessage && !guestThreadBlocksSendBar(rows))) && (
         <SendToAgencyBar
           accent={accent}
           accentInk={accentInk}
@@ -787,8 +788,7 @@ export function MiniChatPanelColumn({
           surfaceMode={surfaceMode}
           disabled={sending || inCooldown}
           sent={sentNote}
-          typicalReply={typicalReply}
-          onSend={onSendToAgency}
+          typicalReply={typicalReply} onSend={onSendToAgency ?? (() => undefined)} onViewThread={() => onDockViewChange?.("chat")}
         />
       )}
         </>
