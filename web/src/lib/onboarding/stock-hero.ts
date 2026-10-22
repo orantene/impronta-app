@@ -18,7 +18,7 @@ import { buildImageResolver, type CandidateImage, type ImagePickLevel } from "@/
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
 import { searchBusinessTypes, type BusinessFamilyId } from "@/lib/words/business-types";
 
-import { classifyTrade, stockTypeForTrade, type TradeKey } from "./trade-label";
+import { classifySubject, classifyTrade, stockTypeForTrade, type TradeKey } from "./trade-label";
 
 /** `trade` is the trade the talent's words name, when one is recognised (TUL-846: it vetoes off-trade photos). */
 export type StockHeroQuery = { businessType: string | null; family: BusinessFamilyId; trade?: TradeKey };
@@ -100,7 +100,8 @@ function namesOtherTrade(p: Pick<StockLike, "alt" | "tags"> & { businessType?: s
   // TUL-846 (Batch 11 recurrence): a photo filed under another trade's catalogue type ("personal-chef",
   // "hair-salon") counts as naming that trade even when its alt text is neutral ("a plated dish").
   const words = `${p.alt.en} ${p.alt.es} ${Object.values(p.tags ?? {}).join(" ")} ${(p.businessType ?? "").replace(/-/g, " ")}`;
-  const named = classifyTrade(words);
+  // TUL-846 (build 4): subjects outside the nine trades (fire dancer, salon mirrors) veto too.
+  const named = classifySubject(words);
   return named !== null && named !== q.trade;
 }
 
