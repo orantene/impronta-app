@@ -13,6 +13,12 @@ import { parseBillingInterval } from "@/lib/pricing/interval-pricing";
 import { toCatalogInterval } from "./checkout-interval";
 import { logServerError } from "@/lib/server/safe-error";
 import { confirmPlanChange, previewPlanChange, type PlanChangeRequest } from "./plan-change";
+import { resolvePlanChangePromoWith } from "./plan-change-promo";
+import { countSubjectRedemptions } from "./checkout-discounts";
+import { loadActiveTierId } from "./promo-catalog-reads";
+import { PROMO_ERROR_MESSAGES, type PromoErrorCode } from "./promo-preview";
+import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
+import { TALENT_TIER_SLUG, WORKSPACE_TIER_SLUG } from "@/lib/stripe/price-catalog";
 import type { PlanChangeConfirm, PlanChangePreview } from "./plan-change-policy";
 import { isExistingSubscriptionStatus } from "./subscription-live-status";
 import { clearPendingDowngrade, recordPendingDowngrade, type PendingDowngrade } from "./workspace-downgrade-archive";
@@ -56,19 +62,57 @@ async function buildRequest(
   return { kind, subjectId, subscriptionId, toPlan, toInterval, toPriceId: toPriceId?.trim() || null, onError: logServerError };
 }
 
+/**
+ * TUL-833: attach a validated promo code to the request. The code is re-validated here against the catalog (the
+ * browser value is only a string); an empty code is no code.
+ */
+async function withPromo(
+  req: PlanChangeRequest,
+  rawCode: unknown,
+): Promise<PlanChangeRequest | { error: string; promoError: PromoErrorCode }> {
+  const code = typeof rawCode === "string" ? rawCode.trim() : "";
+  if (!code) return req;
+  const admin = createServiceRoleClient();
+  if (!admin) return { error: PROMO_ERROR_MESSAGES.invalid.en, promoError: "invalid" };
+  const slug =
+    req.kind === "talent"
+      ? TALENT_TIER_SLUG[req.toPlan as TalentPlanKey]
+      : WORKSPACE_TIER_SLUG[req.toPlan as WorkspacePlanKey];
+  const out = await resolvePlanChangePromoWith(
+    {
+      validate: (c) => validateDiscount(c),
+      targetTierId: async () => (slug ? loadActiveTierId(admin, slug) : null),
+      priorRedemptions: (discountId) =>
+        countSubjectRedemptions({
+          discountId,
+          subjectType: req.kind,
+          tenantId: req.kind === "workspace" ? req.subjectId : null,
+          talentProfileId: req.kind === "talent" ? req.subjectId : null,
+        }),
+    },
+    req.kind,
+    code,
+  );
+  if (!out.ok) return { error: PROMO_ERROR_MESSAGES[out.promoError].en, promoError: out.promoError };
+  return { ...req, promo: out.promo };
+}
+
 export async function previewPlanChangeFor(
   kind: "talent" | "workspace",
   subjectId: string,
   toPlan: string,
   interval: unknown,
+  promoCode?: unknown,
 ): Promise<PlanChangePreview> {
   const stripe = getStripe();
   if (!stripe) {
     logServerError("billing.planChange.preview.no-stripe", new Error("getStripe() returned null: STRIPE_SECRET_KEY unset or key/mode mismatch"));
     return { ok: false, error: "Billing is not available yet.", code: "stripe" };
   }
-  const req = await buildRequest(kind, subjectId, toPlan, interval);
-  if ("error" in req) return { ok: false, error: req.error, code: req.code };
+  const built = await buildRequest(kind, subjectId, toPlan, interval);
+  if ("error" in built) return { ok: false, error: built.error, code: built.code };
+  const req = await withPromo(built, promoCode);
+  if ("promoError" in req) return { ok: false, error: req.error, code: "promo", promoError: req.promoError };
   const out = await previewPlanChange(stripe, req);
   if (!out.ok) logServerError("billing.planChange.preview", out.error);
   return out;
@@ -80,14 +124,17 @@ export async function confirmPlanChangeFor(
   toPlan: string,
   interval: unknown,
   prorationDate: unknown,
+  promoCode?: unknown,
 ): Promise<PlanChangeConfirm> {
   const stripe = getStripe();
   if (!stripe) {
     logServerError("billing.planChange.confirm.no-stripe", new Error("getStripe() returned null: STRIPE_SECRET_KEY unset or key/mode mismatch"));
     return { ok: false, error: "Billing is not available yet.", code: "stripe" };
   }
-  const req = await buildRequest(kind, subjectId, toPlan, interval);
-  if ("error" in req) return { ok: false, error: req.error, code: req.code };
+  const built = await buildRequest(kind, subjectId, toPlan, interval);
+  if ("error" in built) return { ok: false, error: built.error, code: built.code };
+  const req = await withPromo(built, promoCode);
+  if ("promoError" in req) return { ok: false, error: req.error, code: "promo", promoError: req.promoError };
   const out = await confirmPlanChange(stripe, req, prorationDate);
   if (!out.ok) logServerError("billing.planChange.confirm", out.error);
   else if (kind === "workspace") {

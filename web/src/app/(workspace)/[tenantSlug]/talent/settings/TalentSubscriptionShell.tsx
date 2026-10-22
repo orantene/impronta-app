@@ -18,7 +18,10 @@ import { PastDueBanner } from "@/components/billing/PastDueBanner";
 import { PromoCodeInput } from "@/components/billing/promo-code-input";
 import { startTalentUpgrade, openTalentSubscriptionPortal } from "./stripe-talent-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
+import { formatPeriodDate } from "@/lib/billing/period-date";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { useT } from "@/i18n/use-t";
+import { useTalentPlanChange } from "@/components/billing/use-talent-plan-change";
 import type { TalentSubscriptionState } from "../../_data-bridge";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
 
@@ -134,13 +137,17 @@ function UpgradeButton({
   const [error, setError] = React.useState<string | null>(null);
   // TUL-833: code applied via "Have a code?"; falls back to ?promo= from the URL.
   const [appliedCode, setAppliedCode] = React.useState<string | null>(null);
+  const planChange = useTalentPlanChange(tenantSlug, appliedCode ?? readPromoCodeFromUrl());
 
   function handleClick() {
     if (pending) return;
     setError(null);
     startTransition(async () => {
       const result = await startTalentUpgrade(plan, tenantSlug, appliedCode ?? readPromoCodeFromUrl());
-      if (result.ok) {
+      if (result.ok && result.planChange) {
+        // TUL-831/833: an existing subscriber confirms in-app (proration preview + promo), never via the portal.
+        planChange.open(result.planChange);
+      } else if (result.ok) {
         window.location.href = result.redirectUrl;
       } else {
         setError(result.error);
@@ -177,6 +184,7 @@ function UpgradeButton({
         <PromoCodeInput plan={plan} interval="month" onApplied={(code) => setAppliedCode(code)} />
       </div>
       {error && <span style={{ fontSize: 11, color: "#c0392b", fontFamily: FONT }}>{error}</span>}
+      {planChange.modal}
     </div>
   );
 }
@@ -242,6 +250,7 @@ export function TalentSubscriptionShell({
   stripeEnabled: boolean;
 }) {
   const t = useT();
+  const locale = useDashboardLocale();
   const planKey: PlanKey =
     rawPlanKey === "talent_pro" || rawPlanKey === "talent_portfolio"
       ? rawPlanKey
@@ -254,11 +263,8 @@ export function TalentSubscriptionShell({
     subscription.status !== "cancelled" &&
     subscription.status !== "incomplete_expired";
 
-  const periodEndLabel = subscription?.currentPeriodEnd
-    ? new Date(subscription.currentPeriodEnd).toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
-      })
-    : null;
+  // QA P3: UTC calendar day, same as the Stripe renewal date (see period-date.ts).
+  const periodEndLabel = formatPeriodDate(subscription?.currentPeriodEnd, locale);
 
   return (
     <section className="flex flex-col gap-3">

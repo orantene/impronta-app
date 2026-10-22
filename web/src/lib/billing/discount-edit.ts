@@ -16,6 +16,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { bilingualWindowError, discountWindowError } from "@/lib/pricing/discount-status";
 import { renameDiscountInStripe } from "@/lib/pricing/stripe-discount-sync";
 
 export type DiscountEditInput = {
@@ -43,7 +44,7 @@ export async function applyDiscountEdit(
 
   const load = await admin
     .from("product_discounts")
-    .select("id, stripe_coupon_id, name")
+    .select("id, stripe_coupon_id, name, ends_at")
     .eq("id", input.discountId)
     .maybeSingle();
   if (load.error || !load.data) {
@@ -53,7 +54,11 @@ export async function applyDiscountEdit(
     id: string;
     stripe_coupon_id: string | null;
     name: string;
+    ends_at: string | null;
   };
+  // An existing code may already be expired and stays editable; only the start/end order is checked.
+  const windowError = discountWindowError({ startsAt: input.startsAt, endsAt: row.ends_at }, "edit");
+  if (windowError) return { ok: false, error: bilingualWindowError(windowError) };
 
   const upd = await admin
     .from("product_discounts")

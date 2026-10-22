@@ -25,6 +25,20 @@ export const SEED_TAG = "portal-config-v1";
 const PLAN_KEYS = ["talent_pro", "talent_portfolio", "website", "studio", "agency"];
 export const LOOKUP_KEYS = PLAN_KEYS.flatMap((p) => ["month", "year"].map((i) => `tulala_${p}_${i}_usd`));
 
+/**
+ * Per-audience configurations (QA 2026-10-21, P2): a talent must only be
+ * offered talent products in plan switching, a workspace only workspace ones.
+ * Each audience gets its own tagged configuration; put the printed ids in
+ * STRIPE_TALENT_PORTAL_CONFIGURATION_ID(_TEST) / STRIPE_WORKSPACE_PORTAL_CONFIGURATION_ID(_TEST).
+ */
+export const AUDIENCE_PLAN_KEYS = {
+  talent: ["talent_pro", "talent_portfolio"],
+  workspace: ["website", "studio", "agency"],
+};
+export const audienceTag = (audience) => `${SEED_TAG}-${audience}`;
+export const audienceLookupKeys = (audience) =>
+  AUDIENCE_PLAN_KEYS[audience].flatMap((p) => ["month", "year"].map((i) => `tulala_${p}_${i}_usd`));
+
 export function assertTestKey(name, key) {
   if (!key) return null;
   if (!key.startsWith("sk_test_")) {
@@ -34,10 +48,10 @@ export function assertTestKey(name, key) {
 }
 
 /** Pure: the portal configuration body, given the resolved products. */
-export function buildPortalConfiguration(products) {
+export function buildPortalConfiguration(products, audience) {
   return {
-    name: "Tulala billing portal",
-    metadata: { tulala_seed: SEED_TAG },
+    name: audience ? `Tulala billing portal (${audience})` : "Tulala billing portal",
+    metadata: { tulala_seed: audience ? audienceTag(audience) : SEED_TAG },
     business_profile: { headline: "Manage your Tulala plan" },
     features: {
       invoice_history: { enabled: true },
@@ -55,8 +69,8 @@ export function buildPortalConfiguration(products) {
   };
 }
 
-async function resolveProducts(stripe) {
-  const found = await stripe.prices.list({ lookup_keys: LOOKUP_KEYS, active: true, limit: 100 });
+async function resolveProducts(stripe, lookupKeys = LOOKUP_KEYS) {
+  const found = await stripe.prices.list({ lookup_keys: lookupKeys, active: true, limit: 100 });
   const byProduct = new Map();
   for (const p of found.data) {
     const product = typeof p.product === "string" ? p.product : p.product.id;
@@ -68,24 +82,27 @@ async function resolveProducts(stripe) {
 async function ensureOnSandbox(label, secret, dryRun) {
   const stripe = new Stripe(secret);
   console.log(`\n[${label}] sandbox`);
-  const existing = (await stripe.billingPortal.configurations.list({ limit: 100 })).data.find(
-    (c) => c.metadata?.tulala_seed === SEED_TAG,
-  );
-  if (existing) {
-    console.log(`  portal configuration -> ${existing.id} (exists; not changed)`);
-    return;
+  const all = (await stripe.billingPortal.configurations.list({ limit: 100 })).data;
+  for (const audience of [null, "talent", "workspace"]) {
+    const tag = audience ? audienceTag(audience) : SEED_TAG;
+    const name = audience ? `portal configuration (${audience})` : "portal configuration (all products)";
+    const existing = all.find((c) => c.metadata?.tulala_seed === tag);
+    if (existing) {
+      console.log(`  ${name} -> ${existing.id} (exists; not changed)`);
+      continue;
+    }
+    const products = await resolveProducts(stripe, audience ? audienceLookupKeys(audience) : LOOKUP_KEYS);
+    if (products.length === 0) {
+      console.log(`  ${name}: no plan prices found by lookup_key; run seed-stripe-test-prices first. Skipping.`);
+      continue;
+    }
+    if (dryRun) {
+      console.log(`  ${name} -> (would create, ${products.length} products in plan switching)`);
+      continue;
+    }
+    const c = await stripe.billingPortal.configurations.create(buildPortalConfiguration(products, audience ?? undefined));
+    console.log(`  ${name} -> ${c.id} (created)`);
   }
-  const products = await resolveProducts(stripe);
-  if (products.length === 0) {
-    console.log("  no plan prices found by lookup_key; run seed-stripe-test-prices first. Skipping.");
-    return;
-  }
-  if (dryRun) {
-    console.log(`  portal configuration -> (would create, ${products.length} products in plan switching)`);
-    return;
-  }
-  const c = await stripe.billingPortal.configurations.create(buildPortalConfiguration(products));
-  console.log(`  portal configuration -> ${c.id} (created)`);
 }
 
 async function main() {

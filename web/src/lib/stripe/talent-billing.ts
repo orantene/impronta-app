@@ -25,6 +25,7 @@ import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
 import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
+import { expiredPromoMessage } from "@/lib/billing/promo-preview";
 import {
   reconcileAppliedDiscount,
   resolveSubscriptionDiscountMirror,
@@ -225,6 +226,8 @@ export async function createTalentCheckoutSession(opts: {
     talentProfileId: opts.talentProfileId,
     promoCode: opts.promoCode ?? null,
   });
+  // TUL-1860: an expired code is refused with a clear message, never silently dropped to full price.
+  if (discount.rejected) return { ok: false, error: expiredPromoMessage(opts.locale) };
 
   // The admin-configured trial, finally sent to Stripe rather than only shown
   // in marketing copy.
@@ -347,6 +350,7 @@ export async function createTalentBillingPortalSession(opts: {
       customerId: customer.stripe_customer_id,
       returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
       locale: opts.locale,
+      audience: "talent",
     });
     let session;
     try {
