@@ -1,5 +1,6 @@
 // QuickAdd drawer: single-talent entry, CSV import, then full profile handoff.
 "use client";
+import { resolvePublicRootDomain, resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import React, { useState, useEffect, useMemo, useRef, useTransition, useCallback } from "react";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
@@ -986,7 +987,7 @@ export function NewTalentDrawer() {
           <button
             type="button"
             onClick={() => {
-              const url = `https://tulala.digital/${effectiveTenant.slug}/join`;
+              const url = `${resolvePublicRootOrigin()}/${effectiveTenant.slug}/join`;
               void navigator.clipboard
                 .writeText(url)
                 .then(() => toast(tt("Registration link copied")))
@@ -1000,7 +1001,7 @@ export function NewTalentDrawer() {
               textAlign: "left",
             }}
           >
-            tulala.digital/{effectiveTenant.slug}/join · {tt("copy link")}
+            {resolvePublicRootDomain()}/{effectiveTenant.slug}/join · {tt("copy link")}
           </button>
         </div>
       </Section>

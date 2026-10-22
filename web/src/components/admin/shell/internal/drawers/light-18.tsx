@@ -1,5 +1,6 @@
 "use client";
 
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useCallback, startTransition, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
@@ -623,7 +624,7 @@ export function ReferralDashboardDrawer() {
   const tt = copy.t;
 
   const REFERRAL_CODE = "IMPRONTA-4X9Z";
-  const REFERRAL_URL  = `https://tulala.digital/join?ref=${REFERRAL_CODE}`;
+  const REFERRAL_URL  = `${resolvePublicRootOrigin()}/join?ref=${REFERRAL_CODE}`;
 
   type ReferralRow = { name: string; status: "joined" | "pending" | "rewarded"; date: string; reward: string };
   const REFERRALS: ReferralRow[] = [

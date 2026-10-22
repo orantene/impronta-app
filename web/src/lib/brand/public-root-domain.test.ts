@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  publicRootFromHostname,
   publicSubdomainHost,
+  rehomeUrlToPublicRoot,
   rehomeToPublicRoot,
   resolvePublicRootDomain,
   resolvePublicRootOrigin,
@@ -88,4 +90,22 @@ test("Get Found links and website addresses follow the environment, never a prod
     assert.equal(talentPublicProfileHref("TAL-1"), "https://staging.tulala.digital/t/TAL-1");
     assert.equal(publicSubdomainHost("jor"), "jor.staging.tulala.digital");
   });
+});
+
+test("publicRootFromHostname derives the environment root from a browser host alone", () => {
+  assert.equal(publicRootFromHostname("acme.staging.tulala.digital"), "staging.tulala.digital");
+  assert.equal(publicRootFromHostname("staging.tulala.digital:443"), "staging.tulala.digital");
+  assert.equal(publicRootFromHostname("app.staging.tulala.digital"), "staging.tulala.digital");
+  assert.equal(publicRootFromHostname("acme.tulala.digital"), null);
+  assert.equal(publicRootFromHostname("tulala.digital"), null);
+  assert.equal(publicRootFromHostname("localhost"), null);
+  assert.equal(publicRootFromHostname(null), null);
+});
+
+test("rehomeUrlToPublicRoot rewrites production-pattern urls on staging only", () => {
+  assert.equal(rehomeUrlToPublicRoot("https://tulala.digital/t/TAL-1", STAGING), "https://staging.tulala.digital/t/TAL-1");
+  assert.equal(rehomeUrlToPublicRoot("https://jor.tulala.digital/", STAGING), "https://jor.staging.tulala.digital/");
+  assert.equal(rehomeUrlToPublicRoot("https://instagram.com/jor", STAGING), "https://instagram.com/jor");
+  assert.equal(rehomeUrlToPublicRoot("https://jor.tulala.digital/", PROD), "https://jor.tulala.digital/");
+  assert.equal(rehomeUrlToPublicRoot("not a url", STAGING), "not a url");
 });

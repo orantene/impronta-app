@@ -24,6 +24,7 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
+import { publicSubdomainHost, resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
@@ -1063,7 +1064,7 @@ export function TenantSwitcherDrawer() {
               const isPlatformHub = w.kind === "hub" && w.tier === "network";
               // `domain` is display-only now: the tenant's public face.
               const domain = isPlatformHub
-                ? "tulala.digital"
+                ? resolvePublicRootDomain()
                 : (w.domain ?? workspaceLiveHost({ slug: w.slug, planTier: w.tier, domains: null }));
               const adminUrl = workspaceSwitchAdminUrlForLocation(w.slug);
               return {
@@ -1455,7 +1456,7 @@ export function TalentAgencySwitcherDrawer() {
               const tierPalette = TENANT_TIER_PALETTE[(a.plan as TenantTier) in TENANT_TIER_PALETTE ? a.plan as TenantTier : "free"];
               const isExclusive = a.rosterStatus === "exclusive";
               const initials = a.agencyName.charAt(0).toUpperCase();
-              const domain = `${a.agencySlug}.tulala.digital`;
+              const domain = publicSubdomainHost(a.agencySlug);
 
               return (
                 <button
