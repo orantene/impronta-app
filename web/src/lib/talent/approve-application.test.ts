@@ -271,3 +271,42 @@ test("a rejected application cannot be approved by the repair path", async () =>
   assert.equal(!out.ok && out.code, "already_decided");
   assert.equal(tables.agency_talent_roster.length, 0);
 });
+
+test("a removed roster row is reactivated: exactly one active row, history cleared, no duplicate", async () => {
+  for (const status of ["removed", "archived_for_downgrade"]) {
+    const tables = fresh();
+    tables.agency_talent_roster.push({
+      id: "old", tenant_id: T, talent_profile_id: P, status, source_type: "agency_added",
+      removed_at: "2026-10-21T20:28:00Z", removed_by: "u9", added_at: "2026-10-01T00:00:00Z",
+    });
+    const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps());
+    assert.deepEqual(out, { ok: true, rosterAdded: true });
+    assert.equal(tables.agency_talent_roster.length, 1);
+    const row = tables.agency_talent_roster[0];
+    assert.equal(row.id, "old");
+    assert.equal(row.status, "active");
+    assert.equal(row.removed_at, null);
+    assert.equal(row.removed_by, null);
+    assert.equal(row.added_at, "2026-10-21T00:00:00.000Z");
+  }
+});
+
+test("re-approving an approved hub application with a removed row repairs it", async () => {
+  const tables = fresh();
+  tables.talent_hub_applications[0].status = "approved";
+  tables.agency_talent_roster.push({ id: "old", tenant_id: T, talent_profile_id: P, status: "removed", source_type: "agency_added" });
+  const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps());
+  assert.deepEqual(out, { ok: true, rosterAdded: true });
+  assert.equal(tables.agency_talent_roster.length, 1);
+  assert.equal(tables.agency_talent_roster[0].status, "active");
+  assert.equal(tables.talent_hub_applications[0].status, "approved");
+});
+
+test("a removed row needs a seat: over the cap it is refused and stays removed", async () => {
+  const tables = fresh();
+  tables.agency_talent_roster.push({ id: "old", tenant_id: T, talent_profile_id: P, status: "removed" });
+  const out = await approveApplicationIntoRoster(makeAdmin(tables), input, deps({ checkSeat: async () => ({ ok: false, limit: 5 }) }));
+  assert.equal(!out.ok && out.code, "seat_limit");
+  assert.equal(tables.agency_talent_roster[0].status, "removed");
+  assert.equal(tables.talent_hub_applications[0].status, "pending");
+});
