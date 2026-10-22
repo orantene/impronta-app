@@ -7,6 +7,10 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+
+import { LOCALE_AUTO_COOKIE } from "@/i18n/locale-cookies";
+import { LOCALE_COOKIE, localeCookieOptions } from "@/i18n/locale-middleware";
 
 import { normalizeAccountSettings, type AccountSettingsInput } from "@/lib/client-account/area-pure";
 import { accountSurfaceEnabledForRequest } from "@/lib/client-account/tenant.server";
@@ -58,6 +62,16 @@ export async function saveAccountSettings(input: Partial<AccountSettingsInput>):
   if (error) {
     logServerError("clientAccount.settings.profile", error);
     return { ok: false };
+  }
+  // TUL-1259: the account language reads the `locale` cookie BEFORE the saved profile language, so a
+  // saved Español never showed while a stale cookie said English. An explicit choice is DELIBERATE:
+  // write the cookie too and clear the auto marker.
+  try {
+    const jar = await cookies();
+    jar.set(LOCALE_COOKIE, clean.locale, localeCookieOptions);
+    jar.set(LOCALE_AUTO_COOKIE, "", { ...localeCookieOptions, maxAge: 0 });
+  } catch {
+    // Best effort: the profile row is saved, and the next sign-in re-reads it.
   }
   revalidatePath("/account");
   return { ok: true };

@@ -8,6 +8,7 @@
  * them in. Auto-scrolls to the unread divider on open, else to the bottom.
  */
 
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
 import { localiseEngineLine, localiseSystemKind } from "@/lib/messages-v5/engine-lines";
@@ -111,7 +112,8 @@ export function Thread(props: ThreadProps) {
   }, [menuOpen, onMenu]);
 
   const clientName = essentials?.customer.name.trim() || row.contactName.trim() || kit.inbox.visitor;
-  const headerEssentials = essentials ?? { name: row.subject || row.contactName, customer: { name: row.contactName, email: row.contactEmail, phone: row.contactPhone, identityLevel: "none" as const, identityMethod: null, request: null, source: null } };
+  const headerEssentials = essentials ?? { name: row.subject || row.contactName, customer: { name: row.contactName, email: row.contactEmail, phone: row.contactPhone, identityLevel: (row.contactName?.trim() ? "linked" : "none") as "linked" | "none", // TUL-1887: a named client is not "no identity"
+     identityMethod: null, request: null, source: null } };
   const owner = row.ownerLabel ? { label: row.ownerLabel, isMe: !!currentUserId && row.ownerUserId === currentUserId } : null;
 
   const header = (
@@ -182,7 +184,7 @@ export function Thread(props: ThreadProps) {
           );
         }
         if (it.kind === "system") {
-          const body = it.message.body ? localiseEngineLine(it.message.body, kit) : localiseSystemKind(it.message.kind, kit);
+          const body = it.message.body ? localizeSystemNote(localiseEngineLine(it.message.body, kit), locale) : localiseSystemKind(it.message.kind, kit); // TUL-1888
           const aiLabel = it.message.fromAi
             ? (it.message.aiDisclosureLabel?.trim() || "Automated reply")
             : null;

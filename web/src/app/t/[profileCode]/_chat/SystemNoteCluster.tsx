@@ -17,21 +17,25 @@ import { interpolate } from "@/i18n/interpolate";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import { clusterDefaultCollapsed, clusterCaption } from "./cluster-system-rows";
 import { localizeLineupNoteBody } from "@/lib/inquiry/lineup-note-coalesce";
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
 import { FONT, type Palette } from "./mini-chat-styles";
 
 export function SystemNoteCluster({
   rows,
   C,
   t,
+  locale = "en",
 }: {
   rows: StreamRow[];
   C: Palette;
   t: Translator;
+  locale?: string;
 }) {
+  const loc = (body: string) => localizeSystemNote(localizeLineupNoteBody(body, t), locale); // TUL-1888: every platform note, per viewer
   const [collapsed, setCollapsed] = useState(() => clusterDefaultCollapsed(rows.length));
   if (rows.length === 0) return null;
 
-  const bodyOf = (r: StreamRow) => (r.isDeleted ? t("public.guestChat.messageRemoved") : localizeLineupNoteBody(r.body, t));
+  const bodyOf = (r: StreamRow) => (r.isDeleted ? t("public.guestChat.messageRemoved") : loc(r.body));
   const captionStyle = {
     alignSelf: "center",
     textAlign: "center" as const,
@@ -83,7 +87,7 @@ export function SystemNoteCluster({
       }}
     >
       <span>
-        {localizeLineupNoteBody(latest, t)}
+        {loc(latest)}
         {hiddenCount > 0 ? (
           <span style={{ opacity: 0.85 }}>
             {" · "}

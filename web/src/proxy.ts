@@ -196,7 +196,7 @@ async function proxyInner(request: NextRequest) {
   if (spanishAlias) return NextResponse.redirect(new URL(spanishAlias, request.url), 308);
 
   const hopInput = { pathname: request.nextUrl.pathname, search: request.nextUrl.search, method: request.method, hostKind: hostContext.kind };
-  const demoSlugHop = marketingDemoSlugRedirect(hopInput) ?? hubSearchRedirect({ ...hopInput, marketingOrigin: resolveMarketingOrigin() }); // TUL-978: a hub's /search is its directory search
+  const demoSlugHop = marketingDemoSlugRedirect(hopInput) ?? hubSearchRedirect({ ...hopInput, marketingOrigin: resolveMarketingOrigin(), cookieLocale: request.cookies.get("locale")?.value }); // TUL-978: a hub's /search is its directory search
   if (demoSlugHop) return NextResponse.redirect(new URL(demoSlugHop, request.url), 308);
   // Support Desk host: DEAD while SUPPORT_DESK_ENABLED is off — even when
   // support.tulala.digital is seeded in agency_domains (Phase 1a). When the

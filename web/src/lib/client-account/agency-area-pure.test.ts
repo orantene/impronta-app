@@ -122,7 +122,9 @@ test("tenant renderer: data only for a client, always scoped by session user and
   assert.doesNotMatch(src, /searchParams|cookies\(\)/);
   const loads = [...src.matchAll(/load(?:VisitGroups|VisitDetail|Thread|Threads|Receipt|ReceiptDetail|Receipts|OwedPayLinks)\(([^)]*)\)/g)];
   assert.ok(loads.length >= 6);
-  for (const m of loads) assert.match(m[1], /^userId, tenantId/, m[0]);
+  for (const m of loads) assert.match(m[1], /^userId, (?:tenantId|visitTenant)\b/, m[0]);
+  // TUL-1688: a visit on a hub/app host may use its own tenant, but only one the session user owns.
+  if (/visitTenant/.test(src)) assert.match(src, /resolveOwnedVisitTenantId\(userId, view\.id\)/);
   const data = readFileSync(join(__dirname, "area-data.server.ts"), "utf8");
   for (const fn of ["loadVisitGroups", "loadVisitDetail", "loadThreads", "loadThread", "loadReceipts", "loadReceiptDetail", "loadOwedPayLinks"]) {
     assert.match(data, new RegExp(`export async function ${fn}\\(userId: string, tenantId: string`));

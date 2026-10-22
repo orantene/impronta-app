@@ -117,3 +117,12 @@ test("TUL-736: an explicit single-language talent stays bounded", () => {
   assert.equal(decideTalentProfileLocale({ requested: "es", primary: "en", supported: set }).locale, "en");
   assert.equal(decideTalentProfileLocale({ requested: "en", ...SOLO_ES }).locale, "es");
 });
+
+test("TUL-736: an explicit /es URL wins over a signup-stamped single-language bound; content falls back to the primary", () => {
+  const d = decideTalentProfileLocale({ requested: "es", primary: "en", supported: ["en"], explicitUrlLocale: "es", publicLocales: ["en", "es"] });
+  assert.equal(d.locale, "es");
+  assert.deepEqual(d.chain, ["es", "en"]);
+  assert.deepEqual(d.supported, ["en"], "hreflang set stays the talent's own languages");
+  assert.equal(decideTalentProfileLocale({ requested: "es", primary: "en", supported: ["en"], publicLocales: ["en", "es"] }).locale, "en", "no URL language: still bounded");
+  assert.equal(decideTalentProfileLocale({ requested: "fr", primary: "en", supported: ["en"], explicitUrlLocale: "fr", publicLocales: ["en", "es"] }).locale, "en", "a language the platform does not publish never wins");
+});

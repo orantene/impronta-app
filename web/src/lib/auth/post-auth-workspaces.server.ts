@@ -28,12 +28,12 @@ export async function postAuthContextForNext(
       .eq("status", "active");
     if (error) {
       logServerError("auth/postAuthContextForNext", error);
-      return {};
+      return { membershipUnknown: true };
     }
     const rows = (data ?? []) as unknown as Array<{ agencies: { slug: string } | null }>;
     return rows.some((r) => r.agencies?.slug === slug) ? { memberSlugs: new Set([slug]) } : {};
   } catch (thrown) {
     logServerError("auth/postAuthContextForNext", thrown);
-    return {};
+    return { membershipUnknown: true };
   }
 }
