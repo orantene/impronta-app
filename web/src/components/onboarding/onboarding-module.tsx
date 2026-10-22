@@ -68,7 +68,6 @@ import { ResumeCard } from "./steps/resume-card";
 import { TooLittleStep } from "./steps/too-little-step";
 import { UnderstoodStep } from "./steps/understood-step";
 
-
 function isOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }

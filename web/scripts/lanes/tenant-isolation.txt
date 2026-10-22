@@ -147,6 +147,7 @@ src/lib/saas/rls-grant-drift.static.test.ts
 src/lib/saas/scope.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
 src/lib/saas/storage-media-tenant-scoped-rls.static.test.ts
+src/lib/saas/surface-allow-list-hub-directory.test.ts
 src/lib/saas/surface-allow-list-hub-media.test.ts
 src/lib/saas/surface-allow-list.posts.test.ts
 src/lib/saas/surface-allow-list.test.ts

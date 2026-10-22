@@ -124,8 +124,6 @@ export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
     "La conexión con el proyecto de Vercel aún no está lista. Termina el DNS y ejecuta la revisión cuando se configure.",
   "DNS token is ready, but Vercel project provisioning needs attention.":
     "El token DNS está listo, pero la conexión con el proyecto de Vercel necesita atención.",
-  "Domain verification is unavailable until the server is configured.":
-    "La verificación del dominio no está disponible hasta que se configure el servidor.",
 };
 
 /** Messages the domain actions build with the domain inside; keys of the map above. */
