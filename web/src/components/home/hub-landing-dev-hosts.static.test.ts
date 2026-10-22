@@ -34,3 +34,14 @@ test("TUL-1884: the agency list is cached 10 minutes and auth is only asked abou
   assert.match(landing, /HUB_AGENCY_LIST_REVALIDATE_SECONDS = 600/);
   assert.match(landing, /ownerIds\.filter\(\(id\) => !flagged\.has\(id\)\)/);
 });
+
+test("TUL-1884: read errors throw inside the cached function (nothing cached) and fall back to an empty list outside it", () => {
+  const body = landing.slice(landing.indexOf("async function computeActiveAgencyDomains"));
+  for (const e of ["domainsError", "namesError", "homesError"]) assert.match(body, new RegExp(`if \\(${e}\\) throw ${e}`), e);
+  assert.match(body, /if \(error\) throw error;/);
+  assert.match(body, /throw profileFlags\.error \?\? talentFlags\.error/);
+  assert.match(body, /if \(userError\) throw userError/);
+  assert.doesNotMatch(body, /return new Set\(\);\n\s*\}\n\s*const ownersByTenant/, "no swallowed owner read error");
+  const loader = landing.slice(landing.indexOf("async function loadActiveAgencyDomains"), landing.indexOf("async function computeActiveAgencyDomains"));
+  assert.match(loader, /try \{\s*return await cachedAgencyList\(\);\s*\} catch \(error\) \{\s*logServerError\("hubLanding\.agencyList", error\);\s*return \[\];/);
+});

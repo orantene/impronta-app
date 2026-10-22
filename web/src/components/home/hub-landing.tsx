@@ -271,26 +271,40 @@ type AgencyDomainRow = { hostname: string; kind: string; tenant_id?: string | nu
 type CmsHomeRow = { tenant_id: string | null };
 
 /**
- * TUL-1884: the whole list (domains, agencies, homepages, owners, auth lookups) is cached for 10 minutes so
+ * TUL-1884: the whole list (domains, agencies, homepages, owners, auth lookups) is cached for 10 minutes (read errors throw, so a failure is never stored) so
  * a hub render almost never touches auth. The key carries the public root so staging and production
  * entries in a shared Data Cache never mix.
  */
 export const HUB_AGENCY_LIST_REVALIDATE_SECONDS = 600;
-const loadActiveAgencyDomains = (): Promise<HubAgencyItem[]> =>
+const cachedAgencyList = (): Promise<HubAgencyItem[]> =>
   unstable_cache(computeActiveAgencyDomains, ["hub-landing:agency-list", rehomeToPublicRoot("x.tulala.digital")], {
     revalidate: HUB_AGENCY_LIST_REVALIDATE_SECONDS,
     tags: ["hub-landing:agencies"],
   })();
 
+/**
+ * Failures are never cached: `computeActiveAgencyDomains` THROWS on any read error, so unstable_cache stores
+ * nothing, and the render falls back to an empty list (with a logged error) until the next request retries.
+ */
+async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
+  try {
+    return await cachedAgencyList();
+  } catch (error) {
+    logServerError("hubLanding.agencyList", error);
+    return [];
+  }
+}
+
 async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   const supabase = createPublicSupabaseClient();
-  if (!supabase) return [];
-  const { data } = await supabase
+  if (!supabase) throw new Error("hubLanding: public Supabase client unavailable");
+  const { data, error: domainsError } = await supabase
     .from("agency_domains")
     .select("hostname, kind, tenant_id")
     .in("kind", ["subdomain", "custom"])
     .in("status", ["active", "ssl_provisioned", "verified"])
     .order("hostname", { ascending: true });
+  if (domainsError) throw domainsError;
   // Dev rows (localhost, *.local, LAN ips) are seeded for local work and must not
   // show up on a public hub landing (TUL-978).
   const rows = ((data ?? []) as AgencyDomainRow[]).filter((r) => !isDevOnlyHostname(r.hostname));
@@ -301,13 +315,14 @@ async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   const meta = new Map<string, AgencyMeta>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
+  if (!admin && tenantIds.length > 0) throw new Error("hubLanding: service-role client unavailable");
   if (admin && tenantIds.length > 0) {
     // TUL-1884: status + exposure + settings flags decide whether a workspace is listed publicly.
     const { data: agencyRows, error: namesError } = await admin
       .from("agencies")
       .select("id, display_name, status, kind, discover_exposure_enabled, settings")
       .in("id", tenantIds);
-    if (namesError) logServerError("hubLanding.agencyNames", namesError);
+    if (namesError) throw namesError;
     for (const a of (agencyRows ?? []) as Array<{
       id: string;
       display_name: string | null;
@@ -335,7 +350,7 @@ async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
       .eq("status", "published")
       .eq("is_system_owned", true)
       .eq("system_template_key", "homepage");
-    if (homesError) logServerError("hubLanding.agencyHomepages", homesError);
+    if (homesError) throw homesError;
     for (const h of (homes ?? []) as CmsHomeRow[]) if (h.tenant_id) published.add(h.tenant_id);
   }
   const realOwned = await loadTenantsWithRealOwner(admin, tenantIds);
@@ -357,8 +372,8 @@ async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
 /**
  * TUL-1884: tenants whose active owner is a real person. One batched read of owner memberships, one of the
  * account flags (profiles + talent_profiles), and one auth lookup per distinct owner (the repo's
- * service-role `auth.admin` pattern; profiles carries no email). Any read failure fails CLOSED: nothing
- * is listed rather than test data.
+ * service-role `auth.admin` pattern; profiles carries no email). A read failure THROWS (never cached);
+ * the caller falls back to an empty list rather than test data.
  */
 async function loadTenantsWithRealOwner(
   admin: ReturnType<typeof createServiceRoleClient>,
@@ -372,10 +387,7 @@ async function loadTenantsWithRealOwner(
     .eq("role", "owner")
     .eq("status", "active")
     .is("removed_at", null);
-  if (error) {
-    logServerError("hubLanding.agencyOwners", error);
-    return new Set();
-  }
+  if (error) throw error;
   const ownersByTenant = new Map<string, string[]>();
   for (const m of (members ?? []) as Array<{ tenant_id: string; profile_id: string }>) {
     ownersByTenant.set(m.tenant_id, [...(ownersByTenant.get(m.tenant_id) ?? []), m.profile_id]);
@@ -388,10 +400,7 @@ async function loadTenantsWithRealOwner(
     admin.from("profiles").select("id").in("id", ownerIds).eq("is_test_account", true),
     admin.from("talent_profiles").select("user_id").in("user_id", ownerIds).or("is_test_account.eq.true,is_demo.eq.true"),
   ]);
-  if (profileFlags.error || talentFlags.error) {
-    logServerError("hubLanding.ownerFlags", profileFlags.error ?? talentFlags.error);
-    return new Set();
-  }
+  if (profileFlags.error || talentFlags.error) throw profileFlags.error ?? talentFlags.error;
   for (const r of (profileFlags.data ?? []) as Array<{ id: string }>) flagged.add(r.id);
   for (const r of (talentFlags.data ?? []) as Array<{ user_id: string | null }>) if (r.user_id) flagged.add(r.user_id);
 
@@ -399,7 +408,8 @@ async function loadTenantsWithRealOwner(
   // Owners already flagged as test accounts are decided; only the rest need an auth email lookup.
   await Promise.all(
     ownerIds.filter((id) => !flagged.has(id)).map(async (id) => {
-      const { data } = await admin.auth.admin.getUserById(id);
+      const { data, error: userError } = await admin.auth.admin.getUserById(id);
+      if (userError) throw userError;
       if (data?.user?.email) emailByUser.set(id, data.user.email);
     }),
   );
