@@ -168,10 +168,11 @@ export const getTenantScopeBySlug = cache(
   async (slug: string): Promise<TenantScope | null> => {
     const session = await getCachedActorSession();
     if (!session.user) return null;
-    let membership = (await getCurrentUserTenants()).find((m) => m.slug === slug);
+    let memberships = await getCurrentUserTenants();
     // TUL-1840: a memoised "not a member" must be confirmed against the DB
     // before the caller 404s or redirects the owner away.
-    if (!membership) membership = (await getFreshUserTenants()).find((m) => m.slug === slug);
+    if (!memberships.some((m) => m.slug === slug)) memberships = await getFreshUserTenants();
+    const membership = memberships.find((m) => m.slug === slug);
     if (!membership) return null;
     return { tenantId: membership.tenant_id, membership };
   },
