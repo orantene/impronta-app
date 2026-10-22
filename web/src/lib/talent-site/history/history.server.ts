@@ -25,6 +25,7 @@ import {
   planUndoUpdate,
 } from "./restore-plan";
 import { buildTimelineResult } from "./timeline";
+export { DESIGN_APPLY_SNAPSHOT_KEEP, pruneDesignApplySnapshots } from "./design-apply-retention";
 import type { HistoryRow, HistorySnapshot, ThemeUpdateHistoryReport } from "./types";
 import { recordSiteHistory, writeSiteDraft, type WriteSiteDraftResult } from "./writer";
 import { ensureSiteThemeUpdates } from "@/lib/talent-site/theme-releases/lazy-fan-out.server";
