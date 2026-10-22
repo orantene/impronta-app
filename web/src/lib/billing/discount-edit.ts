@@ -14,9 +14,10 @@ import "server-only";
  * the Stripe dashboard lagging.
  */
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
-import { bilingualWindowError, discountWindowError } from "@/lib/pricing/discount-status";
+import { discountWindowError, windowErrorMessage } from "@/lib/pricing/discount-status";
 import { renameDiscountInStripe } from "@/lib/pricing/stripe-discount-sync";
 
 export type DiscountEditInput = {
@@ -58,7 +59,7 @@ export async function applyDiscountEdit(
   };
   // An existing code may already be expired and stays editable; only the start/end order is checked.
   const windowError = discountWindowError({ startsAt: input.startsAt, endsAt: row.ends_at }, "edit");
-  if (windowError) return { ok: false, error: bilingualWindowError(windowError) };
+  if (windowError) return { ok: false, error: windowErrorMessage(windowError, await getRequestLocale()) };
 
   const upd = await admin
     .from("product_discounts")
