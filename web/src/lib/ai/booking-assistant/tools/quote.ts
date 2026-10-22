@@ -110,5 +110,5 @@ export function quoteReplyText(result: QuoteResult, locale: string, units: numbe
       ? `El precio de ${result.title} lo confirma una persona del equipo en este chat.`
       : `A person on the team will confirm the price of ${result.title} in this chat.`;
   }
-  return es ? "Una persona del equipo lo toma desde aqui y te responde en este chat." : "A person on the team will take it from here and reply in this chat.";
+  return es ? "Una persona del equipo lo toma desde aquí y te responde en este chat." : "A person on the team will take it from here and reply in this chat.";
 }
