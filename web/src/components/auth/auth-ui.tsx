@@ -188,22 +188,35 @@ export function AuthField({
   htmlFor,
   rightSlot,
   hint,
+  error,
+  errorId,
+  hintLines,
   children,
 }: {
   label: string;
   htmlFor?: string;
   rightSlot?: ReactNode;
   hint?: string;
+  /** TUL-910: shown in the hint's slot (role=alert) so an error never adds a row. */
+  error?: string;
+  errorId?: string;
+  /** TUL-910: reserve this many helper lines so hint/error swaps do not move the card. */
+  hintLines?: 2 | 3;
   children: ReactNode;
 }) {
   // TUL-1098: the hint is announced with the control (aria-describedby) instead of floating free.
-  const hintId = hint && htmlFor ? `${htmlFor}-hint` : undefined;
+  const hintId = error && errorId ? errorId : hint && htmlFor ? `${htmlFor}-hint` : undefined;
   const control =
     hintId && isValidElement(children)
       ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, {
-          "aria-describedby": [(children.props as { "aria-describedby"?: string })["aria-describedby"], hintId]
-            .filter(Boolean)
-            .join(" "),
+          "aria-describedby": Array.from(
+            new Set(
+              [(children.props as { "aria-describedby"?: string })["aria-describedby"], hintId]
+                .filter(Boolean)
+                .join(" ")
+                .split(" "),
+            ),
+          ).join(" "),
         })
       : children;
   return (
@@ -219,13 +232,16 @@ export function AuthField({
         {rightSlot}
       </div>
       {control}
-      {hint ? (
+      {hint || error ? (
         <p
           id={hintId}
-          className="mt-1.5 text-[0.75rem] leading-[1.45]"
-          style={{ color: "var(--plt-muted)" }}
+          role={error ? "alert" : undefined}
+          className={`mt-1.5 text-[0.75rem] leading-[1.45] ${
+            hintLines === 3 ? "min-h-[3.2625rem]" : hintLines === 2 ? "min-h-[2.175rem]" : ""
+          }`}
+          style={{ color: error ? "#9b1c14" : "var(--plt-muted)" }}
         >
-          {hint}
+          {error ?? hint}
         </p>
       ) : null}
     </div>

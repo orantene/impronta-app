@@ -29,6 +29,7 @@ src/lib/auth-landing-contract.test.ts
 src/lib/auth-login-loop-guard.test.ts
 src/lib/auth-routing.test.ts
 src/lib/auth/access-profile-refresh.test.ts
+src/lib/auth/auth-error-field.test.ts
 src/lib/auth/auth-labels.static.test.ts
 src/lib/auth/client-ip.test.ts
 src/lib/auth/code-step-url.test.ts

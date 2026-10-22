@@ -14,6 +14,7 @@ import {
 } from "@/components/auth/auth-ui";
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
+import { AUTH_ERROR_IDS, authErrorField } from "@/lib/auth/auth-error-field";
 import { createTranslator } from "@/i18n/messages";
 import { withLocaleHref } from "@/i18n/pathnames";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
@@ -93,6 +94,10 @@ export function RegisterForm({
   // "Use a different email" pins the form back until the next signup attempt.
   const [backToForm, setBackToForm] = useState(false);
   useFocusFirstInvalidOnError(state?.error);
+  const errField = authErrorField(state?.error, {
+    invalidEmail: t("public.auth.actions.invalidEmail"),
+    ageTermsRequired: t("public.auth.actions.ageTermsRequired"),
+  });
 
   // Confirmation required: the code box replaces the form for that address.
   // The confirmation email carries the link too, so both ways still work.
@@ -124,7 +129,7 @@ export function RegisterForm({
       <input type="hidden" name="locale" value={locale} />
       {clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
 
-      {state?.error ? <AuthNotice tone="error" id="register-form-error">{state.error}</AuthNotice> : null}
+      {state?.error ? <AuthNotice tone="error" id={AUTH_ERROR_IDS[errField ?? "form"]}>{state.error}</AuthNotice> : null}
       {state?.message ? (
         <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
@@ -138,8 +143,6 @@ export function RegisterForm({
             autoComplete="name"
             required
             maxLength={120}
-            aria-invalid={state?.error && !readAuthNameDraft().trim() ? true : undefined}
-            aria-describedby={state?.error ? "register-form-error" : undefined}
             defaultValue={readAuthNameDraft()}
             onChange={(e) => writeAuthNameDraft(e.target.value)}
             placeholder={t("public.auth.form.namePlaceholder")}
@@ -156,7 +159,8 @@ export function RegisterForm({
           type="email"
           autoComplete="email"
           required
-          aria-invalid={state?.error ? true : undefined}
+          aria-invalid={errField === "email" ? true : undefined}
+          aria-describedby={errField === "email" ? AUTH_ERROR_IDS.email : undefined}
           defaultValue={pickAuthEmail(readAuthEmailDraft(), defaultEmail)}
           onChange={(e) => writeAuthEmailDraft(e.target.value)}
           placeholder={t("public.auth.form.emailPlaceholder")}
@@ -190,8 +194,8 @@ export function RegisterForm({
       <AgeTermsCheckbox
         locale={locale}
         marketingOrigin={marketingOrigin}
-        invalid={state?.error === t("public.auth.actions.ageTermsRequired")}
-        errorId="register-form-error"
+        invalid={errField === "consent"}
+        errorId={AUTH_ERROR_IDS.consent}
       />
 
       <AuthSubmitButton
