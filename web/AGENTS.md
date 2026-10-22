@@ -85,6 +85,18 @@ keep both sides' lines. Lanes still on a runner without `@file` support
   hand. A green main means "ready for the next staging build", never "ready for
   production". Agents never suggest, run or push a production promote.
 
+### Fast CI workflow
+- Every PR and batch runs the **`Gate — fast pre-check`** job first (tsc, eslint
+  incl. stale suppressions, the static ratchets, lane lists, orphan gate, tests in
+  changed files). The heavy jobs (`build`, `static`, `tests_a`, `tests_b`) start
+  only after it passes. Nothing in the full gate is weakened or removed.
+- Integ batches hold at most 10-15 branches, and only one gate runs at a time.
+- Before pushing a batch, run what is allowed locally: `node scripts/lanes-sort.cjs --check`,
+  the orphan gate (`src/lib/quality/orphan-gate.static.test.ts`), the static ratchet
+  tests (file-size, supabase unchecked-read, upsert onConflict, capability-less
+  guard), a review of stale `eslint-suppressions.json` entries for the files you
+  changed, and the tests in changed files. Still no local tsc, eslint or `next build`.
+
 ## Copy and i18n
 - Every new user-facing string needs **en + es**. `fr.json` has no
   `dashboard.platform` namespace — never create a French-only key.
