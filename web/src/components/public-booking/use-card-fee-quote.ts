@@ -39,3 +39,15 @@ export function useCardFeeQuote(a: {
   }, [enabled, offeringId, variantId, extrasKey, startsAt, units, promoCode]);
   return summary;
 }
+
+/** The who-step summary rows as display strings; a zero amount yields no row. Pure, no price math. */
+export function cardFeeLabels(q: SelectionSummary, fmt: (cents: number) => string) {
+  const pos = (c: number) => (c > 0 ? fmt(c) : null);
+  return {
+    discountLabel: pos(q.discountCents),
+    feeLabel: pos(q.feeCents),
+    payNowLabel: q.showPayNow ? fmt(q.payNowCents) : null,
+    balanceLabel: pos(q.balanceCents),
+    travelFeeLabel: pos(q.travelFeeOnDayCents),
+  };
+}

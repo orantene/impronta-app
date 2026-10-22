@@ -68,7 +68,7 @@ import { localizeOptionLabels } from "./catalog-option-locale";
 import { GuestCaptchaField, type GuestCaptchaConfig } from "./GuestCaptchaField";
 import { CatalogLiveWhenPicker, CatalogDemoWhenPicker } from "./CatalogLiveWhenPicker";
 import { bookingDraftKey, clearBookingDraft, loadBookingDraft } from "./booking-draft-store";
-import { useCardFeeQuote } from "./use-card-fee-quote";
+import { cardFeeLabels, useCardFeeQuote } from "./use-card-fee-quote";
 import { CatalogWhoSummary, useBookingDraftEffects } from "./catalog-who-summary";
 import { useBookingContactPrefill } from "./use-booking-contact-prefill";
 import {
@@ -709,13 +709,7 @@ export function CatalogBookingSheet({
                 placeCity={mode === "live" ? livePlaceCity : null}
                 total={isQuote ? (es ? "A cotizar" : "Quote") : money(cardFee ? cardFee.totalCents : total, detail.currency)}
                 addressNote={addr.rule === "required" ? "client" : "studio"}
-                cardFee={cardFee ? {
-                  discountLabel: cardFee.discountCents > 0 ? money(cardFee.discountCents, cardFee.currency) : null,
-                  feeLabel: cardFee.feeCents > 0 ? money(cardFee.feeCents, cardFee.currency) : null,
-                  payNowLabel: cardFee.showPayNow ? money(cardFee.payNowCents, cardFee.currency) : null,
-                  balanceLabel: cardFee.balanceCents > 0 ? money(cardFee.balanceCents, cardFee.currency) : null,
-                  travelFeeLabel: cardFee.travelFeeOnDayCents > 0 ? money(cardFee.travelFeeOnDayCents, cardFee.currency) : null,
-                } : null}
+                cardFee={cardFee ? cardFeeLabels(cardFee, (c) => money(c, cardFee.currency)) : null}
               />
               <CatalogWhoContact
                 es={es} locale={locale} fallbackCountry={detail.currency === "MXN" ? "MX" : null} name={name} phone={phone} email={email} setName={setName} setPhone={setPhone} setEmail={setEmail}
