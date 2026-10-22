@@ -10,6 +10,7 @@ import { restoreAfterChargeFullyRefunded } from "@/lib/orders/refund-restore";
 import { syncConversationRecord } from "@/lib/messaging/record-sync";
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
+import { flagPaymentForReview, type FlagPaymentDeps } from "@/lib/payments/payment-review-flags";
 
 export type RestoreInventory = (sb: SupabaseClient, transactionId: string) => Promise<void>;
 
@@ -45,12 +46,44 @@ export async function restoreInventoryAfterFullRefund(sb: SupabaseClient, transa
     await restoreInventoryAfterFullRefundInner(sb, transactionId);
   } catch (err) {
     logServerError(`refunds.restoreInventory[txn=${transactionId}]`, err);
+    await flagRestoreFailed(sb, transactionId);
+  }
+}
+
+/**
+ * TUL-1310: a restore that did not finish used to be only logged, so tickets
+ * could keep admitting and seats stay held after a refund with nobody told.
+ * It now raises the same Issues-inbox flag + bell as a charge that needs a
+ * person (`refund_restore_failed`, one per transaction, a replay is a no-op).
+ * Never throws: the refund is booked and the webhook must not 500 over this.
+ */
+export async function flagRestoreFailed(sb: SupabaseClient, transactionId: string, deps?: FlagPaymentDeps): Promise<void> {
+  try {
+    const r = await flagPaymentForReview(sb, {
+      transactionId,
+      flag: {
+        reason: "refund_restore_failed",
+        paymentIntentId: null,
+        otherPaymentIntentId: null,
+        expectedAmountCents: null,
+        expectedCurrency: null,
+        chargedAmountCents: null,
+        chargedCurrency: null,
+        rowStatus: null,
+        stripeEventId: `refund-restore:${transactionId}`,
+      },
+    }, deps);
+    if (!r.ok) logServerError(`refunds.restoreInventory.flag[txn=${transactionId}]`, r.error);
+  } catch (err) {
+    logServerError(`refunds.restoreInventory.flag[txn=${transactionId}]`, err);
   }
 }
 
 async function restoreInventoryAfterFullRefundInner(sb: SupabaseClient, transactionId: string): Promise<void> {
   const outcome = await restoreAfterChargeFullyRefunded(sb, { transactionId });
   if (!outcome.restored) {
+    // "unavailable": a read failed, so NOTHING was put back. The others are not failures.
+    if (outcome.reason === "unavailable") await flagRestoreFailed(sb, transactionId);
     if (outcome.reason !== "no_order") {
       void improntaLog("stripe_webhook.info", {
         message: `[refund.restore] txn=${transactionId} inventory not restored: ${outcome.reason}`,
@@ -59,6 +92,7 @@ async function restoreInventoryAfterFullRefundInner(sb: SupabaseClient, transact
     return;
   }
   const r = outcome.result;
+  if (r.admissionsIncomplete || r.capacityIncomplete || r.promoIncomplete) await flagRestoreFailed(sb, transactionId);
   if (r.stampedAdmissionIds.length > 0) {
     // Messages v5 / S2: ticket chips follow the stamp, like the desk path.
     // A failed read only skips the chip sync: the restore itself already landed.

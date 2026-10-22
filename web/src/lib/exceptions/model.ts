@@ -653,13 +653,17 @@ export function classifyPaymentFlag(facts: PaymentFlagFacts, href: string | null
       ? "Card charge does not match the booking"
       : f.reason === "charge_on_inactive_row"
         ? "Card charge on a cancelled booking"
-        : "Possible duplicate card charge";
+        : f.reason === "refund_restore_failed"
+          ? "Refunded, but tickets, seats or promo were not put back"
+          : "Possible duplicate card charge";
   const detail =
     f.reason === "amount_mismatch"
       ? `Stripe charged ${charged} but the booking is for ${expected}. It was not marked paid.`
       : f.reason === "charge_on_inactive_row"
         ? `Stripe charged ${charged} after this booking was ${f.rowStatus ?? "closed"}. The money is owed back.`
-        : `Stripe charged ${charged} again (${f.paymentIntentId ?? "?"}) after the booking was already paid by ${f.otherPaymentIntentId ?? "?"}.`;
+        : f.reason === "refund_restore_failed"
+          ? "The refund went through, but putting back the tickets, seats or promo code did not finish. Some may still be held or still admit."
+          : `Stripe charged ${charged} again (${f.paymentIntentId ?? "?"}) after the booking was already paid by ${f.otherPaymentIntentId ?? "?"}.`;
   return {
     key: `payment_flag:${facts.transactionId}:${f.reason}:${f.paymentIntentId ?? "none"}`,
     source: "payment_flag",
@@ -673,8 +677,11 @@ export function classifyPaymentFlag(facts: PaymentFlagFacts, href: string | null
     lastAttemptAt: null,
     nextAction: {
       kind: "inspect",
-      label: "Check the charge in Stripe",
-      why: "Refund or reconcile it at the provider. Nothing here moves money.",
+      label: f.reason === "refund_restore_failed" ? "Put the order back by hand" : "Check the charge in Stripe",
+      why:
+        f.reason === "refund_restore_failed"
+          ? "Void any ticket that still admits and free the seats or promo, then mark this resolved. Nothing here moves money."
+          : "Refund or reconcile it at the provider. Nothing here moves money.",
     },
     href,
     resolvable: { transactionId: facts.transactionId, reason: f.reason, paymentIntentId: f.paymentIntentId },

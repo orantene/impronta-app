@@ -249,7 +249,7 @@ test("a flagged payment row is inspect-only and its copy exists in en, es and fr
     const strings = [c.label, c.why, c.resolve, c.resolved, c.resolveFailed, ...Object.values(c.reasons).flatMap((r) => [r.title, r.detail])];
     const en = PAYMENT_FLAG_COPY.en;
     const enStrings = [en.label, en.why, en.resolve, en.resolved, en.resolveFailed, ...Object.values(en.reasons).flatMap((r) => [r.title, r.detail])];
-    assert.equal(Object.keys(c.reasons).length, 3, `${locale}: a reason has no copy`);
+    assert.equal(Object.keys(c.reasons).length, 4, `${locale}: a reason has no copy`);
     strings.forEach((value, i) => {
       assert.ok(value.trim().length > 0, `${locale}: empty string`);
       if (locale !== "en") assert.notEqual(value, enStrings[i], `${locale}: "${value}" is copied from English`);

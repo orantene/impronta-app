@@ -35,6 +35,10 @@ export type RestoreRefundedLinesResult = {
   /** Allocations freed for lines without admissions (session seats, pooled stock). */
   allocationsReleased: number;
   releasedPromoRedemption: boolean;
+  /** TUL-1310: seats or stock may still be held (the allocation read or release failed). */
+  capacityIncomplete?: boolean;
+  /** TUL-1310: the promo redemption may still count (the void failed). */
+  promoIncomplete?: boolean;
 };
 
 export async function restoreRefundedLines(
@@ -68,6 +72,8 @@ export async function restoreRefundedLines(
     admissionsIncomplete: false,
     allocationsReleased: 0,
     releasedPromoRedemption: false,
+    capacityIncomplete: false,
+    promoIncomplete: false,
   };
   let wholeLineIds = input.onlyAdmissionIds ? [] : input.wholeLineIds;
   const only = input.onlyAdmissionIds ? new Set(input.onlyAdmissionIds) : null;
@@ -137,6 +143,7 @@ export async function restoreRefundedLines(
         .in("order_line_id", releasable)
         .neq("state", "released");
       if (allocErr) {
+        out.capacityIncomplete = true;
         logServerError(
           `${input.logScope}/CAPACITY_NOT_RELEASED_AFTER_REFUND`,
           `order ${input.orderId}: allocations could not be read (${allocErr.message}). Seats or stock on lines `
@@ -147,6 +154,7 @@ export async function restoreRefundedLines(
         if (ids.length > 0) {
           const { data: rel, error: relErr } = await admin.rpc("release_capacity", { p_allocation_ids: ids });
           if (relErr) {
+            out.capacityIncomplete = true;
             logServerError(
               `${input.logScope}/CAPACITY_NOT_RELEASED_AFTER_REFUND`,
               `order ${input.orderId}: release_capacity failed (${relErr.message}). Needs a human.`,
@@ -166,8 +174,10 @@ export async function restoreRefundedLines(
         .update(voidRedemptionPatch())
         .eq("order_id", input.orderId)
         .in("status", ["confirmed", "held"]);
-      if (error) logServerError(`${input.logScope}/promoRelease`, error);
-      else out.releasedPromoRedemption = true;
+      if (error) {
+        out.promoIncomplete = true;
+        logServerError(`${input.logScope}/promoRelease`, error);
+      } else out.releasedPromoRedemption = true;
     }
   } catch (err) {
     out.admissionsIncomplete = true;
