@@ -103,7 +103,10 @@ async function main() {
   }
 
   const logStream = createWriteStream(logPath);
+  // detached: own process group, so teardown can kill `next start` too (npx alone leaves it running
+  // with our stdout pipes open, which kept this script alive until the CI job timed out).
   const server = spawn("npx", ["next", "start", "-p", port], {
+    detached: true,
     env: {
       ...process.env,
       ...stub,
@@ -139,7 +142,11 @@ async function main() {
       }
     }
   } finally {
-    server.kill("SIGTERM");
+    try {
+      process.kill(-server.pid, "SIGTERM");
+    } catch {
+      server.kill("SIGTERM");
+    }
     await new Promise((r) => setTimeout(r, 500));
     logStream.end();
   }
@@ -158,7 +165,7 @@ async function main() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  main().catch((e) => {
+  main().then(() => process.exit(0)).catch((e) => {
     console.error(e);
     process.exit(1);
   });
