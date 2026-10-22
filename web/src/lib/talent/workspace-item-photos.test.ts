@@ -26,7 +26,7 @@ const src = (p: string) => readFileSync(new URL(p, import.meta.url), "utf8");
 test("the action checks the item and every photo belong to this workspace before linking", () => {
   const actions = src("./menu-offerings-actions.ts");
   const body = actions.slice(actions.indexOf("export async function setWorkspaceItemPhotos"));
-  assert.match(body, /authorizeForWorkspace\(tenantId\)/);
+  assert.match(body, /authorizeForWorkspace\(tenantId, WRITE_CAPABILITY\)/);
   assert.match(body, /\.eq\("owner_kind", "workspace"\)/);
   assert.match(body, /\.eq\("tenant_id", tenantId\)/);
   assert.match(body, /\.is\("deleted_at", null\)/);
@@ -47,7 +47,7 @@ test("the Catalog loads the photos and the Details tab uploads through the tenan
 test("alt text: an action writes it for this workspace's asset and the field edits it", () => {
   const actions = src("./menu-offerings-actions.ts");
   const body = actions.slice(actions.indexOf("export async function setWorkspacePhotoAlt"));
-  assert.match(body, /authorizeForWorkspace\(tenantId\)/);
+  assert.match(body, /authorizeForWorkspace\(tenantId, WRITE_CAPABILITY\)/);
   assert.match(body, /\.eq\("tenant_id", tenantId\)/);
   assert.match(body, /slice\(0, 200\)/);
   const field = readFileSync(

@@ -232,6 +232,7 @@ src/lib/talent/private-fields.test.ts
 src/lib/talent/staff-talent-access.static.test.ts
 src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
+src/lib/talent/workspace-item-photos.test.ts
 src/lib/talent/workspace-menu-save-gates.test.ts
 src/lib/team/invite-redeem-guard.test.ts
 src/lib/team/redeem-role.test.ts
