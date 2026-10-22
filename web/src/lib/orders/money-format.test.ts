@@ -62,6 +62,17 @@ test("a zero-decimal currency shows no cents", () => {
   assert.equal(minorUnitDivisor("ARS"), 100, "ARS is two-decimal despite the magnitudes");
 });
 
+test("COP and ISK are two-decimal, matching Stripe (TUL-1299)", () => {
+  // COP listed zero-decimal sent 50,000 pesos as 50,000 centavos: 100x too small.
+  assert.equal(minorUnitDivisor("COP"), 100);
+  assert.equal(minorUnitDivisor("ISK"), 100);
+  assert.equal(formatOrderMoney(5000000, "COP"), "50,000.00 COP");
+  // Stripe's real zero-decimal currencies stay whole.
+  for (const c of ["BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "VND", "VUV", "XAF", "XOF", "XPF"]) {
+    assert.equal(minorUnitDivisor(c), 1, c);
+  }
+});
+
 test("negatives keep the sign in front", () => {
   assert.equal(formatOrderMoney(-2550, "USD"), "-$25.50");
   assert.equal(formatOrderMoney(-2550, "ARS"), "-25.50 ARS");
