@@ -96,6 +96,7 @@ test("TUL-1151: the phone rail and its handle hide while a site dialog (the mobi
 test("TUL-1173: the unfolded phone rail is height-capped below the 38vh line and scrolls on short viewports", () => {
   const rail = read("./inspector-command-rail.tsx");
   assert.match(rail, /max-sm:!top-\[38vh\] max-sm:max-h-\[calc\(100dvh-38vh-8px\)\] max-sm:overflow-y-auto /);
+  assert.match(rail, /max-sm:overflow-y-auto max-sm:overscroll-contain /);
 });
 
 test("TUL-914: picking a rail tab on a phone also slides the inspector dock in, so the panel is visible", () => {

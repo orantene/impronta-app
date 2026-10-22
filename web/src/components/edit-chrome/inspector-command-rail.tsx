@@ -167,7 +167,7 @@ export function InspectorCommandRail() {
       data-inspector-rail-docked={dockedToRail ? "true" : "false"}
       data-mobile-expanded={mobileExpanded ? "true" : "false"}
       aria-label={t("Section editor tabs")}
-      className="fixed flex flex-col max-sm:!right-0 max-sm:!top-[38vh] max-sm:max-h-[calc(100dvh-38vh-8px)] max-sm:overflow-y-auto max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-rail-x)] max-sm:[body[data-scroll-locked]_&]:!hidden"
+      className="fixed flex flex-col max-sm:!right-0 max-sm:!top-[38vh] max-sm:max-h-[calc(100dvh-38vh-8px)] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:transition-transform max-sm:duration-300 max-sm:ease-out max-sm:!translate-x-[var(--ec-mobile-rail-x)] max-sm:[body[data-scroll-locked]_&]:!hidden"
       style={{
         "--ec-mobile-rail-x": mobileExpanded ? "0px" : "120%",
         right: INSPECTOR_RAIL_RIGHT_PX,
