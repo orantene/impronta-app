@@ -235,6 +235,7 @@ src/lib/payments/off-platform.test.ts
 src/lib/payments/paid-qa-isolated.static.test.ts
 src/lib/payments/pay-calendar-event.test.ts
 src/lib/payments/pay-expiry-words.test.ts
+src/lib/payments/pay-page-messages.test.ts
 src/lib/payments/pay-paid-note.static.test.ts
 src/lib/payments/pay-refund-status.test.ts
 src/lib/payments/pay-return-views.test.tsx

@@ -20,6 +20,7 @@ src/lib/directory/directory-profile-gate.static.test.ts
 src/lib/directory/directory-scope.test.ts
 src/lib/directory/discover-index-live-page.test.ts
 src/lib/directory/discoverable-default-migration.static.test.ts
+src/lib/directory/facet-listing-parity.static.test.ts
 src/lib/directory/facet-option-label.test.ts
 src/lib/directory/facet-search-parity.static.test.ts
 src/lib/directory/filter-cap.test.ts
