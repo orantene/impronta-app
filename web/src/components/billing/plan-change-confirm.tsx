@@ -103,7 +103,13 @@ export function PlanChangeConfirm({
   onCancel,
   initialCode = null,
   currentPlanName,
+  onKeepPlan,
 }: {
+  /**
+   * TUL-1914: undo for a Free switch that is already scheduled ("Keep my plan"). The caller wires the existing
+   * cancel-pending action; without it the sheet only states the date.
+   */
+  onKeepPlan?: () => Promise<{ ok: true } | { ok: false; error: string }>;
   initialCode?: string | null;
   /** TUL-831: names the plan the subscription is on now ("until then you stay on X"). */
   currentPlanName?: (plan: string) => string;
@@ -118,6 +124,17 @@ export function PlanChangeConfirm({
   const locale = useDashboardLocale();
   const pc = usePlanChange(preview, confirm, initialCode);
   const p = pc.preview;
+  const [keepPending, startKeep] = React.useTransition();
+  const [keepError, setKeepError] = React.useState<string | null>(null);
+  const scheduled = !!p?.ok && p.alreadyScheduled === true;
+  const keepPlan = () => {
+    if (!onKeepPlan) return;
+    setKeepError(null);
+    startKeep(async () => {
+      const out = await onKeepPlan();
+      if (!out.ok) setKeepError(out.error);
+    });
+  };
 
   React.useEffect(() => {
     if (pc.result?.ok) onDone(pc.result);
@@ -157,19 +174,31 @@ export function PlanChangeConfirm({
           onClear={() => pc.applyCode(null)}
         />
       ) : null}
-      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
+      {error ?? keepError ? <p className="text-sm text-destructive" role="alert">{error ?? keepError}</p> : null}
       <div className="flex justify-end gap-2">
         <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={onCancel} disabled={pc.pending}>
           {t("dashboard.adminShared.planChange.cancel")}
         </button>
-        <button
-          type="button"
-          className={cn("rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground", pc.pending && "opacity-60")}
-          onClick={pc.submit}
-          disabled={pc.pending || !p?.ok || (p.kind === "noop" && !p.cancelsPendingChange)}
-        >
-          {t("dashboard.adminShared.planChange.confirm")}
-        </button>
+        {scheduled && onKeepPlan ? (
+          <button
+            type="button"
+            data-testid="plan-change-keep-plan"
+            className={cn("rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground", keepPending && "opacity-60")}
+            onClick={keepPlan}
+            disabled={keepPending}
+          >
+            {t("dashboard.adminShared.planChange.keepPlan")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn("rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground", pc.pending && "opacity-60")}
+            onClick={pc.submit}
+            disabled={pc.pending || !p?.ok || scheduled || (p.kind === "noop" && !p.cancelsPendingChange)}
+          >
+            {t("dashboard.adminShared.planChange.confirm")}
+          </button>
+        )}
       </div>
     </div>
   );

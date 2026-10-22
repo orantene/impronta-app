@@ -167,6 +167,7 @@ import { menuItemServiceHref } from "@/lib/services/business-pages/menu-links";
 import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
+import { isEmptyPlaceholderBand } from "./empty-placeholder-band";
 import { isLiveBookingLabel, isLiveServicesLabel, type LiveBookingSurface } from "./live-booking-markers";
 import { LiveBookingBand, LiveServicesBand } from "./live-booking-bands";
 import { TicketPickerIsland } from "./ticket-picker-island";
@@ -4823,6 +4824,9 @@ function renderBuilderNodeElement(
           />
         );
       }
+      // TUL-1812: a band that only says "X is not published yet" is a hint for
+      // the owner. Visitors get nothing; the editor preview keeps the hint.
+      if (!options.contentLocale?.editorPreview && isEmptyPlaceholderBand(node as unknown as Parameters<typeof isEmptyPlaceholderBand>[0])) return null;
       // REND-1: use the author-chosen semantic landmark tag (default: div).
       // All CSS classes, data-* attrs, and inline styles are preserved
       // regardless of tag — it is a pure drop-in replacement. Trees that

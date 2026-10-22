@@ -270,6 +270,8 @@ export type PlanChangePreview =
       effectiveAt: string | null;
       /** True when a period-end change is already scheduled and this confirm cancels it. */
       cancelsPendingChange: boolean;
+      /** TUL-1914: the subscription is already set to end (Free at period end); `effectiveAt` is that date and no second confirm exists. */
+      alreadyScheduled?: boolean;
       /** TUL-831: the plan the subscription is on now, so the sheet can say "until then you stay on X". */
       fromPlan?: string;
       /** TUL-1297: the subscription's current and requested billing interval. */
@@ -304,8 +306,10 @@ export function planChangeCopyKey(p: {
   cancelsPendingChange?: boolean;
   amountDueToday?: number;
   effectiveAt?: string | null;
+  alreadyScheduled?: boolean;
 }):
   | "payToday"
+  | "alreadyScheduled"
   | "changesOn"
   | "downgradeAt"
   | "cancelPending"
@@ -313,6 +317,7 @@ export function planChangeCopyKey(p: {
   | "switchYearlyNow"
   | "switchYearlyAt"
   | "switchMonthlyAt" {
+  if (p.kind === "noop" && p.alreadyScheduled) return "alreadyScheduled";
   if (p.kind === "noop") return p.cancelsPendingChange ? "cancelPending" : "noChange";
   // TUL-1297: an interval change names the new billing interval and its price.
   if (p.kind === "interval_down") return "switchMonthlyAt";

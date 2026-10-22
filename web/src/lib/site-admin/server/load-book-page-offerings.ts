@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSlotEligibleOffering } from "@/components/public-booking/pick-bookable-offering";
 import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { houseListingModeFor } from "@/lib/booking/house-booking";
+import { houseListingModeFor, houseOnlineBooking } from "@/lib/booking/house-booking";
 import {
   rowToOffering,
   type TalentOffering,
@@ -116,6 +116,12 @@ export async function loadPublicBookableOfferings(args: {
       // so this is one rule with two entry points. `booking-surface.ts` stays
       // person-shaped and untouched.
       if (!offering.talentProfileId) {
+        // TUL-1915: the same decision the item editor badge reads.
+        // A pinned service (TUL-65) is still kept, as an enquiry, so the visitor lands on it.
+        if (houseOnlineBooking(offering).state !== "request") {
+          if (isPinned) kept.push({ ...offering, bookingMode: "inquire" as Kept["bookingMode"], seatsLabel: null });
+          continue;
+        }
         // Never "instant": the slots route refuses house rows (item 6).
         const houseMode = houseListingModeFor(offering, host);
         if (houseMode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: houseMode as Kept["bookingMode"], seatsLabel: null });

@@ -88,7 +88,7 @@ export function InfoTip({
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className={`inline-flex items-center justify-center rounded-full transition ${className}`}
+        className={`-m-4 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full transition ${className}`}
       >
         <svg
           width={size}

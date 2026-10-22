@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { PlanChangeConfirm } from "@/components/billing/plan-change-confirm";
 import {
+  cancelTalentPlanChange,
   confirmTalentPlanChange,
   previewTalentPlanChange,
 } from "@/app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions";
@@ -45,10 +46,16 @@ export function TalentPlanChangeModal({
   // TUL-1897: one name source per locale for the target and the current plan.
   const name = talentPlanDisplayName(planKey, locale);
   const currentName = useCallback((plan: string) => talentPlanDisplayName(plan, locale), [locale]);
+  // TUL-1914: "Keep my plan" is the existing cancel-pending action (clears cancel_at_period_end); nothing new at Stripe.
+  const keepPlan = useCallback(async () => {
+    const out = await cancelTalentPlanChange(tenantSlug);
+    if (out.ok) onDone();
+    return out.ok ? ({ ok: true } as const) : ({ ok: false, error: out.error } as const);
+  }, [tenantSlug, onDone]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-xl bg-background p-5 shadow-xl">
-        <PlanChangeConfirm planName={name} currentPlanName={currentName} preview={preview} confirm={confirm} initialCode={initialCode ?? null} onDone={onDone} onCancel={onCancel} />
+        <PlanChangeConfirm planName={name} currentPlanName={currentName} preview={preview} confirm={confirm} initialCode={initialCode ?? null} onKeepPlan={keepPlan} onDone={onDone} onCancel={onCancel} />
       </div>
     </div>
   );

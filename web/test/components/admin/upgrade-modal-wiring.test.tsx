@@ -27,6 +27,13 @@ vi.mock(
   () => ({ startWorkspaceUpgrade }),
 );
 
+// TUL-1914: the modal reads a scheduled Free downgrade on open (a server action that
+// needs a request scope); stub it so the wiring test stays a pure client render.
+vi.mock("@/lib/server-actions/admin-pending-plan-change", () => ({
+  loadWorkspacePendingPlanChange: vi.fn(async () => ({ ok: true as const, pending: null })),
+  keepWorkspaceCurrentPlan: vi.fn(async () => ({ ok: true as const })),
+}));
+
 vi.mock("@/lib/server-actions/admin-billing", () => ({
   changeWorkspacePlan: vi.fn(async () => ({ ok: true as const })),
 }));

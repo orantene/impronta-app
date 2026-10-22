@@ -328,7 +328,7 @@ async function renderTalentMaxSiteUnguarded(
       ? pages
       : pages.map((p) => ({ ...p, status: "published" }));
     const hrefMode = input.hrefMode ?? "path";
-    const nav = withBlogNavItem(buildMaxSiteNav(navSource), await pBlogNav, hrefMode);
+    const nav = withBlogNavItem(buildMaxSiteNav(navSource, locale), await pBlogNav, hrefMode);
     const publicPathPrefix = input.publicPathPrefix ?? "";
     const hydratedShell = hydrateShellNav(
       fixed.shellTree,

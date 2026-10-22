@@ -254,3 +254,30 @@ describe("TUL-16 d: a service with a price shows the price, not a quote", () => 
     assert.equal(resolveOfferingCta(q), "ask_quote");
   });
 });
+
+describe("TUL-1912: an EN service page reads the EN category and description", () => {
+  it("uses description_i18n.en and the dictionary category, not the Spanish base text", () => {
+    const o = rowToOffering(
+      row({
+        title: "Café con leche",
+        description: "Café de la casa con leche vaporizada.",
+        category: "Bebidas",
+        title_i18n: { en: "Latte", es: "Café con leche" },
+        description_i18n: { en: "House coffee with steamed milk.", es: "Café de la casa con leche vaporizada." },
+      }),
+      "en",
+    );
+    assert.equal(o.title, "Latte");
+    assert.equal(o.description, "House coffee with steamed milk.");
+    assert.equal(o.categoryLabel, "Drinks");
+  });
+
+  it("falls back to the base text only when no EN version exists", () => {
+    const o = rowToOffering(
+      row({ title: "Limpieza estándar", description: "Servicio a domicilio.", category: "Limpieza", description_i18n: null }),
+      "en",
+    );
+    assert.equal(o.description, "Servicio a domicilio.");
+    assert.equal(o.categoryLabel, "Cleaning");
+  });
+});

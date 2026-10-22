@@ -28,6 +28,7 @@ import { ProUpgradeButton } from "./ProUpgradeButton";
 import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 
 export const dynamic = "force-dynamic";
@@ -286,7 +287,7 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
         </a>{" "}
         {sub.currentPeriodEnd
           ? interpolate(t("client.subscription.planRenews"), {
-              date: new Date(sub.currentPeriodEnd).toLocaleDateString(),
+              date: formatPeriodDate(sub.currentPeriodEnd, locale) ?? "",
             })
           : t("client.subscription.planFreeNoRenewal")}
       </div>

@@ -524,3 +524,11 @@ test("coerceTree: arrays pass through, non-arrays degrade to []", () => {
   assert.deepEqual(coerceTree({}), []);
   assert.deepEqual(coerceTree("nope"), []);
 });
+
+test("TUL-711: the render callers pass the visitor locale to buildMaxSiteNav", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["render-max-site.tsx", "talent-builder-canvas.server.tsx"]) {
+    const src = readFileSync(new URL(`./server/${f}`, import.meta.url), "utf8");
+    assert.match(src, /buildMaxSiteNav\([^;]*(locale|siteLocale)\)/, f);
+  }
+});

@@ -28,6 +28,7 @@ export function BookPageClient({
   locale: localeProp,
   contactHref = null,
   initialServiceId = "",
+  onServicePicked,
 }: {
   tenantSlug: string;
   tenantId?: string | null;
@@ -42,6 +43,8 @@ export function BookPageClient({
   contactHref?: string | null;
   /** TUL-65 Book again: opens on this service, bypassing the default picker. Ignored when not in `offerings`. */
   initialServiceId?: string;
+  /** TUL-1913: told when the visitor picks a service by hand (the /book page mirrors it into ?service=). */
+  onServicePicked?: (id: string) => void;
 }) {
   const [userPickedId, setUserPickedId] = useState("");
   const cookieT = usePublicT();
@@ -120,7 +123,10 @@ export function BookPageClient({
           <span className="font-medium">{t("public.bookPage.chooseService")}</span>
           <select
             value={selected.id}
-            onChange={(e) => setUserPickedId(e.target.value)}
+            onChange={(e) => {
+              setUserPickedId(e.target.value);
+              onServicePicked?.(e.target.value);
+            }}
             className="rounded-lg border border-[rgba(24,24,27,0.12)] bg-white px-3 py-2 text-[var(--token-color-ink,#0B0B0D)]"
           >
             {offerings.map((o) => (

@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { draftStorageKey, readDraft, writeDraft } from "@/components/admin/pos/messages/draft-storage";
 import { useT } from "@/i18n/use-t";
 import { itemsLabelForPreset } from "@/lib/messages-v5/context-view";
+import { withRosterRequestItems } from "@/lib/messages-v5/roster-request-items";
 import { duplicateHint } from "@/lib/messages-v5/duplicates";
 import { latestHoldExpiresAt } from "@/lib/messages-v5/hold-expiry-from-messages";
 import { applyInboxRowPatch, useMessagingInboxLive } from "@/lib/messages-v5/use-inbox-live";
@@ -242,20 +243,12 @@ export function MessagesV5Shell(props: MessagesV5ShellProps) {
         setMessages(thread.messages);
       }
       if (ess.ok) setEssentials(ess.essentials);
-      if (ctxLines && ctxLines.ok) {
-        const currency = ctxLines.money?.currency;
-        const moneyLabel = (cents: number) => formatRecordMoney(cents, currency);
-        setContextItems(
-          ctxLines.lines
-            ? ctxLines.lines.map((l) => ({ id: l.id, name: l.label, units: String(l.units), price: moneyLabel(l.unitCents * l.units), proposedBy: l.proposedBy, confirmed: l.confirmed }))
-            : null,
-        );
-        setContextMoney(
-          ctxLines.money
-            ? { totalLabel: moneyLabel(ctxLines.money.totalCents), paidLabel: moneyLabel(ctxLines.money.paidCents), balanceLabel: moneyLabel(ctxLines.money.balanceCents), balanceDueCents: ctxLines.money.balanceCents }
-            : null,
-        );
-      }
+      const ok = ctxLines && ctxLines.ok ? ctxLines : null;
+      const moneyLabel = (cents: number) => formatRecordMoney(cents, ok?.money?.currency);
+      // TUL-1415: a guest's request lines fill the Items panel until an offer has real lines.
+      const engineLines = ok?.lines ? ok.lines.map((l) => ({ id: l.id, name: l.label, units: String(l.units), price: moneyLabel(l.unitCents * l.units), proposedBy: l.proposedBy, confirmed: l.confirmed })) : null;
+      setContextItems(withRosterRequestItems(engineLines, thread.ok ? thread.messages : []));
+      if (ok) setContextMoney(ok.money ? { totalLabel: moneyLabel(ok.money.totalCents), paidLabel: moneyLabel(ok.money.paidCents), balanceLabel: moneyLabel(ok.money.balanceCents), balanceDueCents: ok.money.balanceCents } : null);
     },
     [engine],
   );

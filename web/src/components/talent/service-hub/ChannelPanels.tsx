@@ -4,6 +4,7 @@ import { shareLine, workModelLabel, type Appearance } from "@/lib/talent/service
 import type { ServiceChannels } from "@/lib/talent/service-hub-channels.server";
 
 import { LeaveWorkspaceButton } from "./LeaveWorkspaceButton";
+import { FeeNote } from "./FeeNote";
 import { LowestPriceField } from "./LowestPriceField";
 
 function money(cents: number | null, currency: string, locale: string): string {
@@ -40,9 +41,7 @@ export function WhereItsSoldPanel(props: { data: ServiceChannels; locale: string
               <span className="text-sm">
                 {money(r.listPriceCents, service.currency, props.locale)} · {c.youGet}{" "}
                 {r.youGetCents == null ? UNKNOWN : money(r.youGetCents, service.currency, props.locale)}{" "}
-                <span role="img" tabIndex={0} title={c.feeNote} aria-label={c.feeNote} data-testid="fee-note" className="cursor-help">
-                  ⓘ
-                </span>
+                <FeeNote text={c.feeNote} />
               </span>
             </div>
             {r.status === "offered" ? <span className="text-sm">{c.offered}</span> : null}
@@ -103,9 +102,7 @@ export function EarningsByChannelCard(props: { items: readonly ChannelEarnings[]
             <span className="text-sm">
               {money(e.netCents, props.currency, props.locale)}
               {e.youKeepBps == null ? "" : ` · ${c.youKeep} ${pct(e.youKeepBps)}`}{" "}
-              <span role="img" tabIndex={0} title={c.feeNote} aria-label={c.feeNote} data-testid="fee-note" className="cursor-help">
-                ⓘ
-              </span>
+              <FeeNote text={c.feeNote} />
             </span>
           </li>
         ))}

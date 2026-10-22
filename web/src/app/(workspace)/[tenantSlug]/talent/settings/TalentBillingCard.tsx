@@ -11,6 +11,7 @@ import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
 import { useEffect, useState, useTransition } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { PastDueBanner } from "@/components/billing/PastDueBanner";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { billingDateLabel } from "@/lib/billing/pending-cancellation";
 import { talentBillingPlanLabel, talentPastDueView } from "@/lib/billing/talent-billing-display";
 import {
@@ -65,8 +66,8 @@ export function TalentBillingCard({ tenantSlug }: { tenantSlug: string }) {
   // TUL-835: the plan name in the dashboard's own words ("Oficina Web" in ES).
   const planName = talentBillingPlanLabel(data.planKey) ?? data.planLabel;
   const pastDue = talentPastDueView(sub);
-  const day = (iso: string) =>
-    new Date(iso).toLocaleDateString(loc, { year: "numeric", month: "short", day: "numeric" });
+  // TUL-1914: the UTC calendar day, the same as Stripe (period-date.ts); the browser zone made it a day early.
+  const day = (iso: string) => formatPeriodDate(iso, loc.startsWith("es") ? "es" : "en") ?? "";
   const money = (cents: number, currency: string) => formatDashboardMoneyCents(cents, currency, loc);
 
   return (

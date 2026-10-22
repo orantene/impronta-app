@@ -30,7 +30,7 @@ test("nav lookup is cached and tiny (no per-view query)", () => {
 });
 
 test("talent nav and workspace nav both go through the Blog helpers", () => {
-  assert.match(src("lib/talent-site/server/render-max-site.tsx"), /withBlogNavItem\(buildMaxSiteNav\(navSource\), await pBlogNav, hrefMode\)/);
+  assert.match(src("lib/talent-site/server/render-max-site.tsx"), /withBlogNavItem\(buildMaxSiteNav\(navSource, locale\), await pBlogNav, hrefMode\)/);
   assert.match(src("lib/talent-site/resolve-max-site-core.ts"), /capNavKeepingReserved\(nav, SITE_HEADER_MAX_NAV_ITEMS\)/);
   assert.match(src("lib/cms/public-navigation.ts"), /withBlogHeaderLink\(links, hasPosts,/);
   assert.match(src("lib/cms/public-navigation.ts"), /href: resolvePublicCmsNavHref\(r\.href, locale, settings\)/);

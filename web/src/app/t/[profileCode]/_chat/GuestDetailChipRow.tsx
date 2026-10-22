@@ -96,14 +96,14 @@ function chipValueLabel(
       return null;
     }
     case "headcount": {
-      const n = capturedValues.headcount?.headcount ?? intent.talent?.count_needed ?? null;
+      // TUL-1415: people attending ("10 personas") are people, not talents.
+      const party = typeof intent.source_context?.["party_size"] === "number" ? (intent.source_context["party_size"] as number) : null;
+      const n = capturedValues.headcount?.headcount ?? intent.talent?.count_needed ?? party;
       if (n != null && n > 0) {
+        const people = capturedValues.headcount?.headcount == null && intent.talent?.count_needed == null && party != null;
         return interpolate(t("public.guestChat.chipGuestsWithCount"), {
           count: n,
-          unit:
-            n === 1
-              ? t("public.guestChat.guestOne")
-              : t("public.guestChat.guestOther"),
+          unit: n === 1 ? t(people ? "public.guestChat.personOne" : "public.guestChat.guestOne") : t(people ? "public.guestChat.personOther" : "public.guestChat.guestOther"),
         });
       }
       return null;

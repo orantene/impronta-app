@@ -1,4 +1,5 @@
-import { isPlaceholderDisplayName } from "./talent-display-name";
+import { brandLineFor, isPlaceholderDisplayName } from "./talent-display-name";
+import { readScalarFieldValuesFromCatalog, syncScalarFieldValuesToCatalog } from "@/lib/talent/scalar-field-values-catalog";
 import "server-only";
 
 /**
@@ -132,7 +133,10 @@ export async function writeTalentProfileFromBrief(input: {
   // A profile that already exists (created by sign-up before the wizard) keeps a
   // blank or placeholder name unless the wizard's name replaces it; the "ready"
   // check then looks for a name the page never printed (talent:name_missing).
-  if (existing?.id && displayName && isPlaceholderDisplayName(existing.display_name as string | null | undefined)) {
+  // TUL-1839: a page an earlier build named after the business (old TUL-810 rule) gets the person's name too.
+  const storedName = (existing?.display_name as string | null | undefined)?.trim().toLowerCase() ?? "";
+  const wasBusinessName = !!storedName && storedName === (stringFact(brief, "business.name") ?? "").trim().toLowerCase() && storedName !== displayName.toLowerCase();
+  if (existing?.id && displayName && (isPlaceholderDisplayName(existing.display_name as string | null | undefined) || wasBusinessName)) {
     patch.display_name = displayName;
   }
   if (city) patch.home_city_text = city;
@@ -161,6 +165,15 @@ export async function writeTalentProfileFromBrief(input: {
     result.wrote.roster = hub.outcome === "skipped_has_roster" ? "skipped" : "written";
   }
   const tenantId = result.hubTenantId;
+
+  // ── brand line (TUL-1839 / TUL-810) ───────────────────────────────────────
+  // The page is named after the person; a business name that differs rides in the
+  // tagline slot under the headline. A tagline the person wrote themselves is kept.
+  const brand = brandLineFor({ displayName: patch.display_name ? displayName : (existing?.display_name as string | null | undefined) ?? displayName, businessName: stringFact(brief, "business.name") });
+  if (brand && tenantId) {
+    const current = await readScalarFieldValuesFromCatalog(admin, id);
+    if (!current.tagline?.trim()) await syncScalarFieldValuesToCatalog(admin, id, tenantId, { tagline: brand });
+  }
 
   // ── primary type ──────────────────────────────────────────────────────────
   if (tenantId) {

@@ -35,6 +35,29 @@ export const PLATFORM_CATEGORY_DICTIONARY: ReadonlyArray<Pair> = [
   // TUL-1891: a Spanish-stored "Experiencias" showed as-is on the EN service page.
   { en: "Experiences", es: "Experiencias" },
   { en: "Packages", es: "Paquetes" },
+  // TUL-1912: standard service / menu categories seeded in Spanish showed as-is on the EN service page.
+  { en: "Cleaning", es: "Limpieza" },
+  { en: "Drinks", es: "Bebidas" },
+  { en: "Non-alcoholic drinks", es: "Bebidas sin alcohol" },
+  { en: "Desserts", es: "Postres" },
+  { en: "Appetizers", es: "Entradas" },
+  { en: "Soups", es: "Sopas" },
+  { en: "Main courses", es: "Platos fuertes" },
+  { en: "Reservations", es: "Reservaciones" },
+  { en: "Travel", es: "Viajes" },
+  { en: "Photography", es: "Fotografía" },
+  { en: "Maintenance", es: "Mantenimiento" },
+  { en: "Electrical", es: "Electricidad" },
+  { en: "Repairs", es: "Reparaciones" },
+  { en: "Installation", es: "Instalación" },
+  { en: "Emergency", es: "Emergencia" },
+  { en: "Diagnostics", es: "Diagnóstico" },
+  { en: "Inspection", es: "Revisión" },
+  { en: "Furniture", es: "Muebles" },
+  { en: "Restoration", es: "Restauración" },
+  { en: "Projects", es: "Proyectos" },
+  { en: "Kitchen", es: "Cocina" },
+  { en: "Beach club", es: "Club de playa" },
 ];
 
 /** Singular and alternate spellings that map onto a pair (keyed by its English label). */
@@ -58,6 +81,14 @@ const ALIASES: Readonly<Record<string, string>> = {
   experiencia: "Experiences",
   package: "Packages",
   paquete: "Packages",
+  instalaciones: "Installation",
+  reparacion: "Repairs",
+  dessert: "Desserts",
+  drink: "Drinks",
+  beverages: "Drinks",
+  reservation: "Reservations",
+  soup: "Soups",
+  cleaning: "Cleaning",
 };
 
 function norm(s: string): string {

@@ -17,7 +17,7 @@ import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { loadPublicBookableOfferings } from "@/lib/site-admin/server/load-book-page-offerings";
 import { buildTenantLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { pinnedServiceId } from "@/lib/client-account/book-again";
-import { BookPageClient } from "./BookPageClient";
+import { BookPageUrlSync } from "./BookPageUrlSync";
 import { RosterRequestList } from "./RosterRequestList";
 import { PublicHubEntries } from "@/components/storefront/PublicHubEntries";
 import { loadPublicHub } from "@/lib/service-hub/public-hub.server";
@@ -124,7 +124,7 @@ export default async function BookPage({
         <p className="mt-3 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
           {t("public.bookPage.lead")}
         </p>
-        <BookPageClient
+        <BookPageUrlSync
           tenantSlug={tenantSlug}
           tenantId={tenantId}
           agencyName={agencyName}

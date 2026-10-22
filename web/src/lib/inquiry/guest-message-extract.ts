@@ -30,6 +30,8 @@ import {
   recordAiUsageEstimate,
 } from "@/lib/ai/ai-usage-gate";
 import { logServerError } from "@/lib/server/safe-error";
+import { applyDeterministicFixups } from "./guest-message-fixups";
+import { todayLine } from "./relative-event-date";
 import type {
   InquiryBudget,
   InquiryDate,
@@ -57,6 +59,8 @@ export type GuestMessageCapture = {
   talent?: Pick<InquiryTalent, "count_needed" | "types_needed">;
   /** Free-text event-type label ("wedding", "brand shoot"). UI hint only. */
   eventType?: string;
+  /** How many people attend ("10 personas"), read by rule. Never a talent count. */
+  partySize?: number;
 };
 
 /** JSON-schema envelope — same shape/strict pattern as INTERPRET_SEARCH_JSON_SCHEMA. */
@@ -127,11 +131,11 @@ Rules:
 - Extract ONLY what the message clearly states or strongly implies. Never invent a city, date, headcount, or budget that is not present.
 - city / area / country: the event/shoot location if mentioned, else "".
 - is_online: true only if the event is explicitly virtual/remote/online.
-- event_date: a concrete calendar date as YYYY-MM-DD if one is stated or unambiguous. A "Today is YYYY-MM-DD" line precedes the message — use it to resolve relative or year-less dates ("next Friday", "August 14") to the NEXT future occurrence. Use "" if no resolvable date.
+- event_date: a concrete calendar date as YYYY-MM-DD if one is stated or unambiguous. A "Today is <Weekday> YYYY-MM-DD" line precedes the message — use it to resolve relative or year-less dates ("next Friday", "August 14") to the NEXT future occurrence. Use "" if no resolvable date.
 - date_signal: "exact" if a specific date is given, "flexible" if they mention a rough window or say they are flexible, else "".
 - duration: free-form length if stated ("2 hours", "full day"), else "".
 - event_type: a short label for the occasion ("wedding", "corporate gala", "brand shoot"), else "".
-- headcount: integer count of TALENT/performers the client wants to book. Event attendance ("80 guests", "200 attendees") is NOT headcount — leave 0 unless a talent count is stated.
+- headcount: integer count of TALENT/performers the client wants to book. Event attendance ("80 guests", "10 personas", "200 attendees") is NOT headcount and is never added to it — leave 0 unless a talent count is stated.
 - service_hints: short role/service phrases requested ("photographer", "DJ", "host"); [] if none.
 - budget_amount: numeric budget if stated; 0 if not. IMPORTANT: a line beginning "Requesting:" names a SERVICE and its listed price (machine-generated) — the price of a requested service is NEVER the client budget. Only capture budget when the client explicitly says what they want to spend ("budget is", "around $X total", "up to $X"). budget_currency: ISO 4217 (USD, EUR, MXN, GBP) if the currency or symbol is clear, else "".
 - When unsure, prefer the empty/zero value over a guess.`;
@@ -267,10 +271,20 @@ function timeoutNull<T>(ms: number): Promise<T | null> {
 export async function captureGuestMessageDetails(
   firstMessage: string,
   tenantId?: string,
-  options?: { model?: string },
+  options?: { model?: string; timeZone?: string | null; now?: Date },
 ): Promise<GuestMessageCapture> {
   const message = (firstMessage ?? "").trim().slice(0, MAX_MESSAGE_CHARS);
   if (!message) return {};
+  const ai = await captureViaModel(message, tenantId, options);
+  // TUL-1415: rules overrule the model on the day word and on attendees vs talents (fail-open too).
+  return applyDeterministicFixups(ai, message, { now: options?.now ?? new Date(), timeZone: options?.timeZone });
+}
+
+async function captureViaModel(
+  message: string,
+  tenantId: string | undefined,
+  options?: { model?: string; timeZone?: string | null; now?: Date },
+): Promise<GuestMessageCapture> {
 
   try {
     // Respect the existing master + draft toggles (same gates the inquiry-draft
@@ -292,7 +306,7 @@ export async function captureGuestMessageDetails(
       systemPrompt: SYSTEM_PROMPT,
       // Prefix today's date so the model can resolve relative/year-less dates
       // ("next Friday", "August 14") to the next future occurrence.
-      userMessage: `Today is ${new Date().toISOString().slice(0, 10)}.\n\n${message}`,
+      userMessage: `Today is ${todayLine(options?.now ?? new Date(), options?.timeZone)}.\n\n${message}`,
       temperature: 0.1,
       maxTokens: 400,
       // Per-call model override (W2-I): the conversation scan pins the cheap

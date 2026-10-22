@@ -5,7 +5,8 @@
 import type { Essentials } from "./essentials";
 import type { FlowLocale } from "./flow";
 import { hoursSummary } from "./review-setup-lines";
-import type { UnderstoodLine } from "./understanding";
+import { SETUP_COPY } from "./setup-copy";
+import type { Understanding, UnderstoodLine } from "./understanding";
 
 function savedValue(line: UnderstoodLine, e: Essentials, locale: FlowLocale): string | null {
   switch (line.id) {
@@ -17,7 +18,8 @@ function savedValue(line: UnderstoodLine, e: Essentials, locale: FlowLocale): st
     case "hours":
       return hoursSummary(e.hours, locale);
     case "city":
-      return e.place?.area?.trim() || null;
+      // TUL-1822: "where" is answered by the place step 3 saved, even when no area was typed (the mode itself).
+      return e.place ? e.place.area?.trim() || SETUP_COPY[locale].placeModes[e.place.mode] : null;
     case "name":
     case "businessName":
       return e.name?.trim() || null;
@@ -34,4 +36,16 @@ export function withSavedEssentials(lines: UnderstoodLine[], essentials: Essenti
     const v = savedValue(l, essentials, locale);
     return v ? { ...l, value: v, status: "known" as const } : l;
   });
+}
+
+/**
+ * TUL-1822: the card the client already holds, patched with what step 3 saved.
+ * The server recomputes the card from the saved essentials on a reload, but the
+ * card in memory predates step 3, so a person who went Back to the summary saw
+ * "Falta" on services, hours and where right after filling them in.
+ */
+export function understandingWithSavedEssentials(u: Understanding, essentials: Essentials | null | undefined, locale: FlowLocale): Understanding {
+  if (!essentials) return u;
+  const lines = withSavedEssentials(u.lines, essentials, locale);
+  return lines.some((l, i) => l !== u.lines[i]) ? { ...u, lines } : u;
 }

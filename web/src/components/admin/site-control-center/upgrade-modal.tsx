@@ -8,6 +8,8 @@ import { Check, Minus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
 import { TrialDoorCard, useTrialDoorOffer } from "@/components/billing/trial-door-card";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -151,7 +153,15 @@ export function UpgradeModal({
   reason = null,
   doorPending = false,
   onDoorStart,
+  scheduledFreeOn = null,
+  onKeepPlan,
+  keepPending = false,
 }: {
+  /** TUL-1914: ISO end of the paid period when a downgrade to Free is already scheduled; the Free card then states the date and offers no second downgrade. */
+  scheduledFreeOn?: string | null;
+  /** TUL-1914: "Keep my plan", the undo of that scheduled downgrade. */
+  onKeepPlan?: () => void;
+  keepPending?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activePlan: Plan;
@@ -169,6 +179,7 @@ export function UpgradeModal({
 }) {
   const [cycle, setCycle] = React.useState<Cycle>("monthly");
   const t = useT();
+  const locale = useDashboardLocale();
   const door = reason?.door ?? null;
   const doorOffer = useTrialDoorOffer(door, open);
   // A door with nothing sellable behind it falls back to the grid below.
@@ -341,8 +352,13 @@ export function UpgradeModal({
                         ? "/ month, billed yearly"
                         : "/ month";
 
+                const freeScheduled = plan.key === "free" && !!scheduledFreeOn;
                 let cta = "";
-                if (isCurrent) cta = "Current plan";
+                if (freeScheduled)
+                  cta = interpolate(t("dashboard.adminShared.planChange.scheduledFree"), {
+                    date: formatPeriodDate(scheduledFreeOn, locale) ?? "",
+                  });
+                else if (isCurrent) cta = "Current plan";
                 else if (isUpgrade)
                   cta =
                     plan.key === "network"
@@ -469,7 +485,7 @@ export function UpgradeModal({
                         <button
                           type="button"
                           onClick={() => {
-                            if (isCurrent) return;
+                            if (isCurrent || freeScheduled) return;
                             if (plan.key === "network") {
                               window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Network plan enquiry")}`;
                               return;
@@ -477,10 +493,11 @@ export function UpgradeModal({
                             onSelect?.(plan.key);
                             onOpenChange(false);
                           }}
-                          disabled={isCurrent}
+                          disabled={isCurrent || freeScheduled}
+                          data-testid={freeScheduled ? "free-scheduled" : undefined}
                           className={cn(
                             "inline-flex w-full items-center justify-center rounded-full px-3 py-2.5 text-[12.5px] font-semibold transition-[background-color,border-color,color,box-shadow] duration-150",
-                            isCurrent
+                            isCurrent || freeScheduled
                               ? "cursor-default border border-[rgba(24,24,27,0.08)] bg-transparent text-muted-foreground"
                               : isUpgrade
                                 ? "border border-transparent text-[var(--cta-fg)] shadow-[0_8px_24px_-12px_var(--cta-shadow)] hover:brightness-95"
@@ -498,6 +515,17 @@ export function UpgradeModal({
                         >
                           {cta}
                         </button>
+                        {freeScheduled && onKeepPlan ? (
+                          <button
+                            type="button"
+                            data-testid="keep-plan"
+                            onClick={onKeepPlan}
+                            disabled={keepPending}
+                            className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-[rgba(24,24,27,0.18)] bg-white px-3 py-2.5 text-[12.5px] font-semibold text-foreground hover:border-foreground/40 disabled:opacity-60"
+                          >
+                            {t("dashboard.adminShared.planChange.keepPlan")}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>

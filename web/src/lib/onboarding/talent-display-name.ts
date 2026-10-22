@@ -1,18 +1,34 @@
 import type { OnboardingChoice } from "./choice";
 
 /**
- * TUL-810: the name a new talent page goes by. A solo pro who gave a business
- * name ("Casa Limpia") gets it on the page; otherwise the person's own name.
- * On "both" the business names the workspace, so the talent page stays personal.
+ * The name a new talent page goes by: the person's own name, the one they typed
+ * on the essentials step. TUL-1839: TUL-810 had a solo pro's business name replace
+ * it, so "Valeria" appeared nowhere on her built page (only "Brillo Caribe"). The
+ * business name now only stands in when the person gave no name of their own.
+ * `personName` must be the person's name (brief facts), never `essentials.name`,
+ * which step 3 seeds with the business name first.
  */
 export function talentDisplayNameFor(input: {
   choice: OnboardingChoice;
   businessName: string | null | undefined;
   personName: string | null | undefined;
 }): string | null {
+  const person = input.personName?.trim();
+  if (person) return person;
   const business = input.businessName?.trim();
-  if (input.choice === "myself" && business) return business;
-  return input.personName?.trim() || null;
+  return input.choice === "myself" && business ? business : null;
+}
+
+/**
+ * TUL-1839 / TUL-810: the business name still shows on the page, as the line
+ * under the headline (the profile's existing `identity.tagline` slot, which the
+ * hero already renders). Null when there is none or it is the page name itself,
+ * so the page never shows neither the person nor the brand.
+ */
+export function brandLineFor(input: { displayName: string | null | undefined; businessName: string | null | undefined }): string | null {
+  const business = input.businessName?.trim();
+  if (!business) return null;
+  return business.toLowerCase() === (input.displayName ?? "").trim().toLowerCase() ? null : business;
 }
 
 /** The placeholder the talent writer falls back to when the wizard gave no name. */

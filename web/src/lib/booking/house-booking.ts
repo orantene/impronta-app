@@ -57,7 +57,13 @@ import { logServerError } from "@/lib/server/safe-error";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
 import { HOUSE_SLOTS_SUPPORTED } from "./house-booking-reasons";
 
-export { HOUSE_SLOTS_SUPPORTED, houseNotBookableReason, type HouseNotBookableReason } from "./house-booking-reasons";
+export {
+  HOUSE_SLOTS_SUPPORTED,
+  houseNotBookableReason,
+  houseOnlineBooking,
+  type HouseNotBookableReason,
+  type HouseOnlineBookingReason,
+} from "./house-booking-reasons";
 
 /**
  * Does this offering belong to the house rather than to a person?

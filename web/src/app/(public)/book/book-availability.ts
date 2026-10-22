@@ -59,3 +59,13 @@ export function resolveSelectedOfferingId(input: {
   if (has(input.requestedId)) return input.requestedId as string;
   return pickInitialOfferingId(input.offerings);
 }
+
+/**
+ * TUL-1913: the query string to show after the visitor picks a service on
+ * /book. Replaces `service`, keeps every other param (promo, locale, ...).
+ */
+export function searchWithService(currentSearch: string, serviceId: string): string {
+  const params = new URLSearchParams(currentSearch.startsWith("?") ? currentSearch.slice(1) : currentSearch);
+  params.set("service", serviceId);
+  return `?${params.toString()}`;
+}

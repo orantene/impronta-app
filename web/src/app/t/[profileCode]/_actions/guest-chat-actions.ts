@@ -895,7 +895,11 @@ export async function startGuestChatInquiry(
   // timeout, bad JSON), in which case we keep the `not_sure` defaults below so
   // validateIntentForSubmit still passes and the inquiry is always created. The
   // extractor honors the existing AI master/draft toggles + usage gate.
-  const capture = await captureGuestMessageDetails(firstMessage, tenantId);
+  // TUL-1415: the day word and the attendee count are read by rule in the WORKSPACE's time zone.
+  const { data: tzRow } = await admin.from("agencies").select("timezone").eq("id", tenantId).maybeSingle();
+  const capture = await captureGuestMessageDetails(firstMessage, tenantId, {
+    timeZone: (tzRow as { timezone?: string | null } | null)?.timezone ?? null,
+  });
 
   // Assemble the full InquiryIntent server-side. firstMessage → brief.summary
   // so validateIntentForSubmit passes (it requires brief.summary OR a selected
@@ -943,6 +947,7 @@ export async function startGuestChatInquiry(
       tenant_id: tenantId,
       ...(input.locale ? { guest_locale: input.locale } : {}),
       ...(capture.eventType ? { ai_event_type: capture.eventType } : {}),
+      ...(capture.partySize ? { party_size: capture.partySize } : {}),
       ...(offering ? { offering } : {}),
       ...(agentHandoffId ? { agent_handoff_id: agentHandoffId, agent_handoff_talent_id: talentProfileId } : {}),
       ...(input.entryPoint === "inquiry_form" ? { entry_point: "inquiry_form" } : {}),
@@ -1878,7 +1883,7 @@ export async function getGuestThreadMessages(
   // (afterIso null) and only once the inquiry is genuinely sent. Null otherwise.
   let receipt: InquiryReceiptData | null = null;
   if (!input.afterIso) {
-    const { data: talentRow } = await admin
+    const { data: talentRow, error: talentRowError } = await admin
       .from("inquiry_participants")
       .select("talent_profile_id")
       .eq("inquiry_id", owned.inquiry.id)
@@ -1886,6 +1891,8 @@ export async function getGuestThreadMessages(
       .not("talent_profile_id", "is", null)
       .limit(1)
       .maybeSingle();
+    // A failed read only costs the reply-time hint.
+    if (talentRowError) logServerError("guest-chat-actions.typicalReplyTalent", talentRowError);
     typicalReplyLabel = await getTypicalReplyLabel({
       tenantId: owned.inquiry.tenantId,
       talentProfileId: (talentRow?.talent_profile_id as string | null) ?? null,

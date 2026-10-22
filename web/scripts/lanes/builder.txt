@@ -33,6 +33,7 @@ src/lib/analytics/derive-tenant.test.ts
 src/lib/analytics/talent-analytics-group.test.ts
 src/lib/analytics/talent-presence-stats.test.ts
 src/lib/analytics/website-analytics-group.test.ts
+src/lib/cms/seeded-nav-labels.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
@@ -47,6 +48,7 @@ src/lib/site-admin/builder-node/classes-publish-parity.test.ts
 src/lib/site-admin/builder-node/create.test.ts
 src/lib/site-admin/builder-node/data-bindings.test.ts
 src/lib/site-admin/builder-node/drop-policy.test.ts
+src/lib/site-admin/builder-node/empty-placeholder-band.test.ts
 src/lib/site-admin/builder-node/experiment-render.test.ts
 src/lib/site-admin/builder-node/experiment-visitor-cookie.test.ts
 src/lib/site-admin/builder-node/experiment.test.ts
