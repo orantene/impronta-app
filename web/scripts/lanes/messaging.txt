@@ -82,6 +82,7 @@ src/lib/messages-v5/guest-next-step.test.ts
 src/lib/messages-v5/viewer-time.test.ts
 src/lib/messaging/*.test.ts
 src/lib/messaging/client-draft-guards.test.ts
+src/lib/messaging/essentials-identity-1887.test.ts
 src/lib/messaging/inbox-other-side-1887.test.ts
 src/lib/messaging/inquiry-name-display.test.ts
 src/lib/messaging/offer-shared-seed.test.ts

@@ -20,7 +20,7 @@ export async function loadMessagingEssentials(
 ): Promise<{ ok: true; essentials: Essentials } | { ok: false; reason: "unavailable" | "not_found" | "wrong_tenant" }> {
   const { data: inquiry, error } = await admin
     .from("inquiries")
-    .select("id, tenant_id, contact_name, contact_email, contact_phone, message, source_page, version")
+    .select("id, tenant_id, contact_name, contact_email, contact_phone, message, source_page, version, client_user_id")
     .eq("id", input.inquiryId)
     .maybeSingle();
   if (error) return { ok: false, reason: "unavailable" };
@@ -33,6 +33,7 @@ export async function loadMessagingEssentials(
     message: string | null;
     source_page: string | null;
     version: number;
+    client_user_id?: string | null;
   };
   if (row.tenant_id !== input.tenantId) return { ok: false, reason: "wrong_tenant" };
 
@@ -64,7 +65,7 @@ export async function loadMessagingEssentials(
         name: contact.contactName,
         email: contact.contactEmail,
         phone: row.contact_phone,
-        identityLevel: ident?.level ?? "none",
+        identityLevel: ident?.level ?? (row.client_user_id ? "linked" : "none"), // TUL-1887: a signed-in client account is linked even before any identity step is recorded
         identityMethod: ident?.method ?? null,
         request: row.message,
         source: row.source_page,
