@@ -5,6 +5,7 @@
  */
 import "server-only";
 
+import { getRequestLocale } from "@/i18n/request-locale";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe/client";
 import { resolveTalentPriceId, resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
@@ -139,7 +140,7 @@ export async function confirmPlanChangeFor(
   if ("error" in built) return { ok: false, error: built.error, code: built.code };
   const req = await withPromo(built, promoCode);
   if ("promoError" in req) return { ok: false, error: req.error, code: "promo", promoError: req.promoError };
-  const out = await confirmPlanChange(stripe, req, prorationDate);
+  const out = await confirmPlanChange(stripe, { ...req, locale: await getRequestLocale() }, prorationDate);
   if (!out.ok) logServerError("billing.planChange.confirm", out.error);
   else if (kind === "workspace") {
     // TUL-1737: any confirmed in-app plan change supersedes a stored downgrade keep-list (best effort; the webhook also

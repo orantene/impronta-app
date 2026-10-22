@@ -343,6 +343,9 @@ export async function createBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
+    // TUL-1874: customers created outside checkout have no language; the portal is where they pick up PDFs.
+    await syncCustomerPreferredLocale(stripe, customer.stripe_customer_id, opts.locale, (e) => logServerError("workspace-billing.customer-locale", e));
+
     const params = buildPortalSessionParams({
       customerId: customer.stripe_customer_id,
       returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
