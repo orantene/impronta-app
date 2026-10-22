@@ -125,3 +125,17 @@ test("TUL-391 r2: section header count equals the badge (unread), not the capped
   // Nothing unread: fall back to the row count.
   assert.equal(hubSectionCount(rows.slice(0, 3), new Set(["n0", "n1", "n2"])), 3);
 });
+
+test("TUL-960: the bell popover carries its own phone backdrop scrim", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("./notifications-hub.tsx", import.meta.url), "utf8");
+  assert.match(
+    src,
+    /data-tulala-notifications-popover[\s\S]{0,300}className="max-\[720px\]:backdrop:bg-black\/40"/,
+  );
+  const chrome = readFileSync(
+    new URL("./page-modules/MobileChromeStyles.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(chrome, /\[data-tulala-notifications-popover\]:popover-open::backdrop/);
+});

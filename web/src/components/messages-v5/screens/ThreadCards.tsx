@@ -123,7 +123,8 @@ export function ThreadCard({ message, cardKind, clientName, copy, variant, local
       return (
         <PaymentCard
           state={state}
-          label={model.title}
+          // TUL-1867: the default title is English; use the localized card name.
+          label={model.title === "Payment" ? kit.card.cat.payment : model.title}
           amount={money(pay.amountCents, pay.currency)}
           payerName={clientName}
           hoursLeft={hoursLeft}
