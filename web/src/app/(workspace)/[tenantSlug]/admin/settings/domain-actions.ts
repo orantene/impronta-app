@@ -30,6 +30,7 @@ import {
   pickFallbackSubdomainHostname,
 } from "./domain-utils";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { encodeDomainActionText } from "@/components/admin/shell/internal/domain-action-codes";
 type DomainReturnTo = "settings" | "site" | "website";
 
 function domainPath(
@@ -38,7 +39,12 @@ function domainPath(
   messageKey: "dmsg" | "derr",
   message: string,
 ): string {
-  const params = new URLSearchParams({ [messageKey]: message });
+  // TUL-1863: carry a stable code (+ domain / hint) so the page picks en/es copy;
+  // text with no code (validation, plan-lock copy) travels as before.
+  const encoded = encodeDomainActionText(message);
+  const params = new URLSearchParams({ [messageKey]: encoded.value });
+  if (encoded.domain) params.set("dhost", encoded.domain);
+  if (encoded.hint) params.set("dhint", encoded.hint);
   if (returnTo === "site") {
     return `/${tenantSlug}/admin/site?${params.toString()}`;
   }

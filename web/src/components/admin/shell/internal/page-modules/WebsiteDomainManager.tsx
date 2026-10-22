@@ -41,6 +41,7 @@ import { useFormStatus } from "react-dom";
 import { useT } from "@/i18n/use-t";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { translateDomainActionText } from "@/components/admin/shell/internal/dashboard-i18n-domain-errors";
+import { decodeDomainActionParam } from "@/components/admin/shell/internal/domain-action-codes";
 import { interpolate } from "@/i18n/interpolate";
 import {
   connectCustomDomainAction,
@@ -286,7 +287,7 @@ function DomainRow({
 
       {record.failureReason ? (
         <p className="m-0 mt-[8px] text-admin-11h leading-relaxed text-admin-critical-deep">
-          {record.failureReason}
+          {translateDomainActionText(record.failureReason, copy.t)}
         </p>
       ) : null}
 
@@ -340,9 +341,12 @@ export function WebsiteDomainManager() {
     const params = new URLSearchParams(window.location.search);
     const ok = params.get("dmsg");
     const err = params.get("derr");
-    // The actions put English text in the query; map it to the dashboard language.
-    if (ok) setBanner({ kind: "ok", text: translateDomainActionText(ok, copy.t) });
-    else if (err) setBanner({ kind: "error", text: translateDomainActionText(err, copy.t) });
+    // The actions put a stable code (or, in old links, English text) in the
+    // query; decode it, then map it to the dashboard language.
+    const dhost = params.get("dhost");
+    const dhint = params.get("dhint");
+    if (ok) setBanner({ kind: "ok", text: translateDomainActionText(decodeDomainActionParam(ok, dhost, dhint), copy.t) });
+    else if (err) setBanner({ kind: "error", text: translateDomainActionText(decodeDomainActionParam(err, dhost, dhint), copy.t) });
   }, [copy.t]);
 
   const copyValue = (value: string, label: string) => {
