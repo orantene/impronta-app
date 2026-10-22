@@ -31,6 +31,10 @@ export const DAY_LABELS: Record<"en" | "es", Record<DayKey, string>> = {
 export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "America/Mexico_City", label: "Ciudad de México (CT)" },
   { id: "America/Cancun", label: "Cancún (EST)" },
+  { id: "America/Merida", label: "Mérida (Yucatán)" },
+  { id: "America/Monterrey", label: "Monterrey" },
+  { id: "America/Tijuana", label: "Tijuana" },
+  { id: "America/Mazatlan", label: "Mazatlán" },
   { id: "America/New_York", label: "New York (ET)" },
   { id: "America/Chicago", label: "Chicago (CT)" },
   { id: "America/Denver", label: "Denver (MT)" },
@@ -40,6 +44,20 @@ export const TIMEZONE_OPTIONS: ReadonlyArray<{ id: string; label: string }> = [
   { id: "Europe/Madrid", label: "Madrid" },
   { id: "Europe/London", label: "London" },
 ];
+
+/** TUL-540 / onb1-01: Spanish names for the zones whose English label differs. */
+const TIMEZONE_LABEL_ES: Readonly<Record<string, string>> = {
+  "America/New_York": "Nueva York (ET)",
+  "America/Los_Angeles": "Los Ángeles (PT)",
+  "America/Bogota": "Bogotá",
+  "Europe/London": "Londres",
+};
+
+/** Label of a zone in the setup picker, in the flow language. Unknown ids fall back to the given label. */
+export function timezoneOptionLabel(id: string, locale: "en" | "es", fallback?: string): string {
+  if (locale === "es" && TIMEZONE_LABEL_ES[id]) return TIMEZONE_LABEL_ES[id];
+  return TIMEZONE_OPTIONS.find((z) => z.id === id)?.label ?? fallback ?? (id.split("/").pop() ?? id).replace(/_/g, " ");
+}
 
 /** The short list, plus the current zone when it is not on it (the browser's zone, a saved one). */
 export function timezoneChoices(current: string | null | undefined): ReadonlyArray<{ id: string; label: string }> {

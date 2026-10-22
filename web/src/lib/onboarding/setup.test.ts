@@ -18,6 +18,7 @@ import {
   defaultPlaceForTrade,
   toggleDay,
   TIMEZONE_OPTIONS,
+  timezoneOptionLabel,
   applyServiceCurrency,
   setupCurrency,
 } from "./setup";
@@ -149,4 +150,29 @@ test("TUL-808: a cleaning business is never offered 'at my studio'; beauty keeps
   assert.deepEqual(placeModesForTrade("lashes"), ["studio", "home", "client"]);
   assert.equal(defaultPlaceForTrade("lashes"), null);
   assert.deepEqual(placeModesForTrade(null), ["studio", "home", "client"]);
+});
+
+test("TUL-540 onb1-01/04: the zone picker lists the Mexican zones and speaks the flow language", () => {
+  const ids = TIMEZONE_OPTIONS.map((z) => z.id);
+  for (const id of ["America/Mexico_City", "America/Cancun", "America/Merida", "America/Monterrey", "America/Tijuana", "America/Mazatlan"]) {
+    assert.ok(ids.includes(id), id);
+  }
+  assert.equal(timezoneOptionLabel("America/New_York", "es"), "Nueva York (ET)");
+  assert.equal(timezoneOptionLabel("Europe/London", "es"), "Londres");
+  assert.equal(timezoneOptionLabel("America/New_York", "en"), "New York (ET)");
+  assert.equal(timezoneOptionLabel("America/Cancun", "es"), "Cancún (EST)");
+  assert.equal(timezoneOptionLabel("America/Lima", "es", "Lima"), "Lima");
+});
+
+test("TUL-540: a Spanish salon in Cancún with no country gets Spanish services, MXN, America/Cancun and salon hours", () => {
+  const e = suggestedEssentials({ trade: "hair", country: null, city: "Cancún", locale: "es" });
+  assert.ok(e.services.length > 0);
+  assert.ok(e.services.every((s) => s.currency === "MXN"), "pesos without a country");
+  const en = suggestedEssentials({ trade: "hair", country: null, city: "Cancún", locale: "en" });
+  assert.notDeepEqual(e.services.map((s) => s.name), en.services.map((s) => s.name), "Spanish names, not the English pack");
+  assert.equal(e.timezone, "America/Cancun");
+  assert.ok(e.hours);
+  assert.deepEqual(e.hours!["1"], [{ startMin: 9 * 60, endMin: 19 * 60 }], "Monday open 9-19");
+  assert.deepEqual(e.hours!["5"], [{ startMin: 9 * 60, endMin: 19 * 60 }], "Friday open (TUL-992 default Mon-Fri)");
+  assert.deepEqual(e.hours!["0"], [], "Sunday closed by default");
 });

@@ -22,6 +22,7 @@ import {
   setupCurrency,
   setupIssues,
   timezoneChoices,
+  timezoneOptionLabel,
   timezoneWithBrowserFallback,
   type SetupIssue,
 } from "@/lib/onboarding/setup";
@@ -157,7 +158,7 @@ export function SetupStep({
             style={field}
           >
             <option value="">{c.timezoneHint}</option>
-            {timezoneChoices(e.timezone).map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
+            {timezoneChoices(e.timezone).map((z) => <option key={z.id} value={z.id}>{timezoneOptionLabel(z.id, locale === "es" ? "es" : "en", z.label)}</option>)}
           </select>
           {show("timezone") ? <Notice tone="error">{c.errors.timezone}</Notice> : null}
         </section>
