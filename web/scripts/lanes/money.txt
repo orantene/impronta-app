@@ -177,6 +177,7 @@ src/lib/orders/purchase-refusal.test.ts
 src/lib/orders/purchase-seller.test.ts
 src/lib/orders/purchase-stock-idempotency.test.ts
 src/lib/orders/purchase-table-deposit.test.ts
+src/lib/orders/purchase-tip-deposit.test.ts
 src/lib/orders/refund-admissions.test.ts
 src/lib/orders/refund-desk-copy.test.ts
 src/lib/orders/refund-effects.test.ts

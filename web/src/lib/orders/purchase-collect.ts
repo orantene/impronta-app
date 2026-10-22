@@ -24,8 +24,10 @@ export async function resolveCheckoutCollectCents(
     /** Catalog line totals (sum = subtotal) — used to scale per-payee shares. */
     lines: readonly PurchaseLineForCollect[];
     subtotalCents: number;
-    /** Fee-exclusive order total after promo. */
+    /** Fee-exclusive order total after promo, INCLUDING the tip. */
     totalCents: number;
+    /** TUL-1308: the tip inside `totalCents`; collected in full whenever anything is collected. */
+    tipCents?: number;
     collect: "full" | "deposit" | "none";
     depositPct: number | null;
     payInPerson: boolean;
@@ -33,11 +35,13 @@ export async function resolveCheckoutCollectCents(
     sourceChannel?: string | null;
   },
 ): Promise<{ baseCollectCents: number; collectCents: number; serviceFeeBpsByParty: Record<string, number> }> {
-  const baseCollectCents = amountToCollectCents(
-    input.totalCents,
-    input.collect,
-    input.depositPct,
-  );
+  // A deposit's % applies to the order WITHOUT the tip; the tip rides on top of
+  // whatever is collected now (full: the whole total; deposit: deposit + tip; none: nothing).
+  // The service fee is computed on the service principal only, never on the tip.
+  const orderTip = Math.min(Math.max(0, input.tipCents ?? 0), input.totalCents);
+  const tip = input.collect === "none" ? 0 : orderTip;
+  const servicePrincipalCents = amountToCollectCents(input.totalCents - orderTip, input.collect, input.depositPct);
+  const baseCollectCents = servicePrincipalCents + tip;
   if (!(baseCollectCents > 0) || input.payInPerson || isStaffChannel(input.sourceChannel)) {
     return { baseCollectCents, collectCents: baseCollectCents, serviceFeeBpsByParty: {} };
   }
@@ -46,9 +50,9 @@ export async function resolveCheckoutCollectCents(
     orderCurrency: input.orderCurrency,
     lines: input.lines,
     subtotalCents: input.subtotalCents,
-    principalCents: baseCollectCents,
+    principalCents: servicePrincipalCents,
   });
-  return { baseCollectCents, collectCents: priced.collectCents, serviceFeeBpsByParty: priced.feeBpsByParty };
+  return { baseCollectCents, collectCents: priced.collectCents + tip, serviceFeeBpsByParty: priced.feeBpsByParty };
 }
 
 /**

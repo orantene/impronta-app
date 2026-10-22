@@ -476,6 +476,8 @@ async function startPayment(
             addonIds: Array.isArray(l.addon_ids) ? l.addon_ids : [],
           })),
         paymentChoice: input.payment === "in_person" ? "in_person" : "full",
+        followOwnerDeposit: true, // TUL-1308: a deposit offering collects its deposit, not the whole total
+        tipCents: num(order.tip_cents), // TUL-1308: the tip set on the cart was shown and never charged
         sourceChannel: order.source_channel ?? "storefront",
         sourcePage: input.sourcePage ?? order.source_page ?? null,
         promoCode,

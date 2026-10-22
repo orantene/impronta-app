@@ -14,7 +14,7 @@ import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
 import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
-import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
+import { ownerDepositChoice, resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
 import { loadCatalog, mapCapacityRefusal, refuseHiddenVariants, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
@@ -167,7 +167,7 @@ export async function createPurchase(
         clientOrderKey: input.clientOrderKey,
         tenantId: input.tenantId,
         actorUserId: input.actorUserId,
-        paymentChoice: input.paymentChoice, tableDeposit: !!input.tableDeposit,
+        paymentChoice: ownerDepositChoice(input.paymentChoice, input.followOwnerDeposit, input.lines, catalog.policies), tableDeposit: !!input.tableDeposit,
         lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.units })),
       },
       catalog.policies,
@@ -300,7 +300,10 @@ export async function createPurchase(
     if (bookingPromo) promoDiscountCents = bookingPromo.value.discountCents;
 
     // Settle + insert must agree; `orders_total_is_derived` refuses drift.
-    const totalCents = priced.subtotalCents - promoDiscountCents;
+    // TUL-1308: the buyer's tip is part of the total and is collected with it (purchase-collect.ts).
+    // A free (no-collect, not pay-in-person) order has nothing to attach a tip to.
+    const tipCents = Number.isSafeInteger(input.tipCents) && (input.tipCents ?? 0) > 0 && (policy.collect !== "none" || policy.payInPerson) ? (input.tipCents as number) : 0;
+    const totalCents = priced.subtotalCents - promoDiscountCents + tipCents;
 
     const collect = await resolveCheckoutCollectOrRefuse(admin, {
       tenantId: input.tenantId,
@@ -308,6 +311,7 @@ export async function createPurchase(
       lines: priced.lines,
       subtotalCents: priced.subtotalCents,
       totalCents,
+      tipCents,
       collect: policy.collect,
       depositPct: policy.depositPct,
       payInPerson: policy.payInPerson,
@@ -330,6 +334,7 @@ export async function createPurchase(
         discount_cents: promoDiscountCents,
         tax_cents: 0,
         total_cents: totalCents,
+        ...(tipCents > 0 ? { tip_cents: tipCents } : {}),
         // Public receipt identifier for `/r/<code>`. Assigned HERE because the
         // column is meaningless until an order exists to be shown, and this is
         // the one place an order is created.
