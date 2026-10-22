@@ -10,8 +10,12 @@ import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { commitPlanDowngrade, getDowngradePreflight, type DowngradePreflight } from "@/lib/server-actions/admin-plan-downgrade";
+import { keepWorkspaceCurrentPlan, loadWorkspacePendingPlanChange } from "@/lib/server-actions/admin-pending-plan-change";
+import { FREE_TALENT_PLAN_KEY } from "@/lib/billing/plan-change-policy";
 import { DowngradeKeepPicker } from "./downgrade-keep-picker";
 import { useT } from "@/i18n/use-t";
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { interpolate } from "@/i18n/interpolate";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
@@ -52,6 +56,7 @@ export function GlobalUpgradeModal({
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
   const t = useT();
+  const locale = useDashboardLocale();
   // TUL-1291: owner keep-list picker (opens only when changeWorkspacePlan says the roster is above the Free cap).
   const [picker, setPicker] = React.useState<{ open: boolean; loading: boolean; preflight: DowngradePreflight | null }>({
     open: false,
@@ -59,10 +64,39 @@ export function GlobalUpgradeModal({
     preflight: null,
   });
 
+  // TUL-1914: a Free downgrade that is already scheduled at Stripe. Read when the modal opens (owner only; others see none).
+  const [scheduledFreeOn, setScheduledFreeOn] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    let live = true;
+    void loadWorkspacePendingPlanChange().then((r) => {
+      if (!live) return;
+      setScheduledFreeOn(r.ok && r.pending?.toPlan === FREE_TALENT_PLAN_KEY ? r.pending.effectiveAt : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [open]);
+
+  function handleKeepPlan() {
+    if (pending) return;
+    startTransition(async () => {
+      const result = await keepWorkspaceCurrentPlan();
+      if (result.ok) {
+        toast.success(t("dashboard.adminShared.planChange.keptPlan"));
+        setScheduledFreeOn(null);
+        setOpen(false);
+        queueRouterRefresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
   function planChangeToast(plan: string, scheduled: boolean, effectiveAt: string | null): string {
     if (!scheduled) return interpolate(t("dashboard.adminShared.planChange.setTo"), { plan });
     return effectiveAt
-      ? interpolate(t("dashboard.adminShared.planChange.scheduledOn"), { plan, date: new Date(effectiveAt).toLocaleDateString() })
+      ? interpolate(t("dashboard.adminShared.planChange.scheduledOn"), { plan, date: formatPeriodDate(effectiveAt, locale) ?? "" })
       : interpolate(t("dashboard.adminShared.planChange.scheduledEnd"), { plan });
   }
 
@@ -124,6 +158,7 @@ export function GlobalUpgradeModal({
 
   function handleSelect(plan: Plan) {
     if (pending) return;
+    if (plan === "free" && scheduledFreeOn) return; // already scheduled: no second downgrade
 
     if (
       plan === "website" ||
@@ -180,6 +215,9 @@ export function GlobalUpgradeModal({
       reason={reason}
       doorPending={pending}
       onDoorStart={handleDoorStart}
+      scheduledFreeOn={scheduledFreeOn}
+      onKeepPlan={handleKeepPlan}
+      keepPending={pending}
     />
     <DowngradeKeepPicker
       open={picker.open}

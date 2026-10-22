@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { loadTalentPendingPlanChange } from "@/app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { planDisplayNameFor } from "@/lib/access/plan-catalog";
 import { planChangeTarget } from "@/lib/billing/duplicate-subscription";
@@ -18,7 +21,23 @@ export function TalentSwitchToFree({ onChanged, className }: { onChanged?: () =>
   const { tenantSlug } = useAdminShell();
   const t = useT();
   const locale = useDashboardLocale();
-  const planChange = useTalentPlanChange(tenantSlug ?? null, null, onChanged);
+  const [scheduledOn, setScheduledOn] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const planChange = useTalentPlanChange(tenantSlug ?? null, null, () => {
+    setTick((n) => n + 1);
+    onChanged?.();
+  });
+  // TUL-1914: when the switch to Free is already scheduled the button says so (the sheet it opens offers "Keep my plan").
+  useEffect(() => {
+    if (!tenantSlug) return;
+    let live = true;
+    void loadTalentPendingPlanChange(tenantSlug).then((r) => {
+      if (live) setScheduledOn(r.ok && r.pending?.toPlan === FREE_TALENT_PLAN_KEY ? r.pending.effectiveAt : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [tenantSlug, tick]);
   if (!tenantSlug) return null;
   return (
     <>
@@ -28,7 +47,11 @@ export function TalentSwitchToFree({ onChanged, className }: { onChanged?: () =>
         className={className ?? "mt-3 w-full rounded-md border px-3 py-2 text-sm font-semibold"}
         onClick={() => planChange.open(planChangeTarget(FREE_TALENT_PLAN_KEY, "month"))}
       >
-        {interpolate(t("dashboard.adminShared.planChange.switchTo"), { plan: planDisplayNameFor("talent_basic", locale) })}
+        {scheduledOn
+          ? interpolate(t("dashboard.adminShared.planChange.scheduledFree"), {
+              date: formatPeriodDate(scheduledOn, locale) ?? "",
+            })
+          : interpolate(t("dashboard.adminShared.planChange.switchTo"), { plan: planDisplayNameFor("talent_basic", locale) })}
       </button>
       {planChange.modal}
     </>

@@ -27,6 +27,7 @@
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
 import { TalentCancelBlock } from "./TalentCancelBlock";
+import { formatPeriodDate } from "@/lib/billing/period-date";
 import { TalentSwitchToFree } from "@/components/billing/talent-switch-to-free";
 import { talentPlanPriceLine } from "@/lib/billing/talent-plan-price";
 import { PLAN_CATALOG, isKnownPlan } from "@/lib/access/plan-catalog";
@@ -71,10 +72,8 @@ type LoadState =
   | { status: "error"; error: string };
 
 function fmtDate(iso: string | null, es: boolean): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString(es ? "es-MX" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+  // TUL-1914: the UTC calendar day, the same as Stripe and every other billing date (see period-date.ts).
+  return formatPeriodDate(iso, es ? "es" : "en");
 }
 
 /** Small filled CTA used inside the trial / promo blocks. */
