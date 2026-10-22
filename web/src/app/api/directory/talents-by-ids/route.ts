@@ -86,7 +86,8 @@ export async function POST(req: Request) {
       `,
     )
     .in("id", ids)
-    .eq("workflow_status", "approved");
+    .eq("workflow_status", "approved")
+    .neq("profile_kind", "resource");
 
   if (error) {
     logServerError("api.directory.talents-by-ids.list", error);

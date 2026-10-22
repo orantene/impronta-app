@@ -78,7 +78,8 @@ function StatusChip({ status, kind }: { status: PlacementStatus; kind?: Placemen
  * can do about each one. Figures are named as unavailable, never zeroed.
  */
 export function TalentSiteAppearancesPanel(_props: { locale?: TalentSiteLocale }) {
-  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug, talentTier } = useAdminShell();
+  const { openDrawer, bridgeTalentSelfProfile, bridgeTalentAgencies, tenantSlug, state } = useAdminShell();
+  const talentTier = state.talentTier;
   const { t, es } = usePresenceText();
   // Local overrides after a hide / show so the row answers immediately.
   const [hiddenOverride, setHiddenOverride] = useState<Record<string, boolean>>({});

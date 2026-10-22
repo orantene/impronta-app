@@ -68,7 +68,8 @@ function Metric({
 
 export function TalentPresenceStatsCard() {
   const copy = useDashboardText();
-  const { bridgeTalentPageAnalytics, talentTier } = useAdminShell();
+  const { bridgeTalentPageAnalytics, state } = useAdminShell();
+  const talentTier = state.talentTier;
   const stats: TalentPresenceStats | undefined = bridgeTalentPageAnalytics?.presence;
   const es = copy.isSpanish;
   if (!stats) {
