@@ -70,6 +70,32 @@ export function serviceSlug(o: { id: string; title: string }): string {
 }
 
 /**
+ * TUL-1270: the ONE absolute address of a service page on a talent site. The share link, the home
+ * service cards (servicePageHrefs) and the route all build from `serviceSlug`, so they cannot drift.
+ * `siteBase` is the site origin plus any locale prefix, with or without a trailing slash.
+ */
+export function servicePageUrl(siteBase: string, o: { id: string; title: string }): string {
+  return `${siteBase.replace(/\/+$/, "")}/${serviceSlug(o)}`;
+}
+
+/**
+ * TUL-1270: does a visitor get this service's page? Mirrors the public loader
+ * (published AND approved AND not agency_only) plus the page-eligibility rules the route applies.
+ * A draft, archived, unapproved or agency-only service 404s on the public host.
+ */
+export function isServicePubliclyServed(
+  o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title"> & {
+    status?: string | null;
+    moderationState?: string | null;
+    attributes?: Record<string, unknown> | null;
+  },
+): boolean {
+  if (o.status != null && o.status !== "published") return false;
+  if (o.moderationState != null && o.moderationState !== "approved") return false;
+  return isServicePageEligible(o);
+}
+
+/**
  * TUL-792: id -> service page path for the home service cards. `base` is the locale prefix of a
  * published talent site ("" or "/en"); null/undefined (builder, hub, previews) means no links.
  */
@@ -81,7 +107,7 @@ export function servicePageHrefs(
   if (base == null) return out;
   const prefix = base.replace(/\/+$/, "");
   for (const o of offerings) {
-    if (isServicePageEligible(o)) out[o.id] = `${prefix}/${serviceSlug(o)}`;
+    if (isServicePageEligible(o)) out[o.id] = servicePageUrl(prefix, o);
   }
   return out;
 }
