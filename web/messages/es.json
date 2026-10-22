@@ -18721,8 +18721,13 @@
         "publish": "Publicar",
         "draftHint": "No se escribe nada hasta que guardes el borrador o publiques; recargar lo pierde.",
         "save": "Guardar",
-        "notBookableNoProvider": "No se puede reservar en línea todavía: la reserva en línea necesita una persona con horario, y un servicio del negocio no la tiene. Tus clientes pueden enviar una solicitud. Para que elijan una hora, crea el servicio en Servicios para un miembro del equipo.",
-        "notBookableNoDuration": "No se puede reservar en línea todavía: agrega cuánto dura para poder ofrecer horarios."
+        "bookableAsRequest": "Tus clientes pueden reservar esto en línea como solicitud: envían el día y la hora que quieren y tú la confirmas. Elegir una hora entre los horarios libres aún no está disponible para servicios del negocio. Para ofrecerlo, crea el servicio en Servicios para un miembro del equipo.",
+        "notBookableNotPublished": "Aún no se puede reservar en línea: este artículo no está publicado, así que la página pública no lo muestra. Publícalo para que tus clientes puedan solicitarlo.",
+        "notBookableNotApproved": "Aún no se puede reservar en línea: este artículo espera aprobación, así que la página pública no lo muestra.",
+        "notBookableNotPublic": "No se puede reservar en línea: la visibilidad es solo para el equipo, así que la página pública no lo muestra. Cámbiala a pública o bajo solicitud.",
+        "notBookableProduct": "No se puede reservar en línea: los productos se compran, no se reservan. Usa un servicio si quieres que reserven una hora.",
+        "notBookableInquiry": "No se puede reservar en línea: este artículo es solo de consulta, así que tus clientes envían una consulta en lugar de una solicitud de reserva.",
+        "notBookableNoDuration": "Aún no se puede reservar en línea: agrega cuánto dura para que la página pública pueda ofrecerlo."
       },
       "tab": {
         "label": "Secciones del artículo",

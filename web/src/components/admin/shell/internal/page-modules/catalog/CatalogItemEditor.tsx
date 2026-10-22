@@ -23,7 +23,7 @@ import type { OfferingsEditor } from "@/components/talent/services/use-offerings
 import { type TalentOffering } from "@/lib/talent/offerings-types";
 import { ActionButton, Outcome, StatePill, UsedIn } from "../appointments-classes-ui";
 import type { CatalogNav } from "./CatalogPage";
-import { houseNotBookableReason } from "@/lib/booking/house-booking-reasons";
+import { houseOnlineBooking, type HouseOnlineBookingReason } from "@/lib/booking/house-booking-reasons";
 import {
   ITEM_TABS,
   PUBLISH_BLOCKER_KEY,
@@ -76,6 +76,15 @@ const TYPE_KEY = {
   custom: "dashboard.catalog.type.custom",
 } as const;
 
+const NOT_OFFERED_KEY: Record<HouseOnlineBookingReason, string> = {
+  not_published: "dashboard.catalog.editor.notBookableNotPublished",
+  not_approved: "dashboard.catalog.editor.notBookableNotApproved",
+  not_public: "dashboard.catalog.editor.notBookableNotPublic",
+  is_product: "dashboard.catalog.editor.notBookableProduct",
+  inquiry_only: "dashboard.catalog.editor.notBookableInquiry",
+  no_duration: "dashboard.catalog.editor.notBookableNoDuration",
+};
+
 export function CatalogItemEditor({
   editor,
   item,
@@ -103,7 +112,7 @@ export function CatalogItemEditor({
   const showSaveDraft = canSaveDraftInPlace(item, isDraft);
   // A workspace (house) service has no provider calendar, so the public slots
   // route has no times for it. Say so, with the fix (Services Phase 0 item 6).
-  const notBookable = item.ownerKind === "workspace" ? houseNotBookableReason(item) : null;
+  const onlineBooking = item.ownerKind === "workspace" ? houseOnlineBooking(item) : null;
 
   async function persist(status: TalentOffering["status"]) {
     if (isDraft) {
@@ -230,9 +239,9 @@ export function CatalogItemEditor({
               {warnings.join(" ")}
             </Outcome>
           ) : null}
-          {notBookable ? (
+          {onlineBooking ? (
             <Outcome kind="note" testId="catalog-not-bookable-online">
-              {t(notBookable === "no_duration" ? "dashboard.catalog.editor.notBookableNoDuration" : "dashboard.catalog.editor.notBookableNoProvider")}
+              {t(onlineBooking.state === "request" ? "dashboard.catalog.editor.bookableAsRequest" : NOT_OFFERED_KEY[onlineBooking.reason])}
             </Outcome>
           ) : null}
           {usedIn.length > 0 ? (

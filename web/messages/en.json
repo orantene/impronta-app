@@ -18721,8 +18721,13 @@
         "publish": "Publish",
         "draftHint": "Nothing is written until you save the draft or publish; a reload loses it.",
         "save": "Save",
-        "notBookableNoProvider": "Cannot be booked online yet: online booking needs a person with working hours, and a workspace service has none. Clients can send a request instead. To let them pick a time, create the service under Services for a team member.",
-        "notBookableNoDuration": "Cannot be booked online yet: add how long it takes so times can be offered."
+        "bookableAsRequest": "Clients can book this online as a request: they send the day and time they want and you confirm it. Picking a time from open slots is not available for workspace services yet. To offer that, create the service under Services for a team member.",
+        "notBookableNotPublished": "Not bookable online yet: this item is not published, so the public page does not show it. Publish it to let clients request it.",
+        "notBookableNotApproved": "Not bookable online yet: this item is waiting for approval, so the public page does not show it.",
+        "notBookableNotPublic": "Not bookable online: visibility is set to team only, so the public page does not show it. Set it to public or on request.",
+        "notBookableProduct": "Not bookable online: products are bought, not booked. Use a service if you want clients to book a time.",
+        "notBookableInquiry": "Not bookable online: this item is set to inquiry only, so clients send an inquiry instead of a booking request.",
+        "notBookableNoDuration": "Not bookable online yet: add how long it takes so the public page can offer it."
       },
       "tab": {
         "label": "Item sections",
