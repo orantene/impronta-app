@@ -1,0 +1,233 @@
+{
+  "design": "solace",
+  "referenceDemo": {
+    "profileCode": "TAL-93001",
+    "name": "Valeria Ortiz",
+    "demoKey": "valeria-dance-instructor",
+    "fixture": "design-references/solace/content.json"
+  },
+  "mockup": {
+    "deviceButton": "#rv-dev button[data-d=\"{w}\"]",
+    "stepButton": "#rv-steps button[data-i=\"0\"]",
+    "root": "#site",
+    "states": false
+  },
+  "note": "Keyed by the mockup data-w unit (the part before the first \" ·\"). Product side matches by data-parity-key; fallback selectors apply only when the page carries no data-parity-key at all (a build that predates the contract). DRAFT pack: pending Oran's pack approval (TUL-328).",
+  "order": [
+    "header",
+    "hero",
+    "about",
+    "services",
+    "gallery",
+    "contact",
+    "faq"
+  ],
+  "sections": [
+    {
+      "key": "header",
+      "label": "Header",
+      "unit": "header",
+      "parityKey": "header",
+      "mockup": [
+        "[data-w^=\"header · overlay\"]"
+      ],
+      "fallback": [
+        "header",
+        "[role=banner]"
+      ],
+      "expects": [
+        {
+          "name": "section links (>= 3) or section menu",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3,
+          "alt": "[aria-haspopup], [aria-expanded]"
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.14
+      }
+    },
+    {
+      "key": "hero",
+      "label": "Hero",
+      "unit": "hero",
+      "parityKey": "hero",
+      "mockup": [
+        "[data-w^=\"hero · cover-overlay\"]"
+      ],
+      "fallback": [
+        "#hero",
+        "[data-slot-key='hero']",
+        "[data-anchor-id='hero']"
+      ],
+      "expects": [
+        {
+          "name": "headline (h1)",
+          "kind": "sel",
+          "sel": "h1",
+          "min": 1
+        },
+        {
+          "name": "CTA (>= 1 action)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        },
+        {
+          "name": "eyebrow",
+          "kind": "eyebrow"
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.16
+      }
+    },
+    {
+      "key": "about",
+      "label": "About",
+      "unit": "about",
+      "parityKey": "about",
+      "mockup": [
+        "[data-w^=\"about · centered\"]",
+        "#about"
+      ],
+      "fallback": [
+        "#about",
+        "[data-slot-key='about']"
+      ],
+      "expects": [
+        {
+          "name": "heading or statement",
+          "kind": "sel",
+          "sel": "h2, p",
+          "min": 1
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
+    },
+    {
+      "key": "services",
+      "label": "Services (#services)",
+      "unit": "services_catalog",
+      "parityKey": "services",
+      "mockup": [
+        "[data-w=\"services_catalog · editorial-single\"]",
+        "#services"
+      ],
+      "fallback": [
+        "#services",
+        "[data-slot-key='services']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "prices on rows",
+          "kind": "text",
+          "re": "price"
+        },
+        {
+          "name": "round photos (>= 3)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 3,
+          "optional": true,
+          "reason": "services without photos render text rows; photos are talent data"
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
+    },
+    {
+      "key": "gallery",
+      "label": "Space / portfolio",
+      "unit": "portfolio",
+      "parityKey": "gallery",
+      "mockup": [
+        "[data-w^=\"portfolio ·\"]",
+        "#gallery"
+      ],
+      "fallback": [
+        "#gallery",
+        "#portfolio",
+        "[data-slot-key='gallery']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "photos (>= 2)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 2
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.2
+      }
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "unit": "contact",
+      "parityKey": "contact",
+      "mockup": [
+        "[data-w^=\"contact ·\"]",
+        "#contact"
+      ],
+      "fallback": [
+        "#contact",
+        "[data-slot-key='contact']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "booking action",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.16
+      }
+    },
+    {
+      "key": "faq",
+      "label": "FAQ",
+      "unit": "faq",
+      "parityKey": "contact",
+      "mockup": [
+        "[data-w^=\"faq ·\"]"
+      ],
+      "fallback": [
+        "#faq",
+        "[data-slot-key='faq']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "questions (>= 2)",
+          "kind": "sel",
+          "sel": "details, [aria-expanded]",
+          "min": 2
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
+    }
+  ]
+}

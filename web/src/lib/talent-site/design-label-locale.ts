@@ -283,8 +283,9 @@ const SEEDED_MODE_COPY: Readonly<Record<string, ModeCopy>> = {
     buy: { en: "Shop", es: "Tienda" },
   },
   // Maison v2 2.7 footer button: the booking mode picks the verb.
-  // TUL-639: the main CTA reads from the ONE helper (`main-cta.ts`): Reservar cita /
-  // Solicitar / Escríbeme, never worded per theme.
+  // TUL-639: "Book an appointment" is a BOOKING-worded seed (Maison), so it follows the mode via
+  // the `main-cta.ts` wordings. Seeds with their own non-booking wording (Inquire, Consultar...)
+  // are not in this table and keep their text in every mode.
   "Book an appointment": {
     instant: { en: mainCtaLabel("instant", "en"), es: mainCtaLabel("instant", "es") },
     request: { en: mainCtaLabel("request", "en"), es: mainCtaLabel("request", "es") },

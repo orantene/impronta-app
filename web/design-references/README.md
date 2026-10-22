@@ -23,10 +23,11 @@ finished enough to open to talents. Required under `web/design-references/<slug>
 overlay (`npm run theme:pull-authored -- --design <slug>`).
 
 Unfinished collection designs (`solace`, `mono`, `frame`) have DRAFT packs
-(`index.html`, `kit.js`, `img/`, `README.md` marked DRAFT) drafted from each
-theme's tokens and sections for PM review. They stay hidden from the default
-gallery until the PM approves the pack, `parity-map.json` and `content.json`
-land, and the design gap in `COLLECTION_DESIGN_GAPS` closes.
+(`index.html`, `kit.js`, `img/`, `README.md` marked DRAFT, plus `parity-map.json`
+and `content.json` drafted from the mockup) for PM review. They are ready for
+Oran's pack approval and stay hidden from the default gallery until he approves
+the pack, the Factory publish and `theme:pull-authored` land, and the design gap
+in `COLLECTION_DESIGN_GAPS` closes.
 
 Serve locally (launch config `factory-mockup`, port 3098):
 `python3 -m http.server 3098 --bind 127.0.0.1 --directory web/design-references`

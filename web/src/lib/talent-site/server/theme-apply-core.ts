@@ -1,5 +1,6 @@
 import "server-only";
 
+import { pruneDesignApplySnapshots } from "@/lib/talent-site/history/design-apply-retention";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logServerError } from "@/lib/server/safe-error";
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
@@ -480,6 +481,7 @@ export async function applyDesign(
         logServerError("talentTheme.applyDesign.restoreExact", res.error);
         return { ok: false, code: "server_error", error: "Could not apply the design." };
       }
+      await pruneDesignApplySnapshots(admin, { siteId: input.siteId, talentProfileId: input.talentProfileId });
       await ensureSiteThemeUpdates(admin, input.talentProfileId);
       return {
         ok: true,
@@ -570,6 +572,8 @@ export async function applyDesign(
   }
 
   // F108: a new apply can land below an open release; offer the update now.
+  // TUL-527: keep only the newest design_apply snapshots for this site.
+  await pruneDesignApplySnapshots(admin, { siteId: input.siteId, talentProfileId: input.talentProfileId });
   await ensureSiteThemeUpdates(admin, input.talentProfileId);
   return {
     ok: true,

@@ -12,7 +12,7 @@
  * unit-testable and importable by the provisioning helper + a seed script.
  */
 import type { BuilderNode } from "@/lib/site-admin/builder-node/types";
-import { mainCtaLabel, type MainCtaMode } from "./main-cta";
+import { themeSeedCtaLabel, type MainCtaMode } from "./main-cta";
 
 /** Injectable id factory — defaults to crypto.randomUUID (matches `starter.ts`). */
 export type NodeIdFactory = () => string;
@@ -38,8 +38,9 @@ export interface DefaultShellInput {
   /** Home path the brand links to (default "/"). */
   homeHref?: string;
   /**
-   * TUL-639: how the talent sells. Picks the header CTA wording from the one
-   * rule in `main-cta.ts`. Absent keeps the legacy "Inquire" seed.
+   * TUL-639: how the talent sells. The header CTA keeps the platform seed "Inquire"
+   * (its own wording) unless booking is instant, then it is the booking label. The mode
+   * still picks where the CTA points.
    */
   mainCtaMode?: MainCtaMode;
 }
@@ -70,7 +71,7 @@ export function buildDefaultShellTree(
     navItems: [{ label: "Home", href: homeHref }],
     // Seed English "Inquire"; SiteHeader localises the platform default for
     // the visitor locale at render (AUD-027) so Spanish sites never show INQUIRE.
-    primaryCta: { label: input.mainCtaMode ? mainCtaLabel(input.mainCtaMode, "en") : "Inquire", href: mainCtaHref(input.mainCtaMode) },
+    primaryCta: { label: themeSeedCtaLabel("Inquire", input.mainCtaMode, "en"), href: mainCtaHref(input.mainCtaMode) },
     sticky: true,
     tone: "transparent",
     scrollTone: "solid",
@@ -96,7 +97,7 @@ export function buildDefaultShellTree(
         { type: "phone", responsive: { desktop: "label", mobile: "menu" } },
         { type: "saved", responsive: { mobile: "menu" } },
         { type: "inquiry", showCount: true },
-        { type: "cta", label: input.mainCtaMode ? mainCtaLabel(input.mainCtaMode, "en") : "Inquire", href: mainCtaHref(input.mainCtaMode), responsive: { mobile: "menu" } },
+        { type: "cta", label: themeSeedCtaLabel("Inquire", input.mainCtaMode, "en"), href: mainCtaHref(input.mainCtaMode), responsive: { mobile: "menu" } },
       ],
     },
   };

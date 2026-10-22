@@ -5,7 +5,6 @@
  * bars. Mateo stays on `design-references/folio/content.json`.
  */
 import demosJson from "../../../../design-references/folio/demos.json";
-import { mainCtaLabel } from "../main-cta";
 import type { DemoContentFixture, FixtureService } from "./content-fixture";
 
 type FolioDemoJson = {
@@ -315,8 +314,8 @@ function buildFixture(d: FolioDemoJson): DemoContentFixture {
     footer: {
       headline: lang === "es" ? "Siguiente número." : "Next number.",
       line: tagline,
-      // TUL-639: the main CTA follows how the talent sells (quote-priced demo = request), from the one helper.
-      cta: mainCtaLabel("request", lang),
+      // TUL-639: Folio keeps its own seed wording; the booking label is for instant booking only.
+      cta: lang === "es" ? "Consultar" : "Inquire",
       columns: [],
     },
     suggestions:

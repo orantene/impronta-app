@@ -1,0 +1,220 @@
+{
+  "design": "frame",
+  "referenceDemo": {
+    "profileCode": "TAL-93009",
+    "name": "Tomás Aguilar",
+    "demoKey": "tomas-portrait-photographer",
+    "fixture": "design-references/frame/content.json"
+  },
+  "mockup": {
+    "deviceButton": "#rv-dev button[data-d=\"{w}\"]",
+    "stepButton": "#rv-steps button[data-i=\"0\"]",
+    "root": "#site",
+    "states": false
+  },
+  "note": "Keyed by the mockup data-w unit (the part before the first \" ·\"). Product side matches by data-parity-key; fallback selectors apply only when the page carries no data-parity-key at all (a build that predates the contract). DRAFT pack: pending Oran's pack approval (TUL-328).",
+  "order": [
+    "header",
+    "hero",
+    "gallery",
+    "services",
+    "contact",
+    "about"
+  ],
+  "sections": [
+    {
+      "key": "header",
+      "label": "Header",
+      "unit": "header",
+      "parityKey": "header",
+      "mockup": [
+        "[data-w^=\"header · filter-bar\"]"
+      ],
+      "fallback": [
+        "header",
+        "[role=banner]"
+      ],
+      "expects": [
+        {
+          "name": "section links (>= 3) or section menu",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 3,
+          "alt": "[aria-haspopup], [aria-expanded]"
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.14
+      }
+    },
+    {
+      "key": "hero",
+      "label": "Hero",
+      "unit": "hero",
+      "parityKey": "hero",
+      "mockup": [
+        "[data-w^=\"hero · split-40-60\"]"
+      ],
+      "fallback": [
+        "#hero",
+        "[data-slot-key='hero']",
+        "[data-anchor-id='hero']"
+      ],
+      "expects": [
+        {
+          "name": "headline (h1)",
+          "kind": "sel",
+          "sel": "h1",
+          "min": 1
+        },
+        {
+          "name": "CTA (>= 1 action)",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        },
+        {
+          "name": "eyebrow",
+          "kind": "eyebrow"
+        },
+        {
+          "name": "photo",
+          "kind": "sel",
+          "sel": "img",
+          "min": 1
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.16
+      }
+    },
+    {
+      "key": "gallery",
+      "label": "Work / contact sheet",
+      "unit": "portfolio",
+      "parityKey": "gallery",
+      "mockup": [
+        "[data-w^=\"portfolio ·\"]",
+        "#gallery"
+      ],
+      "fallback": [
+        "#gallery",
+        "#work",
+        "#portfolio",
+        "[data-slot-key='gallery']"
+      ],
+      "optional": true,
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2, h3",
+          "min": 1
+        },
+        {
+          "name": "photos (>= 4)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 4
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.22
+      }
+    },
+    {
+      "key": "services",
+      "label": "Services (#services)",
+      "unit": "services_catalog",
+      "parityKey": "services",
+      "mockup": [
+        "[data-w=\"services_catalog · cards-3\"]",
+        "#services"
+      ],
+      "fallback": [
+        "#services",
+        "[data-slot-key='services']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "prices on rows",
+          "kind": "text",
+          "re": "price"
+        },
+        {
+          "name": "cards with photos (>= 3)",
+          "kind": "sel",
+          "sel": "img",
+          "min": 3,
+          "optional": true,
+          "reason": "services without photos render text cards"
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
+    },
+    {
+      "key": "contact",
+      "label": "Contact band",
+      "unit": "contact",
+      "parityKey": "contact",
+      "mockup": [
+        "[data-w^=\"contact ·\"]",
+        "#contact"
+      ],
+      "fallback": [
+        "#contact",
+        "[data-slot-key='contact']"
+      ],
+      "expects": [
+        {
+          "name": "heading",
+          "kind": "sel",
+          "sel": "h2",
+          "min": 1
+        },
+        {
+          "name": "booking action",
+          "kind": "sel",
+          "sel": "a, button",
+          "min": 1
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.12
+      }
+    },
+    {
+      "key": "about",
+      "label": "About",
+      "unit": "about",
+      "parityKey": "about",
+      "mockup": [
+        "[data-w^=\"about · start\"]",
+        "#about"
+      ],
+      "fallback": [
+        "#about",
+        "[data-slot-key='about']"
+      ],
+      "expects": [
+        {
+          "name": "heading or statement",
+          "kind": "sel",
+          "sel": "h2, p",
+          "min": 1
+        }
+      ],
+      "pixel": {
+        "maxMismatch": 0.18
+      }
+    }
+  ]
+}

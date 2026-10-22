@@ -165,7 +165,8 @@ export async function provisionTalentMaxSite(
   }
 
   // TUL-639: seed the talent's REAL selling mode (booking posture, plan ceiling, hours,
-  // goods-only). When it cannot be read, the safe "message" mode: never promise booking.
+  // goods-only). The seed keeps its own wording and only turns into the booking label
+  // when booking is instant. When the mode cannot be read, "message": never promise booking.
   let mainCtaMode: MainCtaMode = "message";
   try {
     mainCtaMode = mainCtaModeFromSiteMode(

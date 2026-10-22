@@ -1,0 +1,286 @@
+{
+  "design": "solace",
+  "profileCode": "TAL-93001",
+  "locale": "es",
+  "talent": {
+    "displayName": "Valeria Ortiz",
+    "tagline": "Salsa y bachata, a tu ritmo.",
+    "bio": "Doy clases privadas de salsa y bachata en Mérida, para una persona o pareja. Sin prisa: cada clase empieza donde te quedaste.",
+    "trade": "dance instructor",
+    "city": "Mérida"
+  },
+  "suggestions": [
+    "¿Puedo empezar sin experiencia?",
+    "¿Das clase en mi casa?",
+    "¿Cuánto tarda una coreografía de boda?"
+  ],
+  "chatGreeting": "¡Hola! Con gusto. ¿Es para ti o en pareja, y en qué zona de Mérida? Te paso horarios hoy.",
+  "hero": {
+    "eyebrow": "Clases de baile · Mérida",
+    "headline": "Salsa y bachata, a tu ritmo.",
+    "lede": null,
+    "ctas": [
+      "Reservar clase",
+      "Ver clases"
+    ],
+    "imageKey": "so-cover",
+    "tallImageKey": "so-portrait",
+    "imageAlt": "Valeria Ortiz bailando"
+  },
+  "about": {
+    "eyebrow": "Sobre mí",
+    "title": null,
+    "text": "Doy clases privadas de salsa y bachata en Mérida, para una persona o pareja. Sin prisa: cada clase empieza donde te quedaste."
+  },
+  "services": [
+    {
+      "id": "priv",
+      "category": "Clases",
+      "name": "Clase privada de salsa o bachata",
+      "shortName": "Clase privada de salsa o bachata",
+      "durationLabel": "1 h",
+      "durationMinutes": 60,
+      "priceLabel": "$700",
+      "priceAmount": 700,
+      "currency": "MXN",
+      "mode": "instant",
+      "ctaLabel": "Ver horarios",
+      "description": "Una hora, para una persona o pareja, en tu casa o en estudio.",
+      "includes": [
+        "Calentamiento y técnica básica",
+        "Una figura nueva por clase",
+        "Música para practicar en casa"
+      ],
+      "imageKey": "so-private",
+      "slots": [
+        "09:00",
+        "10:30",
+        "17:00",
+        "18:30",
+        "20:00"
+      ],
+      "slotNote": "Horarios en Mérida.",
+      "policy": "Si necesitas cambiar, avísame 12 h antes.",
+      "whoFields": [
+        {
+          "id": "where",
+          "label": "¿Dónde tomamos la clase?",
+          "placeholder": "Tu casa o estudio"
+        }
+      ]
+    },
+    {
+      "id": "pack",
+      "category": "Clases",
+      "name": "Paquete de 4 clases",
+      "shortName": "Paquete de 4 clases",
+      "durationLabel": "4 × 1 h",
+      "durationMinutes": null,
+      "priceLabel": "$2,500",
+      "priceAmount": 2500,
+      "currency": "MXN",
+      "mode": "request",
+      "ctaLabel": "Solicitar",
+      "description": "Cuatro clases privadas de una hora para avanzar de forma constante.",
+      "includes": [
+        "Cuatro clases en un mes",
+        "Plan según tu nivel",
+        "Video de repaso tras cada clase"
+      ],
+      "imageKey": "so-pack",
+      "requestFlow": {
+        "title": "Solicitar paquete",
+        "intro": "Es una solicitud: Valeria confirma los días antes de apartarlos.",
+        "submit": null,
+        "fields": [
+          {
+            "id": "level",
+            "label": "Tu nivel",
+            "placeholder": null,
+            "type": "chips",
+            "options": [
+              "Desde cero",
+              "Algo de base",
+              "Intermedio"
+            ]
+          },
+          {
+            "id": "days",
+            "label": "Días que te acomodan",
+            "placeholder": "Ej. martes y jueves por la tarde",
+            "type": "text",
+            "options": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "wed",
+      "category": "Bodas",
+      "name": "Coreografía de primer baile",
+      "shortName": "Coreografía de primer baile",
+      "durationLabel": "3 ensayos",
+      "durationMinutes": null,
+      "priceLabel": "$4,500",
+      "priceAmount": 4500,
+      "currency": "MXN",
+      "mode": "request",
+      "ctaLabel": "Solicitar",
+      "description": "Tres ensayos para crear y practicar su baile de boda.",
+      "includes": [
+        "Coreografía sobre su canción",
+        "Tres ensayos de una hora",
+        "Video final para repasar"
+      ],
+      "imageKey": "so-wedding",
+      "requestFlow": {
+        "title": "Solicitar coreografía",
+        "intro": "Es una solicitud: Valeria confirma las fechas antes de apartarlas.",
+        "submit": null,
+        "fields": [
+          {
+            "id": "date",
+            "label": "Fecha de la boda",
+            "placeholder": "Ej. 14 de diciembre",
+            "type": "text",
+            "options": null
+          },
+          {
+            "id": "song",
+            "label": "Canción",
+            "placeholder": "Título y artista",
+            "type": "text",
+            "options": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "show",
+      "category": "Shows",
+      "name": "Show para eventos",
+      "shortName": "Show para eventos",
+      "durationLabel": "45 min",
+      "durationMinutes": 45,
+      "priceLabel": "Cotización",
+      "priceAmount": null,
+      "currency": "MXN",
+      "mode": "quote",
+      "ctaLabel": "Consultar",
+      "description": "Presentación de salsa y bachata con pareja de baile para bodas y fiestas.",
+      "includes": [
+        "Show de 45 min con pareja",
+        "Momento para sacar a bailar a los invitados",
+        "Viáticos fuera de Mérida aparte"
+      ],
+      "imageKey": "so-show",
+      "requestFlow": {
+        "title": "Consultar show",
+        "intro": "Cuéntame del evento y te respondo con disponibilidad y tarifa.",
+        "submit": "Enviar consulta",
+        "fields": [
+          {
+            "id": "event",
+            "label": "Evento",
+            "placeholder": "Ej. boda en hacienda",
+            "type": "text",
+            "options": null
+          },
+          {
+            "id": "date",
+            "label": "Fecha",
+            "placeholder": "Ej. 30 de noviembre",
+            "type": "text",
+            "options": null
+          },
+          {
+            "id": "guests",
+            "label": "Invitados",
+            "placeholder": "Ej. 120",
+            "type": "text",
+            "options": null
+          }
+        ]
+      }
+    }
+  ],
+  "servicesSection": {
+    "eyebrow": "Clases",
+    "title": "Tómate tu tiempo",
+    "layout": "editorial-single (una columna, foto redonda)"
+  },
+  "portfolio": {
+    "eyebrow": "Espacio",
+    "title": "Donde bailamos",
+    "layout": "grid-2",
+    "items": [
+      {
+        "imageKey": "so-space-a",
+        "caption": null,
+        "alt": "Estudio con telas"
+      },
+      {
+        "imageKey": "so-show",
+        "caption": null,
+        "alt": "Valeria en el estudio"
+      }
+    ]
+  },
+  "contact": {
+    "eyebrow": "Contacto",
+    "title": "Cuando estés lista",
+    "text": "Escríbeme por el chat o reserva tu primera clase. Respondo el mismo día.",
+    "cta": "Reservar clase"
+  },
+  "faq": {
+    "eyebrow": null,
+    "title": null,
+    "items": [
+      {
+        "q": "¿Necesito experiencia?",
+        "a": "No. La primera clase empieza desde los pasos básicos."
+      },
+      {
+        "q": "¿Qué llevo?",
+        "a": "Ropa cómoda y zapatos que giren bien. Yo llevo la música."
+      },
+      {
+        "q": "¿Y si no tengo pareja?",
+        "a": "Bailas conmigo; en el paquete puedes alternar."
+      }
+    ]
+  },
+  "reviews": null,
+  "stats": [],
+  "location": null,
+  "footer": {
+    "line": "valeria-baila.tulala.digital · Hecho con Tulala"
+  },
+  "palettes": [
+    {
+      "key": "def",
+      "name": "Linen & Clay",
+      "accent": "#8A5A3C",
+      "bg": "#FFFFFF",
+      "ink": "#2B2620"
+    },
+    {
+      "key": "euca",
+      "name": "Eucalyptus",
+      "accent": "#3F6B5A",
+      "bg": "#FFFFFF",
+      "ink": "#1D2622"
+    },
+    {
+      "key": "dusk",
+      "name": "Dusk",
+      "accent": "#D9B48C",
+      "bg": "#1A1917",
+      "ink": "#F2EEE8"
+    }
+  ],
+  "mockupOnly": {
+    "note": "Fictional mockup data. Never written to the database by the demo rebuild. Draft photos are repo stock, not the talent.",
+    "domain": "valeria-baila.tulala.digital"
+  }
+}

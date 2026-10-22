@@ -17,7 +17,12 @@
   - three-question FAQ;
   - about, last.
 - **Images:** copies of repo stock photos, used only in the booking sheet and chat.
-- **Still missing before it can be finished:** `parity-map.json`, `content.json`, and
-  a Factory publish followed by `npm run theme:pull-authored -- --design mono`.
 - **Viewing locally:** serve `web/design-references` and open `/mono/`. `kit.js`
   drives the 390/360/1440 device switch and the journeys.
+- **Pack files:** `parity-map.json` (section map keyed by the mockup `data-w` units, with the
+  expectations the parity tool checks) and `content.json` (the reference demo's content,
+  taken from the mockup) are in place. Both are drafted from the mockup, not from an
+  Oran artifact.
+- **Status:** ready for Oran's pack approval. Not yet done: Factory publish, then
+  `npm run theme:pull-authored -- --design mono`; the design gap in
+  `COLLECTION_DESIGN_GAPS` stays open until then.
