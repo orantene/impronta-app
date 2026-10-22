@@ -34,6 +34,7 @@ src/lib/billing/cancel-state-notice.test.ts
 src/lib/billing/checkout-fee-lines.test.ts
 src/lib/billing/checkout-interval.test.ts
 src/lib/billing/checkout-session-sync.test.ts
+src/lib/billing/discount-archive-outcome.test.ts
 src/lib/billing/dunning-grace.test.ts
 src/lib/billing/dunning-notice.test.ts
 src/lib/billing/duplicate-subscription-wiring.static.test.ts

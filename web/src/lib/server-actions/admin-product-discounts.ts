@@ -49,6 +49,7 @@ import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
+import { archiveOutcome } from "@/lib/billing/discount-archive-outcome";
 import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
   PRODUCT_DISCOUNT_SELECT,
@@ -399,13 +400,15 @@ export async function archiveDiscount(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  if (row.stripe_promotion_code_id) {
-    await archiveDiscountInStripe({
-      stripePromotionCodeId: row.stripe_promotion_code_id,
-    });
-  }
+  const stripeArchive = await archiveDiscountInStripe({
+    stripePromotionCodeId: row.stripe_promotion_code_id,
+  });
 
   revalidateCommerceSurfaces();
+
+  // Our row is already off; a Stripe code that stayed on can still be typed in Checkout's own box, so say so.
+  const outcome = archiveOutcome(stripeArchive);
+  if (!outcome.ok) return outcome;
 
   await auditDiscountArchived({
     actorId: gate.userId,

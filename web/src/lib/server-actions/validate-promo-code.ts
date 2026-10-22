@@ -13,6 +13,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { validateDiscount } from "@/lib/server-actions/admin-product-discounts";
 import { TALENT_TIER_SLUG, INTERVAL_COLUMN } from "@/lib/stripe/price-catalog";
 import type { TalentPlanKey } from "@/lib/stripe/price-ids";
+import { isStripeConfigured } from "@/lib/stripe/client";
 import { logServerError } from "@/lib/server/safe-error";
 import { discountAppliesToSubject } from "@/lib/billing/checkout-discounts";
 import { loadActiveTierId, loadCanonicalUsdPriceCents } from "@/lib/billing/promo-catalog-reads";
@@ -21,6 +22,7 @@ import {
   discountAppliesToTier,
   PROMO_ERROR_MESSAGES,
   promoErrorFromReason,
+  isPromoSyncedToStripe,
   type PromoErrorCode,
   type PromoPreview,
 } from "@/lib/billing/promo-preview";
@@ -46,6 +48,7 @@ export async function validatePromoCode(
     return fail(promoErrorFromReason(validated.reason));
   }
   const d = validated.discount;
+  if (!isPromoSyncedToStripe(d, isStripeConfigured())) return fail("invalid");
   if (!discountAppliesToSubject(d.appliesFamily, "talent")) return fail("not_applicable");
 
   const admin = createServiceRoleClient();

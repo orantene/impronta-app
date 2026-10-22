@@ -55,6 +55,19 @@ export const PROMO_ERROR_MESSAGES: Record<PromoErrorCode, { en: string; es: stri
   },
 };
 
+/**
+ * A code saved while Stripe was unreachable has no coupon or promotion code
+ * ("amber" row): the preview would promise a discount that Checkout can never
+ * apply. With Stripe connected such a row is not a usable code yet.
+ */
+export function isPromoSyncedToStripe(
+  d: { stripeCouponId: string | null; stripePromotionCodeId: string | null },
+  stripeConfigured: boolean,
+): boolean {
+  if (!stripeConfigured) return true;
+  return Boolean(d.stripePromotionCodeId?.trim() || d.stripeCouponId?.trim());
+}
+
 /** Maps `validateDiscount`'s reason text to the code the UI localizes. */
 export function promoErrorFromReason(reason: string): PromoErrorCode {
   return /expired|no longer|started|limit/i.test(reason) ? "expired" : "invalid";
