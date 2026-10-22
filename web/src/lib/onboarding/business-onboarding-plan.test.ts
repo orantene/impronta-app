@@ -106,3 +106,18 @@ test("wiring: the arrival step renders the template for business arrivals and ge
   const mod = fs.readFileSync(path.join(root, "src/components/onboarding/onboarding-module.tsx"), "utf8");
   assert.match(mod, /<ArrivalStep\s+t=\{t\}\s+locale=\{locale\}/);
 });
+
+test("no duplicates: with the setup block, business Next steps drop services and photos rows; talent is unchanged", async () => {
+  const { buildArrivalNextSteps } = await import("./arrival-next-steps");
+  const t = (k: string) => k.replace(/^public\.onboarding\.arrival\./, "");
+  const href = "https://app.test/luna/admin/catalog";
+  const labels = (o: Parameters<typeof buildArrivalNextSteps>[0]) => buildArrivalNextSteps(o, t).map((s) => s.label);
+  assert.deepEqual(labels({ siteLive: false, business: true, servicesHref: href, setupBlock: true }), ["nextVisit", "nextCustomize", "nextDomain", "nextPremium"]);
+  // Without the block the old list is whole (other callers and tests).
+  assert.deepEqual(labels({ siteLive: false, business: true, servicesHref: href }), ["nextVisit", "nextServices", "nextCustomize", "nextPhotos", "nextDomain", "nextPremium"]);
+  // Talent arrivals never render the block, so their rows keep photos and services.
+  assert.ok(labels({ siteLive: false, business: false, servicesHref: href, setupBlock: false }).includes("nextTalentPhotos"));
+  const step = fs.readFileSync(path.join(root, "src/components/onboarding/steps/arrival-step.tsx"), "utf8");
+  assert.match(step, /setupBlock: business/);
+  assert.match(step, /step\.id === "services" && servicesHref/);
+});

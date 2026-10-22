@@ -127,7 +127,8 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = nu
   const business = arrival.variant === "business" || arrival.variant === "both" || arrival.variant === "fallback";
   const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
   // onb1-19: only tick rows with evidence (siteLive). Never i===0.
-  const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business, servicesHref: servicesHrefFor(arrival.panelHref, business) }, t);
+  const servicesHref = servicesHrefFor(arrival.panelHref, business);
+  const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business, servicesHref, setupBlock: business }, t);
   // TUL-1204 (NW5): a new business also sees its setup from the reusable template, with its own name and language.
   const setupPlan = business ? instantiateBusinessOnboarding({ businessName: arrival.businessName, locale, facts: factsFromArrival(arrival) }, t) : null;
 
@@ -241,7 +242,9 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = nu
               <li key={step.id} className="flex items-start gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }} data-done={step.done ? "true" : "false"} data-step={step.id}>
                 <span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: step.done ? "var(--tl-positive)" : "transparent", color: step.done ? "#fff" : "var(--tl-muted)", border: step.done ? "none" : "1px solid var(--tl-hairline-strong)" }}>{step.done ? "✓" : ""}</span>
                 <span>
-                  <span className="font-semibold">{step.title}</span>
+                  {step.id === "services" && servicesHref ? (
+                    <a href={servicesHref} data-testid="onb-next-step-services" className="font-semibold underline underline-offset-2">{step.title}</a>
+                  ) : <span className="font-semibold">{step.title}</span>}
                   <span className="block text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{step.description}</span>
                 </span>
               </li>

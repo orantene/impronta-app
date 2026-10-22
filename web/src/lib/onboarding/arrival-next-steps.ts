@@ -23,10 +23,10 @@ export function servicesHrefFor(panelHref: string | null | undefined, business: 
 }
 
 export function buildArrivalNextSteps(
-  opts: { siteLive: boolean; business: boolean; servicesHref?: string | null },
+  opts: { siteLive: boolean; business: boolean; servicesHref?: string | null; /** The "Set up {business}" block is shown, so it owns services and photos (no duplicate rows). */ setupBlock?: boolean },
   t: (key: string) => string,
 ): ArrivalNextStep[] {
-  const services: ArrivalNextStep[] = opts.servicesHref
+  const services: ArrivalNextStep[] = opts.servicesHref && !(opts.business && opts.setupBlock)
     ? [{ label: t("public.onboarding.arrival.nextServices"), done: false, href: opts.servicesHref }]
     : [];
   if (opts.siteLive) {
@@ -42,7 +42,7 @@ export function buildArrivalNextSteps(
       { label: t("public.onboarding.arrival.nextVisit"), done: false },
       ...services,
       { label: t("public.onboarding.arrival.nextCustomize"), done: false },
-      { label: t("public.onboarding.arrival.nextPhotos"), done: false },
+      ...(opts.setupBlock ? [] : [{ label: t("public.onboarding.arrival.nextPhotos"), done: false }]),
       { label: t("public.onboarding.arrival.nextDomain"), done: false },
       { label: t("public.onboarding.arrival.nextPremium"), done: false },
     ];
