@@ -2257,6 +2257,17 @@
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",
         "draftDetails": "Detalles para soporte",
+        "draftTech": {
+          "saved": "Guardado como borrador",
+          "status": "La dirección respondió con el error {status}",
+          "statusUnknown": "La dirección respondió con un error",
+          "network": "La dirección no respondió",
+          "nameMissing": "La página abrió sin tu nombre",
+          "noName": "La página todavía no tiene nombre",
+          "noUrl": "La página todavía no tiene dirección",
+          "protected": "La dirección está detrás de un inicio de sesión",
+          "unknown": "Todavía sin confirmar"
+        },
         "draftSub": "Todo lo que nos contaste está guardado, pero tu página todavía no abre en línea. Inténtalo de nuevo o ábrela en el editor.",
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",

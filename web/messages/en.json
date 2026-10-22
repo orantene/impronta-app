@@ -2257,6 +2257,17 @@
         "draftTitle": "Your draft is saved",
         "draftReason": "Your page did not go online on this try. This is usually temporary and nothing you entered is lost. Try again first.",
         "draftDetails": "Details for support",
+        "draftTech": {
+          "saved": "Saved as a draft",
+          "status": "Address answered with error {status}",
+          "statusUnknown": "Address answered with an error",
+          "network": "Address did not answer",
+          "nameMissing": "Page opened without your name",
+          "noName": "Page has no name yet",
+          "noUrl": "Page has no address yet",
+          "protected": "Address is behind a sign-in wall",
+          "unknown": "Not confirmed yet"
+        },
         "draftSub": "Everything you told us is saved, but your page does not open online yet. Try again or open it in the editor.",
         "draftSubStudio": "Everything you told us is saved, but your site does not open online yet. Try again or open it in the editor.",
         "openEditor": "Open the editor",
