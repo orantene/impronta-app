@@ -57,3 +57,12 @@ export function hubDisplayTagline(tagline: string | null | undefined, localizedF
   const v = tagline?.trim();
   return v && !SEEDED_HUB_TAGLINES.has(v.toLowerCase()) ? v : localizedFallback;
 }
+
+/**
+ * TUL-1884: the seeded hub homepage row (cms_pages) also carries the literal "Impronta Hub" as its
+ * title and meta title. A placeholder never beats the localized fallback; an operator's own title does.
+ */
+export function hubCmsTitle(title: string | null | undefined, localizedFallback: string): string {
+  const v = title?.trim();
+  return v && !SEEDED_HUB_NAMES.has(v.toLowerCase()) ? v : localizedFallback;
+}

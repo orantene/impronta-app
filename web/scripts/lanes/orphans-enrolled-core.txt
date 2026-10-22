@@ -129,6 +129,7 @@ src/components/client-account/client-account-empty-copy.static.test.ts
 src/components/consent/consent-embed-logic.test.ts
 src/components/directory/directory-inquiry-sheet-locale.static.test.ts
 src/components/home/data-sources-tenant-id.static.test.ts
+src/components/home/hub-agency-model.test.ts
 src/components/home/location-map-home-market.test.ts
 src/components/inquiry/event-date-input-aria.test.tsx
 src/components/inquiry/event-date-input.test.tsx
@@ -338,6 +339,7 @@ src/lib/saas/custom-domain-routing.test.ts
 src/lib/saas/domain-display.test.ts
 src/lib/saas/guest-roster-scope.static.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
+src/lib/saas/hub-locale-1883.test.ts
 src/lib/saas/hub-search-redirect.test.ts
 src/lib/saas/inquiry-manager-denied.test.ts
 src/lib/saas/redirect-query.security.test.ts

@@ -1811,7 +1811,9 @@
       "noAgencies": "No active agency domains yet.",
       "searchAgencies": "Search agencies",
       "noMatch": "No agencies match your search.",
-      "featured": "Featured on the hub"
+      "featured": "Featured on the hub",
+      "seeAll": "See all {count} agencies",
+      "showFewer": "Show fewer"
     },
     "menuBoard": {
       "contactRequired": "Name, email, and phone are required.",

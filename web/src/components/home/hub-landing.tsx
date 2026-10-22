@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { HubAgencyList } from "./hub-agency-list";
-import { hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
+import { filterPublicHubAgencies, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
+import { hubCmsTitle, hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -48,7 +49,7 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
   const t = createTranslator(locale);
   const kicker = hubDisplayName(identity?.public_name, PLATFORM_BRAND.name); // TUL-1884
   const tagline = hubDisplayTagline(identity?.tagline, t("public.hubLanding.tagline"));
-  const heroTitle = cmsHomepage?.title ?? t("public.hubLanding.agenciesTitle");
+  const heroTitle = hubCmsTitle(cmsHomepage?.title, t("public.hubLanding.agenciesTitle")); // TUL-1884
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-background">
@@ -83,7 +84,12 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
         ) : (
           <HubAgencyList
             agencies={agencies}
-            labels={{ search: t("public.hubLanding.searchAgencies"), noMatch: t("public.hubLanding.noMatch") }}
+            labels={{
+              search: t("public.hubLanding.searchAgencies"),
+              noMatch: t("public.hubLanding.noMatch"),
+              seeAll: t("public.hubLanding.seeAll"),
+              showFewer: t("public.hubLanding.showFewer"),
+            }}
           />
         )}
 
@@ -261,9 +267,8 @@ async function loadHubApprovedTalent(
 }
 
 type AgencyDomainRow = { hostname: string; kind: string; tenant_id?: string | null };
-type HubAgencyRow = { hostname: string; name: string | null };
 
-async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
+async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
   const { data } = await supabase
@@ -278,26 +283,43 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
 
   // TUL-978: show the tenant's name, not just its raw domain. Names are public
   // (they head every storefront); a failed read only costs the nicer label.
-  const names = new Map<string, string>();
+  type AgencyMeta = Pick<HubAgencyCandidate, "name" | "status" | "discoverExposureEnabled" | "settings">;
+  const meta = new Map<string, AgencyMeta>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
   if (admin && tenantIds.length > 0) {
-    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name").in("id", tenantIds);
+    // TUL-1884: status + exposure + settings flags decide whether a workspace is listed publicly.
+    const { data: agencyRows, error: namesError } = await admin
+      .from("agencies")
+      .select("id, display_name, status, discover_exposure_enabled, settings")
+      .in("id", tenantIds);
     if (namesError) logServerError("hubLanding.agencyNames", namesError);
-    for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null }>) {
-      const n = a.display_name?.trim();
-      if (n) names.set(a.id, n);
+    for (const a of (agencyRows ?? []) as Array<{
+      id: string;
+      display_name: string | null;
+      status: string | null;
+      discover_exposure_enabled: boolean | null;
+      settings: Record<string, unknown> | null;
+    }>) {
+      meta.set(a.id, {
+        name: a.display_name?.trim() || null,
+        status: a.status,
+        discoverExposureEnabled: a.discover_exposure_enabled,
+        settings: a.settings,
+      });
     }
   }
   // TUL-1843: staging rows carry production-pattern `*.tulala.digital` hostnames; re-home them
   // onto this environment's root so a staging hub never links to production. Dedupe after.
   const seen = new Set<string>();
-  const out: HubAgencyRow[] = [];
+  const candidates: HubAgencyCandidate[] = [];
   for (const r of rows) {
     const hostname = rehomeToPublicRoot(r.hostname);
     if (seen.has(hostname)) continue;
     seen.add(hostname);
-    out.push({ hostname, name: (r.tenant_id && names.get(r.tenant_id)) || null });
+    // A domain whose workspace row could not be read has no name or status: it is not listed.
+    const m = r.tenant_id ? meta.get(r.tenant_id) : undefined;
+    candidates.push({ hostname, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings });
   }
-  return out;
+  return filterPublicHubAgencies(candidates);
 }

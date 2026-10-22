@@ -1811,7 +1811,9 @@
       "noAgencies": "Aún no hay agencias activas.",
       "searchAgencies": "Buscar agencias",
       "noMatch": "Ninguna agencia coincide con tu búsqueda.",
-      "featured": "Destacados en el hub"
+      "featured": "Destacados en el hub",
+      "seeAll": "Ver las {count} agencias",
+      "showFewer": "Ver menos"
     },
     "menuBoard": {
       "contactRequired": "El nombre, el correo y el teléfono son obligatorios.",
