@@ -20,8 +20,9 @@ export async function pingIndexNowForCmsPage(
   sb: SupabaseClient,
   tenantId: string,
   page: { locale: string; slug: string },
+  options: { admin?: SupabaseClient | null } = {},
 ): Promise<void> {
-  const base = await resolveTenantPublicOriginForIndexNow(sb, tenantId);
+  const base = await resolveTenantPublicOriginForIndexNow(sb, tenantId, options);
   if (!base) return;
   const path = cmsPageIndexNowPath(page.locale, page.slug);
   await pingIndexNowUrl(path === "/" ? base : `${base}${path}`);

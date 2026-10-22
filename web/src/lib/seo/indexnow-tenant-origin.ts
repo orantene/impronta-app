@@ -2,11 +2,13 @@
  * Public base URL of a tenant for IndexNow pings (TUL-589 S slice, widened by TUL-1777). Returns the tenant's best live
  * domain, or, when it has none, its `/w/<slug>` workspace site on this environment's public root
  * (`resolvePublicRootOrigin`, which is `tulala.digital` in production). The caller appends the page path to the result.
- * Null only when the tenant has neither a live domain nor a slug.
+ * Null when the tenant has neither a live domain nor a slug, or is a demo/test workspace (TUL-1931).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isLiveDomainStatus } from "@/lib/saas/workspace-live-url";
 import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantHasRealOwnerForIndexNow } from "./indexnow-test-owner";
 
 /**
  * The tenant's best live domain — primary first, then a custom domain over a
@@ -15,7 +17,11 @@ import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 export async function resolveTenantPublicOriginForIndexNow(
   sb: SupabaseClient,
   tenantId: string,
+  options: { admin?: SupabaseClient | null } = {},
 ): Promise<string | null> {
+  // TUL-1931: no pings for demo/test workspaces (owner is a test account). Fails closed: a lookup error means skip.
+  const admin = options.admin !== undefined ? options.admin : createServiceRoleClient();
+  if (!(await tenantHasRealOwnerForIndexNow(admin, tenantId))) return null;
   // supabase-read-unchecked-ok: best-effort IndexNow ping; a failed read is
   // the same as "no live domain" (null, nothing to ping).
   const { data } = await sb

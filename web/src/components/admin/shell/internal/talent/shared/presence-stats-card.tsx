@@ -15,6 +15,7 @@ import type {
   TalentPresenceStats,
 } from "@/lib/analytics/talent-presence-stats";
 import { presenceCardView } from "./presence-card-view";
+import { PresenceLockedUpsell } from "./presence-locked-upsell";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 
@@ -76,23 +77,8 @@ export function TalentPresenceStatsCard() {
   const es = copy.isSpanish;
   const view = presenceCardView(talentTier, stats);
   if (view === "locked") {
-    // Plan gate: visits, sources and bookings are Pro and Max. Say so instead of showing nothing.
-    return (
-      <section
-        aria-label={es ? "Mi presencia, ultimos 30 dias" : "My presence, last 30 days"}
-        className="rounded-admin-lg border border-admin-border bg-admin-card p-4"
-      >
-        <h2 className="text-sm font-semibold text-admin-ink">{es ? "Mi presencia" : "My presence"}</h2>
-        <p className="mt-1 text-sm text-admin-ink-muted">
-          {es
-            ? "Visitas, de dónde llegan y solicitudes de tu perfil están en los planes Pro y Max."
-            : "Visits, where they come from and requests for your profile are on the Pro and Max plans."}
-        </p>
-        <Link href="/talent/plan" className="mt-2 inline-block text-xs text-admin-ink-muted underline-offset-2 hover:underline">
-          {es ? "Ver planes" : "See plans"}
-        </Link>
-      </section>
-    );
+    // Plan gate: visits, sources and bookings are Pro and Max. Real upsell instead of a bare link (TUL-1930).
+    return <PresenceLockedUpsell es={es} />;
   }
 
   return (
