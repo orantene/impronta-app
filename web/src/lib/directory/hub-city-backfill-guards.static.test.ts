@@ -6,7 +6,7 @@ import { test } from "node:test";
 // TUL-1233 / TUL-1789: facet counts read residence_city_id / location_id while cards fall back to home_city_text,
 // so staging showed 92 profiles beside "Mexico (1)". The held backfill fills the ids from the text; this pins its guards.
 const sql = readFileSync(
-  join(process.cwd(), "..", "supabase/migrations/_pending_pm/20261231426000_backfill_talent_residence_city_from_text_tul1233.sql"),
+  join(process.cwd(), "..", "supabase/migrations/20261231431800_backfill_talent_residence_city_from_text_tul1233.sql"),
   "utf8",
 );
 // Executable SQL only (the header documents a preview SELECT in comments).
