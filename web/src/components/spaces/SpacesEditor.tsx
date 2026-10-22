@@ -37,7 +37,24 @@ const C = {
 const FONT = '"Inter", system-ui, sans-serif';
 const K = "dashboard.adminWorkspace.venue";
 
-export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
+// Server messages are English; the page maps the stable ones to the catalog (TUL-1409).
+const SERVER_ERROR_KEYS: Record<string, string> = {
+  "This workspace has no venue yet.": "errorNoVenue",
+  "Not allowed.": "errorNotAllowed",
+  "Give the room a name.": "errorRoomName",
+  "Could not add the room.": "errorRoomAdd",
+  "A party is at least one person.": "errorPartyMin",
+  "The largest party cannot be smaller than the smallest.": "errorPartyRange",
+  "Name the group these belong to.": "errorGroupName",
+  "Something went wrong.": "errorGeneric",
+};
+
+function localizeServerError(t: (key: string) => string, message: string): string {
+  const key = SERVER_ERROR_KEYS[message];
+  return key ? t(`${K}.${key}`) : message;
+}
+
+export function SpacesEditor({ tenantSlug, reloadKey = 0 }: { tenantSlug: string; reloadKey?: number }) {
   const t = useT();
   const [snapshot, setSnapshot] = useState<SpacesSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,13 +69,16 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
   const [partyMax, setPartyMax] = useState(2);
   const [groupName, setGroupName] = useState("");
 
+  const showError = (message: string) => setError(localizeServerError(t, message));
+
   useEffect(() => {
     let cancelled = false;
+    setError(null);
     loadSpacesSnapshot(tenantSlug)
       .then((res) => {
         if (cancelled) return;
         if (res.ok) setSnapshot(res.snapshot);
-        else setError(res.error);
+        else setError(localizeServerError(t, res.error));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -66,7 +86,7 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [tenantSlug]);
+  }, [tenantSlug, reloadKey, t]);
 
   const rooms = (snapshot?.spaces ?? []).filter((s) => s.kind === "room");
   // TUL-1375: a space with nothing inside it and its own pool is held by bookings of the
@@ -89,7 +109,7 @@ export function SpacesEditor({ tenantSlug }: { tenantSlug: string }) {
     startTransition(async () => {
       const res = await run();
       if (res.ok && res.snapshot) setSnapshot(res.snapshot);
-      else setError(res.error ?? "Something went wrong.");
+      else showError(res.error ?? "Something went wrong.");
     });
   }
 

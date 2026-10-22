@@ -26,6 +26,28 @@ export function defaultCurrencyForCountry(country: string | null | undefined, fa
   return COUNTRY_CURRENCY[key] ?? fallback;
 }
 
+/**
+ * TUL-1409: the currency most of a workspace's existing items already use, or
+ * null when it has none. A new item should not default to a different currency
+ * than every sibling just because the address has no mapped country.
+ */
+export function dominantItemCurrency(currencies: ReadonlyArray<string | null | undefined>): string | null {
+  const counts = new Map<string, number>();
+  for (const raw of currencies) {
+    const code = (raw ?? "").trim().toUpperCase();
+    if (code.length >= 3) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = 0;
+  for (const [code, n] of counts) {
+    if (n > bestCount) {
+      best = code;
+      bestCount = n;
+    }
+  }
+  return best;
+}
+
 /** Families that sell things people take home. Everything else sells a service. */
 const PRODUCT_FAMILIES: ReadonlySet<BusinessFamilyId> = new Set<BusinessFamilyId>(["dining", "craft"]);
 
