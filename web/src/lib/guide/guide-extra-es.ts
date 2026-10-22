@@ -18,3 +18,52 @@ export const GUIDE_EXTRA_ES: Readonly<Record<string, GuideExtraEs>> = {
     ],
   },
 };
+
+/** Guide titles for talent-facing nodes that have no catalog label or registry short title (TUL-602). */
+export const GUIDE_TITLES_ES: Readonly<Record<string, string>> = {
+  "talent-today-pulse": "Tu día de un vistazo",
+  "talent-booking-detail": "Detalle de la reserva",
+  "talent-limits": "Tus límites",
+  "talent-travel": "Viajes",
+  "talent-links": "Tus enlaces",
+  "talent-reviews": "Reseñas",
+  "talent-documents": "Documentos",
+  "talent-media-kit": "Kit de prensa",
+  "talent-notifications": "Tus notificaciones",
+  "talent-voice-reply": "Respuesta de voz",
+  "talent-chat-archive": "Chats archivados",
+  "talent-share-card": "Tarjeta para compartir",
+  "payout-method-failure": "Falla en tu método de cobro",
+  "subscription-lifecycle": "Ciclo de tu suscripción",
+  "notification-detail": "Detalle de una notificación",
+  "support-ticket": "Tu ticket de soporte",
+};
+
+export const GUIDE_TITLES_EN: Readonly<Record<string, string>> = {
+  "talent-today-pulse": "Your day at a glance",
+  "talent-booking-detail": "Booking details",
+  "talent-limits": "Your limits",
+  "talent-travel": "Travel",
+  "talent-links": "Your links",
+  "talent-reviews": "Reviews",
+  "talent-documents": "Documents",
+  "talent-media-kit": "Media kit",
+  "talent-notifications": "Your notifications",
+  "talent-voice-reply": "Voice reply",
+  "talent-chat-archive": "Archived chats",
+  "talent-share-card": "Share card",
+  "payout-method-failure": "Payout method problem",
+  "subscription-lifecycle": "Your subscription",
+  "notification-detail": "Notification details",
+  "support-ticket": "Your support ticket",
+};
+
+/** Spanish purpose and steps for the support-ticket node, which the catalog lacks. */
+export const SUPPORT_TICKET_ES = {
+  purpose: "Tu conversación con el soporte de Tulala. Cada ticket queda ligado a este espacio y a tu usuario.",
+  steps: [
+    "Lee la conversación completa, incluidas las actualizaciones del sistema",
+    "Responde para que soporte pueda seguir ayudándote",
+    "Califica la solución cuando el ticket se marque como resuelto",
+  ],
+} as const;
