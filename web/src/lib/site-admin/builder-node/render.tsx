@@ -27,6 +27,7 @@ import {
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
 import { prefixPublicHref } from "@/lib/saas/public-hrefs";
 import { rosterGridEntries } from "@/lib/service-hub/roster-grid";
+import { WORKSPACE_REQUEST_PATH } from "@/lib/service-hub/roster-request";
 import { RosterServicesGrid } from "./roster-services-grid";
 import { pickLocale } from "@/lib/i18n/pick-locale";
 import { hcaptchaLocale } from "@/lib/i18n/vendor-locale";
@@ -6274,7 +6275,7 @@ function renderBuilderNodeElement(
               entries={rosterGridEntries(
                 options.dataSources.rosterServices,
                 locale,
-                prefixPublicHref("/contact", options.publicPathPrefix ?? ""),
+                prefixPublicHref(WORKSPACE_REQUEST_PATH, options.publicPathPrefix ?? ""),
               )}
               locale={locale}
             />

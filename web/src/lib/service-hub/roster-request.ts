@@ -15,6 +15,13 @@ const isEs = (locale: string) => locale.toLowerCase().startsWith("es");
 
 export const CONTACT_PREFILL_MAX_LENGTH = 600;
 
+/**
+ * TUL-1844: where a roster/hub "Request" button goes. NOT `/contact`: on a business (agency) host
+ * `/contact` is a CMS page the owner may never have made (it 404s), while `/book` is on the host
+ * allow-list, so `/book/request` always exists and renders the workspace inquiry form.
+ */
+export const WORKSPACE_REQUEST_PATH = "/book/request";
+
 export function rosterRequestMessage(item: RosterServiceItem, locale: string): string {
   const who = item.talentName?.trim() || null;
   return isEs(locale)
