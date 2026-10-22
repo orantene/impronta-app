@@ -53,6 +53,7 @@ import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDra
 import { authEmailHasPlusTag, OTP_CODE_LENGTH, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
 import { AUTH_ERROR_IDS, authErrorField } from "@/lib/auth/auth-error-field";
+import { useSignupFieldCheck } from "@/lib/auth/use-signup-field-check";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -223,10 +224,15 @@ export function EmailCodeForm({
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
   useFocusFirstInvalidOnError(stepError);
-  const errField = authErrorField(stepError, {
+  const errMessages = {
     invalidEmail: t("public.auth.actions.invalidEmail"),
     ageTermsRequired: t("public.auth.actions.ageTermsRequired"),
-  });
+    nameRequired: t("public.auth.actions.nameRequired"),
+  };
+  // Sign-up only: the login lane (allowCreate false) keeps the server-only answers.
+  const check = useSignupFieldCheck(allowCreate && collectName, errMessages);
+  const shownError = allowCreate ? (check.clientError ?? stepError) : stepError;
+  const errField = (allowCreate ? check.clientField : null) ?? authErrorField(stepError, errMessages);
 
   if (showPassword && passwordFallback) {
     return (
@@ -369,7 +375,8 @@ export function EmailCodeForm({
         action={sendAction}
         noValidate // TUL-893: the server answers in the page language; no English browser tooltip
         className={`space-y-3.5 ${passwordFallback ? METHOD_SWAP_RESERVE : ""}`}
-        onSubmit={() => {
+        onSubmit={(e) => {
+          if (allowCreate && !check.onSubmit(e)) return;
           setBackToEmail(false);
           setLane("send");
         }}
@@ -381,13 +388,20 @@ export function EmailCodeForm({
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
         {allowCreate && collectName ? (
-          <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
+          <AuthField
+            label={t("public.auth.form.name")}
+            htmlFor="full_name"
+            error={errField === "name" ? shownError : undefined}
+            errorId={AUTH_ERROR_IDS.name}
+          >
             <input
               id="full_name"
               name="full_name"
               type="text"
               autoComplete="name"
               required
+              aria-invalid={errField === "name" ? true : undefined}
+              aria-describedby={errField === "name" ? AUTH_ERROR_IDS.name : undefined}
               maxLength={120}
               defaultValue={readAuthNameDraft()}
               onChange={(e) => writeAuthNameDraft(e.target.value)}
@@ -402,8 +416,8 @@ export function EmailCodeForm({
           label={t("public.auth.form.email")}
           htmlFor="email"
           hintLines={2}
-          error={stepError}
-          errorId={AUTH_ERROR_IDS[errField ?? "form"]}
+          error={errField === "email" || errField === "form" ? shownError ?? undefined : undefined}
+          errorId={AUTH_ERROR_IDS[errField === "email" ? "email" : "form"]}
           hint={
             authEmailHasPlusTag(emailDraft)
               ? t("public.auth.passwordless.plusEmailHint")
@@ -435,6 +449,7 @@ export function EmailCodeForm({
             marketingOrigin={marketingOrigin}
             invalid={errField === "consent"}
             errorId={AUTH_ERROR_IDS.consent}
+            error={errField === "consent" ? shownError ?? undefined : undefined}
           />
         ) : null}
 
