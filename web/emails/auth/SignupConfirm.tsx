@@ -12,6 +12,8 @@ interface Props {
    * has to carry it; the button stays the primary action for everyone else.
    */
   code?: string;
+  /** TUL-910: `client` swaps in the client-account wording (EN + ES). */
+  audience?: "client";
   brand?: EmailBrand;
 }
 
@@ -22,12 +24,20 @@ function groupDigits(code: string): string {
   return `${code.slice(0, half)} ${code.slice(half)}`;
 }
 
-export default function SignupConfirm({ confirmUrl, code, brand }: Props) {
+export default function SignupConfirm({ confirmUrl, code, audience, brand }: Props) {
   const t = getEmailCopy(brand?.locale)["auth.signup"];
   return (
     <Layout preview={t.preview} brand={brand}>
       <Heading style={h2}>{t.heading}</Heading>
-      <Text style={body}>{code ? t.introWithCode : t.intro}</Text>
+      <Text style={body}>
+        {audience === "client"
+          ? code
+            ? t.introClientWithCode
+            : t.introClient
+          : code
+            ? t.introWithCode
+            : t.intro}
+      </Text>
       {code ? (
         <Section style={codeBox}>
           {/* Wrapped in an inert anchor so iOS Mail / Gmail do not turn eight

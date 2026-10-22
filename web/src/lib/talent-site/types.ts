@@ -134,7 +134,15 @@ export type TalentSiteDashboardState = {
   isPubliclyHidden: boolean;
   templateKey: string | null;
   compositionMode: TalentSiteCompositionMode | null;
-  availableTemplates: { key: string; label: string; blurb: string; thumbnailUrl: string }[];
+  /** Every template; `locked` ones need a higher plan (shown with a lock, not hidden). */
+  availableTemplates: {
+    key: string;
+    label: string;
+    blurb: string;
+    thumbnailUrl: string;
+    availableAt: "free" | "pro" | "max";
+    locked: boolean;
+  }[];
   site: {
     id: string;
     status: TalentSiteStatus;

@@ -40,7 +40,7 @@ export async function getResolvedSkills(input: {
   | { ok: true; skills: ResolvedSkill[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1040,7 +1040,7 @@ export async function getEnabledParentCategoriesForPicker(): Promise<
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1095,7 +1095,7 @@ export async function getAgencySkillOverrides(input: {
   | { ok: true; overrides: AgencySkillOverride[] }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 
@@ -1289,7 +1289,7 @@ export async function getAspirations(input: {
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1419,7 +1419,7 @@ export async function getTalentTypesUnderParent(input: {
     }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase } = auth;
 
@@ -1540,7 +1540,7 @@ export async function getTalentTypesUnderParent(input: {
 export async function getUnpublishableSkillsForTenant(input: {
   talent_profile_id: string;
 }): Promise<{ ok: true; unpublishable: { term_id: string; label: string }[] }> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: true, unpublishable: [] };
   const { supabase, tenantId } = auth;
 

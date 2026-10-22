@@ -97,7 +97,7 @@ export async function searchTalent(
   | { ok: true; results: SearchTalentResult[]; total_count: number }
   | { ok: false; error: string }
 > {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) return { ok: false, error: auth.error };
   const { supabase, tenantId } = auth;
 

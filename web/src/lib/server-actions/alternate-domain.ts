@@ -55,7 +55,10 @@ export async function addAlternateDomain(
 ): Promise<AddAlternateDomainResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: manage_agency_domains is the capability the rest of the domain
+    // surface (domain-actions.ts, admin-tracking.ts, admin-code-snippets.ts)
+    // already gates on (owner-only); the default here was viewer-held.
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_domains" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId, user, supabase } = auth;
 
@@ -192,7 +195,9 @@ export async function removeAlternateDomain(
 ): Promise<ServerActionResult> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    // TUL-1708: same capability as addAlternateDomain (manage_agency_domains,
+    // owner-only); this writer previously had no secondary role check at all.
+    const auth = await requireWorkspaceStaffAction({ capability: "manage_agency_domains" });
     if (!auth.ok) return { ok: false, error: "Not authenticated.", reason: "unauthenticated" };
     const { tenantId } = auth;
 

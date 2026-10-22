@@ -96,3 +96,16 @@ test("TUL-540: the talent 'what' line reads work.industry when no discipline was
   const u = buildUnderstanding({ brief, intent: "talent", userPath: "talent" });
   assert.equal(u.lines.find((l) => l.id === "what")?.value, "Maquillaje");
 });
+
+test("/start summary: an earlier blank fact for a key does not hide the value the person gave", () => {
+  const base = briefFromOnboardingFixture(fixtureById("rosa"));
+  const blank = (factKey: string) => ({ factKey, value: "", source: "ai_inference" as const, status: "needs_approval" as const, confidence: 0.2, sourceExcerpt: null, sourceUrl: null, questionId: null, questionVersion: null, updatedAt: "" });
+  const said = (factKey: string, value: string) => ({ factKey, value, source: "user_stated" as const, status: "confirmed" as const, confidence: 1, sourceExcerpt: null, sourceUrl: null, questionId: null, questionVersion: null, updatedAt: "" });
+  const facts = base.facts.filter((f) => !["work.discipline", "work.industry", "person.city"].includes(f.factKey));
+  const brief = { ...base, facts: [blank("work.discipline"), blank("person.city"), ...facts, said("work.discipline", "Peluquera"), said("person.city", "Tulum")] };
+  const u = buildUnderstanding({ brief, intent: "talent", locale: "es" });
+  assert.equal(u.lines.find((l) => l.id === "what")?.value, "Peluquera");
+  assert.equal(u.lines.find((l) => l.id === "what")?.status, "known");
+  assert.equal(u.lines.find((l) => l.id === "city")?.value, "Tulum");
+  assert.equal(u.lines.find((l) => l.id === "city")?.status, "known");
+});

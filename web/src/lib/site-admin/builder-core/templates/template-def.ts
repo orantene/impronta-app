@@ -72,6 +72,8 @@ export interface UnifiedTemplateDef {
    * Used by talent-site picker to grey-out locked templates.
    */
   tier?: TemplateTier;
+  /** True when the viewer's plan cannot apply it yet; the picker shows a lock and an upgrade action. */
+  locked?: boolean;
   /**
    * Which builder surface(s) this design targets. Present for page-design
    * starters; absent for surface-specific registries.

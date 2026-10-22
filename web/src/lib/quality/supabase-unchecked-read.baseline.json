@@ -262,7 +262,7 @@
   "src/lib/server-actions/admin-talent-extras.ts": 6,
   "src/lib/server-actions/admin-talent-field-values.ts": 5,
   "src/lib/server-actions/admin-talent-metrics.ts": 1,
-  "src/lib/server-actions/admin-talent-profile-sections.ts": 2,
+  "src/lib/server-actions/admin-talent-profile-sections.ts": 1,
   "src/lib/server-actions/admin-talent-roster.ts": 3,
   "src/lib/server-actions/admin-talent-service-areas.ts": 2,
   "src/lib/server-actions/admin-talent-skills.ts": 17,

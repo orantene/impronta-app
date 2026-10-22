@@ -48,6 +48,12 @@ export type BillingActionResult =
     }
   | { ok: false; error: string; noStripe?: boolean };
 
+/** Early refusals used to return silently; this names the reason in the server log (no secrets, no PII). */
+function refuseUpgrade(reason: string, error: string): BillingActionResult {
+  logServerError("stripe-billing-actions.startUpgrade.refused", new Error(`reason=${reason}`));
+  return { ok: false, error };
+}
+
 /**
  * Initiates a Stripe Checkout session for upgrading to a paid workspace plan.
  *
@@ -75,12 +81,12 @@ export async function startWorkspaceUpgrade(
   interval?: string | null,
 ): Promise<BillingActionResult> {
   const readOnly = await assertNotImpersonating();
-  if (!readOnly.ok) return { ok: false, error: readOnly.error };
+  if (!readOnly.ok) return refuseUpgrade("impersonating", readOnly.error);
   if (!isStripeConfigured()) {
-    return { ok: false, error: "Billing is not available yet. Contact support to upgrade." };
+    return refuseUpgrade("stripe_not_configured", "Billing is not available yet. Contact support to upgrade.");
   }
   if (door && !isTrialDoorId(door.id)) {
-    return { ok: false, error: "Unknown upgrade entry point." };
+    return refuseUpgrade("unknown_door", "Unknown upgrade entry point.");
   }
 
   // Network has no catalog price, so it is not self-serve. Giving it an active
@@ -91,17 +97,17 @@ export async function startWorkspaceUpgrade(
 
   const session = await getCachedActorSession();
   if (!session.user) {
-    return { ok: false, error: "Not authenticated." };
+    return refuseUpgrade("not_authenticated", "Not authenticated.");
   }
 
   const scope = await getTenantScopeBySlug(tenantSlug);
   if (!scope) {
-    return { ok: false, error: "Workspace not found." };
+    return refuseUpgrade("workspace_not_found", "Workspace not found.");
   }
 
   const canManageBilling = await userHasCapability("manage_billing", scope.tenantId);
   if (!canManageBilling) {
-    return { ok: false, error: "You don't have permission to manage billing." };
+    return refuseUpgrade("no_manage_billing", "You don't have permission to manage billing.");
   }
 
   // A workspace that ALREADY has a live Stripe subscription must not be sent
@@ -134,7 +140,9 @@ export async function startWorkspaceUpgrade(
   const campaignPromo =
     promoCode ?? (await loadTenantCampaignPromo(scope.tenantId));
 
-  const result = await createWorkspaceCheckoutSession({
+  let result: Awaited<ReturnType<typeof createWorkspaceCheckoutSession>>;
+  try {
+  result = await createWorkspaceCheckoutSession({
     tenantId:    scope.tenantId,
     planKey,
     ownerEmail:  session.user.email ?? "",
@@ -152,6 +160,11 @@ export async function startWorkspaceUpgrade(
         : null,
     interval: interval ?? null,
   });
+  } catch (err) {
+    // A throw here used to surface as a generic client failure with no named reason.
+    logServerError(`stripe-billing-actions.startUpgrade.threw plan=${planKey}`, err);
+    return { ok: false, error: "Could not create checkout session." };
+  }
 
   if (!result.ok) {
     logServerError("stripe-billing-actions.startUpgrade", result.error);

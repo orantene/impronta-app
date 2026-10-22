@@ -186,6 +186,8 @@ export type TalentOffering = {
   prepStationId?: string | null;
   /** Sold at the counter (separate from status). undefined = the column is not applied yet. */
   posEnabled?: boolean;
+  /** The venue's table-reservation offering: listed in the Catalog, never sold as a dish (TUL-1262). */
+  reservation?: boolean;
   sortOrder: number;
   /** Long-tail sink (variations/add-ons sub-shapes, compliance, quote vars). */
   attributes: Record<string, unknown>;

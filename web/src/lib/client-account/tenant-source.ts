@@ -40,3 +40,14 @@ export function decideAccountTenantSource(input: {
   }
   return null;
 }
+
+/**
+ * TUL-1317 / TUL-65: on the hub, app and marketing hosts the account is the client's WHOLE
+ * account (one list across tenants, like `client_favorites`), so the saved roster filter and
+ * the reviews tenant filter do not apply. The tenant here is the platform hub tenant; a
+ * favourite or a review request on an agency's talent would never match it, which left Saved
+ * and Reviews empty for a client whose data lives on other tenants.
+ */
+export function accountSpansTenants(hostKind: string | null): boolean {
+  return hostKind === "hub" || hostKind === "app" || hostKind === "marketing";
+}

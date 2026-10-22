@@ -11,6 +11,7 @@ import {
   addOwnManualPayoutAccount,
   loadAddablePayoutWorkspaces,
   loadOwnManualPayoutAccounts,
+  resolveTenantFromOwnRoster,
   saveOwnBankReference,
   type AddablePayoutWorkspace,
   type OwnManualPayoutAccount,
@@ -42,7 +43,10 @@ export async function addMyManualPayoutAccount(input: { tenantId: string }): Pro
   const session = await getCachedActorSession();
   const admin = createServiceRoleClient();
   if (!session.user || !admin) return { ok: false, code: "failed" };
-  const r = await addOwnManualPayoutAccount(admin, { userId: session.user.id, userEmail: session.user.email, tenantId: input.tenantId });
+  // The workspace is resolved server-side from the caller's own roster; input.tenantId is only a request.
+  const scope = await resolveTenantFromOwnRoster(admin, { userId: session.user.id, requestedTenantId: input.tenantId });
+  if (!scope.ok) return { ok: false, code: scope.reason === "not_rostered" ? "not_rostered" : "failed" };
+  const r = await addOwnManualPayoutAccount(admin, { userId: session.user.id, userEmail: session.user.email, tenantId: scope.tenantId });
   if (r.ok) return { ok: true };
   return { ok: false, code: r.reason === "not_rostered" ? "not_rostered" : "failed" };
 }

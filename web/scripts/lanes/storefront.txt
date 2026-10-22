@@ -4,6 +4,7 @@ src/app/(public)/book/book-availability.test.ts
 src/app/(public)/book/book-no-times.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts
+src/app/indexnow-key.txt/route.test.ts
 src/app/t/?profileCode?/hub-book-slots.render.test.tsx
 src/components/admin/shell/internal/page-modules/active-locale-pill.test.ts
 src/components/admin/shell/internal/talent-surface-no-clip.static.test.ts
@@ -14,6 +15,8 @@ src/components/edit-chrome/mobile-health-message-es.test.ts
 src/components/edit-chrome/section-display-name-i18n.test.ts
 src/components/edit-chrome/selection-focus.test.ts
 src/components/marketing/footer-tap-targets.static.test.ts
+src/components/public-booking/slot-picker-zone.test.ts
+src/components/public-header-mobile-menu-lock.test.ts
 src/components/services/quick-view/service-quick-view-host.test.tsx
 src/components/services/quick-view/service-quick-view.render.test.tsx
 src/components/talent/services/services-home-save-draft.static.test.ts
@@ -55,6 +58,7 @@ src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/developer-docs/developer-docs.test.ts
+src/lib/events/event-es-rewrite.static.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/match-me/candidates.test.ts
 src/lib/match-me/flag.test.ts
@@ -92,7 +96,10 @@ src/lib/seo/f5-sitemap-share-images.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
+src/lib/seo/indexnow.test.ts
 src/lib/seo/service-page-metadata.test.ts
+src/lib/server-actions/dated-details-capabilities.test.ts
+src/lib/server-actions/series-dated-settings-capabilities.test.ts
 src/lib/service-hub/hub-rules.test.ts
 src/lib/service-hub/leaver-redirect.test.ts
 src/lib/service-hub/roster-catalog.test.ts
@@ -107,6 +114,7 @@ src/lib/service-hub/visible-picks-link.test.ts
 src/lib/service-hub/visible-picks.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
+src/lib/services/business-pages/menu-links.test.ts
 src/lib/services/business-pages/page-model.test.ts
 src/lib/services/business-pages/paths.test.ts
 src/lib/services/presentation/card-target.test.ts
@@ -115,13 +123,16 @@ src/lib/services/presentation/catalog-quick-views.server.test.ts
 src/lib/services/presentation/load-talent-presentation.server.test.ts
 src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts
+src/lib/services/presentation/workspace-entitlements.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
+src/lib/site-admin/builder-node/portfolio-alt-locale.test.ts
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/roster-services-grid.render.test.tsx
 src/lib/site-admin/builder-node/tul-532-theme-visuals.test.ts
 src/lib/site-admin/edit-mode/talent-published-snapshot.test.ts
 src/lib/site-admin/sections/contact_form/strip-image-metadata.test.ts
 src/lib/site-admin/server/annotate-open-times.test.ts
+src/lib/site-admin/server/posts-indexnow-hook.static.test.ts
 src/lib/storefront/*.test.ts
 src/lib/support/support-minors-b11.static.test.ts
 src/lib/talent-site/bio-language-hint.test.ts
@@ -156,11 +167,13 @@ src/lib/talent-site/server/publish-idempotency.test.ts
 src/lib/talent-site/server/render-max-site-request-memo.static.test.ts
 src/lib/talent-site/server/render-max-site.perf.static.test.ts
 src/lib/talent-site/server/site-activation-state.test.ts
+src/lib/talent-site/server/site-management-actions-indexnow-hook.static.test.ts
 src/lib/talent-site/server/site-metadata-verification.test.ts
 src/lib/talent-site/server/vanity-usd-rates.test.ts
 src/lib/talent-site/service-page-sections.test.tsx
 src/lib/talent-site/service-page-wiring.test.ts
 src/lib/talent-site/starter-locale.test.ts
+src/lib/talent-site/talent-profile-lang-canonical.test.ts
 src/lib/talent-site/workspace-site-editor-url.test.ts
 src/lib/talent/chat-entry.test.ts
 src/lib/talent/dashboard-status.test.ts

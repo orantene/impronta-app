@@ -20,10 +20,10 @@ test("messagingLoadItemsCatalog gates via requireInquiryManagerAction", () => {
   const end = catalogFn.indexOf("export async function messagingLoadPersonSlots");
   const body = end >= 0 ? catalogFn.slice(0, end) : catalogFn;
   assert.match(body, /requireInquiryManagerAction\(inquiryId\)/);
-  assert.match(body, /messagingStaff\(\)/); // staff fallback for admin Messages
+  assert.match(body, /messagingStaff\("agency\.workspace\.view"\)/); // staff fallback for admin Messages, capability named (TUL-1708)
   assert.match(body, /logServerError\("messagesV5\.itemsCatalog\/load"/);
   assert.doesNotMatch(
-    body.replace(/messagingStaff\(\)/g, ""),
+    body.replace(/messagingStaff\("agency\.workspace\.view"\)/g, ""),
     /const g = await staff\(\)/,
   );
 });

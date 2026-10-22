@@ -31,7 +31,6 @@ import { resolveAddPageDenialMessage } from "./all-pages-panel-deny-reason";
 import { TalentAllPagesPanel } from "./all-pages-panel-talent";
 import { WorkspacePostsTreeGroup } from "./posts-tree-group-workspace";
 import { resolveWorkspaceAdminBaseForLocation } from "./workspace-admin-base";
-import { aiCreatePageHref } from "./empty-canvas-ai-front-door";
 import {
   convertLegacyHomepageToPageAction,
   readPageRolesAction,
@@ -45,6 +44,7 @@ import { useDirty } from "./dirty-bridge";
 import { useEditContext } from "./edit-context";
 import { DockFloatingPanel } from "./dock-floating-panel";
 import { navigateToEditSurface } from "./navigate-to-edit-surface";
+import { pageEditHref } from "./page-edit-href";
 import { CHROME } from "./kit";
 import { useEditorLocale } from "./use-editor-locale";
 interface AllPagesPanelProps {
@@ -253,6 +253,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
   const [availability, setAvailability] = useState<PagePickerAvailability | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const [denialPulse, setDenialPulse] = useState(false);
   const [creating, setCreating] = useState(false);
   // W3-AI1 — the "Describe with AI" create path shares the plan gate + draft
   // mint with "Add page"; it just lands on the new page with the AI front door
@@ -368,11 +369,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     if (navigating) return;
     setNavigating(true);
     try {
-      await navigateToEditSurface({
-        dirty,
-        flush: flushBuilderTreeSave,
-        href: slug === "" ? "/?edit=1" : `/${slug}?edit=1`,
-      });
+      await navigateToEditSurface({ dirty, flush: flushBuilderTreeSave, href: pageEditHref(window.location.pathname, slug) });
       onClose();
     } finally {
       setNavigating(false);
@@ -385,7 +382,12 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     // ANSWER a click rather than silently doing nothing, so a click while
     // denied just re-confirms nothing changed instead of hitting the server
     // for a request we already know will be denied.
-    if (addPageDenialMessage) return;
+    if (addPageDenialMessage) {
+      // TUL-1408: answer the click; the reason is already inline, pulse it so a blocked "Add page" is never silent.
+      setDenialPulse(true);
+      window.setTimeout(() => setDenialPulse(false), 1400);
+      return;
+    }
     setCreating(true);
     setFetchErr(null);
     try {
@@ -393,11 +395,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
       if (result.ok) {
         // Flush the current page's draft before navigating to the new page so
         // un-persisted edits aren't lost when the route changes (see navToPage).
-        await navigateToEditSurface({
-          dirty,
-          flush: flushBuilderTreeSave,
-          href: result.slug ? `/${result.slug}?edit=1` : "/?edit=1",
-        });
+        await navigateToEditSurface({ dirty, flush: flushBuilderTreeSave, href: pageEditHref(window.location.pathname, result.slug) });
         onClose();
       } else {
         setFetchErr(result.error);
@@ -423,11 +421,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
     try {
       const result = await createDraftPageAction();
       if (result.ok) {
-        await navigateToEditSurface({
-          dirty,
-          flush: flushBuilderTreeSave,
-          href: aiCreatePageHref(result.slug),
-        });
+        await navigateToEditSurface({ dirty, flush: flushBuilderTreeSave, href: pageEditHref(window.location.pathname, result.slug, "ai=1") });
         onClose();
       } else {
         setFetchErr(result.error);
@@ -451,10 +445,7 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
         await navigateToEditSurface({
           dirty,
           flush: flushBuilderTreeSave,
-          href:
-            result.slug === ""
-              ? "/?edit=1&panel=pageSettings"
-              : `/${result.slug}?edit=1&panel=pageSettings`,
+          href: pageEditHref(window.location.pathname, result.slug, "panel=pageSettings"),
         });
         onClose();
       } else {
@@ -533,7 +524,8 @@ export function AllPagesPanel({ open, onClose }: AllPagesPanelProps) {
             above is never a silent dead end, plus a real path to fix it. */}
         {addPageDenialMessage ? (
           <div
-            className="mb-[8px] rounded-[10px] border px-[10px] py-[9px]"
+            role="status" aria-live="polite" data-testid="add-page-denial"
+            className={`mb-[8px] rounded-[10px] border px-[10px] py-[9px] transition-shadow ${denialPulse ? "shadow-[0_0_0_3px_rgba(37,99,235,0.35)]" : ""}`}
             style={{ borderColor: CHROME.blueLine, background: CHROME.blueBg }}
           >
             <p className="mb-[6px] text-[12px] leading-[1.4]" style={{ color: CHROME.ink }}>

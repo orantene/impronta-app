@@ -27,7 +27,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
+import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
 import {
   writeClientTrustLevel,
   type ClientTrustLevel,
@@ -79,8 +80,14 @@ export async function getOrCreateClientStripeCustomer(
       .eq("user_id", userId)
       .maybeSingle();
 
+    let replacingStale = false;
     if (existing?.stripe_customer_id) {
-      return { ok: true, data: existing.stripe_customer_id };
+      if (!(await storedCustomerIsStale(stripe, existing.stripe_customer_id))) {
+        return { ok: true, data: existing.stripe_customer_id };
+      }
+      // The id belongs to another Stripe account/sandbox (or was deleted): mint a new one and replace the mapping.
+      replacingStale = true;
+      logServerExpected("client-billing.getOrCreateCustomer.stale", new Error(`stored Stripe customer ${existing.stripe_customer_id} not found; recreating`));
     }
 
     const customer = await stripe.customers.create({
@@ -89,11 +96,14 @@ export async function getOrCreateClientStripeCustomer(
       metadata: { user_id: userId, customer_type: "client" },
     });
 
-    const { error } = await sb.from("client_stripe_customers").insert({
+    const row = {
       user_id: userId,
       stripe_customer_id: customer.id,
       billing_email: email,
-    });
+    };
+    const { error } = replacingStale
+      ? await sb.from("client_stripe_customers").upsert(row, { onConflict: "user_id" })
+      : await sb.from("client_stripe_customers").insert(row);
 
     // Audit C6 — race fix: clean up orphan if concurrent call won.
     if (error) {

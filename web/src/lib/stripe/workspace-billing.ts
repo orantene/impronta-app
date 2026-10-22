@@ -21,7 +21,8 @@ import { type WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
+import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
@@ -42,11 +43,10 @@ import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
-import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
-import {
-  stripeCheckoutLocale,
-} from "@/lib/i18n/vendor-locale";
+import { buildPortalSessionParams, withoutPortalConfiguration } from "@/lib/stripe/portal-params";
+import { stripeCheckoutLocale } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { createTranslator } from "@/i18n/messages";
 import { isDefiniteStripeFailure } from "@/lib/billing/stripe-failure";
 import { applyPendingDowngradeAtTierDrop, clearPendingOnTierIncrease } from "@/lib/billing/workspace-downgrade-archive";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
@@ -87,8 +87,13 @@ export async function getOrCreateStripeCustomer(
       .eq("tenant_id", tenantId)
       .maybeSingle();
 
+    let replacingStale = false;
     if (existing?.stripe_customer_id) {
-      return { ok: true, data: existing.stripe_customer_id };
+      if (!(await storedCustomerIsStale(stripe, existing.stripe_customer_id))) {
+        return { ok: true, data: existing.stripe_customer_id };
+      }
+      replacingStale = true; // the id belongs to another Stripe account/sandbox (or was deleted): mint a new one
+      logServerExpected("workspace-billing.getOrCreateCustomer.stale", new Error(`stored Stripe customer ${existing.stripe_customer_id} not found; recreating`));
     }
 
     // Create new Stripe customer
@@ -99,11 +104,10 @@ export async function getOrCreateStripeCustomer(
     });
 
     // Persist to DB
-    const { error } = await sb.from("stripe_customers").insert({
-      tenant_id: tenantId,
-      stripe_customer_id: customer.id,
-      billing_email: ownerEmail,
-    });
+    const row = { tenant_id: tenantId, stripe_customer_id: customer.id, billing_email: ownerEmail };
+    const { error } = replacingStale
+      ? await sb.from("stripe_customers").upsert(row, { onConflict: "tenant_id" })
+      : await sb.from("stripe_customers").insert(row);
 
     // Audit C6 — race fix: if a concurrent call won the insert race, our
     // freshly-created Stripe customer is now an orphan. Clean it up.
@@ -198,7 +202,10 @@ export async function createWorkspaceCheckoutSession(opts: {
   }
 
   const price = await resolveCheckoutPrice((i) => resolveWorkspacePriceId(opts.planKey, i), opts.interval);
-  if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  if (!price.ok) {
+    logServerError("workspace-billing.checkout.price", new Error(`plan=${opts.planKey} code=${price.code}: the catalog resolved no Stripe price id`));
+    return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
+  }
   const priceId = price.priceId;
 
   // Get or create the Stripe customer
@@ -288,7 +295,7 @@ export async function createWorkspaceCheckoutSession(opts: {
         : created;
 
     if (!session.url) {
-      return { ok: false, error: "Stripe returned no checkout URL." };
+      return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutNoUrl") };
     }
 
     // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
@@ -301,7 +308,7 @@ export async function createWorkspaceCheckoutSession(opts: {
     return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("workspace-billing.createCheckoutSession", err);
-    return { ok: false, error: "Could not create checkout session." };
+    return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutFailed") };
   }
 }
 
@@ -336,13 +343,19 @@ export async function createBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create(
-      buildPortalSessionParams({
-        customerId: customer.stripe_customer_id,
-        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
-        locale: opts.locale,
-      }),
-    );
+    const params = buildPortalSessionParams({
+      customerId: customer.stripe_customer_id,
+      returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/admin/account`,
+      locale: opts.locale,
+    });
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create(params);
+    } catch (firstErr) {
+      if (!params.configuration) throw firstErr;
+      logServerError("workspace-billing.portalConfigRetry", firstErr);
+      session = await stripe.billingPortal.sessions.create(withoutPortalConfiguration(params));
+    }
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {

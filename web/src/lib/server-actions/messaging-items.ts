@@ -41,7 +41,7 @@ export async function messagingLoadItemsCatalog(input: { inquiryId: string }): P
     tenantId = mgr.tenantId;
   } else {
     // Admin Messages without a coordinator row yet — workspace staff fallback.
-    const g = await messagingStaff();
+    const g = await messagingStaff("agency.workspace.view");
     if (!g.ok) return g;
     tenantId = g.tenantId;
   }
@@ -65,7 +65,7 @@ export type PersonSlotsResult = PersonSlots | { ok: false; reason: "not_allowed"
  * inquiry manager session. Tenant comes from workspace staff scope.
  */
 export async function messagingLoadPersonSlots(input: { talentProfileId: string; offeringId?: string | null; from?: string | null; days?: number }): Promise<PersonSlotsResult> {
-  const g = await messagingStaff();
+  const g = await messagingStaff("agency.workspace.view");
   if (!g.ok) return g;
   const parsed = z
     .object({ talentProfileId: uuid, offeringId: uuid.nullable().optional(), from: z.string().max(40).nullable().optional(), days: z.number().int().min(1).max(60).optional() })

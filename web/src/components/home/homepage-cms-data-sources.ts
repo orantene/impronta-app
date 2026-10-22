@@ -41,6 +41,7 @@ import {
   fetchWorkspaceMenuOfferings,
 } from "@/lib/site-admin/server/native-data-block-sources";
 import { loadTenantWords } from "@/lib/words/server";
+import { loadMenuServiceHrefs } from "@/lib/services/business-pages/menu-links.server";
 import {
   fetchNativeDirectoryProfilesByNodeId,
   fetchNativeFeaturedTalentByNodeId,
@@ -359,6 +360,18 @@ export async function loadBuilderNodeDataSources(
       : Promise.resolve(undefined),
   ]);
 
+  // Menu items with an eligible business service page link to it. One gate + one rows read per
+  // render (never per item); undefined (plain text) when pages are off or any read fails.
+  const menuServiceHrefs =
+    menuOfferings && menuOfferings.length > 0
+      ? await (async () => {
+          const db = serviceSupabase ?? createServiceRoleClient();
+          return db
+            ? loadMenuServiceHrefs({ db, tenantId: dataTenantId, locale, offeringIds: menuOfferings.map((o) => o.id) })
+            : undefined;
+        })()
+      : undefined;
+
   const socialLinks = socialContact
     ? [
         ...socialContact.socialLinks.map((link) => ({
@@ -391,6 +404,7 @@ export async function loadBuilderNodeDataSources(
     ...(talentDisciplines === undefined ? {} : { talentDisciplines }),
     ...(menuOfferings === undefined ? {} : { menuOfferings }),
     ...(menuWords === undefined ? {} : { menuWords }),
+    ...(menuServiceHrefs ? { menuServiceHrefs } : {}),
     ...(liveBooking ? { liveBooking } : {}),
     ...(directoryProfilesByNodeId === undefined
       ? {}

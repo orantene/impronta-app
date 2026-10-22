@@ -36,6 +36,8 @@ test("no public marketing or support source hard-codes the 6% fee", () => {
     ...walk("src/lib/marketing"),
     ...walk("src/lib/support"),
     "src/app/(marketing)/pricing/page.tsx",
+    // In-app payments drawer + plan comparison read these labels.
+    "src/components/admin/shell/internal/state/fixtures.ts",
   ].filter((f) => !EXCLUDED.has(f));
   const hits: string[] = [];
   for (const f of files) {
@@ -43,6 +45,7 @@ test("no public marketing or support source hard-codes the 6% fee", () => {
       .split("\n")
       .forEach((line, i) => {
         if (/^\s*(\/\/|\*|\/\*)/.test(line)) return; // comments are not user-facing
+        if (/rgba?\(/.test(line)) return; // colour alpha, not a fee
         if (STALE_FEE.test(line)) hits.push(`${f}:${i + 1}: ${line.trim().slice(0, 100)}`);
       });
   }

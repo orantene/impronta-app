@@ -751,6 +751,7 @@
       "submit": "Envoyer la commande"
     },
     "slotPicker": {
+      "sendRequest": "Envoyer une demande",
       "noHours": "Personne n'a encore defini les horaires de reservation de ce service, il n'y a donc rien a reserver en ligne ici. Envoyez une demande a la place.",
       "closed": "Ferme tous les jours des deux prochaines semaines. Essayez une date plus tard, ou envoyez une demande.",
       "fullyBooked": "Tous les creneaux libres des deux prochaines semaines sont pris. Reessayez plus tard, ou envoyez une demande."
@@ -1206,6 +1207,7 @@
       "replayBufferDesc": "Conserver un enregistrement glissant prive des dernieres minutes dans cet espace pour que l'equipe puisse le joindre a un ticket. Desactive par defaut. Les saisies restent masquees.",
       "replayBufferToggle": "Activer le buffer",
       "replayBufferSaving": "Enregistrement",
+      "roleGateOnlyAdmin": "Seul un administrateur ou le propriétaire peut modifier ceci.",
       "posModes": {
         "title": "Modes à cet emplacement",
         "desc": "Les parties du point de vente que cet espace de travail a activees.",
@@ -1512,6 +1514,20 @@
           "saved": "Limite enregistrée."
         },
         "saveReason": "Chaque cellule s'enregistre dès qu'elle change ; il ne reste rien à valider.",
+        "staffStep": {
+          "title": "Définissez ce que les gérants et administrateurs peuvent rembourser et remiser",
+          "intro": "Tant que vous n'avez pas fixé de limite, vous seul pouvez rembourser ou remiser. Les gérants et administrateurs doivent vous envoyer une demande d'approbation à chaque fois.",
+          "amountLabel": "Montant maximal qu'ils peuvent faire seuls ({currency})",
+          "save": "Enregistrer les limites",
+          "saving": "Enregistrement…",
+          "saved": "Limites enregistrées.",
+          "skip": "Passer pour l'instant",
+          "skipped": "Ignoré. Les gérants et administrateurs restent fermés : chaque remboursement ou remise vous est soumis. Vous pouvez fixer les limites à tout moment dans le tableau ci-dessous.",
+          "closedNote": "Vide signifie fermé : ce rôle ne peut ni rembourser ni remiser sans votre approbation.",
+          "ownerOnly": "Seul le propriétaire fixe ces limites.",
+          "invalid": "Saisissez un nombre supérieur ou égal à 0.",
+          "failed": "Les limites n'ont pas pu être enregistrées. Réessayez."
+        },
         "limits": {
           "intro": "Au-dessus de la limite, la caisse demande l'accord d'un responsable. Une cellule vide signifie sans limite.",
           "discount": "Remise manuelle",
@@ -2162,7 +2178,7 @@
         "refusal": {
           "over_limit": "Un responsable doit d'abord approuver ce montant.",
           "pin_invalid": "Ce code PIN n'est pas le bon.",
-          "pin_throttled": "Trop de tentatives, attendez 5 minutes.",
+          "pin_throttled": "Trop de PIN erronés, la saisie du PIN est verrouillée. Réessayez dans {minutes} min.",
           "not_manager": "Seul un responsable peut faire cela.",
           "already_approved": "Ce montant est deja approuve.",
           "conflict": "Cette vente vient de changer. Rechargez et reessayez.",
@@ -6045,6 +6061,7 @@
       "saved": "Enregistré",
       "dash": "—",
       "untitled": "(sans titre)",
+      "reservationChip": "Réservation",
       "itemMissing": "Cet article n'est plus dans ce catalogue. La liste ci-dessous est à jour.",
       "itemProviderOwned": "Ce service appartient à votre profil de prestataire. Modifiez-le dans Services.",
       "type": {

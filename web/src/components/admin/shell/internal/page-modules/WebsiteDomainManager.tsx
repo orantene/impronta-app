@@ -423,7 +423,7 @@ export function WebsiteDomainManager() {
           </p>
         </form>
       ) : (
-        /* Honest plan gate: names the plan the SERVER requires (Agency) — the
+        /* Honest plan gate: names the plans the SERVER accepts (customDomainEligible) — the
            old drawer told Studio tenants to upgrade to Studio. */
         <div className="flex flex-col gap-[8px] rounded-admin-lg border border-admin-border bg-admin-accent-soft p-[12px]">
           <p className="m-0 text-admin-12h leading-relaxed text-admin-ink">
@@ -435,7 +435,7 @@ export function WebsiteDomainManager() {
               openUpgrade({
                 feature: t(`${K}.planLockedFeature`),
                 why: t(`${K}.planLockedWhy`),
-                requiredPlan: "agency",
+                requiredPlan: "website",
               })
             }
             className="cursor-pointer self-start rounded-full border-none bg-admin-accent px-[14px] py-[7px] text-admin-11h font-bold text-white"

@@ -48,7 +48,7 @@ import { ChatGlyph } from "./chat-launcher-glyphs";
 import { useLauncherSessionRestore } from "./use-launcher-session-restore";
 import { useDirectoryFrontDoorSync } from "./use-directory-front-door-sync";
 import { useJon360LauncherTracking } from "./use-jon360-launcher-tracking";
-import { useYieldBookingBar } from "./use-yield-booking-bar";
+import { useCtaUnderLauncher, useYieldBookingBar } from "./use-yield-booking-bar";
 import { useDockFocusReturn } from "./use-dock-focus-return";
 import {
   DEFAULT_ACCENT,
@@ -510,6 +510,8 @@ export function TalentProfileChatLauncher({
     narrowLauncher,
   );
 
+  const ctaUnderLauncher = useCtaUnderLauncher(mounted && narrowLauncher);
+
   // DK-1: publish her photo + unread state for the catalog dock's chat button.
   // Mounted only when chat is on and inquiries are open, so the dot is honest.
   const presencePhoto = brand.photoUrl ?? null;
@@ -576,8 +578,12 @@ export function TalentProfileChatLauncher({
           alignItems: "flex-end",
           // While the panel is open the FAB unmounts, but this wrapper stays at
           // z-95. Never let an empty hit box steal the panel's ✕ (Gridline desktop).
-          pointerEvents: open ? "none" : undefined,
+          pointerEvents: open || ctaUnderLauncher ? "none" : undefined,
+          // TUL-1790: step aside while a profile CTA scrolls through the corner.
+          opacity: ctaUnderLauncher && !open ? 0 : undefined,
+          transition: "opacity 150ms ease",
         }}
+        data-yield-cta={ctaUnderLauncher ? "1" : undefined}
       >
         {/* The avatar cart — DISPLAY-ONLY count (faces + a single "+N"). Only when
             the cart is non-empty AND there is enough lateral room (§4.A.8 + audit

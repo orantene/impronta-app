@@ -18,6 +18,7 @@ import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCrea
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
+import { resolveOwnerTalentProfileIds } from "@/lib/saas/ensure-self-roster";
 import { fetchOwnerTalentIds, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { OFFERING_MEDIA_EMBED, imagesFromEmbed, loadOfferingImageAssets } from "@/lib/talent/offering-images.server";
 import { MAX_ITEM_PHOTOS, nextPhotoIds } from "@/lib/talent/workspace-item-photos";
@@ -180,7 +181,9 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       logServerError("menu.offerings.eventIds", nonMenu.error);
       return { ok: false, error: "Could not load the menu." };
     }
-    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], nonMenu.ids);
+    // TUL-1262: the Catalog LISTS the table reservation (marked Reserva); only ticketed-event rows stay out.
+    const eventOnly = new Set([...nonMenu.ids].filter((id) => !nonMenu.reservationIds.has(id)));
+    const rows = withoutNonMenuOfferings((data ?? []) as TalentOfferingRow[], eventOnly);
     // The Catalog's Options tab edits the same child rows the talent editor
     // does (variants = pick one, add-ons = stack any), so the load carries them.
     // B5: one stage, not three: the children beside the defaults started above.
@@ -193,6 +196,7 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
       item.imageAssets = assets;
       item.variants = children.variants.get(r.id) ?? [];
       item.addOns = children.addOns.get(r.id) ?? [];
+      if (nonMenu.reservationIds.has(r.id)) item.reservation = true;
       return item;
     });
     // TUL-77 (#36): defaults from business family + country, not one
@@ -232,7 +236,15 @@ export async function upsertWorkspaceMenuItem(
     // just hoisted earlier so the gate's refusal can be in the workspace's own language.
     const ownerTalentId = await ownerTalentIdOf(admin, tenantId);
     const primaryLocale = await workspacePrimaryLocale(admin, tenantId);
-    const gate = await workspaceOfferingSaveGate(admin, tenantId, ownerTalentId, offering, undefined, primaryLocale);
+    const gate = await workspaceOfferingSaveGate(
+      admin,
+      tenantId,
+      ownerTalentId,
+      offering,
+      undefined,
+      primaryLocale,
+      await resolveOwnerTalentProfileIds(admin as SupabaseClient, tenantId),
+    );
     if (!gate.ok) return gate;
 
     if (offering.id && (await isEventOfferingId(admin, tenantId, offering.id))) {
@@ -327,15 +339,15 @@ async function offeringHasHistory(
   row: { status: string | null; first_published_at: string | null },
 ): Promise<boolean> {
   if (row.status === "published" || row.first_published_at) return true;
-  const [lines, bookings] = await Promise.all([
-    admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-    admin.from("talent_bookings").select("id", { count: "exact", head: true }).eq("offering_id", offeringId),
-  ]);
-  if (lines.error || bookings.error) {
-    logServerError("menu.offerings.history", lines.error ?? bookings.error);
+  // TUL-1337: a booking is sold through an order line; `talent_bookings` has no
+  // `offering_id` column, and querying it errored on every call, so the fail-closed
+  // branch turned every delete into "cannot be deleted".
+  const lines = await admin.from("order_lines").select("id", { count: "exact", head: true }).eq("offering_id", offeringId);
+  if (lines.error) {
+    logServerError("menu.offerings.history", lines.error);
     return true;
   }
-  return (lines.count ?? 0) > 0 || (bookings.count ?? 0) > 0;
+  return (lines.count ?? 0) > 0;
 }
 
 export type DeleteMenuItemResult = { ok: boolean; error?: string; code?: "has_history" | "not_found" };

@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SaveBookingsBlock } from "@/components/client-account/SaveBookingsBlock";
 import { GuestOfferSignIn } from "@/app/t/[profileCode]/_chat/GuestOfferSignIn";
 import { translatorFor } from "@/i18n/translator-for";
+import { bundleTranslator, type ClientThreadCatalog } from "./bundle-translator";
 import type { MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
 import { offerCardState, type ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { payLinkTarget } from "@/lib/payments/pay-link-target";
@@ -54,11 +55,13 @@ export type ClientThreadProps = {
   readonly fromEmail?: boolean;
   /** True when the email link carried `?focus=offer` (TUL-954): scroll to the live offer on arrival. */
   readonly focusOffer?: boolean;
+  /** TUL-693: server-picked message subtrees; the thread reads these first (see bundle-translator.ts). */
+  readonly catalog?: ClientThreadCatalog;
 };
 
 export function ClientThread(props: ClientThreadProps) {
   const router = useRouter();
-  const t = useMemo(() => translatorFor(props.locale), [props.locale]);
+  const t = useMemo(() => bundleTranslator(props.catalog, props.locale, translatorFor(props.locale)), [props.catalog, props.locale]);
   const kit = useMemo(() => buildKitCopy(t), [t]);
   const copy = useMemo(() => buildClientCopy(t), [t]);
 

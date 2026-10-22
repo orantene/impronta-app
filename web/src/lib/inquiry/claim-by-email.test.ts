@@ -10,11 +10,13 @@ function makeAdmin(seed: {
   inquiries: Row[];
   relationships?: Row[];
   participants?: Row[];
+  groups?: Row[];
 }): ClaimByEmailAdmin & { inserts: Record<string, Row[]>; updates: Record<string, Row[]>; inquiryFilters: string[] } {
   const inserts: Record<string, Row[]> = {};
   const updates: Record<string, Row[]> = {};
   const inquiryFilters: string[] = [];
   const participants: Row[] = [...(seed.participants ?? [])];
+  const groups: Row[] = [...(seed.groups ?? [])];
   const relationships: Row[] = [...(seed.relationships ?? [])];
   const approvals: Row[] = [];
 
@@ -23,6 +25,7 @@ function makeAdmin(seed: {
     if (table === "inquiry_participants") return participants;
     if (table === "agency_client_relationships") return relationships;
     if (table === "inquiry_approvals") return approvals;
+    if (table === "inquiry_requirement_groups") return groups;
     return [];
   };
 
@@ -47,6 +50,9 @@ function makeAdmin(seed: {
         },
         is(col: string, value: unknown) {
           filters.push([col, value]);
+          return builder;
+        },
+        limit() {
           return builder;
         },
         ilike(col: string, value: unknown) {
@@ -107,10 +113,18 @@ function makeAdmin(seed: {
             },
           };
         },
-        async insert(row: Row) {
+        insert(row: Row) {
           inserts[table] = [...(inserts[table] ?? []), row];
-          tableRows(table).push({ id: `${table}-${tableRows(table).length + 1}`, ...row });
-          return { error: null };
+          const stored = { id: `${table}-${tableRows(table).length + 1}`, ...row };
+          tableRows(table).push(stored);
+          return {
+            select() {
+              return { single: async () => ({ data: { id: stored.id }, error: null }) };
+            },
+            then(resolve: (value: { error: null }) => void) {
+              resolve({ error: null });
+            },
+          };
         },
       };
       return builder;
@@ -266,4 +280,33 @@ test("claim-by-email never takes a seat another account already holds", async ()
   const result = await claimInquiriesByConfirmedEmail({ admin, userId: "user-1", verifiedEmail: "contact@impronta.test" });
   assert.equal(result.linkedParticipants, 0);
   assert.equal(admin.updates.inquiry_participants, undefined);
+});
+
+test("claim-by-email gives the client seat a requirement group (creates one when the inquiry has none)", async () => {
+  const inquiry = {
+    id: "inq-1",
+    tenant_id: "t1",
+    client_user_id: null,
+    contact_email: "guest@impronta.test",
+    origin_domain: null,
+    source_workspace_id: null,
+    current_offer_id: null,
+  };
+  const bare = makeAdmin({ profileId: null, inquiries: [{ ...inquiry }] });
+  await claimInquiriesByConfirmedEmail({ admin: bare, userId: "user-1", verifiedEmail: "guest@impronta.test" });
+  assert.equal(bare.inserts.inquiry_requirement_groups?.length, 1);
+  assert.equal(bare.inserts.inquiry_requirement_groups?.[0]?.inquiry_id, "inq-1");
+  assert.equal(
+    bare.inserts.inquiry_participants?.[0]?.requirement_group_id,
+    "inquiry_requirement_groups-1",
+  );
+
+  const withGroup = makeAdmin({
+    profileId: null,
+    inquiries: [{ ...inquiry }],
+    groups: [{ id: "grp-9", inquiry_id: "inq-1", tenant_id: "t1" }],
+  });
+  await claimInquiriesByConfirmedEmail({ admin: withGroup, userId: "user-1", verifiedEmail: "guest@impronta.test" });
+  assert.equal(withGroup.inserts.inquiry_requirement_groups, undefined);
+  assert.equal(withGroup.inserts.inquiry_participants?.[0]?.requirement_group_id, "grp-9");
 });

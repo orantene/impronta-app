@@ -138,11 +138,12 @@ function booking(over: Partial<AutoReviewBooking> = {}): AutoReviewBooking {
     id: "bk1",
     tenant_id: "t1",
     status: "completed",
+    payment_status: "paid",
     ends_at: "2026-10-19T15:00:00Z",
     starts_at: "2026-10-19T14:00:00Z",
     event_date: null,
     client_user_id: null,
-    contact_email: "Ana@Example.test",
+    contact_email: "Ana@RealClient.com",
     order_id: "o1",
     title: "Corte",
     ...over,
@@ -162,7 +163,7 @@ function decide(b: AutoReviewBooking, talents: string[] = ["tp1"], requested: st
 test("a completed booking with one talent and a client email is due once, to its own client only", () => {
   const d = decide(booking());
   assert.equal(d.due.length, 1);
-  assert.equal(d.due[0].invitedEmail, "ana@example.test");
+  assert.equal(d.due[0].invitedEmail, "ana@realclient.com");
   assert.equal(d.due[0].talentProfileId, "tp1");
 });
 

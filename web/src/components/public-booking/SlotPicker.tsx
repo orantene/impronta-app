@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
+import { canonicalCityName, localizePlaceCity } from "@/lib/talent-site/city-label";
 import { loadPublicSlots } from "./slot-picker-load";
 import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
@@ -38,6 +39,12 @@ const MUTED = "var(--token-color-muted, rgba(11,11,13,0.62))";
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/** TUL-1812: the studio's zone named by its city ("America/Cancun" -> "Cancún"); null when the id has no city part. */
+export function studioZoneLabel(timezone: string, locale: string): string | null {
+  const city = timezone.includes("/") ? (timezone.split("/").pop() ?? "").replace(/_/g, " ").trim() : "";
+  return city ? localizePlaceCity(canonicalCityName(city, [], locale), locale) : null;
 }
 
 function formatSlot(iso: string, timezone: string, locale: string): string {
@@ -127,6 +134,8 @@ export function SlotPicker({
         ? "es"
         : "en";
 
+  const zoneLabel = studioZoneLabel(resolvedTz, locale);
+
   const contactLink = emptyAction || contactHref ? (
     <div className="mt-2 flex flex-col items-start gap-2">
       {emptyAction}
@@ -149,7 +158,7 @@ export function SlotPicker({
         {t("public.slotPicker.title")}
       </p>
       <p className="mt-1 text-xs" style={{ color: MUTED }}>
-        {t("public.slotPicker.subtitle")}
+        {zoneLabel ? t("public.slotPicker.subtitleZone").replace("{zone}", zoneLabel) : t("public.slotPicker.subtitle")}
       </p>
       {loading ? (
         <div className="mt-3 flex flex-col gap-1.5" role="status" aria-busy="true" data-testid="slot-picker-skeleton">
@@ -184,6 +193,7 @@ export function SlotPicker({
         {contactLink}
         </div>
       ) : (
+        <>
         <div className="mt-3 flex flex-col gap-1.5 max-h-64 overflow-auto">
           {slots.map((start) => {
             const ends = new Date(new Date(start).getTime() + durationMinutes * 60_000).toISOString();
@@ -211,6 +221,18 @@ export function SlotPicker({
             );
           })}
         </div>
+        {/* TUL-861: the request path stays reachable when times exist (it used to show only when empty). */}
+        {contactHref ? (
+          <Link
+            href={contactHref}
+            data-testid="slot-picker-request"
+            className="mt-2 inline-block text-xs font-medium underline"
+            style={{ color: INK }}
+          >
+            {t("public.slotPicker.sendRequest")}
+          </Link>
+        ) : null}
+        </>
       )}
     </div>
   );

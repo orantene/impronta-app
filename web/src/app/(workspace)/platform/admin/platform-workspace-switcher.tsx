@@ -17,6 +17,7 @@ import {
   type UserWorkspace,
 } from "@/lib/server-actions/admin-user-workspaces";
 import { useT } from "@/i18n/use-t";
+import { workspaceSwitchAdminUrlForLocation } from "@/components/edit-chrome/workspace-admin-base";
 
 const HQ = {
   card: "#16161A",
@@ -93,23 +94,11 @@ export function PlatformWorkspaceSwitcher() {
   }, [open]);
 
   function goToWorkspace(w: UserWorkspace) {
-    // On localhost the app uses path-based tenant routing /{slug}/admin.
-    // On real hosts the middleware resolves the tenant from the hostname,
-    // so navigate to the workspace's registered domain instead.
-    const isLocalhost =
-      typeof window !== "undefined" &&
-      (window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1");
-    if (isLocalhost) {
-      window.location.assign(`/${w.slug}/admin`);
-    } else if (w.kind === "hub" && w.tier === "network") {
-      // The platform network-hub's public face is the marketing apex
-      // (tulala.digital), which doesn't serve /admin — route to the app host.
-      window.location.assign(`https://app.tulala.digital/${w.slug}/admin`);
-    } else {
-      const host = w.domain ?? `${w.slug}.tulala.digital`;
-      window.location.assign(`https://${host}/admin`);
-    }
+    // Workspace admin lives on the APP host (path-addressed `/{slug}/admin`),
+    // never on a tenant's public domain, and the host is derived from the
+    // configured app origin so staging stays on staging (TUL-1823). Local
+    // pages stay relative.
+    window.location.assign(workspaceSwitchAdminUrlForLocation(w.slug));
   }
 
   return (

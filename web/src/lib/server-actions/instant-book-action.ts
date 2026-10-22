@@ -195,7 +195,8 @@ export async function createInstantBookingAction(
             || booked.reason === "deposit_not_offered"
             || booked.reason === "offering_not_priceable"
             || booked.reason === "offering_not_published"
-            || booked.reason === "unknown_offering";
+            || booked.reason === "unknown_offering"
+            || booked.reason === "unclaimed_seller";
           if (!customerFacing) {
             logServerError("instantBookAction.pipeline", new Error(`${booked.reason}: ${booked.error ?? ""}`));
           }

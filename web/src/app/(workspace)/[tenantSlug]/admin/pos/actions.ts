@@ -23,7 +23,7 @@ import { admissionHoldersFromDeskContact } from "@/lib/pos/admission-holders";
 import { findActiveLinkByCode } from "@/lib/links/link-store";
 import { saleHoldsNonMenuOffering } from "@/lib/offerings/non-menu-offerings";
 import { scanTarget } from "@/lib/pos/scan-code";
-import { posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
+import { posCancelRefusal, posStaff, posStaffOrInquiryManager } from "@/lib/pos/staff-actor";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
 /** Lock, tip, payment-link, and waitlist actions: `@/lib/server-actions/pos-engine`. */
@@ -38,10 +38,7 @@ export type PosCustomerHit = {
   phone: string | null;
 };
 
-/**
- * The actor's membership role, for the role limits (D-139). Null for a
- * caller with no membership row (a platform operator), who is not limited.
- */
+/** The actor's membership role, for the role limits (D-139); null for a platform operator, who is not limited. */
 async function actorRole(tenantId: string): Promise<string | null> {
   const membership = await findTenantMembership(tenantId);
   return membership?.role ?? null;
@@ -82,7 +79,8 @@ export async function posAddLine(input: {
     inquiryId: uuid.nullable().optional(),
   }).safeParse(input);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
-  const g = await posStaffOrInquiryManager(parsed.data.inquiryId);
+  // The Messages inquiry path keeps the manager bar; the counter (no inquiry) is editor-level.
+  const g = await posStaffOrInquiryManager(parsed.data.inquiryId, parsed.data.inquiryId ? "booking.payment.request" : "operate_venue");
   if (!g.ok) return g;
   const refused = await counterAddRefusal(g.admin, g.tenantId, parsed.data); if (refused) return refused;
   return addLine(g.admin, {
@@ -259,9 +257,10 @@ export async function posStartCollection(input: {
 
 export async function posCancelSale(orderId: string, expectedVersion?: number) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
+  const refused = await posCancelRefusal(g, orderId); if (refused) return refused;
   return finalizeOrCancel(g.admin, {
     tenantId: g.tenantId,
     orderId,
@@ -374,7 +373,7 @@ export async function posCurrentShift() {
 
 export async function posOpenShift(openingCashCents: number) {
   await requireNotImpersonating();
-  const g = await posStaff("booking.payment.mark_received");
+  const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.number().int().nonnegative().safeParse(openingCashCents);
   if (!parsed.success) return { ok: false as const, error: "invalid" };
@@ -416,7 +415,7 @@ export async function posAddCustomLine(input: {
 
 export async function posSetStaffPin(input: { userId: string; pin: string }) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({ userId: uuid, pin: z.string().regex(/^[0-9]{4,6}$/) }).safeParse(input);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -437,7 +436,7 @@ export async function posReadCustomAmountLimit() {
 
 export async function posSetCustomAmountLimit(limitCents: number) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.number().int().nonnegative().safeParse(limitCents);
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
@@ -464,7 +463,7 @@ export async function posApproveCustomAmount(input: {
   approverUserId?: string;
 }) {
   await requireNotImpersonating();
-  const g = await posStaff();
+  const g = await posStaff("booking.payment.request");
   if (!g.ok) return { ok: false as const, reason: g.error === "not_allowed" ? "not_allowed" : "unavailable" };
   const parsed = z.object({
     orderId: uuid,
@@ -502,7 +501,7 @@ export async function posCloseShift(input: {
   handedOverTo?: string;
 }) {
   await requireNotImpersonating();
-  const g = await posStaff("booking.payment.mark_received");
+  const g = await posStaff("operate_venue");
   if (!g.ok) return g;
   const parsed = z.object({
     closingCashCents: z.number().int().nonnegative(),

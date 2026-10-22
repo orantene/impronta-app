@@ -34,6 +34,15 @@ const C = {
 
 const FONT = '"Inter", system-ui, sans-serif';
 
+/** Server actions return fixed English strings; show them in the viewer's language (TUL-1800). */
+const SERVER_ERROR_KEYS: Record<string, string> = {
+  "Could not start payout setup. Please try again.": "admin.payouts.actions.setupFailedRetry",
+  "Unexpected error.": "admin.payouts.actions.unexpectedError",
+  "Payouts are not available right now.": "admin.payouts.actions.notAvailable",
+  "Workspace not found.": "admin.payouts.actions.workspaceNotFound",
+  "Workspace mismatch.": "admin.payouts.actions.workspaceMismatch",
+};
+
 function primaryBtn(disabled: boolean) {
   return {
     padding: "10px 18px",
@@ -87,6 +96,12 @@ export function PayoutsActionsClient({
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [picking, setPicking] = useState(false);
   const [country, setCountry] = useState("");
+  const isEs = (locale ?? "").toLowerCase().startsWith("es");
+  const pickerLocale = isEs ? "es" : "en";
+  const errText = (raw: string) => {
+    const key = SERVER_ERROR_KEYS[raw];
+    return key ? t(key) : payoutSetupErrorText(raw, isEs);
+  };
 
   const fullyEnabled = status === "enabled" && chargesEnabled && payoutsEnabled;
 
@@ -105,12 +120,12 @@ export function PayoutsActionsClient({
   };
 
   const onSubmitCountry = () => {
-    if (!country) { setError("Please choose where you'll receive payouts."); return; }
+    if (!country) { setError(t("admin.payouts.actions.pickCountryError")); return; }
     setError(null); setInfo(null);
     startTransition(async () => {
       const r = await ensureWorkspacePayoutAccount(tenantSlug, { country });
       if (r.ok) { setPicking(false); setShowOnboarding(true); return; }
-      setError("error" in r ? r.error : "Could not start payout setup.");
+      setError("error" in r ? r.error : t("admin.payouts.actions.setupFailed"));
     });
   };
 
@@ -193,7 +208,7 @@ export function PayoutsActionsClient({
       {picking && !showOnboarding && (
         <div style={{ marginTop: 4, maxWidth: 360 }}>
           <label htmlFor="ws-payout-country" style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 6 }}>
-            Where will this workspace receive payouts?
+            {t("admin.payouts.actions.countryQuestion")}
           </label>
           <select
             id="ws-payout-country"
@@ -205,22 +220,22 @@ export function PayoutsActionsClient({
               color: C.ink, background: "#fff", marginBottom: 12,
             }}
           >
-            <option value="">Select your country…</option>
-            {payoutPickerRows("en").selectable.map((c) => (
+            <option value="">{t("admin.payouts.actions.selectCountry")}</option>
+            {payoutPickerRows(pickerLocale).selectable.map((c) => (
               <option key={c.iso2} value={c.iso2}>{c.flag} {c.label}</option>
             ))}
-            <optgroup label={payoutComingSoonLabel("en")}>
-              {payoutPickerRows("en").comingSoon.map((c) => (
+            <optgroup label={payoutComingSoonLabel(pickerLocale)}>
+              {payoutPickerRows(pickerLocale).comingSoon.map((c) => (
                 <option key={c.iso2} value={c.iso2} disabled>{c.flag} {c.label}</option>
               ))}
             </optgroup>
           </select>
           <div className="flex gap-2">
             <button type="button" onClick={onSubmitCountry} disabled={pending} style={primaryBtn(pending)}>
-              {pending ? t("admin.payouts.actions.loading") : "Continue"}
+              {pending ? t("admin.payouts.actions.loading") : t("admin.payouts.actions.continue")}
             </button>
             <button type="button" onClick={() => { setPicking(false); setError(null); }} style={ghostBtn(false)}>
-              Cancel
+              {t("admin.payouts.actions.cancel")}
             </button>
           </div>
         </div>
@@ -265,7 +280,7 @@ export function PayoutsActionsClient({
           />
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
             <button type="button" onClick={onOnboardingExit} style={ghostBtn(false)}>
-              Done for now
+              {t("admin.payouts.actions.doneForNow")}
             </button>
           </div>
         </div>
@@ -273,7 +288,7 @@ export function PayoutsActionsClient({
 
       {error && (
         <div style={{ fontSize: 12, color: C.coral }}>
-          {payoutSetupErrorText(error, (locale ?? "").toLowerCase().startsWith("es"))}
+          {errText(error)}
         </div>
       )}
       {info && !error && (

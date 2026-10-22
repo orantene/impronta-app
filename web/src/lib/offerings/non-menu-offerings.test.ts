@@ -57,6 +57,14 @@ test("loadNonMenuOfferingIds returns this tenant's event-backing and reservation
   const r = await loadNonMenuOfferingIds(fake(), TENANT);
   assert.equal(r.error, null);
   assert.deepEqual([...r.ids].sort(), [EVENT_PKG, RESERVATION].sort());
+  // TUL-1262: the reservation is told apart so the Catalog can list it as "Reserva".
+  assert.deepEqual([...r.reservationIds], [RESERVATION]);
+});
+
+test("TUL-1262: the Catalog editor load lists the reservation (marked) and still hides the event package", () => {
+  const src = readFileSync(new URL("../talent/menu-offerings-actions.ts", import.meta.url), "utf8");
+  assert.match(src, /nonMenu\.reservationIds\.has\(id\)/);
+  assert.match(src, /item\.reservation = true/);
 });
 
 test("POS counter catalog omits event-backing and reservation offerings, keeps ordinary items", async () => {

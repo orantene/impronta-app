@@ -14,7 +14,7 @@ import { z } from "zod";
 
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { userHasCapability } from "@/lib/access";
+import type { CapabilityKey } from "@/lib/access";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { logServerError } from "@/lib/server/safe-error";
@@ -23,11 +23,19 @@ import { MAX_SALES_CLOSE_MINUTES, parseSalesCloseMinutes, parseTierQuotas } from
 
 const uuid = z.string().uuid();
 
-async function staff() {
-  const guard = await requireWorkspaceStaffAction();
-  if (!guard.ok) return { ok: false as const, reason: "unavailable" as const };
-  const allowed = await userHasCapability("booking.payment.request", guard.tenantId);
-  if (!allowed) return { ok: false as const, reason: "not_allowed" as const };
+/**
+ * TUL-1708: the capability each action requires, passed to the staff guard itself. The default guard
+ * capability is `agency.workspace.view`, which a `viewer` holds, so a writer must name its own.
+ * `booking.payment.request` is manager+ (the same bar these series settings always had).
+ */
+const SERIES_DATED_CAPABILITY = {
+  load: "booking.payment.request",
+  save: "booking.payment.request",
+} as const satisfies Record<string, CapabilityKey>;
+
+async function staff(action: keyof typeof SERIES_DATED_CAPABILITY) {
+  const guard = await requireWorkspaceStaffAction({ capability: SERIES_DATED_CAPABILITY[action] });
+  if (!guard.ok) return { ok: false as const, reason: guard.error === "Not authorized." ? ("not_allowed" as const) : ("unavailable" as const) };
   const admin = createServiceRoleClient();
   if (!admin) return { ok: false as const, reason: "unavailable" as const };
   return { ok: true as const, tenantId: guard.tenantId, admin };
@@ -45,7 +53,7 @@ export async function loadSeriesDatedSettingsAction(input: {
 }): Promise<{ ok: true; settings: SeriesDatedSettings } | { ok: false; reason: "invalid" | "unavailable" | "not_allowed" | "not_found" }> {
   const parsed = z.object({ seriesId: uuid }).safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
-  const g = await staff();
+  const g = await staff("load");
   if (!g.ok) return g;
 
   const { data: base, error: baseErr } = await tenantScopedQuery(g.admin, "session_series", g.tenantId)
@@ -111,7 +119,7 @@ export async function saveSeriesDatedSettingsAction(input: {
     })
     .safeParse(input);
   if (!parsed.success) return { ok: false, reason: "invalid" };
-  const g = await staff();
+  const g = await staff("save");
   if (!g.ok) return g;
 
   const { data, error } = await tenantScopedQuery(g.admin, "session_series", g.tenantId)

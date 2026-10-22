@@ -162,18 +162,45 @@ async function ensureClientParticipant(
     }
     return true;
   }
+  // inquiry_participants.requirement_group_id is NOT NULL and the default-group trigger only
+  // fills it from an EXISTING group; an inquiry that has none (guest early row) failed with 23502.
+  const requirementGroupId = await ensureDefaultRequirementGroup(admin, args.inquiryId, args.tenantId);
   const { error: insertError } = await admin.from("inquiry_participants").insert({
     inquiry_id: args.inquiryId,
     tenant_id: args.tenantId,
     user_id: args.userId,
     role: "client",
     status: "active",
+    ...(requirementGroupId ? { requirement_group_id: requirementGroupId } : {}),
   });
   if (insertError) {
     logServerError("inquiry.claimByEmail.participantInsert", insertError);
     return false;
   }
   return true;
+}
+
+/** The inquiry's first requirement group, created (same shape as seatParticipants) when missing. */
+async function ensureDefaultRequirementGroup(
+  admin: ClaimByEmailAdmin,
+  inquiryId: string,
+  tenantId: string,
+): Promise<string | null> {
+  const { data: existing, error: readError } = await admin
+    .from("inquiry_requirement_groups")
+    .select("id")
+    .eq("inquiry_id", inquiryId)
+    .limit(1)
+    .maybeSingle();
+  if (readError) logServerError("inquiry.claimByEmail.groupRead", readError);
+  if (existing?.id) return existing.id as string;
+  const { data: created, error: createError } = await admin
+    .from("inquiry_requirement_groups")
+    .insert({ inquiry_id: inquiryId, tenant_id: tenantId, role_key: "talent", quantity_required: 1, sort_order: 0 })
+    .select("id")
+    .single();
+  if (createError) logServerError("inquiry.claimByEmail.groupCreate", createError);
+  return (created?.id as string | undefined) ?? null;
 }
 
 async function ensureClientRelationship(

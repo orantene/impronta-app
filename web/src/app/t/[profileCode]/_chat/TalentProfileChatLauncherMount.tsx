@@ -30,7 +30,7 @@
 import { offeringsTenantScope } from "@/lib/inquiry/roster-scope";
 import { loadTenantKind } from "@/lib/inquiry/tenant-kind.server";
 import { dockViewerCtaIdentity } from "@/lib/client-account/dock-viewer-identity";
-import { resolveDockViewerIdentityTier } from "@/lib/client-account/dock-viewer-identity.server";
+import { resolveDockViewerIdentityTier, resolveDockViewerPrefill } from "@/lib/client-account/dock-viewer-identity.server";
 import { loadGuestDockFlags } from "@/lib/inquiry/guest-dock-flags";
 import { TalentProfileChatLauncher } from "./TalentProfileChatLauncher";
 import { categoryChipLabel } from "./category-chip-label";
@@ -220,6 +220,8 @@ export async function TalentProfileChatLauncherMount({
   // an anonymous guest.
   const identity = await resolveDockViewerIdentityTier();
   const ctaIdentity = dockViewerCtaIdentity(identity);
+  // TUL-965: a signed-in client's name + email fill the first-message form (a returning thread's own prefill wins).
+  const viewerPrefill = active?.prefill ? null : await resolveDockViewerPrefill();
 
   // W2-B — the talent's published services as in-chat request chips. Talents
   // with none get a single "Custom quote" default so EVERY talent is
@@ -322,7 +324,7 @@ export async function TalentProfileChatLauncherMount({
       // Returning guest → reopen the thread + prefill the gate (B1). null → fresh.
       existingInquiryId={active?.inquiryId ?? null}
       existingContactPromoted={active?.contactPromoted ?? null}
-      prefill={active?.prefill ?? null}
+      prefill={active?.prefill ?? viewerPrefill}
       forceOpen={forceOpen}
       offerings={chatOfferings}
       answerOfferings={answerOfferings}

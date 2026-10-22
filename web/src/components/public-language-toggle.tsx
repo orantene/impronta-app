@@ -79,7 +79,7 @@ export function PublicLanguageToggle({
               className={cn(
                 linkClass,
                 active
-                  ? "bg-muted text-foreground"
+                  ? "bg-foreground font-semibold text-background"
                   : "text-muted-foreground hover:text-foreground",
               )}
               aria-current={active ? "true" : undefined}

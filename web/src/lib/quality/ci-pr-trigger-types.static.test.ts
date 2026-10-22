@@ -61,7 +61,7 @@ test("adding full-ci re-runs the gate from its own workflow, not a labeled trigg
   const rerun = read(".github/workflows/ci-full-ci-rerun.yml");
   assert.match(rerun, /^ {4}types: \[labeled\]$/m);
   assert.match(rerun, /if: github\.event\.label\.name == 'full-ci'/);
-  assert.match(rerun, /gh run rerun "\$run_id" --job "\$job_id"/);
+  assert.match(rerun, /gh run rerun "\$run_id" --failed/);
   assert.doesNotMatch(rerun, /name: Structural quality gate/);
 });
 

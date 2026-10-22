@@ -36,6 +36,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { requireTalentSelf } from "@/lib/server/talent-self-guard";
 import { buildTalentSiteCapabilities } from "@/lib/access/talent-membership";
 import { gate } from "./site-action-gate";
+import { mapManagerPageRows } from "./site-management-page-map";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { provisionTalentMaxSite } from "./provision-max-site";
 import { isDnsLabel, slugifySiteName } from "./derive-site-slug";
@@ -64,6 +65,8 @@ import { prepareMaisonSiteForPublish } from "./maison-pending-apply";
 import { siteScaffoldComplete } from "./site-scaffold-complete";
 import { publishTalentPageBodies } from "./publish-talent-page-bodies";
 import { recordSitePublish } from "../history/history.server";
+import { pingIndexNowUrl } from "@/lib/seo/indexnow";
+import { afterResponse } from "@/lib/server/after-response";
 import type {
   MaxSiteManagerPage,
   MaxSiteManagerState,
@@ -183,27 +186,7 @@ export async function loadMaxSiteManagerAction(): Promise<
     theme_look_slug: string | null;
   } | null;
 
-  const pages: MaxSiteManagerPage[] = ((pageRows ?? []) as Array<{
-    id: string;
-    slug: string;
-    title: string;
-    nav_label: string | null;
-    status: string;
-    is_home: boolean;
-    sort_order: number;
-    published_at: string | null;
-    updated_at: string;
-  }>).map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    title: p.title,
-    navLabel: p.nav_label,
-    status: p.status,
-    isHome: p.is_home,
-    sortOrder: p.sort_order,
-    publishedAt: p.published_at,
-    updatedAt: p.updated_at,
-  }));
+  const pages: MaxSiteManagerPage[] = mapManagerPageRows(pageRows);
 
   // TUL-77 / TUL-347: business owners see the workspace live URL as "My website".
   const publicSiteUrl = await resolveManagerPublicSiteUrl({
@@ -710,6 +693,22 @@ export async function publishMaxSiteAction(opts?: { contentHash?: string | null 
         publishedAt: now,
       });
     }
+  }
+
+  // 6. TUL-589 (S slice): tell IndexNow this site changed. Best-effort,
+  // production-only (see pingIndexNowUrl) and NOT awaited on the request path
+  // — a slow api.indexnow.org must never hang this Publish click. A demo
+  // profile has no real content, so it has nothing to ping.
+  // supabase-read-unchecked-ok: best-effort IndexNow ping; a failed read only
+  // means we skip the ping, never block Publish.
+  const { data: demoCheck } = await sb
+    .from("talent_profiles")
+    .select("is_demo")
+    .eq("id", g.talentProfileId)
+    .maybeSingle();
+  if (!demoCheck?.is_demo) {
+    const publicUrl = siteUrl(pre.site_slug, false);
+    afterResponse(() => pingIndexNowUrl(publicUrl), "talent-site.publish.indexnow");
   }
 
   return { ok: true, data: { publishedAt: now } };

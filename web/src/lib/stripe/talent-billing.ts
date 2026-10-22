@@ -18,7 +18,8 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { type TalentPlanKey } from "@/lib/stripe/price-ids";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { logServerError } from "@/lib/server/safe-error";
+import { logServerError, logServerExpected } from "@/lib/server/safe-error";
+import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { reconcileTalentDomainPlanGrace } from "@/lib/talent-site/server/talent-domain-plan-grace";
@@ -38,11 +39,12 @@ import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
-import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
+import { buildPortalSessionParams, withoutPortalConfiguration } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
 import type Stripe from "stripe";
+import { createTranslator } from "@/i18n/messages";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { recurringConsentParams } from "@/lib/stripe/recurring-consent";
 import { decideTalentPlanState, type StoredTalentPlanRow } from "@/lib/billing/talent-plan-state";
@@ -99,8 +101,14 @@ export async function getOrCreateTalentStripeCustomer(
       .eq("user_id", userId)
       .maybeSingle();
 
+    let replacingStale = false;
     if (existing?.stripe_customer_id) {
-      return { ok: true, data: existing.stripe_customer_id };
+      if (!(await storedCustomerIsStale(stripe, existing.stripe_customer_id))) {
+        return { ok: true, data: existing.stripe_customer_id };
+      }
+      // The id belongs to another Stripe account/sandbox (or was deleted): mint a new one and replace the mapping.
+      replacingStale = true;
+      logServerExpected("talent-billing.getOrCreateCustomer.stale", new Error(`stored Stripe customer ${existing.stripe_customer_id} not found; recreating`));
     }
 
     const customer = await stripe.customers.create({
@@ -109,11 +117,14 @@ export async function getOrCreateTalentStripeCustomer(
       metadata: { user_id: userId, customer_type: "talent" },
     });
 
-    const { error } = await sb.from("talent_stripe_customers").insert({
+    const row = {
       user_id: userId,
       stripe_customer_id: customer.id,
       billing_email: email,
-    });
+    };
+    const { error } = replacingStale
+      ? await sb.from("talent_stripe_customers").upsert(row, { onConflict: "user_id" })
+      : await sb.from("talent_stripe_customers").insert(row);
 
     // Audit C6 — race fix: if a concurrent call won the insert race, our
     // freshly-created Stripe customer is now an orphan. Delete it and
@@ -281,7 +292,7 @@ export async function createTalentCheckoutSession(opts: {
         : created;
 
     if (!session.url) {
-      return { ok: false, error: "Stripe returned no checkout URL." };
+      return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutNoUrl") };
     }
 
     // TUL-1280 race close: oldest open trial session wins; a loser hands back the winner's URL
@@ -294,7 +305,7 @@ export async function createTalentCheckoutSession(opts: {
     return { ok: true, data: { url: settled.url } };
   } catch (err) {
     logServerError("talent-billing.createCheckoutSession", err);
-    return { ok: false, error: "Could not create checkout session." };
+    return { ok: false, error: createTranslator(opts.locale ?? "en")("admin.account.billing.checkoutFailed") };
   }
 }
 
@@ -328,13 +339,22 @@ export async function createTalentBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create(
-      buildPortalSessionParams({
-        customerId: customer.stripe_customer_id,
-        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
-        locale: opts.locale,
-      }),
-    );
+    // TUL-834: a fresh session per click, URL returned straight from Stripe and
+    // never stored. If the env configuration id is stale or from another Stripe
+    // account, retry once on the account default instead of failing.
+    const params = buildPortalSessionParams({
+      customerId: customer.stripe_customer_id,
+      returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
+      locale: opts.locale,
+    });
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create(params);
+    } catch (firstErr) {
+      if (!params.configuration) throw firstErr;
+      logServerError("talent-billing.portalConfigRetry", firstErr);
+      session = await stripe.billingPortal.sessions.create(withoutPortalConfiguration(params));
+    }
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {

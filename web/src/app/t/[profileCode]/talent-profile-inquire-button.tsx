@@ -198,7 +198,7 @@ export function TalentProfileInquireButton({
   };
 
   return (
-    <div ref={wrapRef} style={{ position: "relative", display: "inline-block" }}>
+    <div ref={wrapRef} data-profile-cta="" style={{ position: "relative", display: "inline-block" }}>
       <Button type="button" onClick={handleClick} className={className} style={ctaTypeStyle}>
         <Mail className="size-4" />
         {interpolate(t("public.profileCta.inquireAbout"), { name: displayName })}

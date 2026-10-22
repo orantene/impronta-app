@@ -145,7 +145,7 @@ export async function setRentPlanStatus(input: { planId: string; status: "paused
 export async function issueRent(input: { planId: string; period?: string }): Promise<RentIssueResult | Fail<"unauthenticated" | "not_allowed">> {
   await requireNotImpersonating();
   try {
-    const auth = await requireWorkspaceStaffAction();
+    const auth = await requireWorkspaceStaffAction({ capability: "booking.payment.request" });
     if (!auth.ok) return { ok: false, reason: "unauthenticated" };
     if (!(await userHasCapability("booking.payment.request", auth.tenantId))) return { ok: false, reason: "not_allowed" };
     const admin = createServiceRoleClient();

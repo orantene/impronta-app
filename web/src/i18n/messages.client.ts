@@ -21,6 +21,26 @@ export function registerFullCatalogs(catalogs: Record<string, Catalog>): void {
   fullCatalogs = catalogs;
 }
 
+/**
+ * TUL-1773: merges the workspace-only subtrees (code -> namespace -> subtree) into the global the
+ * root layout seeded with the public ones. Called while the `(workspace)` layout renders, so it
+ * runs before any descendant reads a key, on hard loads and on client-side navigations alike
+ * (an inline script from a nested layout would not execute on a soft navigation). Browser only:
+ * on the server the full catalogs are already imported.
+ */
+export function mergeClientMessages(payload: Record<string, Catalog>): void {
+  if (typeof window === "undefined") return;
+  const g = globalThis as Record<string, unknown>;
+  const root = ((g[CLIENT_MESSAGES_GLOBAL] as Record<string, Catalog> | undefined) ??= {});
+  for (const [code, namespaces] of Object.entries(payload)) {
+    const target = (root[code] ??= {});
+    for (const [ns, subtrees] of Object.entries(namespaces)) {
+      const into = ((target[ns] as Catalog | undefined) ??= {});
+      Object.assign(into, subtrees as Catalog);
+    }
+  }
+}
+
 function store(): Record<string, Catalog> {
   if (fullCatalogs) return fullCatalogs;
   const injected = (globalThis as Record<string, unknown>)[CLIENT_MESSAGES_GLOBAL];

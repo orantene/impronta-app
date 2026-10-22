@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
@@ -65,4 +66,31 @@ export async function talentProfileLocaleMetadata(input: {
     openGraphLocale: ogLocale(profile.locale),
     openGraphAlternateLocale: profile.supported.filter((l) => l !== profile.locale).map(ogLocale),
   };
+}
+
+/**
+ * TUL-875: same decision as `resolveTalentProfileLocale`, keyed by profile
+ * code, for the root layout (<html lang>). Null when the talent cannot be
+ * read publicly (unknown/hidden/preview) so the caller keeps the request
+ * locale. Never throws.
+ */
+export async function resolveTalentProfileLocaleByCode(
+  profileCode: string,
+  langQuery?: string | string[] | null,
+): Promise<TalentProfileLocale | null> {
+  try {
+    const pub = createPublicSupabaseClient();
+    if (!pub) return null;
+    // supabase-read-unchecked-ok: never-throws resolver; a failed read yields
+    // null, which callers already treat as "no locale override".
+    const { data } = await pub
+      .from("talent_profiles")
+      .select("id")
+      .eq("profile_code", profileCode)
+      .maybeSingle();
+    const id = (data as { id?: string } | null)?.id;
+    return id ? await resolveTalentProfileLocale(id, langQuery) : null;
+  } catch {
+    return null;
+  }
 }

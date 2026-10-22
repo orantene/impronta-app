@@ -278,3 +278,16 @@ export function pathIsCanonical(pathname: string | null): boolean {
   const afterTenant = parts.slice(1);
   return CANONICAL_ROUTE_MATCHERS.some((match) => match(afterTenant));
 }
+
+/**
+ * TUL-1819: talent canonical pages that the talent shell HOSTS inside its own
+ * body (sidebar + top bar), instead of yielding to a bare standalone page.
+ * Every other talent canonical route still renders bare, exactly as before.
+ * Each entry must also match `pathIsCanonical` (it is a real server page).
+ */
+export function pathIsTalentShellHosted(pathname: string | null): boolean {
+  if (!pathname || !pathIsCanonical(pathname)) return false;
+  const parts = pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+  const afterTenant = parts[0] === "talent" ? parts : parts.slice(1);
+  return afterTenant[0] === "talent" && afterTenant[1] === "trust";
+}

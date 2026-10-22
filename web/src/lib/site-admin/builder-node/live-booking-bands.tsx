@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { createTranslator } from "@/i18n/messages";
 import { formatPrice } from "@/lib/money/format-price";
 
+import { LiveBookingClientIsland } from "./LiveBookingClientIsland";
 import type { LiveBookingSurface, LiveServiceCard } from "./live-booking-markers";
 
 /**
@@ -27,6 +28,13 @@ export function serviceMetaLine(card: LiveServiceCard, locale: string | undefine
   if (price) parts.push(price);
   if (card.durationMinutes) parts.push(`${card.durationMinutes} min`);
   return parts.join(" · ");
+}
+
+/** TUL-1812: each card's Book link pins ITS service, so /book opens on the one tapped. */
+export function serviceBookHref(bookHref: string, serviceId: string): string {
+  const [path, hash = ""] = bookHref.split("#", 2);
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}service=${encodeURIComponent(serviceId)}${hash ? `#${hash}` : ""}`;
 }
 
 const cardStyle: CSSProperties = {
@@ -75,7 +83,7 @@ export function LiveServicesBand({
               {meta ? <p style={{ margin: 0, color: MUTED }}>{meta}</p> : null}
               {s.description ? <p style={{ margin: 0 }}>{s.description}</p> : null}
               {s.bookable ? (
-                <a href={bookHref} style={{ marginTop: 8, fontWeight: 600 }}>
+                <a href={serviceBookHref(bookHref, s.id)} style={{ marginTop: 8, fontWeight: 600 }}>
                   {t("public.bookPage.bookCta")}
                 </a>
               ) : null}
@@ -97,7 +105,7 @@ export function LiveServicesBand({
  * overflow:hidden on ancestors; slot buttons/fields then vanish on white, and
  * Turnstile's challenge expand is clipped (Confirm dead-ends with no widget).
  */
-export async function LiveBookingBand({
+export function LiveBookingBand({
   nodeId,
   surface,
   tenantId,
@@ -108,7 +116,6 @@ export async function LiveBookingBand({
   tenantId: string;
   locale?: string;
 }) {
-  const { BookPageClient } = await import("@/app/(public)/book/BookPageClient");
   return (
     <div
       data-builder-node-id={nodeId}
@@ -127,7 +134,7 @@ export async function LiveBookingBand({
         borderRadius: 12,
       }}
     >
-      <BookPageClient
+      <LiveBookingClientIsland
         tenantSlug={surface.tenantSlug}
         tenantId={tenantId}
         agencyName={surface.agencyName}

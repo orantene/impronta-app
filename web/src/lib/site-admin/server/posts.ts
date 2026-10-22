@@ -40,6 +40,9 @@ import {
   isValidPostSlug,
   type PostLocale,
 } from "@/lib/cms/posts-shared";
+import { pingIndexNowUrl } from "@/lib/seo/indexnow";
+import { resolveTenantPublicOriginForIndexNow } from "@/lib/seo/indexnow-tenant-origin";
+import { afterResponse } from "@/lib/server/after-response";
 
 // ---- shapes ----------------------------------------------------------------
 
@@ -327,6 +330,8 @@ export async function publishPost(
     row: data,
     actorProfileId: params.actorProfileId,
   });
+  // Not awaited: a slow api.indexnow.org must never hang this Publish click.
+  afterResponse(() => pingIndexNowForPost(supabase, params.tenantId, data.slug), "posts.publish.indexnow");
   return { ok: true, data: { id: data.id } };
 }
 
@@ -348,8 +353,8 @@ export async function unpublishPost(
       updated_by: params.actorProfileId,
     })
     .eq("id", params.postId)
-    .select("id")
-    .maybeSingle<{ id: string }>();
+    .select("id, slug")
+    .maybeSingle<{ id: string; slug: string }>();
 
   if (error) {
     logServerError("site-admin/posts/unpublish", error);
@@ -358,7 +363,18 @@ export async function unpublishPost(
   if (!data) {
     return { ok: false, code: "NOT_FOUND", message: "Post not found. Reload to see the latest list." };
   }
+  // IndexNow means "recrawl this", not "this now exists" — unpublishing still
+  // pings, so the engine learns the URL is gone as fast as it learned it existed.
+  // Not awaited: a slow api.indexnow.org must never hang this click either.
+  afterResponse(() => pingIndexNowForPost(supabase, params.tenantId, data.slug), "posts.unpublish.indexnow");
   return { ok: true, data: { id: data.id } };
+}
+
+/** TUL-589 (S slice): best-effort, production-only — see @/lib/seo/indexnow. */
+async function pingIndexNowForPost(supabase: SupabaseClient, tenantId: string, slug: string): Promise<void> {
+  const origin = await resolveTenantPublicOriginForIndexNow(supabase, tenantId);
+  if (!origin) return;
+  await pingIndexNowUrl(`${origin}/posts/${slug}`);
 }
 
 // ---- delete ----------------------------------------------------------------

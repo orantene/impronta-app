@@ -18,8 +18,8 @@ import { createClient as createSupabaseServerClient } from "@/lib/supabase/serve
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { headers } from "next/headers";
-import { getStripe, getStripeFor, getStripePublishableKeyFor, isStripeConfigured } from "@/lib/stripe/client";
-import { loadAccountPlatform } from "@/lib/stripe/account-platform";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
+import { publishableKeyForSession, resolveConnectedAccountClient } from "@/lib/stripe/connected-account-client";
 import {
   createOrGetTalentConnectedAccount,
   createTalentOnboardingLink,
@@ -137,9 +137,10 @@ export async function createTalentAccountSession(
     if (!ensure.ok) return { ok: false, error: ensure.error };
 
     // The account may live on the MX platform; its session must be minted there.
-    const platform = await loadAccountPlatform("talent_profiles", { column: "id", value: tp.id });
-    const owningStripe = getStripeFor(platform) ?? stripe;
-    const session = await owningStripe.accountSessions.create({
+    const owning = await resolveConnectedAccountClient("talent_profiles", { column: "id", value: tp.id }, ensure.data.stripeAccountId);
+    if (!owning.ok) return { ok: false, error: owning.error };
+    const platform = owning.platform;
+    const session = await owning.stripe.accountSessions.create({
       account: ensure.data.stripeAccountId,
       components: {
         account_onboarding: {
@@ -149,7 +150,7 @@ export async function createTalentAccountSession(
       },
     });
 
-    return { ok: true, clientSecret: session.client_secret, publishableKey: getStripePublishableKeyFor(platform) };
+    return { ok: true, clientSecret: session.client_secret, publishableKey: publishableKeyForSession(platform) };
   } catch (err) {
     logServerError("talent-payouts.accountSession", err);
     return { ok: false, error: "Could not start payout setup. Please try again." };

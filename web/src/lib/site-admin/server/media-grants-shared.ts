@@ -304,9 +304,9 @@ export async function loadTenantNames(
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (tenantIds.length === 0) return out;
-  const { data } = await admin.from("agencies").select("id, name").in("id", tenantIds as string[]);
-  for (const row of (data ?? []) as Array<{ id: string; name: string | null }>) {
-    if (row.name) out.set(row.id, row.name);
+  const { data } = await admin.from("agencies").select("id, display_name").in("id", tenantIds as string[]);
+  for (const row of (data ?? []) as Array<{ id: string; display_name: string | null }>) {
+    if (row.display_name) out.set(row.id, row.display_name);
   }
   return out;
 }

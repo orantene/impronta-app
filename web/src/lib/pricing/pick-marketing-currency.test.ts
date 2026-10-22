@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   MARKETING_PRICE_CURRENCIES,
   coerceMarketingCurrency,
+  fxSafeMarketingCurrency,
   isMarketingPriceCurrency,
   pickMarketingCurrency,
 } from "./pick-marketing-currency";
@@ -125,5 +126,21 @@ describe("MXN view of the USD catalog (TUL-864 / TUL-892)", () => {
     assert.match(src, /formatConvertedLocal/);
     assert.match(src, /currency === "MXN" \? fxMxn : null/);
     assert.match(src, /"US\$"/);
+  });
+});
+
+describe("fxSafeMarketingCurrency (TUL-1817)", () => {
+  const mxn = { currency: "MXN", source: "fallback" } as const;
+  it("falls back to USD when MXN has no FX rate (outage stubbed off)", () => {
+    for (const rate of [null, undefined, 0, Number.NaN]) {
+      assert.deepEqual(fxSafeMarketingCurrency(mxn, rate), { currency: "USD", source: "fallback" });
+    }
+  });
+  it("keeps MXN when a rate is available", () => {
+    assert.deepEqual(fxSafeMarketingCurrency(mxn, 17.2), mxn);
+  });
+  it("never touches a USD pick", () => {
+    const usd = { currency: "USD", source: "url-param" } as const;
+    assert.deepEqual(fxSafeMarketingCurrency(usd, null), usd);
   });
 });

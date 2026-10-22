@@ -12,7 +12,7 @@ import "server-only";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { loadPublicOpenTimes } from "@/lib/scheduling/public-open-times";
-import { liveSlotsAllEmpty, type ProfileAvailability } from "@/lib/scheduling/profile-live-availability-core";
+import { badgeFromLiveDays, liveOpenDays, liveSlotsAllEmpty, type ProfileAvailability } from "@/lib/scheduling/profile-live-availability-core";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
@@ -53,9 +53,13 @@ export async function withLiveAvailability(
         }),
       ),
     );
-    return liveSlotsAllEmpty(results)
-      ? { nextAvailableDate: null, availableDaysInNext30: null, availabilityDots14d: null }
-      : base;
+    if (liveSlotsAllEmpty(results)) {
+      return { nextAvailableDate: null, availableDaysInNext30: null, availabilityDots14d: null };
+    }
+    // Same live times as the sheet: restate the count from them (the matview's "30 of 30"
+    // contradicted a sheet whose window is the hours' ~2-week horizon). Unusable answers keep the matview.
+    const days = liveOpenDays(results);
+    return days ? badgeFromLiveDays(base, days, now) : base;
   } catch (err) {
     logServerError("profile.liveAvailability", err);
     return base;

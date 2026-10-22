@@ -6,6 +6,8 @@
  * itself, so QA on localhost:3001 never jumps to the live site.
  */
 
+import { withHubLocale } from "@/lib/hub-link";
+
 export const CANONICAL_PROFILE_ORIGIN = "https://tulala.digital";
 
 export function isLocalDevOrigin(origin: string | null | undefined): boolean {
@@ -84,6 +86,8 @@ export function resolveTalentPublicPreviewDestinations(input: {
   profileCode: string | null | undefined;
   publicSiteUrl: string | null | undefined;
   currentOrigin?: string | null;
+  /** TUL-1811: visitor locale; carried to the hub link as `?lang=` (the cookie does not cross hosts). */
+  locale?: string | null;
 }): {
   destinations: TalentPublicPreviewDestination[];
   defaultHref: string | null;
@@ -103,7 +107,7 @@ export function resolveTalentPublicPreviewDestinations(input: {
     destinations.push({ kind: "website", href: websiteHref });
   }
   if (hubHref) {
-    destinations.push({ kind: "hub", href: hubHref });
+    destinations.push({ kind: "hub", href: withHubLocale(hubHref, input.locale) });
   }
 
   return {

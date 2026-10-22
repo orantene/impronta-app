@@ -122,7 +122,8 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 // CANONICAL_ROUTE_MATCHERS + pathIsCanonical live in ./canonical-routes.ts so
 // the host-shape logic can be unit-tested without mounting this shell. Add new
 // canonical pages to the matcher list there.
-import { pathIsCanonical } from "./canonical-routes";
+import { pathIsCanonical, pathIsTalentShellHosted } from "./canonical-routes";
+import { TalentHostedRoute } from "./talent-hosted-route";
 import { TalentLeavesForAdminGuard } from "./talent-leaves-for-admin-guard";
 import { TALENT_VISUAL, TALENT_VISUAL_VARS } from "./internal/talent/visual/tokens";
 
@@ -133,7 +134,7 @@ function ConditionalAdminShellRoot() {
   // on hard-refresh of a canonical route.
   const pathname = usePathname();
   if (pathname == null) return null;
-  if (pathIsCanonical(pathname)) return null;
+  if (pathIsCanonical(pathname) && !pathIsTalentShellHosted(pathname)) return null;
   return <AdminShellRoot />;
 }
 
@@ -270,16 +271,17 @@ export function TalentShellClient({
         platformTalentRoutes={platformTalentRoutes}
         talentStudioV2={talentStudioV2}
       >
-        {children}
+        <TalentHostedRoute route={children}>
         <RealtimeBridge />
         {/* ConditionalAdminShellRoot (not AdminShellRoot directly) so
-            canonical talent routes — e.g. /talent/trust — render their
-            standalone Next.js page instead of the SPA shell. Every
+            canonical talent routes render their standalone Next.js page instead of
+            the SPA shell (TUL-1819: /talent/trust is hosted inside the shell body). Every
             existing /talent/* route is absent from
             CANONICAL_ROUTE_MATCHERS, so they all still render the SPA
             exactly as before (pathIsCanonical → false → AdminShellRoot). */}
         <TalentLeavesForAdminGuard />
         <ConditionalAdminShellRoot />
+        </TalentHostedRoute>
         <SupportSlotGate />
       </AdminShellProvider>
     </ShellBoundary>

@@ -3,6 +3,8 @@ import { test } from "node:test";
 
 import { fakeAdmin, uuid } from "@/lib/storefront/__fixtures__/fake-admin";
 
+import { permissionsTable, type PermissionRow } from "@/lib/staff-permissions/__fixtures__/fake-permissions-table";
+
 import { hasMessagingMoneyPermission } from "./money-permissions";
 
 const TENANT = uuid(1);
@@ -24,7 +26,11 @@ function seed(overrides: Partial<{ staffPermissions: Array<Record<string, unknow
       { tenant_id: TENANT, profile_id: STAFF_B, status: "active" },
       { tenant_id: uuid(99), profile_id: OTHER_TENANT_STAFF, status: "active" },
     ],
-    staff_permissions: overrides.staffPermissions ?? [],
+    // TUL-1813: rows are per-tenant now; default to the grantee's own tenant.
+    staff_permissions: (overrides.staffPermissions ?? []).map((r) => ({
+      tenant_id: r.user_id === OTHER_TENANT_STAFF ? uuid(99) : TENANT,
+      ...r,
+    })),
   });
 }
 
@@ -70,4 +76,47 @@ test("a user with no active membership on the tenant is refused even when the ke
   const stranger = uuid(77);
   const result = await hasMessagingMoneyPermission(admin, { tenantId: TENANT, userId: stranger, permission: "messages.cancel" });
   assert.equal(result, false);
+});
+
+// ---- TUL-1813: per-tenant scope, both table shapes ------------------------
+
+const TENANT_B = uuid(98);
+
+function seedShape(shape: "legacy" | "scoped", rows: PermissionRow[]) {
+  const base = fakeAdmin({
+    profiles: [{ id: STAFF_A, app_role: "agency_staff" }, { id: STAFF_B, app_role: "agency_staff" }],
+    agency_memberships: [
+      { tenant_id: TENANT, profile_id: STAFF_A, status: "active" },
+      { tenant_id: TENANT, profile_id: STAFF_B, status: "active" },
+      { tenant_id: TENANT_B, profile_id: STAFF_A, status: "active" },
+      { tenant_id: TENANT_B, profile_id: STAFF_B, status: "active" },
+    ],
+  });
+  const { table } = permissionsTable(shape, rows);
+  return { from: (t: string) => (t === "staff_permissions" ? table.from(t) : base.admin.from(t)) };
+}
+
+test("scoped shape: a grant in tenant A does NOT configure or restrict tenant B", async () => {
+  const admin = seedShape("scoped", [{ user_id: STAFF_A, tenant_id: TENANT, permission: "messages.refund" }]);
+  const aHolder = await hasMessagingMoneyPermission(admin, { tenantId: TENANT, userId: STAFF_A, permission: "messages.refund" });
+  const aOther = await hasMessagingMoneyPermission(admin, { tenantId: TENANT, userId: STAFF_B, permission: "messages.refund" });
+  const bOther = await hasMessagingMoneyPermission(admin, { tenantId: TENANT_B, userId: STAFF_B, permission: "messages.refund" });
+  assert.equal(aHolder, true);
+  assert.equal(aOther, false, "tenant A is configured: non-holder refused");
+  assert.equal(bOther, true, "tenant B stays unconfigured/open");
+});
+
+test("scoped shape: one user holding the key in two tenants (multiplied rows) does not error", async () => {
+  const admin = seedShape("scoped", [
+    { user_id: STAFF_A, tenant_id: TENANT, permission: "messages.refund" },
+    { user_id: STAFF_A, tenant_id: TENANT_B, permission: "messages.refund" },
+  ]);
+  assert.equal(await hasMessagingMoneyPermission(admin, { tenantId: TENANT, userId: STAFF_A, permission: "messages.refund" }), true);
+  assert.equal(await hasMessagingMoneyPermission(admin, { tenantId: TENANT_B, userId: STAFF_B, permission: "messages.refund" }), false);
+});
+
+test("legacy shape (column absent): keeps working with the pre-migration behaviour", async () => {
+  const admin = seedShape("legacy", [{ user_id: STAFF_A, permission: "messages.refund" }]);
+  assert.equal(await hasMessagingMoneyPermission(admin, { tenantId: TENANT, userId: STAFF_A, permission: "messages.refund" }), true);
+  assert.equal(await hasMessagingMoneyPermission(admin, { tenantId: TENANT, userId: STAFF_B, permission: "messages.refund" }), false);
 });

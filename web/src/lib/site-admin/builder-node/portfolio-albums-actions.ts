@@ -41,7 +41,7 @@ async function canEditTalent(talentProfileId: string): Promise<boolean> {
   if (!tp) return false;
   if (tp.user_id === session.user.id) return true;
 
-  const staff = await requireWorkspaceStaffAction();
+  const staff = await requireWorkspaceStaffAction({ capability: "agency.roster.edit" });
   if (!staff.ok) return false;
   const admin = createServiceRoleClient();
   if (!admin) return false;

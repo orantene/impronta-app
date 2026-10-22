@@ -36,6 +36,13 @@ export function resolveRequestLocale(input: {
   cookieLocale: string | null | undefined;
   publicLocales: readonly string[];
   defaultLocale: string;
+  /**
+   * TUL-1187 lets the cookie beat the path-derived header on an unprefixed path.
+   * Marketing hosts pass `false` (TUL-1798): there `/` and `/pricing` ARE the
+   * English URLs (Spanish lives under `/es`), so a leftover `es` cookie from an
+   * earlier `/es` visit must not turn them Spanish.
+   */
+  cookieBeatsUnprefixedPath?: boolean;
 }): string {
   const settings: LocaleUrlSettings = {
     defaultLocale: input.defaultLocale,
@@ -62,7 +69,7 @@ export function resolveRequestLocale(input: {
   // locale cookie) must beat it. With no pathname, keep header-first.
   const cookieOk = isAllowed(input.cookieLocale, input.publicLocales, input.defaultLocale);
   const headerOk = isAllowed(input.headerLocale, input.publicLocales, input.defaultLocale);
-  if (input.pathname && cookieOk) return input.cookieLocale as string;
+  if (input.pathname && cookieOk && input.cookieBeatsUnprefixedPath !== false) return input.cookieLocale as string;
   if (headerOk) return input.headerLocale as string;
   if (cookieOk) return input.cookieLocale as string;
 

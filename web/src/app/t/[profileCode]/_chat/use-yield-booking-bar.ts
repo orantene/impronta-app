@@ -6,7 +6,7 @@
  * Seleccionar on the last rows stays tappable).
  */
 
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 import {
   GUEST_CHAT_LAUNCHER_BOOKING_BAR_LIFT_PX,
@@ -28,6 +28,43 @@ function visibleFixedChrome(el: HTMLElement | null): el is HTMLElement {
 
 function chromeLiftFor(el: HTMLElement): number {
   return Math.ceil(window.innerHeight - el.getBoundingClientRect().top) + BOOKING_BAR_CLEARANCE_PX;
+}
+
+/** Marks a primary profile CTA (Consultar / Reservar) the launcher must never cover. */
+export const PROFILE_CTA_SELECTOR = "[data-profile-cta]";
+/** Vertical band (from the viewport bottom) the launcher occupies, plus its gap. */
+const LAUNCHER_BAND_PX = GUEST_CHAT_LAUNCHER_BOTTOM_NARROW_PX + 52 + 16;
+
+/**
+ * TUL-1790: on a phone the fixed launcher sat over the right end of the
+ * 'Consultar sobre ...' CTA while it scrolled through the bottom band. True
+ * while any marked CTA intersects that band, so the launcher steps aside
+ * (fades, non-interactive) and the full label and tap area stay visible.
+ */
+export function useCtaUnderLauncher(active: boolean): boolean {
+  const [underCta, setUnderCta] = useState(false);
+  useEffect(() => {
+    if (!active || typeof IntersectionObserver === "undefined") {
+      setUnderCta(false);
+      return;
+    }
+    const targets = Array.from(document.querySelectorAll<HTMLElement>(PROFILE_CTA_SELECTOR));
+    if (targets.length === 0) return;
+    const hits = new Set<Element>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) hits.add(e.target);
+          else hits.delete(e.target);
+        }
+        setUnderCta(hits.size > 0);
+      },
+      { rootMargin: `-${Math.max(0, window.innerHeight - LAUNCHER_BAND_PX)}px 0px 0px 0px` },
+    );
+    targets.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [active]);
+  return underCta;
 }
 
 export function useYieldBookingBar(mounted: boolean, narrowLauncher: boolean): {

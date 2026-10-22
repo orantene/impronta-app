@@ -1,5 +1,6 @@
 "use server";
 
+import { seedTalentInvitationEmail } from "@/lib/talent/invitation-email";
 import { cookies, headers } from "next/headers";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { logServerError } from "@/lib/server/safe-error";
@@ -136,11 +137,9 @@ async function seedContactEmailFromSignup(
 ): Promise<void> {
   const value = (email ?? "").trim();
   if (!value) return;
-  const { error } = await supabase
-    .from("talent_profiles")
-    .update({ invitation_email: value })
-    .eq("id", talentProfileId)
-    .is("invitation_email", null);
+  // TUL-1791: the old UPDATE ... WHERE invitation_email IS NULL needs SELECT on the
+  // column, which authenticated no longer holds. The RPC fills an empty value only.
+  const { error } = await seedTalentInvitationEmail(supabase, talentProfileId, value);
   if (error) logServerError("onboarding.seedContactEmail", error);
 }
 

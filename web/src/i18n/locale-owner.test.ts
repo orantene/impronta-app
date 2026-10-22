@@ -23,3 +23,20 @@ test("both email sign-in actions reset the locale, and the builder reconciles it
   const layout = readFileSync(join(root, "app/(workspace)/talent/_talent-layout-inner.tsx"), "utf8");
   assert.match(layout, /talentLocaleSeedPlan\(/);
 });
+
+import { planLocaleCookiesOnSignIn } from "./locale-owner";
+
+test("TUL-1252: a deliberate cookie on an unowned browser (Spanish chosen on /es/login) survives sign-in", () => {
+  assert.equal(planLocaleCookiesOnSignIn({ cookieOwner: null, userId: "u1", cookieLocale: "es", cookieIsAuto: false }), "keep_and_stamp");
+  assert.equal(planLocaleCookiesOnSignIn({ cookieOwner: undefined, userId: "u1", cookieLocale: "en", cookieIsAuto: false }), "keep_and_stamp");
+});
+
+test("TUL-1252: foreign-owned and unowned auto cookies are still dropped (F132)", () => {
+  assert.equal(planLocaleCookiesOnSignIn({ cookieOwner: "other", userId: "u1", cookieLocale: "es", cookieIsAuto: false }), "reset");
+  assert.equal(planLocaleCookiesOnSignIn({ cookieOwner: null, userId: "u1", cookieLocale: "en", cookieIsAuto: true }), "reset");
+  assert.equal(planLocaleCookiesOnSignIn({ cookieOwner: null, userId: "u1", cookieLocale: null, cookieIsAuto: false }), "reset");
+});
+
+test("TUL-1252: the same owner keeps the cookie", () => {
+  assert.equal(planLocaleCookiesOnSignIn({ cookieOwner: "u1", userId: "u1", cookieLocale: "es", cookieIsAuto: true }), "keep");
+});

@@ -88,6 +88,7 @@ const SELF_FILES = new Set([
   // which the scanner would read as usage of every key beneath them.
   "src/i18n/client-subtrees.ts",
   "src/i18n/client-subtrees.static.test.ts",
+  "src/i18n/public-message-namespaces.static.test.ts",
 ]);
 
 /**

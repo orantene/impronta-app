@@ -12,13 +12,21 @@
  */
 import type { InquiryIntent } from "./inquiry-intent";
 
-const TALENT_PAGE = /^\/t\/([^/?#]+)\/?(?:[?#].*)?$/;
+// An optional locale segment (`/es/t/<code>`, `/en/t/<code>`) is part of the same page.
+const TALENT_PAGE = /^(?:\/(?:es|en))?\/t\/([^/?#]+)\/?(?:[?#].*)?$/;
 
-export function normalizeTalentPageIntent(intent: InquiryIntent): InquiryIntent {
+/**
+ * `pageHint` is the path of the page that posted the server action (from the
+ * Referer header). The drawer's own `source_context.referrer_page` is not always
+ * the profile path (the directory sheet falls back to "/directory", and a locale
+ * prefix used to defeat the match), so the hint is a second chance, never an override
+ * of a referrer that already names a talent page.
+ */
+export function normalizeTalentPageIntent(intent: InquiryIntent, pageHint?: string | null): InquiryIntent {
   if (intent.source !== "agency_site") return intent;
   const sc = (intent.source_context ?? {}) as Record<string, unknown>;
   const referrer = typeof sc.referrer_page === "string" ? sc.referrer_page : "";
-  const match = TALENT_PAGE.exec(referrer);
+  const match = TALENT_PAGE.exec(referrer) ?? (pageHint ? TALENT_PAGE.exec(pageHint) : null);
   const ids = intent.talent?.selected_ids ?? [];
   if (!match || ids.length !== 1) return intent;
   return {

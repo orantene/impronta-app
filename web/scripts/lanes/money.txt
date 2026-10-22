@@ -13,6 +13,9 @@ src/app/(workspace)/?tenantSlug?/admin/pos/pos-mode-url-sync.render.test.tsx
 src/app/(workspace)/?tenantSlug?/client/_actions/offer-refusal.test.ts
 src/components/admin/pos/classes-copy.static.test.ts
 src/components/admin/service-hub/owner-hub-screen.render.test.tsx
+src/components/admin/settings/collective-settings-row.static.test.ts
+src/components/admin/settings/work-style-settings-row.static.test.ts
+src/components/admin/shell/internal/state/talent-tier-sync.test.ts
 src/components/storefront/public-hub-entries.render.test.tsx
 src/components/talent/money/ledger-clients-state.test.ts
 src/components/talent/service-hub/channel-panels.render.test.tsx
@@ -119,6 +122,7 @@ src/lib/inquiry/offer-money-format.test.ts
 src/lib/inquiry/offer-solo-fee.test.ts
 src/lib/inquiry/owning-party-own-workspace.test.ts
 src/lib/inquiry/retry-failed-engine-effects.test.ts
+src/lib/inquiry/tenant-param-money-inquiries.static.test.ts
 src/lib/ledger/project.test.ts
 src/lib/ledger/run-projection.test.ts
 src/lib/ledger/transfer-settlement.test.ts
@@ -224,6 +228,7 @@ src/lib/payments/payments-method-source.static.test.ts
 src/lib/payments/payout-rail-policy.test.ts
 src/lib/payments/payout-release-gate.test.ts
 src/lib/payments/payout-transfer-retry.test.ts
+src/lib/payments/payouts-admin-es.test.ts
 src/lib/payments/processing-fee.test.ts
 src/lib/payments/provider-invoices.test.ts
 src/lib/payments/receipt-no-cfdi-notice.static.test.ts
@@ -248,6 +253,7 @@ src/lib/payments/stripe-collection.test.ts
 src/lib/payments/stripe-mx-money-paths.test.ts
 src/lib/payments/stripe-payment-intent.minimum.test.ts
 src/lib/payments/talent-payout-attention.test.ts
+src/lib/payments/talent-workspace-seller-lane.test.ts
 src/lib/payments/transfers-house-lane.test.ts
 src/lib/payments/transfers-processing-pass-through.test.ts
 src/lib/payments/transfers-product-gate.test.ts
@@ -259,6 +265,7 @@ src/lib/platform/staff-access-log.test.ts
 src/lib/pos/addons.test.ts
 src/lib/pos/attach-customer.test.ts
 src/lib/pos/booking-shell.static.test.ts
+src/lib/pos/cancel-eligibility.test.ts
 src/lib/pos/cash-outbox.test.ts
 src/lib/pos/classes/checkin.test.ts
 src/lib/pos/classes/day.test.ts
@@ -267,6 +274,7 @@ src/lib/pos/collection.split.test.ts
 src/lib/pos/collective-split-apply.test.ts
 src/lib/pos/commands-collection.test.ts
 src/lib/pos/commands-draft.test.ts
+src/lib/pos/counter-cashier-capability.test.ts
 src/lib/pos/custom-line.test.ts
 src/lib/pos/device-session.test.ts
 src/lib/pos/display-model.test.ts
@@ -275,7 +283,9 @@ src/lib/pos/door-tonight-horizon.static.test.ts
 src/lib/pos/engine-refusals.static.test.ts
 src/lib/pos/hold-capacity.test.ts
 src/lib/pos/link-booking.test.ts
+src/lib/pos/order-lines-paid-split-guard.static.test.ts
 src/lib/pos/outbox-replay.test.ts
+src/lib/pos/pin-lock.test.ts
 src/lib/pos/pos-add-line-inquiry-manager.static.test.ts
 src/lib/pos/pos-page-wire.static.test.ts
 src/lib/pos/pos-rpc-hardening.static.test.ts
@@ -286,6 +296,7 @@ src/lib/pos/scan-code.test.ts
 src/lib/pos/shift-movements.test.ts
 src/lib/pos/shift.test.ts
 src/lib/pos/staff-actor.static.test.ts
+src/lib/pos/staff-limit-plan.test.ts
 src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
@@ -297,11 +308,14 @@ src/lib/reviews/collective-reviews.test.ts
 src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
 src/lib/reviews/team-studio-private-notes.static.test.ts
+src/lib/rls/staff-permissions-tenant-scope.static.test.ts
 src/lib/saas/capabilityless-staff-guard.static.test.ts
 src/lib/saas/custom-domain-actions.test.ts
 src/lib/saas/media-area-writers-capability.static.test.ts
 src/lib/saas/media-writers-capability.static.test.ts
 src/lib/saas/ops-writers-capability.static.test.ts
+src/lib/saas/tul1708-engines-writers-capability.static.test.ts
+src/lib/saas/tul1708-venue-ops-writers-capability.static.test.ts
 src/lib/saas/vercel-domains-registrar.test.ts
 src/lib/saas/workspace-settings-writers-capability.static.test.ts
 src/lib/sales/activity-shape.test.ts
@@ -357,6 +371,7 @@ src/lib/service-hub/rent/rent-outside-autopay.test.ts
 src/lib/service-hub/rent/rent-outside.test.ts
 src/lib/service-hub/rent/rent-owner-autopay.static.test.ts
 src/lib/service-hub/rent/rent-percent-gates.test.ts
+src/lib/service-hub/rent/rent-percent-missed-atomic.test.ts
 src/lib/service-hub/rent/rent-percent-missed.test.ts
 src/lib/service-hub/rent/rent-percent.test.ts
 src/lib/service-hub/rent/rent-safety-view.test.ts
@@ -371,15 +386,19 @@ src/lib/service-hub/terms.test.ts
 src/lib/service-hub/work-style.server.test.ts
 src/lib/service-hub/work-style.test.ts
 src/lib/sessions/events-projects-capabilities.test.ts
+src/lib/sessions/operate-venue-writers.test.ts
 src/lib/sessions/room-messages.test.ts
 src/lib/sessions/session-cancel-rooms.test.ts
 src/lib/sessions/sessions-public-read-visibility.static.test.ts
+src/lib/staff-permissions/read.test.ts
 src/lib/storefront/trusted-public-origin.test.ts
+src/lib/stripe/connected-account-client.test.ts
 src/lib/stripe/env-keys.static.test.ts
 src/lib/stripe/env-keys.test.ts
 src/lib/stripe/publishable-key-for.test.ts
 src/lib/stripe/publishable-key-server-resolved.test.ts
 src/lib/stripe/recurring-consent.test.ts
+src/lib/stripe/stored-customer.test.ts
 src/lib/stripe/subscription-lifecycle.static.test.ts
 src/lib/stripe/talent-domain-renewal.test.ts
 src/lib/stripe/webhook-draft-settle.test.ts

@@ -36,6 +36,35 @@ test("page has no hard-coded English JSX text or label props", () => {
   }
 });
 
+test("TUL-1819: shell-hosted, working CTAs only, no roadmap copy", () => {
+  const code = page.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  // Only ID verification is actionable; it links via next/link to Settings.
+  assert.match(code, /kind: "id-verified", selfActionable: true/);
+  assert.match(code, /kind: "background-check", selfActionable: false/);
+  assert.match(code, /kind: "union", selfActionable: false/);
+  assert.equal((code.match(/selfActionable: true/g) ?? []).length, 1);
+  assert.match(code, /SETTINGS_HREF = "\/talent\/settings"/);
+  assert.doesNotMatch(code, /<a\s+href=/);
+  assert.doesNotMatch(code, /style=\{\{/);
+  for (const loc of ["en", "es"]) {
+    const c = trustCopy(loc);
+    const all = JSON.stringify(c);
+    assert.doesNotMatch(all, /sprint|rolling out|rollout|próximo sprint|Próximamente|Coming soon/i);
+    assert.ok(!("rolloutBold" in c));
+  }
+  assert.doesNotMatch(trustCopy("es").touchpoints["background-check"].ctaLabel, /Solicitar/);
+  assert.doesNotMatch(trustCopy("es").touchpoints.union.ctaLabel, /Subir/);
+  // The shell hosts this page: the talent shell publishes it to the router body.
+  const root = join(process.cwd(), "src/components/admin/shell");
+  const canon = readFileSync(join(root, "canonical-routes.ts"), "utf8");
+  assert.match(canon, /export function pathIsTalentShellHosted/);
+  const client = readFileSync(join(root, "admin-shell-client.tsx"), "utf8");
+  assert.match(client, /<TalentHostedRoute route=\{children\}>/);
+  assert.match(client, /!pathIsTalentShellHosted\(pathname\)/);
+  const talent = readFileSync(join(root, "internal/talent.tsx"), "utf8");
+  assert.match(talent, /useCanonicalRouteChildren\(\)/);
+});
+
 test("page only uses copy keys that exist in both es and en", () => {
   const en = trustCopy("en") as unknown as Record<string, unknown>;
   const es = trustCopy("es-MX") as unknown as Record<string, unknown>;

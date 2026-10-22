@@ -27,6 +27,9 @@ export type BookingTxnRow = {
   provider_metadata?: Record<string, unknown> | null;
 };
 
+/** last_error prefix transfers.ts writes on a fee-unknown hold. */
+export const FEE_UNKNOWN_ERROR_PREFIX = "processing fee";
+
 /** last_error prefix a refund-pending payout hold is recorded with; the held-payout retry reads it. */
 export const REFUND_PENDING_ERROR_PREFIX = "refund pending";
 

@@ -356,14 +356,13 @@ export type MarkMissedOutcome = "marked" | "already" | "error";
 
 export async function markPercentMissed(admin: SupabaseClient, p: { tenantId: string; planId: string; month: string; reason: "finalized" | "flag_off" }): Promise<MarkMissedOutcome> {
   try {
-    const { data, error: readErr } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).select("autopay_percent_missed").eq("id", p.planId).maybeSingle();
-    // A read we could not make is NOT "nothing marked yet": writing [month] now would overwrite the months already marked.
-    if (readErr) throw readErr;
-    if (!data) throw new Error(`plan ${p.planId} not found`);
-    const current = ((data as { autopay_percent_missed?: string[] | null }).autopay_percent_missed ?? []) as string[];
-    if (current.includes(p.month)) return "already";
-    const { error } = await tenantScopedQuery(admin, "studio_rent_plans", p.tenantId).update({ autopay_percent_missed: [...current, p.month] }).eq("id", p.planId);
+    // TUL-1751: one atomic append in the database (array_append guarded by NOT month = ANY). A read-modify-write here let two
+    // months landing together overwrite each other. 'already' = this month was marked before: no second marker, no second notice.
+    // A failed call is "error" (the webhook retries), never "nothing marked".
+    const { data, error } = await admin.rpc("rent_mark_percent_missed", { p_plan_id: p.planId, p_tenant_id: p.tenantId, p_month: p.month });
     if (error) throw error;
+    if (data === "already") return "already";
+    if (data !== "marked") throw new Error(`plan ${p.planId} not marked (${String(data)})`);
     logServerError("rent.autopay.percentMissed", new Error(`plan ${p.planId}: percentage of ${p.month} was not billed (${p.reason})`));
     afterResponse(() =>
       dispatchEventNotifications({

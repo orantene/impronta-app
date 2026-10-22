@@ -11,7 +11,12 @@ test("the loader runs as the talent (RLS) and a failed read is not an empty page
   const src = read("lib/talent/service-hub-channels.server.ts");
   assert.match(src, /\.eq\("talent_profile_id", talentProfileId\)/);
   assert.equal((src.match(/\.eq\("talent_profile_id", talentProfileId\)/g) ?? []).length, 5);
+  // Workspace names need the service role (agencies is staff-read only); that lives in one small helper.
   assert.doesNotMatch(src, /createServiceRoleClient/);
+  assert.match(src, /loadChannelWorkspaces\(supabase, tenantIds\)/);
+  const names = read("lib/talent/service-hub-channel-names.server.ts");
+  assert.match(names, /select\("id, display_name, kind"\)\.in\("id", ids\)/);
+  assert.doesNotMatch(names, /\.(insert|update|delete|upsert)\(/);
   assert.match(src, /return \{ ok: false \}/);
 });
 

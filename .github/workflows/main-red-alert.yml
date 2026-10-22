@@ -28,6 +28,9 @@ on:
 
 permissions:
   issues: write
+  actions: read   # list a cancelled run's jobs (TUL-1772)
+  checks: read    # job annotations tell a timeout from a cancel (TUL-1772)
+  contents: read  # sparse checkout of .github/scripts
 
 # TUL-1403: one alert run per (commit, outcome). The three watched gates each fire this
 # workflow, and re-runs fire it again; duplicates of the SAME outcome on the SAME commit are
@@ -41,18 +44,33 @@ concurrency:
 jobs:
   alert:
     name: Raise / clear the red-main issue
-    # TUL-1403: `cancelled` / `skipped` / `neutral` runs do nothing in the script below (it acts only
-    # on failure, timed_out and success), so do not spend a runner start on them.
-    if: contains(fromJSON('["failure","timed_out","success"]'), github.event.workflow_run.conclusion)
+    # TUL-1403: `skipped` / `neutral` runs do nothing, so do not spend a runner start on them.
+    # TUL-1772: `cancelled` MUST get through: a job killed by timeout-minutes reports `cancelled`.
+    # The script tells a timeout from a supersede / manual cancel (job annotations) and stays
+    # silent for the latter.
+    if: contains(fromJSON('["failure","timed_out","cancelled","success"]'), github.event.workflow_run.conclusion)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check out the classifier script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
       - name: Open, bump, or close the alarm issue
         uses: actions/github-script@v7
         with:
           script: |
             const run = context.payload.workflow_run;
             const conclusion = run.conclusion; // success | failure | cancelled | timed_out | ...
+            const { classifyWorkflowRun } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/classify-gate-run.cjs`);
+            const verdict = await classifyWorkflowRun({
+              github,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run,
+            });
+            core.info(`${run.name} ${conclusion}: ${verdict.action} (${verdict.reason})`);
 
             // A gate that RAN OUT OF TIME has told us nothing, and "nothing" is
             // not "green": the production exposure window is identical to a red
@@ -61,14 +79,13 @@ jobs:
             // reported at this commit is unknown, not green. Silence is not
             // evidence." — and the open-path did not apply its own rule.
             //
-            // `cancelled` is deliberately NOT here. It almost always means a
-            // newer push superseded this run, and alarming on it would fire on
-            // ordinary rapid merges. Six cancelled runs happened on main in one
-            // morning; none was a red main. An alarm that cries on routine
-            // supersede is one people learn to close without reading, which is
-            // the failure this workflow exists to prevent.
-            const RED_CONCLUSIONS = new Set(["failure", "timed_out"]);
-            const verb = conclusion === "timed_out" ? "timed out" : "failed";
+            // `cancelled` alarms ONLY when a job's annotation says it exceeded its
+            // timeout-minutes (GitHub reports a timeout as `cancelled`; TUL-1772).
+            // A run cancelled by a newer push or by hand tells us nothing and stays
+            // silent: an alarm that cries on routine supersede is one people learn
+            // to close without reading. The decision lives in
+            // .github/scripts/classify-gate-run.cjs (unit tested).
+            const verb = verdict.verb;
             const sha = run.head_sha.slice(0, 9);
             const runUrl = run.html_url;
             const TITLE = "🔴 MAIN IS RED — production exposure window open";
@@ -82,7 +99,7 @@ jobs:
             });
             const existing = open[0];
 
-            if (RED_CONCLUSIONS.has(conclusion)) {
+            if (verdict.action === "alarm") {
               const body = [
                 `\`${run.name}\` ${verb} on \`main\` at \`${sha}\` — and Vercel deploys main pushes regardless of CI, so production may be running this commit right now.`,
                 "",
@@ -110,7 +127,7 @@ jobs:
                   labels: ["main-red"],
                 });
               }
-            } else if (conclusion === "success" && existing) {
+            } else if (verdict.action === "clear" && existing) {
               // With several gates watched, THIS one being green proves nothing
               // about the others. Closing on a single success would let a green
               // fidelity run clear an alarm the type gate raised, which is worse

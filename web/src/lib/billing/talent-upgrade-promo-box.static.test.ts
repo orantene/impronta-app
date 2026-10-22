@@ -20,7 +20,7 @@ test("live tier-compare upgrade CTA mounts PromoCodeInput", () => {
 });
 
 test("typed code reaches startTalentUpgrade; the ?promo= value is the fallback and pre-fills the box", () => {
-  assert.match(drawer, /startTalentUpgrade\(planKey, tenantSlug, appliedCode \?\? urlPromo\)/);
+  assert.match(drawer, /startTalentUpgrade\(planKey, tenantSlug, appliedCode \?\? urlPromo, null, interval\)/);
   assert.match(drawer, /readPromoCodeFromUrl\(\)/);
   assert.match(drawer, /defaultCode=\{urlPromo\}/);
   assert.match(input, /defaultCode\?: string \| null/);

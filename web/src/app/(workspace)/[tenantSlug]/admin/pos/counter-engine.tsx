@@ -43,6 +43,7 @@ import {
 import { basketTotals } from "@/components/admin/pos/pos-math";
 import { createPaymentLink, posLinkBooking, posSetTip } from "@/lib/server-actions/pos-engine";
 
+import { pinStatusFor, type PinStatus } from "@/lib/pos/pin-lock";
 import { posAddCustomLine, posApproveCustomAmount, posBookingCandidates } from "./actions";
 import { formatClock, keypadNext } from "./counter-model";
 import type { PosSaleSummary } from "./counter-props";
@@ -121,7 +122,7 @@ export function useCounterEngine(input: {
   const [customCents, setCustomCents] = useState(0);
   const [approverId, setApproverId] = useState<string | null>(null);
   const [pin, setPin] = useState("");
-  const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [approvalStatus, setApprovalStatus] = useState<PinStatus | null>(null);
 
   const [bookingState, setBookingState] = useState<LinkBookingState>({ status: "loading" });
   const [bookingChoice, setBookingChoice] = useState<string | null>(null);
@@ -224,7 +225,7 @@ export function useCounterEngine(input: {
           input.onWritten();
         } else {
           setPin("");
-          setApprovalStatus(sentence(r.reason));
+          setApprovalStatus(pinStatusFor(copy.refusal, r.reason, "retryAfterSeconds" in r ? r.retryAfterSeconds : undefined));
         }
       })
       .finally(() => setBusy(false));
@@ -346,7 +347,8 @@ export function useCounterEngine(input: {
             else if (/^[0-9]$/.test(key)) setPin((p) => (p.length >= 6 ? p : `${p}${key}`));
             setApprovalStatus(null);
           }}
-          status={approvalStatus}
+          status={approvalStatus?.text ?? null}
+          statusLocked={approvalStatus?.locked === true}
           busy={busy}
           onApprove={approve}
           copy={copy.custom}

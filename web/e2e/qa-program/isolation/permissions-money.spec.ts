@@ -44,10 +44,21 @@ test.describe("QA permissions — money gate", () => {
       { auth: { persistSession: false } },
     );
     // Opt the tenant in: grant owner messages.refund; nomoney staff has none.
-    const { error: grantErr } = await sb.from("staff_permissions").upsert(
-      { user_id: OWNER_PROFILE_ID, permission: "messages.refund" },
-      { onConflict: "user_id,permission" },
+    // TUL-1813: per-tenant grant. Tolerates the pre-migration table (no tenant_id).
+    let { error: grantErr } = await sb.from("staff_permissions").upsert(
+      {
+        user_id: OWNER_PROFILE_ID,
+        tenant_id: "33333333-3333-4333-8333-333333333333",
+        permission: "messages.refund",
+      },
+      { onConflict: "user_id,tenant_id,permission" },
     );
+    if (grantErr && /tenant_id/.test(grantErr.message)) {
+      ({ error: grantErr } = await sb.from("staff_permissions").upsert(
+        { user_id: OWNER_PROFILE_ID, permission: "messages.refund" },
+        { onConflict: "user_id,permission" },
+      ));
+    }
     expect(grantErr, `staff_permissions upsert failed: ${grantErr?.message}`).toBeNull();
 
     // Prefer a thread that already shows Paid so the Refund door is present.

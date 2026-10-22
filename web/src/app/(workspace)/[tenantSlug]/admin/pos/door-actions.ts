@@ -55,13 +55,12 @@ const uuid = z.string().uuid();
 
 /**
  * TUL-1708: `action` names the capability a WRITE needs, from DOOR_WRITE_CAPABILITY, passed straight into
- * the guard. Reads (tonight's list, reading a sale, the tickets issued on an order) call `staff()` with no
- * action, but still need `booking.payment.request`, same as main today: the door shows sales figures and
+ * the guard. Reads (tonight's list, reading a sale, the tickets issued on an order) call `staff("read")`, but still need `booking.payment.request`, same as main today: the door shows sales figures and
  * ticket holder names, which the guard's bare default (`agency.workspace.view`) would hand to any viewer.
  */
-async function staff(action?: DoorWriteAction) {
+async function staff(action: DoorWriteAction | "read") {
   const guard = await requireWorkspaceStaffAction({
-    capability: action ? DOOR_WRITE_CAPABILITY[action] : "booking.payment.request",
+    capability: action === "read" ? "booking.payment.request" : DOOR_WRITE_CAPABILITY[action],
   });
   if (!guard.ok) return { ok: false as const, error: guard.error };
   const admin = createServiceRoleClient();
@@ -75,7 +74,7 @@ export type { DoorTonightSession } from "@/lib/pos/door-tonight";
 
 /** Tonight's sessions, re-read on demand (the page loads them once on the server). */
 export async function posDoorTonight(): Promise<DoorTonightResult> {
-  const g = await staff();
+  const g = await staff("read");
   if (!g.ok) return { ok: false, error: g.error };
   return loadDoorTonight(g.admin, g.tenantId);
 }
@@ -230,7 +229,7 @@ export type DoorSaleView = DoorTicketSale & { lines: DoorSaleLine[] };
 
 /** The open sale as the basket draws it: lines with their labels and units, and the version every write needs. */
 export async function posDoorReadSale(orderId: string): Promise<{ ok: true; sale: DoorSaleView } | { ok: false; reason?: unknown; error?: unknown }> {
-  const g = await staff();
+  const g = await staff("read");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   const loaded = await loadPosSale(g.admin, { tenantId: g.tenantId, orderId });
@@ -355,7 +354,7 @@ async function issuedTicketsFor(
 }
 
 export async function posDoorIssuedTickets(orderId: string) {
-  const g = await staff();
+  const g = await staff("read");
   if (!g.ok) return g;
   if (!uuid.safeParse(orderId).success) return { ok: false as const, error: "invalid" };
   return issuedTicketsFor(g.admin, g.tenantId, orderId);

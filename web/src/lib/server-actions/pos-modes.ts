@@ -59,7 +59,7 @@ export type PosModesResult =
   | { ok: false; reason: PosModesRefusal };
 
 export async function getPosModes(): Promise<PosModesResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) {
     logServerError("pos-modes.getPosModes.denied", auth.error);
     return { ok: false, reason: "not_allowed" };
@@ -134,7 +134,7 @@ export async function setPosModes(input: { modes: string[] }): Promise<PosModesR
 const slugSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9_-]{0,62}$/);
 
 export async function getLocationModes(input: { slug: string }): Promise<PosModesResult> {
-  const auth = await requireWorkspaceStaffAction();
+  const auth = await requireWorkspaceStaffAction({ capability: "agency.workspace.view" });
   if (!auth.ok) {
     logServerError("pos-modes.getLocationModes.denied", auth.error);
     return { ok: false, reason: "not_allowed" };

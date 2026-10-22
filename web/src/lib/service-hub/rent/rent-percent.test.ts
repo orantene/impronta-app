@@ -83,7 +83,8 @@ describe("the sales base comes from the store and the invoice freezes the result
       async saveOrder() { return true; },
       async readOrderId() { return null; },
       async mintLink(i) { return { ok: true, code: `c-${i.amountCents}`, url: `u/${i.amountCents}` }; },
-      async markIssued() { return true; },
+      async markIssued() { return "issued" as const; },
+      async voidMintedLink() { return true; },
     };
     return { deps, invoices, asked };
   }

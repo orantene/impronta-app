@@ -3,7 +3,7 @@
  * talent-less "message the agency" inquiry (source `agency_site`), so the
  * booking assistant used to skip every turn with `no_talent_profile_id` and the
  * guest only ever saw the canned handoff. When the tenant's active roster has
- * exactly one talent, that person is who the assistant speaks for.
+ * exactly one ACTIVE talent, that person is who the assistant speaks for.
  *
  * Pure: takes the roster rows already read, returns the talent id or null.
  */
@@ -12,7 +12,8 @@ export function pickSoloRosterTalentId(
 ): string | null {
   const ids = new Set<string>();
   for (const r of rows ?? []) {
-    if (r.status === "removed") continue;
+    // TUL-1816: pending / removed / paused rows never count, only ACTIVE ones.
+    if (r.status !== "active") continue;
     const id = typeof r.talent_profile_id === "string" ? r.talent_profile_id.trim() : "";
     if (id) ids.add(id);
   }

@@ -22,15 +22,16 @@ import {
   upsertBookingFulfillment,
   HANDED_OFF_STATES,
   FULFILLMENT_STATUSES,
-  type FulfillmentStatus,
   type MarkFulfillmentResult,
   type TalentOrderRow,
 } from "@/lib/bookings/fulfillment";
 import { executeBookingTransfers } from "@/lib/payments/transfers";
-
-type BookingAuth =
-  | { ok: true; tenantId: string | null; talentProfileId: string | null; via: "owner" | "staff" }
-  | { ok: false; error: string };
+import {
+  markBookingFulfillmentCore,
+  type BookingAuth,
+  type FulfillmentInput,
+  type MarkFulfillmentDeps,
+} from "./fulfillment-core";
 
 async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
   const session = await getCachedActorSession();
@@ -79,61 +80,45 @@ async function authorizeForBooking(bookingId: string): Promise<BookingAuth> {
   return { ok: true, tenantId: booking.tenant_id ?? null, talentProfileId, via: "staff" };
 }
 
+// Collaborators for markBookingFulfillmentCore (src/lib/talent/fulfillment-core.ts),
+// wiring in the real session/DB/payment integrations. The core itself is pure so it
+// is importable from a plain `node:test` run — see that file's header.
+const defaultDeps: MarkFulfillmentDeps = {
+  isValidStatus: (status) => FULFILLMENT_STATUSES.includes(status),
+  isHandedOff: (status) => HANDED_OFF_STATES.includes(status),
+  authorize: authorizeForBooking,
+  requireHandoffCapability: async (tenantId) => {
+    const handoff = await requireWorkspaceStaffAction({ capability: "booking.payment.request" });
+    return handoff.ok && handoff.tenantId === tenantId;
+  },
+  getAdmin: createServiceRoleClient,
+  upsert: (admin, bookingId, tenantId, patch) =>
+    upsertBookingFulfillment(admin as NonNullable<ReturnType<typeof createServiceRoleClient>>, bookingId, tenantId, patch),
+  listSettledTransactionIds: async (admin, bookingId) => {
+    const { data: txns } = await (admin as NonNullable<ReturnType<typeof createServiceRoleClient>>)
+      .from("booking_transactions")
+      .select("id, status")
+      .eq("booking_id", bookingId)
+      .in("status", ["paid", "payout_pending", "payout_sent"]);
+    return (txns ?? []).map((t) => (t as { id: string }).id);
+  },
+  transfer: executeBookingTransfers,
+  onTransferError: (err) => logServerError("fulfillment.markShipped.transfers", err),
+  revalidate: (tenantId) => revalidatePath(`/${tenantId}`, "layout"),
+};
+
 /**
  * Set a product order's fulfillment status (+ optional carrier/tracking). When
  * the status reaches a handed-off state, releases the deferred product payout.
  */
 export async function markBookingFulfillment(
   bookingId: string,
-  input: { status: FulfillmentStatus; carrier?: string | null; trackingNumber?: string | null; notes?: string | null },
+  input: FulfillmentInput,
 ): Promise<MarkFulfillmentResult> {
   const readOnly = await assertNotImpersonating();
   if (!readOnly.ok) return readOnly;
   try {
-    if (!FULFILLMENT_STATUSES.includes(input.status)) return { ok: false, error: "Unknown status." };
-    const auth = await authorizeForBooking(bookingId);
-    if (!auth.ok) return { ok: false, error: auth.error };
-
-    // TUL-1708 (PM revision): on the staff path, the handed-off states release
-    // the deferred payout below (executeBookingTransfers) — that's money in
-    // motion, manager-tier, not the operate_venue (editor+) bar that admitted
-    // the staff path in general. The talent owner's own path is unaffected.
-    if (auth.via === "staff" && HANDED_OFF_STATES.includes(input.status)) {
-      const handoff = await requireWorkspaceStaffAction({ capability: "booking.payment.request" });
-      if (!handoff.ok || handoff.tenantId !== auth.tenantId) return { ok: false, error: "Forbidden." };
-    }
-
-    const admin = createServiceRoleClient();
-    if (!admin) return { ok: false, error: "Server configuration error." };
-
-    const res = await upsertBookingFulfillment(admin, bookingId, auth.tenantId, {
-      status: input.status,
-      carrier: input.carrier ?? null,
-      trackingNumber: input.trackingNumber ?? null,
-      notes: input.notes ?? null,
-    });
-    if (!res.ok) return { ok: false, error: res.error ?? "Could not save." };
-
-    const handedOff = HANDED_OFF_STATES.includes(input.status);
-    // Release the deferred payout: re-run transfers for every settled txn on
-    // this booking now that shipped_at is set. Best-effort (idempotent).
-    if (handedOff && res.shippedAt) {
-      const { data: txns } = await admin
-        .from("booking_transactions")
-        .select("id, status")
-        .eq("booking_id", bookingId)
-        .in("status", ["paid", "payout_pending", "payout_sent"]);
-      for (const t of txns ?? []) {
-        try {
-          await executeBookingTransfers((t as { id: string }).id);
-        } catch (err) {
-          logServerError("fulfillment.markShipped.transfers", err);
-        }
-      }
-    }
-
-    if (auth.tenantId) revalidatePath(`/${auth.tenantId}`, "layout");
-    return { ok: true, shipped: handedOff };
+    return await markBookingFulfillmentCore(bookingId, input, defaultDeps);
   } catch (err) {
     logServerError("markBookingFulfillment", err);
     return { ok: false, error: "Unexpected error." };

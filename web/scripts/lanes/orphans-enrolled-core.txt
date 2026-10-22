@@ -1,8 +1,11 @@
 emails/client/client-receipts.test.tsx
 scripts/ai-builder-eval/screenshot.test.ts
 scripts/ci/held-migrations-report.test.mjs
+scripts/demo-talents/demo-alt-allowlist.test.ts
 scripts/e2e-web-server-command.test.ts
+scripts/lib/demo-alt-i18n.test.mjs
 scripts/lib/failed-cards-fixtures.test.mjs
+scripts/qa/seed-diego-personas.static.test.mjs
 src/app/(public)/directory/rosterless-redirect-base.static.test.ts
 src/app/(workspace)/?tenantSlug?/admin/workspace-page-routing.test.ts
 src/app/(workspace)/platform/admin/changelog/changelog-sync-admin.test.ts
@@ -13,6 +16,7 @@ src/app/(workspace)/talent/talent-layout-perf-trace.static.test.ts
 src/app/(workspace)/talent/trust/trust-page-i18n.static.test.ts
 src/app/start/layout-landmark.static.test.ts
 src/components/admin/shell/internal/dashboard-tab-title-guard.test.ts
+src/components/admin/shell/internal/drawers/light-10.render.test.tsx
 src/components/admin/shell/internal/messages/inbox-preview-text.test.ts
 src/components/admin/shell/internal/messages/talent-thread-955-956.static.test.ts
 src/components/admin/shell/internal/page-modules/catalog/CatalogListRow.render.test.tsx
@@ -64,15 +68,18 @@ src/components/talent/services/legacy-services-editor-retired.static.test.ts
 src/components/talent/services/offering-editor-leave.test.ts
 src/components/talent/site/maison-setup/maison-setup-audit.test.ts
 src/components/talent/site/max-site-manager-timeout.static.test.ts
+src/components/words/IndustrySettingsCard.render.test.tsx
 src/hooks/use-menu-keyboard.test.ts
 src/i18n/client-payload-dedupe.test.ts
 src/i18n/profile-locale-client-messages.test.ts
+src/i18n/public-message-namespaces.static.test.ts
 src/lib/ai/ai-master-switch-embed-transcribe.test.ts
 src/lib/ai/ai-master-switch.test.ts
 src/lib/billing/direct-connection-helper.static.test.ts
 src/lib/changelog/launch-edition-link.test.ts
 src/lib/changelog/launch-guard.test.ts
 src/lib/changelog/public-read.test.ts
+src/lib/changelog/request-origin.test.ts
 src/lib/changelog/whats-new.test.ts
 src/lib/cms/platform-blog.test.ts
 src/lib/coordinator/offer-line-confirmation-view.test.ts
@@ -107,6 +114,7 @@ src/lib/projects/assignment-confirmation.test.ts
 src/lib/projects/project-event-board.test.ts
 src/lib/projects/replace-client-notice.test.ts
 src/lib/projects/replace-with-notice.test.ts
+src/lib/quality/build-staging-workflow.static.test.ts
 src/lib/quality/inquiry-added-copy.static.test.ts
 src/lib/quality/jor-locale-migration-order.migration.test.ts
 src/lib/quality/profile-footer-cta-full-name.static.test.ts
@@ -114,6 +122,8 @@ src/lib/quality/projects-loading-skeleton.static.test.ts
 src/lib/quality/talent-shell-perf.static.test.ts
 src/lib/quality/test-fixed-dates.static.test.ts
 src/lib/quality/use-server-no-injectable-params.static.test.ts
+src/lib/rate-limit-kv-public-fallback.test.ts
+src/lib/rate-limit-public-deployed.test.ts
 src/lib/reservations/reservation-item.test.ts
 src/lib/saas/host-unregistered-copy.test.ts
 src/lib/server-actions/admin-bookings-role-label.static.test.ts
@@ -121,6 +131,7 @@ src/lib/server-actions/admin-talent-taxonomy-capabilities.test.ts
 src/lib/server-actions/admin-visible-picks-link.test.ts
 src/lib/server-actions/tul-1708-bookings-capabilities.test.ts
 src/lib/server-actions/tul-1708-venue-capability-patch.test.ts
+src/lib/server-actions/tul1708-area-g-discovery-content-capabilities.static.test.ts
 src/lib/server/sniff-upload-type.test.ts
 src/lib/service-hub/hub-entry-items.test.ts
 src/lib/service-hub/hub-roster.server.test.ts
@@ -140,7 +151,7 @@ src/lib/talent/clients-initial.test.ts
 src/lib/talent/dashboard-mount-reads.static.test.ts
 src/lib/talent/dashboard-reads.test.ts
 src/lib/talent/format-count.test.ts
-src/lib/talent/fulfillment-actions.static.test.ts
+src/lib/talent/fulfillment-actions.test.ts
 src/lib/talent/in-flight.test.ts
 src/lib/talent/instant-plan-gate.test.ts
 src/lib/talent/offering-photo-links.test.ts
@@ -150,6 +161,7 @@ src/lib/talent/profile-quality-mode.test.ts
 src/lib/talent/publish-readiness.test.ts
 src/lib/talent/service-share-link.test.ts
 src/lib/talent/signed-in-inquiry-accepting-gate.static.test.ts
+src/lib/talent/today-attention-count.test.ts
 src/lib/talent/website-published-truth.test.ts
 src/lib/words/business-types-everyday-words.test.ts
 src/lib/words/no-voseo.static.test.ts

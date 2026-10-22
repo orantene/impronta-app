@@ -37,6 +37,7 @@ import { localeUrlSettings } from "@/i18n/pathnames";
 import type { FeaturedTalentCardDTO } from "@/lib/site-admin/sections/featured_talent/fetch";
 import { formatMoney } from "@/lib/talent/offerings-money";
 import { publicPriceLine } from "@/lib/talent/public-price-line";
+import { lowestOptionCents, menuBoardLocale } from "./menu-board-price";
 import {
   isSafeRichTextHref,
   renderInlineRich,
@@ -160,6 +161,8 @@ import { NotShownOnSiteBadge } from "./not-shown-on-site-badge";
 import { isIncompleteBeforeAfter, isRenderableEmptySection } from "./render-prune";
 import { CaptchaThemeStamper } from "@/lib/site-admin/sections/contact_form/captcha-theme";
 import { FormResultBanner } from "./form-result-banner";
+import Link from "next/link";
+import { menuItemServiceHref } from "@/lib/services/business-pages/menu-links";
 import { MenuBoardIsland } from "./menu-board-island";
 import { ReserveTableIsland } from "./reserve-table-island";
 import { SessionPickerIsland } from "./session-picker-island";
@@ -452,6 +455,11 @@ export interface BuilderNodeRenderDataSources {
   }>;
   /** TUL-77: live catalog + booking flow inputs for marked bands. */
   liveBooking?: LiveBookingSurface | null;
+  /**
+   * Menu item id -> business service page path (locale-aware, from the one slug builder).
+   * Present only when the workspace has service pages on; an item missing here stays plain text.
+   */
+  menuServiceHrefs?: Readonly<Record<string, string>>;
   menuOfferings?: ReadonlyArray<{
     id: string;
     title: string;
@@ -1631,6 +1639,9 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--menu-board-item-title{font-weight:600}
 .site-builder-node--menu-board-item-price{white-space:nowrap;font-variant-numeric:tabular-nums}
 .site-builder-node--menu-board-usd-hint{display:block;font-weight:400;opacity:0.62;font-size:0.72em}
+.site-builder-node--menu-board-item-link{color:inherit;text-decoration:none;border-radius:2px}
+.site-builder-node--menu-board-item-link:hover,.site-builder-node--menu-board-item-link:focus-visible{text-decoration:underline;text-underline-offset:0.2em}
+.site-builder-node--menu-board-item-link:focus-visible{outline:2px solid var(--token-color-primary);outline-offset:2px}
 .site-builder-node--menu-board[data-menu-board-live="1"] .site-builder-node--menu-board-list{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .site-builder-node--menu-board-catnav{margin:0 0 16px}
 .site-builder-node--menu-board-catnav ul{display:flex;gap:8px;list-style:none;margin:0;padding:0 0 4px;overflow-x:auto}
@@ -6482,25 +6493,34 @@ function renderBuilderNodeElement(
       const subtitle = text("subtitle", p.subtitle);
       const emptyMessage =
         text("emptyMessage", p.emptyMessage) || "Menu items are not published yet.";
+      // TUL-1801: a board rendered without a content locale spoke English on the Spanish
+      // site; the visitor's locale is the next signal before English.
+      const menuLocale = menuBoardLocale(options.contentLocale?.locale, options.visitorLocale);
       const formatPriceLabel = (item: {
         amountCents: number | null;
         currency: string;
         priceType: string;
         priceDisplay: string;
         visibility?: string | null;
+        options?: ReadonlyArray<{ amountCents: number | null }>;
       }): string => {
+        const locale = menuLocale;
+        const es = locale.toLowerCase().startsWith("es");
         // D-10a: an on_request service stays listed, its price is withheld.
         if (item.visibility === "on_request") {
-          return (options.contentLocale?.locale ?? "en").toLowerCase().startsWith("es") ? "Bajo consulta" : "On request";
+          return es ? "Bajo consulta" : "On request";
         }
         // `amountCents == null` is already a quote per offeringIsQuote; the
         // explicit check also narrows the type for formatMoney below.
         if (item.amountCents == null || offeringIsQuote(item)) {
-          return "Quote on request";
+          // TUL-1801: a dish priced only by its options shows "from <lowest option>", not a quote.
+          const low = lowestOptionCents(item.options);
+          if (low != null) {
+            return publicPriceLine({ ...item, amountCents: low, priceDisplay: "from" }, locale) ?? formatMoney(low, item.currency, locale);
+          }
+          return es ? "Cotización a pedido" : "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
-        const locale = options.contentLocale?.locale ?? "en";
-        const es = locale.toLowerCase().startsWith("es");
         // TUL-533 / GRK-064: never paint "$0 MXN" on public Max-site menus.
         if (item.amountCents <= 0) return es ? "Consultar" : "Ask";
         return (
@@ -6524,6 +6544,7 @@ function renderBuilderNodeElement(
         priceType: string;
         priceDisplay: string;
         visibility?: string | null;
+        options?: ReadonlyArray<{ amountCents: number | null }>;
       }) => {
         const usd = item.visibility === "on_request" ? null : usdLine(item);
         return (
@@ -6535,6 +6556,17 @@ function renderBuilderNodeElement(
               </span>
             ) : null}
           </span>
+        );
+      };
+      // Title as a link to its service page when the workspace has one (hrefs resolved server-side).
+      const menuItemTitle = (item: { id: string; title: string }) => {
+        const href = menuItemServiceHref(options.dataSources.menuServiceHrefs, item.id);
+        return href ? (
+          <Link href={href} className="site-builder-node--menu-board-item-link">
+            {item.title}
+          </Link>
+        ) : (
+          item.title
         );
       };
       if (offerings.length === 0) {
@@ -6601,7 +6633,7 @@ function renderBuilderNodeElement(
                       <li key={item.id} className="site-builder-node--menu-board-item">
                         <div className="site-builder-node--menu-board-item-copy">
                           <span className="site-builder-node--menu-board-item-title">
-                            {item.title}
+                            {menuItemTitle(item)}
                           </span>
                         </div>
                         {priceCell(item)}
@@ -6616,7 +6648,7 @@ function renderBuilderNodeElement(
             {offerings.map((item) => (
               <li key={item.id} className="site-builder-node--menu-board-item">
                 <div className="site-builder-node--menu-board-item-copy">
-                  <span className="site-builder-node--menu-board-item-title">{item.title}</span>
+                  <span className="site-builder-node--menu-board-item-title">{menuItemTitle(item)}</span>
                 </div>
                 {priceCell(item)}
               </li>
@@ -6626,9 +6658,10 @@ function renderBuilderNodeElement(
           <MenuBoardIsland
             tenantId={options.dataSources.tenantId ?? ""}
             offerings={offerings}
-            copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords)}
+            copy={menuBoardCopy(options.contentLocale, options.dataSources.menuWords, menuLocale)}
             locale={options.contentLocale?.locale ?? options.visitorLocale}
             usdRates={options.dataSources.usdRates ?? null}
+            {...(options.dataSources.menuServiceHrefs ? { serviceHrefs: options.dataSources.menuServiceHrefs } : {})}
           />
         </section>
       );

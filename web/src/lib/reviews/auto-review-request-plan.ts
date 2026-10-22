@@ -5,17 +5,24 @@
  * on the decision; every rule lives here so it is testable.
  *
  * A booking is due when ALL hold:
- *   - it is `completed`;
+ *   - it is `completed`, and was never refunded or cancelled (asking for a
+ *     review on a booking the client got their money back on, or that never
+ *     happened, reads as tone-deaf at best);
+ *   - it is not on a QA/demo fixture tenant (TUL-1328: those run daily seed
+ *     cycles and must never generate real-looking outbound mail);
  *   - it ended (end, else start, else event date) at least MIN_HOURS ago and at
  *     most MAX_DAYS ago (a very old booking is not nagged after the fact);
- *   - it has someone to ask: the booking's own client account or contact email.
- *     Never any other address;
+ *   - it has someone to ask: the booking's own client account or contact email,
+ *     and that email (when it is the only address) is not a reserved QA/demo
+ *     domain (`.test`, `example.com`, etc. — never any other address;
  *   - it has exactly ONE booked talent (the review is about one person; a roster
  *     booking is left to the manual flow);
  *   - no review request exists for it yet, of any kind (manual or automatic).
  * "Once" is also enforced by the database (a unique partial index on the
  * automatic request), so a re-run or two overlapping runs collapse to one.
  */
+
+import { isReservedDomainAddress } from "@/lib/email/reserved-domains";
 
 /** Wait this long after the booking ended before asking: the work should be done and fresh. */
 export const AUTO_REVIEW_MIN_HOURS_AFTER_END = 3;
@@ -38,6 +45,7 @@ export type AutoReviewBooking = {
   id: string;
   tenant_id: string;
   status: string;
+  payment_status: string | null;
   ends_at: string | null;
   starts_at: string | null;
   event_date: string | null;
@@ -49,10 +57,13 @@ export type AutoReviewBooking = {
 
 export type AutoReviewSkip =
   | "not_completed"
+  | "refunded_or_cancelled"
+  | "test_tenant"
   | "no_end"
   | "too_soon"
   | "too_old"
   | "no_recipient"
+  | "reserved_email"
   | "talent_count"
   | "already_requested"
   | "before_cutoff"
@@ -107,15 +118,20 @@ export function decideAutoReviewRequests(input: {
   recentRecipientKeys?: ReadonlySet<string>;
   /** Defaults to AUTO_REVIEW_MAX_PER_RUN. */
   maxPerRun?: number;
+  /** TUL-1328: QA/demo fixture tenants (e.g. QA_FIXTURE_TENANT_IDS) never get automatic requests. */
+  fixtureTenantIds?: ReadonlySet<string>;
 }): AutoReviewDecision {
   const out: AutoReviewDecision = {
     due: [],
     skipped: {
       not_completed: 0,
+      refunded_or_cancelled: 0,
+      test_tenant: 0,
       no_end: 0,
       too_soon: 0,
       too_old: 0,
       no_recipient: 0,
+      reserved_email: 0,
       talent_count: 0,
       already_requested: 0,
       before_cutoff: 0,
@@ -126,6 +142,7 @@ export function decideAutoReviewRequests(input: {
   const cutoffMs = input.cutoff ? input.cutoff.getTime() : null;
   const cap = Math.max(0, input.maxPerRun ?? AUTO_REVIEW_MAX_PER_RUN);
   const seenRecipients = new Set<string>(input.recentRecipientKeys ?? []);
+  const fixtureTenantIds = input.fixtureTenantIds ?? new Set<string>();
   const nowMs = input.now.getTime();
   const minMs = AUTO_REVIEW_MIN_HOURS_AFTER_END * 3_600_000;
   const maxMs = AUTO_REVIEW_MAX_DAYS_AFTER_END * 86_400_000;
@@ -137,6 +154,14 @@ export function decideAutoReviewRequests(input: {
   for (const b of ordered) {
     if (b.status !== "completed") {
       out.skipped.not_completed += 1;
+      continue;
+    }
+    if (b.payment_status === "refunded" || b.payment_status === "cancelled") {
+      out.skipped.refunded_or_cancelled += 1;
+      continue;
+    }
+    if (fixtureTenantIds.has(b.tenant_id)) {
+      out.skipped.test_tenant += 1;
       continue;
     }
     const ended = bookingEndedAt(b);
@@ -163,11 +188,21 @@ export function decideAutoReviewRequests(input: {
       continue;
     }
     const clientUserId = b.client_user_id?.trim() || null;
-    const invitedEmail = cleanEmail(b.contact_email);
-    if (!clientUserId && !invitedEmail) {
+    const rawInvitedEmail = cleanEmail(b.contact_email);
+    const invitedEmailIsReserved = rawInvitedEmail !== null && isReservedDomainAddress(rawInvitedEmail);
+    if (!clientUserId && !rawInvitedEmail) {
       out.skipped.no_recipient += 1;
       continue;
     }
+    // Without an account, the contact email IS the recipient: a reserved QA/demo
+    // domain (`.test`, example.com, ...) is a guaranteed bounce and never a real
+    // client, so it is dropped here rather than discovered at send time. With an
+    // account, the reserved address is never used as a fallback either.
+    if (!clientUserId && invitedEmailIsReserved) {
+      out.skipped.reserved_email += 1;
+      continue;
+    }
+    const invitedEmail = invitedEmailIsReserved ? null : rawInvitedEmail;
     const talents = [...new Set(input.talentsByBooking.get(b.id) ?? [])];
     if (talents.length !== 1) {
       out.skipped.talent_count += 1;

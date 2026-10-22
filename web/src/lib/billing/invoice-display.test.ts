@@ -51,3 +51,13 @@ describe("invoice list status (TUL-1232)", () => {
     for (const k of ["Payment failed", "Update card", "Your card could not be charged.", "Needs action", "Confirm payment"]) assert.match(es, new RegExp(`"${k}":`));
   });
 });
+
+import { isZeroNoChargeInvoice } from "./invoice-display";
+
+test("TUL-834: paid or void $0 start invoices are hidden, real problems are kept", () => {
+  assert.equal(isZeroNoChargeInvoice({ status: "paid", totalCents: 0 }), true);
+  assert.equal(isZeroNoChargeInvoice({ status: "void", totalCents: 0, attemptCount: 0 }), true);
+  assert.equal(isZeroNoChargeInvoice({ status: "paid", totalCents: 1500 }), false);
+  assert.equal(isZeroNoChargeInvoice({ status: "open", totalCents: 0, attemptCount: 1 }), false);
+  assert.equal(isZeroNoChargeInvoice({ status: "uncollectible", totalCents: 0 }), false);
+});

@@ -115,6 +115,9 @@ const UI_COPY = {
     perMonth: "/ mes",
     perYear: "/ año",
     cta: "Mejorar a {plan}",
+    trial: "Incluye {days} días de prueba gratis",
+    trialOne: "Incluye 1 día de prueba gratis",
+    chargeNote: "Se cobra en USD; Stripe puede mostrar tu moneda local.",
     notNow: "Ahora no",
     compareAll: "Ver todos los planes",
     close: "Cerrar",
@@ -129,6 +132,9 @@ const UI_COPY = {
     perMonth: "/ mo",
     perYear: "/ yr",
     cta: "Upgrade to {plan}",
+    trial: "Includes a {days}-day free trial",
+    trialOne: "Includes a 1-day free trial",
+    chargeNote: "Billed in USD; Stripe may show your local currency.",
     notNow: "Not now",
     compareAll: "Compare all plans",
     close: "Close",
@@ -152,6 +158,10 @@ export type UpgradeOfferView = {
   intervalLabel: string;
   benefitsLabel: string;
   ctaLabel: string;
+  /** "Includes a 14-day free trial" when a trial applies to this talent, else null. */
+  trialLabel: string | null;
+  /** Always shown: the plan bills in USD and Stripe may display a local currency. */
+  chargeNote: string;
   notNowLabel: string;
   compareAllLabel: string;
   closeLabel: string;
@@ -179,6 +189,8 @@ export function buildUpgradeOffer(input: {
   locale: UpgradeLocale;
   /** Server-resolved plan label, when the caller has one. */
   planLabel?: string | null;
+  /** Trial length in days when one applies to this talent (server decides); omitted or 0 hides the line. */
+  trialDays?: number | null;
 }): UpgradeOfferView {
   const { feature, locale } = input;
   const planKey = planForFeature(feature);
@@ -206,6 +218,13 @@ export function buildUpgradeOffer(input: {
     intervalLabel: ui.intervalLabel,
     benefitsLabel: ui.benefitsLabel,
     ctaLabel: fill(ui.cta, { plan: planLabel }),
+    trialLabel:
+      typeof input.trialDays === "number" && Number.isFinite(input.trialDays) && input.trialDays > 0
+        ? Math.floor(input.trialDays) === 1
+          ? ui.trialOne
+          : fill(ui.trial, { days: String(Math.floor(input.trialDays)) })
+        : null,
+    chargeNote: ui.chargeNote,
     notNowLabel: ui.notNow,
     compareAllLabel: ui.compareAll,
     closeLabel: ui.close,

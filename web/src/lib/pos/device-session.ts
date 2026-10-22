@@ -17,6 +17,8 @@ export type DeviceSessionResult =
       reason: "pin_invalid" | "pin_throttled" | "locked" | "no_session" | "conflict" | "not_found" | "unavailable" | "invalid";
       /** TUL-1516: too many wrong PINs in the window; the PIN was not even checked. */
       throttled?: true;
+      /** Seconds until the oldest wrong PIN ages out, when the engine says. */
+      retryAfterSeconds?: number;
     };
 
 function mapReply(reply: {
@@ -27,6 +29,7 @@ function mapReply(reply: {
   shift_id?: string;
   locked_at?: string;
   throttled?: boolean;
+  retry_after_seconds?: number;
 }): DeviceSessionResult {
   if (reply.ok === true && reply.session_id) {
     return {
@@ -48,7 +51,12 @@ function mapReply(reply: {
     reason === "not_found"
   ) {
     return reply.throttled === true && reason === "pin_invalid"
-      ? { ok: false, reason: "pin_throttled", throttled: true }
+      ? {
+          ok: false,
+          reason: "pin_throttled",
+          throttled: true,
+          ...(typeof reply.retry_after_seconds === "number" ? { retryAfterSeconds: reply.retry_after_seconds } : {}),
+        }
       : { ok: false, reason };
   }
   return { ok: false, reason: "unavailable" };

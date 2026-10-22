@@ -210,12 +210,12 @@
         "emailPending": "Enviando tu código",
         "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
         "plusEmailHint": "¿Usas un alias con +? Enviaremos el código ahí. Si no llega en un minuto, vuelve a enviarlo o prueba con tu dirección principal.",
-        "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
+        "sentNotice": "Te enviamos un código a {email}.",
         "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
         "plusSentNotice": "Enviamos un código a {email}. Puede tardar un minuto. Si no llega, envía uno nuevo o prueba con tu dirección principal.",
         "plusResentNotice": "Enviamos un código nuevo a {email}. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "codeLabel": "Código de tu correo",
-        "codeHint": "De un solo uso. También puedes abrir el enlace de acceso del mismo correo. Revisa tu carpeta de spam si no llega.",
+        "codeHint": "De un solo uso. Revisa spam si no llega.",
         "codeLengthHint": "El código tiene {n} dígitos.",
         "verifySubmit": "Continuar",
         "verifyPending": "Verificando tu código",
@@ -258,7 +258,13 @@
       "appleOpening": "Abriendo Apple…",
       "appleFailed": "No se pudo iniciar sesión con Apple.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo.",
-      "appleUnableToStart": "No se pudo iniciar el acceso con Apple."
+      "appleUnableToStart": "No se pudo iniciar el acceso con Apple.",
+      "confirmConflict": {
+        "title": "Ya tienes una sesión abierta",
+        "body": "Tienes la sesión abierta como {email}. Este enlace es de otra cuenta. Cierra sesión y continúa con la cuenta nueva, o conserva tu sesión.",
+        "continue": "Cerrar sesión y continuar",
+        "stay": "Mantener la sesión"
+      }
     },
     "profile": {
       "about": "Acerca de",
@@ -1251,6 +1257,7 @@
       "dockLineupShelfSaved": "Guardados",
       "dockLineupEmptyInquiry": "Aún no hay nada en tu solicitud. Pasa algo desde Guardados o elige de la lista.",
       "dockLineupEmptySaved": "Aún no has guardado a nadie. Guarda el talento que te guste y aparecerá aquí.",
+      "dockLineupEmptySavedInInquiry": "Aún no tienes favoritos. El talento que añadiste a tu solicitud está en «En tu solicitud», arriba.",
       "dockLineupMoveToInquiry": "Mover a la solicitud",
       "dockLineupInInquiry": "En la solicitud",
       "dockLoading": "Cargando…",
@@ -1736,6 +1743,8 @@
     "slotPicker": {
       "title": "Elige un horario",
       "subtitle": "Los horarios se muestran en la zona del estudio.",
+      "subtitleZone": "Los horarios se muestran en la zona del estudio ({zone}).",
+      "sendRequest": "Enviar una solicitud",
       "loading": "Cargando horarios…",
       "empty": "No hay horarios libres en las próximas dos semanas. Intenta más tarde.",
       "unavailable": "Los horarios no están disponibles ahora.",
@@ -1757,6 +1766,7 @@
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
+        "unclaimedSeller": "Este perfil aún no puede recibir reservas en línea. Envía una solicitud.",
         "notAccepting": "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
@@ -1786,6 +1796,14 @@
       "accept": "Ver en español",
       "dismiss": "No, gracias",
       "regionLabel": "Sugerencia de idioma"
+    },
+    "hubLanding": {
+      "agenciesTitle": "Agencias en la plataforma",
+      "tagline": "Cada agencia tiene su propio sitio en su propio dominio. Visita una para ver su elenco y enviar una consulta.",
+      "noAgencies": "Aún no hay agencias activas.",
+      "searchAgencies": "Buscar agencias",
+      "noMatch": "Ninguna agencia coincide con tu búsqueda.",
+      "featured": "Destacados en el hub"
     },
     "menuBoard": {
       "contactRequired": "El nombre, el correo y el teléfono son obligatorios.",
@@ -2525,6 +2543,7 @@
       "appleFailed": "Apple no terminó. Inténtalo de nuevo o usa tu correo.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo."
     },
+    "pageLoading": "Cargando la página",
     "pricingInterval": {
       "groupLabel": "Periodo de facturación",
       "monthly": "Mensual",
@@ -3705,6 +3724,10 @@
         "perMonth": "{price} / mes",
         "freePrice": "Gratis",
         "upgradeTo": "Cambiar a {tier}, {price} al mes",
+        "intervalLabel": "Frecuencia de pago",
+        "intervalMonthly": "Mensual",
+        "intervalYearly": "Anual",
+        "upgradeToYear": "Cambiar a {tier}, {price} al año",
         "upgradeStarting": "Abriendo el pago...",
         "upgradeFailed": "No se pudo abrir el pago. Inténtalo de nuevo.",
         "upgradeNote": "Cancela cuando quieras. Sigues en todas las agencias en las que estás ahora.",
@@ -5468,13 +5491,14 @@
       "requiresStudio": "Requiere Studio o superior",
       "requiresAgency": "Requiere Agency o superior",
       "accountLabel": "Cuenta",
-      "accountDesc": "Nombre del espacio, slug e información de contacto.",
-      "accountRowMeta": "Nombre · Slug · Correo de contacto",
+      "accountDesc": "Nombre del espacio, dirección web e información de contacto.",
+      "accountRowMeta": "Nombre · Dirección web · Correo de contacto",
       "takeBookingsTitle": "¿Quieres recibir reservas tú mismo?",
       "takeBookingsDesc": "Crea tu página de Talent. Se hará visible en la lista de tu espacio.",
       "planLabel": "Plan y facturación",
       "planDesc": "Tu plan actual, uso y facturas.",
       "ownersOnlyBilling": "Solo los propietarios pueden cambiar la facturación",
+      "roleGateOnlyAdmin": "Solo un admin o propietario puede cambiar esto.",
       "workspaceLabel": "Espacio",
       "workspaceDesc": "Zona horaria, idioma, moneda y valores predeterminados del espacio.",
       "wsGeneralTitle": "General",
@@ -6268,6 +6292,20 @@
           "saved": "Límite guardado."
         },
         "saveReason": "Cada celda se guarda al cambiar; no queda nada que pulsar.",
+        "staffStep": {
+          "title": "Define qué pueden reembolsar y descontar gerentes y administradores",
+          "intro": "Mientras no definas un límite, solo tú puedes reembolsar o descontar por tu cuenta. Gerentes y administradores tienen que pedirte aprobación cada vez.",
+          "amountLabel": "Monto máximo que pueden hacer solos ({currency})",
+          "save": "Guardar límites",
+          "saving": "Guardando…",
+          "saved": "Límites guardados.",
+          "skip": "Omitir por ahora",
+          "skipped": "Omitido. Gerentes y administradores siguen cerrados: cada reembolso o descuento te llega para aprobación. Puedes definir los límites cuando quieras en la tabla de abajo.",
+          "closedNote": "En blanco significa cerrado: ese rol no puede reembolsar ni descontar sin tu aprobación.",
+          "ownerOnly": "Solo la persona propietaria define estos límites.",
+          "invalid": "Escribe un número igual o mayor que 0.",
+          "failed": "No se pudieron guardar los límites. Inténtalo de nuevo."
+        },
         "limits": {
           "intro": "Por encima del límite, la caja pide la aprobación de un gerente. Una celda vacía es sin límite.",
           "discount": "Descuento manual",
@@ -7148,10 +7186,10 @@
         "connectPlaceholder": "tu-agencia.com",
         "connectAction": "Conectar dominio",
         "connectHelp": "Te daremos los registros DNS exactos para agregar en tu proveedor de dominio. Tu sitio sigue en línea todo el tiempo.",
-        "planLockedBody": "Conectar tu propio dominio es parte del plan Agency. Tu sitio sigue funcionando en su dirección actual.",
+        "planLockedBody": "Conectar tu propio dominio es parte de los planes Website, Agency y Network. Tu sitio sigue funcionando en su dirección actual.",
         "planLockedFeature": "Dominio propio",
         "planLockedWhy": "Publica tu sitio en un dominio tuyo en lugar de una dirección de Tulala.",
-        "planLockedCta": "Ver el plan Agency"
+        "planLockedCta": "Ver los planes"
       },
       "starterDoorTitle": "Tu sitio aún no tiene páginas",
       "starterDoorBody": "Empieza con un conjunto listo: una página de inicio, una de página no encontrada y un directorio. Después edita lo que quieras.",
@@ -10754,7 +10792,6 @@
         "dismissHint": "Toca donde sea para cerrar · se cierra solo en 6 s",
         "unlocks": {
           "studio": {
-            "customDomain": "Dominio propio",
             "ownedClientList": "Lista de clientes propia",
             "upTo50Talents": "Hasta 50 talentos",
             "privateInquiryInbox": "Bandeja de consultas privada"
@@ -11685,7 +11722,7 @@
       },
       "domain": {
         "title": "Dominio e inicio",
-        "body": "Configuración del subdominio, dominio propio (Agency), asignación de la página de inicio y del índice del blog."
+        "body": "Configuración del subdominio, dominio propio (Website, Agency, Network), asignación de la página de inicio y del índice del blog."
       },
       "homepage": {
         "title": "Página de inicio",
@@ -11915,7 +11952,7 @@
         "pages": {
           "purpose": "Páginas fijas de tu vitrina: Nosotros, Prensa, Contacto, Términos, etc.",
           "b0": "Crea una página nueva desde una plantilla o desde cero",
-          "b1": "Define el slug, el título SEO y la imagen OG de cada página",
+          "b1": "Define la dirección web, el título SEO y la imagen para compartir de cada página",
           "b2": "Publica, despublica o programa una página para después"
         },
         "posts": {
@@ -12228,7 +12265,7 @@
           "b2": "Mira lo que otro talento ha construido con Portfolio"
         },
         "talent-personal-page": {
-          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-slug>.",
+          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-dirección>.",
           "b0": "Elige una plantilla de diseño",
           "b1": "Decide qué créditos, fotos y enlaces destacar",
           "b2": "Conecta un dominio propio (nivel Portfolio)"
@@ -14661,7 +14698,7 @@
         "refusal": {
           "over_limit": "Un gerente tiene que aprobar este monto primero.",
           "pin_invalid": "Ese PIN no es correcto.",
-          "pin_throttled": "Demasiados intentos, espera 5 minutos.",
+          "pin_throttled": "Demasiados PIN incorrectos, así que el PIN está bloqueado. Vuelve a intentarlo en {minutes} min.",
           "not_manager": "Solo un gerente puede hacer esto.",
           "already_approved": "Este monto ya está aprobado.",
           "conflict": "Esta venta acaba de cambiar. Recarga e inténtalo de nuevo.",
@@ -18317,6 +18354,7 @@
       "saved": "Guardado",
       "dash": "—",
       "untitled": "(sin título)",
+      "reservationChip": "Reserva",
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
       "itemProviderOwnedLink": "Abrir Servicios",
@@ -19571,6 +19609,7 @@
         "invalid": "Máximo 600 caracteres, sin guiones largos.",
         "tryAgain": "Eso no funcionó. Inténtalo de nuevo.",
         "capReached": "Ya usaste la ayuda de escritura de hoy. Se reinicia mañana.",
+        "personalCapReached": "Ya usaste tu parte de la ayuda de IA por ahora. Inténtalo en unos minutos. Tu cupo mensual se reinicia el día 1.",
         "aiOff": "La ayuda de escritura está apagada por ahora."
       }
     },
@@ -21442,7 +21481,7 @@
       "accessUntil": "Acceso hasta",
       "nextRenewal": "Próxima renovación",
       "trialEnds": "Prueba termina",
-      "workspaceSlug": "Slug del espacio",
+      "workspaceSlug": "Dirección web del espacio",
       "rosterLabel": "Lista",
       "ofUnlimited": "de ilimitado",
       "of": "de",
@@ -21495,6 +21534,8 @@
       "billing": {
         "redirecting": "Redirigiendo…",
         "trialRaceRetry": "Se abrió otro pago al mismo tiempo. Inténtalo de nuevo.",
+        "checkoutFailed": "No se pudo crear la sesión de pago.",
+        "checkoutNoUrl": "Stripe no devolvió un enlace de pago.",
         "pastDueTitle": "Pago fallido.",
         "pastDueGraceBody": {
           "one": "Tu pago no pasó. Las funciones de pago siguen activas {count} día más. Actualiza tu tarjeta para conservarlas.",
@@ -21543,6 +21584,26 @@
       "statusNotConnected": "No conectado",
       "capEnabled": "Habilitado",
       "capNotYet": "Aún no",
+      "baseFee": {
+        "title": "Cargo de reservación",
+        "body": "Un cargo automático que se suma a cada reserva: un monto fijo y/o un porcentaje del subtotal. Es ingreso de tu espacio, se cobra encima de la cotización del talento (al talento siempre se le paga completo).",
+        "capsLead": "Topes de la plataforma:",
+        "capFlat": "{amount} fijo",
+        "capFlatNone": "sin tope fijo",
+        "capPct": "{pct}%",
+        "capPctNone": "sin tope en %",
+        "flatLabel": "Monto fijo ($ USD)",
+        "pctLabel": "Porcentaje del subtotal (%)",
+        "none": "ninguno",
+        "save": "Guardar cargo",
+        "saving": "Guardando…",
+        "hint": "Deja ambos vacíos si no quieres cargo base.",
+        "saved": "Cargo de reservación guardado. Aplica a las nuevas reservas.",
+        "errFlat": "El monto fijo debe ser 0 o un monto positivo en dólares, o déjalo vacío.",
+        "errPct": "El porcentaje debe estar entre 0% y 50%, o déjalo vacío.",
+        "errCapFlat": "El monto fijo no puede superar el tope de la plataforma de {amount}.",
+        "errCapPct": "El porcentaje no puede superar el tope de la plataforma de {pct}%."
+      },
       "actions": {
         "loading": "Cargando…",
         "connectStripe": "Conectar Stripe",
@@ -21552,7 +21613,19 @@
         "disconnect": "Desconectar",
         "refreshed": "Estado actualizado.",
         "disconnected": "Desconectado.",
-        "disconnectConfirm": "¿Desconectar Stripe? Los futuros pagos de clientes se dirigirán a la cuenta de la plataforma nuevamente hasta que vuelvas a conectar. Tu cuenta Stripe NO se elimina."
+        "disconnectConfirm": "¿Desconectar Stripe? Los futuros pagos de clientes se dirigirán a la cuenta de la plataforma nuevamente hasta que vuelvas a conectar. Tu cuenta Stripe NO se elimina.",
+        "pickCountryError": "Elige dónde vas a recibir tus pagos.",
+        "setupFailed": "No se pudo iniciar la configuración de pagos.",
+        "setupFailedRetry": "No se pudo iniciar la configuración de pagos. Inténtalo de nuevo.",
+        "unexpectedError": "Error inesperado.",
+        "notAvailable": "Los pagos no están disponibles en este momento.",
+        "workspaceNotFound": "No se encontró el espacio.",
+        "workspaceMismatch": "El espacio no coincide.",
+        "countryQuestion": "¿Dónde recibirá los pagos este espacio?",
+        "selectCountry": "Elige tu país…",
+        "continue": "Continuar",
+        "cancel": "Cancelar",
+        "doneForNow": "Listo por ahora"
       }
     },
     "work": {

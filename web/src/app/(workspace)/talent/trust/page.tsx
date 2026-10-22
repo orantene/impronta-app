@@ -1,13 +1,12 @@
 // T7 — Talent Trust profile sub-tab.
 //
-// Standalone page showing the talent their current trust signals:
-// verified badges they've earned + which trust touchpoints are
-// available but not yet earned (with "Start verification" actions).
+// Server page showing the talent their current trust signals: verified badges
+// they've earned + which trust touchpoints are not yet earned.
 //
-// Lives outside the mega talent.tsx shell so the audit gap can ship
-// without unblocking that extraction. Reachable directly at
-// /<tenant>/talent/trust; the existing TalentProfile page can link to
-// it later when the next polish pass touches the editor.
+// TUL-1819: the talent shell HOSTS this page in its body (see
+// pathIsTalentShellHosted), so it carries the normal sidebar and nav. Only ID
+// verification has a working flow (Settings -> Verification); every other row
+// is status text, never a dead button.
 //
 // Spec: project_client_trust_badges.md + project_discover_unified.md
 // §10 (talent audit T7 / T8).
@@ -26,23 +25,6 @@ import { trustCopy, type TrustKind } from "./_trust-copy";
 export const dynamic = "force-dynamic";
 type PageParams = Promise<{ tenantSlug?: string }>;
 
-const FONT = '"Inter", system-ui, sans-serif';
-const C = {
-  ink:        "#0B0B0D",
-  inkMuted:   "rgba(11,11,13,0.55)",
-  inkDim:     "rgba(11,11,13,0.6)",
-  border:     "rgba(24,24,27,0.08)",
-  borderSoft: "rgba(24,24,27,0.06)",
-  cardBg:     "#ffffff",
-  surface:    "rgba(11,11,13,0.02)",
-  accent:     "#1D4ED8",
-  accentSoft: "rgba(29,78,216,0.08)",
-  success:    "#1A7348",
-  successSoft: "rgba(26,115,72,0.10)",
-  amber:      "#D69E2E",
-  amberSoft:  "rgba(214,158,46,0.10)",
-} as const;
-
 /**
  * Canonical set of trust touchpoints a talent CAN earn. Indexed by the
  * UI kind so we can show "earned" vs "not earned" for each. User-facing
@@ -50,22 +32,24 @@ const C = {
  */
 type TouchpointDescriptor = {
   kind: LoadedTrustBadge["kind"] & TrustKind;
-  /** Tone: used to grey out non-actionable rows. */
+  /** True only when a working self-serve flow exists (ID verification). */
   selfActionable: boolean;
 };
 
 const TOUCHPOINTS: TouchpointDescriptor[] = [
   { kind: "id-verified", selfActionable: true },
   { kind: "age-verified", selfActionable: false },
-  { kind: "background-check", selfActionable: true },
-  { kind: "union", selfActionable: true },
+  { kind: "background-check", selfActionable: false },
+  { kind: "union", selfActionable: false },
   { kind: "agency-verified", selfActionable: false },
   { kind: "top-rated", selfActionable: false },
   { kind: "tulala-featured", selfActionable: false },
 ];
 
+const SETTINGS_HREF = "/talent/settings";
+
 export default async function PlatformTalentTrustPage() {
-  const { tenantSlug, tenantId } = await resolveTalentPageScope(Promise.resolve({}));
+  const { tenantId } = await resolveTalentPageScope(Promise.resolve({}));
   const locale = await getRequestLocale();
   const c = trustCopy(locale);
   const session = await getCachedActorSession();
@@ -83,13 +67,9 @@ export default async function PlatformTalentTrustPage() {
   if (!profile) {
     // User has no talent profile yet — show a generic empty state.
     return (
-      <div style={{ fontFamily: FONT, padding: "32px 28px", maxWidth: 720 }}>
-        <h1 style={{ margin: 0, fontSize: 24, color: C.ink, fontWeight: 600 }}>
-          {c.title}
-        </h1>
-        <div style={{ marginTop: 12, fontSize: 13.5, color: C.inkMuted, lineHeight: 1.55 }}>
-          {c.noProfile}
-        </div>
+      <div className="max-w-[720px] px-7 py-8 font-sans">
+        <h1 className="m-0 text-2xl font-semibold text-zinc-950">{c.title}</h1>
+        <div className="mt-3 text-[13.5px] leading-relaxed text-zinc-500">{c.noProfile}</div>
       </div>
     );
   }
@@ -105,49 +85,27 @@ export default async function PlatformTalentTrustPage() {
   const totalEarnable = TOUCHPOINTS.length;
 
   return (
-    <div style={{ fontFamily: FONT, padding: "24px 28px", maxWidth: 920 }}>
-      <div style={{ marginBottom: 18 }}>
-        <Link
-          href={`/${tenantSlug}/talent/profile`}
-          style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}
-        >
-          {c.backToProfile}
-        </Link>
-      </div>
-
-      <div style={{ marginBottom: 22 }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: C.ink, letterSpacing: -0.3 }}>
-          {c.heading}
-        </h1>
-        <div style={{ fontSize: 13, color: C.inkMuted, marginTop: 6, lineHeight: 1.5, maxWidth: 620 }}>
-          {c.lede}
-        </div>
+    <div className="max-w-[920px] px-7 py-6 font-sans">
+      <div className="mb-[22px]">
+        <h1 className="m-0 text-[26px] font-semibold tracking-tight text-zinc-950">{c.heading}</h1>
+        <div className="mt-1.5 max-w-[620px] text-[13px] leading-normal text-zinc-500">{c.lede}</div>
       </div>
 
       {/* Summary chip */}
-      <div style={{
-        display: "inline-flex", alignItems: "center", gap: 8,
-        padding: "10px 14px", background: C.successSoft,
-        border: `1px solid ${C.success}33`, borderRadius: 10, marginBottom: 22,
-        fontSize: 13,
-      }}>
-        <span style={{ fontSize: 16 }} aria-hidden>✓</span>
-        <span style={{ color: C.ink, fontWeight: 600 }}>
+      <div className="mb-[22px] inline-flex items-center gap-2 rounded-[10px] border border-emerald-700/20 bg-emerald-700/10 px-3.5 py-2.5 text-[13px]">
+        <span className="text-base" aria-hidden>✓</span>
+        <span className="font-semibold text-zinc-950">
           {c.signalsEarned(earnedCount, totalEarnable)}
         </span>
-        {earnedCount === 0 && (
-          <span style={{ color: C.inkMuted, fontWeight: 500 }}>
+        {earnedCount === 0 && !earnedByKind.has("id-verified") && (
+          <Link href={SETTINGS_HREF} className="font-medium text-blue-700 underline">
             {c.startWithId}
-          </span>
+          </Link>
         )}
       </div>
 
       {/* Touchpoint list */}
-      <div style={{
-        display: "flex", flexDirection: "column", gap: 0,
-        background: C.cardBg, border: `1px solid ${C.border}`,
-        borderRadius: 12, overflow: "hidden",
-      }}>
+      <div className="flex flex-col overflow-hidden rounded-xl border border-zinc-900/10 bg-white">
         {TOUCHPOINTS.map((t, i) => {
           const isEarned = earnedByKind.has(t.kind);
           const tp = c.touchpoints[t.kind];
@@ -155,78 +113,43 @@ export default async function PlatformTalentTrustPage() {
           return (
             <div
               key={t.kind}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto",
-                gap: 18,
-                padding: "14px 18px",
-                borderTop: i === 0 ? "none" : `1px solid ${C.borderSoft}`,
-                background: isEarned ? C.successSoft : "transparent",
-              }}
+              className={`grid grid-cols-[1fr_auto] gap-[18px] px-[18px] py-3.5 ${
+                i === 0 ? "" : "border-t border-zinc-900/5"
+              } ${isEarned ? "bg-emerald-700/10" : ""}`}
             >
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 14 }} aria-hidden>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-sm" aria-hidden>
                     {isEarned ? "✓" : "○"}
                   </span>
-                  <span style={{
-                    fontSize: 14, fontWeight: 600, color: C.ink,
-                  }}>
-                    {tp.label}
-                  </span>
+                  <span className="text-sm font-semibold text-zinc-950">{tp.label}</span>
                   {isEarned && earnedBadge && (
-                    <span style={{
-                      fontSize: 10.5, fontWeight: 600, color: C.success,
-                      padding: "2px 7px", borderRadius: 999,
-                      background: "rgba(26,115,72,0.10)",
-                    }}>
+                    <span className="rounded-full bg-emerald-700/10 px-[7px] py-0.5 text-[10.5px] font-semibold text-emerald-700">
                       {c.earnedOn(new Date(earnedBadge.earnedAt).toLocaleDateString(locale))}
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 12.5, color: C.inkMuted, lineHeight: 1.5, paddingLeft: 22 }}>
+                <div className="pl-[22px] text-[12.5px] leading-normal text-zinc-500">
                   {tp.description}
                 </div>
               </div>
               <div className="flex items-center">
                 {isEarned ? (
-                  <span style={{
-                    fontSize: 11.5, color: C.success, fontWeight: 600,
-                  }}>
-                    {c.active}
-                  </span>
+                  <span className="text-[11.5px] font-semibold text-emerald-700">{c.active}</span>
                 ) : t.selfActionable ? (
-                  <span style={{
-                    fontSize: 11, color: C.accent, fontWeight: 600,
-                    padding: "4px 10px", borderRadius: 6,
-                    background: C.accentSoft, border: `1px solid ${C.accent}33`,
-                  }}>
+                  <Link
+                    href={SETTINGS_HREF}
+                    className="rounded-md border border-blue-700/20 bg-blue-700/10 px-2.5 py-1 text-[11px] font-semibold text-blue-700 no-underline"
+                  >
                     {tp.ctaLabel} →
-                  </span>
+                  </Link>
                 ) : (
-                  <span style={{
-                    fontSize: 11, color: C.inkDim, fontStyle: "italic",
-                  }}>
-                    {tp.ctaLabel}
-                  </span>
+                  <span className="text-[11px] italic text-zinc-500">{tp.ctaLabel}</span>
                 )}
               </div>
             </div>
           );
         })}
-      </div>
-
-      <div style={{
-        marginTop: 18, padding: "12px 16px", background: C.amberSoft,
-        border: `1px solid ${C.amber}33`, borderRadius: 10,
-        fontSize: 12, color: C.ink, lineHeight: 1.55,
-      }}>
-        <strong>{c.rolloutBold}</strong>{" "}
-        {c.rolloutBefore}{" "}
-        <Link href={`/${tenantSlug}/talent/settings`} style={{ color: C.accent, textDecoration: "underline" }}>
-          {c.settingsAccount}
-        </Link>{" "}
-        {c.rolloutAfter}
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ src/lib/client-account/return-to.test.ts
 src/lib/client-account/tenant-source.test.ts
 src/lib/client-account/visit-zone.test.ts
 src/lib/integrations/captcha-domain-notice.test.ts
+src/lib/me/shape-me.test.ts
 src/lib/media/guarded-upload.server.test.ts
 src/lib/media/image-sanitize.server.test.ts
 src/lib/media/portfolio-upload-verify.server.test.ts
