@@ -190,3 +190,13 @@ test("TUL-1270: the sheet shows the rename message (en + es) and the server pass
   const act = readFileSync(join(process.cwd(), "src/lib/talent/services-settings-actions.ts"), "utf8");
   assert.match(act, /publicSiteHidesTestServices: flags\.is_demo === true \|\| flags\.is_test_account === true/);
 });
+
+test("TUL-1270 b9: the row menu offers Share for a draft too, and the sheet explains it is not public yet", () => {
+  const chrome = readFileSync(join(process.cwd(), "src/components/talent/services/ServicesHomeRowChrome.tsx"), "utf8");
+  assert.match(chrome, /<MenuBtn onClick=\{\(\) => \{ onShare\(\); onClose\(\); \}\}>\{copy\.t\("Share"\)\}<\/MenuBtn>/);
+  assert.doesNotMatch(chrome, /word === "live" && <MenuBtn onClick=\{\(\) => \{ onShare/);
+  // A draft that was never published: nothing to copy, so the sheet shows the not-public message.
+  const draft = { ...LIVE, status: "draft" };
+  assert.equal(serviceShareUrl({ offering: draft, destinations: [HOST, PROFILE], origin: "https://x" }), null);
+  assert.equal(isServiceShareable(draft), false);
+});
