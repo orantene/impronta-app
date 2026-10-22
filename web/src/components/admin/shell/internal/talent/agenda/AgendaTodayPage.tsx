@@ -45,6 +45,7 @@ import {
 import type { BookingHours } from "@/lib/scheduling/hours-types";
 import { useAgendaCopy } from "./use-agenda-copy";
 import { useAdminShell } from "../../state";
+import { TalentPresenceStatsCard } from "../shared/presence-stats-card";
 import { dashboardPlanKind, dashboardStatusCopy } from "@/lib/talent/dashboard-status";
 import { unscheduledAgendaItems } from "@/lib/talent-agenda/load-unscheduled";
 import { ledgerClientsForSummary, owedAmountText } from "@/components/talent/money/ledger-clients-state";
@@ -599,6 +600,7 @@ export function AgendaTodayPage({
 
       {hoursNudge}
       {resumeCard}
+      {profile && <TalentPresenceStatsCard />}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_352px]">
         <div className="flex min-w-0 flex-col gap-4">
