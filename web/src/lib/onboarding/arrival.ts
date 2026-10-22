@@ -275,3 +275,28 @@ export function draftSawKey(arrival: Pick<ArrivalPayload, "draftReason" | "draft
 export function draftSupportLine(arrival: Pick<ArrivalPayload, "draftReason" | "draftStatus" | "variant">): string {
   return [arrival.variant, arrival.draftReason, typeof arrival.draftStatus === "number" ? `HTTP ${arrival.draftStatus}` : null].filter(Boolean).join(" · ");
 }
+
+export type DraftFixAction = "retry" | "edit_name" | "check_address";
+export type DraftFix = { key: string; action: DraftFixAction };
+
+/**
+ * TUL-1839: the short fix-it list for the "almost ready" screen, one line per
+ * failed check, each with the action that fixes it. Never empty for a draft.
+ */
+export function draftFixList(arrival: Pick<ArrivalPayload, "draftReason" | "draftStatus">): DraftFix[] {
+  const base = "public.onboarding.arrival.fix";
+  switch (arrival.draftReason) {
+    case "name_missing":
+      return [{ key: `${base}.nameMissing`, action: "edit_name" }, { key: `${base}.retry`, action: "retry" }];
+    case "no_name":
+      return [{ key: `${base}.noName`, action: "edit_name" }];
+    case "no_url":
+      return [{ key: `${base}.noUrl`, action: "check_address" }];
+    case "protected":
+      return [{ key: `${base}.protected`, action: "retry" }];
+    case "status":
+    case "network":
+    default:
+      return [{ key: `${base}.address`, action: "check_address" }, { key: `${base}.retry`, action: "retry" }];
+  }
+}
