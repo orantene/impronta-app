@@ -89,12 +89,18 @@ export type ConfirmConflict = {
   why: string;
   /** ISO instant of the window start, when the line has one. */
   at: string | null;
-  code: "person_busy" | "capacity_short" | "capacity_unknown";
+  code: "person_busy" | "capacity_short" | "capacity_unknown" | "units_not_whole";
 };
 
+/**
+ * The units a capacity check must find free. A part quantity (2.5) is KEPT as
+ * is, not truncated: truncating to 2 checked less than the line sells, and a
+ * hold cannot be made for it anyway (`capacity_allocations.units` is an
+ * integer). `runConfirmChecks` refuses it by name (TUL-1309).
+ */
 function positiveUnits(units: number | undefined): number {
-  if (typeof units !== "number" || !Number.isFinite(units)) return 1;
-  return Math.max(1, Math.trunc(units));
+  if (typeof units !== "number" || !Number.isFinite(units) || units <= 0) return 1;
+  return units;
 }
 
 function datedWindow(line: ConfirmLineInput): { startsAt: string; endsAt: string } | null {
@@ -216,6 +222,16 @@ export async function runConfirmChecks(plan: ConfirmPlan, readers: ConfirmReader
           code: "person_busy",
         });
       }
+      continue;
+    }
+    if (!Number.isInteger(check.units)) {
+      // TUL-1309: never round a part quantity into a smaller hold; say so.
+      conflicts.push({
+        line: check.label,
+        why: `${check.label} has a part quantity (${check.units}); change it to a whole number`,
+        at: check.startsAt,
+        code: "units_not_whole",
+      });
       continue;
     }
     const remaining = await readers.remaining(check);

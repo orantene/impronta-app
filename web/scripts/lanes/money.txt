@@ -162,6 +162,7 @@ src/lib/orders/menu-action-loads.test.ts
 src/lib/orders/menu-rehome.static.test.ts
 src/lib/orders/order-card-wire.static.test.ts
 src/lib/orders/order-card.test.ts
+src/lib/orders/order-lines-units-whole-migration.static.test.ts
 src/lib/orders/orders-for-thread.test.ts
 src/lib/orders/orders-list-refunded-owes-nothing.test.ts
 src/lib/orders/orders-list.test.ts
