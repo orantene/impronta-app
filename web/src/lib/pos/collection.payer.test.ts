@@ -40,7 +40,7 @@ test("POS card collection leaves payer_user_id null and keeps the buyer email", 
         created: true,
         identity: { email: "buyer@example.com", phoneE164: null, displayName: null },
       }),
-      createPaymentRequest: async () => ({ ok: true as const, requestId: "req-1", checkoutUrl: "https://pay.test/c", mock: false }),
+      createPaymentRequest: async () => ({ ok: true as const, requestId: "req-1", state: "pending" as const, checkoutUrl: "https://pay.test/c", mock: false }),
     },
   );
   assert.equal(result.ok, true, JSON.stringify(result));
