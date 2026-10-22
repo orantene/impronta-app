@@ -163,7 +163,10 @@ export function resolveAuthRoutingDecision({
     targetExistsOnHost("/onboarding/role", hostKind)
   ) {
     return {
-      redirectTo: "/onboarding/role",
+      // TUL-772: /account carries a client `next`, so the role page stays on
+      // the app host instead of handing off to the marketing /start funnel.
+      redirectTo:
+        pathname === "/account" ? "/onboarding/role?next=%2Faccount" : "/onboarding/role",
       loginNext: null,
       dashboardDestination,
       isDashboardPath,

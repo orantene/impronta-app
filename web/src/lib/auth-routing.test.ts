@@ -752,3 +752,31 @@ test("isTalentSignupNext covers live talent register next and legacy onboarding"
   assert.equal(isTalentSignupNext("/client"), false);
   assert.equal(isTalentSignupNext("/onboarding/role"), false);
 });
+
+test("TUL-772: a role-less user opening /account is sent to the app-host role page with a client next", () => {
+  for (const hostKind of ["app", "agency"]) {
+    assert.equal(
+      resolveAuthRoutingDecision({
+        pathname: "/account",
+        userId: "user-norole",
+        sessionProfile: onboardingUser,
+        routingProfile: onboardingUser,
+        isImpersonating: false,
+        hostKind,
+      }).redirectTo,
+      "/onboarding/role?next=%2Faccount",
+    );
+  }
+  // Other pages keep the bare bounce (a talent-surface next would auto-complete talent onboarding).
+  assert.equal(
+    resolveAuthRoutingDecision({
+      pathname: "/account/settings",
+      userId: "user-norole",
+      sessionProfile: onboardingUser,
+      routingProfile: onboardingUser,
+      isImpersonating: false,
+      hostKind: "app",
+    }).redirectTo,
+    "/onboarding/role",
+  );
+});
