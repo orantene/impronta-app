@@ -12,6 +12,8 @@ export type BookingReservedParams = {
   bookingId: string;
   /** The deposit just paid, as stored on the transaction. Display only. */
   depositCents: number;
+  /** What the deposit credited to the order, without the card fee. The balance is total minus this. */
+  principalCents?: number | null;
   currency: string | null;
 };
 
@@ -23,7 +25,7 @@ export function buildBookingReservedEvent(p: BookingReservedParams): Notificatio
     inquiryId: p.inquiryId,
     bookingId: p.bookingId,
     eventId: `booking-reserved:${p.bookingId}`,
-    payload: { bookingId: p.bookingId, depositCents: p.depositCents, currency: p.currency },
+    payload: { bookingId: p.bookingId, depositCents: p.depositCents, principalCents: p.principalCents ?? null, currency: p.currency },
   };
 }
 

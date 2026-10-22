@@ -246,6 +246,13 @@ export type PurchaseResult =
       /** What the pipeline decided to collect now. Derived, never sent. */
       collectCents: number;
       /**
+       * Display only (TUL-1304/1305): the part of `collectCents` credited to the order (the deposit or the
+       * full total, before any pass-through card fee) and the promo-adjusted order total. Labels and
+       * emails read these; no charge is computed from them.
+       */
+      principalCents?: number;
+      orderTotalCents?: number;
+      /**
        * The ISO currency the order, its lines and its transaction are in. The
        * caller MUST charge in this currency: charging `collectCents` in any
        * other one (the platform operating currency, say) turns 950 MXN into

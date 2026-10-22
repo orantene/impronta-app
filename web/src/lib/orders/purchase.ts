@@ -784,6 +784,8 @@ export async function createPurchase(
       customerId,
       totalCents: priced.subtotalCents,
       collectCents,
+      principalCents: baseCollectCents,
+      orderTotalCents: totalCents,
       currency: orderCurrency,
       payInPerson: policy.payInPerson,
       allocationIds: heldAllocationIds,
