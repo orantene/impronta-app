@@ -82,7 +82,7 @@ export async function runOnboardingBuild(input: {
         storedDisplayName,
         choice: input.state.choice ?? pathToChoice(existing.path),
         briefBusinessName: stringFact(input.brief, "business.name"),
-        essentialsName: input.state.essentials?.name,
+        essentialsName: stringFact(input.brief, "person.professional_name") ?? stringFact(input.brief, "person.name"),
       }),
     });
     if (!check.ok) logServerError("onboarding.build.verifyLive", new Error(`retry:${check.reason}`));
@@ -171,7 +171,7 @@ export async function runOnboardingBuild(input: {
       storedDisplayName: storedTalentName,
       choice,
       businessName,
-      essentialsName: essentials?.name,
+      essentialsName: person.name, // TUL-1839: the person, not essentials.name (seeded with the business name)
       briefPersonName: person.name,
     });
 

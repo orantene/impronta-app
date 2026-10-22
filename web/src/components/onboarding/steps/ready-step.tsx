@@ -30,6 +30,8 @@ export function ReadyStep({
   designChoice = null,
   onPickDesign,
   onConfirmAge18,
+  age18Ticked = false,
+  onAge18Change,
   ageRequiredNotice = false,
   setupLines = [],
   onChangeTimezone,
@@ -50,6 +52,10 @@ export function ReadyStep({
   onPickDesign?: (look: DesignLookKey | null) => void;
   /** 18+ (owner decision 2026-10-01): records the confirmation; shown for myself / both only. */
   onConfirmAge18?: () => Promise<{ ok: boolean }>;
+  /** TUL-1847: the 18+ tick already saved (a reload, or Back from the email step); the box opens ticked. */
+  age18Ticked?: boolean;
+  /** TUL-1847: called on every tick so the parent saves it with the draft. */
+  onAge18Change?: (ticked: boolean) => void;
   /** The build route refused for a missing confirmation: say so here. */
   ageRequiredNotice?: boolean;
   /** TUL-806: services, hours and place from step 3. */
@@ -62,7 +68,8 @@ export function ReadyStep({
 }) {
   const talentOnly = path === "talent";
   const needsAge = path !== "business" && !!onConfirmAge18;
-  const [age18, setAge18] = useState(false);
+  const [age18, setAge18] = useState(age18Ticked);
+  useEffect(() => { if (age18Ticked) setAge18(true); }, [age18Ticked]);
   const [ageSaving, setAgeSaving] = useState(false);
   const [ageFailed, setAgeFailed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -216,7 +223,7 @@ export function ReadyStep({
             <input
               type="checkbox"
               checked={age18}
-              onChange={(e) => { setAge18(e.target.checked); setAgeFailed(false); }}
+              onChange={(e) => { setAge18(e.target.checked); setAgeFailed(false); onAge18Change?.(e.target.checked); }}
               className="mt-0.5 h-5 w-5 shrink-0"
               data-testid="onb-age18-checkbox"
             />

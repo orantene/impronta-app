@@ -103,7 +103,12 @@ export async function provisionForChoice(
       const tp = await writeTalentProfileFromBrief({
         userClient: input.userClient, admin, userId, email: input.email, brief,
         locale: input.locale, typeSlug: input.talentTypeSlug, originDomain: input.requestHost,
-        displayNameFallback: talentDisplayNameFor({ choice, businessName: stringFact(brief, "business.name"), personName: input.essentials?.name }),
+        displayNameFallback: talentDisplayNameFor({
+          choice,
+          businessName: stringFact(brief, "business.name"),
+          // TUL-1839: the person's own name (essentials.name is seeded with the business name first).
+          personName: stringFact(brief, "person.professional_name") ?? stringFact(brief, "person.name"),
+        }),
         skipDraftOfferings: !!input.essentials?.services.length,
       });
       if (!tp.talentProfileId) return { ok: false, code: "talent_writer_failed", message: "Could not create your page." };

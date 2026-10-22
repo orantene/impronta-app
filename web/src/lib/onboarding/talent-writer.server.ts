@@ -132,7 +132,10 @@ export async function writeTalentProfileFromBrief(input: {
   // A profile that already exists (created by sign-up before the wizard) keeps a
   // blank or placeholder name unless the wizard's name replaces it; the "ready"
   // check then looks for a name the page never printed (talent:name_missing).
-  if (existing?.id && displayName && isPlaceholderDisplayName(existing.display_name as string | null | undefined)) {
+  // TUL-1839: a page an earlier build named after the business (old TUL-810 rule) gets the person's name too.
+  const storedName = (existing?.display_name as string | null | undefined)?.trim().toLowerCase() ?? "";
+  const wasBusinessName = !!storedName && storedName === (stringFact(brief, "business.name") ?? "").trim().toLowerCase() && storedName !== displayName.toLowerCase();
+  if (existing?.id && displayName && (isPlaceholderDisplayName(existing.display_name as string | null | undefined) || wasBusinessName)) {
     patch.display_name = displayName;
   }
   if (city) patch.home_city_text = city;
