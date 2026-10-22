@@ -30,3 +30,31 @@ test("placeholder detection", () => {
   assert.equal(isPlaceholderDisplayName("my page"), true);
   assert.equal(isPlaceholderDisplayName("Ana"), false);
 });
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { retryNameToVerify } from "./talent-display-name";
+
+const draft = (businessName: string | null) => ({ businessName, headlineName: "Ana" });
+const rbase = { choice: "myself" as const, briefBusinessName: null, essentialsName: null };
+
+test("TUL-1839 retry: a talent draft verifies the stored display name, like the first build", () => {
+  assert.equal(retryNameToVerify({ ...rbase, arrival: draft(null), storedDisplayName: "Casa Limpia" }), "Casa Limpia");
+});
+
+test("TUL-1839 retry: solo pro with a business name is not checked by the person name", () => {
+  assert.equal(retryNameToVerify({ ...rbase, arrival: draft(null), storedDisplayName: null, briefBusinessName: "Casa Limpia" }), "Casa Limpia");
+});
+
+test("TUL-1839 retry: a workspace draft keeps its business name", () => {
+  assert.equal(retryNameToVerify({ ...rbase, arrival: draft("Studio"), storedDisplayName: "Ana" }), "Studio");
+});
+
+test("TUL-1839 retry: build.server's saved-draft path uses retryNameToVerify with the stored name", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/onboarding/build.server.ts"), "utf8");
+  const start = src.indexOf('existing.arrival?.variant === "draft_saved"');
+  const block = src.slice(start, src.indexOf("return done(input, { ...existing", start));
+  assert.match(block, /retryNameToVerify\(/);
+  assert.match(block, /select\("display_name"\)/);
+  assert.doesNotMatch(block, /a\.businessName \?\? a\.headlineName/);
+});

@@ -44,3 +44,25 @@ export function talentNameToVerify(input: {
     (input.briefPersonName?.trim() || null)
   );
 }
+
+/**
+ * TUL-1839: the saved-draft retry checks the same name as the first build.
+ * A talent-only draft (no business name on the arrival) uses the talent name
+ * derivation; a workspace draft keeps its business name.
+ */
+export function retryNameToVerify(input: {
+  arrival: { businessName: string | null; headlineName: string | null };
+  storedDisplayName?: string | null;
+  choice: OnboardingChoice;
+  briefBusinessName: string | null | undefined;
+  essentialsName: string | null | undefined;
+}): string | null {
+  if (input.arrival.businessName !== null) return input.arrival.businessName;
+  return talentNameToVerify({
+    storedDisplayName: input.storedDisplayName,
+    choice: input.choice,
+    businessName: input.briefBusinessName,
+    essentialsName: input.essentialsName,
+    briefPersonName: input.arrival.headlineName,
+  });
+}

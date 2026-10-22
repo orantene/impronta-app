@@ -26,7 +26,7 @@ import { ENGINE_VERSION } from "@/lib/tulala/engine";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 
 import { resolveWorkspaceFinishUrl } from "./finish-url";
-import { talentNameToVerify } from "./talent-display-name";
+import { retryNameToVerify, talentNameToVerify } from "./talent-display-name";
 import { combineLiveChecks, verifyLivePageWithRetry, type LiveCheck } from "./verify-live";
 import { applyRetryCheck, arrivalFromStamp, parseArrivalStamp, type ArrivalPayload } from "./arrival";
 import { buildUnderstanding } from "./understanding";
@@ -67,7 +67,24 @@ export async function runOnboardingBuild(input: {
   // replaying the stored record made "Intentar de nuevo" fail forever.
   if (existing?.status === "done" && existing.arrival?.variant === "draft_saved" && existing.arrival.link) {
     const a = existing.arrival;
-    const check = await verifyLivePageWithRetry({ url: a.link!.href, name: a.businessName ?? a.headlineName });
+    // TUL-1839: same name as the first build (stored profile name), not the brief's person name.
+    let storedDisplayName: string | null = null;
+    const retryAdmin = existing.talentProfileId ? createServiceRoleClient() : null;
+    if (retryAdmin && existing.talentProfileId) {
+      const { data: tpRow, error: tpErr } = await retryAdmin.from("talent_profiles").select("display_name").eq("id", existing.talentProfileId).maybeSingle();
+      if (tpErr) logServerError("onboarding.build.talentName", tpErr);
+      else storedDisplayName = (tpRow as { display_name?: string | null } | null)?.display_name ?? null;
+    }
+    const check = await verifyLivePageWithRetry({
+      url: a.link!.href,
+      name: retryNameToVerify({
+        arrival: a,
+        storedDisplayName,
+        choice: input.state.choice ?? pathToChoice(existing.path),
+        briefBusinessName: stringFact(input.brief, "business.name"),
+        essentialsName: input.state.essentials?.name,
+      }),
+    });
     if (!check.ok) logServerError("onboarding.build.verifyLive", new Error(`retry:${check.reason}`));
     const arrival = applyRetryCheck(a, check);
     return done(input, { ...existing, arrival, finishedAt: new Date().toISOString() });
