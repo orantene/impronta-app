@@ -32,6 +32,7 @@ src/lib/analytics/derive-tenant.test.ts
 src/lib/analytics/talent-analytics-group.test.ts
 src/lib/analytics/talent-presence-stats.test.ts
 src/lib/analytics/website-analytics-group.test.ts
+src/lib/cms/seeded-nav-labels.test.ts
 src/lib/directory/fetch-directory-page-thumb.test.ts
 src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
