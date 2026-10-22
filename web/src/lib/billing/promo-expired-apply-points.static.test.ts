@@ -38,7 +38,7 @@ test("every apply point uses the shared validator and the checkout builders refu
 });
 
 test("admin create validates the window and edit checks start vs end", () => {
-  assert.match(read("src/lib/server-actions/admin-product-discounts.ts"), /discountWindowError\(v, "create"\)/);
+  assert.match(read("src/lib/server-actions/admin-product-discounts.ts"), /discountWindowError\(\{ startsAt: v\.startsAt, endsAt: v\.endsAt \}, "create"\)/);
   assert.match(read("src/lib/billing/discount-edit.ts"), /discountWindowError\(\{ startsAt: input\.startsAt, endsAt: row\.ends_at \}, "edit"\)/);
 });
 
