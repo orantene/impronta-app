@@ -1883,7 +1883,7 @@ export async function getGuestThreadMessages(
   // (afterIso null) and only once the inquiry is genuinely sent. Null otherwise.
   let receipt: InquiryReceiptData | null = null;
   if (!input.afterIso) {
-    const { data: talentRow } = await admin
+    const { data: talentRow, error: talentRowError } = await admin
       .from("inquiry_participants")
       .select("talent_profile_id")
       .eq("inquiry_id", owned.inquiry.id)
@@ -1891,6 +1891,8 @@ export async function getGuestThreadMessages(
       .not("talent_profile_id", "is", null)
       .limit(1)
       .maybeSingle();
+    // A failed read only costs the reply-time hint.
+    if (talentRowError) logServerError("guest-chat-actions.typicalReplyTalent", talentRowError);
     typicalReplyLabel = await getTypicalReplyLabel({
       tenantId: owned.inquiry.tenantId,
       talentProfileId: (talentRow?.talent_profile_id as string | null) ?? null,
