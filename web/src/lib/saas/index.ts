@@ -2,6 +2,7 @@ export {
   LEGACY_TENANT_ID,
   HUB_AGENCY_ID,
   getCurrentUserTenants,
+  getFreshUserTenants,
   requireStaffOfTenant,
   findTenantMembership,
   type MembershipRole,

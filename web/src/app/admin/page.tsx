@@ -19,7 +19,7 @@
 // must therefore always lead somewhere that renders.
 
 import { redirect } from "next/navigation";
-import { getTenantScope, getCurrentUserTenants } from "@/lib/saas";
+import { getTenantScope, getCurrentUserTenants, getFreshUserTenants } from "@/lib/saas";
 import { buildQuerySuffix } from "@/lib/saas/redirect-query";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
@@ -39,7 +39,10 @@ export default async function AdminRootPage({
     redirect(`/${scope.membership.slug}/admin${querySuffix}`);
   }
 
-  const memberships = await getCurrentUserTenants().catch(() => []);
+  let memberships = await getCurrentUserTenants().catch(() => []);
+  // TUL-1840: "no membership" sends the owner to /talent/today. Confirm it
+  // against the database first so a stale memo never decides that.
+  if (memberships.length === 0) memberships = await getFreshUserTenants().catch(() => []);
   const firstActive = memberships.find((m) => m.status === "active") ?? memberships[0];
   if (firstActive?.slug) {
     redirect(`/${firstActive.slug}/admin${querySuffix}`);
