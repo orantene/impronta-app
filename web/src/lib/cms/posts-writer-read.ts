@@ -20,6 +20,7 @@ import type {
   WriterCategory,
   WriterOffering,
   WriterPostData,
+  WriterTranslationOption,
 } from "@/lib/cms/post-writer-types";
 import { isPostLocale, type PostLocale } from "@/lib/cms/posts-shared";
 import type { PostScope } from "@/lib/cms/posts-writer";
@@ -40,6 +41,7 @@ type FullRow = {
   slug: string;
   title: string | null;
   excerpt: string | null;
+  translation_of: string | null;
   body_blocks: unknown;
   published_at: string | null;
   scheduled_publish_at: string | null;
@@ -60,7 +62,7 @@ type FullRow = {
 };
 
 const FULL_COLUMNS =
-  "id, locale, status, slug, title, excerpt, body_blocks, published_at, scheduled_publish_at, category_id, is_featured, is_unlisted, expires_at, related_offering_id, meta_title, meta_description, cover_image_url, cover_image_alt, og_image_url, noindex, taken_down_at, taken_down_reason, updated_at";
+  "id, locale, status, slug, title, excerpt, translation_of, body_blocks, published_at, scheduled_publish_at, category_id, is_featured, is_unlisted, expires_at, related_offering_id, meta_title, meta_description, cover_image_url, cover_image_alt, og_image_url, noindex, taken_down_at, taken_down_reason, updated_at";
 
 function toWriterPost(row: FullRow): WriterPostData {
   return {
@@ -70,6 +72,7 @@ function toWriterPost(row: FullRow): WriterPostData {
     slug: row.slug,
     title: row.title ?? "",
     excerpt: row.excerpt ?? "",
+    translationOf: row.translation_of,
     blocks: parsePostBlocks(row.body_blocks),
     publishedAt: row.published_at,
     scheduledPublishAt: row.scheduled_publish_at,
@@ -167,6 +170,33 @@ export async function listPostsForOwner(
       }).level,
     };
   });
+}
+
+/** The owner's posts in the OTHER language, for the EN/ES link picker (TUL-1399). */
+export async function listTranslationOptions(
+  supabase: SupabaseClient,
+  scope: PostScope,
+  postLocale: PostLocale,
+  excludeId: string,
+): Promise<WriterTranslationOption[]> {
+  const { data, error } = await scoped(supabase, "cms_posts", scope)
+    .select("id, locale, title, translation_of")
+    .eq("locale", postLocale === "es" ? "en" : "es")
+    .neq("id", excludeId)
+    .order("updated_at", { ascending: false })
+    .limit(100);
+  if (error) {
+    logServerError("cms/posts-writer-read/translation-options", error);
+    return [];
+  }
+  return ((data ?? []) as { id: string; locale: string; title: string | null; translation_of: string | null }[])
+    .filter((r) => (r.title ?? "").trim().length > 0)
+    .map((r) => ({
+      id: r.id,
+      title: (r.title ?? "").trim(),
+      locale: isPostLocale(r.locale) ? r.locale : "es",
+      translationOf: r.translation_of,
+    }));
 }
 
 /** Existing categories for a language (one per post). Creating one is not offered in v1. */

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { postVideoEmbedUrl, type PostBlock } from "@/lib/cms/post-blocks";
+import { parseParagraphText } from "@/lib/cms/post-text-lists";
 import { renderInlineRich } from "@/lib/site-admin/sections/shared/rich-text";
 
 /**
@@ -37,9 +38,23 @@ function renderBlock(block: PostBlock, p: PostBlocksRendererProps): ReactNode {
     case "paragraph":
       return (
         <div className="site-post__paragraphs">
-          {block.text.split("\n\n").map((t, i) => (
-            <p key={i}>{renderInlineRich(t)}</p>
-          ))}
+          {parseParagraphText(block.text).map((seg, i) =>
+            seg.kind === "p" ? (
+              <p key={i}>{renderInlineRich(seg.text)}</p>
+            ) : seg.kind === "ol" ? (
+              <ol key={i} className="site-rich-list">
+                {seg.items.map((item, j) => (
+                  <li key={j}>{renderInlineRich(item)}</li>
+                ))}
+              </ol>
+            ) : (
+              <ul key={i} className="site-rich-list">
+                {seg.items.map((item, j) => (
+                  <li key={j}>{renderInlineRich(item)}</li>
+                ))}
+              </ul>
+            ),
+          )}
         </div>
       );
     case "heading":

@@ -54,6 +54,8 @@ src/lib/client-account/visit-review.test.ts
 src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
+src/lib/cms/blog-language-fallback.static.test.ts
+src/lib/cms/post-text-lists.test.ts
 src/lib/developer-docs/developer-docs.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/match-me/candidates.test.ts

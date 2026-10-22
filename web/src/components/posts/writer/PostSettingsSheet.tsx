@@ -27,7 +27,8 @@ import {
   type PostSeoInput,
   type PostSeoLevel,
 } from "@/lib/cms/post-seo-dot";
-import { isValidPostSlug } from "@/lib/cms/posts-shared";
+import { isValidPostSlug, type PostLocale } from "@/lib/cms/posts-shared";
+import type { WriterTranslationOption } from "@/lib/cms/post-writer-types";
 import type { PostSettingsPatch } from "@/lib/cms/posts-writer";
 import { AiCrawlerToggle, type AiCrawlerToggleSave } from "@/components/posts/AiCrawlerToggle";
 import { PostImageField } from "./PostImageField";
@@ -36,6 +37,12 @@ import type { PostsT } from "./posts-t";
 
 export type PostSettingsValues = {
   status: string;
+  /** TUL-1399: short summary under the title and on the blog index. */
+  excerpt: string;
+  /** TUL-1399: the post's language. */
+  locale: PostLocale;
+  /** TUL-1399: the other-language post this one translates (EN/ES link). */
+  translationOf: string | null;
   isUnlisted: boolean;
   scheduledPublishAt: string | null;
   categoryId: string | null;
@@ -55,12 +62,16 @@ export type PostSettingsSheetProps = {
   open: boolean;
   onClose: () => void;
   values: PostSettingsValues;
+  /** The post being edited (to spot a reverse translation link). */
+  postId?: string;
   postTitle: string;
   coverImageUrl: string | null;
   /** Everything the SEO checks read that the sheet does not edit. */
   seoBase: Pick<PostSeoInput, "title" | "coverImageUrl" | "coverImageAlt" | "blocks">;
   categories: readonly WriterCategory[];
   offerings: readonly WriterOffering[];
+  /** TUL-1399: posts in the other language that this one can be linked to. */
+  translationOptions?: readonly WriterTranslationOption[];
   media: PostBlockMedia;
   /** Public host shown in the previews, e.g. "jorgelina.tulala.digital". */
   siteHost?: string | null;
@@ -131,11 +142,13 @@ export function PostSettingsSheet(props: PostSettingsSheetProps) {
 function SheetBody({
   onClose,
   values,
+  postId,
   postTitle,
   coverImageUrl,
   seoBase,
   categories,
   offerings,
+  translationOptions = [],
   media,
   siteHost,
   disabled,
@@ -151,6 +164,14 @@ function SheetBody({
   const [ui, setUi] = useState<PostUiStatus>(initialUi);
   const [scheduled, setScheduled] = useState(isoToLocalInput(values.scheduledPublishAt));
   const [categoryId, setCategoryId] = useState(values.categoryId);
+  const [excerpt, setExcerpt] = useState(values.excerpt);
+  const [postLocale, setPostLocale] = useState<PostLocale>(values.locale);
+  // A reverse link (the other post names this one) shows as selected too.
+  const initialLink = useMemo(
+    () => translationOptions.find((o) => o.id === values.translationOf || o.translationOf === postId)?.id ?? null,
+    [translationOptions, values.translationOf, postId],
+  );
+  const [linkId, setLinkId] = useState<string | null>(initialLink);
   const [featured, setFeatured] = useState(values.isFeatured);
   const [expires, setExpires] = useState(isoToLocalInput(values.expiresAt));
   const [offeringId, setOfferingId] = useState(values.relatedOfferingId);
@@ -186,8 +207,13 @@ function SheetBody({
     if (ui !== initialUi || (ui === "scheduled" && nextScheduledAt !== values.scheduledPublishAt)) {
       Object.assign(patch, postUiStatusToPatch(ui, nextScheduledAt));
     }
-    if (categoryId !== values.categoryId) patch.category_id = categoryId;
-    if (featured !== values.isFeatured) patch.is_featured = featured;
+    const localeChanged = postLocale !== values.locale;
+    if (localeChanged) patch.locale = postLocale;
+    // The category belongs to a language: the server clears it on a language change.
+    if (categoryId !== values.categoryId && !localeChanged) patch.category_id = categoryId;
+    const ex = excerpt.trim();
+    if (ex !== values.excerpt.trim()) patch.excerpt = ex;
+    if (!localeChanged && linkId !== initialLink) patch.translation_of = linkId;
     const expiresIso = localInputToIso(expires);
     if (expiresIso !== values.expiresAt) patch.expires_at = expiresIso;
     if (offeringId !== values.relatedOfferingId) patch.related_offering_id = offeringId;
@@ -202,7 +228,10 @@ function SheetBody({
       status: patch.status ?? values.status,
       isUnlisted: patch.is_unlisted ?? values.isUnlisted,
       scheduledPublishAt: patch.scheduled_publish_at !== undefined ? patch.scheduled_publish_at : values.scheduledPublishAt,
-      categoryId,
+      categoryId: localeChanged ? null : categoryId,
+      excerpt: ex,
+      locale: postLocale,
+      translationOf: localeChanged ? null : linkId ?? values.translationOf,
       isFeatured: featured,
       expiresAt: expiresIso,
       relatedOfferingId: offeringId,
@@ -297,6 +326,75 @@ function SheetBody({
                   onChange={(e) => setScheduled(e.target.value)}
                 />
                 <span className="text-[13px] text-admin-ink-muted">{t("dashboard.talentPosts.scheduleHint")}</span>
+              </label>
+            ) : null}
+          </div>
+
+          <label className="flex flex-col gap-[6px]">
+            <span className={LABEL}>{t("dashboard.talentPosts.fieldExcerpt")}</span>
+            <textarea
+              className={`${FIELD} min-h-[72px] resize-y`}
+              rows={3}
+              maxLength={1000}
+              disabled={disabled}
+              value={excerpt}
+              data-testid="post-excerpt"
+              onChange={(e) => setExcerpt(e.target.value)}
+            />
+            <span className="text-[13px] text-admin-ink-muted">{t("dashboard.talentPosts.excerptHelp")}</span>
+          </label>
+
+          <div className="flex flex-col gap-[8px]" data-testid="post-language">
+            <span className={LABEL}>{t("dashboard.talentPosts.fieldLanguage")}</span>
+            <div role="radiogroup" className="grid grid-cols-2 gap-[8px]">
+              {(["en", "es"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  role="radio"
+                  aria-checked={postLocale === l}
+                  disabled={disabled || values.status === "published"}
+                  onClick={() => {
+                    setPostLocale(l);
+                    setLinkId(null);
+                    setCategoryId(null);
+                  }}
+                  className={`min-h-11 cursor-pointer rounded-admin-md border px-[12px] text-[14px] font-medium disabled:opacity-60 ${
+                    postLocale === l
+                      ? "border-admin-ink bg-admin-ink text-admin-surface"
+                      : "border-admin-border bg-admin-card text-admin-ink"
+                  }`}
+                >
+                  {l === "en" ? t("dashboard.talentPosts.languageEn") : t("dashboard.talentPosts.languageEs")}
+                </button>
+              ))}
+            </div>
+            <span className="text-[13px] text-admin-ink-muted">
+              {values.status === "published"
+                ? t("dashboard.talentPosts.languageLockedHelp")
+                : t("dashboard.talentPosts.languageHelp")}
+            </span>
+            {postLocale === values.locale ? (
+              <label className="flex flex-col gap-[6px]">
+                <span className={LABEL}>{t("dashboard.talentPosts.fieldTranslation")}</span>
+                <select
+                  className={FIELD}
+                  disabled={disabled || translationOptions.length === 0}
+                  value={linkId ?? ""}
+                  onChange={(e) => setLinkId(e.target.value || null)}
+                >
+                  <option value="">
+                    {translationOptions.length === 0
+                      ? t("dashboard.talentPosts.noTranslations")
+                      : t("dashboard.talentPosts.noneTranslation")}
+                  </option>
+                  {translationOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[13px] text-admin-ink-muted">{t("dashboard.talentPosts.translationHelp")}</span>
               </label>
             ) : null}
           </div>

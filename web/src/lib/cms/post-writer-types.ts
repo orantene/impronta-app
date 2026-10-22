@@ -19,6 +19,8 @@ export type WriterPostData = {
   slug: string;
   title: string;
   excerpt: string;
+  /** TUL-1399: root post of the EN/ES group this one translates, or null. */
+  translationOf: string | null;
   blocks: PostBlock[];
   publishedAt: string | null;
   scheduledPublishAt: string | null;
@@ -41,6 +43,15 @@ export type WriterPostData = {
 
 /** A service the owner can attach to a post. Only the id is ever stored. */
 export type WriterOffering = { id: string; name: string; priceLabel?: string | null };
+
+/** A post in the other language the writer can link as "this is its translation". */
+export type WriterTranslationOption = {
+  id: string;
+  title: string;
+  locale: PostLocale;
+  /** Its own link, so a reverse link (it points at the post being edited) shows as selected. */
+  translationOf: string | null;
+};
 
 export type WriterCategory = { id: string; name: string };
 

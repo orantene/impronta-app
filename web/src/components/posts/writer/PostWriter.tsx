@@ -45,6 +45,7 @@ import { evaluatePostSeo } from "@/lib/cms/post-seo-dot";
 import type {
   PostWriterActions,
   WriterCategory,
+  WriterTranslationOption,
   WriterOffering,
   WriterPostData,
 } from "@/lib/cms/post-writer-types";
@@ -84,6 +85,8 @@ export type PostWriterProps = {
   locale: "es" | "en";
   offerings: readonly WriterOffering[];
   categories: readonly WriterCategory[];
+  /** TUL-1399: other-language posts this one can be linked to (EN/ES). */
+  translationOptions?: readonly WriterTranslationOption[];
   backHref: string;
   /** Where the plans live (talent: /talent/plan). Used by the upgrade sheet and renew link. */
   upgradeHref: string;
@@ -134,6 +137,9 @@ function ToolbarIcon({ type }: { type: PostBlockType }) {
 function settingsFromPost(post: WriterPostData): PostSettingsValues {
   return {
     status: post.status,
+    excerpt: post.excerpt,
+    locale: post.locale,
+    translationOf: post.translationOf,
     isUnlisted: post.isUnlisted,
     scheduledPublishAt: post.scheduledPublishAt,
     categoryId: post.categoryId,
@@ -154,6 +160,7 @@ export function PostWriter({
   locale,
   offerings,
   categories,
+  translationOptions,
   backHref,
   upgradeHref,
   upgradeAudience = "talent",
@@ -616,6 +623,8 @@ export function PostWriter({
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         values={settings}
+        postId={post.id}
+        translationOptions={translationOptions?.filter((o) => o.locale !== settings.locale)}
         postTitle={payload.title}
         coverImageUrl={cover.url}
         seoBase={seoBase}

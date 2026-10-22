@@ -220,6 +220,12 @@ export const postSettingsSchema = z
     meta_title: nullableText,
     meta_description: nullableText,
     slug: z.string().trim().toLowerCase(),
+    /** TUL-1399: the short summary shown under the title and on the blog index. */
+    excerpt: z.string().trim().max(1000),
+    /** TUL-1399: the post's language (en|es). Only a not-yet-published post can change it. */
+    locale: z.enum(["en", "es"]),
+    /** TUL-1399: the post in the other language this one translates (EN/ES link). */
+    translation_of: nullableUuid,
     cover_image_url: nullableText,
     cover_image_alt: nullableText,
     og_image_url: nullableText,
@@ -291,6 +297,22 @@ async function slugIsTaken(ctx: PostWriterContext, locale: string, slug: string,
     .neq("id", excludeId)
     .maybeSingle();
   return !!data;
+}
+
+/** A post in this owner's scope that another post may name as its translation. */
+async function loadTranslationTarget(
+  ctx: PostWriterContext,
+  id: string,
+): Promise<{ id: string; locale: string; translation_of: string | null } | null> {
+  const { data, error } = await scoped(ctx.supabase, "cms_posts", ctx.scope)
+    .select("id, locale, translation_of")
+    .eq("id", id)
+    .maybeSingle<{ id: string; locale: string; translation_of: string | null }>();
+  if (error) {
+    logServerError("cms/posts-writer/translation-target", error);
+    return null;
+  }
+  return data ?? null;
 }
 
 /** `/blog/<old>` → `/blog/<new>`, scoped to the same owner as the post. */
@@ -429,10 +451,33 @@ export async function updatePostSettings(
   if (row.taken_down_at) return takenDown(ctx, row);
   if (liveLocked(ctx, row)) return fail(ctx, "read_only_lapsed");
 
+  // TUL-1399: language change. A live post keeps its language (its URL and
+  // hreflang are public); the category and old translation link belong to the
+  // old language, so they are cleared unless the same patch sets new ones.
+  let finalLocale: string = row.locale;
+  if (typeof patch.locale === "string") {
+    if (patch.locale === row.locale) delete patch.locale;
+    else {
+      if (row.status === "published") return fail(ctx, "validation_failed");
+      finalLocale = patch.locale;
+      if (patch.category_id === undefined) patch.category_id = null;
+      if (patch.translation_of === undefined) patch.translation_of = null;
+      const nextSlug = typeof patch.slug === "string" ? patch.slug : row.slug;
+      if (await slugIsTaken(ctx, finalLocale, nextSlug, row.id)) return fail(ctx, "slug_taken");
+    }
+  }
+
+  if (typeof patch.translation_of === "string") {
+    const target = await loadTranslationTarget(ctx, patch.translation_of);
+    if (!target || target.id === row.id || target.locale === finalLocale) return fail(ctx, "validation_failed");
+    // Groups are flat: point at the group's root, never at a translation.
+    patch.translation_of = target.translation_of ?? target.id;
+  }
+
   if (typeof patch.slug === "string") {
     if (!isValidPostSlug(patch.slug)) return fail(ctx, "validation_failed");
     if (patch.slug === row.slug) delete patch.slug;
-    else if (await slugIsTaken(ctx, row.locale, patch.slug, row.id)) return fail(ctx, "slug_taken");
+    else if (await slugIsTaken(ctx, finalLocale, patch.slug, row.id)) return fail(ctx, "slug_taken");
   }
 
   // Publish intent: going live now, or scheduling ("Programado").
