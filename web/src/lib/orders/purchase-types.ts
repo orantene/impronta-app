@@ -61,6 +61,18 @@ export type PurchaseInput = {
   /** INTENT, not policy. Re-validated against the offering rows. */
   paymentChoice: PaymentChoice;
   /**
+   * TUL-1308: a surface that sends "full" (menu, cart, package, class) asks the
+   * pipeline to follow the owner's setup instead: when EVERY line is configured
+   * as a deposit offering, the deposit is what is collected now, exactly as
+   * instant book does. Never raises a charge: it only swaps "full" for "deposit".
+   */
+  followOwnerDeposit?: boolean;
+  /**
+   * TUL-1308: a tip the buyer chose (cart). Whole minor units. It is added to the
+   * order total and collected with the first payment; never part of a deposit's %.
+   */
+  tipCents?: number;
+  /**
    * A table's deposit from the venue's rules (`deposit_cents_per_person` x party),
    * in the workspace currency. SERVER-SET ONLY, by `reservations/reserve.ts`:
    * it prices the single line at this amount and collects it in full. See

@@ -18,8 +18,19 @@
  * because it was the considered one.
  */
 
-/** Currencies whose minor unit is not 1/100. Extend deliberately, never guess. */
-const ZERO_DECIMAL = new Set(["JPY", "KRW", "CLP", "VND", "ISK", "COP", "PYG", "XAF", "XOF"]);
+/**
+ * Currencies whose minor unit is not 1/100: Stripe's zero-decimal list, verbatim.
+ * Extend deliberately, never guess.
+ *
+ * COP and ISK are NOT here. Stripe treats COP as two-decimal (the amount is in
+ * centavos), so listing it zero-decimal sent a 50,000 peso price as 50,000
+ * centavos = 500 pesos, a charge 100x too small. ISK is Stripe's special case:
+ * two-decimal in the API (amount = whole krona x 100, always a multiple of 100),
+ * so it takes divisor 100 like any other.
+ */
+const ZERO_DECIMAL = new Set([
+  "BIF", "CLP", "DJF", "GNF", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "VND", "VUV", "XAF", "XOF", "XPF",
+]);
 
 export function minorUnitDivisor(currency: string): number {
   return ZERO_DECIMAL.has(currency.toUpperCase()) ? 1 : 100;

@@ -3,6 +3,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { commitCapacity } from "@/lib/capacity";
 import { settlesOnCreation } from "@/lib/orders/settles-on-creation";
+import { PAY_IN_PERSON_STOCK_HOLD_HOURS } from "@/lib/orders/purchase-stock";
 
 /**
  * What an order looks like the moment after its payment leg is opened.
@@ -51,7 +52,8 @@ export async function settleOrHoldOrder(
     /**
      * D5: a pay-in-person order whose only legs are offering stock keeps its
      * units until the visit (committed now, no deadline); see
-     * `keepsStockUntilVisit` in purchase-stock.ts. The status is unchanged.
+     * `keepsStockUntilVisit` in purchase-stock.ts. The status is unchanged; the
+     * order carries a last-day deadline (TUL-1313) after which the sweep cancels it.
      */
     readonly keepUntilVisit?: boolean;
   },
@@ -93,7 +95,10 @@ export async function settleOrHoldOrder(
       hold_expires_at:
         !commitNow && input.heldAllocationIds.length > 0
           ? new Date(Date.now() + input.holdTtlSeconds * 1000).toISOString()
-          : null,
+          : // TUL-1313: stock kept until the visit still has a last day, or a no-show keeps it for ever.
+            !settled && input.keepUntilVisit === true && input.heldAllocationIds.length > 0
+            ? new Date(Date.now() + PAY_IN_PERSON_STOCK_HOLD_HOURS * 3_600_000).toISOString()
+            : null,
     },
   };
 }

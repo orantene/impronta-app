@@ -69,6 +69,13 @@ describe("planAcceptCollection: offer term first, then the talent policy chain",
     assert.equal(plan.amountCents, 20_000);
   });
 
+  it("TUL-1303: 9999 at 50% is 4999 on the offer path and on the policy path (floor, never round)", () => {
+    const offerPath = planAcceptCollection({ totalCents: 9_999, offerDepositPct: 50, offerDepositCents: null, lines: [], talentDefaults: null });
+    assert.equal(offerPath.amountCents, 4_999);
+    const policyPath = planAcceptCollection({ totalCents: 9_999, offerDepositPct: null, offerDepositCents: null, lines: [], talentDefaults: { depositPct: 50 } });
+    assert.equal(policyPath.amountCents, 4_999);
+  });
+
   it("free reserve on every line = pay in person, nothing collected", () => {
     const plan = planAcceptCollection({
       totalCents: 100_000,

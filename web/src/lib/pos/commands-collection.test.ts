@@ -88,6 +88,11 @@ test("desk contact becomes mint holders so the ticket is not unnamed", () => {
   assert.equal(admissionHoldersFromDeskContact({ units: 1, displayName: "  " }), undefined);
 });
 
+test("TUL-1309: a part quantity gets no holders, never a truncated set", () => {
+  assert.equal(admissionHoldersFromDeskContact({ units: 2.5, displayName: "Ana Ruiz" }), undefined);
+  assert.equal(admissionHoldersFromDeskContact({ units: 3, displayName: "Ana Ruiz" })?.length, 3);
+});
+
 test("a named-ticket walk-in collects when the operator typed the attendee name", async () => {
   const store = makeStore();
   seedOffering(store, {

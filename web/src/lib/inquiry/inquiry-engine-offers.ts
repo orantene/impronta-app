@@ -18,8 +18,10 @@ import {
   parseTenantCommercialTerms,
   parseTalentBookingTerms,
 } from "@/lib/billing/commercial-terms";
+import { offerClientTotalMajor } from "@/lib/inquiry/offer-client-total";
 import {
   defaultOfferTermsFromResolved,
+  lowestDepositPct,
   normalizeOfferTerms,
   readOfferTermsFromRow,
 } from "@/lib/billing/offer-commercial-terms";
@@ -41,7 +43,7 @@ const DEFAULT_OFFER_EXPIRY_DAYS = 7;
  * W6a — resolve the DEFAULT offer commercial terms for an inquiry's offer by
  * layering the W5 config: platform default → tenant override → talent
  * preference. For multi-talent offers, the line-item talents' booking_terms are
- * merged conservatively (highest deposit %, first explicit refund policy) so a
+ * merged (LOWEST deposit % to match checkout, first explicit refund policy) so a
  * single offer carries one coherent default. Returns the bare term fields;
  * deposit_amount_cents is derived by the caller once the client total is known.
  *
@@ -127,13 +129,11 @@ async function resolveDefaultOfferTerms(
         .map((p) => parseTalentBookingTerms(p.booking_terms))
         .filter((x): x is TalentBookingTerms => x != null);
       if (parsed.length > 0) {
-        // Conservative merge across talents: take the HIGHEST deposit % (protects
-        // the highest-risk talent) and the FIRST explicit refund policy.
-        const depositPct = parsed.reduce<number | null>(
-          (acc, t) =>
-            t.depositPct == null ? acc : Math.max(acc ?? 0, t.depositPct),
-          null,
-        );
+        // Merge across talents: the LOWEST deposit % (TUL-1303). Checkout
+        // (`planAcceptCollection`, `resolvePurchasePolicy`) charges the smallest pct
+        // across lines, so the highest here showed an offer deposit the checkout
+        // never charged (50% shown vs 30% charged). Plus the FIRST explicit refund policy.
+        const depositPct = lowestDepositPct(parsed);
         const refundPolicy =
           parsed.find((t) => t.refundPolicy != null)?.refundPolicy ?? null;
         talent = {
@@ -682,7 +682,7 @@ export async function sendOffer(
     // does not charge in (an MXN seller must not offer USD).
     const { data: curRow, error: curErr } = await supabase
       .from("inquiry_offers")
-      .select("currency_code")
+      .select("currency_code, coordinator_fee")
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
@@ -705,7 +705,15 @@ export async function sendOffer(
     ).toISOString();
     await supabase
       .from("inquiry_offers")
-      .update({ total_client_price: lineSum, valid_until: validUntil })
+      .update({
+        // TUL-1306: lines plus the coordination fee, the same number the draft save stamps.
+        total_client_price: offerClientTotalMajor(
+          lineSum,
+          Number((curRow as { coordinator_fee?: number | string | null } | null)?.coordinator_fee ?? 0),
+          (curRow as { currency_code?: string | null } | null)?.currency_code,
+        ),
+        valid_until: validUntil,
+      })
       .eq("id", ctx.offerId)
       .eq("tenant_id", ctx.tenantId);
 
@@ -1017,9 +1025,11 @@ export async function updateOfferDraft(
     // callers and a correctness guard otherwise. The W6a deposit derivation
     // below uses this reconciled total too, so deposit_amount_cents stays
     // consistent with the priced lines.
-    const reconciledTotal = ctx.lineItems.reduce(
-      (sum, line) => sum + Number(line.total_price ?? 0),
-      0,
+    // TUL-1306: the total is the lines PLUS the coordination fee (offer-client-total.ts).
+    const reconciledTotal = offerClientTotalMajor(
+      ctx.lineItems.reduce((sum, line) => sum + Number(line.total_price ?? 0), 0),
+      coordinatorFee,
+      ctx.currency_code,
     );
     const totalClientPriceCents = majorToMinor(reconciledTotal, ctx.currency_code);
     let fallbackTerms: {

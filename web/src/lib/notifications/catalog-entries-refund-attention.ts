@@ -32,6 +32,15 @@ function paymentFlagCopy(
     return amount ? `${verb} ${amount}` : verb;
   };
   const next = es ? "Revisa el cobro en Stripe." : "Check the charge in Stripe.";
+  if (reason === "refund_restore_failed") {
+    return {
+      title: es ? "Reembolso hecho, falta devolver el pedido" : "Refunded, order not fully put back",
+      body: () =>
+        es
+          ? "El reembolso se hizo, pero no se devolvieron todos los boletos, lugares o la promo. Revisa el pedido en Incidencias."
+          : "The refund went through, but not every ticket, seat or promo was put back. Check the order in Issues.",
+    };
+  }
   if (reason === "amount_mismatch") {
     return {
       title: es ? "El monto pagado no coincide" : "Payment amount does not match",

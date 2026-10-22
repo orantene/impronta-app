@@ -126,3 +126,22 @@ test("a line with an unknown offering gets a null attribution, not a wrong one",
   const r = buildCapacityRequests([need({ offeringId: "unknown" })], lines);
   assert.equal(r.ok && r.requests[0]?.orderLineId, null);
 });
+
+test("TUL-1314: two lines of one offering each keep their OWN hold, by line index", () => {
+  // Keyed by offering id alone both holds landed on whichever line was written
+  // last, so refunding one line could free the other's stock.
+  const byOffering = new Map([["off1", "lineB"]]);
+  const byIndex = new Map([[0, "lineA"], [1, "lineB"]]);
+  const r = buildCapacityRequests(
+    [need({ lineIndex: 0, perUnitDomainRow: false, units: 2 }), need({ lineIndex: 1, perUnitDomainRow: false, units: 3 })],
+    byOffering,
+    byIndex,
+  );
+  assert.equal(r.ok && r.requests[0].orderLineId, "lineA");
+  assert.equal(r.ok && r.requests[1].orderLineId, "lineB");
+});
+
+test("a need with no line index still falls back to the offering's line", () => {
+  const r = buildCapacityRequests([need({ perUnitDomainRow: false })], lines, new Map([[0, "x"]]));
+  assert.equal(r.ok && r.requests[0].orderLineId, "line1");
+});

@@ -443,7 +443,7 @@ test("a flagged payment is a critical money row with no button", () => {
 });
 
 test("each reason carries its own translated copy keys and the facts as variables", () => {
-  for (const reason of ["amount_mismatch", "charge_on_inactive_row", "duplicate_charge"] as const) {
+  for (const reason of ["amount_mismatch", "charge_on_inactive_row", "duplicate_charge", "refund_restore_failed"] as const) {
     const row = classifyPaymentFlag(flagFacts({ flag: { ...flagFacts().flag, reason } }), null);
     assert.ok(row.copy, `${reason} has no copy keys`);
     assert.equal(row.copy.title, `paymentFlag.${reason}.title`);

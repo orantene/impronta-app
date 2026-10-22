@@ -11,6 +11,9 @@ export function admissionHoldersFromDeskContact(input: {
   const name = input.displayName?.trim() || null;
   const email = input.email?.trim() || null;
   if (!name && !email) return undefined;
-  const count = Number.isFinite(input.units) && input.units > 0 ? Math.trunc(input.units) : 1;
+  // TUL-1309: a part quantity (2.5) never gets a truncated set of holders: no
+  // holders at all, so the mint cannot write 2 names against 2.5 admissions.
+  if (Number.isFinite(input.units) && input.units > 0 && !Number.isInteger(input.units)) return undefined;
+  const count = Number.isFinite(input.units) && input.units > 0 ? input.units : 1;
   return Array.from({ length: count }, () => ({ name, email }));
 }

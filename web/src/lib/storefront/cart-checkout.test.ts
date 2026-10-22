@@ -185,6 +185,9 @@ test("act start_payment: identity-before-payment is the pipeline's no_contact; s
   assert.deepEqual(sent.lines, [{ offeringId: TACO, units: 2, variantId: null, addonIds: [] }]);
   assert.equal(sent.sourceChannel, "storefront:pickup");
   assert.equal(sent.clientOrderKey, `cart:${CART}`);
+  const flags = purchases[2] as { followOwnerDeposit?: boolean; tipCents?: number };
+  assert.equal(flags.followOwnerDeposit, true, "TUL-1308: a deposit offering collects its deposit");
+  assert.equal(flags.tipCents, 0);
   // Same cart again from a stale tab: the same sale, no second purchase.
   const again = await actCartCheckoutCore(deps, { op: "start_payment", tenantId: TENANT, orderId: CART, payment: "full" }, 3);
   assert.ok(again.ok && again.op === "start_payment" && again.replayed === true && again.orderId === uuid(50));
@@ -235,4 +238,18 @@ test("TUL-937: a promo that sold out mid-checkout refuses BEFORE payment; never 
   assert.ok(isPromoGoneRefusal(r), "the checkout UI reads it as 'promo gone' and shows the regular price");
   assert.equal(checkouts.length, 0, "no payment session was opened");
   assert.equal(store.orders![0]!.status, "draft", "the cart stays open to book at the regular price");
+});
+
+test("TUL-1308: the tip set on the cart is carried into the purchase that is charged", async () => {
+  const { deps, store, purchases } = setup({
+    createPurchase: async (_a, input) => {
+      purchases.push(input);
+      return { ok: true, orderId: uuid(50), customerId: CUSTOMER, totalCents: 600, collectCents: 700, currency: "USD", payInPerson: false, allocationIds: [], transactionId: uuid(51), bookingId: uuid(52), inquiryId: null, reservationHoldId: null };
+    },
+  });
+  store.orders![0]!.customer_id = CUSTOMER;
+  store.orders![0]!.tip_cents = 100;
+  const r = await actCartCheckoutCore(deps, { op: "start_payment", tenantId: TENANT, orderId: CART, payment: "full" }, 3);
+  assert.ok(r.ok);
+  assert.equal((purchases[0] as { tipCents: number }).tipCents, 100);
 });

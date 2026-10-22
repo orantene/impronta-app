@@ -32,6 +32,25 @@ export type PaymentChoice = "full" | "deposit" | "in_person";
 export const PAYMENT_CHOICES: readonly PaymentChoice[] = ["full", "deposit", "in_person"];
 
 /**
+ * TUL-1308: "full" becomes "deposit" for a surface that follows the owner's setup
+ * (`followOwnerDeposit`) when EVERY line is a configured deposit offering. Any
+ * other choice, or a mixed cart, is left alone.
+ */
+export function ownerDepositChoice(
+  choice: PaymentChoice,
+  follow: boolean | undefined,
+  lines: ReadonlyArray<{ offeringId: string }>,
+  policies: ReadonlyMap<string, OfferingPolicy>,
+): PaymentChoice {
+  if (choice !== "full" || !follow || lines.length === 0) return choice;
+  const allDeposit = lines.every((l) => {
+    const p = policies.get(l.offeringId);
+    return p?.reserveMode === "deposit" && !!p.depositPct;
+  });
+  return allDeposit ? "deposit" : choice;
+}
+
+/**
  * The policy of ONE offering, as read from its row. This is the only shape the
  * gate accepts — a caller cannot construct it from request input because every
  * field has to come from the database.

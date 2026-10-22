@@ -14,7 +14,7 @@ import { openPurchaseBooking } from "@/lib/orders/purchase-booking";
 import { openPurchaseThreadWithRetry } from "@/lib/orders/purchase-thread-retry";
 import { attributePurchaseBooking } from "@/lib/orders/purchase-attribution";
 import { commitOrderTalentHolds } from "@/lib/scheduling/commit-order-holds";
-import { resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
+import { ownerDepositChoice, resolvePurchasePolicy } from "@/lib/orders/purchase-policy";
 import { loadCatalog, mapCapacityRefusal, refuseHiddenVariants, refuseUnsellableOfferings } from "@/lib/orders/purchase-catalog";
 import { resolvePromo } from "@/lib/orders/promo-resolve";
 import { holdBookingPromos, priceBookingPromo, redeemTypedCode, soleTalent } from "@/lib/orders/purchase-promo";
@@ -35,6 +35,8 @@ import type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseR
 
 export type { PurchaseInput, PurchaseLineInput, PurchaseRefusalReason, PurchaseResult };
 import { pricePurchase } from "@/lib/orders/purchase-pricing";
+import { loadLinePhases } from "@/lib/orders/purchase-phases";
+import { buildOrderLineRows, indexInsertedLines } from "@/lib/orders/purchase-lines";
 import { tableDepositRefusal, withTableDeposit } from "@/lib/orders/purchase-table-deposit";
 import { resolveCheckoutCollectOrRefuse } from "@/lib/orders/purchase-collect";
 
@@ -165,7 +167,7 @@ export async function createPurchase(
         clientOrderKey: input.clientOrderKey,
         tenantId: input.tenantId,
         actorUserId: input.actorUserId,
-        paymentChoice: input.paymentChoice, tableDeposit: !!input.tableDeposit,
+        paymentChoice: ownerDepositChoice(input.paymentChoice, input.followOwnerDeposit, input.lines, catalog.policies), tableDeposit: !!input.tableDeposit,
         lines: input.lines.map((l) => ({ offeringId: l.offeringId, units: l.units })),
       },
       catalog.policies,
@@ -216,7 +218,11 @@ export async function createPurchase(
     }
     const orderCurrency = ccy.currency;
 
-    const priced = withTableDeposit(pricePurchase(input.lines, {
+    // TUL-1302: the live price phase, as the storefront shows it and the counter charges it.
+    const livePhases = await loadLinePhases(admin, { tenantId: input.tenantId, lines: input.lines });
+    if (!livePhases.ok) return { ok: false, reason: "engine_error", error: "Could not read the price." };
+
+    const priced = withTableDeposit(pricePurchase(input.lines.map((l, i) => ({ ...l, ...livePhases.phases[i] })), {
       offerings: catalog.offerings,
       variants: catalog.variants,
       addons: catalog.addons,
@@ -294,7 +300,10 @@ export async function createPurchase(
     if (bookingPromo) promoDiscountCents = bookingPromo.value.discountCents;
 
     // Settle + insert must agree; `orders_total_is_derived` refuses drift.
-    const totalCents = priced.subtotalCents - promoDiscountCents;
+    // TUL-1308: the buyer's tip is part of the total and is collected with it (purchase-collect.ts).
+    // A free (no-collect, not pay-in-person) order has nothing to attach a tip to.
+    const tipCents = Number.isSafeInteger(input.tipCents) && (input.tipCents ?? 0) > 0 && (policy.collect !== "none" || policy.payInPerson) ? (input.tipCents as number) : 0;
+    const totalCents = priced.subtotalCents - promoDiscountCents + tipCents;
 
     const collect = await resolveCheckoutCollectOrRefuse(admin, {
       tenantId: input.tenantId,
@@ -302,6 +311,7 @@ export async function createPurchase(
       lines: priced.lines,
       subtotalCents: priced.subtotalCents,
       totalCents,
+      tipCents,
       collect: policy.collect,
       depositPct: policy.depositPct,
       payInPerson: policy.payInPerson,
@@ -324,6 +334,7 @@ export async function createPurchase(
         discount_cents: promoDiscountCents,
         tax_cents: 0,
         total_cents: totalCents,
+        ...(tipCents > 0 ? { tip_cents: tipCents } : {}),
         // Public receipt identifier for `/r/<code>`. Assigned HERE because the
         // column is meaningless until an order exists to be shown, and this is
         // the one place an order is created.
@@ -392,24 +403,7 @@ export async function createPurchase(
     }
 
     // ── 6. Lines.
-    const lineRows = priced.lines.map((l, i) => ({
-      order_id: createdOrderId,
-      tenant_id: input.tenantId,
-      offering_id: l.offeringId,
-      variant_id: l.variantId,
-      addon_ids: l.addonIds,
-      label: l.label,
-      units: l.units,
-      unit_cents: l.unitCents,
-      total_cents: l.totalCents,
-      talent_profile_id: l.talentProfileId,
-      owner_tenant_id: l.ownerTenantId,
-      talent_cost_cents: l.talentCostCents,
-      ...(l.ownerTakeCents != null ? { owner_take_cents: l.ownerTakeCents, owner_share_snapshot: l.ownerShareSnapshot } : {}),
-      // Never `orders.session_id` (a box-office convenience); `mint-on-paid` filters on this.
-      session_id: input.lines[i]?.sessionId ?? null,
-      sort_order: i,
-    }));
+    const lineRows = buildOrderLineRows(priced.lines, { orderId: createdOrderId, tenantId: input.tenantId, sessionIds: input.lines.map((l) => l.sessionId) });
 
     const { data: insertedLines, error: linesErr } = await admin
       .from("order_lines")
@@ -423,10 +417,7 @@ export async function createPurchase(
     }
 
     // ── 7. Hold capacity: the caller's pools plus each line's offering stock (purchase-stock.ts).
-    const lineIdByOffering = new Map<string, string>();
-    for (const row of insertedLines as Array<{ id: string; offering_id: string | null }>) {
-      if (row.offering_id) lineIdByOffering.set(row.offering_id, row.id);
-    }
+    const lineIds = indexInsertedLines(insertedLines as Array<{ id: string; offering_id: string | null; sort_order: number | null }>);
 
     let shortestTtlSeconds: number | null = null;
     // Stock first (it skips lines the CALLER already pooled), then TUL-1375 linked chair/room/station.
@@ -509,7 +500,7 @@ export async function createPurchase(
         }
       }
 
-      const built = needs.length > 0 ? buildCapacityRequests(needs, lineIdByOffering) : { ok: true as const, requests: [] };
+      const built = needs.length > 0 ? buildCapacityRequests(needs, lineIds.byOffering, lineIds.byIndex) : { ok: true as const, requests: [] };
       if (!built.ok) {
         await unwind(`capacity requests refused: ${built.reason}`);
         return built.reason === "fractional_units_unsupported"

@@ -41,6 +41,11 @@ export type CapacityNeed = {
    */
   perUnitDomainRow?: boolean;
   /**
+   * TUL-1314: the request-line index this leg belongs to. Attribution by offering id alone put two
+   * variants of one offering on a single line; the index names the exact line.
+   */
+  lineIndex?: number;
+  /**
    * Seconds this leg's hold lives, instead of the pool's own TTL. TUL-1552: a
    * waitlist place is held for its offer window, not a pool's 15 minutes. The
    * engine clamps it to its own bounds.
@@ -72,6 +77,7 @@ export type BuildRequestsResult =
 export function buildCapacityRequests(
   needs: readonly CapacityNeed[],
   lineIdByOffering: ReadonlyMap<string, string>,
+  lineIdByIndex?: ReadonlyMap<number, string>,
 ): BuildRequestsResult {
   const requests: CapacityRequest[] = [];
 
@@ -94,7 +100,10 @@ export function buildCapacityRequests(
     // Clamp UPWARD: a zero or negative units still holds one seat. Reserving
     // nothing for a line that was sold is the oversell this path prevents.
     const whole = Math.max(1, units);
-    const orderLineId = lineIdByOffering.get(need.offeringId) ?? null;
+    const orderLineId =
+      (need.lineIndex != null ? lineIdByIndex?.get(need.lineIndex) : undefined) ??
+      lineIdByOffering.get(need.offeringId) ??
+      null;
     const base = {
       poolId: need.poolId,
       startsAt: need.startsAt ?? null,

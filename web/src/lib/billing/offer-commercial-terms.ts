@@ -59,7 +59,7 @@ export function clampDepositPct(v: unknown): number | null {
  * and a deposit percentage. round-half-up; never negative; never exceeds total.
  *
  *   deriveDepositAmountCents(100_00, 30) === 30_00
- *   deriveDepositAmountCents(99_99, 50)  === 50_00  (round(4999.5) = 5000)
+ *   deriveDepositAmountCents(99_99, 50)  === 49_99  (floor(4999.5) = 4999, TUL-1303)
  */
 export function deriveDepositAmountCents(
   totalClientPriceCents: number,
@@ -67,8 +67,21 @@ export function deriveDepositAmountCents(
 ): number {
   if (!Number.isFinite(totalClientPriceCents) || totalClientPriceCents <= 0) return 0;
   const pct = Math.min(Math.max(Number.isFinite(depositPct) ? depositPct : 0, 0), 100);
-  const raw = Math.round((totalClientPriceCents * pct) / 100);
+  // FLOOR (TUL-1303): a deposit is a part payment, never more than the pct, same as checkout's amountToCollectCents.
+  const raw = Math.floor((totalClientPriceCents * pct) / 100);
   return Math.min(Math.max(raw, 0), Math.round(totalClientPriceCents));
+}
+
+/**
+ * The deposit % a multi-talent offer defaults to: the LOWEST across talents
+ * (TUL-1303). Checkout charges the smallest pct across lines, so defaulting to
+ * the highest showed a deposit the checkout never took. Null when none is set.
+ */
+export function lowestDepositPct(terms: ReadonlyArray<{ depositPct: number | null }>): number | null {
+  return terms.reduce<number | null>(
+    (acc, t) => (t.depositPct == null ? acc : acc == null ? t.depositPct : Math.min(acc, t.depositPct)),
+    null,
+  );
 }
 
 /**

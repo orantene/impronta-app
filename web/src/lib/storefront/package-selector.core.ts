@@ -110,6 +110,7 @@ export async function actPackageSelectorCore(deps: PackageSelectorDeps, input: P
         contact: { email: email || null, phone: c.phone?.trim() || null, displayName: c.name.trim() },
         lines: [{ offeringId: input.packageId, units }],
         paymentChoice: input.payment === "in_person" ? "in_person" : "full",
+        followOwnerDeposit: true, // TUL-1308
         sourceChannel: "storefront_package",
         sourcePage: input.sourcePage ?? null,
         locale: deps.locale,

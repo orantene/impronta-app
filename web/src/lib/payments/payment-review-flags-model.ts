@@ -10,6 +10,10 @@
  *                           charge landed; the money is owed back.
  *   duplicate_charge        the row was already paid by a DIFFERENT
  *                           PaymentIntent; the second charge is owed back.
+ *   refund_restore_failed   (TUL-1310) the refund went through but putting back
+ *                           the tickets, seats, stock or promo did not finish;
+ *                           they may still be held or admit. Raised by the
+ *                           refund webhook, not the settle path.
  *
  * WHERE IT LIVES. On the money row itself, in `booking_transactions.metadata`,
  * the same bag the existing attention stamps use (`needs_attention`, written by
@@ -29,7 +33,7 @@
  * inbox and tests alike.
  */
 
-export const PAYMENT_REVIEW_REASONS = ["amount_mismatch", "charge_on_inactive_row", "duplicate_charge"] as const;
+export const PAYMENT_REVIEW_REASONS = ["amount_mismatch", "charge_on_inactive_row", "duplicate_charge", "refund_restore_failed"] as const;
 export type PaymentReviewReason = (typeof PAYMENT_REVIEW_REASONS)[number];
 
 export function isPaymentReviewReason(value: unknown): value is PaymentReviewReason {

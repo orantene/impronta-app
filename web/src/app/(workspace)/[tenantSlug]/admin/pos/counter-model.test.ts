@@ -112,7 +112,7 @@ test("an empty cash box is not a counted zero", () => {
   assert.equal(parseCashBox("0", 100), 0);
   assert.equal(parseCashBox("12.50", 100), 1250);
   assert.equal(parseCashBox("12.5", 100), 1250);
-  // A zero-decimal currency (JPY, CLP, COP) counts whole units.
+  // A zero-decimal currency (JPY, CLP) counts whole units.
   assert.equal(parseCashBox("1250", 1), 1250);
   // Anything that is not a plain money figure is refused, not coerced.
   for (const bad of ["-5", "1.234", "12,50", "1e3", "abc", "NaN", "Infinity"]) {
