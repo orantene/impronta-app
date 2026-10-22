@@ -141,3 +141,4 @@ src/lib/support/ticket-title.test.ts
 src/lib/talent-site/route-verdict.test.ts
 src/lib/talent-site/talent-site-true-404.static.test.ts
 src/lib/text-grey-contrast.static.test.ts
+src/lib/ai/talent-ai-spend.test.ts

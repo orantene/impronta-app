@@ -12,6 +12,7 @@ import { resolveEffectiveTalentPlanKey } from "@/lib/billing/effective-talent-pl
 import { after } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
+import { sumTalentAiSpendCents, type TalentSpendRpcClient } from "@/lib/ai/talent-ai-spend";
 import { resolveAnthropicApiKey } from "@/lib/ai/resolve-api-keys";
 import { adapterForProvider } from "@/lib/ai/resolve-provider";
 import { recordAiGenerationUsage } from "@/lib/ai/record-generation-usage";
@@ -328,27 +329,13 @@ export async function loadTalentBookingAssistantSpendCentsThisMonth(
   if (!admin) return 0;
   const now = new Date();
   const since = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01T00:00:00.000Z`;
-  const { data, error } = await admin
-    .from("cms_ai_usage_log")
-    .select("context_jsonb, ok")
-    .eq("ok", true)
-    .gte("created_at", since)
-    .contains("context_jsonb", {
-      feature: "booking_assistant",
-      talent_profile_id: talentProfileId,
-    })
-    .limit(5000);
-  if (error) {
-    logServerError("booking-assistant/talent-spend", error);
-    return 0;
-  }
-  let cents = 0;
-  for (const row of data ?? []) {
-    const ctx = (row as { context_jsonb?: { cost_usd?: unknown } | null }).context_jsonb;
-    const usd = typeof ctx?.cost_usd === "number" ? ctx.cost_usd : 0;
-    if (usd > 0) cents += Math.max(1, Math.round(usd * 100));
-  }
-  return cents;
+  const cents = await sumTalentAiSpendCents(
+    admin as unknown as TalentSpendRpcClient,
+    { talentProfileId, sinceIso: since, feature: "booking_assistant" },
+    "booking-assistant/talent-spend",
+  );
+  // A failed read keeps counting as 0 here, exactly as before the SQL sum.
+  return cents ?? 0;
 }
 
 async function loadGroundingOfferings(
