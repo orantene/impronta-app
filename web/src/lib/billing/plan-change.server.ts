@@ -13,6 +13,8 @@ import type { TalentPlanKey, WorkspacePlanKey } from "@/lib/stripe/price-ids";
 import { parseBillingInterval } from "@/lib/pricing/interval-pricing";
 import { toCatalogInterval } from "./checkout-interval";
 import { logServerError } from "@/lib/server/safe-error";
+import { syncTalentSubscriptionToDb } from "@/lib/stripe/talent-billing";
+import { syncTalentPlanAfterConfirm } from "./plan-change-sync";
 import { confirmPlanChange, previewPlanChange, type PlanChangeRequest } from "./plan-change";
 import { resolvePlanChangePromoWith } from "./plan-change-promo";
 import { countSubjectRedemptions } from "./checkout-discounts";
@@ -142,7 +144,18 @@ export async function confirmPlanChangeFor(
   if ("promoError" in req) return { ok: false, error: req.error, code: "promo", promoError: req.promoError };
   const out = await confirmPlanChange(stripe, { ...req, locale: await getRequestLocale() }, prorationDate);
   if (!out.ok) logServerError("billing.planChange.confirm", out.error);
-  else if (kind === "workspace") {
+  else if (kind === "talent") {
+    // TUL-1820: write the new plan key now so the refresh that closes the modal shows the new plan label.
+    await syncTalentPlanAfterConfirm(
+      {
+        retrieveSubscription: (id) => stripe.subscriptions.retrieve(id),
+        syncToDb: (sub, planKey, o) => syncTalentSubscriptionToDb(sub, planKey, o),
+        onError: logServerError,
+      },
+      { subscriptionId: req.subscriptionId, toPlan: req.toPlan, talentProfileId: subjectId },
+      out,
+    );
+  } else if (kind === "workspace") {
     // TUL-1737: any confirmed in-app plan change supersedes a stored downgrade keep-list (best effort; the webhook also
     // clears it on a tier increase).
     const sb = createServiceRoleClient();
