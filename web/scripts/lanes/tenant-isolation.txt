@@ -13,6 +13,7 @@ src/components/admin/shell/canonical-routes-admin-folders.static.test.ts
 src/components/admin/shell/canonical-routes.test.ts
 src/components/admin/shell/internal/page-modules/mobile-bottom-nav.static.test.ts
 src/components/admin/shell/internal/page-modules/pos-mode-switch.static.test.ts
+src/components/admin/shell/internal/page-modules/settings-focus-deeplink.static.test.ts
 src/components/admin/shell/internal/page-modules/workspace-nav-groups.test.ts
 src/components/admin/shell/internal/private-fields-unavailable-ui.static.test.ts
 src/components/admin/shell/internal/state/talent-page-segment.test.ts
@@ -128,6 +129,7 @@ src/lib/saas/host-context-talent-subdomain.test.ts
 src/lib/saas/host-gated-routes-no-static-extension.static.test.ts
 src/lib/saas/host-safe-destination.test.ts
 src/lib/saas/host-safe-links.static.test.ts
+src/lib/saas/hub-directory-rewrite.static.test.ts
 src/lib/saas/indexnow-key-reachability.static.test.ts
 src/lib/saas/marketing-locale-hrefs.guard.test.ts
 src/lib/saas/membership-auth-sweep.guard.test.ts
@@ -145,6 +147,7 @@ src/lib/saas/rls-grant-drift.static.test.ts
 src/lib/saas/scope.test.ts
 src/lib/saas/signup-releases-reservation-before-insert.test.ts
 src/lib/saas/storage-media-tenant-scoped-rls.static.test.ts
+src/lib/saas/surface-allow-list-hub-directory.test.ts
 src/lib/saas/surface-allow-list-hub-media.test.ts
 src/lib/saas/surface-allow-list.posts.test.ts
 src/lib/saas/surface-allow-list.test.ts
@@ -227,6 +230,8 @@ src/lib/talent-agenda/record-labels.test.ts
 src/lib/talent-agenda/resolve-record-target.test.ts
 src/lib/talent-profile/profile-page-templates.parity.test.ts
 src/lib/talent/agency-roster-profile-url.test.ts
+src/lib/talent/apply-actions-roster-wire.static.test.ts
+src/lib/talent/approve-application.test.ts
 src/lib/talent/hub-profile-offerings.test.ts
 src/lib/talent/invitation-email.test.ts
 src/lib/talent/load-representation.test.ts
@@ -243,6 +248,7 @@ src/lib/talent/studio-flag.test.ts
 src/lib/talent/talent-booking-terms-authorization.test.ts
 src/lib/talent/talent-p1-gaps.test.ts
 src/lib/talent/workspace-instant-plan.test.ts
+src/lib/talent/workspace-item-photos.test.ts
 src/lib/talent/workspace-menu-save-gates.test.ts
 src/lib/team/invite-redeem-guard.test.ts
 src/lib/team/redeem-role.test.ts

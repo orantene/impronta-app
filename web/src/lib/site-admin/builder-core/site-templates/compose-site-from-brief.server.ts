@@ -494,7 +494,7 @@ export async function composeSiteFromBrief(input: ComposeSiteInput): Promise<Com
   const briefTags = Object.fromEntries(Object.entries(stockFacts).filter(([, v]) => typeof v === "string")) as Record<string, string>;
   const [owner, rawStock] = await Promise.all([loadOwnerImages(admin, input.tenantId), queryLifestyleStockForType(admin, { businessType: typeId, family, forTenantId: input.tenantId })]);
   // TUL-846: a photo whose own words name another trade never lands on this site.
-  const stock = dropOtherTradeStock(rawStock, classifyTrade(`${typeId.replace(/-/g, " ")} ${typeRow?.label.en ?? ""} ${industry ?? ""}`), input.tenantId);
+  const stock = dropOtherTradeStock(rawStock, classifyTrade(`${typeId.replace(/-/g, " ")} ${typeRow?.label.en ?? ""} ${industry ?? ""}`) ?? classifyTrade(businessName), input.tenantId);
   const { resolve: images, picks } = buildImageResolver(
     [
       ...owner.map((o) => ({ ...o, level: "owner" as const })),

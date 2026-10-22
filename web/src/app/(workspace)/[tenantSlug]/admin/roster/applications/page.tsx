@@ -2,10 +2,8 @@
 //
 // Server-rendered list of pending + decided talent applications for this
 // tenant. Reads through `loadAgencyApplications` (RLS-scoped). Approve /
-// reject go through `decideTalentApplication`. Approval here flips the
-// status only — the roster row insert remains the existing add-talent
-// path (use the Roster tab's Invite/Add flow after approval). This is
-// intentional; one source of truth for roster inserts.
+// reject go through `decideTalentApplication`; approve also adds the talent
+// to the roster (TUL-1871), respecting the plan seat cap.
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -65,9 +63,8 @@ export default async function AdminRosterApplicationsPage({ params }: { params: 
           Roster · Applications
         </h1>
         <p style={{ margin: 0, fontSize: 13, color: "rgba(11,11,13,0.6)" }}>
-          Talent who applied to join your roster. Approve to add — you&apos;ll
-          still go through the standard Invite step in the Roster tab so the
-          roster row is created with the right contract terms.
+          Talent who applied to join your roster. Approving adds them to your
+          roster right away; send your own terms from the roster afterwards.
         </p>
       </header>
       <AdminApplicationsClient

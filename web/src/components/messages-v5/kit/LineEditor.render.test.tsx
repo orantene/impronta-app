@@ -11,7 +11,7 @@ test("ready: avatar, name, sub, units, price, more; proposed-by and confirmed fl
   const html = renderToStaticMarkup(<LineEditorRow {...base} proposedBy="client" proposedByName="Diego" confirmed />);
   assert.match(html, /class="line-ed" data-line-row=/);
   assert.match(html, />SH</);
-  assert.match(html, /<b>Sofía Herrera · hostess<span class="lineflag client">Diego chose<\/span><span class="lineflag ok">confirmed<\/span><\/b><span>2 days<\/span>/);
+  assert.match(html, /<b>Sofía Herrera · hostess <span class="lineflag client">Diego chose<\/span><span class="lineflag ok">confirmed<\/span><\/b><span>2 days<\/span>/);
   assert.match(html, /<input[^>]*class="in"[^>]*value="2"/);
   assert.match(html, /<input[^>]*class="in"[^>]*value="\$1,400"/);
   assert.match(html, /aria-label="More"/);

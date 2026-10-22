@@ -20,5 +20,6 @@ test("TUL-336: the orders read is bounded and settles to no rows", () => {
 test("TUL-336: the Services list read is bounded so it cannot load forever", () => {
   assert.match(editor, /settleServerAction\(\(\) => loadWorkspaceMenuForEditor\(workspaceTenantId\)/);
   assert.match(editor, /settleServerAction\(\(\) => loadTalentOfferingsForEditor\(talentId\)/);
-  assert.match(editor, /budgetMs: 10_000/);
+  // TUL-1113: the shared 2 s talent loader budget replaced the 10 s one.
+  assert.match(editor, /budgetMs: TALENT_LOADER_BUDGET_MS/);
 });

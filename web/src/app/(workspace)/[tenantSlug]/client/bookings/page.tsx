@@ -4,7 +4,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -361,7 +361,7 @@ function BookingSection({ rows, label, tenantSlug, reviewPayLabel, payNowLabel, 
 
 export default async function ClientBookingsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();

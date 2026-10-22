@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+
 import {
   submitAgencyApplication,
   submitHubApplication,
@@ -27,6 +29,20 @@ const C = {
   amber:      "#B45309",
   rust:       "#C04B23",
 } as const;
+
+const COPY = {
+  view: { en: "View studio", es: "Ver estudio" },
+  terms: { en: "Terms you propose (optional)", es: "Condiciones que propones (opcional)" },
+  termsHint: { en: "For example: I keep 80% of each booking and the studio takes 20%.", es: "Por ejemplo: me quedo con el 80% de cada reserva y el estudio con el 20%." },
+  termsPrefix: { en: "Proposed terms", es: "Condiciones propuestas" },
+} as const;
+
+/** The proposed terms ride in the application note, so the studio reads them next to the request. */
+export function applicationNote(terms: string, message: string, lang: "en" | "es"): string {
+  const t = terms.trim();
+  const m = message.trim();
+  return t ? `${COPY.termsPrefix[lang]}: ${t}${m ? `\n\n${m}` : ""}` : m;
+}
 
 const FONT = '"Inter", system-ui, sans-serif';
 
@@ -56,6 +72,8 @@ export function TalentApplyDiscoveryClient({
   ownApplications: TalentApplicationRow[];
 }) {
   const router = useRouter();
+  const lang = useDashboardLocale().toLowerCase().startsWith("es") ? "es" : "en";
+  const [terms, setTerms] = useState("");
   const [pending, startTransition] = useTransition();
   const [activeForm, setActiveForm] = useState<{
     kind: "agency" | "hub";
@@ -68,12 +86,13 @@ export function TalentApplyDiscoveryClient({
   function submit(kind: "agency" | "hub", tenantId: string) {
     startTransition(async () => {
       const result = kind === "agency"
-        ? await submitAgencyApplication(tenantId, message)
-        : await submitHubApplication(tenantId, message);
+        ? await submitAgencyApplication(tenantId, applicationNote(terms, message, lang))
+        : await submitHubApplication(tenantId, applicationNote(terms, message, lang));
       if (result.ok) {
         setToast({ kind: "ok", text: "Application submitted." });
         setActiveForm(null);
         setMessage("");
+        setTerms("");
         router.refresh();
       } else {
         setToast({ kind: "err", text: result.error });
@@ -223,6 +242,16 @@ export function TalentApplyDiscoveryClient({
             <p style={{ margin: 0, fontSize: 13, color: C.inkMuted }}>
               Optional note for the {activeForm.kind === "hub" ? "hub" : "agency"} team.
             </p>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12.5, color: C.inkMuted }}>
+              {COPY.terms[lang]}
+              <input
+                value={terms}
+                onChange={(e) => setTerms(e.target.value)}
+                placeholder={COPY.termsHint[lang]}
+                maxLength={300}
+                style={{ fontFamily: FONT, fontSize: 13, padding: 10, border: `1px solid ${C.border}`, borderRadius: 8 }}
+              />
+            </label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -270,8 +299,8 @@ export function TalentApplyDiscoveryClient({
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{row.displayName}</span>
           {row.slug && (
-            <Link href={`/${row.slug}`} style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}>
-              {row.slug}.tulala.app →
+            <Link href={`/w/${row.slug}`} style={{ fontSize: 11.5, color: C.inkMuted, textDecoration: "none" }}>
+              {COPY.view[lang]} →
             </Link>
           )}
         </div>

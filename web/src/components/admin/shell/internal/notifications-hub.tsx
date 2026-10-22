@@ -462,6 +462,9 @@ export function NotificationsBell({
         ref={popoverRef}
         id={popoverId}
         data-tulala-notifications-popover
+        // TUL-960: the phone sheet dims the page behind it. The scrim lives on the
+        // popover itself so it never depends on the shell stylesheet being mounted.
+        className="max-[720px]:backdrop:bg-black/40"
         {...({ popover: "auto" } as Record<string, string>)}
         style={{
           width: 380, maxWidth: "calc(100vw - 24px)",

@@ -14,7 +14,7 @@
 
 import { notFound } from "next/navigation";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate, withPluralization } from "@/i18n/interpolate";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -116,7 +116,7 @@ export default async function ClientPitchesPage({
 }) {
   const { tenantSlug } = await params;
   const { status: rawStatus } = await searchParams;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const tPlural = withPluralization(t);
 

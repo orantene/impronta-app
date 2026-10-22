@@ -33,3 +33,12 @@ test("the next-step reason wraps instead of ending in an ellipsis", () => {
 test("the mobile pills fix from #3835 stays", () => {
   assert.match(rule(".msgv5 .mx-th .st"), /flex-wrap: wrap/);
 });
+
+test("TUL-983 at 390px: the inbox row chips and the essentials strip wrap instead of being cut ('Pe', 'Nada pe')", () => {
+  const l4 = rule(".msgv5 .mx-row .l4");
+  assert.match(l4, /flex-wrap: wrap/);
+  assert.doesNotMatch(l4, /overflow: hidden/);
+  const ess = rule(".msgv5 .mx-ess");
+  assert.match(ess, /flex-wrap: wrap/);
+  assert.doesNotMatch(ess, /overflow: auto/);
+});

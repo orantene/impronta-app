@@ -19,7 +19,7 @@ import { loadClientSubscription } from "@/lib/discover/client-subscription";
 import { loadClientHubData, type HubBooking, type HubInquiry } from "@/lib/client-hub/load-hub";
 import { clientAccountEnabledFor } from "@/lib/client-account/flag";
 import { hubIsOpen } from "@/lib/client-hub/load-hub-focus";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export default async function ClientHubPage({
   const session = await getCachedActorSession();
   if (!session.user) redirect(`/login?next=${encodeURIComponent("/client/hub")}`);
 
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const tt = (key: string, fallback: string) => {
     const v = t(key);

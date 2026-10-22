@@ -5,6 +5,7 @@
  * talent pastes the studio's address; the studio's own join policy decides.
  */
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
@@ -67,6 +68,9 @@ export function JoinStudioCard() {
           </button>
         </div>
       </form>
+      <Link href="/talent/discover-agencies" data-testid="join-studio-discover" className="mt-3 inline-block text-[12.5px] font-medium text-admin-ink underline">
+        {JS_UI.discover[lang]}
+      </Link>
       {error ? <div role="alert" className="mt-2 text-[12.5px] text-admin-critical-deep">{error}</div> : null}
       {sent ? <div role="status" className="mt-2 text-[12px] text-admin-success-deep">{sent}</div> : null}
     </div>

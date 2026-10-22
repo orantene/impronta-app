@@ -47,6 +47,31 @@ export function classifyTrade(text: string | null | undefined): TradeKey | null 
   return null;
 }
 
+/**
+ * TUL-846: subject words a stock photo can name that are not one of the nine trades
+ * (a fire dancer, a runway model, a spa). Used only to veto an off-trade photo.
+ * The key is the trade the subject belongs to; a site of that trade keeps the photo.
+ */
+const SUBJECT_RULES: ReadonlyArray<{ key: string; words: readonly string[] }> = [
+  { key: "hair", words: ["salon", "mirror", "stylist", "haircut"] },
+  { key: "performance", words: ["dancer", "dance", "fire", "silks", "runway", "stage", "concert", "performer", "acrobat"] },
+  { key: "model", words: ["model", "fashion"] },
+  { key: "wellness", words: ["spa", "massage", "tattoo", "tatuaj", "bridal", "wedding"] },
+];
+
+/** The trade or subject the words name (a trade first), or null. Never a guess. */
+export function classifySubject(text: string | null | undefined): string | null {
+  const trade = classifyTrade(text);
+  if (trade) return trade;
+  const t = fold(text ?? "").replace(/[^a-z0-9]+/g, " ").trim();
+  if (!t) return null;
+  const padded = ` ${t} `;
+  for (const rule of SUBJECT_RULES) {
+    if (rule.words.some((w) => padded.includes(` ${w} `) || padded.includes(` ${w}s `))) return rule.key;
+  }
+  return null;
+}
+
 /** Catalogue type id of the stock pack for a trade (null: no dedicated pack). */
 export function stockTypeForTrade(key: TradeKey | null): string | null {
   return TRADE_RULES.find((r) => r.key === key)?.businessType ?? null;

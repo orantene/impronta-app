@@ -97,6 +97,10 @@ test("TUL-391: support-ticket bells render in ES, subject text untouched", () =>
   assert.equal(t("Rate how it went if you have a moment."), "Cuéntanos cómo te fue si tienes un momento.");
   assert.equal(t("Ticket #12 needs you"), "El ticket #12 te necesita");
   assert.equal(t("Reply on #12"), "Respuesta en #12");
+  assert.equal(t("Your ticket needs you"), "Tu ticket te necesita");
+  assert.equal(t("Support replied to your ticket."), "Soporte respondió a tu ticket.");
+  assert.equal(t("Tulala Support replied - Billing"), "Tulala Support respondió - Billing");
+  assert.equal(localizeNotificationText("Your ticket needs you", "en"), "Your ticket needs you");
   assert.equal(t("Still need help on #12?"), "¿Sigues necesitando ayuda con #12?");
   assert.equal(t("A proposed fix on #12 expired"), "Venció una corrección propuesta en #12");
   assert.equal(t("Weekly support digest"), "Resumen semanal de soporte");

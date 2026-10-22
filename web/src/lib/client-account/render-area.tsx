@@ -58,7 +58,7 @@ export async function renderClientAccountPage(view: AccountView) {
       data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
       data.visitReview = data.visit ? await loadVisitReviewState(userId, tenantId, data.visit.bookingId) : null;
     }
-    else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id);
+    else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id, locale);
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
     else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);

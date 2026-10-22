@@ -12,6 +12,8 @@ export type JoinStudioErrorCode =
   | "bad_address"
   | "too_many"
   | "no_profile"
+  | "already_pending"
+  | "exclusive"
   | "not_found"
   | "failed";
 
@@ -19,7 +21,11 @@ const PLATFORM_APEX = "tulala.digital";
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 const LOCALE_SEGMENTS = new Set(["es", "en"]);
 
-export function parseStudioReference(raw: string): StudioReference | null {
+/**
+ * `platformHosts`: the hostnames of the CURRENT environment's app and marketing origins
+ * (env-derived by the caller), so a staging `/w/<slug>` link resolves like the production one.
+ */
+export function parseStudioReference(raw: string, platformHosts: ReadonlyArray<string> = []): StudioReference | null {
   const input = raw.trim().toLowerCase();
   if (!input || input.length > 300) return null;
   if (SLUG_RE.test(input)) return { kind: "slug", slug: input };
@@ -35,7 +41,7 @@ export function parseStudioReference(raw: string): StudioReference | null {
   if (!host.includes(".")) return null;
   const bareHost = host.startsWith("www.") ? host.slice(4) : host;
 
-  if (bareHost === PLATFORM_APEX || bareHost === `app.${PLATFORM_APEX}`) {
+  if (bareHost === PLATFORM_APEX || bareHost === `app.${PLATFORM_APEX}` || platformHosts.includes(bareHost)) {
     const segs = url.pathname.split("/").filter(Boolean);
     if (segs[0] && LOCALE_SEGMENTS.has(segs[0])) segs.shift();
     if (segs[0] === "w" && segs[1] && SLUG_RE.test(segs[1])) return { kind: "slug", slug: segs[1] };

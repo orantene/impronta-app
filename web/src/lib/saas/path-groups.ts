@@ -419,11 +419,24 @@ export const HUB_API_EXACT_PATHS = ["/api/client/account"] as const;
  * (session + tenant scope / talent-self).
  */
 export const HUB_API_PREFIXES = [
+  // TUL-1866: the hub's /directory shows the global directory; its Saved shelf
+  // resolves hearted talent through this batch lookup (same exact path as marketing).
+  "/api/directory/talents-by-ids",
   "/api/admin/media/library",
   "/api/admin/media/upload",
   "/api/talent/media/library",
   "/api/talent/media/upload",
 ] as const;
+
+/**
+ * TUL-1866: a hub host's own directory. `/search` already hops to `/directory`
+ * (hub-search-redirect.ts), so the hub must serve it; proxy.ts rewrites it to the
+ * `(marketing)/global-directory` route exactly as on the marketing apex. Exact
+ * `/directory` only: the storefront's `/directory/cart` stays off the hub.
+ */
+export const HUB_PAGE_EXACT_PATHS = ["/directory"] as const;
+/** Internal directory route (og:image lives under it). Prefix, not exact. */
+export const HUB_DIRECTORY_INTERNAL_PREFIX = "/global-directory" as const;
 
 export const APP_API_EXACT_PATHS = [
   "/api/location-place-details",

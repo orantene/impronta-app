@@ -39,12 +39,8 @@ import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 
 import { AdminShellContextForTests } from "@/components/admin/shell/internal/state/context";
-import {
-  FieldCatalogDrawer,
-  FieldPrivacyDrawer,
-  fieldCatalogActions,
-  fieldPrivacyActions,
-} from "./light-10";
+import { FieldCatalogDrawer, fieldCatalogActions } from "./light-10";
+import { FieldPrivacyDrawer, fieldPrivacyActions } from "./field-privacy-drawer";
 /* eslint-enable import/first */
 
 const originalGetCatalog = fieldCatalogActions.getWorkspaceFieldCatalog;

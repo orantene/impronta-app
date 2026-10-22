@@ -243,7 +243,6 @@ test("hub host: auth + workspace slug paths + shared routes allowed", () => {
   }
 
   const blocked = [
-    "/directory",
     "/admin",
     "/client",
     "/talent",
