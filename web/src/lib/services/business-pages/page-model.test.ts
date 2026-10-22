@@ -31,8 +31,8 @@ describe("businessServicePagesAllowed (PM: free = no own page; studio/agency/net
     assert.equal(businessServicePagesAllowed({ flagOn: false, planTier: "agency" }), false);
   });
   it("flag on: paid workspace plans only", () => {
-    for (const p of ["studio", "agency", "network"]) assert.equal(businessServicePagesAllowed({ flagOn: true, planTier: p }), true, p);
-    for (const p of ["free", "website", null, "legacy"]) assert.equal(businessServicePagesAllowed({ flagOn: true, planTier: p }), false, String(p));
+    for (const p of ["website", "studio", "agency", "network"]) assert.equal(businessServicePagesAllowed({ flagOn: true, planTier: p }), true, p);
+    for (const p of ["free", null, "legacy"]) assert.equal(businessServicePagesAllowed({ flagOn: true, planTier: p }), false, String(p));
   });
 });
 

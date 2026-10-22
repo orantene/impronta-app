@@ -55,6 +55,7 @@ src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/developer-docs/developer-docs.test.ts
+src/lib/events/event-es-rewrite.static.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/match-me/candidates.test.ts
 src/lib/match-me/flag.test.ts
@@ -115,6 +116,7 @@ src/lib/services/presentation/catalog-quick-views.server.test.ts
 src/lib/services/presentation/load-talent-presentation.server.test.ts
 src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts
+src/lib/services/presentation/workspace-entitlements.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-render.test.tsx
 src/lib/site-admin/builder-node/roster-services-grid.render.test.tsx
