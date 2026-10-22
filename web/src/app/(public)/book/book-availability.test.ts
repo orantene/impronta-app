@@ -5,7 +5,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { isRequestOnlyService, pickInitialOfferingId, resolveSelectedOfferingId } from "./book-availability";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { isRequestOnlyService, pickInitialOfferingId, resolveSelectedOfferingId, searchWithService } from "./book-availability";
 
 // Catches: the page opened on offerings[0] even when it had no slots.
 test("preselects the first service that has times", () => {
@@ -74,4 +77,21 @@ test("a manual pick overrides the requested service", () => {
     resolveSelectedOfferingId({ offerings: LIST, requestedId: "unprobed", userPickedId: "gone" }),
     "unprobed",
   );
+});
+
+// TUL-1913: switching service on /book is mirrored into ?service=.
+test("searchWithService replaces the service param and keeps the others", () => {
+  assert.equal(searchWithService("", "b"), "?service=b");
+  assert.equal(searchWithService("?service=a&promo=X", "b"), "?service=b&promo=X");
+  assert.equal(searchWithService("promo=X", "b c"), "?promo=X&service=b+c");
+});
+
+test("TUL-1913: the picker reports a hand pick and the page replaces the URL without scroll or history", () => {
+  const client = readFileSync(join(__dirname, "BookPageClient.tsx"), "utf8");
+  assert.match(client, /onServicePicked\?\.\(e\.target\.value\)/);
+  const sync = readFileSync(join(__dirname, "BookPageUrlSync.tsx"), "utf8");
+  assert.match(sync, /router\.replace\(.*\{ scroll: false \}\)/);
+  assert.doesNotMatch(sync, /router\.push/);
+  const page = readFileSync(join(__dirname, "page.tsx"), "utf8");
+  assert.match(page, /<BookPageUrlSync/);
 });
