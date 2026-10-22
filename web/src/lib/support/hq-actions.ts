@@ -5,6 +5,9 @@ import { z } from "zod";
 import { assertHqAccess } from "./support-access";
 import { supportEngine } from "./support-engine";
 import { auditHq } from "./support-engine-emit";
+import { adminClient } from "./support-engine-db";
+import { supportFrom } from "./support-from";
+import { readTakeover, withTakeover } from "./support-takeover";
 import type { SupportPriority } from "./support-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { afterResponse } from "@/lib/server/after-response";
@@ -176,6 +179,21 @@ export async function hqEscalateOverrideAction(raw: {
     actorUserId: hq.userId,
   });
   if (!result.ok) return result;
+  // TUL-661: record who took it. The AI stops answering on this ticket for good.
+  const admin = adminClient();
+  if (admin) {
+    const ticket = await supportEngine.loadTicketById(parsed.data.ticketId, admin);
+    const { data: prof } = await admin.from("profiles").select("display_name").eq("id", hq.userId).maybeSingle();
+    const name = ((prof as { display_name?: string | null } | null)?.display_name ?? "").trim() || "Tulala Support";
+    if (ticket && !readTakeover(ticket.metadata)) {
+      await supportFrom(admin, "support_tickets")
+        .update({
+          metadata: withTakeover(ticket.metadata, { userId: hq.userId, name, at: new Date().toISOString() }),
+          handled_by: "human",
+        })
+        .eq("id", ticket.id);
+    }
+  }
   return { ok: true };
 }
 

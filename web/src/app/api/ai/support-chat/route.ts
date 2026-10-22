@@ -23,6 +23,7 @@ import {
 } from "@/lib/changelog/support-grounding";
 import { loadConfirmedInsightCorpus } from "@/lib/support/insights/load";
 import { shouldOfferHumanInsteadOfEscalating, supportAiErrorBody, supportAiErrorCard } from "@/lib/support/support-ai-failure";
+import { readTakeover } from "@/lib/support/support-takeover";
 import { decideAiTurn } from "@/lib/support/support-ai-turn";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeSupportAiOutput } from "@/lib/support/support-ai-guardrails";
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
         handledBy: access.ticket.handledBy,
         lastHumanReplyAt: lastHuman?.createdAt ?? null,
         escalatedAt: access.ticket.escalatedAt,
+        takenOver: readTakeover(access.ticket.metadata) !== null,
         now: new Date(),
       }) === "human_active"
     ) {

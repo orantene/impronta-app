@@ -132,6 +132,7 @@ src/lib/support/support-messages-send-key-unique.static.test.ts
 src/lib/support/support-outbound-threading.test.ts
 src/lib/support/support-persona.test.ts
 src/lib/support/support-reply-path.test.ts
+src/lib/support/support-takeover.test.ts
 src/lib/support/talent-site-help-contact.static.test.ts
 src/lib/support/talent-site-help-context.test.ts
 src/lib/support/ticket-plan.test.ts

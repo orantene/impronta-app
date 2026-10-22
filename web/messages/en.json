@@ -14098,6 +14098,8 @@
       "handoffHq": "Escalated to you",
       "humanReplyEta": "{agent} will reply, typically within a few hours",
       "ticketReceipt": "Ticket #{number} received. {agent} will reply, typically within a few hours.",
+      "takenBy": "Taken by {name}",
+      "escalatedLog": "Ticket #{number} handed to a human: {reason}",
       "humanHandling": "A person is handling this",
       "aiHandling": "AI is helping, a human is one tap away",
       "statusClosed": "Closed",
