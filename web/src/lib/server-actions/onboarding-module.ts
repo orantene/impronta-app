@@ -449,12 +449,17 @@ export async function saveOnboardingDesign(input: { look: DesignLookKey | null }
 }
 
 /** 18+ confirmation (owner decision 2026-10-01): server-stamped, kept on the brief, read by the build route. */
-export async function saveOnboardingAge18(): Promise<{ ok: boolean }> {
+export async function saveOnboardingAge18(input: { ticked?: boolean } = {}): Promise<{ ok: boolean }> {
   if (!(await assertNotImpersonating()).ok) return { ok: false };
   const got = await ownedBrief();
   if (got.error) return { ok: false };
-  const session = await getCachedActorSession();
   const at = new Date().toISOString();
+  // TUL-1847: the review checkbox saves on every tick (not only at Build), so a reload keeps it; unticking clears it.
+  if (input.ticked === false) {
+    const cleared = await updateBriefModuleState(got.brief.id, { age18ConfirmedAt: null, age18ConfirmedBy: null, updatedAt: at });
+    return { ok: cleared.ok };
+  }
+  const session = await getCachedActorSession();
   const saved = await updateBriefModuleState(got.brief.id, {
     age18ConfirmedAt: got.state.age18ConfirmedAt ?? at,
     ...(session.user?.id ? { age18ConfirmedBy: session.user.id } : {}),

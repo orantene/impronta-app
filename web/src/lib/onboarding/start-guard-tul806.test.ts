@@ -72,7 +72,9 @@ for (const locale of ["es", "en"] as const) {
 
 test("TUL-806: the review step loads the saved setup itself (refresh on the review) and links each row back to step 3", () => {
   const mod = readFileSync(join(process.cwd(), "src/components/onboarding/onboarding-module.tsx"), "utf8");
-  assert.match(mod, /state\.step !== "setup" && state\.step !== "readyToBuild"/);
+  const hook = readFileSync(join(process.cwd(), "src/components/onboarding/use-setup-data.ts"), "utf8");
+  assert.match(hook, /step !== "setup" && step !== "readyToBuild"/);
+  assert.match(mod, /useSetupData\(state\.step\)/);
   assert.match(mod, /onEditSetup=/);
   const html = renderToStaticMarkup(
     createElement(ReadyStep, {

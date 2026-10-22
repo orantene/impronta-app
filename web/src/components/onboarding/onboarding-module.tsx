@@ -47,7 +47,9 @@ import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
 import { ChooseStep } from "./steps/choose-step";
 import { SetupStep } from "./steps/setup-step";
-import { loadOnboardingSetup, saveOnboardingSetup, saveOnboardingTimezone, type SetupPayload } from "@/lib/server-actions/onboarding-setup";
+import { saveOnboardingSetup, saveOnboardingTimezone } from "@/lib/server-actions/onboarding-setup";
+import { useSetupData } from "./use-setup-data";
+import { understandingWithSavedEssentials } from "@/lib/onboarding/understanding-essentials";
 import type { Essentials } from "@/lib/onboarding/essentials";
 import { useWizardGoto } from "./use-wizard-goto";
 import { reviewSetupLines } from "@/lib/onboarding/review-setup-lines";
@@ -117,9 +119,8 @@ export function OnboardingModule({
   const cardRef = useRef<HTMLDivElement>(null);
   const [resumeChecked, setResumeChecked] = useState(false);
   const [urlStepAtLoad] = useState<string | null>(() => (typeof window === "undefined" ? null : urlStepOfLocation(window.location.href)));
-  const [setupData, setSetupData] = useState<SetupPayload | null>(null);
-  // TUL-806: what step 3 saved, so the review step can show it.
-  const [savedSetup, setSavedSetup] = useState<Essentials | null>(null);
+  // TUL-806: step 3's prefill and what it saved, so the review step can show it.
+  const { setupData, savedSetup, setSavedSetup, confirmed: confirmedSetup } = useSetupData(state.step);
 
   // Resume: what this owner already had. Opening creates nothing.
   useEffect(
@@ -281,18 +282,6 @@ export function OnboardingModule({
       else dispatch({ type: "cardFailed", code: "failed" });
     });
   }, [state.step, state.understanding, applyCard]);
-
-  // 1B step 3 (and the review): the setup prefill (saved record, AI-read services or a trade pack).
-  useEffect(() => {
-    if ((state.step !== "setup" && state.step !== "readyToBuild") || setupData) return;
-    let cancelled = false;
-    void loadOnboardingSetup().then((r) => {
-      if (!cancelled && r.ok) setSetupData(r.setup);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [state.step, setupData]);
 
   const saveSetup = useCallback(async (essentials: Essentials) => {
     dispatch({ type: "sendStarted" });
@@ -463,6 +452,7 @@ export function OnboardingModule({
   }, []);
 
   const shownStep: ModuleStep = state.resume?.state.step ?? state.step; // TUL-813
+  const stepAttr = !resumeChecked ? "loading" : state.resume ? "resume" : state.step; // TUL-812: the URL waits for the resume lookup
   const flowN = flowStepOf(shownStep);
   const stepLabel = CHOOSE_COPY[locale].step(flowN);
   const showBack = isPage
@@ -525,7 +515,7 @@ export function OnboardingModule({
     body = (
       <UnderstoodStep
         t={t}
-        understanding={state.understanding}
+        understanding={understandingWithSavedEssentials(state.understanding, confirmedSetup, locale)}
         locale={locale}
         fromLink={state.input?.kind === "url"}
         busy={state.busy}
@@ -572,7 +562,7 @@ export function OnboardingModule({
     body = (
       <ReadyStep
         t={t}
-        understanding={state.understanding}
+        understanding={understandingWithSavedEssentials(state.understanding, confirmedSetup, locale)}
         path={state.understanding.path}
         linkSlug={state.linkSlug}
         linkAvailable={state.linkAvailable}
@@ -582,6 +572,8 @@ export function OnboardingModule({
         designChoice={state.designChoice}
         onPickDesign={(look) => { dispatch({ type: "designPicked", look }); void saveOnboardingDesign({ look }); }}
         onConfirmAge18={async () => { const r = await saveOnboardingAge18(); if (r.ok) setAgeConfirmed(true); return r; }}
+        age18Ticked={ageConfirmed}
+        onAge18Change={(ticked) => { setAgeConfirmed(ticked); void saveOnboardingAge18({ ticked }); }}
         ageRequiredNotice={ageRequired}
         setupLines={reviewSetupLines(savedSetup ?? setupData?.essentials ?? null, locale)}
         locale={locale}
@@ -682,7 +674,7 @@ export function OnboardingModule({
       <div
         className="flex min-h-[100dvh] w-full flex-col"
         style={{ background: "var(--tl-bone)", color: "var(--tl-ink)" }}
-        data-onboarding-step={state.resume ? "resume" : state.step}
+        data-onboarding-step={stepAttr}
         data-onboarding-flow-step={flowN}
         data-testid="onb-page"
       >
@@ -740,7 +732,7 @@ export function OnboardingModule({
           role="dialog"
           aria-modal="true"
           aria-label={t("public.onboarding.chrome.dialogLabel")}
-          data-onboarding-step={state.resume ? "resume" : state.step}
+          data-onboarding-step={stepAttr}
           className="flex h-[100dvh] w-full flex-col overflow-hidden outline-none sm:h-auto sm:max-h-[90vh] sm:w-[640px] sm:rounded-[28px]"
           style={{ background: "var(--tl-bone)", color: "var(--tl-ink)", boxShadow: "var(--tl-shadow-lg)" }}
         >
