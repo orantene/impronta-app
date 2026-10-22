@@ -184,10 +184,10 @@ export async function loadWorkspaceDisplayName(
 ): Promise<string> {
   const { data } = await admin
     .from("agencies")
-    .select("name")
+    .select("display_name")
     .eq("id", tenantId)
     .maybeSingle();
-  const name = (data as { name: string | null } | null)?.name?.trim();
+  const name = (data as { display_name: string | null } | null)?.display_name?.trim();
   return name && name.length > 0 ? name : "Your workspace";
 }
 

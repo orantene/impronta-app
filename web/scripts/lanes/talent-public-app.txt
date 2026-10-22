@@ -44,4 +44,5 @@ src/components/talent/services/catalog-bootstrap.test.ts
 src/components/talent/services/services-bootstrap.test.ts
 src/lib/seo/json-ld-script-escape.test.ts
 src/lib/storefront/on-request-price-withheld.test.ts
+src/lib/talent/agencies-select-columns.static.test.ts
 src/lib/talent/workspace-menu-defaults.test.ts
