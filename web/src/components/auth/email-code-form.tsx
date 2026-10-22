@@ -52,6 +52,7 @@ import {
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_LENGTH, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
+import { AUTH_ERROR_IDS, authErrorField } from "@/lib/auth/auth-error-field";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -220,6 +221,10 @@ export function EmailCodeForm({
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
   const notice = lane === "send" ? sent?.notice : undefined;
   useFocusFirstInvalidOnError(stepError);
+  const errField = authErrorField(stepError, {
+    invalidEmail: t("public.auth.actions.invalidEmail"),
+    ageTermsRequired: t("public.auth.actions.ageTermsRequired"),
+  });
 
   if (showPassword && passwordFallback) {
     return (
@@ -368,7 +373,7 @@ export function EmailCodeForm({
         {allowCreate && clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
-        {stepError ? <AuthNotice tone="error" id="email-step-error">{stepError}</AuthNotice> : null}
+        {stepError ? <AuthNotice tone="error" id={AUTH_ERROR_IDS[errField ?? "form"]}>{stepError}</AuthNotice> : null}
 
         {allowCreate && collectName ? (
           <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
@@ -379,8 +384,6 @@ export function EmailCodeForm({
               autoComplete="name"
               required
               maxLength={120}
-              aria-invalid={stepError && !readAuthNameDraft().trim() ? true : undefined}
-              aria-describedby={stepError ? "email-step-error" : undefined}
               defaultValue={readAuthNameDraft()}
               onChange={(e) => writeAuthNameDraft(e.target.value)}
               placeholder={t("public.auth.form.namePlaceholder")}
@@ -405,8 +408,8 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
-            aria-invalid={stepError ? true : undefined}
-            aria-describedby={stepError ? "email-step-error" : undefined}
+            aria-invalid={errField === "email" ? true : undefined}
+            aria-describedby={errField === "email" ? AUTH_ERROR_IDS.email : undefined}
             defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
             onChange={(e) => {
               setEmailDraft(e.target.value);
@@ -422,8 +425,8 @@ export function EmailCodeForm({
           <AgeTermsCheckbox
             locale={locale}
             marketingOrigin={marketingOrigin}
-            invalid={stepError === t("public.auth.actions.ageTermsRequired")}
-            errorId="email-step-error"
+            invalid={errField === "consent"}
+            errorId={AUTH_ERROR_IDS.consent}
           />
         ) : null}
 

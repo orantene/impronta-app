@@ -29,6 +29,9 @@ import { LoginAppleButton } from "./login-apple-button";
 import { LoginGoogleButton } from "./login-google-button";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
+/** TUL-910: fits the tallest login step (hint + error rows) at 390px; no jump between steps. */
+const LOGIN_CARD_MIN_HEIGHT = "min-h-[45.5rem] sm:min-h-[36rem]";
+
 /**
  * The tab reads "Iniciar sesión · Tulala" / "Log in · Tulala" in the request
  * language. A whitelabel agency title set by the auth layout (TUL-64) wins.
@@ -168,7 +171,8 @@ export default async function LoginPage({
         description={description}
       />
 
-      <AuthCard>
+      {/* TUL-910: stable floor so stepping email -> code -> error does not move the layout */}
+      <AuthCard className={LOGIN_CARD_MIN_HEIGHT}>
         {showCardToggle ? (
           <AuthCardLocaleToggle locale={locale} label={t("public.auth.language")} />
         ) : null}

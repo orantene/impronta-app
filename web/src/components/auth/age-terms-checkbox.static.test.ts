@@ -19,9 +19,13 @@ test("TUL-1169: consent exposes aria-invalid + aria-describedby tied to the erro
   assert.match(src, /aria-describedby=\{invalid && errorId \? errorId : undefined\}/);
 });
 
-test("TUL-1169: both signup forms link consent and name to the visible error", () => {
-  assert.match(emailForm, /errorId="email-step-error"/);
-  assert.match(emailForm, /id="full_name"[\s\S]*aria-describedby=\{stepError \? "email-step-error"/);
-  assert.match(registerForm, /errorId="register-form-error"/);
-  assert.match(registerForm, /id="full_name"[\s\S]*aria-describedby=\{state\?\.error \? "register-form-error"/);
+test("TUL-1169: both signup forms link consent and email to their own error id", () => {
+  for (const form of [emailForm, registerForm]) {
+    assert.match(form, /errorId=\{AUTH_ERROR_IDS\.consent\}/);
+    assert.match(form, /aria-invalid=\{errField === "email" \? true : undefined\}/);
+    assert.match(form, /aria-describedby=\{errField === "email" \? AUTH_ERROR_IDS\.email : undefined\}/);
+    assert.match(form, /invalid=\{errField === "consent"\}/);
+    // the name field has no error of its own: it must never point at the shared notice
+    assert.doesNotMatch(form, /id="full_name"[\s\S]{0,400}aria-(invalid|describedby)/);
+  }
 });
