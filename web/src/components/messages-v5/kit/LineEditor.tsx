@@ -64,6 +64,7 @@ export function LineEditorRow(props: LineEditorRowProps) {
       <div className="nm">
         <b>
           {name}
+          {" "}
           {flags}
         </b>
         {subText ? <span>{subText}</span> : null}

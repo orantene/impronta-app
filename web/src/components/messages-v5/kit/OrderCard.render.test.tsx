@@ -19,6 +19,7 @@ test("shared draft: version pill, both-edit sentence, who proposed each line, pi
   assert.match(html, /Diego and you both edit · nothing is charged until you confirm/);
   assert.match(html, /lineflag client">Diego chose/);
   assert.match(html, /lineflag">you added/);
+  assert.match(html, /Garlic bread <span class="lineflag">you added/);
   assert.match(html, /Total · pickup 7:40 PM/);
   assert.match(html, /<b>Draft<\/b>/);
   assert.match(html, /class="stop">Confirmed</);
