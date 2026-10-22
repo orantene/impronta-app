@@ -82,3 +82,10 @@ test("talent self page url (Dónde apareces) follows the environment", () => {
     assert.equal(talentPublicProfileHref("TAL-97110"), "https://tulala.digital/t/TAL-97110");
   });
 });
+
+test("Get Found links and website addresses follow the environment, never a production literal", () => {
+  withEnv({ VERCEL_ENV: "preview", TALENT_SITE_ROOT_DOMAIN: "staging.tulala.digital", NEXT_PUBLIC_SITE_URL: "https://staging.tulala.digital" }, () => {
+    assert.equal(talentPublicProfileHref("TAL-1"), "https://staging.tulala.digital/t/TAL-1");
+    assert.equal(publicSubdomainHost("jor"), "jor.staging.tulala.digital");
+  });
+});
