@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-const PENDING = join(process.cwd(), "..", "supabase", "migrations", "_pending_pm");
+const PENDING = join(process.cwd(), "..", "supabase", "migrations"); // applied to staging 2026-10-22 (Oran money OK)
 
 test("TUL-1309: the whole-units CHECK is a HELD migration, NOT VALID", () => {
   assert.ok(existsSync(PENDING));
