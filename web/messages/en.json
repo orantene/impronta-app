@@ -1823,6 +1823,7 @@
       "phone": "Phone",
       "quoteOnRequest": "Quote on request",
       "selectAtLeastOne": "Choose {nounPlural}",
+      "subtotal": "Subtotal",
       "chooseOption": "Choose an option",
       "extrasLabel": "Extras",
       "selectQuantities": "Select quantities",
@@ -17113,7 +17114,8 @@
       "fired": "Fired {time}",
       "amendmentBanner": "{code} · ticket amended · revision {n} · acknowledge it again",
       "gotIt": "Got it",
-      "emptyTab": "Nothing at this step."
+      "emptyTab": "Nothing at this step.",
+      "viewOnly": "View only. Your role cannot start or finish tickets here."
     },
     "reservationsDesk": {
       "pageTitle": "Live Floor",

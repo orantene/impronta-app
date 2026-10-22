@@ -1823,6 +1823,7 @@
       "phone": "Teléfono",
       "quoteOnRequest": "Precio a consultar",
       "selectAtLeastOne": "Elige {nounPlural}",
+      "subtotal": "Subtotal",
       "chooseOption": "Elige una opción",
       "extrasLabel": "Extras",
       "selectQuantities": "Selecciona las cantidades",
@@ -17113,7 +17114,8 @@
       "fired": "Enviada {time}",
       "amendmentBanner": "{code} · comanda modificada · revisión {n} · acéptala de nuevo",
       "gotIt": "Entendido",
-      "emptyTab": "Nada en este paso."
+      "emptyTab": "Nada en este paso.",
+      "viewOnly": "Solo lectura. Tu rol no puede empezar ni terminar comandas aquí."
     },
     "reservationsDesk": {
       "pageTitle": "Salón en vivo",

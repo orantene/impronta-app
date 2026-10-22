@@ -4,6 +4,7 @@ src/app/(workspace)/?tenantSlug?/admin/people/people-invitations.test.ts
 src/app/api/cron/builder-rollout-ramp/rollout-ramp-cron-logic.test.ts
 src/app/api/health/flags/route.static.test.ts
 src/app/not-found-shell.static.test.ts
+src/app/not-found-title-es.static.test.ts
 src/app/render-branch-parity.static.test.ts
 src/app/t/?profileCode?/_maison/maison-derivations.test.ts
 src/app/t/?profileCode?/_maison/maison-menu.test.ts

@@ -18,3 +18,21 @@ export function localiseSeededHomeLabel(
   const t = label.trim();
   return t === SEEDED_HOME.en || t === SEEDED_HOME.es ? SEEDED_HOME[key] : label;
 }
+
+/**
+ * TUL-711 (staging QA 2026-10-22): the seeded "Home" link does not always resolve to the exact
+ * home href. A page link to the seeded home page resolves to `/w/<slug>/home`, a root link can carry
+ * a trailing slash, a hash or the locale prefix, so strict equality left "Home" on the ES site.
+ * True when `href` is the home href, or a path whose last meaningful segment is the seeded home
+ * page (root, `home`, `inicio`) under the locale / tenant prefix.
+ */
+export function isSeededHomeHref(href: string, homeHref: string): boolean {
+  const clean = (v: string) => v.split(/[?#]/)[0]!.replace(/\/+$/, "") || "/";
+  const h = clean(href);
+  const home = clean(homeHref);
+  if (h === home) return true;
+  if (/^[a-z]+:\/\//i.test(href)) return false;
+  const rest = h.startsWith(home === "/" ? "/" : `${home}/`) ? h.slice(home === "/" ? 1 : home.length + 1) : null;
+  const tail = (rest ?? "").replace(/^[a-z]{2}(-[A-Za-z]{2})?(\/|$)/, "");
+  return rest !== null && (tail === "" || tail === "home" || tail === "inicio");
+}
