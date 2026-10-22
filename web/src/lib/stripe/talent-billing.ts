@@ -19,6 +19,7 @@ import { type TalentPlanKey } from "@/lib/stripe/price-ids";
 import { resolveTalentPriceId } from "@/lib/stripe/price-catalog";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, logServerExpected } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
@@ -204,7 +205,7 @@ export async function createTalentCheckoutSession(opts: {
   const stripe = getStripe()!;
 
   // TUL-830: one subscription per talent; an existing one changes plan in the portal.
-  const duplicate = await duplicateSubscriptionGuard("talent", opts.talentProfileId);
+  const duplicate = await duplicateSubscriptionGuard("talent", opts.talentProfileId, opts.userId);
   if (duplicate) return { ok: false, error: duplicate };
   const price = await resolveCheckoutPrice((i) => resolveTalentPriceId(opts.planKey, i), opts.interval);
   if (!price.ok) return { ok: false, error: checkoutPriceError(price.code, opts.planKey) };
@@ -446,6 +447,21 @@ export async function syncTalentSubscriptionToDb(
     });
     if (decision.kind === "skip_stale") {
       logServerError("talent-billing.syncSubscription.staleEvent", decision.reason);
+      return { ok: true, data: undefined };
+    }
+    if (decision.kind === "duplicate_live") {
+      // TUL-1835: keep the existing row, shout. Ops must cancel the extra
+      // subscription in Stripe (it bills on its own until then).
+      logServerError(
+        "duplicate_talent_subscription",
+        new Error(`${decision.reason} (talent ${talentProfileId}, customer ${customerId ?? "unknown"})`),
+      );
+      void improntaLog("billing.duplicate_talent_subscription", {
+        talent_profile_id: talentProfileId,
+        kept_subscription_id: decision.existingSubscriptionId,
+        duplicate_subscription_id: subscription.id,
+        duplicate_status: subscription.status,
+      });
       return { ok: true, data: undefined };
     }
     const status = decision.status;

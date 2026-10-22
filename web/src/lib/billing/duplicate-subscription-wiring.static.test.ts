@@ -10,7 +10,7 @@ const talentActions = read("src/app/(workspace)/[tenantSlug]/talent/settings/str
 const workspaceActions = read("src/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions.ts");
 
 test("talent checkout runs the duplicate guard before any Stripe price or customer call", () => {
-  const guard = talentBilling.indexOf('duplicateSubscriptionGuard("talent", opts.talentProfileId)');
+  const guard = talentBilling.indexOf('duplicateSubscriptionGuard("talent", opts.talentProfileId, opts.userId)');
   assert.ok(guard > 0, "guard is called with the session-scoped profile id");
   assert.ok(guard < talentBilling.indexOf("resolveCheckoutPrice("), "guard runs before price resolution");
   assert.ok(guard < talentBilling.indexOf("await getOrCreateTalentStripeCustomer("), "guard runs before customer creation");
