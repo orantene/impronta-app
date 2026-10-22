@@ -616,9 +616,9 @@ export function TrustBoostBanner({
   // Inline reference instead of importing TRUST_TIER_UPGRADE here to keep
   // the primitives file framework-light. Caller passes the next-tier copy
   // via the wrapper.
+  const t = useT();
   if (level === "gold") return null;
 
-  const t = useT();
   const isActionable = level === "basic";
 
   return (

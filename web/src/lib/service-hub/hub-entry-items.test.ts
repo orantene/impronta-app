@@ -7,7 +7,7 @@ import { rosterServicesToCatalog, rosterItemsToCatalogRows } from "./roster-cata
 import { buildRosterRequestDraft } from "./roster-chat-request";
 import type { RosterServiceItem } from "./roster-services";
 
-const entry = (over: Partial<PublicEntry> = {}): PublicEntry => ({ id: "e1", name: " Massage ", category: null, photoUrl: null, priceCents: 50000, from: true, currency: "MXN", who: ["Ana", "Bea"], cta: "request", ...over });
+const entry = (over: Partial<PublicEntry> = {}): PublicEntry => ({ id: "e1", name: " Massage ", category: null, photoUrl: null, priceCents: 50000, from: true, currency: "MXN", who: ["Ana", "Bea"], cta: "request", bookOfferingId: null, ...over });
 const loose = (id: string, title = id): RosterServiceItem => ({ listingId: id, offeringId: `o-${id}`, title, talentProfileId: `p-${id}`, talentName: "Ana", priceCents: 1000, priceIsFrom: false, currency: "USD", bookingType: "instant", clientContact: "talent" });
 
 test("an entry becomes a request-only item with opaque ids and no talent id", () => {

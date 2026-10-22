@@ -219,7 +219,7 @@ export async function loadPendingPlanChangeFor(
   const stripe = getStripe();
   if (!stripe) return { ok: false, error: "Billing is not available yet." };
   const req = await pendingRequest(kind, subjectId);
-  if ("error" in req) return { ok: false, error: req.error };
+  if ("error" in req) return { ok: false, error: req.error ?? "Billing is not available yet." };
   return loadPendingPlanChange(stripe, req);
 }
 
@@ -231,7 +231,7 @@ export async function cancelPendingPlanChangeFor(
   const stripe = getStripe();
   if (!stripe) return { ok: false, error: "Billing is not available yet." };
   const req = await pendingRequest(kind, subjectId);
-  if ("error" in req) return { ok: false, error: req.error };
+  if ("error" in req) return { ok: false, error: req.error ?? "Billing is not available yet." };
   const out = await cancelPendingPlanChange(stripe, req);
   return out.ok ? out : { ok: false, error: out.error };
 }
