@@ -66,6 +66,7 @@ src/lib/billing/trial-session-reconcile.test.ts
 src/lib/billing/workspace-downgrade-period-end.test.ts
 src/lib/billing/workspace-downgrade-stripe.test.ts
 src/lib/billing/workspace-free-downgrade.test.ts
+src/lib/billing/workspace-keep-plan.test.ts
 src/lib/billing/workspace-money-gates.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts

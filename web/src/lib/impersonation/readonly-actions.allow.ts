@@ -11,6 +11,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["lib/scheduling/appointments-surface-action.ts", ["loadAppointmentsSurface"], READ],
   ["lib/server-actions/offer-line-confirmation.ts", ["loadOfferLineConfirmationViewAction"], READ],
   ["app/(workspace)/[tenantSlug]/admin/account/plan-change-actions.ts", ["previewWorkspacePlanChange"], "plan-change preview: Stripe upcoming-invoice read only; confirmWorkspacePlanChange is guarded"],
+  ["lib/server-actions/admin-pending-plan-change.ts", ["loadWorkspacePendingPlanChange"], "pending plan-change read: Stripe reads only; keepWorkspaceCurrentPlan is guarded"],
   ["app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions.ts", ["loadWorkspaceYearlyCheckoutPlans"], READ],
   ["app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions.ts", ["previewTalentPlanChange", "loadTalentPendingPlanChange"], "plan-change preview / pending-change read: Stripe reads only; confirmTalentPlanChange and cancelTalentPlanChange are guarded"],
   ["app/(workspace)/[tenantSlug]/talent/settings/stripe-talent-actions.ts", ["loadTalentYearlyCheckoutPlans"], READ],
