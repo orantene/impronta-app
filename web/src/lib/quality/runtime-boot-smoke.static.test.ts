@@ -3,37 +3,32 @@
  * does (NODE_OPTIONS=--no-experimental-require-module) and fails on ERR_REQUIRE_ESM or a non-200.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..");
 const read = (rel: string) => readFileSync(path.join(REPO_ROOT, rel), "utf8");
-const wf = read(".github/workflows/runtime-boot-smoke.yml")
+const ci = read(".github/workflows/ci.yml")
   .split("\n")
   .filter((l) => !/^\s*#/.test(l))
   .join("\n");
 const script = read("web/scripts/ci/runtime-boot-smoke.mjs");
 
-test("workflow exists, has the required-check job name, and runs the script", () => {
-  assert.match(wf, /name: Runtime boot smoke \(Vercel-style Node 22\)/);
-  assert.match(wf, /node scripts\/ci\/runtime-boot-smoke\.mjs/);
-  assert.match(wf, /node-version: '22\.x'/);
-  assert.match(wf, /timeout-minutes: \d+/);
-  assert.match(wf, /permissions:\n\s+contents: read/);
+test("the smoke is a step in the gate's build job, right after next build, reusing the build", () => {
+  const build = ci.split("\n  build:\n")[1]?.split(/\n {2}[a-z_]+:\n/)[0] ?? "";
+  assert.ok(build, "ci.yml has a build job");
+  const iBuild = build.indexOf("run: npx next build");
+  const iSmoke = build.indexOf("node scripts/ci/runtime-boot-smoke.mjs --skip-build");
+  assert.ok(iBuild > 0 && iSmoke > iBuild, "smoke step comes after the next build step");
+  assert.ok(build.indexOf("no phantom client chunks") > iSmoke, "smoke is right after the build step");
+  assert.match(script, /process\.argv\.includes\("--skip-build"\)/);
+  // Required through the aggregator, with no check name of its own.
+  assert.match(ci, /needs: \[policy, build, static, tests_a, tests_b\]/);
 });
 
-test("triggers mirror the gate: PR to main, push main, manual; ordinary PRs hit the policy step", () => {
-  assert.match(wf, /pull_request:\n\s+branches: \[main\]/);
-  assert.match(wf, /push:\n\s+branches: \[main\]/);
-  assert.match(wf, /workflow_dispatch:/);
-  assert.match(wf, /grep -qx "full-ci"/);
-  assert.match(wf, /startsWith\(github\.head_ref, 'integ\/'\)/);
-});
-
-test("workflow greps the server log for ERR_REQUIRE_ESM and fails", () => {
-  assert.match(wf, /grep -n "ERR_REQUIRE_ESM"/);
-  assert.match(wf, /exit 1/);
+test("no separate runtime-boot-smoke workflow exists", () => {
+  assert.equal(existsSync(path.join(REPO_ROOT, ".github/workflows/runtime-boot-smoke.yml")), false);
 });
 
 test("script starts the server with --no-experimental-require-module and requires 200 on / and /admin", () => {

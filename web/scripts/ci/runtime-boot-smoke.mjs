@@ -6,7 +6,7 @@
 // Vercel runs Node with --no-experimental-require-module, so require(esm) throws ERR_REQUIRE_ESM
 // at RUNTIME; locally and on stock CI Node 22 it silently works. This script reproduces that:
 //
-//   1. `next build` (skip with RUNTIME_SMOKE_SKIP_BUILD=1 when .next already exists)
+//   1. `next build` (skip with --skip-build or RUNTIME_SMOKE_SKIP_BUILD=1 when .next already exists; ci.yml does)
 //   2. `next start` with NODE_OPTIONS=--no-experimental-require-module, VERCEL_ENV=preview
 //   3. GET / and an admin path, following redirects, require a final 200
 //   4. fail if the server output contains ERR_REQUIRE_ESM (even if the pages answered 200)
@@ -74,7 +74,7 @@ async function main() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key",
   };
 
-  if (process.env.RUNTIME_SMOKE_SKIP_BUILD !== "1") {
+  if (process.env.RUNTIME_SMOKE_SKIP_BUILD !== "1" && !process.argv.includes("--skip-build")) {
     // Build WITHOUT the flag, like ci.yml's bundle gate; the failure class is a runtime one.
     await run("npx", ["next", "build"], {
       ...process.env,
