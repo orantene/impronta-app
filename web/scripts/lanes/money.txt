@@ -47,6 +47,7 @@ src/lib/billing/pass-through-arming.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-change-interval.test.ts
+src/lib/billing/plan-change-sync.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts

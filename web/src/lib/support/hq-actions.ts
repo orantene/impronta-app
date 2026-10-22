@@ -11,6 +11,7 @@ import { readTakeover, withTakeover } from "./support-takeover";
 import type { SupportPriority } from "./support-types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { afterResponse } from "@/lib/server/after-response";
+import { logServerError } from "@/lib/server/safe-error";
 
 const uuid = z.string().uuid();
 
@@ -183,15 +184,17 @@ export async function hqEscalateOverrideAction(raw: {
   const admin = adminClient();
   if (admin) {
     const ticket = await supportEngine.loadTicketById(parsed.data.ticketId, admin);
-    const { data: prof } = await admin.from("profiles").select("display_name").eq("id", hq.userId).maybeSingle();
+    const { data: prof, error: profErr } = await admin.from("profiles").select("display_name").eq("id", hq.userId).maybeSingle();
+    if (profErr) logServerError("support.hqTakeover.profile", profErr);
     const name = ((prof as { display_name?: string | null } | null)?.display_name ?? "").trim() || "Tulala Support";
     if (ticket && !readTakeover(ticket.metadata)) {
-      await supportFrom(admin, "support_tickets")
+      const { error: takeErr } = await supportFrom(admin, "support_tickets")
         .update({
           metadata: withTakeover(ticket.metadata, { userId: hq.userId, name, at: new Date().toISOString() }),
           handled_by: "human",
         })
         .eq("id", ticket.id);
+      if (takeErr) logServerError("support.hqTakeover.write", takeErr);
     }
   }
   return { ok: true };
@@ -369,7 +372,6 @@ export async function hqSummarizeDiagnosticsAction(raw: {
   const { getAiFeatureFlags } = await import("@/lib/settings/ai-feature-flags");
   const { createServiceRoleClient } = await import("@/lib/supabase/admin");
   const { supportFrom } = await import("./support-from");
-  const { logServerError } = await import("@/lib/server/safe-error");
 
   const flags = await getAiFeatureFlags();
   if (!flags.ai_master_enabled || !flags.ai_support_enabled || !(await isResolvedAiChatConfigured())) {

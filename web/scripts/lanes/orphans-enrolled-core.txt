@@ -90,6 +90,7 @@ src/components/admin/shell/internal/talent/agenda/calendar-bounds.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-focus.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-sync.test.ts
 src/components/admin/shell/internal/talent/agenda/calendar-view.test.ts
+src/components/admin/shell/internal/talent/agenda/fee-line-wording.test.ts
 src/components/admin/shell/internal/talent/agenda/my-assignment-answer.render.test.tsx
 src/components/admin/shell/internal/talent/agenda/p0-panels.static.test.ts
 src/components/admin/shell/internal/talent/agenda/present.test.ts
