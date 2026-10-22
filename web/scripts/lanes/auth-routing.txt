@@ -17,6 +17,7 @@ src/i18n/auth-page-locale.test.ts
 src/lib/auth-flow-client-landing.test.ts
 src/lib/auth-flow-talent-next.test.ts
 src/lib/auth-landing-contract.test.ts
+src/lib/auth-login-loop-guard.test.ts
 src/lib/auth-routing.test.ts
 src/lib/auth/access-profile-refresh.test.ts
 src/lib/auth/auth-labels.static.test.ts
