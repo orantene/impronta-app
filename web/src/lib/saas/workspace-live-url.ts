@@ -20,6 +20,7 @@
  * `WorkspaceDomainSummary` type (structural input instead) so the admin shell's
  * client components can call it with the bridge payload they already receive.
  */
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import {
   resolveWorkspacePublicAddress,
   type WorkspaceDomainState,
@@ -113,11 +114,16 @@ export function resolveWorkspaceLiveAddress(input: {
   slug: string;
   planTier: string | null | undefined;
   domains?: WorkspaceDomainRegistry | null;
+  /** Override the path origin (tests); default is this environment's public root. */
+  origin?: string;
 }): WorkspacePublicAddress {
   return resolveWorkspacePublicAddress({
     slug: input.slug,
     plan: normalizeWorkspaceUrlPlan(input.planTier),
     domainState: resolveLiveDomainState(input.domains),
+    // TUL-1868: on staging the free address is staging's own `<root>/w/<slug>`, never the
+    // production literal. NEXT_PUBLIC_SITE_URL is inlined at build, so client and server agree.
+    pathOrigin: input.origin ?? resolvePublicRootOrigin(),
   });
 }
 
