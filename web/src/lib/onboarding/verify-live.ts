@@ -193,7 +193,12 @@ export async function verifyLivePage(input: {
   }
 }
 
-/** A just-published site can lag a moment: a few spaced tries, then the truth. */
+/**
+ * A just-published site can lag a moment (DNS and route warm-up): three tries
+ * about 3 s apart (~6 s in all), then the truth (TUL-1839).
+ */
+export const LIVE_CHECK_RETRY_DELAY_MS = 3000;
+
 export async function verifyLivePageWithRetry(
   input: Parameters<typeof verifyLivePage>[0] & { attempts?: number; delayMs?: number; sleep?: (ms: number) => Promise<void> },
 ): Promise<LiveCheck> {
@@ -203,7 +208,7 @@ export async function verifyLivePageWithRetry(
   for (let i = 0; i < attempts; i++) {
     last = await verifyLivePage(input);
     if (last.ok || last.reason === "no_url" || last.reason === "no_name") return last;
-    if (i < attempts - 1) await sleep(input.delayMs ?? 1500);
+    if (i < attempts - 1) await sleep(input.delayMs ?? LIVE_CHECK_RETRY_DELAY_MS);
   }
   return last;
 }

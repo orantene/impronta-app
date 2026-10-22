@@ -2227,9 +2227,18 @@
         "nextTalentShare": "Share your link",
         "viewMyWebsite": "View my website",
         "customizeInBuilder": "Customize in builder",
-        "draftTitlePublished": "Your site is published",
-        "draftSubPublished": "It is saved and published. We are confirming it opens online; this usually takes a few seconds.",
+        "draftTitlePublished": "Your site is almost ready",
+        "draftSubPublished": "It is saved, but we could not confirm it opens online yet. Here is what is left.",
         "checkAgain": "Check again",
+        "retryPublish": "Retry publishing",
+        "fix": {
+          "address": "Check your address: it is not answering yet.",
+          "nameMissing": "Edit your name: it does not show on the page yet.",
+          "noName": "Add a name to your page in the editor.",
+          "noUrl": "Your page has no address yet. Open the editor to finish it.",
+          "protected": "We could not look at your address from here.",
+          "retry": "Then retry publishing; it usually takes a few seconds."
+        },
         "draftWhy": {
           "publishedNotReachable": "Why: your address is not answering yet. Tap Check again in a few seconds.",
           "notReachable": "Why: your page did not answer when we opened it. Tap Try again.",

@@ -100,6 +100,7 @@ src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/coordinator-role-notify.test.ts
 src/lib/notifications/hub-listing-below-minimum.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
+src/lib/onboarding/almost-ready-honesty.test.ts
 src/lib/onboarding/business-onboarding-template.test.ts
 src/lib/onboarding/draft-offering-rows.test.ts
 src/lib/onboarding/flow.test.ts
