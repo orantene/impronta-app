@@ -7,6 +7,7 @@
 export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
   "yourname.com": "tunombre.com",
   "Domains cannot contain spaces.": "Los dominios no pueden tener espacios.",
+  "Domain verification is unavailable until the server is configured.": "La verificación de dominios no está disponible hasta que se configure el servidor.",
   "Enter a valid domain like example.com.": "Escribe un dominio válido, como ejemplo.com.",
   "Use a real hostname instead of localhost.": "Usa un dominio real en lugar de localhost.",
   "Domains need at least one dot, like example.com.": "El dominio necesita al menos un punto, como ejemplo.com.",

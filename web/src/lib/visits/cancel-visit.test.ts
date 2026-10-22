@@ -81,7 +81,7 @@ test("the action is guarded by a named capability, audited, and a viewer or edit
   assert.match(fn, /await staff\("booking\.payment\.request"\)/);
   assert.match(fn, /auditEvent\(/);
   assert.match(fn, /pos\.visit\.cancelled_no_charge/);
-  assert.match(src, /requireWorkspaceStaffAction\(capability \? \{ capability \} : undefined\)/);
+  assert.match(src, /requireWorkspaceStaffAction\(\{ capability \}\)/);
   for (const role of ["viewer", "editor"] as const) assert.equal(roleGrantsCapability(role, "booking.payment.request"), false, role);
   for (const role of ["manager", "admin", "owner"] as const) assert.equal(roleGrantsCapability(role, "booking.payment.request"), true, role);
 });
