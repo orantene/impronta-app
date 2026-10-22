@@ -352,6 +352,7 @@ src/lib/service-hub/listing-sellable-batch.server.test.ts
 src/lib/service-hub/listing-wire.static.test.ts
 src/lib/service-hub/listing.test.ts
 src/lib/service-hub/owner-hub-wire.static.test.ts
+src/lib/service-hub/people-create-terms-wire.static.test.ts
 src/lib/service-hub/public-hub.server.test.ts
 src/lib/service-hub/public-hub.test.ts
 src/lib/service-hub/rent/rent-autopay-apply.test.ts

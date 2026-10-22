@@ -22,6 +22,7 @@ import { RosterRequestList } from "./RosterRequestList";
 import { PublicHubEntries } from "@/components/storefront/PublicHubEntries";
 import { loadPublicHub } from "@/lib/service-hub/public-hub.server";
 import { publicEntryRequestHref } from "@/lib/service-hub/public-hub-request";
+import { WORKSPACE_REQUEST_PATH } from "@/lib/service-hub/roster-request";
 import { loadWorkspaceRosterServices } from "@/lib/service-hub/roster-services";
 import { loadGuestInstantChrome } from "@/lib/scheduling/guest-instant-chrome";
 
@@ -129,12 +130,12 @@ export default async function BookPage({
           client={guestChrome.client}
           captcha={guestChrome.captcha}
           locale={locale}
-          contactHref={`${pathPrefix}/contact`}
+          contactHref={`${pathPrefix}${WORKSPACE_REQUEST_PATH}`}
         />
-        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={(e) => publicEntryRequestHref(`${pathPrefix}/contact`, e, locale)} /> : null}
+        {hub ? <PublicHubEntries entries={hub.entries} locale={locale === "es" ? "es" : "en"} requestHref={(e) => publicEntryRequestHref(`${pathPrefix}${WORKSPACE_REQUEST_PATH}`, e, locale)} /> : null}
         <RosterRequestList
           items={rosterItems}
-          contactHref={`${pathPrefix}/contact`}
+          contactHref={`${pathPrefix}${WORKSPACE_REQUEST_PATH}`}
           locale={locale}
           copy={{
             heading: t("public.bookPage.rosterHeading"),

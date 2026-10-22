@@ -101,6 +101,7 @@ src/lib/seo/indexnow.test.ts
 src/lib/seo/service-page-metadata.test.ts
 src/lib/server-actions/dated-details-capabilities.test.ts
 src/lib/server-actions/series-dated-settings-capabilities.test.ts
+src/lib/service-hub/book-request-path.static.test.ts
 src/lib/service-hub/hub-rules.test.ts
 src/lib/service-hub/leaver-redirect.test.ts
 src/lib/service-hub/roster-catalog.test.ts

@@ -377,7 +377,9 @@ const BUDGETS: Record<string, number> = {
   // reload; onSkillsChanged / onContextsChanged and Save & exit's not-dirty
   // early return now queue the (coalesced) refresh. Three call sites plus the
   // comments explaining WHY these paths need it — nothing extractable.
-  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4699,
+  // TUL-1476: +10 — the owner's terms step is mounted in create mode (CreateJoinTerms.tsx
+  // holds the component; here: one import pair, one ref, the call argument, the mount, the toast).
+  "src/components/admin/shell/internal/drawers/profile-shell/TalentProfileShellDrawer.tsx": 4709,
   // 2026-08-15 talent-notifications de-mock — net +2. `TalentNotificationsDrawer`
   // rendered a hardcoded MOCK_TALENT_NOTIFS and never read
   // `bridgeUserNotifications`, so a talent saw none of their own rows. The

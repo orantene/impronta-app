@@ -220,6 +220,9 @@ import {
   ProfileShellUnsavedBanner,
 } from "./profile-shell-modules/profile-shell-save-hints";
 import type { ServiceAreaDesired } from "../../location-slot-panel";
+import { CreateJoinTerms } from "./CreateJoinTerms";
+import type { JoinTermsInput } from "@/lib/service-hub/join-terms";
+import { joinTermsOutcomeNotice } from "@/lib/service-hub/join-terms-copy";
 import { saveTalentServiceAreas } from "@/lib/server-actions/admin-talent-service-areas";
 import { setTalentLanguages } from "@/lib/server-actions/admin-talent-languages";
 import type { TalentLanguageInput } from "@/lib/server-actions/admin-talent-languages.types";
@@ -350,6 +353,7 @@ export function TalentProfileShellDrawer() {
   type SaveStatus = "idle" | "saving" | "saved" | "error";
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const joinTermsRef = useRef<JoinTermsInput | null>(null); // TUL-1476: owner's terms, read at create
   /** Same text as saveError, readable synchronously right after `await saveAll()`
    *  (state hasn't re-rendered yet at that point). submit() toasts from this. */
   const lastSaveErrorRef = useRef<string | null>(null);
@@ -993,7 +997,7 @@ export function TalentProfileShellDrawer() {
         primaryTypeSlugorId: primaryType,
         secondaryTypeSlugorIds: s.secondaryTypes ?? [],
         managementMethod: "agency",
-      });
+      }, joinTermsRef.current);
       if (!createRes.ok || !createRes.talentProfileId) {
         // ActionResult is a discriminated union — inside this OR-guard
         // TS can't narrow to the !ok branch, so use the `in` operator.
@@ -1004,6 +1008,8 @@ export function TalentProfileShellDrawer() {
       }
       tid = createRes.talentProfileId;
       justCreated = true;
+      const termsNote = joinTermsOutcomeNotice(createRes.terms, copy.isSpanish ? "es" : "en");
+      if (termsNote) toast(termsNote);
       // Fall through — commitTalentProfileShellAdmin runs below with `tid`
       // so nationality, bio, logistics, dyn fields, etc. persist on the
       // first click (not only the minimal addTalentToRoster columns).
@@ -2866,6 +2872,10 @@ export function TalentProfileShellDrawer() {
             }
           />
         </div>
+
+        {mode === "create" && !isSelf && !payload.talentId && tenantSlug ? (
+          <CreateJoinTerms tenantSlug={tenantSlug} locale={copy.isSpanish ? "es" : "en"} termsRef={joinTermsRef} />
+        ) : null}
 
         {/* Save-failure reason — pinned full-width in the sticky header so the
             WHOLE reason is always visible (the in-body banner can scroll out of
