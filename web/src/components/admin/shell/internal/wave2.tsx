@@ -1692,7 +1692,7 @@ export function WorkspaceProfileDrawer() {
                 value={slug}
                 readOnly
                 disabled
-                title="Slug changes require a support request"
+                title="Changing the web address requires a support request"
                 style={{ ...inputDisabledStyle, flex: 1 }}
               />
             </div>

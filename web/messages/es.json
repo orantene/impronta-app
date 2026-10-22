@@ -1738,6 +1738,7 @@
       "title": "Elige un horario",
       "subtitle": "Los horarios se muestran en la zona del estudio.",
       "subtitleZone": "Los horarios se muestran en la zona del estudio ({zone}).",
+      "sendRequest": "Enviar una solicitud",
       "loading": "Cargando horarios…",
       "empty": "No hay horarios libres en las próximas dos semanas. Intenta más tarde.",
       "unavailable": "Los horarios no están disponibles ahora.",
@@ -1759,6 +1760,7 @@
       "signInToBook": "Inicia sesión para reservar",
       "refusal": {
         "requestOnly": "Este servicio se reserva por solicitud. Escribe un mensaje para pedir un horario.",
+        "unclaimedSeller": "Este perfil aún no puede recibir reservas en línea. Envía una solicitud.",
         "notAccepting": "No estoy tomando nuevas reservas por ahora. Puedes consultarme.",
         "tooSoon": "Ese horario es muy pronto. Elige uno más tarde.",
         "slotTaken": "Ese horario acaba de ocuparse. Elige otro."
@@ -5479,8 +5481,8 @@
       "requiresStudio": "Requiere Studio o superior",
       "requiresAgency": "Requiere Agency o superior",
       "accountLabel": "Cuenta",
-      "accountDesc": "Nombre del espacio, slug e información de contacto.",
-      "accountRowMeta": "Nombre · Slug · Correo de contacto",
+      "accountDesc": "Nombre del espacio, dirección web e información de contacto.",
+      "accountRowMeta": "Nombre · Dirección web · Correo de contacto",
       "takeBookingsTitle": "¿Quieres recibir reservas tú mismo?",
       "takeBookingsDesc": "Crea tu página de Talent. Se hará visible en la lista de tu espacio.",
       "planLabel": "Plan y facturación",
@@ -11941,7 +11943,7 @@
         "pages": {
           "purpose": "Páginas fijas de tu vitrina: Nosotros, Prensa, Contacto, Términos, etc.",
           "b0": "Crea una página nueva desde una plantilla o desde cero",
-          "b1": "Define el slug, el título SEO y la imagen OG de cada página",
+          "b1": "Define la dirección web, el título SEO y la imagen para compartir de cada página",
           "b2": "Publica, despublica o programa una página para después"
         },
         "posts": {
@@ -12254,7 +12256,7 @@
           "b2": "Mira lo que otro talento ha construido con Portfolio"
         },
         "talent-personal-page": {
-          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-slug>.",
+          "purpose": "Tu página personal premium: independiente de cualquier agencia, tuya, y publicada en tulala.digital/t/<tu-dirección>.",
           "b0": "Elige una plantilla de diseño",
           "b1": "Decide qué créditos, fotos y enlaces destacar",
           "b2": "Conecta un dominio propio (nivel Portfolio)"
@@ -18343,6 +18345,7 @@
       "saved": "Guardado",
       "dash": "—",
       "untitled": "(sin título)",
+      "reservationChip": "Reserva",
       "itemMissing": "Ese artículo ya no está en este catálogo. La lista de abajo está al día.",
       "itemProviderOwned": "Este servicio pertenece a tu perfil de profesional. Edítalo en Servicios.",
       "itemProviderOwnedLink": "Abrir Servicios",
@@ -21469,7 +21472,7 @@
       "accessUntil": "Acceso hasta",
       "nextRenewal": "Próxima renovación",
       "trialEnds": "Prueba termina",
-      "workspaceSlug": "Slug del espacio",
+      "workspaceSlug": "Dirección web del espacio",
       "rosterLabel": "Lista",
       "ofUnlimited": "de ilimitado",
       "of": "de",

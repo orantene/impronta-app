@@ -3,6 +3,7 @@ emails/support/AgentReply.test.ts
 src/app/(workspace)/talent/loading-inside-shell.static.test.ts
 src/app/admin/admin-not-found.static.test.ts
 src/app/admin/overview-hydration.static.test.ts
+src/components/admin/shell/internal/page-modules/overview-setup-expand.static.test.ts
 src/components/admin/shell/internal/shell-boundary.render.test.tsx
 src/components/home/hub-landing-dev-hosts.static.test.ts
 src/components/marketing/support/contact-resume-only.static.test.ts
@@ -18,6 +19,7 @@ src/components/support/support-panel-wiring.static.test.ts
 src/components/support/support-send-error.test.ts
 src/components/support/support-send-throw.test.ts
 src/i18n/locale-default-prefix-strip.test.ts
+src/i18n/user-facing-no-slug.static.test.ts
 src/lib/ai/ai-bypass-metering.test.ts
 src/lib/ai/ai-model-costs.test.ts
 src/lib/ai/ai-search-document-offerings-wiring.static.test.ts
@@ -68,6 +70,7 @@ src/lib/quality/runtime-boot-smoke.static.test.ts
 src/lib/rate-limit-kv-guest-ai.test.ts
 src/lib/rate-limit-kv-public-ai.test.ts
 src/lib/saas/deactivate-legacy-hub-hostname.migration.test.ts
+src/lib/scheduling/instant-book-unclaimed-copy.test.ts
 src/lib/security/redact-display.test.ts
 src/lib/security/redact-secrets.test.ts
 src/lib/seo/robots-ai-policy.test.ts

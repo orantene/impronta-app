@@ -109,6 +109,7 @@ export function CatalogRow({
           {channels.includes("pos") ? ` · ${t("dashboard.catalog.channel.posCounter")}` : ""}
           {channels.includes("website") ? ` · ${t("dashboard.catalog.channel.website")}` : ""}
         </span>
+        {o.reservation ? <Chip tone="brand">{t("dashboard.catalog.reservationChip")}</Chip> : null}
         <NeedsPriceChip item={o} t={t} className="mt-[3px] block" />
         <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} className="mt-[3px] block" />
       </span>
@@ -127,6 +128,7 @@ export function CatalogRow({
         >
           {name}
         </Link>
+        {o.reservation ? <Chip tone="brand">{t("dashboard.catalog.reservationChip")}</Chip> : null}
         <NeedsPriceChip item={o} t={t} />
         <MissingTranslationChip item={o} primary={primary} locales={locales} uiLocale={locale} t={t} />
       </span>

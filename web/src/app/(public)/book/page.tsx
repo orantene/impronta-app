@@ -106,7 +106,10 @@ export default async function BookPage({
   // TUL-1471: the owner's grouped hub entries (request-only) replace the loose rows they contain, so
   // a service never shows twice. Listings still waiting in the review queue stay as loose rows.
   const hub = rosterAdmin && host.kind === "agency" ? await loadPublicHub(rosterAdmin, tenantId) : null;
-  const rosterItems = hub ? allRosterItems.filter((i) => !hub.coveredListingIds.has(i.listingId)) : allRosterItems;
+  const notInHub = hub ? allRosterItems.filter((i) => !hub.coveredListingIds.has(i.listingId)) : allRosterItems;
+  // TUL-861: a service already offered in the bookable list above must not be listed a second time as a request row.
+  const bookableIds = new Set(offerings.map((o) => o.id));
+  const rosterItems = notInHub.filter((i) => !bookableIds.has(i.offeringId));
 
   return (
     <>

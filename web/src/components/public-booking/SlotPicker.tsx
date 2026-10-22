@@ -193,6 +193,7 @@ export function SlotPicker({
         {contactLink}
         </div>
       ) : (
+        <>
         <div className="mt-3 flex flex-col gap-1.5 max-h-64 overflow-auto">
           {slots.map((start) => {
             const ends = new Date(new Date(start).getTime() + durationMinutes * 60_000).toISOString();
@@ -220,6 +221,18 @@ export function SlotPicker({
             );
           })}
         </div>
+        {/* TUL-861: the request path stays reachable when times exist (it used to show only when empty). */}
+        {contactHref ? (
+          <Link
+            href={contactHref}
+            data-testid="slot-picker-request"
+            className="mt-2 inline-block text-xs font-medium underline"
+            style={{ color: INK }}
+          >
+            {t("public.slotPicker.sendRequest")}
+          </Link>
+        ) : null}
+        </>
       )}
     </div>
   );

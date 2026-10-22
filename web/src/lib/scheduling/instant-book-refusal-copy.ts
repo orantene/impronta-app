@@ -13,6 +13,8 @@ const KEY_BY_REASON: Readonly<Record<string, string>> = {
   not_accepting_bookings: "public.instantBook.refusal.notAccepting",
   too_soon: "public.instantBook.refusal.tooSoon",
   slot_taken: "public.instantBook.refusal.slotTaken",
+  // TUL-1260: the C34 "unclaimed profile cannot take money" sentence was English on every page.
+  unclaimed_seller: "public.instantBook.refusal.unclaimedSeller",
 };
 
 export function localizedBookingRefusal(reason: string, locale: string, fallback: string | undefined): string | undefined {

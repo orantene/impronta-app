@@ -1738,6 +1738,7 @@
       "title": "Choose a time",
       "subtitle": "Times are shown in the studio timezone.",
       "subtitleZone": "Times are shown in the studio timezone ({zone}).",
+      "sendRequest": "Send a request",
       "loading": "Loading times…",
       "empty": "No open times in the next two weeks. Try again later.",
       "unavailable": "Times are not available right now.",
@@ -1759,6 +1760,7 @@
       "signInToBook": "Sign in to book",
       "refusal": {
         "requestOnly": "This one is booked by request. Send a message to ask for a time.",
+        "unclaimedSeller": "This profile can not take online bookings yet. Send a request instead.",
         "notAccepting": "Not taking new bookings right now. You can still send an inquiry.",
         "tooSoon": "That time is too soon. Pick a later start.",
         "slotTaken": "That time was just taken. Pick another time."
@@ -5479,8 +5481,8 @@
       "requiresStudio": "Requires Studio or above",
       "requiresAgency": "Requires Agency or above",
       "accountLabel": "Account",
-      "accountDesc": "Workspace name, slug, and contact info.",
-      "accountRowMeta": "Name · Slug · Contact email",
+      "accountDesc": "Workspace name, web address, and contact info.",
+      "accountRowMeta": "Name · Web address · Contact email",
       "takeBookingsTitle": "Want to take bookings yourself?",
       "takeBookingsDesc": "Create your Talent page. It becomes visible on your workspace roster.",
       "planLabel": "Plan & billing",
@@ -11941,7 +11943,7 @@
         "pages": {
           "purpose": "Static pages on your storefront: About, Press, Contact, Terms, etc.",
           "b0": "Create a new page from a template or blank canvas",
-          "b1": "Set the URL slug, SEO title, and OG image per page",
+          "b1": "Set the web address, SEO title, and sharing image per page",
           "b2": "Publish, unpublish, or schedule a page for later"
         },
         "posts": {
@@ -18343,6 +18345,7 @@
       "saved": "Saved",
       "dash": "—",
       "untitled": "(untitled)",
+      "reservationChip": "Reservation",
       "itemMissing": "That item is not in this catalog any more. The list below is current.",
       "itemProviderOwned": "This service belongs to your own provider profile. Edit it under Services.",
       "itemProviderOwnedLink": "Open Services",
@@ -21469,7 +21472,7 @@
       "accessUntil": "Access until",
       "nextRenewal": "Next renewal",
       "trialEnds": "Trial ends",
-      "workspaceSlug": "Workspace slug",
+      "workspaceSlug": "Workspace web address",
       "rosterLabel": "Roster",
       "ofUnlimited": "of unlimited",
       "of": "of",

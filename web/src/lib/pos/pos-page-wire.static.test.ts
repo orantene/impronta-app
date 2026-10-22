@@ -104,9 +104,10 @@ test("every return of the POS route tells the shell it is the point of sale", ()
 });
 
 test("POS actions staff-gate via staff-actor; posAddLine also allows inquiry managers", () => {
-  // Default counter/floor path: workspace staff + booking.payment.request.
+  // Default counter/floor path: workspace staff + operate_venue (editor+, PM 2026-10-21).
   const actor = read("src/lib/pos/staff-actor.ts");
   assert.match(actor, /requireWorkspaceStaffAction/);
+  assert.match(actor, /operate_venue/);
   assert.match(actor, /booking.payment.request/);
   assert.match(actor, /userHasCapability\(capability/);
   // Messages picker path: optional inquiryId → requireInquiryManagerAction.
@@ -116,8 +117,8 @@ test("POS actions staff-gate via staff-actor; posAddLine also allows inquiry man
   assert.match(actor, /export async function posStaffOrInquiryManager/);
   const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
   assert.match(src, /posStaff\(/);
-  assert.match(src, /posStaff\("booking.payment.mark_received"\)/);
-  assert.match(src, /posStaffOrInquiryManager\(parsed\.data\.inquiryId\)/);
+  assert.match(src, /posStaff\("operate_venue"\)/);
+  assert.match(src, /posStaffOrInquiryManager\(\s*parsed\.data\.inquiryId,/);
   assert.doesNotMatch(src, /view_dashboard/);
 });
 
@@ -274,4 +275,43 @@ test("D-156: the hold after a write is bounded and released by the re-read, not 
   assert.match(settling, /setTimeout\(/, "the hold needs a ceiling");
   assert.match(settling, /router\.refresh\(\)/, "and asks for the re-read it never got");
   assert.match(settling, /writeHoldSettling\(held, current\)/);
+});
+
+test("TUL-1271: a seat the counter is closed to gets an inline card, never notFound() (React #310 'This page couldn't load')", () => {
+  const page = code("src/app/(workspace)/[tenantSlug]/admin/pos/page.tsx");
+  const allowedAt = page.indexOf("userHasCapability(");
+  const after = page.slice(allowedAt, allowedAt + 700);
+  assert.match(after, /PosNoAccessCard/);
+  assert.doesNotMatch(after.slice(0, after.indexOf("PosNoAccessCard")), /notFound\(\)/);
+  const card = read("src/app/(workspace)/[tenantSlug]/admin/pos/pos-no-access-card.tsx");
+  assert.match(card, /dashboard\.pos\.counter\.gate\.title/);
+});
+
+test("PM 2026-10-21: the counter page and display open on operate_venue; money-moving admin actions keep the manager bar", () => {
+  for (const f of ["page.tsx", "display/page.tsx"]) {
+    const page = code(`src/app/(workspace)/[tenantSlug]/admin/pos/${f}`);
+    assert.match(page, /userHasCapability\("operate_venue", scope\.tenantId\)/, f);
+    assert.doesNotMatch(page, /userHasCapability\("booking\.payment\.request"/, f);
+  }
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
+  for (const fn of ["posSetStaffPin", "posSetCustomAmountLimit", "posApproveCustomAmount"]) {
+    const body = src.slice(src.indexOf(`export async function ${fn}`));
+    assert.match(body.slice(0, 400), /posStaff\("booking\.payment\.request"\)/, fn);
+  }
+  // Discounts stay behind the role limits.
+  assert.match(src, /enforceRoleLimit\(/);
+});
+
+test("PM 2026-10-21: cash drawer open/close is operate_venue; cancel is operate_venue only for an unpaid draft", () => {
+  const src = read("src/app/(workspace)/[tenantSlug]/admin/pos/actions.ts");
+  for (const fn of ["posOpenShift", "posCloseShift"]) {
+    const body = src.slice(src.indexOf(`export async function ${fn}`));
+    assert.match(body.slice(0, 300), /posStaff\("operate_venue"\)/, fn);
+  }
+  const cancel = src.slice(src.indexOf("export async function posCancelSale"), src.indexOf("export async function posSubmitPrep"));
+  assert.match(cancel, /posStaff\("operate_venue"\)/);
+  assert.match(cancel, /userHasCapability\("booking\.payment\.request", g\.tenantId\)/);
+  assert.match(cancel, /cashierMayCancelSale\(/);
+  assert.match(cancel, /error: "not_allowed"/);
+  assert.doesNotMatch(src, /posStaff\("booking\.payment\.mark_received"\)/);
 });
