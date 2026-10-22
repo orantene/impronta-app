@@ -58,6 +58,7 @@ src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
 src/lib/developer-docs/developer-docs.test.ts
+src/lib/events/event-es-rewrite.static.test.ts
 src/lib/events/venue-address.test.ts
 src/lib/match-me/candidates.test.ts
 src/lib/match-me/flag.test.ts
@@ -113,6 +114,7 @@ src/lib/service-hub/visible-picks-link.test.ts
 src/lib/service-hub/visible-picks.test.ts
 src/lib/services/business-pages/gate.test.ts
 src/lib/services/business-pages/load-and-sitemap.server.test.ts
+src/lib/services/business-pages/menu-links.test.ts
 src/lib/services/business-pages/page-model.test.ts
 src/lib/services/business-pages/paths.test.ts
 src/lib/services/presentation/card-target.test.ts
@@ -121,6 +123,7 @@ src/lib/services/presentation/catalog-quick-views.server.test.ts
 src/lib/services/presentation/load-talent-presentation.server.test.ts
 src/lib/services/presentation/quick-view-model.test.ts
 src/lib/services/presentation/resolve.test.ts
+src/lib/services/presentation/workspace-entitlements.test.ts
 src/lib/site-admin/builder-node/gridline-g10-g11-render.test.tsx
 src/lib/site-admin/builder-node/portfolio-alt-locale.test.ts
 src/lib/site-admin/builder-node/portfolio-render.test.tsx

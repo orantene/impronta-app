@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { menuItemServiceHref } from "@/lib/services/business-pages/menu-links";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usdEquivalentLabel, type UsdRates } from "@/lib/pricing/usd-equivalent";
@@ -94,6 +96,8 @@ export interface MenuBoardIslandProps {
    */
   locale?: string | null;
   usdRates?: UsdRates | null;
+  /** Offering id -> its business service page path; an item not in the map stays plain text. */
+  serviceHrefs?: Readonly<Record<string, string>>;
 }
 
 const STORAGE_PREFIX = "impronta.menu-order.";
@@ -156,6 +160,9 @@ function formatMenuMoney(amountCents: number, currency: string): string {
  * widens into two columns from 640px. No hex literals (the token-ground gate).
  */
 const MB_CSS = `
+.site-builder-node--menu-board-item-link{color:inherit;text-decoration:none;border-radius:2px}
+.site-builder-node--menu-board-item-link:hover,.site-builder-node--menu-board-item-link:focus-visible{text-decoration:underline;text-underline-offset:0.2em}
+.site-builder-node--menu-board-item-link:focus-visible{outline:2px solid var(--token-color-primary);outline-offset:2px}
 .site-builder-node--menu-board-island{display:grid;gap:1.35rem;color:var(--token-color-ink);font:inherit}
 .site-builder-node--menu-board-stepper-group{display:grid;gap:0.7rem}
 .site-builder-node--menu-board-stepper-row{display:grid;grid-template-columns:1fr;gap:0.75rem;padding:0.95rem 1rem;border:1px solid var(--token-color-line);border-radius:14px;background:color-mix(in srgb,var(--token-color-ink) 4%,var(--token-color-surface-raised,transparent))}
@@ -198,6 +205,7 @@ export function MenuBoardIsland({
   copy,
   locale,
   usdRates = null,
+  serviceHrefs,
 }: MenuBoardIslandProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [choices, setChoices] = useState<Record<string, MenuChoice>>({});
@@ -440,7 +448,18 @@ export function MenuBoardIsland({
           return (
             <div key={offering.id} className="site-builder-node--menu-board-stepper-row">
               <div className="site-builder-node--menu-board-stepper-copy">
-                <span className="site-builder-node--menu-board-stepper-title">{offering.title}</span>
+                <span className="site-builder-node--menu-board-stepper-title">
+                  {(() => {
+                    const href = menuItemServiceHref(serviceHrefs, offering.id);
+                    return href ? (
+                      <Link href={href} className="site-builder-node--menu-board-item-link">
+                        {offering.title}
+                      </Link>
+                    ) : (
+                      offering.title
+                    );
+                  })()}
+                </span>
                 {offering.description ? (
                   <p className="site-builder-node--menu-board-stepper-description">
                     {offering.description}

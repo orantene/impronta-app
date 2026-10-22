@@ -11,6 +11,7 @@ src/lib/directory/card-role-line.test.ts
 src/lib/directory/demand-score.test.ts
 src/lib/directory/directory-attribution.test.ts
 src/lib/directory/directory-page-waterfall.static.test.ts
+src/lib/directory/directory-profile-gate.static.test.ts
 src/lib/directory/directory-scope.test.ts
 src/lib/directory/discoverable-default-migration.static.test.ts
 src/lib/directory/facet-search-parity.static.test.ts

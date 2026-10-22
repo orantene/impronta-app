@@ -749,7 +749,7 @@ async function proxyInner(request: NextRequest) {
   if (
     shouldRewriteLocalePublicPath(originalPathname, effectiveLangSettings) ||
     pathBasedTenantRewrite ||
-    cmsSlugRewrite ||
+    cmsSlugRewrite || eventPathRewrite || // `/eventos/x` on an es-default tenant needs the rewrite too
     brandedWorkspaceShortcutSlug !== null ||
     marketingDirectoryRewrite
   ) {
