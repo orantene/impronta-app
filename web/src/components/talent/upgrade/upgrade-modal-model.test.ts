@@ -51,6 +51,18 @@ describe("TUL-829 upgrade modal model", () => {
     assert.ok(es.benefits.length >= 3 && en.benefits.length === es.benefits.length);
   });
 
+  it("TUL-1821: trial line only when a trial applies; USD note always", () => {
+    const none = buildUpgradeOffer({ feature: "apps", interval: "m", locale: "es" });
+    assert.equal(none.trialLabel, null);
+    const es = buildUpgradeOffer({ feature: "apps", interval: "m", locale: "es", trialDays: 14 });
+    const en = buildUpgradeOffer({ feature: "apps", interval: "m", locale: "en", trialDays: 14 });
+    assert.equal(es.trialLabel, "Incluye 14 días de prueba gratis");
+    assert.equal(en.trialLabel, "Includes a 14-day free trial");
+    assert.match(es.chargeNote, /Se cobra en USD; Stripe puede mostrar tu moneda local/);
+    assert.match(en.chargeNote, /Billed in USD/);
+    assert.equal(buildUpgradeOffer({ feature: "apps", interval: "m", locale: "en", trialDays: 0 }).trialLabel, null);
+  });
+
   it("a server-resolved plan label wins over the default", () => {
     const o = buildUpgradeOffer({ feature: "apps", interval: "m", locale: "en", planLabel: "Portfolio" });
     assert.equal(o.ctaLabel, "Upgrade to Portfolio");
