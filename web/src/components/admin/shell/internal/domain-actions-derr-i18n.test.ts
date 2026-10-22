@@ -4,6 +4,12 @@ import path from "node:path";
 import test from "node:test";
 
 import { DOMAIN_ERRORS_ES_TEXT, translateDomainActionText } from "./dashboard-i18n-domain-errors";
+import {
+  DOMAIN_ACTION_CODES,
+  DOMAIN_HINT_CODES,
+  decodeDomainActionParam,
+  encodeDomainActionText,
+} from "./domain-action-codes";
 import { hubLandingCopy } from "@/components/home/hub-landing-copy";
 
 const es = (value: string) => DOMAIN_ERRORS_ES_TEXT[value] ?? value;
@@ -44,8 +50,62 @@ test("derr text with appended Vercel hints translates both halves", () => {
 
 test("WebsiteDomainManager maps the query text through translateDomainActionText", () => {
   const src = readFileSync(path.join(root, "src/components/admin/shell/internal/page-modules/WebsiteDomainManager.tsx"), "utf8");
-  assert.match(src, /translateDomainActionText\(err, copy\.t\)/);
-  assert.match(src, /translateDomainActionText\(ok, copy\.t\)/);
+  assert.match(src, /translateDomainActionText\(decodeDomainActionParam\(err, dhost, dhint\), copy\.t\)/);
+  assert.match(src, /translateDomainActionText\(decodeDomainActionParam\(ok, dhost, dhint\), copy\.t\)/);
+});
+
+test("domain status lines (failure_reason) have ES rows", () => {
+  const src = readFileSync(path.join(root, "src/lib/saas/custom-domain-actions.ts"), "utf8");
+  const reasons = [...src.matchAll(/failureReason:\s*(?:expired\s*\?\s*)?"([^"]+)"(?:\s*:\s*"([^"]+)")?/g)]
+    .flatMap((m) => [m[1], m[2]])
+    .filter((v): v is string => Boolean(v));
+  assert.ok(reasons.length >= 4);
+  for (const r of reasons) assert.ok(r in DOMAIN_ERRORS_ES_TEXT, `missing ES row: ${r}`);
+  assert.equal(translateDomainActionText("TXT record not found yet.", es), "Todavía no encontramos el registro TXT.");
+});
+
+test("every code resolves to an ES row and round-trips", () => {
+  for (const [code, sentence] of Object.entries(DOMAIN_ACTION_CODES)) {
+    assert.ok(sentence in DOMAIN_ERRORS_ES_TEXT, `no ES row for code ${code}`);
+    const filled = sentence.replaceAll("{domain}", "a.mx");
+    const enc = encodeDomainActionText(filled);
+    assert.equal(enc.value, code);
+    assert.equal(decodeDomainActionParam(enc.value, enc.domain, enc.hint), filled);
+  }
+  for (const [code, sentence] of Object.entries(DOMAIN_HINT_CODES)) assert.ok(sentence in DOMAIN_ERRORS_ES_TEXT, code);
+});
+
+test("redirect carries codes, not sentences", () => {
+  assert.deepEqual(encodeDomainActionText("The domain could not be re-checked right now."), { value: "recheck_failed" });
+  assert.deepEqual(
+    encodeDomainActionText(
+      "DNS instructions are ready for a.mx. Add the TXT record to verify it. DNS token is ready, but Vercel project provisioning needs attention.",
+    ),
+    { value: "dns_ready", domain: "a.mx", hint: "vercel_attention" },
+  );
+  // Unknown text (validation messages) passes through.
+  assert.deepEqual(encodeDomainActionText("Enter a valid domain like example.com."), {
+    value: "Enter a valid domain like example.com.",
+  });
+  const src = readFileSync(path.join(root, "src/app/(workspace)/[tenantSlug]/admin/settings/domain-actions.ts"), "utf8");
+  assert.match(src, /encodeDomainActionText\(message\)/);
+  assert.match(src, /params\.set\("dhost"/);
+});
+
+test("old text-valued params still decode and translate", () => {
+  const old = "The domain could not be re-checked right now.";
+  assert.equal(decodeDomainActionParam(old, null, null), old);
+  assert.equal(translateDomainActionText(decodeDomainActionParam(old, null, null), es), "No pudimos volver a revisar el dominio ahora.");
+  assert.equal(
+    translateDomainActionText(decodeDomainActionParam("dns_ready", "a.mx", "vercel_attention"), es),
+    "Las instrucciones DNS ya están listas para a.mx. Agrega el registro TXT para verificarlo. El token DNS está listo, pero la conexión con el proyecto de Vercel necesita atención.",
+  );
+});
+
+test("WebsiteDomainManager decodes codes and translates the status line", () => {
+  const src = readFileSync(path.join(root, "src/components/admin/shell/internal/page-modules/WebsiteDomainManager.tsx"), "utf8");
+  assert.match(src, /decodeDomainActionParam\(err, dhost, dhint\)/);
+  assert.match(src, /translateDomainActionText\(record\.failureReason, copy\.t\)/);
 });
 
 test("hub landing chrome has en and es copy", () => {

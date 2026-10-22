@@ -13,6 +13,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { resolveEffectiveWorkspacePlanKey } from "@/lib/billing/effective-workspace-plan";
 import { loadNonMenuOfferingIds } from "@/lib/offerings/non-menu-offerings";
 import { isSellable, scopeToSellableOfferings } from "@/lib/offerings/sellable";
+import { fetchOwnerTalentIds, isWorkspaceOfferingRow, workspaceOfferingOrFilter } from "@/lib/offerings/workspace-offering-scope";
 import { servicePresentationResolverEnabled } from "@/lib/services/presentation/flag";
 import { rowToOffering, type TalentOffering, type TalentOfferingRow } from "@/lib/talent/offerings-types";
 
@@ -27,24 +28,54 @@ const PAGE = 1000;
 /** Hard stop against a runaway loop (10k services per workspace). */
 const MAX_PAGES = 10;
 
+/**
+ * Talents whose services are the BUSINESS's own (PM ruling 2026-10-22): the active owner's profile
+ * plus roster talents the workspace created itself (`agency_talent_roster.source_type =
+ * 'agency_created'`, status active). Freelancers, hub-claimed and platform-assigned talents stay out.
+ * A failed roster read keeps the owner-only set (fewer pages, never more).
+ */
+export async function loadBusinessTalentIds(db: Db, tenantId: string): Promise<Set<string>> {
+  const ids = new Set(await fetchOwnerTalentIds(db, tenantId));
+  try {
+    const { data, error } = await db
+      .from("agency_talent_roster")
+      .select("talent_profile_id")
+      .eq("tenant_id", tenantId)
+      .eq("status", "active")
+      .eq("source_type", "agency_created");
+    if (error) {
+      logServerError("business-service-pages/roster", error);
+      return ids;
+    }
+    for (const r of (data ?? []) as Array<{ talent_profile_id: string | null }>) {
+      if (typeof r.talent_profile_id === "string" && r.talent_profile_id) ids.add(r.talent_profile_id);
+    }
+  } catch (error) {
+    logServerError("business-service-pages/roster", error);
+  }
+  return ids;
+}
+
 export type BusinessServiceRow = TalentOfferingRow;
 
 /**
  * Pure: the row a slug's id8 points at, among rows guests may see on THIS business's pages.
- * House rows only (owner_kind = 'workspace'): a talent-owned row, even the owner's own, has its
- * one canonical on the talent site (TUL-1325). Non-menu rows (event-backing packages, the
- * reservation item) never get a page (TUL-1322).
+ * The workspace's own rows: house rows (owner_kind = 'workspace'), the active OWNER's provider rows,
+ * and rows of roster talents the workspace created itself (`loadBusinessTalentIds`; staging QA
+ * 2026-10-22). Any other roster talent's row never gets a business page (TUL-1325). Non-menu rows (event-backing packages, the reservation item)
+ * never get a page (TUL-1322).
  */
 export function pickBusinessServiceRow(
   rows: readonly BusinessServiceRow[],
   slug: string,
   tenantId: string,
   nonMenuIds: ReadonlySet<string>,
+  ownerTalentIds: ReadonlySet<string> = new Set(),
 ): BusinessServiceRow | null {
   const id8 = parseBusinessServiceSlug(slug);
   if (!id8) return null;
   const eligible = rows
-    .filter((r) => r.tenant_id === tenantId && r.owner_kind === "workspace")
+    .filter((r) => isWorkspaceOfferingRow(r, tenantId, ownerTalentIds))
     .filter((r) => !nonMenuIds.has(String(r.id)))
     .filter((r) => isSellable(r, "guest_request"))
     .filter((r) => (PAGE_KINDS as readonly string[]).includes(r.kind as string))
@@ -74,7 +105,7 @@ export async function loadBusinessServiceRows(
   db: Db,
   tenantId: string,
   opts: { publicOnly?: boolean; nonMenuIds?: ReadonlySet<string> } = {},
-): Promise<{ rows: BusinessServiceRow[]; nonMenuIds: ReadonlySet<string> } | null> {
+): Promise<{ rows: BusinessServiceRow[]; nonMenuIds: ReadonlySet<string>; ownerTalentIds: ReadonlySet<string> } | null> {
   try {
     let nonMenuIds = opts.nonMenuIds;
     if (!nonMenuIds) {
@@ -85,11 +116,12 @@ export async function loadBusinessServiceRows(
       }
       nonMenuIds = nonMenu.ids;
     }
+    const ownerTalentIds = await loadBusinessTalentIds(db, tenantId);
     const rows: BusinessServiceRow[] = [];
     for (let page = 0; page < MAX_PAGES; page += 1) {
       const from = page * PAGE;
       const { data, error } = await scopeToSellableOfferings(
-        db.from("talent_offerings").select("*").eq("tenant_id", tenantId).eq("owner_kind", "workspace"),
+        db.from("talent_offerings").select("*").eq("tenant_id", tenantId).or(workspaceOfferingOrFilter(ownerTalentIds)),
         opts.publicOnly ? "guest" : "guest_request",
       )
         .in("kind", [...PAGE_KINDS])
@@ -105,7 +137,7 @@ export async function loadBusinessServiceRows(
       if (batch.length < PAGE) break;
     }
     const excluded = nonMenuIds;
-    return { rows: rows.filter((r) => !excluded.has(String(r.id))), nonMenuIds: excluded };
+    return { rows: rows.filter((r) => !excluded.has(String(r.id))), nonMenuIds: excluded, ownerTalentIds };
   } catch (error) {
     logServerError("business-service-pages/rows", error);
     return null;
@@ -134,7 +166,7 @@ export async function loadBusinessServicePage(input: {
   if (!(await businessServicePagesOn(input.db, input.tenantId, input.flagOn))) return { status: "off" };
   const loaded = await loadBusinessServiceRows(input.db, input.tenantId);
   if (!loaded) return { status: "missing" };
-  const row = pickBusinessServiceRow(loaded.rows, input.slug, input.tenantId, loaded.nonMenuIds);
+  const row = pickBusinessServiceRow(loaded.rows, input.slug, input.tenantId, loaded.nonMenuIds, loaded.ownerTalentIds);
   if (!row) return { status: "missing" };
   const images = await input.loadImages([String(row.id)]).catch(() => new Map<string, string[]>());
   return {

@@ -15,6 +15,7 @@ import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
 import { isInquireOnlyService, isRequestOnlyService, resolveSelectedOfferingId } from "./book-availability";
 import { BookLocaleScope } from "./BookLocaleScope";
+import { SessionPickerIsland } from "@/lib/site-admin/builder-node/session-picker-island";
 
 export function BookPageClient({
   tenantSlug,
@@ -31,7 +32,7 @@ export function BookPageClient({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
-  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null; hasOpenTimes?: boolean | null }>;
+  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean }>;
   signedIn?: boolean;
   client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
@@ -55,6 +56,8 @@ export function BookPageClient({
   }, [offerings, initialServiceId, userPickedId]);
   const inquireOnly = selected ? isInquireOnlyService(selected) : false;
   const noTimes = selected ? isRequestOnlyService(selected) : false;
+  // TUL-1381: a class with scheduled sessions books through the session picker, not a slot calendar.
+  const sessionClass = selected?.hasSessions === true && !!tenantId;
   const bookable = selected
     ? pickBookableOffering([selected], { locationLabel: null })
     : null;
@@ -74,7 +77,7 @@ export function BookPageClient({
       )
     : null;
 
-  if (offerings.length === 0 || !selected || (!bookable && !inquireOnly)) {
+  if (offerings.length === 0 || !selected || (!bookable && !inquireOnly && !sessionClass)) {
     return (
       <div
         className="mt-6 flex flex-col items-start gap-3 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]"
@@ -135,11 +138,19 @@ export function BookPageClient({
       {selected.seatsLabel ? (
         <p className="text-sm font-medium">{selected.seatsLabel}</p>
       ) : null}
-      <div className="flex flex-col items-start gap-3" data-book-no-times={noTimes ? selected.id : undefined}>
+      <div className="flex w-full flex-col items-stretch gap-3" data-book-no-times={noTimes ? selected.id : undefined}>
         {noTimes && !inquireOnly ? (
           <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
             {t("public.bookPage.noTimesRequest")}
           </p>
+        ) : null}
+        {sessionClass ? (
+          <SessionPickerIsland
+            key={selected.id}
+            tenantId={tenantId ?? ""}
+            offeringId={selected.id}
+            locale={pageLocale}
+          />
         ) : null}
         {inquireOnly ? (
           <div className="flex flex-col items-start gap-3" data-book-inquire-only={selected.id}>
@@ -155,7 +166,7 @@ export function BookPageClient({
               </Link>
             ) : null}
           </div>
-        ) : bookable ? (
+        ) : !sessionClass && bookable ? (
         <BookableComposer
           tenantSlug={tenantSlug}
           tenantId={tenantId}
@@ -172,7 +183,7 @@ export function BookPageClient({
         />
         ) : null}
         {noTimes && !inquireOnly && contactHref ? (
-          <Link href={contactHref} className="text-sm underline">
+          <Link href={contactHref} className="self-start text-sm underline">
             {t("public.bookPage.contactCta")}
           </Link>
         ) : null}

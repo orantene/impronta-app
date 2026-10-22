@@ -1,6 +1,8 @@
 import "server-only";
 
+import { readRosterRequestMeta } from "@/lib/service-hub/roster-request-meta";
 import { renderCard } from "./cards";
+import { senderLabelFor, talentNamesByUser } from "./thread-sender-labels";
 import { CLIENT_THREAD, INTERNAL_NOTE_KIND, TALENT_THREAD, type InquiryThreadType } from "./thread-rule";
 import type { CardKind, ThreadMessage } from "./types";
 
@@ -35,6 +37,7 @@ export async function loadMessagingThread(
 
   const ids = ((data ?? []) as { id: string }[]).map((row) => row.id);
   const delivery = await loadDelivery(admin, ids);
+  const labels = await loadTalentSenderLabels(admin, input.inquiryId, (data ?? []) as Array<{ sender_user_id: string | null }>);
 
   const messages: ThreadMessage[] = ((data ?? []) as Array<{
     id: string;
@@ -68,6 +71,8 @@ export async function loadMessagingThread(
     fromAi: row.metadata?.from_ai === true || row.metadata?.author_kind === "booking_assistant",
     aiDisclosureLabel:
       typeof row.metadata?.disclosure_label === "string" ? row.metadata.disclosure_label : null,
+    senderLabel: labels.get(row.id) ?? null,
+    rosterRequest: readRosterRequestMeta(row.metadata),
   }));
   // TUL-955: the request the guest typed is the inquiry's own `message`, not an inquiry_messages
   // row, so the opened thread started at the first reply. Lead the stream with it (client side,
@@ -115,6 +120,28 @@ export function customerVisibleMessages(messages: readonly ThreadMessage[]) {
       ...message,
       render: renderCard(message.kind as CardKind, message.payload, "customer"),
     }));
+}
+
+/** TUL-1887: message id -> the talent's display name, for replies written by a talent on this inquiry. Cosmetic: a failed read keeps the business label. */
+async function loadTalentSenderLabels(admin: Admin, inquiryId: string, rows: Array<{ id?: string; sender_user_id: string | null }>) {
+  const out = new Map<string, string>();
+  const senderIds = [...new Set(rows.map((r) => r.sender_user_id).filter((x): x is string => Boolean(x)))];
+  if (senderIds.length === 0) return out;
+  const [byUser, parts] = await Promise.all([
+    admin.from("talent_profiles").select("user_id, display_name").in("user_id", senderIds),
+    admin.from("inquiry_participants").select("user_id, talent_profiles(display_name)").eq("inquiry_id", inquiryId).eq("role", "talent").in("user_id", senderIds),
+  ]);
+  const fromParticipants = ((parts?.data ?? []) as Array<{ user_id: string | null; talent_profiles: { display_name: string | null } | { display_name: string | null }[] | null }>).map((p) => ({
+    user_id: p.user_id,
+    display_name: (Array.isArray(p.talent_profiles) ? p.talent_profiles[0] : p.talent_profiles)?.display_name ?? null,
+  }));
+  const names = talentNamesByUser([(byUser?.data ?? []) as Array<{ user_id: string | null; display_name: string | null }>, fromParticipants]);
+  const accounts = new Map<string, string>();
+  for (const row of rows as Array<{ id: string; sender_user_id: string | null }>) {
+    const label = senderLabelFor(row.sender_user_id, names, accounts);
+    if (label) out.set(row.id, label);
+  }
+  return out;
 }
 
 async function loadDelivery(admin: Admin, messageIds: string[]) {

@@ -34,6 +34,11 @@ export type DiscountDuration = "once" | "repeating" | "forever";
 /** One `product_discounts` row, in the shape the mapping needs. */
 export type DiscountCouponInput = {
   name: string;
+  /**
+   * B6: the customer-facing coupon name (Stripe prints it on invoice PDFs). Pass the public code; the internal admin
+   * `name` then moves to metadata so it never reaches a customer. Absent = legacy behaviour (name = internal name).
+   */
+  publicName?: string | null;
   kind: DiscountKind;
   /** percent: 1-100 · fixed: MAJOR units (10 = $10) · free_months: months. */
   value: number;
@@ -83,7 +88,10 @@ function unixSeconds(iso: string): number {
 export function buildDiscountCouponParams(
   input: DiscountCouponInput,
 ): ParamsResult<Stripe.CouponCreateParams> {
-  const params: Stripe.CouponCreateParams = { name: input.name };
+  const publicName = input.publicName?.trim();
+  const params: Stripe.CouponCreateParams = publicName
+    ? { name: publicName, metadata: { internal_name: input.name } }
+    : { name: input.name };
 
   if (input.maxRedemptions != null) {
     params.max_redemptions = input.maxRedemptions;

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 import { loadBridgeSlicesAction } from "@/app/(workspace)/[tenantSlug]/admin/_bridge-slice-actions";
 import { logServerError } from "@/lib/server/safe-error";
 
-import { slicesForPage, type BridgeSliceName } from "../bridge-slices";
+import { pruneLateSlices, slicesForPage, type BridgeSliceName } from "../bridge-slices";
 import type { BridgeData } from "../data-bridge";
 import type { WorkspacePage } from "./types";
 
@@ -56,6 +56,32 @@ export function useLazyBridgeSlices(
       cancelled = true;
     };
   }, [lazySliceNames, tenantSlugRef]);
+
+  // TUL-1896: a server refresh (router.refresh() after approve, repair or any admin action) hands
+  // the shell a NEW initial bridge. The late slices fetched on first load are older than it, and
+  // they are merged OVER it, so the roster kept showing the pre-approval list until a hard reload.
+  // On a new initial bridge: drop late slices the server now sends itself, and re-fetch the
+  // still-lazy ones quietly (no skeleton flash).
+  const lastInitial = useRef(initialBridgeData);
+  useEffect(() => {
+    if (lastInitial.current === initialBridgeData) return;
+    lastInitial.current = initialBridgeData;
+    if (!started.current) return;
+    setLateSlices((prev) => pruneLateSlices(prev, initialBridgeData));
+    const slug = tenantSlugRef.current;
+    if (!slug || !lazySliceNames || lazySliceNames.length === 0) return;
+    let cancelled = false;
+    loadBridgeSlicesAction(slug, lazySliceNames)
+      .then((res) => {
+        if (!cancelled && res.ok) setLateSlices((prev) => ({ ...prev, ...res.slices }));
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) logServerError("admin-shell.lazySlices.refresh", err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialBridgeData, lazySliceNames, tenantSlugRef]);
 
   const pageSlicesReady = useCallback(
     (page: WorkspacePage) => {

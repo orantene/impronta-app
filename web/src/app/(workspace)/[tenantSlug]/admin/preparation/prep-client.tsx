@@ -86,6 +86,8 @@ export type PreparationCopy = {
   amendmentBanner: string;
   gotIt: string;
   emptyTab: string;
+  /** Shown under the header and as the buttons' title when the viewer lacks operate_venue. */
+  viewOnly: string;
   /**
    * One sentence per refusal the actions can return. A station board that
    * printed the code instead would put `invalid_state` in front of a cook.
@@ -137,11 +139,13 @@ export function PreparationClient(props: {
   nowIso: string;
   tickets: PrepTicketView[];
   copy: PreparationCopy;
+  /** operate_venue: false = view only, the action buttons are disabled with a hint. */
+  canOperate: boolean;
   /** The station's name (`Kitchen · Hot line`) and its moment, built on the server. */
   title: string;
   subtitle: string;
 }) {
-  const { copy, timeZone, locale } = props;
+  const { copy, timeZone, locale, canOperate } = props;
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -271,7 +275,7 @@ export function PreparationClient(props: {
           {ticket.status === "queued" ? (
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !canOperate} title={canOperate ? undefined : copy.viewOnly}
               className={cn(isAmended ? POS_PRIMARY_ACTION : POS_OUTLINE_ACTION, "h-11 px-4 text-[15px]")}
               onClick={() => void run(() => prepAcknowledge(ticket.id))}
             >
@@ -279,12 +283,12 @@ export function PreparationClient(props: {
             </button>
           ) : null}
           {ticket.status === "acknowledged" ? (
-            <button type="button" disabled={busy} className={cn(POS_PRIMARY_ACTION, "h-11 px-4 text-[15px]")} onClick={() => void run(() => prepReady(ticket.id))}>
+            <button type="button" disabled={busy || !canOperate} title={canOperate ? undefined : copy.viewOnly} className={cn(POS_PRIMARY_ACTION, "h-11 px-4 text-[15px]")} onClick={() => void run(() => prepReady(ticket.id))}>
               {copy.ready}
             </button>
           ) : null}
           {ticket.status === "ready" && !ticket.handedOffAt ? (
-            <button type="button" disabled={busy} className={cn(POS_PRIMARY_ACTION, "h-11 px-4 text-[15px]")} onClick={() => void run(() => prepHandoff(ticket.id))}>
+            <button type="button" disabled={busy || !canOperate} title={canOperate ? undefined : copy.viewOnly} className={cn(POS_PRIMARY_ACTION, "h-11 px-4 text-[15px]")} onClick={() => void run(() => prepHandoff(ticket.id))}>
               {copy.handoff}
             </button>
           ) : null}
@@ -318,6 +322,11 @@ export function PreparationClient(props: {
         </button>
       </header>
       <div className="flex min-h-0 flex-1 flex-col py-5">
+      {!canOperate ? (
+        <p role="note" data-prep-view-only className="mx-6 mb-3 rounded-[12px] border-[1.5px] border-admin-border bg-admin-surface-alt px-4 py-3 text-[14px] text-admin-ink-muted">
+          {copy.viewOnly}
+        </p>
+      ) : null}
       {msg ? (
         <p role="alert" className="mx-6 mb-3 rounded-[12px] border-[1.5px] border-admin-red/40 bg-admin-critical-soft px-4 py-3 text-[14px] text-admin-red">
           {msg}

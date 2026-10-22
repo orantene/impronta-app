@@ -15,6 +15,8 @@
  *  - nothing here invents a fact; a fork tap is a choice, not a fact.
  */
 
+import type { Essentials } from "./essentials";
+import { withSavedEssentials } from "./understanding-essentials";
 import type { Brief, BriefFact, FactSource } from "@/lib/tulala/brief-store";
 import { booleanFact, listFact, stringFact } from "@/lib/tulala/brief-store";
 import { looksLikeUrl, normalizeWorkspaceSlugCandidate } from "@/lib/saas/workspace-signup";
@@ -292,9 +294,11 @@ export function buildUnderstanding(input: {
   userPath?: OnboardingPath | null;
   /** Flow locale; hours lines render ES day shorts when "es" (TUL-540). */
   locale?: "en" | "es";
+  /** TUL-1822: what step 3 saved, so a finished item never reads "missing". */
+  essentials?: Essentials | null;
 }): Understanding {
   const decided = decidePath(input.brief, input.intent, input.userPath ?? null);
-  const lines = essentialsFor(input.brief, decided.path, input.locale ?? "en");
+  const lines = withSavedEssentials(essentialsFor(input.brief, decided.path, input.locale ?? "en"), input.essentials, input.locale ?? "en");
   const followUps: ModuleQuestionId[] = [];
   if (decided.pathConfidence === "ambiguous") followUps.push("fork");
   for (const q of MODULE_QUESTIONS) {

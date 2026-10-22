@@ -57,10 +57,13 @@ export async function submitApproval(
     if (ctx.decision === "accepted") {
       const { data: offerRow } = await supabase
         .from("inquiry_offers")
-        .select("valid_until")
+        .select("valid_until, status")
         .eq("id", ctx.offerId)
         .eq("tenant_id", ctx.tenantId)
         .maybeSingle();
+      // TUL-1899: an already-accepted offer (settled on pay) stays accepted: a
+      // late approve from a talent or staff is a success that changes nothing.
+      if ((offerRow?.status as string | null) === "accepted") return { success: true, already: true };
       const validUntil = (offerRow?.valid_until as string | null) ?? null;
       if (validUntil && new Date(validUntil).getTime() < Date.now()) {
         return { success: false, error: "offer_expired" };

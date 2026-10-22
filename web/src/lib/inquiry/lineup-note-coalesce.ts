@@ -91,7 +91,8 @@ export function buildLineupNoteBody(count: number, mode: string): string {
  */
 export function localizeLineupNoteBody(body: string, t: (key: string) => string): string {
   const m = /^Lineup · (\d+) talent$/.exec(body);
-  if (m) return t("public.guestChat.systemLineupCount").replace("{count}", m[1]!);
+  // TUL-1901: proper singular ("1 talento") vs plural ("2 talentos").
+  if (m) return t(m[1] === "1" ? "public.guestChat.systemLineupCountOne" : "public.guestChat.systemLineupCount").replace("{count}", m[1]!);
   if (body === "Let the agency recommend") return t("public.guestChat.systemLineupRecommend");
   return body;
 }

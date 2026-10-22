@@ -8,6 +8,7 @@
  * them in. Auto-scrolls to the unread divider on open, else to the bottom.
  */
 
+import { useViewerTimeZone } from "@/lib/messages-v5/viewer-time";
 import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 
@@ -74,6 +75,7 @@ export type ThreadProps = {
 };
 
 export function Thread(props: ThreadProps) {
+  const zone = useViewerTimeZone(); // TUL-1909
   const { row, essentials, messages, error, state, chips, tasks, currentUserId, copy, variant, locale = "en", now = new Date(), origin, headerBusy, nextBusy, onBack, onAction, onCopyText, onRetryLoad, onMoreTasks, menuOpen, onMenu, menuItems, detailsAction, notice, renameSlot, captureSlot, mergeSlot, composer, composerAccessory, seller } = props;
   const kit = copy.kit;
   const shell = copy.shell;
@@ -123,7 +125,7 @@ export function Thread(props: ThreadProps) {
       chips={chips}
       channel={row.channel}
       subject={essentials?.customer.request ?? row.subject}
-      when={mobile ? null : formatTime(row.lastCustomerMessageAt ?? row.updatedAt, locale)}
+      when={mobile ? null : formatTime(row.lastCustomerMessageAt ?? row.updatedAt, locale, zone)}
       owner={owner}
       copy={kit}
       variant={variant}
@@ -203,7 +205,7 @@ export function Thread(props: ThreadProps) {
         }
         const m = it.message;
         const who = it.fromClient ? clientName : it.mine ? shell.you : shell.staff;
-        const metaParts = [who, formatTime(m.createdAt, locale)];
+        const metaParts = [who, formatTime(m.createdAt, locale, zone)];
         if (it.fromClient && m.delivery?.channel) metaParts.push((kit.channel as Record<string, string>)[m.delivery.channel] ?? m.delivery.channel);
         const voice = m.kind === "voice" ? { durationLabel: String((m.payload as { voice?: { durationLabel?: string } } | null)?.voice?.durationLabel ?? kit.stream.voice) } : null;
         return (

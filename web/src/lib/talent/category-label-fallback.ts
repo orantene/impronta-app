@@ -32,6 +32,9 @@ export const PLATFORM_CATEGORY_DICTIONARY: ReadonlyArray<Pair> = [
   { en: "Events", es: "Eventos" },
   { en: "Workshops", es: "Talleres" },
   { en: "Classes", es: "Clases" },
+  // TUL-1891: a Spanish-stored "Experiencias" showed as-is on the EN service page.
+  { en: "Experiences", es: "Experiencias" },
+  { en: "Packages", es: "Paquetes" },
 ];
 
 /** Singular and alternate spellings that map onto a pair (keyed by its English label). */
@@ -51,6 +54,10 @@ const ALIASES: Readonly<Record<string, string>> = {
   taller: "Workshops",
   class: "Classes",
   clase: "Classes",
+  experience: "Experiences",
+  experiencia: "Experiences",
+  package: "Packages",
+  paquete: "Packages",
 };
 
 function norm(s: string): string {

@@ -38,6 +38,7 @@ export function preparationCopy(tr: (key: string) => string): PreparationCopy {
     amendmentBanner: tr("dashboard.preparation.amendmentBanner"),
     gotIt: tr("dashboard.preparation.gotIt"),
     emptyTab: tr("dashboard.preparation.emptyTab"),
+    viewOnly: tr("dashboard.preparation.viewOnly"),
     refusal: {
       not_found: tr("dashboard.preparation.refusal.notFound"),
       wrong_tenant: tr("dashboard.preparation.refusal.wrongTenant"),

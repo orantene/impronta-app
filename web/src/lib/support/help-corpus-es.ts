@@ -286,13 +286,13 @@ export const TALENT_HELP_ES: Record<string, HelpEntry> = {
       "Ver tu plan actual en la tarjeta de plan de Ajustes, bajo Tu plan de página personal",
       "Abrir la comparación (Comparar planes de talento) para ver qué incluyen Free y Oficina Web",
       "Mejorar a Oficina Web, pagando Mensual o Anual",
-      "Usar Manage subscription para actualizar tu forma de pago o cambiar o cancelar un plan de pago",
+      "Usar Administrar facturación (tarjeta Facturación) para actualizar tu forma de pago o cambiar o cancelar un plan de pago",
     ],
     ticketCategory: "Billing",
     faqs: [
       {
         q: "¿Cómo cambio mi plan?",
-        a: "Abre Ajustes y mira la tarjeta de plan, Tu plan de página personal, para ver en qué plan estás. Para mejorar tu plan, toca Upgrade to Web Office, o toca la etiqueta del plan junto a tu nombre en tu perfil para abrir Comparar planes de talento y elegirlo ahí. Para bajar de plan o cancelar un plan de pago, toca Manage subscription en la misma tarjeta. Los detalles de cobro se muestran antes de que confirmes algo.",
+        a: "Abre Ajustes y mira la tarjeta de plan, Tu plan de página personal, para ver en qué plan estás. Para mejorar tu plan, toca Mejorar a Oficina Web, o toca la etiqueta del plan junto a tu nombre en tu perfil para abrir Comparar planes de talento y elegirlo ahí. Para bajar de plan o cancelar un plan de pago, toca Administrar facturación en la tarjeta Facturación de Ajustes. Los detalles de cobro se muestran antes de que confirmes algo.",
       },
       {
         q: "¿Cómo mejoro mi plan?",
@@ -300,11 +300,11 @@ export const TALENT_HELP_ES: Record<string, HelpEntry> = {
       },
       {
         q: "¿Cómo cambio entre pago mensual y anual?",
-        a: "En la ventana para mejorar tu plan, elige Mensual o Anual antes de continuar. Para cambiar el cobro de un plan que ya pagas, toca Manage subscription en Ajustes y revisa las opciones que aparecen ahí antes de confirmar.",
+        a: "En la ventana para mejorar tu plan, elige Mensual o Anual antes de continuar. Para cambiar el cobro de un plan que ya pagas, toca Administrar facturación en la tarjeta Facturación de Ajustes y revisa las opciones que aparecen ahí antes de confirmar.",
       },
       {
         q: "¿Cómo bajo de plan o cancelo mi plan?",
-        a: "Abre Ajustes y toca Manage subscription en la tarjeta de tu plan. Las opciones y los detalles de cobro aparecen antes de que confirmes. Tu página y tus datos siguen seguros en el plan Free, pero las herramientas que son parte de Oficina Web dejan de estar disponibles.",
+        a: "Abre Ajustes y toca Administrar facturación en la tarjeta Facturación. Las opciones y los detalles de cobro aparecen antes de que confirmes. Tu página y tus datos siguen seguros en el plan Free, pero las herramientas que son parte de Oficina Web dejan de estar disponibles.",
       },
       {
         q: "¿Dónde veo en qué plan estoy?",

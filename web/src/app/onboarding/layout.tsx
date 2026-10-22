@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { createTranslator } from "@/i18n/messages";
-import { getMarketingCopy } from "@/lib/marketing/copy";
-import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { OnboardingFooter } from "@/components/onboarding/onboarding-footer";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -29,10 +27,7 @@ export default async function OnboardingLayout({
     >
       <OnboardingTopBar signedIn={Boolean(session.user)} signInLabel={t("public.onboardingShell.signIn")} />
       <main className="flex-1">{children}</main>
-      <OnboardingFooter
-        legalLine={getMarketingCopy(locale).footer.legalLine}
-        labels={{ terms: t("public.onboardingShell.terms"), privacy: t("public.onboardingShell.privacy"), contact: t("public.onboardingShell.contact") }}
-      />
+      <OnboardingFooter />
     </div>
   );
 }
@@ -80,56 +75,5 @@ function OnboardingTopBar({ signedIn, signInLabel }: { signedIn: boolean; signIn
         )}
       </div>
     </header>
-  );
-}
-
-function OnboardingFooter({ legalLine, labels }: { legalLine: string; labels: { terms: string; privacy: string; contact: string } }) {
-  return (
-    <footer
-      className="mt-12 py-8"
-      style={{
-        borderTop: "1px solid var(--plt-hairline)",
-        background: "var(--plt-bg)",
-      }}
-    >
-      <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-3 px-5 sm:flex-row sm:px-8">
-        <p
-          className="text-[0.75rem]"
-          style={{ color: "var(--plt-muted)" }}
-        >
-          {/* Same copyright line as the marketing footer's bottom rail; the
-              category message lives in the logo lockup only. */}
-          © {new Date().getFullYear()} {PLATFORM_BRAND.legalName}. {legalLine}
-        </p>
-        <div className="flex items-center gap-5 text-[0.75rem]">
-          <Link
-            href={`${resolveMarketingOrigin()}/legal/terms`}
-            className="transition-colors hover:text-[var(--plt-ink)]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {labels.terms}
-          </Link>
-          <Link
-            href={`${resolveMarketingOrigin()}/legal/privacy`}
-            className="transition-colors hover:text-[var(--plt-ink)]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {labels.privacy}
-          </Link>
-          {/* /about, not /contact: the marketing host has no /contact page
-              (it is not in MARKETING_PAGE_PREFIXES, and the CMS clean-URL
-              rewrite that would rescue it is agency-hosts-only), so this
-              footer link 404'd on every surface. /about is the contact
-              surface. */}
-          <Link
-            href={`${resolveMarketingOrigin()}/about`}
-            className="transition-colors hover:text-[var(--plt-ink)]"
-            style={{ color: "var(--plt-muted)" }}
-          >
-            {labels.contact}
-          </Link>
-        </div>
-      </div>
-    </footer>
   );
 }

@@ -9,6 +9,7 @@
  */
 import type Stripe from "stripe";
 
+import { syncCustomerPreferredLocale } from "@/lib/stripe/stored-customer";
 import { isDefiniteStripeFailure } from "./stripe-failure";
 import { isCancellationPending } from "./pending-cancellation";
 import { buildBreakdown, renewalAmount } from "./plan-change-breakdown";
@@ -39,6 +40,8 @@ export type PlanChangeStripe = {
   /** TUL-1297: reads the target price's amount + currency for an interval change. */
   prices: Pick<Stripe["prices"], "retrieve">;
   subscriptionSchedules: Pick<Stripe["subscriptionSchedules"], "create" | "update" | "release" | "retrieve">;
+  /** TUL-1874: optional so older fakes still fit; the real client always has it. */
+  customers?: Pick<Stripe["customers"], "update">;
 };
 
 export type PlanChangeRequest = {
@@ -57,6 +60,8 @@ export type PlanChangeRequest = {
    * (see plan-change-promo.server.ts). Never built from a browser value.
    */
   promo?: PlanChangePromoInput | null;
+  /** TUL-1874: the account language; written to the Stripe customer before an immediate change so the invoice PDF follows it. */
+  locale?: string | null;
 };
 
 export type PlanChangePromoInput = {
@@ -284,6 +289,11 @@ export async function confirmPlanChange(
         await stripe.subscriptionSchedules.release(c.scheduleId, {}, { idempotencyKey: key("schedule_release") });
       }
       if (policy.kind === "noop") return { ok: true, kind: policy.kind, timing: "now", effectiveAt: null };
+      // TUL-1874: before the invoice exists, so the proration invoice and its PDF render in the account language.
+      if (stripe.customers) {
+        const customerId = typeof c.sub.customer === "string" ? c.sub.customer : c.sub.customer.id;
+        await syncCustomerPreferredLocale({ customers: stripe.customers }, customerId, req.locale, (e) => req.onError?.("billing.planChange.customerLocale", e));
+      }
       await stripe.subscriptions.update(
         c.sub.id,
         buildImmediateUpdateParams(subject(req, c, toPriceId), prorationDate),

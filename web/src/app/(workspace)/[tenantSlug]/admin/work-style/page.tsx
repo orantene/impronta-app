@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { WorkStyleCard } from "@/components/admin/service-hub/WorkStyleCard";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
-import { canSetWorkStyle, tradeForSeed } from "@/lib/service-hub/work-style";
+import { canSetWorkStyle } from "@/lib/service-hub/work-style";
 import { loadWorkStyle, loadWorkspaceTrade } from "@/lib/service-hub/work-style.server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
@@ -31,7 +31,7 @@ export default async function WorkStylePage() {
       {state.kind === "unknown" ? (
         <p role="alert">{locale === "es" ? "No pudimos cargar esto. Inténtalo otra vez." : "We could not load this. Please try again."}</p>
       ) : (
-        <WorkStyleCard initial={state.kind === "chosen" ? state.choice : null} trade={(await loadWorkspaceTrade(admin, guard.tenantId)) ?? tradeForSeed(guard.tenantId)} locale={locale} />
+        <WorkStyleCard initial={state.kind === "chosen" ? state.choice : null} trade={await loadWorkspaceTrade(admin, guard.tenantId)} locale={locale} />
       )}
     </main>
   );

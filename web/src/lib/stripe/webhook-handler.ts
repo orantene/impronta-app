@@ -80,7 +80,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { classifyRentSubscriptionEvent, isRentPaymentSucceeded } from "@/lib/service-hub/rent/rent-autopay-routing";
 import { handleRentChargeEvent, handleRentDraft, handleRentSubscriptionEvent, handleRentUnbilledPercent } from "@/lib/service-hub/rent/rent-autopay.server";
 import { logServerError } from "@/lib/server/safe-error";
-import { recordDiscountRedemption } from "@/lib/billing/record-discount-redemption";
+import { recordDiscountRedemption, recordPaidInvoiceRedemptions } from "@/lib/billing/record-discount-redemption";
 import { improntaLog } from "@/lib/server/structured-log";
 import { notifyNonBookingDispute } from "@/lib/payments/dispute-notify";
 import {
@@ -752,7 +752,7 @@ export async function processStripeEvent(
           throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
         }
         await syncSubscriptionByType(subscription, event.id);
-        await recordDiscountRedemption(subscription, event.id); // TUL-1872
+        await recordPaidInvoiceRedemptions(stripe, subscription, event.id, event.data.object as Stripe.Invoice); // TUL-1872
         // TUL-1232: one receipt per paid invoice (ledger keyed on the Stripe
         // invoice id, so a replayed event sends nothing). Zero-amount and
         // unpaid invoices are skipped inside the notice.

@@ -21,6 +21,7 @@ src/components/promos/talent/promo-contrast.test.ts
 src/components/promos/talent/promo-switch.test.tsx
 src/components/promos/talent/promos-dashboard-design.static.test.ts
 src/components/promos/talent/promos-drawer.static.test.ts
+src/components/promos/talent/promos-share-no-link.static.test.ts
 src/components/promos/talent/promos-sheet-overflow.static.test.ts
 src/components/promos/talent/share-visibility-amounts-unchanged.test.ts
 src/components/promos/widgets/promo-widget-client.test.ts
@@ -67,6 +68,7 @@ src/lib/email/order-confirmation.test.ts
 src/lib/ledger/write.test.ts
 src/lib/money/talent-payout-breakdown.test.ts
 src/lib/money/total-client-revenue.test.ts
+src/lib/onboarding/talent-plan-display-name.test.ts
 src/lib/orders/complete-order-promo.test.ts
 src/lib/orders/menu-order-lines.test.ts
 src/lib/orders/menu-order-prep.test.ts

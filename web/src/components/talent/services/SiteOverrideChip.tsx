@@ -19,7 +19,7 @@ export function SiteOverrideChip({
       title={overrideWarning(locale)}
       className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950"
     >
-      {overrideBadgeLabel(view.effective, locale)}
+      {overrideBadgeLabel(view.effective, locale, site)}
     </span>
   );
 }

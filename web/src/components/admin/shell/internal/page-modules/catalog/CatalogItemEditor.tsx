@@ -13,6 +13,7 @@
  * it; the tabs that need an id (Options, Availability) say so.
  */
 
+import { setWorkspaceItemPhotos } from "@/lib/talent/menu-offerings-actions";
 import type { ReactNode } from "react";
 
 import { useT } from "@/i18n/use-t";
@@ -110,6 +111,12 @@ export function CatalogItemEditor({
       // applied on top so the insert carries it.
       const saved = await editor.saveDraft(status === "draft" ? draftSeedFor(item) : { status });
       if (saved) {
+        // Photos added before the first save are linked to the new row now.
+        const held = (item.imageAssets ?? []).map((a) => a.id);
+        if (held.length) {
+          const linked = await setWorkspaceItemPhotos(tenantId, saved.id, held);
+          if (linked.ok) editor.syncImages(saved.id, linked.assets);
+        }
         nav.go({ item: saved.id, tab: nav.tab });
         editor.setDraft(null);
       }

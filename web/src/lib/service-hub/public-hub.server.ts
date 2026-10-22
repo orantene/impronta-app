@@ -153,7 +153,7 @@ export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string)
         bookingType: r.booking_type === "instant" ? "instant" : "request",
         members: accepted
           .filter((l) => l.entryId === String(r.id) && sellable.get(l.listingId) === true)
-          .map((l) => ({ listingId: l.listingId, talentName: l.talentName, priceCents: onRequest.has(offeringOf(l.listingId)) ? null : l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),
+          .map((l) => ({ listingId: l.listingId, talentName: l.talentName, offeringId: offeringOf(l.listingId) || null, priceCents: onRequest.has(offeringOf(l.listingId)) ? null : l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),
       };
     });
     const entries = shapePublicEntries(inputs);

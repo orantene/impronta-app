@@ -4,6 +4,7 @@ src/app/(workspace)/?tenantSlug?/admin/people/people-invitations.test.ts
 src/app/api/cron/builder-rollout-ramp/rollout-ramp-cron-logic.test.ts
 src/app/api/health/flags/route.static.test.ts
 src/app/not-found-shell.static.test.ts
+src/app/not-found-title-es.static.test.ts
 src/app/render-branch-parity.static.test.ts
 src/app/t/?profileCode?/_maison/maison-derivations.test.ts
 src/app/t/?profileCode?/_maison/maison-menu.test.ts
@@ -180,6 +181,7 @@ src/lib/server/platform-admin-surfaces.static.test.ts
 src/lib/service-hub/customer-list-talent-audit.static.test.ts
 src/lib/service-hub/roster-chat-request.test.ts
 src/lib/service-hub/roster-request-core.test.ts
+src/lib/service-hub/roster-request-meta.test.ts
 src/lib/settings/role-members.test.ts
 src/lib/site-admin/builder-node/builder-node-editor-published-parity.test.ts
 src/lib/site-admin/builder-node/builder-node-role-bindings.test.ts
@@ -242,6 +244,7 @@ src/lib/talent/offering-moderation.test.ts
 src/lib/talent/offerings-auth-staff-capabilities.test.ts
 src/lib/talent/offerings-public-rows.test.ts
 src/lib/talent/private-fields.test.ts
+src/lib/talent/propose-terms-after-approve.test.ts
 src/lib/talent/services-menu-authorization.test.ts
 src/lib/talent/staff-talent-access.static.test.ts
 src/lib/talent/studio-flag.test.ts

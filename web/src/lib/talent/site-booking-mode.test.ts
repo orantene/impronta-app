@@ -38,8 +38,10 @@ test("own mode that differs from the site mode is an override", () => {
 });
 
 test("copy is bilingual and has no em dashes", () => {
-  assert.equal(overrideBadgeLabel("instant", "en"), "Overrides your site setting: Instant");
-  assert.equal(overrideBadgeLabel("instant", "es"), "Cambia el ajuste de tu sitio: Inmediata");
+  assert.equal(overrideBadgeLabel("instant", "en"), "This service: Instant");
+  assert.equal(overrideBadgeLabel("instant", "es"), "Este servicio: Inmediata");
+  assert.equal(overrideBadgeLabel("request", "es", "instant"), "Este servicio: Por solicitud (tu sitio: Reserva instantánea)");
+  assert.equal(overrideBadgeLabel("request", "en", "instant"), "This service: Request (your site: Instant booking)");
   assert.equal(inheritedModeLabel("instant", "en"), "Instant (site setting)");
   assert.equal(inheritedModeLabel("request", "es"), "Por solicitud (ajuste del sitio)");
   for (const loc of ["en", "es"]) {

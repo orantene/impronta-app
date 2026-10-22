@@ -2,22 +2,28 @@
 
 import { useMemo, useState } from "react";
 
-export type HubAgencyItem = { hostname: string; name: string | null };
+import { visibleHubAgencies, type HubAgencyItem } from "./hub-agency-model";
 
-/** The tenant's name when we have one; the bare domain is the fallback, not the headline (TUL-978). */
-export function hubAgencyLabel(item: HubAgencyItem): { title: string; sub: string | null } {
-  const name = item.name?.trim();
-  return name ? { title: name, sub: item.hostname } : { title: item.hostname, sub: null };
-}
+export type { HubAgencyItem };
 
-/** Hub landing agency list with a small search box (TUL-978). Matches the name and the domain. */
-export function HubAgencyList({ agencies, labels }: { agencies: HubAgencyItem[]; labels: { search: string; noMatch: string } }) {
+/**
+ * Hub landing agency section (TUL-978, TUL-1884): name cards only (no raw addresses), the first
+ * dozen, and a "see all" control for the rest. The search box matches names.
+ */
+export function HubAgencyList({
+  agencies,
+  labels,
+}: {
+  agencies: HubAgencyItem[];
+  labels: { search: string; noMatch: string; seeAll: string; showFewer: string };
+}) {
   const [q, setQ] = useState("");
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return agencies;
-    return agencies.filter((a) => `${a.name ?? ""} ${a.hostname}`.toLowerCase().includes(needle));
-  }, [agencies, q]);
+  const [expanded, setExpanded] = useState(false);
+  const { shown, total, hiddenCount } = useMemo(
+    () => visibleHubAgencies(agencies, q, expanded),
+    [agencies, q, expanded],
+  );
+  const canToggle = !q.trim() && (hiddenCount > 0 || expanded);
 
   return (
     <div className="mt-12">
@@ -35,22 +41,28 @@ export function HubAgencyList({ agencies, labels }: { agencies: HubAgencyItem[];
         <p className="text-sm text-[var(--impronta-muted)]">{labels.noMatch}</p>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {shown.map((agency) => {
-            const { title, sub } = hubAgencyLabel(agency);
-            return (
-              <li key={agency.hostname}>
-                <a
-                  href={`//${agency.hostname}`}
-                  className="block rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm text-foreground transition hover:bg-[var(--impronta-surface)]/60"
-                >
-                  <span className="font-display tracking-[0.08em]">{title}</span>
-                  {sub ? <span className="mt-1 block text-xs text-[var(--impronta-muted)]">{sub}</span> : null}
-                </a>
-              </li>
-            );
-          })}
+          {shown.map((agency) => (
+            <li key={agency.hostname}>
+              <a
+                href={`//${agency.hostname}`}
+                className="block rounded-[var(--site-radius)] border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm text-foreground transition hover:bg-[var(--impronta-surface)]/60"
+              >
+                <span className="font-display tracking-[0.08em]">{agency.name}</span>
+              </a>
+            </li>
+          ))}
         </ul>
       )}
+      {canToggle ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-4 text-sm text-[var(--impronta-gold-dim)] underline underline-offset-4"
+        >
+          {expanded ? labels.showFewer : labels.seeAll.replace("{count}", String(total))}
+        </button>
+      ) : null}
     </div>
   );
 }

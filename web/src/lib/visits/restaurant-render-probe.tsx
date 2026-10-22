@@ -236,6 +236,7 @@ export function probeMarkup(locale: string): string {
         nowIso="2026-09-11T02:00:00.000Z"
         tickets={PROBE_TICKETS}
         copy={preparationCopy(tr)}
+        canOperate
         title="Kitchen"
         subtitle="probe"
       />

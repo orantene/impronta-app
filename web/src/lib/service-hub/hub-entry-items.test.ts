@@ -48,3 +48,8 @@ test("the catalog API, the guest dock and the front-door request all render an e
   const draft = buildRosterRequestDraft("quiero un massage", items);
   assert.equal(draft.lines[0]?.entryId, "roster_entry_e9");
 });
+
+test("TUL-1471: an instant entry becomes an instant item that carries the offering the widget books", () => {
+  const [i] = hubEntriesToRosterItems([entry({ cta: "book", bookOfferingId: "off-1" })]);
+  assert.deepEqual([i.bookingType, i.offeringId], ["instant", "off-1"]);
+});

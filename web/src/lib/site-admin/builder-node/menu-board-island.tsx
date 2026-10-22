@@ -17,7 +17,7 @@ import {
   reconcileQuantities,
   shouldPayInPerson,
 } from "./menu-board-stock";
-import { choiceFor, lineChoiceMissing, optionPriceLabel, type MenuChoice, type MenuChoiceOption } from "./menu-board-choices";
+import { cartSubtotal, choiceFor, lineChoiceMissing, optionPriceLabel, type MenuChoice, type MenuChoiceOption } from "./menu-board-choices";
 import { lowestOptionCents } from "./menu-board-price";
 
 // Do NOT statically import menu-order-actions or menu-board-actions — those
@@ -61,6 +61,8 @@ export type MenuBoardCopy = {
   itemsSelected: string;
   itemsSelectedOne: string;
   selectAtLeastOne: string;
+  /** TUL-1894: label of the running total line in the cart. */
+  subtotal: string;
   /** TUL-1332: "Choose an option" (a dish with options needs one) and the extras heading. */
   chooseOption: string;
   extrasLabel: string;
@@ -193,6 +195,7 @@ const MB_CSS = `
 .site-builder-node--menu-board-field>input:focus-visible{border-color:var(--token-color-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--token-color-primary) 26%,transparent)}
 .site-builder-node--menu-board-form-error{margin:0;padding:0.75rem 0.9rem;border-radius:12px;background:color-mix(in srgb,var(--token-color-primary) 12%,transparent);font-size:0.9rem;line-height:1.4}
 .site-builder-node--menu-board-form-status{margin:0;font-size:0.9rem;font-weight:600;color:var(--token-color-primary)}
+.site-builder-node--menu-board-form-subtotal{display:flex;justify-content:space-between;align-items:baseline;margin:0;font-size:1rem;font-variant-numeric:tabular-nums}
 .site-builder-node--menu-board-form-note{margin:0;font-size:0.85rem;color:var(--token-color-muted)}
 .site-builder-node--menu-board-submit{display:block;width:100%;border:0;border-radius:999px;padding:0.9rem 1.6rem;font:inherit;font-size:0.95rem;font-weight:600;letter-spacing:0.02em;background:var(--token-color-primary);color:var(--token-color-primary-on,var(--primary-foreground));cursor:pointer;transition:filter 160ms ease}
 .site-builder-node--menu-board-submit:not(:disabled):hover{filter:brightness(1.06)}
@@ -347,6 +350,7 @@ export function MenuBoardIsland({
 
   const selectedCount = selectedLines.length;
   const selectedItemCount = selectedLines.reduce((sum, line) => sum + line.quantity, 0);
+  const subtotal = useMemo(() => cartSubtotal(selectedLines), [selectedLines]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -621,6 +625,13 @@ export function MenuBoardIsland({
             autoComplete="tel"
           />
         </label>
+
+        {subtotal ? (
+          <p className="site-builder-node--menu-board-form-subtotal" data-menu-subtotal>
+            <span>{copy.subtotal}</span>
+            <strong>{formatMenuMoney(subtotal.amountCents, subtotal.currency)}</strong>
+          </p>
+        ) : null}
 
         {error ? (
           <p className="site-builder-node--menu-board-form-error" role="alert">
