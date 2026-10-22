@@ -40,3 +40,33 @@ test("public published service check", () => {
   assert.equal(hasPublicPublishedService([{ status: "published", visibility: "public" }]), true);
   assert.equal(hasPublicPublishedService([{ status: "published", visibility: "on_request" }, { status: "draft", visibility: "public" }]), false);
 });
+
+import { recordServicesHiddenIntent } from "./default-services-band";
+import { validateBuilderNodeTree } from "@/lib/site-admin/builder-node/validate";
+
+test("removing the last services block sets the flag, so no default band returns; re-adding clears it", () => {
+  const svc = node("svc", "services_catalog");
+  const before = [hero, svc, contact];
+  const removed = recordServicesHiddenIntent(before, [hero, contact]);
+  assert.equal((removed[0] as unknown as { props: Record<string, unknown> }).props.hideDefaultServices, true);
+  assert.equal(withDefaultServicesBand(removed, { isHome: true, hasPublicServices: true }), removed);
+
+  const readded = recordServicesHiddenIntent(removed, [...removed.slice(0, 1), svc, contact].map((n) => n));
+  assert.equal(JSON.stringify(readded).includes("hideDefaultServices"), false);
+});
+
+test("a save that never had services leaves the tree alone; a remaining services block means no flag", () => {
+  const tree = [hero, contact];
+  assert.equal(recordServicesHiddenIntent(tree, tree), tree);
+  const other = node("svc2", "services_catalog");
+  const out = recordServicesHiddenIntent([hero, node("svc", "services_catalog"), other], [hero, other]);
+  assert.equal(JSON.stringify(out).includes("hideDefaultServices"), false);
+});
+
+test("the flag survives validateBuilderNodeTree so publish keeps it", () => {
+  const box = node("box", "container", { props: { layout: "stack" }, children: [] });
+  const flagged = recordServicesHiddenIntent([box, node("svc", "services_catalog")], [box]);
+  const res = validateBuilderNodeTree(JSON.parse(JSON.stringify(flagged)));
+  assert.equal(res.ok, true);
+  assert.equal((res.tree[0] as unknown as { props: Record<string, unknown> }).props.hideDefaultServices, true);
+});

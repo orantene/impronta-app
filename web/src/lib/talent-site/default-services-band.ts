@@ -57,3 +57,23 @@ export function hasPublicPublishedService(
 ): boolean {
   return offerings.some((o) => o.status === "published" && o.visibility === "public");
 }
+
+const withFlag = (n: BuilderNode, on: boolean): BuilderNode => {
+  const props = { ...((n as Loose).props ?? {}) };
+  if (on) props.hideDefaultServices = true;
+  else delete props.hideDefaultServices;
+  return { ...n, props } as unknown as BuilderNode;
+};
+
+/**
+ * Owner intent on save (the one tree-write chokepoint): removing the last services block records
+ * `hideDefaultServices: true` on the first top-level node so the default band stays away; a tree
+ * that has a services block again clears it. Any other save leaves the flag as it was.
+ */
+export function recordServicesHiddenIntent(previous: unknown, next: readonly BuilderNode[]): BuilderNode[] {
+  const nextHas = hasServiceBlock(next);
+  const flagged = next.some((n) => (n as Loose).props?.hideDefaultServices === true);
+  if (nextHas) return flagged ? next.map((n) => ((n as Loose).props?.hideDefaultServices === true ? withFlag(n, false) : n)) : (next as BuilderNode[]);
+  if (!flagged && hasServiceBlock(previous) && next.length > 0) return next.map((n, i) => (i === 0 ? withFlag(n, true) : n));
+  return next as BuilderNode[];
+}
