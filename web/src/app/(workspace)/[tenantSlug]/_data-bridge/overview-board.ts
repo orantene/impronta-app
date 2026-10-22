@@ -57,6 +57,7 @@ import { loadTenantOwedOrders, loadTenantTakings } from "./payments-activity";
 import { loadWorkspaceOrders } from "./orders";
 import { timed } from "@/lib/server/perf-trace";
 import { formatDashboardMoneyCents } from "@/lib/money/dashboard-money-format";
+import { tenantTimezone } from "@/lib/spaces/venues";
 import { loadSetupItems, readAgencySetupRow } from "./setup-checklist";
 
 const DEFAULT_ZONE = "UTC";
@@ -111,8 +112,13 @@ async function readMoney(
   };
   if (!takings.ok || !owed.ok) return empty;
   const byMethod = groupTakingsByMethod(takings.rows);
-  const currency =
-    byMethod[0]?.currency ?? sumOwedByCurrency(owed.rows)[0]?.currency ?? fallbackCurrency;
+  // TUL-734: the workspace's own currency wins when it has any money here; a stray row in another
+  // currency (a USD-stamped MXN till line) must not turn the whole card into dollars.
+  const owedByCurrency = sumOwedByCurrency(owed.rows);
+  const hasMoneyIn = (c: string) => byMethod.some((m) => m.currency === c) || owedByCurrency.some((o) => o.currency === c);
+  const currency = hasMoneyIn(fallbackCurrency)
+    ? fallbackCurrency
+    : (byMethod[0]?.currency ?? owedByCurrency[0]?.currency ?? fallbackCurrency);
   let cash = 0;
   let card = 0;
   let other = 0;
@@ -397,7 +403,9 @@ export async function loadOverviewSnapshot(input: {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const agency = await readAgencySetupRow(input.tenantId);
-  const timeZone = agency?.timezone?.trim() || DEFAULT_ZONE;
+  // TUL-734: the full ladder (agency column, default venue, appointments setting), not only the
+  // agency column: a venue-only zone used to snapshot as "UTC" and the greeting fell to the viewer's clock.
+  const timeZone = agency?.timezone?.trim() || (await tenantTimezone(input.tenantId).catch(() => DEFAULT_ZONE)) || DEFAULT_ZONE;
   const window = venueDayWindow(now, timeZone, 0) ?? venueDayWindow(now, DEFAULT_ZONE, 0);
   if (!window) return null;
   const takesReservations = agency?.takes_reservations === true;

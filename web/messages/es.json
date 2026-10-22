@@ -3644,7 +3644,13 @@
         "trustSilverRationale": "Ha financiado su cuenta por encima del umbral Plata. Presupuesto real ya en la plataforma.",
         "trustGoldLabel": "De confianza",
         "trustGoldHint": "Saldo alto y actividad sostenida. La señal de confianza más alta.",
-        "trustGoldRationale": "Saldo financiado alto más actividad de reservas sostenida. La señal de confianza más fuerte que emite Tulala."
+        "trustGoldRationale": "Saldo financiado alto más actividad de reservas sostenida. La señal de confianza más fuerte que emite Tulala.",
+        "trustBoostBasicTitle": "Verifícate y abre más bandejas de talento",
+        "trustBoostLevelTitle": "Estás en {label}",
+        "trustBoostBasicBody": "La verificación confirma que eres un cliente real. El talento que filtra consultas anónimas verá tu próximo mensaje.",
+        "trustBoostVerifiedBody": "La actividad con saldo financiado te lleva a Plata. Sin costo extra, solo una señal más fuerte de que estás listo para reservar.",
+        "trustBoostSilverBody": "La actividad sostenida más saldo financiado te lleva a De confianza, la señal de confianza más fuerte que emite Tulala.",
+        "trustBoostCta": "Verifícate · $29"
       },
       "monetization": {
         "payouts": "Pagos",

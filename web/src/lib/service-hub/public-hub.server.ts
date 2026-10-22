@@ -44,7 +44,7 @@ const EMPTY_HUB = (): PublicHub => ({ entries: [], coveredListingIds: new Set() 
 export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string): Promise<PublicHub> {
   try {
     const { data: rows, error } = await tenantScopedQuery(admin, "workspace_service_entries", hostTenantId)
-      .select("id, name, category, photo_media_id, hub_price_cents, currency, show_who, featured, hidden, own_offering_id")
+      .select("id, name, category, photo_media_id, hub_price_cents, currency, show_who, featured, hidden, own_offering_id, booking_type")
       .eq("hidden", false);
     if (error) {
       if (!missing(error)) logServerError("serviceHub.public.entries", error);
@@ -150,6 +150,7 @@ export async function loadPublicHub(admin: SupabaseClient, hostTenantId: string)
         featured: r.featured === true,
         hidden: r.hidden === true,
         ownOfferingId: own,
+        bookingType: r.booking_type === "instant" ? "instant" : "request",
         members: accepted
           .filter((l) => l.entryId === String(r.id) && sellable.get(l.listingId) === true)
           .map((l) => ({ listingId: l.listingId, talentName: l.talentName, priceCents: onRequest.has(offeringOf(l.listingId)) ? null : l.priceCents, currency: l.currency, sellable: sellable.get(l.listingId) === true })),

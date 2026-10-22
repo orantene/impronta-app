@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
-import { tradeFromCategories, type ExampleTrade } from "./work-style";
+import { tradeFromCategories, tradeFromIndustryPreset, type ExampleTrade } from "./work-style";
 import { planWorkStyleChange, presetFor, rowToChoice, storedToPreset, type Change, type StoredWorkStyle, type WorkStyleChoice } from "./work-style";
 
 /**
@@ -129,5 +129,14 @@ export async function loadWorkspaceTrade(admin: SupabaseClient, tenantId: string
     return null;
   }
   const rows = (data ?? []) as Array<{ category?: string | null; title?: string | null }>;
-  return tradeFromCategories(rows.flatMap((r) => [r.category, r.title]));
+  const fromServices = tradeFromCategories(rows.flatMap((r) => [r.category, r.title]));
+  if (fromServices) return fromServices;
+  // No clear trade in the services (a restaurant sells menu items, not offerings): use its industry.
+  const { data: agency, error: aErr } = await admin.from("agencies").select("settings").eq("id", tenantId).maybeSingle();
+  if (aErr) {
+    logServerError("service-hub.workStyle.tradePreset", aErr);
+    return null;
+  }
+  const settings = (agency as { settings?: { industry_preset?: unknown } | null } | null)?.settings;
+  return tradeFromIndustryPreset(settings?.industry_preset);
 }

@@ -30,7 +30,8 @@ export function WorkStyleSettingsRow() {
     let cancelled = false;
     void loadWorkStyleAction().then((r) => {
       if (cancelled) return;
-      setState(r.ok ? { choice: r.choice } : "hidden");
+      // A failed read still shows the door (the page re-checks the role); only an explicit "not allowed" hides it.
+      setState(r.ok ? { choice: r.choice } : r.reason === "not_allowed" ? "hidden" : { choice: null });
     });
     return () => {
       cancelled = true;
