@@ -44,6 +44,7 @@ function fake(opts: { failTable?: string } = {}) {
     const chain = () => b;
     b.select = chain; b.order = chain; b.limit = chain; b.gte = chain; b.in = chain;
     b.eq = (c: string, v: unknown) => { rows = rows.filter((r) => !(c in r) || r[c] === v); return b; };
+    b.neq = (c: string, v: unknown) => { rows = rows.filter((r) => !(c in r) || r[c] !== v); return b; };
     b.not = (c: string) => { rows = rows.filter((r) => r[c] != null); return b; };
     b.maybeSingle = async () => ({ data: rows[0] ?? null, error: null });
     b.then = (ok: (v: unknown) => unknown) =>
