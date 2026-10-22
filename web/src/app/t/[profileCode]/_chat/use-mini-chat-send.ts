@@ -236,13 +236,25 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     }
   }
 
+  /** The structured roster request for `sentence`, or the sentence itself. Never blocks a send. */
+  async function rosterRequestBody(sentence: string): Promise<string> {
+    try {
+      const { buildRosterRequestFromSentence } = await import("@/lib/server-actions/roster-request");
+      const res = await buildRosterRequestFromSentence({ sentence, locale: args.locale ?? null });
+      return res.ok ? res.message : sentence;
+    } catch {
+      return sentence;
+    }
+  }
+
   async function handleFirstSendUnlocked() {
     // When the gate was forced by "Send to agency" (rail-first flow), the guest
     // may have typed no chat line — synthesize a default first message so the
     // submit still lands. Normal composer behavior (empty draft = no-op) holds
     // when the CTA did not initiate this send.
-    const body = draft.trim() || (sendToAgencyPendingRef.current ? DEFAULT_FIRST_BODY : "");
-    if (!body) return;
+    const typed = draft.trim() || (sendToAgencyPendingRef.current ? DEFAULT_FIRST_BODY : "");
+    if (!typed) return;
+    let body = typed;
     const hasContact = Boolean(firstName.trim()) && EMAIL_RE.test(email.trim());
     // F-09: a price/duration question is answered from the public services with
     // no identity wall; contact is asked only to book or get a person's reply.
@@ -270,6 +282,9 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       setError(null);
       return;
     }
+    // TUL-1415 / TUL-1587: on a workspace host whose roster matches the sentence, the
+    // first message becomes ONE structured request (service lines, party, day).
+    body = await rosterRequestBody(typed);
     // Findings #1 / #5: an early-partial row may already exist (a prior chip /
     // cart action created it with the synthetic seed contact). Promote-then-send
     // to that id instead of creating a second/shadow inquiry; this is also the
@@ -319,7 +334,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
       }
       if (!res.ok) {
         setRows((cur) => markRowFailed(cur, tmpId));
-        setDraft(body);
+        setDraft(typed);
         applyFailure(res.code, res.message, res.retryAfterMs, {
           gateTier: res.gateTier,
           activeCount: res.activeCount,
@@ -353,7 +368,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     } catch {
       setSending(false);
       setRows((cur) => markRowFailed(cur, tmpId));
-      setDraft(body);
+      setDraft(typed);
       applyFailure("engine_error", t("public.guestChat.notSent"));
     }
   }

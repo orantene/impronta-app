@@ -6,6 +6,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { loadTalentEarningsWithSupabase } from "@/lib/talent/earnings";
 import { calendarByChannel, type ChannelCalendarRow } from "./service-hub-calendar";
 import { earningsByChannel, whereItsSold, type ChannelEarnings, type WhereSoldRow } from "./service-hub-channels";
+import { loadChannelWorkspaces } from "./service-hub-channel-names.server";
 import { appearingIn, isMissingRelation, soldListingsFromRows, type Appearance } from "./service-hub-channels-rows";
 
 export type ServiceChannels = {
@@ -68,10 +69,9 @@ export async function loadServiceHubChannels(
     const tenantIds = [...new Set([...listings, ...terms].map((r) => String(r.tenant_id)).filter(Boolean))];
     const names = new Map<string, string>();
     if (tenantIds.length > 0) {
-      const { data: agencies, error } = await supabase.from("agencies").select("id, display_name").in("id", tenantIds);
       // Names are cosmetic: a failed read falls back to the id, the numbers stand.
-      if (error) logServerError("serviceHub.channels.names", error);
-      for (const a of agencies ?? []) names.set(String(a.id), String(a.display_name ?? a.id));
+      const ws = await loadChannelWorkspaces(supabase, tenantIds);
+      if (ws.ok) for (const w of ws.rows) names.set(w.id, w.displayName);
     }
 
     const services: ServiceChannels[] = ((offeringsRes.data ?? []) as Array<Record<string, unknown>>).map((o) => {
@@ -142,15 +142,15 @@ async function loadCalendar(
   const hub = new Set<string>();
   const names = new Map(knownNames);
   if (tenantIds.length > 0) {
-    const { data, error } = await supabase.from("agencies").select("id, display_name, kind").in("id", tenantIds);
+    const ws = await loadChannelWorkspaces(supabase, tenantIds);
     // Names are cosmetic, but the hub marker decides the label: without it, fail the whole read.
-    if (error) {
-      logServerError("serviceHub.channels.calendarTenants", error);
+    if (!ws.ok) {
+      logServerError("serviceHub.channels.calendarTenants", new Error("workspace read failed"));
       return { ok: false };
     }
-    for (const a of data ?? []) {
-      names.set(String(a.id), String(a.display_name ?? a.id));
-      if (a.kind === "hub") hub.add(String(a.id));
+    for (const w of ws.rows) {
+      names.set(w.id, w.displayName);
+      if (w.kind === "hub") hub.add(w.id);
     }
   }
   const rows = calendarByChannel({
