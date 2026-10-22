@@ -14,7 +14,7 @@ import { userHasCapability } from "@/lib/access";
 import { OFFERING_CURATION_CAPABILITY, resolveServerOwnedOfferingFields } from "@/lib/talent/offering-server-owned";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveDefaultCurrencyForUI } from "@/lib/billing/currencies";
-import { defaultCreateTypeForFamily, defaultCurrencyForCountry, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
+import { defaultCreateTypeForFamily, defaultCurrencyForCountry, dominantItemCurrency, type CatalogCreateTypeId } from "@/lib/catalog/service-defaults";
 import { resolveTenantBusinessType } from "@/lib/site-admin/builder-core/site-templates/tenant-business-type";
 import { setOfferingStock } from "@/lib/capacity";
 import { loadNonMenuOfferingIds, withoutNonMenuOfferings } from "@/lib/offerings/non-menu-offerings";
@@ -206,7 +206,11 @@ export async function loadWorkspaceMenuForEditor(tenantId: string): Promise<Load
     return {
       ok: true,
       items,
-      defaultCurrency: defaultCurrencyForCountry(defaults.addressCountry, auth.defaultCurrency),
+      // Country wins; with no mapped country, follow what the menu already uses (TUL-1409).
+      defaultCurrency:
+        defaultCurrencyForCountry(defaults.addressCountry, "") ||
+        dominantItemCurrency(items.map((i) => i.currency)) ||
+        auth.defaultCurrency,
       defaultCreateType: defaultCreateTypeForFamily(family),
     };
   } catch (err) {

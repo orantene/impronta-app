@@ -98,6 +98,8 @@ export function VenueSettingsCard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
+  // TUL-1409: bumps on each save so the spaces editor reloads once the venue exists.
+  const [savedCount, setSavedCount] = useState(0);
   const [showAddress, setShowAddress] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -149,6 +151,7 @@ export function VenueSettingsCard({
         setVenue(res.venue);
         setSource(res.resolved.source);
         setSavedOk(true);
+        setSavedCount((n) => n + 1);
       } else {
         setError(res.error);
       }
@@ -345,7 +348,7 @@ export function VenueSettingsCard({
       {/* Rooms, tables and groups. Below the venue because a space needs a venue
           to hang off, and the timezone is the field that changes behaviour. */}
       <hr style={{ border: "none", borderTop: `1px solid ${C.borderSoft}`, margin: "4px 0" }} />
-      <SpacesEditor tenantSlug={tenantSlug} />
+      <SpacesEditor tenantSlug={tenantSlug} reloadKey={savedCount} />
     </div>
   );
 }
