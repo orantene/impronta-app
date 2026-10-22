@@ -10754,7 +10754,6 @@
         "dismissHint": "Tap anywhere to dismiss · auto-closes in 6s",
         "unlocks": {
           "studio": {
-            "customDomain": "Custom domain",
             "ownedClientList": "Owned client list",
             "upTo50Talents": "Up to 50 talents",
             "privateInquiryInbox": "Private inquiry inbox"

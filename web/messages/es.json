@@ -10754,7 +10754,6 @@
         "dismissHint": "Toca donde sea para cerrar · se cierra solo en 6 s",
         "unlocks": {
           "studio": {
-            "customDomain": "Dominio propio",
             "ownedClientList": "Lista de clientes propia",
             "upTo50Talents": "Hasta 50 talentos",
             "privateInquiryInbox": "Bandeja de consultas privada"

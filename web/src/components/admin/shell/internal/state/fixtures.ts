@@ -1529,7 +1529,7 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     values: {
       free: "Public directory listing",
       website: "Your own domain, in English and Spanish",
-      studio: "Public directory + custom domain",
+      studio: "Public directory",
       agency: "Branded domain · embedded widgets · API",
       network: "Multi-domain · partner network · sub-tenants",
     },

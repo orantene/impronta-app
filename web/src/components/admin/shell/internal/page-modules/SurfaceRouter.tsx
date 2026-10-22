@@ -81,7 +81,7 @@ function UpgradeCelebration() {
   const unlockKeys: Record<Plan, string[]> = {
     free:    [],
     website: ["customDomain", "bilingualSite", "formsInbox", "acceptPayments"],
-    studio:  ["customDomain", "ownedClientList", "upTo50Talents", "privateInquiryInbox"],
+    studio:  ["ownedClientList", "upTo50Talents", "privateInquiryInbox"],
     agency:  ["brandedDesignSystem", "customRosterFields", "teamRoles25", "upTo200Talents"],
     network: ["multiBrandWorkspaces", "crossRosterPool", "hubAnalytics", "unlimitedEverything"],
   };
