@@ -22,8 +22,17 @@ export function restoredAge18(
   return Boolean(snapshot?.briefId) && snapshot?.briefId === currentBriefId && hasAge18Confirmation(snapshot?.state?.age18ConfirmedAt);
 }
 
+/** TUL-1847: the save step's own tick, restored the same way as the 18+ tick. */
+export function restoredAgeTerms(
+  snapshot: Pick<ResumeSnapshot, "briefId" | "state"> | null,
+  currentBriefId: string | null,
+): boolean {
+  return Boolean(snapshot?.briefId) && snapshot?.briefId === currentBriefId && hasAge18Confirmation(snapshot?.state?.ageTermsTickedAt);
+}
+
 export function useAge18Confirmed(resume: ResumeSnapshot | null, briefId: string | null) {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsRestored, setTermsRestored] = useState(false);
   const seen = useRef<ResumeSnapshot | null>(null);
   useEffect(() => {
     if (resume) {
@@ -31,7 +40,8 @@ export function useAge18Confirmed(resume: ResumeSnapshot | null, briefId: string
       return;
     }
     if (seen.current && restoredAge18(seen.current, briefId)) setAgeConfirmed(true);
+    if (seen.current && restoredAgeTerms(seen.current, briefId)) setTermsRestored(true);
     seen.current = null;
   }, [resume, briefId]);
-  return { ageConfirmed, setAgeConfirmed };
+  return { ageConfirmed, setAgeConfirmed, termsRestored };
 }

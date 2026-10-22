@@ -25,6 +25,7 @@ const KEYS = [
   "itemsSelected",
   "itemsSelectedOne",
   "selectAtLeastOne",
+  "subtotal",
   "chooseOption",
   "extrasLabel",
   "name",

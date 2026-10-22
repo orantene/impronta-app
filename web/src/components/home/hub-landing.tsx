@@ -1,8 +1,10 @@
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
+import { buildHubAgencyEntries, type HubAgencyDomainRow } from "@/lib/home/hub-agency-entries";
 import { HubAgencyList } from "./hub-agency-list";
-import { filterPublicHubAgencies, tenantsWithRealOwner, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
+import { isPublicHubAgency, tenantsWithRealOwner, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
 import { hubCmsTitle, hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
+import { resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
@@ -13,7 +15,6 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
-import { rehomeToPublicRoot } from "@/lib/brand/public-root-domain";
 import { canonicalTalentUrl, isDevOnlyHostname } from "@/lib/saas/canonical-hosts";
 import { createTranslator } from "@/i18n/messages";
 import { hubMayListTalent, mapTenantDiscoverExposure } from "@/lib/saas/discover-exposure";
@@ -267,7 +268,7 @@ async function loadHubApprovedTalent(
   return cards;
 }
 
-type AgencyDomainRow = { hostname: string; kind: string; tenant_id?: string | null };
+type AgencyDomainRow = HubAgencyDomainRow;
 type CmsHomeRow = { tenant_id: string | null };
 
 /**
@@ -277,7 +278,7 @@ type CmsHomeRow = { tenant_id: string | null };
  */
 export const HUB_AGENCY_LIST_REVALIDATE_SECONDS = 600;
 const cachedAgencyList = (): Promise<HubAgencyItem[]> =>
-  unstable_cache(computeActiveAgencyDomains, ["hub-landing:agency-list", rehomeToPublicRoot("x.tulala.digital")], {
+  unstable_cache(computeActiveAgencyDomains, ["hub-landing:agency-list", resolvePublicRootDomain(process.env)], {
     revalidate: HUB_AGENCY_LIST_REVALIDATE_SECONDS,
     tags: ["hub-landing:agencies"],
   })();
@@ -313,6 +314,7 @@ async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   // (they head every storefront); a failed read only costs the nicer label.
   type AgencyMeta = Pick<HubAgencyCandidate, "name" | "status" | "discoverExposureEnabled" | "settings" | "agencyKind">;
   const meta = new Map<string, AgencyMeta>();
+  const slugs = new Map<string, string>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
   if (!admin && tenantIds.length > 0) throw new Error("hubLanding: service-role client unavailable");
@@ -320,17 +322,19 @@ async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
     // TUL-1884: status + exposure + settings flags decide whether a workspace is listed publicly.
     const { data: agencyRows, error: namesError } = await admin
       .from("agencies")
-      .select("id, display_name, status, kind, discover_exposure_enabled, settings")
+      .select("id, display_name, slug, status, kind, discover_exposure_enabled, settings")
       .in("id", tenantIds);
     if (namesError) throw namesError;
     for (const a of (agencyRows ?? []) as Array<{
       id: string;
       display_name: string | null;
+      slug?: string | null;
       status: string | null;
       kind: string | null;
       discover_exposure_enabled: boolean | null;
       settings: Record<string, unknown> | null;
     }>) {
+      if (a.slug) slugs.set(a.id, a.slug); // TUL-1843: the /w/<slug> fallback for custom-domain-only tenants
       meta.set(a.id, {
         name: a.display_name?.trim() || null,
         status: a.status,
@@ -354,19 +358,29 @@ async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
     for (const h of (homes ?? []) as CmsHomeRow[]) if (h.tenant_id) published.add(h.tenant_id);
   }
   const realOwned = await loadTenantsWithRealOwner(admin, tenantIds);
-  // TUL-1843: staging rows carry production-pattern `*.tulala.digital` hostnames; re-home them
-  // onto this environment's root so a staging hub never links to production. Dedupe after.
-  const seen = new Set<string>();
-  const candidates: HubAgencyCandidate[] = [];
+  // Eligibility (TUL-1884) decides WHICH tenants are listed; buildHubAgencyEntries (TUL-1843) decides each
+  // entry's href: production-pattern hosts re-homed onto this environment, live custom domains dropped off
+  // production, `/w/<slug>` for a custom-domain-only tenant. One card per tenant, custom domain first.
+  const names = new Map<string, string>();
+  const rowsByTenant = new Map<string, AgencyDomainRow[]>();
   for (const r of rows) {
-    const hostname = rehomeToPublicRoot(r.hostname);
-    if (seen.has(hostname)) continue;
-    seen.add(hostname);
-    // A domain whose workspace row could not be read has no name or status: it is not listed.
     const m = r.tenant_id ? meta.get(r.tenant_id) : undefined;
-    candidates.push({ hostname, tenantId: r.tenant_id, domainKind: r.kind, hasPublishedHomepage: Boolean(r.tenant_id && published.has(r.tenant_id)), hasRealOwner: Boolean(r.tenant_id && realOwned.has(r.tenant_id)), agencyKind: m?.agencyKind ?? null, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings });
+    // A domain whose workspace row could not be read has no name or status: it is not listed.
+    const candidate: HubAgencyCandidate = { hostname: r.hostname, tenantId: r.tenant_id, domainKind: r.kind, hasPublishedHomepage: Boolean(r.tenant_id && published.has(r.tenant_id)), hasRealOwner: Boolean(r.tenant_id && realOwned.has(r.tenant_id)), agencyKind: m?.agencyKind ?? null, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings };
+    if (!r.tenant_id || !isPublicHubAgency(candidate)) continue;
+    if (m?.name) names.set(r.tenant_id, m.name);
+    rowsByTenant.set(r.tenant_id, [...(rowsByTenant.get(r.tenant_id) ?? []), r]);
   }
-  return filterPublicHubAgencies(candidates);
+  const seen = new Set<string>();
+  const out: HubAgencyItem[] = [];
+  for (const tenantRows of rowsByTenant.values()) {
+    const ordered = [...tenantRows].sort((x, y) => Number(y.kind === "custom") - Number(x.kind === "custom"));
+    const entry = buildHubAgencyEntries(ordered, names, process.env, slugs)[0];
+    if (!entry || !entry.name || seen.has(entry.hostname)) continue;
+    seen.add(entry.hostname);
+    out.push({ hostname: entry.hostname, name: entry.name });
+  }
+  return out;
 }
 
 /**

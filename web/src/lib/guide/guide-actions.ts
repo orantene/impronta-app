@@ -15,8 +15,8 @@ import { getGuideArticle, listGuideTopics } from "./guide-corpus";
 import type { GuideArticle, GuideLocale, GuideTopicSummary } from "./types";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 
-export async function listGuideTopicsAction(locale: GuideLocale): Promise<GuideTopicSummary[]> {
-  return listGuideTopics(locale);
+export async function listGuideTopicsAction(locale: GuideLocale, surface?: string | null): Promise<GuideTopicSummary[]> {
+  return listGuideTopics(locale, surface);
 }
 
 export async function getGuideArticleAction(nodeId: string, locale: GuideLocale): Promise<GuideArticle | null> {

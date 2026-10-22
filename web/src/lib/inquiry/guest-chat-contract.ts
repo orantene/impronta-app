@@ -23,6 +23,7 @@
 
 import type { EnsureGuestChatInquiryCallback, GetGuestInquiryDetailsCallback, ListGuestInquiriesCallback, ListGuestTenantRosterCallback, ResolveGuestCartPortraitsCallback } from "./guest-chat-unified-contract"; // imported to annotate props below; also re-exported from this barrel further down
 import type { InquiryReceiptData } from "./inquiry-receipt-contract";
+import type { RosterRequestWire } from "@/lib/service-hub/roster-request-meta";
 import type { OfferingCtaKind } from "@/lib/talent/offerings-types";
 import type { OfferingTaskBrief } from "@/lib/talent/offering-task-brief";
 import type { ClientOfferSummary } from "@/lib/messages-v5/client-thread-view"; // pure module (no server import); L13 v5 extras below // Jon 360 Phase 2 receipt; annotated on GetGuestThreadResult below + re-exported from this barrel
@@ -378,6 +379,11 @@ export type StartGuestChatInput = {
   entryPoint?: "inquiry_form" | null;
   /** WSF D: every service picked when more than one (→ source_context.lines). */
   lines?: { offering_id: string; title: string; amount_cents: number | null; currency: string }[] | null;
+  /**
+   * TUL-1415 / TUL-1587: the structured roster request the front-door chat built from the first
+   * sentence. Only opaque entry ids + quantities; the server re-validates against the tenant roster.
+   */
+  rosterRequest?: RosterRequestWire | null;
 };
 
 export type StartGuestChatResult =
@@ -425,6 +431,8 @@ export type SendGuestMessageInput = {
   captchaToken?: string | null;
   /** Guest UI locale (en/es) so assistant replies match the storefront. */
   locale?: string | null;
+  /** TUL-1415 / TUL-1587: the structured roster request for this message (re-validated server-side). */
+  rosterRequest?: RosterRequestWire | null;
 };
 
 export type SendGuestMessageResult =

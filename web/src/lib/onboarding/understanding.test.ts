@@ -109,3 +109,19 @@ test("/start summary: an earlier blank fact for a key does not hide the value th
   assert.equal(u.lines.find((l) => l.id === "city")?.value, "Tulum");
   assert.equal(u.lines.find((l) => l.id === "city")?.status, "known");
 });
+
+import type { Essentials } from "./essentials";
+
+test("TUL-1822: services, hours and place saved on step 3 never read as missing", () => {
+  const fx = fixtureById("mariana");
+  const brief = { ...briefFromOnboardingFixture(fx), facts: [] };
+  const week = { "0": [], "1": [{ startMin: 540, endMin: 1140 }], "2": [], "3": [], "4": [], "5": [], "6": [] } as Essentials["hours"];
+  const essentials = { name: "Ana", services: [{ name: "Corte", durationMin: 30, priceCents: 1000, quote: false, currency: "MXN" }], hours: week, timezone: null, place: { mode: "client", area: "Tulum" }, firstProviderEmail: null, firstProviderName: null, ownerProvides: true, confirmed: true, source: "manual" } as Essentials;
+  const before = buildUnderstanding({ brief, intent: "business", userPath: "business" });
+  const after = buildUnderstanding({ brief, intent: "business", userPath: "business", essentials });
+  const status = (u: typeof before, id: string) => u.lines.find((l) => l.id === id)?.status;
+  for (const id of ["offer", "hours", "city"]) {
+    assert.equal(status(before, id), "missing", `${id} before`);
+    assert.equal(status(after, id), "known", `${id} after`);
+  }
+});

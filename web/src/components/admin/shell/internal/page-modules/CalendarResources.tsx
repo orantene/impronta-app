@@ -36,6 +36,7 @@ import type { AppointmentRow } from "@/lib/scheduling/appointments-board";
 import { resolveCalendarClock } from "@/lib/scheduling/calendar-clock";
 import { utcToZonedYmd } from "@/lib/scheduling/tz";
 import { loadSchedule, type ScheduleNight, type ScheduleSeries } from "@/lib/sessions/schedule-actions";
+import { RESERVATION_MINUTES, reservationsOnDay } from "./calendar-reservations";
 import type { CalendarEvent } from "@/app/(workspace)/[tenantSlug]/_data-bridge/calendar";
 import { Icon } from "../primitives";
 import { buildSessionRows, type SessionRow } from "./appointments-classes-model";
@@ -182,6 +183,10 @@ export function CalendarResources({
   const daySessions: SessionRow[] = sessions.filter((s) => s.ymd === day);
   const dayHolds = holds.filter((h) => h.kind === "hold" && h.starts_at && utcToZonedYmd(new Date(h.starts_at), timeZone) === day);
 
+  // TUL-1841: table reservations (kind "reservation", read from admissions) were only drawn in the
+  // month and list views; this default desktop view skipped them. Their day is the loader's local day.
+  const dayReservations = reservationsOnDay(holds, day);
+
   const locations = [...new Set([...dayRows.flatMap((r) => r.places), ...daySessions.map((s) => s.room).filter((r): r is string => r !== null)])].sort();
   const people = [...new Set(dayRows.flatMap((r) => r.servedBy))].sort();
   const services = [...new Set(dayRows.map((r) => r.title))].sort();
@@ -248,6 +253,17 @@ export function CalendarResources({
       startMin,
       endMin: endMin !== null && endMin > startMin ? endMin : startMin + 60,
       tone: "hold",
+    });
+  }
+  for (const r of dayReservations) {
+    const startMin = minutesOfDay(r.starts_at, r.timezone || timeZone);
+    if (startMin === null) continue;
+    push(lane("r:reservations", t("dashboard.adminCalendar.reservationLabel"), "resource"), {
+      id: r.id,
+      label: `${t("dashboard.adminCalendar.reservationLabel")}: ${r.contact_name}`,
+      startMin,
+      endMin: startMin + RESERVATION_MINUTES,
+      tone: "confirmed",
     });
   }
   lanes.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "person" ? -1 : b.kind === "person" ? 1 : a.kind === "resource" ? -1 : 1));

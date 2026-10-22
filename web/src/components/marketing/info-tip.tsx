@@ -9,7 +9,7 @@ export function InfoTip({ label, text }: { label: string; text: string }) {
       <button
         type="button"
         aria-label={`${label}: ${text}`}
-        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[0.6875rem] font-semibold leading-none focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="relative inline-flex h-5 w-5 items-center justify-center rounded-full before:absolute before:-inset-3 before:content-[''] text-[0.6875rem] font-semibold leading-none focus-visible:outline-2 focus-visible:outline-offset-2"
         style={{ border: "1px solid currentColor", opacity: 0.7 }}
       >
         i

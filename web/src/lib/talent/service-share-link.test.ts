@@ -8,7 +8,7 @@ import { hubBookHashIntent } from "@/lib/talent-site/hub-book-hash";
 import { resolveServiceBySlug } from "@/lib/talent-site/service-page";
 import type { OfferingRequestDetail } from "@/lib/talent/offering-request-detail";
 
-import { hubServiceHash, offeringId8, parseHubServiceHash, serviceShareUrl } from "./service-share-link";
+import { hubServiceHash, isServiceShareable, offeringId8, parseHubServiceHash, serviceShareUrl } from "./service-share-link";
 
 const ID = "3f2a9c1b-0000-4000-8000-000000000001";
 const PROFILE = { id: "directory", href: "/t/TAL-00031" };
@@ -119,4 +119,74 @@ test("TUL-1270 #13 review: the profile link uses the server's canonical /t host,
   assert.equal(r?.url, "https://tulala.digital/t/TAL-00031#book-3f2a9c1b");
   const loader = readFileSync(join(process.cwd(), "src/lib/talent/services-settings-actions.ts"), "utf8");
   assert.match(loader, /shareUrl: await canonicalTalentUrl\(code\)/);
+});
+
+// ── TUL-1270 (staging): the copied link must open the page the host serves ──
+import { serviceRouteVerdict, needsServiceLookup } from "@/lib/talent-site/route-verdict";
+import { servicePageHrefs } from "@/lib/talent-site/service-page";
+
+const LIVE = { id: ID, title: "QA Limpieza de casa", kind: "service" as const, visibility: "public" as const, description: null, priceDisplay: "exact", amountCents: 1, currency: "MXN", durationMinutes: 60 };
+const HOST = { id: "website", href: "https://qa-fixture-g6-limpieza.staging.tulala.digital/" };
+
+test("TUL-1270: the share URL is exactly the public page address and the route renders it", () => {
+  const r = serviceShareUrl({
+    offering: { ...LIVE, status: "published", moderationState: "approved" },
+    destinations: [HOST],
+    origin: "https://app.tulala.digital",
+  });
+  assert.equal(r?.url, "https://qa-fixture-g6-limpieza.staging.tulala.digital/servicio-qa-limpieza-de-casa-3f2a9c1b");
+  const path = new URL(r!.url).pathname.slice(1);
+  assert.equal(needsServiceLookup(path, undefined), true);
+  assert.equal(serviceRouteVerdict(path, [LIVE], []), "render");
+  // The home service cards link to the same address (one builder, cannot drift).
+  assert.equal(servicePageHrefs([LIVE], "https://qa-fixture-g6-limpieza.staging.tulala.digital")[ID], r!.url);
+});
+
+test("TUL-1270: a draft, archived, unapproved or agency-only service is not shareable (no dead link)", () => {
+  for (const o of [
+    { status: "draft" },
+    { status: "archived" },
+    { status: "published", moderationState: "pending" },
+    { status: "published", moderationState: "approved", visibility: "agency_only" },
+  ]) {
+    const offering = { ...LIVE, ...o };
+    assert.equal(isServiceShareable(offering), false, JSON.stringify(o));
+    assert.equal(serviceShareUrl({ offering, destinations: [HOST, PROFILE], origin: "https://x" }), null);
+  }
+  assert.equal(isServiceShareable({ ...LIVE, status: "published", moderationState: "approved" }), true);
+});
+
+test("TUL-1270: the share sheet explains a non-public service in en and es", () => {
+  const sheet = readFileSync(join(process.cwd(), "src/components/talent/services/ServiceShareSheet.tsx"), "utf8");
+  assert.match(sheet, /isServiceShareable\(item\)/);
+  assert.match(sheet, /notPublic: "This service is not public yet/);
+  assert.match(sheet, /notPublic: "Este servicio aún no es público/);
+});
+
+import { serviceHiddenAsTest } from "./service-share-link";
+import { hideTestServiceOnPublicSite, QA_FIXTURE_TENANT_IDS } from "./qa-test-service";
+
+test("TUL-1270: a QA-named service on a test/demo profile is flagged hidden, using the loader's own helper", () => {
+  const T = "11111111-1111-4111-8111-111111111111";
+  const qa = { title: "QA Limpieza de casa" };
+  assert.equal(serviceHiddenAsTest(qa, T, true), true);
+  assert.equal(serviceHiddenAsTest(qa, T, false), false, "a real talent keeps QA-named services");
+  assert.equal(serviceHiddenAsTest({ title: "Limpieza de casa" }, T, true), false);
+  assert.equal(serviceHiddenAsTest({ title: "x", titleI18n: { es: "Servicio E2E" } }, T, true), true);
+  const house = [...QA_FIXTURE_TENANT_IDS][0];
+  assert.equal(serviceHiddenAsTest({ ...qa, tenantId: house }, T, false), false, "talent-owned rows follow the profile flag");
+  // Agrees with the public loader's decision for the same row.
+  assert.equal(
+    serviceHiddenAsTest(qa, T, true),
+    hideTestServiceOnPublicSite({ ...qa, talent_profile_id: T }, { fixtureProfileIds: new Set([T]), fixtureTenantIds: QA_FIXTURE_TENANT_IDS }),
+  );
+});
+
+test("TUL-1270: the sheet shows the rename message (en + es) and the server passes the profile flag", () => {
+  const sheet = readFileSync(join(process.cwd(), "src/components/talent/services/ServiceShareSheet.tsx"), "utf8");
+  assert.match(sheet, /hiddenTest: "This service is hidden on the public site because its name marks it as a test \(QA\/E2E\)\. Rename it to share it\."/);
+  assert.match(sheet, /hiddenTest: "Este servicio está oculto en el sitio público porque su nombre lo marca como prueba \(QA\/E2E\)\. Cámbiale el nombre para compartirlo\."/);
+  assert.match(sheet, /serviceHiddenAsTest\(item, talentId, hidesTest\)/);
+  const act = readFileSync(join(process.cwd(), "src/lib/talent/services-settings-actions.ts"), "utf8");
+  assert.match(act, /publicSiteHidesTestServices: flags\.is_demo === true \|\| flags\.is_test_account === true/);
 });

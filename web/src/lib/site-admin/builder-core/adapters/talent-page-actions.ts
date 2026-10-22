@@ -16,6 +16,7 @@
 import { getCachedActorSession, getCachedServerSupabase } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
 import { mergeStyleClassesPreservingDesign } from "@/lib/site-admin/edit-mode/talent-design-store";
+import { recordServicesHiddenIntent } from "@/lib/talent-site/default-services-band";
 import { enforceLockedPropsOnTree } from "@/lib/site-admin/builder-node/prop-lock";
 import { normalizeUnknownBuilderTreeLayout } from "@/lib/site-admin/builder-node/normalize-tree-layout";
 import { assertFreeTalentSiteTreeMutation } from "@/lib/talent-site/free-site-tree-guard";
@@ -218,7 +219,7 @@ export async function saveTalentPageAction(
     // adapter-core factory — its page-content contract is unchanged.)
     const { data: existing } = await sb
       .from("talent_pages")
-      .select("theme, blocks, title")
+      .select("theme, blocks, title, is_home")
       .eq("id", pageId)
       .eq("talent_profile_id", talentProfileId)
       .maybeSingle();
@@ -232,12 +233,17 @@ export async function saveTalentPageAction(
     // with a locked prop changed; re-assert every lock against the current row.
     // Draft-save normalization gate (content-preserving; strict validate stays
     // at publish). Runs at the same C1 chokepoint as the lock re-assert.
-    const enforcedBlocks = normalizeUnknownBuilderTreeLayout(
+    const normalizedBlocks = normalizeUnknownBuilderTreeLayout(
       enforceLockedPropsOnTree(
         patch.blocks,
         (existing as { blocks: unknown } | null)?.blocks,
       ),
     );
+    // TUL-1854: an owner who removes the last services block keeps it removed (no default band).
+    const enforcedBlocks =
+      (existing as { is_home?: boolean } | null)?.is_home && Array.isArray(normalizedBlocks)
+        ? recordServicesHiddenIntent((existing as { blocks: unknown } | null)?.blocks, normalizedBlocks)
+        : normalizedBlocks;
 
     // PHASE 1 — free personal website. `null` = the free-site rules do not
     // apply to this save (switch off, staff editor, or not the row's owner),

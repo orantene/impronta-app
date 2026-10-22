@@ -17,6 +17,7 @@ import { loadOwnedGuestTicket } from "@/lib/support/guest-access";
 import { buildGuestCorpus, flattenGroundingText, type GuestCorpusLocale } from "@/lib/support/guest-corpus";
 import { retrieveHelpEntries } from "@/lib/support/help-corpus";
 import { shouldOfferHumanInsteadOfEscalating, supportAiErrorCard } from "@/lib/support/support-ai-failure";
+import { readTakeover } from "@/lib/support/support-takeover";
 import { supportEngine } from "@/lib/support/support-engine";
 import { wantsHumanSupport } from "@/lib/support/support-human-prefilter";
 import { sanitizeGuestAiOutput } from "@/lib/support/support-ai-guardrails";
@@ -147,7 +148,8 @@ export async function POST(request: Request) {
     if (!ticket || ticket.surface !== "guest") {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
-    if (ticket.handledBy === "human") {
+    // TUL-661: a staff takeover silences the AI for good, before any model call.
+    if (ticket.handledBy === "human" || readTakeover(ticket.metadata) !== null) {
       return NextResponse.json({ skipped: "escalated" }, { status: 200 });
     }
 

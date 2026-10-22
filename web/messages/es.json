@@ -939,6 +939,7 @@
       "threadLogAria": "Conversación",
       "systemClusterMore": "{count} actualizaciones más",
       "systemClusterCollapse": "Ocultar",
+      "systemLineupCountOne": "Selección · {count} talento",
       "systemLineupCount": "Selección · {count} talentos",
       "systemLineupRecommend": "Que la agencia recomiende",
       "messageRemoved": "Mensaje eliminado",
@@ -1833,6 +1834,7 @@
       "phone": "Teléfono",
       "quoteOnRequest": "Precio a consultar",
       "selectAtLeastOne": "Elige {nounPlural}",
+      "subtotal": "Subtotal",
       "chooseOption": "Elige una opción",
       "extrasLabel": "Extras",
       "selectQuantities": "Selecciona las cantidades",
@@ -2267,6 +2269,17 @@
         "draftTitle": "Tu borrador está guardado",
         "draftReason": "Tu página no pudo abrir en línea esta vez. Casi siempre es temporal y no pierdes nada de lo que escribiste. Primero inténtalo de nuevo.",
         "draftDetails": "Detalles para soporte",
+        "draftTech": {
+          "saved": "Guardado como borrador",
+          "status": "La dirección respondió con el error {status}",
+          "statusUnknown": "La dirección respondió con un error",
+          "network": "La dirección no respondió",
+          "nameMissing": "La página abrió sin tu nombre",
+          "noName": "La página todavía no tiene nombre",
+          "noUrl": "La página todavía no tiene dirección",
+          "protected": "La dirección está detrás de un inicio de sesión",
+          "unknown": "Todavía sin confirmar"
+        },
         "draftSub": "Todo lo que nos contaste está guardado, pero tu página todavía no abre en línea. Inténtalo de nuevo o ábrela en el editor.",
         "draftSubStudio": "Todo lo que nos contaste está guardado, pero tu sitio todavía no abre en línea. Inténtalo de nuevo o ábrelo en el editor.",
         "openEditor": "Abrir el editor",
@@ -5543,6 +5556,10 @@
       "wsFieldSettingsDesc": "Sobrescrituras del espacio para el motor de perfiles resuelto",
       "wsTalentCategoriesTitle": "Categorías de Talent",
       "wsTalentCategoriesDesc": "Categorías habilitadas del espacio para la lista y el registro",
+      "workStyle": {
+        "label": "Cómo trabajas con la gente",
+        "desc": "Quién recibe las solicitudes, el precio que ve el cliente y tu parte."
+      },
       "industry": {
         "label": "Industria y palabras",
         "desc": "Elige qué eres. Define cómo se llaman las cosas en tu sitio, tu botón principal y cómo saluda el chat. Nada queda bloqueado."
@@ -11428,7 +11445,19 @@
         "promo": {
           "applied": "{code}: {label}"
         },
-        "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
+        "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras.",
+        "keepTitle": "Elige quién sigue visible",
+        "keepIntro": "Free mantiene visibles hasta {cap} talentos y tienes {count}. Elige quién se queda; el resto se archiva, no se borra, y puedes restaurarlo cuando quieras.",
+        "keepCounter": "{selected} de {cap} seleccionados",
+        "keepConfirm": "Pasar a Free",
+        "keepSaving": "Guardando...",
+        "keepLoading": "Cargando tu lista...",
+        "keepLoadFailed": "No pudimos cargar tu lista. No se cambió nada.",
+        "keepUnnamed": "Talento sin nombre",
+        "keepCancel": "Volver",
+        "scheduledOn": "Tu plan de pago termina el {date}, y luego tu espacio pasa a {plan}.",
+        "scheduledEnd": "Tu plan de pago termina al final de este período de facturación, y luego tu espacio pasa a {plan}.",
+        "setTo": "Plan del espacio cambiado a {plan}."
       }
     },
     "adminIntegrationsCatalog": {
@@ -12882,6 +12911,7 @@
         "ai": "IA",
         "account": "Cuenta",
         "agencies": "Agencias",
+        "calendar": "Calendario",
         "clients": "Clientes",
         "hq": "HQ",
         "help": "Ayuda",
@@ -12894,6 +12924,7 @@
         "roster": "Lista",
         "security": "Seguridad",
         "settings": "Ajustes",
+        "support": "Soporte",
         "today": "Hoy"
       },
       "audiences": {
@@ -14098,6 +14129,8 @@
       "handoffHq": "Escalado a ti",
       "humanReplyEta": "{agent} responderá, normalmente en unas horas",
       "ticketReceipt": "Ticket #{number} recibido. {agent} responderá, normalmente en unas horas.",
+      "takenBy": "Tomado por {name}",
+      "escalatedLog": "Ticket #{number} pasado a una persona: {reason}",
       "humanHandling": "Una persona está atendiendo esto",
       "aiHandling": "La IA está ayudando, una persona está a un toque",
       "statusClosed": "Cerrado",
@@ -17123,7 +17156,8 @@
       "fired": "Enviada {time}",
       "amendmentBanner": "{code} · comanda modificada · revisión {n} · acéptala de nuevo",
       "gotIt": "Entendido",
-      "emptyTab": "Nada en este paso."
+      "emptyTab": "Nada en este paso.",
+      "viewOnly": "Solo lectura. Tu rol no puede empezar ni terminar comandas aquí."
     },
     "reservationsDesk": {
       "pageTitle": "Salón en vivo",
@@ -18722,7 +18756,6 @@
         "duration": "Duración (min)",
         "durationHint": "Servicios y clases; vacío para un producto.",
         "photos": "Fotos",
-        "photosSaveFirst": "Guarda el artículo primero y luego agrega fotos.",
         "photosHint": "La primera foto es la portada. Se ve en el menú QR de la mesa.",
         "photosAlt": "Describe la foto",
         "photosCover": "Portada",
@@ -19839,6 +19872,9 @@
         "internalNote": "Nota interna",
         "you": "Tú",
         "replyingTo": "En respuesta a",
+        "rosterRequest": "Solicitud",
+        "rosterParty": "Para {count} personas",
+        "rosterWhen": "Cuando: {when}",
         "voice": "Mensaje de voz",
         "transcribed": "transcrito",
         "edited": "editado",
@@ -20863,7 +20899,7 @@
       "nav": "Posts"
     },
     "talentPosts": {
-      "listTitle": "Posts",
+      "listTitle": "Publicaciones",
       "newPost": "Nuevo post",
       "creating": "Creando...",
       "createFailed": "No se pudo crear el post. Inténtalo de nuevo.",

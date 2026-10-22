@@ -83,7 +83,7 @@ export type MachineState = {
 export type MachineEvent =
   | { type: "opened"; intent: OnboardingIntent }
   | { type: "resumeLoaded"; snapshot: ResumeSnapshot | null }
-  | { type: "resumeContinue" }
+  | { type: "resumeContinue"; step?: ModuleStep }
   | { type: "resumeFresh" }
   | { type: "textChanged"; text: string }
   | { type: "dictation"; on: boolean }
@@ -198,7 +198,7 @@ export function reduceMachine(state: MachineState, event: MachineEvent): Machine
         choice: s.choice ?? null,
         input: s.input ?? null,
         text: s.input?.value ?? "",
-        step: s.step ?? "entry",
+        step: event.step ?? s.step ?? "entry",
         questionIndex: s.questionIndex ?? 0,
         linkSlug: s.linkSlug ?? null,
         designChoice: s.designChoice ?? null,

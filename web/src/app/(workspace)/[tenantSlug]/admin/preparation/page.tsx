@@ -39,6 +39,9 @@ export default async function PreparationPage({ params }: { params: PageParams }
   const allowed = await userHasCapability("view_dashboard", scope.tenantId);
   if (!allowed) notFound();
 
+  // The server refuses a write without operate_venue (actions.ts); the board says so up front.
+  const canOperate = await userHasCapability("operate_venue", scope.tenantId);
+
   const locale = await getRequestLocale();
   const tr = await createTranslator(locale);
   const admin = createServiceRoleClient();
@@ -90,7 +93,7 @@ export default async function PreparationPage({ params }: { params: PageParams }
           <p className="m-0 px-6 py-5 text-[15px] text-admin-red">{tr("dashboard.preparation.unavailable")}</p>
         </>
       ) : (
-        <PreparationClient locale={locale} timeZone={timeZone} zoneNote={zoneNote} nowIso={now.toISOString()} tickets={board.tickets} copy={copy} title={title} subtitle={subtitle} />
+        <PreparationClient locale={locale} timeZone={timeZone} zoneNote={zoneNote} nowIso={now.toISOString()} tickets={board.tickets} copy={copy} canOperate={canOperate} title={title} subtitle={subtitle} />
       )}
     </main>
   );

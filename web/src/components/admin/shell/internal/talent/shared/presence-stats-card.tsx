@@ -4,7 +4,7 @@
  * TalentPresenceStatsCard (TUL-582): last 30 days of profile visits (Free sees a locked note naming Pro and Max), top 3
  * sources, booking requests and confirmed bookings, with a delta vs the
  * previous 30 days. Reads the layout-bridged `presence` model (collected data
- * only). Renders nothing when the talent has no analytics entitlement.
+ * only). Never renders nothing: Free or unknown tier shows the Pro and Max note, a failed load shows the empty state.
  */
 
 import Link from "next/link";
@@ -14,6 +14,7 @@ import type {
   PresenceSourceKey,
   TalentPresenceStats,
 } from "@/lib/analytics/talent-presence-stats";
+import { presenceCardView } from "./presence-card-view";
 import { useDashboardText } from "../../dashboard-i18n";
 import { useAdminShell } from "../../state";
 
@@ -68,13 +69,20 @@ function Metric({
 
 export function TalentPresenceStatsCard() {
   const copy = useDashboardText();
-  const { bridgeTalentPageAnalytics, state } = useAdminShell();
-  const talentTier = state.talentTier;
+  const { bridgeTalentPageAnalytics, bridgeTalentSelfProfile, state } = useAdminShell();
+  // Same effective plan as the loader: the bridge tier comes from the effective-plan resolver.
+  const talentTier = bridgeTalentSelfProfile?.talentTier ?? state.talentTier;
   const stats: TalentPresenceStats | undefined = bridgeTalentPageAnalytics?.presence;
   const es = copy.isSpanish;
-  if (!stats) {
+  const view = presenceCardView(talentTier, stats);
+  if (view === "unavailable" && process.env.NODE_ENV !== "production") {
+    console.warn(
+      `[presence-stats-card] paid tier "${talentTier}" but no presence stats: ` +
+        (bridgeTalentPageAnalytics ? "loader returned analytics without presence (presence load failed)" : "talentPageAnalytics is null (loader failed or returned null)"),
+    );
+  }
+  if (view === "locked") {
     // Plan gate: visits, sources and bookings are Pro and Max. Say so instead of showing nothing.
-    if (talentTier !== "free") return null;
     return (
       <section
         aria-label={es ? "Mi presencia, ultimos 30 dias" : "My presence, last 30 days"}
@@ -108,14 +116,14 @@ export function TalentPresenceStatsCard() {
         </Link>
       </div>
 
-      {stats.isEmpty ? (
+      {!stats || stats.isEmpty ? (
         <p className="text-sm text-admin-ink-muted">
           {es
             ? "Aun no hay visitas ni solicitudes. Comparte el enlace de tu perfil y aqui veras de donde llegan."
             : "No visits or requests yet. Share your profile link and you will see where people come from here."}
         </p>
       ) : (
-        <>
+        stats && (<>
           <div className="grid grid-cols-3 gap-4">
             <Metric label={es ? "Visitas" : "Visits"} value={stats.last30d.visits} pct={stats.deltaPct.visits} isSpanish={es} />
             <Metric label={es ? "Solicitudes" : "Requests"} value={stats.last30d.requests} pct={stats.deltaPct.requests} isSpanish={es} />
@@ -131,7 +139,7 @@ export function TalentPresenceStatsCard() {
               ))}
             </ul>
           )}
-        </>
+        </>)
       )}
     </section>
   );
