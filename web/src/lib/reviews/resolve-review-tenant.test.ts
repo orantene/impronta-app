@@ -23,7 +23,7 @@ test("rejects an unrelated caller and blank slugs", async () => {
 });
 
 test("review actions resolve via the portal scope, not the agency-only RPC", () => {
-  for (const f of ["review-actions.ts", "review-request-actions.ts"]) {
+  for (const f of ["review-actions.ts", "review-request-actions.ts", "testimonial-actions.ts"]) {
     const src = readFileSync(new URL(`./${f}`, import.meta.url), "utf8");
     assert.ok(!/rpc\(\s*"resolve_public_tenant_by_slug"/.test(src), `${f} still calls the RPC`);
     assert.ok(!/function resolveTenantId/.test(src), `${f} still has a local resolver`);
