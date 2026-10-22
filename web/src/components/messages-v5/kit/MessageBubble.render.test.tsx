@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { DaySeparator, MessageBubble, SystemLine, UnreadDivider } from "./MessageBubble";
-import { EN_COPY } from "./test-copy";
+import { EN_COPY, ES_COPY } from "./test-copy";
 import { message } from "./test-fixtures";
 
 test("client bubble: left, meta under it; staff bubble: `me`, delivery state in the meta", () => {
@@ -54,4 +54,28 @@ test("mobile variant, system line, day separator, unread divider (hidden at zero
   assert.match(renderToStaticMarkup(<DaySeparator label="Jul 26" variant="mobile" />), /class="mx-day"[^>]*>Jul 26/);
   assert.match(renderToStaticMarkup(<UnreadDivider count={2} copy={EN_COPY} />), /class="unread-div"[^>]*>2 new/);
   assert.equal(renderToStaticMarkup(<UnreadDivider count={0} copy={EN_COPY} />), "");
+});
+
+test("TUL-1415: a roster request renders as a request with lines (party, day), never a price", () => {
+  const request = {
+    lines: [
+      { entry_id: "roster_L1", title: "Private chef", quantity: 1, talent_name: "Rafa" },
+      { entry_id: "roster_L2", title: "Waiter", quantity: 2, talent_name: null },
+    ],
+    party_size: 10,
+    when: "saturday",
+  };
+  const html = renderToStaticMarkup(<MessageBubble message={message({ body: "I'd like to request:\n- Private chef", rosterRequest: request })} mine={false} copy={EN_COPY} meta="Valentina · 10:41 AM" />);
+  assert.match(html, /data-roster-request/);
+  assert.match(html, /data-roster-line="roster_L1"[^>]*>Private chef \(Rafa\)</);
+  assert.match(html, /data-roster-line="roster_L2"[^>]*>2 x Waiter</);
+  assert.match(html, /For 10 people/);
+  assert.match(html, /When: saturday/);
+  assert.doesNotMatch(html, /\$|price|Pay/i);
+  const es = renderToStaticMarkup(<MessageBubble message={message({ rosterRequest: request })} mine={false} copy={ES_COPY} />);
+  assert.match(es, /Solicitud/);
+  assert.match(es, /Para 10 personas/);
+  const plain = renderToStaticMarkup(<MessageBubble message={message({ body: "hello there" })} mine={false} copy={EN_COPY} />);
+  assert.doesNotMatch(plain, /data-roster-request/);
+  assert.match(plain, /hello there/);
 });

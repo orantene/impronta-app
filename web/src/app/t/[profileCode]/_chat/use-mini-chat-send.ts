@@ -45,6 +45,7 @@ import type {
   SendGuestMessageResult,
 } from "@/lib/inquiry/guest-chat-contract";
 import type { Translator } from "@/i18n/interpolate";
+import { toRosterRequestWire, type RosterRequestWire } from "@/lib/service-hub/roster-request-meta";
 import type { StreamRow } from "./MiniChatMessageBubble";
 import { makePendingRow, markRowFailed } from "./mini-chat-panel-helpers";
 import { EMAIL_RE, joinGuestDisplayName } from "./mini-chat-styles";
@@ -181,7 +182,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
    * values, then send the first message to THAT inquiry. No second inquiry is
    * created and the placeholder contact is overwritten before delivery.
    */
-  async function continueEarlyInquiry(earlyId: string, body: string): Promise<boolean> {
+  async function continueEarlyInquiry(earlyId: string, body: string, rosterRequest: RosterRequestWire | null = null): Promise<boolean> {
     setSending(true);
     setError(null);
     setCaptchaRequired(false);
@@ -211,6 +212,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         body,
         honeypot: honeypot || null,
         locale: args.locale ?? null,
+        ...(rosterRequest ? { rosterRequest } : {}),
       });
       setSending(false);
       if (!res.ok) {
@@ -236,14 +238,17 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     }
   }
 
-  /** The structured roster request for `sentence`, or the sentence itself. Never blocks a send. */
-  async function rosterRequestBody(sentence: string): Promise<string> {
+  /**
+   * The structured roster request for `sentence`: the readable message AND the structured lines the
+   * owner inbox draws (TUL-1415). A sentence that matches nothing stays plain chat. Never blocks a send.
+   */
+  async function rosterRequestFor(sentence: string): Promise<{ body: string; request: RosterRequestWire | null }> {
     try {
       const { buildRosterRequestFromSentence } = await import("@/lib/server-actions/roster-request");
       const res = await buildRosterRequestFromSentence({ sentence, locale: args.locale ?? null });
-      return res.ok ? res.message : sentence;
+      return res.ok ? { body: res.message, request: toRosterRequestWire(res) } : { body: sentence, request: null };
     } catch {
-      return sentence;
+      return { body: sentence, request: null };
     }
   }
 
@@ -284,14 +289,15 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
     }
     // TUL-1415 / TUL-1587: on a workspace host whose roster matches the sentence, the
     // first message becomes ONE structured request (service lines, party, day).
-    body = await rosterRequestBody(typed);
+    const roster = await rosterRequestFor(typed);
+    body = roster.body;
     // Findings #1 / #5: an early-partial row may already exist (a prior chip /
     // cart action created it with the synthetic seed contact). Promote-then-send
     // to that id instead of creating a second/shadow inquiry; this is also the
     // contact-gate (the real contact is written before the message lands).
     const earlyId = inquiryId;
     if (firstSendPlan(earlyId, contactPromoted) === "continue" && earlyId) {
-      const ok = await continueEarlyInquiry(earlyId, body);
+      const ok = await continueEarlyInquiry(earlyId, body, roster.request);
       // TUL-458: always flip to reply after a delivered first message — not only
       // when "Send to agency" forced the gate. Skipping onSent left contactPromoted
       // false so the next composer submit re-entered continue and stuck the draft.
@@ -326,6 +332,7 @@ export function useMiniChatSend(args: MiniChatSendArgs): MiniChatSendResult {
         offering: pendingOfferingPayload() ?? null,
         offeringIntent: peekPendingOfferingIntent(),
         locale: args.locale ?? null,
+        ...(roster.request ? { rosterRequest: roster.request } : {}),
       });
       setSending(false);
       if (res.ok) {
