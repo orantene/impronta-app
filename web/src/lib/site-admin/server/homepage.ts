@@ -15,9 +15,7 @@
  *   - PUBLISH       — `publishHomepage`
  *                     (CAS; publish-ready gates; draft → live slot copy;
  *                     snapshot write; cache bust; revision kind='published')
- *   - ROLLBACK      — `restoreHomepageRevision`
- *                     (loads snapshot, writes new draft composition, kind=
- *                     'rollback'; NO publish — same as M3/M4 rollback)
+ *   - ROLLBACK      — `restoreHomepageRevision` (loads snapshot, writes new draft composition, kind='rollback'; NO publish, same as M3/M4)
  *
  * Capability gates:
  *   - ensure / save draft / restore → agency.site_admin.homepage.compose
@@ -117,8 +115,7 @@ import {
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
-import { pingIndexNowForCmsPage } from "@/lib/seo/indexnow-cms-page";
-import { afterResponse } from "@/lib/server/after-response";
+import { queueIndexNowForCmsPage } from "@/lib/seo/indexnow-cms-page";
 import {
   decideBeaconLastWriteWins,
   decideSameSessionSaveAdoption,
@@ -1834,9 +1831,7 @@ export async function publishHomepage(
   });
 
   bustHomepageTags(tenantId, afterRow.id, values.locale);
-
-  // TUL-1777: tell IndexNow the home changed (best-effort, prod only, debounced).
-  afterResponse(() => pingIndexNowForCmsPage(supabase, tenantId, { locale: values.locale, slug: "" }), "homepage.publish.indexnow");
+  queueIndexNowForCmsPage(supabase, tenantId, { locale: values.locale, slug: "" }, "homepage.publish.indexnow"); // TUL-1777
 
   return ok({
     id: afterRow.id,

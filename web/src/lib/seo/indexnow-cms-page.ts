@@ -4,6 +4,8 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { afterResponse } from "@/lib/server/after-response";
+
 import { pingIndexNowUrl } from "./indexnow";
 import { resolveTenantPublicOriginForIndexNow } from "./indexnow-tenant-origin";
 
@@ -23,4 +25,14 @@ export async function pingIndexNowForCmsPage(
   if (!base) return;
   const path = cmsPageIndexNowPath(page.locale, page.slug);
   await pingIndexNowUrl(path === "/" ? base : `${base}${path}`);
+}
+
+/** Fire-and-forget after the response (best-effort, prod only, debounced); keeps call sites to one line. */
+export function queueIndexNowForCmsPage(
+  sb: SupabaseClient,
+  tenantId: string,
+  page: { locale: string; slug: string },
+  label: string,
+): void {
+  afterResponse(() => pingIndexNowForCmsPage(sb, tenantId, page), label);
 }

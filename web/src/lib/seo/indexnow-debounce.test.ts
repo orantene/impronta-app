@@ -96,5 +96,5 @@ test("origin resolver: live domain wins; none falls back to /w/<slug> on the pub
 test("publishPage and publishHomepage call the CMS page ping after the response", () => {
   const root = join(__dirname, "../site-admin/server");
   assert.match(readFileSync(join(root, "pages.ts"), "utf8"), /pingIndexNowForCmsPage\(supabase, tenantId, afterRow\)/);
-  assert.match(readFileSync(join(root, "homepage.ts"), "utf8"), /pingIndexNowForCmsPage\(supabase, tenantId, \{ locale: values\.locale, slug: "" \}\)/);
+  assert.match(readFileSync(join(root, "homepage.ts"), "utf8"), /queueIndexNowForCmsPage\(supabase, tenantId, \{ locale: values\.locale, slug: "" \}, "homepage\.publish\.indexnow"\)/);
 });
