@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
 import { buildClientThread, clientThreadBody } from "./client-thread-pure";
 
 const ME = "user-1";
@@ -53,4 +54,17 @@ test("loadThread uses the pure builder and selects the fields it needs", () => {
   assert.match(src, /buildClientThread\(/);
   assert.match(src, /select\("id, company, message, created_at"\)/);
   assert.match(src, /message_kind, card_payload/);
+});
+
+test("TUL-1857: platform notes read in Spanish for an ES account; people's messages are never touched", () => {
+  const rows = [
+    { id: "n1", body: "Contact details updated.", created_at: "2026-10-01T10:00:00Z", sender_user_id: null },
+    { id: "n2", body: "Event date set to 12 Dec.", created_at: "2026-10-01T10:01:00Z", sender_user_id: null },
+    { id: "m1", body: "Contact details updated.", created_at: "2026-10-01T10:02:00Z", sender_user_id: ME },
+  ];
+  const es = buildClientThread(rows, { id: "i" }, ME, "es");
+  assert.deepEqual(es.map((m) => m.body), ["Datos de contacto actualizados.", "Fecha del evento: 12 Dec.", "Contact details updated."]);
+  const en = buildClientThread(rows, { id: "i" }, ME);
+  assert.equal(en[0].body, "Contact details updated.");
+  assert.equal(localizeSystemNote("Something unknown", "es"), "Something unknown");
 });

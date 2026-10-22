@@ -236,7 +236,7 @@ export async function loadThreads(userId: string, tenantId: string): Promise<Thr
     .sort((a, b) => Date.parse(b.lastAt ?? "") - Date.parse(a.lastAt ?? ""));
 }
 
-export async function loadThread(userId: string, tenantId: string, inquiryId: string): Promise<{ title: string; messages: ThreadMessage[] } | null> {
+export async function loadThread(userId: string, tenantId: string, inquiryId: string, locale = "en"): Promise<{ title: string; messages: ThreadMessage[] } | null> {
   const admin = createServiceRoleClient();
   if (!admin) return null;
   const { data: inq, error } = await admin
@@ -269,7 +269,7 @@ export async function loadThread(userId: string, tenantId: string, inquiryId: st
   return {
     title: inquiry.company?.trim() || "",
     // TUL-1258: lead with the client's own request and give card rows readable text.
-    messages: buildClientThread((msgs ?? []) as ClientThreadRow[], inquiry, userId),
+    messages: buildClientThread((msgs ?? []) as ClientThreadRow[], inquiry, userId, locale),
   };
 }
 
