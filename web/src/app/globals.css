@@ -423,8 +423,16 @@ html[data-public-font-preset="editorial"] {
   /* Paint the aurora on the storefront frame (the `bg-background` flex
    * column inside body) so the ambient gradient sits above the tenant
    * background-color wash but below every rendered section.
-   * `background-attachment: fixed` keeps it anchored while the page scrolls. */
-  body.site-theme-tenant-override > div.bg-background {
+   * `background-attachment: fixed` keeps it anchored while the page scrolls.
+   *
+   * TUL-1934: only when the active preset names a non-plain `background.mode`.
+   * `plain` (the registry default, "neutral solid background") and an absent
+   * attribute both mean a flat canvas; painting the aurora there produced a
+   * silver gloss on every tenant on a flat preset. The glow hues above are
+   * already derived from the preset's primary/accent/secondary tokens. */
+  html[data-token-background-mode]:not([data-token-background-mode="plain"])
+    body.site-theme-tenant-override
+    > div.bg-background {
     background-image:
       radial-gradient(
         ellipse 70% 45% at 18% 0%,

@@ -382,7 +382,7 @@ export async function PublicHeader() {
   const hasBrandPrimary = tokenString("color.primary", "").length > 0;
   const ctaNeedsSafePair = Boolean(presetVerbHref) && !explicitCtaHref && !hasBrandPrimary;
   const ctaSafePairClass = ctaNeedsSafePair
-    ? " bg-foreground text-background hover:bg-foreground/90"
+    ? " bg-[var(--token-color-primary,#111111)] text-[var(--token-color-primary-on,#ffffff)] hover:opacity-90"
     : "";
   const hasCta = Boolean(ctaLabel && ctaHref);
   // Tenant Registration Engine — auto "Join the team" CTA. Renders only on a
