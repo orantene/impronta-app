@@ -64,6 +64,7 @@ import {
 import { uploadInquiryAttachmentAsClient } from "@/lib/server-actions/client-inquiry-attachments";
 import { uploadInquiryAttachmentSigned } from "@/lib/client/signed-upload";
 import { useT } from "@/i18n/use-t";
+import { formatRelativeShortZoned, formatStampZoned, useViewerTimeZone } from "@/lib/messages-v5/viewer-time";
 import { interpolate } from "@/i18n/interpolate"; import { formatOfferMoney } from "@/lib/inquiry/offer-currency";
 
 const FONT = '"Inter", system-ui, sans-serif';
@@ -659,6 +660,7 @@ type RowChip = {
 };
 
 function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: boolean; onClick: () => void }) {
+  const zone = useViewerTimeZone();
   const t = useT();
   const stage = stageStyle(inq.status, t);
   const company = clientInquiryTitle(inq, t("dashboard.clientMessages.unnamedInquiry"));
@@ -707,7 +709,7 @@ function InquiryRow({ inq, active, onClick }: { inq: ClientInquiryRow; active: b
   const preview = inq.last_message_body
     ? (inq.last_message_from_me ? interpolate(t("dashboard.clientMessages.youPrefix"), { body: inq.last_message_body }) : inq.last_message_body)
     : null;
-  const previewTime = inq.last_message_at ? formatRelativeShort(inq.last_message_at) : null;
+  const previewTime = inq.last_message_at ? formatRelativeShort(inq.last_message_at, zone) : null;
 
   return (
     <button
@@ -2258,6 +2260,7 @@ function formatFieldDiff(fieldName: string, from: unknown, to: unknown, t: (key:
 }
 
 function ActivityEventRow({ event }: { event: ActivityEventItem }) {
+  const zone = useViewerTimeZone();
   const t = useT();
   const meta = ACTIVITY_EVENT_META[event.event_type];
   const icon = meta?.icon ?? "•";
@@ -2307,7 +2310,7 @@ function ActivityEventRow({ event }: { event: ActivityEventItem }) {
           </div>
         )}
         <div style={{ fontSize: 10.5, color: C.inkDim, marginTop: 4 }}>
-          {formatTime(event.created_at)}
+          {formatTime(event.created_at, zone)}
           {event.actor_name && event.event_type !== "coordinator.assigned" && event.event_type !== "coordinator.accepted" && (
             <span style={{ marginLeft: 5 }}>· {event.actor_name}</span>
           )}
@@ -3026,6 +3029,7 @@ function Bubble({
   onPinChanged?: () => void;
 }) {
   const t = useT();
+  const zone = useViewerTimeZone();
   const mine = m.is_mine;
   const kind = m.message_kind ?? "text";
   // Voice notes: message_kind="text" + metadata.voice (no "voice" CHECK value
@@ -3170,7 +3174,7 @@ function Bubble({
             <VoiceNotePlayer meta={voiceMeta} accent={C.accent} onDark={mine} />
           </div>
           <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left", paddingRight: 2 }}>
-            {formatTime(m.created_at)}
+            {formatTime(m.created_at, zone)}
           </div>
         </div>
       </div>
@@ -3188,7 +3192,7 @@ function Bubble({
         )}
         {card}
         <div style={{ fontSize: 10, color: C.inkDim, marginTop: 2, textAlign: mine ? "right" : "left", paddingRight: 2 }}>
-          {formatTime(m.created_at)}
+          {formatTime(m.created_at, zone)}
         </div>
       </div>
     );
@@ -3465,7 +3469,7 @@ function Bubble({
           </div>
         )}
         <div style={{ fontSize: 10, color: C.inkDim, marginTop: 3, textAlign: mine ? "right" : "left" }}>
-          {formatTime(m.created_at)}
+          {formatTime(m.created_at, zone)}
           {mine && showSeen && (
             <span style={{ marginLeft: 6, color: C.accent, fontWeight: 600 }}>· {t("dashboard.clientMessages.seen")}</span>
           )}
@@ -3728,39 +3732,11 @@ function formatDate(d: string): string {
  *   • otherwise → "Oct 1" / "Oct 1, 2025"
  * Keeps the row scannable — no second component wraps.
  */
-function formatRelativeShort(iso: string): string {
-  try {
-    const dt = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - dt.getTime();
-    const diffMin = Math.floor(diffMs / 60_000);
-    if (diffMin < 1) return "now";
-    if (diffMin < 60) return `${diffMin}m`;
-    const isSameDay = dt.toDateString() === now.toDateString();
-    if (isSameDay) {
-      return dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-    }
-    const diffDays = Math.floor(diffMs / 86_400_000);
-    if (diffDays < 7) {
-      return dt.toLocaleDateString(undefined, { weekday: "short" });
-    }
-    if (dt.getFullYear() === now.getFullYear()) {
-      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    }
-    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return "";
-  }
+function formatRelativeShort(iso: string, timeZone: string | null): string {
+  // TUL-1909: the viewer's zone once known (null on the server pass, then the browser zone).
+  return formatRelativeShortZoned(iso, new Date(), undefined, timeZone);
 }
 
-function formatTime(d: string): string {
-  try {
-    const dt = new Date(d);
-    const today = new Date();
-    const sameDay = dt.toDateString() === today.toDateString();
-    if (sameDay) return dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-    return dt.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " · " + dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  } catch {
-    return d;
-  }
+function formatTime(d: string, timeZone: string | null): string {
+  return formatStampZoned(d, new Date(), undefined, timeZone);
 }

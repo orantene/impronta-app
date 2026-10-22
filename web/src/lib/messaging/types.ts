@@ -197,6 +197,8 @@ export type ThreadMessage = {
   fromAi?: boolean;
   /** Guest/talent disclosure label when fromAi (e.g. "Automated reply"). */
   aiDisclosureLabel?: string | null;
+  /** TUL-1887: the talent's own display name when a talent wrote this reply; null/absent = the business label. */
+  senderLabel?: string | null;
 };
 
 export type CustomerMatchLevel = "phone" | "name_only" | "new";
