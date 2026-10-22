@@ -68,7 +68,7 @@ const T = {
   },
 } as const;
 
-function logShare(promoId: string, via: ViaTag): void {
+export function logShare(promoId: string, via: ViaTag): void {
   void fetch("/api/promos/event", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

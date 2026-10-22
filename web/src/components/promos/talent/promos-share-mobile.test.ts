@@ -40,6 +40,8 @@ test("wiring: page shares natively from the tap, sheets are portaled, tappable, 
   const read = (p: string) => readFileSync(join(__dirname, "../../..", p), "utf8");
   const page = read("components/promos/talent/PromosPage.tsx");
   assert.match(page, /canUseNativeShare\(\)/);
+  assert.match(page, /r === "shared"\) logShare\(it\.id, "link"\)/);
+  assert.doesNotMatch(page, /r === "cancelled"\) logShare/);
   assert.match(page, /r === "failed" \|\| r === "unavailable"\) setShareId/);
   const sheet = read("components/promos/share/promo-share-sheet.tsx");
   const svc = read("components/talent/services/ServiceShareSheet.tsx");

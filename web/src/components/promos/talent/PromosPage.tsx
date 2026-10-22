@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { PromoCallout, MonthRollup } from "@/components/promos/results";
-import { PromoShareSheet } from "@/components/promos/share/promo-share-sheet";
+import { PromoShareSheet, logShare } from "@/components/promos/share/promo-share-sheet";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
 import { Icon } from "@/components/admin/shell/internal/primitives";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
@@ -260,7 +260,8 @@ export function PromosPage() {
             const origin = data.siteOrigin ?? window.location.origin;
             const url = buildPromoLink({ origin, slug: it.link_slug, profileCode: data.siteOrigin ? null : data.profileCode || null, via: "link" });
             void shareNative({ title: it.name, text: it.name, url }).then((r) => {
-              if (r === "failed" || r === "unavailable") setShareId(it.id);
+              if (r === "shared") logShare(it.id, "link");
+              else if (r === "failed" || r === "unavailable") setShareId(it.id);
             });
           } else setShareId(it.id);
         }}
