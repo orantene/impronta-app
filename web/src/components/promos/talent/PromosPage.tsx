@@ -8,6 +8,7 @@ import { PromoCallout, MonthRollup } from "@/components/promos/results";
 import { PromoShareSheet } from "@/components/promos/share/promo-share-sheet";
 import { PageHeader } from "@/components/admin/shell/internal/talent/shared/page-chrome-1";
 import { Icon } from "@/components/admin/shell/internal/primitives";
+import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { loadPromosPage, type PromoListItem, type PromosPageData } from "@/lib/promos/actions";
@@ -33,6 +34,7 @@ type Editor = { draft: PromoDraft; editingId: string | null; used: number; key: 
 export function PromosPage() {
   const copy = promoCopy(useDashboardLocale());
   const router = useRouter();
+  const { toast } = useAdminShell();
   const params = useSearchParams();
   const [data, setData] = useState<PromosPageData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -245,7 +247,11 @@ export function PromosPage() {
         copy={copy}
         onClose={() => setDetailId(null)}
         onEdit={openEdit}
-        onShare={(it) => setShareId(it.id)}
+        onShare={(it) => {
+          // Without a link slug there is nothing to share: say so and keep the detail sheet open instead of silently closing it.
+          if (!it.link_slug) toast(copy.t("page.share_no_link"));
+          else setShareId(it.id);
+        }}
         onChanged={() => void reload()}
       />
 
