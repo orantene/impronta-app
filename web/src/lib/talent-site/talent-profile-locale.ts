@@ -53,10 +53,20 @@ export function decideTalentProfileLocale(input: {
   requested: string | null | undefined;
   primary: string;
   supported: readonly string[];
+  /**
+   * TUL-736: the language the URL itself names (`/es/...` prefix or `?lang=`), plus the platform's
+   * public locales. A signup stamps `preferred_locale = en`, which reads as a one-language
+   * talent, and that bound turned `/es/t/<code>` English. An explicit URL language wins for the
+   * page chrome; content still falls back to the talent's primary through `chain`.
+   */
+  explicitUrlLocale?: string | null;
+  publicLocales?: readonly string[];
 }): TalentProfileLocale {
   const { primary } = input;
   const supported = [primary, ...input.supported.filter((l) => l !== primary)];
-  const locale = boundTalentSiteLocale(input.requested, primary, supported);
+  const bound = boundTalentSiteLocale(input.requested, primary, supported);
+  const explicit = input.explicitUrlLocale;
+  const locale = explicit && input.publicLocales?.includes(explicit) ? explicit : bound;
   return { locale, primary, supported, chain: locale === primary ? [locale] : [locale, primary] };
 }
 

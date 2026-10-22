@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { headers } from "next/headers";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER, ORIGINAL_SEARCH_HEADER } from "@/i18n/request-locale";
+import { explicitUrlLocale } from "@/i18n/workspace-page-locale";
 import { getLanguageSettingsPublicCached } from "@/lib/language-settings/get-language-settings";
 import { DEFAULT_PLATFORM_LOCALE } from "@/lib/site-admin/locales";
 import { loadTalentLocaleState } from "@/lib/site-admin/server/talent-locale-settings";
@@ -25,8 +27,14 @@ export async function resolveTalentProfileLocale(
     getLanguageSettingsPublicCached().catch(() => null),
   ]);
   const { settings } = state;
+  const h = await headers();
+  const publicLocales = language?.publicLocales ?? [];
+  const requestedLocale = applyLangQuery(requested, langQuery);
   return decideTalentProfileLocale({
-    requested: applyLangQuery(requested, langQuery),
+    requested: requestedLocale,
+    // The `?lang=` already folded into `requestedLocale`, plus the `/es` prefix, name the language.
+    explicitUrlLocale: explicitUrlLocale(h.get(ORIGINAL_PATHNAME_HEADER), h.get(ORIGINAL_SEARCH_HEADER), publicLocales),
+    publicLocales,
     primary: settings.defaultLocale,
     supported: talentProfileSupportedSet({
       unset: state.seedPrimary === null && settings.secondaryLocales.length === 0,

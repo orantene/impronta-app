@@ -1797,6 +1797,12 @@
       "dismiss": "No, gracias",
       "regionLabel": "Sugerencia de idioma"
     },
+    "onboardingShell": {
+      "terms": "Términos",
+      "privacy": "Privacidad",
+      "contact": "Contacto",
+      "signIn": "Iniciar sesión"
+    },
     "hubLanding": {
       "agenciesTitle": "Agencias en la plataforma",
       "tagline": "Cada agencia tiene su propio sitio en su propio dominio. Visita una para ver su elenco y enviar una consulta.",
