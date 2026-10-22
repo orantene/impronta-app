@@ -12,6 +12,7 @@ import { ARRIVAL_THUMB_FRAME_NAME } from "@/components/edit-chrome/embedded-fram
 
 import { finishPlan, type FinishPlan } from "@/lib/onboarding/finish-plan";
 import { buildArrivalNextSteps, servicesHrefFor } from "@/lib/onboarding/arrival-next-steps";
+import { factsFromArrival, instantiateBusinessOnboarding } from "@/lib/onboarding/business-onboarding-plan";
 
 import { PrimaryButton, Sub, Title } from "../ui";
 
@@ -88,7 +89,7 @@ function InquiryOnlyArrival({ t, arrival, plan }: { t: (key: string) => string; 
   );
 }
 
-export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = null }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean; planIntent?: PlanIntent | null }) {
+export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = null, locale = "en" }: { t: (key: string) => string; arrival: ArrivalPayload; onRetry?: () => void; busy?: boolean; planIntent?: PlanIntent | null; locale?: string }) {
   if (arrival.variant === "draft_saved") {
     return <DraftSaved t={t} arrival={arrival} onRetry={onRetry} busy={busy} />;
   }
@@ -127,6 +128,8 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = nu
   const title = arrival.variant === "talent" ? t("public.onboarding.arrival.readyTalent") : business ? t("public.onboarding.arrival.readyBusiness") : t("public.onboarding.arrival.youreIn");
   // onb1-19: only tick rows with evidence (siteLive). Never i===0.
   const nextSteps = buildArrivalNextSteps({ siteLive: Boolean(arrival.siteLive), business, servicesHref: servicesHrefFor(arrival.panelHref, business) }, t);
+  // TUL-1204 (NW5): a new business also sees its setup from the reusable template, with its own name and language.
+  const setupPlan = business ? instantiateBusinessOnboarding({ businessName: arrival.businessName, locale, facts: factsFromArrival(arrival) }, t) : null;
 
   return (
     <div data-testid="onb-arrival" data-variant={arrival.variant}>
@@ -228,6 +231,24 @@ export function ArrivalStep({ t, arrival, onRetry, busy = false, planIntent = nu
           ))}
         </ul>
       </div>
+      {setupPlan ? (
+        <div className="mt-6" data-testid="onb-business-setup" data-template={setupPlan.template}>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--tl-muted)" }}>
+            {setupPlan.heading} · {setupPlan.progress.done}/{setupPlan.progress.total}
+          </p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {setupPlan.steps.map((step) => (
+              <li key={step.id} className="flex items-start gap-3 text-[0.9375rem]" style={{ color: "var(--tl-ink)" }} data-done={step.done ? "true" : "false"} data-step={step.id}>
+                <span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[0.7rem]" style={{ background: step.done ? "var(--tl-positive)" : "transparent", color: step.done ? "#fff" : "var(--tl-muted)", border: step.done ? "none" : "1px solid var(--tl-hairline-strong)" }}>{step.done ? "✓" : ""}</span>
+                <span>
+                  <span className="font-semibold">{step.title}</span>
+                  <span className="block text-[0.8125rem]" style={{ color: "var(--tl-muted)" }}>{step.description}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {arrival.quiet === "own_page_drafted" ? (
         <p className="mt-4 text-center text-[0.75rem]" style={{ color: "var(--tl-muted)" }} data-testid="onb-arrival-quiet">
           {t("public.onboarding.arrival.ownPageDrafted")}

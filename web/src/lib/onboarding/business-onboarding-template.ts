@@ -52,9 +52,12 @@ export type ResolvedOnboardingStep = BusinessOnboardingStep & { done: boolean };
 export function resolveBusinessOnboarding(
   trade: string | null | undefined,
   facts: ReadinessFacts,
+  opts: { teamCapable?: boolean } = {},
 ): ResolvedOnboardingStep[] {
   const key = trade && TRADE_PROFILES[trade] ? trade : resolveTradeProfile(trade).key;
-  return BUSINESS_ONBOARDING_STEPS.filter((s) => s.trades === "all" || s.trades.includes(key))
+  // A workspace with a team (salon, agency, studio, restaurant, ...) always gets the team step,
+  // whatever its trade: team-ness is a capability of the workspace, not of an industry.
+  return BUSINESS_ONBOARDING_STEPS.filter((s) => s.trades === "all" || opts.teamCapable === true || s.trades.includes(key))
     .slice()
     .sort((a, b) => a.order - b.order)
     .map((s) => ({ ...s, done: facts[s.readinessKey] === true }));

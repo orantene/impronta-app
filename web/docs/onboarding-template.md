@@ -14,4 +14,4 @@ const steps = resolveBusinessOnboarding(tradeKeyOrTypeSlug, facts); // ordered, 
 
 Unknown trades fall back to the beauty profile. To add a trade, add it to `TRADE_PROFILES`; to add a step, add a row plus en and es copy (the test fails otherwise).
 
-Not wired into a surface yet: the workspace checklist card and `messages/*.json` are touched by open PRs, so a follow-up should render `resolveBusinessOnboarding` there.
+Wired (TUL-1204): `business-onboarding-plan.ts` instantiates the template for one business (`instantiateBusinessOnboarding`: name and locale substituted into the `{business}` copy, a team-capable workspace always gets every section, facts read from the arrival by `factsFromArrival`). The onboarding arrival step renders it for business arrivals (`data-testid="onb-business-setup"`). The workspace dashboard checklist card is still unwired.
