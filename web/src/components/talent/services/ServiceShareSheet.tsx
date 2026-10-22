@@ -13,7 +13,7 @@ import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { loadOfferingDestinations, type OfferingDestination } from "@/lib/talent/services-settings-actions";
 import type { TalentOffering } from "@/lib/talent/offerings-types";
-import { serviceShareUrl } from "@/lib/talent/service-share-link";
+import { isServiceShareable, serviceShareUrl } from "@/lib/talent/service-share-link";
 
 const COPY = {
   en: {
@@ -24,6 +24,7 @@ const COPY = {
     qr: "Scan to open this service",
     loading: "Getting your link…",
     none: "Publish your profile first to get a link.",
+    notPublic: "This service is not public yet. Publish it to get a link people can open.",
     close: "Close",
   },
   es: {
@@ -34,6 +35,7 @@ const COPY = {
     qr: "Escanea para abrir este servicio",
     loading: "Obteniendo tu enlace…",
     none: "Publica tu perfil primero para tener un enlace.",
+    notPublic: "Este servicio aún no es público. Publícalo para obtener un enlace que se pueda abrir.",
     close: "Cerrar",
   },
 } as const;
@@ -66,12 +68,12 @@ export function ServiceShareSheet({
     () =>
       destinations
         ? serviceShareUrl({
-            offering: { id: item.id, title: item.title, kind: item.kind, visibility: item.visibility },
+            offering: { id: item.id, title: item.title, kind: item.kind, visibility: item.visibility, status: item.status, moderationState: item.moderationState },
             destinations,
             origin: typeof window === "undefined" ? "" : window.location.origin,
           })
         : null,
-    [destinations, item.id, item.title, item.kind, item.visibility],
+    [destinations, item.id, item.title, item.kind, item.visibility, item.status, item.moderationState],
   );
 
   const qrSvg = useMemo(() => {
@@ -103,7 +105,7 @@ export function ServiceShareSheet({
         {destinations === null ? (
           <p className="mt-4 text-[13px] text-admin-ink-dim">{t.loading}</p>
         ) : !target ? (
-          <p className="mt-4 text-[13px] text-admin-ink">{t.none}</p>
+          <p className="mt-4 text-[13px] text-admin-ink">{isServiceShareable(item) ? t.none : t.notPublic}</p>
         ) : (
           <>
             <p className="mt-4 break-all rounded-lg border border-admin-border-soft bg-black/[0.02] px-3 py-2 text-[13px] text-admin-ink" data-service-share-url>
