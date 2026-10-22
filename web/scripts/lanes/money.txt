@@ -140,6 +140,7 @@ src/lib/messaging/accept-offer-order-adopt.test.ts
 src/lib/messaging/extras-write-capabilities.static.test.ts
 src/lib/messaging/release-order-lines-capacity.test.ts
 src/lib/messaging/repair-duplicate-offer-orders.test.ts
+src/lib/messaging/settle-accepted-offer.test.ts
 src/lib/messaging/sheets-offer-currency.test.ts
 src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
 src/lib/money/money-page-cleanup.static.test.ts
