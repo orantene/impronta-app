@@ -332,7 +332,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
   const { data: sellable, error: sellableErr } = await scopeOfferingsFor(
     admin
       .from("talent_offerings")
-      .select("id")
+      .select("id, currency")
       .eq("tenant_id", tenantId)
       .in("id", [...new Set(withOffering.map((r) => r.offering_id as string))]),
     scope,
@@ -341,7 +341,10 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
     logServerError("messagesV5.itemsCatalog/sessionOfferings", sellableErr);
     return [];
   }
-  const sellableIds = new Set(((sellable ?? []) as { id: string }[]).map((o) => o.id));
+  const sellableRows = (sellable ?? []) as { id: string; currency?: string | null }[];
+  const sellableIds = new Set(sellableRows.map((o) => o.id));
+  // TUL-1347 retest: tiers and classes were drawn in USD on an MXN tenant because the row carried no currency.
+  const offeringCurrency = new Map(sellableRows.map((o) => [o.id, o.currency?.trim().toUpperCase() || null] as const));
   const rows = withOffering.filter((r) => sellableIds.has(r.offering_id as string));
   if (rows.length === 0) return [];
   const sessionIds = rows.map((r) => r.id);
@@ -390,6 +393,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
         title: s.title?.trim() || "Class",
         sub: left == null ? null : `${left} left`,
         amountCents: null,
+        currency: offeringCurrency.get(s.offering_id as string) ?? null,
         availability,
         offeringId: s.offering_id as string,
         sessionId: s.id,
@@ -414,6 +418,7 @@ async function loadSessionRows(admin: Admin, tenantId: string, now: Date, scope?
       title: eventTitle.get(s.event_id) ?? s.title?.trim() ?? "Event",
       sub: tiers.length ? `${tiers.length} ${tiers.length === 1 ? "tier" : "tiers"}` : null,
       amountCents: tiers.length ? Math.min(...tiers.map((t) => t.amountCents)) : null,
+      currency: offeringCurrency.get(s.offering_id as string) ?? null,
       availability: tiers.length === 0 ? { kind: "busy", reason: "sold_out" } : anyCounted && !anyLeft ? { kind: "busy", reason: "sold_out" } : anyCounted ? { kind: "free" } : { kind: "unknown" },
       offeringId: s.offering_id as string,
       sessionId: s.id,

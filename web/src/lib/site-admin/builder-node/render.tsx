@@ -6496,7 +6496,7 @@ function renderBuilderNodeElement(
         // `amountCents == null` is already a quote per offeringIsQuote; the
         // explicit check also narrows the type for formatMoney below.
         if (item.amountCents == null || offeringIsQuote(item)) {
-          return "Quote on request";
+          return (options.contentLocale?.locale ?? "en").toLowerCase().startsWith("es") ? "Cotización a pedido" : "Quote on request";
         }
         // TUL-383: one public money format (`$700 MXN`) via shared formatter.
         const locale = options.contentLocale?.locale ?? "en";

@@ -27,6 +27,7 @@ src/app/t/*/_chat/pending-look-image.test.ts
 src/app/t/*/_chat/use-live-reply-cue.test.ts
 src/components/inquiry/inquiry-drawer-refresh-on-close.static.test.ts
 src/components/messages-v5/client/client-offer-banner.static.test.ts
+src/components/messages-v5/client/guest-thread-catalog.static.test.ts
 src/components/public-booking/catalog-booking-form-ux.test.tsx
 src/components/public-booking/chat-catalog-events.test.ts
 src/components/public-booking/pick-bookable-offering-where.test.ts
