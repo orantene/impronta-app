@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { decideAccountTenantSource } from "./tenant-source";
+import { accountSpansTenants, decideAccountTenantSource } from "./tenant-source";
 
 const T = "11111111-1111-4111-8111-111111111111";
 
@@ -42,4 +42,9 @@ test("not_found and unknown hosts fail closed", () => {
   for (const hostKind of ["not_found", "weird", null]) {
     assert.equal(decideAccountTenantSource({ hostKind, talentProfileId: "p1", hostTenantId: T }), null);
   }
+});
+
+test("TUL-1317: hub, app and marketing hosts span tenants; agency and talent sites do not", () => {
+  for (const k of ["hub", "app", "marketing"]) assert.equal(accountSpansTenants(k), true, k);
+  for (const k of ["agency", "talent_site", null, "other"]) assert.equal(accountSpansTenants(k), false, String(k));
 });

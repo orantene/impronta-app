@@ -100,9 +100,9 @@ test("a tenant's site shows only saved talents on that tenant's roster; the hub 
   assert.equal(shapeSavedTalent(rows, "https://x.test", new Set()).length, 0);
 });
 
-test("wiring: roster-scoped on tenant hosts, unscoped only on the hub; links use next/link", () => {
+test("wiring: roster-scoped on tenant hosts, unscoped on hub / app / marketing (TUL-1317); links use next/link", () => {
   const tenant = readFileSync(join(process.cwd(), "src/lib/client-account/render-tenant-area.tsx"), "utf8");
-  assert.match(tenant, /loadSavedTalent\(userId, hostContext === "hub" \? null : tenantId\)/);
+  assert.match(tenant, /loadSavedTalent\(userId, accountSpansTenants\(hostContext\) \? null : tenantId\)/);
   const loader = readFileSync(join(process.cwd(), "src/lib/client-account/saved-talent.server.ts"), "utf8");
   assert.match(loader, /from\("agency_talent_roster"\)[\s\S]*\.eq\("tenant_id", tenantId\)/);
   const comp = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
