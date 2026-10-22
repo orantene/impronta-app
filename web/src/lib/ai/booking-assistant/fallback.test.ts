@@ -32,7 +32,8 @@ test("ack copy differs from the handoff copy and has no em dash", () => {
 
 test("turn wiring: every fallback path logs a reason and a handed-off thread gets the ack", async () => {
   const { readFileSync } = await import("node:fs");
-  const src = readFileSync(new URL("./turn.server.ts", import.meta.url), "utf8");
+  const { blankComments } = await import("@/lib/quality/supabase-unchecked-read");
+  const src = blankComments(readFileSync(new URL("./turn.server.ts", import.meta.url), "utf8"));
   for (const reason of ["no_anthropic_key", "monthly_cap", "failReason", "why"]) {
     assert.ok(src.includes(reason), reason);
   }
