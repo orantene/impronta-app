@@ -25,7 +25,19 @@ export function portalConfigurationId(
   env: Record<string, string | undefined> = process.env,
 ): string | undefined {
   const v = stripeEnv(PORTAL_CONFIGURATION_ENV[account], env)?.trim();
-  return v ? v : undefined;
+  // A configuration id always starts with `bpc_`. Anything else (a live id
+  // pasted into a test env, a placeholder) would make Stripe reject the
+  // session, so it is treated as unset and the account default is used.
+  return v && v.startsWith("bpc_") ? v : undefined;
+}
+
+/** Same params without the configuration, for the one retry when Stripe rejects it. */
+export function withoutPortalConfiguration<T extends { configuration?: string }>(
+  params: T,
+): Omit<T, "configuration"> {
+  const { configuration: _drop, ...rest } = params;
+  void _drop;
+  return rest;
 }
 
 export function buildPortalSessionParams(opts: {

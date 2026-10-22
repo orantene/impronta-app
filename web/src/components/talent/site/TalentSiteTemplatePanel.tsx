@@ -8,6 +8,7 @@ import {
   TemplatePickerPanel,
   type TemplatePickerApplyResult,
 } from "@/components/edit-chrome/template-picker-panel";
+import { openUpgrade } from "@/components/talent/upgrade/open-upgrade";
 import { applyTalentSiteTemplateAction } from "@/lib/talent-site/server/actions";
 import { toUnifiedTemplateDef } from "@/lib/site-admin/builder-core/templates/template-def";
 import type { TalentSiteTemplateKey } from "@/lib/talent-site/templates/types";
@@ -38,10 +39,13 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
   const unifiedTemplates = useMemo(
     () =>
       state.availableTemplates.map((t) =>
-        toUnifiedTemplateDef(
-          { key: t.key, label: t.label, blurb: t.blurb, thumbnailUrl: t.thumbnailUrl },
-          "talent-site",
-        ),
+        ({
+          ...toUnifiedTemplateDef(
+            { key: t.key, label: t.label, blurb: t.blurb, thumbnailUrl: t.thumbnailUrl, availableAt: t.availableAt },
+            "talent-site",
+          ),
+          locked: t.locked,
+        }),
       ),
     [state.availableTemplates],
   );
@@ -87,6 +91,10 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
           <SecondaryButton onClick={() => setOpen(true)} disabled={open}>
             {talentSiteCopy(locale, "templateChange")}
           </SecondaryButton>
+        ) : lockedFree && state.availableTemplates.length > 1 ? (
+          <SecondaryButton onClick={() => setOpen(true)} disabled={open}>
+            {talentSiteCopy(locale, "templateBrowse")}
+          </SecondaryButton>
         ) : null}
       </div>
 
@@ -112,6 +120,11 @@ export function TalentSiteTemplatePanel({ state, locale = "en", onChanged }: Pro
             currentKey={state.templateKey}
             talentProfileId={state.talentProfileId}
             onApply={applyTemplate}
+            onLockedUpgrade={() => openUpgrade({ feature: "template-picker", from: "template-picker" })}
+            lockedLabels={{
+              locked: talentSiteCopy(locale, "templateLocked"),
+              upgrade: talentSiteCopy(locale, "templateUpgrade"),
+            }}
           />
         </div>
       ) : null}

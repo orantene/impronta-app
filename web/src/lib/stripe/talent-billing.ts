@@ -38,7 +38,7 @@ import { sweepTrialSessions } from "@/lib/billing/trial-checkout-session";
 import { reopenIfExpired } from "@/lib/billing/checkout-session-reopen";
 import { reconcileTrialSession } from "@/lib/billing/trial-session-reconcile";
 import { TRIAL_PRICE_IDENTITY, trialPriceIdentity } from "@/lib/billing/trial-price-identity";
-import { buildPortalSessionParams } from "@/lib/stripe/portal-params";
+import { buildPortalSessionParams, withoutPortalConfiguration } from "@/lib/stripe/portal-params";
 import {
   stripeCheckoutLocale,
 } from "@/lib/i18n/vendor-locale";
@@ -328,13 +328,22 @@ export async function createTalentBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
-    const session = await stripe.billingPortal.sessions.create(
-      buildPortalSessionParams({
-        customerId: customer.stripe_customer_id,
-        returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
-        locale: opts.locale,
-      }),
-    );
+    // TUL-834: a fresh session per click, URL returned straight from Stripe and
+    // never stored. If the env configuration id is stale or from another Stripe
+    // account, retry once on the account default instead of failing.
+    const params = buildPortalSessionParams({
+      customerId: customer.stripe_customer_id,
+      returnUrl: `${opts.appBaseUrl}/${opts.tenantSlug}/talent/settings`,
+      locale: opts.locale,
+    });
+    let session;
+    try {
+      session = await stripe.billingPortal.sessions.create(params);
+    } catch (firstErr) {
+      if (!params.configuration) throw firstErr;
+      logServerError("talent-billing.portalConfigRetry", firstErr);
+      session = await stripe.billingPortal.sessions.create(withoutPortalConfiguration(params));
+    }
 
     return { ok: true, data: { url: session.url } };
   } catch (err) {

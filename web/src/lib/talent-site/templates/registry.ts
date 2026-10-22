@@ -43,6 +43,32 @@ export function listTemplatesForTier(tier: TalentPlanTier): TalentSiteTemplateDe
   return Object.values(TALENT_SITE_TEMPLATES).filter((t) => isTemplateAllowedForTier(t.key, tier));
 }
 
+export type TemplateWithAccess = {
+  key: TalentSiteTemplateKey;
+  label: string;
+  blurb: string;
+  thumbnailUrl: string;
+  availableAt: TalentPlanTier;
+  /** True when the plan cannot apply it yet. Still listed: that is the paywall's job. */
+  locked: boolean;
+};
+
+/**
+ * TUL-829: every template with a lock flag. The dashboard lists all of them so
+ * a Free talent sees what an upgrade unlocks (locked badge) instead of only
+ * the one or two their plan already includes.
+ */
+export function listTemplatesWithAccess(tier: TalentPlanTier): TemplateWithAccess[] {
+  return Object.values(TALENT_SITE_TEMPLATES).map((t) => ({
+    key: t.key,
+    label: t.label,
+    blurb: t.blurb,
+    thumbnailUrl: t.thumbnailUrl,
+    availableAt: t.availableAt,
+    locked: !isTemplateAllowedForTier(t.key, tier),
+  }));
+}
+
 export function defaultTemplateKeyForTier(tier: TalentPlanTier): TalentSiteTemplateKey {
   return "tulala-digital";
 }

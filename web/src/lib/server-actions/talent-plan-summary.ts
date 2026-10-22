@@ -32,6 +32,7 @@ import {
   type GrantKind,
   type TrialPhase,
 } from "@/lib/plan-trials";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { getPlan, getUpgradePathFromPlan, isKnownPlan } from "@/lib/access/plan-catalog";
 
 export type TalentPlanSummary = {
@@ -43,6 +44,10 @@ export type TalentPlanSummary = {
   tagline: string;
   /** Honest monthly price copy ("Free" / "$9 / month"). */
   priceLabel: string;
+  /** Billing interval of the live subscription ("month" when unknown or none). */
+  billingInterval: "month" | "year";
+  /** Amount per interval in cents from the live Stripe price, or null. */
+  billedAmountCents: number | null;
   /** Live talent Stripe subscription, or null on Free / no record. */
   subscription: {
     status: string;
@@ -151,9 +156,25 @@ export async function loadTalentPlanSummary(): Promise<TalentPlanSummaryResult> 
       ? await displayTrialDays({ kind: "talent", talentProfileId: talentProfile.id, userId: session.user.id }, offer)
       : 0;
 
+    // TUL-1297: a yearly subscriber must see the yearly amount, not the
+    // monthly catalog price. Read the live price; best effort, monthly default.
+    let billingInterval: "month" | "year" = "month";
+    let billedAmountCents: number | null = null;
+    if (subscription?.stripePriceId && isStripeConfigured()) {
+      try {
+        const price = await getStripe()!.prices.retrieve(subscription.stripePriceId);
+        billingInterval = price.recurring?.interval === "year" ? "year" : "month";
+        billedAmountCents = typeof price.unit_amount === "number" ? price.unit_amount : null;
+      } catch (err) {
+        logServerError("talent-plan-summary.price", err);
+      }
+    }
+
     return {
       ok: true,
       summary: {
+        billingInterval,
+        billedAmountCents,
         planKey,
         planLabel: planLabelOf(planKey),
         tagline: (isKnownPlan(planKey) ? getPlan(planKey).tagline : "") ?? "",

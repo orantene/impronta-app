@@ -31,3 +31,21 @@ export function invoiceDisplayState(input: {
     nextAttemptAt: unpaid && input.status === "open" ? (input.nextAttemptAt ?? null) : null,
   };
 }
+
+/**
+ * TUL-834: a $0 invoice that Stripe raises when a subscription starts on a
+ * trial or a 100% promo is bookkeeping, not a bill. It is hidden from the
+ * Settings > Billing list. A $0 row that is still open or failed is kept so
+ * a real problem never disappears.
+ */
+export function isZeroNoChargeInvoice(input: {
+  status: string | null;
+  totalCents: number;
+  attemptCount?: number | null;
+}): boolean {
+  return (
+    input.totalCents === 0 &&
+    (input.status === "paid" || input.status === "void") &&
+    (input.attemptCount ?? 0) === 0
+  );
+}

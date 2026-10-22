@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { buildPortalSessionParams, portalConfigurationId } from "./portal-params";
+import { buildPortalSessionParams, portalConfigurationId, withoutPortalConfiguration } from "./portal-params";
 
 test("portal params carry configuration, locale and return_url", () => {
   const p = buildPortalSessionParams({
@@ -25,4 +25,15 @@ test("MX account reads its own configuration id", () => {
 test("configuration is omitted when env is unset or blank", () => {
   const p = buildPortalSessionParams({ customerId: "cus_1", returnUrl: "https://x/y", env: { STRIPE_PORTAL_CONFIGURATION_ID: "  " } });
   assert.equal("configuration" in p, false);
+});
+
+test("a configuration id that is not a bpc_ id is ignored (TUL-834)", () => {
+  assert.equal(portalConfigurationId("us", { STRIPE_PORTAL_CONFIGURATION_ID: "price_123" }), undefined);
+});
+
+test("withoutPortalConfiguration drops only the configuration (TUL-834)", () => {
+  const p = buildPortalSessionParams({ customerId: "cus_1", returnUrl: "https://x/y", env: { STRIPE_PORTAL_CONFIGURATION_ID: "bpc_a" } });
+  const q = withoutPortalConfiguration(p);
+  assert.equal("configuration" in q, false);
+  assert.equal(q.customer, "cus_1");
 });

@@ -46,3 +46,35 @@ test("icon-only header buttons carry aria-label", () => {
   }
   assert.match(read("components/admin/shell/admin-shell-client.tsx"), /aria-label=\{copy\.t\("Send"\)\} onClick=\{\(\) => send\(input\)\}/);
 });
+
+import { talentPlanPriceLine } from "./talent-plan-price";
+
+test("TUL-1297: a yearly plan prints the yearly amount, monthly equivalent as secondary (en + es)", () => {
+  const en = talentPlanPriceLine({ monthlyCents: 1500, annualCents: 15000, interval: "year", locale: "en" });
+  assert.equal(en.primary, "$150 USD / year");
+  assert.match(en.secondary ?? "", /\$12\.50 USD a month/);
+  const es = talentPlanPriceLine({ monthlyCents: 1500, annualCents: 15000, interval: "year", locale: "es" });
+  assert.match(es.primary, /^\$150 USD \/ año$/);
+  assert.match(es.secondary ?? "", /al mes/);
+  assert.doesNotMatch(es.primary + (es.secondary ?? ""), /\/ mes|—|–/);
+});
+
+test("TUL-1297: monthly stays monthly and a missing yearly price falls back to monthly", () => {
+  assert.equal(talentPlanPriceLine({ monthlyCents: 1500, annualCents: 15000, interval: "month" }).primary, "$15 USD / month");
+  assert.equal(talentPlanPriceLine({ monthlyCents: 1500, annualCents: null, interval: "year", locale: "es" }).primary, "$15 USD / mes");
+});
+
+test("TUL-1297: the compare drawer has a yearly switch and the plan card prints the interval", () => {
+  const drawer = read("components/admin/shell/internal/talent-drawers/premium-pages.tsx");
+  assert.match(drawer, /TierIntervalToggle/);
+  assert.match(drawer, /startTalentUpgrade\(planKey, tenantSlug, appliedCode \?\? urlPromo, null, interval\)/);
+  assert.match(read("app/(workspace)/[tenantSlug]/talent/settings/TalentPlanCard.tsx"), /talentPlanPriceLine/);
+  for (const f of ["../messages/en.json", "../messages/es.json"]) {
+    const j = JSON.parse(readFileSync(join(root, f), "utf8"));
+    const pp = j.dashboard.talentDrawers.premiumPages;
+    for (const k of ["intervalLabel", "intervalMonthly", "intervalYearly", "upgradeToYear"]) {
+      assert.ok(typeof pp[k] === "string" && pp[k].length > 0, `${f} ${k}`);
+      assert.doesNotMatch(pp[k], /—|–/);
+    }
+  }
+});
