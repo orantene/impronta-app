@@ -11430,7 +11430,19 @@
         "promo": {
           "applied": "{code}: {label}"
         },
-        "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras."
+        "archivesAtPeriodEnd": "Los talentos que superen el límite de tu nuevo plan se archivan al final del período, el {date}. Conservas todo hasta entonces y puedes restaurarlos cuando quieras.",
+        "keepTitle": "Elige quién sigue visible",
+        "keepIntro": "Free mantiene visibles hasta {cap} talentos y tienes {count}. Elige quién se queda; el resto se archiva, no se borra, y puedes restaurarlo cuando quieras.",
+        "keepCounter": "{selected} de {cap} seleccionados",
+        "keepConfirm": "Pasar a Free",
+        "keepSaving": "Guardando...",
+        "keepLoading": "Cargando tu lista...",
+        "keepLoadFailed": "No pudimos cargar tu lista. No se cambió nada.",
+        "keepUnnamed": "Talento sin nombre",
+        "keepCancel": "Volver",
+        "scheduledOn": "Tu plan de pago termina el {date}, y luego tu espacio pasa a {plan}.",
+        "scheduledEnd": "Tu plan de pago termina al final de este período de facturación, y luego tu espacio pasa a {plan}.",
+        "setTo": "Plan del espacio cambiado a {plan}."
       }
     },
     "adminIntegrationsCatalog": {

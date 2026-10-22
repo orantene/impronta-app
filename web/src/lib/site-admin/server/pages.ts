@@ -52,6 +52,8 @@ import { resolveSnapshotBuilderTree } from "@/lib/site-admin/builder-node/snapsh
 import type { LegacySnapshotSlot } from "@/lib/site-admin/builder-node/snapshot-slot-bridge";
 import type { BuilderNodeTree } from "@/lib/site-admin/builder-node/types";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
+import { pingIndexNowForCmsPage } from "@/lib/seo/indexnow-cms-page";
+import { afterResponse } from "@/lib/server/after-response";
 import { loadRoleDeletionBlockReason } from "./page-deletion-guard";
 import type { Locale } from "@/lib/site-admin/locales";
 import type {
@@ -845,6 +847,9 @@ export async function publishPage(
   });
 
   bustPageTags(tenantId, afterRow.id);
+
+  // TUL-1777: tell IndexNow (best-effort, prod only, debounced); never hangs or fails the publish.
+  afterResponse(() => pingIndexNowForCmsPage(supabase, tenantId, afterRow), "pages.publish.indexnow");
 
   return ok({ id: afterRow.id, version: afterRow.version, publishedAt: nowIso });
 }

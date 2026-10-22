@@ -117,6 +117,8 @@ import {
 import { enforceFreePlanNestedBuilderDraftGuard } from "./free-plan-draft-save-guard";
 import type { PageRow } from "./pages";
 import { recoverBuilderTreeIfEmpty } from "./recover-builder-tree";
+import { pingIndexNowForCmsPage } from "@/lib/seo/indexnow-cms-page";
+import { afterResponse } from "@/lib/server/after-response";
 import {
   decideBeaconLastWriteWins,
   decideSameSessionSaveAdoption,
@@ -1832,6 +1834,9 @@ export async function publishHomepage(
   });
 
   bustHomepageTags(tenantId, afterRow.id, values.locale);
+
+  // TUL-1777: tell IndexNow the home changed (best-effort, prod only, debounced).
+  afterResponse(() => pingIndexNowForCmsPage(supabase, tenantId, { locale: values.locale, slug: "" }), "homepage.publish.indexnow");
 
   return ok({
     id: afterRow.id,

@@ -9,6 +9,10 @@ import { UpgradeModal } from "./upgrade-modal";
 import { useUpgradeModal } from "./upgrade-context";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
+import { commitPlanDowngrade, getDowngradePreflight, type DowngradePreflight } from "@/lib/server-actions/admin-plan-downgrade";
+import { DowngradeKeepPicker } from "./downgrade-keep-picker";
+import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -19,7 +23,7 @@ import type { TrialDoorOffer } from "@/lib/server-actions/trial-door";
  * GlobalUpgradeModal — THE upgrade modal. One instance, mounted at the admin
  * shell, reached by every upgrade CTA in the product.
  *
- * Free downgrade  → changeWorkspacePlan (direct DB write, no Stripe)
+ * Free downgrade  → changeWorkspacePlan (Stripe cancel at period end when subscribed; direct write only when not billed)
  * Studio / Agency → startWorkspaceUpgrade → Stripe Checkout redirect
  * Network         → mailto: sales handoff (no self-serve price yet)
  *
@@ -47,6 +51,47 @@ export function GlobalUpgradeModal({
   const { open, reason, setOpen } = useUpgradeModal();
   const workspace = useAdminWorkspace();
   const [pending, startTransition] = React.useTransition();
+  const t = useT();
+  // TUL-1291: owner keep-list picker (opens only when changeWorkspacePlan says the roster is above the Free cap).
+  const [picker, setPicker] = React.useState<{ open: boolean; loading: boolean; preflight: DowngradePreflight | null }>({
+    open: false,
+    loading: false,
+    preflight: null,
+  });
+
+  function planChangeToast(plan: string, scheduled: boolean, effectiveAt: string | null): string {
+    if (!scheduled) return interpolate(t("dashboard.adminShared.planChange.setTo"), { plan });
+    return effectiveAt
+      ? interpolate(t("dashboard.adminShared.planChange.scheduledOn"), { plan, date: new Date(effectiveAt).toLocaleDateString() })
+      : interpolate(t("dashboard.adminShared.planChange.scheduledEnd"), { plan });
+  }
+
+  function openKeepPicker() {
+    setPicker({ open: true, loading: true, preflight: null });
+    void getDowngradePreflight({ target_tier: "free" }).then((r) => {
+      if (r.ok) {
+        setPicker({ open: true, loading: false, preflight: r.preflight });
+      } else {
+        setPicker({ open: false, loading: false, preflight: null });
+        toast.error(t("dashboard.adminShared.planChange.keepLoadFailed"));
+      }
+    });
+  }
+
+  function handleKeepConfirm(keepIds: string[]) {
+    startTransition(async () => {
+      const result = await commitPlanDowngrade({ target_tier: "free", talent_keep_ids: keepIds });
+      if (result.ok) {
+        toast.success(
+          planChangeToast("free", result.stripe_scheduled, result.effective_at),
+        );
+        setPicker({ open: false, loading: false, preflight: null });
+        queueRouterRefresh();
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
 
   const activePlan: Plan = activePlanOverride ?? workspace?.plan ?? "free";
   const slug = tenantSlug ?? workspace?.slug;
@@ -113,8 +158,12 @@ export function GlobalUpgradeModal({
     startTransition(async () => {
       const result = await changeWorkspacePlan(plan);
       if (result.ok) {
-        toast.success(`Workspace plan set to ${plan}.`);
+        toast.success(
+          planChangeToast(plan, result.data.scheduledForPeriodEnd, result.data.effectiveAt),
+        );
         queueRouterRefresh();
+      } else if (result.needsKeepList) {
+        openKeepPicker();
       } else {
         toast.error(result.error);
       }
@@ -122,6 +171,7 @@ export function GlobalUpgradeModal({
   }
 
   return (
+    <>
     <UpgradeModal
       open={open}
       onOpenChange={setOpen}
@@ -131,5 +181,14 @@ export function GlobalUpgradeModal({
       doorPending={pending}
       onDoorStart={handleDoorStart}
     />
+    <DowngradeKeepPicker
+      open={picker.open}
+      preflight={picker.preflight}
+      loading={picker.loading}
+      pending={pending}
+      onConfirm={handleKeepConfirm}
+      onCancel={() => setPicker({ open: false, loading: false, preflight: null })}
+    />
+    </>
   );
 }

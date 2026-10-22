@@ -21,3 +21,9 @@ test("EN and ES both carry the named-zone sentence with the {zone} slot", () => 
     assert.match(j.public.slotPicker.subtitleZone, /\{zone\}/, f);
   }
 });
+
+test("TUL-1812: a pick from the previous service is cleared when the new service does not offer it, and cards are full width", () => {
+  const src = readFileSync(join(__dirname, "SlotPicker.tsx"), "utf8");
+  assert.match(src, /!r\.slots\.includes\(valueRef\.current\.startsAt\)\) onChangeRef\.current\(null\)/);
+  assert.match(src, /className=\{`w-full text-left/);
+});
