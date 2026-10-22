@@ -55,6 +55,7 @@ src/lib/billing/talent-cancel.test.ts
 src/lib/billing/talent-past-due-wiring.static.test.ts
 src/lib/billing/talent-plan-price.test.ts
 src/lib/billing/talent-plan-state.test.ts
+src/lib/billing/talent-plan-text-es.static.test.ts
 src/lib/billing/upgrade-outcome.test.ts
 src/lib/catalog/entitlement-credits.test.ts
 src/lib/client-hub/hub-money-format.static.test.ts

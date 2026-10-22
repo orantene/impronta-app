@@ -127,7 +127,7 @@ export function TalentTierCompareDrawer() {
   const t = useT();
   const copy = useDashboardText();
   const open = state.drawer.drawerId === "talent-tier-compare";
-  const current = state.talentTier;
+  const current = bridgeTalentSelfProfile?.talentTier ?? state.talentTier;
 
   return (
     <DrawerShell
