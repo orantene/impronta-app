@@ -32,4 +32,10 @@ export const BILLING_ES_TEXT: Record<string, string> = {
   "Opening…": "Abriendo…",
   "Loading billing…": "Cargando facturación…",
   "Couldn't load billing. Try again.": "No pudimos cargar la facturación. Inténtalo de nuevo.",
+  "Default for every talent": "Incluido para todo talento",
+  "Richer presentation": "Presentación más completa",
+  "Your website, fully unlocked": "Tu sitio web, totalmente desbloqueado",
+  "Your branded talent page": "Tu página de talento con tu marca",
+  "$15 / month": "$15 / mes",
+  "$9 / month": "$9 / mes",
 };

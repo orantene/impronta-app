@@ -10,6 +10,9 @@
 import type Stripe from "stripe";
 
 import { isDefiniteStripeFailure } from "./stripe-failure";
+import { buildBreakdown, renewalAmount } from "./plan-change-breakdown";
+import { computePromoPreview } from "./promo-preview";
+import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import type { BillingInterval } from "@/lib/pricing/interval-pricing";
 import {
   buildImmediateUpdateParams,
@@ -20,6 +23,7 @@ import {
   planChangeIdempotencyKey,
   planChangePolicy,
   type PlanChangeConfirm,
+  type PlanChangeDiscountEntry,
   type PlanChangePreview,
   type PlanChangeSubject,
 } from "./plan-change-policy";
@@ -44,6 +48,17 @@ export type PlanChangeRequest = {
   toPriceId: string | null;
   /** Server-side error sink so a swallowed Stripe failure still leaves a log line naming the step. */
   onError?: (context: string, err: unknown) => void;
+  /**
+   * TUL-833: a promo code the server already validated against our catalog
+   * (see plan-change-promo.server.ts). Never built from a browser value.
+   */
+  promo?: PlanChangePromoInput | null;
+};
+
+export type PlanChangePromoInput = {
+  entry: PlanChangeDiscountEntry;
+  /** The catalog row, for the label and the renewal maths. */
+  discount: PricingDiscountRow;
 };
 
 type Current = {
@@ -71,6 +86,7 @@ function readCurrent(sub: Stripe.Subscription, kind: "talent" | "workspace", sub
 
 function subject(req: PlanChangeRequest, c: Current, toPriceId: string): PlanChangeSubject {
   return {
+    discount: req.promo?.entry ?? null,
     kind: req.kind,
     subjectId: req.subjectId,
     subscriptionId: c.sub.id,
@@ -80,6 +96,31 @@ function subject(req: PlanChangeRequest, c: Current, toPriceId: string): PlanCha
     toInterval: req.toInterval,
     toPriceId,
   };
+}
+
+/** A code is only meaningful on a change that bills now, and a second discount would replace the first. */
+function promoRefusal(
+  req: PlanChangeRequest,
+  c: Current,
+  policy: ReturnType<typeof planChangePolicy>,
+): { ok: false; error: string; code: "promo"; promoError: "already_discounted" | "upgrade_now_only" } | null {
+  if (!req.promo) return null;
+  if (policy.timing !== "now" || policy.kind === "noop") {
+    return { ok: false, error: "A code applies when you change plan now.", code: "promo", promoError: "upgrade_now_only" };
+  }
+  if ((c.sub.discounts?.length ?? 0) > 0) {
+    return { ok: false, error: "Your plan already has a discount.", code: "promo", promoError: "already_discounted" };
+  }
+  return null;
+}
+
+/** Stripe refused the request itself (bad code, restriction), as opposed to a declined card or an outage. */
+function isInvalidRequest(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { type?: unknown }).type === "StripeInvalidRequestError";
+}
+
+function discountKeyPart(entry: PlanChangeDiscountEntry): string {
+  return "promotion_code" in entry ? entry.promotion_code : entry.coupon;
 }
 
 function iso(unix: number): string {
@@ -121,6 +162,8 @@ export async function previewPlanChange(
       }
       base.newPrice = { amount: price.unit_amount, currency };
     }
+    const refused = promoRefusal(req, c, policy);
+    if (refused) return refused;
     if (policy.timing === "period_end") {
       return {
         ok: true,
@@ -135,17 +178,35 @@ export async function previewPlanChange(
       return { ok: true, ...base, amountDueToday: 0, currency: c.item.price.currency, effectiveAt: null };
     }
     const invoice = await stripe.invoices.createPreview(buildPreviewParams(subject(req, c, req.toPriceId), prorationDate));
+    // TUL-831: the next renewal on the new price. Best effort; the line is simply hidden when the price is unreadable.
+    let unit: number | null = base.newPrice && base.newPrice.currency === invoice.currency ? base.newPrice.amount : null;
+    if (unit === null && !isIntervalChange) {
+      try {
+        const price = await stripe.prices.retrieve(req.toPriceId);
+        unit = price.unit_amount != null && price.currency === invoice.currency ? price.unit_amount : null;
+      } catch {
+        unit = null;
+      }
+    }
+    const breakdown = buildBreakdown(invoice, renewalAmount(unit, invoice.currency, req.promo?.discount ?? null));
+    const promo = req.promo ? { code: req.promo.discount.code, label: computePromoPreview(req.promo.discount, 0).label } : null;
     // A trialing subscription keeps its trial: the new interval starts being billed when the trial ends.
     const trialEnd = c.sub.status === "trialing" ? c.sub.trial_end : null;
     return {
       ok: true,
       ...base,
+      breakdown,
+      promo,
       amountDueToday: invoice.amount_due,
       currency: invoice.currency,
       effectiveAt: isIntervalChange && trialEnd ? iso(trialEnd) : null,
     };
   } catch (err) {
     req.onError?.(`billing.planChange.preview.stripe kind=${req.kind} toPlan=${req.toPlan} toInterval=${req.toInterval}`, err);
+    // A code Stripe refuses on this subscription (restriction we cannot see, e.g. a minimum) is the code's fault, not an outage.
+    if (req.promo && isInvalidRequest(err)) {
+      return { ok: false, error: "That code can't be applied to this change.", code: "promo", promoError: "not_applicable" };
+    }
     return { ok: false, error: "We could not price this change. Try again.", code: "stripe" };
   }
 }
@@ -166,7 +227,16 @@ export async function confirmPlanChange(
     if (typeof c === "string") return { ok: false, error: c, code: "not_allowed" };
     const policy = planChangePolicy({ plan: c.fromPlan, interval: c.fromInterval }, { plan: req.toPlan, interval: req.toInterval });
     const key = (step: Parameters<typeof planChangeIdempotencyKey>[0]["step"]) =>
-      planChangeIdempotencyKey({ subscriptionId: c.sub.id, toPlan: req.toPlan, toInterval: req.toInterval, prorationDate, step });
+      planChangeIdempotencyKey({
+        subscriptionId: c.sub.id,
+        toPlan: req.toPlan,
+        toInterval: req.toInterval,
+        prorationDate,
+        step,
+        discountId: req.promo ? discountKeyPart(req.promo.entry) : null,
+      });
+    const refused = promoRefusal(req, c, policy);
+    if (refused) return refused;
 
     if (policy.timing === "now") {
       // Upgrading again (or going back to the current plan) cancels a pending
@@ -213,6 +283,9 @@ export async function confirmPlanChange(
     return { ok: true, kind: policy.kind, timing: "period_end", effectiveAt: iso(c.item.current_period_end) };
   } catch (err) {
     req.onError?.(`billing.planChange.confirm.stripe kind=${req.kind} toPlan=${req.toPlan} toInterval=${req.toInterval}`, err);
+    if (req.promo && isInvalidRequest(err)) {
+      return { ok: false, error: "That code can't be applied to this change.", code: "promo", promoError: "not_applicable", definite: true };
+    }
     return { ok: false, error: "We could not change your plan. Try again.", code: "stripe", definite: isDefiniteStripeFailure(err) };
   }
 }

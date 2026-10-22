@@ -11,7 +11,18 @@
  */
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 
-export type PromoErrorCode = "invalid" | "expired" | "not_applicable";
+export type PromoErrorCode =
+  | "invalid"
+  | "expired"
+  | "not_applicable"
+  /** TUL-833: the plan already carries a discount, which a second code would replace. */
+  | "already_discounted"
+  /** TUL-833: first-purchase-only code on an account that has paid before. */
+  | "first_time_only"
+  /** TUL-833: a code applies when the plan changes now, not at a scheduled period end. */
+  | "upgrade_now_only"
+  /** TUL-833: this person already used the code as many times as allowed. */
+  | "limit_reached";
 
 export const PROMO_ERROR_MESSAGES: Record<PromoErrorCode, { en: string; es: string }> = {
   invalid: {
@@ -19,14 +30,53 @@ export const PROMO_ERROR_MESSAGES: Record<PromoErrorCode, { en: string; es: stri
     es: "Ese código no es válido. Revísalo e inténtalo de nuevo.",
   },
   expired: {
-    en: "That code has expired or is no longer available.",
-    es: "Ese código venció o ya no está disponible.",
+    en: "This code has expired or is no longer available.",
+    es: "Este código venció o ya no está disponible.",
   },
   not_applicable: {
     en: "That code doesn't apply to this plan.",
     es: "Ese código no aplica a este plan.",
   },
+  already_discounted: {
+    en: "Your plan already has a discount, so another code can't be added.",
+    es: "Tu plan ya tiene un descuento, así que no se puede añadir otro código.",
+  },
+  first_time_only: {
+    en: "That code is only for a first purchase.",
+    es: "Ese código es solo para una primera compra.",
+  },
+  upgrade_now_only: {
+    en: "A code applies when you change plan now, not on a scheduled change.",
+    es: "Un código aplica cuando cambias de plan ahora, no en un cambio programado.",
+  },
+  limit_reached: {
+    en: "You already used that code the maximum number of times.",
+    es: "Ya usaste ese código el máximo de veces.",
+  },
 };
+
+/**
+ * A code saved while Stripe was unreachable has no coupon or promotion code
+ * ("amber" row): the preview would promise a discount that Checkout can never
+ * apply. With Stripe connected such a row is not a usable code yet.
+ */
+export function isPromoSyncedToStripe(
+  d: { stripeCouponId: string | null; stripePromotionCodeId: string | null },
+  stripeConfigured: boolean,
+): boolean {
+  if (!stripeConfigured) return true;
+  return Boolean(d.stripePromotionCodeId?.trim() || d.stripeCouponId?.trim());
+}
+
+/** The expired message in the buyer's language (server errors that reach the UI as one string). */
+export function expiredPromoMessage(locale: string | null | undefined): string {
+  return PROMO_ERROR_MESSAGES.expired[locale?.toLowerCase().startsWith("es") ? "es" : "en"];
+}
+
+/** Maps `validateDiscount`'s reason text to the code the UI localizes. */
+export function promoErrorFromReason(reason: string): PromoErrorCode {
+  return /expired|no longer|started|limit/i.test(reason) ? "expired" : "invalid";
+}
 
 export type PromoPreview = {
   code: string;

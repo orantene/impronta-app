@@ -264,3 +264,61 @@ test("exactly the minimum, and above it, still creates the session", async () =>
     assert.equal(calls.length, 1);
   }
 });
+
+// ─── TUL-1865: country prefill ───────────────────────────────────────────────
+
+/** MX charges are stamped on the transaction row before Stripe is called; stub that write and the seller guards. */
+const mxDeps = {
+  platform: "mx" as const,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: { from: () => ({ update: () => ({ eq: async () => ({ error: null }) }) }) } as any,
+  currencyGuard: async () => ({ ok: true as const }),
+  accountGuard: async () => ({ ok: true as const }),
+};
+
+function fakeStripeWithCustomers(opts: { customerFails?: boolean } = {}) {
+  const base = fakeStripe();
+  const customers: Array<{ params: Record<string, unknown>; options?: { idempotencyKey?: string } }> = [];
+  const stripe = {
+    ...base.stripe,
+    customers: {
+      create: async (params: Record<string, unknown>, options?: { idempotencyKey?: string }) => {
+        if (opts.customerFails) throw new Error("boom");
+        customers.push({ params, options });
+        return { id: "cus_mx" };
+      },
+    },
+  };
+  return { calls: base.calls, customers, stripe };
+}
+
+test("an MX-platform charge pre-selects Mexico through a customer address and drops customer_email", async () => {
+  const { calls, customers, stripe } = fakeStripeWithCustomers();
+  const out = await createCheckoutSessionForTransaction(input({ currency: "MXN" }), { stripe, ...mxDeps });
+  assert.equal(out.ok, true);
+  assert.deepEqual(customers[0].params.address, { country: "MX" });
+  assert.equal(customers[0].options?.idempotencyKey, "cust_txn_txn_abc");
+  assert.equal(calls[0].params.customer, "cus_mx");
+  assert.equal("customer_email" in calls[0].params && calls[0].params.customer_email !== undefined, false);
+  assert.equal(calls[0].options?.idempotencyKey, "cs_txn_txn_abc");
+});
+
+test("an explicit payer country wins; a US-platform charge with no country keeps customer_email", async () => {
+  const a = fakeStripeWithCustomers();
+  await createCheckoutSessionForTransaction(input({ payerCountry: "co" }), { stripe: a.stripe, platform: "us" });
+  assert.deepEqual(a.customers[0].params.address, { country: "CO" });
+
+  const b = fakeStripeWithCustomers();
+  await createCheckoutSessionForTransaction(input(), { stripe: b.stripe, platform: "us" });
+  assert.equal(b.customers.length, 0);
+  assert.equal(b.calls[0].params.customer_email, "client@example.com");
+  assert.equal(b.calls[0].params.customer, undefined);
+});
+
+test("a failed customer create never blocks payment: the session falls back to customer_email", async () => {
+  const { calls, stripe } = fakeStripeWithCustomers({ customerFails: true });
+  const out = await createCheckoutSessionForTransaction(input({ currency: "MXN" }), { stripe, ...mxDeps });
+  assert.equal(out.ok, true);
+  assert.equal(calls[0].params.customer_email, "client@example.com");
+  assert.equal(calls[0].params.customer, undefined);
+});

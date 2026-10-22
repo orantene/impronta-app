@@ -57,3 +57,13 @@ test("ES and EN copy both complete, no em dashes", () => {
   assert.ok(!all.includes("—"));
   assert.notEqual(en.steps[0].title, es.steps[0].title);
 });
+
+test("ES guide shows the taxonomy term's Spanish name when no Google category rule matches", () => {
+  const input = { displayName: "Ana", tradeLabel: "Cleaner", tradeLabelEs: "Limpieza" };
+  assert.equal(f(buildGbpGuide(input, "es"), "category").value, "Limpieza");
+  assert.equal(f(buildGbpGuide(input, "en"), "category").value, "Cleaner");
+  // No Spanish name on file: keep the English label rather than blank.
+  assert.equal(f(buildGbpGuide({ ...input, tradeLabelEs: null }, "es"), "category").value, "Cleaner");
+  // A matched Google category is unchanged.
+  assert.equal(f(buildGbpGuide({ ...full, tradeLabelEs: "Maquillista" }, "es"), "category").value, "Makeup artist");
+});

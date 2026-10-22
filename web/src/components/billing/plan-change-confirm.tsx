@@ -11,6 +11,10 @@ import {
   type PlanChangeConfirm as PlanChangeConfirmResult,
   type PlanChangePreview,
 } from "@/lib/billing/plan-change-policy";
+import { PROMO_ERROR_MESSAGES, type PromoErrorCode } from "@/lib/billing/promo-preview";
+import { formatPeriodDate } from "@/lib/billing/period-date";
+import { PlanChangeLines } from "./plan-change-lines";
+import { PlanChangePromoBox } from "./plan-change-promo-box";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,34 +25,70 @@ import { cn } from "@/lib/utils";
  * preview's proration date so the charge equals what was shown.
  */
 export function usePlanChange(
-  preview: () => Promise<PlanChangePreview>,
-  confirm: (prorationDate: number) => Promise<PlanChangeConfirmResult>,
+  preview: (code: string | null) => Promise<PlanChangePreview>,
+  confirm: (prorationDate: number, code: string | null) => Promise<PlanChangeConfirmResult>,
+  /** TUL-833: a code already typed on the page that opened this step (e.g. the upgrade modal's box or ?promo=). */
+  initialCode: string | null = null,
 ) {
   const [state, setState] = React.useState<PlanChangePreview | null>(null);
   const [done, setDone] = React.useState<PlanChangeConfirmResult | null>(null);
+  // TUL-833: the code the shown preview was priced with, and why the last attempted one was refused.
+  const [code, setCode] = React.useState<string | null>(null);
+  const [promoError, setPromoError] = React.useState<PromoErrorCode | null>(null);
   const [pending, startTransition] = React.useTransition();
 
   const load = React.useCallback(() => {
     setDone(null);
-    startTransition(async () => setState(await preview()));
-  }, [preview]);
+    startTransition(async () => {
+      if (initialCode) {
+        const first = await preview(initialCode);
+        if (first.ok) {
+          setState(first);
+          setCode(initialCode);
+          return;
+        }
+        // A refused starting code is shown once, then the plain price is used.
+        if (first.code === "promo") setPromoError(first.promoError ?? "invalid");
+      }
+      setState(await preview(null));
+    });
+  }, [preview, initialCode]);
 
   React.useEffect(() => {
     load();
   }, [load]);
 
+  /** Re-price with a code. A refused code leaves the last good preview on screen. */
+  const applyCode = React.useCallback(
+    (next: string | null) => {
+      setPromoError(null);
+      startTransition(async () => {
+        const out = await preview(next);
+        if (out.ok) {
+          setState(out);
+          setCode(next);
+        } else if (out.code === "promo") {
+          setPromoError(out.promoError ?? "invalid");
+        } else {
+          setState(out);
+        }
+      });
+    },
+    [preview],
+  );
+
   const submit = React.useCallback(() => {
     if (!state?.ok) return;
     const date = state.prorationDate;
     startTransition(async () => {
-      const out = await confirm(date);
+      const out = await confirm(date, code);
       setDone(out);
       // A stale preview gets re-priced instead of a dead end.
-      if (!out.ok && out.code === "stale_preview") setState(await preview());
+      if (!out.ok && out.code === "stale_preview") setState(await preview(code));
     });
-  }, [state, confirm, preview]);
+  }, [state, confirm, preview, code]);
 
-  return { preview: state, result: done, pending, reload: load, submit };
+  return { preview: state, result: done, pending, reload: load, submit, code, promoError, applyCode };
 }
 
 function money(amountMinor: number, currency: string): string {
@@ -61,17 +101,19 @@ export function PlanChangeConfirm({
   confirm,
   onDone,
   onCancel,
+  initialCode = null,
 }: {
+  initialCode?: string | null;
   /** Already translated plan display name. */
   planName: string;
-  preview: () => Promise<PlanChangePreview>;
-  confirm: (prorationDate: number) => Promise<PlanChangeConfirmResult>;
+  preview: (code: string | null) => Promise<PlanChangePreview>;
+  confirm: (prorationDate: number, code: string | null) => Promise<PlanChangeConfirmResult>;
   onDone: (result: PlanChangeConfirmResult) => void;
   onCancel: () => void;
 }) {
   const t = useT();
   const locale = useDashboardLocale();
-  const pc = usePlanChange(preview, confirm);
+  const pc = usePlanChange(preview, confirm, initialCode);
   const p = pc.preview;
 
   React.useEffect(() => {
@@ -85,11 +127,13 @@ export function PlanChangeConfirm({
       plan: planName,
       amount: money(p.amountDueToday, p.currency),
       price: p.newPrice ? money(p.newPrice.amount, p.newPrice.currency) : "",
-      date: p.effectiveAt
-        ? new Intl.DateTimeFormat(locale, { month: "long", day: "numeric", year: "numeric" }).format(new Date(p.effectiveAt))
-        : "",
+      date: formatPeriodDate(p.effectiveAt, locale) ?? "",
     });
   }
+  const lang = locale === "es" ? "es" : "en";
+  const promoMessage = pc.promoError ? PROMO_ERROR_MESSAGES[pc.promoError][lang] : null;
+  // A code only makes sense on a change that bills now.
+  const canPromo = !!p?.ok && p.timing === "now" && p.kind !== "noop";
   const error = (pc.result && !pc.result.ok ? pc.result.error : null) ?? (p && !p.ok ? p.error : null);
 
   return (
@@ -97,6 +141,18 @@ export function PlanChangeConfirm({
       <p className="text-sm text-foreground" aria-live="polite">
         {p === null ? t("dashboard.adminShared.planChange.loading") : sentence}
       </p>
+      {p?.ok && p.breakdown ? (
+        <PlanChangeLines breakdown={p.breakdown} currency={p.currency} planName={planName} promo={p.promo ?? null} lang={lang} />
+      ) : null}
+      {canPromo ? (
+        <PlanChangePromoBox
+          applied={pc.code}
+          error={promoMessage}
+          pending={pc.pending}
+          onApply={pc.applyCode}
+          onClear={() => pc.applyCode(null)}
+        />
+      ) : null}
       {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
       <div className="flex justify-end gap-2">
         <button type="button" className="rounded-md px-3 py-2 text-sm" onClick={onCancel} disabled={pc.pending}>

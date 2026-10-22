@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { PlanChangeConfirm } from "@/components/billing/plan-change-confirm";
 import { confirmWorkspacePlanChange, previewWorkspacePlanChange } from "./plan-change-actions";
 
@@ -23,9 +24,12 @@ export function WorkspacePlanChangeOpener({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(true);
-  const preview = useCallback(() => previewWorkspacePlanChange(tenantSlug, planKey, interval), [tenantSlug, planKey, interval]);
+  const preview = useCallback(
+    (code: string | null) => previewWorkspacePlanChange(tenantSlug, planKey, interval, code),
+    [tenantSlug, planKey, interval],
+  );
   const confirm = useCallback(
-    (prorationDate: number) => confirmWorkspacePlanChange(tenantSlug, planKey, interval, prorationDate),
+    (prorationDate: number, code: string | null) => confirmWorkspacePlanChange(tenantSlug, planKey, interval, prorationDate, code),
     [tenantSlug, planKey, interval],
   );
   const close = useCallback(() => setOpen(false), []);
@@ -37,7 +41,7 @@ export function WorkspacePlanChangeOpener({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
       <div className="w-full max-w-md rounded-xl bg-background p-5 shadow-xl">
-        <PlanChangeConfirm planName={planName} preview={preview} confirm={confirm} onDone={done} onCancel={close} />
+        <PlanChangeConfirm planName={planName} preview={preview} confirm={confirm} initialCode={readPromoCodeFromUrl()} onDone={done} onCancel={close} />
       </div>
     </div>
   );

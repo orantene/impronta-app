@@ -17,6 +17,7 @@ import {
   type CanonicalLocation,
 } from "@/lib/directory/location-facets";
 import { countryLabel } from "@/lib/geo/country-code";
+import { liveGateIndexRows } from "@/lib/directory/live-gate-index-rows";
 
 /**
  * _data-bridge/discover.ts — cross-tenant Discover catalog reads.
@@ -322,7 +323,9 @@ export async function loadDiscoverTalents(
     would_book_again_pct: number | null;
   };
 
-  const rows = (data ?? []) as unknown as IndexRow[];
+  // The matview lags hides/unlists; drop anything not publicly listed NOW.
+  const gated = await liveGateIndexRows(admin, (data ?? []) as unknown as IndexRow[]);
+  const rows = gated.rows;
   const ids = rows.map((r) => r.id);
 
   // Supplementary lookups: photos + geo coords. Both are kept off the
@@ -394,7 +397,7 @@ export async function loadDiscoverTalents(
     };
   });
 
-  return { items, total: count ?? items.length };
+  return { items, total: Math.max(0, (count ?? items.length) - gated.dropped) };
 }
 
 /**
@@ -421,7 +424,7 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
 
   const { data, error } = await admin
     .from("talent_discover_index")
-    .select("residence_city_id, category_slug, category_label, trust_tier");
+    .select("id, residence_city_id, category_slug, category_label, trust_tier");
 
   if (error) {
     logServerError("workspace.loadDirectoryFacets", error);
@@ -429,12 +432,13 @@ export async function loadDirectoryFacets(): Promise<DirectoryFacets> {
   }
 
   type Row = {
+    id: string;
     residence_city_id: string | null;
     category_slug: string | null;
     category_label: string | null;
     trust_tier: string | null;
   };
-  const rows = (data ?? []) as unknown as Row[];
+  const { rows } = await liveGateIndexRows(admin, (data ?? []) as unknown as Row[]);
 
   // Category slug and trust tier are controlled enums, so a plain string key is
   // correct for them. Country and city are NOT: they now derive from the
@@ -557,7 +561,7 @@ export async function loadDiscoverMapPoints(
     trust_tier: string | null;
     available_days_in_next_30: number | null;
   };
-  const rows = (data ?? []) as unknown as Row[];
+  const rows = (await liveGateIndexRows(admin, (data ?? []) as unknown as Row[])).rows;
   const ids = rows.map((r) => r.id);
 
   const photoByTalent = await resolveTalentCardThumbsForHub(admin, ids, null);

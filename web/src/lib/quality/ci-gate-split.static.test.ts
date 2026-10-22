@@ -70,13 +70,31 @@ test("the aggregator is named exactly 'Structural quality gate', waits on every 
   assert.ok(gate.steps.some((s) => s.startsWith("Gate policy")));
 });
 
-test("worker jobs depend on policy and the policy job decides, not the workers", () => {
+test("worker jobs depend on policy and the pre-check; the policy job decides, not the workers", () => {
   for (const id of WORKERS) {
-    assert.match(byId(id).text, /^ {4}needs: policy$/m, `${id} needs policy`);
+    assert.match(byId(id).text, /^ {4}needs: \[policy, precheck\]$/m, `${id} needs policy and precheck`);
     assert.match(byId(id).text, /needs\.policy\.outputs\.run == 'true'/);
     assert.doesNotMatch(byId(id).text, /steps\.policy\.outputs/);
   }
   assert.match(byId("policy").text, /^ {4}outputs:\n {6}run: \$\{\{ steps\.policy\.outputs\.run \}\}$/m);
+});
+
+test("the fast pre-check runs first: behind the policy only, caches tsc and eslint, and gates the aggregator", () => {
+  const pre = byId("precheck");
+  assert.equal(pre.name, "Gate — fast pre-check");
+  assert.match(pre.text, /^ {4}needs: policy$/m);
+  assert.match(pre.text, /^ {4}if: \$\{\{ needs\.policy\.outputs\.run == 'true' \}\}$/m);
+  assert.match(pre.text, /^ {4}runs-on: ubuntu-latest$/m);
+  assert.match(pre.text, /npx tsc --noEmit/);
+  assert.match(pre.text, /npm run lint -- --cache/);
+  assert.match(pre.text, /npm run test:size-ratchet/);
+  assert.match(pre.text, /lanes-sort\.cjs --check/);
+  assert.match(pre.text, /tsconfig\.tsbuildinfo/);
+  assert.match(pre.text, /\.eslintcache/);
+  // The BASE numbers live in the static job only; the pre-check reads them from there.
+  assert.doesNotMatch(pre.text, /^ {6}(TSC|SUPPRESSIONS)_BASE:/m);
+  const gateNeeds = byId("gate").text.match(/^ {4}needs: \[([^\]]*)\]$/m)?.[1] ?? "";
+  assert.match(gateNeeds, /\bprecheck\b/);
 });
 
 test("every job has a timeout; workers are capped at 45 minutes", () => {

@@ -297,6 +297,33 @@ Otherwise the job is skipped (its `if:` is false). On push to `main` and on
 manual runs they always run. So on an ordinary PR the only check that actually
 executes is the structural gate.
 
+### Fast pre-check (`Gate — fast pre-check`)
+
+`ci.yml` starts with a `precheck` job on the standard runner, right after the
+policy job. Every heavy job (`build`, `static`, `tests_a`, `tests_b`) has
+`needs: [policy, precheck]`, and the `Structural quality gate` aggregator waits on
+it, so a failed pre-check fails the gate and no heavy job starts. The full gate is
+unchanged; the pre-check is an earlier look at its cheapest, most frequently
+failing checks, so a batch fails in minutes instead of after ~45.
+
+It runs, in order (every step runs even if an earlier one failed, so one run
+shows all the cheap breaks): `lanes-sort.cjs --check` plus the orphan gate and
+lane-enrolment (incl. nightly-orphans overlap) tests; `npm run test:size-ratchet`
+(file-size, supabase unchecked-read, upsert onConflict, ...); the capability-less
+staff guard and message-key usage / duplicate-key tests; tests in files changed vs
+the PR base (changed `*.test.*` plus tests co-located with changed source, minus
+vitest files, recorded orphans and quarantined files, capped at 250); tsc with the
+`static` job's `TSC_BASE`; `npm run lint -- --cache` (stale suppressions in
+`eslint-suppressions.json` fail it, as in the gate); and the suppressions-total
+ratchet. `TSC_BASE` / `SUPPRESSIONS_BASE` are read from the `static` job, so they
+stay in one place.
+
+Caches: npm (setup-node), `web/tsconfig.tsbuildinfo` keyed on lockfile +
+tsconfig, and `web/.eslintcache` keyed on lockfile + `eslint.config.mjs`; both are
+saved even when the job fails, so the re-run after a fix is warm. Expect about
+8-12 minutes warm, 15-20 cold. A pre-check failure on `main` is a gate failure
+like any other (`main-red-alert.yml` sees the aggregator).
+
 ### CI priority (TUL-412)
 
 **A red 'Structural quality gate' on a solo PR = deferred to the batch, not broken.** The same `full-ci` label also runs admin boot, Builder fidelity and Talent website E2E on an ordinary PR.

@@ -37,6 +37,7 @@ import { prepFireCourse } from "@/lib/server-actions/venue-engine";
 import { tablesCloseVisit, tablesResetTable, tablesSeatParty, visitChangeServer, visitMergeChecks, visitSplitCheck, visitTransfer } from "../tables/actions";
 import { posLoadSale, posSubmitPrep } from "./actions";
 import { floorCreateReservation, floorLoadReserveTimes } from "./floor-actions";
+import { reservationsCancel, reservationsMarkNoShow } from "../reservations/actions";
 import { floorJoinWaitlist, floorLeaveWaitlist, floorNotifyWaitlist, floorSeatWaitlist } from "./floor-waitlist";
 import type { FloorCopy } from "./floor-copy";
 import { kitchenOutcome } from "./floor-kitchen";
@@ -95,6 +96,8 @@ const FLOOR_ACTIONS: FloorActions = {
   leaveWaitlist: (input) => floorLeaveWaitlist(input),
   loadReserveTimes: (input) => floorLoadReserveTimes(input),
   createReservation: (input) => floorCreateReservation(input),
+  markNoShow: (input) => reservationsMarkNoShow(input),
+  cancelReservation: (input) => reservationsCancel(input),
 };
 
 export function FloorClient(props: FloorClientProps) {

@@ -33,6 +33,8 @@ import {
   workspaceAdmins,
   workspaceOwner,
 } from "./catalog-audiences";
+import { minorUnitDivisor } from "@/lib/orders/money-format";
+import { balanceCents } from "@/lib/orders/price/rules";
 import { formatDateLabel, formatMoneyCents, pageUrl, planLabel } from "./catalog-render";
 import { loadInquiryViewWithFeeLines } from "./catalog-fee-lines";
 import { clientManageUrl } from "./client-visit-url";
@@ -231,15 +233,18 @@ const PAYMENT_DEPOSIT_RECEIVED_CLIENT: CatalogEntry = {
       const depositCents = num(event.payload.depositAmountCents);
       const currency = str(event.payload.currency);
       // loadInquiryView hydrates offerTotal as "<currency> <amount>" (amount is a
-      // plain decimal, not cents); parse the trailing number to derive the balance.
+      // plain decimal in major units); parse the trailing number to derive the balance.
+      // TUL-1305: the balance is the total minus what the deposit CREDITED (the principal), never
+      // minus the gross, which includes the card fee: 70000, not 69550.
       let balanceDue: string | null = null;
       const offerTotal = str(event.payload.offerTotal);
-      if (offerTotal && depositCents != null) {
+      const credited = num(event.payload.principalCents) ?? depositCents;
+      if (offerTotal && credited != null) {
         const m = offerTotal.match(/([\d.,]+)\s*$/);
         const totalNum = m ? Number(m[1].replace(/,/g, "")) : NaN;
         if (Number.isFinite(totalNum)) {
-          const balanceCents = Math.round(totalNum * 100) - depositCents;
-          if (balanceCents > 0) balanceDue = formatMoneyCents(balanceCents, currency);
+          const balance = balanceCents(Math.round(totalNum * minorUnitDivisor(currency ?? "")), credited);
+          if (balance > 0) balanceDue = formatMoneyCents(balance, currency);
         }
       }
       return React.createElement(ClientDepositReceived, {

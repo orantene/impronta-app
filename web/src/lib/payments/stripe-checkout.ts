@@ -43,6 +43,7 @@
  *   NEXT_PUBLIC_BASE_URL     — base URL for success/cancel redirects
  */
 
+import { checkoutCountryHint, createCountryCustomer } from "@/lib/payments/checkout-country";
 import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStripe, getStripeFor, withObjectPlatformFallback, type StripeAccountKey } from "@/lib/stripe/client";
@@ -121,6 +122,8 @@ export type CheckoutSessionInput = {
    * omitted and Stripe keeps its own default.
    */
   locale?: string | null;
+  /** TUL-1865: payer's ISO country when known; otherwise the seller platform decides (MX platform -> MX). */
+  payerCountry?: string | null;
   /**
    * Extra keys for the session's metadata, for tracing only (a payment link
    * adds its `payment_link_code` so the Stripe dashboard can name it). Never
@@ -304,6 +307,20 @@ export async function createCheckoutSessionForTransaction(
         },
       },
     };
+
+    // TUL-1865: pre-select the payer's country (Stripe has no session param for it; a Customer address is the only lever).
+    const countryHint = checkoutCountryHint(input.payerCountry, platform);
+    if (countryHint && input.payerEmail) {
+      const customerId = await createCountryCustomer(stripe, {
+        transactionId: input.transactionId,
+        email: input.payerEmail,
+        country: countryHint,
+      });
+      if (customerId) {
+        delete sessionParams.customer_email;
+        sessionParams.customer = customerId;
+      }
+    }
 
     // Always the PLATFORM account. See the module header for why the
     // connected-account (Direct Charge) branch was removed.

@@ -196,6 +196,17 @@ test("deposit then balance: two different notices, each exactly once; a replay a
   assert.equal(sent.length, total, "a replayed event adds nothing");
 });
 
+test("TUL-1305: the balance is the total minus the PRINCIPAL the deposit credited, not minus the gross with the card fee", async () => {
+  const sent: Sent[] = [];
+  // 30000 principal + 450 card fee = 30450 charged; the order still owes 70000 (of 100000), never 69550.
+  const ev = buildBookingReservedEvent({ tenantId: "t1", inquiryId: null, bookingId: "b1", depositCents: 30450, principalCents: 30000, currency: "MXN" });
+  await dispatchEventNotifications(ev, { ctx: inquiryDb(), handlers: makeHandlers(sent) });
+  const mail = sent.find((s) => s.entry === "booking.reserved.client" && s.channel === "email")!;
+  assert.match(mail.html, /Balance due/);
+  assert.match(mail.html, /700/);
+  assert.doesNotMatch(mail.html, /695/);
+});
+
 test("ES: the deposit notice is 'Reserva apartada' with the deposit and the balance", async () => {
   const sent: Sent[] = [];
   const ctx = inquiryDb("es");

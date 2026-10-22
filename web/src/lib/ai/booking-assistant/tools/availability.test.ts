@@ -79,7 +79,7 @@ test("reply text: ES and EN, in the talent's zone, no em dash", () => {
   const en = availabilityReplyText(r, "en");
   const es = availabilityReplyText(r, "es");
   assert.match(en, /^These times are open: .*10:00/);
-  assert.match(es, /^Estos horarios estan libres: .*10:00/);
+  assert.match(es, /^Estos horarios están libres: .*10:00/);
   assert.equal(formatOfferedTime("nope", null, "en"), "nope");
   assert.match(availabilityReplyText({ kind: "none", reason: "none_in_window", timezone: null }, "es"), /equipo/);
   assert.match(availabilityReplyText({ kind: "handoff", reason: "unknown_service" }, "en"), /A person on the team/);

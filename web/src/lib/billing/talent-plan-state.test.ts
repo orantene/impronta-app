@@ -82,3 +82,46 @@ test("upgrade pro to portfolio flags a plan change", () => {
     assert.equal(d.planChanged, true);
   }
 });
+
+// TUL-1835: a second subscription must never overwrite a live row.
+for (const live of ["active", "trialing", "past_due"]) {
+  test(`a different subscription while the row is ${live} is a duplicate, not a write`, () => {
+    const d = decideTalentPlanState(
+      input({
+        subscriptionId: "sub_test_2",
+        eventType: "customer.subscription.created",
+        status: "trialing",
+        existing: { status: live, plan_key: "talent_portfolio", stripe_subscription_id: "sub_test_1" },
+      }),
+    );
+    assert.equal(d.kind, "duplicate_live");
+    if (d.kind === "duplicate_live") assert.equal(d.existingSubscriptionId, "sub_test_1");
+  });
+}
+
+test("a trialing second subscription over a live yearly one is a duplicate (QA case)", () => {
+  const d = decideTalentPlanState(
+    input({
+      subscriptionId: "sub_monthly",
+      status: "trialing",
+      planKey: "talent_portfolio",
+      existing: { status: "active", plan_key: "talent_portfolio", stripe_subscription_id: "sub_yearly" },
+    }),
+  );
+  assert.equal(d.kind, "duplicate_live");
+});
+
+test("the duplicate being cancelled later is skipped, the live row stays", () => {
+  const d = decideTalentPlanState(
+    input({
+      subscriptionId: "sub_test_2",
+      eventType: "customer.subscription.deleted",
+      existing: { status: "active", plan_key: "talent_pro", stripe_subscription_id: "sub_test_1" },
+    }),
+  );
+  assert.equal(d.kind, "skip_stale");
+});
+
+test("the same subscription updating while live is still a normal write", () => {
+  assert.equal(decideTalentPlanState(input({ status: "trialing" })).kind, "write");
+});

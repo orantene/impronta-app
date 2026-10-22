@@ -155,6 +155,7 @@ src/lib/saas/team-seat-limit.test.ts
 src/lib/saas/tenant-admin-tables-role-rls.static.test.ts
 src/lib/saas/tenant-isolation.security.test.ts
 src/lib/saas/tenant-isolation.test.ts
+src/lib/saas/tenant-membership-fresh.test.ts
 src/lib/saas/tracking-tenant-isolation.test.ts
 src/lib/saas/unsupported-locale-redirect.test.ts
 src/lib/saas/user-delete-fk-sweep.static.test.ts

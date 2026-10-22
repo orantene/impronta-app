@@ -443,6 +443,10 @@ test("collect-now cents follow reserveMode (full / deposit / free)", () => {
   assert.equal(catalogCollectNowCents(null, "deposit", 30), null);
   assert.equal(catalogCollectNowCents(10_000, "deposit", 0), 10_000);
   assert.equal(catalogCollectNowCents(10_000, "deposit", 100), 10_000);
+  // TUL-1304: a deposit rounds DOWN like the checkout (1999 at 50% charges 999, not 1000).
+  assert.equal(catalogCollectNowCents(1_999, "deposit", 50), 999);
+  assert.equal(catalogCollectNowCents(3_334, "deposit", 25), 833);
+  assert.equal(catalogCollectNowCents(1_999, "deposit", Number.NaN), 1_999);
 });
 
 test("extras with durationMinutes lengthen the booking window", () => {

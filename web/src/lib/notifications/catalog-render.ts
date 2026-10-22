@@ -5,6 +5,7 @@ import { APP_WORKSPACE_PREFIXES } from "@/lib/saas/path-groups";
 import type { EmailBrand } from "@/lib/brand/resolve-tenant-brand";
 import { PLAN_TIER_LABEL, isWorkspacePlanTier } from "@/lib/platform/plan-override";
 import type { RecipientRole } from "./types";
+import { minorUnitDivisor } from "@/lib/orders/money-format";
 
 /**
  * Render-only helpers for the notification catalog — URL + date formatting
@@ -186,11 +187,14 @@ export function formatMoneyCents(
   currency: string | null | undefined,
 ): string {
   if (cents == null || !Number.isFinite(cents)) return "";
-  const amount = (cents / 100).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
   const code = (currency ?? "").trim().toUpperCase();
+  // The currency exponent comes from the one table (JPY 5000 is "JPY 5,000", not "JPY 50.00").
+  const divisor = minorUnitDivisor(code);
+  const digits = divisor === 1 ? 0 : 2;
+  const amount = (cents / divisor).toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
   return code ? `${code} ${amount}` : amount;
 }
 

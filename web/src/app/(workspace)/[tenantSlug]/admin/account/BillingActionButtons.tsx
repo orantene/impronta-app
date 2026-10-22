@@ -16,6 +16,8 @@ import { useRouter } from "next/navigation";
 import { startWorkspaceUpgrade, openSubscriptionPortal } from "./stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import type { WorkspacePlanKey } from "@/lib/stripe/price-ids";
+import type { PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
+import { WorkspacePlanChangeOpener } from "./WorkspacePlanChangeOpener";
 import { createTranslator } from "@/i18n/messages";
 
 const C = {
@@ -48,13 +50,17 @@ export function UpgradePlanButton({
   const t = createTranslator(locale);
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
+  const [change, setChange] = React.useState<(PlanChangeTarget & { nonce: number }) | null>(null);
 
   function handleClick() {
     if (pending) return;
     setError(null);
     startTransition(async () => {
       const result = await startWorkspaceUpgrade(plan, tenantSlug, readPromoCodeFromUrl());
-      if (result.ok) {
+      if (result.ok && result.planChange) {
+        // TUL-831/833: an existing subscriber confirms in-app (proration preview + promo), never via the portal.
+        setChange({ ...result.planChange, nonce: Date.now() });
+      } else if (result.ok) {
         // Redirect to Stripe Checkout
         window.location.href = result.redirectUrl;
       } else {
@@ -93,6 +99,15 @@ export function UpgradePlanButton({
           {error}
         </span>
       )}
+      {change ? (
+        <WorkspacePlanChangeOpener
+          key={change.nonce}
+          planKey={change.planKey}
+          interval={change.interval}
+          planName={plan.charAt(0).toUpperCase() + plan.slice(1)}
+          tenantSlug={tenantSlug}
+        />
+      ) : null}
     </div>
   );
 }

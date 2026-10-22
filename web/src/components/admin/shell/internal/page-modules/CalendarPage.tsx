@@ -94,6 +94,7 @@ export function CalendarPage() {
         // from an inquiry. The customer-facing word for an occurrence comes
         // from the words table (`events.session`); this is the STAFF rail label.
         : ev.kind === "session" ? `${t("dashboard.adminCalendar.sessionLabel")}: `
+        : ev.kind === "reservation" ? `${t("dashboard.adminCalendar.reservationLabel")}: `
         : "";
       const label = `${kindPrefix}${ev.company ?? ev.contact_name}`;
       events[day] = events[day] ?? [];

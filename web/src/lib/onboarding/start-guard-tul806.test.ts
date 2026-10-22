@@ -69,3 +69,17 @@ for (const locale of ["es", "en"] as const) {
     assert.ok(html.includes("STALE BRIEF SERVICES"));
   });
 }
+
+test("TUL-806: the review step loads the saved setup itself (refresh on the review) and links each row back to step 3", () => {
+  const mod = readFileSync(join(process.cwd(), "src/components/onboarding/onboarding-module.tsx"), "utf8");
+  assert.match(mod, /state\.step !== "setup" && state\.step !== "readyToBuild"/);
+  assert.match(mod, /onEditSetup=/);
+  const html = renderToStaticMarkup(
+    createElement(ReadyStep, {
+      t: lookup("es"), understanding, path: "talent", linkSlug: null, linkAvailable: null, linkSuggestions: [], busy: false,
+      onCheckLink: async () => null, onBuild: () => {}, onEditSetup: () => {}, setupLines: reviewSetupLines(essentials({ mode: "client", area: "Playa" }), "es"),
+    }),
+  );
+  for (const id of ["services", "hours", "place"]) assert.ok(html.includes(`data-testid="onb-ready-edit-${id}"`), id);
+  assert.ok(html.includes(">Editar<"));
+});

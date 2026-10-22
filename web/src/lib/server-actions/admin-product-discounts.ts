@@ -49,6 +49,8 @@ import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
+import { bilingualWindowError, discountStatus, discountWindowError } from "@/lib/pricing/discount-status";
+import { archiveOutcome } from "@/lib/billing/discount-archive-outcome";
 import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
   PRODUCT_DISCOUNT_SELECT,
@@ -148,11 +150,12 @@ const createDiscountSchema = z
         path: ["minimumAmountCurrency"],
       });
     }
-    if (v.startsAt && v.endsAt && new Date(v.startsAt) >= new Date(v.endsAt)) {
+    const windowError = discountWindowError({ startsAt: v.startsAt, endsAt: v.endsAt }, "create");
+    if (windowError) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Start date must be before end date.",
-        path: ["startsAt"],
+        message: bilingualWindowError(windowError),
+        path: [windowError === "endInPast" ? "endsAt" : "startsAt"],
       });
     }
   });
@@ -399,13 +402,15 @@ export async function archiveDiscount(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 
-  if (row.stripe_promotion_code_id) {
-    await archiveDiscountInStripe({
-      stripePromotionCodeId: row.stripe_promotion_code_id,
-    });
-  }
+  const stripeArchive = await archiveDiscountInStripe({
+    stripePromotionCodeId: row.stripe_promotion_code_id,
+  });
 
   revalidateCommerceSurfaces();
+
+  // Our row is already off; a Stripe code that stayed on can still be typed in Checkout's own box, so say so.
+  const outcome = archiveOutcome(stripeArchive);
+  if (!outcome.ok) return outcome;
 
   await auditDiscountArchived({
     actorId: gate.userId,
@@ -572,14 +577,14 @@ export async function validateDiscount(
     load.data as unknown as RawProductDiscountRow,
   );
 
-  if (!discount.isActive) {
+  const status = discountStatus(discount);
+  if (status === "archived") {
     return { ok: false, reason: "Code is no longer active." };
   }
-  const now = Date.now();
-  if (discount.startsAt && new Date(discount.startsAt).getTime() > now) {
+  if (status === "scheduled") {
     return { ok: false, reason: "Code hasn’t started yet." };
   }
-  if (discount.endsAt && new Date(discount.endsAt).getTime() < now) {
+  if (status === "expired") {
     return { ok: false, reason: "Code has expired." };
   }
   if (

@@ -20,3 +20,15 @@ test("portal config sets every feature explicitly", () => {
   assert.equal(f.subscription_update.proration_behavior, "create_prorations");
   assert.deepEqual(f.subscription_update.products, [{ product: "prod_1", prices: ["price_1"] }]);
 });
+
+test("audience configurations carry their own seed tag and key set (P2)", async () => {
+  const m = await import("./seed-stripe-portal-config.mjs");
+  const cfg = m.buildPortalConfiguration([{ product: "prod_t", prices: ["price_t"] }], "talent");
+  assert.equal(cfg.metadata.tulala_seed, m.audienceTag("talent"));
+  assert.notEqual(cfg.metadata.tulala_seed, SEED_TAG);
+  const talentKeys = m.audienceLookupKeys("talent");
+  assert.ok(talentKeys.every((k: string) => k.includes("talent_")));
+  const wsKeys = m.audienceLookupKeys("workspace");
+  assert.ok(wsKeys.every((k: string) => !k.includes("talent_")));
+  assert.equal(talentKeys.length + wsKeys.length, m.LOOKUP_KEYS.length);
+});

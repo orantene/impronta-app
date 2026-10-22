@@ -101,7 +101,7 @@ export function AgendaBookingRecord({
   });
   // F61: the record states the day, not just the times.
   const whenFull =
-    recordWhenLabel({ startsAt: item.startsAtIso, endsAt: item.endsAtIso, tz: item.talentTz, locale: copy.locale }) ?? item.whenLabel;
+    recordWhenLabel({ startsAt: item.startsAtIso, endsAt: item.endsAtIso, tz: item.talentTz, locale: copy.locale }) ?? copy.t(item.whenLabel);
   // F44: Money → Record payment lands here with ?collect=1 and opens Finish and collect.
   useEffect(() => {
     if (!show.finishCollect) return;

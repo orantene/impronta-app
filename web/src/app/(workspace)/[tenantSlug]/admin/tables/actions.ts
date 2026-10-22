@@ -14,6 +14,8 @@ import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { requireWorkspaceStaffAction } from "@/lib/saas/admin-scope";
 import { userHasCapability, type CapabilityKey } from "@/lib/access";
+import { auditEvent } from "@/lib/audit/emit";
+import { cancelVisitNoCharge } from "@/lib/visits/cancel-visit";
 import { closeVisit, moveVisitToSpace, openVisit, resetTable } from "@/lib/visits/commands";
 import { markReservationSeated, type SeatReservationReason } from "@/lib/visits/seat-reservation";
 import {
@@ -119,6 +121,29 @@ export async function tablesCloseVisit(input: { visitId: string; expectedVersion
   if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
   const r = await closeVisit(g.admin, { tenantId: g.tenantId, ...parsed.data });
   return r.ok ? { ok: true as const } : { ok: false as const, reason: r.reason };
+}
+
+/**
+ * TUL-1838: cancel an open visit with no charge. Voids its unpaid orders and
+ * closes it, refused (`has_payment`) when any money was taken or asked for.
+ * Manager-tier, like the other POS visit writers, because it voids a check.
+ */
+export async function tablesCancelVisit(input: { visitId: string; expectedVersion?: number }) {
+  await requireNotImpersonating();
+  const g = await staff("booking.payment.request");
+  if (!g.ok) return g;
+  const parsed = z.object({ visitId: uuid, expectedVersion: z.number().int().optional() }).safeParse(input);
+  if (!parsed.success) return { ok: false as const, reason: "invalid" as const };
+  const r = await cancelVisitNoCharge(g.admin, { tenantId: g.tenantId, ...parsed.data });
+  if (!r.ok) return { ok: false as const, reason: r.reason };
+  auditEvent(
+    g.tenantId,
+    "system",
+    "pos.visit.cancelled_no_charge",
+    `Cancelled a visit with no charge (${r.voidedOrders} unpaid ${r.voidedOrders === 1 ? "order" : "orders"} voided)`,
+    { targetType: "visit", targetId: r.visitId, actorUserId: g.userId, metadata: { spaceId: r.spaceId, voidedOrders: r.voidedOrders } },
+  );
+  return { ok: true as const };
 }
 
 export async function tablesMoveVisit(input: { visitId: string; spaceId: string; expectedVersion?: number }) {

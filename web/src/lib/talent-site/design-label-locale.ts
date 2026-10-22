@@ -55,6 +55,8 @@ const CODE_SEEDED_LABELS_ES: Readonly<Record<string, string>> = {
   "Book now": "Reservar",
   Inquire: "Escríbeme",
   Home: "Inicio",
+  "Services & focus": "Servicios y enfoque",
+  "Visit my site →": "Visita mi sitio →",
   Menu: "Menú",
   "Price list": "Lista de precios",
   "Let's work together": "Trabajemos juntos",

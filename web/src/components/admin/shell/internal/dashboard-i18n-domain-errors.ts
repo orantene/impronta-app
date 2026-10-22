@@ -7,6 +7,7 @@
 export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
   "yourname.com": "tunombre.com",
   "Domains cannot contain spaces.": "Los dominios no pueden tener espacios.",
+  "Domain verification is unavailable until the server is configured.": "La verificación de dominios no está disponible hasta que se configure el servidor.",
   "Enter a valid domain like example.com.": "Escribe un dominio válido, como ejemplo.com.",
   "Use a real hostname instead of localhost.": "Usa un dominio real en lugar de localhost.",
   "Domains need at least one dot, like example.com.": "El dominio necesita al menos un punto, como ejemplo.com.",
@@ -96,13 +97,44 @@ export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
     "{domain} debe terminar las revisiones de enrutamiento y SSL antes de ser tu dominio principal.",
   "{domain} is now your primary domain.": "{domain} ahora es tu dominio principal.",
   "{domain} was removed.": "Quitamos {domain}.",
+  // Workspace Settings > Domain (admin/settings/domain-actions.ts): every ?derr= / ?dmsg= text.
+  "Workspace access could not be confirmed.": "No pudimos confirmar tu acceso al espacio de trabajo.",
+  "Workspace details could not be loaded.": "No pudimos cargar los datos del espacio de trabajo.",
+  "Only the workspace owner can manage custom domains.": "Solo la persona propietaria del espacio de trabajo puede gestionar dominios propios.",
+  "Domain settings are unavailable until Supabase is configured.": "Los ajustes de dominio no están disponibles hasta que se configure Supabase.",
+  "No verification token is saved for that domain.": "No hay un token de verificación guardado para ese dominio.",
+  "That domain is not attached to this workspace.": "Ese dominio no está conectado a este espacio de trabajo.",
+  "That custom domain is not attached to this workspace.": "Ese dominio propio no está conectado a este espacio de trabajo.",
+  "The primary public URL could not be updated.": "No pudimos actualizar la dirección pública principal.",
+  "The fallback host could not be restored before removal.": "No pudimos restaurar el dominio de respaldo antes de quitarlo.",
+  "A branded fallback host is required before the primary custom domain can be removed.":
+    "Hace falta un dominio de respaldo de tu marca antes de quitar el dominio propio principal.",
+  "{domain} is already the primary public URL.": "{domain} ya es la dirección pública principal.",
+  "{domain} is now the primary public URL.": "{domain} ahora es la dirección pública principal.",
+  "{domain} is now the Tulala fallback primary URL.": "{domain} ahora es la dirección principal de respaldo de Tulala.",
+  "{domain} must finish routing and SSL checks before it can become the primary public URL.":
+    "{domain} debe terminar las revisiones de enrutamiento y SSL antes de ser la dirección pública principal.",
+  "{domain} was removed. The branded Tulala fallback host is primary again.":
+    "Quitamos {domain}. El dominio de respaldo de Tulala vuelve a ser el principal.",
+  "TXT record for {domain} still has not been found. You can add it now and check again, or reconnect the domain for a fresh token.":
+    "Todavía no encontramos el registro TXT de {domain}. Puedes agregarlo ahora y volver a revisar, o reconectar el dominio para obtener un token nuevo.",
+  "DNS instructions are ready for {domain}. Add the TXT record to verify it.":
+    "Las instrucciones DNS ya están listas para {domain}. Agrega el registro TXT para verificarlo.",
+  "Vercel project provisioning is not configured yet; finish DNS and run the verification sweep after env setup.":
+    "La conexión con el proyecto de Vercel aún no está lista. Termina el DNS y ejecuta la revisión cuando se configure.",
+  "DNS token is ready, but Vercel project provisioning needs attention.":
+    "El token DNS está listo, pero la conexión con el proyecto de Vercel necesita atención.",
 };
 
 /** Messages the domain actions build with the domain inside; keys of the map above. */
 const DOMAIN_MESSAGE_TEMPLATES = Object.keys(DOMAIN_ERRORS_ES_TEXT).filter((k) => k.includes("{domain}"));
 
-const VERCEL_NOT_CONFIGURED_HINT =
-  "Vercel provisioning is not configured yet; finish DNS and re-check after env setup.";
+/** Trailing sentences the actions append to a message; each has its own row in the map. */
+const ACTION_HINT_SUFFIXES = [
+  "Vercel provisioning is not configured yet; finish DNS and re-check after env setup.",
+  "Vercel project provisioning is not configured yet; finish DNS and run the verification sweep after env setup.",
+  "DNS token is ready, but Vercel project provisioning needs attention.",
+];
 
 function templateMatch(template: string, text: string): string | null {
   const [before = "", after = ""] = template.split("{domain}");
@@ -119,9 +151,12 @@ function templateMatch(template: string, text: string): string | null {
 export function translateDomainActionText(text: string, t: (value: string) => string): string {
   let body = text;
   let tail = "";
-  if (body.endsWith(` ${VERCEL_NOT_CONFIGURED_HINT}`)) {
-    body = body.slice(0, -(VERCEL_NOT_CONFIGURED_HINT.length + 1));
-    tail = ` ${t(VERCEL_NOT_CONFIGURED_HINT)}`;
+  for (const hint of ACTION_HINT_SUFFIXES) {
+    if (body.endsWith(` ${hint}`)) {
+      body = body.slice(0, -(hint.length + 1));
+      tail = ` ${t(hint)}`;
+      break;
+    }
   }
   for (const template of DOMAIN_MESSAGE_TEMPLATES) {
     const domain = templateMatch(template, body);

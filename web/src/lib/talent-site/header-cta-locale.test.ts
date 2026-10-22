@@ -66,3 +66,13 @@ test("hidden ask: strip #talent-ask primary CTA before render", () => {
     ["#services"],
   );
 });
+
+test("seeded 'Home' nav label localises to Inicio on es, untouched on en, custom labels never rewritten", () => {
+  const props = { navItems: [{ label: "Home", href: "/" }, { label: "Trabajos", href: "#gallery" }] };
+  const es = localiseTalentHeaderDefaults(props, "es") as typeof props;
+  assert.equal(es.navItems[0]?.label, "Inicio");
+  assert.equal(es.navItems[1]?.label, "Trabajos");
+  const esMx = localiseTalentHeaderDefaults(props, "es-MX") as typeof props;
+  assert.equal(esMx.navItems[0]?.label, "Inicio");
+  assert.equal(localiseTalentHeaderDefaults(props, "en"), props);
+});

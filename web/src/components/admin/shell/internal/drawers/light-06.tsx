@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useMemo, useId, useTransition, useC
 import { useRouter } from "next/navigation";
 import {
   Avatar,
-  CLIENT_TRUST_META,
   COLORS,
   ClientTrustChip,
   ConversationBubble,
@@ -37,6 +36,8 @@ import {
   useSaveAndClose
 } from "./drawer-shared";
 import { useDashboardText } from "../dashboard-i18n";
+import { useT } from "@/i18n/use-t";
+import { TRUST_TIER_KEYS } from "../primitives/trust-tier-copy-keys";
 
 // Phase 1d (remediation §4): 5 leaf drawer bodies, byte-for-byte from
 // drawers.tsx; referenced ONLY by the DrawerSwitch barrel (zero cross-edges).
@@ -361,6 +362,7 @@ export function ClientProfileDrawer() {
   const { state, closeDrawer, toast, effectiveClients } = useAdminShell();
   const copy = useDashboardText();
   const tt = copy.t;
+  const tKey = useT();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
   const clientPool = effectiveClients.length > 0 ? effectiveClients : getClients(state.plan);
@@ -643,11 +645,11 @@ export function ClientProfileDrawer() {
             <div className="flex items-center gap-2.5">
               <ClientTrustChip level={trust} />
               <span className="text-admin-ink-muted text-xs">
-                {CLIENT_TRUST_META[trust].hint}
+                {tKey(TRUST_TIER_KEYS[trust].hint)}
               </span>
             </div>
             <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.55 }} className="text-admin-ink">
-              {CLIENT_TRUST_META[trust].rationale}
+              {tKey(TRUST_TIER_KEYS[trust].rationale)}
             </p>
             <p style={{ margin: 0, fontSize: 11.5, lineHeight: 1.5 }} className="text-admin-ink-dim">
               {tt("Tiers reflect real verification and funded-balance events on the client side. Talent decide which tiers can reach them in their contact preferences.")}

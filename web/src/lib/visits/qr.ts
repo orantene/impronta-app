@@ -114,41 +114,53 @@ export async function loadOpenVisitByToken(
   }
   const base = { visitId: row.id, spaceId: row.space_id, tableCode, openedAtIso: row.opened_at, partySize };
 
-  const { data: order, error: orderError } = await admin
+  // A visit can hold several orders (two guests ordering at one table, a
+  // re-opened tab). The page shows the whole table check, like the bill: every
+  // order that is not cancelled, oldest first, lines and totals summed.
+  // `.maybeSingle()` here threw PGRST116 as soon as a second order existed.
+  const { data: orderRows, error: orderError } = await admin
     .from("orders")
-    .select("id, currency, total_cents")
+    .select("id, currency, total_cents, status, created_at")
     .eq("visit_id", row.id)
     .eq("tenant_id", input.tenantId)
-    .maybeSingle();
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: true });
   if (orderError) {
     logServerError("visits.qr.guest.order", orderError);
     return { ok: false, reason: "unavailable" };
   }
-  const orderRow = order as { id: string; currency: string; total_cents: number | string } | null;
-  if (!orderRow) {
+  const orders = (Array.isArray(orderRows) ? orderRows : orderRows ? [orderRows] : []) as Array<{
+    id: string;
+    currency: string | null;
+    total_cents: number | string;
+  }>;
+  if (orders.length === 0) {
     return { ok: true, ...base, lines: [], totalCents: 0, currency: "USD" };
   }
   const { data: lineRows, error: linesError } = await admin
     .from("order_lines")
-    .select("id, label, units, total_cents")
-    .eq("order_id", orderRow.id)
+    .select("id, order_id, label, units, total_cents")
+    .in("order_id", orders.map((o) => o.id))
     .order("sort_order", { ascending: true });
   if (linesError) {
     logServerError("visits.qr.guest.lines", linesError);
     return { ok: false, reason: "unavailable" };
   }
+  const rank = new Map(orders.map((o, i) => [o.id, i] as const));
+  const lines = ((lineRows ?? []) as Array<{ id: string; order_id?: string; label: string; units: number | string; total_cents: number | string }>)
+    .map((l, i) => ({ l, i }))
+    .sort((x, y) => (rank.get(x.l.order_id ?? "") ?? 0) - (rank.get(y.l.order_id ?? "") ?? 0) || x.i - y.i)
+    .map(({ l }) => ({
+      id: l.id,
+      label: l.label,
+      units: Number(l.units) || 0,
+      totalCents: Number(l.total_cents) || 0,
+    }));
   return {
     ok: true,
     ...base,
-    currency: orderRow.currency,
-    totalCents: Number(orderRow.total_cents) || 0,
-    lines: ((lineRows ?? []) as Array<{ id: string; label: string; units: number | string; total_cents: number | string }>).map(
-      (l) => ({
-        id: l.id,
-        label: l.label,
-        units: Number(l.units) || 0,
-        totalCents: Number(l.total_cents) || 0,
-      }),
-    ),
+    currency: orders[0].currency ?? "USD",
+    totalCents: orders.reduce((sum, o) => sum + (Number(o.total_cents) || 0), 0),
+    lines,
   };
 }

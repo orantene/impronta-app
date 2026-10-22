@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { tablesCloseVisit, tablesMoveVisit, tablesOpenVisit, tablesResetTable, tablesSeatParty } from "./actions";
+import { tablesCancelVisit, tablesCloseVisit, tablesMoveVisit, tablesOpenVisit, tablesResetTable, tablesSeatParty } from "./actions";
 import type { FloorTable } from "@/lib/visits/floor";
 import { venueHhmm } from "@/lib/spaces/venue-clock";
 import { interpolate } from "@/i18n/interpolate";
@@ -31,6 +31,7 @@ type RefusalKey =
   | "joined_visit"
   | "not_open"
   | "outstanding"
+  | "has_payment"
   | "already_closed"
   | "version_conflict"
   | "not_allowed"
@@ -45,6 +46,11 @@ type RefusalKey =
 export type TablesCopy = {
   empty: string;
   close: string;
+  /** TUL-1838: cancel an open visit with no charge. */
+  cancelVisit: string;
+  cancelVisitBody: string;
+  cancelVisitConfirm: string;
+  cancelVisitKeep: string;
   sale: string;
   occupied: string;
   free: string;
@@ -135,6 +141,7 @@ export function TablesClient(props: {
   const [partyInput, setPartyInput] = useState("2");
   const [joinOffer, setJoinOffer] = useState<Array<{ spaceId: string; code: string | null }> | null>(null);
   const [moveFor, setMoveFor] = useState<string | null>(null);
+  const [cancelFor, setCancelFor] = useState<string | null>(null);
 
   async function run(fn: () => Promise<ActionOutcome>): Promise<ActionOutcome> {
     setBusy(true);
@@ -369,6 +376,15 @@ export function TablesClient(props: {
                     >
                       {copy.close}
                     </button>
+                    <button
+                      type="button"
+                      data-tables-cancel-visit
+                      disabled={busy}
+                      className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground hover:bg-accent disabled:opacity-40"
+                      onClick={() => setCancelFor(cancelFor === table.visitId ? null : table.visitId)}
+                    >
+                      {copy.cancelVisit}
+                    </button>
                     {!table.joinedWithSpaceId ? (
                       <button
                         type="button"
@@ -445,6 +461,40 @@ export function TablesClient(props: {
                       )}
                     </div>
                   ) : null}
+                </div>
+              ) : null}
+
+              {cancelFor !== null && cancelFor === table.visitId ? (
+                <div role="alertdialog" aria-label={copy.cancelVisit} className="mt-3 rounded-lg border border-border bg-muted/40 p-3">
+                  <p className="mb-2 text-sm text-foreground">{copy.cancelVisitBody}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      data-tables-cancel-visit-confirm
+                      disabled={busy}
+                      className="min-h-11 rounded-lg bg-foreground px-3 text-sm font-medium text-background hover:opacity-90 disabled:opacity-40"
+                      onClick={() =>
+                        void run(async () => {
+                          const r = await tablesCancelVisit({
+                            visitId: table.visitId!,
+                            expectedVersion: table.visitVersion ?? undefined,
+                          });
+                          if (r.ok) setCancelFor(null);
+                          return r;
+                        })
+                      }
+                    >
+                      {copy.cancelVisitConfirm}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="min-h-11 rounded-lg border border-border bg-background px-3 text-sm text-muted-foreground hover:bg-accent disabled:opacity-40"
+                      onClick={() => setCancelFor(null)}
+                    >
+                      {copy.cancelVisitKeep}
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
