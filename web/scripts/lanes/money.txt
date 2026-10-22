@@ -69,6 +69,7 @@ src/lib/billing/workspace-downgrade-stripe.test.ts
 src/lib/billing/workspace-free-downgrade.test.ts
 src/lib/billing/workspace-keep-plan.test.ts
 src/lib/billing/workspace-money-gates.test.ts
+src/lib/billing/workspace-plan-sheet.static.test.ts
 src/lib/bookings/booking-payment-sync.test.ts
 src/lib/bookings/cancel-unpaid-booking.test.ts
 src/lib/bookings/commission.test.ts
