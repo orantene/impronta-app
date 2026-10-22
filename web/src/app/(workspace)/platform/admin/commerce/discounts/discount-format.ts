@@ -7,6 +7,7 @@
  */
 
 import { interpolate, type Translator } from "@/i18n/interpolate";
+import { formatInstant, viewerTimeZone } from "@/lib/pricing/discount-datetime";
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import type { AccountDiscountRow } from "@/lib/billing/subscription-discounts";
 
@@ -55,8 +56,9 @@ export function formatDuration(
   return t(`${P}.durationOnceLabel`);
 }
 
+/** Date and time in the viewer's own zone (the stored value is an absolute instant). */
 function isoDay(iso: string | null): string | null {
-  return iso ? new Date(iso).toISOString().slice(0, 10) : null;
+  return formatInstant(iso, "default");
 }
 
 export function formatWindow(
@@ -66,9 +68,11 @@ export function formatWindow(
   const s = isoDay(d.startsAt);
   const e = isoDay(d.endsAt);
   if (!s && !e) return t(`${P}.windowAlways`);
-  if (s && !e) return interpolate(t(`${P}.windowFrom`), { date: s });
-  if (!s && e) return interpolate(t(`${P}.windowUntil`), { date: e });
-  return interpolate(t(`${P}.windowRange`), { from: s, to: e });
+  // Name the zone, so "until 22 Oct, 1:08 AM" cannot be read as UTC.
+  const zone = ` (${viewerTimeZone()})`;
+  if (s && !e) return interpolate(t(`${P}.windowFrom`), { date: s }) + zone;
+  if (!s && e) return interpolate(t(`${P}.windowUntil`), { date: e }) + zone;
+  return interpolate(t(`${P}.windowRange`), { from: s, to: e }) + zone;
 }
 
 /** "All plans" or the names of the tiers the code is scoped to. */

@@ -307,6 +307,7 @@ src/lib/pos/staff-limit-plan.test.ts
 src/lib/pos/tip.test.ts
 src/lib/preparation/notify-ready.test.ts
 src/lib/preparation/tickets.test.ts
+src/lib/pricing/discount-datetime.test.ts
 src/lib/pricing/expire-stale-discount.test.ts
 src/lib/projects/project-record.test.ts
 src/lib/reservations/deposit-currency.test.ts

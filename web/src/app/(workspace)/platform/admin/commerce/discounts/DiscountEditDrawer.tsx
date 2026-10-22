@@ -20,6 +20,8 @@ import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import { updateDiscount } from "@/lib/server-actions/admin-product-discounts";
 import type { PricingDiscountRow } from "@/lib/pricing/pricing-types";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
+import { isoToWallTime, viewerTimeZone, wallTimeToIso } from "@/lib/pricing/discount-datetime";
 import { HQ, F } from "../_tokens";
 import { Field, inputStyle } from "../_primitives";
 import { DrawerSaveBar, FieldRow, SubHeading } from "./drawer-parts";
@@ -34,15 +36,6 @@ const P = "dashboard.platform.commerce.discounts";
 
 type SaveState = "idle" | "saving" | "saved" | "stub" | "error";
 
-/** `datetime-local` wants `YYYY-MM-DDTHH:mm`; the row carries a full ISO stamp. */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  // Local wall-clock time, which is what a datetime-local input shows and edits (not the UTC slice).
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function DiscountEditDrawer({
   row,
@@ -57,7 +50,7 @@ export function DiscountEditDrawer({
   const [name, setName] = useState(row.name);
   const [campaign, setCampaign] = useState(row.campaign ?? "");
   const [perCustomer, setPerCustomer] = useState(String(row.perCustomerLimit));
-  const [startsAt, setStartsAt] = useState(toLocalInput(row.startsAt));
+  const [startsAt, setStartsAt] = useState(isoToWallTime(row.startsAt));
   const [state, setState] = useState<SaveState>("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -70,7 +63,7 @@ export function DiscountEditDrawer({
     name !== row.name ||
     campaign !== (row.campaign ?? "") ||
     perCustomer !== String(row.perCustomerLimit) ||
-    startsAt !== toLocalInput(row.startsAt);
+    startsAt !== isoToWallTime(row.startsAt);
 
   function save() {
     setState("saving");
@@ -81,7 +74,7 @@ export function DiscountEditDrawer({
         name: name.trim(),
         campaign: campaign.trim() ? campaign.trim() : null,
         perCustomerLimit: perCustomerNum,
-        startsAt: startsAt ? new Date(startsAt).toISOString() : null,
+        startsAt: startsAt ? wallTimeToIso(startsAt) : null,
       });
       if (res.ok) {
         setState("saved");
@@ -163,7 +156,7 @@ export function DiscountEditDrawer({
           </Field>
         </FieldRow>
         <p style={{ fontSize: 11, color: HQ.inkDim, margin: 0, lineHeight: 1.5 }}>
-          {t(`${P}.startsAtHint`)}
+          {t(`${P}.startsAtHint`)} {interpolate(t(`${P}.timeZoneNote`), { zone: viewerTimeZone() })}
         </p>
 
         {/* Frozen fields: visible on purpose. See the file docblock. */}

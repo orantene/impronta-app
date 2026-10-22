@@ -132,7 +132,7 @@ export function DiscountCodeRow({
         {formatScope(row.appliesTo, tiers, t)}
       </span>
       <span style={{ fontSize: 11.5, color: HQ.inkMuted }}>
-        {formatWindow(row, t)}
+        <span suppressHydrationWarning>{formatWindow(row, t)}</span>
         <span style={{ display: "block", marginTop: 3 }} data-testid="discount-status">
           <Pill color={status === "active" ? HQ.green : status === "scheduled" ? HQ.blue : status === "expired" ? HQ.amber : HQ.inkDim}>
             {t(`${P}.status_${status}`)}

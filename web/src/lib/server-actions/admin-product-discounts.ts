@@ -105,8 +105,8 @@ const createDiscountSchema = z
     appliesFamily: z.enum(["workspace", "talent"]).nullable().optional(),
     maxRedemptions: z.number().int().positive().optional(),
     perCustomerLimit: z.number().int().positive().default(1),
-    startsAt: z.string().datetime().nullable().optional(),
-    endsAt: z.string().datetime().nullable().optional(),
+    startsAt: z.string().datetime({ offset: true }).nullable().optional(),
+    endsAt: z.string().datetime({ offset: true }).nullable().optional(),
     firstTimeOnly: z.boolean().default(false),
     minimumAmountCents: z.number().int().positive().nullable().optional(),
     minimumAmountCurrency: z
@@ -190,6 +190,8 @@ export async function createDiscount(
     return { ok: false, error: localizeWindowIssue(parsed.error.issues[0]?.message ?? "Invalid input.", await getRequestLocale()) };
   }
   const input = parsed.data;
+  if (input.startsAt) input.startsAt = new Date(input.startsAt).toISOString();
+  if (input.endsAt) input.endsAt = new Date(input.endsAt).toISOString();
 
   const admin = createServiceRoleClient();
   if (!admin) {
@@ -452,7 +454,8 @@ const updateDiscountSchema = z
     name: z.string().trim().min(1, "Give the code an internal name.").max(120),
     campaign: z.string().trim().max(60).nullable(),
     perCustomerLimit: z.number().int().min(1).max(1000),
-    startsAt: z.string().trim().min(1).nullable(),
+    // ISO with an offset, parsed as-is: the server never re-applies a time zone (TUL-1860).
+    startsAt: z.string().datetime({ offset: true }).nullable(),
   })
   .strict();
 
