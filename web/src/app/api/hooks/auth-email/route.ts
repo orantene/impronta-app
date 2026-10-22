@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
   if (result.status === "skipped") {
     void improntaLog("hooks.auth-email.skipped", { action, recipient: email });
   } else {
-    void improntaLog("hooks.auth-email.sent", { action, recipient: email, id: result.id });
+    void improntaLog("hooks.auth-email.sent", { action, locale, recipient: email, id: result.id });
   }
   return NextResponse.json({});
 }
