@@ -81,7 +81,10 @@ test("draftTotalCents excludes removed lines; draftLineCount too", () => {
   const kept = talentLine({ id: "l1", units: 1, unitPriceCents: 10000 });
   const removed = talentLine({ id: "l2", units: 1, unitPriceCents: 5000, removedBy: "Ana" });
   const state = baseState([kept, removed]);
-  assert.equal(draftTotalCents(state), 10000);
+  // TUL-1306: the client total is the live lines (10000) PLUS the coordination fee (2000 in baseState).
+  assert.equal(draftTotalCents(state), 12000);
+  assert.equal(draftTotalCents({ ...state, coordinatorFeeCents: 0 }), 10000);
+  assert.equal(draftTotalCents(baseState([])), 0, "a fee alone is not an offer");
   assert.equal(draftLineCount(state), 1);
 });
 
@@ -102,7 +105,8 @@ test("removeLine keeps the line (restorable), stamped with who removed it", () =
 test("draftDepositCents: pct mode derives from the total; amount mode is literal; none is null", () => {
   const state = baseState([talentLine({ units: 1, unitPriceCents: 100000 })]);
   assert.equal(draftDepositCents(state), null);
-  assert.equal(draftDepositCents(setDepositPct(state, 30)), 30000);
+  // 30% of (100000 lines + 2000 fee) = 30600: the deposit is a share of what the client pays.
+  assert.equal(draftDepositCents(setDepositPct(state, 30)), 30600);
   assert.equal(draftDepositCents(setDepositAmountCents(state, 12345)), 12345);
   assert.equal(draftDepositCents(setDepositAmountCents(state, null)), null);
 });
@@ -117,9 +121,9 @@ test("draftTalentNetCents sums live lines' talentCostCents only", () => {
 
 test("draftPlatformFeeCents is total minus talent net minus coordinator fee, floored at 0", () => {
   const state = baseState([talentLine({ units: 1, unitPriceCents: 100000, talentCostCents: 70000 })]);
-  // total 100000, talent 70000, coordinatorFee 2000 (from baseState) -> 28000
-  assert.equal(draftPlatformFeeCents(state), 28000);
-  const overCommitted = { ...state, coordinatorFeeCents: 100000 };
+  // total 102000 (lines + fee, TUL-1306), talent 70000, coordinatorFee 2000 (from baseState) -> 30000
+  assert.equal(draftPlatformFeeCents(state), 30000);
+  const overCommitted = baseState([talentLine({ units: 1, unitPriceCents: 100000, talentCostCents: 120000 })]);
   assert.equal(draftPlatformFeeCents(overCommitted), 0);
 });
 

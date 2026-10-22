@@ -106,6 +106,7 @@ src/lib/inquiry/counter-offer-currency.test.ts
 src/lib/inquiry/inquiry-engine-lifecycle.test.ts
 src/lib/inquiry/inquiry-engine-offers.test.ts
 src/lib/inquiry/messages-money-display.static.test.ts
+src/lib/inquiry/offer-client-total.test.ts
 src/lib/inquiry/offer-currency-chooser-sheet.static.test.ts
 src/lib/inquiry/offer-currency-chooser.static.test.ts
 src/lib/inquiry/offer-currency-fallback.test.ts

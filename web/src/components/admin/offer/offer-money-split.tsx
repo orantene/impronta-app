@@ -69,14 +69,15 @@ export function OfferColumnHeaders({ t, solo = false }: { t: (key: string) => st
 export function OfferMoneySplit({
   lineItems,
   clientTotal,
-  coordinatorFee,
   currencyCode,
   hideWorkspaceTake = false,
   t,
 }: {
   lineItems: OfferSplitLine[];
+  /** The client total INCLUDING the coordination fee (TUL-1306). */
   clientTotal: number;
-  coordinatorFee: number;
+  /** Kept for callers; the fee is already inside `clientTotal`. */
+  coordinatorFee?: number;
   currencyCode: string;
   /** Solo owner-talent: no workspace take to show (TUL-380). */
   hideWorkspaceTake?: boolean;
@@ -102,7 +103,8 @@ export function OfferMoneySplit({
   // The workspace's take is the markup over the talent's quote, plus any flat
   // agency fee. The platform's share is later carved out of this, never out of
   // the talent's protected quote.
-  const agencyKeeps = clientTotal - talentFull + (Number(coordinatorFee) || 0);
+  // `clientTotal` already includes the coordination fee (TUL-1306).
+  const agencyKeeps = clientTotal - talentFull;
   const unpaidTalent = lineItems.some(
     (li) => li.talentProfileId && (Number(li.talentCost) || 0) <= 0,
   );
