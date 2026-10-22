@@ -97,6 +97,8 @@ export async function GET(request: Request) {
     type,
   });
   if (!error) {
+    // supabase-read-unchecked-ok: verifyOtp just succeeded; no user here only skips
+    // the best-effort claim relink below, the login redirect still proceeds.
     const {
       data: { user },
     } = await supabase.auth.getUser();

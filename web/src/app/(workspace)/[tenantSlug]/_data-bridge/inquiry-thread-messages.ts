@@ -206,6 +206,8 @@ export async function loadInquiryMessages(
 
     const starredSet = new Set<string>();
     if (myUserId && messageIds.length > 0) {
+      // supabase-read-unchecked-ok: stars are a cosmetic overlay; a failed read
+      // just shows no stars and must not hide the thread.
       const { data: starsRows } = await supabase
         .from("inquiry_message_stars")
         .select("message_id")
