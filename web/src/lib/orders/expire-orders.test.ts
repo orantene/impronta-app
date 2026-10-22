@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { releaseCancelledOrderStock } from "./expire-orders-release";
 import {
   decideOrderExpiry,
   idsToCancel,
@@ -218,4 +219,73 @@ test("TUL-1218: orderIdsWithPaidBooking returns the paid ones, null on a read er
   const empty = await orderIdsWithPaidBooking(never, []);
   assert.ok(empty);
   assert.equal(empty.size, 0);
+});
+
+// TUL-1313: a no-show pay-in-person order keeps committed stock for ever unless the sweep gives it back.
+test("TUL-1313: a cancelled order's still-live allocations are released; released ones and other orders are left alone", async () => {
+  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
+  const admin = {
+    from(table: string) {
+      return {
+        select: () => ({
+          in: (_col: string, ids: string[]) => ({
+            neq: () => Promise.resolve({ data: ids.includes("line_1") ? [{ id: "alloc_1" }, { id: "alloc_2" }] : [], error: null }),
+            then: (f: (v: { data: unknown; error: null }) => unknown) =>
+              Promise.resolve({ data: table === "order_lines" ? [{ id: "line_1" }] : [], error: null }).then(f),
+          }),
+        }),
+      };
+    },
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ fn, args });
+      return { data: { released: 2 }, error: null };
+    },
+  };
+  const n = await releaseCancelledOrderStock(admin, ["o1"]);
+  assert.equal(n, 2);
+  assert.deepEqual(rpcCalls, [{ fn: "release_capacity", args: { p_allocation_ids: ["alloc_1", "alloc_2"] } }]);
+  assert.equal(await releaseCancelledOrderStock(admin, []), 0, "no orders, no reads");
+  assert.equal(await releaseCancelledOrderStock({ from: () => { throw new Error("must not read"); } }, ["o1"]), 0, "a client without rpc is skipped, not crashed");
+});
+
+test("TUL-1313: a failing release is logged, never thrown (the order is already cancelled)", async () => {
+  const admin = {
+    from: () => ({ select: () => ({ in: () => { throw new Error("boom"); } }) }),
+    rpc: async () => ({ data: null, error: null }),
+  };
+  assert.equal(await releaseCancelledOrderStock(admin, ["o1"]), 0);
+});
+
+test("TUL-1313: the sweep cancels a lapsed pay-in-person order and releases its stock", async () => {
+  const calls: string[] = [];
+  const admin = {
+    from(table: string) {
+      if (table === "orders") {
+        return {
+          select: () => ({ in: () => Promise.resolve({ data: [{ id: "o_pip", status: "pending_payment", hold_expires_at: ago(1_000), created_at: ago(9e7), updated_at: null }], error: null }) }),
+          update: () => ({ in: () => ({ in: () => Promise.resolve({ error: null }) }) }),
+        };
+      }
+      if (table === "agency_bookings") {
+        const chain: Record<string, unknown> = { not: () => chain, eq: () => chain, limit: () => Promise.resolve({ data: [], error: null }), in: () => Promise.resolve({ data: [], error: null }) };
+        return { select: () => chain };
+      }
+      calls.push(`read:${table}`);
+      return {
+        select: () => ({
+          in: () => ({
+            neq: () => Promise.resolve({ data: [{ id: "alloc_9" }], error: null }),
+            then: (f: (v: { data: unknown; error: null }) => unknown) => Promise.resolve({ data: [{ id: "line_9" }], error: null }).then(f),
+          }),
+        }),
+      };
+    },
+    rpc: async (fn: string) => {
+      calls.push(`rpc:${fn}`);
+      return { data: { released: 1 }, error: null };
+    },
+  } as unknown as Parameters<typeof sweepExpiredOrders>[0];
+  const res = await sweepExpiredOrders(admin, NOW);
+  assert.equal(res.cancelled, 1);
+  assert.deepEqual(calls, ["read:order_lines", "read:capacity_allocations", "rpc:release_capacity"]);
 });

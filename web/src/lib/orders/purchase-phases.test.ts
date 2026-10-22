@@ -14,8 +14,9 @@ type FakeQuery = {
   lte: (...a: unknown[]) => Promise<Reply>;
 };
 
-const NOW = "2026-10-21T12:00:00.000Z";
-const PHASE = { id: "ph_1", price_cents: 8000, starts_at: "2026-10-01T00:00:00.000Z", ends_at: null, variant_id: null };
+const NOW = new Date().toISOString();
+const TEN_DAYS_AGO = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+const PHASE = { id: "ph_1", price_cents: 8000, starts_at: TEN_DAYS_AGO, ends_at: null, variant_id: null };
 
 function fakeAdmin(reply: Reply) {
   const reads: string[] = [];
