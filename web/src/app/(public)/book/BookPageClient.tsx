@@ -15,6 +15,7 @@ import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
 import { isRequestOnlyService, resolveSelectedOfferingId } from "./book-availability";
 import { BookLocaleScope } from "./BookLocaleScope";
+import { SessionPickerIsland } from "@/lib/site-admin/builder-node/session-picker-island";
 
 export function BookPageClient({
   tenantSlug,
@@ -31,7 +32,7 @@ export function BookPageClient({
   tenantSlug: string;
   tenantId?: string | null;
   agencyName: string;
-  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null; hasOpenTimes?: boolean | null }>;
+  offerings: Array<TalentOffering & { bookingMode?: "inquire" | "request" | "instant"; seatsLabel?: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean }>;
   signedIn?: boolean;
   client?: BookableComposerClient | null;
   captcha?: GuestCaptchaConfig | null;
@@ -54,6 +55,8 @@ export function BookPageClient({
     return offerings.find((o) => o.id === id) ?? offerings[0] ?? null;
   }, [offerings, initialServiceId, userPickedId]);
   const noTimes = selected ? isRequestOnlyService(selected) : false;
+  // TUL-1381: a class with scheduled sessions books through the session picker, not a slot calendar.
+  const sessionClass = selected?.hasSessions === true && !!tenantId;
   const bookable = selected
     ? pickBookableOffering([selected], { locationLabel: null })
     : null;
@@ -73,7 +76,7 @@ export function BookPageClient({
       )
     : null;
 
-  if (offerings.length === 0 || !bookable) {
+  if (offerings.length === 0 || (!bookable && !sessionClass) || !selected) {
     return (
       <div
         className="mt-6 flex flex-col items-start gap-3 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]"
@@ -140,6 +143,15 @@ export function BookPageClient({
             {t("public.bookPage.noTimesRequest")}
           </p>
         ) : null}
+        {sessionClass ? (
+          <SessionPickerIsland
+            key={selected.id}
+            tenantId={tenantId ?? ""}
+            offeringId={selected.id}
+            locale={pageLocale}
+          />
+        ) : null}
+        {!sessionClass && bookable ? (
         <BookableComposer
           tenantSlug={tenantSlug}
           tenantId={tenantId}
@@ -154,6 +166,7 @@ export function BookPageClient({
           showInlinePicker={!noTimes}
           requestLabel={t("public.bookPage.requestCta")}
         />
+        ) : null}
         {noTimes && contactHref ? (
           <Link href={contactHref} className="self-start text-sm underline">
             {t("public.bookPage.contactCta")}
