@@ -1823,6 +1823,7 @@
       "phone": "Teléfono",
       "quoteOnRequest": "Precio a consultar",
       "selectAtLeastOne": "Elige {nounPlural}",
+      "subtotal": "Subtotal",
       "chooseOption": "Elige una opción",
       "extrasLabel": "Extras",
       "selectQuantities": "Selecciona las cantidades",
