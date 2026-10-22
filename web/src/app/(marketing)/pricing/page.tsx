@@ -16,6 +16,9 @@ import { parsePricingAudience } from "@/lib/pricing/pricing-audience";
 import { pricingPlanRedirect, pricingQueryHasPlan } from "@/lib/pricing/pricing-plan-redirect";
 import { resolvePricingViewer } from "@/lib/pricing/pricing-viewer";
 import { resolveCurrency } from "@/lib/pricing/currency-resolver";
+import { fxRateFor } from "@/lib/pricing/approx-local-price";
+import { loadFxPreview } from "@/lib/pricing/fx-preview";
+import { fxSafeMarketingCurrency } from "@/lib/pricing/pick-marketing-currency";
 import { loadTicketFeeRate } from "@/lib/marketing/ticket-fee-rates.server";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { pickLocale } from "@/lib/i18n/pick-locale";
@@ -68,7 +71,12 @@ export default async function PricingPage({
     });
     if (target) redirect(target.startsWith("/") ? withLocaleHref(target, locale) : target);
   }
-  const { currency, source } = await resolveCurrency(resolved, locale);
+  const resolvedCurrency = await resolveCurrency(resolved, locale);
+  // TUL-1817: MXN needs a live FX rate; without one fall back to a USD picker + USD amounts.
+  const { currency, source } = fxSafeMarketingCurrency(
+    resolvedCurrency,
+    resolvedCurrency.currency === "MXN" ? fxRateFor(await loadFxPreview(), "MXN") : null,
+  );
   // The displayed fee reads from platform_commission_config. A typed 0.06
   // shipped on this page once; the standing rule is that no displayed price or
   // fee is a literal, because every hardcoded one in this codebase has
