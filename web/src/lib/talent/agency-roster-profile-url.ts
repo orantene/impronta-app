@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 import { workspacePathHost } from "@/lib/saas/workspace-public-url";
 
 // NOTE: no `server-only` import here. `agencyRosterProfileUrl` (sync) is
@@ -25,15 +26,13 @@ import { workspacePathHost } from "@/lib/saas/workspace-public-url";
  * Callers that have not resolved anything yet fall back to the path form —
  * still correct, just not the shortest URL.
  */
-const TULALA_MARKETING_ORIGIN = "https://tulala.digital";
-
 /** Platform hub + self page — always the marketing apex, never a subdomain. */
 export function platformSelfProfileUrl(
   profileCode: string | null | undefined,
 ): string | null {
   const code = profileCode?.trim();
   if (!code) return null;
-  return `${TULALA_MARKETING_ORIGIN}/t/${encodeURIComponent(code)}`;
+  return `${resolvePublicRootOrigin()}/t/${encodeURIComponent(code)}`;
 }
 
 export function agencyRosterProfileUrl(
@@ -61,7 +60,7 @@ export function agencyRosterProfileUrl(
   const slug = agencySlug?.trim();
   if (!slug) return null;
 
-  return `https://${workspacePathHost(slug)}${path}`;
+  return `https://${workspacePathHost(slug, resolvePublicRootOrigin())}${path}`;
 }
 
 /**
