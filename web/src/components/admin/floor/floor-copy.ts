@@ -16,6 +16,7 @@
 
 import type { Translator } from "../pos/translator";
 import { floorEngineCopy, floorEngineRefusals, type FloorEngineCopy } from "./floor-copy-engine";
+import { floorBookingCopy, type FloorBookingCopy } from "./floor-copy-booking";
 import { floorReservationCopy, type FloorReservationCopy } from "./floor-copy-reservation";
 
 const K = "dashboard.pos.floor.board";
@@ -45,6 +46,7 @@ export type FloorRefusalKey =
   | "reservation_other_table"
   | "reservation_not_valid"
   | "reservation_already_seated"
+  | "reservation_not_late"
   | "kitchen_empty"
   | "kitchen_not_found"
   // The walk-in queue (`reservationsTakeWalkIn`).
@@ -400,6 +402,8 @@ export type FloorBoardCopy = {
     readonly confirm: string;
   };
   readonly reservation: FloorReservationCopy;
+  /** The reservation detail sheet: open, no-show, cancel (TUL-1757). */
+  readonly booking: FloorBookingCopy;
   readonly notices: {
     /** `Sent to the kitchen as ticket revision {n}.` */
     readonly sentToKitchen: string;
@@ -692,6 +696,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       confirm: t(`${K}.reset.confirm`),
     },
     reservation: floorReservationCopy(t),
+    booking: floorBookingCopy(t),
     notices: {
       sentToKitchen: t("dashboard.pos.floor.sentToKitchen"),
       amendedInKitchen: t("dashboard.pos.floor.amendedInKitchen"),
@@ -717,6 +722,7 @@ export function floorBoardCopy(t: Translator): FloorBoardCopy {
       reservation_other_table: t(`${R}.reservationOtherTable`),
       reservation_not_valid: t(`${R}.reservationNotValid`),
       reservation_already_seated: t(`${R}.reservationAlreadySeated`),
+      reservation_not_late: t(`${K}.booking.refusalNotLate`),
       kitchen_empty: t("dashboard.pos.floor.refusal.kitchenEmpty"),
       kitchen_not_found: t("dashboard.pos.floor.refusal.kitchenNotFound"),
       walkins_off: t(`${D}.walkinsOff`),
