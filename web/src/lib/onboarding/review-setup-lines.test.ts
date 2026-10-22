@@ -34,3 +34,12 @@ test("the ready step renders the setup lines", () => {
   const src = readFileSync(join(process.cwd(), "src/components/onboarding/steps/ready-step.tsx"), "utf8");
   assert.match(src, /onb-ready-setup-/);
 });
+
+test("TUL-806: each service shows its duration and price (or quote), en and es", () => {
+  const svc = (o: Partial<Essentials["services"][number]>) => ({ name: "Corte", durationMin: 45, priceCents: 35000, quote: false, currency: "MXN", ...o });
+  const withSvc = { ...e, services: [svc({}), svc({ name: "Tinte", durationMin: null, priceCents: null, quote: true })] };
+  const es = reviewSetupLines(withSvc, "es")[0].value;
+  assert.match(es, /^Corte \(45 min, \$350\) · Tinte \(precio a cotizar\)$/);
+  assert.match(reviewSetupLines(withSvc, "en")[0].value, /^Corte \(45 min, MX\$350\) · Tinte \(price on quote\)$/);
+  assert.ok(!/\u2014/.test(es));
+});

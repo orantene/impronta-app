@@ -15,6 +15,23 @@ const LABELS: Record<FlowLocale, { services: string; hours: string; place: strin
   es: { services: "Servicios", hours: "Horario", place: "Dónde", timezone: "Zona horaria", closed: "Cerrado" },
 };
 
+/** TUL-806: "Name (45 min, $350)"; a quote service says so; a value nobody gave is left out. */
+export function serviceReviewLabel(s: Essentials["services"][number], locale: FlowLocale): string {
+  const bits: string[] = [];
+  if (typeof s.durationMin === "number" && s.durationMin > 0) bits.push(`${s.durationMin} min`);
+  if (s.quote === true) bits.push(locale === "es" ? "precio a cotizar" : "price on quote");
+  else if (typeof s.priceCents === "number" && s.priceCents > 0) {
+    const amount = s.priceCents / 100;
+    try {
+      bits.push(new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency: s.currency || "MXN", minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 }).format(amount));
+    } catch {
+      bits.push(`${amount} ${s.currency ?? ""}`.trim());
+    }
+  }
+  const name = s.name.trim();
+  return bits.length ? `${name} (${bits.join(", ")})` : name;
+}
+
 const same = (a: HourRange[], b: HourRange[]) =>
   a.length === b.length && a.every((r, i) => r.startMin === b[i].startMin && r.endMin === b[i].endMin);
 
@@ -44,7 +61,7 @@ export function reviewSetupLines(e: Essentials | null, locale: FlowLocale): Revi
   if (!e) return [];
   const l = LABELS[locale];
   const out: ReviewLine[] = [];
-  const services = e.services.map((s) => s.name.trim()).filter(Boolean);
+  const services = e.services.filter((s) => s.name.trim()).map((s) => serviceReviewLabel(s, locale));
   if (services.length) out.push({ id: "services", label: l.services, value: services.join(" · ") });
   const hours = hoursSummary(e.hours, locale);
   if (hours) out.push({ id: "hours", label: l.hours, value: hours });

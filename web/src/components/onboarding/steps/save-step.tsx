@@ -8,7 +8,7 @@ import { ageTermsLinks } from "@/lib/legal/age-terms-links";
  * skip it (the module never shows it to them).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthGoogleButtonSurface } from "@/components/auth/auth-ui";
 import type { OnboardingChoice, OnboardingPath } from "@/lib/onboarding/module-state";
@@ -26,6 +26,7 @@ export function SaveStep({
   busy,
   error,
   initialAgeTerms = false,
+  onAgeTermsChange,
   onEmail,
   onGoogleSuccess,
 }: {
@@ -43,6 +44,8 @@ export function SaveStep({
   error: string | null;
   /** The tick already given (kept across "change email" and back). */
   initialAgeTerms?: boolean;
+  /** TUL-1847: told on every tick so the module can keep it on the draft. */
+  onAgeTermsChange?: (ticked: boolean) => void;
   onEmail: (email: string, ageTerms: boolean) => void;
   onGoogleSuccess: () => void;
 }) {
@@ -51,6 +54,8 @@ export function SaveStep({
   // Legal 2.2: 18+ and Terms/Privacy, required before a code is sent. The
   // server action re-checks it; `disabled` here is only a convenience.
   const [ageTerms, setAgeTerms] = useState(initialAgeTerms);
+  // The restored tick can arrive after the first render (resume lookup).
+  useEffect(() => { if (initialAgeTerms) setAgeTerms(true); }, [initialAgeTerms]);
   // Talent (and both): the callback promotes the fresh profile to talent when
   // `next` is a talent onboarding path. The module ignores the destination.
   const base = path === "business" ? "/" : "/talent/profile/fields";
@@ -74,7 +79,7 @@ export function SaveStep({
         <input
           type="checkbox"
           checked={ageTerms}
-          onChange={(e) => setAgeTerms(e.target.checked)}
+          onChange={(e) => { setAgeTerms(e.target.checked); onAgeTermsChange?.(e.target.checked); }}
           className="mt-0.5 size-4 shrink-0"
           data-testid="onb-age-terms"
         />

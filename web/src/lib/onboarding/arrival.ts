@@ -271,9 +271,18 @@ export function draftSawKey(arrival: Pick<ArrivalPayload, "draftReason" | "draft
   }
 }
 
-/** TUL-819: the one-line technical detail for support: reason code plus HTTP status when known. */
-export function draftSupportLine(arrival: Pick<ArrivalPayload, "draftReason" | "draftStatus" | "variant">): string {
-  return [arrival.variant, arrival.draftReason, typeof arrival.draftStatus === "number" ? `HTTP ${arrival.draftStatus}` : null].filter(Boolean).join(" · ");
+/**
+ * TUL-1839: the support detail in plain words (never the raw reason codes):
+ * "saved as a draft" plus what the address check saw, as message keys.
+ */
+export function draftSupportParts(arrival: Pick<ArrivalPayload, "draftReason" | "draftStatus">): { keys: string[]; status?: number } {
+  const base = "public.onboarding.arrival.draftTech";
+  const reason = arrival.draftReason;
+  const what =
+    reason === "status" ? (typeof arrival.draftStatus === "number" ? "status" : "statusUnknown")
+    : reason === "network" || reason === "name_missing" || reason === "no_name" || reason === "no_url" || reason === "protected" ? { network: "network", name_missing: "nameMissing", no_name: "noName", no_url: "noUrl", protected: "protected" }[reason]
+    : "unknown";
+  return { keys: [`${base}.saved`, `${base}.${what}`], status: arrival.draftStatus };
 }
 
 export type DraftFixAction = "retry" | "edit_name" | "check_address";
