@@ -149,3 +149,38 @@ export function resolveWorkspaceAdminBaseForLocation(
     workspaceAdminAppOrigin(location.origin, configuredWorkspaceAppOrigin()),
   );
 }
+
+/**
+ * Absolute-or-relative URL of `/{slug}/admin` for the workspace switchers.
+ *
+ * Workspace admin always lives on the APP host, never on the tenant's public
+ * domain. The origin is derived, never a domain literal (TUL-1823: a literal
+ * sent staging users to production):
+ *
+ *   1. local page → relative (stay on the dev server)
+ *   2. configured app origin (`NEXT_PUBLIC_APP_URL` / `NEXT_PUBLIC_SITE_URL`)
+ *   3. else the current origin when it is an `app.` host
+ *   4. else relative
+ */
+export function workspaceSwitchAdminUrl(
+  slug: string,
+  currentOrigin: string,
+  configuredAppOrigin: string,
+): string {
+  const path = `/${slug}/admin`;
+  const currentHost = hostnameOf(currentOrigin);
+  const configured = configuredAppOrigin.trim().replace(/\/+$/, "");
+  const configuredHost = configured ? hostnameOf(configured) : null;
+  if (currentHost && isLocalHostname(currentHost)) return path;
+  if (configuredHost) return `${configured}${path}`;
+  if (currentHost && currentHost.startsWith("app.")) {
+    return `${originOf(currentOrigin)}${path}`;
+  }
+  return path;
+}
+
+/** Browser form of {@link workspaceSwitchAdminUrl}. Safe during SSR (relative). */
+export function workspaceSwitchAdminUrlForLocation(slug: string): string {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  return workspaceSwitchAdminUrl(slug, origin, configuredWorkspaceAppOrigin());
+}

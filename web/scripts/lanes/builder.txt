@@ -14,6 +14,7 @@ src/components/edit-chrome/invariant-guard.static.test.ts
 src/components/edit-chrome/kit/drawer-modal-inert.static.test.ts
 src/components/edit-chrome/page-edit-href.test.ts
 src/components/edit-chrome/publish-menu.test.tsx
+src/components/edit-chrome/workspace-switch-admin-url.test.ts
 src/components/talent/site/maison-setup/explore-slug.test.ts
 src/components/talent/site/maison-setup/theme-detail-model.test.ts
 src/components/talent/site/theme-gallery/gallery-bootstrap-action.test.ts

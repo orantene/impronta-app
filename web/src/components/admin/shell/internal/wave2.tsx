@@ -67,6 +67,7 @@ import {
   TextArea,
   FieldRow,
 } from "./primitives";
+import { workspaceSwitchAdminUrlForLocation } from "@/components/edit-chrome/workspace-admin-base";
 import { pinNextConversation } from "./messages/conversation-pending";
 import { copyTalentOwnPublicLink } from "@/lib/talent/public-profile-href";
 import { MOCK_CONVERSATIONS } from "./talent/shared/conversations-1";
@@ -1052,7 +1053,7 @@ export function TenantSwitcherDrawer() {
             .filter(w => w.role === roleGroup.toLowerCase())
             .map(w => {
               // Workspace admin ALWAYS lives on the app host
-              // (app.tulala.digital/<slug>/admin), never on the tenant's
+              // (<app host>/<slug>/admin), never on the tenant's
               // public/custom domain. Routing admin through w.domain broke the
               // switcher whenever that domain was stale or unreachable — e.g. a
               // tenant whose first-listed subdomain is a dead legacy host
@@ -1064,7 +1065,7 @@ export function TenantSwitcherDrawer() {
               const domain = isPlatformHub
                 ? "tulala.digital"
                 : (w.domain ?? workspaceLiveHost({ slug: w.slug, planTier: w.tier, domains: null }));
-              const adminUrl = `https://app.tulala.digital/${w.slug}/admin`;
+              const adminUrl = workspaceSwitchAdminUrlForLocation(w.slug);
               return {
                 id: w.id,
                 slug: w.slug,
