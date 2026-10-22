@@ -63,7 +63,9 @@ export function isGateActive(env: GateEnv, host: string | null | undefined): boo
 }
 
 const STATIC_FILE_RE = /\.(?:svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|eot|css|js|map|txt|xml|webmanifest)$/i;
-const ALLOWED_PREFIXES = ["/api/webhooks/", "/api/cron/", "/api/health/", "/api/stripe/webhook", "/_next/"];
+// /api/hooks/auth-email: the Supabase Send Email hook (TUL-814/1191) is a machine caller that cannot sign in;
+// the route verifies its own Standard Webhooks signature.
+const ALLOWED_PREFIXES = ["/api/webhooks/", "/api/cron/", "/api/health/", "/api/stripe/webhook", "/api/hooks/auth-email", "/_next/"];
 const ALLOWED_EXACT = new Set([STAGING_GATE_PATH, "/favicon.ico", "/robots.txt"]);
 
 /** Paths that never require the password (machines, assets, the gate itself). */
