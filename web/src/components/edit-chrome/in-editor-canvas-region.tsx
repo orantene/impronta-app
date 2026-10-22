@@ -31,7 +31,8 @@ import { BreakpointStyleEngine } from "@/components/edit-chrome/breakpoint-style
 import { BUILTIN_EXTRA_TIERS } from "@/lib/site-admin/builder-node/custom-breakpoint-css";
 import type { ReactNode } from "react";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { MouseEvent } from "react";
 import type { CSSProperties } from "react";
 
 import { ClientBuilderCanvas } from "./client-builder-canvas";
@@ -42,7 +43,11 @@ import { EmptyCanvasStarter } from "./empty-canvas-starter";
 import { CHROME, EDIT_TOPBAR_H } from "./kit/tokens";
 import { useBuilderTree } from "./builder-tree-bridge";
 import { useEditorLocale } from "./use-editor-locale";
-import { useActiveContentLocale } from "./active-content-locale-bridge";
+import {
+  getActiveContentLocaleSnapshot,
+  publishActiveContentLocale,
+  useActiveContentLocale,
+} from "./active-content-locale-bridge";
 import { resolveCanvasLabelLocale } from "./editing-locale";
 import {
   isStorefrontBodyPresent,
@@ -68,6 +73,53 @@ export interface InEditorCanvasRegionProps {
    * the bridge paints live inserts.
    */
   canvasRenderData: InEditorCanvasRenderData | null;
+}
+
+/**
+ * TUL-1908: the shell header is read-only, but it was `inert` as a whole, and an
+ * inert subtree is skipped by hit-testing, so a tap on the 44x44 ES/EN links
+ * landed on the canvas-region DIV underneath. Instead of one `inert` on the
+ * wrapper, every other focusable control is made inert individually; the
+ * language links stay live and switch the preview locale instead of navigating
+ * away from the editor.
+ */
+export const SHELL_HEADER_LANG_LINK_SELECTOR =
+  ".site-header__lang a.site-header__lang-code, a.site-builder-node--header-language-link";
+const SHELL_HEADER_CONTROL_SELECTOR =
+  "a[href], button, input, select, textarea, summary, label, [tabindex]";
+
+function useShellHeaderReadOnly(active: boolean) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!active || !root) return;
+    const apply = () => {
+      for (const el of root.querySelectorAll<HTMLElement>(SHELL_HEADER_CONTROL_SELECTOR)) {
+        if (el.matches(SHELL_HEADER_LANG_LINK_SELECTOR)) continue;
+        if (!el.hasAttribute("inert")) el.setAttribute("inert", "");
+      }
+    };
+    apply();
+    const mo = new MutationObserver(apply);
+    mo.observe(root, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [active]);
+  const onClickCapture = useCallback((e: MouseEvent<HTMLElement>) => {
+    const link = (e.target as HTMLElement | null)?.closest?.<HTMLElement>(
+      SHELL_HEADER_LANG_LINK_SELECTOR,
+    );
+    if (!link) return;
+    e.preventDefault();
+    const code = link.getAttribute("lang");
+    if (!code) return;
+    const cur = getActiveContentLocaleSnapshot();
+    publishActiveContentLocale({
+      ...cur,
+      locale: code,
+      chain: code === cur.defaultLocale ? [code] : [code, cur.defaultLocale],
+    });
+  }, []);
+  return { ref, onClickCapture };
 }
 
 export function InEditorCanvasRegion({
@@ -230,6 +282,7 @@ export function InEditorCanvasRegion({
   const shellHeader = canvasRenderData?.shellHeader ?? null;
   const shellFooter = canvasRenderData?.shellFooter ?? null;
   const shellSocket = canvasRenderData?.shellSocket ?? null;
+  const shellHeaderReadOnly = useShellHeaderReadOnly(!!shellHeader);
 
   return (
     // `data-theme-canvas-root` makes this the projection target for the Theme
@@ -263,7 +316,8 @@ export function InEditorCanvasRegion({
           data-talent-max-site-header=""
           {...(canvasRenderData?.shellHeaderOverHero ? { "data-over-hero": "true" } : {})}
           style={{ top: EDIT_TOPBAR_H }}
-          inert
+          ref={shellHeaderReadOnly.ref}
+          onClickCapture={shellHeaderReadOnly.onClickCapture}
         >
           {shellHeader}
         </div>

@@ -13,6 +13,20 @@ test("TUL-1908: header ES/EN links get a 44x44 hit box on phones", () => {
   assert.match(render, /\.site-builder-node--header-language-link\{[^}]*min-width:44px;min-height:44px/);
 });
 
+test("TUL-1908: ES/EN hit boxes do not overlap and the edit-mode shell header lets taps through", () => {
+  const css = read("../../app/token-presets.css");
+  const render = read("../site-admin/builder-node/render.tsx");
+  // Horizontal margin per side must stay small enough that two 44px boxes (gap + separator ~14px) never overlap.
+  assert.match(css, /min-height: 44px; margin: -13px -5px;/);
+  assert.match(render, /min-height:44px;margin:-13px -5px;/);
+  const region = read("../../components/edit-chrome/in-editor-canvas-region.tsx");
+  const header = region.slice(region.indexOf('data-talent-builder-shell="header"'), region.indexOf("{shellHeader}"));
+  assert.equal(/\binert\b/.test(header), false, "wrapper must not be inert: hit-testing skips it and taps hit the canvas-region DIV");
+  assert.match(region, /SHELL_HEADER_LANG_LINK_SELECTOR/);
+  assert.match(region, /el\.matches\(SHELL_HEADER_LANG_LINK_SELECTOR\)\) continue/);
+  assert.match(region, /onClickCapture=\{shellHeaderReadOnly\.onClickCapture\}/);
+});
+
 test("TUL-1910: /onboarding/role redirects to /start, so /start carries the footer too", () => {
   // Real cause: with the onboarding module on, the role page redirects pros to /start
   // (legacySignupRedirect), and the /start layout rendered no footer.
