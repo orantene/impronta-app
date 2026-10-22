@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { HubAgencyList } from "./hub-agency-list";
-import { filterPublicHubAgencies, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
+import { filterPublicHubAgencies, tenantsWithRealOwner, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
 import { hubCmsTitle, hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -325,6 +325,7 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
     if (homesError) logServerError("hubLanding.agencyHomepages", homesError);
     for (const h of (homes ?? []) as CmsHomeRow[]) if (h.tenant_id) published.add(h.tenant_id);
   }
+  const realOwned = await loadTenantsWithRealOwner(admin, tenantIds);
   // TUL-1843: staging rows carry production-pattern `*.tulala.digital` hostnames; re-home them
   // onto this environment's root so a staging hub never links to production. Dedupe after.
   const seen = new Set<string>();
@@ -335,7 +336,58 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
     seen.add(hostname);
     // A domain whose workspace row could not be read has no name or status: it is not listed.
     const m = r.tenant_id ? meta.get(r.tenant_id) : undefined;
-    candidates.push({ hostname, tenantId: r.tenant_id, domainKind: r.kind, hasPublishedHomepage: Boolean(r.tenant_id && published.has(r.tenant_id)), agencyKind: m?.agencyKind ?? null, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings });
+    candidates.push({ hostname, tenantId: r.tenant_id, domainKind: r.kind, hasPublishedHomepage: Boolean(r.tenant_id && published.has(r.tenant_id)), hasRealOwner: Boolean(r.tenant_id && realOwned.has(r.tenant_id)), agencyKind: m?.agencyKind ?? null, name: m?.name ?? null, status: m?.status ?? "unknown", discoverExposureEnabled: m?.discoverExposureEnabled, settings: m?.settings });
   }
   return filterPublicHubAgencies(candidates);
+}
+
+/**
+ * TUL-1884: tenants whose active owner is a real person. One batched read of owner memberships, one of the
+ * account flags (profiles + talent_profiles), and one auth lookup per distinct owner (the repo's
+ * service-role `auth.admin` pattern; profiles carries no email). Any read failure fails CLOSED: nothing
+ * is listed rather than test data.
+ */
+async function loadTenantsWithRealOwner(
+  admin: ReturnType<typeof createServiceRoleClient>,
+  tenantIds: string[],
+): Promise<Set<string>> {
+  if (!admin || tenantIds.length === 0) return new Set();
+  const { data: members, error } = await admin
+    .from("agency_memberships")
+    .select("tenant_id, profile_id")
+    .in("tenant_id", tenantIds)
+    .eq("role", "owner")
+    .eq("status", "active")
+    .is("removed_at", null);
+  if (error) {
+    logServerError("hubLanding.agencyOwners", error);
+    return new Set();
+  }
+  const ownersByTenant = new Map<string, string[]>();
+  for (const m of (members ?? []) as Array<{ tenant_id: string; profile_id: string }>) {
+    ownersByTenant.set(m.tenant_id, [...(ownersByTenant.get(m.tenant_id) ?? []), m.profile_id]);
+  }
+  const ownerIds = [...new Set([...ownersByTenant.values()].flat())];
+  if (ownerIds.length === 0) return new Set();
+
+  const flagged = new Set<string>();
+  const [profileFlags, talentFlags] = await Promise.all([
+    admin.from("profiles").select("id").in("id", ownerIds).eq("is_test_account", true),
+    admin.from("talent_profiles").select("user_id").in("user_id", ownerIds).or("is_test_account.eq.true,is_demo.eq.true"),
+  ]);
+  if (profileFlags.error || talentFlags.error) {
+    logServerError("hubLanding.ownerFlags", profileFlags.error ?? talentFlags.error);
+    return new Set();
+  }
+  for (const r of (profileFlags.data ?? []) as Array<{ id: string }>) flagged.add(r.id);
+  for (const r of (talentFlags.data ?? []) as Array<{ user_id: string | null }>) if (r.user_id) flagged.add(r.user_id);
+
+  const emailByUser = new Map<string, string>();
+  await Promise.all(
+    ownerIds.map(async (id) => {
+      const { data } = await admin.auth.admin.getUserById(id);
+      if (data?.user?.email) emailByUser.set(id, data.user.email);
+    }),
+  );
+  return tenantsWithRealOwner({ ownersByTenant, emailByUser, flaggedUserIds: flagged });
 }

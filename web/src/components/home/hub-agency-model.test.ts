@@ -6,13 +6,15 @@ import { test } from "node:test";
 import {
   HUB_AGENCY_PREVIEW_LIMIT,
   filterPublicHubAgencies,
+  isReservedTestEmail,
   isSeedHostname,
+  tenantsWithRealOwner,
   visibleHubAgencies,
   type HubAgencyItem,
 } from "./hub-agency-model";
 import { hubCmsTitle, hubDisplayName } from "./hub-landing-copy";
 
-const live = { status: "active", discoverExposureEnabled: true, settings: {}, domainKind: "subdomain", agencyKind: "agency", hasPublishedHomepage: true };
+const live = { status: "active", discoverExposureEnabled: true, settings: {}, domainKind: "subdomain", agencyKind: "agency", hasPublishedHomepage: true, hasRealOwner: true };
 
 test("TUL-1884: unnamed, non-live, opted-out, flagged and seed-host agencies are not listed", () => {
   const out = filterPublicHubAgencies([
@@ -87,4 +89,39 @@ test("TUL-1884: en and es both carry the new list copy, without em dashes", () =
     assert.ok(hub.showFewer, f);
     assert.doesNotMatch(`${hub.seeAll}${hub.showFewer}`, /\u2014/, f);
   }
+});
+
+test("TUL-1884: owner rule. no owner -> hidden, test-TLD owner -> hidden, flagged owner -> hidden, real owner -> shown", () => {
+  const ownersByTenant = new Map<string, string[]>([
+    ["t-real", ["u-real"]],
+    ["t-tld", ["u-tld"]],
+    ["t-flag", ["u-flag"]],
+    ["t-grok", ["u-real2"]],
+    ["t-mixed", ["u-tld", "u-real"]],
+    // t-none has no owner membership at all
+  ]);
+  const real = tenantsWithRealOwner({
+    ownersByTenant,
+    emailByUser: new Map([
+      ["u-real", "jane@gmail.com"],
+      ["u-real2", "qa@mail.grokbot.com"],
+      ["u-tld", "x@impronta.test"],
+      ["u-flag", "flagged@gmail.com"],
+    ]),
+    flaggedUserIds: new Set(["u-flag"]),
+  });
+  assert.equal(real.has("t-real"), true);
+  assert.equal(real.has("t-tld"), false);
+  assert.equal(real.has("t-flag"), false);
+  assert.equal(real.has("t-none"), false);
+  assert.equal(real.has("t-mixed"), true, "one real owner is enough");
+  const listed = filterPublicHubAgencies(
+    ["t-real", "t-tld", "t-flag", "t-none"].map((t) => ({ hostname: `${t}.example.com`, name: t, tenantId: t, ...live, hasRealOwner: real.has(t) })),
+  );
+  assert.deepEqual(listed.map((a) => a.name), ["t-real"]);
+});
+
+test("TUL-1884: reserved test TLDs", () => {
+  for (const e of ["a@impronta.test", "a@x.example", "a@x.INVALID", "a@foo.localhost"]) assert.equal(isReservedTestEmail(e), true, e);
+  for (const e of ["a@gmail.com", "a@example.com", "a@testing.io", "", null, undefined, "nodomain"]) assert.equal(isReservedTestEmail(e), false, String(e));
 });

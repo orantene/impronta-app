@@ -22,6 +22,8 @@ export type HubAgencyCandidate = {
    * have a PUBLISHED homepage (cms_pages published, system homepage) to appear on the hub.
    */
   hasPublishedHomepage?: boolean;
+  /** True when the workspace has an owner membership and at least one owner is not a test account. */
+  hasRealOwner?: boolean;
   hostname: string;
   name: string | null;
   status?: string | null;
@@ -47,6 +49,7 @@ export function isPublicHubAgency(c: HubAgencyCandidate): boolean {
   if (SITE_DOMAIN_RANK[c.domainKind ?? ""] === undefined) return false; // app, marketing, hub, ...
   if (c.agencyKind !== "agency") return false; // hub / platform tenants
   if (c.hasPublishedHomepage !== true) return false;
+  if (c.hasRealOwner !== true) return false; // no owner, or only test-account owners
   if (!c.name?.trim()) return false; // a bare address is never a card
   if (c.status != null && !LIVE_STATUSES.has(c.status)) return false;
   if (c.discoverExposureEnabled === false) return false;
@@ -84,4 +87,31 @@ export function visibleHubAgencies(
   // Searching always shows every match; the cap only trims the browse state.
   const shown = expanded || needle ? matches : matches.slice(0, limit);
   return { shown, total: matches.length, hiddenCount: matches.length - shown.length };
+}
+
+const RESERVED_TEST_TLDS = new Set(["test", "example", "invalid", "localhost"]);
+
+/** RFC 2606 / 6761 reserved TLDs: an address there can never belong to a real person. */
+export function isReservedTestEmail(email: string | null | undefined): boolean {
+  const domain = email?.trim().toLowerCase().split("@")[1];
+  if (!domain) return false;
+  return RESERVED_TEST_TLDS.has(domain.split(".").pop() ?? "");
+}
+
+/**
+ * Which tenants have a real owner. `ownersByTenant` holds active 'owner' memberships; an owner is a
+ * test account when their email is on a reserved TLD or any account flag (profiles.is_test_account,
+ * talent_profiles.is_test_account / is_demo) is set. A tenant with no owner is not listed.
+ */
+export function tenantsWithRealOwner(input: {
+  ownersByTenant: ReadonlyMap<string, readonly string[]>;
+  emailByUser: ReadonlyMap<string, string>;
+  flaggedUserIds: ReadonlySet<string>;
+}): Set<string> {
+  const out = new Set<string>();
+  for (const [tenantId, owners] of input.ownersByTenant) {
+    const real = owners.some((u) => !input.flaggedUserIds.has(u) && !isReservedTestEmail(input.emailByUser.get(u)));
+    if (real) out.add(tenantId);
+  }
+  return out;
 }
