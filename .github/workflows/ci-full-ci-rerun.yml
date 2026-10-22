@@ -8,7 +8,7 @@
 # (see ci-pr-trigger-types.static.test.ts). Here, other labels only skip a job
 # that is not a required check.
 #
-# The gate's policy step reads labels live, so re-running the failed job on
+# The gate's policy step reads labels live, so re-running the failed jobs on
 # the existing ci.yml run is enough. A run that is still in progress (e.g. its
 # tsc job) is awaited first: GitHub only re-runs jobs of a completed run.
 
@@ -53,6 +53,8 @@ jobs:
             echo "::notice::Gate in run $run_id was not refused by the policy step (policy=$policy); nothing to re-run."
             exit 0
           fi
-          job_id=$(gh run view "$run_id" --json jobs -q '.jobs[] | select(.name == "Structural quality gate") | .databaseId')
-          gh run rerun "$run_id" --job "$job_id"
-          echo "Re-ran Structural quality gate (run $run_id, job $job_id) for $HEAD_SHA."
+          # TUL-1770: the gate is several parallel jobs now; the refusal is on the
+          # policy job and its dependents, so re-run every failed job (and the
+          # skipped jobs that depend on them), not just the aggregator.
+          gh run rerun "$run_id" --failed
+          echo "Re-ran the failed Structural quality gate jobs (run $run_id) for $HEAD_SHA."
