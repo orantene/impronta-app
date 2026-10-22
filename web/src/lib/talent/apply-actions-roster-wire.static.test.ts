@@ -24,3 +24,8 @@ test("approve adds the talent to the roster, respects the seat cap and notifies"
 test("reject is conditional on pending (double click safe)", () => {
   assert.match(decide, /\.eq\("status", "pending"\)/);
 });
+
+test("an approved application can be approved again to repair a missing roster row, and the admin layout is revalidated", () => {
+  assert.match(decide, /repairApproved/);
+  assert.match(decide, /revalidatePath\("\/\[tenantSlug\]\/admin", "layout"\)/);
+});
