@@ -13,7 +13,7 @@ import {
   ClientReviewsPanel,
   type GivenReview,
 } from "../_components/ClientReviewsPanel";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 
@@ -24,7 +24,7 @@ const FONT = '"Inter", system-ui, sans-serif';
 
 export default async function ClientReviewsPage({ params }: { params: PageParams }) {
   const { tenantSlug } = await params;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();

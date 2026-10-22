@@ -11,7 +11,7 @@
 // catalog itself is free for any authenticated client.
 
 import { notFound } from "next/navigation";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
@@ -46,7 +46,7 @@ export default async function ClientDiscoverPage({
 }) {
   const { tenantSlug } = await params;
   const sp = await searchParams;
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();

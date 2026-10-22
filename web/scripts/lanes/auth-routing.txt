@@ -34,6 +34,7 @@ src/lib/auth/sign-out-redirect.test.ts
 src/lib/auth/signup-name-wiring.static.test.ts
 src/lib/auth/signup-name.test.ts
 src/lib/client-account/client-entry-es-en.static.test.ts
+src/lib/client-account/client-page-locale.static.test.ts
 src/lib/client-account/client-thread-pure.test.ts
 src/lib/client-account/dock-visibility.test.ts
 src/lib/impersonation/client-portal-effective-user.static.test.ts

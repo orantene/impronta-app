@@ -25,7 +25,7 @@ import { clientPageReadCtx } from "../_data-bridge/client-read-ctx";
 import { loadSubscriptionPageData } from "../_data-bridge/client-page-loaders";
 import { ClientPageHeader } from "../_components/ClientPageHeader";
 import { ProUpgradeButton } from "./ProUpgradeButton";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { getClientPageLocale } from "@/lib/client-account/client-page-locale.server";
 import { createTranslator } from "@/i18n/messages";
 import { interpolate } from "@/i18n/interpolate";
 import { SUPPORT_EMAIL } from "@/lib/platform/support-contact";
@@ -126,7 +126,7 @@ export default async function ClientSubscriptionPage({ params }: { params: PageP
   // comparison; existing "Upgrade" CTAs (rail footer, shortlists, hub) land
   // gracefully on the client home instead of a placeholder-price page.
   if (!CLIENT_PRO_PRICING_LIVE) redirect(`/${tenantSlug}/client`);
-  const locale = await getRequestLocale();
+  const locale = await getClientPageLocale();
   const t = createTranslator(locale);
   const session = await getCachedActorSession();
   if (!session.user) notFound();
