@@ -155,6 +155,7 @@ function DomainRow({
   onCopy: (value: string, label: string) => void;
 }) {
   const t = useT();
+  const copy = useDashboardText();
   const [confirming, setConfirming] = useState<"primary" | "remove" | null>(null);
   const meta = DOMAIN_STATUS_META[record.status];
   const isCustom = record.kind === "custom";

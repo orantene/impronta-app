@@ -18745,7 +18745,6 @@
         "duration": "Duración (min)",
         "durationHint": "Servicios y clases; vacío para un producto.",
         "photos": "Fotos",
-        "photosSaveFirst": "Guarda el artículo primero y luego agrega fotos.",
         "photosHint": "La primera foto es la portada. Se ve en el menú QR de la mesa.",
         "photosAlt": "Describe la foto",
         "photosCover": "Portada",

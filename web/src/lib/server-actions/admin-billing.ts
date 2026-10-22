@@ -9,6 +9,7 @@ import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import type { ServerActionResult } from "@/lib/server-actions/result";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { clearPendingDowngrade } from "@/lib/billing/workspace-downgrade-archive";
 import { WORKSPACE_MONEY_GATES } from "@/lib/billing/workspace-money-gates";
 import { applyWorkspaceDowngrade } from "@/lib/billing/plan-change.server";
@@ -65,10 +66,8 @@ export async function changeWorkspacePlan(
   // the webhook is the single writer of plan_tier. Only a workspace Stripe does not bill gets the direct write.
   const outcome = await downgradeWorkspaceToFree(auth.tenantId, auth.user.id, {
     async listRosterIds(tenantId) {
-      const { data, error } = await admin
-        .from("agency_talent_roster")
+      const { data, error } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
         .select("talent_profile_id")
-        .eq("tenant_id", tenantId)
         .in("status", ["active", "pending"])
         .order("created_at", { ascending: true });
       if (error) throw error;

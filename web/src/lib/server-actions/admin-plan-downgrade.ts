@@ -41,6 +41,7 @@ import { trackPlanChanged } from "@/lib/analytics/conversion-events";
 import { recordCommerceAudit, COMMERCE_AUDIT } from "@/lib/billing/commerce-audit";
 import { assertNotImpersonating, requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tenantScopedQuery } from "@/lib/supabase/tenant-scoped-query";
 import { WORKSPACE_MONEY_GATES, isStrictPlanDowngrade } from "@/lib/billing/workspace-money-gates";
 import { applyWorkspaceDowngrade } from "@/lib/billing/plan-change.server";
 import { resolveKeepList } from "@/lib/billing/downgrade-keep-list";
@@ -241,10 +242,8 @@ export async function commitPlanDowngrade(input: {
   if (!caps) return { ok: false, error: "Plan caps not available." };
   // TUL-1291: the keep-list is validated against THIS tenant's roster, read server-side. A client id that is not on the
   // roster is refused, more than the cap is refused, and a roster that already fits keeps everyone.
-  const { data: rosterRows, error: rosterErr } = await admin
-    .from("agency_talent_roster")
+  const { data: rosterRows, error: rosterErr } = await tenantScopedQuery(admin, "agency_talent_roster", tenantId)
     .select("talent_profile_id")
-    .eq("tenant_id", tenantId)
     .in("status", ["active", "pending"])
     .order("created_at", { ascending: true });
   if (rosterErr) {

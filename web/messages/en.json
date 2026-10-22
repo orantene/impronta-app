@@ -18745,7 +18745,6 @@
         "duration": "Duration (min)",
         "durationHint": "Services and classes; leave empty for a product.",
         "photos": "Photos",
-        "photosSaveFirst": "Save the item first, then add photos.",
         "photosHint": "The first photo is the cover. It shows on the table QR menu.",
         "photosAlt": "Describe the photo",
         "photosCover": "Cover",
