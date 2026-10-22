@@ -16,6 +16,9 @@ import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-header";
 import { notFoundCopy, notFoundUnnamedSite } from "@/lib/i18n/not-found-copy";
 import { resolveTenantBrand } from "@/lib/brand/resolve-tenant-brand";
+import { getCachedActorSession } from "@/lib/server/request-cache";
+import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
+import { hostSafeDestination } from "@/lib/saas/host-safe-destination";
 import { isLocale } from "@/lib/site-admin/locales";
 import CmsPublicPage from "@/app/(public)/p/[[...slug]]/page";
 
@@ -60,6 +63,18 @@ async function loadAgencyBrand(locale: string): Promise<AgencyBrand | null> {
       named: name !== "",
       homeHref: "/",
     };
+  } catch {
+    return null;
+  }
+}
+
+/** TUL-1907: where a signed-in visitor's account lives, or null when signed out (or unreadable). */
+async function loadSignedInHref(): Promise<string | null> {
+  try {
+    const actor = await getCachedActorSession();
+    if (!actor.user) return null;
+    const hostCtx = await getPublicHostContext();
+    return hostSafeDestination(resolveAuthenticatedDestination(actor.profile), hostCtx?.kind);
   } catch {
     return null;
   }
@@ -126,7 +141,8 @@ export default async function NotFound() {
   const locale = await resolveNotFoundLocale();
   const brand = await loadAgencyBrand(locale);
   const isAgency = brand !== null;
-  const copy = notFoundCopy(locale, brand ? brand.name : null);
+  const signedInHref = isAgency ? null : await loadSignedInHref();
+  const copy = notFoundCopy(locale, brand ? brand.name : null, signedInHref);
   const eyebrow = isAgency && brand?.named ? brand.name.toUpperCase() : "";
   const BRAND_INK = "#0B0B0D";
   const { heading, body } = copy;
