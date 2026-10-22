@@ -5,7 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError } from "@/lib/server/safe-error";
 import { isSlotEligibleOffering } from "@/components/public-booking/pick-bookable-offering";
 import { resolveTalentBookingMode, type TalentBookingMode } from "@/lib/scheduling/booking-surface";
-import { houseListingModeFor } from "@/lib/booking/house-booking";
+import { houseListingModeFor, houseOnlineBooking } from "@/lib/booking/house-booking";
 import {
   rowToOffering,
   type TalentOffering,
@@ -53,7 +53,7 @@ export async function loadPublicBookableOfferings(args: {
     };
     const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null }> = [];
     for (const offering of offerings) {
-      if (!isSlotEligibleOffering(offering)) continue;
+      if (offering.talentProfileId && !isSlotEligibleOffering(offering)) continue;
 
       // HOUSE-OWNED offerings (F8). Slot booking used to skip anything without
       // a talent, which is why a salon, a barber, a spa and a clinic all got a
@@ -66,6 +66,8 @@ export async function loadPublicBookableOfferings(args: {
       // so this is one rule with two entry points. `booking-surface.ts` stays
       // person-shaped and untouched.
       if (!offering.talentProfileId) {
+        // TUL-1915: the same decision the item editor badge reads.
+        if (houseOnlineBooking(offering).state !== "request") continue;
         // Never "instant": the slots route refuses house rows (item 6).
         const houseMode = houseListingModeFor(offering, host);
         if (houseMode !== "inquire") kept.push({ ...offering, bookingMode: houseMode, seatsLabel: null });

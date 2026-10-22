@@ -116,3 +116,50 @@ test("item 6: the owner is told why a house service cannot be booked online yet"
   assert.equal(houseNotBookableReason({ ...base, kind: "product" }), null);
   assert.equal(houseNotBookableReason({ ...base, talentProfileId: "t1" }), null);
 });
+
+// TUL-1915: the item editor badge and the public /book page share ONE decision.
+test("TUL-1915: admin badge and public listing agree for every case", async () => {
+  const { houseOnlineBooking, houseListingModeFor } = await import("./house-booking");
+  const base = {
+    talentProfileId: null,
+    capacityPoolId: null,
+    durationMinutes: 30,
+    kind: "service",
+    bookingMode: "request" as string | null,
+    status: "published",
+    moderationState: "approved",
+    visibility: "public",
+  };
+  const cases: Array<[string, Partial<typeof base>, string]> = [
+    ["published request service with a duration is offered", {}, "request"],
+    ["instant-mode house service is still offered (as a request)", { bookingMode: "instant" }, "request"],
+    ["inherited booking mode is offered", { bookingMode: null }, "request"],
+    ["on_request visibility is offered", { visibility: "on_request" }, "request"],
+    ["draft is not offered", { status: "draft" }, "not_published"],
+    ["unapproved is not offered", { moderationState: "pending" }, "not_approved"],
+    ["team-only visibility is not offered", { visibility: "agency_only" }, "not_public"],
+    ["product is not offered", { kind: "product" }, "is_product"],
+    ["inquiry-only is not offered", { bookingMode: "inquiry" }, "inquiry_only"],
+    ["no duration is not offered", { durationMinutes: null }, "no_duration"],
+  ];
+  for (const [name, patch, expected] of cases) {
+    const o = { ...base, ...patch };
+    const admin = houseOnlineBooking(o);
+    const adminKey = admin.state === "request" ? "request" : admin.reason;
+    assert.equal(adminKey, expected, name);
+    // The public loader keeps a house row only when this state is "request",
+    // and then lists it as a request on a real host, never as inquire.
+    if (admin.state === "request") {
+      assert.equal(houseListingModeFor(o, AGENCY_HOST), "request", name);
+    }
+  }
+});
+
+test("TUL-1915: the loader and the item editor both read houseOnlineBooking", async () => {
+  const { readFileSync } = await import("node:fs");
+  const loader = readFileSync("src/lib/site-admin/server/load-book-page-offerings.ts", "utf8");
+  const editor = readFileSync("src/components/admin/shell/internal/page-modules/catalog/CatalogItemEditor.tsx", "utf8");
+  assert.match(loader, /houseOnlineBooking\(offering\)/);
+  assert.match(editor, /houseOnlineBooking\(item\)/);
+  assert.doesNotMatch(editor, /houseNotBookableReason/);
+});
