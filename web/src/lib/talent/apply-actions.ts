@@ -27,6 +27,9 @@ import { logServerError } from "@/lib/server/safe-error";
 import { emitNotification, emitNotificationToUsers } from "@/lib/notifications/emit";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { userHasCapability } from "@/lib/access";
+import { loadJoinTermsContext, proposeTermsOnJoin } from "@/lib/service-hub/join-terms.server";
+import type { JoinTermsOutcome } from "@/lib/service-hub/join-terms";
+import { proposeDefaultTermsAfterApprove } from "./propose-terms-after-approve";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { afterResponse } from "@/lib/server/after-response";
 import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
@@ -89,7 +92,7 @@ type ApplyErrorCode =
   | "db_error";
 
 export type DecideApplicationResult =
-  | { ok: true; applicationId: string; newStatus: "approved" | "rejected" }
+  | { ok: true; applicationId: string; newStatus: "approved" | "rejected"; terms?: JoinTermsOutcome }
   | { ok: false; code: "not_authenticated" | "not_staff" | "not_found" | "already_decided" | "seat_limit" | "db_error"; error: string };
 
 function tableFor(kind: ApplyKind): string {
@@ -294,6 +297,7 @@ export async function decideTalentApplication(
   }
 
   const note = decisionNote?.trim() || null;
+  let terms: JoinTermsOutcome = "skipped";
   if (decision === "approved") {
     const admin = createServiceRoleClient();
     if (!admin) return { ok: false, code: "db_error", error: "Service unavailable." };
@@ -323,6 +327,26 @@ export async function decideTalentApplication(
       if (outcome.code === "db_error") logServerError("apply/decide_approve", new Error(outcome.error));
       return { ok: false, code: outcome.code, error: outcome.error };
     }
+    // TUL-1368: the talent joined, so the workspace's terms go to them (their terms card).
+    // Awaited: the card must exist when the owner's page refreshes. Never fails the approve.
+    terms = await proposeDefaultTermsAfterApprove(
+      { tenantId: r.tenant_id, talentProfileId: r.talent_profile_id, userId: session.user.id, rosterAdded: outcome.rosterAdded },
+      {
+        hasPendingTerms: async (tenantId, talentProfileId) => {
+          const { data, error } = await admin
+            .from("workspace_talent_terms")
+            .select("id")
+            .eq("tenant_id", tenantId)
+            .eq("talent_profile_id", talentProfileId)
+            .eq("status", "pending")
+            .limit(1);
+          return !error && (data ?? []).length > 0;
+        },
+        loadContext: (tenantId, userId) => loadJoinTermsContext(admin, tenantId, userId),
+        propose: async ({ tenantId, talentProfileId, input, defaultModel }) =>
+          proposeTermsOnJoin(await createSupabaseServerClient(), { tenantId, talentProfileId, path: "discover_join", input, defaultModel }),
+      },
+    );
     if (outcome.rosterAdded) {
       afterResponse(() => notifyRosterJoinApproved({ admin, tenantId: r.tenant_id, talentProfileId: r.talent_profile_id }));
     }
@@ -370,7 +394,10 @@ export async function decideTalentApplication(
   // The roster, People and Applications pages (and the admin layout that feeds them) must not
   // serve the pre-approval roster.
   revalidatePath("/[tenantSlug]/admin", "layout");
-  return { ok: true, applicationId, newStatus: decision };
+  revalidatePath("/[tenantSlug]/admin/roster", "page");
+  revalidatePath("/[tenantSlug]/admin/people", "page");
+  revalidatePath("/talent", "layout");
+  return { ok: true, applicationId, newStatus: decision, terms };
 }
 
 /** Talent self-service withdraw of own pending application. */

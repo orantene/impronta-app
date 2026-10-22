@@ -148,14 +148,16 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: slugParam } = await params;
   const slugPath = slugPathFromParams(slugParam);
-  if (!slugPath) return { title: "Not found" };
-
   const locale = await getRequestLocale();
+  // TUL-711: the miss title follows the page language (an ES 404 had an English tab title).
+  const missTitle = { title: locale.toLowerCase().startsWith("es") ? "No encontrada" : "Not found" };
+  if (!slugPath) return missTitle;
+
   const supabase = await getCachedServerSupabase();
-  if (!supabase) return { title: "Not found" };
+  if (!supabase) return missTitle;
 
   const publicScope = await getPublicTenantScope();
-  if (!publicScope) return { title: "Not found" };
+  if (!publicScope) return missTitle;
 
   const metaCols =
     "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug";
@@ -209,7 +211,7 @@ export async function generateMetadata({
       page = (draft.data as CmsPagePublic | null) ?? null;
     }
   }
-  if (!page) return { title: "Not found" };
+  if (!page) return missTitle;
 
   // Locale-free, prefix-free path. `buildTenantLocaleAlternates` adds both the
   // locale segment and the path-based tenant prefix (`/impronta/p/<slug>` on a

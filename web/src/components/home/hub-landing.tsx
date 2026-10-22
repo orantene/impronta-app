@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buildHubAgencyEntries, type HubAgencyDomainRow } from "@/lib/home/hub-agency-entries";
 import { HubAgencyList } from "./hub-agency-list";
 import { hubDisplayName, hubDisplayTagline } from "./hub-landing-copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
@@ -11,7 +12,6 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
-import { rehomeToPublicRoot } from "@/lib/brand/public-root-domain";
 import { canonicalTalentUrl, isDevOnlyHostname } from "@/lib/saas/canonical-hosts";
 import { createTranslator } from "@/i18n/messages";
 import { hubMayListTalent, mapTenantDiscoverExposure } from "@/lib/saas/discover-exposure";
@@ -260,7 +260,7 @@ async function loadHubApprovedTalent(
   return cards;
 }
 
-type AgencyDomainRow = { hostname: string; kind: string; tenant_id?: string | null };
+type AgencyDomainRow = HubAgencyDomainRow;
 type HubAgencyRow = { hostname: string; name: string | null };
 
 async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
@@ -279,25 +279,18 @@ async function loadActiveAgencyDomains(): Promise<HubAgencyRow[]> {
   // TUL-978: show the tenant's name, not just its raw domain. Names are public
   // (they head every storefront); a failed read only costs the nicer label.
   const names = new Map<string, string>();
+  const slugs = new Map<string, string>();
   const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter((v): v is string => Boolean(v)))];
   const admin = createServiceRoleClient();
   if (admin && tenantIds.length > 0) {
-    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name").in("id", tenantIds);
+    const { data: agencyRows, error: namesError } = await admin.from("agencies").select("id, display_name, slug").in("id", tenantIds);
     if (namesError) logServerError("hubLanding.agencyNames", namesError);
-    for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null }>) {
+    for (const a of (agencyRows ?? []) as Array<{ id: string; display_name: string | null; slug?: string | null }>) {
+      if (a.slug) slugs.set(a.id, a.slug);
       const n = a.display_name?.trim();
       if (n) names.set(a.id, n);
     }
   }
-  // TUL-1843: staging rows carry production-pattern `*.tulala.digital` hostnames; re-home them
-  // onto this environment's root so a staging hub never links to production. Dedupe after.
-  const seen = new Set<string>();
-  const out: HubAgencyRow[] = [];
-  for (const r of rows) {
-    const hostname = rehomeToPublicRoot(r.hostname);
-    if (seen.has(hostname)) continue;
-    seen.add(hostname);
-    out.push({ hostname, name: (r.tenant_id && names.get(r.tenant_id)) || null });
-  }
-  return out;
+  // TUL-1843: re-home production-pattern hosts and drop live custom domains off production.
+  return buildHubAgencyEntries(rows, names, process.env, slugs);
 }

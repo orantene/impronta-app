@@ -147,7 +147,10 @@ export async function loadTalentPageAnalytics(
     const start7Iso = windowStartIso(7);
 
     const [presence, [viewsRes, inquiriesRes]] = await Promise.all([
-      loadTalentPresenceStats(supabase, owned.id).catch(() => undefined),
+      loadTalentPresenceStats(supabase, owned.id).catch((err) => {
+        console.warn("[talent-analytics] presence stats failed", err);
+        return undefined;
+      }),
       Promise.all([
         // `talent_id` is an indexed column (idx_analytics_events_talent), so this
         // is an index scan, not a jsonb payload filter.
@@ -203,9 +206,11 @@ export async function loadTalentPageAnalytics(
       hasAnyViews: views30.length > 0,
       presence,
     };
-  } catch {
+  } catch (err) {
     // Best-effort, exactly like the workspace loader: a failed analytics read
-    // must never break the talent dashboard layout.
+    // must never break the talent dashboard layout. Logged so a paid talent's
+    // empty "My presence" card is traceable (TUL-582).
+    console.warn("[talent-analytics] loadTalentPageAnalytics failed", err);
     return { data: emptyTalentPageAnalytics(), hasAnyViews: false };
   }
 }

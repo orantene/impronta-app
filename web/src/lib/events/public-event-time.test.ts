@@ -70,3 +70,12 @@ test("the ticket's night label names the zone as a city, never an abbreviation",
   assert.equal(nightLabelWithCity(STARTS, null, "en"), "Time to be confirmed by the venue");
   assert.equal(zoneCity("America/Mexico_City", "es"), "Ciudad de México");
 });
+
+test("a Cancún night names the offset, never the misleading EST", () => {
+  const at = "2026-10-04T01:30:00.000Z";
+  for (const locale of ["en", "es"] as const) {
+    assert.doesNotMatch(timeLabel(at, "America/Cancun", locale), /EST|CST/);
+    assert.match(timeLabel(at, "America/Cancun", locale), /GMT-5/);
+    assert.match(whenLabel(at, "America/Cancun", locale), /GMT-5/);
+  }
+});

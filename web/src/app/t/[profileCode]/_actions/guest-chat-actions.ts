@@ -84,6 +84,7 @@ import {
   isReceiptVisibleStatus,
 } from "@/lib/inquiry/inquiry-receipt-data";
 import { getAppUrl } from "@/lib/auth-flow";
+import { resolveRosterRequestMetadata } from "@/lib/service-hub/roster-request-meta.server";
 import { CLIENT_CARD_KINDS, isClientCardKind } from "@/lib/messages-v5/client-thread-view";
 import { ensureGuestSessionId, resolveClientIp, resolveGuestSessionId } from "@/lib/guest/guest-session";
 import type {
@@ -830,7 +831,7 @@ export async function startGuestChatInquiry(
   if (!gate.allowed) {
     // F-11: at the cap, a guest who writes again is continuing the thread they
     // already have. Join it; only refuse when there is nothing open to continue.
-    const joined = await continueOpenGuestThread(admin, { tenantId, guestSessionId, talentProfileId, body: firstMessage });
+    const joined = await continueOpenGuestThread(admin, { tenantId, guestSessionId, talentProfileId, body: firstMessage, metadata: await resolveRosterRequestMetadata(admin, tenantId, input.rosterRequest) });
     if (joined.kind === "sent") {
       return {
         ok: true,
@@ -1055,6 +1056,8 @@ export async function startGuestChatInquiry(
     guestSessionId,
     threadType: "private",
     body: firstMessage,
+    // TUL-1415 / TUL-1587: a matched roster sentence rides as a structured request on the message.
+    metadata: await resolveRosterRequestMetadata(admin, tenantId, input.rosterRequest),
   });
 
   if (seededChoice?.intent === "reserve") {
@@ -1419,6 +1422,7 @@ export async function sendGuestMessageAction(
     guestSessionId,
     threadType: "private",
     body,
+    metadata: await resolveRosterRequestMetadata(admin, owned.inquiry.tenantId, input.rosterRequest),
   });
 
   if (!sent.success) {

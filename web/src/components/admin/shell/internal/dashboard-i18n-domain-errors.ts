@@ -124,6 +124,13 @@ export const DOMAIN_ERRORS_ES_TEXT: Record<string, string> = {
     "La conexión con el proyecto de Vercel aún no está lista. Termina el DNS y ejecuta la revisión cuando se configure.",
   "DNS token is ready, but Vercel project provisioning needs attention.":
     "El token DNS está listo, pero la conexión con el proyecto de Vercel necesita atención.",
+  // Status line under a domain (failure_reason written by lib/saas/custom-domain-actions.ts).
+  "TXT record not found yet.": "Todavía no encontramos el registro TXT.",
+  "TXT record not found before the 7-day verification window expired.":
+    "No encontramos el registro TXT antes de que venciera el plazo de verificación de 7 días.",
+  "Routing records not found yet.": "Todavía no encontramos los registros de enrutamiento.",
+  "Routing detected. Waiting for HTTPS to finish provisioning on Vercel.":
+    "Enrutamiento detectado. Esperando a que Vercel termine de activar HTTPS.",
 };
 
 /** Messages the domain actions build with the domain inside; keys of the map above. */

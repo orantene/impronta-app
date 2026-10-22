@@ -228,6 +228,7 @@ async function cardFor(briefId: string, state: PersistedModuleState, brief: Para
     intent: state.intent ?? "unknown",
     userPath: state.path ?? null,
     locale: state.locale ?? "en",
+    essentials: state.essentials ?? null,
   });
   return { briefId, understanding, chip, state };
 }
@@ -459,6 +460,17 @@ export async function saveOnboardingAge18(): Promise<{ ok: boolean }> {
     ...(session.user?.id ? { age18ConfirmedBy: session.user.id } : {}),
     updatedAt: at,
   });
+  return { ok: saved.ok };
+}
+
+/** TUL-1847: the 18+/Terms tick on the save step is kept on the brief, so a reload shows it ticked. */
+export async function saveOnboardingAgeTerms(input: { ticked: boolean }): Promise<{ ok: boolean }> {
+  if (!(await assertNotImpersonating()).ok) return { ok: false };
+  const got = await ownedBrief();
+  if (got.error) return { ok: false };
+  const at = new Date().toISOString();
+  // null clears the tick (mergeModuleState removes a key set to null).
+  const saved = await updateBriefModuleState(got.brief.id, { ageTermsTickedAt: input.ticked ? at : null, updatedAt: at });
   return { ok: saved.ok };
 }
 

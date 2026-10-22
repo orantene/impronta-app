@@ -344,6 +344,9 @@ export async function createTalentBillingPortalSession(opts: {
       return { ok: false, error: "No billing account found." };
     }
 
+    // TUL-1874: customers created outside checkout have no language; the portal is where they pick up PDFs.
+    await syncCustomerPreferredLocale(stripe, customer.stripe_customer_id, opts.locale, (e) => logServerError("talent-billing.customer-locale", e));
+
     // TUL-834: a fresh session per click, URL returned straight from Stripe and
     // never stored. If the env configuration id is stale or from another Stripe
     // account, retry once on the account default instead of failing.

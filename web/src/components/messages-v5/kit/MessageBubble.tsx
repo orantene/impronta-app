@@ -13,7 +13,7 @@ export type DeliveryState = "queued" | "sending" | "sent" | "delivered" | "read"
 export type BubblePosition = "single" | "first" | "middle" | "last";
 
 export type MessageBubbleProps = {
-  readonly message: Pick<ThreadMessage, "id" | "body" | "internal" | "kind" | "deletedAt" | "editedAt">;
+  readonly message: Pick<ThreadMessage, "id" | "body" | "internal" | "kind" | "deletedAt" | "editedAt" | "rosterRequest">;
   readonly mine: boolean;
   readonly copy: KitCopy;
   /** "Valentina · 10:41 AM · web chat" or "You · 4:20 PM". Built by the screen; the bubble does not format dates. */
@@ -57,6 +57,8 @@ export function MessageBubble({ message, mine, copy, meta, position = "single", 
             <span className="sr">{copy.stream.voice}</span>
             {voice.transcript ? <span>{voice.transcript}</span> : null}
           </span>
+        ) : message.rosterRequest ? (
+          <RosterRequestLines request={message.rosterRequest} copy={copy} />
         ) : (
           message.body
         )}
@@ -71,6 +73,26 @@ export function MessageBubble({ message, mine, copy, meta, position = "single", 
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** TUL-1415: the guest's roster request as lines (quantity x service), party and day. Request-only: no price, no pay. */
+function RosterRequestLines({ request, copy }: { request: NonNullable<ThreadMessage["rosterRequest"]>; copy: KitCopy }) {
+  return (
+    <div data-roster-request>
+      <strong>{copy.stream.rosterRequest}</strong>
+      <ul data-roster-request-lines>
+        {request.lines.map((l) => (
+          <li key={l.entry_id} data-roster-line={l.entry_id}>
+            {l.quantity > 1 ? `${l.quantity} x ` : ""}
+            {l.title}
+            {l.talent_name ? ` (${l.talent_name})` : ""}
+          </li>
+        ))}
+      </ul>
+      {request.party_size ? <div data-roster-party>{copy.stream.rosterParty.replace("{count}", String(request.party_size))}</div> : null}
+      {request.when ? <div data-roster-when>{copy.stream.rosterWhen.replace("{when}", request.when)}</div> : null}
     </div>
   );
 }

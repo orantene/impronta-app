@@ -7,15 +7,17 @@
  * Pure.
  */
 
+import { rehomeToPublicRoot, resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/tenant-paths";
 import { GALLERY_PROFESSIONS, normalizeSearchText, professionsForTerm } from "@/lib/talent-site/theme-catalog/gallery-meta";
 
+/** Production root; TUL-1868: the promised address uses this environment's root (`resolvePublicRootDomain`), so staging never promises the production host. */
 export const WORKSPACE_ROOT_DOMAIN = "tulala.digital";
 
 /** Display form for the Free path promise: `tulala.digital/w/<slug>`. */
 export function promisedHost(slug: string | null | undefined): string | null {
   const s = (slug ?? "").trim().toLowerCase();
-  return s ? `${WORKSPACE_ROOT_DOMAIN}/${WORKSPACE_PATH_SEGMENT}/${s}` : null;
+  return s ? `${resolvePublicRootDomain()}/${WORKSPACE_PATH_SEGMENT}/${s}` : null;
 }
 
 export function promisedUrl(slug: string | null | undefined): string | null {
@@ -35,6 +37,19 @@ function stripScheme(url: string): string {
   return url.replace(/^https?:\/\//i, "");
 }
 
+/** Re-home a delivered `*.tulala.digital` URL onto this environment's root; anything else passes through. */
+function rehomeDelivered(url: string): string {
+  try {
+    const u = new URL(url);
+    const host = rehomeToPublicRoot(u.hostname);
+    if (host === u.hostname) return url;
+    u.hostname = host;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export type FinishUrl = { url: string; display: string; promised: boolean; differs: boolean };
 
 /**
@@ -51,7 +66,8 @@ export function resolveWorkspaceFinishUrl(input: {
   const tenant = input.tenantSlug.trim().toLowerCase();
   const slugMatch = !!link && link === tenant;
   const promised = promisedUrl(input.linkSlug);
-  const delivered = input.delivered;
+  // TUL-1868: staging data carries production-pattern hosts; show this environment's own address.
+  const delivered = rehomeDelivered(input.delivered);
 
   if (isWorkspacePathPublicUrl(delivered)) {
     return {

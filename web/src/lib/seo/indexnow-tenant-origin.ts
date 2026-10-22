@@ -1,14 +1,12 @@
 /**
- * Minimal tenant public origin lookup for the IndexNow post hooks (TUL-589,
- * S slice). Deliberately NOT "the" public-origin resolver: it only answers
- * "what host should I ping for this tenant", with no request/host-context
- * fallback chain, no hub-vs-agency distinction, no demo handling. The
- * follow-up card (/w + agency-page hooks, debounce, a real public-origin
- * resolver) replaces this with something load-bearing elsewhere too — until
- * then, this stays private to the IndexNow hooks.
+ * Public base URL of a tenant for IndexNow pings (TUL-589 S slice, widened by TUL-1777). Returns the tenant's best live
+ * domain, or, when it has none, its `/w/<slug>` workspace site on this environment's public root
+ * (`resolvePublicRootOrigin`, which is `tulala.digital` in production). The caller appends the page path to the result.
+ * Null only when the tenant has neither a live domain nor a slug.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isLiveDomainStatus } from "@/lib/saas/workspace-live-url";
+import { resolvePublicRootOrigin } from "@/lib/brand/public-root-domain";
 
 /**
  * The tenant's best live domain — primary first, then a custom domain over a
@@ -25,7 +23,12 @@ export async function resolveTenantPublicOriginForIndexNow(
     .select("hostname, kind, status, is_primary")
     .eq("tenant_id", tenantId);
   const live = (data ?? []).filter((d) => isLiveDomainStatus(d.status));
-  if (live.length === 0) return null;
+  if (live.length === 0) {
+    // supabase-read-unchecked-ok: best-effort IndexNow ping; a failed read is "nothing to ping".
+    const { data: agency } = await sb.from("agencies").select("slug").eq("id", tenantId).maybeSingle<{ slug: string | null }>();
+    const slug = agency?.slug?.trim();
+    return slug ? `${resolvePublicRootOrigin()}/w/${slug}` : null;
+  }
   live.sort((a, b) => {
     if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
     if (a.kind !== b.kind) return a.kind === "custom" ? -1 : 1;

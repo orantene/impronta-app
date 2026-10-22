@@ -47,3 +47,18 @@ test("TUL-812: browser Back reaches earlier settled screens only", () => {
   assert.equal(stepForPopTarget("arrival", "readyToBuild"), null);
   assert.equal(stepForPopTarget("setup", "<x>"), null);
 });
+
+import { resumeLandingStep, urlStepOfLocation } from "./step-url";
+
+test("TUL-812: a deep link lands on its own step within the saved progress, else the saved step", () => {
+  assert.equal(resumeLandingStep("setup", "essentials"), "essentials");
+  assert.equal(resumeLandingStep("setup", "setup"), "setup");
+  assert.equal(resumeLandingStep("essentials", "readyToBuild"), "essentials", "past the saved progress");
+  assert.equal(resumeLandingStep("setup", "resume"), "setup", "the resume screen is not a destination");
+  assert.equal(resumeLandingStep("setup", null), "setup");
+  assert.equal(resumeLandingStep("building", "entry"), "building", "a build in flight is never left");
+  assert.equal(resumeLandingStep(undefined, "entry"), null);
+  assert.equal(urlStepOfLocation("https://x.test/start?step=essentials&lang=es"), "essentials");
+  assert.equal(urlStepOfLocation("https://x.test/start?step=<x>"), null);
+  assert.equal(urlStepOfLocation(null), null);
+});

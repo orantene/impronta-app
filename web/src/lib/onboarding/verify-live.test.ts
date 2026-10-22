@@ -164,3 +164,12 @@ test("TUL-818: an SSO redirect target counts as a protection wall", () => {
   assert.equal(isProtectionWall(200, "", "https://vercel.com/sso-api?url=x"), true);
   assert.equal(isProtectionWall(404, "Page not found", "https://x.tulala.digital/"), false);
 });
+
+test("TUL-1839: a name split by React comments, tags or entities is still on the page", async () => {
+  const page = (body: string) => async () => res(200, `<html><body>${body}</body></html>`);
+  const ok = async (html: string, name: string) => (await verifyLivePage({ url: "https://a.test", name, fetchImpl: page(html) as unknown as typeof fetch, bypassSecret: null })).ok;
+  assert.equal(await ok("<h1>Ana <!-- -->Pérez</h1>", "Ana Pérez"), true);
+  assert.equal(await ok("<h1><b>Ana</b> Perez</h1>", "Ana Pérez"), true);
+  assert.equal(await ok("<h1>Casa &#38; Co&nbsp;Limpia</h1>", "Casa & Co Limpia"), true);
+  assert.equal(await ok("<h1>Otra persona</h1>", "Ana Pérez"), false);
+});

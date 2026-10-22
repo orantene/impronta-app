@@ -21,7 +21,6 @@ import type { PostListRow } from "@/lib/cms/post-writer-types";
 import { talentListPostsAction } from "@/lib/server-actions/posts-reader-actions";
 import { AiCrawlerToggle } from "@/components/posts/AiCrawlerToggle";
 import { talentSetAiCrawlersAllowedAction } from "@/lib/server-actions/posts-ai-toggle-actions";
-import { talentCreatePostDraftAction } from "@/lib/server-actions/posts-writer-actions";
 import { SEO_DOT_CLASS, seoLevelLabel } from "@/components/posts/writer/PostSettingsSheet";
 import { postsTranslator, type PostsT } from "@/components/posts/writer/posts-t";
 
@@ -103,7 +102,6 @@ export function TalentPostsListPage() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [filter, setFilter] = useState<Filter>("all");
   const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -126,16 +124,17 @@ export function TalentPostsListPage() {
     setAttempt((n) => n + 1);
   }, []);
 
-  const createPost = async () => {
+  // TUL-1903: the list page stays mounted behind the writer navigation; clear the pending state when it is shown again.
+  useEffect(() => {
+    const reset = () => setCreating(false);
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
+
+  const createPost = () => {
     setCreating(true);
-    setCreateError(null);
-    const res = await talentCreatePostDraftAction({ locale: uiLocale }, uiLocale);
-    if (res.ok) {
-      router.push(`/talent/posts/${res.data.id}`);
-      return;
-    }
-    setCreating(false);
-    setCreateError(res.message || t("dashboard.talentPosts.createFailed"));
+    // TUL-1249: no row is written here; the writer creates the draft on the first edit.
+    router.push("/talent/posts/new");
   };
 
   const visible = load.status === "ready" ? load.posts.filter((p) => matches(filter, rowStatus(p))) : [];
@@ -147,19 +146,13 @@ export function TalentPostsListPage() {
         <button
           type="button"
           disabled={creating}
-          onClick={() => void createPost()}
+          onClick={createPost}
           className="inline-flex min-h-11 cursor-pointer items-center gap-[6px] rounded-admin-md border-0 bg-admin-ink px-[16px] text-[14px] font-semibold text-admin-surface disabled:cursor-default disabled:opacity-60"
         >
           <Plus size={16} />
           {creating ? t("dashboard.talentPosts.creating") : t("dashboard.talentPosts.newPost")}
         </button>
       </div>
-
-      {createError ? (
-        <p role="alert" className="m-0 text-[14px] text-admin-ink">
-          {createError}
-        </p>
-      ) : null}
 
       {load.status === "ready" ? (
         <AiCrawlerToggle

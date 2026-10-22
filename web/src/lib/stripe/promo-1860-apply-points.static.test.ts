@@ -9,7 +9,9 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 test("TUL-1872: the webhook records a code on the resync and the paid-invoice paths, not only on checkout", () => {
   const h = read("src/lib/stripe/webhook-handler.ts");
-  assert.equal((h.match(/await recordDiscountRedemption\(subscription, event\.id\)/g) ?? []).length, 3);
+  assert.equal((h.match(/await recordDiscountRedemption\(subscription, event\.id\)/g) ?? []).length, 2);
+  // B6: the paid-invoice path also reads the invoice's own discounts (a "once" coupon never stays on the subscription).
+  assert.equal((h.match(/await recordPaidInvoiceRedemptions\(stripe, subscription, event\.id, /g) ?? []).length, 1);
   assert.ok(h.trimEnd().split("\n").length <= 800);
 });
 

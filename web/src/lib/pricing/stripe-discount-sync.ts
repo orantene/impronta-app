@@ -118,6 +118,7 @@ export async function syncDiscountToStripe(
 
   const couponParams = buildDiscountCouponParams({
     name: input.name,
+    publicName: input.code.trim().toUpperCase() || null,
     kind: input.kind,
     value: input.value,
     currency: input.currency,

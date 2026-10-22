@@ -247,3 +247,27 @@ test("restricting a code to one customer is expressible", () => {
   assert.ok(got.ok);
   assert.equal(got.params.customer, "cus_123");
 });
+
+// ─── B6: the invoice PDF prints the coupon name, so it must be the public code ────────────────────────────
+
+test("B6: a public name replaces the coupon name and the internal name moves to metadata", () => {
+  const got = buildDiscountCouponParams({
+    name: "QA b6c 20% staging",
+    publicName: " qab6c-20 ",
+    kind: "percent",
+    value: 20,
+    currency: null,
+    duration: "once",
+    durationMonths: null,
+  });
+  assert.ok(got.ok);
+  assert.equal(got.params.name, "qab6c-20");
+  assert.deepEqual(got.params.metadata, { internal_name: "QA b6c 20% staging" });
+});
+
+test("B6: a blank public name keeps the legacy behaviour", () => {
+  const got = buildDiscountCouponParams({ name: "X", publicName: "  ", kind: "percent", value: 5, currency: null, duration: "once" });
+  assert.ok(got.ok);
+  assert.equal(got.params.name, "X");
+  assert.equal(got.params.metadata, undefined);
+});
