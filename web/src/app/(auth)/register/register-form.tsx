@@ -122,8 +122,9 @@ export function RegisterForm({
     >
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
       <input type="hidden" name="locale" value={locale} />
+      {clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
 
-      {state?.error ? <AuthNotice tone="error">{state.error}</AuthNotice> : null}
+      {state?.error ? <AuthNotice tone="error" id="register-form-error">{state.error}</AuthNotice> : null}
       {state?.message ? (
         <AuthNotice tone="success">{state.message}</AuthNotice>
       ) : null}
@@ -137,6 +138,8 @@ export function RegisterForm({
             autoComplete="name"
             required
             maxLength={120}
+            aria-invalid={state?.error && !readAuthNameDraft().trim() ? true : undefined}
+            aria-describedby={state?.error ? "register-form-error" : undefined}
             defaultValue={readAuthNameDraft()}
             onChange={(e) => writeAuthNameDraft(e.target.value)}
             placeholder={t("public.auth.form.namePlaceholder")}
@@ -184,7 +187,12 @@ export function RegisterForm({
         {t("public.auth.register.passwordConfirmNote")}
       </p>
 
-      <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} />
+      <AgeTermsCheckbox
+        locale={locale}
+        marketingOrigin={marketingOrigin}
+        invalid={state?.error === t("public.auth.actions.ageTermsRequired")}
+        errorId="register-form-error"
+      />
 
       <AuthSubmitButton
         pending={pending}

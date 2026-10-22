@@ -210,12 +210,12 @@
         "emailPending": "Sending your code",
         "emailHint": "No password needed. We email you a sign-in code plus a sign-in link.",
         "plusEmailHint": "Using a + alias? We'll send the code there. If it doesn't arrive within a minute, send it again or try your main address.",
-        "sentNotice": "Code sent to {email}. Enter it below, or open the link in the same email.",
+        "sentNotice": "Code sent to {email}.",
         "resentNotice": "New code sent to {email}. Use the newest one.",
         "plusSentNotice": "We sent a code to {email}. It can take a minute. If it doesn't arrive, send a new code or try your main address.",
         "plusResentNotice": "New code sent to {email}. If it still doesn't arrive, try your main address (without the + tag).",
         "codeLabel": "Code from your email",
-        "codeHint": "Single use. You can also open the sign-in link in the same email instead. Check your spam folder if nothing arrives.",
+        "codeHint": "Single use. Check your spam folder if it doesn't arrive.",
         "codeLengthHint": "The code has {n} digits.",
         "verifySubmit": "Continue",
         "verifyPending": "Checking your code",
@@ -258,7 +258,13 @@
       "appleOpening": "Opening Apple…",
       "appleFailed": "Apple sign-in failed.",
       "applePopupBlocked": "Pop-up blocked. Allow pop-ups for this site and try again.",
-      "appleUnableToStart": "Could not start Apple sign-in."
+      "appleUnableToStart": "Could not start Apple sign-in.",
+      "confirmConflict": {
+        "title": "You're already signed in",
+        "body": "You're signed in as {email}. This link is for another account. Sign out and continue with the new account, or stay signed in.",
+        "continue": "Sign out and continue",
+        "stay": "Stay signed in"
+      }
     },
     "profile": {
       "about": "About",

@@ -210,12 +210,12 @@
         "emailPending": "Enviando tu código",
         "emailHint": "Sin contraseña. Te enviamos por correo un código de acceso y también un enlace de acceso.",
         "plusEmailHint": "¿Usas un alias con +? Enviaremos el código ahí. Si no llega en un minuto, vuelve a enviarlo o prueba con tu dirección principal.",
-        "sentNotice": "Código enviado a {email}. Escríbelo abajo o abre el enlace del mismo correo.",
+        "sentNotice": "Te enviamos un código a {email}.",
         "resentNotice": "Enviamos un código nuevo a {email}. Usa el más reciente.",
         "plusSentNotice": "Enviamos un código a {email}. Puede tardar un minuto. Si no llega, envía uno nuevo o prueba con tu dirección principal.",
         "plusResentNotice": "Enviamos un código nuevo a {email}. Si sigue sin llegar, prueba con tu dirección principal (sin el +).",
         "codeLabel": "Código de tu correo",
-        "codeHint": "De un solo uso. También puedes abrir el enlace de acceso del mismo correo. Revisa tu carpeta de spam si no llega.",
+        "codeHint": "De un solo uso. Revisa spam si no llega.",
         "codeLengthHint": "El código tiene {n} dígitos.",
         "verifySubmit": "Continuar",
         "verifyPending": "Verificando tu código",
@@ -258,7 +258,13 @@
       "appleOpening": "Abriendo Apple…",
       "appleFailed": "No se pudo iniciar sesión con Apple.",
       "applePopupBlocked": "El navegador bloqueó la ventana emergente. Permite ventanas emergentes e inténtalo de nuevo.",
-      "appleUnableToStart": "No se pudo iniciar el acceso con Apple."
+      "appleUnableToStart": "No se pudo iniciar el acceso con Apple.",
+      "confirmConflict": {
+        "title": "Ya tienes una sesión abierta",
+        "body": "Tienes la sesión abierta como {email}. Este enlace es de otra cuenta. Cierra sesión y continúa con la cuenta nueva, o conserva tu sesión.",
+        "continue": "Cerrar sesión y continuar",
+        "stay": "Mantener la sesión"
+      }
     },
     "profile": {
       "about": "Acerca de",

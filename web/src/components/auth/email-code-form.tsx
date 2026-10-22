@@ -97,6 +97,12 @@ function QuietAction({
  */
 export const METHOD_SWAP_RESERVE = "pb-[5.3rem]";
 
+/**
+ * TUL-910: the email step and the code step share one floor height, so requesting a code
+ * does not make the card jump (293px -> 580px at 390 before the copy was shortened).
+ */
+export const STEP_MIN_HEIGHT = "min-h-[19rem]";
+
 export function EmailCodeForm({
   nextPath,
   locale = "en",
@@ -242,7 +248,7 @@ export function EmailCodeForm({
 
   if (onCodeStep && email) {
     return (
-      <div className="space-y-3.5">
+      <div className={`space-y-3.5 ${STEP_MIN_HEIGHT}`}>
         {notice ? (
           <AuthNotice tone="success">{notice.replace("{email}", email)}</AuthNotice>
         ) : null}
@@ -346,7 +352,7 @@ export function EmailCodeForm({
   }
 
   return (
-    <div className="space-y-3.5">
+    <div className={`space-y-3.5 ${STEP_MIN_HEIGHT}`}>
       <form
         action={sendAction}
         noValidate // TUL-893: the server answers in the page language; no English browser tooltip
@@ -359,6 +365,7 @@ export function EmailCodeForm({
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="create" value={allowCreate ? "1" : "0"} />
         {allowCreate ? <input type="hidden" name="terms_form" value="1" /> : null}
+        {allowCreate && clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
         {stepError ? <AuthNotice tone="error" id="email-step-error">{stepError}</AuthNotice> : null}
@@ -372,6 +379,8 @@ export function EmailCodeForm({
               autoComplete="name"
               required
               maxLength={120}
+              aria-invalid={stepError && !readAuthNameDraft().trim() ? true : undefined}
+              aria-describedby={stepError ? "email-step-error" : undefined}
               defaultValue={readAuthNameDraft()}
               onChange={(e) => writeAuthNameDraft(e.target.value)}
               placeholder={t("public.auth.form.namePlaceholder")}
@@ -409,7 +418,14 @@ export function EmailCodeForm({
           />
         </AuthField>
 
-        {allowCreate ? <AgeTermsCheckbox locale={locale} marketingOrigin={marketingOrigin} /> : null}
+        {allowCreate ? (
+          <AgeTermsCheckbox
+            locale={locale}
+            marketingOrigin={marketingOrigin}
+            invalid={stepError === t("public.auth.actions.ageTermsRequired")}
+            errorId="email-step-error"
+          />
+        ) : null}
 
         <AuthSubmitButton
           pending={sending}

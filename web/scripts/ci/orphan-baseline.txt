@@ -85,7 +85,6 @@ src/components/support/mini-chat-gate-enter.static.test.ts
 src/components/support/support-attachment-limits.test.ts
 src/components/support/support-chat-entry.static.test.ts
 src/components/support/support-mobile-fields.static.test.ts
-src/components/support/support-no-inline-copy.static.test.ts
 src/components/support/support-slot-ready.static.test.ts
 src/components/talent-site/TalentSitePaintSkeleton.static.test.ts
 src/components/talent/services/services-load-order.static.test.ts

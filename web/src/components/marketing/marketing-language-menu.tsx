@@ -103,7 +103,7 @@ export function MarketingLanguageMenu({
         onClick={() => setOpen((o) => !o)}
         /* Colours as classes, not inline `style` — inline declarations outrank
            stylesheet rules, which would nullify the `hover:` variants. */
-        className="flex h-11 min-w-11 items-center justify-center gap-1.5 lg:h-9 lg:min-w-0 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
+        className="flex h-11 min-h-11 min-w-11 items-center justify-center gap-1.5 lg:h-9 lg:min-h-9 lg:min-w-0 rounded-[10px] border border-[var(--plt-hairline-strong)] bg-[var(--plt-bg-raised)] px-2.5 text-[var(--plt-ink-soft)] transition-[background-color,border-color,color] hover:border-[var(--plt-ink-soft)] hover:bg-[var(--plt-bg-deep)] hover:text-[var(--plt-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--plt-forest)]"
       >
         <GlobeGlyph />
         {/* The active locale stays visible so the current language is legible

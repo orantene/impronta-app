@@ -106,11 +106,22 @@ const TALENT_SEGMENT_MAP: Record<string, TalentPage> = {
   plan: "settings",
 };
 
+/** TUL-1255: longest the shell waits for the theme-update bell fan-out before streaming without it. */
+const THEME_BELL_BUDGET_MS = 1500;
+
 /** Snapshot the agenda window outside the layout body so purity lint stays quiet. */
 async function ensureThemeBellThenLoad(talentProfileId: string, readCtx: Parameters<typeof loadTalentSurfaceNotifications>[0]) {
   try {
     const admin = createServiceRoleClient();
-    if (admin) await ensureSiteThemeUpdates(admin, talentProfileId);
+    if (admin) {
+      // TUL-1255: the fan-out is several serial round trips and sits on the shell's critical
+      // path. Give it a short budget; past that the shell streams with the bell as it stands
+      // and the fan-out keeps running (it is idempotent) for the next load.
+      await Promise.race([
+        ensureSiteThemeUpdates(admin, talentProfileId).catch(() => undefined),
+        new Promise<void>((resolve) => setTimeout(resolve, THEME_BELL_BUDGET_MS)),
+      ]);
+    }
   } catch {
     // best-effort: the bell still loads what exists
   }

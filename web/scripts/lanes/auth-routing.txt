@@ -7,9 +7,12 @@ src/app/api/dev/signin/fixture-session.test.ts
 src/app/api/dev/signin/guard.test.ts
 src/app/auth/sign-in-deadlines.static.test.ts
 src/app/client/client-root-loading.static.test.ts
+src/components/auth/age-terms-checkbox.static.test.ts
+src/components/auth/auth-no-inline-copy.static.test.ts
 src/components/auth/email-code-form-mode-switch.static.test.ts
 src/components/auth/email-code-form-swap.static.test.ts
 src/components/client-account/client-account-help.static.test.ts
+src/components/onboarding/onboarding-no-inline-copy.static.test.ts
 src/i18n/auth-page-locale.test.ts
 src/lib/auth-flow-client-landing.test.ts
 src/lib/auth-flow-talent-next.test.ts
@@ -19,6 +22,7 @@ src/lib/auth/access-profile-refresh.test.ts
 src/lib/auth/auth-labels.static.test.ts
 src/lib/auth/client-ip.test.ts
 src/lib/auth/code-step-url.test.ts
+src/lib/auth/confirm-conflict.test.ts
 src/lib/auth/cross-tab-sign-out.test.ts
 src/lib/auth/email-not-confirmed.test.ts
 src/lib/auth/onboarding-bounce.test.ts

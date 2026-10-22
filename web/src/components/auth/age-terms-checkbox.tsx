@@ -3,7 +3,7 @@
 import { ageTermsLinks } from "@/lib/legal/age-terms-links";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { readAuthConsentDraft, writeAuthConsentDraft } from "@/lib/auth/email-draft";
 
@@ -17,8 +17,14 @@ import { createTranslator } from "@/i18n/messages";
 export function AgeTermsCheckbox({
   locale = "en",
   marketingOrigin,
+  invalid = false,
+  errorId,
 }: {
   locale?: string;
+  /** TUL-1169: the consent is what the form error is about (aria-invalid). */
+  invalid?: boolean;
+  /** TUL-1169: id of the visible error line, linked with aria-describedby. */
+  errorId?: string;
   /** Server-resolved marketing origin for the Terms/Privacy links (TUL-750). */
   marketingOrigin: string;
 }) {
@@ -27,6 +33,23 @@ export function AgeTermsCheckbox({
   // TUL-1235: controlled + draft-backed. An uncontrolled box was reset to
   // unchecked by the form action after any server error (invalid email).
   const [checked, setChecked] = useState(() => readAuthConsentDraft());
+  const inputRef = useRef<HTMLInputElement>(null);
+  const checkedRef = useRef(checked);
+  checkedRef.current = checked;
+  // TUL-1235 (round 2): React 19 calls requestFormReset after a form action, which
+  // sets the DOM box back to its default while the state stays true. Re-apply the
+  // state after every reset (the reset event fires BEFORE the reset runs).
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) return;
+    const reapply = () => {
+      setTimeout(() => {
+        if (inputRef.current) inputRef.current.checked = checkedRef.current;
+      }, 0);
+    };
+    form.addEventListener("reset", reapply);
+    return () => form.removeEventListener("reset", reapply);
+  }, []);
   return (
     <label
       className="flex items-start gap-2 text-[0.8125rem] leading-snug"
@@ -34,9 +57,13 @@ export function AgeTermsCheckbox({
     >
       <input
         type="checkbox"
+        ref={inputRef}
         name="age_terms"
         required
+        aria-invalid={invalid ? true : undefined}
+        aria-describedby={invalid && errorId ? errorId : undefined}
         checked={checked}
+        defaultChecked={checked}
         onChange={(e) => {
           setChecked(e.target.checked);
           writeAuthConsentDraft(e.target.checked);
