@@ -27,6 +27,8 @@ export type PublicEntryInput = {
   featured: boolean;
   hidden: boolean;
   ownOfferingId: string | null;
+  /** TUL-1471: instant entries book through the booking widget; on-request entries stay enquiries. */
+  bookingType?: "request" | "instant";
   members: PublicMember[];
 };
 
@@ -40,7 +42,9 @@ export type PublicEntry = {
   from: boolean;
   currency: string | null;
   who: string[];
-  cta: "request";
+  cta: "request" | "book";
+  /** The workspace's own offering the booking widget can pin for an instant entry (null = open the widget). */
+  bookOfferingId: string | null;
 };
 
 export function shapePublicEntries(entries: readonly PublicEntryInput[]): PublicEntry[] {
@@ -66,10 +70,11 @@ export function shapePublicEntries(entries: readonly PublicEntryInput[]): Public
       from,
       currency: e.currency ?? members[0]?.currency ?? null,
       who: e.showWho === "name" ? [...new Set(members.map((m) => m.talentName).filter(Boolean))] : [],
-      cta: "request",
+      cta: e.bookingType === "instant" ? "book" : "request",
+      bookOfferingId: e.bookingType === "instant" ? e.ownOfferingId : null,
       featured: e.featured,
     });
   }
   out.sort((a, b) => Number(b.featured) - Number(a.featured) || a.name.localeCompare(b.name));
-  return out.map((x) => ({ id: x.id, name: x.name, category: x.category, photoUrl: x.photoUrl, priceCents: x.priceCents, from: x.from, currency: x.currency, who: x.who, cta: x.cta }));
+  return out.map((x) => ({ id: x.id, name: x.name, category: x.category, photoUrl: x.photoUrl, priceCents: x.priceCents, from: x.from, currency: x.currency, who: x.who, cta: x.cta, bookOfferingId: x.bookOfferingId }));
 }
