@@ -7,8 +7,11 @@
  * destinations itself so it works from the first row click.
  */
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { copyText } from "@/components/promos/share/copy-text";
+import { canUseNativeShare, shareNative } from "@/lib/promos/share/native-share";
 import { encodeQr } from "@/lib/links/qr";
 import { toSvg } from "@/lib/links/qr/render";
 import { loadOfferingDestinations, type OfferingDestination } from "@/lib/talent/services-settings-actions";
@@ -21,6 +24,8 @@ const COPY = {
     sub: "This link keeps working if you rename the service.",
     copy: "Copy link",
     copied: "Link copied",
+    copyFailed: "Could not copy. Select the link above and copy it manually.",
+    share: "Share",
     qr: "Scan to open this service",
     loading: "Getting your link…",
     none: "Publish your profile first to get a link.",
@@ -33,6 +38,8 @@ const COPY = {
     sub: "Este enlace sigue funcionando aunque cambies el nombre del servicio.",
     copy: "Copiar enlace",
     copied: "Enlace copiado",
+    copyFailed: "No se pudo copiar. Selecciona el enlace de arriba y cópialo manualmente.",
+    share: "Compartir",
     qr: "Escanea para abrir este servicio",
     loading: "Obteniendo tu enlace…",
     none: "Publica tu perfil primero para tener un enlace.",
@@ -56,6 +63,7 @@ export function ServiceShareSheet({
   const [destinations, setDestinations] = useState<OfferingDestination[] | null>(null);
   const [hidesTest, setHidesTest] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -91,13 +99,22 @@ export function ServiceShareSheet({
   }, [target]);
 
   const onCopy = async () => {
-    if (!target || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(target.url);
-    setCopied(true);
+    if (!target) return;
+    const ok = await copyText(target.url);
+    setCopied(ok);
+    setCopyFailed(!ok);
   };
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
+  // Phones: the native share sheet, opened straight from the tap (TUL-938). Copy link stays as the fallback.
+  const onShare = async () => {
+    if (!target) return;
+    const r = await shareNative({ title: item.title, text: item.title, url: target.url });
+    if (r === "failed") await onCopy();
+  };
+
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" style={{ pointerEvents: "auto" }} onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -117,13 +134,23 @@ export function ServiceShareSheet({
               {target.url}
             </p>
             <p className="mt-1.5 text-[12px] text-admin-ink-dim">{t.sub}</p>
+            {canUseNativeShare() ? (
+              <button
+                type="button"
+                onClick={() => void onShare()}
+                className="mt-3 min-h-11 w-full rounded-lg bg-[var(--tc-action)] px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
+              >
+                {t.share}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => void onCopy()}
-              className="mt-3 w-full rounded-lg bg-[var(--tc-action)] px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-[var(--tc-action-hover)]"
+              className={`${canUseNativeShare() ? "mt-2 border border-admin-border-soft text-admin-ink" : "mt-3 bg-[var(--tc-action)] text-white hover:bg-[var(--tc-action-hover)]"} min-h-11 w-full rounded-lg px-4 py-2.5 text-[14px] font-semibold`}
             >
               {copied ? t.copied : t.copy}
             </button>
+            <p role="status" aria-live="polite" className="mt-1.5 min-h-4 text-[12px] text-admin-ink-dim">{copied ? t.copied : copyFailed ? t.copyFailed : ""}</p>
             {qrSvg ? (
               <figure className="mt-4 flex flex-col items-center">
                 {/* SVG built by our own encoder from rects only (no user markup). */}
@@ -133,10 +160,11 @@ export function ServiceShareSheet({
             ) : null}
           </>
         )}
-        <button type="button" onClick={onClose} className="mt-4 w-full rounded-lg border border-admin-border-soft px-4 py-2 text-[14px] font-semibold text-admin-ink">
+        <button type="button" onClick={onClose} className="mt-4 min-h-11 w-full rounded-lg border border-admin-border-soft px-4 py-2 text-[14px] font-semibold text-admin-ink">
           {t.close}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

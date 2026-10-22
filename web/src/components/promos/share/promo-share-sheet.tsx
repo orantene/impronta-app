@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { UI } from "@/components/promos/talent/ui";
 import { copyText } from "./copy-text";
@@ -51,7 +52,7 @@ const T = {
     title: "Compartir", lang: "Idioma", story: "Historia", post: "Publicación",
     whatsapp: "WhatsApp", instagram: "Instagram", tiktok: "TikTok",
     saveCopy: "Guardar imagen + copiar texto", saveShort: "Guardar imagen", helper: "Guarda la imagen y copia el texto", style: "Estilo", format: "Formato", copyLink: "Copiar enlace", copyCode: "Copiar código",
-    qr: "Código QR", print: "Tarjeta para imprimir", close: "Cerrar", copied: "Copiado",
+    qr: "Código QR", print: "Tarjeta para imprimir", close: "Cerrar", copied: "Copiado", linkCopied: "Enlace copiado",
     saved: "Imagen guardada y texto copiado. Abre Instagram o TikTok y publícala.",
     failed: "No se pudo guardar. Intenta de nuevo.",
     copyFailed: "No se pudo copiar, copia el enlace manualmente", linkLabel: "Enlace",
@@ -60,7 +61,7 @@ const T = {
     title: "Share", lang: "Language", story: "Story", post: "Post",
     whatsapp: "WhatsApp", instagram: "Instagram", tiktok: "TikTok",
     saveCopy: "Save image + copy text", saveShort: "Save image", helper: "Saves the image and copies the text", style: "Style", format: "Format", copyLink: "Copy link", copyCode: "Copy code",
-    qr: "QR code", print: "Printable card", close: "Close", copied: "Copied",
+    qr: "QR code", print: "Printable card", close: "Close", copied: "Copied", linkCopied: "Link copied",
     saved: "Image saved and text copied. Open Instagram or TikTok and post it.",
     failed: "Could not save. Please try again.",
     copyFailed: "Could not copy, copy the link manually", linkLabel: "Link",
@@ -123,7 +124,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
 
   const copy = async (text: string, via: ViaTag) => {
     const ok = await copyText(text);
-    setNote(ok ? t.copied : t.copyFailed);
+    setNote(ok ? (via === "link" ? t.linkCopied : t.copied) : t.copyFailed);
     if (ok) logShare(promoId, via);
   };
 
@@ -155,8 +156,11 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
   const shownLink = link("link");
   const channels = channelOrder(props.defaultLang);
 
-  return (
-    <div className={`fixed inset-0 ${PROMO_SHARE_LAYER} flex items-end justify-center bg-black/40`} role="presentation" onClick={onClose}>
+  if (typeof document === "undefined") return null;
+  // Portaled to <body> with pointer-events forced on: inline, a stacking-context ancestor or a Radix
+  // modal's body lock can leave the sheet under the mobile chrome or untappable (TUL-938).
+  return createPortal(
+    <div className={`fixed inset-0 ${PROMO_SHARE_LAYER} flex items-end justify-center bg-black/40`} style={{ pointerEvents: "auto" }} role="presentation" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -255,6 +259,7 @@ export function PromoShareSheet(props: PromoShareSheetProps) {
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
