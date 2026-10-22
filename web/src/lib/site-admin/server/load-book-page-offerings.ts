@@ -18,11 +18,27 @@ import { describeSeatsLeft, seatsLeft } from "@/lib/sessions/seats-left";
 import { annotateOpenTimes } from "@/lib/site-admin/server/annotate-open-times";
 import { scopeToSellableOfferings } from "@/lib/offerings/sellable";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizePinnedOfferingId(raw: string | null | undefined): string {
+  const id = (raw ?? "").trim();
+  return UUID_RE.test(id) ? id : "";
+}
+
 export async function loadPublicBookableOfferings(args: {
   tenantId?: string | null;
   talentProfileId?: string | null;
   locale?: string;
   host?: { kind: string; tenantId?: string | null };
+  /**
+   * TUL-65 Book again: the service id from `/book?service=`. It is kept in the
+   * list even when it would normally be dropped (QA-named on a test account,
+   * past the 24-row cap, request-only, no hours, roster not released), so the
+   * visitor lands on THEIR service with the right path instead of an empty
+   * sheet. It still has to pass the sellable scope in this tenant: a forged id
+   * can only surface what the public could already ask for.
+   */
+  pinnedOfferingId?: string | null;
   /**
    * TUL-1471: offerings of a workspace's roster talent that an INSTANT hub entry sells. They belong to
    * the talent, not the workspace, so the tenant filter alone drops them and the widget could not book
@@ -49,8 +65,17 @@ export async function loadPublicBookableOfferings(args: {
       return [];
     }
     const loaded = (data ?? []) as TalentOfferingRow[];
+    const pinnedId = normalizePinnedOfferingId(args.pinnedOfferingId);
+    if (pinnedId && !loaded.some((r) => r.id === pinnedId)) {
+      // Past the row cap: fetch it on its own, same tenant + sellable scope.
+      let one = scopeToSellableOfferings(admin.from("talent_offerings").select("*"), "guest_request").eq("id", pinnedId);
+      if (args.tenantId) one = one.eq("tenant_id", args.tenantId);
+      if (args.talentProfileId) one = one.eq("talent_profile_id", args.talentProfileId);
+      const { data: extra } = await one.maybeSingle();
+      if (extra) loaded.push(extra as TalentOfferingRow);
+    }
     const testScope = await loadTestServiceScope(admin, loaded);
-    const rows = loaded.filter((r) => !hideTestServiceOnPublicSite(r, testScope));
+    const rows = loaded.filter((r) => r.id === pinnedId || !hideTestServiceOnPublicSite(r, testScope));
     const offerings = await withEffectiveBookingModes(
       admin,
       rows.map((row) => rowToOffering(row, args.locale ?? "en", [])),
@@ -67,11 +92,15 @@ export async function loadPublicBookableOfferings(args: {
       : new Set<string>();
     const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean }> = [];
     for (const offering of offerings) {
+      const isPinned = offering.id === pinnedId;
       if (sessionOfferingIds.has(offering.id)) {
         kept.push({ ...offering, bookingMode: "instant", seatsLabel: null, hasOpenTimes: true, hasSessions: true });
         continue;
       }
-      if (!isSlotEligibleOffering(offering)) continue;
+      if (!isSlotEligibleOffering(offering)) {
+        if (isPinned && offering.kind !== "product") kept.push({ ...offering, bookingMode: "inquire", seatsLabel: null });
+        continue;
+      }
 
       // HOUSE-OWNED offerings (F8). Slot booking used to skip anything without
       // a talent, which is why a salon, a barber, a spa and a clinic all got a
@@ -86,7 +115,7 @@ export async function loadPublicBookableOfferings(args: {
       if (!offering.talentProfileId) {
         // Never "instant": the slots route refuses house rows (item 6).
         const houseMode = houseListingModeFor(offering, host);
-        if (houseMode !== "inquire") kept.push({ ...offering, bookingMode: houseMode, seatsLabel: null });
+        if (houseMode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: houseMode, seatsLabel: null });
         continue;
       }
 
@@ -95,7 +124,7 @@ export async function loadPublicBookableOfferings(args: {
         offeringId: offering.id,
         host,
       });
-      if (mode !== "inquire") kept.push({ ...offering, bookingMode: mode, seatsLabel: null });
+      if (mode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: mode, seatsLabel: null });
     }
     // B2/D3: tell the page which services have times (capped probe).
     await annotateOpenTimes(admin, kept.filter((o) => !o.hasSessions), {
@@ -104,6 +133,7 @@ export async function loadPublicBookableOfferings(args: {
         tenantId: args.tenantId ?? host.tenantId ?? null,
       },
       talentSiteId: args.talentProfileId ?? null,
+      priorityId: pinnedId || null,
     });
     // Seats last, on the kept list only: a cohort count for an offering nobody
     // can book is a query for nothing. Absent pool means absent entry means no

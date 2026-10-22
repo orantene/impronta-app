@@ -1792,6 +1792,7 @@
       "rosterNote": "Request a service and the studio will reply with the details.",
       "rosterRequest": "Request",
       "noTimesRequest": "No online times right now: send us a request and we will confirm.",
+      "inquireOnly": "This service is not open for online booking yet. Write to us and we will arrange it.",
       "requestCta": "Send a request"
     },
     "siteShellSurface": {

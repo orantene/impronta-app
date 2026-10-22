@@ -1792,6 +1792,7 @@
       "rosterNote": "Solicita un servicio y el estudio te responderá con los detalles.",
       "rosterRequest": "Solicitar",
       "noTimesRequest": "Sin horarios en línea por ahora: envíanos una solicitud y te confirmamos.",
+      "inquireOnly": "Este servicio aún no está abierto para reservar en línea. Escríbenos y lo coordinamos.",
       "requestCta": "Enviar una solicitud"
     },
     "siteShellSurface": {

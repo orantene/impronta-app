@@ -95,6 +95,7 @@ export default async function BookPage({
     talentProfileId: talentId,
     locale,
     host: { kind: host.kind, tenantId: host.kind === "agency" ? host.tenantId : tenantId || null },
+    pinnedOfferingId: typeof service === "string" ? service : null,
   });
 
   let agencyName = t("public.bookPage.studioFallback");

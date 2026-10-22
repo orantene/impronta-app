@@ -13,8 +13,18 @@
 export type BookAvailabilityInput = {
   id: string;
   visibility?: string | null;
+  bookingMode?: string | null;
   hasOpenTimes?: boolean | null;
 };
+
+/**
+ * A service that cannot be reserved online at all (talent/roster not released,
+ * no hours policy). Only a pinned Book again service reaches the page in this
+ * state; the guest is sent to the contact path instead of a composer.
+ */
+export function isInquireOnlyService(o: BookAvailabilityInput): boolean {
+  return o.bookingMode === "inquire";
+}
 
 /** A service the guest cannot pick a time for: request it instead. */
 export function isRequestOnlyService(o: BookAvailabilityInput): boolean {
@@ -26,10 +36,11 @@ export function isRequestOnlyService(o: BookAvailabilityInput): boolean {
  * the first service nobody ruled out; when everything is ruled out, the first.
  */
 export function pickInitialOfferingId(offerings: readonly BookAvailabilityInput[]): string {
-  const withTimes = offerings.find((o) => o.hasOpenTimes === true && o.visibility !== "on_request");
+  const live = offerings.filter((o) => !isInquireOnlyService(o));
+  const withTimes = live.find((o) => o.hasOpenTimes === true && o.visibility !== "on_request");
   if (withTimes) return withTimes.id;
-  const notRuledOut = offerings.find((o) => !isRequestOnlyService(o));
-  return (notRuledOut ?? offerings[0])?.id ?? "";
+  const notRuledOut = live.find((o) => !isRequestOnlyService(o));
+  return (notRuledOut ?? live[0] ?? offerings[0])?.id ?? "";
 }
 
 /**
