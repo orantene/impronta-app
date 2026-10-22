@@ -26,6 +26,7 @@ src/lib/billing/commission-processing-pass-through.test.ts
 src/lib/billing/commission-referral.test.ts
 src/lib/billing/commission.characterization.test.ts
 src/lib/billing/commission.test.ts
+src/lib/billing/customer-discount-label.test.ts
 src/lib/billing/discount-ending-window.test.ts
 src/lib/billing/fee-payer-setting.test.ts
 src/lib/billing/fee-preview-charge-parity.test.ts

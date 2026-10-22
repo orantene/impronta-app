@@ -80,12 +80,15 @@ test("fixed without a currency is refused, not silently billed", () => {
 
 test("the coupon is named and tagged so HQ can find it in Stripe", () => {
   const params = buildAccountCouponParams(base);
-  assert.equal(params.name, "Account discount · Impronta");
+  // TUL-1904: customer-visible name carries no internal label; the label is metadata.
+  assert.equal(params.name, "30% off");
   assert.deepEqual(params.metadata, {
     subscription_discount_id: base.id,
     subject_type: "workspace",
+    internal_label: "Account discount · Impronta",
     tenant_id: base.tenantId,
   });
+  assert.equal(buildAccountCouponParams({ ...base, locale: "es" }).name, "30% de descuento");
 });
 
 test("a talent grant tags talent_profile_id instead of tenant_id", () => {
@@ -99,10 +102,11 @@ test("a talent grant tags talent_profile_id instead of tenant_id", () => {
   assert.deepEqual(params.metadata, {
     subscription_discount_id: base.id,
     subject_type: "talent",
+    internal_label: "Account discount · bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
     talent_profile_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
   });
   // No label → the subject id keeps the coupon identifiable.
-  assert.equal(params.name, "Account discount · bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+  assert.equal(params.name, "30% off");
 });
 
 // ─── extractSubscriptionDiscount ─────────────────────────────────────────────
