@@ -13,7 +13,7 @@ import { bookPagePaymentLine } from "@/lib/talent/who-step-payment-copy";
 import type { GuestCaptchaConfig } from "@/components/public-booking/GuestCaptchaField";
 import { usePublicT } from "@/i18n/use-public-t";
 import { translatorFor } from "@/i18n/translator-for";
-import { isRequestOnlyService, resolveSelectedOfferingId } from "./book-availability";
+import { isInquireOnlyService, isRequestOnlyService, resolveSelectedOfferingId } from "./book-availability";
 import { BookLocaleScope } from "./BookLocaleScope";
 
 export function BookPageClient({
@@ -53,6 +53,7 @@ export function BookPageClient({
     const id = resolveSelectedOfferingId({ offerings, requestedId: initialServiceId, userPickedId });
     return offerings.find((o) => o.id === id) ?? offerings[0] ?? null;
   }, [offerings, initialServiceId, userPickedId]);
+  const inquireOnly = selected ? isInquireOnlyService(selected) : false;
   const noTimes = selected ? isRequestOnlyService(selected) : false;
   const bookable = selected
     ? pickBookableOffering([selected], { locationLabel: null })
@@ -73,7 +74,7 @@ export function BookPageClient({
       )
     : null;
 
-  if (offerings.length === 0 || !bookable) {
+  if (offerings.length === 0 || !selected || (!bookable && !inquireOnly)) {
     return (
       <div
         className="mt-6 flex flex-col items-start gap-3 text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]"
@@ -135,11 +136,26 @@ export function BookPageClient({
         <p className="text-sm font-medium">{selected.seatsLabel}</p>
       ) : null}
       <div className="flex flex-col items-start gap-3" data-book-no-times={noTimes ? selected.id : undefined}>
-        {noTimes ? (
+        {noTimes && !inquireOnly ? (
           <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
             {t("public.bookPage.noTimesRequest")}
           </p>
         ) : null}
+        {inquireOnly ? (
+          <div className="flex flex-col items-start gap-3" data-book-inquire-only={selected.id}>
+            <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
+              {t("public.bookPage.inquireOnly")}
+            </p>
+            {contactHref ? (
+              <Link
+                href={contactHref}
+                className="rounded-lg border border-[rgba(24,24,27,0.12)] px-3 py-2 text-sm font-medium text-[var(--token-color-ink,#0B0B0D)]"
+              >
+                {t("public.bookPage.contactCta")}
+              </Link>
+            ) : null}
+          </div>
+        ) : bookable ? (
         <BookableComposer
           tenantSlug={tenantSlug}
           tenantId={tenantId}
@@ -154,7 +170,8 @@ export function BookPageClient({
           showInlinePicker={!noTimes}
           requestLabel={t("public.bookPage.requestCta")}
         />
-        {noTimes && contactHref ? (
+        ) : null}
+        {noTimes && !inquireOnly && contactHref ? (
           <Link href={contactHref} className="text-sm underline">
             {t("public.bookPage.contactCta")}
           </Link>
