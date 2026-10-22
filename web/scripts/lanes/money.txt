@@ -412,6 +412,7 @@ src/lib/talent/service-hub-channels-wire.static.test.ts
 src/lib/talent/service-hub-channels.test.ts
 src/lib/talent/service-hub-lowest-errors.test.ts
 src/lib/venues/*.test.ts
+src/lib/visits/cancel-visit.test.ts
 src/lib/visits/check-ops.test.ts
 src/lib/visits/commands.test.ts
 src/lib/visits/floor.test.ts

@@ -25,6 +25,12 @@ function fake(variantsError = false) {
     ],
     visits: [{ id: "v1", tenant_id: TENANT, space_id: "s1", public_token: "tok", status: "open", opened_at: null, party_size: 2 }],
     spaces: [{ id: "s1", code: "T1", name: "Table 1" }],
+    // TUL-1348 retest: a staff order plus the guest's own draft is two orders on one visit.
+    orders: [
+      { id: "o-staff", visit_id: "v1", tenant_id: TENANT, currency: "MXN", total_cents: 0, status: "draft", created_at: "2026-01-01T10:00:00Z" },
+      { id: "o-guest", visit_id: "v1", tenant_id: TENANT, currency: "MXN", total_cents: 9000, status: "draft", created_at: "2026-01-01T10:05:00Z" },
+    ],
+    order_lines: [{ id: "l1", order_id: "o-guest", label: "Michelada Grande", units: 1, total_cents: 9000, sort_order: 0 }],
   };
   const from = (table: string) => {
     let rows = [...(tables[table] ?? [])];
@@ -34,7 +40,8 @@ function fake(variantsError = false) {
     b.in = (c: string, vals: unknown[]) => { rows = rows.filter((r) => !(c in r) || vals.includes(r[c])); return b; };
     b.order = (c: string) => { rows = [...rows].sort((a, z) => Number(a[c] ?? 0) - Number(z[c] ?? 0)); return b; };
     b.eq = (c: string, v: unknown) => { rows = rows.filter((r) => !(c in r) || r[c] === v); return b; };
-    b.maybeSingle = async () => ({ data: rows[0] ?? null, error: null });
+    b.neq = (c: string, v: unknown) => { rows = rows.filter((r) => !(c in r) || r[c] !== v); return b; };
+    b.maybeSingle = async () => ({ data: rows.length > 1 ? null : (rows[0] ?? null), error: rows.length > 1 ? { code: "PGRST116" } : null });
     b.then = (ok: (v: unknown) => unknown) =>
       Promise.resolve(variantsError && table === "talent_offering_variants" ? { data: null, error: { message: "boom" } } : { data: rows, error: null }).then(ok);
     return b;
@@ -81,4 +88,13 @@ test("the gate runs in the guest path before any draft is created", () => {
   const src = readFileSync(join(process.cwd(), "src/lib/visits/guest-order.ts"), "utf8");
   const gate = src.indexOf("guestVariantSellable(v, off.id");
   assert.ok(gate > 0 && gate < src.indexOf("await guestDraft(admin"));
+});
+
+test("TUL-1348: after a size is added the visit holds two orders and the menu still loads (no 404)", async () => {
+  const menu = await guestVisitMenu(fake(), { tenantId: TENANT, token: "tok" });
+  assert.equal(menu.ok, true);
+  const { loadOpenVisitByToken } = await import("./qr");
+  const visit = await loadOpenVisitByToken(fake(), { tenantId: TENANT, publicToken: "tok" });
+  assert.equal(visit.ok, true);
+  if (visit.ok) assert.equal(visit.totalCents, 9000);
 });

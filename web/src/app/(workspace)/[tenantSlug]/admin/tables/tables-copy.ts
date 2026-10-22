@@ -14,6 +14,10 @@ export function tablesCopy(tr: (key: string) => string): TablesCopy {
   return {
     empty: tr("dashboard.tables.empty"),
     close: tr("dashboard.tables.close"),
+    cancelVisit: tr("dashboard.tables.cancelVisit"),
+    cancelVisitBody: tr("dashboard.tables.cancelVisitBody"),
+    cancelVisitConfirm: tr("dashboard.tables.cancelVisitConfirm"),
+    cancelVisitKeep: tr("dashboard.tables.cancelVisitKeep"),
     sale: tr("dashboard.tables.sale"),
     occupied: tr("dashboard.tables.occupied"),
     free: tr("dashboard.tables.free"),
@@ -58,6 +62,7 @@ export function tablesCopy(tr: (key: string) => string): TablesCopy {
       joined_visit: tr("dashboard.tables.refusal.joinedVisit"),
       not_open: tr("dashboard.tables.refusal.notOpen"),
       outstanding: tr("dashboard.tables.refusal.outstanding"),
+      has_payment: tr("dashboard.tables.refusal.hasPayment"),
       already_closed: tr("dashboard.tables.refusal.alreadyClosed"),
       version_conflict: tr("dashboard.tables.refusal.versionConflict"),
       not_allowed: tr("dashboard.tables.refusal.notAllowed"),

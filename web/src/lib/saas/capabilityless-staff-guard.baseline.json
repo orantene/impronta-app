@@ -18,7 +18,7 @@
     "src/app/(workspace)/[tenantSlug]/admin/pos/floor-actions.ts": 3,
     "src/app/(workspace)/[tenantSlug]/admin/preparation/actions.ts": 4,
     "src/app/(workspace)/[tenantSlug]/admin/reservations/actions.ts": 2,
-    "src/app/(workspace)/[tenantSlug]/admin/tables/actions.ts": 10,
+    "src/app/(workspace)/[tenantSlug]/admin/tables/actions.ts": 9,
     "src/app/(workspace)/[tenantSlug]/admin/work-style/page.tsx": 1,
     "src/app/api/talent/media/library/route.ts": 1,
     "src/lib/channels/pairing-actions.ts": 1,
