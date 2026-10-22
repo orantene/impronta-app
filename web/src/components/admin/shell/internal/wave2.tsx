@@ -24,10 +24,9 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
-import { publicSubdomainHost, resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import React, { useMemo, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
-import { workspaceLiveHost } from "@/lib/saas/workspace-live-url";
+import { workspaceLiveHost } from "@/lib/saas/workspace-live-url"; import { publicSubdomainHost, resolvePublicRootDomain } from "@/lib/brand/public-root-domain";
 import { useRouter } from "next/navigation"; import { openSupportPanel } from "@/lib/support/open-support-panel";
 import { setActiveTalentAgencyAction } from "@/lib/talent/set-active-agency-action";
 import { interpolate } from "@/i18n/interpolate";
