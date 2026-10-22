@@ -55,7 +55,7 @@ export async function createTestimonialAction(input: {
   if (!readOnly.ok) return readOnly;
   const auth = await requireSession();
   if (!auth.ok) return { ok: false, error: auth.error };
-  const { supabase, user } = auth;
+  const { user } = auth;
 
   const cleanTalentId = (input.talentProfileId ?? "").trim();
   const cleanAuthor = (input.authorName ?? "").trim().slice(0, 200);
