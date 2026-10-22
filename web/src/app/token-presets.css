@@ -5768,6 +5768,11 @@ html[data-theme="dark"] [data-tone="light"] {
  * shell wrapper is feature-flag gated and OFF by default, so these rules
  * affect zero rendered storefronts until B.2 flips a tenant on.
  * ========================================================================= */
+/* TUL-549: secondary header text (nav links, inactive ES/EN, tagline, contact + social links) is a MIX of the theme ink toward the
+   bar, never a faded opacity or the page `muted` token: ink@0.85 / 0.55 and the shell-default muted (#8c7f75) fell under AA 4.5:1
+   on light presets. 82% ink keeps a visible hierarchy and clears AA on every light preset (pinned by
+   header-light-theme-contrast.static.test.ts). */
+.site-header { --site-header-soft-ink: color-mix(in srgb, var(--token-color-ink, #111) 82%, var(--token-color-surface-raised, #fff)); }
 .site-header { display: block; width: 100%; padding-block: clamp(12px, 1.4vw, 18px); border-bottom: 1px solid transparent; transition: background var(--site-motion-dur-short, 180ms) var(--site-motion-ease, ease); }
 .site-header[data-sticky="true"] { position: sticky; top: 0; z-index: 40; backdrop-filter: saturate(1.1) blur(6px); }
 /* STICKY FIX — when the header renders as a shell SLOT it lives inside its own
@@ -5867,6 +5872,14 @@ html[data-theme="dark"] [data-tone="light"] {
 .site-header[data-tone="transparent"][data-scrolled="true"] .site-header__burger {
   color: #ffffff;
 }
+/* TUL-549: the dark scrim above exists for WHITE text. A talent header NOT over a dark hero (Maison v1 split hero, centred type
+   hero, any light page) paints theme ink, so the dark gradient turned the bar grey under dark text. There the scrim is the page
+   background instead, so ink-on-bar is ink-on-background (AA by the theme's own pairing). Over-hero talent headers and agency
+   headers keep the dark scrim + white text. Higher specificity than the rule above; no change to the scrolled bar. */
+[data-talent-max-site-header]:not([data-over-hero="true"]) .site-header[data-tone="transparent"]:not([data-scrolled="true"]) {
+  background-image: linear-gradient(to bottom, color-mix(in srgb, var(--token-color-background, #fff) 90%, transparent), color-mix(in srgb, var(--token-color-background, #fff) 55%, transparent) 70%, transparent);
+  color: var(--token-color-ink, #111);
+}
 html:has(.site-header[data-tone="transparent"]) {
   scroll-padding-top: 84px;
 }
@@ -5900,12 +5913,12 @@ html:has(.site-header[data-tone="transparent"]) {
 .site-header[data-variant="freeform"] .site-header__spacer { flex: 1 1 auto; }
 /* The " / " separator carries the spacing; a flex gap only lands before it (asymmetric "ES  / EN"). */
 .site-header[data-variant="freeform"] .site-header__lang { gap: 0; }
-.site-header[data-variant="freeform"] .site-header__lang-code { font-size: 0.76rem; letter-spacing: 0.12em; opacity: 0.55; }
+.site-header[data-variant="freeform"] .site-header__lang-code { font-size: 0.76rem; letter-spacing: 0.12em; opacity: 1; }
 .site-header[data-variant="freeform"] .site-header__lang-code[data-active] { opacity: 1; color: var(--token-color-primary, #c6a14e); }
 .site-header[data-variant="freeform"] .site-header__inquiry, .site-header[data-variant="freeform"] .site-header__saved { position: relative; }
 .site-header[data-variant="freeform"] .site-header__lang-item { display: inline-flex; align-items: center; }
 .site-header[data-variant="freeform"] a.site-header__lang-code { color: inherit; text-decoration: none; }
-.site-header[data-variant="freeform"] .site-header__lang-sep { opacity: 0.55; white-space: pre; }
+.site-header[data-variant="freeform"] .site-header__lang-sep { opacity: 1; white-space: pre; }
 /* TUL-1908: ES / EN links were ~15x17px at 390. 44x44 hit box on touch/phone widths; negative margins keep the header row the same size. */
 @media (max-width: 767px), (pointer: coarse) {
   .site-header__lang a.site-header__lang-code { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; margin: -13px -9px; box-sizing: border-box; }
@@ -6003,12 +6016,12 @@ html:has(.site-header[data-tone="transparent"]) {
   .site-header__brand { min-width: 0; max-width: 100%; }
   .site-header__brand-label, .site-header__brand-tagline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
-.site-header__brand-tagline { font-size: clamp(9px, 0.7vw, 11px); font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--token-color-muted); line-height: 1; }
+.site-header__brand-tagline { font-size: clamp(9px, 0.7vw, 11px); font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: var(--site-header-soft-ink); line-height: 1; }
 
 .site-header__nav { flex: 0 0 auto; }
 .site-header__nav-list { display: flex; gap: clamp(12px, 2vw, 24px); list-style: none; padding: 0; margin: 0; }
-.site-header__nav-link { color: var(--token-color-ink); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 0; opacity: 0.85; transition: opacity var(--site-motion-dur-short, 180ms) var(--site-motion-ease, ease); }
-.site-header__nav-link:hover { opacity: 1; }
+.site-header__nav-link { color: var(--site-header-soft-ink); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 0; opacity: 1; transition: color var(--site-motion-dur-short, 180ms) var(--site-motion-ease, ease); }
+.site-header__nav-link:hover { color: var(--token-color-ink, #111); }
 
 .site-header__cta { margin-left: auto; white-space: nowrap; flex: none; }
 @media (max-width: 720px) {
@@ -6131,7 +6144,7 @@ html:has(.site-header[data-tone="transparent"]) {
   text-transform: uppercase;
   letter-spacing: 0.24em;
   opacity: 1;
-  color: var(--token-color-muted, color-mix(in srgb, var(--token-color-ink) 62%, transparent));
+  color: var(--site-header-soft-ink);
   position: relative;
   padding-bottom: 4px;
 }
@@ -6228,7 +6241,7 @@ html:has(.site-header[data-tone="transparent"]) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--token-color-muted, color-mix(in srgb, var(--token-color-ink) 62%, transparent));
+  color: var(--site-header-soft-ink);
   text-decoration: none;
   font-size: 0.72rem;
   font-weight: 500;
@@ -6420,7 +6433,7 @@ html:has(.site-header[data-tone="transparent"]) {
   background: none;
   padding: 0.5rem;
   gap: 0.5rem;
-  color: var(--token-color-muted, color-mix(in srgb, var(--token-color-ink) 62%, transparent));
+  color: var(--site-header-soft-ink);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -6455,7 +6468,7 @@ html:has(.site-header[data-tone="transparent"]) {
   text-transform: uppercase;
   letter-spacing: 0.26em;
   opacity: 1;
-  color: var(--token-color-muted, color-mix(in srgb, var(--token-color-ink) 62%, transparent));
+  color: var(--site-header-soft-ink);
   position: relative;
   padding-bottom: 4px;
 }
