@@ -11408,7 +11408,16 @@
         "promo": {
           "applied": "{code}: {label}"
         },
-        "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time."
+        "archivesAtPeriodEnd": "Talent beyond your new plan's limit are archived at period end, on {date}. You keep everything until then, and you can restore them any time.",
+        "keepTitle": "Choose who stays visible",
+        "keepIntro": "Free keeps up to {cap} talent visible and you have {count}. Pick who stays; the rest are archived, not deleted, and you can restore them any time.",
+        "keepCounter": "{selected} of {cap} selected",
+        "keepConfirm": "Move to Free",
+        "keepSaving": "Saving...",
+        "keepLoading": "Loading your roster...",
+        "keepLoadFailed": "We could not load your roster. Nothing was changed.",
+        "keepUnnamed": "Unnamed talent",
+        "keepCancel": "Back"
       }
     },
     "adminIntegrationsCatalog": {
