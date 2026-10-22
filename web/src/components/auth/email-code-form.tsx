@@ -104,6 +104,9 @@ export const METHOD_SWAP_RESERVE = "pb-[5.3rem]";
  */
 export const STEP_MIN_HEIGHT = "min-h-[19rem]";
 
+/** TUL-910: one success/error notice row (two lines at 390px) reserved on the code step. */
+export const NOTICE_SLOT_MIN_HEIGHT = "min-h-[3.5rem]";
+
 export function EmailCodeForm({
   nextPath,
   locale = "en",
@@ -219,7 +222,6 @@ export function EmailCodeForm({
 
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
-  const notice = lane === "send" ? sent?.notice : undefined;
   useFocusFirstInvalidOnError(stepError);
   const errField = authErrorField(stepError, {
     invalidEmail: t("public.auth.actions.invalidEmail"),
@@ -254,10 +256,14 @@ export function EmailCodeForm({
   if (onCodeStep && email) {
     return (
       <div className={`space-y-3.5 ${STEP_MIN_HEIGHT}`}>
-        {notice ? (
-          <AuthNotice tone="success">{notice.replace("{email}", email)}</AuthNotice>
-        ) : null}
-        {stepError ? <AuthNotice tone="error" id="code-step-error">{stepError}</AuthNotice> : null}
+        {/* TUL-910: one fixed slot; an error replaces the sent notice instead of stacking above it */}
+        <div className={NOTICE_SLOT_MIN_HEIGHT}>
+          {stepError ? (
+            <AuthNotice tone="error" id="code-step-error">{stepError}</AuthNotice>
+          ) : sent?.notice ? (
+            <AuthNotice tone="success">{sent.notice.replace("{email}", email)}</AuthNotice>
+          ) : null}
+        </div>
 
         <form
           action={verifyAction}
@@ -275,6 +281,7 @@ export function EmailCodeForm({
           <AuthField
             label={t("public.auth.passwordless.codeLabel")}
             htmlFor="otp-code"
+            hintLines={3}
             hint={`${t("public.auth.passwordless.codeLengthHint").replace("{n}", String(OTP_CODE_LENGTH))} ${t("public.auth.passwordless.codeHint")}`}
           >
             <input
@@ -373,8 +380,6 @@ export function EmailCodeForm({
         {allowCreate && clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
-        {stepError ? <AuthNotice tone="error" id={AUTH_ERROR_IDS[errField ?? "form"]}>{stepError}</AuthNotice> : null}
-
         {allowCreate && collectName ? (
           <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
             <input
@@ -396,6 +401,9 @@ export function EmailCodeForm({
         <AuthField
           label={t("public.auth.form.email")}
           htmlFor="email"
+          hintLines={2}
+          error={stepError}
+          errorId={AUTH_ERROR_IDS[errField ?? "form"]}
           hint={
             authEmailHasPlusTag(emailDraft)
               ? t("public.auth.passwordless.plusEmailHint")
