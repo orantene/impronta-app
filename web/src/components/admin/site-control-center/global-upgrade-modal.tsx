@@ -12,6 +12,7 @@ import { changeWorkspacePlan } from "@/lib/server-actions/admin-billing";
 import { commitPlanDowngrade, getDowngradePreflight, type DowngradePreflight } from "@/lib/server-actions/admin-plan-downgrade";
 import { DowngradeKeepPicker } from "./downgrade-keep-picker";
 import { useT } from "@/i18n/use-t";
+import { interpolate } from "@/i18n/interpolate";
 import { startWorkspaceUpgrade } from "@/app/(workspace)/[tenantSlug]/admin/account/stripe-billing-actions";
 import { readPromoCodeFromUrl } from "@/lib/billing/promo-code-param";
 import { trackProductEvent } from "@/lib/analytics/track-client";
@@ -58,6 +59,13 @@ export function GlobalUpgradeModal({
     preflight: null,
   });
 
+  function planChangeToast(plan: string, scheduled: boolean, effectiveAt: string | null): string {
+    if (!scheduled) return interpolate(t("dashboard.adminShared.planChange.setTo"), { plan });
+    return effectiveAt
+      ? interpolate(t("dashboard.adminShared.planChange.scheduledOn"), { plan, date: new Date(effectiveAt).toLocaleDateString() })
+      : interpolate(t("dashboard.adminShared.planChange.scheduledEnd"), { plan });
+  }
+
   function openKeepPicker() {
     setPicker({ open: true, loading: true, preflight: null });
     void getDowngradePreflight({ target_tier: "free" }).then((r) => {
@@ -75,9 +83,7 @@ export function GlobalUpgradeModal({
       const result = await commitPlanDowngrade({ target_tier: "free", talent_keep_ids: keepIds });
       if (result.ok) {
         toast.success(
-          result.stripe_scheduled
-            ? `Your paid plan ends${result.effective_at ? ` on ${new Date(result.effective_at).toLocaleDateString()}` : " at the end of this billing period"}, then your workspace moves to free.`
-            : "Workspace plan set to free.",
+          planChangeToast("free", result.stripe_scheduled, result.effective_at),
         );
         setPicker({ open: false, loading: false, preflight: null });
         queueRouterRefresh();
@@ -153,9 +159,7 @@ export function GlobalUpgradeModal({
       const result = await changeWorkspacePlan(plan);
       if (result.ok) {
         toast.success(
-          result.data.scheduledForPeriodEnd
-            ? `Your paid plan ends${result.data.effectiveAt ? ` on ${new Date(result.data.effectiveAt).toLocaleDateString()}` : " at the end of this billing period"}, then your workspace moves to ${plan}.`
-            : `Workspace plan set to ${plan}.`,
+          planChangeToast(plan, result.data.scheduledForPeriodEnd, result.data.effectiveAt),
         );
         queueRouterRefresh();
       } else if (result.needsKeepList) {

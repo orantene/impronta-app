@@ -11417,7 +11417,10 @@
         "keepLoading": "Loading your roster...",
         "keepLoadFailed": "We could not load your roster. Nothing was changed.",
         "keepUnnamed": "Unnamed talent",
-        "keepCancel": "Back"
+        "keepCancel": "Back",
+        "scheduledOn": "Your paid plan ends on {date}, then your workspace moves to {plan}.",
+        "scheduledEnd": "Your paid plan ends at the end of this billing period, then your workspace moves to {plan}.",
+        "setTo": "Workspace plan set to {plan}."
       }
     },
     "adminIntegrationsCatalog": {
