@@ -22,6 +22,7 @@ import {
   TALENT_CANCEL_REASONS,
   fillDate,
   pickCopy,
+  resolveEndingState,
   type TalentCancelReason,
 } from "@/lib/billing/talent-cancel";
 
@@ -72,6 +73,7 @@ export function TalentCancelBlock({
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [endsAt, setEndsAt] = useState<string | null>(null);
+  const [local, setLocal] = useState<{ ending: boolean; summaryWas: boolean } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const dateLabel = formatDate(endsAt ?? currentPeriodEnd, es);
@@ -80,8 +82,10 @@ export function TalentCancelBlock({
     startTransition(async () => {
       setError(null);
       const r = await resumeTalentPlan();
-      if (!r.ok) return setError(r.error);
+      // Server messages are English; the card speaks the page's language.
+      if (!r.ok) return setError(pickCopy(T.actionFailed, es));
       setEndsAt(null);
+      setLocal({ ending: false, summaryWas: cancelAtPeriodEnd });
       onChanged();
     });
 
@@ -90,8 +94,9 @@ export function TalentCancelBlock({
     startTransition(async () => {
       setError(null);
       const r = await cancelTalentPlan({ reason, feedback: feedback.trim() || null });
-      if (!r.ok) return setError(r.error);
+      if (!r.ok) return setError(pickCopy(T.actionFailed, es));
       setEndsAt(r.effectiveAt ?? currentPeriodEnd ?? new Date().toISOString());
+      setLocal({ ending: true, summaryWas: cancelAtPeriodEnd });
       setStep("closed");
       onChanged();
     });
@@ -101,7 +106,8 @@ export function TalentCancelBlock({
     <div role="alert" style={{ marginTop: 8, fontSize: 12, color: DANGER, fontFamily: FONT }}>{error}</div>
   ) : null;
 
-  if (cancelAtPeriodEnd || endsAt !== null) {
+  const ending = resolveEndingState(cancelAtPeriodEnd, local) || (local === null && endsAt !== null);
+  if (ending) {
     return (
       <div data-testid="talent-plan-ends-banner" style={{ marginTop: 12, padding: "11px 13px", borderRadius: 10, background: "rgba(82,96,109,0.10)", fontFamily: FONT }}>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: INK, lineHeight: 1.45 }}>
