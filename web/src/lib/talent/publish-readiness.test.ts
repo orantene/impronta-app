@@ -89,7 +89,7 @@ test("TUL-1270 #11: the server gate and the editor use the SAME rule (publishBlo
   assert.match(actions, /const gate = await offeringSaveGate\(admin, talentProfileId, offering\);/);
   assert.match(actions, /if \(!gate\.ok\) return gate;/);
   const gate = readFileSync(join(process.cwd(), "src/lib/talent/offering-save-gate.server.ts"), "utf8");
-  assert.match(gate, /publishBlockers\(offering, prior\?\.status,/);
+  assert.match(gate, /publishBlockers\(untrusted, prior\?\.status,/);
   assert.match(gate, /notReadyToPublishMessage\(/);
   const editor = readFileSync(join(process.cwd(), "src/components/talent/services/EditorScreen.tsx"), "utf8");
   assert.match(editor, /publishBlockers\(\{ \.\.\.item, status: "published" \}, isNew \? undefined : item\.status, defaults\?\.bookingPosture\)/);

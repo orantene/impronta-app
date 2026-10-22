@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PublicFooter } from "@/components/public-footer";
@@ -9,6 +10,7 @@ import { logServerError } from "@/lib/server/safe-error";
 import { readPublicEventContext } from "@/lib/events/public-event-context";
 import { resolvePublicZone, whenLabel } from "@/lib/events/public-event-time";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { eventCardHref } from "@/lib/events/event-page-paths";
 import { eventsListMetadata } from "@/lib/seo/event-metadata";
 
 /**
@@ -132,7 +134,7 @@ export default async function PublicEventsPage() {
           <ul className="mt-6 flex flex-col gap-4">
             {cards.map((e) => (
               <li key={e.id} className="rounded-xl border border-black/10 p-5">
-                <a href={`/events/${e.slug}`} className="block">
+                <Link href={eventCardHref({ slug: e.slug, locale, supportedLocales: workspaceCtx.supportedLocales })} className="block">
                   <div className="text-xs uppercase tracking-wide text-black/50">
                     {whenLabel(e.nextAt, e.zone, locale)}
                   </div>
@@ -140,7 +142,7 @@ export default async function PublicEventsPage() {
                   {e.description ? (
                     <p className="mt-1 line-clamp-2 text-sm text-black/60">{e.description}</p>
                   ) : null}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>

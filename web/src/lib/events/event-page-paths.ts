@@ -31,7 +31,7 @@
  */
 
 import type { LocaleUrlSettings } from "@/i18n/pathnames";
-import { withLocalePath } from "@/i18n/pathnames";
+import { localeUrlSettings, withLocalePath } from "@/i18n/pathnames";
 import { CANONICAL_EVENTS_ES_PREFIX, CANONICAL_EVENTS_PREFIX } from "@/lib/saas/path-groups";
 import { WORKSPACE_PATH_SEGMENT } from "@/lib/saas/tenant-paths";
 
@@ -202,4 +202,19 @@ export function builderPageRedirectForLinkedEvent(input: {
   });
   if (input.requestPath && input.requestPath === target) return null;
   return target;
+}
+
+/**
+ * TUL-1881: the link an event card on the public list points at, in the language the reader is in.
+ * The tenant's URL grammar is its first supported locale as default (the same rule the detail page uses),
+ * so a Spanish-first venue gives `/en/events/x` to an English reader and `/eventos/x` to a Spanish one.
+ */
+export function eventCardHref(input: {
+  slug: string;
+  locale: string;
+  supportedLocales: readonly string[] | null | undefined;
+}): string {
+  const supported = (input.supportedLocales ?? []).filter((l) => l.trim().length > 0);
+  const settings = localeUrlSettings(supported[0], supported);
+  return canonicalEventPath({ slug: input.slug, locale: input.locale, settings });
 }

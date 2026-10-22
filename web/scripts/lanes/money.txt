@@ -211,6 +211,7 @@ src/lib/payments/dispute-evidence.test.ts
 src/lib/payments/failed-refund-attention-note.test.ts
 src/lib/payments/failed-refund-settlement.test.ts
 src/lib/payments/fee-copy-legal.static.test.ts
+src/lib/payments/lane-currency-items.test.ts
 src/lib/payments/link-checkout-extend-claim.test.ts
 src/lib/payments/link-checkout-receiver-wiring.static.test.ts
 src/lib/payments/link-payout-receiver.test.ts
