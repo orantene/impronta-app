@@ -94,7 +94,24 @@ function postAuthPathnameOnly(normalizedNext: string): string {
  * `app_role='talent'` (provisioning never overwrites a role), so without this their
  * `next=/<slug>/admin` was dropped and they landed on /talent/today.
  */
-export type PostAuthContext = { memberSlugs?: ReadonlySet<string> };
+export type PostAuthContext = {
+  memberSlugs?: ReadonlySet<string>;
+  /**
+   * The membership read failed or timed out, so membership is UNKNOWN (not "none"). A tenant
+   * admin `next` is then honored rather than silently replaced by the talent dashboard: the
+   * admin layout still gates the page, and a real member is no longer dropped by a slow read.
+   */
+  membershipUnknown?: boolean;
+};
+
+/** `/<slug>/admin...` or the path-addressed `/w/<slug>/admin...`: the slug, else null. */
+function tenantAdminSlugFromSegments(segments: string[]): string | null {
+  const offset = segments[0] === "w" ? 1 : 0;
+  const slug = segments[offset];
+  if (!slug || segments[offset + 1] !== "admin") return null;
+  if (offset === 0 && TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(slug)) return null;
+  return slug;
+}
 
 /**
  * The workspace slug of a tenant-scoped admin `next` (`/<slug>/admin...`), or null.
@@ -105,10 +122,7 @@ export function tenantAdminSlugFromNext(next: string | null | undefined): string
   if (normalized === "/") return null;
   const { pathnameWithoutLocale } = stripLocaleFromPathname(postAuthPathnameOnly(normalized));
   const segments = pathnameWithoutLocale.split("/").filter(Boolean);
-  if (segments.length < 2) return null;
-  const [slug, surface] = segments;
-  if (!slug || TENANT_SCOPED_NEXT_RESERVED_SEGMENTS.has(slug)) return null;
-  return surface === "admin" ? slug : null;
+  return tenantAdminSlugFromSegments(segments);
 }
 
 /**
@@ -197,9 +211,10 @@ export function isPostAuthNextAllowedForActiveUser(
     return true;
   }
   // TUL-1255: a real member of THIS workspace may land on its admin, whatever app_role they hold.
-  if (tenantScopedSurface === "admin") {
-    const slug = segments[0] ?? "";
-    if (slug && ctx?.memberSlugs?.has(slug)) return true;
+  const adminSlug = tenantAdminSlugFromSegments(segments);
+  if (adminSlug) {
+    if (ctx?.memberSlugs?.has(adminSlug)) return true;
+    if (ctx?.membershipUnknown) return true;
   }
   // G11: the host client area (/account) is a client home too.
   if (appRole === "client" && (path === "/account" || path.startsWith("/account/"))) {

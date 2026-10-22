@@ -20,8 +20,10 @@ export const PRESENCE_ES_TEXT: Record<string, string> = {
   "No public address": "Sin dirección pública",
   "No public page, so there is nothing to link to and no views to show. That is not a zero.":
     "No hay página pública, así que no hay link ni visitas que mostrar. Eso no es un cero.",
-  "Views and enquiries for this place are not available yet.":
-    "Las visitas y solicitudes de este lugar aún no están disponibles.",
+  "Views and enquiries are on the Pro and Max plans.":
+    "Las visitas y solicitudes están en los planes Pro y Max.",
+  "Views and enquiries are counted for your whole profile, not yet per place. See them on Today.":
+    "Las visitas y solicitudes se cuentan para todo tu perfil, aún no por lugar. Míralas en Hoy.",
   "Nobody can open it. Your Tulala profile and your own website are untouched.":
     "Nadie puede abrirla. Tu perfil de Tulala y tu propio sitio siguen igual.",
   "Hiding your whole profile lives in Settings, under things that are hard to undo.":

@@ -101,6 +101,7 @@ export const MONEY_HOME_ES_TEXT: Record<string, string> = {
   "Pending payment": "Pendiente de pago",
   "Client": "Cliente",
   "Balance due": "Saldo pendiente",
+  "Includes Tulala service fee": "Incluye cargo por servicio de Tulala",
   "Amount not set": "Monto sin definir",
   "Send a payment link": "Enviar link de pago",
   "Record payment": "Registrar pago",
