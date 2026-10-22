@@ -16,6 +16,7 @@ const NO_SITE_URL = [
   "app/(auth)/auth-shell-chrome.tsx",
   "app/(auth)/layout.tsx",
   "app/onboarding/layout.tsx",
+  "components/onboarding/onboarding-footer.tsx",
   "app/onboarding/role/page.tsx",
   "app/onboarding/workspace/page.tsx",
   "components/auth/age-terms-checkbox.tsx",
@@ -33,9 +34,11 @@ for (const p of NO_SITE_URL) {
 test("auth footer and onboarding footer build legal links from resolveMarketingOrigin", () => {
   assert.match(code("app/(auth)/auth-shell-chrome.tsx"), /authLegalHref\(resolveMarketingOrigin\(\), "terms"/);
   assert.match(code("app/(auth)/auth-shell-chrome.tsx"), /authLegalHref\(resolveMarketingOrigin\(\), "privacy"/);
-  assert.match(code("app/onboarding/layout.tsx"), /resolveMarketingOrigin\(\)\}\/legal\/terms/);
-  assert.match(code("app/onboarding/layout.tsx"), /resolveMarketingOrigin\(\)\}\/legal\/privacy/);
-  assert.match(code("app/onboarding/layout.tsx"), /resolveMarketingOrigin\(\)\}\/about/);
+  assert.match(code("components/onboarding/onboarding-footer.tsx"), /resolveMarketingOrigin\(\)\}\/legal\/terms/);
+  assert.match(code("components/onboarding/onboarding-footer.tsx"), /resolveMarketingOrigin\(\)\}\/legal\/privacy/);
+  assert.match(code("components/onboarding/onboarding-footer.tsx"), /resolveMarketingOrigin\(\)\}\/about/);
+  // TUL-1910: the footer is one shared component used by /onboarding and /start.
+  assert.match(code("app/onboarding/layout.tsx"), /<OnboardingFooter/);
 });
 
 test("client components take marketingOrigin as a prop and never call the resolver", () => {

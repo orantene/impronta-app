@@ -90,7 +90,10 @@ export async function loadPublicBookableOfferings(args: {
     const sessionOfferingIds = args.tenantId
       ? await loadOfferingIdsWithUpcomingSessions(admin, args.tenantId, offerings.map((o) => o.id))
       : new Set<string>();
-    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean }> = [];
+    type Kept = TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean };
+    // A pinned (TUL-65) or house row can be "inquire"; the intersection with TalentOffering's own
+    // bookingMode type cannot express that, so the value is asserted to the row type here.
+    const kept: Kept[] = [];
     for (const offering of offerings) {
       const isPinned = offering.id === pinnedId;
       if (sessionOfferingIds.has(offering.id)) {
@@ -98,7 +101,7 @@ export async function loadPublicBookableOfferings(args: {
         continue;
       }
       if (!isSlotEligibleOffering(offering)) {
-        if (isPinned && offering.kind !== "product") kept.push({ ...offering, bookingMode: "inquire", seatsLabel: null });
+        if (isPinned && offering.kind !== "product") kept.push({ ...offering, bookingMode: "inquire" as Kept["bookingMode"], seatsLabel: null });
         continue;
       }
 
@@ -121,7 +124,7 @@ export async function loadPublicBookableOfferings(args: {
         }
         // Never "instant": the slots route refuses house rows (item 6).
         const houseMode = houseListingModeFor(offering, host);
-        if (houseMode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: houseMode, seatsLabel: null });
+        if (houseMode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: houseMode as Kept["bookingMode"], seatsLabel: null });
         continue;
       }
 
@@ -130,7 +133,7 @@ export async function loadPublicBookableOfferings(args: {
         offeringId: offering.id,
         host,
       });
-      if (mode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: mode, seatsLabel: null });
+      if (mode !== "inquire" || isPinned) kept.push({ ...offering, bookingMode: mode as Kept["bookingMode"], seatsLabel: null });
     }
     // B2/D3: tell the page which services have times (capped probe).
     await annotateOpenTimes(admin, kept.filter((o) => !o.hasSessions), {

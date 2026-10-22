@@ -665,11 +665,7 @@ export const loadInquiriesForMessages = cache(async function loadInquiriesForMes
       const senderName =
         !row.sender_user_id ? "System"
         : row.sender_user_id === myUserId ? "You"
-        : threadSenderLabel({
-            accountName: displayNameFromProfile(row.profiles, ""),
-            talentDisplayName: talentNameByInquiryUser.get(`${row.inquiry_id}:${row.sender_user_id}`),
-            fallback: role === "talent" ? "Talent" : "Client",
-          });
+        : threadSenderLabel({ accountName: displayNameFromProfile(row.profiles, ""), talentDisplayName: talentNameByInquiryUser.get(`${row.inquiry_id}:${row.sender_user_id}`), fallback: role === "talent" ? "Talent" : "Client" });
       const current = messagesByInquiry.get(row.inquiry_id) ?? [];
       current.push({
         id: row.id,
