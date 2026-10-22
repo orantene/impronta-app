@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { focusThreadHeadingWhenReady } from "./focus-thread-heading";
 import { clearPendingConversation, peekPendingConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
 import { useAdminShell } from "@/components/admin/shell/internal/state";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
@@ -56,7 +57,10 @@ function TalentMessagesV5() {
   // A ref holds the first value so the effect runs once without a suppression.
   const openedFromLinkRef = useRef(Boolean(initialInquiryId));
   useEffect(() => {
-    if (openedFromLinkRef.current) regionRef.current?.focus({ preventScroll: true });
+    if (!openedFromLinkRef.current) return;
+    // Region first (instant), then the open thread's heading once it renders.
+    regionRef.current?.focus({ preventScroll: true });
+    return focusThreadHeadingWhenReady(regionRef.current);
   }, []);
   // TUL-956: the address follows the open thread, so a refresh or a shared
   // link reopens it. Only on the platform /talent/inbox routes.

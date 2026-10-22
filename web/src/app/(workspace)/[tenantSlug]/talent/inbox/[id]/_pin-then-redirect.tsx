@@ -15,6 +15,7 @@
 import { useEffect, useState } from "react";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 import { pinNextConversation } from "@/components/admin/shell/internal/messages/conversation-pending";
+import { THREAD_OPENED_EVENT } from "@/components/admin/shell/internal/talent/pages/messages/focus-thread-heading";
 import { TalentPageRouteSyncer } from "../../_talent-page-route-syncer";
 
 export function PinAndOpenThread({ conversationId }: { conversationId: string }) {
@@ -26,12 +27,18 @@ export function PinAndOpenThread({ conversationId }: { conversationId: string })
   });
   // The old full-page banner is gone, so say it to screen readers instead:
   // a polite live status that announces once and then clears. Focus moves to
-  // the Messages region itself (MessagesPage), not to this node.
+  // the open thread's heading (MessagesPage), not to this node.
   const es = useDashboardLocale().toLowerCase().startsWith("es");
   const [status, setStatus] = useState(es ? "Abriendo la conversación…" : "Opening conversation…");
   useEffect(() => {
     const t = window.setTimeout(() => setStatus(""), 4000);
-    return () => window.clearTimeout(t);
+    // TUL-1170: clear as soon as the thread is open and focused, not only on the timer.
+    const clear = () => setStatus("");
+    window.addEventListener(THREAD_OPENED_EVENT, clear);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener(THREAD_OPENED_EVENT, clear);
+    };
   }, []);
   return (
     <>

@@ -233,13 +233,12 @@ export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "pa
 }
 
 export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): AgendaListItem {
-  const whenLabel = formatDualTimezoneWhen(
-    item.startsAt,
-    item.endsAt,
-    item.tz,
-    item.clientTz,
-    item.allDay,
-  );
+  // TUL-1244: an unscheduled draft carries created_at as a sort key, in UTC, with the
+  // placeholder place "No time". The record must say what Today says: no time assigned.
+  const unscheduled = item.unscheduled === true;
+  const whenLabel = unscheduled
+    ? "No time assigned"
+    : formatDualTimezoneWhen(item.startsAt, item.endsAt, item.tz, item.clientTz, item.allDay);
   let nowTitle: string | undefined;
   let nowBody: string | undefined;
   let nowTone: AgendaListItem["nowTone"] = "info";
@@ -288,7 +287,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
         }
       : undefined,
     whenLabel,
-    whereLabel: placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : ""),
+    whereLabel: unscheduled ? "Not set yet" : (placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : "")),
     sourceLabel: item.managedBy?.name ?? item.source,
     bookingState: item.booking,
     paymentState: paymentStateOf(item),
@@ -301,8 +300,8 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
     currency: item.money.currency?.trim() || "MXN",
     orderId: item.orderId ?? null,
     paymentMethod: item.paymentMethod ?? null,
-    startsAtIso: item.startsAt,
-    endsAtIso: item.endsAt,
+    startsAtIso: unscheduled ? undefined : item.startsAt,
+    endsAtIso: unscheduled ? undefined : item.endsAt,
     clientTz: item.clientTz,
     talentTz: item.tz,
     tradeSectionPayloads: (() => {

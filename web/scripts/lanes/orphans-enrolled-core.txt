@@ -37,9 +37,11 @@ src/components/admin/shell/internal/talent/agenda/timezone-picker-qa1054.test.ts
 src/components/admin/shell/internal/talent/agenda/timezone-suggestion.test.ts
 src/components/admin/shell/internal/talent/agenda/today-row-location-label.test.ts
 src/components/admin/shell/internal/talent/agenda/today-row-name-wrap.static.test.ts
+src/components/admin/shell/internal/talent/agenda/view-model-unscheduled.test.ts
 src/components/admin/shell/internal/talent/agenda/working-hours-panel.static.test.ts
 src/components/admin/shell/internal/talent/availability-accepting.static.test.ts
 src/components/admin/shell/internal/talent/pages/messages/MessagesPage.deeplink.static.test.ts
+src/components/admin/shell/internal/talent/pages/messages/focus-thread-heading.test.ts
 src/components/admin/shell/internal/talent/pages/my-profile-layout.static.test.ts
 src/components/admin/shell/internal/talent/pages/my-profile-preview-link.static.test.ts
 src/components/admin/shell/internal/talent/pages/profile-render-safety.static.test.ts
