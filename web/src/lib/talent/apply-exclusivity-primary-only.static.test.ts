@@ -24,6 +24,22 @@ test("migration exclusivity predicate requires is_primary and a different tenant
   assert.match(mig, /r\.exclusivity_status = ANY \(ARRAY\['confirmed'::exclusivity_status, 'auto_assigned'::exclusivity_status\]\)/);
 });
 
+test("migration also replaces tha_talent_insert with the same primary-only predicate and keeps the hub clause", () => {
+  const hub = mig.slice(mig.indexOf('DROP POLICY IF EXISTS "tha_talent_insert"'));
+  assert.match(hub, /CREATE POLICY "tha_talent_insert" ON public\."talent_hub_applications"\s+AS PERMISSIVE\s+FOR INSERT\s+TO public/);
+  assert.match(hub, /ad\.kind = 'hub'::text/);
+  assert.match(hub, /tp\.user_id = \(select auth\.uid\(\)\)/);
+  assert.match(hub, /\(r\.is_primary = true\)/);
+  assert.match(hub, /\(r\.tenant_id <> talent_hub_applications\.tenant_id\)/);
+});
+
+test("rollback file restores both policies without is_primary", () => {
+  const rb = read("../docs/plans/evidence/r1924-rollback.sql");
+  assert.match(rb, /CREATE POLICY "taa_talent_insert"/);
+  assert.match(rb, /CREATE POLICY "tha_talent_insert"/);
+  assert.doesNotMatch(rb, /is_primary/);
+});
+
 test("migration changes no data", () => {
   assert.doesNotMatch(mig.replace(/^--.*$/gm, ""), /\b(UPDATE|INSERT\s+INTO|DELETE\s+FROM|TRUNCATE)\b/i);
 });
