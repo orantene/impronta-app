@@ -14,9 +14,8 @@
  *   - Talent must not be under an active exclusive relationship
  *     (exclusivity_status IN ('confirmed','auto_assigned')).
  *
- * decideTalentApplication (staff): approve / reject a pending row. Re-uses
- * the existing roster-add server path for approvals so an approved talent
- * automatically lands on the agency's roster — no parallel insert path.
+ * decideTalentApplication (staff): approve / reject a pending row. Approve
+ * also puts the talent on the roster (approve-application.ts, TUL-1871).
  */
 
 import { revalidatePath } from "next/cache";
@@ -27,6 +26,18 @@ import { requireSession } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { emitNotification, emitNotificationToUsers } from "@/lib/notifications/emit";
 import { requireNotImpersonating } from "@/lib/impersonation/readonly-guard";
+import { userHasCapability } from "@/lib/access";
+import { getRequestLocale } from "@/i18n/request-locale";
+import { afterResponse } from "@/lib/server/after-response";
+import { checkRosterSeatAvailability } from "@/lib/saas/roster-seat-limit";
+import { loadRegistrationSettings } from "@/lib/saas/registration-settings";
+import { resolveExclusivityForRosterAdd } from "@/lib/agency/exclusivity-resolver";
+import { notifyRosterJoinApproved } from "@/lib/notifications/producers/roster-join-notify";
+import {
+  approveApplicationIntoRoster,
+  type ApplicationTable,
+  type ApproveLocale,
+} from "./approve-application";
 
 /** Look up profile_ids for all active staff of a tenant (owner/admin/coordinator). */
 async function getStaffUserIds(tenantId: string): Promise<string[]> {
@@ -79,7 +90,7 @@ type ApplyErrorCode =
 
 export type DecideApplicationResult =
   | { ok: true; applicationId: string; newStatus: "approved" | "rejected" }
-  | { ok: false; code: "not_authenticated" | "not_staff" | "not_found" | "already_decided" | "db_error"; error: string };
+  | { ok: false; code: "not_authenticated" | "not_staff" | "not_found" | "already_decided" | "seat_limit" | "db_error"; error: string };
 
 function tableFor(kind: ApplyKind): string {
   return kind === "agency"
@@ -231,11 +242,13 @@ export async function submitHubApplication(
 }
 
 /**
- * Staff approve/reject a pending application. Approval transitions
- * status='approved' on the row and (for agency apply) ALSO inserts a
- * roster row through the existing add-talent path. The roster add is
- * done in the agency-side handler later — for now this action just
- * flips the status.
+ * Staff approve/reject a pending application (TUL-1871 / TUL-1368).
+ *
+ * Gated on `manage_talent_roster` for the application's workspace (never a capability-less staff
+ * guard). Approve is one flow: the application is claimed (pending -> approved, once), the talent
+ * lands on the workspace roster as an active row, the plan seat cap is respected (over the cap the
+ * approve is refused with a clear message and the application stays pending), and the talent is
+ * told. See approve-application.ts for the ordering and the double-click guarantees.
  */
 export async function decideTalentApplication(
   kind: ApplyKind,
@@ -251,6 +264,7 @@ export async function decideTalentApplication(
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return { ok: false, code: "db_error", error: "Supabase unavailable." };
+  const locale: ApproveLocale = (await getRequestLocale()) === "es" ? "es" : "en";
 
   // Read the row first so we can return a helpful error and so the
   // RLS staff-update gate is exercised before the write.
@@ -265,26 +279,74 @@ export async function decideTalentApplication(
   }
   if (!row) return { ok: false, code: "not_found", error: "Application not found or not visible." };
   const r = row as { id: string; tenant_id: string; status: string; talent_profile_id: string };
+
+  if (!(await userHasCapability("manage_talent_roster", r.tenant_id))) {
+    return {
+      ok: false,
+      code: "not_staff",
+      error: locale === "es" ? "No tienes permiso para resolver solicitudes." : "You don't have permission to decide applications.",
+    };
+  }
   if (r.status !== "pending") {
     return { ok: false, code: "already_decided", error: `Already ${r.status}.` };
   }
 
-  const { error: updateError } = await supabase
-    .from(tableFor(kind))
-    .update({
-      status: decision,
-      decision_note: decisionNote?.trim() || null,
-      decided_by_user_id: session.user.id,
-      decided_at: new Date().toISOString(),
-    })
-    .eq("id", applicationId);
-
-  if (updateError) {
-    logServerError("apply/decide_update", updateError);
-    return { ok: false, code: "db_error", error: updateError.message };
+  const note = decisionNote?.trim() || null;
+  if (decision === "approved") {
+    const admin = createServiceRoleClient();
+    if (!admin) return { ok: false, code: "db_error", error: "Service unavailable." };
+    const settings = await loadRegistrationSettings(r.tenant_id);
+    const outcome = await approveApplicationIntoRoster(
+      admin,
+      {
+        table: tableFor(kind) as ApplicationTable,
+        applicationId,
+        tenantId: r.tenant_id,
+        talentProfileId: r.talent_profile_id,
+        userId: session.user.id,
+        note,
+        locale,
+      },
+      {
+        defaultVisibility: settings.defaultRosterVisibility,
+        checkSeat: async (tenantId) => {
+          const seat = await checkRosterSeatAvailability(admin, tenantId, 1);
+          return seat.ok ? { ok: true } : { ok: false, limit: seat.limit };
+        },
+        resolveExclusivity: async (tenantId, talentProfileId) =>
+          settings.mode === "exclusive" ? resolveExclusivityForRosterAdd(admin, tenantId, talentProfileId) : null,
+      },
+    );
+    if (!outcome.ok) {
+      if (outcome.code === "db_error") logServerError("apply/decide_approve", new Error(outcome.error));
+      return { ok: false, code: outcome.code, error: outcome.error };
+    }
+    if (outcome.rosterAdded) {
+      afterResponse(() => notifyRosterJoinApproved({ admin, tenantId: r.tenant_id, talentProfileId: r.talent_profile_id }));
+    }
+  } else {
+    // Conditional on pending, so a double click or a second admin cannot decide twice.
+    const { data: flipped, error: updateError } = await supabase
+      .from(tableFor(kind))
+      .update({
+        status: decision,
+        decision_note: note,
+        decided_by_user_id: session.user.id,
+        decided_at: new Date().toISOString(),
+      })
+      .eq("id", applicationId)
+      .eq("status", "pending")
+      .select("id");
+    if (updateError) {
+      logServerError("apply/decide_update", updateError);
+      return { ok: false, code: "db_error", error: updateError.message };
+    }
+    if ((flipped ?? []).length === 0) {
+      return { ok: false, code: "already_decided", error: "Already decided." };
+    }
   }
 
-  // Notify the talent about the decision — best-effort.
+  // Notify the talent about the decision (in app), best-effort.
   void (async () => {
     const talentUserId = await getTalentUserId(r.talent_profile_id);
     if (talentUserId) {
@@ -295,13 +357,14 @@ export async function decideTalentApplication(
         surface: "talent",
         title: decision === "approved" ? "Application approved!" : "Application update",
         body: decision === "approved"
-          ? "Your application was approved. Check the agency's next steps."
+          ? "Your application was approved. You are now on the roster."
           : "Your application wasn't approved this time. You can apply to other agencies anytime.",
         targetDrawer: "talent-reach",
       });
     }
   })();
 
+  revalidatePath("/talent/site");
   return { ok: true, applicationId, newStatus: decision };
 }
 

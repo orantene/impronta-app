@@ -84,7 +84,7 @@ export function AdminApplicationsClient({
         setToast({
           kind: "ok",
           text: decision === "approved"
-            ? `Approved ${row.talentDisplayName}.`
+            ? `Approved ${row.talentDisplayName}. They are now on your roster.`
             : `Rejected ${row.talentDisplayName}.`,
           rosterHref,
         });
@@ -161,7 +161,7 @@ export function AdminApplicationsClient({
                 flexShrink: 0,
               }}
             >
-              Add to roster →
+              Open roster →
             </a>
           )}
         </div>
@@ -220,10 +220,9 @@ export function AdminApplicationsClient({
             </h3>
             {decisionFor.decision === "approved" && (
               <p style={{ margin: 0, fontSize: 12.5, color: C.inkMuted }}>
-                This marks the application as <strong>approved</strong> and notifies
-                the talent. After approving, use the{" "}
-                <strong>Add to roster →</strong> link in the confirmation to create
-                the roster row with contract terms.
+                This marks the application as <strong>approved</strong>, adds the
+                talent to your roster and notifies them. Any terms they proposed
+                stay in their note; send your own terms from the roster.
               </p>
             )}
             <textarea
