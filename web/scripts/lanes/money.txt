@@ -195,6 +195,7 @@ src/lib/orders/refund-execute-lines.test.ts
 src/lib/orders/refund-per-unit.test.ts
 src/lib/orders/refund-record-lines.test.ts
 src/lib/orders/refund-resume-effects.test.ts
+src/lib/orders/service-fee-rows.test.ts
 src/lib/orders/settle-at-door.test.ts
 src/lib/orders/settles-on-creation.test.ts
 src/lib/orders/travel-fee.test.ts
