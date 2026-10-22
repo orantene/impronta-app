@@ -19,6 +19,7 @@ import type { ReviewableCounterparty } from "@/lib/reviews/review-types";
 import type { ReviewInviteCandidate } from "@/lib/reviews/review-invite-candidates";
 import { useT } from "@/i18n/use-t";
 import { interpolate } from "@/i18n/interpolate";
+import { TALENT_LOADER_BUDGET_MS } from "@/lib/talent/loader-budget";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -32,7 +33,8 @@ function formatDate(iso: string | null): string {
 }
 
 /** How long the bookings loader may take before the card falls back to email. */
-export const REVIEW_ASK_LOAD_TIMEOUT_MS = 8000;
+// TUL-1113: the shared 2 s talent loader budget.
+export const REVIEW_ASK_LOAD_TIMEOUT_MS = TALENT_LOADER_BUDGET_MS;
 
 export function withLoadTimeout<T>(p: Promise<T>, ms = REVIEW_ASK_LOAD_TIMEOUT_MS): Promise<T> {
   return new Promise<T>((resolve, reject) => {

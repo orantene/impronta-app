@@ -4,6 +4,7 @@ import { TalentPostWriterClient } from "@/components/posts/writer/TalentPostWrit
 import { isPostLocale } from "@/lib/cms/posts-shared";
 import {
   listPostCategories,
+  listTranslationOptions,
   listTalentOfferings,
   loadPostForWriter,
 } from "@/lib/cms/posts-writer-read";
@@ -32,9 +33,10 @@ export default async function PlatformTalentPostWriterPage({
   const ui = await getRequestLocale();
   const locale: "es" | "en" = ui === "es" ? "es" : "en";
   const postLocale = isPostLocale(post.locale) ? post.locale : "es";
-  const [categories, offerings, aiCrawlersAllowed] = await Promise.all([
+  const [categories, offerings, translationOptions, aiCrawlersAllowed] = await Promise.all([
     listPostCategories(ctx.supabase, ctx.scope, postLocale),
     listTalentOfferings(ctx.supabase, ctx.talentProfileId, postLocale),
+    listTranslationOptions(ctx.supabase, ctx.scope, postLocale, post.id),
     loadOwnAiCrawlersAllowed({ kind: "talent", talentProfileId: ctx.talentProfileId }),
   ]);
 
@@ -47,6 +49,7 @@ export default async function PlatformTalentPostWriterPage({
       locale={locale}
       offerings={offerings}
       categories={categories}
+      translationOptions={translationOptions}
       backHref="/talent/posts"
       upgradeHref="/talent/plan"
       lapsed={!ctx.canPublish}

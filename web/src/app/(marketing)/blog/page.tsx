@@ -20,8 +20,8 @@ import { PlatformBlogFrame } from "@/components/marketing/platform-blog-frame";
 export const dynamic = "force-dynamic";
 
 const COPY = {
-  en: { title: "Tulala blog", lede: "Guides, launches and what we are learning.", empty: "No posts yet. Check back soon." },
-  es: { title: "Blog de Tulala", lede: "Guías, lanzamientos y lo que vamos aprendiendo.", empty: "Todavía no hay publicaciones. Vuelve pronto." },
+  en: { title: "Tulala blog", lede: "Guides, launches and what we are learning.", empty: "No posts yet. Check back soon.", otherLanguage: "These posts are available in Spanish." },
+  es: { title: "Blog de Tulala", lede: "Guías, lanzamientos y lo que vamos aprendiendo.", empty: "Todavía no hay publicaciones. Vuelve pronto.", otherLanguage: "Estas publicaciones están disponibles en inglés." },
 } as const;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,7 +43,13 @@ export default async function PlatformBlogIndexPage() {
   const [locale, site] = await Promise.all([getRequestLocale(), resolvePlatformBlogSite()]);
   if (!site) notFound();
   const c = COPY[locale === "es" ? "es" : "en"];
-  const posts = await listPublicPosts(site.scope, locale).catch(() => []);
+  const own = await listPublicPosts(site.scope, locale).catch(() => []);
+  // TUL-1399: with nothing in this language yet, show the other language's posts
+  // (each opens in its own language) instead of an empty page.
+  const other = locale === "es" ? "en" : "es";
+  const fallback = own.length === 0 ? await listPublicPosts(site.scope, other).catch(() => []) : [];
+  const posts = own.length > 0 ? own : fallback;
+  const postLocale = own.length > 0 ? locale : other;
   return (
     <PlatformBlogFrame>
       <section className="site-post site-post--index" lang={locale}>
@@ -55,13 +61,16 @@ export default async function PlatformBlogIndexPage() {
             <span>{c.lede}</span>
           </p>
         </header>
+        {fallback.length > 0 ? <p>{c.otherLanguage}</p> : null}
         {posts.length === 0 ? (
           <p>{c.empty}</p>
         ) : (
           <ul className="site-post__list">
             {posts.map((p) => (
               <li key={p.id} className="site-post__list-item">
-                <Link href={postSiteHref(site, blogPostPath(p.slug), locale)}>{p.title}</Link>
+                <Link href={postSiteHref(site, blogPostPath(p.slug), postLocale)} hrefLang={postLocale} lang={postLocale}>
+                  {p.title}
+                </Link>
                 {p.excerpt.trim() ? <p>{p.excerpt}</p> : null}
               </li>
             ))}

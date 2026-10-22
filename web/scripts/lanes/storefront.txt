@@ -72,6 +72,8 @@ src/lib/client-account/visit-review.test.ts
 src/lib/cms/blog-index-model.test.ts
 src/lib/cms/blog-index-wiring.static.test.ts
 src/lib/cms/blog-index.test.ts
+src/lib/cms/blog-language-fallback.static.test.ts
+src/lib/cms/post-text-lists.test.ts
 src/lib/developer-docs/developer-docs.test.ts
 src/lib/events/event-es-rewrite.static.test.ts
 src/lib/events/venue-address.test.ts
@@ -104,6 +106,7 @@ src/lib/pitch/pitch-plan-gate.test.ts
 src/lib/pitch/pitch-share-token.test.ts
 src/lib/pricing/usd-equivalent.test.ts
 src/lib/quality/gsc-token-input.static.test.ts
+src/lib/quality/talent-loader-budget.static.test.ts
 src/lib/saas/old-service-slug-gate.test.ts
 src/lib/saas/talent-site-host-routing.test.ts
 src/lib/scheduling/bookings-off-wording.static.test.ts
