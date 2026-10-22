@@ -250,3 +250,41 @@ test("TUL-1599 (D-10a): an on-request service shows no price; a public one keeps
   const [pub] = await loadWorkspaceRosterServices(fakeAdmin(world).client, A);
   assert.equal(pub.priceCents, 150000);
 });
+
+
+// ── PUBLIC surfaces use guest_request; staff keeps staff_quote ───────────────
+const withVisibility = (visibility: string | null) => {
+  const w = WORLD();
+  w.talent_offerings = w.talent_offerings!.map((o) => (o.id === "S1" ? { ...o, visibility } : o));
+  return w;
+};
+
+test("PUBLIC (default): an agency-only, private, hidden or unknown-visibility service is never listed", async () => {
+  for (const visibility of ["agency_only", "private", "hidden", "", null, "weird"]) {
+    const items = await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A);
+    assert.deepEqual(items, [], String(visibility));
+  }
+});
+
+test("PUBLIC: public and on-request services are listed (request-only), explicit guest_request gives the same", async () => {
+  for (const visibility of ["public", "on_request"]) {
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A)).length, 1, visibility);
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A, "guest_request")).length, 1, visibility);
+  }
+});
+
+test("STAFF (staff_quote): published + approved is enough, whatever the visibility; unpublished or unapproved still out", async () => {
+  for (const visibility of ["agency_only", "private", "hidden", null]) {
+    assert.equal((await loadWorkspaceRosterServices(fakeAdmin(withVisibility(visibility)).client, A, "staff_quote")).length, 1, String(visibility));
+  }
+  for (const bad of [{ status: "draft" }, { moderation_state: "pending" }]) {
+    const w = WORLD();
+    w.talent_offerings = w.talent_offerings!.map((o) => (o.id === "S1" ? { ...o, ...bad } : o));
+    assert.deepEqual(await loadWorkspaceRosterServices(fakeAdmin(w).client, A, "staff_quote"), [], JSON.stringify(bad));
+  }
+});
+
+test("every caller of the loader today is a public surface and none passes staff_quote", () => {
+  const out = execSync(`git grep -n "loadWorkspaceRosterServices(" -- src ':!*.test.*' ':!src/lib/service-hub/roster-services.ts'`, { cwd: process.cwd(), encoding: "utf8" });
+  assert.doesNotMatch(out, /staff_quote/);
+});
