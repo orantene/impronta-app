@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { HubAgencyList } from "./hub-agency-list";
 import { filterPublicHubAgencies, tenantsWithRealOwner, type HubAgencyCandidate, type HubAgencyItem } from "./hub-agency-model";
@@ -269,7 +270,19 @@ async function loadHubApprovedTalent(
 type AgencyDomainRow = { hostname: string; kind: string; tenant_id?: string | null };
 type CmsHomeRow = { tenant_id: string | null };
 
-async function loadActiveAgencyDomains(): Promise<HubAgencyItem[]> {
+/**
+ * TUL-1884: the whole list (domains, agencies, homepages, owners, auth lookups) is cached for 10 minutes so
+ * a hub render almost never touches auth. The key carries the public root so staging and production
+ * entries in a shared Data Cache never mix.
+ */
+export const HUB_AGENCY_LIST_REVALIDATE_SECONDS = 600;
+const loadActiveAgencyDomains = (): Promise<HubAgencyItem[]> =>
+  unstable_cache(computeActiveAgencyDomains, ["hub-landing:agency-list", rehomeToPublicRoot("x.tulala.digital")], {
+    revalidate: HUB_AGENCY_LIST_REVALIDATE_SECONDS,
+    tags: ["hub-landing:agencies"],
+  })();
+
+async function computeActiveAgencyDomains(): Promise<HubAgencyItem[]> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
   const { data } = await supabase
@@ -383,8 +396,9 @@ async function loadTenantsWithRealOwner(
   for (const r of (talentFlags.data ?? []) as Array<{ user_id: string | null }>) if (r.user_id) flagged.add(r.user_id);
 
   const emailByUser = new Map<string, string>();
+  // Owners already flagged as test accounts are decided; only the rest need an auth email lookup.
   await Promise.all(
-    ownerIds.map(async (id) => {
+    ownerIds.filter((id) => !flagged.has(id)).map(async (id) => {
       const { data } = await admin.auth.admin.getUserById(id);
       if (data?.user?.email) emailByUser.set(id, data.user.email);
     }),

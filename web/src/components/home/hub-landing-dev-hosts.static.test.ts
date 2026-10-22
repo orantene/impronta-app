@@ -28,3 +28,9 @@ test("TUL-1884: the loader reads the tenant name and status, and the list shows 
   const list = readFileSync(join(process.cwd(), "src/components/home/hub-agency-list.tsx"), "utf8");
   assert.doesNotMatch(list, />\s*\{agency\.hostname\}|\{sub\}/, "the hostname is the link target only, never rendered text");
 });
+
+test("TUL-1884: the agency list is cached 10 minutes and auth is only asked about unflagged owners", () => {
+  assert.match(landing, /unstable_cache\(computeActiveAgencyDomains,/);
+  assert.match(landing, /HUB_AGENCY_LIST_REVALIDATE_SECONDS = 600/);
+  assert.match(landing, /ownerIds\.filter\(\(id\) => !flagged\.has\(id\)\)/);
+});
