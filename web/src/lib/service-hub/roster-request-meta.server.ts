@@ -10,7 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { logServerError } from "@/lib/server/safe-error";
 
-import { loadRosterServicesWithHub } from "./hub-roster.server";
+import { loadRequestableServices } from "./requestable-services.server";
 import { rosterRequestMetadata, sanitizeRosterRequestWire } from "./roster-request-meta";
 
 export async function resolveRosterRequestMetadata(
@@ -23,7 +23,7 @@ export async function resolveRosterRequestMetadata(
     const { data: agency, error } = await admin.from("agencies").select("kind").eq("id", tenantId).maybeSingle();
     if (error) throw error;
     if (!agency || (agency as { kind?: string | null }).kind === "hub") return undefined;
-    const items = await loadRosterServicesWithHub(admin, tenantId);
+    const items = await loadRequestableServices(admin, tenantId);
     return rosterRequestMetadata(sanitizeRosterRequestWire(raw, items));
   } catch (err) {
     logServerError("roster-request-meta.resolve", err);

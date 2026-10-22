@@ -128,7 +128,7 @@ test("wiring: host tenant only, agency host only, tenant-strict reader, request-
   const core = read("src/lib/service-hub/roster-request-core.ts");
   assert.match(act, /^"use server";/);
   assert.match(core, /host\.kind !== "agency" \|\| !host\.tenantId/);
-  assert.match(act, /loadRosterServicesWithHub\(admin, tenantId\)/);
+  assert.match(act, /loadRequestableServices\(admin, tenantId\)/);
   assert.match(act, /checkPublicCatalog/);
   assert.equal(existsSync(join(process.cwd(), "src/app/t/[profileCode]/_actions/roster-request-actions.ts")), false, "moved out of the profile route folder");
   const input = core.slice(core.indexOf("export async function buildRosterRequestWith"), core.indexOf("try {"));
