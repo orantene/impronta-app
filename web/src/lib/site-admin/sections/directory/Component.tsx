@@ -44,6 +44,7 @@ import { DirectoryReactiveResults } from "./DirectoryReactiveResults";
 import { mapDirectoryDefaultSort } from "./default-sort";
 import { resolveDirectoryScopeSeed } from "./scope-seed";
 import { buildManualCodeOrder, filterToManualCodes } from "./manual-filter";
+import { emptyStateCopy } from "./empty-state-copy";
 
 /**
  * P4 — Resolve a per-instance `cardKitOverride` slug to inline `--token-card-*`
@@ -659,8 +660,7 @@ export async function DirectoryComponent({
               </p>
             ) : null}
             <p className="mt-3 text-sm leading-relaxed text-[var(--token-color-muted,var(--impronta-muted))]">
-              {props.emptyStateText ||
-                "No one matches yet, check back as the roster grows."}
+              {emptyStateCopy(props.emptyStateText, loc, ui.emptyResults)}
             </p>
           </div>
         ) : (
