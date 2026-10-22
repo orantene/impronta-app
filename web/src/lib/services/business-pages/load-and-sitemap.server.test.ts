@@ -21,6 +21,37 @@ function row(id8: string, extra: Partial<BusinessServiceRow> = {}): BusinessServ
   } as unknown as BusinessServiceRow;
 }
 
+describe("TUL-1316: business talents = owner + agency_created roster", () => {
+  it("resolves the Limpieza set owned by two agency_created roster talents (owner has none)", async () => {
+    const { loadBusinessTalentIds } = await import("./load.server");
+    const A = "7910ef88-0000-4000-8000-000000000001";
+    const B = "135fa86e-0000-4000-8000-000000000002";
+    const filters: string[] = [];
+    const db = {
+      from: (table: string) => {
+        const q: Record<string, unknown> = {};
+        for (const m of ["select", "order", "limit", "is"]) q[m] = () => q;
+        q.eq = (c: string, v: unknown) => (filters.push(`${table}.${c}=${String(v)}`), q);
+        q.maybeSingle = async () => ({ data: null, error: null });
+        q.then = (res: (v: unknown) => unknown) =>
+          Promise.resolve({ data: table === "agency_talent_roster" ? [{ talent_profile_id: A }, { talent_profile_id: B }] : [], error: null }).then(res);
+        return q;
+      },
+    } as never;
+    const ids = await loadBusinessTalentIds(db, T);
+    assert.deepEqual([...ids].sort(), [A, B].sort());
+    assert.ok(filters.includes("agency_talent_roster.source_type=agency_created"));
+    assert.ok(filters.includes("agency_talent_roster.status=active"));
+    const set = [["d21f897d", A], ["520f2677", A], ["f5ce66bd", B]].map(([id8, tp]) =>
+      row(id8!, { title: "Limpieza", owner_kind: "talent", talent_profile_id: tp }));
+    assert.ok(pickBusinessServiceRow(set, "limpieza-estandar-d21f897d", T, new Set(), ids));
+    assert.ok(pickBusinessServiceRow(set, "limpieza-expres-f5ce66bd", T, new Set(), ids));
+    // a freelancer / hub-claimed roster talent (not in the set) stays excluded
+    const other = row("aaaaaaaa", { owner_kind: "talent", talent_profile_id: "99999999-0000-4000-8000-000000000009" });
+    assert.equal(pickBusinessServiceRow([other], "aaaaaaaa", T, new Set(), ids), null);
+  });
+});
+
 describe("pickBusinessServiceRow", () => {
   const none = new Set<string>();
   it("finds the workspace's own (house) published, approved, public or on_request service by id8", () => {
