@@ -20,7 +20,7 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { loadTalentSiteSwitches } from "@/lib/talent/site-switches-server";
 import { loadPublicOfferingsForProfile } from "@/lib/talent/offerings-public";
 import type { GuestThreadMessage } from "@/lib/inquiry/guest-chat-contract";
-import { catalogTenantForPublicHost } from "./catalog-tenant";
+import { catalogTenantForPublicHost, loadCatalogWithTalentFallback } from "./catalog-tenant";
 import { decideBookingAssistantTurn } from "./decide";
 import {
   bookingAssistantDisclosureLabel,
@@ -358,9 +358,8 @@ async function loadGroundingOfferings(
   provided?: readonly BookingAssistantOfferingGround[],
 ): Promise<BookingAssistantOfferingGround[]> {
   if (provided && provided.length > 0) return [...provided];
-  const publicRows = await loadPublicOfferingsForProfile(
-    talentProfileId,
-    locale,
+  const { rows: publicRows } = await loadCatalogWithTalentFallback(
+    (tenantId) => loadPublicOfferingsForProfile(talentProfileId, locale, tenantId),
     catalogTenantId,
   );
   return publicRows.map((o) => ({
