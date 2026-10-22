@@ -42,6 +42,7 @@ import { choiceToPath, type OnboardingChoice, type OnboardingPath } from "@/lib/
 import { requestOnboardingCode, verifyOnboardingCode } from "@/lib/server-actions/onboarding-account";
 
 import { runResumeLookup } from "./resume-lookup";
+import { useAge18Confirmed } from "./use-age18-confirmed";
 import { OnboardingStepSkeleton } from "./step-skeleton";
 import { ConfirmWordsStep } from "./steps/confirm-words-step";
 import { EntryStep } from "./steps/entry-step";
@@ -364,7 +365,7 @@ export function OnboardingModule({
   // acceptance is recorded once the account exists (Legal 2.2).
   const ageTermsRef = useRef(false);
   // TUL-750: 18+ already confirmed on the ready step; the save step then asks only for Terms.
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const { ageConfirmed, setAgeConfirmed } = useAge18Confirmed(state.resume, state.briefId); // TUL-1847: survives a reload
   // Mirrors the ref for render: SaveStep reopens ticked after "change email".
   const [ageTermsGiven, setAgeTermsGiven] = useState(false);
   const sendCode = useCallback(async (email: string, resend = false, ageTerms = ageTermsRef.current) => {
