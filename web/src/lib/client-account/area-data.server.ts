@@ -60,9 +60,8 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
   const inquiryId = await resolveVisitInquiryId(admin, tenantId, visitId);
   const { data: inq, error } = await admin
     .from("inquiries")
-    .select("id, company, status, event_date, event_location, source_context")
+    .select("id, company, status, event_date, event_location, source_context, client_user_id")
     .eq("id", inquiryId)
-    .eq("client_user_id", userId)
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) {
@@ -70,6 +69,7 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
     return null;
   }
   if (!inq) return null;
+  const inquiryOwner = (inq as { client_user_id?: string | null }).client_user_id ?? null;
   const i = inq as {
     id: string;
     company: string | null;
@@ -92,7 +92,11 @@ export async function loadVisitDetail(userId: string, tenantId: string, visitId:
     logServerError("clientAccount.visit.booking", bkErr);
     return null;
   }
-  const b = pickClientBooking((bk ?? []) as Array<{ client_user_id: string | null; status: string | null }>, userId) as {
+  // Ownership: the inquiry's client, or the client of one of its bookings (TUL-1317: an inquiry
+  // with no client_user_id whose booking the user owns is still their visit). Never anyone else's.
+  const bookingRows = (bk ?? []) as Array<{ client_user_id: string | null; status: string | null }>;
+  if (inquiryOwner !== userId && !bookingRows.some((r) => r.client_user_id === userId)) return null;
+  const b = pickClientBooking(bookingRows, userId) as {
     id: string;
     title: string | null;
     status: string | null;

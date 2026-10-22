@@ -52,3 +52,24 @@ test("(d) Settings: the Plan row always unfolds the plan card, hub talents inclu
   assert.equal((src.match(/key: "plan"/g) ?? []).length, 1, "one Plan row, no compare-only twin");
   assert.doesNotMatch(src, /bridgeTalentSelfProfile\s*\?\s*\{\s*key: "plan"/, "the plan row is not gated on the self-profile bridge");
 });
+
+test("TUL-1356: the card's own outcome wins until the summary catches up", async () => {
+  const { resolveEndingState } = await import("./talent-cancel");
+  assert.equal(resolveEndingState(false, null), false);
+  assert.equal(resolveEndingState(true, null), true);
+  // just cancelled: summary still says "not ending" (webhook lag)
+  assert.equal(resolveEndingState(false, { ending: true, summaryWas: false }), true);
+  // just resumed: summary still says "ending"
+  assert.equal(resolveEndingState(true, { ending: false, summaryWas: true }), false);
+  // summary caught up: it is the truth again, even after a later change elsewhere
+  assert.equal(resolveEndingState(true, { ending: true, summaryWas: false }), true);
+  assert.equal(resolveEndingState(false, { ending: true, summaryWas: true }), false);
+});
+
+test("TUL-1356: the cancel block shows page-language errors and Spanish with accents", () => {
+  const src = web("src/app/(workspace)/[tenantSlug]/talent/settings/TalentCancelBlock.tsx");
+  assert.doesNotMatch(src, /setError\(r\.error\)/);
+  assert.match(src, /T\.actionFailed/);
+  assert.match(pickCopy(TALENT_CANCEL_COPY.reasonTitle, true), /^¿Por qué/);
+  assert.match(pickCopy(TALENT_CANCEL_COPY.endsBannerNoDate, true), /terminará/);
+});

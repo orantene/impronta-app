@@ -153,3 +153,24 @@ export function formatAmount(cents: number | null, currency: string | null): str
   });
   return `${code === "USD" ? "$" : `${code} `}${value}`;
 }
+
+/**
+ * Visits are listed from `inquiries.client_user_id`, but a booking can be owned by the client
+ * (`agency_bookings.client_user_id`) while its inquiry carries no client (seeded, staff-created
+ * or re-quoted). Those inquiry ids still belong in the client's list; this returns the ones the
+ * first read did not already load.
+ */
+export function bookingOwnedInquiryIdsToAdd(
+  ownedBookingInquiryIds: ReadonlyArray<string | null | undefined>,
+  loadedInquiryIds: ReadonlyArray<string>,
+): string[] {
+  const have = new Set(loadedInquiryIds);
+  const out: string[] = [];
+  for (const id of ownedBookingInquiryIds) {
+    if (typeof id === "string" && id && !have.has(id)) {
+      have.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}

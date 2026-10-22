@@ -74,6 +74,18 @@ const GUEST_HEADER = "x-impronta-guest";
 // Shared resolver: pull tenant + actor session + supabase client.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Pathname + query of the page that posted this server action (Referer), or null. */
+async function postingPagePath(): Promise<string | null> {
+  const referer = (await headers()).get("referer");
+  if (!referer) return null;
+  try {
+    const u = new URL(referer);
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveSubmitContext(
   tenantSlug: string,
   opts: { guestSelectedTalentIds?: readonly unknown[] } = {},
@@ -264,7 +276,7 @@ export async function submitInquiryNowAction(
   let intent: InquiryIntent;
   try {
     // TUL-964: from a talent's page, route to that talent like the guest path.
-    intent = normalizeTalentPageIntent(JSON.parse(intentJson));
+    intent = normalizeTalentPageIntent(JSON.parse(intentJson), await postingPagePath());
   } catch {
     return { kind: "error", message: "Malformed intent payload." };
   }

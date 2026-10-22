@@ -91,6 +91,19 @@ export function talentPlanCancelBlock(
   return subscription.cancelAtPeriodEnd ? "resume" : "cancel";
 }
 
+/**
+ * TUL-1356: whether the plan is set to end, given the summary's value and what this card just did.
+ * The summary only flips once Stripe's webhook has been written, so a reload right after
+ * cancel / resume still returns the old value; the local outcome wins until the summary
+ * itself changes (then the summary is the truth again).
+ */
+export function resolveEndingState(
+  summaryEnding: boolean,
+  local: { ending: boolean; summaryWas: boolean } | null,
+): boolean {
+  return local && local.summaryWas === summaryEnding ? local.ending : summaryEnding;
+}
+
 export type Bi = { en: string; es: string };
 
 export const TALENT_CANCEL_COPY = {
@@ -103,48 +116,52 @@ export const TALENT_CANCEL_COPY = {
   },
   endsBannerNoDate: {
     en: "Your plan is set to end at the close of this billing period.",
-    es: "Tu plan terminara al cierre de este periodo de facturacion.",
+    es: "Tu plan terminará al cierre de este periodo de facturación.",
   },
-  reasonTitle: { en: "What is making you leave?", es: "Por que quieres irte?" },
+  reasonTitle: { en: "What is making you leave?", es: "¿Por qué quieres irte?" },
   reasonIntro: {
     en: "One quick question so we can improve.",
-    es: "Una pregunta rapida para mejorar.",
+    es: "Una pregunta rápida para mejorar.",
   },
   reasons: {
     too_expensive: { en: "Too expensive", es: "Es muy caro" },
     not_using: { en: "Not using it enough", es: "No lo uso lo suficiente" },
-    missing_feature: { en: "Missing a feature I need", es: "Me falta una funcion" },
-    found_alternative: { en: "Found another tool", es: "Encontre otra herramienta" },
-    technical_issue: { en: "Technical issue", es: "Problema tecnico" },
+    missing_feature: { en: "Missing a feature I need", es: "Me falta una función" },
+    found_alternative: { en: "Found another tool", es: "Encontré otra herramienta" },
+    technical_issue: { en: "Technical issue", es: "Problema técnico" },
     other: { en: "Other", es: "Otro" },
   } satisfies Record<TalentCancelReason, Bi>,
-  feedbackPlaceholder: { en: "Anything else? (optional)", es: "Algo mas? (opcional)" },
+  feedbackPlaceholder: { en: "Anything else? (optional)", es: "¿Algo más? (opcional)" },
   pickReason: { en: "Pick a reason to continue.", es: "Elige un motivo para continuar." },
   continue: { en: "Continue", es: "Continuar" },
-  back: { en: "Back", es: "Atras" },
+  back: { en: "Back", es: "Atrás" },
   neverMind: { en: "Never mind", es: "Mejor no" },
-  offerTitle: { en: "Keep your page on the Free plan instead?", es: "Quedarte en el plan Gratis?" },
+  offerTitle: { en: "Keep your page on the Free plan instead?", es: "¿Quedarte en el plan Gratis?" },
   offerBody: {
     en: "Cancelling already moves you to Free when this period ends, so you never lose your page or content. Compare plans if price is the issue.",
-    es: "Al cancelar pasas al plan Gratis cuando termina este periodo, asi que no pierdes tu pagina ni tu contenido. Compara planes si el precio es el problema.",
+    es: "Al cancelar pasas al plan Gratis cuando termina este periodo, así que no pierdes tu página ni tu contenido. Compara planes si el precio es el problema.",
   },
   comparePlans: { en: "Compare plans", es: "Comparar planes" },
   cancelAnyway: { en: "Continue cancelling", es: "Seguir cancelando" },
-  confirmTitle: { en: "Confirm cancellation", es: "Confirmar cancelacion" },
+  confirmTitle: { en: "Confirm cancellation", es: "Confirmar cancelación" },
   confirmBody: {
     en: "Your plan stays active until {date}. After that you move to Free. Nothing is refunded and nothing is deleted.",
-    es: "Tu plan sigue activo hasta el {date}. Despues pasas al plan Gratis. No hay reembolso y no se borra nada.",
+    es: "Tu plan sigue activo hasta el {date}. Después pasas al plan Gratis. No hay reembolso y no se borra nada.",
   },
   confirmBodyNoDate: {
     en: "Your plan stays active until the end of this billing period. After that you move to Free. Nothing is refunded and nothing is deleted.",
-    es: "Tu plan sigue activo hasta el final de este periodo. Despues pasas al plan Gratis. No hay reembolso y no se borra nada.",
+    es: "Tu plan sigue activo hasta el final de este periodo. Después pasas al plan Gratis. No hay reembolso y no se borra nada.",
   },
   confirmCta: { en: "Cancel my plan", es: "Cancelar mi plan" },
   cancelling: { en: "Cancelling...", es: "Cancelando..." },
-  doneTitle: { en: "Your plan will end on {date}.", es: "Tu plan terminara el {date}." },
+  doneTitle: { en: "Your plan will end on {date}.", es: "Tu plan terminará el {date}." },
+  actionFailed: {
+    en: "We could not update your plan. Nothing was changed. Try again in a moment.",
+    es: "No pudimos actualizar tu plan. No se cambió nada. Inténtalo de nuevo en un momento.",
+  },
   billingUnavailable: {
     en: "Billing is not available right now. Nothing was changed.",
-    es: "La facturacion no esta disponible ahora. No se cambio nada.",
+    es: "La facturación no está disponible ahora. No se cambió nada.",
   },
 } as const;
 

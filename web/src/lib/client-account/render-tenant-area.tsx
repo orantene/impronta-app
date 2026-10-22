@@ -1,5 +1,6 @@
 import { loadMyReviews } from "./my-reviews.server";
 import { loadSavedTalent } from "./saved-talent.server";
+import { accountSpansTenants } from "./tenant-source";
 import { loadSavedServices } from "./saved-services.server";
 import { loadVisitReviewState } from "./visit-review.server";
 import { loadMyMatchRequests } from "@/lib/match-me/match-views.server";
@@ -69,11 +70,11 @@ export async function renderTenantAccountPage(requestedView: AccountView, hostCo
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
     else if (view.tab === "saved") {
       [data.saved, data.savedServices] = await Promise.all([
-        loadSavedTalent(userId, hostContext === "hub" ? null : tenantId),
+        loadSavedTalent(userId, accountSpansTenants(hostContext) ? null : tenantId),
         loadSavedServices(userId, tenantId, locale, { hostKind: hostContext, hostTalentProfileId: null }),
       ]);
     }
-    else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, tenantId);
+    else if (view.tab === "reviews") data.reviews = await loadMyReviews(userId, accountSpansTenants(hostContext) ? null : tenantId);
     else if (view.tab === "match" && matchOn) data.match = await loadMyMatchRequests(userId, tenantId);
     else if (view.tab === "payments") {
       [data.summary, data.payLinks, data.receipts] = await Promise.all([
