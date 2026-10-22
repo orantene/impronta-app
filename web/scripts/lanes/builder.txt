@@ -69,6 +69,7 @@ src/lib/site-admin/builder-node/section-embed-preview-subject.test.ts
 src/lib/site-admin/builder-node/section-provenance.test.ts
 src/lib/site-admin/builder-node/sibling-drop-gap.test.ts
 src/lib/site-admin/builder-node/snapshot-tree.test.ts
+src/lib/site-admin/builder-node/ticket-picker-dock-overlap-1803.static.test.ts
 src/lib/site-admin/sanitize-svg.test.ts
 src/lib/site-admin/sections/contact_form/*.test.ts
 src/lib/site-admin/sections/featured_talent/*.test.ts

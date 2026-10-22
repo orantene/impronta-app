@@ -63,7 +63,7 @@ const base: ClientThreadViewProps = {
 test("header: business name and the handler's first name; team fallback", () => {
   const html = renderToStaticMarkup(<ClientThreadView {...base} />);
   assert.match(html, /data-client-header/);
-  assert.match(html, /<b>Impronta Models<\/b>/);
+  assert.match(html, /<h1>Impronta Models<\/h1>/);
   assert.match(html, /Sofía is handling your request/);
   const team = renderToStaticMarkup(<ClientThreadView {...base} business={{ name: "El Paisa", handlerFirstName: null }} />);
   assert.match(team, /The team is handling your request/);
