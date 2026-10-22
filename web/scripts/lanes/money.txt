@@ -444,6 +444,7 @@ src/lib/visits/commands.test.ts
 src/lib/visits/floor.test.ts
 src/lib/visits/guest-order.test.ts
 src/lib/visits/page-wire.static.test.ts
+src/lib/visits/prep-view-only.static.test.ts
 src/lib/visits/qr-multi-order.test.ts
 src/lib/visits/reservation-ops.test.ts
 src/lib/visits/restaurant-screens.render.test.ts

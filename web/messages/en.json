@@ -17103,7 +17103,8 @@
       "fired": "Fired {time}",
       "amendmentBanner": "{code} · ticket amended · revision {n} · acknowledge it again",
       "gotIt": "Got it",
-      "emptyTab": "Nothing at this step."
+      "emptyTab": "Nothing at this step.",
+      "viewOnly": "View only. Your role cannot start or finish tickets here."
     },
     "reservationsDesk": {
       "pageTitle": "Live Floor",

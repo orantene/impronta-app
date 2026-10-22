@@ -17103,7 +17103,8 @@
       "fired": "Enviada {time}",
       "amendmentBanner": "{code} · comanda modificada · revisión {n} · acéptala de nuevo",
       "gotIt": "Entendido",
-      "emptyTab": "Nada en este paso."
+      "emptyTab": "Nada en este paso.",
+      "viewOnly": "Solo lectura. Tu rol no puede empezar ni terminar comandas aquí."
     },
     "reservationsDesk": {
       "pageTitle": "Salón en vivo",
