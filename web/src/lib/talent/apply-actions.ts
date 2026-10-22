@@ -287,7 +287,9 @@ export async function decideTalentApplication(
       error: locale === "es" ? "No tienes permiso para resolver solicitudes." : "You don't have permission to decide applications.",
     };
   }
-  if (r.status !== "pending") {
+  // An application approved earlier whose roster row never landed can be approved again to repair it.
+  const repairApproved = decision === "approved" && r.status === "approved";
+  if (r.status !== "pending" && !repairApproved) {
     return { ok: false, code: "already_decided", error: `Already ${r.status}.` };
   }
 
@@ -365,6 +367,9 @@ export async function decideTalentApplication(
   })();
 
   revalidatePath("/talent/site");
+  // The roster, People and Applications pages (and the admin layout that feeds them) must not
+  // serve the pre-approval roster.
+  revalidatePath("/[tenantSlug]/admin", "layout");
   return { ok: true, applicationId, newStatus: decision };
 }
 
