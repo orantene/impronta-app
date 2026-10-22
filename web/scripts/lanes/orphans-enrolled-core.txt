@@ -287,6 +287,7 @@ src/lib/menu-import/menu-from-brief.test.ts
 src/lib/notifications/appointment-label.test.ts
 src/lib/notifications/coordinator-role-notify.test.ts
 src/lib/notifications/hub-listing-below-minimum.test.ts
+src/lib/notifications/hub-listing-offered.test.ts
 src/lib/notifications/talent-site-source-line.test.ts
 src/lib/offerings/guest-sellable.test.ts
 src/lib/onboarding/almost-ready-honesty.test.ts

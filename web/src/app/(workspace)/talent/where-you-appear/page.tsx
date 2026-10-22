@@ -3,6 +3,7 @@
 // talent shell yields), same pattern as /talent/discover.
 import { notFound } from "next/navigation";
 
+import { PendingListingUpdates } from "@/components/talent/service-hub/PendingListingUpdates";
 import { CalendarByChannelPanel, EarningsByChannelCard, WhereItsSoldPanel, WhereYouAppearPanel } from "@/components/talent/service-hub/ChannelPanels";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -32,6 +33,7 @@ export default async function TalentWhereYouAppearPage() {
         <p role="alert">{c.saveFailed}</p>
       ) : (
         <>
+          <PendingListingUpdates items={data.pending} locale={locale} />
           <WhereYouAppearPanel items={data.appearances} locale={locale} />
           {data.services.map((s) => (
             <WhereItsSoldPanel key={s.service.id} data={s} locale={locale} />

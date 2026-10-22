@@ -10,11 +10,13 @@
  *   The database binds consent to the talent's latest ACCEPTED workspace terms (#4158) and
  *   fails closed when there are none.
  *
+ * Offering or editing also rings the talent's bell when the listing is left waiting (TUL-1929).
  * Both call SECURITY DEFINER RPCs with the USER session; the database enforces the floor,
  * exclusivity and who may act. While the held migration is absent: "unavailable".
  */
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
+import { notifyListingOffered } from "@/lib/notifications/producers/listing-offered-notify";
 import { createClient } from "@/lib/supabase/server";
 import type {
   ListingBookingType,
@@ -86,7 +88,10 @@ export async function offerServiceListingAction(input: {
     if (c.error === "failed") logServerError("serviceHub.listing.offer", error);
     return { ok: false, ...c };
   }
-  return { ok: true, id: String(data ?? "") };
+  const id = String(data ?? "");
+  // TUL-1929: the talent must hear that the listing now waits for her answer (bell, in app).
+  if (UUID.test(id)) await notifyListingOffered({ listingId: id });
+  return { ok: true, id };
 }
 
 export async function respondToServiceListingAction(input: {

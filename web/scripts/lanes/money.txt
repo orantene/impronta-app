@@ -371,6 +371,7 @@ src/lib/service-hub/join-terms-wire.static.test.ts
 src/lib/service-hub/join-terms.server.test.ts
 src/lib/service-hub/join-terms.test.ts
 src/lib/service-hub/listing-charge-currency.test.ts
+src/lib/service-hub/listing-pending-accept.static.test.ts
 src/lib/service-hub/listing-sellable-batch.server.test.ts
 src/lib/service-hub/listing-wire.static.test.ts
 src/lib/service-hub/listing.test.ts
@@ -456,6 +457,8 @@ src/lib/talent/service-hub-channels-rows.test.ts
 src/lib/talent/service-hub-channels-wire.static.test.ts
 src/lib/talent/service-hub-channels.test.ts
 src/lib/talent/service-hub-lowest-errors.test.ts
+src/lib/talent/service-hub-pending-updates-loader.test.ts
+src/lib/talent/service-hub-pending-updates.test.ts
 src/lib/venues/*.test.ts
 src/lib/visits/cancel-visit.test.ts
 src/lib/visits/check-ops.test.ts

@@ -7,6 +7,7 @@ import { loadTalentEarningsWithSupabase } from "@/lib/talent/earnings";
 import { calendarByChannel, type ChannelCalendarRow } from "./service-hub-calendar";
 import { earningsByChannel, whereItsSold, type ChannelEarnings, type WhereSoldRow } from "./service-hub-channels";
 import { loadChannelWorkspaces } from "./service-hub-channel-names.server";
+import { pendingListingUpdates, type PendingListingUpdate } from "./service-hub-pending-updates";
 import { appearingIn, isMissingRelation, soldListingsFromRows, type Appearance } from "./service-hub-channels-rows";
 
 export type ServiceChannels = {
@@ -21,6 +22,8 @@ export type ServiceHubChannelsData =
       ready: boolean;
       appearances: Appearance[];
       services: ServiceChannels[];
+      /** TUL-1929: listings the workspace changed that wait for her answer (status offered). */
+      pending: PendingListingUpdate[];
       earnings: ChannelEarnings[];
       /** Upcoming holds and bookings labelled by channel. `ok: false` = the read failed (not "nothing coming up"). */
       calendar: { ok: true; rows: ChannelCalendarRow[] } | { ok: false };
@@ -42,7 +45,7 @@ export async function loadServiceHubChannels(
     const [listingsRes, termsRes, offeringsRes] = await Promise.all([
       supabase
         .from("workspace_service_listings")
-        .select("id, tenant_id, offering_id, status, price_mode, margin_bps, price_cents, currency, talent_lowest_cents")
+        .select("id, tenant_id, offering_id, status, price_mode, margin_bps, price_cents, currency, talent_lowest_cents, show_who, client_contact, booking_type")
         .eq("talent_profile_id", talentProfileId),
       supabase
         .from("workspace_talent_terms")
@@ -51,8 +54,7 @@ export async function loadServiceHubChannels(
       supabase
         .from("talent_offerings")
         .select("id, title, amount_cents, currency")
-        .eq("talent_profile_id", talentProfileId)
-        .not("amount_cents", "is", null),
+        .eq("talent_profile_id", talentProfileId),
     ]);
     if (offeringsRes.error) {
       logServerError("serviceHub.channels.offerings", offeringsRes.error);
@@ -74,7 +76,8 @@ export async function loadServiceHubChannels(
       if (ws.ok) for (const w of ws.rows) names.set(w.id, w.displayName);
     }
 
-    const services: ServiceChannels[] = ((offeringsRes.data ?? []) as Array<Record<string, unknown>>).map((o) => {
+    const allOfferings = (offeringsRes.data ?? []) as Array<Record<string, unknown>>;
+    const services: ServiceChannels[] = allOfferings.filter((o) => o.amount_cents != null).map((o) => {
       const currency = String(o.currency ?? "").toUpperCase();
       const priceCents = Number(o.amount_cents);
       return {
@@ -93,9 +96,20 @@ export async function loadServiceHubChannels(
       };
     });
 
+    const pending = pendingListingUpdates({
+      listings,
+      offerings: new Map(
+        allOfferings.map((o) => [
+          String(o.id),
+          { title: String(o.title ?? ""), priceCents: o.amount_cents == null ? null : Number(o.amount_cents), currency: String(o.currency ?? "").toUpperCase() },
+        ]),
+      ),
+      tenantNames: names,
+    });
+
     const calendar = await loadCalendar(supabase, talentProfileId, userId, names);
     const earnings = earningsByChannel((await loadTalentEarningsWithSupabase(supabase, talentProfileId)).rows);
-    return { ok: true, ready: !missing, appearances: appearingIn({ terms, tenantNames: names }), services, earnings, calendar };
+    return { ok: true, ready: !missing, appearances: appearingIn({ terms, tenantNames: names }), services, pending, earnings, calendar };
   } catch (err) {
     logServerError("serviceHub.channels", err);
     return { ok: false };
