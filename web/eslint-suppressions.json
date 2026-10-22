@@ -150,6 +150,11 @@
       "count": 2
     }
   },
+  "src/components/admin/shell/internal/drawers/field-privacy-drawer.tsx": {
+    "ratchet/no-new-inline-style": {
+      "count": 9
+    }
+  },
   "src/components/admin/shell/internal/drawers/light-01.tsx": {
     "ratchet/no-new-inline-style": {
       "count": 29
@@ -195,10 +200,7 @@
   },
   "src/components/admin/shell/internal/drawers/light-10.tsx": {
     "ratchet/no-new-inline-style": {
-      "count": 42
-    },
-    "max-lines": {
-      "count": 1
+      "count": 33
     }
   },
   "src/components/admin/shell/internal/drawers/light-11.tsx": {
@@ -1605,11 +1607,6 @@
   "src/lib/server-actions/admin-user-workspaces.ts": {
     "ratchet/no-untenanted-from": {
       "count": 2
-    }
-  },
-  "src/lib/server-actions/admin-workspace-settings.ts": {
-    "max-lines": {
-      "count": 1
     }
   },
   "src/lib/server-actions/alternate-domain.ts": {

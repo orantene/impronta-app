@@ -295,8 +295,6 @@ const BUDGETS: Record<string, number> = {
   // Admin shell internals. The largest concentration of god files outside the
   // builder, and the one with no decomposition program running today.
   "src/components/admin/shell/internal/drawers/drawer-shared.tsx": 5649,
-  "src/components/admin/shell/internal/drawers/light-10.tsx": 806,
-  "src/lib/server-actions/admin-workspace-settings.ts": 812,
   "src/lib/payments/transfers.ts": 836,
   "src/lib/stripe/webhook-routing.test.ts": 810,
   // 2026-08-18 Website pages data enrichment (P1-B): +29 for the bridge merge
