@@ -29,6 +29,7 @@ import { notifyTrialStarted } from "@/lib/notifications/producers/trial-notify";
 import { mapStripeStatus } from "@/lib/stripe/utils";
 import type { AllowedStatus } from "@/lib/stripe/utils";
 import { resolveCheckoutDiscount } from "@/lib/billing/checkout-discounts";
+import { expiredPromoMessage } from "@/lib/billing/promo-preview";
 import {
   reconcileAppliedDiscount,
   resolveSubscriptionDiscountMirror,
@@ -218,6 +219,8 @@ export async function createWorkspaceCheckoutSession(opts: {
     tenantId: opts.tenantId,
     promoCode: opts.promoCode ?? null,
   });
+  // TUL-1860: an expired code is refused with a clear message, never silently dropped to full price.
+  if (discount.rejected) return { ok: false, error: expiredPromoMessage(opts.locale) };
 
   // The trial the admin configured in `plan_trial_offers`. Until now that
   // number was displayed in marketing copy and never sent to Stripe, so a

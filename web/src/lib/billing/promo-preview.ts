@@ -30,8 +30,8 @@ export const PROMO_ERROR_MESSAGES: Record<PromoErrorCode, { en: string; es: stri
     es: "Ese código no es válido. Revísalo e inténtalo de nuevo.",
   },
   expired: {
-    en: "That code has expired or is no longer available.",
-    es: "Ese código venció o ya no está disponible.",
+    en: "This code has expired or is no longer available.",
+    es: "Este código venció o ya no está disponible.",
   },
   not_applicable: {
     en: "That code doesn't apply to this plan.",
@@ -66,6 +66,11 @@ export function isPromoSyncedToStripe(
 ): boolean {
   if (!stripeConfigured) return true;
   return Boolean(d.stripePromotionCodeId?.trim() || d.stripeCouponId?.trim());
+}
+
+/** The expired message in the buyer's language (server errors that reach the UI as one string). */
+export function expiredPromoMessage(locale: string | null | undefined): string {
+  return PROMO_ERROR_MESSAGES.expired[locale?.toLowerCase().startsWith("es") ? "es" : "en"];
 }
 
 /** Maps `validateDiscount`'s reason text to the code the UI localizes. */

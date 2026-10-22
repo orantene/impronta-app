@@ -49,7 +49,7 @@ import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
-import { discountStatus } from "@/lib/pricing/discount-status";
+import { bilingualWindowError, discountStatus, discountWindowError } from "@/lib/pricing/discount-status";
 import { archiveOutcome } from "@/lib/billing/discount-archive-outcome";
 import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
@@ -150,11 +150,12 @@ const createDiscountSchema = z
         path: ["minimumAmountCurrency"],
       });
     }
-    if (v.startsAt && v.endsAt && new Date(v.startsAt) >= new Date(v.endsAt)) {
+    const windowError = discountWindowError(v, "create");
+    if (windowError) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Start date must be before end date.",
-        path: ["startsAt"],
+        message: bilingualWindowError(windowError),
+        path: [windowError === "endInPast" ? "endsAt" : "startsAt"],
       });
     }
   });

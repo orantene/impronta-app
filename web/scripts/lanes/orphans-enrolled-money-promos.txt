@@ -48,6 +48,7 @@ src/lib/billing/period-date.test.ts
 src/lib/billing/plan-change-policy.test.ts
 src/lib/billing/plan-change-promo.test.ts
 src/lib/billing/plan-change.test.ts
+src/lib/billing/promo-expired-apply-points.static.test.ts
 src/lib/billing/promo-input-wiring.static.test.ts
 src/lib/billing/promo-preview.test.ts
 src/lib/billing/talent-billing-display.test.ts

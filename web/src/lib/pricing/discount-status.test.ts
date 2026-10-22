@@ -25,3 +25,24 @@ test("archived wins over any window; the edges match validateDiscount (strict > 
   assert.equal(discountStatus(row({ endsAt: new Date(NOW).toISOString() }), NOW), "active");
   assert.equal(discountStatus(row({ endsAt: new Date(NOW - 1).toISOString() }), NOW), "expired");
 });
+
+import { bilingualWindowError, discountWindowError } from "./discount-status";
+
+test("create rejects a past end date and a start that is not before the end", () => {
+  assert.equal(discountWindowError({ startsAt: null, endsAt: "2026-12-09T00:00:00Z" }, "create", NOW), "endInPast");
+  assert.equal(discountWindowError({ startsAt: null, endsAt: new Date(NOW).toISOString() }, "create", NOW), "endInPast");
+  assert.equal(discountWindowError({ startsAt: "2026-12-30T00:00:00Z", endsAt: "2026-12-20T00:00:00Z" }, "create", NOW), "startAfterEnd");
+  assert.equal(discountWindowError({ startsAt: "2026-12-20T00:00:00Z", endsAt: "2026-12-20T00:00:00Z" }, "create", NOW), "startAfterEnd");
+  assert.equal(discountWindowError({ startsAt: "2026-12-11T00:00:00Z", endsAt: "2026-12-31T00:00:00Z" }, "create", NOW), null);
+  assert.equal(discountWindowError({ startsAt: null, endsAt: null }, "create", NOW), null);
+});
+
+test("edit keeps an already expired code editable but still checks start vs end", () => {
+  assert.equal(discountWindowError({ startsAt: null, endsAt: "2026-12-09T00:00:00Z" }, "edit", NOW), null);
+  assert.equal(discountWindowError({ startsAt: "2026-12-10T00:00:00Z", endsAt: "2026-12-09T00:00:00Z" }, "edit", NOW), "startAfterEnd");
+});
+
+test("the window errors read in both languages", () => {
+  assert.match(bilingualWindowError("endInPast"), /in the past.*ya pas/);
+  assert.match(bilingualWindowError("startAfterEnd"), /before the end date.*anterior/);
+});
