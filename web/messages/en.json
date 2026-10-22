@@ -2090,6 +2090,7 @@
         "noCity": "No city found yet. Keep typing."
       },
       "ready": {
+        "editSetup": "Edit",
         "title": "Ready to build",
         "titleTalent": "Ready to save your page",
         "sub": "One tap and it's yours. You can change everything after.",
