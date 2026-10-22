@@ -22,7 +22,7 @@ import { resolveWorkspacePriceId } from "@/lib/stripe/price-catalog";
 import { checkoutIdempotencyKey, checkoutPriceError, resolveCheckoutPrice } from "@/lib/billing/checkout-interval";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { logServerError, logServerExpected } from "@/lib/server/safe-error";
-import { storedCustomerIsStale } from "@/lib/stripe/stored-customer";
+import { storedCustomerIsStale, syncCustomerPreferredLocale } from "@/lib/stripe/stored-customer";
 import { seatCapForPlan } from "@/lib/saas/plan-seat-caps";
 import { notifyWorkspacePaymentFailed } from "@/lib/notifications/producers/payment-notify";
 import { notifyWorkspacePlanChange } from "@/lib/notifications/producers/workspace-plan-notify";
@@ -210,12 +210,9 @@ export async function createWorkspaceCheckoutSession(opts: {
   const priceId = price.priceId;
 
   // Get or create the Stripe customer
-  const customerResult = await getOrCreateStripeCustomer(
-    opts.tenantId,
-    opts.ownerEmail,
-    opts.displayName,
-  );
+  const customerResult = await getOrCreateStripeCustomer(opts.tenantId, opts.ownerEmail, opts.displayName);
   if (!customerResult.ok) return customerResult;
+  await syncCustomerPreferredLocale(stripe, customerResult.data, opts.locale, (e) => logServerError("workspace-billing.customer-locale", e)); // TUL-1874
 
   // What this session charges, before the buyer types anything: an account
   // discount we granted, else a validated promo code, else Stripe's own box.

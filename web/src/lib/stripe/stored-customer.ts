@@ -23,3 +23,31 @@ export async function storedCustomerIsStale(stripe: { customers: CustomerReader 
     throw err;
   }
 }
+
+/**
+ * TUL-1874: Stripe renders invoice PDFs, receipts and emails in the customer's `preferred_locales`, which was
+ * never set, so a Spanish talent got English invoices. Only languages the product speaks are sent.
+ */
+export function stripePreferredLocales(locale: string | null | undefined): string[] | undefined {
+  const l = locale?.trim().toLowerCase();
+  if (!l) return undefined;
+  if (l.startsWith("es")) return ["es"];
+  if (l.startsWith("en")) return ["en"];
+  return undefined;
+}
+
+/** Best effort: a Stripe hiccup must never block a checkout, and the next checkout retries. */
+export async function syncCustomerPreferredLocale(
+  stripe: { customers: Pick<Stripe["customers"], "update"> },
+  customerId: string,
+  locale: string | null | undefined,
+  onError?: (err: unknown) => void,
+): Promise<void> {
+  const preferred = stripePreferredLocales(locale);
+  if (!preferred) return;
+  try {
+    await stripe.customers.update(customerId, { preferred_locales: preferred });
+  } catch (err) {
+    onError?.(err);
+  }
+}

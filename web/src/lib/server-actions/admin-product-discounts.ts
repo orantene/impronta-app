@@ -49,7 +49,9 @@ import {
   syncDiscountToStripe,
   archiveDiscountInStripe,
 } from "@/lib/pricing/stripe-discount-sync";
-import { bilingualWindowError, discountStatus, discountWindowError } from "@/lib/pricing/discount-status";
+import { discountStatus, discountWindowError, localizeWindowIssue, WINDOW_ERROR_PREFIX } from "@/lib/pricing/discount-status";
+import { deactivateIfExpired } from "@/lib/pricing/expire-stale-discount";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { archiveOutcome } from "@/lib/billing/discount-archive-outcome";
 import { applyDiscountEdit } from "@/lib/billing/discount-edit";
 import {
@@ -154,7 +156,7 @@ const createDiscountSchema = z
     if (windowError) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: bilingualWindowError(windowError),
+        message: `${WINDOW_ERROR_PREFIX}${windowError}`,
         path: [windowError === "endInPast" ? "endsAt" : "startsAt"],
       });
     }
@@ -184,7 +186,8 @@ export async function createDiscount(
 
   const parsed = createDiscountSchema.safeParse(raw);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    // TUL-1873: a date-window issue is shown in the viewer's language only, never both.
+    return { ok: false, error: localizeWindowIssue(parsed.error.issues[0]?.message ?? "Invalid input.", await getRequestLocale()) };
   }
   const input = parsed.data;
 
@@ -585,6 +588,8 @@ export async function validateDiscount(
     return { ok: false, reason: "Code hasn’t started yet." };
   }
   if (status === "expired") {
+    // TUL-1860: also switch the Stripe promotion code off, so a typed Checkout code is refused too.
+    await deactivateIfExpired(discount);
     return { ok: false, reason: "Code has expired." };
   }
   if (

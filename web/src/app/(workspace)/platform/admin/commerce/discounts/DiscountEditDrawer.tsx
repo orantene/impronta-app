@@ -39,7 +39,9 @@ function toLocalInput(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 16);
+  // Local wall-clock time, which is what a datetime-local input shows and edits (not the UTC slice).
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function DiscountEditDrawer({
@@ -79,7 +81,7 @@ export function DiscountEditDrawer({
         name: name.trim(),
         campaign: campaign.trim() ? campaign.trim() : null,
         perCustomerLimit: perCustomerNum,
-        startsAt: startsAt ? startsAt : null,
+        startsAt: startsAt ? new Date(startsAt).toISOString() : null,
       });
       if (res.ok) {
         setState("saved");

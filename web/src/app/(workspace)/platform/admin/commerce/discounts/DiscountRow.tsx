@@ -40,10 +40,13 @@ export function DiscountCodeRow({
   row,
   tiers,
   dimmed,
+  nowMs,
   onEdit,
   onViewUses,
 }: {
   row: PricingDiscountRow;
+  /** The list's ticking clock, so the status and the list counts always agree. */
+  nowMs?: number;
   tiers: DiscountTierOption[];
   dimmed?: boolean;
   /** Opens the edit drawer. Absent on archived rows — nothing left to change. */
@@ -71,7 +74,7 @@ export function DiscountCodeRow({
     });
   }
 
-  const status = discountStatus(row);
+  const status = discountStatus(row, nowMs);
   return (
     <div role="row" style={rowStyle(CODE_GRID)}>
       <span style={{ display: "flex", flexDirection: "column", gap: 3 }}>

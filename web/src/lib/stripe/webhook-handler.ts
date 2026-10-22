@@ -88,7 +88,6 @@ import {
   releaseStripeEventClaim,
 } from "@/lib/stripe/event-idempotency";
 import type Stripe from "stripe";
-
 // ─── Error classification ─────────────────────────────────────────────────────
 
 /**
@@ -468,6 +467,7 @@ export async function processStripeEvent(
         throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId} (${action.source})`, err);
       }
       await syncSubscriptionByType(subscription, event.id);
+      await recordDiscountRedemption(subscription, event.id); // TUL-1872: a code added by an in-app upgrade
       return;
     }
 
@@ -752,6 +752,7 @@ export async function processStripeEvent(
           throw new TransientWebhookError(`subscriptions.retrieve failed for ${action.subscriptionId}`, err);
         }
         await syncSubscriptionByType(subscription, event.id);
+        await recordDiscountRedemption(subscription, event.id); // TUL-1872
         // TUL-1232: one receipt per paid invoice (ledger keyed on the Stripe
         // invoice id, so a replayed event sends nothing). Zero-amount and
         // unpaid invoices are skipped inside the notice.
