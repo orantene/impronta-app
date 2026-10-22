@@ -1084,6 +1084,8 @@
       "headcountCountAria": "Talent count",
       "guestOne": "talent",
       "guestOther": "talent",
+      "personOne": "person",
+      "personOther": "people",
       "editorEventTypeLabel": "Event type",
       "eventTypeWedding": "Wedding",
       "eventTypeCorporate": "Corporate event",

@@ -58,7 +58,7 @@ test("the server stores the request ON the guest message through every first-mes
 
 test("the server re-reads the tenant-strict roster, refuses a hub, and fails closed to a plain message", () => {
   const srv = read("src/lib/service-hub/roster-request-meta.server.ts");
-  assert.match(srv, /loadRosterServicesWithHub\(admin, tenantId\)/);
+  assert.match(srv, /loadRequestableServices\(admin, tenantId\)/);
   assert.match(srv, /kind === "hub"\) return undefined/);
   assert.match(srv, /catch \(err\)[\s\S]*return undefined/);
 });

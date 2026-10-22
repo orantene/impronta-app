@@ -69,7 +69,8 @@ test("the four public surfaces read through the combined loader, not the loose r
     "src/lib/server-actions/roster-request.ts",
   ]) {
     const src = readFileSync(f, "utf8");
-    assert.match(src, /loadRosterServicesWithHub\(/, f);
+    // TUL-1587: the front-door request reads through `loadRequestableServices`, which is the combined loader plus the workspace's own services when it has no roster.
+    assert.match(src, f.endsWith("roster-request.ts") ? /loadRequestableServices\(/ : /loadRosterServicesWithHub\(/, f);
     assert.doesNotMatch(src, /loadWorkspaceRosterServices\(/, f);
   }
 });

@@ -14,7 +14,7 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolvePublicClientIp } from "@/lib/server/public-client-ip";
 import { buildRosterRequestWith, type BuildRosterRequestResult } from "@/lib/service-hub/roster-request-core";
-import { loadRosterServicesWithHub } from "@/lib/service-hub/hub-roster.server";
+import { loadRequestableServices } from "@/lib/service-hub/requestable-services.server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 export async function buildRosterRequestFromSentence(raw: { sentence: string; locale?: string | null }): Promise<BuildRosterRequestResult> {
@@ -28,7 +28,7 @@ export async function buildRosterRequestFromSentence(raw: { sentence: string; lo
         },
         loadItems: async (tenantId) => {
           const admin = createServiceRoleClient();
-          return admin ? loadRosterServicesWithHub(admin, tenantId) : null;
+          return admin ? loadRequestableServices(admin, tenantId) : null;
         },
         replyLocale: (sentence, hint) => resolveBookingAssistantReplyLocale(sentence, hint),
       },

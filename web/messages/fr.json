@@ -288,6 +288,8 @@
       "headcountCountAria": "Nombre d'invités",
       "guestOne": "invité",
       "guestOther": "invités",
+      "personOne": "personne",
+      "personOther": "personnes",
       "editorEventTypeLabel": "Type d'événement",
       "eventTypeWedding": "Mariage",
       "eventTypeCorporate": "Événement d'entreprise",
