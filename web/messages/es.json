@@ -167,7 +167,8 @@
         "confirmPassword": "Escribe y confirma tu nueva contraseña.",
         "passwordMismatch": "La contraseña y la confirmación no coinciden.",
         "generic": "Algo salió mal. Inténtalo de nuevo.",
-        "ageTermsRequired": "Confirma que tienes 18 años o más y que aceptas los Términos y la Política de privacidad."
+        "ageTermsRequired": "Confirma que tienes 18 años o más y que aceptas los Términos y la Política de privacidad.",
+        "nameRequired": "Escribe tu nombre."
       },
       "errors": {
         "invalidCredentials": "Correo o contraseña incorrectos. Revisa el correo o usa Olvidé mi contraseña.",
@@ -1067,6 +1068,7 @@
       "confirm": "Confirmar",
       "editorDateLabel": "Fecha del evento",
       "dateIncompleteError": "Escribe la fecha completa (día, mes y año).",
+      "dateIncompleteInline": "Completa la fecha",
       "dateExact": "Fecha exacta",
       "dateFlexible": "Flexible",
       "dateNotSure": "Aún no estoy seguro",
