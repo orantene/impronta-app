@@ -52,6 +52,7 @@ import {
 import { pickAuthEmail, readAuthEmailDraft, readAuthNameDraft, writeAuthEmailDraft, writeAuthNameDraft } from "@/lib/auth/email-draft";
 import { authEmailHasPlusTag, OTP_CODE_LENGTH, OTP_CODE_MAX_LENGTH } from "@/lib/auth/otp-flow";
 import { useFocusFirstInvalidOnError } from "@/lib/auth/use-focus-first-invalid";
+import { AUTH_ERROR_IDS, authErrorField } from "@/lib/auth/auth-error-field";
 import { createTranslator } from "@/i18n/messages";
 import { AgeTermsCheckbox } from "@/components/auth/age-terms-checkbox";
 
@@ -102,6 +103,9 @@ export const METHOD_SWAP_RESERVE = "pb-[5.3rem]";
  * does not make the card jump (293px -> 580px at 390 before the copy was shortened).
  */
 export const STEP_MIN_HEIGHT = "min-h-[19rem]";
+
+/** TUL-910: one success/error notice row (two lines at 390px) reserved on the code step. */
+export const NOTICE_SLOT_MIN_HEIGHT = "min-h-[3.5rem]";
 
 export function EmailCodeForm({
   nextPath,
@@ -218,8 +222,11 @@ export function EmailCodeForm({
 
   const stepError =
     lane === "verify" ? stateError(verifyState) : stateError(sendState);
-  const notice = lane === "send" ? sent?.notice : undefined;
   useFocusFirstInvalidOnError(stepError);
+  const errField = authErrorField(stepError, {
+    invalidEmail: t("public.auth.actions.invalidEmail"),
+    ageTermsRequired: t("public.auth.actions.ageTermsRequired"),
+  });
 
   if (showPassword && passwordFallback) {
     return (
@@ -249,10 +256,14 @@ export function EmailCodeForm({
   if (onCodeStep && email) {
     return (
       <div className={`space-y-3.5 ${STEP_MIN_HEIGHT}`}>
-        {notice ? (
-          <AuthNotice tone="success">{notice.replace("{email}", email)}</AuthNotice>
-        ) : null}
-        {stepError ? <AuthNotice tone="error" id="code-step-error">{stepError}</AuthNotice> : null}
+        {/* TUL-910: one fixed slot; an error replaces the sent notice instead of stacking above it */}
+        <div className={NOTICE_SLOT_MIN_HEIGHT}>
+          {stepError ? (
+            <AuthNotice tone="error" id="code-step-error">{stepError}</AuthNotice>
+          ) : sent?.notice ? (
+            <AuthNotice tone="success">{sent.notice.replace("{email}", email)}</AuthNotice>
+          ) : null}
+        </div>
 
         <form
           action={verifyAction}
@@ -270,6 +281,7 @@ export function EmailCodeForm({
           <AuthField
             label={t("public.auth.passwordless.codeLabel")}
             htmlFor="otp-code"
+            hintLines={3}
             hint={`${t("public.auth.passwordless.codeLengthHint").replace("{n}", String(OTP_CODE_LENGTH))} ${t("public.auth.passwordless.codeHint")}`}
           >
             <input
@@ -368,8 +380,6 @@ export function EmailCodeForm({
         {allowCreate && clientSignup ? <input type="hidden" name="signup_as" value="client" /> : null}
         {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
-        {stepError ? <AuthNotice tone="error" id="email-step-error">{stepError}</AuthNotice> : null}
-
         {allowCreate && collectName ? (
           <AuthField label={t("public.auth.form.name")} htmlFor="full_name">
             <input
@@ -379,8 +389,6 @@ export function EmailCodeForm({
               autoComplete="name"
               required
               maxLength={120}
-              aria-invalid={stepError && !readAuthNameDraft().trim() ? true : undefined}
-              aria-describedby={stepError ? "email-step-error" : undefined}
               defaultValue={readAuthNameDraft()}
               onChange={(e) => writeAuthNameDraft(e.target.value)}
               placeholder={t("public.auth.form.namePlaceholder")}
@@ -393,6 +401,9 @@ export function EmailCodeForm({
         <AuthField
           label={t("public.auth.form.email")}
           htmlFor="email"
+          hintLines={2}
+          error={stepError}
+          errorId={AUTH_ERROR_IDS[errField ?? "form"]}
           hint={
             authEmailHasPlusTag(emailDraft)
               ? t("public.auth.passwordless.plusEmailHint")
@@ -405,8 +416,8 @@ export function EmailCodeForm({
             type="email"
             autoComplete="email"
             required
-            aria-invalid={stepError ? true : undefined}
-            aria-describedby={stepError ? "email-step-error" : undefined}
+            aria-invalid={errField === "email" ? true : undefined}
+            aria-describedby={errField === "email" ? AUTH_ERROR_IDS.email : undefined}
             defaultValue={pickAuthEmail(readAuthEmailDraft(), email)}
             onChange={(e) => {
               setEmailDraft(e.target.value);
@@ -422,8 +433,8 @@ export function EmailCodeForm({
           <AgeTermsCheckbox
             locale={locale}
             marketingOrigin={marketingOrigin}
-            invalid={stepError === t("public.auth.actions.ageTermsRequired")}
-            errorId="email-step-error"
+            invalid={errField === "consent"}
+            errorId={AUTH_ERROR_IDS.consent}
           />
         ) : null}
 

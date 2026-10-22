@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TalentPresenceStatsCard (TUL-582): last 30 days of profile visits, top 3
+ * TalentPresenceStatsCard (TUL-582): last 30 days of profile visits (Free sees a locked note naming Pro and Max), top 3
  * sources, booking requests and confirmed bookings, with a delta vs the
  * previous 30 days. Reads the layout-bridged `presence` model (collected data
  * only). Renders nothing when the talent has no analytics entitlement.
@@ -68,10 +68,30 @@ function Metric({
 
 export function TalentPresenceStatsCard() {
   const copy = useDashboardText();
-  const { bridgeTalentPageAnalytics } = useAdminShell();
+  const { bridgeTalentPageAnalytics, state } = useAdminShell();
+  const talentTier = state.talentTier;
   const stats: TalentPresenceStats | undefined = bridgeTalentPageAnalytics?.presence;
-  if (!stats) return null;
   const es = copy.isSpanish;
+  if (!stats) {
+    // Plan gate: visits, sources and bookings are Pro and Max. Say so instead of showing nothing.
+    if (talentTier !== "free") return null;
+    return (
+      <section
+        aria-label={es ? "Mi presencia, ultimos 30 dias" : "My presence, last 30 days"}
+        className="rounded-admin-lg border border-admin-border bg-admin-card p-4"
+      >
+        <h2 className="text-sm font-semibold text-admin-ink">{es ? "Mi presencia" : "My presence"}</h2>
+        <p className="mt-1 text-sm text-admin-ink-muted">
+          {es
+            ? "Visitas, de dónde llegan y solicitudes de tu perfil están en los planes Pro y Max."
+            : "Visits, where they come from and requests for your profile are on the Pro and Max plans."}
+        </p>
+        <Link href="/talent/plan" className="mt-2 inline-block text-xs text-admin-ink-muted underline-offset-2 hover:underline">
+          {es ? "Ver planes" : "See plans"}
+        </Link>
+      </section>
+    );
+  }
 
   return (
     <section

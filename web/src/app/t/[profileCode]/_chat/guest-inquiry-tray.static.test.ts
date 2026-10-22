@@ -27,7 +27,7 @@ test("the dock mounts the tray with the remove path", () => {
 test("TUL-1066: the open tray carries one primary Send inquiry step, wired to the chat that holds the draft", () => {
   assert.match(read("GuestDockInquiryTray.tsx"), /data-guest-inquiry-tray-send/);
   assert.match(read("GuestDockInquiryTray.tsx"), /dockTraySend/);
-  assert.match(read("MiniChatPanelColumn.tsx"), /onSend=\{card \? undefined : startInquiryInChat\}/);
+  assert.match(read("MiniChatPanelColumn.tsx"), /onSend=\{card \? undefined : sendFromTray\}/);
   for (const lang of ["en", "es"]) {
     const m = JSON.parse(readFileSync(join(HERE, "..", "..", "..", "..", "..", "messages", `${lang}.json`), "utf8")) as { public: { guestChat: Record<string, string> } };
     assert.ok(m.public.guestChat.dockTraySend, `${lang}.dockTraySend`);

@@ -58,3 +58,18 @@ test("every sign-in entry point passes the membership context into the one rule"
     assert.match(src, /postAuthContextForNext\(/, rel);
   }
 });
+
+test("TUL-1255 repeat: an unknown membership (read failed or timed out) still honors the tenant admin next", () => {
+  const unknown = { membershipUnknown: true };
+  assert.equal(resolvePostAuthDestination(talent, "/qa-b7-studio/admin", unknown), "/qa-b7-studio/admin");
+  assert.equal(resolvePostAuthDestination(talent, "/admin", unknown), "/talent");
+  assert.equal(resolvePostAuthDestination(talent, "/qa-b7-studio/talent/x", unknown), "/qa-b7-studio/talent/x");
+  assert.equal(resolvePostAuthDestination(talent, "//evil.com", unknown), "/talent");
+});
+
+test("TUL-1255 repeat: the path-addressed /w/<slug>/admin is honored for members only", () => {
+  assert.equal(tenantAdminSlugFromNext("/w/qa-b7-studio/admin"), "qa-b7-studio");
+  assert.equal(resolvePostAuthDestination(talent, "/w/qa-b7-studio/admin", member), "/w/qa-b7-studio/admin");
+  assert.equal(resolvePostAuthDestination(talent, "/w/qa-b7-studio/admin"), "/talent");
+  assert.equal(resolvePostAuthDestination(talent, "/w/other/admin", member), "/talent");
+});

@@ -1165,6 +1165,8 @@
       "avatarRemoveAria": "Remove {name} from your inquiry",
       "sendToAgency": "Send to agency",
       "sendToAgencySent": "Sent. The agency will reply shortly.",
+      "sendSentTitle": "Request sent",
+      "sendSentViewThread": "View the conversation",
       "sendHub": "Send",
       "sendHubNoPayment": "No payment now. We'll route your inquiry to the right people.",
       "sendHubSent": "Sent. {brand} will route your inquiry to the right people.",
@@ -1796,6 +1798,12 @@
       "accept": "Switch to English",
       "dismiss": "No thanks",
       "regionLabel": "Language suggestion"
+    },
+    "onboardingShell": {
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "contact": "Contact",
+      "signIn": "Sign in"
     },
     "hubLanding": {
       "agenciesTitle": "Agencies on the platform",
@@ -20095,6 +20103,7 @@
         "teamOnly": "Only your team sees this",
         "fallback": "fallback: {channel} if away",
         "placeholder": "Write a reply",
+        "placeholderMobile": "Reply…",
         "notePlaceholder": "Write a note for the team",
         "more": "More",
         "attach": "Attach a file",

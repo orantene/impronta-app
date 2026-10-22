@@ -16,7 +16,7 @@ export async function loadSavedTalent(userId: string, tenantId: string | null): 
   if (!admin || !userId) return [];
   const { data, error } = await admin
     .from("client_favorites")
-    .select(`added_at, talent_profile_id, talent_profiles ( ${CATALOG_PROFILE_COLUMNS}, display_name, profile_code, home_city_text )`)
+    .select(`added_at, talent_profile_id, talent_profiles ( ${CATALOG_PROFILE_COLUMNS}, workflow_status, display_name, profile_code, home_city_text )`)
     .eq("client_user_id", userId)
     .order("added_at", { ascending: false })
     .limit(200);

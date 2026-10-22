@@ -226,6 +226,7 @@ src/lib/client-account/portal-visit-when.test.ts
 src/lib/client-account/quick-links.test.ts
 src/lib/client-account/reply-pure.test.ts
 src/lib/client-account/self-signed-client-wiring.static.test.ts
+src/lib/client-account/settings-locale-cookie.static.test.ts
 src/lib/client-account/tul64-brand-and-next.test.ts
 src/lib/client-hub/load-hub-focus.test.ts
 src/lib/client-integrations/client-trust-summary.test.ts
@@ -260,6 +261,7 @@ src/lib/i18n/builder-i18n-props-coverage.static.test.ts
 src/lib/i18n/pick-locale.test.ts
 src/lib/i18n/place-names-es.test.ts
 src/lib/inquiry/inquiry-action-log.test.ts
+src/lib/inquiry/locale-cookie-i18n-1259.test.ts
 src/lib/integrations/search-console-catalog.test.ts
 src/lib/integrations/workspace-social-sync.test.ts
 src/lib/layouts/layout-objects.test.ts

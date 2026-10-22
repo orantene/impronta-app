@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { tryConsumeRateLimit } from "@/lib/rate-limit";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { isViewableSavedProfile } from "@/lib/client-account/saved-talent";
 import { countryLabel } from "@/lib/geo/country-code";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +81,8 @@ export async function POST(req: Request) {
       `
       id, display_name, first_name, last_name, profile_code,
       home_country_text, home_city_text,
-      is_discoverable, workflow_status
+      is_discoverable, workflow_status,
+      deleted_at, is_publicly_hidden, visibility, profile_kind
       `,
     )
     .in("id", ids)
@@ -102,10 +104,15 @@ export async function POST(req: Request) {
     home_city_text: string | null;
     is_discoverable: boolean | null;
     workflow_status: string | null;
+    deleted_at: string | null;
+    is_publicly_hidden: boolean | null;
+    visibility: string | null;
+    profile_kind: string | null;
   };
 
   const rows = ((profiles ?? []) as unknown as ProfileRow[]).filter(
-    (p) => p.is_discoverable !== false,
+    // TUL-1239: the same rule as /account Saved and the header count, not directory discoverability.
+    (p) => isViewableSavedProfile(p),
   );
 
   // Batch-load best photo per talent.

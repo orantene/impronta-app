@@ -1165,6 +1165,8 @@
       "avatarRemoveAria": "Quitar a {name} de tu solicitud",
       "sendToAgency": "Enviar a la agencia",
       "sendToAgencySent": "Enviado. La agencia te responderá en breve.",
+      "sendSentTitle": "Solicitud enviada",
+      "sendSentViewThread": "Ver la conversación",
       "sendHub": "Enviar",
       "sendHubNoPayment": "Sin pago ahora. Dirigiremos tu consulta a las personas indicadas.",
       "sendHubSent": "Enviado. {brand} dirigirá tu consulta a las personas indicadas.",
@@ -1796,6 +1798,12 @@
       "accept": "Ver en español",
       "dismiss": "No, gracias",
       "regionLabel": "Sugerencia de idioma"
+    },
+    "onboardingShell": {
+      "terms": "Términos",
+      "privacy": "Privacidad",
+      "contact": "Contacto",
+      "signIn": "Iniciar sesión"
     },
     "hubLanding": {
       "agenciesTitle": "Agencias en la plataforma",
@@ -20095,6 +20103,7 @@
         "teamOnly": "Solo tu equipo lo ve",
         "fallback": "respaldo: {channel} si no está",
         "placeholder": "Escribe una respuesta",
+        "placeholderMobile": "Responder…",
         "notePlaceholder": "Escribe una nota para el equipo",
         "more": "Más",
         "attach": "Adjuntar un archivo",

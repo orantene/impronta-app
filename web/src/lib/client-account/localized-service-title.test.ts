@@ -23,6 +23,6 @@ test("TUL-975: the client visit page asks for the page locale", () => {
   assert.match(data, /localizedServiceTitle\(/);
   assert.match(data, /loadVisitDetail\(userId: string, tenantId: string, visitId: string, locale = "en"\)/);
   for (const f of ["./render-area.tsx", "./render-tenant-area.tsx"]) {
-    assert.match(readFileSync(new URL(f, import.meta.url), "utf8"), /loadVisitDetail\(userId, tenantId, view\.id, locale\)/);
+    assert.match(readFileSync(new URL(f, import.meta.url), "utf8"), /loadVisitDetail\(userId, (?:tenantId|visitTenant), view\.id, locale\)/);
   }
 });

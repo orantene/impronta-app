@@ -3,6 +3,7 @@ import Link from "next/link";
 import { resolveMarketingOrigin } from "@/lib/brand/marketing-origin";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { createTranslator } from "@/i18n/messages";
 import { getMarketingCopy } from "@/lib/marketing/copy";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
@@ -19,15 +20,19 @@ export default async function OnboardingLayout({
   // The rest of this surface is English-only today, but the legal line was
   // the one string a Spanish visitor still hit from /es signup flows.
   const [locale, session] = await Promise.all([getRequestLocale(), getCachedActorSession()]);
+  const t = createTranslator(locale); // TUL-1886
   return (
     <div
       className="site-theme-platform flex min-h-full flex-1 flex-col"
       data-platform-surface="marketing"
       style={{ background: "var(--plt-bg)" }}
     >
-      <OnboardingTopBar signedIn={Boolean(session.user)} />
+      <OnboardingTopBar signedIn={Boolean(session.user)} signInLabel={t("public.onboardingShell.signIn")} />
       <main className="flex-1">{children}</main>
-      <OnboardingFooter legalLine={getMarketingCopy(locale).footer.legalLine} />
+      <OnboardingFooter
+        legalLine={getMarketingCopy(locale).footer.legalLine}
+        labels={{ terms: t("public.onboardingShell.terms"), privacy: t("public.onboardingShell.privacy"), contact: t("public.onboardingShell.contact") }}
+      />
     </div>
   );
 }
@@ -35,7 +40,7 @@ export default async function OnboardingLayout({
 // Every onboarding page sits behind a session (each redirects to /login
 // without one), so "Sign in" in the header was always addressed to someone
 // already signed in. Kept for the rare unauthenticated render of the shell.
-function OnboardingTopBar({ signedIn }: { signedIn: boolean }) {
+function OnboardingTopBar({ signedIn, signInLabel }: { signedIn: boolean; signInLabel: string }) {
   return (
     <header
       className="sticky top-0 z-30 backdrop-blur-xl"
@@ -70,7 +75,7 @@ function OnboardingTopBar({ signedIn }: { signedIn: boolean }) {
             className="text-[0.8125rem] font-medium leading-none tracking-[-0.005em] transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Sign in
+            {signInLabel}
           </Link>
         )}
       </div>
@@ -78,7 +83,7 @@ function OnboardingTopBar({ signedIn }: { signedIn: boolean }) {
   );
 }
 
-function OnboardingFooter({ legalLine }: { legalLine: string }) {
+function OnboardingFooter({ legalLine, labels }: { legalLine: string; labels: { terms: string; privacy: string; contact: string } }) {
   return (
     <footer
       className="mt-12 py-8"
@@ -102,14 +107,14 @@ function OnboardingFooter({ legalLine }: { legalLine: string }) {
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Terms
+            {labels.terms}
           </Link>
           <Link
             href={`${resolveMarketingOrigin()}/legal/privacy`}
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Privacy
+            {labels.privacy}
           </Link>
           {/* /about, not /contact: the marketing host has no /contact page
               (it is not in MARKETING_PAGE_PREFIXES, and the CMS clean-URL
@@ -121,7 +126,7 @@ function OnboardingFooter({ legalLine }: { legalLine: string }) {
             className="transition-colors hover:text-[var(--plt-ink)]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Contact
+            {labels.contact}
           </Link>
         </div>
       </div>

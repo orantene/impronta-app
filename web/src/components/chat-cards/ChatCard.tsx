@@ -25,6 +25,9 @@
 
 import { useState, type ReactNode } from "react";
 
+import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
+
 const C = {
   ink:        "#0B0B0D",
   inkMuted:   "rgba(11,11,13,0.55)",
@@ -672,6 +675,7 @@ export function SystemEventCard(props: {
   text: string;
   ts?: string;
 }) {
+  const locale = useDashboardLocale(); // TUL-1888: stored English notes render in the viewer's language
   return (
     <div style={{
       fontSize: 11.5,
@@ -681,7 +685,7 @@ export function SystemEventCard(props: {
       fontFamily: FONT,
       fontStyle: "italic",
     }}>
-      {props.text}
+      {localizeSystemNote(props.text, locale)}
       {props.ts && (
         <span style={{ marginLeft: 6, color: C.inkDim }}>· {props.ts}</span>
       )}

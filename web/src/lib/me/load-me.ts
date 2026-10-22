@@ -59,11 +59,15 @@ function toCents(value: number | string | null | undefined): number | null {
 
 export async function loadMeData(
   userId: string,
-  tenantId: string,
+  tenantId: string | null,
+  opts: { acrossTenants?: boolean } = {},
 ): Promise<MeData> {
   // Both are required. See the header: an absent tenant must not widen the
-  // query, it must return nothing.
-  if (!userId || !tenantId) return EMPTY_ME;
+  // query, it must return nothing. TUL-65: only the caller that says so (hub, app and
+  // marketing account hosts, where the account is the client's whole account) drops the
+  // tenant filter; ownership (client_user_id) always stays.
+  const across = opts.acrossTenants === true;
+  if (!userId || (!tenantId && !across)) return EMPTY_ME;
 
   try {
     const admin = createServiceRoleClient();
@@ -72,21 +76,15 @@ export async function loadMeData(
     const SELECT = `id, tenant_id, status, company, event_date, event_location, created_at, next_action_by, source_context,
          agency_bookings!agency_bookings_source_inquiry_id_fkey ( id, title, status, starts_at, total_client_revenue, currency_code, payment_status )`;
     const [{ data, error }, owned] = await Promise.all([
-      admin
-        .from("inquiries")
-        .select(SELECT)
-        .eq("client_user_id", userId)
-        .eq("tenant_id", tenantId)
-        .order("created_at", { ascending: false })
-        .limit(200),
+      (() => {
+        const q = admin.from("inquiries").select(SELECT).eq("client_user_id", userId);
+        return (across ? q : q.eq("tenant_id", tenantId as string)).order("created_at", { ascending: false }).limit(200);
+      })(),
       // Bookings this client owns whose inquiry carries no client_user_id (see bookingOwnedInquiryIdsToAdd).
-      admin
-        .from("agency_bookings")
-        .select("source_inquiry_id")
-        .eq("client_user_id", userId)
-        .eq("tenant_id", tenantId)
-        .not("source_inquiry_id", "is", null)
-        .limit(200),
+      (() => {
+        const q = admin.from("agency_bookings").select("source_inquiry_id").eq("client_user_id", userId);
+        return (across ? q : q.eq("tenant_id", tenantId as string)).not("source_inquiry_id", "is", null).limit(200);
+      })(),
     ]);
 
     if (error) {
@@ -101,7 +99,8 @@ export async function loadMeData(
       rows.map((r) => r.id),
     );
     if (extraIds.length > 0) {
-      const extra = await admin.from("inquiries").select(SELECT).in("id", extraIds).eq("tenant_id", tenantId);
+      const extraQ = admin.from("inquiries").select(SELECT).in("id", extraIds);
+      const extra = await (across ? extraQ : extraQ.eq("tenant_id", tenantId as string));
       if (extra.error) logServerError("me.loadMeData.extraInquiries", extra.error);
       else rows.push(...((extra.data ?? []) as unknown as Row[]));
     }

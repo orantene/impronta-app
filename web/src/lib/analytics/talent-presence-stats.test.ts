@@ -110,7 +110,9 @@ describe("presence card plan gating (TUL-582)", () => {
 
   it("the Hoy card renders nothing without the presence model and is mounted on Hoy", () => {
     const card = read("src", "components", "admin", "shell", "internal", "talent", "shared", "presence-stats-card.tsx");
-    assert.match(card, /if \(!stats\) return null;/);
+    assert.match(card, /if \(talentTier !== "free"\) return null;/);
+    assert.match(card, /Pro and Max plans/);
+    assert.match(card, /planes Pro y Max/);
     const today = read("src", "components", "admin", "shell", "internal", "talent", "pages", "TodayPage.tsx");
     assert.match(today, /<TalentPresenceStatsCard \/>/);
   });

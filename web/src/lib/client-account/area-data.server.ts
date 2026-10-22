@@ -20,14 +20,40 @@ import { localizedServiceTitle } from "./localized-service-title";
 
 /** Every query here is `client_user_id = session user` AND `tenant_id = this site's tenant`. */
 
-export async function loadVisitGroups(userId: string, tenantId: string) {
-  const me = await loadMeData(userId, tenantId);
+export async function loadVisitGroups(userId: string, tenantId: string, opts: { acrossTenants?: boolean } = {}) {
+  const me = await loadMeData(userId, tenantId, opts);
   const rows = [...me.upcoming, ...me.waitingOnYou, ...me.past];
   // Each row shows in its booking talent's zone (visit-zone.ts); gaps fall back to the host zone.
-  const zones = await loadVisitZones(tenantId, rows.map((r) => r.id));
+  // Across tenants the zones are read per row tenant.
+  const zones: Record<string, string> = {};
+  const byTenant = new Map<string, string[]>();
+  for (const r of rows) byTenant.set(opts.acrossTenants ? r.tenantId : tenantId, [...(byTenant.get(opts.acrossTenants ? r.tenantId : tenantId) ?? []), r.id]);
+  for (const [tid, ids] of byTenant) Object.assign(zones, await loadVisitZones(tid, ids));
   // TUL-1089: a request with no booking yet reads in the zone its own stamp named (as the detail does).
   for (const r of rows) if (!zones[r.id] && r.startsAtZone) zones[r.id] = r.startsAtZone;
   return { ...groupVisits(rows, Date.now()), zones };
+}
+
+/**
+ * TUL-65: on hub, app and marketing hosts the visit list spans tenants, so a row's detail lives on
+ * the row's own tenant. Resolve it from the visit id, owned by THIS user only (the inquiry's client
+ * or a booking's client); null when the user owns nothing under that id.
+ */
+export async function resolveOwnedVisitTenantId(userId: string, visitId: string): Promise<string | null> {
+  const admin = createServiceRoleClient();
+  if (!admin || !userId) return null;
+  const inq = await admin.from("inquiries").select("tenant_id").eq("id", visitId).eq("client_user_id", userId).maybeSingle();
+  if (inq.error) logServerError("clientAccount.visit.ownedTenant.inquiry", inq.error);
+  const t1 = (inq.data as { tenant_id?: string | null } | null)?.tenant_id;
+  if (t1) return t1;
+  const bk = await admin
+    .from("agency_bookings")
+    .select("tenant_id")
+    .eq("client_user_id", userId)
+    .or(`id.eq.${visitId},source_inquiry_id.eq.${visitId}`)
+    .limit(1);
+  if (bk.error) logServerError("clientAccount.visit.ownedTenant.booking", bk.error);
+  return ((bk.data ?? []) as Array<{ tenant_id: string | null }>)[0]?.tenant_id ?? null;
 }
 
 export type VisitDetail = {

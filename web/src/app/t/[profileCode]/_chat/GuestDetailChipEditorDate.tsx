@@ -47,6 +47,7 @@ export function DateEditor({
   // A half-typed native date (02/08/yyyy) reads back as "", so track it apart.
   const [dateIncomplete, setDateIncomplete] = useState(false);
   const inputId = useId();
+  const dateErrorId = `${inputId}-date-error`;
 
   // "Exact date" needs an actual date before it can commit, otherwise it would
   // save an empty exact date that renders as "Date TBD". Flexible / Not sure yet
@@ -97,11 +98,12 @@ export function DateEditor({
             }}
             onBlur={(e) => setDateIncomplete(e.target.validity.badInput)}
             aria-invalid={dateIncomplete}
+            aria-describedby={dateIncomplete ? dateErrorId : undefined}
             className={a11y.focusRing}
             style={smallInputStyle(C, accent)}
           />
           {dateIncomplete && (
-            <p role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
+            <p id={dateErrorId} role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
               {t("public.guestChat.dateIncompleteError")}
             </p>
           )}

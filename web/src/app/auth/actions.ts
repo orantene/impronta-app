@@ -269,12 +269,12 @@ export async function signInWithEmail(
   // does not exist on the marketing apex or the hub, where this form is also
   // served. A relative redirect there is a hard 404. On Desk hosts, /admin → /desk.
   const deskHost = await deskRequestHost();
-  // Bounded like the rest: a timeout means "no extra context" ({}), the destination still resolves.
+  // Bounded like the rest: a timeout means membership is unknown, so a tenant admin `next` is still honored (the admin layout gates it).
   const postAuthRead =
     user && !profileTimedOut
       ? await bounded("postAuthContextForNext", postAuthContextForNext(supabase, user.id, nextPath), SIGN_IN_FOLLOW_UP_DEADLINE_MS)
       : {};
-  const postAuthCtx = postAuthRead === TIMED_OUT ? {} : postAuthRead;
+  const postAuthCtx = postAuthRead === TIMED_OUT ? { membershipUnknown: true } : postAuthRead;
   const destination = profileTimedOut
     ? signInTimeoutDestination(nextPath)
     : resolvePostAuthDestination(profileData, nextPath, postAuthCtx);
