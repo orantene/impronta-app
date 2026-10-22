@@ -96,7 +96,9 @@ export function availabilityReplyText(result: AvailabilityResult, locale: string
   const es = isEs(locale);
   if (result.kind === "times") {
     const list = result.starts.map((s) => formatOfferedTime(s, result.timezone, locale)).join(" | ");
-    return es ? `Estos horarios están libres: ${list}. Elige uno para apartarlo.` : `These times are open: ${list}. Pick one to hold it.`;
+    // "10:00 a.m." already ends the sentence; never print "a.m..".
+    const end = list.endsWith(".") ? "" : ".";
+    return es ? `Estos horarios están libres: ${list}${end} Elige uno para apartarlo.` : `These times are open: ${list}${end} Pick one to hold it.`;
   }
   if (result.kind === "none") {
     return es

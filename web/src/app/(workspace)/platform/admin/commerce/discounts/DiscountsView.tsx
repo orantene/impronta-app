@@ -81,7 +81,7 @@ export function DiscountsView({
     : null;
 
   // TUL-1860: status comes from active + date window (same rule as checkout), not the flag alone.
-  const nowMs = Date.now();
+  const [nowMs] = React.useState(() => Date.now());
   const activeCodes = discounts.filter((d) => discountStatus(d, nowMs) !== "archived");
   const liveCount = discounts.filter((d) => discountStatus(d, nowMs) === "active").length;
   const archivedCodes = discounts.filter((d) => discountStatus(d, nowMs) === "archived");

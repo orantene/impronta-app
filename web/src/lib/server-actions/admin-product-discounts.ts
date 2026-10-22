@@ -150,7 +150,7 @@ const createDiscountSchema = z
         path: ["minimumAmountCurrency"],
       });
     }
-    const windowError = discountWindowError(v, "create");
+    const windowError = discountWindowError({ startsAt: v.startsAt, endsAt: v.endsAt }, "create");
     if (windowError) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

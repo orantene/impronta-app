@@ -329,7 +329,7 @@ function TierUpgradeCta({ current }: { current: TalentSubscriptionTier }) {
   useEffect(() => {
     setUrlPromo(readPromoCodeFromUrl());
   }, []);
-  const planChange = useTalentPlanChange(tenantSlug, appliedCode ?? urlPromo);
+  const planChange = useTalentPlanChange(tenantSlug ?? null, appliedCode ?? urlPromo);
   // TUL-1297: monthly / yearly switch, shown only when the catalog has a yearly price.
   const [interval, setBillingInterval] = useState<TierInterval>("month");
   const yearlyPlans = useYearlyPlans();
