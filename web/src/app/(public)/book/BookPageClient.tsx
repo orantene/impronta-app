@@ -134,7 +134,7 @@ export function BookPageClient({
       {selected.seatsLabel ? (
         <p className="text-sm font-medium">{selected.seatsLabel}</p>
       ) : null}
-      <div className="flex flex-col items-start gap-3" data-book-no-times={noTimes ? selected.id : undefined}>
+      <div className="flex w-full flex-col items-stretch gap-3" data-book-no-times={noTimes ? selected.id : undefined}>
         {noTimes ? (
           <p className="text-sm text-[var(--token-color-muted,rgba(11,11,13,0.62))]">
             {t("public.bookPage.noTimesRequest")}
@@ -155,7 +155,7 @@ export function BookPageClient({
           requestLabel={t("public.bookPage.requestCta")}
         />
         {noTimes && contactHref ? (
-          <Link href={contactHref} className="text-sm underline">
+          <Link href={contactHref} className="self-start text-sm underline">
             {t("public.bookPage.contactCta")}
           </Link>
         ) : null}

@@ -6,7 +6,7 @@
  */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { publicSlotsUrl } from "@/lib/scheduling/public-slots-workspace";
 import { canonicalCityName, localizePlaceCity } from "@/lib/talent-site/city-label";
 import { loadPublicSlots } from "./slot-picker-load";
@@ -94,6 +94,12 @@ export function SlotPicker({
   }, [timezone]);
 
   const from = useMemo(() => ymd(new Date()), []);
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +122,8 @@ export function SlotPicker({
       } else {
         setSlots(r.slots);
         setEmptyReason(r.reason);
+        // TUL-1812: a time picked for the previous service must not stay selected on one that does not offer it.
+        if (valueRef.current && !r.slots.includes(valueRef.current.startsAt)) onChangeRef.current(null);
         if (r.timezone) setResolvedTz(r.timezone);
       }
       setLoading(false);
@@ -194,7 +202,7 @@ export function SlotPicker({
         </div>
       ) : (
         <>
-        <div className="mt-3 flex flex-col gap-1.5 max-h-64 overflow-auto">
+        <div className="mt-3 flex w-full flex-col gap-1.5 max-h-64 overflow-auto">
           {slots.map((start) => {
             const ends = new Date(new Date(start).getTime() + durationMinutes * 60_000).toISOString();
             const selected = value?.startsAt === start;
@@ -209,7 +217,7 @@ export function SlotPicker({
                       : { startsAt: start, endsAt: ends, timezone: resolvedTz },
                   )
                 }
-                className={`text-left text-[13px] rounded-lg border px-3 py-2 ${
+                className={`w-full text-left text-[13px] rounded-lg border px-3 py-2 ${
                   selected
                     ? "border-[rgba(11,11,13,0.85)] bg-[rgba(11,11,13,0.06)]"
                     : "border-[rgba(24,24,27,0.12)] bg-white"
