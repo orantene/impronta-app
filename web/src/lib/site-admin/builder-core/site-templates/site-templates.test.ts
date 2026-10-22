@@ -138,6 +138,7 @@ test("with no facts nothing is invented", () => {
   assert.doesNotMatch(all, /wa\.me/, "no WhatsApp number → no WhatsApp link");
   assert.doesNotMatch(all, PRICE_SHAPE, "no price-shaped text");
   assert.match(all, /El menú aún no está publicado\./);
+  assert.doesNotMatch(all, /El horario aún no está publicado/, "no published hours → no empty public hours block");
   assert.doesNotMatch(all, /Playa del Carmen|Casa Ejemplo/, "example identity must not leak");
   assert.ok(!result.filledSlots.includes("whatsapp"));
   assert.ok(!result.filledSlots.includes("home.proof"));

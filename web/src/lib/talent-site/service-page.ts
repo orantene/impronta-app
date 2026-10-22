@@ -13,6 +13,7 @@ import { publicPriceLine } from "@/lib/talent/public-price-line";
 import { buildServiceOffers, type JsonLdOfferingSource } from "@/lib/seo/talent-json-ld";
 import { publicPriceForJsonLd, resolvePublicPrice } from "@/lib/talent/public-price";
 import { durationLabel } from "@/lib/talent/duration-label";
+import { isSellable } from "@/lib/offerings/sellable";
 import type { ServiceContentFields } from "./service-content-fields";
 
 export const SERVICE_SLUG_PREFIX = "servicio-";
@@ -70,6 +71,34 @@ export function serviceSlug(o: { id: string; title: string }): string {
 }
 
 /**
+ * TUL-1270: the ONE absolute address of a service page on a talent site. The share link, the home
+ * service cards (servicePageHrefs) and the route all build from `serviceSlug`, so they cannot drift.
+ * `siteBase` is the site origin plus any locale prefix, with or without a trailing slash.
+ */
+export function servicePageUrl(siteBase: string, o: { id: string; title: string }): string {
+  return `${siteBase.replace(/\/+$/, "")}/${serviceSlug(o)}`;
+}
+
+/**
+ * TUL-1270: does a visitor get this service's page? Mirrors the public loader
+ * (published AND approved AND not agency_only) plus the page-eligibility rules the route applies.
+ * A draft, archived, unapproved or agency-only service 404s on the public host.
+ */
+export function isServicePubliclyServed(
+  o: Pick<JsonLdOfferingSource, "kind" | "visibility" | "title"> & {
+    status?: string | null;
+    moderationState?: string | null;
+    attributes?: Record<string, unknown> | null;
+  },
+): boolean {
+  // Published + approved via the one sellable rule ("reservation" ignores visibility; the page
+  // eligibility check below handles that). An unknown value (not loaded) is not a refusal here.
+  const known = o.status != null || o.moderationState != null;
+  if (known && !isSellable({ status: o.status ?? "published", moderationState: o.moderationState ?? "approved" }, "reservation")) return false;
+  return isServicePageEligible(o);
+}
+
+/**
  * TUL-792: id -> service page path for the home service cards. `base` is the locale prefix of a
  * published talent site ("" or "/en"); null/undefined (builder, hub, previews) means no links.
  */
@@ -81,7 +110,7 @@ export function servicePageHrefs(
   if (base == null) return out;
   const prefix = base.replace(/\/+$/, "");
   for (const o of offerings) {
-    if (isServicePageEligible(o)) out[o.id] = `${prefix}/${serviceSlug(o)}`;
+    if (isServicePageEligible(o)) out[o.id] = servicePageUrl(prefix, o);
   }
   return out;
 }

@@ -4,8 +4,9 @@
  * TUL-831 · in-app talent plan change. Preview shows "You pay $X today" or
  * "Your plan changes on <date>"; confirm reuses the preview's proration date so
  * the charge equals the preview. The talent profile is resolved from the
- * session (owner check); the plan row is written only by the webhook.
+ * session (owner check); the plan row is written by the webhook and, for an immediate change, right after confirm (TUL-1820).
  */
+import { revalidatePath } from "next/cache";
 import { assertNotImpersonating } from "@/lib/impersonation/readonly-guard";
 import { getTenantPortalScopeBySlug } from "@/lib/saas/scope";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -52,7 +53,10 @@ export async function confirmTalentPlanChange(
   if (!readOnly.ok) return { ok: false, error: readOnly.error, code: "not_allowed" };
   const id = await ownTalentProfileId(tenantSlug);
   if (typeof id !== "string") return { ok: false, error: id.error, code: "not_allowed" };
-  return confirmPlanChangeFor("talent", id, planKey, interval, prorationDate, promoCode);
+  const out = await confirmPlanChangeFor("talent", id, planKey, interval, prorationDate, promoCode);
+  // TUL-1820: the plan row was just rewritten; drop the cached shell so every plan label re-reads it.
+  if (out.ok) revalidatePath(`/${tenantSlug}`, "layout");
+  return out;
 }
 
 /** TUL-831: the plan change waiting for the end of the paid period (to Free, or to a lower paid plan), or null. */

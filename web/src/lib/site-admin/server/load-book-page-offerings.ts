@@ -23,13 +23,21 @@ export async function loadPublicBookableOfferings(args: {
   talentProfileId?: string | null;
   locale?: string;
   host?: { kind: string; tenantId?: string | null };
-}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null }>> {
+  /**
+   * TUL-1471: offerings of a workspace's roster talent that an INSTANT hub entry sells. They belong to
+   * the talent, not the workspace, so the tenant filter alone drops them and the widget could not book
+   * a hub entry. They still pass the sellable scope and the same booking-mode resolver as the rest.
+   */
+  extraOfferingIds?: readonly string[];
+}): Promise<Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean }>> {
   if (!args.tenantId && !args.talentProfileId) return [];
   try {
     const admin = createServiceRoleClient();
     if (!admin) return [];
     let query = scopeToSellableOfferings(admin.from("talent_offerings").select("*"), "guest_request");
-    if (args.tenantId) query = query.eq("tenant_id", args.tenantId);
+    const extraIds = (args.extraOfferingIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+    if (args.tenantId && extraIds.length > 0) query = query.or(`tenant_id.eq.${args.tenantId},id.in.(${extraIds.join(",")})`);
+    else if (args.tenantId) query = query.eq("tenant_id", args.tenantId);
     if (args.talentProfileId) {
       query = query.eq("talent_profile_id", args.talentProfileId);
     }
@@ -51,8 +59,18 @@ export async function loadPublicBookableOfferings(args: {
       kind: args.tenantId ? "agency" : "talent_site",
       tenantId: args.tenantId ?? null,
     };
-    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null }> = [];
+    // TUL-1381: a class sells its scheduled sessions (session_series -> sessions), not a
+    // talent calendar, so it never has slots and used to read "no online times". Offerings
+    // with upcoming sessions are listed with the session picker instead.
+    const sessionOfferingIds = args.tenantId
+      ? await loadOfferingIdsWithUpcomingSessions(admin, args.tenantId, offerings.map((o) => o.id))
+      : new Set<string>();
+    const kept: Array<TalentOffering & { bookingMode: TalentBookingMode; seatsLabel: string | null; hasOpenTimes?: boolean | null; hasSessions?: boolean }> = [];
     for (const offering of offerings) {
+      if (sessionOfferingIds.has(offering.id)) {
+        kept.push({ ...offering, bookingMode: "instant", seatsLabel: null, hasOpenTimes: true, hasSessions: true });
+        continue;
+      }
       if (!isSlotEligibleOffering(offering)) continue;
 
       // HOUSE-OWNED offerings (F8). Slot booking used to skip anything without
@@ -80,7 +98,7 @@ export async function loadPublicBookableOfferings(args: {
       if (mode !== "inquire") kept.push({ ...offering, bookingMode: mode, seatsLabel: null });
     }
     // B2/D3: tell the page which services have times (capped probe).
-    await annotateOpenTimes(admin, kept, {
+    await annotateOpenTimes(admin, kept.filter((o) => !o.hasSessions), {
       host: {
         kind: args.tenantId ? "agency" : host.kind,
         tenantId: args.tenantId ?? host.tenantId ?? null,
@@ -111,4 +129,36 @@ export async function loadPublicBookableOfferings(args: {
     logServerError("public.book.offerings", err);
     return [];
   }
+}
+
+const SESSION_HORIZON_DAYS = 90;
+
+/** Offering ids (of the given list) that have a scheduled session ahead, tenant-scoped. */
+export async function loadOfferingIdsWithUpcomingSessions(
+  admin: NonNullable<ReturnType<typeof createServiceRoleClient>>,
+  tenantId: string,
+  offeringIds: readonly string[],
+  now: Date = new Date(),
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (offeringIds.length === 0) return out;
+  const horizon = new Date(now.getTime() + SESSION_HORIZON_DAYS * 86_400_000).toISOString();
+  const { data, error } = await admin
+    .from("sessions")
+    .select("offering_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "scheduled")
+    .gte("starts_at", now.toISOString())
+    .lte("starts_at", horizon)
+    .in("offering_id", offeringIds as string[])
+    .limit(500);
+  // A failed read leaves classes on the old path rather than hiding a bookable service.
+  if (error) {
+    logServerError("public.book.sessions", error);
+    return out;
+  }
+  for (const row of data ?? []) {
+    if (typeof row.offering_id === "string") out.add(row.offering_id);
+  }
+  return out;
 }

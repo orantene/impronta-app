@@ -939,7 +939,8 @@
       "threadLogAria": "Conversation",
       "systemClusterMore": "{count} more updates",
       "systemClusterCollapse": "Hide",
-      "systemLineupCount": "Selection · {count} talent",
+      "systemLineupCountOne": "Selection · {count} talent",
+      "systemLineupCount": "Selection · {count} talents",
       "systemLineupRecommend": "Let the agency recommend",
       "messageRemoved": "Message removed",
       "openFullToView": "Open the full conversation to view this update.",
@@ -5553,6 +5554,10 @@
       "wsFieldSettingsDesc": "Workspace overrides for the resolved profile engine",
       "wsTalentCategoriesTitle": "Talent categories",
       "wsTalentCategoriesDesc": "Tenant-enabled categories for roster and registration",
+      "workStyle": {
+        "label": "How you work with people",
+        "desc": "Who gets requests, the price clients see and your share."
+      },
       "industry": {
         "label": "Industry and words",
         "desc": "Pick what you are. It sets what things are called on your site, your main button, and how the chat greets people. Nothing is locked."
@@ -12904,6 +12909,7 @@
         "ai": "AI",
         "account": "Account",
         "agencies": "Agencies",
+        "calendar": "Calendar",
         "clients": "Clients",
         "hq": "HQ",
         "help": "Help",
@@ -12916,6 +12922,7 @@
         "roster": "Roster",
         "security": "Security",
         "settings": "Settings",
+        "support": "Support",
         "today": "Today"
       },
       "audiences": {
@@ -14120,6 +14127,8 @@
       "handoffHq": "Escalated to you",
       "humanReplyEta": "{agent} will reply, typically within a few hours",
       "ticketReceipt": "Ticket #{number} received. {agent} will reply, typically within a few hours.",
+      "takenBy": "Taken by {name}",
+      "escalatedLog": "Ticket #{number} handed to a human: {reason}",
       "humanHandling": "A person is handling this",
       "aiHandling": "AI is helping, a human is one tap away",
       "statusClosed": "Closed",

@@ -24,7 +24,7 @@ import { GuestOfferSignIn } from "@/app/t/[profileCode]/_chat/GuestOfferSignIn";
 import { translatorFor } from "@/i18n/translator-for";
 import { bundleTranslator, type ClientThreadCatalog } from "./bundle-translator";
 import type { MessagingRefusal, ThreadMessage } from "@/lib/messaging/types";
-import { offerCardState, type ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
+import { offerCardState, reconcileOffersWithThread, type ClientOfferSummary } from "@/lib/messages-v5/client-thread-view";
 import { payLinkTarget } from "@/lib/payments/pay-link-target";
 import {
   messagingClientAcceptOffer,
@@ -298,7 +298,8 @@ export function ClientThread(props: ClientThreadProps) {
     }
   }, [props.token, saveEmail]);
 
-  const pendingOffer = props.offers.some((o) => offerCardState(o, now) === "sent");
+  const liveOffers = reconcileOffersWithThread(props.offers, messages);
+  const pendingOffer = liveOffers.some((o) => offerCardState(o, now) === "sent");
 
   return (
     <>
@@ -309,7 +310,7 @@ export function ClientThread(props: ClientThreadProps) {
       locale={props.locale}
       business={props.business}
       messages={messages}
-      offers={props.offers}
+      offers={liveOffers}
       payCode={props.payCode}
       now={now}
       activity={activity}

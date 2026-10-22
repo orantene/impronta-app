@@ -40,12 +40,15 @@ export function GuideTab({
   initialNodeId,
   onConsumedDeepLink,
   onAskSupport,
+  surface,
 }: {
   /** Set when a caller (e.g. the (i) icon) wants the Guide to open on a specific topic. */
   initialNodeId?: string | null;
   onConsumedDeepLink?: () => void;
   /** "Ask the Guide" fallback: hands the question to the support ask box on Home. */
   onAskSupport?: (question: string) => void;
+  /** Support surface of the viewer; a talent gets the talent guide only. */
+  surface?: string | null;
 }) {
   const t = useT();
   const locale = useGuideLocale();
@@ -57,13 +60,13 @@ export function GuideTab({
 
   useEffect(() => {
     let ignore = false;
-    void listGuideTopicsAction(locale).then((list) => {
+    void listGuideTopicsAction(locale, surface).then((list) => {
       if (!ignore) setTopics(list);
     });
     return () => {
       ignore = true;
     };
-  }, [locale]);
+  }, [locale, surface]);
 
   useEffect(() => {
     if (initialNodeId) {

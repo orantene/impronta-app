@@ -939,6 +939,7 @@
       "threadLogAria": "Conversación",
       "systemClusterMore": "{count} actualizaciones más",
       "systemClusterCollapse": "Ocultar",
+      "systemLineupCountOne": "Selección · {count} talento",
       "systemLineupCount": "Selección · {count} talentos",
       "systemLineupRecommend": "Que la agencia recomiende",
       "messageRemoved": "Mensaje eliminado",
@@ -5553,6 +5554,10 @@
       "wsFieldSettingsDesc": "Sobrescrituras del espacio para el motor de perfiles resuelto",
       "wsTalentCategoriesTitle": "Categorías de Talent",
       "wsTalentCategoriesDesc": "Categorías habilitadas del espacio para la lista y el registro",
+      "workStyle": {
+        "label": "Cómo trabajas con la gente",
+        "desc": "Quién recibe las solicitudes, el precio que ve el cliente y tu parte."
+      },
       "industry": {
         "label": "Industria y palabras",
         "desc": "Elige qué eres. Define cómo se llaman las cosas en tu sitio, tu botón principal y cómo saluda el chat. Nada queda bloqueado."
@@ -12904,6 +12909,7 @@
         "ai": "IA",
         "account": "Cuenta",
         "agencies": "Agencias",
+        "calendar": "Calendario",
         "clients": "Clientes",
         "hq": "HQ",
         "help": "Ayuda",
@@ -12916,6 +12922,7 @@
         "roster": "Lista",
         "security": "Seguridad",
         "settings": "Ajustes",
+        "support": "Soporte",
         "today": "Hoy"
       },
       "audiences": {
@@ -14120,6 +14127,8 @@
       "handoffHq": "Escalado a ti",
       "humanReplyEta": "{agent} responderá, normalmente en unas horas",
       "ticketReceipt": "Ticket #{number} recibido. {agent} responderá, normalmente en unas horas.",
+      "takenBy": "Tomado por {name}",
+      "escalatedLog": "Ticket #{number} pasado a una persona: {reason}",
       "humanHandling": "Una persona está atendiendo esto",
       "aiHandling": "La IA está ayudando, una persona está a un toque",
       "statusClosed": "Cerrado",
@@ -20888,7 +20897,7 @@
       "nav": "Posts"
     },
     "talentPosts": {
-      "listTitle": "Posts",
+      "listTitle": "Publicaciones",
       "newPost": "Nuevo post",
       "creating": "Creando...",
       "createFailed": "No se pudo crear el post. Inténtalo de nuevo.",

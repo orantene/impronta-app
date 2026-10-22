@@ -19,7 +19,10 @@ export function decideAiTurn(input: {
   escalatedAt?: string | null;
   now: Date;
   quietMinutes?: number;
+  /** TUL-661: a staff member explicitly took the ticket. The AI never answers again. */
+  takenOver?: boolean;
 }): AiTurnDecision {
+  if (input.takenOver) return "human_active";
   if (input.handledBy !== "human") return "answer";
   const anchor = input.lastHumanReplyAt ?? input.escalatedAt ?? null;
   if (!anchor) return "human_active";

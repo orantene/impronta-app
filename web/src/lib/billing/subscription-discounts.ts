@@ -170,7 +170,7 @@ export function buildAccountCouponParams(
 
 // ─── Pure: read-back extraction ──────────────────────────────────────────────
 
-type DiscountLike = {
+export type DiscountLike = {
   end?: number | null;
   /** SDK v22 nests the coupon under `source`; older shapes had it top-level. */
   source?: { coupon?: string | CouponLike | null } | null;
@@ -184,7 +184,7 @@ type CouponLike = {
   currency?: string | null;
 };
 
-function couponIdOf(coupon: string | CouponLike | null | undefined): string | null {
+export function couponIdOf(coupon: string | CouponLike | null | undefined): string | null {
   if (!coupon) return null;
   return typeof coupon === "string" ? coupon : coupon.id ?? null;
 }

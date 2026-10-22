@@ -53,7 +53,7 @@ export function ThreadHeader({ essentials, state, chips, channel, subject, when,
             <Icon name="back" size={20} />
           </button>
           <div className="who">
-            <b>{name}</b>
+            <b title={name}>{name}</b>
             <span className="subj">{subject}</span>
             <span className="meta">{meta}</span>
           </div>
@@ -79,7 +79,7 @@ export function ThreadHeader({ essentials, state, chips, channel, subject, when,
           ) : null}
           <Avatar name={isVisitor ? null : name} size="lg" />
           <div className="who">
-            <b>{name}</b>
+            <b title={name}>{name}</b>
             <span>
               <IdentityPill level={essentials.customer.identityLevel} copy={copy} />
               <span className="subj">
@@ -107,7 +107,7 @@ export function ThreadHeader({ essentials, state, chips, channel, subject, when,
         </Btn>
         <Avatar name={isVisitor ? null : name} size="lg" />
         <div className="who">
-          <b>{name}</b>
+          <b title={name}>{name}</b>
           <span>
             <IdentityPill level={essentials.customer.identityLevel} copy={copy} />
             <span className="subj">

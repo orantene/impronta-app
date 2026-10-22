@@ -20,6 +20,7 @@ import {
   readPayment,
   readTickets,
   readTimes,
+  reconcileOffersWithThread,
   threadPaymentState,
   ticketsIssued,
   timesSlotOpen,
@@ -272,4 +273,21 @@ test("sitting 3: a refund nets against what was paid", () => {
   const unknown = msg({ id: "u", kind: "payment_paid", payload: {} });
   assert.equal(threadPaymentState([unknown, refund("r1", 100)]), "refunded", "no amount on the card: the latest event decides");
   assert.equal(threadPaymentState([unknown, refund("r1", 100), msg({ id: "u2", kind: "payment_paid", payload: {} })]), "paid");
+});
+
+test("TUL-1899: an offer the thread shows accepted or paid is not drawn as open, even when its row still reads sent", () => {
+  const now = new Date("2026-10-22T12:00:00Z");
+  const open: ClientOfferSummary = { id: "o1", version: 3, status: "sent", totalCents: 10000, currency: "USD", depositPct: null, depositCents: null, refundPolicy: null, validUntil: null, noteToClient: null, lines: [] };
+  const state = msg({ id: "s1", kind: "offer_state", payload: { state: "selected", offerId: "o1", offerStatus: "accepted" } });
+  const paid = msg({ id: "p1", kind: "payment_paid", payload: { offerId: "o1", amountCents: 10000 } });
+  assert.equal(offerCardState(reconcileOffersWithThread([open], [state])[0], now), "accepted");
+  assert.equal(offerCardState(reconcileOffersWithThread([open], [paid])[0], now), "accepted");
+  const declined = msg({ id: "s2", kind: "offer_state", payload: { state: "cancelled", offerId: "o1", offerStatus: "declined" } });
+  assert.equal(offerCardState(reconcileOffersWithThread([open], [declined])[0], now), "declined");
+  // Unrelated offers, internal rows and untouched threads stay as they were.
+  assert.equal(reconcileOffersWithThread([open], [])[0], open);
+  assert.equal(reconcileOffersWithThread([{ ...open, id: "o2" }], [state])[0].status, "sent");
+  assert.equal(reconcileOffersWithThread([open], [{ ...state, internal: true }])[0].status, "sent");
+  // A terminal row is never overridden.
+  assert.equal(reconcileOffersWithThread([{ ...open, status: "superseded" }], [state])[0].status, "superseded");
 });
