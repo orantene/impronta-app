@@ -40,6 +40,10 @@
 # jobs that run in parallel, plus an aggregator that keeps the required name:
 #
 #   policy    Gate policy             decides whether the heavy gate runs
+#   precheck  Gate — fast pre-check   tsc, eslint (+ stale suppressions), static ratchets,
+#                                     lane lists, orphan gate, tests in changed files.
+#                                     Runs first; build/static/tests_a/tests_b `needs` it,
+#                                     so none of them starts if it fails.
 #   build     next build + budgets    next build, phantom chunks, bundle budget
 #   static    tsc and lint            tsc, lint, ratchets, structural guards
 #   tests_a   tests (A)               access .. a11y (incl. the big builder lanes)
@@ -139,9 +143,213 @@ jobs:
             exit 1
           fi
 
+  # ── Fast pre-check (TUL-1770 follow-up) ─────────────────────────────────────
+  # The cheap, high-signal part of the gate, run FIRST. Every heavy job below
+  # `needs: precheck`, so a type error, a lint error, a stale eslint suppression
+  # or a failed ratchet stops the run in minutes instead of after ~45 minutes of
+  # parallel build + test lanes (3 batch runs failed late on exactly these on
+  # 2026-10-21). NOTHING is removed from the heavy jobs: this is an extra, earlier
+  # look at the same checks, never a replacement. Runs on the standard runner.
+  #
+  # Every step uses `!cancelled()` (plus the policy output) so one run reports ALL the cheap breaks at once;
+  # the job still fails if any step failed, and the aggregator counts that as a gate
+  # failure. Caches (tsbuildinfo, ESLint) are saved even when the job fails, so the
+  # re-run after a fix is warm.
+  precheck:
+    name: Gate — fast pre-check
+    needs: policy
+    if: ${{ needs.policy.outputs.run == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the changed-test step diffs against the PR base.
+          fetch-depth: 0
+
+      - name: Setup Node 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      # TypeScript incremental state (tsconfig has `incremental: true`, so tsc
+      # writes tsconfig.tsbuildinfo even with --noEmit). TS keys it on file
+      # CONTENT hashes, not mtimes, so a fresh checkout reuses it; the error count
+      # stays exact because unchanged files keep their stored diagnostics.
+      - name: Restore tsc incremental cache
+        id: cache-tsc
+        uses: actions/cache/restore@v4
+        with:
+          path: web/tsconfig.tsbuildinfo
+          key: precheck-tsc-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/tsconfig.json') }}-${{ github.sha }}
+          restore-keys: |
+            precheck-tsc-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/tsconfig.json') }}-
+
+      # ESLint result cache (content strategy: checkout resets mtimes). ESLint
+      # invalidates entries itself when the config or plugin versions change; the
+      # key also carries the lockfile and config so a stale cache is never reused.
+      - name: Restore ESLint cache
+        id: cache-eslint
+        uses: actions/cache/restore@v4
+        with:
+          path: web/.eslintcache
+          key: precheck-eslint-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/eslint.config.mjs') }}-${{ github.sha }}
+          restore-keys: |
+            precheck-eslint-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/eslint.config.mjs') }}-
+
+      # Cheapest first (seconds), so the common mistakes show at the top of the log.
+      - name: precheck — lane lists sorted and every test file in a lane
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          node scripts/lanes-sort.cjs --check
+          # The orphan gate: a test file that runs in no lane, and the
+          # nightly-orphans overlap check, live in these two static tests.
+          NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' node scripts/lane-test.cjs \
+            src/lib/quality/orphan-gate.static.test.ts \
+            src/lib/quality/lane-enrolment.static.test.ts \
+            src/lib/quality/lane-file-lists.static.test.ts
+
+      # The static ratchets (file size / max-lines, supabase unchecked read,
+      # upsert onConflict, ...) are all in the `size ratchet` lane; run that lane
+      # whole so nothing it holds is skipped. The tests_b job runs it again.
+      - name: precheck — static ratchets (npm run test:size-ratchet)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run test:size-ratchet
+
+      # Guards that live in other lanes (their lanes need the heavier jobs).
+      - name: precheck — capability-less staff guard, message-key usage, duplicate keys
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' node scripts/lane-test.cjs \
+            src/lib/saas/capabilityless-staff-guard.static.test.ts \
+            src/i18n/message-key-usage.static.test.ts \
+            src/i18n/message-catalog-duplicate-keys.static.test.ts
+
+      - name: precheck — tests in changed files
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          # Base: the PR target, or the previous tip on a push to main. Manual runs
+          # have no base, so only the fixed guards above run.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="origin/$BASE_REF"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE" ] && ! printf '%s' "$PUSH_BEFORE" | grep -qE '^0+$' \
+               && git cat-file -e "$PUSH_BEFORE^{commit}" 2>/dev/null; then
+            BASE="$PUSH_BEFORE"
+          else
+            echo "No diff base for $EVENT_NAME; skipping changed-file tests."
+            exit 0
+          fi
+          # web/-relative paths of changed files (added, copied, modified, renamed).
+          git diff --name-only --diff-filter=ACMR "$BASE"...HEAD -- . | sed 's#^web/##' | sort -u > "$RUNNER_TEMP/changed.txt"
+          echo "changed files: $(wc -l < "$RUNNER_TEMP/changed.txt")"
+          : > "$RUNNER_TEMP/cand.txt"
+          while IFS= read -r f; do
+            case "$f" in
+              *.test.ts|*.test.tsx|*.test.mjs|*.test.cjs|*.test.js) echo "$f" >> "$RUNNER_TEMP/cand.txt" ;;
+              src/*.ts|src/*.tsx)
+                stem="${f%.*}"
+                for s in .test.ts .test.tsx .static.test.ts .static.test.tsx; do
+                  [ -f "$stem$s" ] && echo "$stem$s" >> "$RUNNER_TEMP/cand.txt"
+                done ;;
+            esac
+          done < "$RUNNER_TEMP/changed.txt"
+          sort -u "$RUNNER_TEMP/cand.txt" | while IFS= read -r t; do
+            [ -f "$t" ] || continue                                  # deleted or renamed away
+            grep -qE "from ['\"]vitest['\"]" "$t" && continue         # vitest files run in tests_b (test:components)
+            printf '%s\n' "$t"
+          done > "$RUNNER_TEMP/tests.txt"
+          # Files that deliberately run in no lane (recorded orphans, nightly-only) and
+          # quarantined files are not this step's business.
+          { grep -vE '^\s*(#|$)' scripts/ci/orphan-baseline.txt scripts/ci/nightly-orphans.txt 2>/dev/null | sed 's/^[^:]*://'; \
+            node -e 'try{for(const e of require("./scripts/lane-quarantine.json").entries??[])console.log(e.file)}catch{}'; } | sort -u > "$RUNNER_TEMP/skip.txt"
+          grep -vxFf "$RUNNER_TEMP/skip.txt" "$RUNNER_TEMP/tests.txt" > "$RUNNER_TEMP/run.txt" || true
+          n=$(wc -l < "$RUNNER_TEMP/run.txt")
+          echo "tests to run: $n"
+          if [ "$n" -eq 0 ]; then exit 0; fi
+          if [ "$n" -gt 250 ]; then
+            echo "::notice title=pre-check::$n changed test files; running the first 250 here, the heavy lanes run the rest."
+            head -250 "$RUNNER_TEMP/run.txt" > "$RUNNER_TEMP/run250.txt"; mv "$RUNNER_TEMP/run250.txt" "$RUNNER_TEMP/run.txt"
+          fi
+          cat "$RUNNER_TEMP/run.txt"
+          # lane-test resolves bracketed folders for this Node, runs tsx --test, and
+          # fails a run that reports zero tests.
+          xargs -a "$RUNNER_TEMP/run.txt" env NODE_OPTIONS='--require ./scripts/register-server-only-test.cjs' node scripts/lane-test.cjs
+
+      # Same command and heap as the `static` job's tsc step, same TSC_BASE (read
+      # from that job so the number lives in one place).
+      - name: precheck — tsc error count ≤ BASE
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          TSC_BASE=$(grep -m1 -E '^      TSC_BASE: [0-9]+' ../.github/workflows/ci.yml | sed -E 's/^ +TSC_BASE: ([0-9]+).*/\1/')
+          [ -n "$TSC_BASE" ] || { echo "::error::could not read TSC_BASE from ci.yml"; exit 1; }
+          set +e
+          tsc_output=$(NODE_OPTIONS="--max-old-space-size=11264" npx tsc --noEmit 2>&1)
+          tsc_exit=$?
+          set -e
+          error_count=$(printf '%s\n' "$tsc_output" | grep -cE 'error TS[0-9]+:' || true)
+          echo "tsc exit=$tsc_exit  errors=$error_count  BASE=$TSC_BASE"
+          printf '%s\n' "$tsc_output" | tail -80
+          if [ "$error_count" -gt "$TSC_BASE" ]; then
+            echo "::error title=tsc regression::HEAD has $error_count tsc error(s); BASE is $TSC_BASE."
+            exit 1
+          fi
+
+      # `npm run lint` is the gate's own command (suppressions file included). With
+      # a suppressions file ESLint 9 also FAILS on entries that no longer occur
+      # ("Suppressions left that do not occur anymore"), which is the stale-entry
+      # break; adding --cache does not change that. Fix with
+      # `npm run lint:refresh-baseline`-style pruning, never by hand-editing counts up.
+      - name: precheck — eslint (suppressions file, stale suppressions fail)
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: npm run lint -- --cache --cache-location .eslintcache --cache-strategy content
+
+      - name: precheck — eslint-suppressions.json total ≤ BASE
+        if: ${{ !cancelled() && needs.policy.outputs.run == 'true' }}
+        run: |
+          SUPPRESSIONS_BASE=$(grep -m1 -E '^      SUPPRESSIONS_BASE: [0-9]+' ../.github/workflows/ci.yml | sed -E 's/^ +SUPPRESSIONS_BASE: ([0-9]+).*/\1/')
+          [ -n "$SUPPRESSIONS_BASE" ] || { echo "::error::could not read SUPPRESSIONS_BASE from ci.yml"; exit 1; }
+          count=$(node -e "
+            const x = require('./eslint-suppressions.json');
+            let n = 0;
+            for (const f of Object.keys(x)) for (const r of Object.keys(x[f])) n += (x[f][r].count || 0);
+            console.log(n);
+          ")
+          echo "eslint-suppressions.json total=$count  BASE=$SUPPRESSIONS_BASE"
+          if [ "$count" -gt "$SUPPRESSIONS_BASE" ]; then
+            echo "::error title=suppressions regression::eslint-suppressions.json grew from $SUPPRESSIONS_BASE to $count."
+            exit 1
+          fi
+
+      - name: Save tsc incremental cache
+        if: ${{ !cancelled() && steps.cache-tsc.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: web/tsconfig.tsbuildinfo
+          key: precheck-tsc-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/tsconfig.json') }}-${{ github.sha }}
+
+      - name: Save ESLint cache
+        if: ${{ !cancelled() && steps.cache-eslint.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: web/.eslintcache
+          key: precheck-eslint-${{ runner.os }}-${{ hashFiles('web/package-lock.json', 'web/eslint.config.mjs') }}-${{ github.sha }}
+
   build:
     name: Gate — next build and bundle budget
-    needs: policy
+    needs: [policy, precheck]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Parallel part of the old single `gate` job (TUL-1770 part 2).
@@ -218,7 +426,7 @@ jobs:
 
   static:
     name: Gate — tsc and lint
-    needs: policy
+    needs: [policy, precheck]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Parallel part of the old single `gate` job (TUL-1770 part 2).
@@ -435,7 +643,7 @@ jobs:
 
   tests_a:
     name: Gate — tests (A)
-    needs: policy
+    needs: [policy, precheck]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Parallel part of the old single `gate` job (TUL-1770 part 2).
@@ -570,7 +778,7 @@ jobs:
 
   tests_b:
     name: Gate — tests (B)
-    needs: policy
+    needs: [policy, precheck]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     # Parallel part of the old single `gate` job (TUL-1770 part 2).
@@ -921,7 +1129,7 @@ jobs:
   gate:
     name: Structural quality gate
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
-    needs: [policy, build, static, tests_a, tests_b]
+    needs: [policy, precheck, build, static, tests_a, tests_b]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
