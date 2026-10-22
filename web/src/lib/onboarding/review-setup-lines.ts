@@ -7,6 +7,7 @@ import type { FlowLocale } from "./flow";
 import { DAY_LABELS, DAY_ORDER, timezoneDisplayName } from "./setup";
 import { SETUP_COPY } from "./setup-copy";
 import { timeSlotLabel } from "./time-slots";
+import { minorUnitDivisor } from "@/lib/orders/money-format";
 
 export type ReviewLine = { id: "services" | "hours" | "place" | "timezone"; label: string; value: string; /** The raw value behind an editable row (the IANA zone id). */ raw?: string };
 
@@ -21,7 +22,7 @@ export function serviceReviewLabel(s: Essentials["services"][number], locale: Fl
   if (typeof s.durationMin === "number" && s.durationMin > 0) bits.push(`${s.durationMin} min`);
   if (s.quote === true) bits.push(locale === "es" ? "precio a cotizar" : "price on quote");
   else if (typeof s.priceCents === "number" && s.priceCents > 0) {
-    const amount = s.priceCents / 100;
+    const amount = s.priceCents / minorUnitDivisor(s.currency || "MXN");
     try {
       bits.push(new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { style: "currency", currency: s.currency || "MXN", minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 }).format(amount));
     } catch {
