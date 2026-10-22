@@ -63,3 +63,37 @@ export function resolveWorkspacePageLocale(input: {
   const { supported } = input.facts;
   return supported.length === 0 || supported.includes(own) ? own : input.platformDefault;
 }
+
+const DASHBOARD_ROOTS = new Set(["talent", "admin", "client", "account"]);
+
+/**
+ * True for signed-in dashboard surfaces: `/talent…`, `/admin…`, `/client…`,
+ * `/account…`, and the tenant-scoped `/<slug>/admin…` / `/<slug>/client…`.
+ * Optional leading `/es` | `/en` prefix is ignored. Public workspace pages
+ * (`/w/<slug>`, `/`, `/directory`) are NOT dashboards.
+ */
+export function isDashboardSurfacePath(pathname: string | null | undefined): boolean {
+  const parts = (pathname ?? "").split("?")[0]!.split("/").filter(Boolean);
+  if (parts[0] === "es" || parts[0] === "en") parts.shift();
+  if (parts.length === 0 || parts[0] === "w") return false;
+  if (DASHBOARD_ROOTS.has(parts[0]!)) return true;
+  return parts.length >= 2 && (parts[1] === "admin" || parts[1] === "client");
+}
+
+/**
+ * TUL-1229: whether `getRequestLocale` may let the workspace's language decide.
+ * A dashboard is the user's own UI: once they switched language (cookie), the
+ * workspace default must not override it, or the dashboard stays Spanish on a
+ * Spanish workspace after switching to EN. Precedence there: explicit URL ->
+ * language cookie -> workspace/profile language -> default. Public workspace
+ * pages keep the TUL-699 rule unchanged.
+ */
+export function workspaceLocaleBranchApplies(input: {
+  pathname: string | null | undefined;
+  cookieLocale: string | null | undefined;
+  publicLocales: readonly string[];
+}): boolean {
+  if (!isDashboardSurfacePath(input.pathname)) return true;
+  const c = input.cookieLocale?.trim();
+  return !(c && input.publicLocales.includes(c));
+}
