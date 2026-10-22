@@ -145,6 +145,7 @@ src/components/onboarding/steps/save-step-consent.static.test.ts
 src/components/onboarding/steps/setup-hours-layout.static.test.ts
 src/components/onboarding/sticky-footer-clearance.static.test.ts
 src/components/posts/writer/editor-blocks.test.ts
+src/components/posts/writer/new-post-actions.test.ts
 src/components/public-booking/catalog-who-contact-1236.test.tsx
 src/components/public-header-mobile-menu-drawer.static.test.ts
 src/components/shared/ThreadShell.test.ts

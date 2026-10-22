@@ -12,6 +12,7 @@ import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { assertTicketAccess } from "@/lib/support/support-access";
 import { supportEngine } from "@/lib/support/support-engine";
 import { insightRowsToCorpus } from "@/lib/support/help-corpus";
+import { supportAiForcedError } from "@/lib/support/support-ai-fault";
 import { retrieveHelpEntriesForLocale } from "@/lib/support/help-corpus-locale";
 import {
   CHANGELOG_SYSTEM_RULE,
@@ -214,7 +215,9 @@ export async function POST(request: Request) {
       changelog,
     });
 
-    const completion = await Promise.race([
+    const completion = supportAiForcedError()
+      ? { ok: false as const, code: "forced_error", message: "forced_error" }
+      : await Promise.race([
       adapter.chatCompletion({
         systemPrompt: `${SYSTEM_PROMPT} ${supportAiLanguageDirective(appLocale)}`,
         userMessage,

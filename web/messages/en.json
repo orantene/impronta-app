@@ -12872,6 +12872,7 @@
         "ai": "AI",
         "account": "Account",
         "agencies": "Agencies",
+        "calendar": "Calendar",
         "clients": "Clients",
         "hq": "HQ",
         "help": "Help",
@@ -12884,6 +12885,7 @@
         "roster": "Roster",
         "security": "Security",
         "settings": "Settings",
+        "support": "Support",
         "today": "Today"
       },
       "audiences": {
