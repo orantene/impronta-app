@@ -37,7 +37,7 @@ test("a timed-out profile read is NOT treated as no profile: it goes to next or 
   assert.match(signIn, /const profileTimedOut = profileRead === TIMED_OUT;/);
   assert.match(signIn, /const profileData = profileTimedOut \? null : profileRead;/);
   assert.match(signIn, /profileTimedOut\s*\? signInTimeoutDestination\(nextPath\)\s*: resolvePostAuthDestination\(profileData, nextPath, postAuthCtx\)/);
-  assert.match(signIn, /postAuthRead === TIMED_OUT \? \{\} : postAuthRead/, "a timed-out post-auth context means no extra context");
+  assert.match(signIn, /postAuthRead === TIMED_OUT \? \{ membershipUnknown: true \} : postAuthRead/, "a timed-out membership read means unknown, not none");
 });
 
 test("the form shows a slow-sign-in notice while pending, in both languages", () => {

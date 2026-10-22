@@ -43,9 +43,15 @@ test("shape: newest first, name + code + city, and a profile link on the hub", (
   assert.equal(out[1]!.city, "Cancún");
 });
 
-test("a talent hidden, deleted, unlisted or without a code is not shown (same public predicate as the directory)", () => {
+test("TUL-1239: an unlisted but viewable talent stays in the client's Saved list", () => {
+  const r = row();
+  r.talent_profiles = { ...r.talent_profiles!, is_publicly_listed: false };
+  assert.equal(shapeSavedTalent([r], "https://x.test").length, 1);
+});
+
+test("a talent hidden, deleted, private or without a code is not shown (same public predicate as the directory)", () => {
   for (const over of [
-    { is_publicly_hidden: true }, { deleted_at: "2026-10-01" }, { is_publicly_listed: false },
+    { is_publicly_hidden: true }, { deleted_at: "2026-10-01" },
     { visibility: "private" }, { profile_kind: "resource" }, { profile_code: null },
   ]) {
     const r = row();
@@ -107,4 +113,12 @@ test("wiring: roster-scoped on tenant hosts, unscoped on hub / app / marketing (
   assert.match(loader, /from\("agency_talent_roster"\)[\s\S]*\.eq\("tenant_id", tenantId\)/);
   const comp = readFileSync(join(process.cwd(), "src/components/client-account/ClientAccountArea.tsx"), "utf8");
   assert.doesNotMatch(comp, /<a href=\{s\.href\}/);
+});
+
+test("TUL-1239: header count, dock Saved shelf and /account Saved share one viewability rule", () => {
+  const read = (f: string) => readFileSync(join(process.cwd(), f), "utf8");
+  assert.match(read("src/app/api/directory/talents-by-ids/route.ts"), /isViewableSavedProfile/);
+  assert.match(read("src/lib/public-discovery.ts"), /isViewableSavedProfile/);
+  assert.match(read("src/lib/client-account/saved-talent.ts"), /!isViewableSavedProfile\(p\)/);
+  assert.doesNotMatch(read("src/app/api/directory/talents-by-ids/route.ts"), /is_discoverable !== false/);
 });

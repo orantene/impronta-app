@@ -37,3 +37,23 @@ const ES: HubLandingCopy = {
 export function hubLandingCopy(locale: string | null | undefined): HubLandingCopy {
   return (locale ?? "").toLowerCase().startsWith("es") ? ES : EN;
 }
+
+/**
+ * TUL-1884: the hub tenant row was seeded with the pre-rebrand literals "Impronta Hub" and
+ * "The global talent directory." (migration 20260625100000). Those are placeholders, not
+ * an operator's words: showing them on an ES hub home printed English and the old brand.
+ * A seeded value falls back to the platform hub name / the localized tagline; anything an
+ * operator typed is shown as written.
+ */
+const SEEDED_HUB_NAMES = new Set(["impronta hub"]);
+const SEEDED_HUB_TAGLINES = new Set(["the global talent directory", "the global talent directory."]);
+
+export function hubDisplayName(publicName: string | null | undefined, platformName: string): string {
+  const v = publicName?.trim();
+  return v && !SEEDED_HUB_NAMES.has(v.toLowerCase()) ? v : platformName;
+}
+
+export function hubDisplayTagline(tagline: string | null | undefined, localizedFallback: string): string {
+  const v = tagline?.trim();
+  return v && !SEEDED_HUB_TAGLINES.has(v.toLowerCase()) ? v : localizedFallback;
+}

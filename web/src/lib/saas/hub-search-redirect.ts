@@ -13,6 +13,12 @@ export type HubSearchRedirectInput = {
   search: string;
   /** resolveMarketingOrigin(): the host that really serves /directory. */
   marketingOrigin: string;
+  /**
+   * TUL-1883: the visitor's `locale` cookie on this host. The cookie is per host, so an unprefixed
+   * `/search` hopping to the marketing host lands there with NO cookie and it stamps the default
+   * (English). When the visitor chose a non-default language, carry it as the `/es` prefix.
+   */
+  cookieLocale?: string | null;
 };
 
 export function hubSearchRedirect(input: HubSearchRedirectInput): string | null {
@@ -20,7 +26,7 @@ export function hubSearchRedirect(input: HubSearchRedirectInput): string | null 
   if (input.method !== "GET" && input.method !== "HEAD") return null;
   const m = /^(?:\/(es|en))?\/search\/?$/.exec(input.pathname);
   if (!m) return null;
-  const prefix = m[1] ? `/${m[1]}` : "";
+  const prefix = m[1] ? `/${m[1]}` : input.cookieLocale === "es" ? "/es" : "";
   const params = new URLSearchParams(input.search.startsWith("?") ? input.search.slice(1) : input.search);
   const q = params.get("q")?.trim() ?? "";
   return `${input.marketingOrigin.replace(/\/+$/, "")}${prefix}/directory${q ? `?q=${encodeURIComponent(q)}` : ""}`;

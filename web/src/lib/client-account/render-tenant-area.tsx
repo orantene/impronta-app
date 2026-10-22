@@ -21,7 +21,7 @@ import { accountFlagKindForHost, agencyAccountTabs } from "./agency-area-pure";
 import { loadAgencyAccountSite } from "./area-site.server";
 import {
   loadAccountProfile, loadOwedPayLinks, loadReceiptDetail, loadReceipts, loadThread, loadThreads,
-  loadVisitDetail, loadVisitGroups,
+  loadVisitDetail, loadVisitGroups, resolveOwnedVisitTenantId,
 } from "./area-data.server";
 import { clientAccountEnabledFor } from "./flag";
 import { loadClientAccountSummary } from "./summary.server";
@@ -60,13 +60,16 @@ export async function renderTenantAccountPage(requestedView: AccountView, hostCo
   const data: AreaData = {};
   if (audience === "client" && userId) {
     const tenantId = tenant.tenantId;
+    const spans = accountSpansTenants(hostContext);
     if (view.kind === "visit") {
-      data.visit = await loadVisitDetail(userId, tenantId, view.id, locale);
-      data.visitReview = data.visit ? await loadVisitReviewState(userId, tenantId, data.visit.bookingId) : null;
+      // TUL-65: a list row from another tenant opens on that row's own tenant.
+      const visitTenant = (spans ? await resolveOwnedVisitTenantId(userId, view.id) : null) ?? tenantId;
+      data.visit = await loadVisitDetail(userId, visitTenant, view.id, locale);
+      data.visitReview = data.visit ? await loadVisitReviewState(userId, visitTenant, data.visit.bookingId) : null;
     }
     else if (view.kind === "thread") data.thread = await loadThread(userId, tenantId, view.id, locale);
     else if (view.kind === "receipt") data.receipt = await loadReceiptDetail(userId, tenantId, view.code);
-    else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId);
+    else if (view.tab === "visits") data.visits = await loadVisitGroups(userId, tenantId, { acrossTenants: spans });
     else if (view.tab === "messages") data.threads = await loadThreads(userId, tenantId);
     else if (view.tab === "saved") {
       [data.saved, data.savedServices] = await Promise.all([

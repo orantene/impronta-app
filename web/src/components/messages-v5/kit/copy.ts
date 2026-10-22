@@ -458,6 +458,7 @@ export function buildKitCopy(t: Translator) {
       teamOnly: t("dashboard.messagesV5.composer.teamOnly"),
       fallback: t("dashboard.messagesV5.composer.fallback"),
       placeholder: t("dashboard.messagesV5.composer.placeholder"),
+      placeholderMobile: t("dashboard.messagesV5.composer.placeholderMobile"),
       notePlaceholder: t("dashboard.messagesV5.composer.notePlaceholder"),
       more: t("dashboard.messagesV5.composer.more"),
       attach: t("dashboard.messagesV5.composer.attach"),

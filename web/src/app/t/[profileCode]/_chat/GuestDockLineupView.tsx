@@ -41,6 +41,7 @@ import { useInquiryCart } from "@/lib/talent-cards/use-inquiry-cart";
 import { registerCartTalent, useCartTalentRegistry } from "./cart-talent-registry";
 import { useCartTalents } from "./use-cart-talents";
 import { useAddedCatalogItems, useRemovedLineIds } from "./guest-added-items-store";
+import { useInquiryTrayCount } from "./GuestInquiryTray";
 import { itemsWithoutAddedDuplicates } from "./guest-added-items-dedupe";
 import { removeAddedCatalogLine } from "./remove-added-item";
 import { AVATAR_GROUND, FACE_OBJECT_POSITION, PERSON_SILHOUETTE_SVG } from "./launcher-avatar-styles";
@@ -238,7 +239,8 @@ export function GuestDockLineupView({
   const addedItems = useAddedCatalogItems();
   const removedLineIds = useRemovedLineIds();
   const [removeNotice, setRemoveNotice] = useState<string | null>(null);
-  const inquiryCount = cartTalents.length + addedItems.length;
+  // TUL-1238: the shelf header and the tray read ONE count (useInquiryTrayCount), never two formulas.
+  const inquiryCount = useInquiryTrayCount();
   const showPeopleShelves =
     representsPeople || cartTalents.length > 0 || savedTiles.length > 0 || addedItems.length > 0;
   const [savedLoading, setSavedLoading] = useState(false);

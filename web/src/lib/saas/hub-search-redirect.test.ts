@@ -33,3 +33,9 @@ test("the proxy wires it before the surface 404", () => {
   assert.match(proxy, /hubSearchRedirect\(/);
   assert.ok(proxy.indexOf("hubSearchRedirect(") < proxy.indexOf('new URL("/_page-not-found", request.url)'));
 });
+
+test("TUL-1883: an unprefixed hub /search keeps a Spanish locale cookie as the /es prefix, so the marketing host never stamps en", () => {
+  assert.equal(hubSearchRedirect({ ...base, pathname: "/search", search: "?q=x", cookieLocale: "es" }), "https://tulala.digital/es/directory?q=x");
+  assert.equal(hubSearchRedirect({ ...base, pathname: "/search", search: "?q=x", cookieLocale: "en" }), "https://tulala.digital/directory?q=x");
+  assert.equal(hubSearchRedirect({ ...base, pathname: "/en/search", search: "", cookieLocale: "es" }), "https://tulala.digital/en/directory", "an explicit prefix wins over the cookie");
+});

@@ -231,7 +231,7 @@ export function GuestConversationBody({
             surfaceMode={surfaceMode}
           />
         ) : (
-          <SystemNoteCluster key={node.id} rows={node.rows} C={C} t={t} />
+          <SystemNoteCluster key={node.id} rows={node.rows} C={C} t={t} locale={brand.locale ?? "en"} />
         ),
       )}
 

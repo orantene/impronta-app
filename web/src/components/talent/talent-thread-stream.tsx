@@ -8,6 +8,7 @@ import { DaySeparator } from "@/components/admin/shell/internal/messages/shared/
 import { renderChatCardForMessage } from "@/components/admin/shell/internal/messages/admin-3";
 import { type TalentThreadMessage } from "@/app/(workspace)/[tenantSlug]/talent/inbox/[id]/actions";
 import { useDashboardText } from "@/components/admin/shell/internal/dashboard-i18n";
+import { localizeSystemNote } from "@/lib/inquiry/system-note-i18n";
 import { renderMessageMarkdown } from "@/lib/messages/markdown";
 import { LinkPreview, firstHttpUrl } from "@/components/messages/thread-enhancements";
 import { PinButton } from "@/components/chat-interactions/PinButton";
@@ -155,7 +156,7 @@ export function RealThreadStream({
                     return <VoiceNotePlayer meta={voiceMeta} accent={COLORS.accentDeep} onDark={mine} />;
                   }
                   return (
-                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageMarkdown(m.body)}</div>
+                    <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageMarkdown(m.senderRole === "system" ? localizeSystemNote(m.body, copy.locale) : m.body)}</div>
                   );
                 })()}
                 {(() => {
