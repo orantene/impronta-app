@@ -125,6 +125,7 @@ src/lib/seo/f5-sitemap-share-images.test.ts
 src/lib/seo/home-service-cards-links.render.test.tsx
 src/lib/seo/hub-profile-es-head.test.ts
 src/lib/seo/hub-service-area-es.render.test.tsx
+src/lib/seo/indexnow-debounce.test.ts
 src/lib/seo/indexnow.test.ts
 src/lib/seo/path-workspace-sitemap.test.ts
 src/lib/seo/request-base.test.ts

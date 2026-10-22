@@ -22,6 +22,34 @@ export function indexNowPingAllowed(env: IndexNowEnv = process.env): boolean {
   return env.VERCEL_ENV === "production" && !!env.INDEXNOW_API_KEY;
 }
 
+/** TUL-1777: the same URL is pinged at most once per window (a burst of publishes of one page is one ping). */
+export const INDEXNOW_DEBOUNCE_MS = 60_000;
+const recentPings = new Map<string, number>();
+
+/** Test hook: forget the debounce memory. */
+export function resetIndexNowDebounce(): void {
+  recentPings.clear();
+}
+
+/**
+ * TUL-1777: prod origin only. A preview/staging origin (`*.vercel.app`, `staging.*`, `qa-N.*`, localhost) is never
+ * submitted to a real search engine, whatever `VERCEL_ENV` says on the instance that built the URL.
+ */
+export function indexNowHostAllowed(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h.endsWith(".vercel.app") || h === "localhost" || h.startsWith("localhost:")) return false;
+  if (h.split(".").some((l) => l === "staging" || /^qa-\d+$/.test(l) || l === "preview")) return false;
+  return true;
+}
+
+/** Drops URLs already pinged inside the window and records the rest. Pure apart from the module map. */
+export function takeUnpinged(urls: string[], now: number = Date.now()): string[] {
+  for (const [u, at] of recentPings) if (now - at >= INDEXNOW_DEBOUNCE_MS) recentPings.delete(u);
+  const fresh = [...new Set(urls)].filter((u) => !recentPings.has(u));
+  for (const u of fresh) recentPings.set(u, now);
+  return fresh;
+}
+
 const INDEXNOW_ENDPOINT = "https://api.indexnow.org/indexnow";
 /** A slow api.indexnow.org must never hang a publish click (TUL-589 fix round). */
 export const INDEXNOW_TIMEOUT_MS = 3000;
@@ -58,6 +86,10 @@ export async function pingIndexNow(urls: string[], env: IndexNowEnv = process.en
     logServerError("seo.indexnow.ping.mixed_hosts", new Error(`IndexNow urls must share one host; got ${JSON.stringify(urls)}`));
     return;
   }
+
+  if (!indexNowHostAllowed(host)) return;
+  urls = takeUnpinged(urls);
+  if (urls.length === 0) return;
 
   const body = {
     host,
