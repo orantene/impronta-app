@@ -242,7 +242,8 @@ export function WorkspacePageView() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const el = document.querySelector(`[data-settings-section="${target.section}"]`);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        // TUL-1864: a ?focus= door lands ON the section (focus + scroll), not only beside it.
+        if (el instanceof HTMLElement) { el.focus({ preventScroll: true }); el.scrollIntoView({ behavior: "smooth", block: "start" }); }
       });
     });
   }, []);
@@ -1151,7 +1152,7 @@ export function WorkspacePageView() {
     )
   ) : (
     activeGroupData && (
-      <div data-settings-section={activeGroupData.id} className="flex flex-col gap-[14px]">
+      <div data-settings-section={activeGroupData.id} tabIndex={-1} className="flex flex-col gap-[14px] outline-none">
         {activeGroupData.frame !== "own" ? (
           <div>
             <h2 className="m-0 text-[22px]! font-semibold leading-[1.15] tracking-[-0.02em] text-admin-ink">{activeGroupData.label}</h2>
