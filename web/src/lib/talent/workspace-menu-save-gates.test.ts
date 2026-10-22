@@ -31,14 +31,17 @@ type Filter = { col: string; val: unknown };
 type FakeQuery = {
   select: (cols?: string) => FakeQuery;
   eq: (col: string, val: unknown) => FakeQuery;
+  limit: (n: number) => FakeQuery;
   maybeSingle: () => Promise<Reply>;
 };
 
-function fakeDb(rows: Row[], fail = false) {
+/** `extra` serves the other tables the gate now reads (venue_service_rules, agencies), keyed by table name. */
+function fakeDb(rows: Row[], fail = false, extra: Record<string, Row[]> = {}) {
   const reads: Filter[][] = [];
   const client = {
     from(table: string): FakeQuery {
-      assert.equal(table, "talent_offerings");
+      assert.ok(table === "talent_offerings" || table in extra || ["venue_service_rules", "agencies"].includes(table), table);
+      const source = table === "talent_offerings" ? rows : (extra[table] ?? []);
       const filters: Filter[] = [];
       const q: FakeQuery = {
         select: () => q,
@@ -46,10 +49,11 @@ function fakeDb(rows: Row[], fail = false) {
           filters.push({ col, val });
           return q;
         },
+        limit: () => q,
         maybeSingle: async () => {
-          reads.push(filters);
+          if (table === "talent_offerings") reads.push(filters);
           if (fail) return { data: null, error: { message: "boom" } };
-          return { data: rows.find((r) => filters.every((f) => r[f.col] === f.val)) ?? null, error: null };
+          return { data: source.find((r) => filters.every((f) => r[f.col] === f.val)) ?? null, error: null };
         },
       };
       return q;
@@ -302,4 +306,48 @@ test("afterMenuWrite wires the talent helpers and swallows failures", () => {
 test("the talent save uses the same currency rule (one refusal text), locale resolved from auth", () => {
   assert.match(TALENT, /const currencyRefusal = offeringCurrencyRefusal\(offering\.currency, auth\.primaryLocale\);/);
   assert.doesNotMatch(TALENT, /isTalentCurrency/);
+});
+
+
+// ---- TUL-1381 owner-side lane rule, TUL-1877 server-side reservation re-check ------------------
+
+const usLane = { agencies: [{ id: "t1", stripe_account_platform: "us" }] };
+const mxLane = { agencies: [{ id: "t1", stripe_account_platform: "mx" }] };
+
+test("TUL-1381: an MXN price on a US-lane workspace is refused with the owner sentence (en and es)", async () => {
+  const item = menuItem({ status: "draft", currency: "MXN", amountCents: 25000 });
+  const es = await workspaceOfferingSaveGate(fakeDb([], false, usLane).client, "t1", null, item, gateDeps(), "es");
+  assert.deepEqual(es, { ok: false, error: "Tu cuenta de cobros (EE. UU.) solo cobra en USD. Cambia el precio a USD o conecta una cuenta de México." });
+  const en = await workspaceOfferingSaveGate(fakeDb([], false, usLane).client, "t1", null, item, gateDeps(), "en");
+  assert.equal(en.ok, false);
+  assert.match(en.ok ? "" : en.error, /only charges in USD/);
+});
+
+test("TUL-1381: USD on the US lane, MXN on the MX lane, and unpriced items all save", async () => {
+  const usd = menuItem({ status: "draft", currency: "USD", amountCents: 25000 });
+  assert.deepEqual(await workspaceOfferingSaveGate(fakeDb([], false, usLane).client, "t1", null, usd, gateDeps(), "es"), { ok: true });
+  const mxn = menuItem({ status: "draft", currency: "MXN", amountCents: 25000 });
+  assert.deepEqual(await workspaceOfferingSaveGate(fakeDb([], false, mxLane).client, "t1", null, mxn, gateDeps(), "es"), { ok: true });
+  const free = menuItem({ status: "draft", currency: "MXN", amountCents: 0 });
+  assert.deepEqual(await workspaceOfferingSaveGate(fakeDb([], false, usLane).client, "t1", null, free, gateDeps(), "es"), { ok: true });
+});
+
+test("TUL-1381: a workspace whose lane cannot be read is not blocked (checkout still fails closed)", async () => {
+  const item = menuItem({ status: "draft", currency: "MXN", amountCents: 25000 });
+  assert.deepEqual(await workspaceOfferingSaveGate(fakeDb([]).client, "t1", null, item, gateDeps(), "es"), { ok: true });
+});
+
+test("TUL-1877: the reservation flag is re-read from the database, not trusted from the item", async () => {
+  const stored = { id: "m1", tenant_id: "t1", owner_kind: "workspace", status: "draft", booking_mode: "request" };
+  const item = menuItem({ id: "m1", kind: "service", status: "published", durationMinutes: null, amountCents: 1000, currency: "USD" });
+  // Client claims reservation, database disagrees: still refused for a missing length.
+  const lied = await workspaceOfferingSaveGate(fakeDb([stored], false, { venue_service_rules: [] }).client, "t1", null, { ...item, reservation: true }, gateDeps());
+  assert.equal(lied.ok, false);
+  assert.match(lied.ok ? "" : lied.error, /length/);
+  // Client does not claim it, database says it is the reservation item: publishes.
+  const real = await workspaceOfferingSaveGate(
+    fakeDb([stored], false, { venue_service_rules: [{ id: "r1", tenant_id: "t1", reservation_offering_id: "m1" }] }).client,
+    "t1", null, { ...item, reservation: false }, gateDeps(),
+  );
+  assert.deepEqual(real, { ok: true });
 });

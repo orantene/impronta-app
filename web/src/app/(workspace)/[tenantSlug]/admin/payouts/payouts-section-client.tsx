@@ -173,7 +173,7 @@ export function PayoutsSectionClient({
 }
 
 function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSurfaceData }) {
-  const { connect, baseFee, held, laneAttention } = data;
+  const { connect, baseFee, held, laneAttention, laneMismatch } = data;
   const copy = useDashboardText();
   const locale = useDashboardLocale();
   const tr = createTranslator(locale);
@@ -182,6 +182,30 @@ function PayoutsBody({ tenantSlug, data }: { tenantSlug: string; data: PayoutsSu
   return (
     <>
       {!enabled && <HeldPayoutsBanner held={held} audience="workspace" />}
+      {laneMismatch ? (
+        <div
+          data-testid="lane-currency-mismatch"
+          role="alert"
+          style={{ marginBottom: 16, padding: "12px 14px", background: C.amberSoft, border: `1px solid ${C.border}`, borderRadius: 12 }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>
+            {laneMismatch.lane === "us"
+              ? copy.t("Your payments account (US) only charges in USD. Change the price to USD or connect a Mexico account.")
+              : copy.t("Your payments account cannot charge some of your prices. Change them to MXN or USD.")}
+          </div>
+          <div style={{ fontSize: 12.5, color: C.inkMuted, marginTop: 4 }}>
+            {copy.t("Guests cannot pay for these items online yet:")}
+          </div>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 18, fontSize: 13, color: C.ink }}>
+            {laneMismatch.items.slice(0, 10).map((item) => (
+              <li key={item.id}>
+                {item.title} ({item.currency})
+              </li>
+            ))}
+            {laneMismatch.items.length > 10 ? <li>+{laneMismatch.items.length - 10}</li> : null}
+          </ul>
+        </div>
+      ) : null}
       {(laneAttention ?? []).map((row) => {
         const amount = formatDashboardMoney(row.amountCents / 100, row.currency, locale, { wholeUnits: true });
         const where =

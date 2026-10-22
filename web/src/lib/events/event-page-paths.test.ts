@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   builderPageRedirectForLinkedEvent,
   canonicalEventPath,
+  eventCardHref,
   eventPathSegmentForLocale,
   eventPathWithoutLocale,
   resolveEventPathRewrite,
@@ -136,4 +137,24 @@ test("no link, no redirect; and never a redirect to the URL being served", () =>
     builderPageRedirectForLinkedEvent({ linkedEventSlug: SLUG, locale: "en", settings: EN_DEFAULT, requestPath: `/events/${SLUG}` }),
     null,
   );
+});
+
+test("TUL-1881: event card links keep the reader's locale on a Spanish-first venue", () => {
+  const supportedLocales = ["es", "en"];
+  assert.equal(eventCardHref({ slug: "noche", locale: "en", supportedLocales }), "/en/events/noche");
+  assert.equal(eventCardHref({ slug: "noche", locale: "es", supportedLocales }), "/eventos/noche");
+});
+
+test("TUL-1881: on an English-first venue English is unprefixed and Spanish is /es/eventos", () => {
+  const supportedLocales = ["en", "es"];
+  assert.equal(eventCardHref({ slug: "noche", locale: "en", supportedLocales }), "/events/noche");
+  assert.equal(eventCardHref({ slug: "noche", locale: "es", supportedLocales }), "/es/eventos/noche");
+});
+
+test("TUL-1881: the list page links with next/link through eventCardHref", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync("src/app/(public)/events/page.tsx", "utf8");
+  assert.match(src, /from "next\/link"/);
+  assert.match(src, /<Link href=\{eventCardHref\(/);
+  assert.doesNotMatch(src, /href=\{`\/events\//);
 });

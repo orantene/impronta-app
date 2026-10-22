@@ -56,3 +56,33 @@ describe("copy and wiring exist in ES and EN", () => {
     assert.match(a, /tenantScopedQuery\(sb, "talent_offerings", auth\.tenantId\)/);
   });
 });
+
+describe("reservation item published status (TUL-1880)", () => {
+  test("the slots route and the confirm action both ask whether the item is published", () => {
+    const src = read("../../app/(public)/_reserve/reserve-actions.ts");
+    assert.equal((src.match(/reservationItemPublished\(/g) ?? []).length, 2);
+    assert.match(src, /reason: "offering_not_published"/);
+    assert.match(src, /itemState === "unpublished"\) return \{ ok: false, \.\.\.NO_DATES, reason: "reservations_off" \}/);
+  });
+});
+
+import { reservationItemPublished } from "./item-published";
+
+describe("reservationItemPublished", () => {
+  const sb = (row: unknown, error: unknown = null) =>
+    ({
+      from: () => {
+        const b: Record<string, unknown> = {};
+        for (const m of ["select", "eq"]) b[m] = () => b;
+        b.maybeSingle = async () => ({ data: row, error });
+        return b;
+      },
+    }) as never;
+  test("published, draft, missing and unreadable", async () => {
+    assert.equal(await reservationItemPublished(sb({ status: "published" }), "t", "o"), "published");
+    assert.equal(await reservationItemPublished(sb({ status: "draft" }), "t", "o"), "unpublished");
+    assert.equal(await reservationItemPublished(sb(null), "t", "o"), "unpublished");
+    assert.equal(await reservationItemPublished(sb(null, { message: "down" }), "t", "o"), "unknown");
+    assert.equal(await reservationItemPublished(sb(null), "t", null), "published");
+  });
+});

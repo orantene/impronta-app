@@ -89,7 +89,7 @@ test("TUL-1270 #11: the server gate and the editor use the SAME rule (publishBlo
   assert.match(actions, /const gate = await offeringSaveGate\(admin, talentProfileId, offering\);/);
   assert.match(actions, /if \(!gate\.ok\) return gate;/);
   const gate = readFileSync(join(process.cwd(), "src/lib/talent/offering-save-gate.server.ts"), "utf8");
-  assert.match(gate, /publishBlockers\(offering, prior\?\.status,/);
+  assert.match(gate, /publishBlockers\(untrusted, prior\?\.status,/);
   assert.match(gate, /notReadyToPublishMessage\(/);
   const editor = readFileSync(join(process.cwd(), "src/components/talent/services/EditorScreen.tsx"), "utf8");
   assert.match(editor, /publishBlockers\(\{ \.\.\.item, status: "published" \}, isNew \? undefined : item\.status, defaults\?\.bookingPosture\)/);
@@ -107,4 +107,16 @@ test("TUL-1270 #11: the editor panel shows the missing list (live items get it i
   assert.match(panel, /needsLive/);
   const save = readFileSync(join(process.cwd(), "src/components/talent/services/offering-editor-save.ts"), "utf8");
   assert.match(save, /publishRefusalToSpanish\(/);
+});
+
+test("TUL-1877: the table-reservation item needs no service length", () => {
+  const item = { ...BASE, durationMinutes: null };
+  assert.deepEqual(publishReadiness(item).missing, ["length"]);
+  assert.deepEqual(publishReadiness({ ...item, reservation: true }).missing, []);
+});
+
+test("TUL-1877: the refusal is Spanish on an ES session", () => {
+  const es = notReadyToPublishMessage("Mesa", ["length"], "es");
+  assert.equal(es, "“Mesa” todavía no está lista para publicar. Le falta una duración.");
+  assert.match(notReadyToPublishMessage("Mesa", ["length"]), /still needs a length/);
 });

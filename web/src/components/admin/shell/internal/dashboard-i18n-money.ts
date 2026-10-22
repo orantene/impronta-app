@@ -181,6 +181,11 @@ export const MONEY_ES_TEXT: Record<string, string> = {
   "The payment was collected in a different country than this account. It is released automatically once the business connects its account there.":
     "El pago se cobró en un país distinto al de esta cuenta. Se libera solo cuando el negocio conecta su cuenta allí.",
   "More info": "Más información",
+  "Your payments account (US) only charges in USD. Change the price to USD or connect a Mexico account.":
+    "Tu cuenta de cobros (EE. UU.) solo cobra en USD. Cambia el precio a USD o conecta una cuenta de México.",
+  "Your payments account cannot charge some of your prices. Change them to MXN or USD.":
+    "Tu cuenta de cobros no puede cobrar algunos de tus precios. Cámbialos a MXN o USD.",
+  "Guests cannot pay for these items online yet:": "Los clientes aún no pueden pagar estos artículos en línea:",
   // Talent manual payout bank reference (ManualBankReferenceCard).
   "Bank details for manual payouts": "Datos bancarios para pagos manuales",
   "Add the bank name, the account holder and only the last 4 digits. Never enter your full account number. The workspace owner verifies it before payouts can start.":

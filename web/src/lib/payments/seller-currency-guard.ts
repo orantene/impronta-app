@@ -24,7 +24,7 @@ import { normalizeCurrencyCode } from "@/lib/inquiry/offer-currency";
 import { SELLER_CURRENCY_UNREADABLE } from "@/lib/inquiry/offer-currency-seller";
 import { logServerError } from "@/lib/server/safe-error";
 import { resolveNoReceiverTalentLane } from "@/lib/stripe/no-receiver-lane";
-import { chargeRefusalMessage } from "@/lib/payments/seller-currency-messages";
+import { chargeRefusalMessage, ownerLaneRefusalMessage } from "@/lib/payments/seller-currency-messages";
 
 export const CHARGE_CURRENCY_NOT_PRICED = "charge_currency_not_priced_currency" as const;
 export const CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE = "charge_currency_unsupported_for_lane" as const;
@@ -200,4 +200,27 @@ export async function checkTenantChargeCurrency(
     return { ok: false, code: CHARGE_CURRENCY_UNSUPPORTED_FOR_LANE, message: chargeRefusalMessage("lane", input.locale, { charge }) };
   }
   return { ok: true };
+}
+
+/**
+ * TUL-1381: the OWNER-side check, one rule with the guest-side guard (LANE_CURRENCIES). Returns the
+ * sentence to refuse a save with when the workspace's Stripe lane cannot charge `currency`, else null.
+ * A lane that cannot be read does NOT block a save (the guest-side guard still fails closed at checkout).
+ */
+export async function ownerLaneCurrencyRefusal(
+  sb: SupabaseClient | null,
+  input: { tenantId: string; currency: string | null | undefined; locale?: string | null },
+): Promise<string | null> {
+  const charge = normalizeCurrencyCode(input.currency);
+  if (!charge || !sb) return null;
+  let read: Awaited<ReturnType<typeof readLane>>;
+  try {
+    read = await readLane(sb, "agencies", input.tenantId);
+  } catch (err) {
+    logServerError("seller-currency-guard.owner_lane_threw", err);
+    return null;
+  }
+  if (!read.ok || !read.lane) return null;
+  if (LANE_CURRENCIES[read.lane].includes(charge)) return null;
+  return ownerLaneRefusalMessage(read.lane, charge, input.locale);
 }

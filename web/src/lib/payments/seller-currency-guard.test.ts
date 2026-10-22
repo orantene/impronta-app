@@ -189,3 +189,34 @@ describe("the Stripe creators run the charge-currency guard before Stripe", () =
     assert.equal(r.ok, false);
   });
 });
+
+describe("TUL-1381: a US-lane workspace selling an MXN class", () => {
+  const workspaceSale = (lane: "us" | "mx"): Rows => ({
+    booking_transactions: { order_id: "ord1", source_tenant_id: "ten1", payout_receiver_id: "pa1" },
+    orders: { currency: "MXN" },
+    payout_accounts: { owner_type: "agency", owner_id: "ten1" },
+    agencies: { stripe_account_platform: lane },
+  });
+  const mxn = { transactionId: "txn_1", currency: "MXN", locale: "es" };
+
+  it("is refused with the lane code and a Spanish sentence for the guest", async () => {
+    const r = await checkTransactionChargeCurrency(fakeSb(workspaceSale("us")), mxn);
+    assert.equal(r.ok, false);
+    if (!r.ok) {
+      assert.equal(r.code, "charge_currency_unsupported_for_lane");
+      assert.match(r.message, /MXN/);
+      assert.match(r.message, /no puede cobrar/);
+    }
+  });
+  it("the checkout result carries the code so the picker can say so instead of a generic error", async () => {
+    const r = await createCheckoutSessionForTransaction(
+      { ...checkoutInput, currency: "MXN", locale: "en" },
+      { sb: fakeSb(workspaceSale("us")), platform: "us", stripe: null },
+    );
+    assert.equal(r.ok, false);
+    if (!r.ok) assert.equal(r.code, "charge_currency_unsupported_for_lane");
+  });
+  it("the same class on the MX lane goes through the guard", async () => {
+    assert.equal((await checkTransactionChargeCurrency(fakeSb(workspaceSale("mx")), mxn)).ok, true);
+  });
+});
