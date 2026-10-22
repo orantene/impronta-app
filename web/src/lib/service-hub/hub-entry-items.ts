@@ -17,7 +17,8 @@ export const HUB_ENTRY_ITEM_PREFIX = "entry_";
 export function hubEntriesToRosterItems(entries: readonly PublicEntry[]): RosterServiceItem[] {
   return entries.map((e) => ({
     listingId: `${HUB_ENTRY_ITEM_PREFIX}${e.id}`,
-    offeringId: "",
+    // TUL-1471: only an INSTANT entry carries the offering the widget books; a request entry stays opaque.
+    offeringId: e.cta === "book" ? (e.bookOfferingId ?? "") : "",
     title: e.name.trim(),
     talentProfileId: null,
     talentName: e.who.length > 0 ? e.who.join(", ") : null,
@@ -25,7 +26,7 @@ export function hubEntriesToRosterItems(entries: readonly PublicEntry[]): Roster
     priceCents: e.currency ? e.priceCents : null,
     priceIsFrom: !!e.currency && e.priceCents != null && e.from,
     currency: e.currency ?? "",
-    bookingType: "request" as const,
+    bookingType: e.cta === "book" ? ("instant" as const) : ("request" as const),
     clientContact: "workspace" as const,
   }));
 }

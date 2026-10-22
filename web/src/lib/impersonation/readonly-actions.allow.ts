@@ -119,7 +119,7 @@ export const EXTRA_ALLOW: AllowEntry[] = [
   ["app/(public)/_reserve/reserve-actions.ts", ["loadReserveAvailability"], READ],
   ["app/(public)/directory/get-inquiry-sheet-data.ts", ["getDirectoryInquirySheetData"], READ],
   ["app/(public)/_menu/menu-board-actions.ts", ["loadLiveMenuBoard"], READ],
-  ["app/(public)/_sessions/session-picker-actions.ts", ["resolveSessionPickerOffering", "loadSessionPicker"], READ],
+  ["app/(public)/_sessions/session-picker-actions.ts", ["resolveSessionPickerOffering", "listSessionPickerOfferings", "loadSessionPicker"], READ],
   ["components/edit-chrome/theme-template-design-actions.ts", ["loadThemeTemplateDesignAction"], READ],
   ["components/builder-lab/talent-factory/talent-factory-actions.ts", ["actionLoadTalentFactory"], READ],
   ["components/marketing/welcome-actions.ts", ["loadWelcomeModel"], READ],

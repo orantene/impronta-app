@@ -47,7 +47,8 @@ export type SummaryVisit = {
 };
 
 export type AccountSummary = {
-  nextVisit: { service: string | null; dateLabel: string; timeLabel: string } | null;
+  /** `startsAtMs` + `timeZone` let the client re-format in the PAGE locale (TUL-1900). */
+  nextVisit: { service: string | null; dateLabel: string; timeLabel: string; startsAtMs?: number; timeZone?: string } | null;
   unread: number;
   balanceDue: { amountCents: number; currencyCode: string } | null;
 };
@@ -73,6 +74,16 @@ function zoned(ms: number, tz: string, locale: string, opts: Intl.DateTimeFormat
   } catch {
     return new Intl.DateTimeFormat(loc, { timeZone: "UTC", ...opts }).format(ms);
   }
+}
+
+/** Date + time labels for one instant, in the page locale and the tenant zone. */
+export function visitLabels(ms: number, timeZone: string, locale: string): { dateLabel: string; timeLabel: string } {
+  return {
+    dateLabel: zoned(ms, timeZone, locale, { weekday: "short", day: "numeric", month: "short" }),
+    timeLabel:
+      zoned(ms, timeZone, locale, { hour: "numeric", minute: "2-digit" }) +
+      (effectiveZone(timeZone) === "UTC" ? " UTC" : ""),
+  };
 }
 
 /**
@@ -103,10 +114,9 @@ export function shapeAccountSummary(input: {
     nextVisit: next
       ? {
           service: next.v.title?.trim() || null,
-          dateLabel: zoned(next.ms, input.timeZone, input.locale, { weekday: "short", day: "numeric", month: "short" }),
-          timeLabel:
-            zoned(next.ms, input.timeZone, input.locale, { hour: "numeric", minute: "2-digit" }) +
-            (effectiveZone(input.timeZone) === "UTC" ? " UTC" : ""),
+          ...visitLabels(next.ms, input.timeZone, input.locale),
+          startsAtMs: next.ms,
+          timeZone: effectiveZone(input.timeZone),
         }
       : null,
     unread: Math.max(0, Math.floor(input.unread || 0)),

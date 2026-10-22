@@ -19,12 +19,15 @@ export function AgeTermsCheckbox({
   marketingOrigin,
   invalid = false,
   errorId,
+  error,
 }: {
   locale?: string;
   /** TUL-1169: the consent is what the form error is about (aria-invalid). */
   invalid?: boolean;
   /** TUL-1169: id of the visible error line, linked with aria-describedby. */
   errorId?: string;
+  /** TUL-1169: the consent error text, shown right under the box (role=alert). */
+  error?: string;
   /** Server-resolved marketing origin for the Terms/Privacy links (TUL-750). */
   marketingOrigin: string;
 }) {
@@ -53,6 +56,7 @@ export function AgeTermsCheckbox({
     return () => form.removeEventListener("reset", reapply);
   }, []);
   return (
+    <div>
     <label
       className="flex items-start gap-2 text-[0.8125rem] leading-snug"
       style={{ color: "var(--plt-ink-soft)" }}
@@ -84,5 +88,11 @@ export function AgeTermsCheckbox({
         </Link>
       </span>
     </label>
+    {error ? (
+      <p id={errorId} role="alert" className="mt-1.5 text-[0.75rem] leading-[1.45]" style={{ color: "#9b1c14" }}>
+        {error}
+      </p>
+    ) : null}
+    </div>
   );
 }

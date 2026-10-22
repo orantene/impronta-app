@@ -215,16 +215,19 @@ export function agreedLines(item: Pick<TalentAgendaItem, "lines" | "money" | "pa
   } else {
     out.push({ id: "line-0", label: serviceLabel(item) ?? "Agreed", value: moneyText(total, currency) });
   }
-  out.push({ id: "total", label: "Total", value: moneyText(total, currency) });
+  // TUL-1906: when the client paid a Tulala service fee on top, the agreed price is a Subtotal and the
+  // fee is its own "+" line, so nobody reads the fee as included in the price. No fee, no change.
+  const feeCents = item.money.paidCents > total ? item.money.paidCents - total : 0;
+  const hasFee = item.money.paidCents > 0 && feeCents > 0;
+  out.push({ id: "total", label: hasFee ? "Subtotal" : "Total", value: moneyText(total, currency) });
   const deposit = item.money.depositCents ?? 0;
   if (deposit > 0) out.push({ id: "deposit", label: "Deposit", value: moneyText(deposit, currency) });
   // The client paid more than the agreed price: the extra is the Tulala service fee, not part of the price.
-  const extraPaid = item.money.paidCents - total;
-  if (item.money.paidCents > 0 && extraPaid > 0) {
-    out.push({ id: "service-fee", label: "Includes Tulala service fee", value: moneyText(extraPaid, currency) });
+  if (hasFee) {
+    out.push({ id: "service-fee", label: "Tulala service fee", value: `+${moneyText(feeCents, currency)}` });
   }
   if (item.money.paidCents > 0) {
-    out.push({ id: "paid", label: "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
+    out.push({ id: "paid", label: hasFee ? "Total paid" : "Paid", value: moneyText(item.money.paidCents, currency), tone: "success" });
   }
   if (item.money.dueCents > 0) {
     out.push({
@@ -292,7 +295,7 @@ export function buildAgendaListItemFromAgendaItem(item: TalentAgendaItem): Agend
         }
       : undefined,
     whenLabel,
-    whereLabel: unscheduled ? "Not set yet" : (placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : "")),
+    whereLabel: unscheduled ? "" : (placeLabelFor(item.where) ?? (item.allDay ? "Flexible timing" : "")),
     sourceLabel: item.managedBy?.name ?? item.source,
     bookingState: item.booking,
     paymentState: paymentStateOf(item),

@@ -1,6 +1,7 @@
 src/app/(public)/_services/business-service-view-dated.render.test.tsx
 src/app/(public)/_services/business-service-view.render.test.tsx
 src/app/(public)/book/book-availability.test.ts
+src/app/(public)/book/book-class-sessions.test.tsx
 src/app/(public)/book/book-no-times.test.tsx
 src/app/(public)/book/book-page-empty.test.tsx
 src/app/client/client-root-discover-origin.static.test.ts

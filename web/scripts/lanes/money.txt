@@ -47,6 +47,7 @@ src/lib/billing/pass-through-arming.test.ts
 src/lib/billing/past-due-grace-copy.test.ts
 src/lib/billing/pending-cancellation.test.ts
 src/lib/billing/plan-change-interval.test.ts
+src/lib/billing/plan-change-sync.test.ts
 src/lib/billing/plan-tier-entitlements-platform-only.static.test.ts
 src/lib/billing/platform-take-rate.test.ts
 src/lib/billing/processing-fee-payer.test.ts
@@ -141,6 +142,7 @@ src/lib/messaging/accept-offer-order-adopt.test.ts
 src/lib/messaging/extras-write-capabilities.static.test.ts
 src/lib/messaging/release-order-lines-capacity.test.ts
 src/lib/messaging/repair-duplicate-offer-orders.test.ts
+src/lib/messaging/settle-accepted-offer.test.ts
 src/lib/messaging/sheets-offer-currency.test.ts
 src/lib/money/dashboard-prices-use-dashboard-format.static.test.ts
 src/lib/money/money-page-cleanup.static.test.ts
@@ -319,8 +321,10 @@ src/lib/reservations/deposit-currency.test.ts
 src/lib/reservations/reserve-table-deposit.test.ts
 src/lib/resources/session-resource-holds.test.ts
 src/lib/reviews/collective-reviews.test.ts
+src/lib/reviews/leave-review-updated-confirmation.static.test.ts
 src/lib/reviews/private-note-audience.test.ts
 src/lib/reviews/private-note-routing.test.ts
+src/lib/reviews/resolve-review-tenant.test.ts
 src/lib/reviews/team-studio-private-notes.static.test.ts
 src/lib/rls/staff-permissions-tenant-scope.static.test.ts
 src/lib/saas/capabilityless-staff-guard.static.test.ts

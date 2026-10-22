@@ -8,9 +8,7 @@ import {
   previewTalentPlanChange,
 } from "@/app/(workspace)/[tenantSlug]/talent/settings/plan-change-actions";
 import type { PlanChangeTarget } from "@/lib/billing/duplicate-subscription";
-import { planIntentLabel } from "@/lib/onboarding/plan-intent";
-import { isKnownPlan, planDisplayNameFor } from "@/lib/access/plan-catalog";
-import { isFreeTalentTarget } from "@/lib/billing/plan-change-policy";
+import { talentPlanDisplayName } from "@/lib/onboarding/plan-intent";
 import { useDashboardLocale } from "@/i18n/use-dashboard-locale";
 
 /**
@@ -45,14 +43,9 @@ export function TalentPlanChangeModal({
       confirmTalentPlanChange(tenantSlug, planKey, interval ?? null, prorationDate, code),
     [tenantSlug, planKey, interval],
   );
-  // TUL-831: "Switch to Free" names the free plan from the catalog; paid targets keep their upgrade-modal name.
-  const name = isFreeTalentTarget(planKey)
-    ? planDisplayNameFor("talent_basic", locale)
-    : planIntentLabel({ plan: planKey as "talent_pro" | "talent_portfolio", interval }, locale);
-  const currentName = useCallback(
-    (plan: string) => (isKnownPlan(plan) ? planDisplayNameFor(plan, locale) : ""),
-    [locale],
-  );
+  // TUL-1897: one name source per locale for the target and the current plan.
+  const name = talentPlanDisplayName(planKey, locale);
+  const currentName = useCallback((plan: string) => talentPlanDisplayName(plan, locale), [locale]);
   // TUL-1914: "Keep my plan" is the existing cancel-pending action (clears cancel_at_period_end); nothing new at Stripe.
   const keepPlan = useCallback(async () => {
     const out = await cancelTalentPlanChange(tenantSlug);

@@ -6,7 +6,12 @@ export function notFoundUnnamedSite(locale: string): string {
 }
 
 /** Words on the root 404 page, platform or agency flavour. Pure. */
-export function notFoundCopy(locale: string, agencyName: string | null) {
+export function notFoundCopy(
+  locale: string,
+  agencyName: string | null,
+  /** TUL-1907: set for a signed-in visitor on the platform 404; replaces "Sign in" with a dashboard link. */
+  signedInHref: string | null = null,
+) {
   const agency = agencyName !== null;
   return {
     heading: agency
@@ -32,10 +37,15 @@ export function notFoundCopy(locale: string, agencyName: string | null) {
           label: pickLocale(locale, { en: "Send an inquiry", es: "Enviar una consulta" }),
           href: "/client/inquiries/new",
         }
-      : {
-          label: pickLocale(locale, { en: "Sign in", es: "Iniciar sesión" }),
-          href: "/login",
-        },
+      : signedInHref
+        ? {
+            label: pickLocale(locale, { en: "Go to my dashboard", es: "Ir a mi panel" }),
+            href: signedInHref,
+          }
+        : {
+            label: pickLocale(locale, { en: "Sign in", es: "Iniciar sesión" }),
+            href: "/login",
+          },
     poweredBy: pickLocale(locale, { en: "Powered by Tulala", es: "Con tecnología de Tulala" }),
   };
 }

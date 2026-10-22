@@ -9,6 +9,7 @@
  * (`startTalentUpgrade`), this only decides whether to offer the upgrade.
  */
 
+import { planDisplayNameFor } from "@/lib/access/plan-catalog";
 import { TALENT_PAID_TIER_LABEL, TALENT_PAID_TIER_LABEL_ES } from "@/lib/access/talent-tier-label";
 
 export const PAID_TALENT_PLAN_KEYS = ["talent_pro", "talent_portfolio"] as const;
@@ -60,6 +61,18 @@ export function planIntentLabel(intent: PlanIntent, locale?: string | null): str
     case "studio": return "Studio";
     case "agency": return "Agency";
   }
+}
+
+/**
+ * TUL-1897: the ONE localized name of a talent plan key, for every plan-change surface (preview, confirm sheet,
+ * pending banner). Paid talent plans read the same fixed names as the upgrade modal ("Oficina Web"); the catalog's
+ * own display name is NOT used for them because the dark-build overlay still reads "Portfolio" ("Portafolio" in es).
+ * Free reads the catalog. Unknown keys read "" (the sentence then drops the name rather than inventing one).
+ */
+export function talentPlanDisplayName(plan: string, locale?: string | null): string {
+  if (plan === "talent_portfolio" || plan === "talent_pro") return planIntentLabel({ plan, interval: "month" }, locale);
+  if (plan === "talent_basic") return planDisplayNameFor("talent_basic", locale);
+  return "";
 }
 
 /**

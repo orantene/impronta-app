@@ -321,6 +321,39 @@ export function offerCardState(offer: ClientOfferSummary, now: Date): OfferCardS
   return "sent";
 }
 
+/**
+ * TUL-1899: the live offer row is the truth, but the thread itself can already
+ * prove the guest's answer (the `offer_state` row written by accept/decline, or
+ * a paid payment tied to the offer) while the summary still reads "sent"
+ * (stale read, status written by another path). A still-open offer the thread
+ * shows as accepted or declined is drawn that way, so Accept / Decline and the
+ * "offer to review" banner go away. Terminal statuses are never overridden.
+ */
+export function reconcileOffersWithThread(
+  offers: readonly ClientOfferSummary[],
+  messages: readonly Pick<ThreadMessage, "kind" | "payload" | "internal" | "deletedAt">[],
+): readonly ClientOfferSummary[] {
+  const answered = new Map<string, "accepted" | "rejected">();
+  for (const m of messages) {
+    if (m.internal || m.deletedAt) continue;
+    const p = m.payload ?? {};
+    const id = str(p.offerId) ?? str(p.offer_id);
+    if (!id) continue;
+    if (m.kind === "offer_state") {
+      const st = str(p.offerStatus);
+      if (st === "accepted") answered.set(id, "accepted");
+      else if (st === "declined" || st === "rejected") answered.set(id, "rejected");
+    } else if (m.kind === "payment_paid" || (m.kind === "payment_request" && readPayment(m.payload).state === "paid")) {
+      answered.set(id, "accepted");
+    }
+  }
+  if (answered.size === 0) return offers;
+  return offers.map((o) => {
+    const status = answered.get(o.id);
+    return status && o.status === "sent" ? { ...o, status } : o;
+  });
+}
+
 /** The deposit the accept button names: an explicit amount wins, else pct of total, else null (accept only). */
 export function offerDepositCents(offer: Pick<ClientOfferSummary, "depositPct" | "depositCents" | "totalCents">): number | null {
   if (offer.depositCents != null && offer.depositCents > 0) return Math.round(offer.depositCents);

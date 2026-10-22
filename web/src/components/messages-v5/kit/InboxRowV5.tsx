@@ -5,6 +5,7 @@
  * metadata on the right (desktop) or folded into the state line (mobile).
  */
 
+import { useViewerTimeZone } from "@/lib/messages-v5/viewer-time";
 import { localiseEngineLine } from "@/lib/messages-v5/engine-lines";
 import { localiseInquiryName } from "@/lib/messaging/inquiry-name-pure";
 import type { InboxRow } from "@/lib/messaging/types";
@@ -27,13 +28,14 @@ export type InboxRowV5Props = {
 };
 
 export function InboxRowV5({ row, copy, selected, variant = "desktop", currentUserId, now = new Date(), locale, onOpen, seller }: InboxRowV5Props) {
+  const zone = useViewerTimeZone(); // TUL-1909
   const name = row.contactName.trim() || copy.inbox.visitor;
   const isVisitor = !row.contactName.trim();
   const subject = localiseInquiryName(row.subject, copy.inbox.visitor);
   const state = { conversation: row.conversationState, opportunity: row.opportunityState, records: [] };
   const stamp = row.lastCustomerMessageAt ?? row.updatedAt;
   const needsReply = row.conversationState === "needs_reply";
-  const when = needsReply && seller ? formatWaiting(stamp, now, locale) : formatWhen(stamp, now, locale);
+  const when = needsReply && seller ? formatWaiting(stamp, now, locale) : formatWhen(stamp, now, locale, zone);
   const unread = row.unread && row.unreadCount > 0;
 
   if (variant === "mobile") {

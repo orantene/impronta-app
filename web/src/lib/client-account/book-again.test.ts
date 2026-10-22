@@ -85,3 +85,36 @@ test("TUL-65: visit detail offers Book again, /book honours ?service=, copy exis
     assert.doesNotMatch(m.public.clientAccountArea.bookAgain, /—/);
   }
 });
+
+// Catches: the original visit's service dropped (QA-named on a test account, request-only, roster
+// not released) so Book again opened the generic empty sheet instead of the service.
+test("TUL-65: a pinned service that cannot be booked online is preselected with the contact path", () => {
+  const offerings = [off("ok", { hasOpenTimes: true }), off("pinned", { bookingMode: "inquire", hasOpenTimes: false })];
+  const render = (locale: string, id?: string, list = offerings) =>
+    renderToStaticMarkup(createElement(BookPageClient, { tenantSlug: "t", agencyName: "T", offerings: list, locale, initialServiceId: id, contactHref: "/contact" }));
+  const en = render("en", "pinned");
+  assert.equal(selectedOption(en), "pinned");
+  assert.match(en, /data-book-inquire-only="pinned"/);
+  assert.match(en, /not open for online booking/);
+  assert.match(en, /href="\/contact"/);
+  assert.match(render("es", "pinned"), /aún no está abierto para reservar en línea/);
+  // Alone in the list: no generic empty state.
+  const alone = render("en", "pinned", [offerings[1]]);
+  assert.doesNotMatch(alone, /data-book-empty/);
+  assert.match(alone, /data-book-inquire-only="pinned"/);
+  // Never the default when something bookable exists.
+  assert.equal(selectedOption(render("en")), "ok");
+});
+
+test("TUL-65: loader keeps the pinned service past the QA strip and the mode filter", () => {
+  const loader = read("src/lib/site-admin/server/load-book-page-offerings.ts");
+  assert.match(loader, /r\.id === pinnedId \|\| !hideTestServiceOnPublicSite/);
+  assert.match(loader, /mode !== "inquire" \|\| isPinned/);
+  assert.match(loader, /priorityId: pinnedId/);
+  assert.match(read("src/app/(public)/book/page.tsx"), /pinnedOfferingId: typeof service === "string"/);
+  for (const l of ["en", "es"]) {
+    const m = JSON.parse(read(`messages/${l}.json`));
+    assert.ok(m.public.bookPage.inquireOnly, l);
+    assert.doesNotMatch(m.public.bookPage.inquireOnly, /—/);
+  }
+});

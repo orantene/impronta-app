@@ -45,7 +45,11 @@ export function DateEditor({
   );
   const [eventDate, setEventDate] = useState<string>(initial?.eventDate ?? "");
   // A half-typed native date (02/08/yyyy) reads back as "", so track it apart.
-  const [dateIncomplete, setDateIncomplete] = useState(false);
+  const [badInput, setBadInput] = useState(false);
+  // TUL-1885 (regression of TUL-953): a half-typed date fires no change event and a disabled
+  // Confirm never blurs the field, so also reveal the error once the field was touched or the
+  // disabled Confirm was pressed. Shown whenever "exact" has no complete date yet.
+  const [touched, setTouched] = useState(false);
   const inputId = useId();
   const dateErrorId = `${inputId}-date-error`;
 
@@ -53,6 +57,7 @@ export function DateEditor({
   // save an empty exact date that renders as "Date TBD". Flexible / Not sure yet
   // carry no date, so they stay committable.
   const canConfirm = status !== "exact" || eventDate.trim().length > 0;
+  const dateIncomplete = status === "exact" && !eventDate.trim() && (badInput || touched);
 
   function handleConfirm() {
     if (!canConfirm) return;
@@ -93,10 +98,14 @@ export function DateEditor({
             type="date"
             value={eventDate}
             onChange={(e) => {
-              setDateIncomplete(e.target.validity.badInput);
+              setBadInput(e.target.validity.badInput);
               setEventDate(e.target.value);
             }}
-            onBlur={(e) => setDateIncomplete(e.target.validity.badInput)}
+            onKeyUp={(e) => setBadInput(e.currentTarget.validity.badInput)}
+            onBlur={(e) => {
+              setBadInput(e.target.validity.badInput);
+              setTouched(true);
+            }}
             aria-invalid={dateIncomplete}
             aria-describedby={dateIncomplete ? dateErrorId : undefined}
             className={a11y.focusRing}
@@ -104,7 +113,7 @@ export function DateEditor({
           />
           {dateIncomplete && (
             <p id={dateErrorId} role="alert" style={{ margin: "4px 0 0", fontSize: 12, color: "#b3261e" }}>
-              {t("public.guestChat.dateIncompleteError")}
+              {t("public.guestChat.dateIncompleteInline")}
             </p>
           )}
         </div>
@@ -113,6 +122,8 @@ export function DateEditor({
         <button type="button" style={ghostBtnStyle(C)} onClick={onCancel}>
           {t("public.guestChat.cancel")}
         </button>
+        {/* a disabled button swallows clicks: the wrapper reveals why Confirm is off */}
+        <span onClick={() => !canConfirm && setTouched(true)} style={{ display: "inline-flex" }}>
         <button
           type="button"
           disabled={!canConfirm}
@@ -128,6 +139,7 @@ export function DateEditor({
         >
           {t("public.guestChat.confirm")}
         </button>
+        </span>
       </div>
     </div>
   );

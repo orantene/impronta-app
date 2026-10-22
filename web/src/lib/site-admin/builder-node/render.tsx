@@ -1582,6 +1582,7 @@ export const BUILDER_NODE_RENDERER_CSS = `
 .site-builder-node--header-language-link{color:inherit;text-decoration:none;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.62}
 .site-builder-node--header-language-link[aria-current="true"],.site-builder-node--header-language-link[data-bn-current="true"]{opacity:1;font-weight:700}
 .site-builder-node--header-language-sep{opacity:0.4}
+@media (max-width:767px),(pointer:coarse){.site-builder-node--header-language-link{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin:-13px -9px;box-sizing:border-box}}
 .site-builder-node--sticky-scroll-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(1.5rem,4vw,3rem);width:100%;align-items:start}
 .site-builder-node--sticky-scroll[data-bn-sticky-side="media-right"] .site-builder-node--sticky-scroll-media{order:2}
 .site-builder-node--sticky-scroll-media{position:sticky;top:clamp(1.5rem,10vh,6rem);align-self:start}
