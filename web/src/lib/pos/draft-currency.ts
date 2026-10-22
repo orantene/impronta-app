@@ -30,8 +30,10 @@ export async function settleOrderCurrency(
     talentOwned: boolean;
   },
 ): Promise<OrderCurrencyResult> {
-  const offering = (input.offeringCurrency || "USD").toUpperCase();
-  const order = (input.orderCurrency || "USD").toUpperCase();
+  // Fail closed: no guessed currency on a money path (usd-literal-ban).
+  const offering = input.offeringCurrency?.trim().toUpperCase() || null;
+  if (!offering) return { ok: false, reason: "invalid", error: "This item has no price currency." };
+  const order = input.orderCurrency?.trim().toUpperCase() || null;
   if (offering === order) return { ok: true };
   if (input.talentOwned || input.lineCount > 0) {
     return { ok: false, reason: "invalid", error: "That price is in a different currency than this sale." };
