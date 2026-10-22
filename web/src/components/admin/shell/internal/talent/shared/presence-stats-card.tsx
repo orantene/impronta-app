@@ -75,12 +75,6 @@ export function TalentPresenceStatsCard() {
   const stats: TalentPresenceStats | undefined = bridgeTalentPageAnalytics?.presence;
   const es = copy.isSpanish;
   const view = presenceCardView(talentTier, stats);
-  if (view === "unavailable" && process.env.NODE_ENV !== "production") {
-    console.warn(
-      `[presence-stats-card] paid tier "${talentTier}" but no presence stats: ` +
-        (bridgeTalentPageAnalytics ? "loader returned analytics without presence (presence load failed)" : "talentPageAnalytics is null (loader failed or returned null)"),
-    );
-  }
   if (view === "locked") {
     // Plan gate: visits, sources and bookings are Pro and Max. Say so instead of showing nothing.
     return (
